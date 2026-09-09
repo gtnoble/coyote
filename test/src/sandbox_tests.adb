@@ -38,8 +38,8 @@ package body Sandbox_Tests is
    end Write_File;
 
    overriding procedure Set_Up (T : in out Test) is
-      Home : constant String := Ada.Directories.Current_Directory
-        & "/sandbox_test_home";
+      Home        : constant String :=
+        Ada.Directories.Current_Directory & "/sandbox_test_home";
       Sandbox_Dir : constant String := Home & "/.coyote/sandbox";
    begin
       if not Ada.Directories.Exists (Sandbox_Dir) then
@@ -52,9 +52,7 @@ package body Sandbox_Tests is
    overriding procedure Tear_Down (T : in out Test) is
       Home : constant String := To_String (T.Temp_Home);
    begin
-      if Home'Length > 0
-        and then Ada.Directories.Exists (Home)
-      then
+      if Home'Length > 0 and then Ada.Directories.Exists (Home) then
          Ada.Directories.Delete_Tree (Home);
       end if;
    end Tear_Down;
@@ -87,11 +85,10 @@ package body Sandbox_Tests is
       Dir  : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Path : constant String := Dir & "/test1.json";
    begin
-      Write_File (Path,
-                  "{""allowWrite"":[],"
-                  & """denyWrite"":[],"
-                  & """denyRead"":[],"
-                  & """allowRead"":[]}");
+      Write_File
+        (Path,
+         "{""allowWrite"":[]," & """denyWrite"":[]," & """denyRead"":[],"
+         & """allowRead"":[]}");
 
       declare
          Profiles : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
@@ -102,8 +99,7 @@ package body Sandbox_Tests is
             "Available_Profiles should find test1 profile");
          Assert
            (Profiles.First_Element = "test1",
-            "First profile should be 'test1', got: "
-            & Profiles.First_Element);
+            "First profile should be 'test1', got: " & Profiles.First_Element);
       end;
    end Test_Available_Profiles_Found;
 
@@ -167,29 +163,39 @@ package body Sandbox_Tests is
    procedure Test_Profile_Name_Validation (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile_1-2.0"),
-              "valid profile name should be accepted");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (""),
-              "empty profile name should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("."),
-              "dot profile name should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (".."),
-              "dot-dot profile name should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("a/b"),
-              "slash in profile name should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("a\\b"),
-              "backslash in profile name should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (" profile"),
-              "leading whitespace should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile "),
-              "trailing whitespace should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile!"),
-              "unsupported punctuation should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("---"),
-              "name without an alphanumeric should be rejected");
-      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name
-                ("profile" & ASCII.LF),
-              "control character should be rejected");
+      Assert
+        (LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile_1-2.0"),
+         "valid profile name should be accepted");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (""),
+         "empty profile name should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("."),
+         "dot profile name should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (".."),
+         "dot-dot profile name should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("a/b"),
+         "slash in profile name should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("a\\b"),
+         "backslash in profile name should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (" profile"),
+         "leading whitespace should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile "),
+         "trailing whitespace should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile!"),
+         "unsupported punctuation should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("---"),
+         "name without an alphanumeric should be rejected");
+      Assert
+        (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile" & ASCII.LF),
+         "control character should be rejected");
    end Test_Profile_Name_Validation;
 
    procedure Test_Profile_Typed_Save_Load (T : in out Test) is
@@ -204,16 +210,21 @@ package body Sandbox_Tests is
          Loaded : constant LLM.Tools.Sandbox.Profile :=
            LLM.Tools.Sandbox.Load_Profile_Typed ("typed-round-trip");
       begin
-         Assert (Loaded.Allow_Write.Length = 1,
-                 "typed round trip should preserve allowWrite count");
-         Assert (Loaded.Allow_Write.First_Element = "/tmp",
-                 "typed round trip should preserve allowWrite value");
-         Assert (Loaded.Deny_Read.First_Element = "/etc",
-                 "typed round trip should preserve denyRead value");
-         Assert (Loaded.Allow_Read.First_Element = "./relative",
-                 "typed round trip should preserve relative path spelling");
-         Assert (Loaded.Deny_Write.Is_Empty,
-                 "typed round trip should preserve empty denyWrite");
+         Assert
+           (Loaded.Allow_Write.Length = 1,
+            "typed round trip should preserve allowWrite count");
+         Assert
+           (Loaded.Allow_Write.First_Element = "/tmp",
+            "typed round trip should preserve allowWrite value");
+         Assert
+           (Loaded.Deny_Read.First_Element = "/etc",
+            "typed round trip should preserve denyRead value");
+         Assert
+           (Loaded.Allow_Read.First_Element = "./relative",
+            "typed round trip should preserve relative path spelling");
+         Assert
+           (Loaded.Deny_Write.Is_Empty,
+            "typed round trip should preserve empty denyWrite");
       end;
    end Test_Profile_Typed_Save_Load;
 
@@ -226,14 +237,18 @@ package body Sandbox_Tests is
          Loaded : constant LLM.Tools.Sandbox.Profile :=
            LLM.Tools.Sandbox.Load_Profile_Typed ("optional-arrays");
       begin
-         Assert (Loaded.Allow_Write.Length = 1,
-                 "present optional array should load");
-         Assert (Loaded.Deny_Write.Is_Empty,
-                 "omitted denyWrite should default empty");
-         Assert (Loaded.Deny_Read.Is_Empty,
-                 "omitted denyRead should default empty");
-         Assert (Loaded.Allow_Read.Is_Empty,
-                 "omitted allowRead should default empty");
+         Assert
+           (Loaded.Allow_Write.Length = 1,
+            "present optional array should load");
+         Assert
+           (Loaded.Deny_Write.Is_Empty,
+            "omitted denyWrite should default empty");
+         Assert
+           (Loaded.Deny_Read.Is_Empty,
+            "omitted denyRead should default empty");
+         Assert
+           (Loaded.Allow_Read.Is_Empty,
+            "omitted allowRead should default empty");
       end;
    end Test_Profile_Optional_Arrays_Default_Empty;
 
@@ -250,18 +265,18 @@ package body Sandbox_Tests is
          Loaded : constant LLM.Tools.Sandbox.Profile :=
            LLM.Tools.Sandbox.Load_Profile_Typed ("edit-profile");
       begin
-         Assert (Loaded.Allow_Write.Is_Empty,
-                 "edit should replace the old allowWrite rules");
-         Assert (Loaded.Allow_Read.First_Element = "/dev",
-                 "edit should write the replacement profile");
+         Assert
+           (Loaded.Allow_Write.Is_Empty,
+            "edit should replace the old allowWrite rules");
+         Assert
+           (Loaded.Allow_Read.First_Element = "/dev",
+            "edit should write the replacement profile");
       end;
    end Test_Profile_Edit_Replaces;
 
-   procedure Test_Profile_Copy_Independence_And_Collision
-     (T : in out Test)
-   is
-      Source : LLM.Tools.Sandbox.Profile;
-      Changed : LLM.Tools.Sandbox.Profile;
+   procedure Test_Profile_Copy_Independence_And_Collision (T : in out Test) is
+      Source    : LLM.Tools.Sandbox.Profile;
+      Changed   : LLM.Tools.Sandbox.Profile;
       Collision : Boolean := False;
    begin
       Source.Allow_Write.Append ("/tmp");
@@ -275,10 +290,12 @@ package body Sandbox_Tests is
          Copied : constant LLM.Tools.Sandbox.Profile :=
            LLM.Tools.Sandbox.Load_Profile_Typed ("copy-target");
       begin
-         Assert (Copied.Allow_Write.First_Element = "/tmp",
-                 "copy should retain the source definition");
-         Assert (Copied.Deny_Read.Is_Empty,
-                 "copy should be independent of later source edits");
+         Assert
+           (Copied.Allow_Write.First_Element = "/tmp",
+            "copy should retain the source definition");
+         Assert
+           (Copied.Deny_Read.Is_Empty,
+            "copy should be independent of later source edits");
       end;
 
       begin
@@ -304,10 +321,12 @@ package body Sandbox_Tests is
          New_Profile : constant LLM.Tools.Sandbox.Profile :=
            LLM.Tools.Sandbox.Load_Profile_Typed ("rename-new");
       begin
-         Assert (Old_Profile.Allow_Read.First_Element = "/usr",
-                 "rename should retain the old profile definition");
-         Assert (New_Profile.Allow_Read.First_Element = "/usr",
-                 "rename should create the new profile definition");
+         Assert
+           (Old_Profile.Allow_Read.First_Element = "/usr",
+            "rename should retain the old profile definition");
+         Assert
+           (New_Profile.Allow_Read.First_Element = "/usr",
+            "rename should create the new profile definition");
       end;
 
       begin
@@ -347,17 +366,17 @@ package body Sandbox_Tests is
             Failed := True;
       end;
 
-      Assert (Failed,
-              "Build_Bwrap_Args should fail closed for a missing profile");
+      Assert
+        (Failed, "Build_Bwrap_Args should fail closed for a missing profile");
    end Test_Bbuild_Non_Existent_Profile;
 
    procedure Test_Bbuild_Allow_Write (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/allow_write.json";
-      Base   : constant String :=
+      Base      : constant String :=
         Ada.Directories.Current_Directory & "/sandbox_test_home";
-      Tmp    : constant String := Base & "/scratch";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Tmp       : constant String := Base & "/scratch";
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Ada.Directories.Create_Path (Tmp);
 
@@ -381,19 +400,18 @@ package body Sandbox_Tests is
    end Test_Bbuild_Allow_Write;
 
    procedure Test_Bbuild_Deny_Write (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/deny_write.json";
-      Base   : constant String :=
+      Base      : constant String :=
         Ada.Directories.Current_Directory & "/sandbox_test_home";
-      Tmp    : constant String := Base & "/scratch";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Tmp       : constant String := Base & "/scratch";
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Ada.Directories.Create_Path (Tmp);
 
       Write_File
         (Prof_Path,
-         "{""allowWrite"":[],"
-         & """denyWrite"":[""" & Tmp & """],"
+         "{""allowWrite"":[]," & """denyWrite"":[""" & Tmp & """],"
          & """denyRead"":[],""allowRead"":[]}");
 
       declare
@@ -411,12 +429,12 @@ package body Sandbox_Tests is
    end Test_Bbuild_Deny_Write;
 
    procedure Test_Bbuild_Allow_Read (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/allow_read.json";
-      Base   : constant String :=
+      Base      : constant String :=
         Ada.Directories.Current_Directory & "/sandbox_test_home";
-      Tmp    : constant String := Base & "/scratch";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Tmp       : constant String := Base & "/scratch";
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Ada.Directories.Create_Path (Tmp);
 
@@ -440,19 +458,19 @@ package body Sandbox_Tests is
    end Test_Bbuild_Allow_Read;
 
    procedure Test_Bbuild_Deny_Read (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/deny_read.json";
-      Base   : constant String :=
+      Base      : constant String :=
         Ada.Directories.Current_Directory & "/sandbox_test_home";
-      Tmp    : constant String := Base & "/scratch";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Tmp       : constant String := Base & "/scratch";
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Ada.Directories.Create_Path (Tmp);
 
       Write_File
         (Prof_Path,
-         "{""allowWrite"":[],""denyWrite"":[],"
-         & """denyRead"":[""" & Tmp & """],""allowRead"":[]}");
+         "{""allowWrite"":[],""denyWrite"":[]," & """denyRead"":[""" & Tmp
+         & """],""allowRead"":[]}");
 
       declare
          Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
@@ -469,9 +487,9 @@ package body Sandbox_Tests is
    end Test_Bbuild_Deny_Read;
 
    procedure Test_Bbuild_Missing_Path_Skipped (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/missing_path.json";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Write_File
         (Prof_Path,
@@ -489,29 +507,27 @@ package body Sandbox_Tests is
    end Test_Bbuild_Missing_Path_Skipped;
 
    procedure Test_Bbuild_Multiple_Rule_Types (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/multi_type.json";
-      Base   : constant String :=
+      Base      : constant String :=
         Ada.Directories.Current_Directory & "/sandbox_test_home";
-      Tmp_A  : constant String := Base & "/alpha";
-      Tmp_B  : constant String := Base & "/beta";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Tmp_A     : constant String := Base & "/alpha";
+      Tmp_B     : constant String := Base & "/beta";
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Ada.Directories.Create_Path (Tmp_A);
       Ada.Directories.Create_Path (Tmp_B);
 
       Write_File
         (Prof_Path,
-         "{""allowWrite"":[""" & Tmp_A & """],"
-         & """denyWrite"":[],"
-         & """denyRead"":[""" & Tmp_B & """],"
-         & """allowRead"":[]}");
+         "{""allowWrite"":[""" & Tmp_A & """]," & """denyWrite"":[],"
+         & """denyRead"":[""" & Tmp_B & """]," & """allowRead"":[]}");
 
       declare
-         Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+         Args       : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
            LLM.Tools.Sandbox.Build_Bwrap_Args ("multi_type", Cwd);
          Seen_Bind  : Boolean := False;
-         Seen_Tmpfs  : Boolean := False;
+         Seen_Tmpfs : Boolean := False;
       begin
          Assert
            (not Args.Is_Empty,
@@ -539,29 +555,28 @@ package body Sandbox_Tests is
    end Test_Bbuild_Multiple_Rule_Types;
 
    procedure Test_Bbuild_Depth_Sorted (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/depth_sort.json";
-      Base   : constant String :=
+      Base      : constant String :=
         Ada.Directories.Current_Directory & "/sandbox_test_home";
-      Shallow : constant String := Base & "/shallow";
-      Deep    : constant String := Base & "/shallow/subdir/deep";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Shallow   : constant String := Base & "/shallow";
+      Deep      : constant String := Base & "/shallow/subdir/deep";
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Ada.Directories.Create_Path (Deep);
 
       Write_File
         (Prof_Path,
          "{""allowWrite"":[""" & Deep & """],"
-         & """denyWrite"":[],""denyRead"":[],"
-         & """allowRead"":[""" & Shallow & """]}");
+         & """denyWrite"":[],""denyRead"":[]," & """allowRead"":[""" & Shallow
+         & """]}");
 
       declare
          Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
            LLM.Tools.Sandbox.Build_Bwrap_Args ("depth_sort", Cwd);
       begin
          Assert
-           (not Args.Is_Empty,
-            "Args should not be empty for depth sort test");
+           (not Args.Is_Empty, "Args should not be empty for depth sort test");
          Assert
            (Args.First_Element = "--ro-bind",
             "First arg should be --ro-bind (shallower path), got: "
@@ -572,9 +587,9 @@ package body Sandbox_Tests is
    --  ── Path resolution tests ────────────────────────────────────────────
 
    procedure Test_Resolve_Dot_To_Cwd (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/resolve_dot.json";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Write_File
         (Prof_Path,
@@ -595,9 +610,9 @@ package body Sandbox_Tests is
    end Test_Resolve_Dot_To_Cwd;
 
    procedure Test_Resolve_Dot_Slash (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/resolve_dot_slash.json";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Write_File
         (Prof_Path,
@@ -614,8 +629,8 @@ package body Sandbox_Tests is
             & " to existing dir");
          Assert
            (Args.Contains (Cwd & "/.coyote"),
-            "Resolved path should be Cwd/.coyote, looking for: "
-            & Cwd & "/.coyote");
+            "Resolved path should be Cwd/.coyote, looking for: " & Cwd
+            & "/.coyote");
       end;
    end Test_Resolve_Dot_Slash;
 
@@ -633,8 +648,7 @@ package body Sandbox_Tests is
 
       declare
          Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
-           LLM.Tools.Sandbox.Build_Bwrap_Args
-             ("resolve_bare_relative", Cwd);
+           LLM.Tools.Sandbox.Build_Bwrap_Args ("resolve_bare_relative", Cwd);
       begin
          Assert
            (Args.Contains (Target),
@@ -657,8 +671,7 @@ package body Sandbox_Tests is
 
       declare
          Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
-           LLM.Tools.Sandbox.Build_Bwrap_Args
-             ("resolve_parent", Cwd);
+           LLM.Tools.Sandbox.Build_Bwrap_Args ("resolve_parent", Cwd);
       begin
          Assert
            (Args.Contains (Parent),
@@ -680,8 +693,7 @@ package body Sandbox_Tests is
 
       declare
          Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
-           LLM.Tools.Sandbox.Build_Bwrap_Args
-             ("resolve_parent_slash", Cwd);
+           LLM.Tools.Sandbox.Build_Bwrap_Args ("resolve_parent_slash", Cwd);
       begin
          Assert
            (Args.Contains (Parent),
@@ -693,8 +705,7 @@ package body Sandbox_Tests is
       Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/resolve_mixed.json";
       Cwd       : constant String := To_String (T.Temp_Home) & "/child";
-      Target    : constant String := To_String (T.Temp_Home)
-        & "/mixed-target";
+      Target    : constant String := To_String (T.Temp_Home) & "/mixed-target";
    begin
       Ada.Directories.Create_Path (Cwd);
       Ada.Directories.Create_Path (Target);
@@ -705,8 +716,7 @@ package body Sandbox_Tests is
 
       declare
          Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
-           LLM.Tools.Sandbox.Build_Bwrap_Args
-             ("resolve_mixed", Cwd);
+           LLM.Tools.Sandbox.Build_Bwrap_Args ("resolve_mixed", Cwd);
       begin
          Assert
            (Args.Contains (Target),
@@ -735,9 +745,9 @@ package body Sandbox_Tests is
    end Test_Resolve_Home;
 
    procedure Test_Resolve_Home_Prefix (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/resolve_home.json";
-      Home   : constant String := To_String (T.Temp_Home);
+      Home      : constant String := To_String (T.Temp_Home);
    begin
       Write_File
         (Prof_Path,
@@ -753,15 +763,15 @@ package body Sandbox_Tests is
             "Args should not be empty when '~/.coyote' resolves");
          Assert
            (Args.Contains (Home & "/.coyote"),
-            "Resolved path should be $HOME/.coyote, looking for: "
-            & Home & "/.coyote");
+            "Resolved path should be $HOME/.coyote, looking for: " & Home
+            & "/.coyote");
       end;
    end Test_Resolve_Home_Prefix;
 
    procedure Test_Resolve_Absolute_Untouched (T : in out Test) is
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/resolve_abs.json";
-      Cwd    : constant String := To_String (T.Temp_Home);
+      Cwd       : constant String := To_String (T.Temp_Home);
    begin
       Write_File
         (Prof_Path,
@@ -785,9 +795,9 @@ package body Sandbox_Tests is
 
    procedure Test_Shell_Sandbox_Allow_Write (T : in out Test) is
       pragma Unreferenced (T);
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
-      Prof_Path : constant String := Dir & "/shell_allow_write.json";
-      Result  : Unbounded_String;
+      Dir        : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path  : constant String := Dir & "/shell_allow_write.json";
+      Result     : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Error   : Boolean;
    begin
@@ -808,9 +818,10 @@ package body Sandbox_Tests is
       declare
          Output : constant String := To_String (Result);
       begin
-         Assert (not Is_Error,
-                 "Shell command under allowWrite sandbox should succeed, "
-                 & "got error: " & Output);
+         Assert
+           (not Is_Error,
+            "Shell command under allowWrite sandbox should succeed, "
+            & "got error: " & Output);
          Assert
            (Contains (Output, "write_ok"),
             "Output should contain 'write_ok', got: " & Output);
@@ -819,18 +830,16 @@ package body Sandbox_Tests is
 
    procedure Test_Shell_Sandbox_Deny_Read (T : in out Test) is
       pragma Unreferenced (T);
-      Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
-      Prof_Path : constant String := Dir & "/shell_deny_read.json";
-      Result  : Unbounded_String;
+      Dir        : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path  : constant String := Dir & "/shell_deny_read.json";
+      Result     : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Error   : Boolean;
    begin
       Write_File
         (Prof_Path,
-         "{""allowWrite"":[""/tmp""],"
-         & """denyWrite"":[],"
-         & """denyRead"":[""/etc""],"
-         & """allowRead"":[""/""]}");
+         "{""allowWrite"":[""/tmp""]," & """denyWrite"":[],"
+         & """denyRead"":[""/etc""]," & """allowRead"":[""/""]}");
 
       LLM.Tools.Shell.Execute
         (Args_Json       =>
@@ -854,20 +863,18 @@ package body Sandbox_Tests is
 
    procedure Test_Shell_Sandbox_Empty_Profile (T : in out Test) is
       pragma Unreferenced (T);
-      Result  : Unbounded_String;
+      Result     : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json       =>
-           "{""command"":""echo no_sandbox""}",
+        (Args_Json       => "{""command"":""echo no_sandbox""}",
          Result          => Result,
          Media_Type      => Media_Type,
          Is_Error        => Is_Error,
          Sandbox_Profile => "");
 
-      Assert (not Is_Error,
-              "Shell with no sandbox profile should succeed");
+      Assert (not Is_Error, "Shell with no sandbox profile should succeed");
       Assert
         (Contains (To_String (Result), "no_sandbox"),
          "Output should contain 'no_sandbox'");
@@ -887,15 +894,14 @@ package body Sandbox_Tests is
          & """denyRead"":[],""allowRead"":[]}");
 
       LLM.Tools.Shell.Execute
-        (Args_Json       =>
-           "{""command"":""sleep 10"",""timeout"":1}",
+        (Args_Json       => "{""command"":""sleep 10"",""timeout"":1}",
          Result          => Result,
          Media_Type      => Media_Type,
          Is_Error        => Is_Error,
          Sandbox_Profile => "shell_timeout");
 
-      Assert (Is_Error,
-              "sandboxed command exceeding timeout should set Is_Error");
+      Assert
+        (Is_Error, "sandboxed command exceeding timeout should set Is_Error");
       Assert
         (Contains (To_String (Result), "timed out after 1 seconds"),
          "sandboxed timeout result should contain timeout notice, got: "
@@ -951,8 +957,7 @@ package body Sandbox_Tests is
             "sandboxed abort should terminate the shell process group");
       end;
 
-      Assert (Is_Error,
-              "sandboxed aborted command should set Is_Error");
+      Assert (Is_Error, "sandboxed aborted command should set Is_Error");
       Assert
         (Contains (To_String (Result), "sandbox_abort"),
          "sandboxed abort should preserve output before termination, got: "
@@ -963,100 +968,128 @@ package body Sandbox_Tests is
          & To_String (Result));
    end Test_Shell_Sandbox_Abort;
 
-   package Sandbox_Caller is
-     new AUnit.Test_Caller (Sandbox_Tests.Test);
+   package Sandbox_Caller is new AUnit.Test_Caller (Sandbox_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Profiles_Dir returns path",
-         Sandbox_Tests.Test_Profiles_Dir_Returns_Path'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Available_Profiles empty when none exist",
-         Sandbox_Tests.Test_Available_Profiles_Empty'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Available_Profiles finds profile",
-         Sandbox_Tests.Test_Available_Profiles_Found'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Load_Profile returns object for valid profile",
-         Sandbox_Tests.Test_Load_Profile_Found'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Load_Profile returns JSON_Null for missing profile",
-         Sandbox_Tests.Test_Load_Profile_Not_Found'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Load_Profile returns JSON_Null for bad JSON",
-         Sandbox_Tests.Test_Load_Profile_Bad_Json'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args returns empty for empty profile",
-         Sandbox_Tests.Test_Bbuild_Empty_Profile'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args returns empty for non-existent profile",
-         Sandbox_Tests.Test_Bbuild_Non_Existent_Profile'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args allowWrite uses --bind",
-         Sandbox_Tests.Test_Bbuild_Allow_Write'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args denyWrite uses --ro-bind",
-         Sandbox_Tests.Test_Bbuild_Deny_Write'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args allowRead uses --ro-bind",
-         Sandbox_Tests.Test_Bbuild_Allow_Read'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args denyRead uses --tmpfs",
-         Sandbox_Tests.Test_Bbuild_Deny_Read'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args skips missing paths",
-         Sandbox_Tests.Test_Bbuild_Missing_Path_Skipped'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args handles multiple rule types",
-         Sandbox_Tests.Test_Bbuild_Multiple_Rule_Types'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args sorts by path depth",
-         Sandbox_Tests.Test_Bbuild_Depth_Sorted'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves '.' to Cwd",
-         Sandbox_Tests.Test_Resolve_Dot_To_Cwd'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves './...' relative to Cwd",
-         Sandbox_Tests.Test_Resolve_Dot_Slash'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves bare relative paths against Cwd",
-         Sandbox_Tests.Test_Resolve_Bare_Relative'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves '..' against Cwd",
-         Sandbox_Tests.Test_Resolve_Parent'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves '../...' against Cwd",
-         Sandbox_Tests.Test_Resolve_Parent_Slash'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox normalizes mixed dot and parent paths",
-         Sandbox_Tests.Test_Resolve_Mixed'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves '~' to $HOME",
-         Sandbox_Tests.Test_Resolve_Home'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox resolves '~/' prefix to $HOME",
-         Sandbox_Tests.Test_Resolve_Home_Prefix'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox passes absolute paths through unchanged",
-         Sandbox_Tests.Test_Resolve_Absolute_Untouched'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox shell allowWrite succeeds",
-         Sandbox_Tests.Test_Shell_Sandbox_Allow_Write'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox shell denyRead blocks access",
-         Sandbox_Tests.Test_Shell_Sandbox_Deny_Read'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox shell empty profile runs unsandboxed",
-         Sandbox_Tests.Test_Shell_Sandbox_Empty_Profile'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox shell timeout terminates the process group",
-         Sandbox_Tests.Test_Shell_Sandbox_Timeout'Access));
-      Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox shell abort terminates the process group",
-         Sandbox_Tests.Test_Shell_Sandbox_Abort'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Profiles_Dir returns path",
+            Sandbox_Tests.Test_Profiles_Dir_Returns_Path'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Available_Profiles empty when none exist",
+            Sandbox_Tests.Test_Available_Profiles_Empty'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Available_Profiles finds profile",
+            Sandbox_Tests.Test_Available_Profiles_Found'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Load_Profile returns object for valid profile",
+            Sandbox_Tests.Test_Load_Profile_Found'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Load_Profile returns JSON_Null for missing profile",
+            Sandbox_Tests.Test_Load_Profile_Not_Found'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Load_Profile returns JSON_Null for bad JSON",
+            Sandbox_Tests.Test_Load_Profile_Bad_Json'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args returns empty for empty profile",
+            Sandbox_Tests.Test_Bbuild_Empty_Profile'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args returns empty for non-existent profile",
+            Sandbox_Tests.Test_Bbuild_Non_Existent_Profile'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args allowWrite uses --bind",
+            Sandbox_Tests.Test_Bbuild_Allow_Write'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args denyWrite uses --ro-bind",
+            Sandbox_Tests.Test_Bbuild_Deny_Write'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args allowRead uses --ro-bind",
+            Sandbox_Tests.Test_Bbuild_Allow_Read'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args denyRead uses --tmpfs",
+            Sandbox_Tests.Test_Bbuild_Deny_Read'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args skips missing paths",
+            Sandbox_Tests.Test_Bbuild_Missing_Path_Skipped'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args handles multiple rule types",
+            Sandbox_Tests.Test_Bbuild_Multiple_Rule_Types'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox Build_Bwrap_Args sorts by path depth",
+            Sandbox_Tests.Test_Bbuild_Depth_Sorted'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves '.' to Cwd",
+            Sandbox_Tests.Test_Resolve_Dot_To_Cwd'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves './...' relative to Cwd",
+            Sandbox_Tests.Test_Resolve_Dot_Slash'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves bare relative paths against Cwd",
+            Sandbox_Tests.Test_Resolve_Bare_Relative'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves '..' against Cwd",
+            Sandbox_Tests.Test_Resolve_Parent'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves '../...' against Cwd",
+            Sandbox_Tests.Test_Resolve_Parent_Slash'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox normalizes mixed dot and parent paths",
+            Sandbox_Tests.Test_Resolve_Mixed'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves '~' to $HOME",
+            Sandbox_Tests.Test_Resolve_Home'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox resolves '~/' prefix to $HOME",
+            Sandbox_Tests.Test_Resolve_Home_Prefix'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox passes absolute paths through unchanged",
+            Sandbox_Tests.Test_Resolve_Absolute_Untouched'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox shell allowWrite succeeds",
+            Sandbox_Tests.Test_Shell_Sandbox_Allow_Write'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox shell denyRead blocks access",
+            Sandbox_Tests.Test_Shell_Sandbox_Deny_Read'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox shell empty profile runs unsandboxed",
+            Sandbox_Tests.Test_Shell_Sandbox_Empty_Profile'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox shell timeout terminates the process group",
+            Sandbox_Tests.Test_Shell_Sandbox_Timeout'Access));
+      Result.Add_Test
+        (Sandbox_Caller.Create
+           ("Sandbox shell abort terminates the process group",
+            Sandbox_Tests.Test_Shell_Sandbox_Abort'Access));
 
       return Result;
    end Suite;

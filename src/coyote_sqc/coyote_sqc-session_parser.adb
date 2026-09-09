@@ -9,7 +9,7 @@ with Ada.Containers.Hashed_Maps;
 with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Hash;
 with Ada.Text_IO;
 with GNAT.OS_Lib;
@@ -23,12 +23,10 @@ package body Coyote_SQC.Session_Parser is
 
    --  ── Low-level JSON helpers ────────────────────────────────────────────
 
-   function Get_String_Field
-     (Value : JSON_Value; Field : String) return String
+   function Get_String_Field (Value : JSON_Value; Field : String) return String
    is
    begin
-      if Value.Kind = JSON_Object_Type
-        and then Value.Has_Field (Field)
+      if Value.Kind = JSON_Object_Type and then Value.Has_Field (Field)
         and then Value.Get (Field).Kind = JSON_String_Type
       then
          return Value.Get (Field).Get;
@@ -36,12 +34,10 @@ package body Coyote_SQC.Session_Parser is
       return "";
    end Get_String_Field;
 
-   function Get_Bool_Field
-     (Value : JSON_Value; Field : String) return Boolean
+   function Get_Bool_Field (Value : JSON_Value; Field : String) return Boolean
    is
    begin
-      if Value.Kind = JSON_Object_Type
-        and then Value.Has_Field (Field)
+      if Value.Kind = JSON_Object_Type and then Value.Has_Field (Field)
         and then Value.Get (Field).Kind = JSON_Boolean_Type
       then
          return Value.Get (Field).Get;
@@ -54,8 +50,7 @@ package body Coyote_SQC.Session_Parser is
    is
       Raw : Long_Integer;
    begin
-      if Value.Kind = JSON_Object_Type
-        and then Value.Has_Field (Field)
+      if Value.Kind = JSON_Object_Type and then Value.Has_Field (Field)
         and then Value.Get (Field).Kind = JSON_Int_Type
       then
          Raw := Value.Get (Field).Get;
@@ -75,7 +70,7 @@ package body Coyote_SQC.Session_Parser is
         Ada.Calendar.Formatting.Value
           ("1970-01-01 00:00:00", Time_Zone => Time_Offset (0));
    begin
-      return Epoch_UTC + Duration (Long_Float (Ms) / 1000.0);
+      return Epoch_UTC + Duration (Long_Float (Ms) / 1_000.0);
    end Ms_To_Time;
 
    --  Parse "YYYY-MM-DDThh:mm:ss[.sss]Z".  Returns Unix epoch on error.
@@ -87,8 +82,7 @@ package body Coyote_SQC.Session_Parser is
         Ada.Calendar.Formatting.Value
           ("1970-01-01 00:00:00", Time_Zone => Time_Offset (0));
    begin
-      if S'Length < 19
-        or else (S'Length > 10 and then S (S'First + 10) /= 'T')
+      if S'Length < 19 or else (S'Length > 10 and then S (S'First + 10) /= 'T')
       then
          return Epoch_UTC;
       end if;
@@ -96,10 +90,11 @@ package body Coyote_SQC.Session_Parser is
          --  Build "YYYY-MM-DD HH:MM:SS" from "YYYY-MM-DDThh:mm:ss..."
          Img : String (1 .. 19);
       begin
-         Img (1 .. 10) := S (S'First .. S'First + 9);
-         Img (11)      := ' ';
+         Img (1 .. 10)  := S (S'First .. S'First + 9);
+         Img (11)       := ' ';
          Img (12 .. 19) := S (S'First + 11 .. S'First + 18);
-         return Ada.Calendar.Formatting.Value (Img, Time_Zone => Time_Offset (0));
+         return
+           Ada.Calendar.Formatting.Value (Img, Time_Zone => Time_Offset (0));
       end;
    exception
       when others =>
@@ -129,8 +124,8 @@ package body Coyote_SQC.Session_Parser is
          In_Space : Boolean := False;
       begin
          for I in Start .. S'Last loop
-            if S (I) = ' ' or else S (I) = ASCII.LF
-              or else S (I) = ASCII.CR or else S (I) = ASCII.HT
+            if S (I) = ' ' or else S (I) = ASCII.LF or else S (I) = ASCII.CR
+              or else S (I) = ASCII.HT
             then
                if not In_Space then
                   Append (Out_S, ' ');
@@ -149,9 +144,9 @@ package body Coyote_SQC.Session_Parser is
 
    function Encode_Cwd (Cwd : String) return String is
       Start : constant Positive :=
-        (if Cwd'Length > 0 and then Cwd (Cwd'First) = '/'
-         then Cwd'First + 1 else Cwd'First);
-      Slug  : String := Cwd (Start .. Cwd'Last);
+        (if Cwd'Length > 0 and then Cwd (Cwd'First) = '/' then Cwd'First + 1
+         else Cwd'First);
+      Slug  : String            := Cwd (Start .. Cwd'Last);
    begin
       for I in Slug'Range loop
          if Slug (I) = '/' then
@@ -171,36 +166,34 @@ package body Coyote_SQC.Session_Parser is
       Equivalent_Keys => Ada.Strings.Unbounded."=");
 
    procedure Parse_File
-     (Path    :     String;
-      Session : out Session_Record;
-      Ok      : out Boolean)
+     (Path : String; Session : out Session_Record; Ok : out Boolean)
    is
       use Ada.Calendar;
 
       Epoch : constant Ada.Calendar.Time :=
-        Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
+        Ada.Calendar.Time_Of (1_970, 1, 1, 0.0);
 
-      File    : Ada.Text_IO.File_Type;
-      Line    : String (1 .. 65536);
-      Last    : Natural;
-      Is_V3   : Boolean := False;
-      Has_Hdr : Boolean := False;
+      File     : Ada.Text_IO.File_Type;
+      Line     : String (1 .. 65_536);
+      Last     : Natural;
+      Is_V3    : Boolean := False;
+      Has_Hdr  : Boolean := False;
       Got_User : Boolean := False;
 
       Last_Model : Unbounded_String;
       TC_Map     : TC_Index_Maps.Map;
 
       procedure Process_Assistant_Msg (Msg : JSON_Value) is
-         Turn      : Turn_Record;
-         Usage_Obj : JSON_Value;
+         Turn              : Turn_Record;
+         Usage_Obj         : JSON_Value;
          Thinking_Char_Sum : Natural := 0;
       begin
          if Msg.Kind /= JSON_Object_Type then
             return;
          end if;
          TC_Map.Clear;
-         Usage_Obj := (if Msg.Has_Field ("usage")
-                       then Msg.Get ("usage") else JSON_Null);
+         Usage_Obj            :=
+           (if Msg.Has_Field ("usage") then Msg.Get ("usage") else JSON_Null);
          Turn.Turn_Index      := Natural (Session.Turns.Length) + 1;
          Turn.Input_Tokens    := Get_Natural_Field (Usage_Obj, "input");
          Turn.Output_Tokens   := Get_Natural_Field (Usage_Obj, "output");
@@ -216,7 +209,7 @@ package body Coyote_SQC.Session_Parser is
                   declare
                      Block      : constant JSON_Value :=
                        GNATCOLL.JSON.Get (Content, I);
-                     Block_Type : constant String :=
+                     Block_Type : constant String     :=
                        Get_String_Field (Block, "type");
                   begin
                      if Block_Type = "thinking" then
@@ -235,14 +228,20 @@ package body Coyote_SQC.Session_Parser is
                                (Get_String_Field (Block, "name"));
                            declare
                               Arguments : constant JSON_Value :=
-                                (if Block.Has_Field ("arguments")
-                                 then Block.Get ("arguments")
+                                (if
+                                   Block.Has_Field ("arguments")
+                                 then
+                                   Block.Get ("arguments")
                                  else JSON_Null);
-                              Args_Str  : constant String :=
-                                (if Arguments.Kind = JSON_Object_Type
-                                 then Write (Arguments)
-                                 elsif Arguments.Kind = JSON_String_Type
-                                 then String'(Arguments.Get)
+                              Args_Str  : constant String     :=
+                                (if
+                                   Arguments.Kind = JSON_Object_Type
+                                 then
+                                   Write (Arguments)
+                                 elsif
+                                   Arguments.Kind = JSON_String_Type
+                                 then
+                                   String'(Arguments.Get)
                                  else "{}");
                            begin
                               TC.Input_Tokens := Args_Str'Length / 4;
@@ -282,27 +281,28 @@ package body Coyote_SQC.Session_Parser is
             --  providers use the same definition: total tokens submitted to
             --  the model's context window.
             if Index (Last_Model, "anthropic/") = 1
-               or else Turn_Cache_Read > Turn.Input_Tokens
+              or else Turn_Cache_Read > Turn.Input_Tokens
             then
                Turn.Input_Tokens :=
                  Turn.Input_Tokens + Turn_Cache_Read + Turn_Cache_Write;
             end if;
-            Turn.Cache_Read_Tokens  := Turn_Cache_Read;
-            Turn.Cache_Write_Tokens := Turn_Cache_Write;
-            Session.Total_Input_Tokens  :=
-              Session.Total_Input_Tokens  + Turn.Input_Tokens;
-            Session.Total_Output_Tokens :=
+            Turn.Cache_Read_Tokens              := Turn_Cache_Read;
+            Turn.Cache_Write_Tokens             := Turn_Cache_Write;
+            Session.Total_Input_Tokens          :=
+              Session.Total_Input_Tokens + Turn.Input_Tokens;
+            Session.Total_Output_Tokens         :=
               Session.Total_Output_Tokens + Turn.Output_Tokens;
-            Session.Total_Cache_Read_Tokens  :=
+            Session.Total_Cache_Read_Tokens     :=
               Session.Total_Cache_Read_Tokens + Turn_Cache_Read;
-            Session.Total_Cache_Write_Tokens :=
+            Session.Total_Cache_Write_Tokens    :=
               Session.Total_Cache_Write_Tokens + Turn_Cache_Write;
             --  Uncached input = total context - cache hits - cache fills.
             Session.Total_Uncached_Input_Tokens :=
               Session.Total_Uncached_Input_Tokens
-              + (if Turn.Input_Tokens >= Turn_Cache_Read + Turn_Cache_Write
-                 then Turn.Input_Tokens - Turn_Cache_Read - Turn_Cache_Write
-                 else 0);
+              +
+              (if Turn.Input_Tokens >= Turn_Cache_Read + Turn_Cache_Write then
+                 Turn.Input_Tokens - Turn_Cache_Read - Turn_Cache_Write
+               else 0);
          end;
          Session.Turns.Append (Turn);
       end Process_Assistant_Msg;
@@ -346,11 +346,9 @@ package body Coyote_SQC.Session_Parser is
             if TC_Index_Maps.Has_Element (Cursor) then
                declare
                   Last_Idx  : constant Positive := Session.Turns.Last_Index;
-                  Last_Turn : Turn_Record :=
-                    Session.Turns.Element (Last_Idx);
-                  TC_Idx    : constant Positive :=
-                    TC_Index_Maps.Element (Cursor);
-                  TC        : Tool_Call_Record :=
+                  Last_Turn : Turn_Record := Session.Turns.Element (Last_Idx);
+                  TC_Idx : constant Positive := TC_Index_Maps.Element (Cursor);
+                  TC        : Tool_Call_Record  :=
                     Last_Turn.Tool_Calls.Element (TC_Idx);
                begin
                   TC.Output_Tokens := Result_Char_Sum / 4;
@@ -376,7 +374,7 @@ package body Coyote_SQC.Session_Parser is
             Session.First_User_Message :=
               To_Unbounded_String
                 (Clean_User_Message (Msg.Get ("content").Get));
-            Got_User := True;
+            Got_User                   := True;
             return;
          end if;
          if Msg.Get ("content").Kind = JSON_Array_Type then
@@ -395,7 +393,7 @@ package body Coyote_SQC.Session_Parser is
                           To_Unbounded_String
                             (Clean_User_Message
                                (Get_String_Field (Block, "text")));
-                        Got_User := True;
+                        Got_User                   := True;
                         return;
                      end if;
                   end;
@@ -407,9 +405,12 @@ package body Coyote_SQC.Session_Parser is
       procedure Process_Message (Msg : JSON_Value) is
          Role : constant String := Get_String_Field (Msg, "role");
       begin
-         if    Role = "assistant"  then Process_Assistant_Msg (Msg);
-         elsif Role = "toolResult" then Process_Tool_Result (Msg);
-         elsif Role = "user"       then Process_User_Msg (Msg);
+         if Role = "assistant" then
+            Process_Assistant_Msg (Msg);
+         elsif Role = "toolResult" then
+            Process_Tool_Result (Msg);
+         elsif Role = "user" then
+            Process_User_Msg (Msg);
          end if;
       end Process_Message;
 
@@ -429,7 +430,7 @@ package body Coyote_SQC.Session_Parser is
             if Root.Has_Field ("type")
               and then Get_String_Field (Root, "type") = "session"
             then
-               Is_V3 := True;
+               Is_V3              := True;
                Session.Session_Id :=
                  To_Unbounded_String (Get_String_Field (Root, "id"));
                if Root.Has_Field ("timestamp") then
@@ -469,8 +470,7 @@ package body Coyote_SQC.Session_Parser is
                           To_Unbounded_String (Provider & "/" & Model_Id);
                      end if;
                   end;
-               elsif Rec_Type = "message"
-                 and then Root.Has_Field ("message")
+               elsif Rec_Type = "message" and then Root.Has_Field ("message")
                then
                   Process_Message (Root.Get ("message"));
                end if;
@@ -499,19 +499,19 @@ package body Coyote_SQC.Session_Parser is
    begin
       Ok      := False;
       Session :=
-        (Start_Time          => Epoch,
-         Session_Id          => Null_Unbounded_String,
-         Source_Directory    => Null_Unbounded_String,
-         Model               => Null_Unbounded_String,
-         First_User_Message  => Null_Unbounded_String,
-         Total_Input_Tokens  => 0,
-         Total_Output_Tokens      => 0,
-         Total_Cache_Read_Tokens  => 0,
-         Total_Cache_Write_Tokens => 0,
+        (Start_Time                  => Epoch,
+         Session_Id                  => Null_Unbounded_String,
+         Source_Directory            => Null_Unbounded_String,
+         Model                       => Null_Unbounded_String,
+         First_User_Message          => Null_Unbounded_String,
+         Total_Input_Tokens          => 0,
+         Total_Output_Tokens         => 0,
+         Total_Cache_Read_Tokens     => 0,
+         Total_Cache_Write_Tokens    => 0,
          Total_Uncached_Input_Tokens => 0,
-         Turns               => Turn_Vectors.Empty_Vector,
-         File_Path           => Null_Unbounded_String,
-         File_Mtime          => Epoch);
+         Turns                       => Turn_Vectors.Empty_Vector,
+         File_Path                   => Null_Unbounded_String,
+         File_Mtime                  => Epoch);
 
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
       while not Ada.Text_IO.End_Of_File (File) loop
@@ -529,9 +529,8 @@ package body Coyote_SQC.Session_Parser is
                when E : others =>
                   Ada.Text_IO.Put_Line
                     (Ada.Text_IO.Standard_Error,
-                     "coyote_sqc: skipping malformed JSONL line in "
-                     & Path & ": "
-                     & Ada.Exceptions.Exception_Information (E));
+                     "coyote_sqc: skipping malformed JSONL line in " & Path
+                     & ": " & Ada.Exceptions.Exception_Information (E));
             end;
          end;
       end loop;
@@ -549,11 +548,11 @@ package body Coyote_SQC.Session_Parser is
    end Parse_File;
 
    procedure Load_Sessions
-     (Source_Directories      : String_Vectors.Vector;
-      Model_Filter            : String_Vectors.Vector;
+     (Source_Directories      :        String_Vectors.Vector;
+      Model_Filter            :        String_Vectors.Vector;
       Sessions                : in out Session_Vectors.Vector;
-      Analyze_All_Directories : Boolean := False;
-      Previous_Sessions       :  Session_Vectors.Vector :=
+      Analyze_All_Directories :        Boolean                := False;
+      Previous_Sessions       :        Session_Vectors.Vector :=
         Session_Vectors.Empty_Vector)
    is
       use Ada.Directories;
@@ -578,27 +577,29 @@ package body Coyote_SQC.Session_Parser is
                Search : Search_Type;
                Dirent : Directory_Entry_Type;
             begin
-               Start_Search (Search, Dir, "*.jsonl",
-                             (Ordinary_File => True, others => False));
+               Start_Search
+                 (Search,
+                  Dir,
+                  "*.jsonl",
+                  (Ordinary_File => True,
+                   others        => False));
                while More_Entries (Search) loop
                   Get_Next_Entry (Search, Dirent);
                   declare
-                     File_Path_S  : constant String :=
-                       Full_Name (Dirent);
+                     File_Path_S  : constant String := Full_Name (Dirent);
                      File_Mtime_V : constant Ada.Calendar.Time :=
                        Modification_Time (File_Path_S);
-                     Path_US      : constant Unbounded_String :=
+                     Path_US      : constant Unbounded_String  :=
                        To_Unbounded_String (File_Path_S);
-                     Cursor       : constant Path_Maps.Cursor :=
+                     Cursor       : constant Path_Maps.Cursor  :=
                        Path_Map.Find (Path_US);
-                     Appended     : Boolean := False;
+                     Appended     : Boolean                    := False;
                   begin
                      --  Reuse cached session when file is unchanged.
                      if Path_Maps.Has_Element (Cursor) then
                         declare
                            Old : constant Session_Record :=
-                             Previous_Sessions
-                               (Path_Maps.Element (Cursor));
+                             Previous_Sessions (Path_Maps.Element (Cursor));
                         begin
                            if Old.File_Mtime = File_Mtime_V then
                               if Model_Filter.Is_Empty then
@@ -606,8 +607,7 @@ package body Coyote_SQC.Session_Parser is
                                  Appended := True;
                               else
                                  for F of Model_Filter loop
-                                    if To_String (F) =
-                                       To_String (Old.Model)
+                                    if To_String (F) = To_String (Old.Model)
                                     then
                                        Sessions.Append (Old);
                                        Appended := True;
@@ -630,8 +630,8 @@ package body Coyote_SQC.Session_Parser is
                                  Sessions.Append (Session);
                               else
                                  for F of Model_Filter loop
-                                    if To_String (F) =
-                                       To_String (Session.Model)
+                                    if To_String (F)
+                                      = To_String (Session.Model)
                                     then
                                        Sessions.Append (Session);
                                        exit;
@@ -650,29 +650,31 @@ package body Coyote_SQC.Session_Parser is
          when E : others =>
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error,
-               "coyote_sqc: error scanning session directory "
-               & Dir & ": "
+               "coyote_sqc: error scanning session directory " & Dir & ": "
                & Ada.Exceptions.Exception_Information (E));
       end Scan_Dir;
 
    begin
       --  Build file-path → index map from Previous_Sessions for O(1) lookup.
-      for I in Previous_Sessions.First_Index .. Previous_Sessions.Last_Index loop
-         Path_Map.Include
-           (Previous_Sessions (I).File_Path, I);
+      for I in Previous_Sessions.First_Index .. Previous_Sessions.Last_Index
+      loop
+         Path_Map.Include (Previous_Sessions (I).File_Path, I);
       end loop;
 
       if Analyze_All_Directories then
          --  Enumerate every slug subdirectory under ~/.coyote/sessions/.
-         if Exists (Sessions_Root)
-           and then Kind (Sessions_Root) = Directory
+         if Exists (Sessions_Root) and then Kind (Sessions_Root) = Directory
          then
             declare
                Search : Search_Type;
                Dirent : Directory_Entry_Type;
             begin
-               Start_Search (Search, Sessions_Root, "",
-                             (Directory => True, others => False));
+               Start_Search
+                 (Search,
+                  Sessions_Root,
+                  "",
+                  (Directory => True,
+                   others    => False));
                while More_Entries (Search) loop
                   Get_Next_Entry (Search, Dirent);
                   declare
@@ -699,8 +701,7 @@ package body Coyote_SQC.Session_Parser is
          for Cwd_US of Source_Directories loop
             declare
                Cwd : constant String := To_String (Cwd_US);
-               Dir : constant String :=
-                 Sessions_Root & Encode_Cwd (Cwd) & "/";
+               Dir : constant String := Sessions_Root & Encode_Cwd (Cwd) & "/";
             begin
                Scan_Dir (Dir);
             end;

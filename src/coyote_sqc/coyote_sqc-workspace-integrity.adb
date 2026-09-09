@@ -10,9 +10,7 @@ package body Coyote_SQC.Workspace.Integrity is
    use Coyote_SQC.Data_Model;
 
    --  Build the set of session IDs present in Sessions.
-   function Present_Ids
-     (Sessions : Session_Vectors.Vector) return UUID_Set
-   is
+   function Present_Ids (Sessions : Session_Vectors.Vector) return UUID_Set is
       S : UUID_Set;
    begin
       for Sess of Sessions loop
@@ -23,7 +21,8 @@ package body Coyote_SQC.Workspace.Integrity is
 
    function Check
      (Workspace : Workspace_Record;
-      Sessions  : Session_Vectors.Vector) return Check_Result
+      Sessions  : Session_Vectors.Vector)
+      return Check_Result
    is
       Present : constant UUID_Set := Present_Ids (Sessions);
       Result  : Check_Result;
@@ -37,11 +36,10 @@ package body Coyote_SQC.Workspace.Integrity is
    end Check;
 
    procedure Remove_Missing
-     (Workspace : in out Workspace_Record;
-      Sessions  :        Session_Vectors.Vector)
+     (Workspace : in out Workspace_Record; Sessions : Session_Vectors.Vector)
    is
-      Present  : constant UUID_Set := Present_Ids (Sessions);
-      To_Keep  : UUID_Set;
+      Present : constant UUID_Set := Present_Ids (Sessions);
+      To_Keep : UUID_Set;
    begin
       for Id of Workspace.Setup_Session_Ids loop
          if Present.Contains (Id) then

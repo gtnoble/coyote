@@ -10,32 +10,30 @@ package body Coyote_Process_Control is
    use type Ada.Real_Time.Time_Span;
    use type Interfaces.C.int;
 
+   function C_Signal_Install return Interfaces.C.int with
+     Import, Convention => C, External_Name => "coyote_signal_install";
 
-   function C_Signal_Install return Interfaces.C.int
-     with Import, Convention => C,
-       External_Name => "coyote_signal_install";
-
-   function C_Signal_Read return Interfaces.C.int
-     with Import, Convention => C,
-       External_Name => "coyote_signal_read";
+   function C_Signal_Read return Interfaces.C.int with
+     Import, Convention => C, External_Name => "coyote_signal_read";
 
    function C_Signal_Group_Tree
      (Pid    : Interfaces.C.int;
-      Signal : Interfaces.C.int) return Interfaces.C.int
-     with Import, Convention => C,
-       External_Name => "coyote_signal_group_tree";
+      Signal : Interfaces.C.int)
+      return Interfaces.C.int with
+     Import, Convention => C, External_Name => "coyote_signal_group_tree";
 
    MAX_GROUPS : constant Positive := 128;
    subtype Group_Index is Positive range 1 .. MAX_GROUPS;
-   type Group_Array is array (Group_Index) of Integer;
+   type Group_Array is
+     array (Group_Index)
+     of Integer;
 
    protected type Controller is
       function Signal_Count return Natural;
       procedure Set_Grace_Seconds (Value : Natural);
       function Grace_Seconds return Natural;
       procedure Begin_Launch (Accepted : out Boolean);
-      procedure Complete_Launch
-        (Pid : Integer; Needs_Signal : out Boolean);
+      procedure Complete_Launch (Pid : Integer; Needs_Signal : out Boolean);
       procedure Cancel_Launch;
       entry Wait_For_Launches;
       entry Wait_For_Groups;
@@ -44,23 +42,21 @@ package body Coyote_Process_Control is
       procedure Stop_Monitor;
       function Monitor_Should_Stop return Boolean;
 
-      procedure Get_Groups
-        (Values : out Group_Array;
-         Count  : out Natural);
+      procedure Get_Groups (Values : out Group_Array; Count : out Natural);
       procedure Unregister (Pid : Integer);
       entry Freeze_Persistence;
       procedure Begin_Persistence_Write (Accepted : out Boolean);
       procedure End_Persistence_Write;
    private
-      Launches_Active    : Natural := 0;
+      Launches_Active    : Natural     := 0;
       Groups             : Group_Array := (others => 0);
-      Group_Count        : Natural := 0;
-      Shutdown           : Boolean := False;
-      Monitor_Stop       : Boolean := False;
-      Persistence_Frozen : Boolean := False;
-      Freeze_Requested   : Boolean := False;
-      Writes_Active      : Natural := 0;
-      Grace              : Natural := 2;
+      Group_Count        : Natural     := 0;
+      Shutdown           : Boolean     := False;
+      Monitor_Stop       : Boolean     := False;
+      Persistence_Frozen : Boolean     := False;
+      Freeze_Requested   : Boolean     := False;
+      Writes_Active      : Natural     := 0;
+      Grace              : Natural     := 2;
    end Controller;
 
    protected body Controller is
@@ -90,23 +86,20 @@ package body Coyote_Process_Control is
       procedure Begin_Launch (Accepted : out Boolean) is
       begin
          Accepted :=
-           not Shutdown
-           and then Group_Count + Launches_Active < MAX_GROUPS;
+           not Shutdown and then Group_Count + Launches_Active < MAX_GROUPS;
          if Accepted then
             Launches_Active := Launches_Active + 1;
          end if;
       end Begin_Launch;
 
-      procedure Complete_Launch
-        (Pid : Integer; Needs_Signal : out Boolean)
-      is
+      procedure Complete_Launch (Pid : Integer; Needs_Signal : out Boolean) is
       begin
          if Launches_Active > 0 then
             Launches_Active := Launches_Active - 1;
          end if;
          Needs_Signal := Shutdown;
          if Pid > 0 and then Group_Count < MAX_GROUPS then
-            Group_Count := Group_Count + 1;
+            Group_Count                        := Group_Count + 1;
             Groups (Group_Index (Group_Count)) := Pid;
          end if;
       end Complete_Launch;
@@ -130,8 +123,8 @@ package body Coyote_Process_Control is
 
       procedure Begin_Shutdown (First : out Boolean) is
       begin
-         First := not Shutdown;
-         Shutdown := True;
+         First            := not Shutdown;
+         Shutdown         := True;
          Freeze_Requested := True;
          if Writes_Active = 0 then
             Persistence_Frozen := True;
@@ -153,13 +146,10 @@ package body Coyote_Process_Control is
          return Monitor_Stop;
       end Monitor_Should_Stop;
 
-      procedure Get_Groups
-        (Values : out Group_Array;
-         Count  : out Natural)
-      is
+      procedure Get_Groups (Values : out Group_Array; Count : out Natural) is
       begin
          Values := Groups;
-         Count := Group_Count;
+         Count  := Group_Count;
       end Get_Groups;
 
       procedure Unregister (Pid : Integer) is
@@ -169,9 +159,9 @@ package body Coyote_Process_Control is
          end if;
          for I in Group_Index'First .. Group_Index (Group_Count) loop
             if Groups (I) = Pid then
-               Groups (I) := Groups (Group_Count);
+               Groups (I)           := Groups (Group_Count);
                Groups (Group_Count) := 0;
-               Group_Count := Group_Count - 1;
+               Group_Count          := Group_Count - 1;
                exit;
             end if;
          end loop;
@@ -229,9 +219,7 @@ package body Coyote_Process_Control is
       State.Begin_Launch (Accepted);
    end Begin_Launch;
 
-   procedure Complete_Launch
-     (Pid : Integer; Needs_Signal : out Boolean)
-   is
+   procedure Complete_Launch (Pid : Integer; Needs_Signal : out Boolean) is
    begin
       State.Complete_Launch (Pid, Needs_Signal);
    end Complete_Launch;
@@ -264,8 +252,7 @@ package body Coyote_Process_Control is
       Wait_For_Launches;
       Signal_All (SIGTERM_Signal);
       Deadline :=
-        Ada.Real_Time.Clock
-        + Ada.Real_Time.Seconds (Integer (Grace_Seconds));
+        Ada.Real_Time.Clock + Ada.Real_Time.Seconds (Integer (Grace_Seconds));
       if not Immediate then
          loop
             Signal := Read_Signal;
@@ -308,8 +295,7 @@ package body Coyote_Process_Control is
             begin
                Ignored :=
                  C_Signal_Group_Tree
-                   (Interfaces.C.int (Values (I)),
-                    Interfaces.C.int (Signal));
+                   (Interfaces.C.int (Values (I)), Interfaces.C.int (Signal));
                pragma Unreferenced (Ignored);
             end;
          end if;

@@ -15,8 +15,12 @@ package Coyote_SQC.UI.Histogram_Canvas is
    Max_Bins : constant := 32;
 
    --  Array types used in the public API.
-   type Long_Float_Array is array (Positive range <>) of Long_Float;
-   type Bin_Count_Array  is array (1 .. Max_Bins)     of Natural;
+   type Long_Float_Array is
+     array (Positive range <>)
+     of Long_Float;
+   type Bin_Count_Array is
+     array (1 .. Max_Bins)
+     of Natural;
 
    --  Build the GtkDrawingArea widget (height request 160 px).
    --  Must be called once; the widget handle is stored internally.
@@ -57,7 +61,6 @@ package Coyote_SQC.UI.Histogram_Canvas is
       Bin_Width : out Long_Float;
       Counts    : out Bin_Count_Array);
 
-
    --  Update histogram data for a two-set overlay and queue a redraw.
    --
    --  Values_A : statistic values for Set A (blue, semi-transparent).
@@ -70,14 +73,14 @@ package Coyote_SQC.UI.Histogram_Canvas is
    --  Bin boundaries are computed from the pooled (Values_A & Values_B) sample
    --  using the Freedman-Diaconis rule; both sets share the same bins.
    procedure Refresh_Two_Set
-     (Values_A  : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
-      Values_B  : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
-      CL        : Long_Float;
-      UCL       : Long_Float;
-      Has_UCL   : Boolean;
-      LCL       : Long_Float;
-      Has_LCL   : Boolean;
-      X_Label   : String;
-      Has_Data  : Boolean);
+     (Values_A : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+      Values_B : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+      CL       : Long_Float;
+      UCL      : Long_Float;
+      Has_UCL  : Boolean;
+      LCL      : Long_Float;
+      Has_LCL  : Boolean;
+      X_Label  : String;
+      Has_Data : Boolean);
 
 end Coyote_SQC.UI.Histogram_Canvas;

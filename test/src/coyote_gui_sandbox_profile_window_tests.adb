@@ -29,7 +29,8 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
 
    function Display_Detected return Boolean is
    begin
-      return Ada.Environment_Variables.Exists ("DISPLAY")
+      return
+        Ada.Environment_Variables.Exists ("DISPLAY")
         or else Ada.Environment_Variables.Exists ("WAYLAND_DISPLAY");
    exception
       when others =>
@@ -76,8 +77,8 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
         (Coyote_GUI.Sandbox_Profile_Window.Is_Created (Window),
          "create must construct the profile manager");
       Assert
-        (Coyote_GUI.Sandbox_Profile_Window.Window_Title (Window) =
-           "coyote : Sandbox Profiles",
+        (Coyote_GUI.Sandbox_Profile_Window.Window_Title (Window)
+         = "coyote : Sandbox Profiles",
          "the manager must use the required title");
       Coyote_GUI.Sandbox_Profile_Window.Create
         (S               => Window,
@@ -112,7 +113,7 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
          Main_Window     => Parent.all'Access,
          Prompt_Queue    => Queue'Access,
          Target_Agent_Id => "test-agent");
-      View := Coyote_GUI.Sandbox_Profile_Window.Testing.Path_View (Window);
+      View  := Coyote_GUI.Sandbox_Profile_Window.Testing.Path_View (Window);
       Model := View.Get_Model;
       Assert (View /= null, "combined path view must exist");
       Assert
@@ -121,7 +122,7 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
       Assert
         (Gtk.Tree_Model.Get_N_Columns (Model) = 3,
          "combined model must have category, path, and rule-key columns");
-      First := View.Get_Column (0);
+      First  := View.Get_Column (0);
       Second := View.Get_Column (1);
       Assert (First /= null, "category column must exist");
       Assert (Second /= null, "path column must exist");
@@ -129,50 +130,59 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
         (First.Get_Title = "Rule category",
          "first column must identify the rule category");
       Assert
-        (Second.Get_Title = "Path",
-         "second column must display the path");
+        (Second.Get_Title = "Path", "second column must display the path");
       Assert
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Add_Path_Button
-           (Window).Get_Label = "_Add Path",
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Add_Path_Button (Window)
+           .Get_Label
+         = "_Add Path",
          "shared add button must be present");
       Assert
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Edit_Path_Button
-           (Window).Get_Label = "_Edit Selected",
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Edit_Path_Button (Window)
+           .Get_Label
+         = "_Edit Selected",
          "shared edit button must be present");
       Assert
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Remove_Path_Button
-           (Window).Get_Label = "_Remove Selected",
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Remove_Path_Button (Window)
+           .Get_Label
+         = "_Remove Selected",
          "shared remove button must be present");
       Assert
         (not Coyote_GUI.Sandbox_Profile_Window.Testing.Edit_Path_Button
-           (Window).Get_Sensitive,
+           (Window)
+           .Get_Sensitive,
          "edit must start disabled without a selected path");
       Assert
         (not Coyote_GUI.Sandbox_Profile_Window.Testing.Remove_Path_Button
-           (Window).Get_Sensitive,
+           (Window)
+           .Get_Sensitive,
          "remove must start disabled without a selected path");
       Parent.Destroy;
    end Test_Path_Editors_Use_Tree_Views;
 
-   package Sandbox_Profile_Window_Caller is
-     new AUnit.Test_Caller (Coyote_GUI_Sandbox_Profile_Window_Tests.Test);
+   package Sandbox_Profile_Window_Caller is new AUnit.Test_Caller
+     (Coyote_GUI_Sandbox_Profile_Window_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Sandbox_Profile_Window_Caller.Create
-        ("sandbox profile manager create is idempotent",
-         Coyote_GUI_Sandbox_Profile_Window_Tests
-           .Test_Create_Is_Idempotent'Access));
-      Result.Add_Test (Sandbox_Profile_Window_Caller.Create
-        ("sandbox profile names are validated",
-         Coyote_GUI_Sandbox_Profile_Window_Tests
-           .Test_Profile_Name_Validation'Access));
-      Result.Add_Test (Sandbox_Profile_Window_Caller.Create
-        ("sandbox profile path editors use tree views",
-         Coyote_GUI_Sandbox_Profile_Window_Tests
-           .Test_Path_Editors_Use_Tree_Views'Access));
+      Result.Add_Test
+        (Sandbox_Profile_Window_Caller.Create
+           ("sandbox profile manager create is idempotent",
+            Coyote_GUI_Sandbox_Profile_Window_Tests.Test_Create_Is_Idempotent'
+              Access));
+      Result.Add_Test
+        (Sandbox_Profile_Window_Caller.Create
+           ("sandbox profile names are validated",
+            Coyote_GUI_Sandbox_Profile_Window_Tests
+              .Test_Profile_Name_Validation'
+              Access));
+      Result.Add_Test
+        (Sandbox_Profile_Window_Caller.Create
+           ("sandbox profile path editors use tree views",
+            Coyote_GUI_Sandbox_Profile_Window_Tests
+              .Test_Path_Editors_Use_Tree_Views'
+              Access));
       return Result;
    end Suite;
 

@@ -65,7 +65,9 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    Current_Instance : access Instance := null;
 
-   type Group_Name_Array is array (Positive range <>) of Unbounded_String;
+   type Group_Name_Array is
+     array (Positive range <>)
+     of Unbounded_String;
    Group_Names : constant Group_Name_Array :=
      (To_Unbounded_String ("allow-write"),
       To_Unbounded_String ("deny-write"),
@@ -78,23 +80,19 @@ package body Coyote_GUI.Sandbox_Profile_Window is
      (List : access Gtk.List_Box.Gtk_List_Box_Record'Class;
       Row  : not null access Gtk.List_Box_Row.Gtk_List_Box_Row_Record'Class);
 
-   procedure On_Help
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Help (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    procedure On_Close_Manager
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
-   procedure On_New
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_New (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    procedure On_Duplicate
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
-   procedure On_Use
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Use (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
-   procedure On_Save
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Save (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    procedure On_Cancel
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
@@ -102,10 +100,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    procedure On_Refresh
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
-   function Draft_Index
-     (S    : Instance;
-      Name : String) return Natural
-   is
+   function Draft_Index (S : Instance; Name : String) return Natural is
    begin
       if not S.Drafts.Is_Empty then
          for Index in S.Drafts.First_Index .. S.Drafts.Last_Index loop
@@ -118,8 +113,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Draft_Index;
 
    function Draft_Index
-     (Drafts : Draft_Vectors.Vector;
-      Name   : String) return Natural
+     (Drafts : Draft_Vectors.Vector; Name : String) return Natural
    is
    begin
       if not Drafts.Is_Empty then
@@ -134,11 +128,13 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    function Profile_Equal
      (Left  : LLM.Tools.Sandbox.Profile;
-      Right : LLM.Tools.Sandbox.Profile) return Boolean
+      Right : LLM.Tools.Sandbox.Profile)
+      return Boolean
    is
       function Vectors_Equal
         (A : LLM.Tools.Sandbox.String_Vectors.Vector;
-         B : LLM.Tools.Sandbox.String_Vectors.Vector) return Boolean
+         B : LLM.Tools.Sandbox.String_Vectors.Vector)
+         return Boolean
       is
       begin
          if A.Length /= B.Length then
@@ -154,7 +150,8 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          return True;
       end Vectors_Equal;
    begin
-      return Vectors_Equal (Left.Allow_Write, Right.Allow_Write)
+      return
+        Vectors_Equal (Left.Allow_Write, Right.Allow_Write)
         and then Vectors_Equal (Left.Deny_Write, Right.Deny_Write)
         and then Vectors_Equal (Left.Deny_Read, Right.Deny_Read)
         and then Vectors_Equal (Left.Allow_Read, Right.Allow_Read);
@@ -173,10 +170,10 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Any_Dirty;
 
    procedure Show_Message
-     (S         : Instance;
-      The_Type  : Gtk.Message_Dialog.Gtk_Message_Type;
-      Buttons   : Gtk.Message_Dialog.Gtk_Buttons_Type;
-      Message   : String)
+     (S        : Instance;
+      The_Type : Gtk.Message_Dialog.Gtk_Message_Type;
+      Buttons  : Gtk.Message_Dialog.Gtk_Buttons_Type;
+      Message  : String)
    is
       Dialog   : Gtk.Message_Dialog.Gtk_Message_Dialog;
       Response : Gtk.Dialog.Gtk_Response_Type;
@@ -196,8 +193,10 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    procedure Show_Error (S : Instance; Message : String) is
    begin
       Show_Message
-        (S, Gtk.Message_Dialog.Message_Error,
-         Gtk.Message_Dialog.Buttons_Ok, Message);
+        (S,
+         Gtk.Message_Dialog.Message_Error,
+         Gtk.Message_Dialog.Buttons_Ok,
+         Message);
    end Show_Error;
 
    function Confirm_Discard (S : Instance; Message : String) return Boolean is
@@ -221,7 +220,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    is
       Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
    begin
-      Clear_Loop:
+      Clear_Loop :
       loop
          Row := List.Get_Row_At_Index (0);
          exit Clear_Loop when Row = null;
@@ -229,8 +228,9 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end loop Clear_Loop;
    end Clear_List;
 
-   type Category_Names_Array is array (Positive range <>) of
-     Unbounded_String;
+   type Category_Names_Array is
+     array (Positive range <>)
+     of Unbounded_String;
 
    Category_Names : constant Category_Names_Array :=
      (To_Unbounded_String ("Allow write"),
@@ -247,9 +247,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Category_Label;
 
    procedure Append_Path
-     (Store    : Gtk.List_Store.Gtk_List_Store;
-      Category : Natural;
-      Path     : String)
+     (Store : Gtk.List_Store.Gtk_List_Store; Category : Natural; Path : String)
    is
       Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
    begin
@@ -261,21 +259,26 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    procedure Append_Profile_Path
      (Profile  : in out LLM.Tools.Sandbox.Profile;
-      Category : Natural;
-      Path     : String)
+      Category :        Natural;
+      Path     :        String)
    is
    begin
       case Category is
-         when 1 => Profile.Allow_Write.Append (Path);
-         when 2 => Profile.Deny_Write.Append (Path);
-         when 3 => Profile.Deny_Read.Append (Path);
-         when 4 => Profile.Allow_Read.Append (Path);
-         when others => null;
+         when 1 =>
+            Profile.Allow_Write.Append (Path);
+         when 2 =>
+            Profile.Deny_Write.Append (Path);
+         when 3 =>
+            Profile.Deny_Read.Append (Path);
+         when 4 =>
+            Profile.Allow_Read.Append (Path);
+         when others =>
+            null;
       end case;
    end Append_Profile_Path;
 
    procedure Get_Selected_Path
-     (S        : Instance;
+     (S        :     Instance;
       Category : out Natural;
       Path     : out Unbounded_String;
       Model    : out Gtk.Tree_Model.Gtk_Tree_Model;
@@ -285,39 +288,35 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    begin
       S.Path_View.Get_Selection.Get_Selected (Model, Iter);
       Category := 0;
-      Path := Null_Unbounded_String;
+      Path     := Null_Unbounded_String;
       if Iter /= Gtk.Tree_Model.Null_Iter then
-         Category := Natural
-           (Gtk.Tree_Model.Get_Int (Model, Iter, 2));
+         Category := Natural (Gtk.Tree_Model.Get_Int (Model, Iter, 2));
          Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
          Path := To_Unbounded_String (Glib.Values.Get_String (Value));
          Glib.Values.Unset (Value);
       end if;
    end Get_Selected_Path;
 
-   function Read_Path_List
-     (S : Instance) return LLM.Tools.Sandbox.Profile
-   is
-      Result : LLM.Tools.Sandbox.Profile;
-      Model  : constant Gtk.Tree_Model.Gtk_Tree_Model :=
-        S.Path_View.Get_Model;
-      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Value : Glib.Values.GValue;
-      Count : constant Glib.Gint := Gtk.Tree_Model.N_Children (Model);
+   function Read_Path_List (S : Instance) return LLM.Tools.Sandbox.Profile is
+      Result   : LLM.Tools.Sandbox.Profile;
+      Model : constant Gtk.Tree_Model.Gtk_Tree_Model := S.Path_View.Get_Model;
+      Iter     : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Value    : Glib.Values.GValue;
+      Count    : constant Glib.Gint := Gtk.Tree_Model.N_Children (Model);
       Category : Natural;
    begin
       if Count > 0 then
          for Index in 0 .. Count - 1 loop
-            Iter := Gtk.Tree_Model.Get_Iter_From_String
-              (Model, Ada.Strings.Fixed.Trim
-                 (Glib.Gint'Image (Index), Ada.Strings.Both));
+            Iter :=
+              Gtk.Tree_Model.Get_Iter_From_String
+                (Model,
+                 Ada.Strings.Fixed.Trim
+                   (Glib.Gint'Image (Index), Ada.Strings.Both));
             if Iter /= Gtk.Tree_Model.Null_Iter then
-               Category := Natural
-                 (Gtk.Tree_Model.Get_Int (Model, Iter, 2));
+               Category := Natural (Gtk.Tree_Model.Get_Int (Model, Iter, 2));
                Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
                declare
-                  Path : constant String :=
-                    Glib.Values.Get_String (Value);
+                  Path : constant String := Glib.Values.Get_String (Value);
                begin
                   Append_Profile_Path (Result, Category, Path);
                end;
@@ -329,8 +328,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Read_Path_List;
 
    procedure Fill_Path_List
-     (Store  : Gtk.List_Store.Gtk_List_Store;
-      Value  : LLM.Tools.Sandbox.Profile)
+     (Store : Gtk.List_Store.Gtk_List_Store; Value : LLM.Tools.Sandbox.Profile)
    is
    begin
       Store.Clear;
@@ -350,7 +348,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    procedure Update_Action_State (S : in out Instance) is
       Has_Selection : constant Boolean := S.Selected_Draft > 0;
-      Can_Use       : Boolean := Has_Selection;
+      Can_Use       : Boolean          := Has_Selection;
       Has_Path      : Gtk.Tree_Model.Gtk_Tree_Iter;
       Model         : Gtk.Tree_Model.Gtk_Tree_Model;
       Category      : Natural;
@@ -374,17 +372,16 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    procedure Capture_Editor (S : in out Instance) is
       Draft : Profile_Draft;
    begin
-      if S.Updating_Editor
-        or else S.Selected_Draft = 0
+      if S.Updating_Editor or else S.Selected_Draft = 0
         or else S.Drafts.Is_Empty
       then
          return;
       end if;
-      Draft := S.Drafts.Element (S.Selected_Draft);
-      Draft.Name := To_Unbounded_String (S.Name_Entry.Get_Text);
+      Draft         := S.Drafts.Element (S.Selected_Draft);
+      Draft.Name    := To_Unbounded_String (S.Name_Entry.Get_Text);
       Draft.Profile := Read_Path_List (S);
-      Draft.Dirty := Draft.Is_New
-        or else Draft.Name /= Draft.Baseline_Name
+      Draft.Dirty   :=
+        Draft.Is_New or else Draft.Name /= Draft.Baseline_Name
         or else not Profile_Equal (Draft.Profile, Draft.Baseline);
       S.Drafts.Replace_Element (S.Selected_Draft, Draft);
    end Capture_Editor;
@@ -430,8 +427,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    procedure On_Editor_Changed (Self : Gtk.Editable.Gtk_Editable) is
       pragma Unreferenced (Self);
    begin
-      if Current_Instance /= null
-        and then not Current_Instance.Updating_Editor
+      if Current_Instance /= null and then not Current_Instance.Updating_Editor
       then
          Capture_Editor (Current_Instance.all);
          Update_Profile_List_Labels (Current_Instance.all);
@@ -449,12 +445,13 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end On_Path_Selection_Changed;
 
    function Edit_Path
-     (S              : Instance;
-      Title          : String;
-      Initial        : String;
-      Initial_Category : Natural;
-      Category       : out Natural;
-      Accepted       : out Boolean) return String
+     (S                :     Instance;
+      Title            :     String;
+      Initial          :     String;
+      Initial_Category :     Natural;
+      Category         : out Natural;
+      Accepted         : out Boolean)
+      return String
    is
       Dialog       : Gtk.Dialog.Gtk_Dialog;
       Path_Field   : Gtk.GEntry.Gtk_Entry;
@@ -474,23 +471,19 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          Category_Box.Append_Text (To_String (Category_Name));
       end loop;
       Category_Box.Set_Active (Glib.Gint (Initial_Category - 1));
-      Dialog.Get_Content_Area.Pack_Start
-        (Category_Box, False, False, 8);
+      Dialog.Get_Content_Area.Pack_Start (Category_Box, False, False, 8);
       Gtk.GEntry.Gtk_New (Path_Field);
       Path_Field.Set_Text (Initial);
       Path_Field.Set_Width_Chars (48);
-      Dialog.Get_Content_Area.Pack_Start
-        (Path_Field, False, False, 8);
-      Dummy := Dialog.Add_Button
-        ("_Edit", Gtk.Dialog.Gtk_Response_OK);
-      Dummy := Dialog.Add_Button
-        ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
+      Dialog.Get_Content_Area.Pack_Start (Path_Field, False, False, 8);
+      Dummy := Dialog.Add_Button ("_Edit", Gtk.Dialog.Gtk_Response_OK);
+      Dummy := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
       pragma Unreferenced (Dummy);
       Dialog.Set_Default_Response (Gtk.Dialog.Gtk_Response_OK);
       Dialog.Show_All;
       Path_Field.Grab_Focus;
       Path_Field.Select_Region (0, -1);
-      Result := Dialog.Run;
+      Result   := Dialog.Run;
       Accepted := Result = Gtk.Dialog.Gtk_Response_OK;
       Category := Natural (Category_Box.Get_Active) + 1;
       declare
@@ -501,17 +494,16 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end;
    end Edit_Path;
 
-   procedure On_Add_Path
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   procedure On_Add_Path (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
       pragma Unreferenced (Button);
-      S          : access Instance := Current_Instance;
-      Model      : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter       : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Category   : Natural := 1;
-      Path       : Unbounded_String;
-      Selected   : Natural;
-      Accepted   : Boolean;
+      S        : access Instance := Current_Instance;
+      Model    : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter     : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Category : Natural         := 1;
+      Path     : Unbounded_String;
+      Selected : Natural;
+      Accepted : Boolean;
    begin
       if S = null then
          return;
@@ -532,17 +524,16 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end;
    end On_Add_Path;
 
-   procedure On_Edit_Path
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   procedure On_Edit_Path (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
       pragma Unreferenced (Button);
-      S          : access Instance := Current_Instance;
-      Model      : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter       : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Category   : Natural;
-      Path       : Unbounded_String;
+      S            : access Instance := Current_Instance;
+      Model        : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter         : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Category     : Natural;
+      Path         : Unbounded_String;
       New_Category : Natural;
-      Accepted   : Boolean;
+      Accepted     : Boolean;
    begin
       if S = null then
          return;
@@ -553,8 +544,13 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end if;
       declare
          New_Value : constant String :=
-           Edit_Path (S.all, "Edit Path", To_String (Path),
-                      Category, New_Category, Accepted);
+           Edit_Path
+             (S.all,
+              "Edit Path",
+              To_String (Path),
+              Category,
+              New_Category,
+              Accepted);
       begin
          if Accepted and then New_Value'Length > 0 then
             S.Path_Store.Set (Iter, 0, Category_Label (New_Category));
@@ -588,23 +584,23 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end On_Remove_Path;
 
    procedure Create_Path_View
-     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+     (Parent :     not null access Gtk.Box.Gtk_Box_Record'Class;
       View   : out Gtk.Tree_View.Gtk_Tree_View;
       Store  : out Gtk.List_Store.Gtk_List_Store)
    is
-      Frame      : Gtk.Frame.Gtk_Frame;
-      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Category_Column : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
-      Path_Column     : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+      Frame             : Gtk.Frame.Gtk_Frame;
+      Scroll            : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Category_Column   : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+      Path_Column       : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
       Category_Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
       Path_Renderer     : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
-      Selection  : Gtk.Tree_Selection.Gtk_Tree_Selection;
-      Dummy      : Glib.Gint;
+      Selection         : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Dummy             : Glib.Gint;
    begin
       Gtk.Frame.Gtk_New (Frame, "Profile paths");
       Gtk.List_Store.Gtk_New
         (Store,
-         (0 => Glib.GType_String,
+        (0  => Glib.GType_String,
           1 => Glib.GType_String,
           2 => Glib.GType_Int));
       Gtk.Tree_View.Gtk_New (View, +Store);
@@ -621,7 +617,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Path_Column.Set_Title ("Path");
       Path_Column.Pack_Start (Path_Renderer, Expand => True);
       Path_Column.Add_Attribute (Path_Renderer, "text", 1);
-      Dummy := View.Append_Column (Path_Column);
+      Dummy     := View.Append_Column (Path_Column);
       Selection := View.Get_Selection;
       Selection.Set_Mode (Gtk.Enums.Selection_Single);
       Selection.On_Changed (On_Path_Selection_Changed'Access);
@@ -645,8 +641,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          Wanted := S.Drafts.Element (S.Selected_Draft).Name;
       end if;
       S.Refreshing := True;
-      Gtk.Handlers.Handlers_Destroy
-        (Gtk.Widget.Gtk_Widget (S.Profile_List));
+      Gtk.Handlers.Handlers_Destroy (Gtk.Widget.Gtk_Widget (S.Profile_List));
       S.Profile_List.Set_Selection_Mode (Gtk.Enums.Selection_None);
       Clear_List (S.Profile_List);
       if not S.Drafts.Is_Empty then
@@ -700,12 +695,12 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       S.Drafts.Clear;
       for Name of Names loop
          begin
-            Draft.Name := To_Unbounded_String (Name);
+            Draft.Name          := To_Unbounded_String (Name);
             Draft.Baseline_Name := Draft.Name;
-            Draft.Profile := LLM.Tools.Sandbox.Load_Profile_Typed (Name);
-            Draft.Baseline := Draft.Profile;
-            Draft.Is_New := False;
-            Draft.Dirty := False;
+            Draft.Profile       := LLM.Tools.Sandbox.Load_Profile_Typed (Name);
+            Draft.Baseline      := Draft.Profile;
+            Draft.Is_New        := False;
+            Draft.Dirty         := False;
             S.Drafts.Append (Draft);
          exception
             when E : LLM.Tools.Sandbox.Sandbox_Error =>
@@ -718,13 +713,13 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Load_Persisted_Drafts;
 
    procedure Refresh_Persisted_Drafts (S : in out Instance) is
-      Names          : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+      Names         : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
         LLM.Tools.Sandbox.Available_Profiles;
-      Old_Drafts     : constant Draft_Vectors.Vector := S.Drafts;
-      New_Drafts     : Draft_Vectors.Vector;
-      Draft          : Profile_Draft;
-      Selected_Name  : Unbounded_String;
-      Old_Index      : Natural;
+      Old_Drafts    : constant Draft_Vectors.Vector := S.Drafts;
+      New_Drafts    : Draft_Vectors.Vector;
+      Draft         : Profile_Draft;
+      Selected_Name : Unbounded_String;
+      Old_Index     : Natural;
    begin
       if S.Selected_Draft > 0 and then not Old_Drafts.Is_Empty then
          Selected_Name := Old_Drafts.Element (S.Selected_Draft).Name;
@@ -735,12 +730,12 @@ package body Coyote_GUI.Sandbox_Profile_Window is
             New_Drafts.Append (Old_Drafts.Element (Old_Index));
          else
             begin
-               Draft.Name := To_Unbounded_String (Name);
+               Draft.Name          := To_Unbounded_String (Name);
                Draft.Baseline_Name := Draft.Name;
                Draft.Profile := LLM.Tools.Sandbox.Load_Profile_Typed (Name);
-               Draft.Baseline := Draft.Profile;
-               Draft.Is_New := False;
-               Draft.Dirty := False;
+               Draft.Baseline      := Draft.Profile;
+               Draft.Is_New        := False;
+               Draft.Dirty         := False;
                New_Drafts.Append (Draft);
             exception
                when E : LLM.Tools.Sandbox.Sandbox_Error =>
@@ -761,7 +756,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
             end if;
          end loop;
       end if;
-      S.Drafts := New_Drafts;
+      S.Drafts         := New_Drafts;
       S.Selected_Draft := Draft_Index (S.Drafts, To_String (Selected_Name));
    end Refresh_Persisted_Drafts;
 
@@ -786,25 +781,22 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end if;
    end On_Profile_Selected;
 
-   function Unique_Name
-     (S : Instance; Base : String) return String
-   is
+   function Unique_Name (S : Instance; Base : String) return String is
       Candidate : Unbounded_String := To_Unbounded_String (Base);
-      Suffix    : Natural := 2;
+      Suffix    : Natural          := 2;
    begin
       while Draft_Index (S, To_String (Candidate)) > 0 loop
-         Candidate := To_Unbounded_String
-           (Base & "-"
-            & Ada.Strings.Fixed.Trim
+         Candidate :=
+           To_Unbounded_String
+             (Base & "-"
+              & Ada.Strings.Fixed.Trim
                 (Natural'Image (Suffix), Ada.Strings.Both));
-         Suffix := Suffix + 1;
+         Suffix    := Suffix + 1;
       end loop;
       return To_String (Candidate);
    end Unique_Name;
 
-   procedure On_New
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
-   is
+   procedure On_New (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Item);
       Draft : Profile_Draft;
       S     : access Instance := Current_Instance;
@@ -813,9 +805,9 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          return;
       end if;
       Capture_Editor (S.all);
-      Draft.Name := To_Unbounded_String (Unique_Name (S.all, "new-profile"));
+      Draft.Name   := To_Unbounded_String (Unique_Name (S.all, "new-profile"));
       Draft.Is_New := True;
-      Draft.Dirty := True;
+      Draft.Dirty  := True;
       S.Drafts.Append (Draft);
       S.Selected_Draft := Natural (S.Drafts.Last_Index);
       Rebuild_Profile_List (S.all);
@@ -834,13 +826,14 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          return;
       end if;
       Capture_Editor (S.all);
-      Draft := S.Drafts.Element (S.Selected_Draft);
+      Draft               := S.Drafts.Element (S.Selected_Draft);
       Base := To_Unbounded_String (To_String (Draft.Name) & "-copy");
-      Draft.Name := To_Unbounded_String (Unique_Name (S.all, To_String (Base)));
+      Draft.Name          :=
+        To_Unbounded_String (Unique_Name (S.all, To_String (Base)));
       Draft.Baseline_Name := Null_Unbounded_String;
-      Draft.Baseline := LLM.Tools.Sandbox.Profile'(others => <>);
-      Draft.Is_New := True;
-      Draft.Dirty := True;
+      Draft.Baseline      := LLM.Tools.Sandbox.Profile'(others => <>);
+      Draft.Is_New        := True;
+      Draft.Dirty         := True;
       S.Drafts.Append (Draft);
       S.Selected_Draft := Natural (S.Drafts.Last_Index);
       Rebuild_Profile_List (S.all);
@@ -856,8 +849,8 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end if;
    end On_Refresh;
 
-   function Drafts_Valid (S : Instance; Message : out Unbounded_String)
-      return Boolean
+   function Drafts_Valid
+     (S : Instance; Message : out Unbounded_String) return Boolean
    is
       Result : Boolean := True;
    begin
@@ -868,27 +861,36 @@ package body Coyote_GUI.Sandbox_Profile_Window is
                  To_String (S.Drafts.Element (Left).Name);
             begin
                if not LLM.Tools.Sandbox.Is_Valid_Profile_Name (Name) then
-                  Message := To_Unbounded_String
-                    ("Invalid profile name: '" & Name & "'.");
+                  Message :=
+                    To_Unbounded_String
+                      ("Invalid profile name: '" & Name & "'.");
                   return False;
                end if;
                if S.Drafts.Element (Left).Dirty then
                   for Group_Name of Group_Names loop
                      declare
-                        Paths : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
-                          (if Group_Name = To_Unbounded_String ("allow-write")
-                           then S.Drafts.Element (Left).Profile.Allow_Write
-                           elsif Group_Name = To_Unbounded_String ("deny-write")
-                           then S.Drafts.Element (Left).Profile.Deny_Write
-                           elsif Group_Name = To_Unbounded_String ("deny-read")
-                           then S.Drafts.Element (Left).Profile.Deny_Read
+                        Paths :
+                          constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+                          (if
+                             Group_Name = To_Unbounded_String ("allow-write")
+                           then
+                             S.Drafts.Element (Left).Profile.Allow_Write
+                           elsif
+                             Group_Name = To_Unbounded_String ("deny-write")
+                           then
+                             S.Drafts.Element (Left).Profile.Deny_Write
+                           elsif
+                             Group_Name = To_Unbounded_String ("deny-read")
+                           then
+                             S.Drafts.Element (Left).Profile.Deny_Read
                            else S.Drafts.Element (Left).Profile.Allow_Read);
                      begin
                         for Path of Paths loop
                            if Path'Length = 0 then
-                              Message := To_Unbounded_String
-                                ("Empty path in " & To_String (Group_Name)
-                                 & " rules.");
+                              Message :=
+                                To_Unbounded_String
+                                  ("Empty path in " & To_String (Group_Name)
+                                   & " rules.");
                               return False;
                            end if;
                         end loop;
@@ -897,11 +899,12 @@ package body Coyote_GUI.Sandbox_Profile_Window is
                end if;
                if Left < S.Drafts.Last_Index then
                   for Right in Left + 1 .. S.Drafts.Last_Index loop
-                     if S.Drafts.Element (Right).Name =
-                       S.Drafts.Element (Left).Name
+                     if S.Drafts.Element (Right).Name
+                       = S.Drafts.Element (Left).Name
                      then
-                        Message := To_Unbounded_String
-                          ("Duplicate profile name: '" & Name & "'.");
+                        Message :=
+                          To_Unbounded_String
+                            ("Duplicate profile name: '" & Name & "'.");
                         return False;
                      end if;
                   end loop;
@@ -912,14 +915,13 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       return Result;
    end Drafts_Valid;
 
-   procedure On_Save
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   procedure On_Save (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Item);
       S       : access Instance := Current_Instance;
       Message : Unbounded_String;
-      Saved   : Natural := 0;
-      Failed  : Natural := 0;
+      Saved   : Natural         := 0;
+      Failed  : Natural         := 0;
       Errors  : Unbounded_String;
    begin
       if S = null then
@@ -945,9 +947,9 @@ package body Coyote_GUI.Sandbox_Profile_Window is
                           (To_String (Draft.Name), Draft.Profile);
                      end if;
                      Draft.Baseline_Name := Draft.Name;
-                     Draft.Baseline := Draft.Profile;
-                     Draft.Is_New := False;
-                     Draft.Dirty := False;
+                     Draft.Baseline      := Draft.Profile;
+                     Draft.Is_New        := False;
+                     Draft.Dirty         := False;
                      S.Drafts.Replace_Element (Index, Draft);
                      Saved := Saved + 1;
                   exception
@@ -969,39 +971,34 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       if Failed > 0 then
          Show_Error
            (S.all,
-            "Some profiles were not saved:" & ASCII.LF
-            & To_String (Errors));
+            "Some profiles were not saved:" & ASCII.LF & To_String (Errors));
       elsif Saved > 0 then
-         S.Status.Set_Text
-           (Natural'Image (Saved) & " profile(s) saved");
+         S.Status.Set_Text (Natural'Image (Saved) & " profile(s) saved");
       else
          S.Status.Set_Text ("No unsaved profile changes");
       end if;
    end On_Save;
 
-   procedure On_Cancel
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   procedure On_Cancel (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Item);
-      S            : access Instance := Current_Instance;
+      S             : access Instance := Current_Instance;
       Selected_Name : Unbounded_String;
-      Index        : Natural;
+      Index         : Natural;
    begin
       if S /= null then
          if S.Selected_Draft > 0 and then not S.Drafts.Is_Empty then
             Selected_Name := S.Drafts.Element (S.Selected_Draft).Name;
          end if;
          Load_Persisted_Drafts (S.all);
-         Index := Draft_Index (S.Drafts, To_String (Selected_Name));
+         Index            := Draft_Index (S.Drafts, To_String (Selected_Name));
          S.Selected_Draft := Index;
          Rebuild_Profile_List (S.all);
          S.Status.Set_Text ("Unsaved changes discarded");
       end if;
    end On_Cancel;
 
-   procedure On_Use
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
-   is
+   procedure On_Use (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Item);
       S        : access Instance := Current_Instance;
       Accepted : Boolean;
@@ -1025,9 +1022,10 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          return;
       end if;
       S.Queue.Enqueue
-        ((Kind           => Coyote_GUI.Prompt_Queue.Set_Sandbox,
+        ((Kind            => Coyote_GUI.Prompt_Queue.Set_Sandbox,
           Target_Agent_Id => S.Target_Agent_Id,
-          Profile_Name   => Name), Accepted);
+          Profile_Name    => Name),
+         Accepted);
       if Accepted then
          S.Status.Set_Text ("Queued sandbox profile " & To_String (Name));
       else
@@ -1053,7 +1051,8 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    function On_Window_Delete
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event) return Boolean
+      Event : Gdk.Event.Gdk_Event)
+      return Boolean
    is
       pragma Unreferenced (Self, Event);
    begin
@@ -1065,7 +1064,8 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    function On_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+      Event : Gdk.Event.Gdk_Event_Key)
+      return Boolean
    is
       pragma Unreferenced (Self);
    begin
@@ -1085,10 +1085,10 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end On_Key_Press;
 
    function Make_Menu_Item
-     (Menu    : not null access Gtk.Menu.Gtk_Menu_Record'Class;
-      Label   : String;
+     (Menu    :        not null access Gtk.Menu.Gtk_Menu_Record'Class;
+      Label   :        String;
       Context : in out Coyote_GUI.Mnemonics.Registry;
-      Call    : Gtk.Menu_Item.Cb_Gtk_Menu_Item_Void)
+      Call    :        Gtk.Menu_Item.Cb_Gtk_Menu_Item_Void)
       return Gtk.Menu_Item.Gtk_Menu_Item
    is
       Item : Gtk.Menu_Item.Gtk_Menu_Item;
@@ -1096,8 +1096,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Coyote_GUI.Mnemonics.Reserve (Context, Label, "Sandbox Profiles menu");
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, Label);
       Item.On_Activate (Call);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Item);
+      Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Item);
       return Item;
    end Make_Menu_Item;
 
@@ -1107,57 +1106,70 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    is
       pragma Unreferenced (Window);
       Bar : Gtk.Menu_Bar.Gtk_Menu_Bar;
-      File_Menu, Selected_Menu, View_Menu, Help_Menu :
-        Gtk.Menu.Gtk_Menu;
-      File_Item, Selected_Item, View_Item, Help_Item :
-        Gtk.Menu_Item.Gtk_Menu_Item;
-      File_Mnemonics, Selected_Mnemonics, View_Mnemonics,
-        Help_Mnemonics : Coyote_GUI.Mnemonics.Registry;
+      File_Menu, Selected_Menu, View_Menu, Help_Menu : Gtk.Menu.Gtk_Menu;
+      File_Item,
+      Selected_Item,
+      View_Item,
+      Help_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      File_Mnemonics,
+      Selected_Mnemonics,
+      View_Mnemonics,
+      Help_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       Item : Gtk.Menu_Item.Gtk_Menu_Item;
    begin
       Gtk.Menu_Bar.Gtk_New (Bar);
       Gtk.Menu.Gtk_New (File_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (File_Item, "_File");
       File_Item.Set_Submenu (File_Menu);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), File_Item);
-      Item := Make_Menu_Item
-        (File_Menu, "_New", File_Mnemonics, On_New'Access);
-      Item := Make_Menu_Item
-        (File_Menu, "_Save", File_Mnemonics, On_Save'Access);
-      Item := Make_Menu_Item
-        (File_Menu, "Cance_l", File_Mnemonics, On_Cancel'Access);
-      Item := Make_Menu_Item
-        (File_Menu, "_Close", File_Mnemonics, On_Close_Manager'Access);
+      Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), File_Item);
+      Item :=
+        Make_Menu_Item (File_Menu, "_New", File_Mnemonics, On_New'Access);
+      Item :=
+        Make_Menu_Item (File_Menu, "_Save", File_Mnemonics, On_Save'Access);
+      Item :=
+        Make_Menu_Item
+          (File_Menu, "Cance_l", File_Mnemonics, On_Cancel'Access);
+      Item :=
+        Make_Menu_Item
+          (File_Menu, "_Close", File_Mnemonics, On_Close_Manager'Access);
 
       Gtk.Menu.Gtk_New (Selected_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Selected_Item, "_Selected");
       Selected_Item.Set_Submenu (Selected_Menu);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), Selected_Item);
-      Item := Make_Menu_Item (Selected_Menu, "_Duplicate Profile",
-                              Selected_Mnemonics, On_Duplicate'Access);
-      Item := Make_Menu_Item (Selected_Menu, "_Use Profile", Selected_Mnemonics, On_Use'Access);
+      Item :=
+        Make_Menu_Item
+          (Selected_Menu,
+           "_Duplicate Profile",
+           Selected_Mnemonics,
+           On_Duplicate'Access);
+      Item :=
+        Make_Menu_Item
+          (Selected_Menu, "_Use Profile", Selected_Mnemonics, On_Use'Access);
 
       Gtk.Menu.Gtk_New (View_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (View_Item, "_View");
       View_Item.Set_Submenu (View_Menu);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), View_Item);
-      Item := Make_Menu_Item (View_Menu, "_Refresh", View_Mnemonics, On_Refresh'Access);
+      Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), View_Item);
+      Item :=
+        Make_Menu_Item
+          (View_Menu, "_Refresh", View_Mnemonics, On_Refresh'Access);
 
       Gtk.Menu.Gtk_New (Help_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Help_Item, "_Help");
       Help_Item.Set_Submenu (Help_Menu);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), Help_Item);
-      Item := Make_Menu_Item
-        (Help_Menu, "About Sandbox Profiles", Help_Mnemonics, On_Help'Access);
+      Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), Help_Item);
+      Item :=
+        Make_Menu_Item
+          (Help_Menu,
+           "About Sandbox Profiles",
+           Help_Mnemonics,
+           On_Help'Access);
       Outer.Pack_Start (Bar, False, False, 0);
    end Create_Menus;
 
-   procedure On_Help
-     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   procedure On_Help (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Item);
    begin
@@ -1174,24 +1186,24 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    procedure Create
      (S               : aliased in out Instance;
-      Main_Window     : not null access Gtk.Window.Gtk_Window_Record'Class;
-      Prompt_Queue    : not null access Coyote_GUI.Prompt_Queue.Queue;
-      Target_Agent_Id : String := "")
+      Main_Window     :     not null access Gtk.Window.Gtk_Window_Record'Class;
+      Prompt_Queue    :     not null access Coyote_GUI.Prompt_Queue.Queue;
+      Target_Agent_Id :                String := "")
    is
-      Outer       : Gtk.Box.Gtk_Box;
-      Content     : Gtk.Box.Gtk_Box;
-      Main_Pane   : Gtk.Paned.Gtk_Hpaned;
-      Left_Box    : Gtk.Box.Gtk_Box;
-      Right_Box   : Gtk.Box.Gtk_Box;
-      Scroll      : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Label       : Gtk.Label.Gtk_Label;
-      Actions     : Gtk.Box.Gtk_Box;
+      Outer     : Gtk.Box.Gtk_Box;
+      Content   : Gtk.Box.Gtk_Box;
+      Main_Pane : Gtk.Paned.Gtk_Hpaned;
+      Left_Box  : Gtk.Box.Gtk_Box;
+      Right_Box : Gtk.Box.Gtk_Box;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Label     : Gtk.Label.Gtk_Label;
+      Actions   : Gtk.Box.Gtk_Box;
    begin
       if S.Created then
          return;
       end if;
-      S.Main_Window := Main_Window;
-      S.Queue := Prompt_Queue.all'Unchecked_Access;
+      S.Main_Window     := Main_Window;
+      S.Queue           := Prompt_Queue.all'Unchecked_Access;
       S.Target_Agent_Id := To_Unbounded_String (Target_Agent_Id);
       Gtk.Window.Gtk_New (S.Window, Gtk.Enums.Window_Toplevel);
       Current_Instance := S'Unchecked_Access;
@@ -1215,8 +1227,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Gtk.List_Box.Gtk_New (S.Profile_List);
       S.Profile_List.Set_Selection_Mode (Gtk.Enums.Selection_Single);
       Gtk.Scrolled_Window.Gtk_New (Scroll);
-      Scroll.Set_Policy
-        (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
+      Scroll.Set_Policy (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
       Scroll.Add (S.Profile_List);
       Left_Box.Pack_Start (Scroll, True, True, 0);
       Main_Pane.Pack1 (Left_Box, True, False);
@@ -1226,16 +1237,13 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       S.Editor.Pack_Start (Label, False, False, 0);
       Gtk.GEntry.Gtk_New (S.Name_Entry);
       Gtk.Editable.On_Changed
-        (Gtk.GEntry.Implements_Gtk_Editable.To_Interface
-           (S.Name_Entry),
+        (Gtk.GEntry.Implements_Gtk_Editable.To_Interface (S.Name_Entry),
          On_Editor_Changed'Access);
       S.Editor.Pack_Start (S.Name_Entry, False, False, 0);
-      Create_Path_View
-        (S.Editor, S.Path_View, S.Path_Store);
+      Create_Path_View (S.Editor, S.Path_View, S.Path_Store);
       Gtk.Box.Gtk_New_Hbox (Actions, False, 4);
       Gtk.Button.Gtk_New_With_Mnemonic (S.Add_Path_Button, "_Add Path");
-      Gtk.Button.Gtk_New_With_Mnemonic
-        (S.Edit_Path_Button, "_Edit Selected");
+      Gtk.Button.Gtk_New_With_Mnemonic (S.Edit_Path_Button, "_Edit Selected");
       Gtk.Button.Gtk_New_With_Mnemonic
         (S.Remove_Path_Button, "_Remove Selected");
       S.Add_Path_Button.On_Clicked (On_Add_Path'Access);
@@ -1279,17 +1287,14 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end if;
    end Show;
 
-   procedure Set_Target_Agent
-     (S               : in out Instance;
-      Target_Agent_Id : String)
+   procedure Set_Target_Agent (S : in out Instance; Target_Agent_Id : String)
    is
    begin
       S.Target_Agent_Id := To_Unbounded_String (Target_Agent_Id);
    end Set_Target_Agent;
 
    procedure Set_Use_Profile_Handler
-     (S       : in out Instance;
-      Handler : Use_Profile_Handler)
+     (S : in out Instance; Handler : Use_Profile_Handler)
    is
    begin
       S.Use_Handler := Handler;

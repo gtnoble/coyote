@@ -17,8 +17,7 @@ package Coyote_App.Dispatch is
    --  .Subagent_Model_Override_State) is read from this package's parent
    --  unit and appended when non-empty.
    function Format_Status
-     (State : App_State;
-      Extra : String := "ready") return String;
+     (State : App_State; Extra : String := "ready") return String;
 
    --  Append the live end-of-turn footer using the current values in State,
    --  and increment State.Turn_Count.
@@ -37,7 +36,7 @@ package Coyote_App.Dispatch is
    --  Section tracks the current streaming content kind and is updated
    --  in place.
    procedure Dispatch_Event
-     (Event    : LLM.Events.Agent_Event'Class;
+     (Event    :        LLM.Events.Agent_Event'Class;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State;
       Section  : in out Section_Kind);

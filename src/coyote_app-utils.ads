@@ -15,49 +15,49 @@ package Coyote_App.Utils is
    --  ── UTF-8 pseudographic constants ────────────────────────────────────
    --  Each constant holds the UTF-8 byte sequence for one Unicode character.
 
-   UC_BULLET : constant String :=  --  ●  U+25CF
+   UC_BULLET  : constant String :=  --  ●  U+25CF
      Character'Val (16#E2#) & Character'Val (16#97#) & Character'Val (16#8F#);
-   UC_DBL_H  : constant String :=  --  ═  U+2550
+   UC_DBL_H   : constant String :=  --  ═  U+2550
      Character'Val (16#E2#) & Character'Val (16#95#) & Character'Val (16#90#);
-   UC_BOX_V  : constant String :=  --  │  U+2502
+   UC_BOX_V   : constant String :=  --  │  U+2502
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#82#);
-   UC_BOX_TL : constant String :=  --  ┌  U+250C
+   UC_BOX_TL  : constant String :=  --  ┌  U+250C
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#8C#);
-   UC_BOX_BL : constant String :=  --  └  U+2514
+   UC_BOX_BL  : constant String :=  --  └  U+2514
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#94#);
-   UC_BOX_TR : constant String :=  --  ┐  U+2510
+   UC_BOX_TR  : constant String :=  --  ┐  U+2510
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#90#);
-   UC_BOX_BR : constant String :=  --  ┘  U+2518
+   UC_BOX_BR  : constant String :=  --  ┘  U+2518
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#98#);
-   UC_BOX_T  : constant String :=  --  ┬  U+252C  (top T-junction)
+   UC_BOX_T   : constant String :=  --  ┬  U+252C  (top T-junction)
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#AC#);
-   UC_BOX_B  : constant String :=  --  ┴  U+2534  (bottom T-junction)
+   UC_BOX_B   : constant String :=  --  ┴  U+2534  (bottom T-junction)
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#B4#);
-   UC_BOX_L  : constant String :=  --  ├  U+251C  (left T-junction)
+   UC_BOX_L   : constant String :=  --  ├  U+251C  (left T-junction)
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#9C#);
-   UC_BOX_R  : constant String :=  --  ┤  U+2524  (right T-junction)
+   UC_BOX_R   : constant String :=  --  ┤  U+2524  (right T-junction)
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#A4#);
-   UC_BOX_X  : constant String :=  --  ┼  U+253C  (cross junction)
+   UC_BOX_X   : constant String :=  --  ┼  U+253C  (cross junction)
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#BC#);
-   UC_GEAR   : constant String :=  --  ⚙  U+2699
+   UC_GEAR    : constant String :=  --  ⚙  U+2699
      Character'Val (16#E2#) & Character'Val (16#9A#) & Character'Val (16#99#);
-   UC_CHECK  : constant String :=  --  ✓  U+2713
+   UC_CHECK   : constant String :=  --  ✓  U+2713
      Character'Val (16#E2#) & Character'Val (16#9C#) & Character'Val (16#93#);
-   UC_CROSS  : constant String :=  --  ✗  U+2717
+   UC_CROSS   : constant String :=  --  ✗  U+2717
      Character'Val (16#E2#) & Character'Val (16#9C#) & Character'Val (16#97#);
-   UC_TRI_R  : constant String :=  --  ▶  U+25B6
+   UC_TRI_R   : constant String :=  --  ▶  U+25B6
      Character'Val (16#E2#) & Character'Val (16#96#) & Character'Val (16#B6#);
-   UC_WARN   : constant String :=  --  ⚠  U+26A0
+   UC_WARN    : constant String :=  --  ⚠  U+26A0
      Character'Val (16#E2#) & Character'Val (16#9A#) & Character'Val (16#A0#);
-   UC_ELLIP  : constant String :=  --  …  U+2026
+   UC_ELLIP   : constant String :=  --  …  U+2026
      Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#);
-   UC_HORIZ  : constant String :=  --  ─  U+2500
+   UC_HORIZ   : constant String :=  --  ─  U+2500
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#80#);
-   UC_RETRY  : constant String :=  --  ↻  U+21BB
+   UC_RETRY   : constant String :=  --  ↻  U+21BB
      Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#BB#);
-   UC_HOOK_L : constant String :=  --  ↩  U+21A9
+   UC_HOOK_L  : constant String :=  --  ↩  U+21A9
      Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#A9#);
-   UC_MICRO  : constant String :=  --  µ  U+00B5
+   UC_MICRO   : constant String :=  --  µ  U+00B5
      Character'Val (16#C2#) & Character'Val (16#B5#);
    UC_ARROW_D : constant String :=  --  ↓  U+2193
      Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#93#);
@@ -84,7 +84,7 @@ package Coyote_App.Utils is
 
       procedure Feed
         (S      : in out Instance;
-         Data   :      String;
+         Data   :        String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String);
       --  Emit complete UTF-8 sequences from Data, retaining an incomplete
       --  suffix for the next call.
@@ -98,7 +98,6 @@ package Coyote_App.Utils is
          Pending : Ada.Strings.Unbounded.Unbounded_String;
       end record;
    end UTF8_Stream;
-
 
    --  Repeat string Text exactly N times.
    function Str_Repeat (Text : String; N : Positive) return String;
@@ -157,7 +156,8 @@ package Coyote_App.Utils is
      (Input_Per_MTok       : Long_Float;
       Output_Per_MTok      : Long_Float;
       Cache_Read_Per_MTok  : Long_Float;
-      Cache_Write_Per_MTok : Long_Float) return String;
+      Cache_Write_Per_MTok : Long_Float)
+      return String;
 
    --  Examples: 0 -> "$0.0000", 234 -> "$0.0234", 12345 -> "$1.2345".
    function Format_Cost (Dmil : Natural) return String;
@@ -165,7 +165,6 @@ package Coyote_App.Utils is
    --  Return the N-th (1-based) whitespace-separated token from Text,
    --  or "" if Text has fewer than N tokens.  Whitespace is space or HT.
    function Nth_Field (Text : String; N : Positive) return String;
-
 
    --  Run the raw prompt text through a shell filter command and return
    --  the filtered result.
@@ -183,9 +182,10 @@ package Coyote_App.Utils is
    --  In the latter three cases a "[!] prompt filter …" warning is appended
    --  to Warn_Buf so the caller can display it to the user.
    function Apply_Prompt_Filter
-     (Raw      : String;
-      Filter   : String;
-      Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String) return String;
+     (Raw      :     String;
+      Filter   :     String;
+      Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String)
+      return String;
 
    --  Collapse thinking-text deltas to flowing prose.
    --
@@ -236,7 +236,7 @@ package Coyote_App.Utils is
 
       procedure Feed
         (T      : in out Instance;
-         Delt   :      String;
+         Delt   :        String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String);
       --  Feed a delta.  Output contains text ready to display.
       --  May be empty if all input was held for cross-delta resolution.
@@ -264,7 +264,8 @@ package Coyote_App.Utils is
       Model_Text        : String;
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
-      Stop_Reason_Text : String  := "") return String;
+      Stop_Reason_Text  : String  := "")
+      return String;
 
    --  Turn footer display text: summary line (if any) followed by a
    --  separator.  Fork tokens are no longer embedded here; each frontend
@@ -279,8 +280,9 @@ package Coyote_App.Utils is
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
-      Stop_Reason_Text : String  := "";
-      Is_Step           : Boolean := False) return String;
+      Stop_Reason_Text  : String  := "";
+      Is_Step           : Boolean := False)
+      return String;
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 
@@ -288,19 +290,22 @@ package Coyote_App.Utils is
    --  empty optional value that should be hidden in the GUI.
    function Is_Hidden_Tool_Argument
      (Field_Name  : GNATCOLL.JSON.UTF8_String;
-      Field_Value : GNATCOLL.JSON.JSON_Value) return Boolean;
+      Field_Value : GNATCOLL.JSON.JSON_Value)
+      return Boolean;
 
    --  Return the string value of Field from Val, or "" if absent or not
    --  a JSON string.
    function Get_String
      (Val   : GNATCOLL.JSON.JSON_Value;
-      Field : GNATCOLL.JSON.UTF8_String) return String;
+      Field : GNATCOLL.JSON.UTF8_String)
+      return String;
 
    --  Return the integer value of Field from Val as Natural, or 0 if
    --  absent or not a JSON integer.
    function Get_Integer
      (Val   : GNATCOLL.JSON.JSON_Value;
-      Field : GNATCOLL.JSON.UTF8_String) return Natural;
+      Field : GNATCOLL.JSON.UTF8_String)
+      return Natural;
 
    --  Read a JSON cost field (float or integer) and return the value in
    --  units of $0.0001 ("dmil").  Handles JSON_Float_Type (the normal case
@@ -309,19 +314,22 @@ package Coyote_App.Utils is
    --  or negative.
    function Get_Cost_Dmil
      (Val   : GNATCOLL.JSON.JSON_Value;
-      Field : GNATCOLL.JSON.UTF8_String) return Natural;
+      Field : GNATCOLL.JSON.UTF8_String)
+      return Natural;
 
    --  Return the boolean value of Field from Val, or False if absent or
    --  not a JSON boolean.
    function Get_Boolean
      (Val   : GNATCOLL.JSON.JSON_Value;
-      Field : GNATCOLL.JSON.UTF8_String) return Boolean;
+      Field : GNATCOLL.JSON.UTF8_String)
+      return Boolean;
 
    --  Return the object value of Field from Val, or JSON_Null if absent
    --  or not a JSON object.
    function Get_Object
      (Val   : GNATCOLL.JSON.JSON_Value;
-      Field : GNATCOLL.JSON.UTF8_String) return GNATCOLL.JSON.JSON_Value;
+      Field : GNATCOLL.JSON.UTF8_String)
+      return GNATCOLL.JSON.JSON_Value;
 
    --  Return a human-readable string for a scalar JSON value suitable for
    --  display in tool-call argument summaries.
@@ -329,8 +337,7 @@ package Coyote_App.Utils is
    --  Strings are returned as-is (no quotation marks).  Integers, booleans,
    --  and floats are serialised by GNATCOLL.JSON.Write (e.g. 42, true,
    --  3.14).  Null, object, and array values return "...".
-   function JSON_Scalar_Image
-     (Val : GNATCOLL.JSON.JSON_Value) return String;
+   function JSON_Scalar_Image (Val : GNATCOLL.JSON.JSON_Value) return String;
 
    --  Format a single tool-argument field for display.
    --
@@ -345,9 +352,7 @@ package Coyote_App.Utils is
    --  The returned string contains no leading LF; the caller should
    --  prepend ASCII.LF before appending to the conversation.
    function Format_Tool_Field
-     (Name    : String;
-      Value   : String;
-      Max_Len : Positive := 200) return String;
+     (Name : String; Value : String; Max_Len : Positive := 200) return String;
 
    --  Format a vector of session records as a tree for the Sessions window.
    --
@@ -371,13 +376,13 @@ package Coyote_App.Utils is
      (Provider : String;
       Name     : String;
       Spec     : String;
-      Query    : String) return Boolean;
+      Query    : String)
+      return Boolean;
 
    --  Status text for the Change Model filter label.
    --  Unfiltered: "N model" / "N models".
    --  Filtered: "N match" / "N matches".
    function Format_Model_Picker_Count
-     (Visible  : Natural;
-      Filtered : Boolean) return String;
+     (Visible : Natural; Filtered : Boolean) return String;
 
 end Coyote_App.Utils;

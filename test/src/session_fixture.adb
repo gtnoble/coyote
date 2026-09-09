@@ -17,23 +17,18 @@ package body Session_Fixture is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
-      return Long_Long_Integer ((Clock - Epoch) * 1000.0);
+      return Long_Long_Integer ((Clock - Epoch) * 1_000.0);
    end Current_Unix_Milliseconds;
 
-   function Sessions_Dir
-     (Home     : String;
-      Cwd_Slug : String) return String
-   is
+   function Sessions_Dir (Home : String; Cwd_Slug : String) return String is
    begin
       return Home & "/.coyote/sessions/" & Cwd_Slug;
    end Sessions_Dir;
 
    function Session_File_Path
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String) return String
+     (Home : String; Cwd_Slug : String; UUID : String) return String
    is
    begin
       return Sessions_Dir (Home, Cwd_Slug) & "/" & UUID & ".jsonl";
@@ -67,10 +62,7 @@ package body Session_Fixture is
    end Write_Raw_Line;
 
    procedure Append_Line
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String;
-      Line     : String)
+     (Home : String; Cwd_Slug : String; UUID : String; Line : String)
    is
    begin
       Write_Raw_Line
@@ -79,11 +71,9 @@ package body Session_Fixture is
          Mode => Ada.Streams.Stream_IO.Append_File);
    end Append_Line;
 
-   function Parse_Object_JSON
-     (Text : String) return GNATCOLL.JSON.JSON_Value
+   function Parse_Object_JSON (Text : String) return GNATCOLL.JSON.JSON_Value
    is
-      Parsed : constant GNATCOLL.JSON.Read_Result :=
-        GNATCOLL.JSON.Read (Text);
+      Parsed : constant GNATCOLL.JSON.Read_Result := GNATCOLL.JSON.Read (Text);
    begin
       if not Parsed.Success then
          raise Constraint_Error with "invalid JSON object";
@@ -97,8 +87,7 @@ package body Session_Fixture is
    end Parse_Object_JSON;
 
    function Text_Block (Text : String) return GNATCOLL.JSON.JSON_Value is
-      Block : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Block : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Block.Set_Field ("type", "text");
       Block.Set_Field ("text", Text);
@@ -106,8 +95,7 @@ package body Session_Fixture is
    end Text_Block;
 
    function Zero_Usage return GNATCOLL.JSON.JSON_Value is
-      Usage : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Usage : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Usage.Set_Field ("input", Integer (0));
       Usage.Set_Field ("output", Integer (0));
@@ -117,11 +105,9 @@ package body Session_Fixture is
    end Zero_Usage;
 
    function Assistant_Message_JSON
-     (Content     : GNATCOLL.JSON.JSON_Array;
-      Stop_Reason : String) return String
+     (Content : GNATCOLL.JSON.JSON_Array; Stop_Reason : String) return String
    is
-      Msg : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Msg : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Msg.Set_Field ("role", "assistant");
       Msg.Set_Field ("content", Content);
@@ -129,22 +115,18 @@ package body Session_Fixture is
       Msg.Set_Field ("provider", "");
       Msg.Set_Field ("stopReason", Stop_Reason);
       Msg.Set_Field ("usage", Zero_Usage);
-      Msg.Set_Field
-        ("timestamp", Long_Integer (Current_Unix_Milliseconds));
+      Msg.Set_Field ("timestamp", Long_Integer (Current_Unix_Milliseconds));
       return GNATCOLL.JSON.Write (Msg);
    end Assistant_Message_JSON;
 
    function Create_Native_Session
-     (Home     : String;
-      Cwd_Slug : String;
-      Name     : String) return String
+     (Home : String; Cwd_Slug : String; Name : String) return String
    is
       UUID       : constant String := LLM.Session_Store.New_UUID;
-      Path       : constant String :=
-        Session_File_Path (Home, Cwd_Slug, UUID);
+      Path       : constant String := Session_File_Path (Home, Cwd_Slug, UUID);
       Header     : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Created_At : constant Long_Integer :=
+      Created_At : constant Long_Integer             :=
         Long_Integer (Current_Unix_Milliseconds);
    begin
       Ada.Directories.Create_Path (Sessions_Dir (Home, Cwd_Slug));
@@ -168,8 +150,7 @@ package body Session_Fixture is
             Info.Set_Field ("role", "session_info");
             Info.Set_Field ("name", Name);
             Info.Set_Field ("timestamp", Created_At);
-            Append_Line
-              (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Info));
+            Append_Line (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Info));
          end;
       end if;
 
@@ -177,37 +158,26 @@ package body Session_Fixture is
    end Create_Native_Session;
 
    procedure Append_User_Message
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String;
-      Text     : String)
+     (Home : String; Cwd_Slug : String; UUID : String; Text : String)
    is
-      Msg     : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
-      Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Msg : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
    begin
       GNATCOLL.JSON.Append (Content, Text_Block (Text));
       Msg.Set_Field ("role", "user");
       Msg.Set_Field ("content", Content);
-      Msg.Set_Field
-        ("timestamp", Long_Integer (Current_Unix_Milliseconds));
+      Msg.Set_Field ("timestamp", Long_Integer (Current_Unix_Milliseconds));
       Append_Line (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Msg));
    end Append_User_Message;
 
    procedure Append_Assistant_Text
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String;
-      Text     : String)
+     (Home : String; Cwd_Slug : String; UUID : String; Text : String)
    is
       Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       GNATCOLL.JSON.Append (Content, Text_Block (Text));
       Append_Line
-        (Home,
-         Cwd_Slug,
-         UUID,
-         Assistant_Message_JSON (Content, "stop"));
+        (Home, Cwd_Slug, UUID, Assistant_Message_JSON (Content, "stop"));
    end Append_Assistant_Text;
 
    procedure Append_Assistant_Tool_Call
@@ -218,12 +188,10 @@ package body Session_Fixture is
       Tool_Name : String;
       Args_JSON : String)
    is
-      Block     : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Block : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
       Content   : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
       Arguments : constant GNATCOLL.JSON.JSON_Value :=
-        (if Args_JSON'Length = 0
-         then GNATCOLL.JSON.Create_Object
+        (if Args_JSON'Length = 0 then GNATCOLL.JSON.Create_Object
          else Parse_Object_JSON (Args_JSON));
    begin
       Block.Set_Field ("type", "toolCall");
@@ -233,23 +201,19 @@ package body Session_Fixture is
       GNATCOLL.JSON.Append (Content, Block);
 
       Append_Line
-        (Home,
-         Cwd_Slug,
-         UUID,
-         Assistant_Message_JSON (Content, "toolUse"));
+        (Home, Cwd_Slug, UUID, Assistant_Message_JSON (Content, "toolUse"));
    end Append_Assistant_Tool_Call;
 
    procedure Append_Tool_Result
-     (Home      : String;
-      Cwd_Slug  : String;
-      UUID      : String;
-      Tool_Id   : String;
-      Result    : String;
-      Is_Error  : Boolean := False)
+     (Home     : String;
+      Cwd_Slug : String;
+      UUID     : String;
+      Tool_Id  : String;
+      Result   : String;
+      Is_Error : Boolean := False)
    is
-      Msg     : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
-      Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Msg : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
    begin
       GNATCOLL.JSON.Append (Content, Text_Block (Result));
       Msg.Set_Field ("role", "toolResult");
@@ -257,33 +221,26 @@ package body Session_Fixture is
       Msg.Set_Field ("toolName", "");
       Msg.Set_Field ("content", Content);
       Msg.Set_Field ("isError", Is_Error);
-      Msg.Set_Field
-        ("timestamp", Long_Integer (Current_Unix_Milliseconds));
+      Msg.Set_Field ("timestamp", Long_Integer (Current_Unix_Milliseconds));
       Append_Line (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Msg));
    end Append_Tool_Result;
 
    procedure Append_Legacy_User_Message
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String;
-      Text     : String)
+     (Home : String; Cwd_Slug : String; UUID : String; Text : String)
    is
       Envelope : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Msg      : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Msg : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
       Content  : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       GNATCOLL.JSON.Append (Content, Text_Block (Text));
       Msg.Set_Field ("role", "user");
       Msg.Set_Field ("content", Content);
-      Msg.Set_Field
-        ("timestamp", Long_Integer (Current_Unix_Milliseconds));
+      Msg.Set_Field ("timestamp", Long_Integer (Current_Unix_Milliseconds));
 
       Envelope.Set_Field ("type", "message");
       Envelope.Set_Field ("message", Msg);
-      Append_Line
-        (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Envelope));
+      Append_Line (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Envelope));
    end Append_Legacy_User_Message;
 
    procedure Append_Model_Change
@@ -293,20 +250,15 @@ package body Session_Fixture is
       Provider : String;
       Model_Id : String)
    is
-      Event : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Event : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Event.Set_Field ("type", "model_change");
       Event.Set_Field ("provider", Provider);
       Event.Set_Field ("modelId", Model_Id);
-      Append_Line
-        (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Event));
+      Append_Line (Home, Cwd_Slug, UUID, GNATCOLL.JSON.Write (Event));
    end Append_Model_Change;
 
-   procedure Append_Turn_End
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String)
+   procedure Append_Turn_End (Home : String; Cwd_Slug : String; UUID : String)
    is
       pragma Unreferenced (Home, Cwd_Slug, UUID);
    begin

@@ -17,7 +17,7 @@ package LLM.Events is
    type Agent_Start_Event is new Agent_Event with null record;
 
    type Agent_End_Event is new Agent_Event with record
-      Was_Aborted : Boolean := False;
+      Was_Aborted : Boolean                                := False;
       Error_Msg   : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
@@ -32,7 +32,7 @@ package LLM.Events is
       Stop      : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
       Err_Msg   : Ada.Strings.Unbounded.Unbounded_String;
       Tok_Usage : LLM.Types.Usage;
-      Cost_Dmil : Natural := 0;
+      Cost_Dmil : Natural               := 0;
    end record;
 
    type Message_Update_Kind is
@@ -50,7 +50,7 @@ package LLM.Events is
       Kind          : Message_Update_Kind := Text_Delta;
       Delta_Text    : Ada.Strings.Unbounded.Unbounded_String;
       Signature     : Ada.Strings.Unbounded.Unbounded_String;
-      Content_Index : Natural := 0;
+      Content_Index : Natural             := 0;
       Tool_Call_Id  : Ada.Strings.Unbounded.Unbounded_String;
       Tool_Name     : Ada.Strings.Unbounded.Unbounded_String;
    end record;
@@ -70,9 +70,9 @@ package LLM.Events is
       Result_Text  : Ada.Strings.Unbounded.Unbounded_String;
       Media_Type   : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Is_Error     : Boolean := False;
-      Is_Timed_Out : Boolean := False;
-      Is_Cancelled : Boolean := False;
+      Is_Error     : Boolean                                := False;
+      Is_Timed_Out : Boolean                                := False;
+      Is_Cancelled : Boolean                                := False;
    end record;
    type Model_Select_Event is new Agent_Event with record
       Provider       : Ada.Strings.Unbounded.Unbounded_String;
@@ -83,12 +83,12 @@ package LLM.Events is
    type Auto_Retry_Start_Event is new Agent_Event with record
       Attempt      : Positive := 1;
       Max_Attempts : Positive := 3;
-      Delay_Ms     : Natural := 0;
+      Delay_Ms     : Natural  := 0;
       Error_Msg    : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    type Auto_Retry_End_Event is new Agent_Event with record
-      Success     : Boolean := True;
+      Success     : Boolean  := True;
       Attempt     : Positive := 1;
       Final_Error : Ada.Strings.Unbounded.Unbounded_String;
    end record;

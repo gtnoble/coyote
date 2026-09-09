@@ -22,7 +22,7 @@ package body LLM_Catalogue_Tests is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
@@ -122,13 +122,15 @@ package body LLM_Catalogue_Tests is
 
    function Fixture_Path return String is
    begin
-      return Ada.Directories.Current_Directory
+      return
+        Ada.Directories.Current_Directory
         & "/fixtures/copilot_models_catalogue.json";
    end Fixture_Path;
 
    function Stale_Fixture_Path return String is
    begin
-      return Ada.Directories.Current_Directory
+      return
+        Ada.Directories.Current_Directory
         & "/fixtures/copilot_models_catalogue_stale_array.json";
    end Stale_Fixture_Path;
 
@@ -137,8 +139,8 @@ package body LLM_Catalogue_Tests is
         GNATCOLL.JSON.Read (Read_File (Fixture_Path));
    begin
       if not Parsed.Success then
-         raise Constraint_Error with
-           "Failed to parse Copilot catalogue fixture";
+         raise Constraint_Error
+           with "Failed to parse Copilot catalogue fixture";
       end if;
 
       if Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
@@ -164,14 +166,12 @@ package body LLM_Catalogue_Tests is
    begin
       Write_File
         (Home & "/.coyote/github_copilot_models_cache.json",
-         "{""fetched_at"":" & Long_Long_Image (Fetched_At)
-         & ",""base_url"":""" & Base_Url & """,""data"":"
-         & Data_Array & "}");
+         "{""fetched_at"":" & Long_Long_Image (Fetched_At) & ",""base_url"":"""
+         & Base_Url & """,""data"":" & Data_Array & "}");
    end Write_Cache;
 
    function Find_Model
-     (Models   : Catalogue_Vectors.Vector;
-      Model_Id : String) return Natural
+     (Models : Catalogue_Vectors.Vector; Model_Id : String) return Natural
    is
    begin
       if Models.Is_Empty then
@@ -190,15 +190,15 @@ package body LLM_Catalogue_Tests is
    procedure Test_Load_From_Fresh_Cache (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_llm_catalogue_test_1";
+      Home         : constant String  := "/tmp/coyote_llm_catalogue_test_1";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Models       : Catalogue_Vectors.Vector;
-      Claude_Index : Natural := 0;
-      Gpt_Index    : Natural := 0;
-      O3_Index     : Natural := 0;
+      Claude_Index : Natural          := 0;
+      Gpt_Index    : Natural          := 0;
+      O3_Index     : Natural          := 0;
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
@@ -216,8 +216,8 @@ package body LLM_Catalogue_Tests is
          Models   => Models);
 
       Claude_Index := Find_Model (Models, "claude-sonnet-4.6");
-      Gpt_Index := Find_Model (Models, "gpt-4o");
-      O3_Index := Find_Model (Models, "o3-mini");
+      Gpt_Index    := Find_Model (Models, "gpt-4o");
+      O3_Index     := Find_Model (Models, "o3-mini");
 
       Assert (Models.Length = 3, "Only chat models should be included");
       Assert (Claude_Index > 0, "Claude model should be parsed from cache");
@@ -267,16 +267,15 @@ package body LLM_Catalogue_Tests is
       pragma Unreferenced (T);
 
       Port         : constant Positive := 18_770;
-      Home         : constant String := "/tmp/coyote_llm_catalogue_test_2";
-      Home_Was_Set : constant Boolean :=
+      Home         : constant String   := "/tmp/coyote_llm_catalogue_test_2";
+      Home_Was_Set : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
       Models       : Catalogue_Vectors.Vector;
 
       procedure Live_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
       begin
          Assert
@@ -284,30 +283,28 @@ package body LLM_Catalogue_Tests is
             "Catalogue request should target the models endpoint");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
-              = "Bearer live-token",
+            = "Bearer live-token",
             "Catalogue request should carry the live token");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
-              = "GitHubCopilotChat/0.35.0",
+            = "GitHubCopilotChat/0.35.0",
             "Catalogue request should carry the Copilot User-Agent");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Version")
-              = "vscode/1.107.0",
+            = "vscode/1.107.0",
             "Catalogue request should carry the Editor-Version header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Editor-Plugin-Version")
-              = "copilot-chat/0.35.0",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Plugin-Version")
+            = "copilot-chat/0.35.0",
             "Catalogue request should carry the Editor-Plugin-Version header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Copilot-Integration-Id")
-              = "vscode-chat",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Copilot-Integration-Id")
+            = "vscode-chat",
             "Catalogue request should carry the"
             & " Copilot-Integration-Id header");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Openai-Intent")
-              = "conversation-edits",
+            = "conversation-edits",
             "Catalogue request should carry the Openai-Intent header");
          Res.Status := 200;
          Res.Headers.Append
@@ -316,8 +313,8 @@ package body LLM_Catalogue_Tests is
          Append (Res.Body_Data, Read_File (Fixture_Path));
       end Live_Handler;
 
-      Srv : Test_HTTP_Server.Server
-        (Handler => Live_Handler'Unrestricted_Access);
+      Srv :
+        Test_HTTP_Server.Server (Handler => Live_Handler'Unrestricted_Access);
 
    begin
       Srv.Bind (Port);
@@ -351,7 +348,8 @@ package body LLM_Catalogue_Tests is
       Assert
         (Ada.Strings.Fixed.Index
            (Read_File (Home & "/.coyote/github_copilot_models_cache.json"),
-            "http://127.0.0.1:18770") > 0,
+            "http://127.0.0.1:18770")
+         > 0,
          "Rewritten cache should be keyed to the requested base URL");
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -367,10 +365,10 @@ package body LLM_Catalogue_Tests is
    procedure Test_Stale_Cache_Fallback (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_llm_catalogue_test_3";
+      Home         : constant String  := "/tmp/coyote_llm_catalogue_test_3";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Models       : Catalogue_Vectors.Vector;
    begin
@@ -405,22 +403,25 @@ package body LLM_Catalogue_Tests is
          raise;
    end Test_Stale_Cache_Fallback;
 
-   package LLM_Catalogue_Caller is
-     new AUnit.Test_Caller (LLM_Catalogue_Tests.Test);
+   package LLM_Catalogue_Caller is new AUnit.Test_Caller
+     (LLM_Catalogue_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Catalogue_Caller.Create
-        ("LLM.Catalogue loads and parses a fresh cached Copilot model list",
-         LLM_Catalogue_Tests.Test_Load_From_Fresh_Cache'Access));
-      Result.Add_Test (LLM_Catalogue_Caller.Create
-        ("LLM.Catalogue uses live fetch when the Copilot cache is stale",
-         LLM_Catalogue_Tests.Test_Stale_Cache_Triggers_Live_Fetch'Access));
-      Result.Add_Test (LLM_Catalogue_Caller.Create
-        ("LLM.Catalogue falls back to a stale cache on fetch failure",
-         LLM_Catalogue_Tests.Test_Stale_Cache_Fallback'Access));
+      Result.Add_Test
+        (LLM_Catalogue_Caller.Create
+           ("LLM.Catalogue loads and parses a fresh cached Copilot model list",
+            LLM_Catalogue_Tests.Test_Load_From_Fresh_Cache'Access));
+      Result.Add_Test
+        (LLM_Catalogue_Caller.Create
+           ("LLM.Catalogue uses live fetch when the Copilot cache is stale",
+            LLM_Catalogue_Tests.Test_Stale_Cache_Triggers_Live_Fetch'Access));
+      Result.Add_Test
+        (LLM_Catalogue_Caller.Create
+           ("LLM.Catalogue falls back to a stale cache on fetch failure",
+            LLM_Catalogue_Tests.Test_Stale_Cache_Fallback'Access));
 
       return Result;
    end Suite;

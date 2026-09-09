@@ -6,7 +6,9 @@ package Coyote_GUI.Updates is
 
    Max_Depth : constant Positive := 8_192;
 
-   type Update_Array is array (1 .. Max_Depth) of Update;
+   type Update_Array is
+     array (1 .. Max_Depth)
+     of Update;
 
    protected type Queue is
       entry Enqueue (U : Update; Wake_Needed : out Boolean);

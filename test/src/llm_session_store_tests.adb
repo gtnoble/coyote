@@ -32,7 +32,7 @@ package body LLM_Session_Store_Tests is
       return Image (Image'First + 1 .. Image'Last);
    end PID_Image;
 
-   Test_Root : constant String := "/tmp/llm_session_test_" & PID_Image;
+   Test_Root  : constant String := "/tmp/llm_session_test_" & PID_Image;
    Source_Cwd : constant String := "/tmp/llm_session_store_source";
    Target_Cwd : constant String := "/tmp/llm_session_store_target";
 
@@ -105,8 +105,7 @@ package body LLM_Session_Store_Tests is
    end Read_File;
 
    function Get_String_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return String
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -119,8 +118,7 @@ package body LLM_Session_Store_Tests is
    end Get_String_Field;
 
    function Get_Integer_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Integer
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -132,10 +130,7 @@ package body LLM_Session_Store_Tests is
       return 0;
    end Get_Integer_Field;
 
-   procedure Append_Raw_Line
-     (Path : String;
-      Line : String)
-   is
+   procedure Append_Raw_Line (Path : String; Line : String) is
       File : Ada.Text_IO.File_Type;
    begin
       Ada.Text_IO.Open (File, Ada.Text_IO.Append_File, Path);
@@ -150,8 +145,7 @@ package body LLM_Session_Store_Tests is
    end Append_Raw_Line;
 
    function Text_Block_JSON (Text : String) return GNATCOLL.JSON.JSON_Value is
-      Block : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Block : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Block.Set_Field ("type", "text");
       Block.Set_Field ("text", Text);
@@ -159,9 +153,8 @@ package body LLM_Session_Store_Tests is
    end Text_Block_JSON;
 
    function User_Message_JSON (Text : String) return String is
-      Msg     : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
-      Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Msg : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
    begin
       GNATCOLL.JSON.Append (Content, Text_Block_JSON (Text));
       Msg.Set_Field ("role", "user");
@@ -173,7 +166,8 @@ package body LLM_Session_Store_Tests is
    function Compaction_Record_JSON
      (Summary          : String;
       First_Kept_Index : Natural;
-      Tokens_Before    : Natural) return String
+      Tokens_Before    : Natural)
+      return String
    is
       Record_Value : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
@@ -248,7 +242,8 @@ package body LLM_Session_Store_Tests is
       return
         (Role      => LLM.Types.Compaction_Summary,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Compaction_Summary_Message;
@@ -263,7 +258,8 @@ package body LLM_Session_Store_Tests is
       return
         (Role      => LLM.Types.User,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Make_User_Message;
@@ -279,16 +275,20 @@ package body LLM_Session_Store_Tests is
         (Role      => LLM.Types.Assistant,
          Content   => Content,
          Tok_Usage =>
-           (Input => 11, Output => 7, Cache_Read => 3, Cache_Write => 2,
-            Thinking => 0),
+           (Input       => 11,
+            Output      => 7,
+            Cache_Read  => 3,
+            Cache_Write => 2,
+            Thinking    => 0),
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Text;
 
    function Make_Assistant_With_Usage
-     (Text : String;
-      Stop : LLM.Types.Stop_Reason;
-      Usage : LLM.Types.Usage) return LLM.Types.Message
+     (Text  : String;
+      Stop  : LLM.Types.Stop_Reason;
+      Usage : LLM.Types.Usage)
+      return LLM.Types.Message
    is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
@@ -311,15 +311,17 @@ package body LLM_Session_Store_Tests is
         ((Kind           => LLM.Types.Tool_Call_Block,
           Tool_Call_Id   => To_Unbounded_String ("call-1"),
           Tool_Name      => To_Unbounded_String ("read"),
-          Arguments_Json => To_Unbounded_String
-            ("{""path"":""demo.adb""}")));
+          Arguments_Json => To_Unbounded_String ("{""path"":""demo.adb""}")));
 
       return
         (Role      => LLM.Types.Assistant,
          Content   => Content,
          Tok_Usage =>
-           (Input => 20, Output => 5, Cache_Read => 0, Cache_Write => 0,
-            Thinking => 0),
+           (Input       => 20,
+            Output      => 5,
+            Cache_Read  => 0,
+            Cache_Write => 0,
+            Thinking    => 0),
          Stop      => LLM.Types.Tool_Use,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Tool_Call;
@@ -335,14 +337,17 @@ package body LLM_Session_Store_Tests is
           Origin_Model    => To_Unbounded_String ("test-model")));
       Content.Append
         ((Kind => LLM.Types.Text_Block,
-          Text => To_Unbounded_String ("Final answer")));
+         Text  => To_Unbounded_String ("Final answer")));
 
       return
         (Role      => LLM.Types.Assistant,
          Content   => Content,
          Tok_Usage =>
-           (Input => 6, Output => 4, Cache_Read => 1, Cache_Write => 0,
-            Thinking => 0),
+           (Input       => 6,
+            Output      => 4,
+            Cache_Read  => 1,
+            Cache_Write => 0,
+            Thinking    => 0),
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Thinking_Text;
@@ -361,7 +366,8 @@ package body LLM_Session_Store_Tests is
       return
         (Role      => LLM.Types.Tool_Result,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Tool_Result;
@@ -372,30 +378,21 @@ package body LLM_Session_Store_Tests is
       UUID : constant String := LLM.Session_Store.New_UUID;
    begin
       Assert (UUID'Length = 36, "UUID should be 36 chars long");
-      Assert
-        (UUID (UUID'First + 8) = '-',
-         "UUID hyphen at position 9");
-      Assert
-        (UUID (UUID'First + 13) = '-',
-         "UUID hyphen at position 14");
-      Assert
-        (UUID (UUID'First + 18) = '-',
-         "UUID hyphen at position 19");
-      Assert
-        (UUID (UUID'First + 23) = '-',
-         "UUID hyphen at position 24");
-      Assert
-        (UUID (UUID'First + 14) = '4',
-         "UUID version nibble should be 4");
+      Assert (UUID (UUID'First + 8) = '-', "UUID hyphen at position 9");
+      Assert (UUID (UUID'First + 13) = '-', "UUID hyphen at position 14");
+      Assert (UUID (UUID'First + 18) = '-', "UUID hyphen at position 19");
+      Assert (UUID (UUID'First + 23) = '-', "UUID hyphen at position 24");
+      Assert (UUID (UUID'First + 14) = '4', "UUID version nibble should be 4");
       Assert
         (UUID (UUID'First + 19) in '8' | '9' | 'a' | 'b',
          "UUID variant nibble should be RFC 4122 variant 1");
 
       for I in UUID'Range loop
-         if I not in UUID'First + 8
-           | UUID'First + 13
-           | UUID'First + 18
-           | UUID'First + 23
+         if I not in
+             UUID'First + 8
+             | UUID'First + 13
+             | UUID'First + 18
+             | UUID'First + 23
          then
             Assert
               (UUID (I) in '0' .. '9' | 'a' .. 'f',
@@ -418,17 +415,17 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
       declare
-         Session_Id : constant String :=
+         Session_Id : constant String                      :=
            LLM.Session_Store.Create_Session (Source_Cwd);
-         Path       : constant String :=
+         Path       : constant String                      :=
            LLM.Session_Store.Session_File_Path (Session_Id);
          Header     : constant String := Read_First_Line (Path);
-         Parsed     : constant GNATCOLL.JSON.Read_Result :=
+         Parsed     : constant GNATCOLL.JSON.Read_Result   :=
            GNATCOLL.JSON.Read (Header);
          Info       : constant Session_Lister.Session_Info :=
            Session_Lister.Parse_Session_File (Path);
@@ -466,7 +463,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -488,11 +485,11 @@ package body LLM_Session_Store_Tests is
             "Loaded user message should contain one block");
          Assert
            (Messages.Element (0).Content.Element (0).Kind
-              = LLM.Types.Text_Block,
+            = LLM.Types.Text_Block,
             "Loaded user block should be Text_Block");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Text)
-              = "Hello from native store",
+            = "Hello from native store",
             "Loaded user text should round-trip");
       end;
 
@@ -510,7 +507,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -532,15 +529,15 @@ package body LLM_Session_Store_Tests is
             "Assistant tool-call message should have one block");
          Assert
            (Messages.Element (0).Content.Element (0).Kind
-              = LLM.Types.Tool_Call_Block,
+            = LLM.Types.Tool_Call_Block,
             "Assistant block should be Tool_Call_Block");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Tool_Call_Id)
-              = "call-1",
+            = "call-1",
             "Tool call id should round-trip");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Tool_Name)
-              = "read",
+            = "read",
             "Tool call name should round-trip");
          Assert
            (Contains
@@ -564,7 +561,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -586,32 +583,32 @@ package body LLM_Session_Store_Tests is
             "Assistant message should preserve both content blocks");
          Assert
            (Messages.Element (0).Content.Element (0).Kind
-              = LLM.Types.Thinking_Block,
+            = LLM.Types.Thinking_Block,
             "First block should round-trip as Thinking_Block");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Thinking)
-              = "trace this",
+            = "trace this",
             "Thinking block text should round-trip");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Signature)
-              = "sig-abc",
+            = "sig-abc",
             "Thinking block signature should round-trip");
          Assert
            (To_String
               (Messages.Element (0).Content.Element (0).Origin_Provider)
-              = "openrouter",
+            = "openrouter",
             "Thinking block provider provenance should round-trip");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Origin_Model)
-              = "test-model",
+            = "test-model",
             "Thinking block model provenance should round-trip");
          Assert
            (Messages.Element (0).Content.Element (1).Kind
-              = LLM.Types.Text_Block,
+            = LLM.Types.Text_Block,
             "Second block should round-trip as Text_Block");
          Assert
            (To_String (Messages.Element (0).Content.Element (1).Text)
-              = "Final answer",
+            = "Final answer",
             "Text block should round-trip after the thinking block");
       end;
 
@@ -624,14 +621,13 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Assistant_Thinking_Text_Round_Trip;
 
-   procedure Test_Legacy_Model_Change_Infers_Thinking_Origin
-     (T : in out Test)
+   procedure Test_Legacy_Model_Change_Infers_Thinking_Origin (T : in out Test)
    is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -659,11 +655,11 @@ package body LLM_Session_Store_Tests is
          Assert
            (To_String
               (Messages.Element (0).Content.Element (0).Origin_Provider)
-              = "openrouter",
+            = "openrouter",
             "preceding model_change should infer legacy provider provenance");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Origin_Model)
-              = "x-ai/grok-4.6",
+            = "x-ai/grok-4.6",
             "preceding model_change should infer legacy model provenance");
       end;
 
@@ -681,7 +677,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -702,22 +698,22 @@ package body LLM_Session_Store_Tests is
             "Tool result message should have one block");
          Assert
            (Messages.Element (0).Content.Element (0).Kind
-              = LLM.Types.Tool_Result_Block,
+            = LLM.Types.Tool_Result_Block,
             "Loaded block should be Tool_Result_Block");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Result_Id)
-              = "call-1",
+            = "call-1",
             "Tool result id should round-trip");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Result_Text)
-              = "file contents",
+            = "file contents",
             "Tool result text should round-trip");
          Assert
            (not Messages.Element (0).Content.Element (0).Is_Error,
             "Tool result error flag should round-trip");
          Assert
-           (Messages.Element (0).Content.Element (0).Status =
-              LLM.Types.Result_Success,
+           (Messages.Element (0).Content.Element (0).Status
+            = LLM.Types.Result_Success,
             "Tool result terminal status should round-trip");
       end;
 
@@ -735,7 +731,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -753,11 +749,11 @@ package body LLM_Session_Store_Tests is
            (Source_Id, Make_Assistant_Text ("Bar"));
 
          declare
-            Fork_Id : constant String :=
+            Fork_Id  : constant String                           :=
               Session_Lister.Fork_Session (Source_Id, 1, Target_Cwd);
-            Path : constant String :=
+            Path     : constant String                           :=
               LLM.Session_Store.Session_File_Path (Fork_Id);
-            Content : constant String := Read_File (Path);
+            Content  : constant String := Read_File (Path);
             Messages : constant LLM.Types.Message_Vectors.Vector :=
               LLM.Session_Store.Load_Messages (Fork_Id);
          begin
@@ -771,11 +767,11 @@ package body LLM_Session_Store_Tests is
                & " two messages");
             Assert
               (To_String (Messages.Element (0).Content.Element (0).Text)
-                 = "Hello",
+               = "Hello",
                "Fork should retain the first user message");
             Assert
               (To_String (Messages.Element (1).Content.Element (0).Text)
-                 = "World",
+               = "World",
                "Fork should retain the first assistant message");
          end;
       end;
@@ -794,9 +790,9 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Cwd_Slug     : constant String := "--legacy-envelope-test--";
+      Cwd_Slug     : constant String  := "--legacy-envelope-test--";
    begin
       Prepare_Test_Home;
       declare
@@ -837,15 +833,15 @@ package body LLM_Session_Store_Tests is
             "Third loaded role should be User");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Text)
-              = "Legacy one",
+            = "Legacy one",
             "First legacy envelope text should load");
          Assert
            (To_String (Messages.Element (1).Content.Element (0).Text)
-              = "Legacy two",
+            = "Legacy two",
             "Second legacy envelope text should load");
          Assert
            (To_String (Messages.Element (2).Content.Element (0).Text)
-              = "Native three",
+            = "Native three",
             "Native user line should load after legacy lines");
       end;
 
@@ -863,9 +859,9 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Cwd_Slug     : constant String := "--malformed-lines-test--";
+      Cwd_Slug     : constant String  := "--malformed-lines-test--";
    begin
       Prepare_Test_Home;
       declare
@@ -902,11 +898,11 @@ package body LLM_Session_Store_Tests is
             "Malformed JSON lines should be skipped by Load_Messages");
          Assert
            (To_String (Messages.Element (0).Content.Element (0).Text)
-              = "Before bad json",
+            = "Before bad json",
             "First valid message should survive malformed input");
          Assert
            (To_String (Messages.Element (1).Content.Element (0).Text)
-              = "After bad json",
+            = "After bad json",
             "Second valid message should survive malformed input");
       exception
          when others =>
@@ -925,14 +921,12 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Load_Skips_Malformed_Lines;
 
-   procedure Test_Assistant_Usage_And_Stop_Reason_Persist
-     (T : in out Test)
-   is
+   procedure Test_Assistant_Usage_And_Stop_Reason_Persist (T : in out Test) is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -942,8 +936,7 @@ package body LLM_Session_Store_Tests is
          Messages   : LLM.Types.Message_Vectors.Vector;
       begin
          LLM.Session_Store.Append_Message
-           (Session_Id,
-            Make_Assistant_With_Usage
+           (Session_Id, Make_Assistant_With_Usage
               (Text  => "Usage persists",
                Stop  => LLM.Types.Stop,
                Usage =>
@@ -981,7 +974,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1029,22 +1022,20 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Append_Compaction_Writes_Entry;
 
-   procedure Test_Compaction_Summary_Not_Persisted
-     (T : in out Test)
-   is
+   procedure Test_Compaction_Summary_Not_Persisted (T : in out Test) is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
       declare
-         Session_Id     : constant String :=
+         Session_Id    : constant String :=
            LLM.Session_Store.Create_Session (Source_Cwd);
-         Raised         : Boolean := False;
-         Error_Message  : Unbounded_String;
+         Raised        : Boolean         := False;
+         Error_Message : Unbounded_String;
       begin
          begin
             LLM.Session_Store.Append_Message
@@ -1052,9 +1043,10 @@ package body LLM_Session_Store_Tests is
                Make_Compaction_Summary_Message ("already summarized"));
          exception
             when Error : LLM.Session_Store.Session_Error =>
-               Raised := True;
-               Error_Message := To_Unbounded_String
-                 (Ada.Exceptions.Exception_Message (Error));
+               Raised        := True;
+               Error_Message :=
+                 To_Unbounded_String
+                   (Ada.Exceptions.Exception_Message (Error));
          end;
 
          Assert
@@ -1062,8 +1054,7 @@ package body LLM_Session_Store_Tests is
             "Compaction_Summary messages should not be persisted directly");
          Assert
            (Contains
-              (To_String (Error_Message),
-               "must not be persisted directly"),
+              (To_String (Error_Message), "must not be persisted directly"),
             "The raised Session_Error should explain the guard");
       end;
 
@@ -1081,17 +1072,15 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Cwd_Slug     : constant String := "--compaction-load-test--";
+      Cwd_Slug     : constant String  := "--compaction-load-test--";
    begin
       Prepare_Test_Home;
       declare
          Session_Id : constant String :=
            Session_Fixture.Create_Native_Session
-             (Home     => Test_Root,
-              Cwd_Slug => Cwd_Slug,
-              Name     => "");
+             (Home => Test_Root, Cwd_Slug => Cwd_Slug, Name => "");
          Path       : constant String :=
            Session_Fixture.Session_File_Path (Test_Root, Cwd_Slug, Session_Id);
          Messages   : LLM.Types.Message_Vectors.Vector;
@@ -1134,14 +1123,12 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Load_With_Compaction_Entry;
 
-   procedure Test_Load_Without_Compaction_Unchanged
-     (T : in out Test)
-   is
+   procedure Test_Load_Without_Compaction_Unchanged (T : in out Test) is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1196,7 +1183,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1258,7 +1245,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1314,7 +1301,7 @@ package body LLM_Session_Store_Tests is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1324,21 +1311,28 @@ package body LLM_Session_Store_Tests is
          Created_At : constant String :=
            LLM.Session_Store.Session_Created_At (Session_Id);
       begin
-         Assert (Created_At'Length = 19,
-                 "created-at accessor returns second-precision timestamp");
-         Assert (Created_At (Created_At'First + 4) = '-',
-                 "created-at timestamp has year separator");
-         Assert (Created_At (Created_At'First + 7) = '-',
-                 "created-at timestamp has month separator");
-         Assert (Created_At (Created_At'First + 10) = ' ',
-                 "created-at timestamp separates date and time");
-         Assert (Created_At (Created_At'First + 13) = ':',
-                 "created-at timestamp has hour separator");
-         Assert (Created_At (Created_At'First + 16) = ':',
-                 "created-at timestamp has minute separator");
+         Assert
+           (Created_At'Length = 19,
+            "created-at accessor returns second-precision timestamp");
+         Assert
+           (Created_At (Created_At'First + 4) = '-',
+            "created-at timestamp has year separator");
+         Assert
+           (Created_At (Created_At'First + 7) = '-',
+            "created-at timestamp has month separator");
+         Assert
+           (Created_At (Created_At'First + 10) = ' ',
+            "created-at timestamp separates date and time");
+         Assert
+           (Created_At (Created_At'First + 13) = ':',
+            "created-at timestamp has hour separator");
+         Assert
+           (Created_At (Created_At'First + 16) = ':',
+            "created-at timestamp has minute separator");
       end;
-      Assert (LLM.Session_Store.Session_Created_At ("no-such-uuid") = "",
-              "created-at accessor returns empty for unknown UUID");
+      Assert
+        (LLM.Session_Store.Session_Created_At ("no-such-uuid") = "",
+         "created-at accessor returns empty for unknown UUID");
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Root;
    exception
@@ -1360,9 +1354,9 @@ package body LLM_Session_Store_Tests is
       Large_Size   : constant := 512 * 1_024;  --  512 KB
       Large_Text   : constant String (1 .. Large_Size) := (others => 'x');
       Content      : LLM.Types.Content_Block_Vectors.Vector;
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set : constant Boolean                  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String                   :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1379,7 +1373,8 @@ package body LLM_Session_Store_Tests is
          Msg : constant LLM.Types.Message :=
            (Role      => LLM.Types.Tool_Result,
             Content   => Content,
-            Tok_Usage => (others => 0),
+            Tok_Usage =>
+              (others => 0),
             Stop      => LLM.Types.Unknown_Stop,
             Timestamp => Null_Unbounded_String);
 
@@ -1399,9 +1394,8 @@ package body LLM_Session_Store_Tests is
            (Messages.Element (0).Role = LLM.Types.Tool_Result,
             "Large tool result: role should round-trip");
          Assert
-           (To_String
-              (Messages.Element (0).Content.Element (0).Result_Text)
-              = Large_Text,
+           (To_String (Messages.Element (0).Content.Element (0).Result_Text)
+            = Large_Text,
             "Large tool result: full text should round-trip without "
             & "truncation or corruption");
       end;
@@ -1420,7 +1414,7 @@ package body LLM_Session_Store_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Prepare_Test_Home;
@@ -1440,13 +1434,14 @@ package body LLM_Session_Store_Tests is
            ((Kind           => LLM.Types.Tool_Call_Block,
              Tool_Call_Id   => To_Unbounded_String ("call-bad-args"),
              Tool_Name      => To_Unbounded_String ("shell"),
-             Arguments_Json => To_Unbounded_String
-               ("{""command"":""echo 'unterminated)")));
+             Arguments_Json =>
+               To_Unbounded_String ("{""command"":""echo 'unterminated)")));
 
          Msg :=
            (Role      => LLM.Types.Assistant,
             Content   => Content,
-            Tok_Usage => (others => 0),
+            Tok_Usage =>
+              (others => 0),
             Stop      => LLM.Types.Tool_Use,
             Timestamp => Null_Unbounded_String);
 
@@ -1457,22 +1452,26 @@ package body LLM_Session_Store_Tests is
          --  Loading it back should recover the id, name, and raw args.
          Loaded := LLM.Session_Store.Load_Messages (Session_Id);
 
-         Assert (Loaded.Length = 1,
-           "One assistant message should load after invalid-args round-trip");
-         Assert (Loaded.Element (0).Role = LLM.Types.Assistant,
-           "Loaded role should be Assistant");
-         Assert (Loaded.Element (0).Content.Length = 1,
-           "Message should have one content block");
-         Assert (Loaded.Element (0).Content.Element (0).Kind
+         Assert
+           (Loaded.Length = 1,
+            "One assistant message should load after invalid-args round-trip");
+         Assert
+           (Loaded.Element (0).Role = LLM.Types.Assistant,
+            "Loaded role should be Assistant");
+         Assert
+           (Loaded.Element (0).Content.Length = 1,
+            "Message should have one content block");
+         Assert
+           (Loaded.Element (0).Content.Element (0).Kind
             = LLM.Types.Tool_Call_Block,
-           "Block should be Tool_Call_Block");
+            "Block should be Tool_Call_Block");
          Assert
            (To_String (Loaded.Element (0).Content.Element (0).Tool_Call_Id)
-              = "call-bad-args",
+            = "call-bad-args",
             "Tool call id should round-trip with invalid args");
          Assert
            (To_String (Loaded.Element (0).Content.Element (0).Tool_Name)
-              = "shell",
+            = "shell",
             "Tool call name should round-trip with invalid args");
          Assert
            (Contains
@@ -1493,30 +1492,25 @@ package body LLM_Session_Store_Tests is
 
    --  ── Sandbox header field ─────────────────────────────────────────────
 
-   procedure Test_Sandbox_Profile_Written_To_Header
-     (T : in out Test)
-   is
+   procedure Test_Sandbox_Profile_Written_To_Header (T : in out Test) is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set  : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx      : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_SANDBOX_PROFILE", "");
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx      : constant String  :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home;
-      Ada.Environment_Variables.Set
-        ("COYOTE_SANDBOX_PROFILE", "restricted");
+      Ada.Environment_Variables.Set ("COYOTE_SANDBOX_PROFILE", "restricted");
 
       declare
-         Session_Id : constant String :=
+         Session_Id : constant String                    :=
            LLM.Session_Store.Create_Session (Source_Cwd);
-         Path       : constant String :=
+         Path       : constant String                    :=
            LLM.Session_Store.Session_File_Path (Session_Id);
          Header     : constant String := Read_First_Line (Path);
          Parsed     : constant GNATCOLL.JSON.Read_Result :=
@@ -1524,50 +1518,42 @@ package body LLM_Session_Store_Tests is
       begin
          Assert (Parsed.Success, "Header should be valid JSON");
          Assert
-           (Get_String_Field (Parsed.Value, "sandboxProfile")
-              = "restricted",
+           (Get_String_Field (Parsed.Value, "sandboxProfile") = "restricted",
             "sandboxProfile field should be ""restricted"" when "
             & "COYOTE_SANDBOX_PROFILE is set, got: "
             & Get_String_Field (Parsed.Value, "sandboxProfile"));
       end;
 
-      Restore_Env
-        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Root;
    exception
       when others =>
-         Restore_Env
-           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Root;
          raise;
    end Test_Sandbox_Profile_Written_To_Header;
 
-   procedure Test_Sandbox_No_Profile_No_Header_Field
-     (T : in out Test)
-   is
+   procedure Test_Sandbox_No_Profile_No_Header_Field (T : in out Test) is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set  : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx      : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_SANDBOX_PROFILE", "");
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx      : constant String  :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home;
-      Ada.Environment_Variables.Clear
-        ("COYOTE_SANDBOX_PROFILE");
+      Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
 
       declare
-         Session_Id : constant String :=
+         Session_Id : constant String                    :=
            LLM.Session_Store.Create_Session (Source_Cwd);
-         Path       : constant String :=
+         Path       : constant String                    :=
            LLM.Session_Store.Session_File_Path (Session_Id);
          Header     : constant String := Read_First_Line (Path);
          Parsed     : constant GNATCOLL.JSON.Read_Result :=
@@ -1580,36 +1566,31 @@ package body LLM_Session_Store_Tests is
             & "COYOTE_SANDBOX_PROFILE is unset");
       end;
 
-      Restore_Env
-        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Root;
    exception
       when others =>
-         Restore_Env
-           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Root;
          raise;
    end Test_Sandbox_No_Profile_No_Header_Field;
 
-   procedure Test_Sandbox_Profile_Read_From_Header
-     (T : in out Test)
-   is
+   procedure Test_Sandbox_Profile_Read_From_Header (T : in out Test) is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Sbx_Was_Set : constant Boolean :=
+      Sbx_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx : constant String :=
+      Old_Sbx      : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home;
-      Ada.Environment_Variables.Set
-        ("COYOTE_SANDBOX_PROFILE", "restricted");
+      Ada.Environment_Variables.Set ("COYOTE_SANDBOX_PROFILE", "restricted");
 
       declare
          Session_Id : constant String :=
@@ -1617,13 +1598,13 @@ package body LLM_Session_Store_Tests is
       begin
          Assert
            (LLM.Session_Store.Session_Sandbox_Profile (Session_Id)
-              = "restricted",
+            = "restricted",
             "Session_Sandbox_Profile should read the header profile");
 
          Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
          Assert
            (LLM.Session_Store.Session_Sandbox_Profile (Session_Id)
-              = "restricted",
+            = "restricted",
             "Session_Sandbox_Profile should not depend on the environment");
       end;
 
@@ -1638,100 +1619,124 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Sandbox_Profile_Read_From_Header;
 
-   package LLM_Session_Store_Caller is
-     new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);
+   package LLM_Session_Store_Caller is new AUnit.Test_Caller
+     (LLM_Session_Store_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store New_UUID returns RFC 4122 v4 text",
-         LLM_Session_Store_Tests.Test_New_UUID_Format'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store New_UUID returns unique values",
-         LLM_Session_Store_Tests.Test_New_UUID_Unique'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store Create_Session writes a parseable header",
-         LLM_Session_Store_Tests.Test_Create_Session_Header'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store user messages round-trip through disk",
-         LLM_Session_Store_Tests.Test_User_Round_Trip'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store assistant tool calls round-trip through disk",
-         LLM_Session_Store_Tests.Test_Assistant_Tool_Call'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store assistant thinking+text round-trips",
-         LLM_Session_Store_Tests
-           .Test_Assistant_Thinking_Text_Round_Trip'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store infers legacy thinking model provenance",
-         LLM_Session_Store_Tests
-           .Test_Legacy_Model_Change_Infers_Thinking_Origin'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store tool results round-trip through disk",
-         LLM_Session_Store_Tests.Test_Tool_Result_Round_Trip'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store native sessions can be forked",
-         LLM_Session_Store_Tests.Test_Fork_Session_Native_Source'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store loads legacy envelope lines",
-         LLM_Session_Store_Tests.Test_Load_Legacy_Pi_Envelope_Lines'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store skips malformed JSONL lines",
-         LLM_Session_Store_Tests.Test_Load_Skips_Malformed_Lines'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store persists assistant usage and stop reason",
-         LLM_Session_Store_Tests
-           .Test_Assistant_Usage_And_Stop_Reason_Persist'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store appends compaction records to JSONL",
-         LLM_Session_Store_Tests
-           .Test_Append_Compaction_Writes_Entry'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store rejects persisted compaction summary messages",
-         LLM_Session_Store_Tests
-           .Test_Compaction_Summary_Not_Persisted'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store loads synthetic history around compaction",
-         LLM_Session_Store_Tests
-           .Test_Load_With_Compaction_Entry'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store keeps legacy load behaviour without compaction",
-         LLM_Session_Store_Tests
-           .Test_Load_Without_Compaction_Unchanged'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store append/load compaction round-trips",
-         LLM_Session_Store_Tests
-           .Test_Append_Then_Load_Round_Trip'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store.Session_Work_Dir returns stored Cwd and empty "
-         & "string for missing session or missing field",
-         LLM_Session_Store_Tests.Test_Session_Work_Dir'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store.Session_Created_At returns local timestamp",
-         LLM_Session_Store_Tests.Test_Session_Created_At'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store.Append_Message handles large tool result without "
-         & "secondary-stack overflow",
-         LLM_Session_Store_Tests
-           .Test_Large_Tool_Result_Round_Trip'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store tool call with invalid args round-trips",
-         LLM_Session_Store_Tests
-           .Test_Assistant_Tool_Call_Invalid_Args'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store sandboxProfile written to header when set",
-         LLM_Session_Store_Tests
-           .Test_Sandbox_Profile_Written_To_Header'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store sandboxProfile absent when env var unset",
-         LLM_Session_Store_Tests
-           .Test_Sandbox_No_Profile_No_Header_Field'Access));
-      Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store reads sandboxProfile from session header",
-         LLM_Session_Store_Tests
-           .Test_Sandbox_Profile_Read_From_Header'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store New_UUID returns RFC 4122 v4 text",
+            LLM_Session_Store_Tests.Test_New_UUID_Format'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store New_UUID returns unique values",
+            LLM_Session_Store_Tests.Test_New_UUID_Unique'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store Create_Session writes a parseable header",
+            LLM_Session_Store_Tests.Test_Create_Session_Header'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store user messages round-trip through disk",
+            LLM_Session_Store_Tests.Test_User_Round_Trip'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store assistant tool calls round-trip through disk",
+            LLM_Session_Store_Tests.Test_Assistant_Tool_Call'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store assistant thinking+text round-trips",
+            LLM_Session_Store_Tests.Test_Assistant_Thinking_Text_Round_Trip'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store infers legacy thinking model provenance",
+            LLM_Session_Store_Tests
+              .Test_Legacy_Model_Change_Infers_Thinking_Origin'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store tool results round-trip through disk",
+            LLM_Session_Store_Tests.Test_Tool_Result_Round_Trip'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store native sessions can be forked",
+            LLM_Session_Store_Tests.Test_Fork_Session_Native_Source'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store loads legacy envelope lines",
+            LLM_Session_Store_Tests.Test_Load_Legacy_Pi_Envelope_Lines'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store skips malformed JSONL lines",
+            LLM_Session_Store_Tests.Test_Load_Skips_Malformed_Lines'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store persists assistant usage and stop reason",
+            LLM_Session_Store_Tests
+              .Test_Assistant_Usage_And_Stop_Reason_Persist'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store appends compaction records to JSONL",
+            LLM_Session_Store_Tests.Test_Append_Compaction_Writes_Entry'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store rejects persisted compaction summary messages",
+            LLM_Session_Store_Tests.Test_Compaction_Summary_Not_Persisted'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store loads synthetic history around compaction",
+            LLM_Session_Store_Tests.Test_Load_With_Compaction_Entry'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store keeps legacy load behaviour without compaction",
+            LLM_Session_Store_Tests.Test_Load_Without_Compaction_Unchanged'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store append/load compaction round-trips",
+            LLM_Session_Store_Tests.Test_Append_Then_Load_Round_Trip'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store.Session_Work_Dir returns stored Cwd and empty "
+            & "string for missing session or missing field",
+            LLM_Session_Store_Tests.Test_Session_Work_Dir'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store.Session_Created_At returns local timestamp",
+            LLM_Session_Store_Tests.Test_Session_Created_At'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store.Append_Message handles large tool result without "
+            & "secondary-stack overflow",
+            LLM_Session_Store_Tests.Test_Large_Tool_Result_Round_Trip'Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store tool call with invalid args round-trips",
+            LLM_Session_Store_Tests.Test_Assistant_Tool_Call_Invalid_Args'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store sandboxProfile written to header when set",
+            LLM_Session_Store_Tests.Test_Sandbox_Profile_Written_To_Header'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store sandboxProfile absent when env var unset",
+            LLM_Session_Store_Tests.Test_Sandbox_No_Profile_No_Header_Field'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store reads sandboxProfile from session header",
+            LLM_Session_Store_Tests.Test_Sandbox_Profile_Read_From_Header'
+              Access));
 
       return Result;
    end Suite;

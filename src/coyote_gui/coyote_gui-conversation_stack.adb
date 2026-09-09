@@ -3,9 +3,9 @@
 --  Project: coyote
 
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with Coyote_App.Utils;       use Coyote_App.Utils;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
@@ -13,7 +13,7 @@ with Coyote_GUI.Navigation;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Glib.Error;
 with Gtk.Adjustment;
 with Gtk.Handlers;
@@ -61,7 +61,9 @@ package body Coyote_GUI.Conversation_Stack is
    is
    begin
       Parent.Pack_Start
-        (Child, Expand => False, Fill => True,
+        (Child,
+         Expand  => False,
+         Fill    => True,
          Padding => Response_Block_Padding);
    end Pack_Response_Block;
 
@@ -69,8 +71,14 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       for Character_Value of Text loop
          case Character_Value is
-            when ' ' | ASCII.HT | ASCII.LF | ASCII.CR | ASCII.FF => null;
-            when others => return True;
+            when ' '
+               | ASCII.HT
+               | ASCII.LF
+               | ASCII.CR
+               | ASCII.FF =>
+               null;
+            when others =>
+               return True;
          end case;
       end loop;
       return False;
@@ -115,18 +123,15 @@ package body Coyote_GUI.Conversation_Stack is
       Data   : Tool_Action_Context);
 
    procedure On_Fork_Clicked
-     (Button : access Gtk.Button.Gtk_Button_Record'Class;
-      Data   : Fork_Context);
+     (Button : access Gtk.Button.Gtk_Button_Record'Class; Data : Fork_Context);
 
    procedure On_Fork_Clicked
-     (Button : access Gtk.Button.Gtk_Button_Record'Class;
-      Data   : Fork_Context)
+     (Button : access Gtk.Button.Gtk_Button_Record'Class; Data : Fork_Context)
    is
       pragma Unreferenced (Button);
    begin
       if Data.Handler /= null then
-         Data.Handler.all
-           (To_String (Data.UUID), Data.Turn_N, Data.Step_N);
+         Data.Handler.all (To_String (Data.UUID), Data.Turn_N, Data.Step_N);
       end if;
    end On_Fork_Clicked;
 
@@ -150,17 +155,17 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Add_Text_Element
      (C              : in out Instance;
-      Parent         : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Caption        : String;
-      Text           : String;
-      Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View           : out Gtk.Text_View.Gtk_Text_View;
-      Response_Block : Boolean := False);
+      Parent         :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Caption        :        String;
+      Text           :        String;
+      Buffer         :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View           :    out Gtk.Text_View.Gtk_Text_View;
+      Response_Block :        Boolean := False);
 
    procedure Add_Response_Table
      (C      : in out Instance;
-      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  : Coyote_Renderer.Tables.Table_Block);
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  :        Coyote_Renderer.Tables.Table_Block);
 
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -168,7 +173,7 @@ package body Coyote_GUI.Conversation_Stack is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
       use Gtk.Style_Provider;
-      CSS : constant String :=
+      CSS       : constant String :=
         ".coyote-response-content { background-color: @theme_base_color; "
         & "color: @theme_text_color; }";
       Provider  : Gtk_Css_Provider;
@@ -186,8 +191,8 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Add_Response_Text
      (C      : in out Instance;
-      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Text   : String)
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Text   :        String)
    is
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
       View   : Gtk.Text_View.Gtk_Text_View;
@@ -213,8 +218,8 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Add_Response_Table
      (C      : in out Instance;
-      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  : Coyote_Renderer.Tables.Table_Block)
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  :        Coyote_Renderer.Tables.Table_Block)
    is
       Grid : Gtk.Grid.Gtk_Grid;
    begin
@@ -231,25 +236,25 @@ package body Coyote_GUI.Conversation_Stack is
                  Table.Rows (Row_Index);
             begin
                if not Row.Cells.Is_Empty then
-                  for Column_Index in Row.Cells.First_Index
-                    .. Row.Cells.Last_Index
+                  for Column_Index in
+                    Row.Cells.First_Index .. Row.Cells.Last_Index
                   loop
                      declare
-                        Cell : Gtk.Label.Gtk_Label;
-                        Text : constant String := To_String
-                          (Row.Cells (Column_Index).Text);
-                        Alignment : constant
-                          Coyote_Renderer.Tables.Table_Alignment :=
-                          (if Column_Index <= Natural
-                             (Table.Alignments.Length)
-                           then Table.Alignments (Column_Index)
+                        Cell      : Gtk.Label.Gtk_Label;
+                        Text      : constant String :=
+                          To_String (Row.Cells (Column_Index).Text);
+                        Alignment :
+                          constant Coyote_Renderer.Tables.Table_Alignment :=
+                          (if
+                             Column_Index <= Natural (Table.Alignments.Length)
+                           then
+                             Table.Alignments (Column_Index)
                            else Coyote_Renderer.Tables.Unspecified);
                      begin
                         Gtk.Label.Gtk_New (Cell);
                         if Row.Is_Header then
                            Cell.Set_Markup
-                             ("<b>"
-                              & Coyote_Renderer.Markup.Xml_Escape (Text)
+                             ("<b>" & Coyote_Renderer.Markup.Xml_Escape (Text)
                               & "</b>");
                         else
                            Cell.Set_Text (Text);
@@ -259,8 +264,8 @@ package body Coyote_GUI.Conversation_Stack is
                         Cell.Set_Selectable (True);
                         Cell.Set_Halign (Gtk.Widget.Align_Fill);
                         case Alignment is
-                           when Coyote_Renderer.Tables.Left |
-                                Coyote_Renderer.Tables.Unspecified =>
+                           when Coyote_Renderer.Tables.Left
+                              | Coyote_Renderer.Tables.Unspecified =>
                               Cell.Set_Xalign (0.0);
                            when Coyote_Renderer.Tables.Center =>
                               Cell.Set_Xalign (0.5);
@@ -284,14 +289,12 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Add_Response_Math
      (C      : in out Instance;
-      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Block  : Coyote_Renderer.MathML.Display_Math_Block)
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Block  :        Coyote_Renderer.MathML.Display_Math_Block)
    is
       Element : constant Coyote_GUI.Math_Element.Instance_Access :=
         Coyote_GUI.Math_Element.New_Element
-          (To_String (Block.MathML),
-           To_String (Block.Source),
-           C.Math_Scale);
+          (To_String (Block.MathML), To_String (Block.Source), C.Math_Scale);
    begin
       if Element = null then
          Add_Response_Text (C, Parent, To_String (Block.Source));
@@ -301,24 +304,21 @@ package body Coyote_GUI.Conversation_Stack is
         (Parent, Coyote_GUI.Math_Element.Widget (Element.all));
       C.Math_Elements.Append (Element);
    end Add_Response_Math;
-   procedure Build_Response_Elements
-     (C        : in out Instance;
-      Full_Text : String)
+   procedure Build_Response_Elements (C : in out Instance; Full_Text : String)
    is
       Table_Extraction : constant Coyote_Renderer.Tables.Extraction_Result :=
         Coyote_Renderer.Tables.Extract_Tables (Full_Text);
-      Math_Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
+      Math_Extraction  : constant Coyote_Renderer.MathML.Extraction_Result :=
         Coyote_Renderer.MathML.Extract_Display_Math
           (To_String (Table_Extraction.Masked_Text));
-      Masked     : constant String :=
-        To_String (Math_Extraction.Masked_Text);
-      Cursor     : Positive := (if Masked'Length > 0 then Masked'First else 1);
-      Table_Index : Natural := 1;
-      Math_Index  : Natural := 1;
-      Table_Token : Unbounded_String;
-      Math_Token  : Unbounded_String;
-      Table_Position : Natural := 0;
-      Math_Position  : Natural := 0;
+      Masked : constant String := To_String (Math_Extraction.Masked_Text);
+      Cursor : Positive := (if Masked'Length > 0 then Masked'First else 1);
+      Table_Index      : Natural := 1;
+      Math_Index       : Natural := 1;
+      Table_Token      : Unbounded_String;
+      Math_Token       : Unbounded_String;
+      Table_Position   : Natural := 0;
+      Math_Position    : Natural := 0;
 
       procedure Add_Response_Text_If_Content (Text : String) is
       begin
@@ -327,16 +327,18 @@ package body Coyote_GUI.Conversation_Stack is
          end if;
       end Add_Response_Text_If_Content;
    begin
-      if (Table_Extraction.Blocks.Is_Empty
-          and then Math_Extraction.Blocks.Is_Empty)
+      if
+        (Table_Extraction.Blocks.Is_Empty
+         and then Math_Extraction.Blocks.Is_Empty)
         or else C.Response_Section = null
       then
          return;
       end if;
 
       Gtk.Box.Gtk_New_Vbox
-        (C.Response_Box, Homogeneous => False,
-         Spacing => Response_Box_Spacing);
+        (C.Response_Box,
+         Homogeneous => False,
+         Spacing     => Response_Box_Spacing);
       C.Response_Box.Set_Name ("coyote-response-rendered");
       C.Response_Section.Pack_Start
         (C.Response_Box, Expand => False, Fill => True, Padding => 2);
@@ -345,22 +347,24 @@ package body Coyote_GUI.Conversation_Stack is
         or else Math_Index <= Natural (Math_Extraction.Blocks.Length)
       loop
          Table_Token := Null_Unbounded_String;
-         Math_Token := Null_Unbounded_String;
+         Math_Token  := Null_Unbounded_String;
          if Table_Index <= Natural (Table_Extraction.Blocks.Length) then
             Table_Token := Table_Extraction.Blocks (Table_Index).Placeholder;
-            Table_Position := Ada.Strings.Fixed.Index
-              (Masked, To_String (Table_Token), Cursor);
+            Table_Position :=
+              Ada.Strings.Fixed.Index
+                (Masked, To_String (Table_Token), Cursor);
          else
             Table_Position := 0;
          end if;
          if Math_Index <= Natural (Math_Extraction.Blocks.Length) then
-            Math_Token := To_Unbounded_String
-              ("COYOTE_MATH_BLOCK_"
-               & Ada.Strings.Fixed.Trim
+            Math_Token    :=
+              To_Unbounded_String
+                ("COYOTE_MATH_BLOCK_"
+                 & Ada.Strings.Fixed.Trim
                    (Natural'Image (Math_Index), Ada.Strings.Both)
-               & "__");
-            Math_Position := Ada.Strings.Fixed.Index
-              (Masked, To_String (Math_Token), Cursor);
+                 & "__");
+            Math_Position :=
+              Ada.Strings.Fixed.Index (Masked, To_String (Math_Token), Cursor);
          else
             Math_Position := 0;
          end if;
@@ -374,9 +378,8 @@ package body Coyote_GUI.Conversation_Stack is
                  (Masked (Cursor .. Table_Position - 1));
             end if;
             Add_Response_Table
-              (C, C.Response_Box,
-               Table_Extraction.Blocks (Table_Index));
-            Cursor := Table_Position + Length (Table_Token);
+              (C, C.Response_Box, Table_Extraction.Blocks (Table_Index));
+            Cursor      := Table_Position + Length (Table_Token);
             Table_Index := Table_Index + 1;
          else
             if Math_Position > Cursor then
@@ -385,7 +388,7 @@ package body Coyote_GUI.Conversation_Stack is
             end if;
             Add_Response_Math
               (C, C.Response_Box, Math_Extraction.Blocks (Math_Index));
-            Cursor := Math_Position + Length (Math_Token);
+            Cursor     := Math_Position + Length (Math_Token);
             Math_Index := Math_Index + 1;
          end if;
       end loop;
@@ -397,9 +400,7 @@ package body Coyote_GUI.Conversation_Stack is
    end Build_Response_Elements;
 
    procedure Replace_Streamed_Text
-     (C                : in out Instance;
-      Full_Text        : String;
-      Has_Display_Math : out Boolean)
+     (C : in out Instance; Full_Text : String; Has_Display_Math : out Boolean)
    is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
@@ -410,8 +411,8 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       declare
-         Table_Extraction : constant
-           Coyote_Renderer.Tables.Extraction_Result :=
+         Table_Extraction :
+           constant Coyote_Renderer.Tables.Extraction_Result :=
            Coyote_Renderer.Tables.Extract_Tables (Full_Text);
       begin
          if not Table_Extraction.Blocks.Is_Empty then
@@ -427,15 +428,15 @@ package body Coyote_GUI.Conversation_Stack is
             return;
          end if;
       end;
-      Markup := To_Unbounded_String
-        (Coyote_Renderer.Markup.To_Pango_Markup (Full_Text));
+      Markup :=
+        To_Unbounded_String
+          (Coyote_Renderer.Markup.To_Pango_Markup (Full_Text));
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       if Length (Markup) > 0 then
-         C.Active_Text.Insert_Markup
-           (Start_Iter, To_String (Markup), -1);
+         C.Active_Text.Insert_Markup (Start_Iter, To_String (Markup), -1);
       else
          C.Active_Text.Insert (Start_Iter, Full_Text);
       end if;
@@ -465,14 +466,17 @@ package body Coyote_GUI.Conversation_Stack is
    function Tool_Status_Text
      (Status  : Coyote_GUI.Tool_Status;
       Result  : String;
-      Running : Boolean) return String
+      Running : Boolean)
+      return String
    is
       Detail : constant String :=
         Sanitize_UTF8
-          ((if Result'Length > 80
-            then Result (Result'First .. Result'First + 79)
+          ((if
+              Result'Length > 80
+            then
+              Result (Result'First .. Result'First + 79)
             else Result));
-      Text : Unbounded_String;
+      Text   : Unbounded_String;
    begin
       if Running or else Status = Coyote_GUI.Running then
          return "Running";
@@ -480,7 +484,8 @@ package body Coyote_GUI.Conversation_Stack is
          return "Queued";
       end if;
       case Status is
-         when Coyote_GUI.Queued | Coyote_GUI.Running =>
+         when Coyote_GUI.Queued
+            | Coyote_GUI.Running =>
             return "Running";
          when Coyote_GUI.Success =>
             return "Completed";
@@ -504,8 +509,8 @@ package body Coyote_GUI.Conversation_Stack is
    function Compact_Tool_Value (Value : String) return String is
    begin
       if Value'Length > 80 then
-         return Sanitize_UTF8
-           (Value (Value'First .. Value'First + 76) & UC_ELLIP);
+         return
+           Sanitize_UTF8 (Value (Value'First .. Value'First + 76) & UC_ELLIP);
       end if;
       return Sanitize_UTF8 (Value);
    end Compact_Tool_Value;
@@ -515,16 +520,14 @@ package body Coyote_GUI.Conversation_Stack is
       Args    : String;
       Status  : Coyote_GUI.Tool_Status;
       Result  : String;
-      Running : Boolean) return String
+      Running : Boolean)
+      return String
    is
       use type GNATCOLL.JSON.JSON_Value_Type;
-      Parsed : constant GNATCOLL.JSON.Read_Result :=
-        GNATCOLL.JSON.Read (Args);
-      Args_Val : constant GNATCOLL.JSON.JSON_Value :=
-        (if Parsed.Success
-         then Parsed.Value
-         else GNATCOLL.JSON.JSON_Null);
-      Summary : Unbounded_String;
+      Parsed : constant GNATCOLL.JSON.Read_Result := GNATCOLL.JSON.Read (Args);
+      Args_Val : constant GNATCOLL.JSON.JSON_Value  :=
+        (if Parsed.Success then Parsed.Value else GNATCOLL.JSON.JSON_Null);
+      Summary  : Unbounded_String;
    begin
       Append (Summary, Name);
       if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
@@ -538,8 +541,7 @@ package body Coyote_GUI.Conversation_Stack is
                   Append
                     (Summary,
                      ASCII.LF & String (Field_Name) & ": "
-                     & Compact_Tool_Value
-                         (JSON_Scalar_Image (Field_Value)));
+                     & Compact_Tool_Value (JSON_Scalar_Image (Field_Value)));
                end if;
             end Add_Argument;
          begin
@@ -548,8 +550,7 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Append
         (Summary,
-         ASCII.LF & "Status: "
-         & Tool_Status_Text (Status, Result, Running));
+         ASCII.LF & "Status: " & Tool_Status_Text (Status, Result, Running));
       return To_String (Summary);
    end Format_Tool_Summary;
 
@@ -574,8 +575,7 @@ package body Coyote_GUI.Conversation_Stack is
          Gtk.Frame.Gtk_New
            (C.Step_Frame, "Step " & Natural_Image (C.Step_Number));
          C.Step_Frame.Set_Shadow_Type (Gtk.Enums.Shadow_In);
-         Gtk.Box.Gtk_New_Vbox
-           (C.Step_Box, Homogeneous => False, Spacing => 3);
+         Gtk.Box.Gtk_New_Vbox (C.Step_Box, Homogeneous => False, Spacing => 3);
          C.Step_Box.Set_Border_Width (6);
          C.Step_Frame.Add (C.Step_Box);
          C.Exchange.Pack_Start
@@ -589,12 +589,12 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Add_Text_Element
      (C              : in out Instance;
-      Parent         : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Caption        : String;
-      Text           : String;
-      Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View           : out Gtk.Text_View.Gtk_Text_View;
-      Response_Block : Boolean := False)
+      Parent         :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Caption        :        String;
+      Text           :        String;
+      Buffer         :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View           :    out Gtk.Text_View.Gtk_Text_View;
+      Response_Block :        Boolean := False)
    is
       Section : Gtk.Box.Gtk_Box;
       Label   : Gtk.Label.Gtk_Label;
@@ -629,7 +629,7 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Create
      (C           : in out Instance;
-      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class)
+      Main_Window :        not null access Gtk.Window.Gtk_Window_Record'Class)
    is
    begin
       if C.Scroll /= null then
@@ -637,8 +637,7 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       C.Main_Window := Gtk.Window.Gtk_Window (Main_Window);
       Gtk.Scrolled_Window.Gtk_New (C.Scroll);
-      C.Scroll.Set_Policy
-        (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
+      C.Scroll.Set_Policy (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
       Gtk.Box.Gtk_New_Vbox (C.Host, Homogeneous => False, Spacing => 6);
       C.Scroll.Add (C.Host);
       Log (C, "created outer scroll host");
@@ -650,9 +649,7 @@ package body Coyote_GUI.Conversation_Stack is
    is
       pragma Unreferenced (Button);
    begin
-      if Data.Stack /= null
-        and then Data.Stack.Main_Window /= null
-      then
+      if Data.Stack /= null and then Data.Stack.Main_Window /= null then
          Coyote_GUI.Tool_Detail_Window.Show
            (Tool_Detail (Data.Stack.all, To_String (Data.Tool_Id)),
             Data.Stack.Main_Window.all'Access);
@@ -665,8 +662,7 @@ package body Coyote_GUI.Conversation_Stack is
    is
       pragma Unreferenced (Button);
    begin
-      if Data.Stack /= null
-        and then Data.Stack.Tool_Action_Handler /= null
+      if Data.Stack /= null and then Data.Stack.Tool_Action_Handler /= null
       then
          Data.Stack.Selected_Tool := Data.Tool_Id;
          Data.Stack.Tool_Action_Handler.all
@@ -680,8 +676,7 @@ package body Coyote_GUI.Conversation_Stack is
    is
       pragma Unreferenced (Button);
    begin
-      if Data.Stack /= null
-        and then Data.Stack.Tool_Action_Handler /= null
+      if Data.Stack /= null and then Data.Stack.Tool_Action_Handler /= null
       then
          Data.Stack.Selected_Tool := Data.Tool_Id;
          Data.Stack.Tool_Action_Handler.all
@@ -691,24 +686,20 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
    end On_Tool_Abort_Message_Clicked;
 
-   function Widget (C : Instance)
-     return Gtk.Scrolled_Window.Gtk_Scrolled_Window
+   function Widget
+     (C : Instance) return Gtk.Scrolled_Window.Gtk_Scrolled_Window
    is
    begin
       return C.Scroll;
    end Widget;
 
-   procedure Set_Fork_Handler
-     (C       : in out Instance;
-      Handler : Fork_Handler)
-   is
+   procedure Set_Fork_Handler (C : in out Instance; Handler : Fork_Handler) is
    begin
       C.Fork_Callback := Handler;
    end Set_Fork_Handler;
 
    procedure Set_Tool_Action_Handler
-     (C       : in out Instance;
-      Handler : Coyote_GUI.Tool_Action_Handler)
+     (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler)
    is
    begin
       C.Tool_Action_Handler := Handler;
@@ -723,16 +714,15 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       C.Selected_Tool := Null_Unbounded_String;
       if not C.Math_Elements.Is_Empty then
-         for Math_Index in C.Math_Elements.First_Index
-           .. C.Math_Elements.Last_Index
+         for Math_Index in
+           C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
          loop
-            Coyote_GUI.Math_Element.Detach
-              (C.Math_Elements (Math_Index).all);
+            Coyote_GUI.Math_Element.Detach (C.Math_Elements (Math_Index).all);
          end loop;
       end if;
       if not C.Exchanges.Is_Empty then
-         for Exchange_Index in reverse C.Exchanges.First_Index
-           .. C.Exchanges.Last_Index
+         for Exchange_Index in reverse
+           C.Exchanges.First_Index .. C.Exchanges.Last_Index
          loop
             C.Host.Remove (C.Exchanges (Exchange_Index));
          end loop;
@@ -741,37 +731,36 @@ package body Coyote_GUI.Conversation_Stack is
       C.Step_Frames.Clear;
       C.Tools.Clear;
       if not C.Math_Elements.Is_Empty then
-         for Math_Index in C.Math_Elements.First_Index
-           .. C.Math_Elements.Last_Index
+         for Math_Index in
+           C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
          loop
-            Coyote_GUI.Math_Element.Free
-              (C.Math_Elements (Math_Index));
+            Coyote_GUI.Math_Element.Free (C.Math_Elements (Math_Index));
          end loop;
       end if;
       C.Math_Elements.Clear;
       C.Table_Grids.Clear;
       C.Table_Cells.Clear;
       C.Text_Views.Clear;
-      C.Exchange       := null;
-      C.Step_Frame     := null;
-      C.Step_Box       := null;
-      C.Tool_Flow      := null;
-      C.Active_Text    := null;
-      C.Active_View    := null;
+      C.Exchange         := null;
+      C.Step_Frame       := null;
+      C.Step_Box         := null;
+      C.Tool_Flow        := null;
+      C.Active_Text      := null;
+      C.Active_View      := null;
       C.Response_Section := null;
-      C.Response_Box  := null;
-      C.Math_Scale    := 1.0;
-      C.Stream_Mark  := null;
-      C.Stream_Buf   := Null_Unbounded_String;
-      C.Thinking       := null;
-      C.Thinking_View  := null;
-      C.Has_Exchange   := False;
-      C.Step_Open      := False;
-      C.Footer_Pending := False;
-      C.Step_Number    := 0;
-      C.Text_Open      := False;
-      C.Thinking_Open  := False;
-      C.Completed      := False;
+      C.Response_Box     := null;
+      C.Math_Scale       := 1.0;
+      C.Stream_Mark      := null;
+      C.Stream_Buf       := Null_Unbounded_String;
+      C.Thinking         := null;
+      C.Thinking_View    := null;
+      C.Has_Exchange     := False;
+      C.Step_Open        := False;
+      C.Footer_Pending   := False;
+      C.Step_Number      := 0;
+      C.Text_Open        := False;
+      C.Thinking_Open    := False;
+      C.Completed        := False;
       C.Last_Status      := Coyote_GUI.Completed;
       C.Footer_Separator := null;
       C.Footer_Heading   := null;
@@ -781,9 +770,7 @@ package body Coyote_GUI.Conversation_Stack is
    end Clear;
 
    procedure Begin_Request
-     (C    : in out Instance;
-      Text : String;
-      Kind : Coyote_GUI.Request_Kind)
+     (C : in out Instance; Text : String; Kind : Coyote_GUI.Request_Kind)
    is
       Caption : constant String :=
         (if Kind = Coyote_GUI.Steer then "Steer" else "Request");
@@ -817,14 +804,14 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Text_Open then
          Add_Text_Element
            (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
-         C.Text_Open := True;
+         C.Text_Open  := True;
          C.Stream_Buf := Null_Unbounded_String;
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
             C.Active_Text.Get_End_Iter (Iter);
-            C.Stream_Mark := C.Active_Text.Create_Mark
-              ("", Iter, Left_Gravity => True);
+            C.Stream_Mark :=
+              C.Active_Text.Create_Mark ("", Iter, Left_Gravity => True);
          end;
       end if;
       Append (C.Stream_Buf, Text);
@@ -832,17 +819,18 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Text;
 
    procedure End_Text_Block (C : in out Instance) is
-      Full_Text        : constant String :=
-        Sanitize_UTF8 (To_String (C.Stream_Buf));
-      Has_Display_Math : Boolean := False;
-      Has_Native_Blocks : Boolean := False;
+      Full_Text : constant String := Sanitize_UTF8 (To_String (C.Stream_Buf));
+      Has_Display_Math  : Boolean         := False;
+      Has_Native_Blocks : Boolean         := False;
    begin
       if C.Text_Open then
          if C.Render_Markdown then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
-            Has_Native_Blocks := Has_Display_Math
-              or else not Coyote_Renderer.Tables.Extract_Tables
-                (Full_Text).Blocks.Is_Empty;
+            Has_Native_Blocks :=
+              Has_Display_Math
+              or else not Coyote_Renderer.Tables.Extract_Tables (Full_Text)
+                .Blocks
+                .Is_Empty;
          end if;
          Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
          if C.Stream_Mark /= null then
@@ -855,7 +843,7 @@ package body Coyote_GUI.Conversation_Stack is
             declare
                Old_View  : constant Gtk.Text_View.Gtk_Text_View :=
                  C.Active_View;
-               Old_Index : Text_View_Vectors.Extended_Index :=
+               Old_Index : Text_View_Vectors.Extended_Index     :=
                  Text_View_Vectors.No_Index;
             begin
                if Old_View /= null then
@@ -931,8 +919,7 @@ package body Coyote_GUI.Conversation_Stack is
          C.Tool_Flow.Set_Row_Spacing (4);
          C.Tool_Flow.Set_Column_Spacing (4);
          C.Tool_Flow.Set_Selection_Mode (Gtk.Enums.Selection_None);
-         C.Tool_Flow.Set_Orientation
-           (Gtk.Enums.Orientation_Horizontal);
+         C.Tool_Flow.Set_Orientation (Gtk.Enums.Orientation_Horizontal);
          C.Tool_Flow.Set_Hexpand (True);
          C.Tool_Flow.Set_Halign (Gtk.Widget.Align_Fill);
          C.Step_Box.Pack_Start
@@ -941,30 +928,29 @@ package body Coyote_GUI.Conversation_Stack is
    end Ensure_Tool_Flow;
 
    procedure Begin_Tool
-     (C               : in out Instance;
-      Name            : String;
-      Args            : String;
-      Session_Id      : String;
-      Tool_Id         : String;
-      Model           : String := "";
-      Source_Directory : String := "";
-      Session_Start   : String := "";
-      Turn_Index      : Positive := 1;
-      Call_In_Turn    : Positive := 1;
-      Initial_Status  : Coyote_GUI.Tool_Status := Coyote_GUI.Running)
+     (C                : in out Instance;
+      Name             :        String;
+      Args             :        String;
+      Session_Id       :        String;
+      Tool_Id          :        String;
+      Model            :        String                 := "";
+      Source_Directory :        String                 := "";
+      Session_Start    :        String                 := "";
+      Turn_Index       :        Positive               := 1;
+      Call_In_Turn     :        Positive               := 1;
+      Initial_Status   :        Coyote_GUI.Tool_Status := Coyote_GUI.Running)
    is
-      Frame        : Gtk.Frame.Gtk_Frame;
-      Box          : Gtk.Box.Gtk_Box;
-      Header       : Gtk.Label.Gtk_Label;
-      Status       : Gtk.Label.Gtk_Label;
-      Arguments    : Gtk.Grid.Gtk_Grid;
+      Frame                : Gtk.Frame.Gtk_Frame;
+      Box                  : Gtk.Box.Gtk_Box;
+      Header               : Gtk.Label.Gtk_Label;
+      Status               : Gtk.Label.Gtk_Label;
+      Arguments            : Gtk.Grid.Gtk_Grid;
       Details              : Gtk.Button.Gtk_Button;
       Abort_Button         : Gtk.Button.Gtk_Button;
       Abort_Message_Button : Gtk.Button.Gtk_Button;
       Info                 : Coyote_GUI.Tool_Info;
-      Summary_Text : constant String :=
-        Format_Tool_Summary
-          (Name, Args, Initial_Status, "", Running => False);
+      Summary_Text         : constant String :=
+        Format_Tool_Summary (Name, Args, Initial_Status, "", Running => False);
    begin
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
@@ -985,8 +971,8 @@ package body Coyote_GUI.Conversation_Stack is
       Info.Turn_Index       := Turn_Index;
       Info.Call_In_Turn     := Call_In_Turn;
       Info.Result_Status    := Initial_Status;
-      Info.Completed        := Initial_Status in
-        Coyote_GUI.Success .. Coyote_GUI.Cancelled;
+      Info.Completed        :=
+        Initial_Status in Coyote_GUI.Success .. Coyote_GUI.Cancelled;
 
       Gtk.Frame.Gtk_New (Frame, "Tool call");
       Gtk.Box.Gtk_New_Vbox (Box, Homogeneous => False, Spacing => 4);
@@ -998,9 +984,9 @@ package body Coyote_GUI.Conversation_Stack is
       Box.Pack_Start (Header, Expand => False, Fill => False, Padding => 0);
 
       Gtk.Label.Gtk_New
-        (Status, "Status: "
-         & Tool_Status_Text
-             (Coyote_GUI.Success, "", Running => True));
+        (Status,
+         "Status: "
+         & Tool_Status_Text (Coyote_GUI.Success, "", Running => True));
       Status.Set_Xalign (0.0);
       Box.Pack_Start (Status, Expand => False, Fill => False, Padding => 0);
 
@@ -1009,13 +995,11 @@ package body Coyote_GUI.Conversation_Stack is
       Arguments.Set_Row_Spacing (3);
       declare
          use type GNATCOLL.JSON.JSON_Value_Type;
-         Parsed : constant GNATCOLL.JSON.Read_Result :=
+         Parsed   : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (Args);
-         Args_Val : constant GNATCOLL.JSON.JSON_Value :=
-           (if Parsed.Success
-            then Parsed.Value
-            else GNATCOLL.JSON.JSON_Null);
-         Row : Glib.Gint := 0;
+         Args_Val : constant GNATCOLL.JSON.JSON_Value  :=
+           (if Parsed.Success then Parsed.Value else GNATCOLL.JSON.JSON_Null);
+         Row      : Glib.Gint                          := 0;
       begin
          if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
             declare
@@ -1024,15 +1008,12 @@ package body Coyote_GUI.Conversation_Stack is
                   Field_Value : GNATCOLL.JSON.JSON_Value)
                is
                begin
-                  if not Is_Hidden_Tool_Argument
-                    (Field_Name, Field_Value)
-                  then
+                  if not Is_Hidden_Tool_Argument (Field_Name, Field_Value) then
                      Add_Tool_Argument
                        (Arguments.all'Access,
                         Row,
                         String (Field_Name),
-                        Compact_Tool_Value
-                          (JSON_Scalar_Image (Field_Value)));
+                        Compact_Tool_Value (JSON_Scalar_Image (Field_Value)));
                      Row := Row + 1;
                   end if;
                end Add_Argument;
@@ -1055,21 +1036,21 @@ package body Coyote_GUI.Conversation_Stack is
         (Details,
          Gtk.Button.Signal_Clicked,
          On_Detail_Clicked'Access,
-         (Stack   => C'Unchecked_Access,
-          Tool_Id => To_Unbounded_String (Tool_Id)));
+        (Stack   => C'Unchecked_Access,
+         Tool_Id => To_Unbounded_String (Tool_Id)));
       Box.Pack_Start (Details, Expand => False, Fill => False, Padding => 0);
 
       Gtk.Button.Gtk_New (Abort_Button, "Abort");
       Abort_Button.Set_Can_Focus (True);
-      Abort_Button.Set_Sensitive (Initial_Status in Coyote_GUI.Queued ..
-                                  Coyote_GUI.Running);
+      Abort_Button.Set_Sensitive
+        (Initial_Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
       Abort_Button.Set_Tooltip_Text ("Abort this tool call");
       Tool_Action_Callback.Connect
         (Abort_Button,
          Gtk.Button.Signal_Clicked,
          On_Tool_Abort_Clicked'Access,
-         (Stack   => C'Unchecked_Access,
-          Tool_Id => To_Unbounded_String (Tool_Id)));
+        (Stack   => C'Unchecked_Access,
+         Tool_Id => To_Unbounded_String (Tool_Id)));
       Box.Pack_Start
         (Abort_Button, Expand => False, Fill => False, Padding => 0);
       Gtk.Button.Gtk_New (Abort_Message_Button, "Abort With Message...");
@@ -1082,15 +1063,15 @@ package body Coyote_GUI.Conversation_Stack is
         (Abort_Message_Button,
          Gtk.Button.Signal_Clicked,
          On_Tool_Abort_Message_Clicked'Access,
-         (Stack   => C'Unchecked_Access,
-          Tool_Id => To_Unbounded_String (Tool_Id)));
+        (Stack   => C'Unchecked_Access,
+         Tool_Id => To_Unbounded_String (Tool_Id)));
       Box.Pack_Start
         (Abort_Message_Button, Expand => False, Fill => False, Padding => 0);
       C.Tool_Flow.Insert (Frame, -1);
       Show_Contents (C);
       C.Tools.Insert
         (Tool_Id,
-         (Summary_Text         => To_Unbounded_String (Summary_Text),
+        (Summary_Text          => To_Unbounded_String (Summary_Text),
           Status               => Status,
           Details              => Details,
           Abort_Button         => Abort_Button,
@@ -1099,20 +1080,18 @@ package body Coyote_GUI.Conversation_Stack is
    end Begin_Tool;
 
    procedure Set_Tool_Status
-     (C       : in out Instance;
-      Tool_Id : String;
-      Status  : Coyote_GUI.Tool_Status)
+     (C : in out Instance; Tool_Id : String; Status : Coyote_GUI.Tool_Status)
    is
       Tool_Value : Tool_Entry;
    begin
       if not C.Tools.Contains (Tool_Id) then
          return;
       end if;
-      Tool_Value := C.Tools.Element (Tool_Id);
+      Tool_Value                    := C.Tools.Element (Tool_Id);
       Tool_Value.Info.Result_Status := Status;
-      Tool_Value.Info.Completed := Status in
-        Coyote_GUI.Success .. Coyote_GUI.Cancelled;
-      Tool_Value.Summary_Text :=
+      Tool_Value.Info.Completed     :=
+        Status in Coyote_GUI.Success .. Coyote_GUI.Cancelled;
+      Tool_Value.Summary_Text       :=
         To_Unbounded_String
           (Format_Tool_Summary
              (To_String (Tool_Value.Info.Name),
@@ -1123,9 +1102,8 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Status.Set_Text
         ("Status: "
          & Tool_Status_Text
-             (Status,
-              To_String (Tool_Value.Info.Result_Text),
-              Running => Status = Coyote_GUI.Running));
+           (Status, To_String (Tool_Value.Info.Result_Text),
+            Running => Status = Coyote_GUI.Running));
       Tool_Value.Abort_Button.Set_Sensitive
         (Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
       Tool_Value.Abort_Message_Button.Set_Sensitive
@@ -1135,24 +1113,24 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure End_Tool
      (C          : in out Instance;
-      Tool_Id    : String;
-      Status     : Coyote_GUI.Tool_End_Status;
-      Result     : String;
-      Media_Type : String := "")
+      Tool_Id    :        String;
+      Status     :        Coyote_GUI.Tool_End_Status;
+      Result     :        String;
+      Media_Type :        String := "")
    is
       Tool_Value : Tool_Entry;
    begin
       if not C.Tools.Contains (Tool_Id) then
          return;
       end if;
-      Tool_Value := C.Tools.Element (Tool_Id);
+      Tool_Value                    := C.Tools.Element (Tool_Id);
       Tool_Value.Info.Result_Text   := To_Unbounded_String (Result);
       Tool_Value.Info.Media_Type    := To_Unbounded_String (Media_Type);
       Tool_Value.Info.Result_Status :=
         Coyote_GUI.Tool_End_Status'Val
           (Coyote_GUI.Tool_End_Status'Pos (Status));
-      Tool_Value.Info.Completed := True;
-      Tool_Value.Summary_Text :=
+      Tool_Value.Info.Completed     := True;
+      Tool_Value.Summary_Text       :=
         To_Unbounded_String
           (Format_Tool_Summary
              (To_String (Tool_Value.Info.Name),
@@ -1161,8 +1139,7 @@ package body Coyote_GUI.Conversation_Stack is
               Result,
               Running => False));
       Tool_Value.Status.Set_Text
-        ("Status: "
-         & Tool_Status_Text (Status, Result, Running => False));
+        ("Status: " & Tool_Status_Text (Status, Result, Running => False));
       Tool_Value.Abort_Button.Set_Sensitive (False);
       Tool_Value.Abort_Message_Button.Set_Sensitive (False);
       Tool_Value.Details.Set_Sensitive (True);
@@ -1170,16 +1147,14 @@ package body Coyote_GUI.Conversation_Stack is
    end End_Tool;
 
    procedure Append_Notice
-     (C    : in out Instance;
-      Kind : Coyote_GUI.Notice_Kind;
-      Text : String)
+     (C : in out Instance; Kind : Coyote_GUI.Notice_Kind; Text : String)
    is
-      Label : Gtk.Label.Gtk_Label;
+      Label  : Gtk.Label.Gtk_Label;
       Prefix : constant String :=
         (case Kind is
-            when Coyote_GUI.Info    => "Info: ",
-            when Coyote_GUI.Warning => "Warning: ",
-            when Coyote_GUI.Error   => "Error: ");
+           when Coyote_GUI.Info => "Info: ",
+           when Coyote_GUI.Warning => "Warning: ",
+           when Coyote_GUI.Error => "Error: ");
    begin
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
@@ -1195,14 +1170,16 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Append_Turn_Footer
      (C       : in out Instance;
-      Text    : String;
-      Kind    : Coyote_GUI.Footer_Kind;
-      Summary : String := "")
+      Text    :        String;
+      Kind    :        Coyote_GUI.Footer_Kind;
+      Summary :        String := "")
    is
       Footer_Box : Gtk.Box.Gtk_Box;
       Heading    : constant String :=
-        (if Kind = Coyote_GUI.Step_Footer
-         then "Step " & Natural_Image (C.Step_Number) & " summary"
+        (if
+           Kind = Coyote_GUI.Step_Footer
+         then
+           "Step " & Natural_Image (C.Step_Number) & " summary"
          else "Turn summary");
    begin
       if not C.Has_Exchange then
@@ -1227,8 +1204,7 @@ package body Coyote_GUI.Conversation_Stack is
          C.Footer_Label.Set_Line_Wrap (True);
          C.Footer_Label.Set_Selectable (False);
          C.Footer_Label.Set_Tooltip_Text
-           ("Token, context, cost, and completion information for "
-            & Heading);
+           ("Token, context, cost, and completion information for " & Heading);
          Footer_Box.Pack_Start
            (C.Footer_Label, Expand => False, Fill => True, Padding => 0);
       end if;
@@ -1239,11 +1215,11 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Turn_Footer;
 
    procedure Append_Fork_Action
-     (C       : in out Instance;
-      Label   : String;
-      UUID    : String;
-      Turn_N  : Positive;
-      Step_N  : Natural)
+     (C      : in out Instance;
+      Label  :        String;
+      UUID   :        String;
+      Turn_N :        Positive;
+      Step_N :        Natural)
    is
       pragma Unreferenced (Label);
       Action_Box : Gtk.Box.Gtk_Box;
@@ -1254,10 +1230,9 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Gtk.Box.Gtk_New_Hbox (Action_Box, Homogeneous => False, Spacing => 6);
       Gtk.Label.Gtk_New
-        (Point, "Fork point: turn " & Natural_Image (Turn_N)
-         & (if Step_N > 0
-            then ", step " & Natural_Image (Step_N)
-            else ""));
+        (Point,
+         "Fork point: turn " & Natural_Image (Turn_N)
+         & (if Step_N > 0 then ", step " & Natural_Image (Step_N) else ""));
       Point.Set_Xalign (0.0);
       Action_Box.Pack_Start
         (Point, Expand => True, Fill => True, Padding => 0);
@@ -1270,10 +1245,10 @@ package body Coyote_GUI.Conversation_Stack is
         (C.Fork_Button,
          Gtk.Button.Signal_Clicked,
          On_Fork_Clicked'Access,
-         (Handler => C.Fork_Callback,
-          UUID    => To_Unbounded_String (UUID),
-          Turn_N  => Turn_N,
-          Step_N  => Step_N));
+        (Handler => C.Fork_Callback,
+          UUID   => To_Unbounded_String (UUID),
+          Turn_N => Turn_N,
+          Step_N => Step_N));
       Action_Box.Pack_End
         (C.Fork_Button, Expand => False, Fill => False, Padding => 0);
       C.Step_Box.Pack_Start
@@ -1285,22 +1260,18 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Fork_Action;
 
    procedure Complete_Request
-     (C      : in out Instance;
-      Status : Coyote_GUI.Completion_Status)
+     (C : in out Instance; Status : Coyote_GUI.Completion_Status)
    is
    begin
       if not C.Has_Exchange or else C.Completed then
          return;
       end if;
       C.Last_Status := Status;
-      C.Completed := True;
+      C.Completed   := True;
       Finalize_Active_Step (C);
    end Complete_Request;
 
-   function Tool_Summary
-     (C       : Instance;
-      Tool_Id : String) return String
-   is
+   function Tool_Summary (C : Instance; Tool_Id : String) return String is
       Tool_Value : Tool_Entry;
    begin
       if not C.Tools.Contains (Tool_Id) then
@@ -1311,8 +1282,7 @@ package body Coyote_GUI.Conversation_Stack is
    end Tool_Summary;
 
    function Tool_Detail
-     (C       : Instance;
-      Tool_Id : String) return Coyote_GUI.Tool_Info
+     (C : Instance; Tool_Id : String) return Coyote_GUI.Tool_Info
    is
       Tool_Value : Tool_Entry;
    begin
@@ -1323,9 +1293,7 @@ package body Coyote_GUI.Conversation_Stack is
       return (others => <>);
    end Tool_Detail;
 
-   function Selection_View (C : Instance)
-     return Gtk.Text_View.Gtk_Text_View
-   is
+   function Selection_View (C : Instance) return Gtk.Text_View.Gtk_Text_View is
       Focus : Gtk.Widget.Gtk_Widget;
    begin
       if C.Main_Window /= null then
@@ -1362,12 +1330,11 @@ package body Coyote_GUI.Conversation_Stack is
    end Scroll_To_End;
 
    procedure Move_Viewport
-     (C    : in out Instance;
-      Move : Coyote_GUI.Navigation.Movement)
+     (C : in out Instance; Move : Coyote_GUI.Navigation.Movement)
    is
       Adjustment : constant Gtk.Adjustment.Gtk_Adjustment :=
         (if C.Scroll = null then null else C.Scroll.Get_Vadjustment);
-      Line_Size  : constant Gdouble := 18.0;
+      Line_Size  : constant Gdouble                       := 18.0;
    begin
       if Adjustment = null then
          return;
@@ -1451,16 +1418,15 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Set_Font
      (C          : in out Instance;
-      Desc       : Pango.Font.Pango_Font_Description;
-      Math_Scale : Long_Float := 1.0)
+      Desc       :        Pango.Font.Pango_Font_Description;
+      Math_Scale :        Long_Float := 1.0)
    is
    begin
       if C.Active_View /= null then
          C.Active_View.Modify_Font (Desc);
       end if;
       if not C.Text_Views.Is_Empty then
-         for Text_Index in C.Text_Views.First_Index
-           .. C.Text_Views.Last_Index
+         for Text_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
          loop
             C.Text_Views (Text_Index).Modify_Font (Desc);
          end loop;
@@ -1469,16 +1435,16 @@ package body Coyote_GUI.Conversation_Stack is
          C.Thinking_View.Modify_Font (Desc);
       end if;
       if not C.Table_Cells.Is_Empty then
-         for Cell_Index in C.Table_Cells.First_Index
-           .. C.Table_Cells.Last_Index
+         for Cell_Index in
+           C.Table_Cells.First_Index .. C.Table_Cells.Last_Index
          loop
             C.Table_Cells (Cell_Index).Modify_Font (Desc);
          end loop;
       end if;
       C.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
       if not C.Math_Elements.Is_Empty then
-         for Math_Index in C.Math_Elements.First_Index
-           .. C.Math_Elements.Last_Index
+         for Math_Index in
+           C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
          loop
             Coyote_GUI.Math_Element.Set_Scale
               (C.Math_Elements (Math_Index).all, C.Math_Scale);

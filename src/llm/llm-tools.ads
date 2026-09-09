@@ -35,7 +35,7 @@ package LLM.Tools is
       function C_Flag_Address return System.Address;
       entry Wait_Requested;
    private
-      Value : Boolean := False;
+      Value   : Boolean              := False;
       C_Value : aliased Atomic_C_Int := 0;
    end Abort_Flag;
 
@@ -54,7 +54,7 @@ package LLM.Tools is
       procedure Unarm;
       procedure Fire;
       procedure Release;
-      function Is_Armed  return Boolean;
+      function Is_Armed return Boolean;
       function Is_Paused return Boolean;
       entry Wait_If_Paused;
    private

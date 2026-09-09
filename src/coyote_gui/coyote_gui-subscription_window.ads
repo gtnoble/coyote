@@ -23,8 +23,8 @@ package Coyote_GUI.Subscription_Window is
    --  Construct the reusable manager, transient for Main_Window.
    procedure Create
      (S            : aliased in out Instance;
-      Main_Window  : not null access Gtk.Window.Gtk_Window_Record'Class;
-      Prompt_Queue : not null access Coyote_GUI.Prompt_Queue.Queue);
+      Main_Window  :     not null access Gtk.Window.Gtk_Window_Record'Class;
+      Prompt_Queue :            not null access Coyote_GUI.Prompt_Queue.Queue);
 
    function Is_Created (S : Instance) return Boolean;
 
@@ -42,19 +42,19 @@ package Coyote_GUI.Subscription_Window is
 private
 
    type Instance is record
-      Window         : Gtk.Window.Gtk_Window := null;
+      Window         : Gtk.Window.Gtk_Window                     := null;
       Main_Window    : access Gtk.Window.Gtk_Window_Record'Class := null;
-      Queue          : access Coyote_GUI.Prompt_Queue.Queue := null;
-      Provider_View  : Gtk.Tree_View.Gtk_Tree_View := null;
-      Provider_Store : Gtk.List_Store.Gtk_List_Store := null;
-      Status_Field   : Gtk.Label.Gtk_Label := null;
-      Account_Field  : Gtk.Label.Gtk_Label := null;
-      Login_Button   : Gtk.Button.Gtk_Button := null;
-      Refresh_Button : Gtk.Button.Gtk_Button := null;
-      Logout_Button  : Gtk.Button.Gtk_Button := null;
-      Status         : Gtk.Label.Gtk_Label := null;
-      Login_Active   : Boolean := False;
-      Created        : Boolean := False;
+      Queue          : access Coyote_GUI.Prompt_Queue.Queue      := null;
+      Provider_View  : Gtk.Tree_View.Gtk_Tree_View               := null;
+      Provider_Store : Gtk.List_Store.Gtk_List_Store             := null;
+      Status_Field   : Gtk.Label.Gtk_Label                       := null;
+      Account_Field  : Gtk.Label.Gtk_Label                       := null;
+      Login_Button   : Gtk.Button.Gtk_Button                     := null;
+      Refresh_Button : Gtk.Button.Gtk_Button                     := null;
+      Logout_Button  : Gtk.Button.Gtk_Button                     := null;
+      Status         : Gtk.Label.Gtk_Label                       := null;
+      Login_Active   : Boolean                                   := False;
+      Created        : Boolean                                   := False;
    end record;
 
 end Coyote_GUI.Subscription_Window;

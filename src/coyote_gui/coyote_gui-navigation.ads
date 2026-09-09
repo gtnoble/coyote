@@ -22,6 +22,7 @@ package Coyote_GUI.Navigation is
       Upper     : Glib.Gdouble;
       Page_Size : Glib.Gdouble;
       Line_Size : Glib.Gdouble;
-      Move      : Movement) return Glib.Gdouble;
+      Move      : Movement)
+      return Glib.Gdouble;
 
 end Coyote_GUI.Navigation;

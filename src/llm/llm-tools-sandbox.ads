@@ -15,8 +15,7 @@ with GNATCOLL.JSON;
 package LLM.Tools.Sandbox is
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
+     (Index_Type => Positive, Element_Type => String);
 
    type Profile is record
       Allow_Write : String_Vectors.Vector := String_Vectors.Empty_Vector;
@@ -56,8 +55,7 @@ package LLM.Tools.Sandbox is
 
    --  Load the legacy JSON representation.  Returns JSON_Null when the
    --  profile is not found, invalid, or malformed.
-   function Load_Profile
-     (Name : String) return GNATCOLL.JSON.JSON_Value;
+   function Load_Profile (Name : String) return GNATCOLL.JSON.JSON_Value;
 
    --  Build the bwrap argument list for the given profile and working
    --  directory.  Returns an empty list when Profile_Name is empty
@@ -73,8 +71,7 @@ package LLM.Tools.Sandbox is
    --  responsible for prepending "bwrap" and appending "--" before
    --  the command.
    function Build_Bwrap_Args
-     (Profile_Name : String;
-      Cwd         : String) return String_Vectors.Vector;
+     (Profile_Name : String; Cwd : String) return String_Vectors.Vector;
 
    --  Return the full path to the sandbox profile directory.
    --  Empty string when $HOME is not set.

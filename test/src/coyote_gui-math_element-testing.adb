@@ -24,8 +24,9 @@ package body Coyote_GUI.Math_Element.Testing is
      (Element : Coyote_GUI.Math_Element.Instance) return Boolean
    is
    begin
-      return Gtk.Style_Context.Get_Style_Context (Element.Area).Has_Class
-        ("coyote-response-content");
+      return
+        Gtk.Style_Context.Get_Style_Context (Element.Area).Has_Class
+          ("coyote-response-content");
    end Has_Response_Style;
 
 end Coyote_GUI.Math_Element.Testing;

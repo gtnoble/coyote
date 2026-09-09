@@ -13,7 +13,8 @@ package body LLM_HTTP_Tests is
    use AUnit.Assertions;
 
    procedure Post_With_Retry
-     (URL      :     String; Headers : LLM.HTTP.Header_List;
+     (URL      :     String;
+      Headers  :     LLM.HTTP.Header_List;
       Payload  :     String;
       On_Chunk :     not null access procedure (Data : String);
       Status   : out Natural)
@@ -23,8 +24,11 @@ package body LLM_HTTP_Tests is
       for Attempt in 1 .. 20 loop
          begin
             LLM.HTTP.Post
-              (URL      => URL, Headers => Headers, Payload => Payload,
-               On_Chunk => On_Chunk, Status => Status);
+              (URL      => URL,
+               Headers  => Headers,
+               Payload  => Payload,
+               On_Chunk => On_Chunk,
+               Status   => Status);
             exit Retry_Loop;
          exception
             when LLM.HTTP.Curl_Error =>
@@ -38,7 +42,8 @@ package body LLM_HTTP_Tests is
    end Post_With_Retry;
 
    procedure Get_With_Retry
-     (URL      :     String; Headers : LLM.HTTP.Header_List;
+     (URL      :     String;
+      Headers  :     LLM.HTTP.Header_List;
       On_Chunk :     not null access procedure (Data : String);
       Status   : out Natural)
    is
@@ -47,8 +52,10 @@ package body LLM_HTTP_Tests is
       for Attempt in 1 .. 20 loop
          begin
             LLM.HTTP.Get
-              (URL    => URL, Headers => Headers, On_Chunk => On_Chunk,
-               Status => Status);
+              (URL      => URL,
+               Headers  => Headers,
+               On_Chunk => On_Chunk,
+               Status   => Status);
             exit Retry_Loop;
          exception
             when LLM.HTTP.Curl_Error =>
@@ -77,8 +84,7 @@ package body LLM_HTTP_Tests is
       end Collect;
 
       procedure Post_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -86,16 +92,18 @@ package body LLM_HTTP_Tests is
          Append (Res.Body_Data, "hello chunk");
       end Post_Handler;
 
-      Server : Test_HTTP_Server.Server
-        (Handler => Post_Handler'Unrestricted_Access);
+      Server :
+        Test_HTTP_Server.Server (Handler => Post_Handler'Unrestricted_Access);
 
    begin
       Server.Bind (Port);
       LLM.HTTP.Add_Header (Headers, "Content-Type", "text/plain");
 
       Post_With_Retry
-        (URL      => "http://127.0.0.1:18765/", Headers => Headers,
-         Payload  => "ping", On_Chunk => Collect'Access,
+        (URL      => "http://127.0.0.1:18765/",
+         Headers  => Headers,
+         Payload  => "ping",
+         On_Chunk => Collect'Access,
          Status   => Status);
 
       Server.Stop;
@@ -123,8 +131,7 @@ package body LLM_HTTP_Tests is
       end Collect;
 
       procedure Get_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -132,16 +139,18 @@ package body LLM_HTTP_Tests is
          Append (Res.Body_Data, "hello get");
       end Get_Handler;
 
-      Server : Test_HTTP_Server.Server
-        (Handler => Get_Handler'Unrestricted_Access);
+      Server :
+        Test_HTTP_Server.Server (Handler => Get_Handler'Unrestricted_Access);
 
    begin
       Server.Bind (Port);
       LLM.HTTP.Add_Header (Headers, "Accept", "text/plain");
 
       Get_With_Retry
-        (URL      => "http://127.0.0.1:18766/", Headers => Headers,
-         On_Chunk => Collect'Access, Status => Status);
+        (URL      => "http://127.0.0.1:18766/",
+         Headers  => Headers,
+         On_Chunk => Collect'Access,
+         Status   => Status);
 
       Server.Stop;
 
@@ -152,9 +161,7 @@ package body LLM_HTTP_Tests is
          "GET response body should be collected in full");
    end Test_Get_Status_And_Chunk;
 
-   procedure Test_HTTP_Non_200_Returns_Status_And_Body
-     (T : in out Test)
-   is
+   procedure Test_HTTP_Non_200_Returns_Status_And_Body (T : in out Test) is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_767;
@@ -170,8 +177,7 @@ package body LLM_HTTP_Tests is
       end Collect;
 
       procedure Error_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -179,16 +185,18 @@ package body LLM_HTTP_Tests is
          Append (Res.Body_Data, "bad request");
       end Error_Handler;
 
-      Server : Test_HTTP_Server.Server
-        (Handler => Error_Handler'Unrestricted_Access);
+      Server :
+        Test_HTTP_Server.Server (Handler => Error_Handler'Unrestricted_Access);
 
    begin
       Server.Bind (Port);
       LLM.HTTP.Add_Header (Headers, "Content-Type", "text/plain");
 
       Post_With_Retry
-        (URL      => "http://127.0.0.1:18767/", Headers => Headers,
-         Payload  => "ping", On_Chunk => Collect'Access,
+        (URL      => "http://127.0.0.1:18767/",
+         Headers  => Headers,
+         Payload  => "ping",
+         On_Chunk => Collect'Access,
          Status   => Status);
 
       Server.Stop;
@@ -205,10 +213,10 @@ package body LLM_HTTP_Tests is
    procedure Test_HTTP_Abort_During_Stalled_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port : constant Positive := 18_768;
-      Flag : aliased LLM.Tools.Abort_Flag;
-      Headers : LLM.HTTP.Header_List;
-      Server_Stopped : Boolean := False;
+      Port           : constant Positive := 18_768;
+      Flag           : aliased LLM.Tools.Abort_Flag;
+      Headers        : LLM.HTTP.Header_List;
+      Server_Stopped : Boolean           := False;
 
       protected Runner_State is
          procedure Note_Error;
@@ -236,8 +244,7 @@ package body LLM_HTTP_Tests is
       end Collect;
 
       procedure Stalled_Handler
-        (Req : Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -246,8 +253,9 @@ package body LLM_HTTP_Tests is
          Append (Res.Body_Data, "late response");
       end Stalled_Handler;
 
-      Server : Test_HTTP_Server.Server
-        (Handler => Stalled_Handler'Unrestricted_Access);
+      Server :
+        Test_HTTP_Server.Server
+          (Handler => Stalled_Handler'Unrestricted_Access);
    begin
       Server.Bind (Port);
 
@@ -258,15 +266,15 @@ package body LLM_HTTP_Tests is
             Runner_Status : Natural := 0;
          begin
             LLM.HTTP.Get
-              (URL => "http://127.0.0.1:18768/",
-               Headers => Headers,
-               On_Chunk => Collect'Access,
-               Status => Runner_Status,
+              (URL         => "http://127.0.0.1:18768/",
+               Headers     => Headers,
+               On_Chunk    => Collect'Access,
+               Status      => Runner_Status,
                Abort_Check => Flag'Unchecked_Access);
          exception
             when LLM.HTTP.Curl_Error =>
                null;
-            when E : others =>
+            when E : others          =>
                Runner_State.Note_Error;
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
@@ -288,10 +296,12 @@ package body LLM_HTTP_Tests is
             end loop;
          end;
 
-         Assert (Runner'Terminated,
-                 "stalled HTTP response should abort within 2 s");
-         Assert (not Runner_State.Had_Error,
-                 "stalled HTTP response runner should only see Curl_Error");
+         Assert
+           (Runner'Terminated,
+            "stalled HTTP response should abort within 2 s");
+         Assert
+           (not Runner_State.Had_Error,
+            "stalled HTTP response runner should only see Curl_Error");
       end;
 
       Server.Stop;
@@ -309,25 +319,28 @@ package body LLM_HTTP_Tests is
          raise;
    end Test_HTTP_Abort_During_Stalled_Response;
 
-   package LLM_HTTP_Caller is
-     new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
+   package LLM_HTTP_Caller is new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_HTTP_Caller.Create
-        ("LLM.HTTP POST returns status and callback chunk",
-         LLM_HTTP_Tests.Test_Post_Status_And_Chunk'Access));
-      Result.Add_Test (LLM_HTTP_Caller.Create
-        ("LLM.HTTP GET returns status and callback chunk",
-         LLM_HTTP_Tests.Test_Get_Status_And_Chunk'Access));
-      Result.Add_Test (LLM_HTTP_Caller.Create
-        ("LLM.HTTP POST non-200 returns status and body",
-         LLM_HTTP_Tests.Test_HTTP_Non_200_Returns_Status_And_Body'Access));
-      Result.Add_Test (LLM_HTTP_Caller.Create
-        ("LLM.HTTP aborts a stalled response promptly",
-         LLM_HTTP_Tests.Test_HTTP_Abort_During_Stalled_Response'Access));
+      Result.Add_Test
+        (LLM_HTTP_Caller.Create
+           ("LLM.HTTP POST returns status and callback chunk",
+            LLM_HTTP_Tests.Test_Post_Status_And_Chunk'Access));
+      Result.Add_Test
+        (LLM_HTTP_Caller.Create
+           ("LLM.HTTP GET returns status and callback chunk",
+            LLM_HTTP_Tests.Test_Get_Status_And_Chunk'Access));
+      Result.Add_Test
+        (LLM_HTTP_Caller.Create
+           ("LLM.HTTP POST non-200 returns status and body",
+            LLM_HTTP_Tests.Test_HTTP_Non_200_Returns_Status_And_Body'Access));
+      Result.Add_Test
+        (LLM_HTTP_Caller.Create
+           ("LLM.HTTP aborts a stalled response promptly",
+            LLM_HTTP_Tests.Test_HTTP_Abort_During_Stalled_Response'Access));
 
       return Result;
    end Suite;

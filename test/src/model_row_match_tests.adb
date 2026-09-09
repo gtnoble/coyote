@@ -18,8 +18,7 @@ package body Model_Row_Match_Tests is
    begin
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Model_Row_Matches
-           ("openrouter", "Claude Sonnet", "openrouter/claude-sonnet",
-            "   "),
+           ("openrouter", "Claude Sonnet", "openrouter/claude-sonnet", "   "),
          "Whitespace-only query should match any row");
    end Test_Whitespace_Query_Matches;
 
@@ -28,12 +27,16 @@ package body Model_Row_Match_Tests is
    begin
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Model_Row_Matches
-           ("openrouter", "Claude Sonnet 4", "openrouter/anthropic/claude",
+           ("openrouter",
+            "Claude Sonnet 4",
+            "openrouter/anthropic/claude",
             "SONNET"),
          "Case-insensitive name substring should match");
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Model_Row_Matches
-           ("openrouter", "Claude Sonnet 4", "openrouter/anthropic/claude",
+           ("openrouter",
+            "Claude Sonnet 4",
+            "openrouter/anthropic/claude",
             " sonnet "),
          "Trimmed query should still match a name substring");
    end Test_Name_Substring_Casefold;
@@ -43,8 +46,7 @@ package body Model_Row_Match_Tests is
    begin
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Model_Row_Matches
-           ("github-copilot", "GPT-4o", "github-copilot/gpt-4o",
-            "copilot"),
+           ("github-copilot", "GPT-4o", "github-copilot/gpt-4o", "copilot"),
          "Provider substring should match");
    end Test_Provider_Match;
 
@@ -53,7 +55,9 @@ package body Model_Row_Match_Tests is
    begin
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Model_Row_Matches
-           ("openrouter", "Sonnet", "openrouter/anthropic/claude-sonnet-4",
+           ("openrouter",
+            "Sonnet",
+            "openrouter/anthropic/claude-sonnet-4",
             "anthropic/claude"),
          "Spec substring should match");
    end Test_Spec_Match;
@@ -63,7 +67,9 @@ package body Model_Row_Match_Tests is
    begin
       AUnit.Assertions.Assert
         (not Coyote_App.Utils.Model_Row_Matches
-           ("openrouter", "Claude Sonnet", "openrouter/claude-sonnet",
+           ("openrouter",
+            "Claude Sonnet",
+            "openrouter/claude-sonnet",
             "haiku"),
          "Unrelated query should not match");
    end Test_No_Match;
@@ -98,37 +104,45 @@ package body Model_Row_Match_Tests is
          "Many filtered should be 'N matches'");
    end Test_Count_Filtered;
 
-   package Model_Row_Match_Caller is
-     new AUnit.Test_Caller (Model_Row_Match_Tests.Test);
+   package Model_Row_Match_Caller is new AUnit.Test_Caller
+     (Model_Row_Match_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Model_Row_Matches: empty query matches any row",
-         Model_Row_Match_Tests.Test_Empty_Query_Matches'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Model_Row_Matches: whitespace query matches any row",
-         Model_Row_Match_Tests.Test_Whitespace_Query_Matches'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Model_Row_Matches: case-insensitive name substring",
-         Model_Row_Match_Tests.Test_Name_Substring_Casefold'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Model_Row_Matches: provider substring",
-         Model_Row_Match_Tests.Test_Provider_Match'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Model_Row_Matches: spec substring",
-         Model_Row_Match_Tests.Test_Spec_Match'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Model_Row_Matches: unrelated query rejected",
-         Model_Row_Match_Tests.Test_No_Match'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Format_Model_Picker_Count: unfiltered wording",
-         Model_Row_Match_Tests.Test_Count_Unfiltered'Access));
-      Result.Add_Test (Model_Row_Match_Caller.Create
-        ("Format_Model_Picker_Count: filtered wording",
-         Model_Row_Match_Tests.Test_Count_Filtered'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Model_Row_Matches: empty query matches any row",
+            Model_Row_Match_Tests.Test_Empty_Query_Matches'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Model_Row_Matches: whitespace query matches any row",
+            Model_Row_Match_Tests.Test_Whitespace_Query_Matches'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Model_Row_Matches: case-insensitive name substring",
+            Model_Row_Match_Tests.Test_Name_Substring_Casefold'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Model_Row_Matches: provider substring",
+            Model_Row_Match_Tests.Test_Provider_Match'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Model_Row_Matches: spec substring",
+            Model_Row_Match_Tests.Test_Spec_Match'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Model_Row_Matches: unrelated query rejected",
+            Model_Row_Match_Tests.Test_No_Match'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Format_Model_Picker_Count: unfiltered wording",
+            Model_Row_Match_Tests.Test_Count_Unfiltered'Access));
+      Result.Add_Test
+        (Model_Row_Match_Caller.Create
+           ("Format_Model_Picker_Count: filtered wording",
+            Model_Row_Match_Tests.Test_Count_Filtered'Access));
 
       return Result;
    end Suite;

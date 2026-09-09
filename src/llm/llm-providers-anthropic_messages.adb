@@ -18,67 +18,59 @@ package body LLM.Providers.Anthropic_Messages is
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    type Stream_Block_Kind is
-      (No_Block,
-     Thinking_Block,
-     Text_Block,
-     Tool_Use_Block);
+     (No_Block,
+      Thinking_Block,
+      Text_Block,
+      Tool_Use_Block);
 
    type Stream_Block_State is record
-      Kind              : Stream_Block_Kind := No_Block;
-      Started           : Boolean := False;
-      Tool_Call_Id      : Unbounded_String;
-      Tool_Name         : Unbounded_String;
-      Tool_Input        : Unbounded_String;
+      Kind          : Stream_Block_Kind := No_Block;
+      Started       : Boolean           := False;
+      Tool_Call_Id  : Unbounded_String;
+      Tool_Name     : Unbounded_String;
+      Tool_Input    : Unbounded_String;
       --  Thinking block accumulator and its opaque Anthropic signature.
       --  The signature must be echoed back verbatim in subsequent requests.
-      Thinking_Text     : Unbounded_String;
-      Thinking_Sig      : Unbounded_String;
+      Thinking_Text : Unbounded_String;
+      Thinking_Sig  : Unbounded_String;
    end record;
 
    EMPTY_STREAM_BLOCK_STATE : constant Stream_Block_State :=
-      (Kind              => No_Block,
-     Started           => False,
-     Tool_Call_Id      => Null_Unbounded_String,
-     Tool_Name         => Null_Unbounded_String,
-     Tool_Input        => Null_Unbounded_String,
-     Thinking_Text     => Null_Unbounded_String,
-     Thinking_Sig      => Null_Unbounded_String);
+     (Kind          => No_Block,
+      Started       => False,
+      Tool_Call_Id  => Null_Unbounded_String,
+      Tool_Name     => Null_Unbounded_String,
+      Tool_Input    => Null_Unbounded_String,
+      Thinking_Text => Null_Unbounded_String,
+      Thinking_Sig  => Null_Unbounded_String);
 
    package Stream_Block_State_Vectors is new Ada.Containers.Vectors
-      (Index_Type   => Natural,
-     Element_Type => Stream_Block_State);
+     (Index_Type => Natural, Element_Type => Stream_Block_State);
 
    type Response_State is record
       Parser            : LLM.SSE.Parser;
       Blocks            : Stream_Block_State_Vectors.Vector;
       Stop              : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Tok_Usage         : LLM.Types.Usage := (others => 0);
-      Message_Started   : Boolean := False;
-      Message_Ended     : Boolean := False;
+      Tok_Usage         : LLM.Types.Usage       := (others => 0);
+      Message_Started   : Boolean               := False;
+      Message_Ended     : Boolean               := False;
       Raw_Response_Body : Unbounded_String;
       Error_Message     : Unbounded_String;
    end record;
 
-   function Create
-      (Base_Url : String;
-     Api_Key  : String) return Provider
-   is
+   function Create (Base_Url : String; Api_Key : String) return Provider is
    begin
       return Result : Provider do
          Result.Base_Url := To_Unbounded_String (Base_Url);
-         Result.Api_Key := To_Unbounded_String (Api_Key);
+         Result.Api_Key  := To_Unbounded_String (Api_Key);
       end return;
    end Create;
 
-   procedure Add_Header
-      (P     : in out Provider;
-     Name  :        String;
-     Value :        String)
-   is
+   procedure Add_Header (P : in out Provider; Name : String; Value : String) is
    begin
       P.Extra_Headers.Append
-         ((Name  => To_Unbounded_String (Name),
-            Value => To_Unbounded_String (Value)));
+        ((Name  => To_Unbounded_String (Name),
+          Value => To_Unbounded_String (Value)));
    end Add_Header;
 
    function Endpoint_Url (Base_Url : String) return String is
@@ -86,7 +78,7 @@ package body LLM.Providers.Anthropic_Messages is
       if Base_Url'Length = 0 then
          return "/v1/messages";
       elsif Ada.Strings.Fixed.Index (Base_Url, "/v1/messages")
-         = Base_Url'Last - 11
+        = Base_Url'Last - 11
       then
          return Base_Url;
       elsif Base_Url (Base_Url'Last) = '/' then
@@ -98,42 +90,41 @@ package body LLM.Providers.Anthropic_Messages is
 
    function Uses_X_Api_Key (Base_Url : String) return Boolean is
       Lower_Base_Url : constant String :=
-         Ada.Characters.Handling.To_Lower (Base_Url);
+        Ada.Characters.Handling.To_Lower (Base_Url);
    begin
-      return Ada.Strings.Fixed.Index (Lower_Base_Url, "anthropic.com") > 0
+      return
+        Ada.Strings.Fixed.Index (Lower_Base_Url, "anthropic.com") > 0
         or else Ada.Strings.Fixed.Index (Lower_Base_Url, "opencode.ai") > 0;
    end Uses_X_Api_Key;
 
    function Parse_Json
-      (Text : String;
-     What : String) return GNATCOLL.JSON.JSON_Value
+     (Text : String; What : String) return GNATCOLL.JSON.JSON_Value
    is
-      Parsed : constant GNATCOLL.JSON.Read_Result :=
-         GNATCOLL.JSON.Read (Text);
+      Parsed : constant GNATCOLL.JSON.Read_Result := GNATCOLL.JSON.Read (Text);
    begin
       if Parsed.Success then
          return Parsed.Value;
       end if;
 
-      raise Constraint_Error with
-         What & ": " & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
+      raise Constraint_Error
+        with What & ": " & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
    end Parse_Json;
 
    function Has_String_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return Boolean
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return Boolean
    is
    begin
       return
-         Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type;
+        Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type;
    end Has_String_Field;
 
    function Get_String_Field
-      (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : String := "") return String
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : String := "")
+      return String
    is
    begin
       if Has_String_Field (Value, Field) then
@@ -144,13 +135,14 @@ package body LLM.Providers.Anthropic_Messages is
    end Get_String_Field;
 
    function Get_Object_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return GNATCOLL.JSON.JSON_Value
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String)
+      return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          return Value.Get (Field);
       end if;
@@ -159,20 +151,20 @@ package body LLM.Providers.Anthropic_Messages is
    end Get_Object_Field;
 
    function Has_Int_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return Boolean
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return Boolean
    is
    begin
       return
-         Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type;
+        Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type;
    end Has_Int_Field;
 
    function Get_Natural_Field
-      (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : Natural := 0) return Natural
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : Natural := 0)
+      return Natural
    is
       Raw : Long_Integer;
    begin
@@ -187,7 +179,7 @@ package body LLM.Providers.Anthropic_Messages is
    end Get_Natural_Field;
 
    function Thinking_Budget
-      (Thinking : LLM.Providers.Thinking_Level) return Natural
+     (Thinking : LLM.Providers.Thinking_Level) return Natural
    is
    begin
       case Thinking is
@@ -206,8 +198,7 @@ package body LLM.Providers.Anthropic_Messages is
       end case;
    end Thinking_Budget;
 
-   function To_Stop_Reason
-      (Stop_Reason : String) return LLM.Types.Stop_Reason
+   function To_Stop_Reason (Stop_Reason : String) return LLM.Types.Stop_Reason
    is
    begin
       if Stop_Reason = "end_turn" then
@@ -224,8 +215,8 @@ package body LLM.Providers.Anthropic_Messages is
    end To_Stop_Reason;
 
    procedure Emit
-      (Handler : LLM.Providers.Event_Handler;
-     Event   : LLM.Events.Agent_Event'Class)
+     (Handler : LLM.Providers.Event_Handler;
+      Event   : LLM.Events.Agent_Event'Class)
    is
    begin
       if Handler /= null then
@@ -235,60 +226,57 @@ package body LLM.Providers.Anthropic_Messages is
 
    procedure Emit_Agent_Start (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Agent_Start_Event :=
-         (LLM.Events.Agent_Event with null record);
+        (LLM.Events.Agent_Event with null record);
    begin
       Emit (Handler, Event);
    end Emit_Agent_Start;
 
    procedure Emit_Agent_End (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Agent_End_Event :=
-         (LLM.Events.Agent_Event with
-          Was_Aborted => False,
-          Error_Msg   => Null_Unbounded_String);
+        (LLM.Events.Agent_Event with Was_Aborted => False,
+         Error_Msg                               => Null_Unbounded_String);
    begin
       Emit (Handler, Event);
    end Emit_Agent_End;
 
    procedure Emit_Message_Start (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Message_Start_Event :=
-         (LLM.Events.Agent_Event with null record);
+        (LLM.Events.Agent_Event with null record);
    begin
       Emit (Handler, Event);
    end Emit_Message_Start;
 
    procedure Emit_Message_End
-      (Handler   : LLM.Providers.Event_Handler;
-       Stop      : LLM.Types.Stop_Reason;
-       Tok_Usage : LLM.Types.Usage;
-       Err_Msg   : String := "")
+     (Handler   : LLM.Providers.Event_Handler;
+      Stop      : LLM.Types.Stop_Reason;
+      Tok_Usage : LLM.Types.Usage;
+      Err_Msg   : String := "")
    is
       Event : constant LLM.Events.Message_End_Event :=
-         (LLM.Events.Agent_Event with
-          Stop      => Stop,
-          Err_Msg   => To_Unbounded_String (Err_Msg),
-          Tok_Usage => Tok_Usage,
-          Cost_Dmil => 0);
+        (LLM.Events.Agent_Event with Stop => Stop,
+         Err_Msg                          => To_Unbounded_String (Err_Msg),
+         Tok_Usage                        => Tok_Usage,
+         Cost_Dmil                        => 0);
    begin
       Emit (Handler, Event);
    end Emit_Message_End;
 
    procedure Emit_Update
-      (Handler       : LLM.Providers.Event_Handler;
-     Kind          : LLM.Events.Message_Update_Kind;
-     Delta_Text    : String := "";
-     Signature     : String := "";
-     Content_Index : Natural := 0;
-     Tool_Call_Id  : String := "";
-     Tool_Name     : String := "")
+     (Handler       : LLM.Providers.Event_Handler;
+      Kind          : LLM.Events.Message_Update_Kind;
+      Delta_Text    : String  := "";
+      Signature     : String  := "";
+      Content_Index : Natural := 0;
+      Tool_Call_Id  : String  := "";
+      Tool_Name     : String  := "")
    is
       Event : constant LLM.Events.Message_Update_Event :=
-         (LLM.Events.Agent_Event with
-       Kind          => Kind,
-       Delta_Text    => To_Unbounded_String (Delta_Text),
-       Signature     => To_Unbounded_String (Signature),
-       Content_Index => Content_Index,
-       Tool_Call_Id  => To_Unbounded_String (Tool_Call_Id),
-       Tool_Name     => To_Unbounded_String (Tool_Name));
+        (LLM.Events.Agent_Event with Kind => Kind,
+         Delta_Text                       => To_Unbounded_String (Delta_Text),
+         Signature                        => To_Unbounded_String (Signature),
+         Content_Index                    => Content_Index,
+         Tool_Call_Id => To_Unbounded_String (Tool_Call_Id),
+         Tool_Name                        => To_Unbounded_String (Tool_Name));
    begin
       Emit (Handler, Event);
    end Emit_Update;
@@ -296,8 +284,8 @@ package body LLM.Providers.Anthropic_Messages is
    --  Append a thinking block to a content array, including the opaque
    --  signature that Anthropic requires be echoed back verbatim.
    procedure Append_Thinking_Content
-      (Content   : in out GNATCOLL.JSON.JSON_Array;
-       Block     :        LLM.Types.Content_Block)
+     (Content : in out GNATCOLL.JSON.JSON_Array;
+      Block   :        LLM.Types.Content_Block)
    is
       Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
@@ -308,8 +296,7 @@ package body LLM.Providers.Anthropic_Messages is
    end Append_Thinking_Content;
 
    procedure Append_Text_Content
-      (Content : in out GNATCOLL.JSON.JSON_Array;
-     Text    :        String)
+     (Content : in out GNATCOLL.JSON.JSON_Array; Text : String)
    is
       Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
@@ -319,11 +306,10 @@ package body LLM.Providers.Anthropic_Messages is
    end Append_Text_Content;
 
    procedure Append_Tool_Use_Content
-      (Content : in out GNATCOLL.JSON.JSON_Array;
-     Block   :        LLM.Types.Content_Block)
+     (Content : in out GNATCOLL.JSON.JSON_Array;
+      Block   :        LLM.Types.Content_Block)
    is
-      Item : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Item : constant GNATCOLL.JSON.JSON_Value  := GNATCOLL.JSON.Create_Object;
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (To_String (Block.Arguments_Json));
       Input  : GNATCOLL.JSON.JSON_Value;
@@ -350,8 +336,8 @@ package body LLM.Providers.Anthropic_Messages is
    end Append_Tool_Use_Content;
 
    procedure Append_Tool_Result_Content
-      (Content : in out GNATCOLL.JSON.JSON_Array;
-     Block   :        LLM.Types.Content_Block)
+     (Content : in out GNATCOLL.JSON.JSON_Array;
+      Block   :        LLM.Types.Content_Block)
    is
       use Ada.Strings.Unbounded;
       Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
@@ -362,7 +348,7 @@ package body LLM.Providers.Anthropic_Messages is
       if Length (Block.Media_Type) > 0 then
          --  Emit a structured content array with a single image block.
          declare
-            Inner_Content : GNATCOLL.JSON.JSON_Array :=
+            Inner_Content : GNATCOLL.JSON.JSON_Array          :=
               GNATCOLL.JSON.Empty_Array;
             Image_Block   : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Create_Object;
@@ -388,16 +374,17 @@ package body LLM.Providers.Anthropic_Messages is
    end Append_Tool_Result_Content;
 
    procedure Append_Message
-      (Messages : in out GNATCOLL.JSON.JSON_Array;
-     Msg               :        LLM.Types.Message;
-     Include_Thinking  :        Boolean := True)
+     (Messages         : in out GNATCOLL.JSON.JSON_Array;
+      Msg              :        LLM.Types.Message;
+      Include_Thinking :        Boolean := True)
    is
       Message : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
    begin
       case Msg.Role is
-         when LLM.Types.User | LLM.Types.Compaction_Summary =>
+         when LLM.Types.User
+            | LLM.Types.Compaction_Summary =>
             Message.Set_Field ("role", "user");
 
             for Block of Msg.Content loop
@@ -451,18 +438,19 @@ package body LLM.Providers.Anthropic_Messages is
    end Append_Message;
 
    function Build_Request_Body
-      (P             : Provider;
-     Model_Id      : String;
-     System_Prompt : String;
-     Messages      : LLM.Types.Message_Vectors.Vector;
-     Tools_Json    : String;
-     Thinking      : LLM.Providers.Thinking_Level;
-     Max_Tokens    : Positive) return String
+     (P             : Provider;
+      Model_Id      : String;
+      System_Prompt : String;
+      Messages      : LLM.Types.Message_Vectors.Vector;
+      Tools_Json    : String;
+      Thinking      : LLM.Providers.Thinking_Level;
+      Max_Tokens    : Positive)
+      return String
    is
       pragma Unreferenced (P);
 
       Request      : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
+        GNATCOLL.JSON.Create_Object;
       Request_Msgs : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
       Tools_Read   : GNATCOLL.JSON.Read_Result;
       Budget       : constant Natural := Thinking_Budget (Thinking);
@@ -473,7 +461,7 @@ package body LLM.Providers.Anthropic_Messages is
 
       if System_Prompt'Length > 0 then
          declare
-            System_Blocks : GNATCOLL.JSON.JSON_Array :=
+            System_Blocks : GNATCOLL.JSON.JSON_Array          :=
               GNATCOLL.JSON.Empty_Array;
             System_Block  : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Create_Object;
@@ -490,8 +478,7 @@ package body LLM.Providers.Anthropic_Messages is
       end if;
 
       for Msg of Messages loop
-         Append_Message (Request_Msgs, Msg,
-            Include_Thinking => Budget > 0);
+         Append_Message (Request_Msgs, Msg, Include_Thinking => Budget > 0);
       end loop;
 
       --  Add a cache breakpoint on the last user-role message's
@@ -506,20 +493,20 @@ package body LLM.Providers.Anthropic_Messages is
          Cache_Marker.Set_Field ("type", "ephemeral");
          for J in reverse 1 .. GNATCOLL.JSON.Length (Request_Msgs) loop
             declare
-               Msg : constant  GNATCOLL.JSON.JSON_Value :=
+               Msg : constant GNATCOLL.JSON.JSON_Value :=
                  GNATCOLL.JSON.Get (Request_Msgs, J);
             begin
                if Get_String_Field (Msg, "role") = "user"
                  and then Msg.Has_Field ("content")
-                 and then Msg.Get ("content").Kind =
-                   GNATCOLL.JSON.JSON_Array_Type
+                 and then Msg.Get ("content").Kind
+                   = GNATCOLL.JSON.JSON_Array_Type
                then
                   declare
-                     Content : constant GNATCOLL.JSON.JSON_Array :=
+                     Content     : constant GNATCOLL.JSON.JSON_Array :=
                        Msg.Get ("content").Get;
-                     Last    : constant Positive :=
+                     Last        : constant Positive                 :=
                        GNATCOLL.JSON.Length (Content);
-                     New_Content : GNATCOLL.JSON.JSON_Array :=
+                     New_Content : GNATCOLL.JSON.JSON_Array          :=
                        GNATCOLL.JSON.Empty_Array;
                   begin
                      for K in 1 .. GNATCOLL.JSON.Length (Content) loop
@@ -528,8 +515,7 @@ package body LLM.Providers.Anthropic_Messages is
                              GNATCOLL.JSON.Get (Content, K);
                         begin
                            if K = Last then
-                              Item.Set_Field
-                                ("cache_control", Cache_Marker);
+                              Item.Set_Field ("cache_control", Cache_Marker);
                            end if;
                            GNATCOLL.JSON.Append (New_Content, Item);
                         end;
@@ -547,21 +533,21 @@ package body LLM.Providers.Anthropic_Messages is
       if Tools_Json'Length > 0 then
          Tools_Read := GNATCOLL.JSON.Read (Tools_Json);
          if not Tools_Read.Success then
-            raise Constraint_Error with
-               "Invalid tools JSON: "
-               & GNATCOLL.JSON.Format_Parsing_Error (Tools_Read.Error);
+            raise Constraint_Error
+              with "Invalid tools JSON: "
+              & GNATCOLL.JSON.Format_Parsing_Error (Tools_Read.Error);
          elsif Tools_Read.Value.Kind /= GNATCOLL.JSON.JSON_Array_Type then
             raise Constraint_Error with "Invalid tools JSON: expected array";
          else
             declare
-               Raw_Tools    : constant GNATCOLL.JSON.JSON_Array :=
-                  Tools_Read.Value.Get;
+               Raw_Tools : constant GNATCOLL.JSON.JSON_Array :=
+                 Tools_Read.Value.Get;
             begin
                if GNATCOLL.JSON.Length (Raw_Tools) > 0 then
                   --  Add a cache_control breakpoint on the last tool
                   --  definition so the tool schema is cached across turns.
                   declare
-                     Cached_Tools : GNATCOLL.JSON.JSON_Array :=
+                     Cached_Tools : GNATCOLL.JSON.JSON_Array          :=
                        GNATCOLL.JSON.Empty_Array;
                      Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
                        GNATCOLL.JSON.Create_Object;
@@ -573,8 +559,7 @@ package body LLM.Providers.Anthropic_Messages is
                              GNATCOLL.JSON.Get (Raw_Tools, I);
                         begin
                            if I = GNATCOLL.JSON.Length (Raw_Tools) then
-                              Item.Set_Field
-                                ("cache_control", Cache_Marker);
+                              Item.Set_Field ("cache_control", Cache_Marker);
                            end if;
                            GNATCOLL.JSON.Append (Cached_Tools, Item);
                         end;
@@ -589,7 +574,7 @@ package body LLM.Providers.Anthropic_Messages is
       if Budget > 0 then
          declare
             Thinking_Object : constant GNATCOLL.JSON.JSON_Value :=
-               GNATCOLL.JSON.Create_Object;
+              GNATCOLL.JSON.Create_Object;
          begin
             Thinking_Object.Set_Field ("type", "enabled");
             Thinking_Object.Set_Field ("budget_tokens", Integer (Budget));
@@ -601,8 +586,7 @@ package body LLM.Providers.Anthropic_Messages is
    end Build_Request_Body;
 
    procedure Ensure_Block_Slot
-      (Blocks : in out Stream_Block_State_Vectors.Vector;
-     Index  :        Natural)
+     (Blocks : in out Stream_Block_State_Vectors.Vector; Index : Natural)
    is
    begin
       while Blocks.Length <= Ada.Containers.Count_Type (Index) loop
@@ -611,9 +595,9 @@ package body LLM.Providers.Anthropic_Messages is
    end Ensure_Block_Slot;
 
    procedure Finish_Block
-      (State   : in out Response_State;
-     Index   :        Natural;
-     Handler :        LLM.Providers.Event_Handler)
+     (State   : in out Response_State;
+      Index   :        Natural;
+      Handler :        LLM.Providers.Event_Handler)
    is
    begin
       if State.Blocks.Is_Empty or else Index > State.Blocks.Last_Index then
@@ -630,21 +614,21 @@ package body LLM.Providers.Anthropic_Messages is
          case Block.Kind is
             when Thinking_Block =>
                Emit_Update
-                  (Handler   => Handler,
-                   Kind      => LLM.Events.Thinking_End,
-                   Signature => To_String (Block.Thinking_Sig));
-               State.Tok_Usage.Thinking := State.Tok_Usage.Thinking
-                  + Length (Block.Thinking_Text) / 4;
+                 (Handler   => Handler,
+                  Kind      => LLM.Events.Thinking_End,
+                  Signature => To_String (Block.Thinking_Sig));
+               State.Tok_Usage.Thinking :=
+                 State.Tok_Usage.Thinking + Length (Block.Thinking_Text) / 4;
             when Text_Block =>
                Emit_Update (Handler, LLM.Events.Text_End);
             when Tool_Use_Block =>
                Emit_Update
-                  (Handler       => Handler,
-             Kind          => LLM.Events.Tool_Call_End,
-             Delta_Text    => To_String (Block.Tool_Input),
-             Content_Index => Index,
-             Tool_Call_Id  => To_String (Block.Tool_Call_Id),
-             Tool_Name     => To_String (Block.Tool_Name));
+                 (Handler       => Handler,
+                  Kind          => LLM.Events.Tool_Call_End,
+                  Delta_Text    => To_String (Block.Tool_Input),
+                  Content_Index => Index,
+                  Tool_Call_Id  => To_String (Block.Tool_Call_Id),
+                  Tool_Name     => To_String (Block.Tool_Name));
             when No_Block =>
                null;
          end case;
@@ -655,8 +639,7 @@ package body LLM.Providers.Anthropic_Messages is
    end Finish_Block;
 
    procedure Finalize_Message
-      (State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (State : in out Response_State; Handler : LLM.Providers.Event_Handler)
    is
    begin
       if not State.Blocks.Is_Empty then
@@ -667,89 +650,90 @@ package body LLM.Providers.Anthropic_Messages is
 
       if not State.Message_Ended then
          Emit_Message_End
-            (Handler   => Handler,
-             Stop      => State.Stop,
-             Tok_Usage => State.Tok_Usage,
-             Err_Msg   => To_String (State.Error_Message));
+           (Handler   => Handler,
+            Stop      => State.Stop,
+            Tok_Usage => State.Tok_Usage,
+            Err_Msg   => To_String (State.Error_Message));
          State.Message_Ended := True;
       end if;
    end Finalize_Message;
 
    procedure Process_Message_Start
-      (Root    :        GNATCOLL.JSON.JSON_Value;
-     State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (Root    :        GNATCOLL.JSON.JSON_Value;
+      State   : in out Response_State;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Message : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Root, "message");
+        Get_Object_Field (Root, "message");
       Usage   : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Message, "usage");
+        Get_Object_Field (Message, "usage");
    begin
       if not State.Message_Started then
          Emit_Message_Start (Handler);
          State.Message_Started := True;
       end if;
 
-      State.Tok_Usage.Input := Get_Natural_Field
-         (Usage, "input_tokens", State.Tok_Usage.Input);
-      State.Tok_Usage.Output := Get_Natural_Field
-         (Usage, "output_tokens", State.Tok_Usage.Output);
-      State.Tok_Usage.Cache_Read := Get_Natural_Field
-         (Usage, "cache_read_input_tokens", State.Tok_Usage.Cache_Read);
-      State.Tok_Usage.Cache_Write := Get_Natural_Field
-         (Usage,
-       "cache_creation_input_tokens",
-       State.Tok_Usage.Cache_Write);
+      State.Tok_Usage.Input       :=
+        Get_Natural_Field (Usage, "input_tokens", State.Tok_Usage.Input);
+      State.Tok_Usage.Output      :=
+        Get_Natural_Field (Usage, "output_tokens", State.Tok_Usage.Output);
+      State.Tok_Usage.Cache_Read  :=
+        Get_Natural_Field
+          (Usage, "cache_read_input_tokens", State.Tok_Usage.Cache_Read);
+      State.Tok_Usage.Cache_Write :=
+        Get_Natural_Field
+          (Usage, "cache_creation_input_tokens", State.Tok_Usage.Cache_Write);
    end Process_Message_Start;
 
    procedure Process_Content_Block_Start
-      (Root    :        GNATCOLL.JSON.JSON_Value;
-     State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (Root    :        GNATCOLL.JSON.JSON_Value;
+      State   : in out Response_State;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Index         : constant Natural := Get_Natural_Field (Root, "index", 0);
       Content_Block : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Root, "content_block");
-      Block_Type    : constant String :=
-         Get_String_Field (Content_Block, "type");
+        Get_Object_Field (Root, "content_block");
+      Block_Type : constant String := Get_String_Field (Content_Block, "type");
    begin
       Ensure_Block_Slot (State.Blocks, Index);
 
       declare
          Block      : Stream_Block_State := State.Blocks.Element (Index);
          Input      : constant GNATCOLL.JSON.JSON_Value :=
-            Get_Object_Field (Content_Block, "input");
-         Input_Json : constant String :=
-            (if Input.Kind = GNATCOLL.JSON.JSON_Object_Type
-         then GNATCOLL.JSON.Write (Input)
-         else "");
+           Get_Object_Field (Content_Block, "input");
+         Input_Json : constant String                   :=
+           (if
+              Input.Kind = GNATCOLL.JSON.JSON_Object_Type
+            then
+              GNATCOLL.JSON.Write (Input)
+            else "");
       begin
          if Block_Type = "thinking" then
-            Block.Kind := Thinking_Block;
+            Block.Kind    := Thinking_Block;
             Block.Started := True;
             Emit_Update (Handler, LLM.Events.Thinking_Start);
          elsif Block_Type = "text" then
-            Block.Kind := Text_Block;
+            Block.Kind    := Text_Block;
             Block.Started := True;
             Emit_Update (Handler, LLM.Events.Text_Start);
          elsif Block_Type = "tool_use" then
-            Block.Kind := Tool_Use_Block;
-            Block.Started := True;
-            Block.Tool_Call_Id := To_Unbounded_String
-               (Get_String_Field (Content_Block, "id"));
-            Block.Tool_Name := To_Unbounded_String
-               (Get_String_Field (Content_Block, "name"));
+            Block.Kind         := Tool_Use_Block;
+            Block.Started      := True;
+            Block.Tool_Call_Id :=
+              To_Unbounded_String (Get_String_Field (Content_Block, "id"));
+            Block.Tool_Name    :=
+              To_Unbounded_String (Get_String_Field (Content_Block, "name"));
 
             if Input_Json /= "{}" then
                Block.Tool_Input := To_Unbounded_String (Input_Json);
             end if;
 
             Emit_Update
-               (Handler       => Handler,
-           Kind          => LLM.Events.Tool_Call_Start,
-           Content_Index => Index,
-           Tool_Call_Id  => To_String (Block.Tool_Call_Id),
-           Tool_Name     => To_String (Block.Tool_Name));
+              (Handler       => Handler,
+               Kind          => LLM.Events.Tool_Call_Start,
+               Content_Index => Index,
+               Tool_Call_Id  => To_String (Block.Tool_Call_Id),
+               Tool_Name     => To_String (Block.Tool_Name));
          end if;
 
          State.Blocks.Replace_Element (Index, Block);
@@ -757,36 +741,44 @@ package body LLM.Providers.Anthropic_Messages is
    end Process_Content_Block_Start;
 
    procedure Process_Content_Block_Delta
-      (Root    :        GNATCOLL.JSON.JSON_Value;
-     State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (Root    :        GNATCOLL.JSON.JSON_Value;
+      State   : in out Response_State;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Index       : constant Natural := Get_Natural_Field (Root, "index", 0);
       Delta_Value : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Root, "delta");
+        Get_Object_Field (Root, "delta");
       Delta_Type  : constant String := Get_String_Field (Delta_Value, "type");
    begin
       Ensure_Block_Slot (State.Blocks, Index);
 
       declare
          Block    : Stream_Block_State := State.Blocks.Element (Index);
-         Fragment : constant String :=
-            (if Delta_Type = "thinking_delta"
-         then Get_String_Field (Delta_Value, "thinking")
-         elsif Delta_Type = "signature_delta"
-         then Get_String_Field (Delta_Value, "signature")
-         elsif Delta_Type = "text_delta"
-         then Get_String_Field (Delta_Value, "text")
-         elsif Delta_Type = "input_json_delta"
-         then Get_String_Field (Delta_Value, "partial_json")
-         else "");
+         Fragment : constant String    :=
+           (if
+              Delta_Type = "thinking_delta"
+            then
+              Get_String_Field (Delta_Value, "thinking")
+            elsif
+              Delta_Type = "signature_delta"
+            then
+              Get_String_Field (Delta_Value, "signature")
+            elsif
+              Delta_Type = "text_delta"
+            then
+              Get_String_Field (Delta_Value, "text")
+            elsif
+              Delta_Type = "input_json_delta"
+            then
+              Get_String_Field (Delta_Value, "partial_json")
+            else "");
       begin
          if Delta_Type = "thinking_delta" then
             Append (Block.Thinking_Text, Fragment);
             Emit_Update
-               (Handler    => Handler,
-           Kind       => LLM.Events.Thinking_Delta,
-           Delta_Text => Fragment);
+              (Handler    => Handler,
+               Kind       => LLM.Events.Thinking_Delta,
+               Delta_Text => Fragment);
          elsif Delta_Type = "signature_delta" then
             --  Signature is accumulated silently; it is not streamed to the
             --  UI but must be stored so it can be echoed back to Anthropic.
@@ -794,45 +786,44 @@ package body LLM.Providers.Anthropic_Messages is
             State.Blocks.Replace_Element (Index, Block);
          elsif Delta_Type = "text_delta" then
             Emit_Update
-               (Handler    => Handler,
-           Kind       => LLM.Events.Text_Delta,
-           Delta_Text => Fragment);
+              (Handler    => Handler,
+               Kind       => LLM.Events.Text_Delta,
+               Delta_Text => Fragment);
          elsif Delta_Type = "input_json_delta" then
             Append (Block.Tool_Input, Fragment);
             Emit_Update
-               (Handler       => Handler,
-           Kind          => LLM.Events.Tool_Call_Delta,
-           Delta_Text    => Fragment,
-           Content_Index => Index,
-           Tool_Call_Id  => To_String (Block.Tool_Call_Id),
-           Tool_Name     => To_String (Block.Tool_Name));
+              (Handler       => Handler,
+               Kind          => LLM.Events.Tool_Call_Delta,
+               Delta_Text    => Fragment,
+               Content_Index => Index,
+               Tool_Call_Id  => To_String (Block.Tool_Call_Id),
+               Tool_Name     => To_String (Block.Tool_Name));
             State.Blocks.Replace_Element (Index, Block);
          end if;
       end;
    end Process_Content_Block_Delta;
 
    procedure Process_Message_Delta
-      (Root  :        GNATCOLL.JSON.JSON_Value;
-     State : in out Response_State)
+     (Root : GNATCOLL.JSON.JSON_Value; State : in out Response_State)
    is
       Delta_Value : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Root, "delta");
+        Get_Object_Field (Root, "delta");
       Usage       : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Root, "usage");
+        Get_Object_Field (Root, "usage");
    begin
       if Has_String_Field (Delta_Value, "stop_reason") then
          State.Stop := To_Stop_Reason (Delta_Value.Get ("stop_reason").Get);
       end if;
 
-      State.Tok_Usage.Output := Get_Natural_Field
-         (Usage, "output_tokens", State.Tok_Usage.Output);
+      State.Tok_Usage.Output :=
+        Get_Natural_Field (Usage, "output_tokens", State.Tok_Usage.Output);
    end Process_Message_Delta;
 
    procedure Process_Stream_Event
-      (Event_Name :        String;
-     Event_Data :        String;
-     State      : in out Response_State;
-     Handler    :        LLM.Providers.Event_Handler)
+     (Event_Name :        String;
+      Event_Data :        String;
+      State      : in out Response_State;
+      Handler    :        LLM.Providers.Event_Handler)
    is
    begin
       --  Skip OpenAI-style stream terminators (e.g. "[DONE]") that some
@@ -845,7 +836,7 @@ package body LLM.Providers.Anthropic_Messages is
 
       declare
          Root : constant GNATCOLL.JSON.JSON_Value :=
-            Parse_Json (Event_Data, "Invalid Anthropic streaming event");
+           Parse_Json (Event_Data, "Invalid Anthropic streaming event");
       begin
          if Event_Name = "message_start" then
             Process_Message_Start (Root, State, Handler);
@@ -855,9 +846,9 @@ package body LLM.Providers.Anthropic_Messages is
             Process_Content_Block_Delta (Root, State, Handler);
          elsif Event_Name = "content_block_stop" then
             Finish_Block
-               (State   => State,
-            Index   => Get_Natural_Field (Root, "index", 0),
-            Handler => Handler);
+              (State   => State,
+               Index   => Get_Natural_Field (Root, "index", 0),
+               Handler => Handler);
          elsif Event_Name = "message_delta" then
             Process_Message_Delta (Root, State);
          elsif Event_Name = "message_stop" then
@@ -867,9 +858,9 @@ package body LLM.Providers.Anthropic_Messages is
    end Process_Stream_Event;
 
    procedure Process_Stream_Data
-      (Chunk   :        String;
-     State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (Chunk   :        String;
+      State   : in out Response_State;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Event_Name : Unbounded_String;
       Event_Data : Unbounded_String;
@@ -878,38 +869,37 @@ package body LLM.Providers.Anthropic_Messages is
 
       while LLM.SSE.Next_Event (State.Parser, Event_Name, Event_Data) loop
          Process_Stream_Event
-            (Event_Name => To_String (Event_Name),
-         Event_Data => To_String (Event_Data),
-         State      => State,
-         Handler    => Handler);
+           (Event_Name => To_String (Event_Name),
+            Event_Data => To_String (Event_Data),
+            State      => State,
+            Handler    => Handler);
       end loop;
    end Process_Stream_Data;
 
-   overriding
-   procedure Send
-      (P             : in out Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null)
+   overriding procedure Send
+     (P             : in out Provider;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
       Headers        : LLM.HTTP.Header_List;
-      Status         : Natural := 0;
+      Status         : Natural         := 0;
       State          : Response_State;
-      End_Event_Sent : Boolean := False;
+      End_Event_Sent : Boolean         := False;
       Request_Body   : constant String :=
-         Build_Request_Body
-            (P             => P,
-         Model_Id      => Model_Id,
-         System_Prompt => System_Prompt,
-         Messages      => Messages,
-         Tools_Json    => Tools_Json,
-         Thinking      => Thinking,
-         Max_Tokens    => Max_Tokens);
+        Build_Request_Body
+          (P             => P,
+           Model_Id      => Model_Id,
+           System_Prompt => System_Prompt,
+           Messages      => Messages,
+           Tools_Json    => Tools_Json,
+           Thinking      => Thinking,
+           Max_Tokens    => Max_Tokens);
 
       procedure On_Chunk (Data : String) is
       begin
@@ -922,40 +912,35 @@ package body LLM.Providers.Anthropic_Messages is
       LLM.HTTP.Add_Header (Headers, "Content-Type", "application/json");
       LLM.HTTP.Add_Header (Headers, "anthropic-version", "2023-06-01");
       LLM.HTTP.Add_Header
-         (Headers,
-       "anthropic-beta",
-       "interleaved-thinking-2025-05-14");
+        (Headers, "anthropic-beta", "interleaved-thinking-2025-05-14");
 
       if Length (P.Api_Key) > 0 then
          if Uses_X_Api_Key (To_String (P.Base_Url)) then
             LLM.HTTP.Add_Header (Headers, "x-api-key", To_String (P.Api_Key));
          else
             LLM.HTTP.Add_Header
-               (Headers, "Authorization", "Bearer " & To_String (P.Api_Key));
+              (Headers, "Authorization", "Bearer " & To_String (P.Api_Key));
          end if;
       end if;
 
       for Header of P.Extra_Headers loop
          LLM.HTTP.Add_Header
-            (Headers,
-         To_String (Header.Name),
-         To_String (Header.Value));
+           (Headers, To_String (Header.Name), To_String (Header.Value));
       end loop;
 
       LLM.HTTP.Post
-         (URL      => Endpoint_Url (To_String (P.Base_Url)),
-       Headers  => Headers,
-       Payload  => Request_Body,
-       On_Chunk => On_Chunk'Access,
-       Status   => Status,
-       Abort_Check => Abort_Check);
+        (URL         => Endpoint_Url (To_String (P.Base_Url)),
+         Headers     => Headers,
+         Payload     => Request_Body,
+         On_Chunk    => On_Chunk'Access,
+         Status      => Status,
+         Abort_Check => Abort_Check);
 
       if Status /= 200 then
          declare
             Error_Text : constant String :=
               "Anthropic message request failed with HTTP"
-              & Natural'Image (Status)
-              & ": "
+              & Natural'Image (Status) & ": "
               & To_String (State.Raw_Response_Body);
          begin
             State.Error_Message := To_Unbounded_String (Error_Text);
@@ -964,8 +949,8 @@ package body LLM.Providers.Anthropic_Messages is
                Stop      => LLM.Types.Error_Stop,
                Tok_Usage => State.Tok_Usage,
                Err_Msg   => Error_Text);
-            raise Constraint_Error with
-              "Anthropic message request failed with HTTP"
+            raise Constraint_Error
+              with "Anthropic message request failed with HTTP"
               & Natural'Image (Status);
          end;
       end if;

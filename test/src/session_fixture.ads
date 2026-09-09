@@ -17,23 +17,15 @@ package Session_Fixture is
    --  non-empty, a native session_info record is appended as the second
    --  line so directory-listing tests can observe the session name.
    function Create_Native_Session
-     (Home     : String;
-      Cwd_Slug : String;
-      Name     : String) return String;
+     (Home : String; Cwd_Slug : String; Name : String) return String;
 
    --  Append one native user text message line.
    procedure Append_User_Message
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String;
-      Text     : String);
+     (Home : String; Cwd_Slug : String; UUID : String; Text : String);
 
    --  Append one native assistant text message line.
    procedure Append_Assistant_Text
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String;
-      Text     : String);
+     (Home : String; Cwd_Slug : String; UUID : String; Text : String);
 
    --  Append one native assistant tool-call message line.
    procedure Append_Assistant_Tool_Call
@@ -46,19 +38,16 @@ package Session_Fixture is
 
    --  Append one native tool-result message line.
    procedure Append_Tool_Result
-     (Home      : String;
-      Cwd_Slug  : String;
-      UUID      : String;
-      Tool_Id   : String;
-      Result    : String;
-      Is_Error  : Boolean := False);
-
-   --  Append one legacy envelope line containing a user message.
-   procedure Append_Legacy_User_Message
      (Home     : String;
       Cwd_Slug : String;
       UUID     : String;
-      Text     : String);
+      Tool_Id  : String;
+      Result   : String;
+      Is_Error : Boolean := False);
+
+   --  Append one legacy envelope line containing a user message.
+   procedure Append_Legacy_User_Message
+     (Home : String; Cwd_Slug : String; UUID : String; Text : String);
 
    --  Append one model_change sentinel line.
    procedure Append_Model_Change
@@ -72,15 +61,10 @@ package Session_Fixture is
    --
    --  The native store currently writes no explicit turn-separator records,
    --  so this helper is a no-op.
-   procedure Append_Turn_End
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String);
+   procedure Append_Turn_End (Home : String; Cwd_Slug : String; UUID : String);
 
    --  Return the full path to the session JSONL file.
    function Session_File_Path
-     (Home     : String;
-      Cwd_Slug : String;
-      UUID     : String) return String;
+     (Home : String; Cwd_Slug : String; UUID : String) return String;
 
 end Session_Fixture;

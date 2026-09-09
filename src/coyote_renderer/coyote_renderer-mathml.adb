@@ -7,7 +7,7 @@
 --  Project: coyote
 
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Cmark;
 with Interfaces.C;
 with System;
@@ -23,20 +23,20 @@ package body Coyote_Renderer.MathML is
    end record;
 
    package Source_Range_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Source_Range);
+     (Index_Type => Positive, Element_Type => Source_Range);
 
    function Parse_Source (Markdown : String) return Coyote_Cmark.Node_Ptr is
       C_Text : constant Interfaces.C.char_array :=
         Interfaces.C.To_C (Markdown, Append_Nul => True);
    begin
-      return Coyote_Cmark.Parse_Document
-        (C_Text, Interfaces.C.size_t (Markdown'Length),
-         Coyote_Cmark.OPT_DEFAULT);
+      return
+        Coyote_Cmark.Parse_Document
+          (C_Text,
+           Interfaces.C.size_t (Markdown'Length),
+           Coyote_Cmark.OPT_DEFAULT);
    end Parse_Source;
 
-   function Code_Ranges (Markdown : String)
-     return Source_Range_Vectors.Vector
+   function Code_Ranges (Markdown : String) return Source_Range_Vectors.Vector
    is
       Result : Source_Range_Vectors.Vector;
       Doc    : constant Coyote_Cmark.Node_Ptr := Parse_Source (Markdown);
@@ -54,8 +54,7 @@ package body Coyote_Renderer.MathML is
          exit when Ev = Coyote_Cmark.EVENT_DONE;
          if Ev = Coyote_Cmark.EVENT_ENTER then
             Node := Coyote_Cmark.Iter_Get_Node (It);
-            if Coyote_Cmark.Node_Get_Type (Node) =
-              Coyote_Cmark.NODE_CODE_BLOCK
+            if Coyote_Cmark.Node_Get_Type (Node) = Coyote_Cmark.NODE_CODE_BLOCK
             then
                declare
                   First : constant Interfaces.C.int :=
@@ -65,7 +64,8 @@ package body Coyote_Renderer.MathML is
                begin
                   if First > 0 and then Last >= First then
                      Result.Append
-                       ((Positive (First), Positive (Last)));
+                       ((Positive (First),
+                         Positive (Last)));
                   end if;
                end;
             end if;
@@ -77,8 +77,7 @@ package body Coyote_Renderer.MathML is
    end Code_Ranges;
 
    function Is_Protected
-     (Ranges : Source_Range_Vectors.Vector;
-      Line   : Positive) return Boolean
+     (Ranges : Source_Range_Vectors.Vector; Line : Positive) return Boolean
    is
    begin
       for Range_Index in Ranges.Iterate loop
@@ -103,17 +102,16 @@ package body Coyote_Renderer.MathML is
       return Source (First_Content .. Last_Content);
    end MathML_Source;
 
-   function Extract_Display_Math
-     (Markdown : String) return Extraction_Result
+   function Extract_Display_Math (Markdown : String) return Extraction_Result
    is
-      Result       : Extraction_Result;
+      Result           : Extraction_Result;
       Protected_Ranges : constant Source_Range_Vectors.Vector :=
         Code_Ranges (Markdown);
-      Math_Open    : Boolean := False;
-      Math_Buffer  : Unbounded_String;
-      Math_Source  : Unbounded_String;
-      Start        : Natural := Markdown'First;
-      Line_Number  : Positive := 1;
+      Math_Open        : Boolean                              := False;
+      Math_Buffer      : Unbounded_String;
+      Math_Source      : Unbounded_String;
+      Start            : Natural := Markdown'First;
+      Line_Number      : Positive                             := 1;
 
       procedure Append_Line (Line : String) is
       begin
@@ -136,15 +134,13 @@ package body Coyote_Renderer.MathML is
       end if;
 
       for I in Markdown'Range loop
-         if Markdown (I) = ASCII.LF
-           or else I = Markdown'Last
-         then
+         if Markdown (I) = ASCII.LF or else I = Markdown'Last then
             declare
-               Last : constant Natural :=
+               Last           : constant Natural :=
                  (if Markdown (I) = ASCII.LF then I - 1 else I);
-               Line : constant String :=
+               Line           : constant String  :=
                  (if Last >= Start then Markdown (Start .. Last) else "");
-               Trimmed : constant String :=
+               Trimmed        : constant String  :=
                  Ada.Strings.Fixed.Trim (Line, Ada.Strings.Both);
                Protected_Line : constant Boolean :=
                  Is_Protected (Protected_Ranges, Line_Number);
@@ -156,7 +152,7 @@ package body Coyote_Renderer.MathML is
                      Append_Line (Line);
                   end if;
                elsif not Math_Open and then Trimmed = "$$" then
-                  Math_Open  := True;
+                  Math_Open   := True;
                   Math_Source := To_Unbounded_String (Trimmed);
                   Math_Buffer := Null_Unbounded_String;
                elsif Math_Open and then Trimmed = "$$" then
@@ -169,14 +165,14 @@ package body Coyote_Renderer.MathML is
                         Append (Source, Trimmed);
                         Result.Blocks.Append
                           ((Source => Source,
-                            MathML => To_Unbounded_String
-                              (MathML_Source (To_String (Source)))));
+                            MathML =>
+                              To_Unbounded_String
+                                (MathML_Source (To_String (Source)))));
                         Append_Line
                           ("COYOTE_MATH_BLOCK_"
                            & Ada.Strings.Fixed.Trim
-                               (Natural'Image
-                                  (Natural (Result.Blocks.Length)),
-                                Ada.Strings.Both)
+                             (Natural'Image (Natural (Result.Blocks.Length)),
+                              Ada.Strings.Both)
                            & "__");
                      end;
                   else

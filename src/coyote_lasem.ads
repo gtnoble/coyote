@@ -23,9 +23,8 @@ package Coyote_Lasem is
       Height     : access Interfaces.C.unsigned;
       Baseline   : access Interfaces.C.unsigned;
       Scale      : Interfaces.C.double := 1.0)
-      return Interfaces.C.Strings.chars_ptr
-   with Import, Convention => C,
-        External_Name => "coyote_lasem_measure_mathml";
+      return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "coyote_lasem_measure_mathml";
 
    --  Render a Presentation MathML document at (X, Y) on Cr.  A null
    --  result indicates success; otherwise the result is an allocated error
@@ -36,13 +35,11 @@ package Coyote_Lasem is
       Cr         : Cairo.Cairo_Context;
       X, Y       : Interfaces.C.double;
       Scale      : Interfaces.C.double := 1.0)
-      return Interfaces.C.Strings.chars_ptr
-   with Import, Convention => C,
-        External_Name => "coyote_lasem_render_mathml";
+      return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "coyote_lasem_render_mathml";
 
    --  Release an error message returned by Measure_MathML or Render_MathML.
-   procedure Free_Error (Message : Interfaces.C.Strings.chars_ptr)
-   with Import, Convention => C,
-        External_Name => "coyote_lasem_free_error";
+   procedure Free_Error (Message : Interfaces.C.Strings.chars_ptr) with
+     Import, Convention => C, External_Name => "coyote_lasem_free_error";
 
 end Coyote_Lasem;

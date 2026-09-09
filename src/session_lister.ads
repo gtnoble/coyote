@@ -14,17 +14,16 @@ package Session_Lister is
    SNIPPET_MAX : constant := 60;   --  max runes in the snippet
 
    type Session_Info is record
-      UUID    : Ada.Strings.Unbounded.Unbounded_String;
-      Name    : Ada.Strings.Unbounded.Unbounded_String;
-      Date    : Ada.Strings.Unbounded.Unbounded_String;
-      Snippet : Ada.Strings.Unbounded.Unbounded_String;
+      UUID      : Ada.Strings.Unbounded.Unbounded_String;
+      Name      : Ada.Strings.Unbounded.Unbounded_String;
+      Date      : Ada.Strings.Unbounded.Unbounded_String;
+      Snippet   : Ada.Strings.Unbounded.Unbounded_String;
       Parent_Id : Ada.Strings.Unbounded.Unbounded_String;  --  "" = top-level
       Is_Fork   : Boolean := False;  --  True = fork; False = subagent
    end record;
 
    package Session_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Session_Info);
+     (Index_Type => Natural, Element_Type => Session_Info);
 
    --  Encode a working-directory path as a session-directory slug.
    --  "/home/user/proj"  ->  "--home-user-proj--"
@@ -43,8 +42,7 @@ package Session_Lister is
    function Parse_Session_File (Path : String) return Session_Info;
 
    --  Return all valid sessions for Cwd, newest first.
-   function List_Sessions
-     (Cwd : String) return Session_Vectors.Vector;
+   function List_Sessions (Cwd : String) return Session_Vectors.Vector;
 
    --  Search every subdirectory of ~/.coyote/sessions/ for a JSONL file
    --  whose filename contains UUID.  Returns the full filesystem path, or ""
@@ -79,6 +77,7 @@ package Session_Lister is
      (Source_UUID : String;
       After_Turn  : Positive;
       Target_Cwd  : String;
-      After_Step  : Natural := 0) return String;
+      After_Step  : Natural := 0)
+      return String;
 
 end Session_Lister;

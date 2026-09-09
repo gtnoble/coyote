@@ -36,41 +36,35 @@ package body LLM.Tools.Sandbox is
 
    function Is_Alpha_Numeric (Value : Character) return Boolean is
    begin
-      return (Value in 'A' .. 'Z')
-        or else (Value in 'a' .. 'z')
+      return
+        (Value in 'A' .. 'Z') or else (Value in 'a' .. 'z')
         or else (Value in '0' .. '9');
    end Is_Alpha_Numeric;
 
    function Is_Valid_Profile_Name (Name : String) return Boolean is
       Has_Alpha_Numeric : Boolean := False;
    begin
-      if Name'Length = 0
-        or else Name = "."
-        or else Name = ".."
-        or else (Name'Length >= 5
-                 and then Name (Name'Last - 4 .. Name'Last) = ".json")
+      if Name'Length = 0 or else Name = "." or else Name = ".."
+        or else
+        (Name'Length >= 5 and then Name (Name'Last - 4 .. Name'Last) = ".json")
         or else Ada.Characters.Handling.Is_Space (Name (Name'First))
         or else Ada.Characters.Handling.Is_Space (Name (Name'Last))
       then
          return False;
       end if;
       for Value of Name loop
-         if Character'Pos (Value) < 32
-           or else Character'Pos (Value) = 127
-           or else Value = '/'
-           or else Value = '\'
+         if Character'Pos (Value) < 32 or else Character'Pos (Value) = 127
+           or else Value = '/' or else Value = '\'
          then
             return False;
-         elsif not Is_Alpha_Numeric (Value)
-           and then Value /= '_'
-           and then Value /= '-'
-           and then Value /= '.'
+         elsif not Is_Alpha_Numeric (Value) and then Value /= '_'
+           and then Value /= '-' and then Value /= '.'
          then
             return False;
          end if;
 
-         Has_Alpha_Numeric := Has_Alpha_Numeric
-           or else Is_Alpha_Numeric (Value);
+         Has_Alpha_Numeric :=
+           Has_Alpha_Numeric or else Is_Alpha_Numeric (Value);
       end loop;
 
       return Has_Alpha_Numeric;
@@ -89,30 +83,28 @@ package body LLM.Tools.Sandbox is
    end Profile_Path;
 
    procedure Resolve_Path
-     (Path : in out Ada.Strings.Unbounded.Unbounded_String;
-      Cwd  :        String)
+     (Path : in out Ada.Strings.Unbounded.Unbounded_String; Cwd : String)
    is
-      Input_Path : constant String :=
-        Ada.Strings.Unbounded.To_String (Path);
+      Input_Path : constant String := Ada.Strings.Unbounded.To_String (Path);
       Expanded   : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.To_Unbounded_String (Input_Path);
    begin
       if Input_Path = "~"
-        or else (Input_Path'Length >= 2
-                 and then Input_Path
-                   (Input_Path'First .. Input_Path'First + 1) = "~/")
+        or else
+        (Input_Path'Length >= 2
+         and then Input_Path (Input_Path'First .. Input_Path'First + 1) = "~/")
       then
          declare
             Home : constant String := Home_Dir;
          begin
             if Home'Length > 0 then
                if Input_Path = "~" or else Input_Path'Length = 2 then
-                  Expanded := Ada.Strings.Unbounded.To_Unbounded_String
-                    (Home);
+                  Expanded := Ada.Strings.Unbounded.To_Unbounded_String (Home);
                else
-                  Expanded := Ada.Strings.Unbounded.To_Unbounded_String
-                    (Home & "/" & Input_Path (Input_Path'First + 2 ..
-                                                  Input_Path'Last));
+                  Expanded :=
+                    Ada.Strings.Unbounded.To_Unbounded_String
+                      (Home & "/"
+                       & Input_Path (Input_Path'First + 2 .. Input_Path'Last));
                end if;
             else
                Expanded := Ada.Strings.Unbounded.Null_Unbounded_String;
@@ -120,16 +112,16 @@ package body LLM.Tools.Sandbox is
          end;
       end if;
 
-      Path := Ada.Strings.Unbounded.To_Unbounded_String
-        (GNAT.OS_Lib.Normalize_Pathname
-           (Ada.Strings.Unbounded.To_String (Expanded),
-            Directory     => Cwd,
-            Resolve_Links => False));
+      Path :=
+        Ada.Strings.Unbounded.To_Unbounded_String
+          (GNAT.OS_Lib.Normalize_Pathname
+             (Ada.Strings.Unbounded.To_String (Expanded),
+              Directory     => Cwd,
+              Resolve_Links => False));
    end Resolve_Path;
 
    procedure Append_JSON_Array
-     (Target : in out GNATCOLL.JSON.JSON_Array;
-      Values :        String_Vectors.Vector)
+     (Target : in out GNATCOLL.JSON.JSON_Array; Values : String_Vectors.Vector)
    is
    begin
       for Value of Values loop
@@ -138,8 +130,7 @@ package body LLM.Tools.Sandbox is
    end Append_JSON_Array;
 
    function Profile_JSON (Value : Profile) return GNATCOLL.JSON.JSON_Value is
-      Root        : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Root : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
       Allow_Write : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
       Deny_Write  : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
       Deny_Read   : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
@@ -157,8 +148,9 @@ package body LLM.Tools.Sandbox is
    end Profile_JSON;
 
    function Parse_Array
-     (Root  : GNATCOLL.JSON.JSON_Value;
-      Name  : String) return String_Vectors.Vector
+     (Root : GNATCOLL.JSON.JSON_Value;
+      Name : String)
+      return String_Vectors.Vector
    is
       Result : String_Vectors.Vector;
    begin
@@ -177,8 +169,8 @@ package body LLM.Tools.Sandbox is
                  GNATCOLL.JSON.Get (Items, I);
             begin
                if Item.Kind /= GNATCOLL.JSON.JSON_String_Type then
-                  raise Sandbox_Error with
-                    "profile field contains a non-string: " & Name;
+                  raise Sandbox_Error
+                    with "profile field contains a non-string: " & Name;
                end if;
                Result.Append (Item.Get);
             end;
@@ -188,9 +180,7 @@ package body LLM.Tools.Sandbox is
       return Result;
    end Parse_Array;
 
-   function Parse_Profile
-     (Root : GNATCOLL.JSON.JSON_Value) return Profile
-   is
+   function Parse_Profile (Root : GNATCOLL.JSON.JSON_Value) return Profile is
       Result : Profile;
    begin
       if Root.Kind /= GNATCOLL.JSON.JSON_Object_Type then
@@ -215,10 +205,10 @@ package body LLM.Tools.Sandbox is
    end Delete_If_Exists;
 
    procedure Write_Atomically (Path : String; Content : String) is
-      File      : Ada.Text_IO.File_Type;
-      Tmp_Path  : constant String := Path & ".tmp";
-      Renamed   : Boolean := False;
-      Dir_Path  : constant String :=
+      File     : Ada.Text_IO.File_Type;
+      Tmp_Path : constant String := Path & ".tmp";
+      Renamed  : Boolean         := False;
+      Dir_Path : constant String :=
         Ada.Directories.Containing_Directory (Path);
    begin
       Ada.Directories.Create_Path (Dir_Path);
@@ -240,7 +230,7 @@ package body LLM.Tools.Sandbox is
          end if;
          Delete_If_Exists (Tmp_Path);
          raise;
-      when others =>
+      when others        =>
          if Ada.Text_IO.Is_Open (File) then
             Ada.Text_IO.Close (File);
          end if;
@@ -255,7 +245,7 @@ package body LLM.Tools.Sandbox is
    exception
       when Sandbox_Error =>
          raise;
-      when others =>
+      when others        =>
          raise Sandbox_Error with "unable to save sandbox profile";
    end Save_Profile;
 
@@ -275,7 +265,7 @@ package body LLM.Tools.Sandbox is
    exception
       when Sandbox_Error =>
          raise;
-      when others =>
+      when others        =>
          raise Sandbox_Error with "unable to create sandbox profile";
    end Create_Profile;
 
@@ -301,13 +291,13 @@ package body LLM.Tools.Sandbox is
    exception
       when Sandbox_Error =>
          raise;
-      when others =>
+      when others        =>
          raise Sandbox_Error with "unable to load sandbox profile";
    end Load_Profile_Typed;
 
    procedure Copy_Profile (Source_Name : String; Target_Name : String) is
       Source : constant Profile := Load_Profile_Typed (Source_Name);
-      Target : constant String := Profile_Path (Target_Name);
+      Target : constant String  := Profile_Path (Target_Name);
    begin
       if Ada.Directories.Exists (Target) then
          raise Sandbox_Error with "sandbox profile already exists";
@@ -317,13 +307,13 @@ package body LLM.Tools.Sandbox is
    exception
       when Sandbox_Error =>
          raise;
-      when others =>
+      when others        =>
          raise Sandbox_Error with "unable to copy sandbox profile";
    end Copy_Profile;
 
    procedure Rename_Profile (Old_Name : String; New_Name : String) is
       Old_Profile : constant Profile := Load_Profile_Typed (Old_Name);
-      New_Path    : constant String := Profile_Path (New_Name);
+      New_Path    : constant String  := Profile_Path (New_Name);
    begin
       if Old_Name = New_Name then
          raise Sandbox_Error with "sandbox profile already exists";
@@ -336,35 +326,34 @@ package body LLM.Tools.Sandbox is
    exception
       when Sandbox_Error =>
          raise;
-      when others =>
+      when others        =>
          raise Sandbox_Error with "unable to rename sandbox profile";
    end Rename_Profile;
 
    function Available_Profiles return String_Vectors.Vector is
-      Dir     : constant String := Profiles_Dir;
-      Search  : Ada.Directories.Search_Type;
-      Ent     : Ada.Directories.Directory_Entry_Type;
-      Result  : String_Vectors.Vector;
-      Filter  : constant Ada.Directories.Filter_Type :=
+      Dir    : constant String                      := Profiles_Dir;
+      Search : Ada.Directories.Search_Type;
+      Ent    : Ada.Directories.Directory_Entry_Type;
+      Result : String_Vectors.Vector;
+      Filter : constant Ada.Directories.Filter_Type :=
         (Ada.Directories.Ordinary_File => True,
          others                        => False);
    begin
-      if Dir'Length = 0
-        or else not Ada.Directories.Exists (Dir)
-      then
+      if Dir'Length = 0 or else not Ada.Directories.Exists (Dir) then
          return Result;
       end if;
 
-      Ada.Directories.Start_Search
-        (Search, Dir, "*.json", Filter => Filter);
+      Ada.Directories.Start_Search (Search, Dir, "*.json", Filter => Filter);
 
       while Ada.Directories.More_Entries (Search) loop
          Ada.Directories.Get_Next_Entry (Search, Ent);
          declare
             File_Name : constant String := Ada.Directories.Simple_Name (Ent);
             Name      : constant String :=
-              (if File_Name'Length > 5
-               then File_Name (File_Name'First .. File_Name'Last - 5)
+              (if
+                 File_Name'Length > 5
+               then
+                 File_Name (File_Name'First .. File_Name'Last - 5)
                else "");
          begin
             if Name'Length > 0 and then Is_Valid_Profile_Name (Name) then
@@ -393,9 +382,7 @@ package body LLM.Tools.Sandbox is
       return Result;
    end Available_Profiles;
 
-   function Load_Profile
-     (Name : String) return GNATCOLL.JSON.JSON_Value
-   is
+   function Load_Profile (Name : String) return GNATCOLL.JSON.JSON_Value is
    begin
       if not Is_Valid_Profile_Name (Name) then
          return GNATCOLL.JSON.JSON_Null;
@@ -405,14 +392,13 @@ package body LLM.Tools.Sandbox is
          Path : constant String := Profile_Path (Name);
       begin
          if not Ada.Directories.Exists (Path)
-           or else Ada.Directories.Kind (Path) /=
-             Ada.Directories.Ordinary_File
+           or else Ada.Directories.Kind (Path) /= Ada.Directories.Ordinary_File
          then
             return GNATCOLL.JSON.JSON_Null;
          end if;
 
          declare
-            Raw         : constant String := Coyote_Utils.Read_Whole_File (Path);
+            Raw : constant String := Coyote_Utils.Read_Whole_File (Path);
             Read_Result : constant GNATCOLL.JSON.Read_Result :=
               GNATCOLL.JSON.Read (Raw);
          begin
@@ -428,8 +414,7 @@ package body LLM.Tools.Sandbox is
    end Load_Profile;
 
    function Build_Bwrap_Args
-     (Profile_Name : String;
-      Cwd          : String) return String_Vectors.Vector
+     (Profile_Name : String; Cwd : String) return String_Vectors.Vector
    is
       type Rule_Entry is record
          Rtype : Ada.Strings.Unbounded.Unbounded_String;
@@ -437,7 +422,9 @@ package body LLM.Tools.Sandbox is
          Depth : Natural := 0;
       end record;
 
-      type Rule_Entry_Array is array (Positive range <>) of Rule_Entry;
+      type Rule_Entry_Array is
+        array (Positive range <>)
+        of Rule_Entry;
 
       Value : Profile;
       Args  : String_Vectors.Vector;
@@ -448,10 +435,9 @@ package body LLM.Tools.Sandbox is
       end if;
 
       Value := Load_Profile_Typed (Profile_Name);
-      Num := Natural (Value.Allow_Write.Length)
-        + Natural (Value.Deny_Write.Length)
-        + Natural (Value.Deny_Read.Length)
-        + Natural (Value.Allow_Read.Length);
+      Num   :=
+        Natural (Value.Allow_Write.Length) + Natural (Value.Deny_Write.Length)
+        + Natural (Value.Deny_Read.Length) + Natural (Value.Allow_Read.Length);
 
       declare
          Entries : Rule_Entry_Array (1 .. Positive'Max (1, Num));
@@ -468,10 +454,7 @@ package body LLM.Tools.Sandbox is
             return Count;
          end Path_Depth;
 
-         procedure Add_Rules
-           (Rtype  : String;
-            Paths  : String_Vectors.Vector)
-         is
+         procedure Add_Rules (Rtype : String; Paths : String_Vectors.Vector) is
          begin
             for Raw of Paths loop
                declare
@@ -480,15 +463,15 @@ package body LLM.Tools.Sandbox is
                begin
                   Resolve_Path (Path, Cwd);
                   if Ada.Directories.Exists
-                    (Ada.Strings.Unbounded.To_String (Path))
+                      (Ada.Strings.Unbounded.To_String (Path))
                   then
-                     Idx := Idx + 1;
+                     Idx           := Idx + 1;
                      Entries (Idx) :=
-                       (Rtype => Ada.Strings.Unbounded
-                          .To_Unbounded_String (Rtype),
+                       (Rtype =>
+                          Ada.Strings.Unbounded.To_Unbounded_String (Rtype),
                         Path  => Path,
-                        Depth => Path_Depth
-                          (Ada.Strings.Unbounded.To_String (Path)));
+                        Depth =>
+                          Path_Depth (Ada.Strings.Unbounded.To_String (Path)));
                   end if;
                end;
             end loop;
@@ -510,9 +493,9 @@ package body LLM.Tools.Sandbox is
                         declare
                            Temp : constant Rule_Entry := Entries (J);
                         begin
-                           Entries (J) := Entries (J + 1);
+                           Entries (J)     := Entries (J + 1);
                            Entries (J + 1) := Temp;
-                           Sorted := False;
+                           Sorted          := False;
                         end;
                      end if;
                   end loop;

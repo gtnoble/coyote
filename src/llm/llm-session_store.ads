@@ -31,9 +31,7 @@ package LLM.Session_Store is
    --
    --  Raises Session_Error when the session file cannot be found or when
    --  Msg cannot be serialised.
-   procedure Append_Message
-     (Session_Id : String;
-      Msg        : LLM.Types.Message);
+   procedure Append_Message (Session_Id : String; Msg : LLM.Types.Message);
 
    --  Append one compaction entry line to the session file.
    --
@@ -60,9 +58,7 @@ package LLM.Session_Store is
    --  Raises Session_Error when the session file cannot be found or
    --  written.
    procedure Append_Model_Change
-     (Session_Id : String;
-      Provider   : String;
-      Model_Id   : String);
+     (Session_Id : String; Provider : String; Model_Id : String);
 
    --  Return the working directory recorded in the header of the session
    --  file for Session_Id.

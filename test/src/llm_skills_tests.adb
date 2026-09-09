@@ -64,13 +64,14 @@ package body LLM_Skills_Tests is
 
    function Ends_With (Source, Suffix : String) return Boolean is
    begin
-      return Source'Length >= Suffix'Length
+      return
+        Source'Length >= Suffix'Length
         and then Source (Source'Last - Suffix'Length + 1 .. Source'Last)
-                   = Suffix;
+          = Suffix;
    end Ends_With;
 
    function Count_Substring (Source, Pattern : String) return Natural is
-      Count : Natural := 0;
+      Count : Natural  := 0;
       From  : Positive := 1;
       Match : Natural;
    begin
@@ -79,10 +80,9 @@ package body LLM_Skills_Tests is
       end if;
 
       while From <= Source'Length loop
-         Match := Ada.Strings.Fixed.Index
-           (Source  => Source,
-            Pattern => Pattern,
-            From    => From);
+         Match :=
+           Ada.Strings.Fixed.Index
+             (Source => Source, Pattern => Pattern, From => From);
 
          exit when Match = 0;
 
@@ -95,30 +95,20 @@ package body LLM_Skills_Tests is
 
    function Valid_Skill_Content (Name, Description : String) return String is
    begin
-      return "---"
-        & ASCII.LF
-        & "name: "
-        & Name
-        & ASCII.LF
-        & "description: "
-        & Description
-        & ASCII.LF
-        & "---"
-        & ASCII.LF
-        & "# Test Skill"
-        & ASCII.LF
-        & "No content needed."
-        & ASCII.LF;
+      return
+        "---" & ASCII.LF & "name: " & Name & ASCII.LF & "description: "
+        & Description & ASCII.LF & "---" & ASCII.LF & "# Test Skill" & ASCII.LF
+        & "No content needed." & ASCII.LF;
    end Valid_Skill_Content;
 
    procedure Test_No_Skills_Returns_Empty_String (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_1";
-      Cwd          : constant String := "/tmp/no_skills_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_1";
+      Cwd          : constant String  := "/tmp/no_skills_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -129,12 +119,9 @@ package body LLM_Skills_Tests is
 
       declare
          Result : constant String :=
-           LLM.Skills.Format_Skills_For_Prompt
-             (LLM.Skills.Load_Skills (Cwd));
+           LLM.Skills.Format_Skills_For_Prompt (LLM.Skills.Load_Skills (Cwd));
       begin
-         Assert
-           (Result = "",
-            "no skills should format to the empty string");
+         Assert (Result = "", "no skills should format to the empty string");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -151,22 +138,19 @@ package body LLM_Skills_Tests is
    procedure Test_Parses_Name_And_Description (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_2";
-      Cwd          : constant String := "/tmp/coyote_skills_test_2_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_2";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_2_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
       Cleanup (Cwd);
       Write_File
         (Home & "/.coyote/skills/mypkg/SKILL.md",
-         "---" & ASCII.LF
-         & "name: foo" & ASCII.LF
-         & "description: bar" & ASCII.LF
-         & "---" & ASCII.LF
-         & "# Test Skill" & ASCII.LF);
+         "---" & ASCII.LF & "name: foo" & ASCII.LF & "description: bar"
+         & ASCII.LF & "---" & ASCII.LF & "# Test Skill" & ASCII.LF);
 
       Ada.Environment_Variables.Set ("HOME", Home);
 
@@ -197,11 +181,11 @@ package body LLM_Skills_Tests is
    procedure Test_Location_Is_Absolute_Path (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_3";
-      Cwd          : constant String := "/tmp/coyote_skills_test_3_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_3";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_3_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -236,20 +220,18 @@ package body LLM_Skills_Tests is
    procedure Test_Missing_Name_Skipped (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_4";
-      Cwd          : constant String := "/tmp/coyote_skills_test_4_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_4";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_4_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
       Cleanup (Cwd);
       Write_File
         (Home & "/.coyote/skills/mypkg/SKILL.md",
-         "---" & ASCII.LF
-         & "description: bar" & ASCII.LF
-         & "---" & ASCII.LF);
+         "---" & ASCII.LF & "description: bar" & ASCII.LF & "---" & ASCII.LF);
 
       Ada.Environment_Variables.Set ("HOME", Home);
 
@@ -257,9 +239,7 @@ package body LLM_Skills_Tests is
          Skills : constant LLM.Skills.Skill_Vectors.Vector :=
            LLM.Skills.Load_Skills (Cwd);
       begin
-         Assert
-           (Skills.Is_Empty,
-            "skills missing a name should be skipped");
+         Assert (Skills.Is_Empty, "skills missing a name should be skipped");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -276,20 +256,18 @@ package body LLM_Skills_Tests is
    procedure Test_Missing_Description_Skipped (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_5";
-      Cwd          : constant String := "/tmp/coyote_skills_test_5_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_5";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_5_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
       Cleanup (Cwd);
       Write_File
         (Home & "/.coyote/skills/mypkg/SKILL.md",
-         "---" & ASCII.LF
-         & "name: foo" & ASCII.LF
-         & "---" & ASCII.LF);
+         "---" & ASCII.LF & "name: foo" & ASCII.LF & "---" & ASCII.LF);
 
       Ada.Environment_Variables.Set ("HOME", Home);
 
@@ -298,8 +276,7 @@ package body LLM_Skills_Tests is
            LLM.Skills.Load_Skills (Cwd);
       begin
          Assert
-           (Skills.Is_Empty,
-            "skills missing a description should be skipped");
+           (Skills.Is_Empty, "skills missing a description should be skipped");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -316,11 +293,11 @@ package body LLM_Skills_Tests is
    procedure Test_Global_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_6";
-      Cwd          : constant String := "/tmp/coyote_skills_test_6_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_6";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_6_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -352,11 +329,11 @@ package body LLM_Skills_Tests is
    procedure Test_Project_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_7";
-      Cwd          : constant String := "/tmp/coyote_skills_test_7_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_7";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_7_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -389,11 +366,11 @@ package body LLM_Skills_Tests is
    procedure Test_Global_Agents_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_ga";
-      Cwd          : constant String := "/tmp/coyote_skills_test_ga_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_ga";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_ga_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -411,8 +388,7 @@ package body LLM_Skills_Tests is
            LLM.Skills.Load_Skills (Cwd);
       begin
          Assert
-           (Skills.Length = 1,
-            "global ~/.agents/skills should be loaded");
+           (Skills.Length = 1, "global ~/.agents/skills should be loaded");
          Assert
            (To_String (Skills (0).Name) = "agents-skill",
             "the skill from ~/.agents/skills should be present");
@@ -431,13 +407,13 @@ package body LLM_Skills_Tests is
 
    procedure Test_Configured_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
-      Home         : constant String := "/tmp/coyote_skills_test_cfg";
-      Cwd          : constant String := "/tmp/coyote_skills_test_cfg_cwd";
-      Root_One     : constant String := "/tmp/coyote_skills_test_cfg_one";
-      Root_Two     : constant String := "/tmp/coyote_skills_test_cfg_two";
+      Home         : constant String  := "/tmp/coyote_skills_test_cfg";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_cfg_cwd";
+      Root_One     : constant String  := "/tmp/coyote_skills_test_cfg_one";
+      Root_Two     : constant String  := "/tmp/coyote_skills_test_cfg_two";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -453,22 +429,20 @@ package body LLM_Skills_Tests is
          Valid_Skill_Content ("configured-two", "Second configured skill."));
       Write_File
         (Home & "/.coyote/settings.json",
-         "{""skillPaths"" : ["""
-         & Root_One
-         & ""","""
-         & Root_Two
-         & """]}");
+         "{""skillPaths"" : [""" & Root_One & """,""" & Root_Two & """]}");
       Ada.Environment_Variables.Set ("HOME", Home);
       declare
          Skills : constant LLM.Skills.Skill_Vectors.Vector :=
            LLM.Skills.Load_Skills (Cwd);
       begin
-         Assert (Skills.Length = 2,
-                 "configured skill roots should be searched");
-         Assert (To_String (Skills (0).Name) = "configured-one",
-                 "configured roots should retain listed order");
-         Assert (To_String (Skills (1).Name) = "configured-two",
-                 "all configured roots should contribute skills");
+         Assert
+           (Skills.Length = 2, "configured skill roots should be searched");
+         Assert
+           (To_String (Skills (0).Name) = "configured-one",
+            "configured roots should retain listed order");
+         Assert
+           (To_String (Skills (1).Name) = "configured-two",
+            "all configured roots should contribute skills");
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup (Cwd);
@@ -487,12 +461,12 @@ package body LLM_Skills_Tests is
 
    procedure Test_Configured_Skill_Shadowed_By_Project (T : in out Test) is
       pragma Unreferenced (T);
-      Home         : constant String := "/tmp/coyote_skills_test_shadow";
-      Cwd          : constant String := "/tmp/coyote_skills_test_shadow_cwd";
-      Root         : constant String := "/tmp/coyote_skills_test_shadow_root";
+      Home         : constant String  := "/tmp/coyote_skills_test_shadow";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_shadow_cwd";
+      Root         : constant String  := "/tmp/coyote_skills_test_shadow_root";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -513,10 +487,12 @@ package body LLM_Skills_Tests is
          Skills : constant LLM.Skills.Skill_Vectors.Vector :=
            LLM.Skills.Load_Skills (Cwd);
       begin
-         Assert (Skills.Length = 1,
-                 "same-named skills should be shadowed, not duplicated");
-         Assert (To_String (Skills (0).Description) = "Project description.",
-                 "project skill should shadow configured skill");
+         Assert
+           (Skills.Length = 1,
+            "same-named skills should be shadowed, not duplicated");
+         Assert
+           (To_String (Skills (0).Description) = "Project description.",
+            "project skill should shadow configured skill");
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup (Cwd);
@@ -534,11 +510,11 @@ package body LLM_Skills_Tests is
    procedure Test_Project_Agents_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_pa";
-      Cwd          : constant String := "/tmp/coyote_skills_test_pa_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_pa";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_pa_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -555,9 +531,7 @@ package body LLM_Skills_Tests is
          Skills : constant LLM.Skills.Skill_Vectors.Vector :=
            LLM.Skills.Load_Skills (Cwd);
       begin
-         Assert
-           (Skills.Length = 1,
-            "project .agents/skills should be loaded");
+         Assert (Skills.Length = 1, "project .agents/skills should be loaded");
          Assert
            (To_String (Skills (0).Name) = "project-agents-skill",
             "the skill from .agents/skills should be present");
@@ -601,8 +575,7 @@ package body LLM_Skills_Tests is
       Skills : LLM.Skills.Skill_Vectors.Vector;
       S      : constant LLM.Skills.Skill :=
         (Name        => To_Unbounded_String ("my-skill"),
-         Description => To_Unbounded_String
-           ("A skill used only in tests."),
+         Description => To_Unbounded_String ("A skill used only in tests."),
          Location    => To_Unbounded_String ("/tmp/SKILL.md"));
    begin
       Skills.Append (S);
@@ -614,7 +587,8 @@ package body LLM_Skills_Tests is
          Assert
            (Ada.Strings.Fixed.Index
               (Result,
-               "<description>A skill used only in tests.</description>") > 0,
+               "<description>A skill used only in tests.</description>")
+            > 0,
             "formatted skills should include the description");
       end;
    end Test_Format_Contains_Description;
@@ -681,7 +655,8 @@ package body LLM_Skills_Tests is
       begin
          Assert
            (Ada.Strings.Fixed.Index
-              (Result, "Use the read tool to load a skill") > 0,
+              (Result, "Use the read tool to load a skill")
+            > 0,
             "formatted skills should include the preamble");
       end;
    end Test_Format_Contains_Preamble;
@@ -715,11 +690,11 @@ package body LLM_Skills_Tests is
    procedure Test_Injected_Into_Built_Prompt (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_8";
-      Cwd          : constant String := "/tmp/coyote_skills_test_8_cwd";
+      Home         : constant String  := "/tmp/coyote_skills_test_8";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_8_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -757,8 +732,7 @@ package body LLM_Skills_Tests is
    begin
       declare
          Base : constant String :=
-           LLM.Skills.Install_Base
-             (Executable => "/opt/coyote/bin/coyote");
+           LLM.Skills.Install_Base (Executable => "/opt/coyote/bin/coyote");
       begin
          Assert
            (Base = "/opt/coyote",
@@ -772,8 +746,7 @@ package body LLM_Skills_Tests is
    begin
       declare
          Base : constant String :=
-           LLM.Skills.Install_Base
-             (Executable => "/usr/local/coyote");
+           LLM.Skills.Install_Base (Executable => "/usr/local/coyote");
       begin
          Assert
            (Base = "",
@@ -830,13 +803,12 @@ package body LLM_Skills_Tests is
    procedure Test_Install_Root_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_skills_test_inst";
-      Cwd          : constant String := "/tmp/coyote_skills_test_inst_cwd";
-      Install_Root : constant String :=
-        "/tmp/coyote_skills_test_inst_install";
+      Home         : constant String  := "/tmp/coyote_skills_test_inst";
+      Cwd          : constant String  := "/tmp/coyote_skills_test_inst_cwd";
+      Install_Root : constant String := "/tmp/coyote_skills_test_inst_install";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -845,8 +817,7 @@ package body LLM_Skills_Tests is
       Mkdir (Home & "/.coyote");
       Mkdir (Cwd);
       Write_File
-        (Install_Root
-         & "/share/agents/skills/pkg1/SKILL.md",
+        (Install_Root & "/share/agents/skills/pkg1/SKILL.md",
          Valid_Skill_Content
            ("installed-skill", "A skill shipped with the binary."));
 
@@ -881,85 +852,109 @@ package body LLM_Skills_Tests is
          raise;
    end Test_Install_Root_Skills_Loaded;
 
-   package LLM_Skills_Caller is
-     new AUnit.Test_Caller (LLM_Skills_Tests.Test);
+   package LLM_Skills_Caller is new AUnit.Test_Caller (LLM_Skills_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills returns empty string when no skills exist",
-         LLM_Skills_Tests.Test_No_Skills_Returns_Empty_String'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills parses name and description from frontmatter",
-         LLM_Skills_Tests.Test_Parses_Name_And_Description'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills records absolute skill file locations",
-         LLM_Skills_Tests.Test_Location_Is_Absolute_Path'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills skips files missing name",
-         LLM_Skills_Tests.Test_Missing_Name_Skipped'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills skips files missing description",
-         LLM_Skills_Tests.Test_Missing_Description_Skipped'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills loads global skills",
-         LLM_Skills_Tests.Test_Global_Skills_Loaded'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills loads project skills",
-         LLM_Skills_Tests.Test_Project_Skills_Loaded'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills loads global ~/.agents/skills",
-         LLM_Skills_Tests.Test_Global_Agents_Skills_Loaded'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills loads configured skill roots",
-         LLM_Skills_Tests.Test_Configured_Skills_Loaded'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills project roots shadow configured skills",
-         LLM_Skills_Tests.Test_Configured_Skill_Shadowed_By_Project'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills loads project .agents/skills",
-         LLM_Skills_Tests.Test_Project_Agents_Skills_Loaded'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills format contains skill name",
-         LLM_Skills_Tests.Test_Format_Contains_Skill_Name'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills format contains description",
-         LLM_Skills_Tests.Test_Format_Contains_Description'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills format contains location",
-         LLM_Skills_Tests.Test_Format_Contains_Location'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills format contains outer tags",
-         LLM_Skills_Tests.Test_Format_Contains_Outer_Tags'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills format contains preamble",
-         LLM_Skills_Tests.Test_Format_Contains_Preamble'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills formats two skills",
-         LLM_Skills_Tests.Test_Format_Two_Skills'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills auto-injects into Build_System_Prompt",
-         LLM_Skills_Tests.Test_Injected_Into_Built_Prompt'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills Install_Base derives prefix from bin/coyote",
-         LLM_Skills_Tests.Test_Install_Base_Bin_Coyote'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills Install_Base returns empty for non-bin path",
-         LLM_Skills_Tests.Test_Install_Base_Non_Standard'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills Install_Base uses explicit Executable arg",
-         LLM_Skills_Tests.Test_Install_Base_Explicit_Arg'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills Installation_Skills_Base appends path",
-         LLM_Skills_Tests.Test_Installation_Skills_Base_Path'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills Installation_Skills_Base returns empty for non-bin",
-         LLM_Skills_Tests.Test_Installation_Skills_Base_Empty'Access));
-      Result.Add_Test (LLM_Skills_Caller.Create
-        ("LLM.Skills install-root skills not loaded when bin/ absent",
-         LLM_Skills_Tests.Test_Install_Root_Skills_Loaded'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills returns empty string when no skills exist",
+            LLM_Skills_Tests.Test_No_Skills_Returns_Empty_String'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills parses name and description from frontmatter",
+            LLM_Skills_Tests.Test_Parses_Name_And_Description'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills records absolute skill file locations",
+            LLM_Skills_Tests.Test_Location_Is_Absolute_Path'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills skips files missing name",
+            LLM_Skills_Tests.Test_Missing_Name_Skipped'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills skips files missing description",
+            LLM_Skills_Tests.Test_Missing_Description_Skipped'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills loads global skills",
+            LLM_Skills_Tests.Test_Global_Skills_Loaded'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills loads project skills",
+            LLM_Skills_Tests.Test_Project_Skills_Loaded'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills loads global ~/.agents/skills",
+            LLM_Skills_Tests.Test_Global_Agents_Skills_Loaded'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills loads configured skill roots",
+            LLM_Skills_Tests.Test_Configured_Skills_Loaded'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills project roots shadow configured skills",
+            LLM_Skills_Tests.Test_Configured_Skill_Shadowed_By_Project'
+              Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills loads project .agents/skills",
+            LLM_Skills_Tests.Test_Project_Agents_Skills_Loaded'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills format contains skill name",
+            LLM_Skills_Tests.Test_Format_Contains_Skill_Name'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills format contains description",
+            LLM_Skills_Tests.Test_Format_Contains_Description'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills format contains location",
+            LLM_Skills_Tests.Test_Format_Contains_Location'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills format contains outer tags",
+            LLM_Skills_Tests.Test_Format_Contains_Outer_Tags'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills format contains preamble",
+            LLM_Skills_Tests.Test_Format_Contains_Preamble'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills formats two skills",
+            LLM_Skills_Tests.Test_Format_Two_Skills'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills auto-injects into Build_System_Prompt",
+            LLM_Skills_Tests.Test_Injected_Into_Built_Prompt'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills Install_Base derives prefix from bin/coyote",
+            LLM_Skills_Tests.Test_Install_Base_Bin_Coyote'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills Install_Base returns empty for non-bin path",
+            LLM_Skills_Tests.Test_Install_Base_Non_Standard'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills Install_Base uses explicit Executable arg",
+            LLM_Skills_Tests.Test_Install_Base_Explicit_Arg'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills Installation_Skills_Base appends path",
+            LLM_Skills_Tests.Test_Installation_Skills_Base_Path'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills Installation_Skills_Base returns empty for non-bin",
+            LLM_Skills_Tests.Test_Installation_Skills_Base_Empty'Access));
+      Result.Add_Test
+        (LLM_Skills_Caller.Create
+           ("LLM.Skills install-root skills not loaded when bin/ absent",
+            LLM_Skills_Tests.Test_Install_Root_Skills_Loaded'Access));
 
       return Result;
    end Suite;

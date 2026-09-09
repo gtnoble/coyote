@@ -21,18 +21,15 @@ package body LLM.System_Prompt is
    use type Ada.Directories.File_Kind;
 
    package Path_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => Unbounded_String);
+     (Index_Type => Positive, Element_Type => Unbounded_String);
 
    package Name_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
+     (Index_Type => Positive, Element_Type => String);
 
    function Today_String return String is
       Raw : constant String :=
         Ada.Calendar.Formatting.Image
-          (Ada.Calendar.Clock,
-           Include_Time_Fraction => False);
+          (Ada.Calendar.Clock, Include_Time_Fraction => False);
    begin
       if Raw'Length >= 10 then
          return Raw (Raw'First .. Raw'First + 9);
@@ -43,8 +40,7 @@ package body LLM.System_Prompt is
 
    function Read_File (Path : String) return String is
    begin
-      if Path'Length = 0
-        or else not Ada.Directories.Exists (Path)
+      if Path'Length = 0 or else not Ada.Directories.Exists (Path)
         or else Ada.Directories.Kind (Path) /= Ada.Directories.Ordinary_File
       then
          return "";
@@ -55,11 +51,12 @@ package body LLM.System_Prompt is
 
    function Is_Markdown_File (Name : String) return Boolean is
    begin
-      return Name'Length >= 3
-        and then Ada.Strings.Fixed.Index
-          (Source  => Name,
-           Pattern => ".md",
-           From    => Name'Length - 2) = Name'Length - 2;
+      return
+        Name'Length >= 3
+        and then
+          Ada.Strings.Fixed.Index
+            (Source => Name, Pattern => ".md", From => Name'Length - 2)
+          = Name'Length - 2;
    end Is_Markdown_File;
 
    procedure Sort_Names (Names : in out Name_Vectors.Vector) is
@@ -74,10 +71,9 @@ package body LLM.System_Prompt is
          for I in First + 1 .. Names.Last_Index loop
             declare
                Key : constant String := Names (I);
-               J   : Integer := I - 1;
+               J   : Integer         := I - 1;
             begin
-               while J >= Integer (First)
-                 and then Names (Positive (J)) > Key
+               while J >= Integer (First) and then Names (Positive (J)) > Key
                loop
                   Names.Replace_Element
                     (Positive (J + 1), Names (Positive (J)));
@@ -91,18 +87,17 @@ package body LLM.System_Prompt is
    end Sort_Names;
 
    procedure Collect_Directory_Context
-     (Directory_Path : String;
-      Paths          : in out Path_Vectors.Vector)
+     (Directory_Path : String; Paths : in out Path_Vectors.Vector)
    is
-      Search   : Ada.Directories.Search_Type;
-      Started  : Boolean := False;
+      Search    : Ada.Directories.Search_Type;
+      Started   : Boolean := False;
       Dir_Entry : Ada.Directories.Directory_Entry_Type;
-      Names    : Name_Vectors.Vector;
+      Names     : Name_Vectors.Vector;
    begin
       if Directory_Path'Length = 0
         or else not Ada.Directories.Exists (Directory_Path)
         or else Ada.Directories.Kind (Directory_Path)
-                  /= Ada.Directories.Directory
+          /= Ada.Directories.Directory
       then
          return;
       end if;
@@ -111,8 +106,9 @@ package body LLM.System_Prompt is
         (Search,
          Directory => Directory_Path,
          Pattern   => "*",
-         Filter    => (Ada.Directories.Ordinary_File => True,
-                       others => False));
+         Filter    =>
+           (Ada.Directories.Ordinary_File => True,
+            others                        => False));
       Started := True;
 
       while Ada.Directories.More_Entries (Search) loop
@@ -145,23 +141,22 @@ package body LLM.System_Prompt is
    end Collect_Directory_Context;
 
    function Load_Context_Sections (Cwd : String) return String is
-      Agent_Dir  : constant String := LLM.Settings.Agent_Dir;
-      Global_Dir : constant String :=
+      Agent_Dir   : constant String := LLM.Settings.Agent_Dir;
+      Global_Dir  : constant String :=
         (if Agent_Dir'Length > 0 then Agent_Dir & "/context" else "");
       Project_Dir : constant String :=
         (if Cwd'Length > 0 then Cwd & "/.coyote/context" else "");
       Agents_Path : constant String :=
         (if Cwd'Length > 0 then Cwd & "/AGENTS.md" else "");
-      Paths      : Path_Vectors.Vector;
-      Sections   : Unbounded_String;
+      Paths       : Path_Vectors.Vector;
+      Sections    : Unbounded_String;
    begin
       Collect_Directory_Context (Global_Dir, Paths);
       Collect_Directory_Context (Project_Dir, Paths);
 
-      if Agents_Path'Length > 0
-        and then Ada.Directories.Exists (Agents_Path)
+      if Agents_Path'Length > 0 and then Ada.Directories.Exists (Agents_Path)
         and then Ada.Directories.Kind (Agents_Path)
-                  = Ada.Directories.Ordinary_File
+          = Ada.Directories.Ordinary_File
       then
          Paths.Append
            (To_Unbounded_String (Ada.Directories.Full_Name (Agents_Path)));
@@ -178,21 +173,13 @@ package body LLM.System_Prompt is
          begin
             Append
               (Sections,
-               "## "
-               & Full_Path
-               & ASCII.LF
-               & ASCII.LF
-               & Content
-               & ASCII.LF);
+               "## " & Full_Path & ASCII.LF & ASCII.LF & Content & ASCII.LF);
          end;
       end loop;
 
-      return "# Project Context"
-        & ASCII.LF
-        & ASCII.LF
-        & "Project-specific instructions and guidelines:"
-        & ASCII.LF
-        & ASCII.LF
+      return
+        "# Project Context" & ASCII.LF & ASCII.LF
+        & "Project-specific instructions and guidelines:" & ASCII.LF & ASCII.LF
         & To_String (Sections);
    exception
       when others =>
@@ -206,9 +193,7 @@ package body LLM.System_Prompt is
    begin
       Append
         (Result,
-         "# Reminders"
-         & ASCII.LF
-         & ASCII.LF
+         "# Reminders" & ASCII.LF & ASCII.LF
          & "- Persist until the task is completely resolved before ending"
          & " the turn -- do not stop at a natural pause point if work"
          & " remains.");
@@ -216,11 +201,9 @@ package body LLM.System_Prompt is
       if Has_Tools then
          Append
            (Result,
-            ASCII.LF
-            & "- Report progress after every 3 to 5 tool calls with a"
+            ASCII.LF & "- Report progress after every 3 to 5 tool calls with a"
             & " varied, concise 1-to-2-sentence update on what was"
-            & " accomplished and what remains."
-            & ASCII.LF
+            & " accomplished and what remains." & ASCII.LF
             & "- Preface each tool batch with a one-sentence preamble"
             & " stating why, what, and the expected outcome.");
       end if;
@@ -238,14 +221,12 @@ package body LLM.System_Prompt is
    function Prompt_File_Path return String is
       Base      : constant String := LLM.Skills.Install_Base;
       Candidate : constant String :=
-        (if Base'Length > 0
-         then Base & "/share/coyote/system-prompt.md"
+        (if Base'Length > 0 then Base & "/share/coyote/system-prompt.md"
          else "");
    begin
-      if Candidate'Length > 0
-        and then Ada.Directories.Exists (Candidate)
-        and then Ada.Directories.Kind (Candidate) =
-          Ada.Directories.Ordinary_File
+      if Candidate'Length > 0 and then Ada.Directories.Exists (Candidate)
+        and then Ada.Directories.Kind (Candidate)
+          = Ada.Directories.Ordinary_File
       then
          return Candidate;
       end if;
@@ -254,14 +235,14 @@ package body LLM.System_Prompt is
       --  containing checkout prefix without weakening installed lookup.
       if Base'Length > 0 then
          declare
-            Parent : constant String :=
+            Parent           : constant String :=
               Ada.Directories.Containing_Directory (Base);
             Parent_Candidate : constant String :=
               Parent & "/share/coyote/system-prompt.md";
          begin
             if Ada.Directories.Exists (Parent_Candidate)
-              and then Ada.Directories.Kind (Parent_Candidate) =
-                Ada.Directories.Ordinary_File
+              and then Ada.Directories.Kind (Parent_Candidate)
+                = Ada.Directories.Ordinary_File
             then
                return Parent_Candidate;
             end if;
@@ -283,9 +264,7 @@ package body LLM.System_Prompt is
    end Load_Static_Prompt;
 
    function Replace_All
-     (Source : String;
-      Marker : String;
-      Value  : String) return String
+     (Source : String; Marker : String; Value : String) return String
    is
       Result : Unbounded_String;
       Start  : Positive;
@@ -297,10 +276,9 @@ package body LLM.System_Prompt is
 
       Start := Source'First;
       loop
-         Match := Ada.Strings.Fixed.Index
-           (Source  => Source,
-            Pattern => Marker,
-            From    => Start);
+         Match :=
+           Ada.Strings.Fixed.Index
+             (Source => Source, Pattern => Marker, From => Start);
          exit when Match = 0;
 
          if Match > Start then
@@ -321,12 +299,13 @@ package body LLM.System_Prompt is
    function Remove_Section
      (Source       : String;
       Begin_Marker : String;
-      End_Marker   : String) return String
+      End_Marker   : String)
+      return String
    is
       Begin_Pos : constant Natural :=
         Ada.Strings.Fixed.Index (Source, Begin_Marker);
-      End_Pos : Natural;
-      Result : Unbounded_String;
+      End_Pos   : Natural;
+      Result    : Unbounded_String;
    begin
       if Begin_Pos = 0 then
          return Source;
@@ -352,10 +331,10 @@ package body LLM.System_Prompt is
    function Unwrap_Section
      (Source       : String;
       Begin_Marker : String;
-      End_Marker   : String) return String
+      End_Marker   : String)
+      return String
    is
-      Result : constant String :=
-        Replace_All (Source, Begin_Marker, "");
+      Result : constant String := Replace_All (Source, Begin_Marker, "");
    begin
       return Replace_All (Result, End_Marker, "");
    end Unwrap_Section;
@@ -365,10 +344,10 @@ package body LLM.System_Prompt is
       Has_Editing_Tools : Boolean;
       Coordinator_Mode  : Boolean;
       Tools_Text        : String;
-      Subagent_Command  : String) return String
+      Subagent_Command  : String)
+      return String
    is
-      Result : Unbounded_String :=
-        To_Unbounded_String (Load_Static_Prompt);
+      Result : Unbounded_String := To_Unbounded_String (Load_Static_Prompt);
 
       procedure Replace (Marker, Value : String) is
       begin
@@ -424,24 +403,24 @@ package body LLM.System_Prompt is
    end Render_Static_Prompt;
 
    function Build_System_Prompt
-     (Cwd                : String;
-      No_Tools           : Boolean := False;
-      Has_Editing_Tools  : Boolean := False;
-      Agent              : String  := "";
-      Context_Sections   : String  := "";
-      Skills_Section     : String  := "";
-      Memory_Block       : String  := "";
-      Executable_Path    : String  := "";
-      Coordinator_Mode   : Boolean := False) return String
+     (Cwd               : String;
+      No_Tools          : Boolean := False;
+      Has_Editing_Tools : Boolean := False;
+      Agent             : String  := "";
+      Context_Sections  : String  := "";
+      Skills_Section    : String  := "";
+      Memory_Block      : String  := "";
+      Executable_Path   : String  := "";
+      Coordinator_Mode  : Boolean := False)
+      return String
    is
-      Result : Unbounded_String;
-      Descriptor : constant LLM.Tools.Tool_Descriptor :=
+      Result           : Unbounded_String;
+      Descriptor       : constant LLM.Tools.Tool_Descriptor :=
         LLM.Tools.Shell.Descriptor;
-      Active_Path : constant String :=
-        (if Executable_Path'Length > 0
-         then Executable_Path
+      Active_Path      : constant String                    :=
+        (if Executable_Path'Length > 0 then Executable_Path
          else Coyote_Utils.Active_Executable_Path);
-      Subagent_Command : constant String :=
+      Subagent_Command : constant String                    :=
         Coyote_Utils.Shell_Quote (Active_Path) & " --subagent";
    begin
       Result :=
@@ -450,8 +429,9 @@ package body LLM.System_Prompt is
              (No_Tools          => No_Tools,
               Has_Editing_Tools => Has_Editing_Tools,
               Coordinator_Mode  => Coordinator_Mode,
-              Tools_Text        => To_String (Descriptor.Name)
-                & ": " & To_String (Descriptor.Description),
+              Tools_Text        =>
+                To_String (Descriptor.Name) & ": "
+                & To_String (Descriptor.Description),
               Subagent_Command  => Subagent_Command));
 
       if Agent'Length > 0 then
@@ -465,8 +445,7 @@ package body LLM.System_Prompt is
              (LLM.Settings.Load_Settings.Append_System_Prompt);
       begin
          if S_Val'Length > 0 then
-            Ada.Strings.Unbounded.Append
-              (Result, ASCII.LF & ASCII.LF & S_Val);
+            Ada.Strings.Unbounded.Append (Result, ASCII.LF & ASCII.LF & S_Val);
          end if;
       end;
 
@@ -482,8 +461,10 @@ package body LLM.System_Prompt is
       declare
          Loaded : constant String := Load_Context_Sections (Cwd);
          Merged : constant String :=
-           (if Context_Sections'Length > 0 and then Loaded'Length > 0
-            then Context_Sections & ASCII.LF & ASCII.LF & Loaded
+           (if
+              Context_Sections'Length > 0 and then Loaded'Length > 0
+            then
+              Context_Sections & ASCII.LF & ASCII.LF & Loaded
             elsif Context_Sections'Length > 0 then Context_Sections
             else Loaded);
       begin
@@ -496,11 +477,13 @@ package body LLM.System_Prompt is
       declare
          Loaded_Skills : constant LLM.Skills.Skill_Vectors.Vector :=
            LLM.Skills.Load_Skills (Cwd);
-         Auto_Section  : constant String :=
+         Auto_Section  : constant String                          :=
            LLM.Skills.Format_Skills_For_Prompt (Loaded_Skills);
-         Merged_Skills : constant String :=
-           (if Skills_Section'Length > 0 and then Auto_Section'Length > 0
-            then Skills_Section & ASCII.LF & ASCII.LF & Auto_Section
+         Merged_Skills : constant String                          :=
+           (if
+              Skills_Section'Length > 0 and then Auto_Section'Length > 0
+            then
+              Skills_Section & ASCII.LF & ASCII.LF & Auto_Section
             elsif Skills_Section'Length > 0 then Skills_Section
             else Auto_Section);
       begin
@@ -514,8 +497,7 @@ package body LLM.System_Prompt is
       Append (Result, ASCII.LF & "Current working directory: " & Cwd);
       Append
         (Result,
-         ASCII.LF
-         & "Current shell: "
+         ASCII.LF & "Current shell: "
          & Ada.Environment_Variables.Value ("SHELL", "/bin/sh"));
 
       return To_String (Result);

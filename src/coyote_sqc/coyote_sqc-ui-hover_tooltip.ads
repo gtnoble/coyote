@@ -13,9 +13,7 @@ package Coyote_SQC.UI.Hover_Tooltip is
 
    --  Show or refresh the tooltip for the session at screen position (X, Y).
    procedure Show_For_Session
-     (Session_Id : String;
-      Screen_X   : Long_Float;
-      Screen_Y   : Long_Float);
+     (Session_Id : String; Screen_X : Long_Float; Screen_Y : Long_Float);
 
    --  Hide the tooltip.
    procedure Hide;

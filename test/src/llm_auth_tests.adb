@@ -24,9 +24,9 @@ package body LLM_Auth_Tests is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
-      return Long_Long_Integer ((Clock - Epoch) * 1000.0);
+      return Long_Long_Integer ((Clock - Epoch) * 1_000.0);
    end Current_Unix_Ms;
 
    function Natural_Image (Value : Natural) return String is
@@ -130,19 +130,17 @@ package body LLM_Auth_Tests is
    function Refresh_Test_Auth_Content return String is
    begin
       return
-        "{" & ASCII.LF
-        & "  ""github-copilot"": {" & ASCII.LF
+        "{" & ASCII.LF & "  ""github-copilot"": {" & ASCII.LF
         & "    ""type"": ""oauth""," & ASCII.LF
         & "    ""refresh"": ""refresh-token""," & ASCII.LF
         & "    ""access"": ""expired-token""," & ASCII.LF
-        & "    ""expires"": 0" & ASCII.LF
-        & "  }" & ASCII.LF
-        & "}" & ASCII.LF;
+        & "    ""expires"": 0" & ASCII.LF & "  }" & ASCII.LF & "}" & ASCII.LF;
    end Refresh_Test_Auth_Content;
 
    function Is_Transient_Connect_Error (Message : String) return Boolean is
    begin
-      return Contains (Message, "Couldn't connect")
+      return
+        Contains (Message, "Couldn't connect")
         or else Contains (Message, "Failed to connect")
         or else Contains (Message, "Connection refused");
    end Is_Transient_Connect_Error;
@@ -157,23 +155,21 @@ package body LLM_Auth_Tests is
    is
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Url_Was_Set   : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
-      Old_Url       : constant String :=
+        Ada.Environment_Variables.Exists ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
+      Old_Url       : constant String  :=
         Ada.Environment_Variables.Value
           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
-      Original_Auth : constant String := Refresh_Test_Auth_Content;
+      Original_Auth : constant String  := Refresh_Test_Auth_Content;
       Creds         : LLM.Auth.Provider_Credentials;
       Saved         : LLM.Auth.Provider_Credentials;
-      Raised        : Boolean := False;
+      Raised        : Boolean          := False;
       Error_Message : Unbounded_String;
 
       procedure Failure_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
       begin
          Assert
@@ -181,25 +177,23 @@ package body LLM_Auth_Tests is
             "Refresh request should target the token endpoint");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
-              = "Bearer refresh-token",
+            = "Bearer refresh-token",
             "Refresh request should carry the stored refresh token");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
-              = "GitHubCopilotChat/0.35.0",
+            = "GitHubCopilotChat/0.35.0",
             "Refresh request should carry the Copilot User-Agent");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Version")
-              = "vscode/1.107.0",
+            = "vscode/1.107.0",
             "Refresh request should carry the Editor-Version header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Editor-Plugin-Version")
-              = "copilot-chat/0.35.0",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Plugin-Version")
+            = "copilot-chat/0.35.0",
             "Refresh request should carry the Editor-Plugin-Version header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Copilot-Integration-Id")
-              = "vscode-chat",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Copilot-Integration-Id")
+            = "vscode-chat",
             "Refresh request should carry the Copilot-Integration-Id header");
          Res.Status := Status_Code;
          Res.Headers.Append
@@ -208,8 +202,9 @@ package body LLM_Auth_Tests is
          Append (Res.Body_Data, Response_Body);
       end Failure_Handler;
 
-      Srv : Test_HTTP_Server.Server
-        (Handler => Failure_Handler'Unrestricted_Access);
+      Srv :
+        Test_HTTP_Server.Server
+          (Handler => Failure_Handler'Unrestricted_Access);
 
    begin
       Srv.Bind (Port);
@@ -233,8 +228,7 @@ package body LLM_Auth_Tests is
          exception
             when E : LLM.Auth.GitHub_Copilot.Auth_Error =>
                Error_Message :=
-                 To_Unbounded_String
-                   (Ada.Exceptions.Exception_Message (E));
+                 To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
 
                if Is_Transient_Connect_Error (To_String (Error_Message))
                  and then Attempt < 20
@@ -268,15 +262,13 @@ package body LLM_Auth_Tests is
         (Saved.Expires_Ms = 0,
          "A failed refresh should preserve the stored expiration");
 
-      Restore_Env
-        ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
          Srv.Stop;
-         Restore_Env
-           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -285,18 +277,16 @@ package body LLM_Auth_Tests is
    procedure Test_Load_Credentials (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_llm_auth_test_1";
+      Home         : constant String  := "/tmp/coyote_llm_auth_test_1";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Loaded       : LLM.Auth.Provider_Credentials;
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
-      Write_File
-        (Home & "/.coyote/auth.json",
-         Read_File (Auth_Fixture_Path));
+      Write_File (Home & "/.coyote/auth.json", Read_File (Auth_Fixture_Path));
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Loaded := LLM.Auth.Load_Credentials ("github-copilot");
@@ -330,15 +320,16 @@ package body LLM_Auth_Tests is
       pragma Unreferenced (T);
 
       Home         : constant String := "/tmp/coyote_llm_auth_test_2";
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set : constant Boolean                       :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String                        :=
         Ada.Environment_Variables.Value ("HOME", "");
       Saved        : constant LLM.Auth.Provider_Credentials :=
         (Credential_Type => To_Unbounded_String ("oauth"),
          Refresh_Token   => To_Unbounded_String ("saved-refresh"),
-         Access_Token    => To_Unbounded_String
-           ("tid=saved;proxy-ep=proxy.saved.example;exp=42"),
+         Access_Token    =>
+           To_Unbounded_String
+             ("tid=saved;proxy-ep=proxy.saved.example;exp=42"),
          Expires_Ms      => 1_748_123_456_789,
          Account_Id      => Null_Unbounded_String);
       Loaded       : LLM.Auth.Provider_Credentials;
@@ -346,13 +337,11 @@ package body LLM_Auth_Tests is
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
-      Write_File
-        (Home & "/.coyote/auth.json",
-         Read_File (Auth_Fixture_Path));
+      Write_File (Home & "/.coyote/auth.json", Read_File (Auth_Fixture_Path));
 
       Ada.Environment_Variables.Set ("HOME", Home);
       LLM.Auth.Save_Credentials ("github-copilot", Saved);
-      Loaded := LLM.Auth.Load_Credentials ("github-copilot");
+      Loaded   := LLM.Auth.Load_Credentials ("github-copilot");
       Raw_Auth :=
         To_Unbounded_String (Read_File (Home & "/.coyote/auth.json"));
 
@@ -361,7 +350,7 @@ package body LLM_Auth_Tests is
          "Save_Credentials should persist the new refresh token");
       Assert
         (To_String (Loaded.Access_Token)
-           = "tid=saved;proxy-ep=proxy.saved.example;exp=42",
+         = "tid=saved;proxy-ep=proxy.saved.example;exp=42",
          "Save_Credentials should persist the new access token");
       Assert
         (Loaded.Expires_Ms = 1_748_123_456_789,
@@ -387,11 +376,14 @@ package body LLM_Auth_Tests is
 
       Now                : constant Long_Long_Integer := Current_Unix_Ms;
       Expired_Creds      : constant LLM.Auth.Provider_Credentials :=
-        (Expires_Ms => Now - 1, others => <>);
+        (Expires_Ms => Now - 1,
+         others     => <>);
       Near_Expiry_Creds  : constant LLM.Auth.Provider_Credentials :=
-        (Expires_Ms => Now + 240_000, others => <>);
+        (Expires_Ms => Now + 240_000,
+         others     => <>);
       Valid_Future_Creds : constant LLM.Auth.Provider_Credentials :=
-        (Expires_Ms => Now + 360_000, others => <>);
+        (Expires_Ms => Now + 360_000,
+         others     => <>);
    begin
       Assert
         (LLM.Auth.GitHub_Copilot.Token_Expired (Expired_Creds),
@@ -410,7 +402,7 @@ package body LLM_Auth_Tests is
       Assert
         (LLM.Auth.GitHub_Copilot.Get_Base_Url
            ("tid=abc;proxy-ep=proxy.foo.bar;exp=1")
-           = "https://api.foo.bar",
+         = "https://api.foo.bar",
          "proxy-ep should be mapped to the corresponding api host");
    end Test_Get_Base_Url;
 
@@ -419,23 +411,22 @@ package body LLM_Auth_Tests is
    begin
       Assert
         (LLM.Auth.GitHub_Copilot.Get_Base_Url ("tid=abc;exp=1")
-           = "https://api.individual.githubcopilot.com",
+         = "https://api.individual.githubcopilot.com",
          "Tokens without proxy-ep should use the default Copilot base URL");
    end Test_Get_Base_Url_Fallback;
 
    procedure Test_Refresh_Token (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port         : constant Positive := 18_769;
+      Port         : constant Positive             := 18_769;
       Home         : constant String := "/tmp/coyote_llm_auth_test_3";
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set : constant Boolean              :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String               :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Url_Was_Set  : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
-      Old_Url      : constant String :=
+      Url_Was_Set  : constant Boolean              :=
+        Ada.Environment_Variables.Exists ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
+      Old_Url      : constant String               :=
         Ada.Environment_Variables.Value
           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
       Creds        : LLM.Auth.Provider_Credentials :=
@@ -447,8 +438,7 @@ package body LLM_Auth_Tests is
       Saved        : LLM.Auth.Provider_Credentials;
 
       procedure Refresh_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
       begin
          Assert
@@ -456,25 +446,23 @@ package body LLM_Auth_Tests is
             "Refresh request should target the token endpoint");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
-              = "Bearer refresh-token",
+            = "Bearer refresh-token",
             "Refresh request should carry the stored refresh token");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
-              = "GitHubCopilotChat/0.35.0",
+            = "GitHubCopilotChat/0.35.0",
             "Refresh request should carry the Copilot User-Agent");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Version")
-              = "vscode/1.107.0",
+            = "vscode/1.107.0",
             "Refresh request should carry the Editor-Version header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Editor-Plugin-Version")
-              = "copilot-chat/0.35.0",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Plugin-Version")
+            = "copilot-chat/0.35.0",
             "Refresh request should carry the Editor-Plugin-Version header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Copilot-Integration-Id")
-              = "vscode-chat",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Copilot-Integration-Id")
+            = "vscode-chat",
             "Refresh request should carry the Copilot-Integration-Id header");
          Res.Status := 200;
          Res.Headers.Append
@@ -487,8 +475,9 @@ package body LLM_Auth_Tests is
             & """expires_at"":9999999999}");
       end Refresh_Handler;
 
-      Srv : Test_HTTP_Server.Server
-        (Handler => Refresh_Handler'Unrestricted_Access);
+      Srv :
+        Test_HTTP_Server.Server
+          (Handler => Refresh_Handler'Unrestricted_Access);
 
    begin
       Srv.Bind (Port);
@@ -507,7 +496,7 @@ package body LLM_Auth_Tests is
 
       Assert
         (To_String (Creds.Access_Token)
-           = "tid=abc;proxy-ep=proxy.test.com;exp=9999999999",
+         = "tid=abc;proxy-ep=proxy.test.com;exp=9999999999",
          "Refresh_Token should update the in-memory access token");
       Assert
         (Creds.Expires_Ms = 9_999_999_999_000,
@@ -519,15 +508,13 @@ package body LLM_Auth_Tests is
         (Saved.Expires_Ms = Creds.Expires_Ms,
          "Refresh_Token should persist the refreshed expiration timestamp");
 
-      Restore_Env
-        ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
          Srv.Stop;
-         Restore_Env
-           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -557,9 +544,7 @@ package body LLM_Auth_Tests is
          Content_Type          => "text/plain");
    end Test_Refresh_Token_Invalid_JSON_Raises;
 
-   procedure Test_Refresh_Token_Missing_Token_Field_Raises
-     (T : in out Test)
-   is
+   procedure Test_Refresh_Token_Missing_Token_Field_Raises (T : in out Test) is
       pragma Unreferenced (T);
    begin
       Run_Refresh_Failure_Test
@@ -583,45 +568,54 @@ package body LLM_Auth_Tests is
          Expected_Message_Part => "missing fields");
    end Test_Refresh_Token_Missing_Expires_At_Field_Raises;
 
-   package LLM_Auth_Caller is
-     new AUnit.Test_Caller (LLM_Auth_Tests.Test);
+   package LLM_Auth_Caller is new AUnit.Test_Caller (LLM_Auth_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth loads GitHub Copilot credentials from auth.json",
-         LLM_Auth_Tests.Test_Load_Credentials'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth saves credentials atomically and preserves other providers",
-         LLM_Auth_Tests.Test_Save_Credentials'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot detects expired and valid tokens",
-         LLM_Auth_Tests.Test_Token_Expired'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot parses proxy-ep into the API base URL",
-         LLM_Auth_Tests.Test_Get_Base_Url'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot falls back to the default base URL",
-         LLM_Auth_Tests.Test_Get_Base_Url_Fallback'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot refreshes and persists the API token",
-         LLM_Auth_Tests.Test_Refresh_Token'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot raises on non-200 refresh responses",
-         LLM_Auth_Tests.Test_Refresh_Token_Non_200_Raises'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot raises on invalid JSON refresh responses",
-         LLM_Auth_Tests.Test_Refresh_Token_Invalid_JSON_Raises'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot raises when token is missing",
-         LLM_Auth_Tests.Test_Refresh_Token_Missing_Token_Field_Raises
-           'Access));
-      Result.Add_Test (LLM_Auth_Caller.Create
-        ("LLM.Auth.GitHub_Copilot raises when expires_at is missing",
-         LLM_Auth_Tests
-           .Test_Refresh_Token_Missing_Expires_At_Field_Raises'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth loads GitHub Copilot credentials from auth.json",
+            LLM_Auth_Tests.Test_Load_Credentials'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth saves credentials atomically and preserves other providers",
+            LLM_Auth_Tests.Test_Save_Credentials'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot detects expired and valid tokens",
+            LLM_Auth_Tests.Test_Token_Expired'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot parses proxy-ep into the API base URL",
+            LLM_Auth_Tests.Test_Get_Base_Url'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot falls back to the default base URL",
+            LLM_Auth_Tests.Test_Get_Base_Url_Fallback'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot refreshes and persists the API token",
+            LLM_Auth_Tests.Test_Refresh_Token'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot raises on non-200 refresh responses",
+            LLM_Auth_Tests.Test_Refresh_Token_Non_200_Raises'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot raises on invalid JSON refresh responses",
+            LLM_Auth_Tests.Test_Refresh_Token_Invalid_JSON_Raises'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot raises when token is missing",
+            LLM_Auth_Tests.Test_Refresh_Token_Missing_Token_Field_Raises'
+              Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth.GitHub_Copilot raises when expires_at is missing",
+            LLM_Auth_Tests.Test_Refresh_Token_Missing_Expires_At_Field_Raises'
+              Access));
 
       return Result;
    end Suite;

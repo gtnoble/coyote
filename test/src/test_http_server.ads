@@ -40,8 +40,7 @@ package Test_HTTP_Server is
    end record;
 
    package Header_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Header_Pair);
+     (Index_Type => Positive, Element_Type => Header_Pair);
 
    --  Ordered list of header name/value pairs.  Any Header_Vectors.Vector
    --  operation (Append, Iterate, …) may be used directly; Get_Header
@@ -51,9 +50,7 @@ package Test_HTTP_Server is
    --  Return the value of the first header in Headers whose name compares
    --  equal to Name under a case-insensitive ASCII comparison.
    --  Returns "" when no matching header is found.
-   function Get_Header
-     (Headers : Header_List;
-      Name    : String) return String;
+   function Get_Header (Headers : Header_List; Name : String) return String;
 
    --  ── Request ───────────────────────────────────────────────────────────
 
@@ -82,9 +79,8 @@ package Test_HTTP_Server is
 
    --  Called synchronously from the server task for each accepted request.
    --  The procedure must populate Res before returning.
-   type Request_Handler is access procedure
-     (Req :     Request;
-      Res : out Response);
+   type Request_Handler is
+     access procedure (Req : Request; Res : out Response);
 
    --  ── Server task type ──────────────────────────────────────────────────
 

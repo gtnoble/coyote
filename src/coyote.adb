@@ -70,16 +70,14 @@ procedure Coyote is
             Digit : Long_Long_Integer;
          begin
             if Character_Value not in '0' .. '9' then
-               raise Constraint_Error with
-                 "recursion depth is not a nonnegative integer";
+               raise Constraint_Error
+                 with "recursion depth is not a nonnegative integer";
             end if;
-            Digit := Long_Long_Integer
-              (Character'Pos (Character_Value) - Character'Pos ('0'));
-            if Value >
-              (Long_Long_Integer (Natural'Last) - Digit) / 10
-            then
-               raise Constraint_Error with
-                 "recursion depth is too large";
+            Digit :=
+              Long_Long_Integer
+                (Character'Pos (Character_Value) - Character'Pos ('0'));
+            if Value > (Long_Long_Integer (Natural'Last) - Digit) / 10 then
+               raise Constraint_Error with "recursion depth is too large";
             end if;
             Value := Value * 10 + Digit;
          end;
@@ -89,12 +87,12 @@ procedure Coyote is
    end Parse_Natural;
 
    procedure Initialize_Recursion_Depth is
-      Depth_Is_Set : constant Boolean :=
+      Depth_Is_Set   : constant Boolean               :=
         Ada.Environment_Variables.Exists ("COYOTE_RECURSION_DEPTH");
-      Current_Text : constant String :=
+      Current_Text   : constant String                :=
         Ada.Environment_Variables.Value ("COYOTE_RECURSION_DEPTH", "");
-      Current_Depth  : Natural := 0;
-      Next_Depth     : Natural := 0;
+      Current_Depth  : Natural                        := 0;
+      Next_Depth     : Natural                        := 0;
       Settings_Value : constant LLM.Settings.Settings :=
         LLM.Settings.Load_Settings;
    begin
@@ -103,30 +101,27 @@ procedure Coyote is
             Current_Depth := Parse_Natural (Current_Text);
          exception
             when E : Constraint_Error =>
-               raise Coyote_Utils.Bad_Arg_Error with
-                 "invalid COYOTE_RECURSION_DEPTH: "
-                 & Current_Text
-                 & " ("
-                 & Ada.Exceptions.Exception_Message (E)
-                 & ")";
+               raise Coyote_Utils.Bad_Arg_Error
+                 with "invalid COYOTE_RECURSION_DEPTH: " & Current_Text & " ("
+                 & Ada.Exceptions.Exception_Message (E) & ")";
          end;
       end if;
 
       if Opts.Subagent then
          if Current_Depth = Natural'Last then
-            raise Coyote_Utils.Bad_Arg_Error with
-              "COYOTE_RECURSION_DEPTH cannot be incremented";
+            raise Coyote_Utils.Bad_Arg_Error
+              with "COYOTE_RECURSION_DEPTH cannot be incremented";
          end if;
          Next_Depth := Current_Depth + 1;
          if Next_Depth > Settings_Value.Max_Recursion_Depth then
-            raise Coyote_Utils.Bad_Arg_Error with
-              "maximum subagent recursion depth exceeded (depth "
+            raise Coyote_Utils.Bad_Arg_Error
+              with "maximum subagent recursion depth exceeded (depth "
               & Ada.Strings.Fixed.Trim
-                  (Natural'Image (Next_Depth), Ada.Strings.Both)
+                (Natural'Image (Next_Depth), Ada.Strings.Both)
               & ", maximum "
               & Ada.Strings.Fixed.Trim
-                  (Natural'Image (Settings_Value.Max_Recursion_Depth),
-                   Ada.Strings.Both)
+                (Natural'Image (Settings_Value.Max_Recursion_Depth),
+                 Ada.Strings.Both)
               & ")";
          end if;
       else
@@ -141,26 +136,20 @@ procedure Coyote is
 
    procedure Print_Usage is
    begin
-      Ada.Text_IO.Put_Line
-        ("coyote -- Native Ada LLM coding agent harness");
+      Ada.Text_IO.Put_Line ("coyote -- Native Ada LLM coding agent harness");
       Ada.Text_IO.New_Line;
       Ada.Text_IO.Put_Line
         ("Usage: coyote [-s|--session UUID] [-m|--model PROVIDER/ID]");
-      Ada.Text_IO.Put_Line
-        ("               [-a|--agent TEXT|@PATH]");
+      Ada.Text_IO.Put_Line ("               [-a|--agent TEXT|@PATH]");
       Ada.Text_IO.Put_Line
         ("               [-T|--no-tools] [-S|--no-session]");
       Ada.Text_IO.Put_Line
         ("               [-p|--prompt TEXT|-] [-1|--one-shot]"
          & " [-A|--subagent] [-n|--name LABEL]");
-      Ada.Text_IO.Put_Line
-        ("               [-f|--prompt-filter CMD]");
-      Ada.Text_IO.Put_Line
-        ("               [-F|--frontend gui|plain|rpc]");
-      Ada.Text_IO.Put_Line
-        ("               [-d|--debug-logging]");
-      Ada.Text_IO.Put_Line
-        ("               [-h|--help]");
+      Ada.Text_IO.Put_Line ("               [-f|--prompt-filter CMD]");
+      Ada.Text_IO.Put_Line ("               [-F|--frontend gui|plain|rpc]");
+      Ada.Text_IO.Put_Line ("               [-d|--debug-logging]");
+      Ada.Text_IO.Put_Line ("               [-h|--help]");
       Ada.Text_IO.New_Line;
       Ada.Text_IO.Put_Line ("Options:");
       Ada.Text_IO.New_Line;
@@ -208,7 +197,7 @@ begin
          if (Arg = "-s" or else Arg = "--session")
            and then I < Ada.Command_Line.Argument_Count
          then
-            I := I + 1;
+            I               := I + 1;
             Opts.Session_Id :=
               To_Unbounded_String
                 (Coyote_Utils.Strip_Session_Prefix
@@ -216,13 +205,12 @@ begin
          elsif (Arg = "-m" or else Arg = "--model")
            and then I < Ada.Command_Line.Argument_Count
          then
-            I := I + 1;
-            Opts.Model :=
-              To_Unbounded_String (Ada.Command_Line.Argument (I));
+            I          := I + 1;
+            Opts.Model := To_Unbounded_String (Ada.Command_Line.Argument (I));
          elsif (Arg = "-a" or else Arg = "--agent")
            and then I < Ada.Command_Line.Argument_Count
          then
-            I := I + 1;
+            I          := I + 1;
             Opts.Agent :=
               To_Unbounded_String
                 (Coyote_Utils.Resolve_Text_Arg
@@ -267,13 +255,12 @@ begin
          elsif (Arg = "-n" or else Arg = "--name")
            and then I < Ada.Command_Line.Argument_Count
          then
-            I := I + 1;
-            Opts.Name :=
-              To_Unbounded_String (Ada.Command_Line.Argument (I));
+            I         := I + 1;
+            Opts.Name := To_Unbounded_String (Ada.Command_Line.Argument (I));
          elsif (Arg = "-f" or else Arg = "--prompt-filter")
            and then I < Ada.Command_Line.Argument_Count
          then
-            I := I + 1;
+            I                  := I + 1;
             Opts.Prompt_Filter :=
               To_Unbounded_String (Ada.Command_Line.Argument (I));
          elsif (Arg = "-F" or else Arg = "--frontend")
@@ -291,8 +278,7 @@ begin
                   Opts.Frontend := Coyote_App.RPC_Frontend;
                else
                   Ada.Text_IO.Put_Line
-                    (Ada.Text_IO.Standard_Error,
-                     "Unknown frontend: " & Val);
+                    (Ada.Text_IO.Standard_Error, "Unknown frontend: " & Val);
                end if;
                Opts.Frontend_Explicit := True;
             end;
@@ -306,8 +292,7 @@ begin
             return;
          else
             Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "Unknown argument: " & Arg);
+              (Ada.Text_IO.Standard_Error, "Unknown argument: " & Arg);
          end if;
       end;
       I := I + 1;
@@ -316,9 +301,9 @@ begin
    --  Physical windows are independent processes, not coordinator children.
    --  Clear inherited coordinator state before recursion and session setup.
    if Opts.Physical_Window then
-      Opts.Subagent := False;
-      Opts.One_Shot := False;
-      Opts.Frontend := Coyote_App.GUI_Frontend;
+      Opts.Subagent          := False;
+      Opts.One_Shot          := False;
+      Opts.Frontend          := Coyote_App.GUI_Frontend;
       Opts.Frontend_Explicit := True;
       Ada.Environment_Variables.Clear ("COYOTE_RPC_ENDPOINT");
       Ada.Environment_Variables.Clear ("COYOTE_RUNTIME_AGENT_ID");
@@ -366,8 +351,7 @@ begin
    if Length (Opts.Session_Id) > 0 then
       declare
          Wd : constant String :=
-           LLM.Session_Store.Session_Work_Dir
-             (To_String (Opts.Session_Id));
+           LLM.Session_Store.Session_Work_Dir (To_String (Opts.Session_Id));
       begin
          if Wd /= "" then
             if Ada.Directories.Exists (Wd) then
@@ -389,17 +373,16 @@ begin
    --  Endpoint-backed subagents receive their own runtime identity while
    --  retaining the inherited coordinator identity as their parent.
    if Opts.Subagent
-     and then Ada.Environment_Variables.Value
-       ("COYOTE_RPC_ENDPOINT", "")'Length > 0
+     and then
+       Ada.Environment_Variables.Value ("COYOTE_RPC_ENDPOINT", "")'Length > 0
    then
       declare
          Parent_Id : constant String :=
-           Ada.Environment_Variables.Value
-             ("COYOTE_RUNTIME_AGENT_ID", "root");
-         Pid_Text : constant String :=
+           Ada.Environment_Variables.Value ("COYOTE_RUNTIME_AGENT_ID", "root");
+         Pid_Text  : constant String :=
            Ada.Strings.Fixed.Trim
-             (GNAT.OS_Lib.Pid_To_Integer
-                (GNAT.OS_Lib.Current_Process_Id)'Image,
+             (GNAT.OS_Lib.Pid_To_Integer (GNAT.OS_Lib.Current_Process_Id)'
+                Image,
               Ada.Strings.Both);
       begin
          Ada.Environment_Variables.Set
@@ -425,17 +408,17 @@ begin
    elsif Opts.One_Shot and then not Opts.Subagent then
       Opts.Frontend := Coyote_App.Plain_Frontend;
    elsif Opts.Subagent
-     and then Ada.Environment_Variables.Value
-       ("COYOTE_RPC_ENDPOINT", "")'Length > 0
+     and then
+       Ada.Environment_Variables.Value ("COYOTE_RPC_ENDPOINT", "")'Length > 0
    then
       Opts.Frontend := Coyote_App.RPC_Frontend;
-   elsif (Ada.Environment_Variables.Exists ("DISPLAY")
-            and then
-              Ada.Environment_Variables.Value ("DISPLAY", "")'Length > 0)
-     or else (Ada.Environment_Variables.Exists ("WAYLAND_DISPLAY")
-                and then
-                  Ada.Environment_Variables.Value
-                    ("WAYLAND_DISPLAY", "")'Length > 0)
+   elsif
+     (Ada.Environment_Variables.Exists ("DISPLAY")
+      and then Ada.Environment_Variables.Value ("DISPLAY", "")'Length > 0)
+     or else
+     (Ada.Environment_Variables.Exists ("WAYLAND_DISPLAY")
+      and then Ada.Environment_Variables.Value ("WAYLAND_DISPLAY", "")'Length
+        > 0)
      or else Ada.Environment_Variables.Value ("COYOTE_FRONTEND", "") = "gui"
    then
       Opts.Frontend := Coyote_App.GUI_Frontend;

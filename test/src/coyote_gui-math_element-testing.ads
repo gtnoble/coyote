@@ -2,7 +2,6 @@
 --
 --  Project: coyote
 
-
 package Coyote_GUI.Math_Element.Testing is
 
    function Area_Visible

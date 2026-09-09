@@ -9,21 +9,20 @@ package body Coyote_Spawn is
 
    function Spawn_Detached
      (Args : GNATCOLL.OS.Process.Argument_List;
-      Cwd  : String := "") return Boolean
+      Cwd  : String := "")
+      return Boolean
    is
       use Interfaces.C;
       use Interfaces.C.Strings;
 
       --  C function: int coyote_detach_spawn(char *const argv[], const char *cwd);
       function C_Detach_Spawn
-        (Argv : chars_ptr_array;
-         Cwd  : chars_ptr) return int
-      with Import, Convention => C,
-           External_Name => "coyote_detach_spawn";
+        (Argv : chars_ptr_array; Cwd : chars_ptr) return int with
+        Import, Convention => C, External_Name => "coyote_detach_spawn";
 
-      Argc : constant size_t := size_t (Args.Length);
-      Argv : chars_ptr_array (0 .. Argc);  --  +1 for NULL terminator
-      C_Cwd : chars_ptr;
+      Argc   : constant size_t := size_t (Args.Length);
+      Argv   : chars_ptr_array (0 .. Argc);  --  +1 for NULL terminator
+      C_Cwd  : chars_ptr;
       Result : int;
    begin
       if Argc = 0 then

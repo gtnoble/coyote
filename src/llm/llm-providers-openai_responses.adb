@@ -26,54 +26,45 @@ package body LLM.Providers.OpenAI_Responses is
    end record;
 
    package Tool_Call_State_Vectors is new Ada.Containers.Vectors
-      (Index_Type   => Natural,
-     Element_Type => Tool_Call_State);
+     (Index_Type => Natural, Element_Type => Tool_Call_State);
 
    package Text_Item_Id_Vectors is new Ada.Containers.Indefinite_Vectors
-      (Index_Type   => Natural,
-     Element_Type => String);
+     (Index_Type => Natural, Element_Type => String);
 
    EMPTY_TOOL_CALL_STATE : constant Tool_Call_State :=
-      (Seen           => False,
-     Tool_Call_Id   => Null_Unbounded_String,
-     Item_Id        => Null_Unbounded_String,
-     Tool_Name      => Null_Unbounded_String,
-     Arguments_Json => Null_Unbounded_String);
+     (Seen           => False,
+      Tool_Call_Id   => Null_Unbounded_String,
+      Item_Id        => Null_Unbounded_String,
+      Tool_Name      => Null_Unbounded_String,
+      Arguments_Json => Null_Unbounded_String);
 
    type Response_State is record
       Parser                  : LLM.SSE.Parser;
-      Text_Started            : Boolean := False;
+      Text_Started            : Boolean               := False;
       Streamed_Text_Item_Ids  : Text_Item_Id_Vectors.Vector;
-      Unidentified_Text_Delta : Boolean := False;
-      Thinking_Started        : Boolean := False;
-      Stop                    : LLM.Types.Stop_Reason :=
-         LLM.Types.Unknown_Stop;
-      Saw_Function_Call       : Boolean := False;
-      Tok_Usage               : LLM.Types.Usage := (others => 0);
+      Unidentified_Text_Delta : Boolean               := False;
+      Thinking_Started        : Boolean               := False;
+      Stop : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      Saw_Function_Call       : Boolean               := False;
+      Tok_Usage               : LLM.Types.Usage       := (others => 0);
       Tool_Calls              : Tool_Call_State_Vectors.Vector;
-      Done                    : Boolean := False;
-      Saw_Stream_Event        : Boolean := False;
+      Done                    : Boolean               := False;
+      Saw_Stream_Event        : Boolean               := False;
       Raw_Response_Body       : Unbounded_String;
-      Error_Message            : Unbounded_String;
+      Error_Message           : Unbounded_String;
       Thinking_Item_Id        : Unbounded_String;
       Encrypted_Content       : Unbounded_String;
    end record;
 
-   function Create
-      (Base_Url : String;
-     Api_Key  : String) return Provider
-   is
+   function Create (Base_Url : String; Api_Key : String) return Provider is
    begin
       return Result : Provider do
          Result.Base_Url := To_Unbounded_String (Base_Url);
-         Result.Api_Key := To_Unbounded_String (Api_Key);
+         Result.Api_Key  := To_Unbounded_String (Api_Key);
       end return;
    end Create;
 
-   procedure Set_Base_Url
-      (P        : in out Provider;
-     Base_Url :        String)
-   is
+   procedure Set_Base_Url (P : in out Provider; Base_Url : String) is
    begin
       P.Base_Url := To_Unbounded_String (Base_Url);
    end Set_Base_Url;
@@ -83,42 +74,27 @@ package body LLM.Providers.OpenAI_Responses is
       return To_String (P.Base_Url);
    end Get_Base_Url;
 
-   procedure Set_Api_Key
-      (P       : in out Provider;
-     Api_Key :        String)
-   is
+   procedure Set_Api_Key (P : in out Provider; Api_Key : String) is
    begin
       P.Api_Key := To_Unbounded_String (Api_Key);
    end Set_Api_Key;
 
-   procedure Set_Inline_Cache_Hints
-      (P       : in out Provider;
-     Enabled :        Boolean)
-   is
+   procedure Set_Inline_Cache_Hints (P : in out Provider; Enabled : Boolean) is
    begin
       P.Inline_Cache_Hints := Enabled;
    end Set_Inline_Cache_Hints;
 
-   procedure Set_Omit_Max_Tokens
-      (P       : in out Provider;
-     Enabled :        Boolean)
-   is
+   procedure Set_Omit_Max_Tokens (P : in out Provider; Enabled : Boolean) is
    begin
       P.Omit_Max_Tokens := Enabled;
    end Set_Omit_Max_Tokens;
 
-   procedure Set_Store_Enabled
-      (P       : in out Provider;
-     Enabled :        Boolean)
-   is
+   procedure Set_Store_Enabled (P : in out Provider; Enabled : Boolean) is
    begin
       P.Store_Enabled := Enabled;
    end Set_Store_Enabled;
 
-   procedure Set_Prompt_Cache_Key
-      (P       : in out Provider;
-     Key :        String)
-   is
+   procedure Set_Prompt_Cache_Key (P : in out Provider; Key : String) is
    begin
       P.Prompt_Cache_Key := To_Unbounded_String (Key);
    end Set_Prompt_Cache_Key;
@@ -128,19 +104,15 @@ package body LLM.Providers.OpenAI_Responses is
       return To_String (P.Api_Key);
    end Get_Api_Key;
 
-   procedure Add_Header
-      (P     : in out Provider;
-     Name  :        String;
-     Value :        String)
-   is
+   procedure Add_Header (P : in out Provider; Name : String; Value : String) is
    begin
       P.Extra_Headers.Append
-         ((Name  => To_Unbounded_String (Name),
-            Value => To_Unbounded_String (Value)));
+        ((Name  => To_Unbounded_String (Name),
+          Value => To_Unbounded_String (Value)));
    end Add_Header;
 
    function Reasoning_Effort
-      (Thinking : LLM.Providers.Thinking_Level) return String
+     (Thinking : LLM.Providers.Thinking_Level) return String
    is
    begin
       case Thinking is
@@ -160,10 +132,10 @@ package body LLM.Providers.OpenAI_Responses is
    end Reasoning_Effort;
 
    procedure Customize_Request
-      (P        : in out Provider;
-     Model_Id :        String;
-     Thinking :        LLM.Providers.Thinking_Level;
-     Request  :        GNATCOLL.JSON.JSON_Value)
+     (P        : in out Provider;
+      Model_Id :        String;
+      Thinking :        LLM.Providers.Thinking_Level;
+      Request  :        GNATCOLL.JSON.JSON_Value)
    is
       pragma Unreferenced (P);
       pragma Unreferenced (Model_Id);
@@ -176,7 +148,7 @@ package body LLM.Providers.OpenAI_Responses is
 
       declare
          Reasoning : constant GNATCOLL.JSON.JSON_Value :=
-            GNATCOLL.JSON.Create_Object;
+           GNATCOLL.JSON.Create_Object;
       begin
          Reasoning.Set_Field ("effort", Effort);
          Request.Set_Field ("reasoning", Reasoning);
@@ -195,35 +167,33 @@ package body LLM.Providers.OpenAI_Responses is
    end Endpoint_Url;
 
    function Parse_Json
-      (Text : String;
-     What : String) return GNATCOLL.JSON.JSON_Value
+     (Text : String; What : String) return GNATCOLL.JSON.JSON_Value
    is
-      Parsed : constant GNATCOLL.JSON.Read_Result :=
-         GNATCOLL.JSON.Read (Text);
+      Parsed : constant GNATCOLL.JSON.Read_Result := GNATCOLL.JSON.Read (Text);
    begin
       if Parsed.Success then
          return Parsed.Value;
       end if;
 
-      raise Constraint_Error with
-         What & ": " & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
+      raise Constraint_Error
+        with What & ": " & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
    end Parse_Json;
 
    function Has_String_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return Boolean
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return Boolean
    is
    begin
       return
-         Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type;
+        Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type;
    end Has_String_Field;
 
    function Get_String_Field
-      (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : String := "") return String
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : String := "")
+      return String
    is
    begin
       if Has_String_Field (Value, Field) then
@@ -234,13 +204,14 @@ package body LLM.Providers.OpenAI_Responses is
    end Get_String_Field;
 
    function Get_Object_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return GNATCOLL.JSON.JSON_Value
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String)
+      return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          return Value.Get (Field);
       end if;
@@ -249,13 +220,14 @@ package body LLM.Providers.OpenAI_Responses is
    end Get_Object_Field;
 
    function Get_Array_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return GNATCOLL.JSON.JSON_Array
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String)
+      return GNATCOLL.JSON.JSON_Array
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
       then
          return Value.Get (Field).Get;
       end if;
@@ -264,20 +236,20 @@ package body LLM.Providers.OpenAI_Responses is
    end Get_Array_Field;
 
    function Has_Int_Field
-      (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return Boolean
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return Boolean
    is
    begin
       return
-         Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type;
+        Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type;
    end Has_Int_Field;
 
    function Get_Natural_Field
-      (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : Natural := 0) return Natural
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : Natural := 0)
+      return Natural
    is
       Raw : Long_Integer;
    begin
@@ -292,24 +264,24 @@ package body LLM.Providers.OpenAI_Responses is
    end Get_Natural_Field;
 
    function Parse_Usage
-      (Value : GNATCOLL.JSON.JSON_Value) return LLM.Types.Usage
+     (Value : GNATCOLL.JSON.JSON_Value) return LLM.Types.Usage
    is
       Input_Det  : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Value, "input_tokens_details");
+        Get_Object_Field (Value, "input_tokens_details");
       Output_Det : constant GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Value, "output_tokens_details");
+        Get_Object_Field (Value, "output_tokens_details");
    begin
       return
-         (Input       => Get_Natural_Field (Value, "input_tokens"),
-       Output      => Get_Natural_Field (Value, "output_tokens"),
-       Cache_Read  => Get_Natural_Field (Input_Det, "cached_tokens"),
-       Cache_Write => Get_Natural_Field (Input_Det, "cache_write_tokens"),
-       Thinking    => Get_Natural_Field (Output_Det, "reasoning_tokens"));
+        (Input       => Get_Natural_Field (Value, "input_tokens"),
+         Output      => Get_Natural_Field (Value, "output_tokens"),
+         Cache_Read  => Get_Natural_Field (Input_Det, "cached_tokens"),
+         Cache_Write => Get_Natural_Field (Input_Det, "cache_write_tokens"),
+         Thinking    => Get_Natural_Field (Output_Det, "reasoning_tokens"));
    end Parse_Usage;
 
    procedure Emit
-      (Handler : LLM.Providers.Event_Handler;
-     Event   : LLM.Events.Agent_Event'Class)
+     (Handler : LLM.Providers.Event_Handler;
+      Event   : LLM.Events.Agent_Event'Class)
    is
    begin
       if Handler /= null then
@@ -319,60 +291,57 @@ package body LLM.Providers.OpenAI_Responses is
 
    procedure Emit_Agent_Start (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Agent_Start_Event :=
-         (LLM.Events.Agent_Event with null record);
+        (LLM.Events.Agent_Event with null record);
    begin
       Emit (Handler, Event);
    end Emit_Agent_Start;
 
    procedure Emit_Agent_End (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Agent_End_Event :=
-         (LLM.Events.Agent_Event with
-          Was_Aborted => False,
-          Error_Msg   => Null_Unbounded_String);
+        (LLM.Events.Agent_Event with Was_Aborted => False,
+         Error_Msg                               => Null_Unbounded_String);
    begin
       Emit (Handler, Event);
    end Emit_Agent_End;
 
    procedure Emit_Message_Start (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Message_Start_Event :=
-         (LLM.Events.Agent_Event with null record);
+        (LLM.Events.Agent_Event with null record);
    begin
       Emit (Handler, Event);
    end Emit_Message_Start;
 
    procedure Emit_Message_End
-      (Handler   : LLM.Providers.Event_Handler;
-       Stop      : LLM.Types.Stop_Reason;
-       Tok_Usage : LLM.Types.Usage;
-       Err_Msg   : String := "")
+     (Handler   : LLM.Providers.Event_Handler;
+      Stop      : LLM.Types.Stop_Reason;
+      Tok_Usage : LLM.Types.Usage;
+      Err_Msg   : String := "")
    is
       Event : constant LLM.Events.Message_End_Event :=
-         (LLM.Events.Agent_Event with
-          Stop      => Stop,
-          Err_Msg   => To_Unbounded_String (Err_Msg),
-          Tok_Usage => Tok_Usage,
-          Cost_Dmil => 0);
+        (LLM.Events.Agent_Event with Stop => Stop,
+         Err_Msg                          => To_Unbounded_String (Err_Msg),
+         Tok_Usage                        => Tok_Usage,
+         Cost_Dmil                        => 0);
    begin
       Emit (Handler, Event);
    end Emit_Message_End;
 
    procedure Emit_Update
-      (Handler       : LLM.Providers.Event_Handler;
-     Kind          : LLM.Events.Message_Update_Kind;
-     Delta_Text    : String := "";
-     Signature     : String := "";
-     Content_Index : Natural := 0;
-     Tool_Call_Id  : String := "";
-     Tool_Name     : String := "")
+     (Handler       : LLM.Providers.Event_Handler;
+      Kind          : LLM.Events.Message_Update_Kind;
+      Delta_Text    : String  := "";
+      Signature     : String  := "";
+      Content_Index : Natural := 0;
+      Tool_Call_Id  : String  := "";
+      Tool_Name     : String  := "")
    is
       Event : constant LLM.Events.Message_Update_Event :=
-         (LLM.Events.Agent_Event with
-       Kind          => Kind,
-       Delta_Text    => To_Unbounded_String (Delta_Text),
-       Signature     => To_Unbounded_String (Signature),
-       Content_Index => Content_Index,
-       Tool_Call_Id  => To_Unbounded_String (Tool_Call_Id),
-       Tool_Name     => To_Unbounded_String (Tool_Name));
+        (LLM.Events.Agent_Event with Kind => Kind,
+         Delta_Text                       => To_Unbounded_String (Delta_Text),
+         Signature                        => To_Unbounded_String (Signature),
+         Content_Index                    => Content_Index,
+         Tool_Call_Id => To_Unbounded_String (Tool_Call_Id),
+         Tool_Name                        => To_Unbounded_String (Tool_Name));
    begin
       Emit (Handler, Event);
    end Emit_Update;
@@ -394,18 +363,17 @@ package body LLM.Providers.OpenAI_Responses is
 
    function Make_Cache_Breakpoint return GNATCOLL.JSON.JSON_Value is
       Marker : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
+        GNATCOLL.JSON.Create_Object;
    begin
       Marker.Set_Field ("mode", "explicit");
       return Marker;
    end Make_Cache_Breakpoint;
 
    function Pack_Reasoning_Signature
-      (Item_Id   : String;
-       Encrypted : String) return String
+     (Item_Id : String; Encrypted : String) return String
    is
       Packed : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
+        GNATCOLL.JSON.Create_Object;
    begin
       if Item_Id'Length = 0 and then Encrypted'Length = 0 then
          return "";
@@ -421,11 +389,10 @@ package body LLM.Providers.OpenAI_Responses is
    end Pack_Reasoning_Signature;
 
    function Unpack_Reasoning_Signature
-      (Signature : String;
-       Field     : String) return String
+     (Signature : String; Field : String) return String
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
-         GNATCOLL.JSON.Read (Signature);
+        GNATCOLL.JSON.Read (Signature);
    begin
       if Parsed.Success
         and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -439,14 +406,13 @@ package body LLM.Providers.OpenAI_Responses is
    end Unpack_Reasoning_Signature;
 
    procedure Append_Text_Part
-      (Content            : in out GNATCOLL.JSON.JSON_Array;
-     Part_Type          :        String;
-     Text               :        String;
-     Breakpoint         :        Boolean;
-     Inline_Cache_Hints :        Boolean)
+     (Content            : in out GNATCOLL.JSON.JSON_Array;
+      Part_Type          :        String;
+      Text               :        String;
+      Breakpoint         :        Boolean;
+      Inline_Cache_Hints :        Boolean)
    is
-      Part : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
+      Part : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Part.Set_Field ("type", Part_Type);
       Part.Set_Field ("text", Text);
@@ -457,27 +423,28 @@ package body LLM.Providers.OpenAI_Responses is
    end Append_Text_Part;
 
    procedure Append_User_Item
-      (Input             : in out GNATCOLL.JSON.JSON_Array;
-     Msg               :        LLM.Types.Message;
-     Breakpoint        :        Boolean;
-     Inline_Cache_Hints :        Boolean)
+     (Input              : in out GNATCOLL.JSON.JSON_Array;
+      Msg                :        LLM.Types.Message;
+      Breakpoint         :        Boolean;
+      Inline_Cache_Hints :        Boolean)
    is
-      Item    : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
-      Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
    begin
       Item.Set_Field ("type", "message");
       Item.Set_Field ("role", "user");
       Append_Text_Part
-         (Content, "input_text", Message_Text (Msg), Breakpoint,
-          Inline_Cache_Hints);
+        (Content,
+         "input_text",
+         Message_Text (Msg),
+         Breakpoint,
+         Inline_Cache_Hints);
       Item.Set_Field ("content", Content);
       GNATCOLL.JSON.Append (Input, Item);
    end Append_User_Item;
 
    procedure Append_Assistant_Items
-      (Input : in out GNATCOLL.JSON.JSON_Array;
-     Msg   :        LLM.Types.Message)
+     (Input : in out GNATCOLL.JSON.JSON_Array; Msg : LLM.Types.Message)
    is
       Text : constant String := Message_Text (Msg);
    begin
@@ -486,16 +453,16 @@ package body LLM.Providers.OpenAI_Responses is
             when LLM.Types.Thinking_Block =>
                declare
                   Item      : constant GNATCOLL.JSON.JSON_Value :=
-                     GNATCOLL.JSON.Create_Object;
-                  Summary   : GNATCOLL.JSON.JSON_Array :=
-                     GNATCOLL.JSON.Empty_Array;
+                    GNATCOLL.JSON.Create_Object;
+                  Summary   : GNATCOLL.JSON.JSON_Array          :=
+                    GNATCOLL.JSON.Empty_Array;
                   Thinking  : constant String := To_String (Block.Thinking);
-                  Item_Id   : constant String :=
-                     Unpack_Reasoning_Signature
-                       (To_String (Block.Signature), "id");
-                  Encrypted : constant String :=
-                     Unpack_Reasoning_Signature
-                       (To_String (Block.Signature), "encrypted_content");
+                  Item_Id   : constant String                   :=
+                    Unpack_Reasoning_Signature
+                      (To_String (Block.Signature), "id");
+                  Encrypted : constant String                   :=
+                    Unpack_Reasoning_Signature
+                      (To_String (Block.Signature), "encrypted_content");
                begin
                   --  Only recognized Responses envelopes are valid replay
                   --  items.  Other provider wires also use opaque signatures.
@@ -510,7 +477,7 @@ package body LLM.Providers.OpenAI_Responses is
                      if Thinking'Length > 0 then
                         declare
                            Part : constant GNATCOLL.JSON.JSON_Value :=
-                              GNATCOLL.JSON.Create_Object;
+                             GNATCOLL.JSON.Create_Object;
                         begin
                            Part.Set_Field ("type", "summary_text");
                            Part.Set_Field ("text", Thinking);
@@ -524,14 +491,13 @@ package body LLM.Providers.OpenAI_Responses is
             when LLM.Types.Tool_Call_Block =>
                declare
                   Item : constant GNATCOLL.JSON.JSON_Value :=
-                     GNATCOLL.JSON.Create_Object;
+                    GNATCOLL.JSON.Create_Object;
                begin
                   Item.Set_Field ("type", "function_call");
-                  Item.Set_Field
-                     ("call_id", To_String (Block.Tool_Call_Id));
+                  Item.Set_Field ("call_id", To_String (Block.Tool_Call_Id));
                   Item.Set_Field ("name", To_String (Block.Tool_Name));
                   Item.Set_Field
-                     ("arguments", To_String (Block.Arguments_Json));
+                    ("arguments", To_String (Block.Arguments_Json));
                   GNATCOLL.JSON.Append (Input, Item);
                end;
             when others =>
@@ -541,8 +507,8 @@ package body LLM.Providers.OpenAI_Responses is
 
       if Text'Length > 0 then
          declare
-            Item    : constant GNATCOLL.JSON.JSON_Value :=
-               GNATCOLL.JSON.Create_Object;
+            Item : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
          begin
             Item.Set_Field ("type", "message");
             Item.Set_Field ("role", "assistant");
@@ -553,13 +519,12 @@ package body LLM.Providers.OpenAI_Responses is
    end Append_Assistant_Items;
 
    procedure Append_Tool_Result_Item
-      (Input             : in out GNATCOLL.JSON.JSON_Array;
-     Msg               :        LLM.Types.Message;
-     Breakpoint        :        Boolean;
-     Inline_Cache_Hints :        Boolean)
+     (Input              : in out GNATCOLL.JSON.JSON_Array;
+      Msg                :        LLM.Types.Message;
+      Breakpoint         :        Boolean;
+      Inline_Cache_Hints :        Boolean)
    is
-      Item         : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
+      Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
       Tool_Call_Id : Unbounded_String;
       Result_Text  : Unbounded_String;
       Media_Type   : Unbounded_String;
@@ -586,19 +551,18 @@ package body LLM.Providers.OpenAI_Responses is
 
       if Length (Media_Type) > 0 then
          declare
-            Output     : GNATCOLL.JSON.JSON_Array :=
-               GNATCOLL.JSON.Empty_Array;
+            Output     : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
             Image_Part : constant GNATCOLL.JSON.JSON_Value :=
-               GNATCOLL.JSON.Create_Object;
+              GNATCOLL.JSON.Create_Object;
          begin
             Image_Part.Set_Field ("type", "input_image");
             Image_Part.Set_Field
-               ("image_url",
-             "data:" & To_String (Media_Type) & ";base64,"
-             & To_String (Result_Text));
+              ("image_url",
+               "data:" & To_String (Media_Type) & ";base64,"
+               & To_String (Result_Text));
             if Breakpoint and then Inline_Cache_Hints then
                Image_Part.Set_Field
-                  ("prompt_cache_breakpoint", Make_Cache_Breakpoint);
+                 ("prompt_cache_breakpoint", Make_Cache_Breakpoint);
             end if;
             GNATCOLL.JSON.Append (Output, Image_Part);
             Item.Set_Field ("output", Output);
@@ -606,12 +570,14 @@ package body LLM.Providers.OpenAI_Responses is
       else
          if Breakpoint then
             declare
-               Output : GNATCOLL.JSON.JSON_Array :=
-                  GNATCOLL.JSON.Empty_Array;
+               Output : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
             begin
                Append_Text_Part
-                  (Output, "input_text", To_String (Result_Text), True,
-                   Inline_Cache_Hints);
+                 (Output,
+                  "input_text",
+                  To_String (Result_Text),
+                  True,
+                  Inline_Cache_Hints);
                Item.Set_Field ("output", Output);
             end;
          else
@@ -623,7 +589,7 @@ package body LLM.Providers.OpenAI_Responses is
    end Append_Tool_Result_Item;
 
    function Last_Cacheable_Index
-      (Messages : LLM.Types.Message_Vectors.Vector) return Integer
+     (Messages : LLM.Types.Message_Vectors.Vector) return Integer
    is
    begin
       for J in reverse Messages.First_Index .. Messages.Last_Index loop
@@ -641,16 +607,17 @@ package body LLM.Providers.OpenAI_Responses is
    end Last_Cacheable_Index;
 
    function Build_Request_Body
-      (P             : in out Provider'Class;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive) return String
+     (P             : in out Provider'Class;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive)
+      return String
    is
       Request    : constant GNATCOLL.JSON.JSON_Value :=
-         GNATCOLL.JSON.Create_Object;
+        GNATCOLL.JSON.Create_Object;
       Input      : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
       Tools_Read : GNATCOLL.JSON.Read_Result;
       Cache_At   : constant Integer := Last_Cacheable_Index (Messages);
@@ -675,23 +642,24 @@ package body LLM.Providers.OpenAI_Responses is
       end if;
 
       GNATCOLL.JSON.Append
-         (Include, GNATCOLL.JSON.Create ("reasoning.encrypted_content"));
+        (Include, GNATCOLL.JSON.Create ("reasoning.encrypted_content"));
       Request.Set_Field ("include", Include);
 
       for J in Messages.First_Index .. Messages.Last_Index loop
          declare
             Msg        : constant LLM.Types.Message := Messages.Element (J);
-            Breakpoint : constant Boolean := J = Cache_At;
+            Breakpoint : constant Boolean           := J = Cache_At;
          begin
             case Msg.Role is
-               when LLM.Types.User | LLM.Types.Compaction_Summary =>
+               when LLM.Types.User
+                  | LLM.Types.Compaction_Summary =>
                   Append_User_Item
-                     (Input, Msg, Breakpoint, P.Inline_Cache_Hints);
+                    (Input, Msg, Breakpoint, P.Inline_Cache_Hints);
                when LLM.Types.Assistant =>
                   Append_Assistant_Items (Input, Msg);
                when LLM.Types.Tool_Result =>
                   Append_Tool_Result_Item
-                     (Input, Msg, Breakpoint, P.Inline_Cache_Hints);
+                    (Input, Msg, Breakpoint, P.Inline_Cache_Hints);
             end case;
          end;
       end loop;
@@ -701,32 +669,32 @@ package body LLM.Providers.OpenAI_Responses is
       if Tools_Json'Length > 0 then
          Tools_Read := GNATCOLL.JSON.Read (Tools_Json);
          if not Tools_Read.Success then
-            raise Constraint_Error with
-               "Invalid tools JSON: "
-               & GNATCOLL.JSON.Format_Parsing_Error (Tools_Read.Error);
+            raise Constraint_Error
+              with "Invalid tools JSON: "
+              & GNATCOLL.JSON.Format_Parsing_Error (Tools_Read.Error);
          elsif Tools_Read.Value.Kind /= GNATCOLL.JSON.JSON_Array_Type then
             raise Constraint_Error with "Invalid tools JSON: expected array";
          else
             declare
                Raw_Tools : constant GNATCOLL.JSON.JSON_Array :=
-                  Tools_Read.Value.Get;
+                 Tools_Read.Value.Get;
             begin
                if GNATCOLL.JSON.Length (Raw_Tools) > 0 then
                   declare
                      Cached_Tools : GNATCOLL.JSON.JSON_Array :=
-                        GNATCOLL.JSON.Empty_Array;
-                     Last         : constant Natural :=
-                        GNATCOLL.JSON.Length (Raw_Tools);
+                       GNATCOLL.JSON.Empty_Array;
+                     Last         : constant Natural         :=
+                       GNATCOLL.JSON.Length (Raw_Tools);
                   begin
                      for I in 1 .. Last loop
                         declare
                            Item : constant GNATCOLL.JSON.JSON_Value :=
-                              GNATCOLL.JSON.Get (Raw_Tools, I);
+                             GNATCOLL.JSON.Get (Raw_Tools, I);
                         begin
                            if I = Last and then P.Inline_Cache_Hints then
                               Item.Set_Field
-                                 ("prompt_cache_breakpoint",
-                               Make_Cache_Breakpoint);
+                                ("prompt_cache_breakpoint",
+                                 Make_Cache_Breakpoint);
                            end if;
                            GNATCOLL.JSON.Append (Cached_Tools, Item);
                         end;
@@ -743,8 +711,7 @@ package body LLM.Providers.OpenAI_Responses is
    end Build_Request_Body;
 
    procedure Ensure_Tool_Call_Slot
-      (States : in out Tool_Call_State_Vectors.Vector;
-     Index  :        Natural)
+     (States : in out Tool_Call_State_Vectors.Vector; Index : Natural)
    is
    begin
       while States.Length <= Ada.Containers.Count_Type (Index) loop
@@ -753,8 +720,7 @@ package body LLM.Providers.OpenAI_Responses is
    end Ensure_Tool_Call_Slot;
 
    function Find_Tool_Index_By_Item
-      (States  : Tool_Call_State_Vectors.Vector;
-     Item_Id : String) return Integer
+     (States : Tool_Call_State_Vectors.Vector; Item_Id : String) return Integer
    is
    begin
       if Item_Id'Length = 0 then
@@ -771,8 +737,7 @@ package body LLM.Providers.OpenAI_Responses is
    end Find_Tool_Index_By_Item;
 
    procedure Mark_Streamed_Text_Item
-      (State   : in out Response_State;
-     Item_Id :        String)
+     (State : in out Response_State; Item_Id : String)
    is
    begin
       if Item_Id'Length = 0 then
@@ -790,8 +755,7 @@ package body LLM.Providers.OpenAI_Responses is
    end Mark_Streamed_Text_Item;
 
    function Has_Streamed_Text_Item
-      (State   : Response_State;
-     Item_Id : String) return Boolean
+     (State : Response_State; Item_Id : String) return Boolean
    is
    begin
       if Item_Id'Length = 0 then
@@ -808,24 +772,23 @@ package body LLM.Providers.OpenAI_Responses is
    end Has_Streamed_Text_Item;
 
    procedure Close_Thinking
-      (State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (State : in out Response_State; Handler : LLM.Providers.Event_Handler)
    is
    begin
       if State.Thinking_Started then
          Emit_Update
-            (Handler   => Handler,
-          Kind      => LLM.Events.Thinking_End,
-          Signature => Pack_Reasoning_Signature
-            (To_String (State.Thinking_Item_Id),
-             To_String (State.Encrypted_Content)));
+           (Handler   => Handler,
+            Kind      => LLM.Events.Thinking_End,
+            Signature =>
+              Pack_Reasoning_Signature
+                (To_String (State.Thinking_Item_Id),
+                 To_String (State.Encrypted_Content)));
          State.Thinking_Started := False;
       end if;
    end Close_Thinking;
 
    procedure Close_Text
-      (State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (State : in out Response_State; Handler : LLM.Providers.Event_Handler)
    is
    begin
       if State.Text_Started then
@@ -835,9 +798,9 @@ package body LLM.Providers.OpenAI_Responses is
    end Close_Text;
 
    procedure Note_Function_Call
-      (State   : in out Response_State;
-     Item    :        GNATCOLL.JSON.JSON_Value;
-     Handler :        LLM.Providers.Event_Handler)
+     (State   : in out Response_State;
+      Item    :        GNATCOLL.JSON.JSON_Value;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Call_Id : constant String := Get_String_Field (Item, "call_id");
       Name    : constant String := Get_String_Field (Item, "name");
@@ -851,9 +814,8 @@ package body LLM.Providers.OpenAI_Responses is
 
       if Index < State.Tool_Calls.First_Index then
          Index :=
-            (if State.Tool_Calls.Is_Empty
-             then 0
-             else State.Tool_Calls.Last_Index + 1);
+           (if State.Tool_Calls.Is_Empty then 0
+            else State.Tool_Calls.Last_Index + 1);
          Ensure_Tool_Call_Slot (State.Tool_Calls, Index);
       end if;
 
@@ -876,11 +838,11 @@ package body LLM.Providers.OpenAI_Responses is
          if not Tool_State.Seen then
             Tool_State.Seen := True;
             Emit_Update
-               (Handler       => Handler,
-             Kind          => LLM.Events.Tool_Call_Start,
-             Content_Index => Index,
-             Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
-             Tool_Name     => To_String (Tool_State.Tool_Name));
+              (Handler       => Handler,
+               Kind          => LLM.Events.Tool_Call_Start,
+               Content_Index => Index,
+               Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
+               Tool_Name     => To_String (Tool_State.Tool_Name));
          end if;
 
          State.Tool_Calls.Replace_Element (Index, Tool_State);
@@ -888,28 +850,25 @@ package body LLM.Providers.OpenAI_Responses is
    end Note_Function_Call;
 
    procedure Note_Function_Arguments_Delta
-      (State   : in out Response_State;
-     Root    :        GNATCOLL.JSON.JSON_Value;
-     Handler :        LLM.Providers.Event_Handler)
+     (State   : in out Response_State;
+      Root    :        GNATCOLL.JSON.JSON_Value;
+      Handler :        LLM.Providers.Event_Handler)
    is
-      Item_Id : constant String := Get_String_Field (Root, "item_id");
+      Item_Id         : constant String := Get_String_Field (Root, "item_id");
       Arg_Delta_Value : constant String := Get_String_Field (Root, "delta");
-      Index   : Integer := Find_Tool_Index_By_Item (State.Tool_Calls, Item_Id);
+      Index : Integer := Find_Tool_Index_By_Item (State.Tool_Calls, Item_Id);
    begin
       if Index < State.Tool_Calls.First_Index then
          Index :=
-            (if State.Tool_Calls.Is_Empty
-             then 0
-             else State.Tool_Calls.Last_Index);
+           (if State.Tool_Calls.Is_Empty then 0
+            else State.Tool_Calls.Last_Index);
          Ensure_Tool_Call_Slot (State.Tool_Calls, Index);
       end if;
 
       declare
          Tool_State : Tool_Call_State := State.Tool_Calls.Element (Index);
       begin
-         if Item_Id'Length > 0
-           and then Length (Tool_State.Item_Id) = 0
-         then
+         if Item_Id'Length > 0 and then Length (Tool_State.Item_Id) = 0 then
             Tool_State.Item_Id := To_Unbounded_String (Item_Id);
          end if;
          if Arg_Delta_Value'Length > 0 then
@@ -918,31 +877,30 @@ package body LLM.Providers.OpenAI_Responses is
          if not Tool_State.Seen then
             Tool_State.Seen := True;
             Emit_Update
-               (Handler       => Handler,
-             Kind          => LLM.Events.Tool_Call_Start,
-             Content_Index => Index,
-             Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
-             Tool_Name     => To_String (Tool_State.Tool_Name));
+              (Handler       => Handler,
+               Kind          => LLM.Events.Tool_Call_Start,
+               Content_Index => Index,
+               Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
+               Tool_Name     => To_String (Tool_State.Tool_Name));
          end if;
          if Arg_Delta_Value'Length > 0 then
             Emit_Update
-               (Handler       => Handler,
-             Kind          => LLM.Events.Tool_Call_Delta,
-             Delta_Text    => Arg_Delta_Value,
-             Content_Index => Index,
-             Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
-             Tool_Name     => To_String (Tool_State.Tool_Name));
+              (Handler       => Handler,
+               Kind          => LLM.Events.Tool_Call_Delta,
+               Delta_Text    => Arg_Delta_Value,
+               Content_Index => Index,
+               Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
+               Tool_Name     => To_String (Tool_State.Tool_Name));
          end if;
          State.Tool_Calls.Replace_Element (Index, Tool_State);
       end;
    end Note_Function_Arguments_Delta;
 
    procedure Apply_Usage_And_Status
-      (State : in out Response_State;
-     Root  :        GNATCOLL.JSON.JSON_Value)
+     (State : in out Response_State; Root : GNATCOLL.JSON.JSON_Value)
    is
       Response_Obj : GNATCOLL.JSON.JSON_Value :=
-         Get_Object_Field (Root, "response");
+        Get_Object_Field (Root, "response");
       Status       : Unbounded_String;
       Incomplete   : GNATCOLL.JSON.JSON_Value;
       Reason       : Unbounded_String;
@@ -964,11 +922,10 @@ package body LLM.Providers.OpenAI_Responses is
          State.Tok_Usage := Parse_Usage (Root.Get ("usage"));
       end if;
 
-      Status :=
-         To_Unbounded_String (Get_String_Field (Response_Obj, "status"));
+      Status     :=
+        To_Unbounded_String (Get_String_Field (Response_Obj, "status"));
       Incomplete := Get_Object_Field (Response_Obj, "incomplete_details");
-      Reason :=
-         To_Unbounded_String (Get_String_Field (Incomplete, "reason"));
+      Reason := To_Unbounded_String (Get_String_Field (Incomplete, "reason"));
 
       if To_String (Status) = "failed" then
          State.Stop := LLM.Types.Error_Stop;
@@ -988,8 +945,7 @@ package body LLM.Providers.OpenAI_Responses is
    end Apply_Usage_And_Status;
 
    procedure Finalize_Message
-      (State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (State : in out Response_State; Handler : LLM.Providers.Event_Handler)
    is
    begin
       Close_Thinking (State, Handler);
@@ -999,38 +955,36 @@ package body LLM.Providers.OpenAI_Responses is
       loop
          declare
             Tool_State : constant Tool_Call_State :=
-               State.Tool_Calls.Element (Index);
+              State.Tool_Calls.Element (Index);
          begin
             if Tool_State.Seen then
                Emit_Update
-                  (Handler       => Handler,
-             Kind          => LLM.Events.Tool_Call_End,
-             Delta_Text    => To_String (Tool_State.Arguments_Json),
-             Content_Index => Index,
-             Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
-             Tool_Name     => To_String (Tool_State.Tool_Name));
+                 (Handler       => Handler,
+                  Kind          => LLM.Events.Tool_Call_End,
+                  Delta_Text    => To_String (Tool_State.Arguments_Json),
+                  Content_Index => Index,
+                  Tool_Call_Id  => To_String (Tool_State.Tool_Call_Id),
+                  Tool_Name     => To_String (Tool_State.Tool_Name));
             end if;
          end;
       end loop;
 
-      if State.Saw_Function_Call
-        and then State.Stop = LLM.Types.Stop
-      then
+      if State.Saw_Function_Call and then State.Stop = LLM.Types.Stop then
          State.Stop := LLM.Types.Tool_Use;
       end if;
 
       Emit_Message_End
-         (Handler   => Handler,
-          Stop      => State.Stop,
-          Tok_Usage => State.Tok_Usage,
-          Err_Msg   => To_String (State.Error_Message));
+        (Handler   => Handler,
+         Stop      => State.Stop,
+         Tok_Usage => State.Tok_Usage,
+         Err_Msg   => To_String (State.Error_Message));
       State.Done := True;
    end Finalize_Message;
 
    procedure Process_Output_Item
-      (State   : in out Response_State;
-     Item    :        GNATCOLL.JSON.JSON_Value;
-     Handler :        LLM.Providers.Event_Handler)
+     (State   : in out Response_State;
+      Item    :        GNATCOLL.JSON.JSON_Value;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Item_Type : constant String := Get_String_Field (Item, "type");
       Item_Id   : constant String := Get_String_Field (Item, "id");
@@ -1040,7 +994,7 @@ package body LLM.Providers.OpenAI_Responses is
       elsif Item_Type = "reasoning" then
          declare
             Encrypted : constant String :=
-               Get_String_Field (Item, "encrypted_content");
+              Get_String_Field (Item, "encrypted_content");
             Item_Id   : constant String := Get_String_Field (Item, "id");
          begin
             if Encrypted'Length > 0 then
@@ -1061,16 +1015,15 @@ package body LLM.Providers.OpenAI_Responses is
 
          declare
             Content : constant GNATCOLL.JSON.JSON_Array :=
-               Get_Array_Field (Item, "content");
+              Get_Array_Field (Item, "content");
          begin
             for I in 1 .. GNATCOLL.JSON.Length (Content) loop
                declare
                   Part      : constant GNATCOLL.JSON.JSON_Value :=
-                     GNATCOLL.JSON.Get (Content, I);
-                  Part_Type : constant String :=
-                     Get_String_Field (Part, "type");
-                  Text      : constant String :=
-                     Get_String_Field (Part, "text");
+                    GNATCOLL.JSON.Get (Content, I);
+                  Part_Type : constant String                   :=
+                    Get_String_Field (Part, "type");
+                  Text : constant String := Get_String_Field (Part, "text");
                begin
                   if (Part_Type = "output_text" or else Part_Type = "")
                     and then Text'Length > 0
@@ -1081,9 +1034,9 @@ package body LLM.Providers.OpenAI_Responses is
                         State.Text_Started := True;
                      end if;
                      Emit_Update
-                        (Handler    => Handler,
-                      Kind       => LLM.Events.Text_Delta,
-                      Delta_Text => Text);
+                       (Handler    => Handler,
+                        Kind       => LLM.Events.Text_Delta,
+                        Delta_Text => Text);
                   elsif Part_Type = "refusal" then
                      State.Stop := LLM.Types.Error_Stop;
                   end if;
@@ -1094,12 +1047,12 @@ package body LLM.Providers.OpenAI_Responses is
    end Process_Output_Item;
 
    procedure Process_Stream_Event
-      (Json_Data :        String;
-     State     : in out Response_State;
-     Handler   :        LLM.Providers.Event_Handler)
+     (Json_Data :        String;
+      State     : in out Response_State;
+      Handler   :        LLM.Providers.Event_Handler)
    is
       Root      : constant GNATCOLL.JSON.JSON_Value :=
-         Parse_Json (Json_Data, "Invalid OpenAI Responses streaming event");
+        Parse_Json (Json_Data, "Invalid OpenAI Responses streaming event");
       Event_Typ : constant String := Get_String_Field (Root, "type");
    begin
       if Event_Typ = "response.created"
@@ -1109,14 +1062,12 @@ package body LLM.Providers.OpenAI_Responses is
       elsif Event_Typ = "response.output_item.added"
         or else Event_Typ = "response.output_item.done"
       then
-         Process_Output_Item
-            (State, Get_Object_Field (Root, "item"), Handler);
+         Process_Output_Item (State, Get_Object_Field (Root, "item"), Handler);
       elsif Event_Typ = "response.output_text.delta" then
          declare
-            Item_Id          : constant String :=
-               Get_String_Field (Root, "item_id");
+            Item_Id : constant String := Get_String_Field (Root, "item_id");
             Text_Delta_Value : constant String :=
-               Get_String_Field (Root, "delta");
+              Get_String_Field (Root, "delta");
          begin
             Close_Thinking (State, Handler);
             if not State.Text_Started then
@@ -1126,9 +1077,9 @@ package body LLM.Providers.OpenAI_Responses is
             if Text_Delta_Value'Length > 0 then
                Mark_Streamed_Text_Item (State, Item_Id);
                Emit_Update
-                  (Handler    => Handler,
-                Kind       => LLM.Events.Text_Delta,
-                Delta_Text => Text_Delta_Value);
+                 (Handler    => Handler,
+                  Kind       => LLM.Events.Text_Delta,
+                  Delta_Text => Text_Delta_Value);
             end if;
          end;
       elsif Event_Typ = "response.output_text.done" then
@@ -1138,7 +1089,7 @@ package body LLM.Providers.OpenAI_Responses is
       then
          declare
             Text_Delta_Value : constant String :=
-               Get_String_Field (Root, "delta");
+              Get_String_Field (Root, "delta");
          begin
             if not State.Thinking_Started then
                Emit_Update (Handler, LLM.Events.Thinking_Start);
@@ -1146,9 +1097,9 @@ package body LLM.Providers.OpenAI_Responses is
             end if;
             if Text_Delta_Value'Length > 0 then
                Emit_Update
-                  (Handler    => Handler,
-                Kind       => LLM.Events.Thinking_Delta,
-                Delta_Text => Text_Delta_Value);
+                 (Handler    => Handler,
+                  Kind       => LLM.Events.Thinking_Delta,
+                  Delta_Text => Text_Delta_Value);
             end if;
          end;
       elsif Event_Typ = "response.reasoning_text.done"
@@ -1168,19 +1119,18 @@ package body LLM.Providers.OpenAI_Responses is
             Item_Id : constant String := Get_String_Field (Root, "item_id");
             Name    : constant String := Get_String_Field (Root, "name");
             Args    : constant String := Get_String_Field (Root, "arguments");
-            Index   : Integer :=
-               Find_Tool_Index_By_Item (State.Tool_Calls, Item_Id);
+            Index   : Integer         :=
+              Find_Tool_Index_By_Item (State.Tool_Calls, Item_Id);
          begin
             if Index < State.Tool_Calls.First_Index then
                Index :=
-                  (if State.Tool_Calls.Is_Empty
-                   then 0
-                   else State.Tool_Calls.Last_Index);
+                 (if State.Tool_Calls.Is_Empty then 0
+                  else State.Tool_Calls.Last_Index);
                Ensure_Tool_Call_Slot (State.Tool_Calls, Index);
             end if;
             declare
                Tool_State : Tool_Call_State :=
-                  State.Tool_Calls.Element (Index);
+                 State.Tool_Calls.Element (Index);
             begin
                if Name'Length > 0 then
                   Tool_State.Tool_Name := To_Unbounded_String (Name);
@@ -1201,14 +1151,14 @@ package body LLM.Providers.OpenAI_Responses is
          end if;
          declare
             Response_Obj : constant GNATCOLL.JSON.JSON_Value :=
-               Get_Object_Field (Root, "response");
+              Get_Object_Field (Root, "response");
             Output       : constant GNATCOLL.JSON.JSON_Array :=
-               Get_Array_Field (Response_Obj, "output");
+              Get_Array_Field (Response_Obj, "output");
          begin
             for I in 1 .. GNATCOLL.JSON.Length (Output) loop
                declare
                   Item : constant GNATCOLL.JSON.JSON_Value :=
-                     GNATCOLL.JSON.Get (Output, I);
+                    GNATCOLL.JSON.Get (Output, I);
                begin
                   --  Text deltas have already delivered streamed message
                   --  content.  Process_Output_Item suppresses only the
@@ -1220,7 +1170,7 @@ package body LLM.Providers.OpenAI_Responses is
          end;
          Finalize_Message (State, Handler);
       elsif Event_Typ = "error" then
-         State.Stop := LLM.Types.Error_Stop;
+         State.Stop          := LLM.Types.Error_Stop;
          State.Error_Message := GNATCOLL.JSON.Write (Root);
          Finalize_Message (State, Handler);
       elsif Event_Typ = "response.refusal.delta" then
@@ -1229,9 +1179,9 @@ package body LLM.Providers.OpenAI_Responses is
    end Process_Stream_Event;
 
    procedure Process_Stream_Data
-      (Chunk   :        String;
-     State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (Chunk   :        String;
+      State   : in out Response_State;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Event_Name : Unbounded_String;
       Event_Data : Unbounded_String;
@@ -1252,49 +1202,48 @@ package body LLM.Providers.OpenAI_Responses is
    end Process_Stream_Data;
 
    procedure Process_Non_Streaming_Response
-      (Payload :        String;
-     State   : in out Response_State;
-     Handler :        LLM.Providers.Event_Handler)
+     (Payload :        String;
+      State   : in out Response_State;
+      Handler :        LLM.Providers.Event_Handler)
    is
       Root   : constant GNATCOLL.JSON.JSON_Value :=
-         Parse_Json (Payload, "Invalid OpenAI Responses response");
+        Parse_Json (Payload, "Invalid OpenAI Responses response");
       Output : constant GNATCOLL.JSON.JSON_Array :=
-         Get_Array_Field (Root, "output");
+        Get_Array_Field (Root, "output");
    begin
       Apply_Usage_And_Status (State, Root);
 
       for I in 1 .. GNATCOLL.JSON.Length (Output) loop
-         Process_Output_Item
-            (State, GNATCOLL.JSON.Get (Output, I), Handler);
+         Process_Output_Item (State, GNATCOLL.JSON.Get (Output, I), Handler);
       end loop;
 
       Finalize_Message (State, Handler);
    end Process_Non_Streaming_Response;
 
    procedure Send_Request
-      (P             : in out Provider'Class;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null)
+     (P             : in out Provider'Class;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
       Headers        : LLM.HTTP.Header_List;
-      Status         : Natural := 0;
+      Status         : Natural         := 0;
       State          : Response_State;
-      End_Event_Sent : Boolean := False;
+      End_Event_Sent : Boolean         := False;
       Request_Body   : constant String :=
-         Build_Request_Body
-            (P             => P,
-         Model_Id      => Model_Id,
-         System_Prompt => System_Prompt,
-         Messages      => Messages,
-         Tools_Json    => Tools_Json,
-         Thinking      => Thinking,
-         Max_Tokens    => Max_Tokens);
+        Build_Request_Body
+          (P             => P,
+           Model_Id      => Model_Id,
+           System_Prompt => System_Prompt,
+           Messages      => Messages,
+           Tools_Json    => Tools_Json,
+           Thinking      => Thinking,
+           Max_Tokens    => Max_Tokens);
 
       procedure On_Chunk (Data : String) is
       begin
@@ -1310,29 +1259,26 @@ package body LLM.Providers.OpenAI_Responses is
 
       LLM.HTTP.Add_Header (Headers, "Content-Type", "application/json");
       LLM.HTTP.Add_Header
-         (Headers, "Authorization", "Bearer " & To_String (P.Api_Key));
+        (Headers, "Authorization", "Bearer " & To_String (P.Api_Key));
 
       for Header of P.Extra_Headers loop
          LLM.HTTP.Add_Header
-            (Headers,
-         To_String (Header.Name),
-         To_String (Header.Value));
+           (Headers, To_String (Header.Name), To_String (Header.Value));
       end loop;
 
       LLM.HTTP.Post
-         (URL      => Endpoint_Url (To_String (P.Base_Url)),
-       Headers  => Headers,
-       Payload  => Request_Body,
-       On_Chunk => On_Chunk'Access,
-       Status   => Status,
-       Abort_Check => Abort_Check);
+        (URL         => Endpoint_Url (To_String (P.Base_Url)),
+         Headers     => Headers,
+         Payload     => Request_Body,
+         On_Chunk    => On_Chunk'Access,
+         Status      => Status,
+         Abort_Check => Abort_Check);
 
       if Status /= 200 then
          declare
             Error_Text : constant String :=
               "OpenAI responses request failed with HTTP"
-              & Natural'Image (Status)
-              & ": "
+              & Natural'Image (Status) & ": "
               & To_String (State.Raw_Response_Body);
          begin
             State.Error_Message := To_Unbounded_String (Error_Text);
@@ -1341,26 +1287,26 @@ package body LLM.Providers.OpenAI_Responses is
                Stop      => LLM.Types.Error_Stop,
                Tok_Usage => State.Tok_Usage,
                Err_Msg   => Error_Text);
-            raise Constraint_Error with
-              "OpenAI responses request failed with HTTP"
+            raise Constraint_Error
+              with "OpenAI responses request failed with HTTP"
               & Natural'Image (Status);
          end;
       end if;
 
       if not P.Use_Streaming then
          Process_Non_Streaming_Response
-            (Payload => To_String (State.Raw_Response_Body),
-         State   => State,
-         Handler => Handler);
+           (Payload => To_String (State.Raw_Response_Body),
+            State   => State,
+            Handler => Handler);
       elsif not State.Done then
          if not State.Saw_Stream_Event
-            and then Length (State.Raw_Response_Body) > 0
+           and then Length (State.Raw_Response_Body) > 0
          then
             LLM.SSE.Reset (State.Parser);
             Process_Stream_Data
-               (Chunk   => To_String (State.Raw_Response_Body),
-           State   => State,
-           Handler => Handler);
+              (Chunk   => To_String (State.Raw_Response_Body),
+               State   => State,
+               Handler => Handler);
          end if;
 
          if not State.Done then
@@ -1378,29 +1324,28 @@ package body LLM.Providers.OpenAI_Responses is
          raise;
    end Send_Request;
 
-   overriding
-   procedure Send
-      (P             : in out Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null)
+   overriding procedure Send
+     (P             : in out Provider;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
    begin
       Send_Request
-         (P             => P,
-          Model_Id      => Model_Id,
-          System_Prompt => System_Prompt,
-          Messages      => Messages,
-          Tools_Json    => Tools_Json,
-          Thinking      => Thinking,
-          Max_Tokens    => Max_Tokens,
-          Handler       => Handler,
-          Abort_Check  => Abort_Check);
+        (P             => P,
+         Model_Id      => Model_Id,
+         System_Prompt => System_Prompt,
+         Messages      => Messages,
+         Tools_Json    => Tools_Json,
+         Thinking      => Thinking,
+         Max_Tokens    => Max_Tokens,
+         Handler       => Handler,
+         Abort_Check   => Abort_Check);
    end Send;
 
 end LLM.Providers.OpenAI_Responses;

@@ -12,12 +12,19 @@ with Ada.Strings.Unbounded;
 package LLM.Types is
 
    --  Conversation role for one message in the transcript.
-   type Role is (User, Assistant, Tool_Result, Compaction_Summary);
+   type Role is
+     (User,
+      Assistant,
+      Tool_Result,
+      Compaction_Summary);
 
    --  Terminal status retained for a tool result.  Older session files omit
    --  this value and are reconstructed from Is_Error by the store.
-   type Tool_Result_Status is (Result_Success, Result_Error,
-                               Result_Timed_Out, Result_Cancelled);
+   type Tool_Result_Status is
+     (Result_Success,
+      Result_Error,
+      Result_Timed_Out,
+      Result_Cancelled);
 
    --  Variant kind for one content block inside a message.
    type Content_Block_Kind is
@@ -47,14 +54,13 @@ package LLM.Types is
             Result_Id   : Ada.Strings.Unbounded.Unbounded_String;
             Result_Text : Ada.Strings.Unbounded.Unbounded_String;
             Media_Type  : Ada.Strings.Unbounded.Unbounded_String;
-            Is_Error    : Boolean := False;
+            Is_Error    : Boolean            := False;
             Status      : Tool_Result_Status := Result_Success;
       end case;
    end record;
 
    package Content_Block_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Content_Block);
+     (Index_Type => Natural, Element_Type => Content_Block);
 
    --  Token-usage counters reported by the provider.
    type Usage is record
@@ -62,7 +68,8 @@ package LLM.Types is
       Output      : Natural := 0;
       Cache_Read  : Natural := 0;
       Cache_Write : Natural := 0;
-      Thinking    : Natural := 0;  --  Thinking/reasoning tokens (estimated for Anthropic)
+      Thinking    : Natural :=
+        0;  --  Thinking/reasoning tokens (estimated for Anthropic)
    end record;
 
    --  Add two usage values field-by-field.
@@ -91,13 +98,12 @@ package LLM.Types is
    type Message is record
       Role      : LLM.Types.Role := User;
       Content   : Content_Block_Vectors.Vector;
-      Tok_Usage : Usage := (others => 0);
-      Stop      : Stop_Reason := Unknown_Stop;
+      Tok_Usage : Usage          := (others => 0);
+      Stop      : Stop_Reason    := Unknown_Stop;
       Timestamp : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    package Message_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Message);
+     (Index_Type => Natural, Element_Type => Message);
 
 end LLM.Types;

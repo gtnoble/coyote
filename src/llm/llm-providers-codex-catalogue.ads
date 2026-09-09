@@ -22,21 +22,20 @@ with Ada.Strings.Unbounded;
 package LLM.Providers.Codex.Catalogue is
 
    type Model_Info is record
-      Model_Id       : Ada.Strings.Unbounded.Unbounded_String;
-      Name           : Ada.Strings.Unbounded.Unbounded_String;
-      Description    : Ada.Strings.Unbounded.Unbounded_String;
+      Model_Id           : Ada.Strings.Unbounded.Unbounded_String;
+      Name               : Ada.Strings.Unbounded.Unbounded_String;
+      Description        : Ada.Strings.Unbounded.Unbounded_String;
       --  Context_Window is the served context; Max_Context_Window is the
       --  largest the subscription tier can negotiate.
-      Context_Window : Natural := 0;
+      Context_Window     : Natural := 0;
       Max_Context_Window : Natural := 0;
-      Reasoning      : Boolean := False;
-      Supports_Tools : Boolean := False;
-      Supports_Images : Boolean := False;
+      Reasoning          : Boolean := False;
+      Supports_Tools     : Boolean := False;
+      Supports_Images    : Boolean := False;
    end record;
 
    package Catalogue_Vectors is new Ada.Containers.Vectors
-      (Index_Type   => Positive,
-      Element_Type => Model_Info);
+     (Index_Type => Positive, Element_Type => Model_Info);
 
    --  Load the model catalogue from GET
    --  {base}/codex/models?client_version=<version>.
@@ -49,7 +48,6 @@ package LLM.Providers.Codex.Catalogue is
    --  When a live fetch fails, stale cached data is used when available;
    --  otherwise Models is returned empty.
    procedure Load_Catalogue
-      (Models        :    out Catalogue_Vectors.Vector;
-      Max_Age_Hours :        Natural := 24);
+     (Models : out Catalogue_Vectors.Vector; Max_Age_Hours : Natural := 24);
 
 end LLM.Providers.Codex.Catalogue;

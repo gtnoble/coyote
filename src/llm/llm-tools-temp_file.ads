@@ -56,6 +56,7 @@ package LLM.Tools.Temp_File is
    function Truncated
      (Text      : String;
       Threshold : Positive;
-      Tool_Name : String := "tool") return String;
+      Tool_Name : String := "tool")
+      return String;
 
 end LLM.Tools.Temp_File;

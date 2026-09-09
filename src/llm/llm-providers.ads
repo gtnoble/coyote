@@ -14,14 +14,19 @@ with LLM.Types;
 package LLM.Providers is
 
    --  Callback invoked for each streamed provider event.
-   type Event_Handler is access procedure
-     (E : LLM.Events.Agent_Event'Class);
+   type Event_Handler is access procedure (E : LLM.Events.Agent_Event'Class);
 
    --  Optional cancellation predicate polled by blocking providers.
    subtype Abort_Callback is LLM.Tools.Abort_Flag_Access;
 
    --  Requested reasoning or thinking budget level.
-   type Thinking_Level is (Off, Minimal, Low, Medium, High, X_High);
+   type Thinking_Level is
+     (Off,
+      Minimal,
+      Low,
+      Medium,
+      High,
+      X_High);
 
    --  Abstract base for all concrete LLM API providers.
    type Provider is abstract tagged limited null record;
@@ -44,7 +49,6 @@ package LLM.Providers is
       Thinking      :        Thinking_Level;
       Max_Tokens    :        Positive;
       Handler       :        Event_Handler;
-      Abort_Check    :        Abort_Callback := null)
-   is abstract;
+      Abort_Check   :        Abort_Callback := null) is abstract;
 
 end LLM.Providers;

@@ -13,7 +13,7 @@ with Coyote_Renderer.Tables;
 with Ada.Characters.Latin_1;
 with Ada.Containers;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Interfaces.C;
 with Interfaces.C.Strings;
 with System;
@@ -31,8 +31,9 @@ package body Coyote_Cmark_Tests is
    function Parse (S : String) return Coyote_Cmark.Node_Ptr is
       C_Text : constant char_array := To_C (S, Append_Nul => True);
    begin
-      return Coyote_Cmark.Parse_Document
-               (C_Text, size_t (S'Length), Coyote_Cmark.OPT_DEFAULT);
+      return
+        Coyote_Cmark.Parse_Document
+          (C_Text, size_t (S'Length), Coyote_Cmark.OPT_DEFAULT);
    end Parse;
 
    ---------------------------------------------------------------------------
@@ -40,22 +41,22 @@ package body Coyote_Cmark_Tests is
    procedure Test_Constants_Are_Non_Negative (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Coyote_Cmark.NODE_NONE          >= 0, "NODE_NONE >= 0");
-      Assert (Coyote_Cmark.NODE_DOCUMENT      >= 0, "NODE_DOCUMENT >= 0");
-      Assert (Coyote_Cmark.NODE_PARAGRAPH     >= 0, "NODE_PARAGRAPH >= 0");
-      Assert (Coyote_Cmark.NODE_TEXT          >= 0, "NODE_TEXT >= 0");
-      Assert (Coyote_Cmark.NODE_HEADING       >= 0, "NODE_HEADING >= 0");
-      Assert (Coyote_Cmark.NODE_STRONG        >= 0, "NODE_STRONG >= 0");
-      Assert (Coyote_Cmark.NODE_EMPH          >= 0, "NODE_EMPH >= 0");
-      Assert (Coyote_Cmark.NODE_CODE          >= 0, "NODE_CODE >= 0");
+      Assert (Coyote_Cmark.NODE_NONE >= 0, "NODE_NONE >= 0");
+      Assert (Coyote_Cmark.NODE_DOCUMENT >= 0, "NODE_DOCUMENT >= 0");
+      Assert (Coyote_Cmark.NODE_PARAGRAPH >= 0, "NODE_PARAGRAPH >= 0");
+      Assert (Coyote_Cmark.NODE_TEXT >= 0, "NODE_TEXT >= 0");
+      Assert (Coyote_Cmark.NODE_HEADING >= 0, "NODE_HEADING >= 0");
+      Assert (Coyote_Cmark.NODE_STRONG >= 0, "NODE_STRONG >= 0");
+      Assert (Coyote_Cmark.NODE_EMPH >= 0, "NODE_EMPH >= 0");
+      Assert (Coyote_Cmark.NODE_CODE >= 0, "NODE_CODE >= 0");
       Assert
         (Coyote_Cmark.NODE_THEMATIC_BREAK >= 0, "NODE_THEMATIC_BREAK >= 0");
-      Assert (Coyote_Cmark.LIST_BULLET        >= 0, "LIST_BULLET >= 0");
-      Assert (Coyote_Cmark.LIST_ORDERED       >= 0, "LIST_ORDERED >= 0");
-      Assert (Coyote_Cmark.EVENT_DONE         >= 0, "EVENT_DONE >= 0");
-      Assert (Coyote_Cmark.EVENT_ENTER        >= 0, "EVENT_ENTER >= 0");
-      Assert (Coyote_Cmark.EVENT_EXIT         >= 0, "EVENT_EXIT >= 0");
-      Assert (Coyote_Cmark.OPT_DEFAULT        >= 0, "OPT_DEFAULT >= 0");
+      Assert (Coyote_Cmark.LIST_BULLET >= 0, "LIST_BULLET >= 0");
+      Assert (Coyote_Cmark.LIST_ORDERED >= 0, "LIST_ORDERED >= 0");
+      Assert (Coyote_Cmark.EVENT_DONE >= 0, "EVENT_DONE >= 0");
+      Assert (Coyote_Cmark.EVENT_ENTER >= 0, "EVENT_ENTER >= 0");
+      Assert (Coyote_Cmark.EVENT_EXIT >= 0, "EVENT_EXIT >= 0");
+      Assert (Coyote_Cmark.OPT_DEFAULT >= 0, "OPT_DEFAULT >= 0");
    end Test_Constants_Are_Non_Negative;
 
    ---------------------------------------------------------------------------
@@ -72,13 +73,14 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Root_Type_Is_Document (T : in out Test) is
       pragma Unreferenced (T);
-      Doc    : constant Coyote_Cmark.Node_Ptr := Parse ("hello");
-      NType  : Coyote_Cmark.Node_Type_Int;
+      Doc   : constant Coyote_Cmark.Node_Ptr := Parse ("hello");
+      NType : Coyote_Cmark.Node_Type_Int;
    begin
       Assert (Doc /= System.Null_Address, "Parse_Document returned null");
       NType := Coyote_Cmark.Node_Get_Type (Doc);
-      Assert (NType = Coyote_Cmark.NODE_DOCUMENT,
-              "root node type should be NODE_DOCUMENT");
+      Assert
+        (NType = Coyote_Cmark.NODE_DOCUMENT,
+         "root node type should be NODE_DOCUMENT");
       Coyote_Cmark.Node_Free (Doc);
    end Test_Root_Type_Is_Document;
 
@@ -90,7 +92,7 @@ package body Coyote_Cmark_Tests is
       Iter       : Coyote_Cmark.Iter_Ptr;
       Ev         : Coyote_Cmark.Event_Type_Int;
       Node       : Coyote_Cmark.Node_Ptr;
-      Found_Text : Boolean := False;
+      Found_Text : Boolean                        := False;
    begin
       Assert (Doc /= System.Null_Address, "Parse_Document returned null");
       Iter := Coyote_Cmark.Iter_New (Doc);
@@ -117,12 +119,12 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Literal_Matches_Input (T : in out Test) is
       pragma Unreferenced (T);
-      Input      : constant String := "coyote";
-      Doc        : constant Coyote_Cmark.Node_Ptr := Parse (Input);
-      Iter       : Coyote_Cmark.Iter_Ptr;
-      Ev         : Coyote_Cmark.Event_Type_Int;
-      Node       : Coyote_Cmark.Node_Ptr;
-      Found      : Boolean := False;
+      Input : constant String                := "coyote";
+      Doc   : constant Coyote_Cmark.Node_Ptr := Parse (Input);
+      Iter  : Coyote_Cmark.Iter_Ptr;
+      Ev    : Coyote_Cmark.Event_Type_Int;
+      Node  : Coyote_Cmark.Node_Ptr;
+      Found : Boolean                        := False;
    begin
       Assert (Doc /= System.Null_Address, "Parse_Document returned null");
       Iter := Coyote_Cmark.Iter_New (Doc);
@@ -137,7 +139,7 @@ package body Coyote_Cmark_Tests is
                declare
                   Ptr : constant chars_ptr :=
                     Coyote_Cmark.Node_Get_Literal (Node);
-                  Lit : constant String :=
+                  Lit : constant String    :=
                     (if Ptr /= Null_Ptr then Value (Ptr) else "");
                begin
                   if Lit = Input then
@@ -185,11 +187,10 @@ package body Coyote_Cmark_Tests is
       Target_Type : Coyote_Cmark.Node_Type_Int)
       return Coyote_Cmark.Node_Ptr
    is
-      Iter   : constant Coyote_Cmark.Iter_Ptr :=
-        Coyote_Cmark.Iter_New (Doc);
+      Iter   : constant Coyote_Cmark.Iter_Ptr := Coyote_Cmark.Iter_New (Doc);
       Ev     : Coyote_Cmark.Event_Type_Int;
       Node   : Coyote_Cmark.Node_Ptr;
-      Result : Coyote_Cmark.Node_Ptr := System.Null_Address;
+      Result : Coyote_Cmark.Node_Ptr          := System.Null_Address;
    begin
       loop
          Ev := Coyote_Cmark.Iter_Next (Iter);
@@ -219,16 +220,18 @@ package body Coyote_Cmark_Tests is
       Assert (Doc3 /= System.Null_Address, "Parse h3 returned null");
 
       H1 := Find_Node (Doc1, Coyote_Cmark.NODE_HEADING);
-      Assert (H1 /= System.Null_Address,
-              "NODE_HEADING not found in '# Heading'");
-      Assert (Integer (Coyote_Cmark.Node_Get_Heading_Level (H1)) = 1,
-              "heading level should be 1 for '# Heading'");
+      Assert
+        (H1 /= System.Null_Address, "NODE_HEADING not found in '# Heading'");
+      Assert
+        (Integer (Coyote_Cmark.Node_Get_Heading_Level (H1)) = 1,
+         "heading level should be 1 for '# Heading'");
 
       H3 := Find_Node (Doc3, Coyote_Cmark.NODE_HEADING);
-      Assert (H3 /= System.Null_Address,
-              "NODE_HEADING not found in '### Deep'");
-      Assert (Integer (Coyote_Cmark.Node_Get_Heading_Level (H3)) = 3,
-              "heading level should be 3 for '### Deep'");
+      Assert
+        (H3 /= System.Null_Address, "NODE_HEADING not found in '### Deep'");
+      Assert
+        (Integer (Coyote_Cmark.Node_Get_Heading_Level (H3)) = 3,
+         "heading level should be 3 for '### Deep'");
 
       Coyote_Cmark.Node_Free (Doc1);
       Coyote_Cmark.Node_Free (Doc3);
@@ -243,11 +246,10 @@ package body Coyote_Cmark_Tests is
    begin
       Assert (Doc /= System.Null_Address, "Parse returned null");
       List := Find_Node (Doc, Coyote_Cmark.NODE_LIST);
-      Assert (List /= System.Null_Address,
-              "NODE_LIST not found in '- item'");
-      Assert (Coyote_Cmark.Node_Get_List_Type (List)
-              = Coyote_Cmark.LIST_BULLET,
-              "list type should be LIST_BULLET for '- item'");
+      Assert (List /= System.Null_Address, "NODE_LIST not found in '- item'");
+      Assert
+        (Coyote_Cmark.Node_Get_List_Type (List) = Coyote_Cmark.LIST_BULLET,
+         "list type should be LIST_BULLET for '- item'");
       Coyote_Cmark.Node_Free (Doc);
    end Test_List_Type_Is_Bullet;
 
@@ -260,11 +262,10 @@ package body Coyote_Cmark_Tests is
    begin
       Assert (Doc /= System.Null_Address, "Parse returned null");
       List := Find_Node (Doc, Coyote_Cmark.NODE_LIST);
-      Assert (List /= System.Null_Address,
-              "NODE_LIST not found in '1. item'");
-      Assert (Coyote_Cmark.Node_Get_List_Type (List)
-              = Coyote_Cmark.LIST_ORDERED,
-              "list type should be LIST_ORDERED for '1. item'");
+      Assert (List /= System.Null_Address, "NODE_LIST not found in '1. item'");
+      Assert
+        (Coyote_Cmark.Node_Get_List_Type (List) = Coyote_Cmark.LIST_ORDERED,
+         "list type should be LIST_ORDERED for '1. item'");
       Coyote_Cmark.Node_Free (Doc);
    end Test_List_Type_Is_Ordered;
 
@@ -277,10 +278,10 @@ package body Coyote_Cmark_Tests is
    begin
       Assert (Doc /= System.Null_Address, "Parse returned null");
       List := Find_Node (Doc, Coyote_Cmark.NODE_LIST);
-      Assert (List /= System.Null_Address,
-              "NODE_LIST not found in '3. item'");
-      Assert (Integer (Coyote_Cmark.Node_Get_List_Start (List)) = 3,
-              "list start ordinal should be 3 for '3. item'");
+      Assert (List /= System.Null_Address, "NODE_LIST not found in '3. item'");
+      Assert
+        (Integer (Coyote_Cmark.Node_Get_List_Start (List)) = 3,
+         "list start ordinal should be 3 for '3. item'");
       Coyote_Cmark.Node_Free (Doc);
    end Test_List_Start_Ordinal;
 
@@ -289,25 +290,29 @@ package body Coyote_Cmark_Tests is
    procedure Test_Code_Block_Literal (T : in out Test) is
       pragma Unreferenced (T);
       --  Fenced code block in CommonMark: ``` on its own line.
-      Md   : constant String :=
-        "```" & Ada.Characters.Latin_1.LF & "hello code" & Ada.Characters.Latin_1.LF & "```" & Ada.Characters.Latin_1.LF;
-      Doc  : constant Coyote_Cmark.Node_Ptr := Parse (Md);
-      CB   : Coyote_Cmark.Node_Ptr;
-      Ptr  : Interfaces.C.Strings.chars_ptr;
+      Md  : constant String                :=
+        "```" & Ada.Characters.Latin_1.LF & "hello code"
+        & Ada.Characters.Latin_1.LF & "```" & Ada.Characters.Latin_1.LF;
+      Doc : constant Coyote_Cmark.Node_Ptr := Parse (Md);
+      CB  : Coyote_Cmark.Node_Ptr;
+      Ptr : Interfaces.C.Strings.chars_ptr;
    begin
       Assert (Doc /= System.Null_Address, "Parse returned null");
       CB := Find_Node (Doc, Coyote_Cmark.NODE_CODE_BLOCK);
-      Assert (CB /= System.Null_Address,
-              "NODE_CODE_BLOCK not found in fenced code input");
+      Assert
+        (CB /= System.Null_Address,
+         "NODE_CODE_BLOCK not found in fenced code input");
       Ptr := Coyote_Cmark.Node_Get_Literal (CB);
-      Assert (Ptr /= Interfaces.C.Strings.Null_Ptr,
-              "Node_Get_Literal on CODE_BLOCK should not be null");
+      Assert
+        (Ptr /= Interfaces.C.Strings.Null_Ptr,
+         "Node_Get_Literal on CODE_BLOCK should not be null");
       declare
          use Ada.Strings.Fixed;
          S : constant String := Interfaces.C.Strings.Value (Ptr);
       begin
-         Assert (Index (S, "hello code") > 0,
-                 "code block literal should contain 'hello code'");
+         Assert
+           (Index (S, "hello code") > 0,
+            "code block literal should contain 'hello code'");
       end;
       Coyote_Cmark.Node_Free (Doc);
    end Test_Code_Block_Literal;
@@ -324,16 +329,18 @@ package body Coyote_Cmark_Tests is
    begin
       Assert (Doc /= System.Null_Address, "Parse returned null");
       Para := Find_Node (Doc, Coyote_Cmark.NODE_PARAGRAPH);
-      Assert (Para /= System.Null_Address,
-              "NODE_PARAGRAPH not found in 'hello'");
+      Assert
+        (Para /= System.Null_Address, "NODE_PARAGRAPH not found in 'hello'");
       Ptr := Coyote_Cmark.Node_Get_Literal (Para);
-      Assert (Ptr /= Interfaces.C.Strings.Null_Ptr,
-              "shim should return non-null for NODE_PARAGRAPH (null-safety)");
+      Assert
+        (Ptr /= Interfaces.C.Strings.Null_Ptr,
+         "shim should return non-null for NODE_PARAGRAPH (null-safety)");
       declare
          Lit_Str : constant String := Interfaces.C.Strings.Value (Ptr);
       begin
-         Assert (Lit_Str = "",
-                 "shim should return empty string for NODE_PARAGRAPH");
+         Assert
+           (Lit_Str = "",
+            "shim should return empty string for NODE_PARAGRAPH");
       end;
       Coyote_Cmark.Node_Free (Doc);
    end Test_Get_Literal_Null_Safety;
@@ -343,12 +350,15 @@ package body Coyote_Cmark_Tests is
    procedure Test_Event_Constants_Are_Distinct (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Coyote_Cmark.EVENT_ENTER /= Coyote_Cmark.EVENT_EXIT,
-              "EVENT_ENTER and EVENT_EXIT must be distinct");
-      Assert (Coyote_Cmark.EVENT_ENTER /= Coyote_Cmark.EVENT_DONE,
-              "EVENT_ENTER and EVENT_DONE must be distinct");
-      Assert (Coyote_Cmark.EVENT_EXIT  /= Coyote_Cmark.EVENT_DONE,
-              "EVENT_EXIT and EVENT_DONE must be distinct");
+      Assert
+        (Coyote_Cmark.EVENT_ENTER /= Coyote_Cmark.EVENT_EXIT,
+         "EVENT_ENTER and EVENT_EXIT must be distinct");
+      Assert
+        (Coyote_Cmark.EVENT_ENTER /= Coyote_Cmark.EVENT_DONE,
+         "EVENT_ENTER and EVENT_DONE must be distinct");
+      Assert
+        (Coyote_Cmark.EVENT_EXIT /= Coyote_Cmark.EVENT_DONE,
+         "EVENT_EXIT and EVENT_DONE must be distinct");
    end Test_Event_Constants_Are_Distinct;
 
    ---------------------------------------------------------------------------
@@ -356,20 +366,27 @@ package body Coyote_Cmark_Tests is
    procedure Test_Node_Constants_Are_Distinct (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Coyote_Cmark.NODE_TEXT     /= Coyote_Cmark.NODE_STRONG,
-              "NODE_TEXT and NODE_STRONG must be distinct");
-      Assert (Coyote_Cmark.NODE_TEXT     /= Coyote_Cmark.NODE_EMPH,
-              "NODE_TEXT and NODE_EMPH must be distinct");
-      Assert (Coyote_Cmark.NODE_TEXT     /= Coyote_Cmark.NODE_CODE,
-              "NODE_TEXT and NODE_CODE must be distinct");
-      Assert (Coyote_Cmark.NODE_TEXT     /= Coyote_Cmark.NODE_PARAGRAPH,
-              "NODE_TEXT and NODE_PARAGRAPH must be distinct");
-      Assert (Coyote_Cmark.NODE_HEADING  /= Coyote_Cmark.NODE_PARAGRAPH,
-              "NODE_HEADING and NODE_PARAGRAPH must be distinct");
-      Assert (Coyote_Cmark.NODE_LIST     /= Coyote_Cmark.NODE_ITEM,
-              "NODE_LIST and NODE_ITEM must be distinct");
-      Assert (Coyote_Cmark.NODE_CODE     /= Coyote_Cmark.NODE_CODE_BLOCK,
-              "NODE_CODE and NODE_CODE_BLOCK must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_TEXT /= Coyote_Cmark.NODE_STRONG,
+         "NODE_TEXT and NODE_STRONG must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_TEXT /= Coyote_Cmark.NODE_EMPH,
+         "NODE_TEXT and NODE_EMPH must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_TEXT /= Coyote_Cmark.NODE_CODE,
+         "NODE_TEXT and NODE_CODE must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_TEXT /= Coyote_Cmark.NODE_PARAGRAPH,
+         "NODE_TEXT and NODE_PARAGRAPH must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_HEADING /= Coyote_Cmark.NODE_PARAGRAPH,
+         "NODE_HEADING and NODE_PARAGRAPH must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_LIST /= Coyote_Cmark.NODE_ITEM,
+         "NODE_LIST and NODE_ITEM must be distinct");
+      Assert
+        (Coyote_Cmark.NODE_CODE /= Coyote_Cmark.NODE_CODE_BLOCK,
+         "NODE_CODE and NODE_CODE_BLOCK must be distinct");
       Assert
         (Coyote_Cmark.NODE_DOCUMENT /= Coyote_Cmark.NODE_NONE,
          "NODE_DOCUMENT and NODE_NONE must be distinct");
@@ -377,16 +394,16 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Pango_Markup_Nested_List_Indentation (T : in out Test) is
       pragma Unreferenced (T);
-      MD : constant String :=
-        "- outer" & Ada.Characters.Latin_1.LF
-        & "  - inner" & Ada.Characters.Latin_1.LF
-        & "    - deepest" & Ada.Characters.Latin_1.LF
-        & "- sibling";
+      MD     : constant String :=
+        "- outer" & Ada.Characters.Latin_1.LF & "  - inner"
+        & Ada.Characters.Latin_1.LF & "    - deepest"
+        & Ada.Characters.Latin_1.LF & "- sibling";
       Markup : constant String := Coyote_Renderer.Markup.To_Pango_Markup (MD);
       Bullet : constant String := Coyote_App.Utils.UC_BULLET;
    begin
-      Assert (Ada.Strings.Fixed.Index (Markup, Bullet & " outer") > 0,
-              "top-level list item should have no indentation");
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, Bullet & " outer") > 0,
+         "top-level list item should have no indentation");
       Assert
         (Ada.Strings.Fixed.Index (Markup, "  " & Bullet & " inner") > 0,
          "second-level list item should be indented two spaces");
@@ -408,143 +425,151 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test) is
       pragma Unreferenced (T);
-      Fenced : constant String :=
-        "```" & Ada.Characters.Latin_1.LF
-        & "$$" & Ada.Characters.Latin_1.LF
-        & "<math><mi>x</mi></math>"
-        & Ada.Characters.Latin_1.LF & "$$"
+      Fenced          : constant String                                   :=
+        "```" & Ada.Characters.Latin_1.LF & "$$" & Ada.Characters.Latin_1.LF
+        & "<math><mi>x</mi></math>" & Ada.Characters.Latin_1.LF & "$$"
         & Ada.Characters.Latin_1.LF & "```";
-      Indented : constant String :=
-        "    $$" & Ada.Characters.Latin_1.LF
-        & "    not math" & Ada.Characters.Latin_1.LF
-        & "    $$";
-      Fenced_Result : constant Coyote_Renderer.MathML.Extraction_Result :=
+      Indented        : constant String                                   :=
+        "    $$" & Ada.Characters.Latin_1.LF & "    not math"
+        & Ada.Characters.Latin_1.LF & "    $$";
+      Fenced_Result   : constant Coyote_Renderer.MathML.Extraction_Result :=
         Coyote_Renderer.MathML.Extract_Display_Math (Fenced);
       Indented_Result : constant Coyote_Renderer.MathML.Extraction_Result :=
         Coyote_Renderer.MathML.Extract_Display_Math (Indented);
    begin
-      Assert (Fenced_Result.Blocks.Is_Empty,
-              "fenced code must not produce a math block");
-      Assert (Ada.Strings.Fixed.Index
-                (To_String (Fenced_Result.Masked_Text), "$$") > 0,
-              "fenced code keeps its dollar delimiters");
-      Assert (Indented_Result.Blocks.Is_Empty,
-              "indented code must not produce a math block");
-      Assert (Ada.Strings.Fixed.Index
-                (To_String (Indented_Result.Masked_Text), "    $$") > 0,
-              "indented code keeps its indentation");
+      Assert
+        (Fenced_Result.Blocks.Is_Empty,
+         "fenced code must not produce a math block");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Fenced_Result.Masked_Text), "$$")
+         > 0,
+         "fenced code keeps its dollar delimiters");
+      Assert
+        (Indented_Result.Blocks.Is_Empty,
+         "indented code must not produce a math block");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Indented_Result.Masked_Text), "    $$")
+         > 0,
+         "indented code keeps its indentation");
    end Test_Display_Math_Extraction_Is_Code_Safe;
 
-   procedure Test_Display_Math_Extraction_Preserves_Source
-     (T : in out Test)
-   is
+   procedure Test_Display_Math_Extraction_Preserves_Source (T : in out Test) is
       pragma Unreferenced (T);
-      Input : constant String :=
-        "before" & Ada.Characters.Latin_1.LF
-        & "$$" & Ada.Characters.Latin_1.LF
+      Input     : constant String                                    :=
+        "before" & Ada.Characters.Latin_1.LF & "$$" & Ada.Characters.Latin_1.LF
         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
         & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
-        & Ada.Characters.Latin_1.LF & "$$"
-        & Ada.Characters.Latin_1.LF & "after";
-      Extracted : constant Coyote_Renderer.MathML.Extraction_Result :=
+        & Ada.Characters.Latin_1.LF & "$$" & Ada.Characters.Latin_1.LF
+        & "after";
+      Extracted : constant Coyote_Renderer.MathML.Extraction_Result  :=
         Coyote_Renderer.MathML.Extract_Display_Math (Input);
-      Block : constant Coyote_Renderer.MathML.Display_Math_Block :=
+      Block     : constant Coyote_Renderer.MathML.Display_Math_Block :=
         Extracted.Blocks (Extracted.Blocks.First_Index);
    begin
-      Assert (Extracted.Blocks.Length = 1,
-              "one complete display-math block is extracted");
-      Assert (To_String (Block.Source) =
-                "$$" & Ada.Characters.Latin_1.LF
-                & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-                & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
-                & Ada.Characters.Latin_1.LF & "$$",
-              "original display-math source is retained");
-      Assert (To_String (Block.MathML) =
-                "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-                & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
-                & Ada.Characters.Latin_1.LF,
-              "inner MathML is separated from delimiters");
-      Assert (Ada.Strings.Fixed.Index
-                (To_String (Extracted.Masked_Text),
-                 "COYOTE_MATH_BLOCK_1__") > 0,
-              "complete display math becomes a placeholder");
+      Assert
+        (Extracted.Blocks.Length = 1,
+         "one complete display-math block is extracted");
+      Assert
+        (To_String (Block.Source)
+         = "$$" & Ada.Characters.Latin_1.LF
+         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+         & Ada.Characters.Latin_1.LF & "$$",
+         "original display-math source is retained");
+      Assert
+        (To_String (Block.MathML)
+         = "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+         & Ada.Characters.Latin_1.LF,
+         "inner MathML is separated from delimiters");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "COYOTE_MATH_BLOCK_1__")
+         > 0,
+         "complete display math becomes a placeholder");
    end Test_Display_Math_Extraction_Preserves_Source;
 
-   procedure Test_Display_Math_Extraction_Preserves_Unmatched
-     (T : in out Test)
+   procedure Test_Display_Math_Extraction_Preserves_Unmatched (T : in out Test)
    is
       pragma Unreferenced (T);
-      Input : constant String :=
-        "$$" & Ada.Characters.Latin_1.LF
-        & "<math><mi>x</mi></math>";
+      Input     : constant String                                   :=
+        "$$" & Ada.Characters.Latin_1.LF & "<math><mi>x</mi></math>";
       Extracted : constant Coyote_Renderer.MathML.Extraction_Result :=
         Coyote_Renderer.MathML.Extract_Display_Math (Input);
    begin
-      Assert (Extracted.Blocks.Is_Empty,
-              "unmatched delimiter must not produce a math block");
-      Assert (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
-              "unmatched display-math source remains visible");
+      Assert
+        (Extracted.Blocks.Is_Empty,
+         "unmatched delimiter must not produce a math block");
+      Assert
+        (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
+         "unmatched display-math source remains visible");
    end Test_Display_Math_Extraction_Preserves_Unmatched;
 
-   procedure Test_Table_Extraction_Preserves_Plain_Text
-     (T : in out Test)
-   is
+   procedure Test_Table_Extraction_Preserves_Plain_Text (T : in out Test) is
       pragma Unreferenced (T);
-      Input : constant String := "ordinary response text";
+      Input     : constant String := "ordinary response text";
       Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
         Coyote_Renderer.Tables.Extract_Tables (Input);
    begin
-      Assert (Extracted.Blocks.Is_Empty,
-              "plain text should not produce a table block");
-      Assert (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
-              "plain text should remain visible after table extraction");
+      Assert
+        (Extracted.Blocks.Is_Empty,
+         "plain text should not produce a table block");
+      Assert
+        (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
+         "plain text should remain visible after table extraction");
    end Test_Table_Extraction_Preserves_Plain_Text;
 
    procedure Test_Table_Extraction_Preserves_Metadata (T : in out Test) is
       pragma Unreferenced (T);
-      Input : constant String :=
-        "| A | B | C |" & ASCII.LF
-        & "| :--- | :---: | ---: |" & ASCII.LF
+      Input     : constant String                                   :=
+        "| A | B | C |" & ASCII.LF & "| :--- | :---: | ---: |" & ASCII.LF
         & "| one | two | three |" & ASCII.LF;
       Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
         Coyote_Renderer.Tables.Extract_Tables (Input);
-      Table : constant Coyote_Renderer.Tables.Table_Block :=
+      Table     : constant Coyote_Renderer.Tables.Table_Block       :=
         Extracted.Blocks (1);
    begin
-      Assert (Extracted.Blocks.Length = 1,
-              "one GFM table should produce one extracted block");
-      Assert (Table.Column_Count = 3,
-              "table should preserve its three-column metadata");
-      Assert (Table.Rows.Length = 2,
-              "table should preserve header and body rows");
-      Assert (Table.Rows (1).Is_Header,
-              "first table row should be marked as the header");
-      Assert (To_String (Table.Rows (2).Cells (3).Text) = "three",
-              "table cell text should be copied from cmark");
-      Assert (Table.Alignments (1) = Coyote_Renderer.Tables.Left,
-              "leading colon should select left alignment");
-      Assert (Table.Alignments (2) = Coyote_Renderer.Tables.Center,
-              "both colons should select center alignment");
-      Assert (Table.Alignments (3) = Coyote_Renderer.Tables.Right,
-              "trailing colon should select right alignment");
-      Assert (Ada.Strings.Fixed.Index
-                (To_String (Extracted.Masked_Text),
-                 "COYOTE_TABLE_BLOCK_1__") > 0,
-              "masked source should contain the table placeholder");
+      Assert
+        (Extracted.Blocks.Length = 1,
+         "one GFM table should produce one extracted block");
+      Assert
+        (Table.Column_Count = 3,
+         "table should preserve its three-column metadata");
+      Assert
+        (Table.Rows.Length = 2, "table should preserve header and body rows");
+      Assert
+        (Table.Rows (1).Is_Header,
+         "first table row should be marked as the header");
+      Assert
+        (To_String (Table.Rows (2).Cells (3).Text) = "three",
+         "table cell text should be copied from cmark");
+      Assert
+        (Table.Alignments (1) = Coyote_Renderer.Tables.Left,
+         "leading colon should select left alignment");
+      Assert
+        (Table.Alignments (2) = Coyote_Renderer.Tables.Center,
+         "both colons should select center alignment");
+      Assert
+        (Table.Alignments (3) = Coyote_Renderer.Tables.Right,
+         "trailing colon should select right alignment");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "COYOTE_TABLE_BLOCK_1__")
+         > 0,
+         "masked source should contain the table placeholder");
    end Test_Table_Extraction_Preserves_Metadata;
 
    procedure Test_Table_Extraction_Preserves_Line_Count (T : in out Test) is
       pragma Unreferenced (T);
-      Input : constant String :=
-        "| A | B |" & ASCII.LF
-        & "| --- | --- |" & ASCII.LF
-        & "| one | two |" & ASCII.LF
-        & ASCII.LF & "after";
-      Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
+      Input        : constant String                                   :=
+        "| A | B |" & ASCII.LF & "| --- | --- |" & ASCII.LF & "| one | two |"
+        & ASCII.LF & ASCII.LF & "after";
+      Extracted    : constant Coyote_Renderer.Tables.Extraction_Result :=
         Coyote_Renderer.Tables.Extract_Tables (Input);
-      Masked : constant String := To_String (Extracted.Masked_Text);
-      Input_Lines : Natural := 0;
-      Masked_Lines : Natural := 0;
+      Masked       : constant String := To_String (Extracted.Masked_Text);
+      Input_Lines  : Natural                                           := 0;
+      Masked_Lines : Natural                                           := 0;
    begin
       for Character_Index in Input'Range loop
          if Input (Character_Index) = ASCII.LF then
@@ -556,111 +581,145 @@ package body Coyote_Cmark_Tests is
             Masked_Lines := Masked_Lines + 1;
          end if;
       end loop;
-      Assert (Input_Lines + 1 = Masked_Lines,
-              "table masking should preserve logical source lines");
-      Assert (Ada.Strings.Fixed.Index (Masked, "COYOTE_TABLE_BLOCK_1__") > 0,
-              "table placeholder should remain at the table start");
-      Assert (Ada.Strings.Fixed.Index (Masked, "after") > 0,
-              "text after a table should remain in masked source");
+      Assert
+        (Input_Lines + 1 = Masked_Lines,
+         "table masking should preserve logical source lines");
+      Assert
+        (Ada.Strings.Fixed.Index (Masked, "COYOTE_TABLE_BLOCK_1__") > 0,
+         "table placeholder should remain at the table start");
+      Assert
+        (Ada.Strings.Fixed.Index (Masked, "after") > 0,
+         "text after a table should remain in masked source");
    end Test_Table_Extraction_Preserves_Line_Count;
 
    procedure Test_Table_Extraction_Preserves_Source_Order (T : in out Test) is
       pragma Unreferenced (T);
-      Input : constant String :=
-        "before" & ASCII.LF & ASCII.LF
-        & "| A | B |" & ASCII.LF
-        & "| --- | --- |" & ASCII.LF
-        & "| one | two |" & ASCII.LF & ASCII.LF
+      Input           : constant String                                   :=
+        "before" & ASCII.LF & ASCII.LF & "| A | B |" & ASCII.LF
+        & "| --- | --- |" & ASCII.LF & "| one | two |" & ASCII.LF & ASCII.LF
         & "after";
-      Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
+      Extracted       : constant Coyote_Renderer.Tables.Extraction_Result :=
         Coyote_Renderer.Tables.Extract_Tables (Input);
-      Masked : constant String := To_String (Extracted.Masked_Text);
-      Before_Position : constant Natural :=
+      Masked          : constant String := To_String (Extracted.Masked_Text);
+      Before_Position : constant Natural                                  :=
         Ada.Strings.Fixed.Index (Masked, "before");
-      Table_Position : constant Natural :=
+      Table_Position  : constant Natural                                  :=
         Ada.Strings.Fixed.Index (Masked, "COYOTE_TABLE_BLOCK_1__");
-      After_Position : constant Natural :=
+      After_Position  : constant Natural                                  :=
         Ada.Strings.Fixed.Index (Masked, "after");
    begin
-      Assert (Before_Position > 0 and then Table_Position > Before_Position,
-              "table placeholder should follow preceding prose");
-      Assert (After_Position > Table_Position,
-              "following prose should remain after table placeholder");
+      Assert
+        (Before_Position > 0 and then Table_Position > Before_Position,
+         "table placeholder should follow preceding prose");
+      Assert
+        (After_Position > Table_Position,
+         "following prose should remain after table placeholder");
    end Test_Table_Extraction_Preserves_Source_Order;
 
-   package Coyote_Cmark_Caller is
-     new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
+   package Coyote_Cmark_Caller is new AUnit.Test_Caller
+     (Coyote_Cmark_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark enum constants are non-negative after elaboration",
-         Coyote_Cmark_Tests.Test_Constants_Are_Non_Negative'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Parse_Document returns non-null root node",
-         Coyote_Cmark_Tests.Test_Parse_Returns_Non_Null'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark root node type equals NODE_DOCUMENT",
-         Coyote_Cmark_Tests.Test_Root_Type_Is_Document'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark iterator yields TEXT event for plain paragraph",
-         Coyote_Cmark_Tests.Test_Iterator_Yields_Text_Event'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark TEXT node literal matches the input word",
-         Coyote_Cmark_Tests.Test_Literal_Matches_Input'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Node_Free and Iter_Free do not raise",
-         Coyote_Cmark_Tests.Test_Free_Does_Not_Raise'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Node_Get_Heading_Level returns correct level",
-         Coyote_Cmark_Tests.Test_Heading_Level'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Node_Get_List_Type returns LIST_BULLET",
-         Coyote_Cmark_Tests.Test_List_Type_Is_Bullet'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Node_Get_List_Type returns LIST_ORDERED",
-         Coyote_Cmark_Tests.Test_List_Type_Is_Ordered'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Node_Get_List_Start returns declared ordinal",
-         Coyote_Cmark_Tests.Test_List_Start_Ordinal'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Node_Get_Literal on code block returns content",
-         Coyote_Cmark_Tests.Test_Code_Block_Literal'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark shim returns empty string for null literal",
-         Coyote_Cmark_Tests.Test_Get_Literal_Null_Safety'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark event constants are mutually distinct",
-         Coyote_Cmark_Tests.Test_Event_Constants_Are_Distinct'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Cmark Render_Markdown node-type constants are distinct",
-         Coyote_Cmark_Tests.Test_Node_Constants_Are_Distinct'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote_Renderer.Markup nested list indentation",
-         Coyote_Cmark_Tests.Test_Pango_Markup_Nested_List_Indentation'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.MathML protects Markdown code blocks",
-         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Is_Code_Safe'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.MathML preserves display-math source",
-         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Source'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.MathML preserves unmatched delimiters",
-         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Unmatched'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.Tables preserves plain text",
-         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Plain_Text'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.Tables preserves table metadata",
-         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Metadata'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.Tables preserves table line count",
-         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Line_Count'Access));
-      Result.Add_Test (Coyote_Cmark_Caller.Create
-        ("Coyote.Renderer.Tables preserves source order",
-         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Source_Order'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark enum constants are non-negative after elaboration",
+            Coyote_Cmark_Tests.Test_Constants_Are_Non_Negative'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Parse_Document returns non-null root node",
+            Coyote_Cmark_Tests.Test_Parse_Returns_Non_Null'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark root node type equals NODE_DOCUMENT",
+            Coyote_Cmark_Tests.Test_Root_Type_Is_Document'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark iterator yields TEXT event for plain paragraph",
+            Coyote_Cmark_Tests.Test_Iterator_Yields_Text_Event'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark TEXT node literal matches the input word",
+            Coyote_Cmark_Tests.Test_Literal_Matches_Input'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Node_Free and Iter_Free do not raise",
+            Coyote_Cmark_Tests.Test_Free_Does_Not_Raise'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Node_Get_Heading_Level returns correct level",
+            Coyote_Cmark_Tests.Test_Heading_Level'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Node_Get_List_Type returns LIST_BULLET",
+            Coyote_Cmark_Tests.Test_List_Type_Is_Bullet'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Node_Get_List_Type returns LIST_ORDERED",
+            Coyote_Cmark_Tests.Test_List_Type_Is_Ordered'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Node_Get_List_Start returns declared ordinal",
+            Coyote_Cmark_Tests.Test_List_Start_Ordinal'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Node_Get_Literal on code block returns content",
+            Coyote_Cmark_Tests.Test_Code_Block_Literal'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark shim returns empty string for null literal",
+            Coyote_Cmark_Tests.Test_Get_Literal_Null_Safety'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark event constants are mutually distinct",
+            Coyote_Cmark_Tests.Test_Event_Constants_Are_Distinct'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark Render_Markdown node-type constants are distinct",
+            Coyote_Cmark_Tests.Test_Node_Constants_Are_Distinct'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup nested list indentation",
+            Coyote_Cmark_Tests.Test_Pango_Markup_Nested_List_Indentation'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.MathML protects Markdown code blocks",
+            Coyote_Cmark_Tests.Test_Display_Math_Extraction_Is_Code_Safe'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.MathML preserves display-math source",
+            Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Source'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.MathML preserves unmatched delimiters",
+            Coyote_Cmark_Tests
+              .Test_Display_Math_Extraction_Preserves_Unmatched'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Tables preserves plain text",
+            Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Plain_Text'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Tables preserves table metadata",
+            Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Metadata'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Tables preserves table line count",
+            Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Line_Count'
+              Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Tables preserves source order",
+            Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Source_Order'
+              Access));
 
       return Result;
    end Suite;

@@ -22,6 +22,7 @@ package Coyote_Spawn is
    --  Return True when the detached intermediate process was created.
    function Spawn_Detached
      (Args : GNATCOLL.OS.Process.Argument_List;
-      Cwd  : String := "") return Boolean;
+      Cwd  : String := "")
+      return Boolean;
 
 end Coyote_Spawn;

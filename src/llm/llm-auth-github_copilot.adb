@@ -16,7 +16,7 @@ package body LLM.Auth.GitHub_Copilot is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
 
-   DEFAULT_BASE_URL : constant String :=
+   DEFAULT_BASE_URL  : constant String :=
      "https://api.individual.githubcopilot.com";
    DEFAULT_TOKEN_URL : constant String :=
      "https://api.github.com/copilot_internal/v2/token";
@@ -48,24 +48,20 @@ package body LLM.Auth.GitHub_Copilot is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of
-          (Year    => 1970,
-           Month   => 1,
-           Day     => 1,
-           Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
-      return Long_Long_Integer ((Clock - Epoch) * 1000.0);
+      return Long_Long_Integer ((Clock - Epoch) * 1_000.0);
    end Current_Unix_Ms;
 
    function Token_Endpoint return String is
    begin
-      return Ada.Environment_Variables.Value
-        ("COYOTE_GITHUB_COPILOT_TOKEN_URL", DEFAULT_TOKEN_URL);
+      return
+        Ada.Environment_Variables.Value
+          ("COYOTE_GITHUB_COPILOT_TOKEN_URL", DEFAULT_TOKEN_URL);
    end Token_Endpoint;
 
    function Get_String_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return String
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -80,7 +76,8 @@ package body LLM.Auth.GitHub_Copilot is
 
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Long_Integer
+      Field : String)
+      return Long_Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -104,10 +101,9 @@ package body LLM.Auth.GitHub_Copilot is
 
    function Get_Base_Url (Token : String) return String is
       Marker      : constant String  := "proxy-ep=";
-      Marker_Pos  : constant Natural :=
-        Ada.Strings.Fixed.Index (Token, Marker);
+      Marker_Pos : constant Natural := Ada.Strings.Fixed.Index (Token, Marker);
       Value_First : Natural;
-      Value_Last  : Natural := Token'Last;
+      Value_Last  : Natural          := Token'Last;
    begin
       if Marker_Pos = 0 then
          return DEFAULT_BASE_URL;
@@ -150,13 +146,13 @@ package body LLM.Auth.GitHub_Copilot is
    end Get_Base_Url;
 
    procedure Refresh_Token (Creds : in out Provider_Credentials) is
-      Headers  : LLM.HTTP.Header_List;
-      Status   : Natural := 0;
+      Headers       : LLM.HTTP.Header_List;
+      Status        : Natural           := 0;
       Response_Body : Unbounded_String;
-      Root     : GNATCOLL.JSON.JSON_Value;
-      Parsed   : GNATCOLL.JSON.Read_Result;
-      Token    : Unbounded_String;
-      Expires  : Long_Long_Integer := 0;
+      Root          : GNATCOLL.JSON.JSON_Value;
+      Parsed        : GNATCOLL.JSON.Read_Result;
+      Token         : Unbounded_String;
+      Expires       : Long_Long_Integer := 0;
 
       procedure On_Chunk (Data : String) is
       begin
@@ -171,14 +167,11 @@ package body LLM.Auth.GitHub_Copilot is
         (Headers,
          "Authorization",
          "Bearer " & To_String (Creds.Refresh_Token));
-      LLM.HTTP.Add_Header
-        (Headers, "User-Agent", "GitHubCopilotChat/0.35.0");
-      LLM.HTTP.Add_Header
-        (Headers, "Editor-Version", "vscode/1.107.0");
+      LLM.HTTP.Add_Header (Headers, "User-Agent", "GitHubCopilotChat/0.35.0");
+      LLM.HTTP.Add_Header (Headers, "Editor-Version", "vscode/1.107.0");
       LLM.HTTP.Add_Header
         (Headers, "Editor-Plugin-Version", "copilot-chat/0.35.0");
-      LLM.HTTP.Add_Header
-        (Headers, "Copilot-Integration-Id", "vscode-chat");
+      LLM.HTTP.Add_Header (Headers, "Copilot-Integration-Id", "vscode-chat");
 
       LLM.HTTP.Get
         (URL      => Token_Endpoint,
@@ -194,34 +187,31 @@ package body LLM.Auth.GitHub_Copilot is
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "[!] GitHub Copilot token refresh response (HTTP"
-            & Natural'Image (Status)
-            & "): "
-            & To_String (Response_Body));
-         raise Auth_Error with
-           "GitHub Copilot token refresh failed with HTTP"
-           & Natural'Image (Status)
-           & " (full response logged to stderr)";
+            & Natural'Image (Status) & "): " & To_String (Response_Body));
+         raise Auth_Error
+           with "GitHub Copilot token refresh failed with HTTP"
+           & Natural'Image (Status) & " (full response logged to stderr)";
       end if;
 
       Parsed := GNATCOLL.JSON.Read (To_String (Response_Body));
 
       if not Parsed.Success then
-         raise Auth_Error with
-           "Invalid GitHub Copilot token refresh response: "
+         raise Auth_Error
+           with "Invalid GitHub Copilot token refresh response: "
            & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
       end if;
 
-      Root := Parsed.Value;
-      Token := To_Unbounded_String (Get_String_Field (Root, "token"));
+      Root    := Parsed.Value;
+      Token   := To_Unbounded_String (Get_String_Field (Root, "token"));
       Expires := Get_Long_Long_Field (Root, "expires_at");
 
       if Length (Token) = 0 or else Expires <= 0 then
-         raise Auth_Error with
-           "GitHub Copilot token refresh response is missing fields";
+         raise Auth_Error
+           with "GitHub Copilot token refresh response is missing fields";
       end if;
 
       Creds.Access_Token := Token;
-      Creds.Expires_Ms := Expires * 1000;
+      Creds.Expires_Ms   := Expires * 1_000;
       Save_Credentials ("github-copilot", Creds);
    exception
       when Auth_Error =>

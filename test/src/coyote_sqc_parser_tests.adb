@@ -6,7 +6,7 @@ with AUnit.Test_Caller;
 with Ada.Calendar;
 with Ada.Containers;
 with Ada.Directories;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_SQC.Session_Parser;
 with Coyote_SQC.Metrics;
@@ -35,8 +35,8 @@ package body Coyote_SQC_Parser_Tests is
         (Fixture ("v3_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must return Ok = True for v3 fixture");
       Assert
-        (To_String (Session.Session_Id) =
-           "00000000-0000-4000-8000-000000000001",
+        (To_String (Session.Session_Id)
+         = "00000000-0000-4000-8000-000000000001",
          "Session_Id mismatch: " & To_String (Session.Session_Id));
    end Test_V3_Session_Id;
 
@@ -86,16 +86,15 @@ package body Coyote_SQC_Parser_Tests is
 
    procedure Test_V3_Tool_Failure_Flags (T : in out Test) is
       pragma Unreferenced (T);
-      Session  : Session_Record;
-      Ok       : Boolean;
-      Turn_2   : Turn_Record;
+      Session : Session_Record;
+      Ok      : Boolean;
+      Turn_2  : Turn_Record;
    begin
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("v3_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
       --  Turn 2 (index 2) has 2 tool calls: tc-001 (ok) and tc-002 (failed).
-      Assert
-        (Session.Turns.Length >= 2, "Expected at least 2 turns");
+      Assert (Session.Turns.Length >= 2, "Expected at least 2 turns");
       Turn_2 := Session.Turns.Element (2);
       Assert
         (Turn_2.Tool_Calls.Length = 2,
@@ -119,11 +118,12 @@ package body Coyote_SQC_Parser_Tests is
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("v3_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
-      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
+      M :=
+        Coyote_SQC.Metrics.Compute
+          (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
       Assert
         (M.N_Tool_Calls = 2,
-         "N_Tool_Calls should be 2; got "
-         & Natural'Image (M.N_Tool_Calls));
+         "N_Tool_Calls should be 2; got " & Natural'Image (M.N_Tool_Calls));
       Assert
         (M.N_Failed_Tool_Calls = 1,
          "N_Failed_Tool_Calls should be 1; got "
@@ -140,8 +140,7 @@ package body Coyote_SQC_Parser_Tests is
       Assert (Ok, "Parse_File must succeed");
       Assert
         (To_String (Session.Source_Directory) = "/home/user/testproject",
-         "Source_Directory mismatch: "
-         & To_String (Session.Source_Directory));
+         "Source_Directory mismatch: " & To_String (Session.Source_Directory));
    end Test_V3_Source_Directory;
 
    --  ── v1 (legacy) session tests ─────────────────────────────────────────
@@ -155,8 +154,8 @@ package body Coyote_SQC_Parser_Tests is
         (Fixture ("v1_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed for v1 fixture");
       Assert
-        (To_String (Session.Session_Id) =
-           "00000000-0000-4000-8000-000000000002",
+        (To_String (Session.Session_Id)
+         = "00000000-0000-4000-8000-000000000002",
          "v1 Session_Id mismatch: " & To_String (Session.Session_Id));
    end Test_V1_Session_Id;
 
@@ -215,7 +214,7 @@ package body Coyote_SQC_Parser_Tests is
         (Fixture ("v1_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
       Assert
-        (Year (Session.Start_Time) = 2025,
+        (Year (Session.Start_Time) = 2_025,
          "V1 start time year must be 2025 (createdAt=1744469520000); got "
          & Year_Number'Image (Year (Session.Start_Time)));
    end Test_V1_Start_Time;
@@ -245,8 +244,7 @@ package body Coyote_SQC_Parser_Tests is
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("v1_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
-      Assert
-        (Session.Turns.Length = 1, "Expected 1 turn");
+      Assert (Session.Turns.Length = 1, "Expected 1 turn");
       Assert
         (Session.Turns.Element (1).Tool_Calls.Is_Empty,
          "V1 session fixture has no tool calls; Tool_Calls must be empty");
@@ -264,7 +262,7 @@ package body Coyote_SQC_Parser_Tests is
         (Fixture ("v3_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
       Assert
-        (Year (Session.Start_Time) = 2025,
+        (Year (Session.Start_Time) = 2_025,
          "V3 start time year must be 2025; got "
          & Year_Number'Image (Year (Session.Start_Time)));
    end Test_V3_Start_Time;
@@ -279,8 +277,7 @@ package body Coyote_SQC_Parser_Tests is
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("thinking_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
-      Assert
-        (Session.Turns.Length = 1, "Expected 1 turn");
+      Assert (Session.Turns.Length = 1, "Expected 1 turn");
       Assert
         (Session.Turns.Element (1).Thinking_Tokens = 42,
          "Thinking_Tokens should be 42; got "
@@ -310,8 +307,7 @@ package body Coyote_SQC_Parser_Tests is
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("no_thinking_field_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
-      Assert
-        (Session.Turns.Length = 1, "Expected 1 turn");
+      Assert (Session.Turns.Length = 1, "Expected 1 turn");
       Assert
         (Session.Turns.Element (1).Thinking_Tokens = 0,
          "Thinking_Tokens must default to 0 when field absent; got "
@@ -333,8 +329,7 @@ package body Coyote_SQC_Parser_Tests is
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("thinking_text_estimate_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
-      Assert
-        (Session.Turns.Length = 1, "Expected 1 turn");
+      Assert (Session.Turns.Length = 1, "Expected 1 turn");
       Assert
         (Session.Turns.Element (1).Thinking_Enabled,
          "Thinking_Enabled must be True");
@@ -456,7 +451,8 @@ package body Coyote_SQC_Parser_Tests is
    begin
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("anthropic_normalization_session.jsonl"), Session, Ok);
-      Assert (Ok, "Parse_File must succeed for Anthropic normalization fixture");
+      Assert
+        (Ok, "Parse_File must succeed for Anthropic normalization fixture");
       Assert
         (Session.Total_Input_Tokens = 350,
          "Anthropic: Total_Input_Tokens must be 350 (100+200+50); got "
@@ -493,8 +489,8 @@ package body Coyote_SQC_Parser_Tests is
       Assert (Ok, "Parse_File must succeed");
       Assert
         (To_String (Session.File_Path) = Path,
-         "File_Path mismatch: expected '" & Path
-         & "'; got '" & To_String (Session.File_Path) & "'");
+         "File_Path mismatch: expected '" & Path & "'; got '"
+         & To_String (Session.File_Path) & "'");
    end Test_Parse_File_Sets_File_Path;
 
    --  Parse_File must set File_Mtime to the file's modification time (not epoch).
@@ -503,7 +499,7 @@ package body Coyote_SQC_Parser_Tests is
       Session : Session_Record;
       Ok      : Boolean;
       Epoch   : constant Ada.Calendar.Time :=
-        Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
+        Ada.Calendar.Time_Of (1_970, 1, 1, 0.0);
    begin
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("v3_session.jsonl"), Session, Ok);
@@ -513,97 +509,122 @@ package body Coyote_SQC_Parser_Tests is
          "File_Mtime must not be the epoch after a successful parse");
    end Test_Parse_File_Sets_File_Mtime;
 
-   package SQC_Parser_Caller is
-     new AUnit.Test_Caller (Coyote_SQC_Parser_Tests.Test);
+   package SQC_Parser_Caller is new AUnit.Test_Caller
+     (Coyote_SQC_Parser_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 session ID parsed correctly",
-         Coyote_SQC_Parser_Tests.Test_V3_Session_Id'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 turn count correct",
-         Coyote_SQC_Parser_Tests.Test_V3_Turn_Count'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 model is last model_change",
-         Coyote_SQC_Parser_Tests.Test_V3_Model'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 first user message extracted",
-         Coyote_SQC_Parser_Tests.Test_V3_First_User_Message'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 tool failure flags set correctly",
-         Coyote_SQC_Parser_Tests.Test_V3_Tool_Failure_Flags'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC Â§14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1",
-         Coyote_SQC_Parser_Tests.Test_Multi_Tool_Metrics'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 source directory parsed from cwd",
-         Coyote_SQC_Parser_Tests.Test_V3_Source_Directory'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 legacy session ID parsed correctly",
-         Coyote_SQC_Parser_Tests.Test_V1_Session_Id'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 source directory parsed from workDir",
-         Coyote_SQC_Parser_Tests.Test_V1_Source_Directory'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 [Model -> ...] prefix stripped from first user message",
-         Coyote_SQC_Parser_Tests.Test_V1_Prompt_Prefix_Strip'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 session turn count is 1",
-         Coyote_SQC_Parser_Tests.Test_V1_Turn_Count'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 start time year is 2025 (createdAt ms -> UTC conversion)",
-         Coyote_SQC_Parser_Tests.Test_V1_Start_Time'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 session model is empty when no model_change present",
-         Coyote_SQC_Parser_Tests.Test_V1_Model'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 session has no tool calls (failure flags empty)",
-         Coyote_SQC_Parser_Tests.Test_V1_Tool_Call_Flags'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 start time year parsed correctly (UTC conversion)",
-         Coyote_SQC_Parser_Tests.Test_V3_Start_Time'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: thinking_tokens field parsed correctly",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Tokens'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Thinking_Enabled set for thinking block",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Enabled'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Thinking_Tokens=0 when field absent (backward compat)",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Absent'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Thinking_Tokens estimated from text length when usage field absent",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Text_Estimate'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: tool-call Input_Tokens and Output_Tokens estimated from args and result text",
-         Coyote_SQC_Parser_Tests.Test_Tool_Call_Token_Estimates'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: both pre- and post-compaction turns counted",
-         Coyote_SQC_Parser_Tests.Test_Compaction_All_Turns'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Encode_Cwd absolute path",
-         Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Absolute'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Encode_Cwd relative path",
-         Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Relative'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC Â§5.9: interior whitespace collapsed to single space",
-         Coyote_SQC_Parser_Tests.Test_Whitespace_Collapse'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC parser: Anthropic input_tokens normalized to total context window",
-         Coyote_SQC_Parser_Tests
-           .Test_Anthropic_Input_Token_Normalization'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC parser: Parse_File sets File_Path on success",
-         Coyote_SQC_Parser_Tests
-           .Test_Parse_File_Sets_File_Path'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC parser: Parse_File sets File_Mtime to non-epoch on success",
-         Coyote_SQC_Parser_Tests
-           .Test_Parse_File_Sets_File_Mtime'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 session ID parsed correctly",
+            Coyote_SQC_Parser_Tests.Test_V3_Session_Id'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 turn count correct",
+            Coyote_SQC_Parser_Tests.Test_V3_Turn_Count'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 model is last model_change",
+            Coyote_SQC_Parser_Tests.Test_V3_Model'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 first user message extracted",
+            Coyote_SQC_Parser_Tests.Test_V3_First_User_Message'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 tool failure flags set correctly",
+            Coyote_SQC_Parser_Tests.Test_V3_Tool_Failure_Flags'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC Â§14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1",
+            Coyote_SQC_Parser_Tests.Test_Multi_Tool_Metrics'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 source directory parsed from cwd",
+            Coyote_SQC_Parser_Tests.Test_V3_Source_Directory'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 legacy session ID parsed correctly",
+            Coyote_SQC_Parser_Tests.Test_V1_Session_Id'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 source directory parsed from workDir",
+            Coyote_SQC_Parser_Tests.Test_V1_Source_Directory'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 [Model -> ...] prefix stripped from first user message",
+            Coyote_SQC_Parser_Tests.Test_V1_Prompt_Prefix_Strip'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 session turn count is 1",
+            Coyote_SQC_Parser_Tests.Test_V1_Turn_Count'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 start time year is 2025 (createdAt ms -> UTC conversion)",
+            Coyote_SQC_Parser_Tests.Test_V1_Start_Time'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 session model is empty when no model_change present",
+            Coyote_SQC_Parser_Tests.Test_V1_Model'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v1 session has no tool calls (failure flags empty)",
+            Coyote_SQC_Parser_Tests.Test_V1_Tool_Call_Flags'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: v3 start time year parsed correctly (UTC conversion)",
+            Coyote_SQC_Parser_Tests.Test_V3_Start_Time'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: thinking_tokens field parsed correctly",
+            Coyote_SQC_Parser_Tests.Test_Thinking_Tokens'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: Thinking_Enabled set for thinking block",
+            Coyote_SQC_Parser_Tests.Test_Thinking_Enabled'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: Thinking_Tokens=0 when field absent (backward compat)",
+            Coyote_SQC_Parser_Tests.Test_Thinking_Absent'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: Thinking_Tokens estimated from text length when usage field absent",
+            Coyote_SQC_Parser_Tests.Test_Thinking_Text_Estimate'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: tool-call Input_Tokens and Output_Tokens estimated from args and result text",
+            Coyote_SQC_Parser_Tests.Test_Tool_Call_Token_Estimates'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: both pre- and post-compaction turns counted",
+            Coyote_SQC_Parser_Tests.Test_Compaction_All_Turns'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: Encode_Cwd absolute path",
+            Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Absolute'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC: Encode_Cwd relative path",
+            Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Relative'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC Â§5.9: interior whitespace collapsed to single space",
+            Coyote_SQC_Parser_Tests.Test_Whitespace_Collapse'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC parser: Anthropic input_tokens normalized to total context window",
+            Coyote_SQC_Parser_Tests.Test_Anthropic_Input_Token_Normalization'
+              Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC parser: Parse_File sets File_Path on success",
+            Coyote_SQC_Parser_Tests.Test_Parse_File_Sets_File_Path'Access));
+      Result.Add_Test
+        (SQC_Parser_Caller.Create
+           ("SQC parser: Parse_File sets File_Mtime to non-epoch on success",
+            Coyote_SQC_Parser_Tests.Test_Parse_File_Sets_File_Mtime'Access));
 
       return Result;
    end Suite;

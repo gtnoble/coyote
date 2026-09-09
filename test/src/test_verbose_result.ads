@@ -13,28 +13,25 @@ package Test_Verbose_Result is
 
    type Verbose_Result is new AUnit.Test_Results.Result with private;
 
-   overriding
-   procedure Add_Success
+   overriding procedure Add_Success
      (R            : in out Verbose_Result;
-      Test_Name    : AUnit.Message_String;
-      Routine_Name : AUnit.Message_String;
-      Elapsed      : AUnit.Time_Measure.Time);
+      Test_Name    :        AUnit.Message_String;
+      Routine_Name :        AUnit.Message_String;
+      Elapsed      :        AUnit.Time_Measure.Time);
 
-   overriding
-   procedure Add_Failure
+   overriding procedure Add_Failure
      (R            : in out Verbose_Result;
-      Test_Name    : AUnit.Message_String;
-      Routine_Name : AUnit.Message_String;
-      Failure      : AUnit.Test_Results.Test_Failure;
-      Elapsed      : AUnit.Time_Measure.Time);
+      Test_Name    :        AUnit.Message_String;
+      Routine_Name :        AUnit.Message_String;
+      Failure      :        AUnit.Test_Results.Test_Failure;
+      Elapsed      :        AUnit.Time_Measure.Time);
 
-   overriding
-   procedure Add_Error
+   overriding procedure Add_Error
      (R            : in out Verbose_Result;
-      Test_Name    : AUnit.Message_String;
-      Routine_Name : AUnit.Message_String;
-      Error        : AUnit.Test_Results.Test_Error;
-      Elapsed      : AUnit.Time_Measure.Time);
+      Test_Name    :        AUnit.Message_String;
+      Routine_Name :        AUnit.Message_String;
+      Error        :        AUnit.Test_Results.Test_Error;
+      Elapsed      :        AUnit.Time_Measure.Time);
 
 private
    type Verbose_Result is new AUnit.Test_Results.Result with null record;

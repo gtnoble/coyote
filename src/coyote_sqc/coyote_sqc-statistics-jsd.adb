@@ -72,9 +72,7 @@ package body Coyote_SQC.Statistics.JSD is
 
    --  Add whitespace-delimited, lowercased tokens from Text to Map.
    procedure Add_Tokens
-     (Text  :        String;
-      Map   : in out Token_Maps.Map;
-      Total : in out Natural)
+     (Text : String; Map : in out Token_Maps.Map; Total : in out Natural)
    is
       Token : Unbounded_String;
 
@@ -84,13 +82,12 @@ package body Coyote_SQC.Statistics.JSD is
             return;
          end if;
          declare
-            K    : constant Unbounded_String :=
+            K    : constant Unbounded_String  :=
               To_Unbounded_String (To_Lower (To_String (Token)));
             Curs : constant Token_Maps.Cursor := Map.Find (K);
          begin
             if Token_Maps.Has_Element (Curs) then
-               Map.Replace_Element
-                 (Curs, Token_Maps.Element (Curs) + 1);
+               Map.Replace_Element (Curs, Token_Maps.Element (Curs) + 1);
             else
                Map.Insert (K, 1);
             end if;
@@ -101,8 +98,8 @@ package body Coyote_SQC.Statistics.JSD is
 
    begin
       for C of Text loop
-         if C = ' ' or else C = ASCII.HT
-           or else C = ASCII.LF or else C = ASCII.CR
+         if C = ' ' or else C = ASCII.HT or else C = ASCII.LF
+           or else C = ASCII.CR
          then
             Flush;
          else
@@ -115,8 +112,8 @@ package body Coyote_SQC.Statistics.JSD is
    --  Build a token frequency map from Tool_Name + whole Arguments blob.
    --  Used only by Token_Count.
    procedure Build_Map
-     (Tool_Name : String;
-      Arguments : String;
+     (Tool_Name :     String;
+      Arguments :     String;
       Map       : out Token_Maps.Map;
       N         : out Natural)
    is
@@ -136,9 +133,7 @@ package body Coyote_SQC.Statistics.JSD is
 
    --  Build a token frequency map from a plain text string.
    procedure Build_Map_From_Text
-     (Text : String;
-      Map  : out Token_Maps.Map;
-      N    : out Natural)
+     (Text : String; Map : out Token_Maps.Map; N : out Natural)
    is
    begin
       Map := Token_Maps.Empty_Map;
@@ -159,8 +154,7 @@ package body Coyote_SQC.Statistics.JSD is
       procedure Append_Value (V2 : GNATCOLL.JSON.JSON_Value);
 
       procedure Visit_Field
-        (Name  : GNATCOLL.JSON.UTF8_String;
-         Value : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Value : GNATCOLL.JSON.JSON_Value)
       is
          pragma Unreferenced (Name);
       begin
@@ -201,15 +195,18 @@ package body Coyote_SQC.Statistics.JSD is
 
    --  Compute JSD in bits (base-2) between two token maps.
    function Compute_D
-     (Map1 : Token_Maps.Map; N1 : Positive;
-      Map2 : Token_Maps.Map; N2 : Positive) return Long_Float
+     (Map1 : Token_Maps.Map;
+      N1   : Positive;
+      Map2 : Token_Maps.Map;
+      N2   : Positive)
+      return Long_Float
    is
       N   : constant Long_Float := Long_Float (N1 + N2);
-      Sum : Long_Float := 0.0;
+      Sum : Long_Float          := 0.0;
 
       function Token_Term (C1, C2 : Natural) return Long_Float is
          Mix : constant Natural := C1 + C2;
-         T   : Long_Float := 0.0;
+         T   : Long_Float       := 0.0;
       begin
          T := Long_Float (Mix) * Log (N / Long_Float (Mix));
          if C1 > 0 then
@@ -251,8 +248,11 @@ package body Coyote_SQC.Statistics.JSD is
    --  Compute the bias-corrected JSD similarity S for two token maps.
    --  Returns 0.0 when one side has zero tokens (absent / empty argument).
    function Compute_One_S
-     (Map1 : Token_Maps.Map; N1 : Natural;
-      Map2 : Token_Maps.Map; N2 : Natural) return Long_Float
+     (Map1 : Token_Maps.Map;
+      N1   : Natural;
+      Map2 : Token_Maps.Map;
+      N2   : Natural)
+      return Long_Float
    is
    begin
       if N1 = 0 or else N2 = 0 then
@@ -260,9 +260,8 @@ package body Coyote_SQC.Statistics.JSD is
       end if;
       declare
          N     : constant Long_Float := Long_Float (N1 + N2);
-         D     : constant Long_Float :=
-           Compute_D (Map1, N1, Map2, N2);
-         K_Eff : Natural := Natural (Map1.Length);
+         D     : constant Long_Float := Compute_D (Map1, N1, Map2, N2);
+         K_Eff : Natural             := Natural (Map1.Length);
          Bias  : Long_Float;
       begin
          for Pos in Map2.Iterate loop
@@ -281,7 +280,8 @@ package body Coyote_SQC.Statistics.JSD is
      (Tool_Name_1 : String;
       Arguments_1 : String;
       Tool_Name_2 : String;
-      Arguments_2 : String) return Long_Float
+      Arguments_2 : String)
+      return Long_Float
    is
       use type GNATCOLL.JSON.JSON_Value_Type;
       Parse_1 : constant GNATCOLL.JSON.Read_Result :=
@@ -290,22 +290,28 @@ package body Coyote_SQC.Statistics.JSD is
         GNATCOLL.JSON.Read (Arguments_2);
 
       JSON_1 : constant GNATCOLL.JSON.JSON_Value :=
-        (if Parse_1.Success and then
-            GNATCOLL.JSON.Kind (Parse_1.Value) = GNATCOLL.JSON.JSON_Object_Type
-         then Parse_1.Value
+        (if
+           Parse_1.Success
+           and then GNATCOLL.JSON.Kind (Parse_1.Value)
+             = GNATCOLL.JSON.JSON_Object_Type
+         then
+           Parse_1.Value
          else GNATCOLL.JSON.JSON_Null);
 
       JSON_2 : constant GNATCOLL.JSON.JSON_Value :=
-        (if Parse_2.Success and then
-            GNATCOLL.JSON.Kind (Parse_2.Value) = GNATCOLL.JSON.JSON_Object_Type
-         then Parse_2.Value
+        (if
+           Parse_2.Success
+           and then GNATCOLL.JSON.Kind (Parse_2.Value)
+             = GNATCOLL.JSON.JSON_Object_Type
+         then
+           Parse_2.Value
          else GNATCOLL.JSON.JSON_Null);
 
       Is_Obj_1 : constant Boolean :=
         GNATCOLL.JSON.Kind (JSON_1) = GNATCOLL.JSON.JSON_Object_Type;
       Is_Obj_2 : constant Boolean :=
         GNATCOLL.JSON.Kind (JSON_2) = GNATCOLL.JSON.JSON_Object_Type;
-      Sum     : Long_Float := 0.0;
+      Sum      : Long_Float       := 0.0;
 
       --  Track keys already processed from JSON_1 to avoid double-counting.
       --  We reuse Token_Maps as a string set (element values are unused).
@@ -325,14 +331,14 @@ package body Coyote_SQC.Statistics.JSD is
 
       --  Callback: process one key from JSON_1; record it in Seen.
       procedure Process_Key_1
-        (Name : GNATCOLL.JSON.UTF8_String;
-         Val1 : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Val1 : GNATCOLL.JSON.JSON_Value)
       is
-         Text1 : constant String :=
-           To_String (Extract_From_Value (Val1));
+         Text1 : constant String := To_String (Extract_From_Value (Val1));
          Text2 : constant String :=
-           (if Is_Obj_2 and then JSON_2.Has_Field (Name)
-            then To_String (Extract_From_Value (JSON_2.Get (Name)))
+           (if
+              Is_Obj_2 and then JSON_2.Has_Field (Name)
+            then
+              To_String (Extract_From_Value (JSON_2.Get (Name)))
             else "");
       begin
          Append_S_For_Texts (Text1, Text2);
@@ -341,20 +347,17 @@ package body Coyote_SQC.Statistics.JSD is
 
       --  Callback: process one key from JSON_2 not already in JSON_1.
       procedure Process_Key_2
-        (Name : GNATCOLL.JSON.UTF8_String;
-         Val2 : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Val2 : GNATCOLL.JSON.JSON_Value)
       is
       begin
          if not Seen.Contains (To_Unbounded_String (Name)) then
-            Append_S_For_Texts
-              ("", To_String (Extract_From_Value (Val2)));
+            Append_S_For_Texts ("", To_String (Extract_From_Value (Val2)));
          end if;
       end Process_Key_2;
 
    begin
       --  Step 1: tool-name comparison (always first).
-      Append_S_For_Texts
-        (To_Lower (Tool_Name_1), To_Lower (Tool_Name_2));
+      Append_S_For_Texts (To_Lower (Tool_Name_1), To_Lower (Tool_Name_2));
 
       --  Step 2: per-argument comparisons.
       if Is_Obj_1 then
@@ -379,9 +382,7 @@ package body Coyote_SQC.Statistics.JSD is
       return Sum;
    end Compute_S_Values;
 
-   function Token_Count
-     (Tool_Name : String;
-      Arguments : String) return Natural
+   function Token_Count (Tool_Name : String; Arguments : String) return Natural
    is
       Map : Token_Maps.Map;
       N   : Natural;

@@ -38,10 +38,10 @@ package Coyote_SQC.Statistics.MI is
    --  Result is not cleared before appending; the caller is responsible
    --  for initialising it.
    procedure Compute_MI_Values
-     (Tool_Name_1 : String;
-      Arguments_1 : String;
-      Tool_Name_2 : String;
-      Arguments_2 : String;
+     (Tool_Name_1 :        String;
+      Arguments_1 :        String;
+      Tool_Name_2 :        String;
+      Arguments_2 :        String;
       Result      : in out Coyote_SQC.Data_Model.Long_Float_Vectors.Vector);
 
 end Coyote_SQC.Statistics.MI;

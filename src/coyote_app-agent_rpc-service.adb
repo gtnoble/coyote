@@ -21,11 +21,12 @@ package body Coyote_App.Agent_RPC.Service is
    type Channel_Access is access all Channel;
 
    type Connection_Slot is record
-      Channel : Channel_Access := null;
+      Channel : Channel_Access   := null;
       Agent   : Unbounded_String := Null_Unbounded_String;
    end record;
 
-   type Connection_Slots is array (Positive range 1 .. Max_Connections)
+   type Connection_Slots is
+     array (Positive range 1 .. Max_Connections)
      of Connection_Slot;
 
    procedure Close_Connections (Slots : in out Connection_Slots) is
@@ -34,7 +35,7 @@ package body Coyote_App.Agent_RPC.Service is
          if Slot.Channel /= null then
             Close (Slot.Channel.all);
             Slot.Channel := null;
-            Slot.Agent := Null_Unbounded_String;
+            Slot.Agent   := Null_Unbounded_String;
          end if;
       end loop;
    end Close_Connections;
@@ -43,7 +44,7 @@ package body Coyote_App.Agent_RPC.Service is
       L        : Listener;
       Handler  : Frame_Handler := null;
       Slots    : Connection_Slots;
-      Stopping : Boolean := False;
+      Stopping : Boolean       := False;
 
       function Find_Free return Natural is
       begin
@@ -62,12 +63,10 @@ package body Coyote_App.Agent_RPC.Service is
          Ready  : Boolean;
       begin
          for Slot of Slots loop
-            if Slot.Channel /= null
-              and then Is_Open (Slot.Channel.all)
-            then
+            if Slot.Channel /= null and then Is_Open (Slot.Channel.all) then
                if Receive_Frame
-                 (Slot.Channel.all, Value, Status, Error,
-                  Timeout => 0.01, Ready => Ready)
+                   (Slot.Channel.all, Value, Status, Error, Timeout => 0.01,
+                    Ready                                           => Ready)
                  and then Ready
                then
                   if Value.Kind = Handshake then
@@ -77,7 +76,7 @@ package body Coyote_App.Agent_RPC.Service is
                   if Value.Kind = Terminal then
                      Close (Slot.Channel.all);
                      Slot.Channel := null;
-                     Slot.Agent := Null_Unbounded_String;
+                     Slot.Agent   := Null_Unbounded_String;
                   end if;
                elsif Ready then
                   if Length (Slot.Agent) > 0 then
@@ -88,21 +87,19 @@ package body Coyote_App.Agent_RPC.Service is
                               Status     => Disconnected,
                               Error_Text => To_String (Error)));
                      exception
-                        when others => null;
+                        when others =>
+                           null;
                      end;
                   end if;
                   Close (Slot.Channel.all);
                   Slot.Channel := null;
-                  Slot.Agent := Null_Unbounded_String;
+                  Slot.Agent   := Null_Unbounded_String;
                end if;
             end if;
          end loop;
       end Poll_Connections;
    begin
-      accept Start
-        (Path :  String;
-         Callback : not null Frame_Handler)
-      do
+      accept Start (Path : String; Callback : not null Frame_Handler) do
          Handler := Callback;
          Create_Listener (L, Path);
       end Start;
@@ -110,10 +107,10 @@ package body Coyote_App.Agent_RPC.Service is
       while not Stopping loop
          select
             accept Send_Command
-              (Agent_Id   : String;
-               Request_Id : String;
-               Command    : Coyote_App.Agent_RPC.Command_Kind;
-               Payload    : String;
+              (Agent_Id   :     String;
+               Request_Id :     String;
+               Command    :     Coyote_App.Agent_RPC.Command_Kind;
+               Payload    :     String;
                Sent       : out Boolean)
             do
                Sent := False;
@@ -145,9 +142,9 @@ package body Coyote_App.Agent_RPC.Service is
 
          if not Stopping then
             declare
-               Slot_Index : constant Natural := Find_Free;
-               New_Channel : Channel_Access := null;
-               Accepted : Boolean := False;
+               Slot_Index  : constant Natural := Find_Free;
+               New_Channel : Channel_Access   := null;
+               Accepted    : Boolean          := False;
             begin
                if Slot_Index > 0 then
                   New_Channel := new Channel;
@@ -159,7 +156,7 @@ package body Coyote_App.Agent_RPC.Service is
                         Accepted => Accepted);
                      if Accepted then
                         Slots (Slot_Index).Channel := New_Channel;
-                        Slots (Slot_Index).Agent := Null_Unbounded_String;
+                        Slots (Slot_Index).Agent   := Null_Unbounded_String;
                      else
                         Close (New_Channel.all);
                         New_Channel := null;
@@ -182,9 +179,7 @@ package body Coyote_App.Agent_RPC.Service is
    end Service_Task;
 
    procedure Start
-     (S       : in out Service;
-      Path    : String;
-      Handler : not null Frame_Handler)
+     (S : in out Service; Path : String; Handler : not null Frame_Handler)
    is
    begin
       if S.Running then
@@ -192,20 +187,20 @@ package body Coyote_App.Agent_RPC.Service is
       end if;
       S.Worker.Start (Path, Handler);
       S.Endpoint := To_Unbounded_String (Path);
-      S.Running := True;
+      S.Running  := True;
    exception
       when E : Service_Error =>
          raise;
-      when E : others =>
+      when E : others        =>
          raise Service_Error with Ada.Exceptions.Exception_Message (E);
    end Start;
 
    procedure Send_Command
      (S          : in out Service;
-      Agent_Id   : String;
-      Request_Id : String;
-      Command    : Coyote_App.Agent_RPC.Command_Kind;
-      Payload    : String := "{}")
+      Agent_Id   :        String;
+      Request_Id :        String;
+      Command    :        Coyote_App.Agent_RPC.Command_Kind;
+      Payload    :        String := "{}")
    is
       Sent : Boolean;
    begin
@@ -224,7 +219,7 @@ package body Coyote_App.Agent_RPC.Service is
    exception
       when E : Service_Error =>
          raise;
-      when E : others =>
+      when E : others        =>
          raise Service_Error with Ada.Exceptions.Exception_Message (E);
    end Send_Command;
 
@@ -237,7 +232,7 @@ package body Coyote_App.Agent_RPC.Service is
       S.Endpoint := Null_Unbounded_String;
    exception
       when E : others =>
-         S.Running := False;
+         S.Running  := False;
          S.Endpoint := Null_Unbounded_String;
          raise Service_Error with Ada.Exceptions.Exception_Message (E);
    end Stop;

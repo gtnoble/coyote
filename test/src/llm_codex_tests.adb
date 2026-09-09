@@ -46,9 +46,9 @@ package body LLM_Codex_Tests is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
-      return Long_Long_Integer ((Clock - Epoch) * 1000.0);
+      return Long_Long_Integer ((Clock - Epoch) * 1_000.0);
    end Current_Unix_Ms;
 
    procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
@@ -146,27 +146,25 @@ package body LLM_Codex_Tests is
       Text     : constant String :=
         "{""https://api.openai.com/auth"":{""chatgpt_account_id"":"""
         & Account_Id & """}}";
-      Group    : Unsigned := 0;
-      Bits     : Natural := 0;
+      Group    : Unsigned        := 0;
+      Bits     : Natural         := 0;
    begin
       for Char of Text loop
          Group := Group * 256 + Unsigned (Character'Pos (Char));
-         Bits := Bits + 8;
+         Bits  := Bits + 8;
          while Bits >= 6 loop
             Bits := Bits - 6;
             Append
               (Encoded,
-               Alphabet
-                 (Natural ((Group / 2 ** Bits) mod 64) + Alphabet'First));
+               Alphabet (Natural ((Group / 2**Bits) mod 64) + Alphabet'First));
          end loop;
-         Group := Group mod 2 ** Bits;
+         Group := Group mod 2**Bits;
       end loop;
       if Bits > 0 then
          Append
            (Encoded,
             Alphabet
-              (Natural ((Group * 2 ** (6 - Bits)) mod 64)
-               + Alphabet'First));
+              (Natural ((Group * 2**(6 - Bits)) mod 64) + Alphabet'First));
       end if;
 
       return "header." & To_String (Encoded) & ".signature";
@@ -175,26 +173,20 @@ package body LLM_Codex_Tests is
    procedure Test_Make_Pkce (T : in out Test) is
       pragma Unreferenced (T);
 
-      Verifier  : Unbounded_String;
-      Challenge : Unbounded_String;
-      Verifier2 : Unbounded_String;
+      Verifier   : Unbounded_String;
+      Challenge  : Unbounded_String;
+      Verifier2  : Unbounded_String;
       Challenge2 : Unbounded_String;
    begin
       LLM.Auth.Codex.Make_Pkce (Verifier, Challenge);
       LLM.Auth.Codex.Make_Pkce (Verifier2, Challenge2);
 
-      Assert
-        (Length (Verifier) = 43,
-         "PKCE verifier should be 43 characters");
+      Assert (Length (Verifier) = 43, "PKCE verifier should be 43 characters");
       Assert
         (Length (Challenge) = 43,
          "S256 challenge should be 43 base64url characters (no padding)");
-      Assert
-        (Verifier /= Verifier2,
-         "Two verifiers should differ");
-      Assert
-        (Challenge /= Challenge2,
-         "Two challenges should differ");
+      Assert (Verifier /= Verifier2, "Two verifiers should differ");
+      Assert (Challenge /= Challenge2, "Two challenges should differ");
       for C of To_String (Challenge) loop
          Assert
            (C /= '=' and then C /= '+' and then C /= '/',
@@ -221,8 +213,7 @@ package body LLM_Codex_Tests is
       pragma Unreferenced (T);
 
       Url : constant String :=
-        LLM.Auth.Codex.Build_Authorize_Url
-          ("challenge-value", "state-value");
+        LLM.Auth.Codex.Build_Authorize_Url ("challenge-value", "state-value");
    begin
       Assert
         (Contains (Url, "https://auth.openai.com/oauth/authorize?"),
@@ -231,7 +222,9 @@ package body LLM_Codex_Tests is
         (Contains (Url, "client_id=app_EMoamEEZ73f0CkXaXp7hrann"),
          "Authorize URL should carry the Codex client id");
       Assert
-        (Contains (Url, "redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"),
+        (Contains
+           (Url,
+            "redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"),
          "Authorize URL should encode the localhost callback");
       Assert
         (Contains (Url, "code_challenge_method=S256"),
@@ -267,32 +260,29 @@ package body LLM_Codex_Tests is
 
       Now : constant Long_Long_Integer := Current_Unix_Ms;
    begin
-      Assert
-        (LLM.Auth.Codex.Token_Expired
-           ((Expires_Ms => Now - 1, others => <>)),
-         "Past expiry should be reported expired");
-      Assert
-        (LLM.Auth.Codex.Token_Expired
-           ((Expires_Ms => Now + 240_000, others => <>)),
-         "Tokens within five minutes should refresh");
-      Assert
-        (not LLM.Auth.Codex.Token_Expired
-           ((Expires_Ms => Now + 360_000, others => <>)),
-         "Tokens valid for six minutes should stay");
+      Assert (LLM.Auth.Codex.Token_Expired
+           ((Expires_Ms => Now - 1,
+             others     => <>)), "Past expiry should be reported expired");
+      Assert (LLM.Auth.Codex.Token_Expired
+           ((Expires_Ms => Now + 240_000,
+             others     => <>)), "Tokens within five minutes should refresh");
+      Assert (not LLM.Auth.Codex.Token_Expired
+           ((Expires_Ms => Now + 360_000,
+             others     => <>)), "Tokens valid for six minutes should stay");
    end Test_Token_Expired;
 
    procedure Test_Refresh_Token (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port         : constant Positive := 18_809;
+      Port         : constant Positive             := 18_809;
       Home         : constant String := "/tmp/coyote_codex_auth_test_1";
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set : constant Boolean              :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String               :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Url_Was_Set  : constant Boolean :=
+      Url_Was_Set  : constant Boolean              :=
         Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
-      Old_Url      : constant String :=
+      Old_Url      : constant String               :=
         Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
       Creds        : LLM.Auth.Provider_Credentials :=
         (Credential_Type => To_Unbounded_String ("oauth"),
@@ -303,8 +293,7 @@ package body LLM_Codex_Tests is
       Saved        : LLM.Auth.Provider_Credentials;
 
       procedure Refresh_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Body_Text : constant String := To_String (Req.Body_Data);
       begin
@@ -312,8 +301,7 @@ package body LLM_Codex_Tests is
            (To_String (Req.Path) = "/oauth/token",
             "Refresh request should target the token endpoint");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Content-Type")
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Content-Type")
             = "application/x-www-form-urlencoded",
             "Refresh request should be form-urlencoded");
          Assert
@@ -327,7 +315,7 @@ package body LLM_Codex_Tests is
             "Refresh request should carry the client id");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
-           = "coyote/0.1.0-dev",
+            = "coyote/0.1.0-dev",
             "Refresh request should carry the coyote User-Agent");
          Res.Status := 200;
          Res.Headers.Append
@@ -339,8 +327,9 @@ package body LLM_Codex_Tests is
          Append (Res.Body_Data, """expires_in"":3600}");
       end Refresh_Handler;
 
-      Srv : Test_HTTP_Server.Server
-        (Handler => Refresh_Handler'Unrestricted_Access);
+      Srv :
+        Test_HTTP_Server.Server
+          (Handler => Refresh_Handler'Unrestricted_Access);
 
    begin
       Srv.Bind (Port);
@@ -359,10 +348,10 @@ package body LLM_Codex_Tests is
 
       Assert
         (Contains (To_String (Creds.Access_Token), "acc-new")
-          or else Contains
-            (LLM.Auth.Codex.Account_Id_From_Jwt
-               (To_String (Creds.Access_Token)),
-             "acc-new"),
+         or else Contains
+           (LLM.Auth.Codex.Account_Id_From_Jwt
+              (To_String (Creds.Access_Token)),
+            "acc-new"),
          "Refresh should update the access token");
       Assert
         (To_String (Creds.Account_Id) = "acc-new",
@@ -377,8 +366,7 @@ package body LLM_Codex_Tests is
         (To_String (Saved.Account_Id) = "acc-new",
          "Refresh should persist the refreshed account id");
       Assert
-        (Contains
-           (Read_File (Home & "/.coyote/auth.json"), """accountId"":"),
+        (Contains (Read_File (Home & "/.coyote/auth.json"), """accountId"":"),
          "auth.json should carry the account id field");
 
       Restore_Env ("COYOTE_CODEX_TOKEN_URL", Url_Was_Set, Old_Url);
@@ -402,26 +390,25 @@ package body LLM_Codex_Tests is
       Response_Body : String;
       Expected_Part : String)
    is
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set  : constant Boolean              :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home      : constant String               :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Url_Was_Set  : constant Boolean :=
+      Url_Was_Set   : constant Boolean              :=
         Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
-      Old_Url      : constant String :=
+      Old_Url       : constant String               :=
         Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
-      Creds        : LLM.Auth.Provider_Credentials :=
+      Creds         : LLM.Auth.Provider_Credentials :=
         (Credential_Type => To_Unbounded_String ("oauth"),
          Refresh_Token   => To_Unbounded_String ("refresh-token"),
          Access_Token    => To_Unbounded_String ("expired-token"),
          Expires_Ms      => 0,
          Account_Id      => Null_Unbounded_String);
-      Raised       : Boolean := False;
+      Raised        : Boolean                       := False;
       Error_Message : Unbounded_String;
 
       procedure Failure_Handler
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -432,8 +419,9 @@ package body LLM_Codex_Tests is
          Append (Res.Body_Data, Response_Body);
       end Failure_Handler;
 
-      Srv : Test_HTTP_Server.Server
-        (Handler => Failure_Handler'Unrestricted_Access);
+      Srv :
+        Test_HTTP_Server.Server
+          (Handler => Failure_Handler'Unrestricted_Access);
 
    begin
       Srv.Bind (Port);
@@ -449,7 +437,7 @@ package body LLM_Codex_Tests is
          LLM.Auth.Codex.Refresh_Token (Creds);
       exception
          when E : LLM.Auth.Codex.Auth_Error =>
-            Raised := True;
+            Raised        := True;
             Error_Message :=
               To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
       end;
@@ -501,13 +489,12 @@ package body LLM_Codex_Tests is
 
    --  Event sequence collector shared by the streaming Send tests.
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
+     (Index_Type => Positive, Element_Type => String);
 
    type Event_Collector is record
       Sequence   : String_Vectors.Vector;
       Last_Stop  : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Usage      : LLM.Types.Usage := (others => 0);
+      Usage      : LLM.Types.Usage       := (others => 0);
       Last_Error : Unbounded_String;
    end record;
 
@@ -516,8 +503,8 @@ package body LLM_Codex_Tests is
    procedure Reset_Collector is
    begin
       Current_Collector.Sequence.Clear;
-      Current_Collector.Last_Stop := LLM.Types.Unknown_Stop;
-      Current_Collector.Usage := (others => 0);
+      Current_Collector.Last_Stop  := LLM.Types.Unknown_Stop;
+      Current_Collector.Usage      := (others => 0);
       Current_Collector.Last_Error := Null_Unbounded_String;
    end Reset_Collector;
 
@@ -532,8 +519,8 @@ package body LLM_Codex_Tests is
             Event : constant LLM.Events.Message_End_Event :=
               LLM.Events.Message_End_Event (E);
          begin
-            Current_Collector.Last_Stop := Event.Stop;
-            Current_Collector.Usage := Event.Tok_Usage;
+            Current_Collector.Last_Stop  := Event.Stop;
+            Current_Collector.Usage      := Event.Tok_Usage;
             Current_Collector.Last_Error := Event.Err_Msg;
             Current_Collector.Sequence.Append ("message_end");
          end;
@@ -588,13 +575,12 @@ package body LLM_Codex_Tests is
    function SSE_Event (Event_Type : String; Data : String) return String is
    begin
       return
-        "event: " & Event_Type & ASCII.LF
-        & "data: " & Data & ASCII.LF & ASCII.LF;
+        "event: " & Event_Type & ASCII.LF & "data: " & Data & ASCII.LF
+        & ASCII.LF;
    end SSE_Event;
 
    function SSE_Event
-     (Event_Type : String;
-      Data       : GNATCOLL.JSON.JSON_Value) return String
+     (Event_Type : String; Data : GNATCOLL.JSON.JSON_Value) return String
    is
    begin
       return SSE_Event (Event_Type, GNATCOLL.JSON.Write (Data));
@@ -610,7 +596,8 @@ package body LLM_Codex_Tests is
       Messages.Append
         ((Role      => LLM.Types.User,
           Content   => Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       return Messages;
@@ -622,11 +609,9 @@ package body LLM_Codex_Tests is
    begin
       Write_File
         (Home & "/.coyote/auth.json",
-         "{""codex"":{"
-         & """type"":""oauth"","
-         & """refresh"":""codex-refresh"","
-         & """access"":""" & Sample_Jwt (Account_Id) & ""","
-         & """expires"":9999999999000,"
+         "{""codex"":{" & """type"":""oauth"","
+         & """refresh"":""codex-refresh""," & """access"":"""
+         & Sample_Jwt (Account_Id) & """," & """expires"":9999999999000,"
          & """accountId"":""" & Account_Id & """}}");
    end Write_Credentials;
 
@@ -666,15 +651,15 @@ package body LLM_Codex_Tests is
    function Build_Text_SSE (Text : String) return String is
       use GNATCOLL.JSON;
 
-      Created  : constant JSON_Value := Create_Object;
+      Created   : constant JSON_Value := Create_Object;
       Delta_Val : constant JSON_Value := Create_Object;
-      Item     : constant JSON_Value := Create_Object;
-      Part     : constant JSON_Value := Create_Object;
-      Content  : JSON_Array := Empty_Array;
-      Output   : JSON_Array := Empty_Array;
-      Response : constant JSON_Value := Create_Object;
-      Usage    : constant JSON_Value := Create_Object;
-      Done     : constant JSON_Value := Create_Object;
+      Item      : constant JSON_Value := Create_Object;
+      Part      : constant JSON_Value := Create_Object;
+      Content   : JSON_Array          := Empty_Array;
+      Output    : JSON_Array          := Empty_Array;
+      Response  : constant JSON_Value := Create_Object;
+      Usage     : constant JSON_Value := Create_Object;
+      Done      : constant JSON_Value := Create_Object;
    begin
       Created.Set_Field ("type", "response.created");
       Item.Set_Field ("id", "msg_test");
@@ -702,7 +687,8 @@ package body LLM_Codex_Tests is
       Response.Set_Field ("usage", Usage);
       Done.Set_Field ("type", "response.completed");
       Done.Set_Field ("response", Response);
-      return SSE_Event ("response.created", Created)
+      return
+        SSE_Event ("response.created", Created)
         & SSE_Event ("response.output_text.delta", Delta_Val)
         & SSE_Event ("response.completed", Done);
    end Build_Text_SSE;
@@ -710,60 +696,57 @@ package body LLM_Codex_Tests is
    procedure Test_Send_Adds_Codex_Headers (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_201;
-      Home     : constant String := "/tmp/coyote_codex_send_1";
-      Provider : LLM.Providers.Codex.Provider :=
+      Port        : constant Positive                         := 19_201;
+      Home        : constant String := "/tmp/coyote_codex_send_1";
+      Provider    : LLM.Providers.Codex.Provider              :=
         LLM.Providers.Codex.Create (Session_Id => "sess-1234");
-      Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Saw_Headers : Boolean := False;
+      Messages    : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Saw_Headers : Boolean                                   := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
       begin
          Assert
            (To_String (Req.Path) = "/codex/responses",
-            "Expected path /codex/responses, got: "
-            & To_String (Req.Path));
+            "Expected path /codex/responses, got: " & To_String (Req.Path));
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "chatgpt-account-id") = "acc-xyz",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "chatgpt-account-id")
+            = "acc-xyz",
             "Expected chatgpt-account-id header");
          Assert
-           (Test_HTTP_Server.Get_Header (Req.Headers, "originator")
-              = "coyote",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "originator") = "coyote",
             "Expected originator coyote");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "session-id")
-              = "sess-1234",
+            = "sess-1234",
             "Expected session-id header");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "x-client-request-id") = "sess-1234",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "x-client-request-id")
+            = "sess-1234",
             "Expected x-client-request-id header");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "OpenAI-Beta")
-              = "responses=experimental",
+            = "responses=experimental",
             "Expected OpenAI-Beta responses=experimental");
          Assert
            (Contains
-              (Test_HTTP_Server.Get_Header
-                 (Req.Headers, "Authorization"),
+              (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization"),
                "Bearer "),
             "Expected bearer authorization");
          Assert
            (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
-              = "coyote/0.1.0-dev",
+            = "coyote/0.1.0-dev",
             "Expected coyote User-Agent");
          Saw_Headers := True;
-         Res.Status := 200;
+         Res.Status  := 200;
          Append (Res.Body_Data, Build_Text_SSE ("ok"));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
@@ -776,9 +759,7 @@ package body LLM_Codex_Tests is
 
       Srv.Bind (Port);
       Send_With_Retry
-        (P        => Provider,
-         Model_Id => "gpt-5.5",
-         Messages => Messages);
+        (P => Provider, Model_Id => "gpt-5.5", Messages => Messages);
       Srv.Stop;
       Server_Stopped := True;
 
@@ -798,10 +779,10 @@ package body LLM_Codex_Tests is
       pragma Unreferenced (T);
 
       Home     : constant String := "/tmp/coyote_codex_send_2";
-      Provider : LLM.Providers.Codex.Provider :=
+      Provider : LLM.Providers.Codex.Provider              :=
         LLM.Providers.Codex.Create (Session_Id => "s");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Raised   : Boolean := False;
+      Raised   : Boolean                                   := False;
       Msg      : Unbounded_String;
    begin
       Cleanup_Test_Home (Home);
@@ -820,8 +801,7 @@ package body LLM_Codex_Tests is
       exception
          when E : Constraint_Error =>
             Raised := True;
-            Msg := To_Unbounded_String
-              (Ada.Exceptions.Exception_Message (E));
+            Msg := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
       end;
 
       Assert (Raised, "Send without credentials should raise");
@@ -841,10 +821,10 @@ package body LLM_Codex_Tests is
       pragma Unreferenced (T);
 
       Home     : constant String := "/tmp/coyote_codex_send_3";
-      Provider : LLM.Providers.Codex.Provider :=
+      Provider : LLM.Providers.Codex.Provider              :=
         LLM.Providers.Codex.Create (Session_Id => "s");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Raised   : Boolean := False;
+      Raised   : Boolean                                   := False;
       Msg      : Unbounded_String;
    begin
       Cleanup_Test_Home (Home);
@@ -868,8 +848,7 @@ package body LLM_Codex_Tests is
       exception
          when E : Constraint_Error =>
             Raised := True;
-            Msg := To_Unbounded_String
-              (Ada.Exceptions.Exception_Message (E));
+            Msg := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
       end;
 
       Assert (Raised, "Send without account claim should raise");
@@ -887,17 +866,16 @@ package body LLM_Codex_Tests is
    procedure Test_Stream_Text_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_204;
+      Port     : constant Positive                         := 19_204;
       Home     : constant String := "/tmp/coyote_codex_send_4";
-      Provider : LLM.Providers.Codex.Provider :=
+      Provider : LLM.Providers.Codex.Provider              :=
         LLM.Providers.Codex.Create (Session_Id => "sess-stream");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
-         Parsed : constant GNATCOLL.JSON.Read_Result :=
+         Parsed  : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
          Body_JS : GNATCOLL.JSON.JSON_Value;
          Input   : GNATCOLL.JSON.JSON_Array;
@@ -913,7 +891,7 @@ package body LLM_Codex_Tests is
             "Codex requests should omit max_output_tokens");
          Assert
            (not Body_JS.Has_Field ("store")
-              or else not Boolean'(Body_JS.Get ("store").Get),
+            or else not Boolean'(Body_JS.Get ("store").Get),
             "store must not be true");
          Assert
            (Json_String (Body_JS.Get ("instructions")) = "Be helpful.",
@@ -925,8 +903,7 @@ package body LLM_Codex_Tests is
            (Body_JS.Has_Field ("prompt_cache_key"),
             "prompt_cache_key should carry the session id");
          Assert
-           (Json_String (Body_JS.Get ("prompt_cache_key"))
-            = "sess-stream",
+           (Json_String (Body_JS.Get ("prompt_cache_key")) = "sess-stream",
             "prompt_cache_key should equal the session id");
          Input := Body_JS.Get ("input").Get;
          Assert
@@ -935,15 +912,16 @@ package body LLM_Codex_Tests is
          Include := Body_JS.Get ("include").Get;
          Assert
            (Json_String (GNATCOLL.JSON.Get (Include, 1))
-              = "reasoning.encrypted_content",
+            = "reasoning.encrypted_content",
             "include should request encrypted reasoning");
          Res.Status := 200;
          Append (Res.Body_Data, Build_Text_SSE ("hello codex"));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
@@ -955,15 +933,12 @@ package body LLM_Codex_Tests is
 
       Srv.Bind (Port);
       Send_With_Retry
-        (P        => Provider,
-         Model_Id => "gpt-5.5",
-         Messages => Messages);
+        (P => Provider, Model_Id => "gpt-5.5", Messages => Messages);
       Srv.Stop;
       Server_Stopped := True;
 
       Assert
-        (Current_Collector.Sequence.Find_Index
-           ("text_delta:hello codex") > 0,
+        (Current_Collector.Sequence.Find_Index ("text_delta:hello codex") > 0,
          "Text delta should arrive: " & Sequence_Image);
       Assert
         (Current_Collector.Last_Stop = LLM.Types.Stop,
@@ -981,32 +956,31 @@ package body LLM_Codex_Tests is
    procedure Test_Stream_Thinking_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_205;
-      Home     : constant String := "/tmp/coyote_codex_send_5";
+      Port     : constant Positive            := 19_205;
+      Home     : constant String              := "/tmp/coyote_codex_send_5";
       Provider : LLM.Providers.Codex.Provider :=
         LLM.Providers.Codex.Create (Session_Id => "s");
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
 
-         Parsed     : constant GNATCOLL.JSON.Read_Result :=
+         Parsed       : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
-         Reasoning  : JSON_Value;
-         Reason_Delta : constant JSON_Value := Create_Object;
-         Text_Delta : constant JSON_Value := Create_Object;
-         R_Item     : constant JSON_Value := Create_Object;
-         M_Item     : constant JSON_Value := Create_Object;
-         Part       : constant JSON_Value := Create_Object;
-         Content    : JSON_Array := Empty_Array;
-         Output     : JSON_Array := Empty_Array;
-         Response   : constant JSON_Value := Create_Object;
-         Usage      : constant JSON_Value := Create_Object;
-         Input_Det  : constant JSON_Value := Create_Object;
-         Output_Det : constant JSON_Value := Create_Object;
-         Completed  : constant JSON_Value := Create_Object;
+         Reasoning    : JSON_Value;
+         Reason_Delta : constant JSON_Value                := Create_Object;
+         Text_Delta   : constant JSON_Value                := Create_Object;
+         R_Item       : constant JSON_Value                := Create_Object;
+         M_Item       : constant JSON_Value                := Create_Object;
+         Part         : constant JSON_Value                := Create_Object;
+         Content      : JSON_Array                         := Empty_Array;
+         Output       : JSON_Array                         := Empty_Array;
+         Response     : constant JSON_Value                := Create_Object;
+         Usage        : constant JSON_Value                := Create_Object;
+         Input_Det    : constant JSON_Value                := Create_Object;
+         Output_Det   : constant JSON_Value                := Create_Object;
+         Completed    : constant JSON_Value                := Create_Object;
       begin
          Assert (Parsed.Success, "parse body");
          Reasoning := GNATCOLL.JSON.Create_Object;
@@ -1016,8 +990,7 @@ package body LLM_Codex_Tests is
             "reasoning field should be present when thinking requested");
          pragma Unreferenced (Reasoning);
 
-         Reason_Delta.Set_Field
-           ("type", "response.reasoning_text.delta");
+         Reason_Delta.Set_Field ("type", "response.reasoning_text.delta");
          Reason_Delta.Set_Field ("item_id", "rs_test");
          Reason_Delta.Set_Field ("delta", "pondering");
          Text_Delta.Set_Field ("type", "response.output_text.delta");
@@ -1056,8 +1029,9 @@ package body LLM_Codex_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
@@ -1077,12 +1051,11 @@ package body LLM_Codex_Tests is
       Server_Stopped := True;
 
       Assert
-        (Current_Collector.Sequence.Find_Index
-           ("thinking_delta:pondering") > 0,
+        (Current_Collector.Sequence.Find_Index ("thinking_delta:pondering")
+         > 0,
          "Thinking delta should arrive: " & Sequence_Image);
       Assert
-        (Current_Collector.Sequence.Find_Index
-           ("thinking_end:") > 0,
+        (Current_Collector.Sequence.Find_Index ("thinking_end:") > 0,
          "Thinking end should carry the encrypted signature");
       Assert
         (Current_Collector.Usage.Thinking = 5,
@@ -1103,15 +1076,15 @@ package body LLM_Codex_Tests is
 
       --  Covered by Test_Stream_Text_Response's handler assertions;
       --  this test pins the registry catalogue instead.
-      Home     : constant String := "/tmp/coyote_codex_registry";
-      Home_Was_Set : constant Boolean :=
+      Home          : constant String  := "/tmp/coyote_codex_registry";
+      Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Model    : LLM.Model_Registry.Model_Info;
-      Available : LLM.Model_Registry.Model_Info_Vectors.Vector;
-      Found_Default : Boolean := False;
-      Raised : Boolean := False;
+      Model         : LLM.Model_Registry.Model_Info;
+      Available     : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Found_Default : Boolean          := False;
+      Raised        : Boolean          := False;
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
@@ -1129,7 +1102,7 @@ package body LLM_Codex_Tests is
               and then To_String (Item.Model_Id) = "gpt-5.5"
             then
                Found_Default := True;
-               Model := Item;
+               Model         := Item;
             end if;
          end loop;
          Assert
@@ -1160,9 +1133,7 @@ package body LLM_Codex_Tests is
          when LLM.Model_Registry.Not_Found =>
             Raised := True;
       end;
-      Assert
-        (Raised,
-         "Unknown codex ids should raise Not_Found");
+      Assert (Raised, "Unknown codex ids should raise Not_Found");
 
       Cleanup_Test_Home (Home);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1176,16 +1147,15 @@ package body LLM_Codex_Tests is
    procedure Test_Registry_Refresh (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home     : constant String := "/tmp/coyote_codex_registry2";
+      Home         : constant String  := "/tmp/coyote_codex_registry2";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Available : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Available    : LLM.Model_Registry.Model_Info_Vectors.Vector;
 
       function Count_Codex
-        (Models : LLM.Model_Registry.Model_Info_Vectors.Vector)
-         return Natural
+        (Models : LLM.Model_Registry.Model_Info_Vectors.Vector) return Natural
       is
          Result : Natural := 0;
       begin
@@ -1224,58 +1194,72 @@ package body LLM_Codex_Tests is
          raise;
    end Test_Registry_Refresh;
 
-   package LLM_Codex_Caller is
-     new AUnit.Test_Caller (LLM_Codex_Tests.Test);
+   package LLM_Codex_Caller is new AUnit.Test_Caller (LLM_Codex_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex generates 43-character PKCE pairs",
-         LLM_Codex_Tests.Test_Make_Pkce'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex generates 32-character hex states",
-         LLM_Codex_Tests.Test_New_State'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex builds the authorize URL with coyote originator",
-         LLM_Codex_Tests.Test_Build_Authorize_Url'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex extracts the account id from the JWT claim",
-         LLM_Codex_Tests.Test_Account_Id_From_Jwt'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex detects expiring tokens",
-         LLM_Codex_Tests.Test_Token_Expired'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex refreshes and persists rotated tokens",
-         LLM_Codex_Tests.Test_Refresh_Token'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex raises on non-200 refresh responses",
-         LLM_Codex_Tests.Test_Refresh_Token_Non_200_Raises'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Auth.Codex raises when refresh response misses fields",
-         LLM_Codex_Tests.Test_Refresh_Token_Missing_Fields_Raises'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Providers.Codex sends the Codex headers and endpoint",
-         LLM_Codex_Tests.Test_Send_Adds_Codex_Headers'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Providers.Codex rejects sends without credentials",
-         LLM_Codex_Tests.Test_Send_Requires_Credentials'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Providers.Codex rejects sends without the account claim",
-         LLM_Codex_Tests.Test_Send_Requires_Account_Claim'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Providers.Codex streams Responses text and body shape",
-         LLM_Codex_Tests.Test_Stream_Text_Response'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Providers.Codex streams thinking with encrypted replay",
-         LLM_Codex_Tests.Test_Stream_Thinking_Response'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Model_Registry defaults unknown codex ids to Responses",
-         LLM_Codex_Tests.Test_Body_Omits_Store'Access));
-      Result.Add_Test (LLM_Codex_Caller.Create
-        ("LLM.Model_Registry lists codex models only when logged in",
-         LLM_Codex_Tests.Test_Registry_Refresh'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex generates 43-character PKCE pairs",
+            LLM_Codex_Tests.Test_Make_Pkce'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex generates 32-character hex states",
+            LLM_Codex_Tests.Test_New_State'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex builds the authorize URL with coyote originator",
+            LLM_Codex_Tests.Test_Build_Authorize_Url'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex extracts the account id from the JWT claim",
+            LLM_Codex_Tests.Test_Account_Id_From_Jwt'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex detects expiring tokens",
+            LLM_Codex_Tests.Test_Token_Expired'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex refreshes and persists rotated tokens",
+            LLM_Codex_Tests.Test_Refresh_Token'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex raises on non-200 refresh responses",
+            LLM_Codex_Tests.Test_Refresh_Token_Non_200_Raises'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex raises when refresh response misses fields",
+            LLM_Codex_Tests.Test_Refresh_Token_Missing_Fields_Raises'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex sends the Codex headers and endpoint",
+            LLM_Codex_Tests.Test_Send_Adds_Codex_Headers'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex rejects sends without credentials",
+            LLM_Codex_Tests.Test_Send_Requires_Credentials'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex rejects sends without the account claim",
+            LLM_Codex_Tests.Test_Send_Requires_Account_Claim'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex streams Responses text and body shape",
+            LLM_Codex_Tests.Test_Stream_Text_Response'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex streams thinking with encrypted replay",
+            LLM_Codex_Tests.Test_Stream_Thinking_Response'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Model_Registry defaults unknown codex ids to Responses",
+            LLM_Codex_Tests.Test_Body_Omits_Store'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Model_Registry lists codex models only when logged in",
+            LLM_Codex_Tests.Test_Registry_Refresh'Access));
 
       return Result;
    end Suite;

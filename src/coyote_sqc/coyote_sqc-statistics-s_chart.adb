@@ -10,8 +10,7 @@ package body Coyote_SQC.Statistics.S_Chart is
    use Ada.Numerics.Long_Elementary_Functions;
 
    function Compute_Limits
-     (Pooled_S : Long_Float;
-      N        : Positive) return Limits_Record
+     (Pooled_S : Long_Float; N : Positive) return Limits_Record
    is
    begin
       if N = 1 then
@@ -35,8 +34,7 @@ package body Coyote_SQC.Statistics.S_Chart is
 
       declare
          C4_N    : constant Long_Float := C4.C4 (N);
-         Half_W  : constant Long_Float :=
-           3.0 * Pooled_S * Sqrt (1.0 - C4_N ** 2);
+         Half_W : constant Long_Float := 3.0 * Pooled_S * Sqrt (1.0 - C4_N**2);
          LCL_Val : constant Long_Float :=
            Long_Float'Max (0.0, C4_N * Pooled_S - Half_W);
       begin

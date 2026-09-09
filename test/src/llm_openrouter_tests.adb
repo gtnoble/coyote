@@ -26,7 +26,7 @@ package body LLM_OpenRouter_Tests is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-         Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
@@ -47,7 +47,7 @@ package body LLM_OpenRouter_Tests is
       if E in LLM.Events.Message_Update_Event then
          declare
             Event : constant LLM.Events.Message_Update_Event :=
-               LLM.Events.Message_Update_Event (E);
+              LLM.Events.Message_Update_Event (E);
          begin
             if Event.Kind = LLM.Events.Text_Delta then
                Append (Last_Text, To_String (Event.Delta_Text));
@@ -144,10 +144,7 @@ package body LLM_OpenRouter_Tests is
          raise;
    end Write_File;
 
-   procedure Wait_For_File
-      (Path         : String;
-       Max_Attempts : Positive := 100)
-   is
+   procedure Wait_For_File (Path : String; Max_Attempts : Positive := 100) is
    begin
       for Attempt in 1 .. Max_Attempts loop
          if Ada.Directories.Exists (Path) then
@@ -161,21 +158,20 @@ package body LLM_OpenRouter_Tests is
    function Fixture_Path return String is
    begin
       return
-        Ada.Directories.Current_Directory
-        & "/fixtures/openrouter_models.json";
+        Ada.Directories.Current_Directory & "/fixtures/openrouter_models.json";
    end Fixture_Path;
 
    function Fixture_Data_Array return String is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
-         GNATCOLL.JSON.Read (Read_File (Fixture_Path));
+        GNATCOLL.JSON.Read (Read_File (Fixture_Path));
    begin
       if not Parsed.Success then
-         raise Constraint_Error with
-            "Failed to parse OpenRouter catalogue fixture";
+         raise Constraint_Error
+           with "Failed to parse OpenRouter catalogue fixture";
       end if;
 
       if Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
-         or else not Parsed.Value.Has_Field ("data")
+        or else not Parsed.Value.Has_Field ("data")
       then
          raise Constraint_Error with "Fixture is missing the data field";
       end if;
@@ -186,38 +182,37 @@ package body LLM_OpenRouter_Tests is
    function Stale_Data_Array return String is
    begin
       return
-         "[{""id"":""stale/model"",""name"":""Stale Model"","
-         & """context_length"":1024,"
-         & """architecture"":{"
-         & """input_modalities"":[""text""],"
-         & """output_modalities"":[""text""]},"
-         & """pricing"":{""prompt"":""0"",""completion"":""0""},"
-         & """top_provider"":{""context_length"":1024,"
-         & """max_completion_tokens"":128},"
-         & """supported_parameters"":[""tools""]}]";
+        "[{""id"":""stale/model"",""name"":""Stale Model"","
+        & """context_length"":1024," & """architecture"":{"
+        & """input_modalities"":[""text""],"
+        & """output_modalities"":[""text""]},"
+        & """pricing"":{""prompt"":""0"",""completion"":""0""},"
+        & """top_provider"":{""context_length"":1024,"
+        & """max_completion_tokens"":128},"
+        & """supported_parameters"":[""tools""]}]";
    end Stale_Data_Array;
 
    function Load_Capture (Path : String) return GNATCOLL.JSON.JSON_Value is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
-         GNATCOLL.JSON.Read (Read_File (Path));
+        GNATCOLL.JSON.Read (Read_File (Path));
    begin
       if not Parsed.Success then
-         raise Constraint_Error with
-            "Failed to parse OpenRouter capture file";
+         raise Constraint_Error with "Failed to parse OpenRouter capture file";
       end if;
 
       return Parsed.Value;
    end Load_Capture;
 
    function Get_String_Field
-      (Value   : GNATCOLL.JSON.JSON_Value;
-       Field   : String;
-       Default : String := "") return String
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : String := "")
+      return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type
       then
          return Value.Get (Field).Get;
       end if;
@@ -226,15 +221,16 @@ package body LLM_OpenRouter_Tests is
    end Get_String_Field;
 
    function Get_Natural_Field
-      (Value   : GNATCOLL.JSON.JSON_Value;
-       Field   : String;
-       Default : Natural := 0) return Natural
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : Natural := 0)
+      return Natural
    is
       Raw : Long_Integer;
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-         and then Value.Has_Field (Field)
-         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type
       then
          Raw := Value.Get (Field).Get;
 
@@ -247,36 +243,33 @@ package body LLM_OpenRouter_Tests is
    end Get_Natural_Field;
 
    procedure Write_Cache
-      (Home       : String;
-       Fetched_At : Long_Long_Integer;
-       Data_Array : String)
+     (Home : String; Fetched_At : Long_Long_Integer; Data_Array : String)
    is
    begin
       Write_File
-         (Home & "/.coyote/openrouter_models_cache.json",
-          "{""fetched_at"":" & Long_Long_Image (Fetched_At)
-          & ",""data"":" & Data_Array & "}");
+        (Home & "/.coyote/openrouter_models_cache.json",
+         "{""fetched_at"":" & Long_Long_Image (Fetched_At) & ",""data"":"
+         & Data_Array & "}");
    end Write_Cache;
 
    procedure Send_With_Retry
-      (P             : in out LLM.Providers.OpenRouter.Provider;
-       Model_Id      :        String;
-       Messages      :        LLM.Types.Message_Vectors.Vector;
-       Thinking      :        LLM.Providers.Thinking_Level :=
-                                 LLM.Providers.Off)
+     (P        : in out LLM.Providers.OpenRouter.Provider;
+      Model_Id :        String;
+      Messages :        LLM.Types.Message_Vectors.Vector;
+      Thinking :        LLM.Providers.Thinking_Level := LLM.Providers.Off)
    is
    begin
       Retry_Loop :
       for Attempt in 1 .. 20 loop
          begin
             P.Send
-               (Model_Id      => Model_Id,
-                System_Prompt => "",
-                Messages      => Messages,
-                Tools_Json    => "[]",
-                Thinking      => Thinking,
-                Max_Tokens    => 128,
-                Handler       => On_Event'Access);
+              (Model_Id      => Model_Id,
+               System_Prompt => "",
+               Messages      => Messages,
+               Tools_Json    => "[]",
+               Thinking      => Thinking,
+               Max_Tokens    => 128,
+               Handler       => On_Event'Access);
             exit Retry_Loop;
          exception
             when LLM.HTTP.Curl_Error =>
@@ -294,44 +287,44 @@ package body LLM_OpenRouter_Tests is
       Content  : LLM.Types.Content_Block_Vectors.Vector;
    begin
       Content.Append
-         ((Kind => LLM.Types.Text_Block,
-           Text => To_Unbounded_String ("Say hello")));
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Say hello")));
       Messages.Append
-         ((Role      => LLM.Types.User,
-           Content   => Content,
-           Tok_Usage => (others => 0),
-           Stop      => LLM.Types.Unknown_Stop,
-           Timestamp => Null_Unbounded_String));
+        ((Role      => LLM.Types.User,
+          Content   => Content,
+          Tok_Usage =>
+            (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
       return Messages;
    end Build_Messages;
 
    function SSE_Event
-      (Event_Type : String;
-       Data       : GNATCOLL.JSON.JSON_Value) return String
+     (Event_Type : String; Data : GNATCOLL.JSON.JSON_Value) return String
    is
    begin
       return
-         "event: " & Event_Type & ASCII.LF
-         & "data: " & GNATCOLL.JSON.Write (Data)
-         & ASCII.LF & ASCII.LF;
+        "event: " & Event_Type & ASCII.LF & "data: "
+        & GNATCOLL.JSON.Write (Data) & ASCII.LF & ASCII.LF;
    end SSE_Event;
 
    function Build_Text_SSE_Payload
-      (Text              : String;
-       Prompt_Tokens     : Natural;
-       Completion_Tokens : Natural) return String
+     (Text              : String;
+      Prompt_Tokens     : Natural;
+      Completion_Tokens : Natural)
+      return String
    is
       use GNATCOLL.JSON;
-      Delta_Event       : constant JSON_Value := Create_Object;
-      Text_Done_Event   : constant JSON_Value := Create_Object;
-      Item_Done_Event   : constant JSON_Value := Create_Object;
-      Completed         : constant JSON_Value := Create_Object;
-      Response          : constant JSON_Value := Create_Object;
-      Item              : constant JSON_Value := Create_Object;
-      Part              : constant JSON_Value := Create_Object;
-      Output      : JSON_Array := Empty_Array;
-      Content     : JSON_Array := Empty_Array;
-      Usage       : constant JSON_Value := Create_Object;
+      Delta_Event     : constant JSON_Value := Create_Object;
+      Text_Done_Event : constant JSON_Value := Create_Object;
+      Item_Done_Event : constant JSON_Value := Create_Object;
+      Completed       : constant JSON_Value := Create_Object;
+      Response        : constant JSON_Value := Create_Object;
+      Item            : constant JSON_Value := Create_Object;
+      Part            : constant JSON_Value := Create_Object;
+      Output          : JSON_Array          := Empty_Array;
+      Content         : JSON_Array          := Empty_Array;
+      Usage           : constant JSON_Value := Create_Object;
    begin
       Delta_Event.Set_Field ("type", "response.output_text.delta");
       Delta_Event.Set_Field ("item_id", "msg_test");
@@ -360,7 +353,7 @@ package body LLM_OpenRouter_Tests is
       Usage.Set_Field ("input_tokens", Integer (Prompt_Tokens));
       Usage.Set_Field ("output_tokens", Integer (Completion_Tokens));
       Usage.Set_Field
-         ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
       Response.Set_Field ("id", "resp_test");
       Response.Set_Field ("object", "response");
       Response.Set_Field ("status", "completed");
@@ -370,10 +363,10 @@ package body LLM_OpenRouter_Tests is
       Completed.Set_Field ("response", Response);
 
       return
-         SSE_Event ("response.output_text.delta", Delta_Event)
-         & SSE_Event ("response.output_text.done", Text_Done_Event)
-         & SSE_Event ("response.output_item.done", Item_Done_Event)
-         & SSE_Event ("response.completed", Completed);
+        SSE_Event ("response.output_text.delta", Delta_Event)
+        & SSE_Event ("response.output_text.done", Text_Done_Event)
+        & SSE_Event ("response.output_item.done", Item_Done_Event)
+        & SSE_Event ("response.completed", Completed);
    end Build_Text_SSE_Payload;
 
    function Build_Live_Models_Body return String is
@@ -384,14 +377,14 @@ package body LLM_OpenRouter_Tests is
       Architecture         : constant JSON_Value := Create_Object;
       Pricing              : constant JSON_Value := Create_Object;
       Top_Provider         : constant JSON_Value := Create_Object;
-      Data_Array           : JSON_Array := Empty_Array;
-      Input_Modalities     : JSON_Array := Empty_Array;
-      Output_Modalities    : JSON_Array := Empty_Array;
-      Supported_Parameters : JSON_Array := Empty_Array;
+      Data_Array           : JSON_Array          := Empty_Array;
+      Input_Modalities     : JSON_Array          := Empty_Array;
+      Output_Modalities    : JSON_Array          := Empty_Array;
+      Supported_Parameters : JSON_Array          := Empty_Array;
    begin
       Model.Set_Field ("id", "test/model");
       Model.Set_Field ("name", "Test Model");
-      Model.Set_Field ("context_length", Integer (4096));
+      Model.Set_Field ("context_length", Integer (4_096));
       Append (Input_Modalities, Create ("text"));
       Append (Output_Modalities, Create ("text"));
       Architecture.Set_Field ("input_modalities", Input_Modalities);
@@ -400,7 +393,7 @@ package body LLM_OpenRouter_Tests is
       Pricing.Set_Field ("prompt", "0.000001");
       Pricing.Set_Field ("completion", "0.000002");
       Model.Set_Field ("pricing", Pricing);
-      Top_Provider.Set_Field ("context_length", Integer (4096));
+      Top_Provider.Set_Field ("context_length", Integer (4_096));
       Top_Provider.Set_Field ("max_completion_tokens", Integer (256));
       Model.Set_Field ("top_provider", Top_Provider);
       Append (Supported_Parameters, Create ("reasoning"));
@@ -412,24 +405,18 @@ package body LLM_OpenRouter_Tests is
 
    --  SSE payload used by header and reasoning tests: streams "Hello".
    Hello_SSE_Payload : constant String :=
-      Build_Text_SSE_Payload
-         (Text              => "Hello",
-          Prompt_Tokens     => 1,
-          Completion_Tokens => 1);
+     Build_Text_SSE_Payload
+       (Text => "Hello", Prompt_Tokens => 1, Completion_Tokens => 1);
 
    --  SSE payload used by the settings fallback test: streams "Settings".
    Settings_SSE_Payload : constant String :=
-      Build_Text_SSE_Payload
-         (Text              => "Settings",
-          Prompt_Tokens     => 1,
-          Completion_Tokens => 1);
+     Build_Text_SSE_Payload
+       (Text => "Settings", Prompt_Tokens => 1, Completion_Tokens => 1);
 
    --  SSE payload used by the live-fetch-then-send test: streams "Live".
    Live_SSE_Payload : constant String :=
-      Build_Text_SSE_Payload
-         (Text              => "Live",
-          Prompt_Tokens     => 1,
-          Completion_Tokens => 1);
+     Build_Text_SSE_Payload
+       (Text => "Live", Prompt_Tokens => 1, Completion_Tokens => 1);
 
    --  Models catalogue JSON body served by the live-fetch-then-send handler.
    Live_Models_Body : constant String := Build_Live_Models_Body;
@@ -437,99 +424,94 @@ package body LLM_OpenRouter_Tests is
    procedure Test_Send_Adds_OpenRouter_Headers (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port        : constant Positive := 18_771;
-      Messages    : constant LLM.Types.Message_Vectors.Vector :=
-         Build_Messages;
-      Provider    : LLM.Providers.OpenRouter.Provider :=
-         LLM.Providers.OpenRouter.Create
-            (Session_Id => "test-session-123");
-      Key_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key     : constant String :=
-         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Port        : constant Positive                         := 18_771;
+      Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Provider    : LLM.Providers.OpenRouter.Provider         :=
+        LLM.Providers.OpenRouter.Create (Session_Id => "test-session-123");
+      Key_Was_Set : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key     : constant String                           :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed  : constant GNATCOLL.JSON.Read_Result :=
-            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
          Body_JS : GNATCOLL.JSON.JSON_Value;
       begin
          Assert
-            (To_String (Req.Path) = "/api/v1/responses",
-             "Expected path /api/v1/responses");
+           (To_String (Req.Path) = "/api/v1/responses",
+            "Expected path /api/v1/responses");
          Assert
-            (Test_HTTP_Server.Get_Header
-                (Req.Headers, "Authorization") = "Bearer env-test-key",
-             "Expected Authorization: Bearer env-test-key");
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+            = "Bearer env-test-key",
+            "Expected Authorization: Bearer env-test-key");
          Assert
-            (Test_HTTP_Server.Get_Header
-                (Req.Headers, "HTTP-Referer")
-             = "https://github.com/gtnoble/coyote",
-             "Expected HTTP-Referer header");
+           (Test_HTTP_Server.Get_Header (Req.Headers, "HTTP-Referer")
+            = "https://github.com/gtnoble/coyote",
+            "Expected HTTP-Referer header");
          Assert
-            (Test_HTTP_Server.Get_Header
-                (Req.Headers, "X-Title") = "coyote",
-             "Expected X-Title: coyote");
+           (Test_HTTP_Server.Get_Header (Req.Headers, "X-Title") = "coyote",
+            "Expected X-Title: coyote");
          Assert (Parsed.Success, "Failed to parse request body as JSON");
          Body_JS := Parsed.Value;
          Assert
-            (Body_JS.Has_Field ("session_id")
-             and then Body_JS.Get ("session_id").Kind
-                = GNATCOLL.JSON.JSON_String_Type
-             and then String'(Body_JS.Get ("session_id").Get)
-                = "test-session-123",
-             "Expected OpenRouter broadcast session_id");
+           (Body_JS.Has_Field ("session_id")
+            and then Body_JS.Get ("session_id").Kind
+              = GNATCOLL.JSON.JSON_String_Type
+            and then String'(Body_JS.Get ("session_id").Get)
+              = "test-session-123",
+            "Expected OpenRouter broadcast session_id");
          Assert
-            (not Body_JS.Has_Field ("messages"),
-             "Responses request must not contain messages");
+           (not Body_JS.Has_Field ("messages"),
+            "Responses request must not contain messages");
          Assert
-            (Body_JS.Has_Field ("input"),
-             "Responses request must contain input");
+           (Body_JS.Has_Field ("input"),
+            "Responses request must contain input");
          Assert
-            (not Body_JS.Has_Field ("store"),
-             "OpenRouter Responses request must omit store");
+           (not Body_JS.Has_Field ("store"),
+            "OpenRouter Responses request must omit store");
          Assert
-            (not Body_JS.Has_Field ("previous_response_id"),
-             "OpenRouter Responses request must omit previous_response_id");
+           (not Body_JS.Has_Field ("previous_response_id"),
+            "OpenRouter Responses request must omit previous_response_id");
          Assert
-            (not Body_JS.Has_Field ("instructions")
-             or else Body_JS.Get ("instructions").Kind
-               = GNATCOLL.JSON.JSON_String_Type,
-             "Responses instructions field has an unexpected shape");
+           (not Body_JS.Has_Field ("instructions")
+            or else Body_JS.Get ("instructions").Kind
+              = GNATCOLL.JSON.JSON_String_Type,
+            "Responses instructions field has an unexpected shape");
          Assert
-            (Body_JS.Has_Field ("max_output_tokens"),
-             "Responses request must contain max_output_tokens");
+           (Body_JS.Has_Field ("max_output_tokens"),
+            "Responses request must contain max_output_tokens");
          Assert
-            (Body_JS.Has_Field ("model")
-             and then Body_JS.Get ("model").Kind
-                = GNATCOLL.JSON.JSON_String_Type
-             and then String'(Body_JS.Get ("model").Get)
-                = "openai/gpt-4o-mini",
-             "Expected model openai/gpt-4o-mini");
+           (Body_JS.Has_Field ("model")
+            and then Body_JS.Get ("model").Kind
+              = GNATCOLL.JSON.JSON_String_Type
+            and then String'(Body_JS.Get ("model").Get) = "openai/gpt-4o-mini",
+            "Expected model openai/gpt-4o-mini");
          Assert
-            (not Body_JS.Has_Field ("reasoning"),
-             "Expected no reasoning field for Off thinking level");
+           (not Body_JS.Has_Field ("reasoning"),
+            "Expected no reasoning field for Off thinking level");
          Res.Status := 200;
          Append (Res.Body_Data, Hello_SSE_Payload);
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "env-test-key");
       LLM.Providers.OpenRouter.Set_Base_Url
-         (Provider, "http://127.0.0.1:18771/api/v1");
+        (Provider, "http://127.0.0.1:18771/api/v1");
 
       Srv.Bind (Port);
 
       Send_With_Retry
-         (P        => Provider,
-          Model_Id => "openai/gpt-4o-mini",
-          Messages => Messages);
+        (P        => Provider,
+         Model_Id => "openai/gpt-4o-mini",
+         Messages => Messages);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -550,80 +532,79 @@ package body LLM_OpenRouter_Tests is
       pragma Unreferenced (T);
 
       Home         : constant String := "/tmp/coyote_openrouter_test_home";
-      Port         : constant Positive := 18_772;
-      Messages     : constant LLM.Types.Message_Vectors.Vector :=
-         Build_Messages;
-      Provider     : LLM.Providers.OpenRouter.Provider :=
-         LLM.Providers.OpenRouter.Create;
-      Home_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
-         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set  : constant Boolean :=
-         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key      : constant String :=
-         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Port         : constant Positive                         := 18_772;
+      Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Provider     : LLM.Providers.OpenRouter.Provider         :=
+        LLM.Providers.OpenRouter.Create;
+      Home_Was_Set : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String                           :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set  : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key      : constant String                           :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed  : constant GNATCOLL.JSON.Read_Result :=
-            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
          Body_JS : GNATCOLL.JSON.JSON_Value;
       begin
          Assert
-            (To_String (Req.Path) = "/api/v1/responses",
-             "Expected path /api/v1/responses");
+           (To_String (Req.Path) = "/api/v1/responses",
+            "Expected path /api/v1/responses");
          Assert
-            (Test_HTTP_Server.Get_Header
-                (Req.Headers, "Authorization") = "Bearer reasoning-key",
-             "Expected Authorization: Bearer reasoning-key");
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+            = "Bearer reasoning-key",
+            "Expected Authorization: Bearer reasoning-key");
          Assert (Parsed.Success, "Failed to parse request body as JSON");
          Body_JS := Parsed.Value;
          Assert
-            (Body_JS.Has_Field ("model")
-             and then Body_JS.Get ("model").Kind
-                = GNATCOLL.JSON.JSON_String_Type
-             and then String'(Body_JS.Get ("model").Get)
-                = "anthropic/claude-sonnet-4-20250514",
-             "Expected model anthropic/claude-sonnet-4-20250514");
+           (Body_JS.Has_Field ("model")
+            and then Body_JS.Get ("model").Kind
+              = GNATCOLL.JSON.JSON_String_Type
+            and then String'(Body_JS.Get ("model").Get)
+              = "anthropic/claude-sonnet-4-20250514",
+            "Expected model anthropic/claude-sonnet-4-20250514");
          Assert
-            (Body_JS.Has_Field ("reasoning")
-             and then Body_JS.Get ("reasoning").Kind
-                = GNATCOLL.JSON.JSON_Object_Type
-             and then Body_JS.Get ("reasoning").Has_Field ("effort")
-             and then String'(Body_JS.Get ("reasoning").Get ("effort").Get)
-                = "medium",
-             "Expected reasoning.effort = medium");
+           (Body_JS.Has_Field ("reasoning")
+            and then Body_JS.Get ("reasoning").Kind
+              = GNATCOLL.JSON.JSON_Object_Type
+            and then Body_JS.Get ("reasoning").Has_Field ("effort")
+            and then String'(Body_JS.Get ("reasoning").Get ("effort").Get)
+              = "medium",
+            "Expected reasoning.effort = medium");
          Res.Status := 200;
          Append (Res.Body_Data, Hello_SSE_Payload);
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_Cache
-         (Home       => Home,
-          Fetched_At => Current_Unix_S,
-          Data_Array => Fixture_Data_Array);
+        (Home       => Home,
+         Fetched_At => Current_Unix_S,
+         Data_Array => Fixture_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "reasoning-key");
       LLM.Providers.OpenRouter.Set_Base_Url
-         (Provider, "http://127.0.0.1:18772/api/v1");
+        (Provider, "http://127.0.0.1:18772/api/v1");
 
       Srv.Bind (Port);
 
       Send_With_Retry
-         (P        => Provider,
-          Model_Id => "anthropic/claude-sonnet-4-20250514",
-          Messages => Messages,
-          Thinking => LLM.Providers.Medium);
+        (P        => Provider,
+         Model_Id => "anthropic/claude-sonnet-4-20250514",
+         Messages => Messages,
+         Thinking => LLM.Providers.Medium);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -645,52 +626,47 @@ package body LLM_OpenRouter_Tests is
    end Test_Send_Includes_Reasoning_Effort;
 
    procedure Test_OpenRouter_Stale_Cache_Fetches_Live_Then_Sends
-      (T : in out Test)
+     (T : in out Test)
    is
       pragma Unreferenced (T);
 
-      Home         : constant String :=
-         "/tmp/coyote_openrouter_test_home_2";
-      Port         : constant Positive := 18_774;
-      Capture_Path : constant String :=
-         "/tmp/coyote_openrouter_capture_1.json";
-      Messages     : constant LLM.Types.Message_Vectors.Vector :=
-         Build_Messages;
-      Home_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
-         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set  : constant Boolean :=
-         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key      : constant String :=
-         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Base_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Base     : constant String :=
-         Ada.Environment_Variables.Value
-            ("COYOTE_OPENROUTER_BASE_URL", "");
-      Capture    : GNATCOLL.JSON.JSON_Value;
-      Cache_Text : Unbounded_String;
+      Home         : constant String := "/tmp/coyote_openrouter_test_home_2";
+      Port         : constant Positive                         := 18_774;
+      Capture_Path : constant String                           :=
+        "/tmp/coyote_openrouter_capture_1.json";
+      Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Home_Was_Set : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String                           :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set  : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key      : constant String                           :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Base_Was_Set : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Base     : constant String                           :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+      Capture      : GNATCOLL.JSON.JSON_Value;
+      Cache_Text   : Unbounded_String;
 
       --  Protected object to track which endpoints have been served.
       --  Also accumulates captured fields for the Responses POST request.
       protected type Endpoint_State is
          procedure Set_Models_Served;
          procedure Set_Response_Served
-            (Auth    : String;
-             Effort  : String;
-             Model   : String);
+           (Auth : String; Effort : String; Model : String);
          function Models_Calls return Natural;
-         function Response_Calls   return Natural;
+         function Response_Calls return Natural;
          function Response_Authorization return String;
-         function Reasoning_Effort    return String;
-         function Response_Model          return String;
+         function Reasoning_Effort return String;
+         function Response_Model return String;
       private
-         Models_Count : Natural := 0;
-         Response_Count   : Natural := 0;
-         Auth_Val     : Unbounded_String;
-         Effort_Val   : Unbounded_String;
-         Model_Val    : Unbounded_String;
+         Models_Count   : Natural := 0;
+         Response_Count : Natural := 0;
+         Auth_Val       : Unbounded_String;
+         Effort_Val     : Unbounded_String;
+         Model_Val      : Unbounded_String;
       end Endpoint_State;
 
       protected body Endpoint_State is
@@ -700,15 +676,13 @@ package body LLM_OpenRouter_Tests is
          end Set_Models_Served;
 
          procedure Set_Response_Served
-            (Auth    : String;
-             Effort  : String;
-             Model   : String)
+           (Auth : String; Effort : String; Model : String)
          is
          begin
-            Response_Count   := Response_Count + 1;
-            Auth_Val     := To_Unbounded_String (Auth);
-            Effort_Val   := To_Unbounded_String (Effort);
-            Model_Val    := To_Unbounded_String (Model);
+            Response_Count := Response_Count + 1;
+            Auth_Val       := To_Unbounded_String (Auth);
+            Effort_Val     := To_Unbounded_String (Effort);
+            Model_Val      := To_Unbounded_String (Model);
          end Set_Response_Served;
 
          function Models_Calls return Natural is
@@ -740,8 +714,7 @@ package body LLM_OpenRouter_Tests is
       State : Endpoint_State;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Method : constant String := To_String (Req.Method);
          Path   : constant String := To_String (Req.Path);
@@ -758,49 +731,46 @@ package body LLM_OpenRouter_Tests is
             end;
             Append (Res.Body_Data, Live_Models_Body);
 
-         elsif Method = "POST"
-               and then Path = "/api/v1/responses"
-         then
+         elsif Method = "POST" and then Path = "/api/v1/responses" then
             declare
                Parsed : constant GNATCOLL.JSON.Read_Result :=
-                  GNATCOLL.JSON.Read (To_String (Req.Body_Data));
-               Auth   : constant String :=
-                  Test_HTTP_Server.Get_Header
-                     (Req.Headers, "Authorization");
+                 GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+               Auth   : constant String                    :=
+                 Test_HTTP_Server.Get_Header (Req.Headers, "Authorization");
                Effort : Unbounded_String;
                Model  : Unbounded_String;
             begin
                if Parsed.Success then
                   declare
                      Body_JS : constant GNATCOLL.JSON.JSON_Value :=
-                        Parsed.Value;
+                       Parsed.Value;
                   begin
                      if Body_JS.Has_Field ("model")
-                        and then Body_JS.Get ("model").Kind
-                           = GNATCOLL.JSON.JSON_String_Type
+                       and then Body_JS.Get ("model").Kind
+                         = GNATCOLL.JSON.JSON_String_Type
                      then
                         Model :=
-                           To_Unbounded_String
-                              (String'(Body_JS.Get ("model").Get));
+                          To_Unbounded_String
+                            (String'(Body_JS.Get ("model").Get));
                      end if;
 
                      if Body_JS.Has_Field ("reasoning")
-                        and then Body_JS.Get ("reasoning").Kind
-                           = GNATCOLL.JSON.JSON_Object_Type
-                        and then Body_JS.Get ("reasoning").Has_Field ("effort")
+                       and then Body_JS.Get ("reasoning").Kind
+                         = GNATCOLL.JSON.JSON_Object_Type
+                       and then Body_JS.Get ("reasoning").Has_Field ("effort")
                      then
                         Effort :=
-                           To_Unbounded_String
-                              (String'(Body_JS.Get ("reasoning")
-                               .Get ("effort").Get));
+                          To_Unbounded_String
+                            (String'
+                               (Body_JS.Get ("reasoning").Get ("effort").Get));
                      end if;
                   end;
                end if;
 
                State.Set_Response_Served
-                  (Auth   => Auth,
-                   Effort => To_String (Effort),
-                   Model  => To_String (Model));
+                 (Auth   => Auth,
+                  Effort => To_String (Effort),
+                  Model  => To_String (Model));
             end;
 
             Res.Status := 200;
@@ -820,28 +790,19 @@ package body LLM_OpenRouter_Tests is
          --  Write the capture file after every request.
          declare
             Capture_JS : constant GNATCOLL.JSON.JSON_Value :=
-               GNATCOLL.JSON.Create_Object;
+              GNATCOLL.JSON.Create_Object;
             File       : Ada.Text_IO.File_Type;
          begin
             Capture_JS.Set_Field
-               ("models_calls",
-                Integer (State.Models_Calls));
+              ("models_calls", Integer (State.Models_Calls));
             Capture_JS.Set_Field
-               ("response_calls",
-                Integer (State.Response_Calls));
+              ("response_calls", Integer (State.Response_Calls));
             Capture_JS.Set_Field
-               ("response_authorization",
-                State.Response_Authorization);
-            Capture_JS.Set_Field
-               ("reasoning_effort",
-                State.Reasoning_Effort);
-            Capture_JS.Set_Field
-               ("model",
-                State.Response_Model);
-            Ada.Text_IO.Create
-               (File, Ada.Text_IO.Out_File, Capture_Path);
-            Ada.Text_IO.Put
-               (File, GNATCOLL.JSON.Write (Capture_JS));
+              ("response_authorization", State.Response_Authorization);
+            Capture_JS.Set_Field ("reasoning_effort", State.Reasoning_Effort);
+            Capture_JS.Set_Field ("model", State.Response_Model);
+            Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Capture_Path);
+            Ada.Text_IO.Put (File, GNATCOLL.JSON.Write (Capture_JS));
             Ada.Text_IO.Close (File);
          exception
             when others =>
@@ -852,74 +813,73 @@ package body LLM_OpenRouter_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Delete_If_Exists (Capture_Path);
       Write_Cache
-         (Home       => Home,
-          Fetched_At => Current_Unix_S - 172_800,
-          Data_Array => Stale_Data_Array);
+        (Home       => Home,
+         Fetched_At => Current_Unix_S - 172_800,
+         Data_Array => Stale_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-         ("OPENROUTER_API_KEY", "live-openrouter-key");
+        ("OPENROUTER_API_KEY", "live-openrouter-key");
       Ada.Environment_Variables.Set
-         ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:18774/api/v1");
+        ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:18774/api/v1");
 
       Srv.Bind (Port);
 
       declare
          Provider : LLM.Providers.OpenRouter.Provider :=
-            LLM.Providers.OpenRouter.Create;
+           LLM.Providers.OpenRouter.Create;
       begin
          LLM.Providers.OpenRouter.Set_Base_Url
-            (Provider, "http://127.0.0.1:18774/api/v1");
+           (Provider, "http://127.0.0.1:18774/api/v1");
 
          Send_With_Retry
-            (P        => Provider,
-             Model_Id => "test/model",
-             Messages => Messages,
-             Thinking => LLM.Providers.Medium);
+           (P        => Provider,
+            Model_Id => "test/model",
+            Messages => Messages,
+            Thinking => LLM.Providers.Medium);
       end;
 
       Srv.Stop;
       Server_Stopped := True;
 
       Wait_For_File (Capture_Path);
-      Capture := Load_Capture (Capture_Path);
+      Capture    := Load_Capture (Capture_Path);
       Cache_Text :=
-         To_Unbounded_String
-            (Read_File (Home & "/.coyote/openrouter_models_cache.json"));
+        To_Unbounded_String
+          (Read_File (Home & "/.coyote/openrouter_models_cache.json"));
 
       Assert (To_String (Last_Text) = "Live", "Expected streamed Live text");
       Assert
-         (Get_Natural_Field (Capture, "models_calls") = 1,
-          "A stale cache should trigger one live catalogue fetch");
+        (Get_Natural_Field (Capture, "models_calls") = 1,
+         "A stale cache should trigger one live catalogue fetch");
       Assert
-         (Get_Natural_Field (Capture, "response_calls") = 1,
-          "Provider should send one OpenRouter Responses request");
+        (Get_Natural_Field (Capture, "response_calls") = 1,
+         "Provider should send one OpenRouter Responses request");
       Assert
-         (Get_String_Field (Capture, "response_authorization")
-            = "Bearer live-openrouter-key",
-          "The Responses request should use the configured API key");
+        (Get_String_Field (Capture, "response_authorization")
+         = "Bearer live-openrouter-key",
+         "The Responses request should use the configured API key");
       Assert
-         (Get_String_Field (Capture, "reasoning_effort") = "medium",
-          "A reasoning send should use the refreshed live catalogue");
+        (Get_String_Field (Capture, "reasoning_effort") = "medium",
+         "A reasoning send should use the refreshed live catalogue");
       Assert
-         (Get_String_Field (Capture, "model") = "test/model",
-          "The live model id should be sent after the stale-cache refresh");
+        (Get_String_Field (Capture, "model") = "test/model",
+         "The live model id should be sent after the stale-cache refresh");
       Assert
-         (Ada.Strings.Fixed.Index
-             (To_String (Cache_Text), "test/model") > 0,
-          "The live catalogue should overwrite the stale cache contents");
+        (Ada.Strings.Fixed.Index (To_String (Cache_Text), "test/model") > 0,
+         "The live catalogue should overwrite the stale cache contents");
       Assert
-         (Ada.Strings.Fixed.Index
-             (To_String (Cache_Text), "stale/model") = 0,
-          "The stale cache entry should be replaced after the live fetch");
+        (Ada.Strings.Fixed.Index (To_String (Cache_Text), "stale/model") = 0,
+         "The stale cache entry should be replaced after the live fetch");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -939,38 +899,33 @@ package body LLM_OpenRouter_Tests is
          raise;
    end Test_OpenRouter_Stale_Cache_Fetches_Live_Then_Sends;
 
-   procedure Test_OpenRouter_Settings_Api_Key_Fallback
-      (T : in out Test)
-   is
+   procedure Test_OpenRouter_Settings_Api_Key_Fallback (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String :=
-         "/tmp/coyote_openrouter_test_home_3";
-      Port         : constant Positive := 18_775;
-      Capture_Path : constant String :=
-         "/tmp/coyote_openrouter_capture_2.json";
-      Messages     : constant LLM.Types.Message_Vectors.Vector :=
-         Build_Messages;
-      Provider     : LLM.Providers.OpenRouter.Provider :=
-         LLM.Providers.OpenRouter.Create;
-      Home_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
-         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set  : constant Boolean :=
-         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key      : constant String :=
-         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Home         : constant String := "/tmp/coyote_openrouter_test_home_3";
+      Port         : constant Positive                         := 18_775;
+      Capture_Path : constant String                           :=
+        "/tmp/coyote_openrouter_capture_2.json";
+      Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Provider     : LLM.Providers.OpenRouter.Provider         :=
+        LLM.Providers.OpenRouter.Create;
+      Home_Was_Set : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String                           :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set  : constant Boolean                          :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key      : constant String                           :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
       Capture      : GNATCOLL.JSON.JSON_Value;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed : constant GNATCOLL.JSON.Read_Result :=
-            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
-         Auth   : constant String :=
-            Test_HTTP_Server.Get_Header (Req.Headers, "Authorization");
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+         Auth   : constant String                    :=
+           Test_HTTP_Server.Get_Header (Req.Headers, "Authorization");
          Model  : Unbounded_String;
          File   : Ada.Text_IO.File_Type;
       begin
@@ -984,26 +939,23 @@ package body LLM_OpenRouter_Tests is
                Body_JS : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
             begin
                if Body_JS.Has_Field ("model")
-                  and then Body_JS.Get ("model").Kind
-                     = GNATCOLL.JSON.JSON_String_Type
+                 and then Body_JS.Get ("model").Kind
+                   = GNATCOLL.JSON.JSON_String_Type
                then
                   Model :=
-                     To_Unbounded_String
-                        (String'(Body_JS.Get ("model").Get));
+                    To_Unbounded_String (String'(Body_JS.Get ("model").Get));
                end if;
             end;
          end if;
 
          declare
             Capture_JS : constant GNATCOLL.JSON.JSON_Value :=
-               GNATCOLL.JSON.Create_Object;
+              GNATCOLL.JSON.Create_Object;
          begin
             Capture_JS.Set_Field ("authorization", Auth);
             Capture_JS.Set_Field ("model", To_String (Model));
-            Ada.Text_IO.Create
-               (File, Ada.Text_IO.Out_File, Capture_Path);
-            Ada.Text_IO.Put
-               (File, GNATCOLL.JSON.Write (Capture_JS));
+            Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Capture_Path);
+            Ada.Text_IO.Put (File, GNATCOLL.JSON.Write (Capture_JS));
             Ada.Text_IO.Close (File);
          exception
             when others =>
@@ -1024,29 +976,30 @@ package body LLM_OpenRouter_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Delete_If_Exists (Capture_Path);
       Write_File
-         (Home & "/.coyote/models.json",
-          "{""providers"":{""openrouter"":{"
-          & """apiKey"":""literal-settings-key""}}}");
+        (Home & "/.coyote/models.json",
+         "{""providers"":{""openrouter"":{"
+         & """apiKey"":""literal-settings-key""}}}");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Clear ("OPENROUTER_API_KEY");
       LLM.Providers.OpenRouter.Set_Base_Url
-         (Provider, "http://127.0.0.1:18775/api/v1");
+        (Provider, "http://127.0.0.1:18775/api/v1");
 
       Srv.Bind (Port);
 
       Send_With_Retry
-         (P        => Provider,
-          Model_Id => "openai/gpt-4o-mini",
-          Messages => Messages);
+        (P        => Provider,
+         Model_Id => "openai/gpt-4o-mini",
+         Messages => Messages);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -1054,15 +1007,15 @@ package body LLM_OpenRouter_Tests is
       Capture := Load_Capture (Capture_Path);
 
       Assert
-         (To_String (Last_Text) = "Settings",
-          "Expected the OpenRouter settings fallback response text");
+        (To_String (Last_Text) = "Settings",
+         "Expected the OpenRouter settings fallback response text");
       Assert
-         (Get_String_Field (Capture, "authorization")
-            = "Bearer literal-settings-key",
-          "OpenRouter should fall back to the literal models.json apiKey");
+        (Get_String_Field (Capture, "authorization")
+         = "Bearer literal-settings-key",
+         "OpenRouter should fall back to the literal models.json apiKey");
       Assert
-         (Get_String_Field (Capture, "model") = "openai/gpt-4o-mini",
-          "The request should target the selected OpenRouter model");
+        (Get_String_Field (Capture, "model") = "openai/gpt-4o-mini",
+         "The request should target the selected OpenRouter model");
 
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1086,13 +1039,13 @@ package body LLM_OpenRouter_Tests is
       begin
          declare
             Provider : LLM.Providers.OpenRouter.Provider :=
-               LLM.Providers.OpenRouter.Create
-                 (Session_Id => (1 .. 257 => 'x'));
+              LLM.Providers.OpenRouter.Create
+                (Session_Id => (1 .. 257 => 'x'));
             pragma Unreferenced (Provider);
          begin
             Assert
-               (False,
-                "OpenRouter must reject session_id longer than 256 characters");
+              (False,
+               "OpenRouter must reject session_id longer than 256 characters");
          end;
       exception
          when Constraint_Error =>
@@ -1100,31 +1053,36 @@ package body LLM_OpenRouter_Tests is
       end;
    end Test_OpenRouter_Session_Id_Length;
 
-   package LLM_OpenRouter_Caller is
-     new AUnit.Test_Caller (LLM_OpenRouter_Tests.Test);
+   package LLM_OpenRouter_Caller is new AUnit.Test_Caller
+     (LLM_OpenRouter_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_OpenRouter_Caller.Create
-        ("LLM.OpenRouter sends auth, metadata headers, and the broadcast session ID",
-         LLM_OpenRouter_Tests.Test_Send_Adds_OpenRouter_Headers'Access));
-      Result.Add_Test (LLM_OpenRouter_Caller.Create
-        ("LLM.OpenRouter adds reasoning.effort for reasoning models",
-         LLM_OpenRouter_Tests.Test_Send_Includes_Reasoning_Effort'Access));
-      Result.Add_Test (LLM_OpenRouter_Caller.Create
-        ("LLM.OpenRouter refreshes a stale cache before sending",
-         LLM_OpenRouter_Tests
-           .Test_OpenRouter_Stale_Cache_Fetches_Live_Then_Sends'Access));
-      Result.Add_Test (LLM_OpenRouter_Caller.Create
-        ("LLM.OpenRouter falls back to models.json for the API key",
-         LLM_OpenRouter_Tests
-           .Test_OpenRouter_Settings_Api_Key_Fallback'Access));
-      Result.Add_Test (LLM_OpenRouter_Caller.Create
-        ("LLM.OpenRouter enforces the 256-character session ID limit",
-         LLM_OpenRouter_Tests
-           .Test_OpenRouter_Session_Id_Length'Access));
+      Result.Add_Test
+        (LLM_OpenRouter_Caller.Create
+           ("LLM.OpenRouter sends auth, metadata headers, and the broadcast session ID",
+            LLM_OpenRouter_Tests.Test_Send_Adds_OpenRouter_Headers'Access));
+      Result.Add_Test
+        (LLM_OpenRouter_Caller.Create
+           ("LLM.OpenRouter adds reasoning.effort for reasoning models",
+            LLM_OpenRouter_Tests.Test_Send_Includes_Reasoning_Effort'Access));
+      Result.Add_Test
+        (LLM_OpenRouter_Caller.Create
+           ("LLM.OpenRouter refreshes a stale cache before sending",
+            LLM_OpenRouter_Tests
+              .Test_OpenRouter_Stale_Cache_Fetches_Live_Then_Sends'
+              Access));
+      Result.Add_Test
+        (LLM_OpenRouter_Caller.Create
+           ("LLM.OpenRouter falls back to models.json for the API key",
+            LLM_OpenRouter_Tests.Test_OpenRouter_Settings_Api_Key_Fallback'
+              Access));
+      Result.Add_Test
+        (LLM_OpenRouter_Caller.Create
+           ("LLM.OpenRouter enforces the 256-character session ID limit",
+            LLM_OpenRouter_Tests.Test_OpenRouter_Session_Id_Length'Access));
 
       return Result;
    end Suite;

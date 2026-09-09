@@ -43,10 +43,10 @@ package LLM.Auth.Codex.Login is
    --  Raises Login_Error on transport failure, state mismatch, cancel,
    --  or timeout.
    procedure Browser_Login
-     (Open_Authorize_Url : access procedure (Url : String);
-      On_Progress        : access procedure
-        (Phase : Progress_Kind;
-         Detail : String) := null;
+     (Open_Authorize_Url :     access procedure (Url : String);
+      On_Progress        :     access procedure
+        (Phase : Progress_Kind; Detail : String) :=
+        null;
       Creds              : out LLM.Auth.Provider_Credentials);
 
 end LLM.Auth.Codex.Login;

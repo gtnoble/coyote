@@ -17,19 +17,16 @@ package body Coyote_Utils is
    function Read_Whole_File (Path : String) return String is
       File    : Ada.Streams.Stream_IO.File_Type;
       Content : Unbounded_String;
-      Buffer  : Ada.Streams.Stream_Element_Array (1 .. 8192);
+      Buffer  : Ada.Streams.Stream_Element_Array (1 .. 8_192);
       pragma Suppress_Initialization (Buffer);
-      Last    : Ada.Streams.Stream_Element_Offset;
+      Last : Ada.Streams.Stream_Element_Offset;
       use type Ada.Streams.Stream_Element_Offset;
    begin
-      if Path'Length = 0
-        or else not Ada.Directories.Exists (Path)
-      then
+      if Path'Length = 0 or else not Ada.Directories.Exists (Path) then
          return "";
       end if;
 
-      Ada.Streams.Stream_IO.Open
-        (File, Ada.Streams.Stream_IO.In_File, Path);
+      Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path);
 
       loop
          Ada.Streams.Stream_IO.Read (File, Buffer, Last);

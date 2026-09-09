@@ -22,11 +22,11 @@ package Coyote_SQC.Session_Parser is
    --  Sessions are appended to the supplied vector and sorted by Start_Time
    --  ascending before returning.
    procedure Load_Sessions
-     (Source_Directories : Coyote_SQC.Data_Model.String_Vectors.Vector;
-      Model_Filter       : Coyote_SQC.Data_Model.String_Vectors.Vector;
-      Sessions                   : in out Coyote_SQC.Data_Model.Session_Vectors.Vector;
-      Analyze_All_Directories    : Boolean := False;
-      Previous_Sessions          :  Coyote_SQC.Data_Model.Session_Vectors.Vector :=
+     (Source_Directories      :    Coyote_SQC.Data_Model.String_Vectors.Vector;
+      Model_Filter            :    Coyote_SQC.Data_Model.String_Vectors.Vector;
+      Sessions : in out Coyote_SQC.Data_Model.Session_Vectors.Vector;
+      Analyze_All_Directories :        Boolean := False;
+      Previous_Sessions       : Coyote_SQC.Data_Model.Session_Vectors.Vector :=
         Coyote_SQC.Data_Model.Session_Vectors.Empty_Vector);
 
    --  Parse a single .jsonl session file.

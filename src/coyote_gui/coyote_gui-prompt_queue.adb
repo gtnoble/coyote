@@ -11,10 +11,10 @@ package body Coyote_GUI.Prompt_Queue is
       begin
          Accepted := False;
          if not Stopped and then Count < Max_Depth then
-            Tail := (Head - 1 + Count) mod Max_Depth + 1;
+            Tail         := (Head - 1 + Count) mod Max_Depth + 1;
             Items (Tail) := I;
-            Count := Count + 1;
-            Accepted := True;
+            Count        := Count + 1;
+            Accepted     := True;
          end if;
       end Enqueue;
 
@@ -24,13 +24,11 @@ package body Coyote_GUI.Prompt_Queue is
          Enqueue (I, Accepted);
       end Enqueue;
 
-      entry Dequeue (I : out Item)
-        when Count > 0 or else Stopped
-      is
+      entry Dequeue (I : out Item) when Count > 0 or else Stopped is
       begin
          if Count > 0 then
-            I    := Items (Head);
-            Head := Head mod Max_Depth + 1;
+            I     := Items (Head);
+            Head  := Head mod Max_Depth + 1;
             Count := Count - 1;
          else
             I :=

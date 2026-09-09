@@ -10,7 +10,6 @@ package Coyote_SQC.Statistics.P_Chart is
    --
    --  When N = 0 the returned record has Undefined = True (session excluded).
    function Compute_Limits
-     (Grand_P : Long_Float;
-      N       : Natural) return Limits_Record;
+     (Grand_P : Long_Float; N : Natural) return Limits_Record;
 
 end Coyote_SQC.Statistics.P_Chart;

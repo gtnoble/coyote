@@ -62,8 +62,8 @@ private
    --  Passed as CURLOPT_WRITEDATA for the Ada streaming callback. The
    --  transfer callback receives the abort mirror address separately.
    type Write_Context is record
-      On_Chunk_Address : System.Address := System.Null_Address;
-      Exception_Occurred : Boolean := False;
+      On_Chunk_Address   : System.Address := System.Null_Address;
+      Exception_Occurred : Boolean                                := False;
       Exception_Message  : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;

@@ -15,7 +15,7 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with GNAT.SHA256;
-with GNATCOLL.JSON;          use GNATCOLL.JSON;
+with GNATCOLL.JSON;         use GNATCOLL.JSON;
 
 package body Session_Lister is
 
@@ -24,8 +24,7 @@ package body Session_Lister is
    function Encode_Cwd (Cwd : String) return String is
       Result : Unbounded_String := To_Unbounded_String ("--");
       Start  : constant Natural :=
-        (if Cwd'Length > 0 and then Cwd (Cwd'First) = '/'
-         then Cwd'First + 1
+        (if Cwd'Length > 0 and then Cwd (Cwd'First) = '/' then Cwd'First + 1
          else Cwd'First);
    begin
       for I in Start .. Cwd'Last loop
@@ -67,13 +66,9 @@ package body Session_Lister is
    --  ── JSON helpers ─────────────────────────────────────────────────────
 
    --  Safely read a string field; return "" if absent or wrong type.
-   function Get_String
-     (Val   : JSON_Value;
-      Field : UTF8_String) return String
-   is
+   function Get_String (Val : JSON_Value; Field : UTF8_String) return String is
    begin
-      if Val.Has_Field (Field)
-        and then Val.Get (Field).Kind = JSON_String_Type
+      if Val.Has_Field (Field) and then Val.Get (Field).Kind = JSON_String_Type
       then
          return Val.Get (Field).Get;
       end if;
@@ -82,12 +77,10 @@ package body Session_Lister is
 
    --  Safely read an integer field; return 0 if absent or wrong type.
    function Get_Integer
-     (Val   : JSON_Value;
-      Field : UTF8_String) return Long_Integer
+     (Val : JSON_Value; Field : UTF8_String) return Long_Integer
    is
    begin
-      if Val.Has_Field (Field)
-        and then Val.Get (Field).Kind = JSON_Int_Type
+      if Val.Has_Field (Field) and then Val.Get (Field).Kind = JSON_Int_Type
       then
          return Val.Get (Field).Get;
       end if;
@@ -96,12 +89,10 @@ package body Session_Lister is
 
    --  Safely read an object field; return JSON_Null if absent or wrong type.
    function Get_Object
-     (Val   : JSON_Value;
-      Field : UTF8_String) return JSON_Value
+     (Val : JSON_Value; Field : UTF8_String) return JSON_Value
    is
    begin
-      if Val.Has_Field (Field)
-        and then Val.Get (Field).Kind = JSON_Object_Type
+      if Val.Has_Field (Field) and then Val.Get (Field).Kind = JSON_Object_Type
       then
          return Val.Get (Field);
       end if;
@@ -113,14 +104,14 @@ package body Session_Lister is
       use Ada.Calendar;
       use Ada.Calendar.Formatting;
 
-      Epoch     : constant Time :=
+      Epoch     : constant Time         :=
         Ada.Calendar.Time_Of
-          (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
-      Seconds   : constant Long_Integer := Ms / 1000;
-      Remainder : constant Long_Integer := Ms mod 1000;
-      Raw       : constant String :=
+          (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
+      Seconds   : constant Long_Integer := Ms / 1_000;
+      Remainder : constant Long_Integer := Ms mod 1_000;
+      Raw       : constant String       :=
         Image
-          (Epoch + Duration (Seconds) + Duration (Remainder) / 1000.0,
+          (Epoch + Duration (Seconds) + Duration (Remainder) / 1_000.0,
            Include_Time_Fraction => False);
    begin
       if Raw'Length >= 16 then
@@ -129,17 +120,15 @@ package body Session_Lister is
       return Raw;
    exception
       when others =>
-         return Ada.Strings.Fixed.Trim
-           (Long_Integer'Image (Ms), Ada.Strings.Both);
+         return
+           Ada.Strings.Fixed.Trim (Long_Integer'Image (Ms), Ada.Strings.Both);
    end Format_Unix_Milliseconds;
 
    --  Return the direct message object for either supported session format.
    function Message_Object (Val : JSON_Value) return JSON_Value is
       Role : constant String := Get_String (Val, "role");
    begin
-      if Role = "user"
-        or else Role = "assistant"
-        or else Role = "toolResult"
+      if Role = "user" or else Role = "assistant" or else Role = "toolResult"
       then
          return Val;
       end if;
@@ -201,11 +190,11 @@ package body Session_Lister is
                               if Trimmed'Length <= SNIPPET_MAX then
                                  return Trimmed;
                               end if;
-                              return Trimmed
-                                       (Trimmed'First
-                                        .. Trimmed'First
-                                           + SNIPPET_MAX - 1)
-                                     & "...";
+                              return
+                                Trimmed
+                                  (Trimmed'First ..
+                                       Trimmed'First + SNIPPET_MAX - 1)
+                                & "...";
                            end;
                         end;
                      end if;
@@ -224,9 +213,7 @@ package body Session_Lister is
    --  the stack on very long lines: it uses the fixed-buffer procedure form
    --  in a loop and simply appends each chunk to the result.
 
-   function Read_Line
-     (File : Ada.Text_IO.File_Type) return Unbounded_String
-   is
+   function Read_Line (File : Ada.Text_IO.File_Type) return Unbounded_String is
       Chunk  : String (1 .. 65_536);   --  64 KiB per iteration
       Last   : Natural;
       Result : Unbounded_String;
@@ -258,13 +245,10 @@ package body Session_Lister is
                begin
                   if Parse_Result.Success then
                      declare
-                        Obj : constant JSON_Value := Parse_Result.Value;
-                        Kind : constant String :=
-                          Get_String (Obj, "type");
-                        Role : constant String :=
-                          Get_String (Obj, "role");
-                        Message : constant JSON_Value :=
-                          Message_Object (Obj);
+                        Obj     : constant JSON_Value := Parse_Result.Value;
+                        Kind    : constant String := Get_String (Obj, "type");
+                        Role    : constant String := Get_String (Obj, "role");
+                        Message : constant JSON_Value := Message_Object (Obj);
                      begin
                         if Line_N = 1 then
                            if Kind = "session" then
@@ -354,9 +338,7 @@ package body Session_Lister is
 
    --  ── List_Sessions ─────────────────────────────────────────────────────
 
-   function List_Sessions
-     (Cwd : String) return Session_Vectors.Vector
-   is
+   function List_Sessions (Cwd : String) return Session_Vectors.Vector is
       use Ada.Directories;
       Dir    : constant String := Sessions_Dir (Cwd);
       Result : Session_Vectors.Vector;
@@ -369,8 +351,12 @@ package body Session_Lister is
          Search    : Search_Type;
          Dir_Entry : Directory_Entry_Type;
       begin
-         Start_Search (Search, Dir, "*.jsonl",
-                       (Ordinary_File => True, others => False));
+         Start_Search
+           (Search,
+            Dir,
+            "*.jsonl",
+            (Ordinary_File => True,
+             others        => False));
          while More_Entries (Search) loop
             Get_Next_Entry (Search, Dir_Entry);
             declare
@@ -393,7 +379,8 @@ package body Session_Lister is
          end Newer;
 
          type Info_Array is
-           array (Natural range <>) of Session_Info;
+           array (Natural range <>)
+           of Session_Info;
 
          procedure Sort_Array is new Ada.Containers.Generic_Array_Sort
            (Index_Type   => Natural,
@@ -422,8 +409,10 @@ package body Session_Lister is
       use Ada.Directories;
 
       Home    : constant String :=
-        (if Ada.Environment_Variables.Exists ("HOME")
-         then Ada.Environment_Variables.Value ("HOME")
+        (if
+           Ada.Environment_Variables.Exists ("HOME")
+         then
+           Ada.Environment_Variables.Value ("HOME")
          else "");
       Root    : constant String := Home & "/.coyote/sessions";
       Pattern : constant String := "*" & UUID & "*.jsonl";
@@ -438,8 +427,11 @@ package body Session_Lister is
          Dir_Entry  : Directory_Entry_Type;
       begin
          Start_Search
-           (Dir_Search, Root, "*",
-            (Directory => True, others => False));
+           (Dir_Search,
+            Root,
+            "*",
+            (Directory => True,
+             others    => False));
          Outer_Loop :
          while More_Entries (Dir_Search) loop
             Get_Next_Entry (Dir_Search, Dir_Entry);
@@ -453,12 +445,14 @@ package body Session_Lister is
                      Sub_Entry  : Directory_Entry_Type;
                   begin
                      Start_Search
-                       (Sub_Search, Sub_Dir, Pattern,
-                        (Ordinary_File => True, others => False));
+                       (Sub_Search,
+                        Sub_Dir,
+                        Pattern,
+                        (Ordinary_File => True,
+                         others        => False));
                      if More_Entries (Sub_Search) then
                         Get_Next_Entry (Sub_Search, Sub_Entry);
-                        Result :=
-                          To_Unbounded_String (Full_Name (Sub_Entry));
+                        Result := To_Unbounded_String (Full_Name (Sub_Entry));
                      end if;
                      End_Search (Sub_Search);
                   end;
@@ -471,7 +465,8 @@ package body Session_Lister is
 
       return To_String (Result);
    exception
-      when others => return "";
+      when others =>
+         return "";
    end Find_Session_File;
 
    --  ── Fork_Session ──────────────────────────────────────────────────────
@@ -480,9 +475,12 @@ package body Session_Lister is
      (Source_UUID : String;
       After_Turn  : Positive;
       Target_Cwd  : String;
-      After_Step  : Natural := 0) return String
+      After_Step  : Natural := 0)
+      return String
    is
-      type Session_Format is (Legacy_Format, Native_Format);
+      type Session_Format is
+        (Legacy_Format,
+         Native_Format);
 
       --  ── Fork_UUID helper ──────────────────────────────────────────────
       --
@@ -494,30 +492,25 @@ package body Session_Lister is
       function Fork_UUID return String is
          use Ada.Calendar;
          Seed : constant String :=
-           Source_UUID & "/"
-           & Positive'Image (After_Turn) & "/"
+           Source_UUID & "/" & Positive'Image (After_Turn) & "/"
            & Natural'Image (After_Step) & "/"
            & Duration'Image (Seconds (Clock));
          Hash : constant String := GNAT.SHA256.Digest (Seed);
          H    : constant String := Hash (Hash'First .. Hash'First + 31);
       begin
-         return H (H'First      .. H'First +  7)
-                & "-"
-                & H (H'First +  8 .. H'First + 11)
-                & "-4"
-                & H (H'First + 13 .. H'First + 15)
-                & "-"
-                & H (H'First + 16 .. H'First + 19)
-                & "-"
-                & H (H'First + 20 .. H'First + 31);
+         return
+           H (H'First .. H'First + 7) & "-" & H (H'First + 8 .. H'First + 11)
+           & "-4" & H (H'First + 13 .. H'First + 15) & "-"
+           & H (H'First + 16 .. H'First + 19) & "-"
+           & H (H'First + 20 .. H'First + 31);
       end Fork_UUID;
 
       --  ── ISO-8601 timestamp helper ─────────────────────────────────────
 
       function Now_Timestamp return String is
          use Ada.Calendar.Formatting;
-         Raw : String := Image (Ada.Calendar.Clock,
-                                Include_Time_Fraction => True);
+         Raw : String :=
+           Image (Ada.Calendar.Clock, Include_Time_Fraction => True);
       begin
          for I in Raw'Range loop
             if Raw (I) = ' ' then
@@ -532,14 +525,12 @@ package body Session_Lister is
          use Ada.Calendar;
 
          Epoch : constant Time :=
-           Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+           Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
       begin
-         return Long_Integer ((Clock - Epoch) * 1000.0);
+         return Long_Integer ((Clock - Epoch) * 1_000.0);
       end Now_Unix_Milliseconds;
 
-      function Detect_Format
-        (Line : String) return Session_Format
-      is
+      function Detect_Format (Line : String) return Session_Format is
          Parse_Result : constant Read_Result := Read (Line);
       begin
          if Parse_Result.Success
@@ -550,13 +541,12 @@ package body Session_Lister is
          return Native_Format;
       end Detect_Format;
 
-      Source_Path  : constant String := Find_Session_File (Source_UUID);
-      New_UUID     : constant String := Fork_UUID;
-      Orig_Name    : Unbounded_String;
+      Source_Path : constant String := Find_Session_File (Source_UUID);
+      New_UUID    : constant String := Fork_UUID;
+      Orig_Name   : Unbounded_String;
 
       package String_Vectors is new Ada.Containers.Vectors
-        (Index_Type   => Natural,
-         Element_Type => Unbounded_String);
+        (Index_Type => Natural, Element_Type => Unbounded_String);
       Source_Lines : String_Vectors.Vector;
 
    begin
@@ -593,15 +583,15 @@ package body Session_Lister is
       --  ── Pass 2: find cut point and collect original session name ──────
 
       declare
-         Source_Format    : constant Session_Format :=
+         Source_Format   : constant Session_Format :=
            Detect_Format (To_String (Source_Lines (Source_Lines.First_Index)));
-         Turns_Complete   : Natural := 0;
-         Asst_In_Turn     : Natural := 0;
-         Saw_Assistant    : Boolean := False;
-         In_Turn          : Boolean := False;
-         Cut_Index        : Integer := -1;
-         Step_Triggered   : Boolean := False;  --  target step hit, waiting
-         Step_Turns_Done  : Natural := 0;       --  turns complete at trigger
+         Turns_Complete  : Natural                 := 0;
+         Asst_In_Turn    : Natural                 := 0;
+         Saw_Assistant   : Boolean                 := False;
+         In_Turn         : Boolean                 := False;
+         Cut_Index       : Integer                 := -1;
+         Step_Triggered  : Boolean := False;  --  target step hit, waiting
+         Step_Turns_Done : Natural := 0;       --  turns complete at trigger
       begin
          for I in Source_Lines.First_Index .. Source_Lines.Last_Index loop
             declare
@@ -610,16 +600,12 @@ package body Session_Lister is
             begin
                if Parse.Success then
                   declare
-                     Obj : constant JSON_Value := Parse.Value;
-                     Kind : constant String :=
-                       Get_String (Obj, "type");
-                     Role : constant String :=
-                       Get_String (Obj, "role");
-                     Msg : constant JSON_Value :=
-                       Message_Object (Obj);
+                     Obj  : constant JSON_Value := Parse.Value;
+                     Kind : constant String     := Get_String (Obj, "type");
+                     Role : constant String     := Get_String (Obj, "role");
+                     Msg  : constant JSON_Value := Message_Object (Obj);
                   begin
-                     if Kind = "session_info"
-                       or else Role = "session_info"
+                     if Kind = "session_info" or else Role = "session_info"
                      then
                         declare
                            N : constant String := Get_String (Obj, "name");
@@ -654,14 +640,14 @@ package body Session_Lister is
                                     exit;
                                  end if;
                               end if;
-                              In_Turn          := True;
-                              Saw_Assistant    := False;
-                              Asst_In_Turn     := 0;
+                              In_Turn       := True;
+                              Saw_Assistant := False;
+                              Asst_In_Turn  := 0;
 
                            elsif Msg_Role = "assistant"
                              and then Msg.Has_Field ("content")
                              and then Msg.Get ("content").Kind
-                                      = JSON_Array_Type
+                               = JSON_Array_Type
                            then
                               if In_Turn then
                                  --  When Step_Triggered is active and we hit
@@ -688,7 +674,7 @@ package body Session_Lister is
                                  declare
                                     Content  : constant JSON_Array :=
                                       Msg.Get ("content");
-                                    Has_Text : Boolean := False;
+                                    Has_Text : Boolean             := False;
                                  begin
                                     for J in 1 .. Length (Content) loop
                                        if Get_String (Get (Content, J), "type")
@@ -725,9 +711,7 @@ package body Session_Lister is
             elsif In_Turn and then Saw_Assistant then
                Turns_Complete := Turns_Complete + 1;
             end if;
-            if After_Step = 0
-              and then Turns_Complete >= After_Turn
-            then
+            if After_Step = 0 and then Turns_Complete >= After_Turn then
                Cut_Index := Source_Lines.Last_Index;
             end if;
          end if;
@@ -744,19 +728,22 @@ package body Session_Lister is
               Target_Dir & "/" & New_UUID & ".jsonl";
             Fork_Name  : constant String :=
               "Fork of "
-              & (if Length (Orig_Name) > 0
-                 then To_String (Orig_Name)
-                 else Source_UUID (Source_UUID'First
-                                   .. (if Source_UUID'Length >= 8
-                                       then Source_UUID'First + 7
-                                       else Source_UUID'Last))
-                      & "...")
-              & " @" & Positive'Image (After_Turn)
-                         (2 .. Positive'Image (After_Turn)'Last)
-              & (if After_Step > 0
-                 then "/" & Natural'Image (After_Step)
-                           (2 .. Natural'Image (After_Step)'Last)
-                 else "");
+              &
+              (if Length (Orig_Name) > 0 then To_String (Orig_Name)
+               else Source_UUID
+                   (Source_UUID'First ..
+                        (if Source_UUID'Length >= 8 then Source_UUID'First + 7
+                         else Source_UUID'Last))
+                 & "...")
+              & " @"
+              & Positive'Image (After_Turn)
+                (2 .. Positive'Image (After_Turn)'Last)
+              &
+              (if After_Step > 0 then
+                 "/"
+                 & Natural'Image (After_Step)
+                   (2 .. Natural'Image (After_Step)'Last)
+               else "");
             Out_Str    : Ada.Streams.Stream_IO.File_Type;
             Out_S      : Ada.Streams.Stream_IO.Stream_Access;
 
@@ -808,11 +795,10 @@ package body Session_Lister is
             end if;
 
             if Cut_Index >= Integer (Source_Lines.First_Index + 1) then
-               for I in Source_Lines.First_Index + 1
-                 .. Natural (Cut_Index)
+               for I in Source_Lines.First_Index + 1 .. Natural (Cut_Index)
                loop
                   declare
-                     Line : constant String := To_String (Source_Lines (I));
+                     Line  : constant String := To_String (Source_Lines (I));
                      Parse : constant Read_Result := Read (Line);
                   begin
                      if Parse.Success then

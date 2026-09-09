@@ -48,8 +48,7 @@ package body LLM_Types_Tests is
         (To_String (Block.Tool_Call_Id) = "call-1",
          "Tool call id should round-trip");
       Assert
-        (To_String (Block.Tool_Name) = "read",
-         "Tool name should round-trip");
+        (To_String (Block.Tool_Name) = "read", "Tool name should round-trip");
       Assert
         (To_String (Block.Arguments_Json) = "{""path"":""foo.adb""}",
          "Arguments JSON should round-trip");
@@ -88,7 +87,8 @@ package body LLM_Types_Tests is
       Msg :=
         (Role      => Compaction_Summary,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => Unknown_Stop,
          Timestamp => To_Unbounded_String ("2026-05-02T12:00:00Z"));
 
@@ -104,11 +104,17 @@ package body LLM_Types_Tests is
       pragma Unreferenced (T);
 
       Left  : constant Usage :=
-        (Input => 10, Output => 20, Cache_Read => 3, Cache_Write => 4,
-         Thinking => 0);
+        (Input       => 10,
+         Output      => 20,
+         Cache_Read  => 3,
+         Cache_Write => 4,
+         Thinking    => 0);
       Right : constant Usage :=
-        (Input => 1, Output => 2, Cache_Read => 30, Cache_Write => 40,
-         Thinking => 0);
+        (Input       => 1,
+         Output      => 2,
+         Cache_Read  => 30,
+         Cache_Write => 40,
+         Thinking    => 0);
       Sum   : constant Usage := Left + Right;
    begin
       Assert (Sum.Input = 11, "Input counts should add");
@@ -131,20 +137,28 @@ package body LLM_Types_Tests is
           Text => To_Unbounded_String ("Hello")));
       Assistant_Content.Append
         ((Kind => Text_Block,
-          Text => To_Unbounded_String ("Hi there")));
+         Text  => To_Unbounded_String ("Hi there")));
 
-      First :=
+      First  :=
         (Role      => User,
          Content   => User_Content,
-         Tok_Usage => (Input => 1, Output => 0, Cache_Read => 0,
-                       Cache_Write => 0, Thinking => 0),
+         Tok_Usage =>
+           (Input       => 1,
+            Output      => 0,
+            Cache_Read  => 0,
+            Cache_Write => 0,
+            Thinking    => 0),
          Stop      => Stop,
          Timestamp => To_Unbounded_String ("2026-05-02T12:00:00Z"));
       Second :=
         (Role      => Assistant,
          Content   => Assistant_Content,
-         Tok_Usage => (Input => 4, Output => 7, Cache_Read => 0,
-                       Cache_Write => 0, Thinking => 0),
+         Tok_Usage =>
+           (Input       => 4,
+            Output      => 7,
+            Cache_Read  => 0,
+            Cache_Write => 0,
+            Thinking    => 0),
          Stop      => Length,
          Timestamp => To_Unbounded_String ("2026-05-02T12:00:01Z"));
       Messages.Append (First);
@@ -188,42 +202,47 @@ package body LLM_Types_Tests is
       Assert
         (To_String (Block.Media_Type) = "image/png",
          "Media_Type should round-trip");
-      Assert
-        (not Block.Is_Error,
-         "Is_Error should be False");
+      Assert (not Block.Is_Error, "Is_Error should be False");
    end Test_Tool_Result_Block_Media_Type;
 
-   package LLM_Types_Caller is
-     new AUnit.Test_Caller (LLM_Types_Tests.Test);
+   package LLM_Types_Caller is new AUnit.Test_Caller (LLM_Types_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types text block stores text content",
-         LLM_Types_Tests.Test_Text_Block'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types thinking block stores thinking content",
-         LLM_Types_Tests.Test_Thinking_Block'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types tool-call block stores id/name/arguments",
-         LLM_Types_Tests.Test_Tool_Call_Block'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types tool-result block stores result and error flag",
-         LLM_Types_Tests.Test_Tool_Result_Block'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types tool-result block stores Media_Type field",
-         LLM_Types_Tests.Test_Tool_Result_Block_Media_Type'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types compaction summary messages preserve role and text",
-         LLM_Types_Tests.Test_Compaction_Summary_Role'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types usage values add field-by-field",
-         LLM_Types_Tests.Test_Usage_Addition'Access));
-      Result.Add_Test (LLM_Types_Caller.Create
-        ("LLM.Types message vectors append and preserve values",
-         LLM_Types_Tests.Test_Message_Vectors'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types text block stores text content",
+            LLM_Types_Tests.Test_Text_Block'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types thinking block stores thinking content",
+            LLM_Types_Tests.Test_Thinking_Block'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types tool-call block stores id/name/arguments",
+            LLM_Types_Tests.Test_Tool_Call_Block'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types tool-result block stores result and error flag",
+            LLM_Types_Tests.Test_Tool_Result_Block'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types tool-result block stores Media_Type field",
+            LLM_Types_Tests.Test_Tool_Result_Block_Media_Type'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types compaction summary messages preserve role and text",
+            LLM_Types_Tests.Test_Compaction_Summary_Role'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types usage values add field-by-field",
+            LLM_Types_Tests.Test_Usage_Addition'Access));
+      Result.Add_Test
+        (LLM_Types_Caller.Create
+           ("LLM.Types message vectors append and preserve values",
+            LLM_Types_Tests.Test_Message_Vectors'Access));
 
       return Result;
    end Suite;

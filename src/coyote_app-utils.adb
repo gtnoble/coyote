@@ -8,14 +8,12 @@ with Ada.Environment_Variables;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Exceptions;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Numerics.Long_Elementary_Functions;
 
-with GNATCOLL.JSON;          use GNATCOLL.JSON;
+with GNATCOLL.JSON; use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
-
-
 
 package body Coyote_App.Utils is
 
@@ -24,25 +22,25 @@ package body Coyote_App.Utils is
    --  ── Sanitize_UTF8 ─────────────────────────────────────────────────────
 
    function Sanitize_UTF8 (Text : String) return String is
-      Result       : Unbounded_String;
-      I            : Natural := Text'First;
-      Replacement : constant String := Character'Val (16#EF#)
-                                      & Character'Val (16#BF#)
-                                      & Character'Val (16#BD#);  --  U+FFFD
+      Result      : Unbounded_String;
+      I           : Natural         := Text'First;
+      Replacement : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);  --  U+FFFD
    begin
       while I <= Text'Last loop
          declare
-            C : constant Character  := Text (I);
-            B : constant Natural    := Character'Pos (C);
+            C : constant Character := Text (I);
+            B : constant Natural   := Character'Pos (C);
          begin
             --  ASCII (0x00..0x7F): single byte, always valid.
             if B <= 16#7F# then
                Append (Result, C);
                I := I + 1;
 
-            --  2-byte sequence leader (0xC2..0xDF).
-            --  0xC0 and 0xC1 are excluded — they can only encode overlong
-            --  sequences (would represent ASCII in two bytes).
+               --  2-byte sequence leader (0xC2..0xDF).
+               --  0xC0 and 0xC1 are excluded — they can only encode overlong
+               --  sequences (would represent ASCII in two bytes).
             elsif B >= 16#C2# and then B <= 16#DF# then
                if I + 1 <= Text'Last
                  and then Character'Pos (Text (I + 1)) >= 16#80#
@@ -56,17 +54,17 @@ package body Coyote_App.Utils is
                   I := I + 1;
                end if;
 
-            --  3-byte sequence leader (0xE0..0xEF).
+               --  3-byte sequence leader (0xE0..0xEF).
             elsif B >= 16#E0# and then B <= 16#EF# then
                if I + 2 <= Text'Last
                  and then Character'Pos (Text (I + 1)) >= 16#80#
                  and then Character'Pos (Text (I + 1)) <= 16#BF#
                  and then Character'Pos (Text (I + 2)) >= 16#80#
                  and then Character'Pos (Text (I + 2)) <= 16#BF#
-                 and then (B /= 16#E0#
-                           or else Character'Pos (Text (I + 1)) >= 16#A0#)
-                 and then (B /= 16#ED#
-                           or else Character'Pos (Text (I + 1)) <= 16#9F#)
+                 and then
+                 (B /= 16#E0# or else Character'Pos (Text (I + 1)) >= 16#A0#)
+                 and then
+                 (B /= 16#ED# or else Character'Pos (Text (I + 1)) <= 16#9F#)
                then
                   Append (Result, C);
                   Append (Result, Text (I + 1));
@@ -77,10 +75,10 @@ package body Coyote_App.Utils is
                   I := I + 1;
                end if;
 
-            --  4-byte sequence leader (0xF0..0xF4).
-            --  0xF5..0xF7 would encode code points beyond U+10FFFF and are
-            --  excluded; 0xF8..0xFF are original UTF-8 spec bytes that are
-            --  never valid.
+               --  4-byte sequence leader (0xF0..0xF4).
+               --  0xF5..0xF7 would encode code points beyond U+10FFFF and are
+               --  excluded; 0xF8..0xFF are original UTF-8 spec bytes that are
+               --  never valid.
             elsif B >= 16#F0# and then B <= 16#F4# then
                if I + 3 <= Text'Last
                  and then Character'Pos (Text (I + 1)) >= 16#80#
@@ -89,10 +87,10 @@ package body Coyote_App.Utils is
                  and then Character'Pos (Text (I + 2)) <= 16#BF#
                  and then Character'Pos (Text (I + 3)) >= 16#80#
                  and then Character'Pos (Text (I + 3)) <= 16#BF#
-                 and then (B /= 16#F0#
-                           or else Character'Pos (Text (I + 1)) >= 16#90#)
-                 and then (B /= 16#F4#
-                           or else Character'Pos (Text (I + 1)) <= 16#8F#)
+                 and then
+                 (B /= 16#F0# or else Character'Pos (Text (I + 1)) >= 16#90#)
+                 and then
+                 (B /= 16#F4# or else Character'Pos (Text (I + 1)) <= 16#8F#)
                then
                   Append (Result, C);
                   Append (Result, Text (I + 1));
@@ -104,9 +102,9 @@ package body Coyote_App.Utils is
                   I := I + 1;
                end if;
 
-            --  Continuation byte without a leader (0x80..0xBF),
-            --  overlong leaders (0xC0, 0xC1), out-of-range leaders
-            --  (0xF5..0xFF): all invalid.
+               --  Continuation byte without a leader (0x80..0xBF),
+               --  overlong leaders (0xC0, 0xC1), out-of-range leaders
+               --  (0xF5..0xFF): all invalid.
             else
                Append (Result, Replacement);
                I := I + 1;
@@ -118,9 +116,9 @@ package body Coyote_App.Utils is
 
    package body UTF8_Stream is
 
-      Replacement : constant String := Character'Val (16#EF#)
-                                      & Character'Val (16#BF#)
-                                      & Character'Val (16#BD#);
+      Replacement : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);
 
       function Is_Continuation (C : Character) return Boolean is
          B : constant Natural := Character'Pos (C);
@@ -145,8 +143,7 @@ package body Coyote_App.Utils is
       end Sequence_Length;
 
       function Valid_Sequence
-        (Data : String; First : Positive; Length : Positive)
-         return Boolean
+        (Data : String; First : Positive; Length : Positive) return Boolean
       is
          B : constant Natural := Character'Pos (Data (First));
       begin
@@ -155,20 +152,22 @@ package body Coyote_App.Utils is
          elsif Length = 2 then
             return Is_Continuation (Data (First + 1));
          elsif Length = 3 then
-            return Is_Continuation (Data (First + 1))
+            return
+              Is_Continuation (Data (First + 1))
               and then Is_Continuation (Data (First + 2))
-              and then (B /= 16#E0#
-                        or else Character'Pos (Data (First + 1)) >= 16#A0#)
-              and then (B /= 16#ED#
-                        or else Character'Pos (Data (First + 1)) <= 16#9F#);
+              and then
+              (B /= 16#E0# or else Character'Pos (Data (First + 1)) >= 16#A0#)
+              and then
+              (B /= 16#ED# or else Character'Pos (Data (First + 1)) <= 16#9F#);
          elsif Length = 4 then
-            return Is_Continuation (Data (First + 1))
+            return
+              Is_Continuation (Data (First + 1))
               and then Is_Continuation (Data (First + 2))
               and then Is_Continuation (Data (First + 3))
-              and then (B /= 16#F0#
-                        or else Character'Pos (Data (First + 1)) >= 16#90#)
-              and then (B /= 16#F4#
-                        or else Character'Pos (Data (First + 1)) <= 16#8F#);
+              and then
+              (B /= 16#F0# or else Character'Pos (Data (First + 1)) >= 16#90#)
+              and then
+              (B /= 16#F4# or else Character'Pos (Data (First + 1)) <= 16#8F#);
          else
             return False;
          end if;
@@ -181,25 +180,23 @@ package body Coyote_App.Utils is
 
       procedure Feed
         (S      : in out Instance;
-         Data   :      String;
+         Data   :        String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String)
       is
          Combined : constant String := To_String (S.Pending) & Data;
-         I        : Natural := Combined'First;
+         I        : Natural         := Combined'First;
       begin
          S.Pending := Null_Unbounded_String;
-         Output := Null_Unbounded_String;
+         Output    := Null_Unbounded_String;
 
          while I <= Combined'Last loop
             declare
-               Size      : constant Natural :=
-                 Sequence_Length (Combined (I));
+               Size      : constant Natural := Sequence_Length (Combined (I));
                Available : constant Natural := Combined'Last - I + 1;
                Check_End : constant Natural :=
-                 (if Size > 0
-                  then Natural'Min (Combined'Last, I + Size - 1)
+                 (if Size > 0 then Natural'Min (Combined'Last, I + Size - 1)
                   else I);
-               Bad       : Boolean := False;
+               Bad       : Boolean          := False;
             begin
                if Size = 0 then
                   Append (Output, Replacement);
@@ -219,8 +216,8 @@ package body Coyote_App.Utils is
                      Append (Output, Replacement);
                      I := I + 1;
                   elsif Available < Size then
-                     S.Pending := To_Unbounded_String
-                       (Combined (I .. Combined'Last));
+                     S.Pending :=
+                       To_Unbounded_String (Combined (I .. Combined'Last));
                      exit;
                   elsif Valid_Sequence (Combined, I, Size) then
                      Append (Output, Combined (I .. I + Size - 1));
@@ -270,10 +267,9 @@ package body Coyote_App.Utils is
    --
    --  Examples: 3.0 -> "3", 1.25 -> "1.25", 2.5 -> "2.5", 300.0 -> "300".
    function Format_Compact (V : Long_Float) return String is
-      Total     : constant Natural :=
-        Natural (Long_Float'Rounding (V * 100.0));
-      Int_Part  : constant Natural  := Total / 100;
-      Frac_Part : constant Natural  := Total mod 100;
+      Total : constant Natural   := Natural (Long_Float'Rounding (V * 100.0));
+      Int_Part  : constant Natural   := Total / 100;
+      Frac_Part : constant Natural   := Total mod 100;
       D1        : constant Character :=
         Character'Val (Character'Pos ('0') + Frac_Part / 10);
       D2        : constant Character :=
@@ -319,23 +315,25 @@ package body Coyote_App.Utils is
       use Ada.Numerics.Long_Elementary_Functions;
 
       function Signed_Compact (V : Long_Float) return String is
-         Rounded : constant Long_Integer :=
+         Rounded   : constant Long_Integer :=
            Long_Integer (Long_Float'Rounding (abs V * 100.0));
-         Int_Part : constant Long_Integer := Rounded / 100;
-         Frac_Part : constant Natural := Natural (Rounded mod 100);
-         Image : constant String :=
-           Ada.Strings.Fixed.Trim (Long_Integer'Image (Int_Part),
-                                   Ada.Strings.Both);
-         Sign : constant String :=
+         Int_Part  : constant Long_Integer := Rounded / 100;
+         Frac_Part : constant Natural      := Natural (Rounded mod 100);
+         Image     : constant String       :=
+           Ada.Strings.Fixed.Trim
+             (Long_Integer'Image (Int_Part), Ada.Strings.Both);
+         Sign      : constant String       :=
            (if V < 0.0 and then Rounded > 0 then "-" else "");
       begin
          if Frac_Part = 0 then
             return Sign & Image;
          elsif Frac_Part mod 10 = 0 then
-            return Sign & Image & "."
+            return
+              Sign & Image & "."
               & Character'Val (Character'Pos ('0') + Frac_Part / 10);
          else
-            return Sign & Image & "."
+            return
+              Sign & Image & "."
               & Character'Val (Character'Pos ('0') + Frac_Part / 10)
               & Character'Val (Character'Pos ('0') + Frac_Part mod 10);
          end if;
@@ -346,8 +344,8 @@ package body Coyote_App.Utils is
       elsif Per_MTok = 0.0 then
          return "free";
       else
-         return Signed_Compact
-           (10.0 * Log (Per_MTok / 1_000_000.0) / Log (10.0));
+         return
+           Signed_Compact (10.0 * Log (Per_MTok / 1_000_000.0) / Log (10.0));
       end if;
    end Format_DB_Price;
 
@@ -355,7 +353,8 @@ package body Coyote_App.Utils is
      (Input_Per_MTok       : Long_Float;
       Output_Per_MTok      : Long_Float;
       Cache_Read_Per_MTok  : Long_Float;
-      Cache_Write_Per_MTok : Long_Float) return String
+      Cache_Write_Per_MTok : Long_Float)
+      return String
    is
       Result : Ada.Strings.Unbounded.Unbounded_String;
 
@@ -372,10 +371,10 @@ package body Coyote_App.Utils is
       end Append_Field;
 
    begin
-      Append_Field ("in",  Input_Per_MTok);
+      Append_Field ("in", Input_Per_MTok);
       Append_Field ("out", Output_Per_MTok);
-      Append_Field ("cr",  Cache_Read_Per_MTok);
-      Append_Field ("cw",  Cache_Write_Per_MTok);
+      Append_Field ("cr", Cache_Read_Per_MTok);
+      Append_Field ("cw", Cache_Write_Per_MTok);
 
       if Length (Result) = 0 then
          return "";
@@ -402,16 +401,14 @@ package body Coyote_App.Utils is
       end Pad4;
 
    begin
-      return "$"
-             & Natural_Image (Dmil / 10_000)
-             & "."
-             & Pad4 (Dmil mod 10_000);
+      return
+        "$" & Natural_Image (Dmil / 10_000) & "." & Pad4 (Dmil mod 10_000);
    end Format_Cost;
 
    function Nth_Field (Text : String; N : Positive) return String is
-      Count   : Natural := 0;
-      Start   : Natural := 0;
-      In_Tok  : Boolean := False;
+      Count  : Natural := 0;
+      Start  : Natural := 0;
+      In_Tok : Boolean := False;
    begin
       for I in Text'Range loop
          if Text (I) in ' ' | ASCII.HT then
@@ -435,16 +432,16 @@ package body Coyote_App.Utils is
       return "";
    end Nth_Field;
 
-
    --  ── Apply_Prompt_Filter ───────────────────────────────────────────────
    --
    --  Pipe Raw through the shell command Filter and return stdout.
    --  Falls back to Raw on any error, populating Warn_Buf with a message.
 
    function Apply_Prompt_Filter
-     (Raw      : String;
-      Filter   : String;
-      Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String) return String
+     (Raw      :     String;
+      Filter   :     String;
+      Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String)
+      return String
    is
       use GNATCOLL.OS.FS;
       use GNATCOLL.OS.Process;
@@ -456,7 +453,7 @@ package body Coyote_App.Utils is
       end if;
 
       declare
-         Stdin_R,  Stdin_W  : File_Descriptor;
+         Stdin_R, Stdin_W   : File_Descriptor;
          Stdout_R, Stdout_W : File_Descriptor;
          Stderr_Null        : constant File_Descriptor :=
            Open (Null_File, Write_Mode);
@@ -467,7 +464,7 @@ package body Coyote_App.Utils is
          Chunk              : String (1 .. 4_096);
          N                  : Integer;
       begin
-         Open_Pipe (Stdin_R,  Stdin_W);
+         Open_Pipe (Stdin_R, Stdin_W);
          Open_Pipe (Stdout_R, Stdout_W);
 
          declare
@@ -479,11 +476,12 @@ package body Coyote_App.Utils is
          Args.Append ("-c");
          Args.Append (Filter);
 
-         Handle := Start
-           (Args   => Args,
-            Stdin  => Stdin_R,
-            Stdout => Stdout_W,
-            Stderr => Stderr_Null);
+         Handle :=
+           Start
+             (Args   => Args,
+              Stdin  => Stdin_R,
+              Stdout => Stdout_W,
+              Stderr => Stderr_Null);
 
          Close (Stdin_R);
          Close (Stdout_W);
@@ -550,8 +548,7 @@ package body Coyote_App.Utils is
       when Ex : others =>
          Warn_Buf :=
            To_Unbounded_String
-             ("prompt filter failed: "
-              & Ada.Exceptions.Exception_Message (Ex)
+             ("prompt filter failed: " & Ada.Exceptions.Exception_Message (Ex)
               & " -- sending raw prompt");
          return Raw;
    end Apply_Prompt_Filter;
@@ -563,28 +560,23 @@ package body Coyote_App.Utils is
       Model_Text        : String;
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
-      Stop_Reason_Text : String  := "") return String
+      Stop_Reason_Text  : String  := "")
+      return String
    is
       Parts : Unbounded_String;
    begin
       if Input_Tokens > 0 and then Ctx_Window > 0 then
          Append
            (Parts,
-            "ctx "
-            & Format_SI_Count (Input_Tokens)
-            & "/" & Format_SI_Count (Ctx_Window)
-            & " ("
-            & Natural_Image (Input_Tokens * 100 / Ctx_Window)
-            & "%)");
+            "ctx " & Format_SI_Count (Input_Tokens) & "/"
+            & Format_SI_Count (Ctx_Window) & " ("
+            & Natural_Image (Input_Tokens * 100 / Ctx_Window) & "%)");
       end if;
       if Output_Tokens > 0 then
          if Length (Parts) > 0 then
             Append (Parts, " | ");
          end if;
-         Append
-           (Parts,
-            "^" & Format_SI_Count (Output_Tokens)
-            & " out");
+         Append (Parts, "^" & Format_SI_Count (Output_Tokens) & " out");
       end if;
       if Turn_Cost_Dmil > 0 then
          if Length (Parts) > 0 then
@@ -611,9 +603,7 @@ package body Coyote_App.Utils is
          Append (Parts, Stop_Reason_Text);
       end if;
       return
-        (if Length (Parts) > 0
-         then "[" & To_String (Parts) & "]"
-         else "");
+        (if Length (Parts) > 0 then "[" & To_String (Parts) & "]" else "");
    end Format_Turn_Summary;
 
    function Format_Turn_Footer_Display
@@ -623,8 +613,9 @@ package body Coyote_App.Utils is
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
-      Stop_Reason_Text : String  := "";
-      Is_Step           : Boolean := False) return String
+      Stop_Reason_Text  : String  := "";
+      Is_Step           : Boolean := False)
+      return String
    is
       Summary : constant String :=
         Format_Turn_Summary
@@ -634,29 +625,27 @@ package body Coyote_App.Utils is
            Model_Text        => Model_Text,
            Turn_Cost_Dmil    => Turn_Cost_Dmil,
            Session_Cost_Dmil => Session_Cost_Dmil,
-           Stop_Reason_Text => Stop_Reason_Text);
+           Stop_Reason_Text  => Stop_Reason_Text);
       Sep     : constant String :=
-        (if Is_Step
-         then Str_Repeat (UC_HORIZ, 60)
+        (if Is_Step then Str_Repeat (UC_HORIZ, 60)
          else Str_Repeat (UC_DBL_H, 60));
    begin
-      return ASCII.LF & ASCII.LF
-             & (if Summary'Length > 0 then Summary & " " else "")
-             & ASCII.LF
-             & Sep
-             & ASCII.LF & ASCII.LF;
+      return
+        ASCII.LF & ASCII.LF
+        & (if Summary'Length > 0 then Summary & " " else "") & ASCII.LF & Sep
+        & ASCII.LF & ASCII.LF;
    end Format_Turn_Footer_Display;
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 
    function Is_Hidden_Tool_Argument
-     (Field_Name  : UTF8_String;
-      Field_Value : JSON_Value) return Boolean
+     (Field_Name : UTF8_String; Field_Value : JSON_Value) return Boolean
    is
       Name : constant String := String (Field_Name);
    begin
       if Name = "run_group" then
-         return Field_Value.Kind = JSON_Int_Type
+         return
+           Field_Value.Kind = JSON_Int_Type
            and then Long_Integer'(Field_Value.Get) = 0;
       elsif Name = "stdin" or else Name = "media_type" then
          if Field_Value.Kind = JSON_Null_Type then
@@ -672,26 +661,19 @@ package body Coyote_App.Utils is
       return False;
    end Is_Hidden_Tool_Argument;
 
-   function Get_String
-     (Val   : JSON_Value;
-      Field : UTF8_String) return String
-   is
+   function Get_String (Val : JSON_Value; Field : UTF8_String) return String is
    begin
-      if Val.Has_Field (Field)
-        and then Val.Get (Field).Kind = JSON_String_Type
+      if Val.Has_Field (Field) and then Val.Get (Field).Kind = JSON_String_Type
       then
          return Val.Get (Field).Get;
       end if;
       return "";
    end Get_String;
 
-   function Get_Integer
-     (Val   : JSON_Value;
-      Field : UTF8_String) return Natural
+   function Get_Integer (Val : JSON_Value; Field : UTF8_String) return Natural
    is
    begin
-      if Val.Has_Field (Field)
-        and then Val.Get (Field).Kind = JSON_Int_Type
+      if Val.Has_Field (Field) and then Val.Get (Field).Kind = JSON_Int_Type
       then
          return Natural (Long_Integer'(Val.Get (Field).Get));
       end if;
@@ -699,8 +681,7 @@ package body Coyote_App.Utils is
    end Get_Integer;
 
    function Get_Cost_Dmil
-     (Val   : JSON_Value;
-      Field : UTF8_String) return Natural
+     (Val : JSON_Value; Field : UTF8_String) return Natural
    is
    begin
       if not Val.Has_Field (Field) then
@@ -714,8 +695,7 @@ package body Coyote_App.Utils is
                Cost : constant Long_Float := Get_Long_Float (F);
             begin
                if Cost > 0.0 then
-                  return Natural
-                    (Long_Float'Floor (Cost * 10_000.0 + 0.5));
+                  return Natural (Long_Float'Floor (Cost * 10_000.0 + 0.5));
                end if;
             end;
          elsif F.Kind = JSON_Int_Type then
@@ -731,9 +711,7 @@ package body Coyote_App.Utils is
       return 0;
    end Get_Cost_Dmil;
 
-   function Get_Boolean
-     (Val   : JSON_Value;
-      Field : UTF8_String) return Boolean
+   function Get_Boolean (Val : JSON_Value; Field : UTF8_String) return Boolean
    is
    begin
       if Val.Has_Field (Field)
@@ -745,12 +723,10 @@ package body Coyote_App.Utils is
    end Get_Boolean;
 
    function Get_Object
-     (Val   : JSON_Value;
-      Field : UTF8_String) return JSON_Value
+     (Val : JSON_Value; Field : UTF8_String) return JSON_Value
    is
    begin
-      if Val.Has_Field (Field)
-        and then Val.Get (Field).Kind = JSON_Object_Type
+      if Val.Has_Field (Field) and then Val.Get (Field).Kind = JSON_Object_Type
       then
          return Val.Get (Field);
       end if;
@@ -761,8 +737,7 @@ package body Coyote_App.Utils is
    begin
       if Val.Kind = JSON_String_Type then
          return Val.Get;
-      elsif Val.Kind in
-        JSON_Int_Type | JSON_Boolean_Type | JSON_Float_Type
+      elsif Val.Kind in JSON_Int_Type | JSON_Boolean_Type | JSON_Float_Type
       then
          return Val.Write;
       else
@@ -771,31 +746,29 @@ package body Coyote_App.Utils is
    end JSON_Scalar_Image;
 
    function Format_Tool_Field
-     (Name    : String;
-      Value   : String;
-      Max_Len : Positive := 200) return String
+     (Name : String; Value : String; Max_Len : Positive := 200) return String
    is
       Trimmed : constant String :=
-        (if Value'Length > Max_Len
-         then Value (Value'First .. Value'First + Max_Len - 4) & UC_ELLIP
+        (if
+           Value'Length > Max_Len
+         then
+           Value (Value'First .. Value'First + Max_Len - 4) & UC_ELLIP
          else Value);
       Result  : Unbounded_String;
-      Pos     : Natural := Trimmed'First;
-      First   : Boolean := True;
+      Pos     : Natural         := Trimmed'First;
+      First   : Boolean         := True;
    begin
       for I in Trimmed'Range loop
          if Trimmed (I) = ASCII.LF then
             if First then
                Append
                  (Result,
-                  UC_BOX_V & " " & Name & ": "
-                  & Trimmed (Pos .. I - 1));
+                  UC_BOX_V & " " & Name & ": " & Trimmed (Pos .. I - 1));
                First := False;
             else
                Append
                  (Result,
-                  "" & ASCII.LF & UC_BOX_V & " "
-                  & Trimmed (Pos .. I - 1));
+                  "" & ASCII.LF & UC_BOX_V & " " & Trimmed (Pos .. I - 1));
             end if;
             Pos := I + 1;
          end if;
@@ -805,33 +778,29 @@ package body Coyote_App.Utils is
       if First then
          Append
            (Result,
-            UC_BOX_V & " " & Name & ": "
-            & Trimmed (Pos .. Trimmed'Last));
+            UC_BOX_V & " " & Name & ": " & Trimmed (Pos .. Trimmed'Last));
       else
          Append
            (Result,
-            "" & ASCII.LF & UC_BOX_V & " "
-            & Trimmed (Pos .. Trimmed'Last));
+            "" & ASCII.LF & UC_BOX_V & " " & Trimmed (Pos .. Trimmed'Last));
       end if;
       return To_String (Result);
    end Format_Tool_Field;
 
    --  ── Thinking-text collapse ───────────────────────────────────────────
 
-
    function Collapse_Thinking_Delta (Text : String) return String is
       use Ada.Strings.Unbounded;
-      Result     : Unbounded_String;
-      I          : Natural := Text'First;
-      First_NZ   : Natural := 0;
-      Last_NZ    : Natural := 0;
+      Result   : Unbounded_String;
+      I        : Natural := Text'First;
+      First_NZ : Natural := 0;
+      Last_NZ  : Natural := 0;
    begin
       --  Find first and last positions that are not LF, CR, or HT.
       --  Spaces are treated as content (they carry word-boundary
       --  information from providers like Anthropic).
       for J in Text'Range loop
-         if Text (J) /= ASCII.LF
-           and then Text (J) /= ASCII.CR
+         if Text (J) /= ASCII.LF and then Text (J) /= ASCII.CR
            and then Text (J) /= ASCII.HT
          then
             if First_NZ = 0 then
@@ -853,7 +822,7 @@ package body Coyote_App.Utils is
          if Text (I) = ASCII.LF or else Text (I) = ASCII.CR then
             --  Check for paragraph break: \n\n or \r\n\r\n or similar.
             declare
-               J : Natural := I + 1;
+               J                : Natural := I + 1;
                Found_Another_LF : Boolean := False;
             begin
                --  Skip any CR/LF after the current one.
@@ -893,11 +862,11 @@ package body Coyote_App.Utils is
 
       procedure Feed
         (T      : in out Instance;
-         Delt   :      String;
+         Delt   :        String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String)
       is
          B : constant String := To_String (T.Buf) & Delt;
-         I : Natural := B'First;
+         I : Natural         := B'First;
       begin
          Output := Null_Unbounded_String;
 
@@ -908,9 +877,9 @@ package body Coyote_App.Utils is
          --  Skip leading whitespace before any content has been emitted.
          if not T.Started then
             while I <= B'Last
-              and then (B (I) = ASCII.LF
-                        or else B (I) = ASCII.CR
-                        or else B (I) = ASCII.HT)
+              and then
+              (B (I) = ASCII.LF or else B (I) = ASCII.CR
+               or else B (I) = ASCII.HT)
             loop
                I := I + 1;
             end loop;
@@ -934,12 +903,11 @@ package body Coyote_App.Utils is
             then
                --  Walk back to see if this is \n\n or just \n.
                declare
-                  J : Natural := B'Last - 1;
+                  J              : Natural := B'Last - 1;
                   Found_Prior_LF : Boolean := False;
                begin
                   while J >= I
-                    and then (B (J) = ASCII.LF
-                              or else B (J) = ASCII.CR)
+                    and then (B (J) = ASCII.LF or else B (J) = ASCII.CR)
                   loop
                      if B (J) = ASCII.LF then
                         Found_Prior_LF := True;
@@ -951,8 +919,7 @@ package body Coyote_App.Utils is
                   if not Found_Prior_LF then
                      --  Single trailing newline: hold it back.
                      Last_Safe := B'Last - 1;
-                     while Last_Safe >= I
-                       and then (B (Last_Safe) = ASCII.HT)
+                     while Last_Safe >= I and then (B (Last_Safe) = ASCII.HT)
                      loop
                         Last_Safe := Last_Safe - 1;
                      end loop;
@@ -971,13 +938,13 @@ package body Coyote_App.Utils is
             while I <= Last_Safe loop
                if B (I) = ASCII.LF or else B (I) = ASCII.CR then
                   declare
-                     J          : Natural := I + 1;
-                     Second_LF  : Boolean := False;
+                     J         : Natural := I + 1;
+                     Second_LF : Boolean := False;
                   begin
                      while J <= Last_Safe
-                       and then (B (J) = ASCII.LF
-                                 or else B (J) = ASCII.CR
-                                 or else B (J) = ASCII.HT)
+                       and then
+                       (B (J) = ASCII.LF or else B (J) = ASCII.CR
+                        or else B (J) = ASCII.HT)
                      loop
                         if B (J) = ASCII.LF then
                            Second_LF := True;
@@ -1030,9 +997,9 @@ package body Coyote_App.Utils is
             Last : Natural := B'Last;
          begin
             while Last >= B'First
-              and then (B (Last) = ASCII.LF
-                        or else B (Last) = ASCII.CR
-                        or else B (Last) = ASCII.HT)
+              and then
+              (B (Last) = ASCII.LF or else B (Last) = ASCII.CR
+               or else B (Last) = ASCII.HT)
             loop
                Last := Last - 1;
             end loop;
@@ -1057,7 +1024,8 @@ package body Coyote_App.Utils is
      (Provider : String;
       Name     : String;
       Spec     : String;
-      Query    : String) return Boolean
+      Query    : String)
+      return Boolean
    is
       Needle : constant String :=
         Ada.Characters.Handling.To_Lower
@@ -1074,18 +1042,15 @@ package body Coyote_App.Utils is
          return True;
       end if;
 
-      return Contains (Provider)
-        or else Contains (Name)
-        or else Contains (Spec);
+      return
+        Contains (Provider) or else Contains (Name) or else Contains (Spec);
    end Model_Row_Matches;
 
    function Format_Model_Picker_Count
-     (Visible  : Natural;
-      Filtered : Boolean) return String
+     (Visible : Natural; Filtered : Boolean) return String
    is
       Count_Image : constant String :=
-        Ada.Strings.Fixed.Trim
-          (Natural'Image (Visible), Ada.Strings.Left);
+        Ada.Strings.Fixed.Trim (Natural'Image (Visible), Ada.Strings.Left);
    begin
       if not Filtered then
          if Visible = 1 then

@@ -24,8 +24,7 @@ package LLM.Skills is
    end record;
 
    package Skill_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Skill);
+     (Index_Type => Natural, Element_Type => Skill);
 
    --  Scan the built-in roots and configured skillPaths roots (see package
    --  header) for SKILL.md files. Later roots shadow earlier names.
@@ -43,13 +42,11 @@ package LLM.Skills is
    --  parent directory (stripping bin/<name>).  Returns "" when the path
    --  is not of the expected form.
    --  Executable defaults to the active executable image path.
-   function Install_Base
-     (Executable : String := "") return String;
+   function Install_Base (Executable : String := "") return String;
 
    --  Return the installation-relative skill root, or "" when
    --  Install_Base is empty (uninstalled / non-standard layout).
    --  Executable is forwarded to Install_Base.
-   function Installation_Skills_Base
-     (Executable : String := "") return String;
+   function Installation_Skills_Base (Executable : String := "") return String;
 
 end LLM.Skills;

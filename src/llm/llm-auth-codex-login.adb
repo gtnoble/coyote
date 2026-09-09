@@ -23,8 +23,8 @@ package body LLM.Auth.Codex.Login is
       function Pending_Code return String;
       function Was_Cancelled return Boolean;
    private
-      Manual_Code      : Unbounded_String := Null_Unbounded_String;
-      Cancelled_Flag   : Boolean := False;
+      Manual_Code    : Unbounded_String := Null_Unbounded_String;
+      Cancelled_Flag : Boolean          := False;
    end Login_State;
 
    protected body Login_State is
@@ -88,8 +88,7 @@ package body LLM.Auth.Codex.Login is
       Code   : Natural;
    begin
       while I <= Value'Last loop
-         if Value (I) = '%'
-           and then I + 2 <= Value'Last
+         if Value (I) = '%' and then I + 2 <= Value'Last
            and then Value (I + 1) in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F'
            and then Value (I + 2) in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F'
          then
@@ -108,11 +107,10 @@ package body LLM.Auth.Codex.Login is
    end Percent_Decode;
 
    function Extract_Query_Param
-     (Request : String;
-      Param   : String) return String
+     (Request : String; Param : String) return String
    is
       Marker     : constant String := Param & "=";
-      Marker_Pos : Natural := 0;
+      Marker_Pos : Natural         := 0;
       Value_Last : Natural;
    begin
       if Request'Length = 0 or else Param'Length = 0 then
@@ -146,13 +144,11 @@ package body LLM.Auth.Codex.Login is
 
    --  Read the client's HTTP request head from the accepted socket.
    --  Returns "" on read failure or when the peer closes early.
-   function Read_Request
-     (Client : GNAT.Sockets.Socket_Type) return String
-   is
+   function Read_Request (Client : GNAT.Sockets.Socket_Type) return String is
       use GNAT.Sockets;
       use Ada.Streams;
 
-      Buffer : Stream_Element_Array (1 .. 4096);
+      Buffer : Stream_Element_Array (1 .. 4_096);
       Last   : Stream_Element_Offset;
       Data   : Unbounded_String;
       Text   : Unbounded_String;
@@ -163,9 +159,7 @@ package body LLM.Auth.Codex.Login is
          exit when Last < Buffer'First;
 
          for I in Buffer'First .. Last loop
-            Append
-              (Data,
-               Character'Val (Natural (Buffer (I))));
+            Append (Data, Character'Val (Natural (Buffer (I))));
          end loop;
 
          --  The request head ends with a blank line.  HTTP uses CRLF
@@ -174,12 +168,11 @@ package body LLM.Auth.Codex.Login is
          declare
             Head : constant String := To_String (Data);
          begin
-            exit when
-              Ada.Strings.Fixed.Index
-                (Head,
-                 "" & ASCII.CR & ASCII.LF & ASCII.CR & ASCII.LF) > 0
-              or else Ada.Strings.Fixed.Index
-                (Head, "" & ASCII.LF & ASCII.LF) > 0;
+            exit when Ada.Strings.Fixed.Index
+                (Head, "" & ASCII.CR & ASCII.LF & ASCII.CR & ASCII.LF)
+              > 0
+              or else Ada.Strings.Fixed.Index (Head, "" & ASCII.LF & ASCII.LF)
+                > 0;
          end;
       end loop;
 
@@ -190,9 +183,7 @@ package body LLM.Auth.Codex.Login is
          return To_String (Data);
    end Read_Request;
 
-   function State_Matches (Request : String; State : String)
-      return Boolean
-   is
+   function State_Matches (Request : String; State : String) return Boolean is
       Expected : constant String := "state=" & State;
    begin
       return Ada.Strings.Fixed.Index (Request, Expected) > 0;
@@ -200,22 +191,18 @@ package body LLM.Auth.Codex.Login is
 
    --  Send a minimal 200 response and close.
    procedure Write_Callback_Response
-     (Client    : GNAT.Sockets.Socket_Type;
-      Body_Text : String)
+     (Client : GNAT.Sockets.Socket_Type; Body_Text : String)
    is
       use GNAT.Sockets;
       use Ada.Streams;
 
       Content : constant String :=
-        "HTTP/1.1 200 OK" & ASCII.CR & ASCII.LF
-        & "Content-Type: text/html" & ASCII.CR & ASCII.LF
-        & "Content-Length:"
+        "HTTP/1.1 200 OK" & ASCII.CR & ASCII.LF & "Content-Type: text/html"
+        & ASCII.CR & ASCII.LF & "Content-Length:"
         & Ada.Strings.Fixed.Trim
           (Natural'Image (Body_Text'Length), Ada.Strings.Both)
-        & ASCII.CR & ASCII.LF
-        & "Connection: close" & ASCII.CR & ASCII.LF
-        & ASCII.CR & ASCII.LF
-        & Body_Text;
+        & ASCII.CR & ASCII.LF & "Connection: close" & ASCII.CR & ASCII.LF
+        & ASCII.CR & ASCII.LF & Body_Text;
 
       Buffer : Stream_Element_Array (1 .. Content'Length);
       Last   : Stream_Element_Offset;
@@ -232,10 +219,10 @@ package body LLM.Auth.Codex.Login is
    end Write_Callback_Response;
 
    procedure Browser_Login
-     (Open_Authorize_Url : access procedure (Url : String);
-      On_Progress        : access procedure
-        (Phase  : Progress_Kind;
-         Detail : String) := null;
+     (Open_Authorize_Url :     access procedure (Url : String);
+      On_Progress        :     access procedure
+        (Phase : Progress_Kind; Detail : String) :=
+        null;
       Creds              : out LLM.Auth.Provider_Credentials)
    is
       use GNAT.Sockets;
@@ -245,23 +232,20 @@ package body LLM.Auth.Codex.Login is
       Challenge : Unbounded_String;
       State     : constant String := LLM.Auth.Codex.New_State;
 
-      Server   : Socket_Type;
-      Client   : Socket_Type;
-      Address  : Sock_Addr_Type;
-      Selector : Selector_Type;
-      Read_Set : Socket_Set_Type;
-      Status   : Selector_Status;
-      Deadline : constant Ada.Calendar.Time :=
+      Server    : Socket_Type;
+      Client    : Socket_Type;
+      Address   : Sock_Addr_Type;
+      Selector  : Selector_Type;
+      Read_Set  : Socket_Set_Type;
+      Status    : Selector_Status;
+      Deadline  : constant Ada.Calendar.Time :=
         Ada.Calendar.Clock + Login_Timeout_Seconds;
       Authorize : Unbounded_String;
 
-      Code      : Unbounded_String := Null_Unbounded_String;
-      Got_Code  : Boolean := False;
+      Code     : Unbounded_String := Null_Unbounded_String;
+      Got_Code : Boolean          := False;
 
-      procedure Report
-        (Phase  : Progress_Kind;
-         Detail : String := "")
-      is
+      procedure Report (Phase : Progress_Kind; Detail : String := "") is
       begin
          if On_Progress /= null then
             On_Progress.all (Phase, Detail);
@@ -275,26 +259,26 @@ package body LLM.Auth.Codex.Login is
 
       Authorize :=
         To_Unbounded_String
-          (LLM.Auth.Codex.Build_Authorize_Url
-             (To_String (Challenge), State));
+          (LLM.Auth.Codex.Build_Authorize_Url (To_String (Challenge), State));
 
-      Report (Listening, "local callback port "
-        & Positive'Image (LLM.Auth.Codex.Redirect_Port));
+      Report
+        (Listening,
+         "local callback port "
+         & Positive'Image (LLM.Auth.Codex.Redirect_Port));
 
       Create_Socket (Socket => Server);
       Address :=
         GNAT.Sockets.Sock_Addr_Type'
           (Family => GNAT.Sockets.Family_Inet,
-           Addr   => GNAT.Sockets.Inet_Addr
-             (LLM.Auth.Codex.Redirect_Host),
-           Port   =>
-             GNAT.Sockets.Port_Type (LLM.Auth.Codex.Redirect_Port));
-      --  SO_REUSEADDR lets an immediately-retried login rebind the
-      --  callback port when the previous listener ended in TIME_WAIT.
+           Addr   => GNAT.Sockets.Inet_Addr (LLM.Auth.Codex.Redirect_Host),
+           Port   => GNAT.Sockets.Port_Type (LLM.Auth.Codex.Redirect_Port));
+           --  SO_REUSEADDR lets an immediately-retried login rebind the
+           --  callback port when the previous listener ended in TIME_WAIT.
       Set_Socket_Option
         (Server,
          Socket_Level,
-         (Reuse_Address, True));
+        (Reuse_Address,
+          True));
       Bind_Socket (Server, Address);
       Listen_Socket (Server, 1);
       Create_Selector (Selector);
@@ -315,7 +299,7 @@ package body LLM.Auth.Codex.Login is
             Manual : constant String := Shared_State.Pending_Code;
          begin
             if Manual'Length > 0 then
-               Code := To_Unbounded_String (Manual);
+               Code     := To_Unbounded_String (Manual);
                Got_Code := True;
                exit Wait_Loop;
             end if;
@@ -334,23 +318,22 @@ package body LLM.Auth.Codex.Login is
             Accept_Socket (Server, Client, Address);
 
             declare
-               Request : constant String := Read_Request (Client);
-               Query_Code : constant String :=
+               Request     : constant String := Read_Request (Client);
+               Query_Code  : constant String :=
                  Extract_Query_Param (Request, "code");
                Query_Error : constant String :=
                  Extract_Query_Param (Request, "error");
             begin
                if Query_Error'Length > 0 then
                   Close_Socket (Client);
-                  raise Login_Error with
-                    "Authorization server returned an error: "
+                  raise Login_Error
+                    with "Authorization server returned an error: "
                     & Query_Error;
                end if;
 
-               if Query_Code'Length > 0
-                 and then State_Matches (Request, State)
+               if Query_Code'Length > 0 and then State_Matches (Request, State)
                then
-                  Code := To_Unbounded_String (Query_Code);
+                  Code     := To_Unbounded_String (Query_Code);
                   Got_Code := True;
                   Report (Callback_Received);
                end if;
@@ -393,8 +376,8 @@ package body LLM.Auth.Codex.Login is
          Creds                 => Creds);
 
       if Length (Creds.Account_Id) = 0 then
-         raise Login_Error with
-           "OpenAI Codex access token does not carry a "
+         raise Login_Error
+           with "OpenAI Codex access token does not carry a "
            & "chatgpt_account_id claim; sign in again";
       end if;
 

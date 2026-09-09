@@ -20,14 +20,14 @@ package LLM.Providers.OpenCode_Go.Catalogue is
       Anthropic_Messages_Wire);
 
    type Model_Info is record
-      Model_Id        : Ada.Strings.Unbounded.Unbounded_String;
-      Name            : Ada.Strings.Unbounded.Unbounded_String;
-      Context_Window  : Natural := 128_000;
-      Max_Tokens      : Natural := 16_384;
-      Reasoning       : Boolean := False;
-      Supports_Tools  : Boolean := True;
-      Supports_Images : Boolean := False;
-      Wire            : Wire_Kind := OpenAI_Completions_Wire;
+      Model_Id         : Ada.Strings.Unbounded.Unbounded_String;
+      Name             : Ada.Strings.Unbounded.Unbounded_String;
+      Context_Window   : Natural    := 128_000;
+      Max_Tokens       : Natural    := 16_384;
+      Reasoning        : Boolean    := False;
+      Supports_Tools   : Boolean    := True;
+      Supports_Images  : Boolean    := False;
+      Wire             : Wire_Kind  := OpenAI_Completions_Wire;
       Cost_Input       : Long_Float := 0.0;
       Cost_Output      : Long_Float := 0.0;
       Cost_Cache_Read  : Long_Float := 0.0;
@@ -35,8 +35,7 @@ package LLM.Providers.OpenCode_Go.Catalogue is
    end record;
 
    package Catalogue_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Model_Info);
+     (Index_Type => Positive, Element_Type => Model_Info);
 
    --  Load the model catalogue from the OpenCode Go endpoint.
    --
@@ -45,8 +44,7 @@ package LLM.Providers.OpenCode_Go.Catalogue is
    --  When a live fetch fails, stale cached data is used when available;
    --  otherwise Models is returned empty.
    procedure Load_Catalogue
-     (Models        :    out Catalogue_Vectors.Vector;
-      Max_Age_Hours :        Natural := 24);
+     (Models : out Catalogue_Vectors.Vector; Max_Age_Hours : Natural := 24);
 
    --  Determine the wire format for a given model identifier.
    --

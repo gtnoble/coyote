@@ -16,20 +16,19 @@ with Coyote_App.Headless;
 package body Coyote_App.RPC is
 
    procedure Run (Opts : Coyote_App.Options) is
-      Endpoint : constant String :=
+      Endpoint  : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_RPC_ENDPOINT", "");
-      Agent_Id : constant String :=
+      Agent_Id  : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_RUNTIME_AGENT_ID", "");
       Parent_Id : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_PARENT_RUNTIME_AGENT_ID", "");
-      Label : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_PARENT_RUNTIME_AGENT_ID", "");
+      Label     : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_AGENT_LABEL", "subagent");
-      Frontend : Coyote_App.Frontend.RPC.Instance;
+      Frontend  : Coyote_App.Frontend.RPC.Instance;
    begin
       if Endpoint'Length = 0 or else Agent_Id'Length = 0 then
-         raise Coyote_Utils.Bad_Arg_Error with
-           "RPC frontend requires COYOTE_RPC_ENDPOINT and "
+         raise Coyote_Utils.Bad_Arg_Error
+           with "RPC frontend requires COYOTE_RPC_ENDPOINT and "
            & "COYOTE_RUNTIME_AGENT_ID";
       end if;
       Frontend.Create

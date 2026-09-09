@@ -6,7 +6,7 @@ package Coyote_Test_Config is
    pragma Pure;
 
    Crate_Version : constant String := "0.1.0-dev";
-   Crate_Name : constant String := "coyote_test";
+   Crate_Name    : constant String := "coyote_test";
 
    Alire_Host_OS : constant String := "linux";
 
@@ -14,7 +14,10 @@ package Coyote_Test_Config is
 
    Alire_Host_Distro : constant String := "ubuntu";
 
-   type Build_Profile_Kind is (release, validation, development);
+   type Build_Profile_Kind is
+     (release,
+      validation,
+      development);
    Build_Profile : constant Build_Profile_Kind := development;
 
 end Coyote_Test_Config;

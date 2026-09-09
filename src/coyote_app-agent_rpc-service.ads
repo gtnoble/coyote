@@ -15,22 +15,19 @@ package Coyote_App.Agent_RPC.Service is
 
    Max_Connections : constant Positive := 32;
 
-   type Frame_Handler is access procedure
-     (Value : Coyote_App.Agent_RPC.Frame);
+   type Frame_Handler is access procedure (Value : Coyote_App.Agent_RPC.Frame);
 
    type Service is limited private;
 
    procedure Start
-     (S       : in out Service;
-      Path    : String;
-      Handler : not null Frame_Handler);
+     (S : in out Service; Path : String; Handler : not null Frame_Handler);
 
    procedure Send_Command
      (S          : in out Service;
-      Agent_Id   : String;
-      Request_Id : String;
-      Command    : Coyote_App.Agent_RPC.Command_Kind;
-      Payload    : String := "{}");
+      Agent_Id   :        String;
+      Request_Id :        String;
+      Command    :        Coyote_App.Agent_RPC.Command_Kind;
+      Payload    :        String := "{}");
 
    procedure Stop (S : in out Service);
    function Endpoint (S : Service) return String;
@@ -43,10 +40,10 @@ private
    task type Service_Task is
       entry Start (Path : String; Callback : not null Frame_Handler);
       entry Send_Command
-        (Agent_Id   : String;
-         Request_Id : String;
-         Command    : Coyote_App.Agent_RPC.Command_Kind;
-         Payload    : String;
+        (Agent_Id   :     String;
+         Request_Id :     String;
+         Command    :     Coyote_App.Agent_RPC.Command_Kind;
+         Payload    :     String;
          Sent       : out Boolean);
       entry Stop;
    end Service_Task;

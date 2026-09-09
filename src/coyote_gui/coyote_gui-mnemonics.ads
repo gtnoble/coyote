@@ -13,9 +13,7 @@ package Coyote_GUI.Mnemonics is
    --  in the same registry raises Program_Error.  Escaped underscores ("__")
    --  do not define mnemonics.
    procedure Reserve
-     (Context : in out Registry;
-      Label   : String;
-      Name    : String);
+     (Context : in out Registry; Label : String; Name : String);
 
    --  Return the first mnemonic key in Label, or Character'Val (0) when the
    --  label has no GTK mnemonic.
@@ -23,7 +21,9 @@ package Coyote_GUI.Mnemonics is
 
 private
 
-   type Key_Set is array (Character) of Boolean;
+   type Key_Set is
+     array (Character)
+     of Boolean;
 
    type Registry is record
       Used : Key_Set := (others => False);

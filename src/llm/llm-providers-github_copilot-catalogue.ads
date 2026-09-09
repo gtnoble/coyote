@@ -16,20 +16,19 @@ package LLM.Providers.GitHub_Copilot.Catalogue is
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Name                : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Context_Window      : Natural := 128_000;
-      Max_Tokens          : Natural := 4_096;
-      Supports_Tools      : Boolean := True;
-      Supports_Images     : Boolean := False;
-      Reasoning           : Boolean := False;
-      Max_Thinking_Budget : Natural := 0;
-      Min_Thinking_Budget : Natural := 0;
-      Supports_Anthropic  : Boolean := False;
-      Supports_OpenAI     : Boolean := True;
+      Context_Window      : Natural                                := 128_000;
+      Max_Tokens          : Natural                                := 4_096;
+      Supports_Tools      : Boolean                                := True;
+      Supports_Images     : Boolean                                := False;
+      Reasoning           : Boolean                                := False;
+      Max_Thinking_Budget : Natural                                := 0;
+      Min_Thinking_Budget : Natural                                := 0;
+      Supports_Anthropic  : Boolean                                := False;
+      Supports_OpenAI     : Boolean                                := True;
    end record;
 
    package Catalogue_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Model_Capability_Info);
+     (Index_Type => Positive, Element_Type => Model_Capability_Info);
 
    --  Load the model catalogue from GET <Base_Url>/models.
    --

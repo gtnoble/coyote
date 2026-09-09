@@ -22,7 +22,9 @@ package Coyote_SQC.Metrics is
    end record;
    --  All prices in USD per token.
 
-   function USB_Hash (S : Ada.Strings.Unbounded.Unbounded_String) return Ada.Containers.Hash_Type is
+   function USB_Hash
+     (S : Ada.Strings.Unbounded.Unbounded_String)
+      return Ada.Containers.Hash_Type is
      (Ada.Strings.Unbounded.Hash (S));
 
    package Pricing_Maps is new Ada.Containers.Hashed_Maps
@@ -44,6 +46,7 @@ package Coyote_SQC.Metrics is
    --  otherwise they remain at 0.0.
    function Compute
      (Session : Coyote_SQC.Data_Model.Session_Record;
-      Pricing : Pricing_Table) return Coyote_SQC.Data_Model.Session_Metrics_Record;
+      Pricing : Pricing_Table)
+      return Coyote_SQC.Data_Model.Session_Metrics_Record;
 
 end Coyote_SQC.Metrics;

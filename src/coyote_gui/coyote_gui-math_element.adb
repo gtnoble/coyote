@@ -5,11 +5,11 @@
 --
 --  Project: coyote
 
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Unchecked_Deallocation;
 with Cairo;
 with Coyote_Lasem;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Glib.Error;
 with Gtk.Drawing_Area;
 with Gtk.Handlers;
@@ -30,22 +30,20 @@ package body Coyote_GUI.Math_Element is
    use type Gtk.Label.Gtk_Label;
 
    package Draw_Callback is new Gtk.Handlers.User_Return_Callback
-     (Gtk.Drawing_Area.Gtk_Drawing_Area_Record,
-      Boolean,
-      Instance_Access);
+     (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Boolean, Instance_Access);
 
-   package Draw_Context_Marshaller is new
-     Draw_Callback.Marshallers.Generic_Marshaller
-       (Cairo.Cairo_Context, Cairo.Get_Context);
+   package Draw_Context_Marshaller is new Draw_Callback.Marshallers
+     .Generic_Marshaller
+     (Cairo.Cairo_Context, Cairo.Get_Context);
 
    package Destroy_Callback is new Gtk.Handlers.User_Callback
-     (Gtk.Drawing_Area.Gtk_Drawing_Area_Record,
-      Instance_Access);
+     (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Instance_Access);
 
    function On_Draw
-     (Area     : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
-      Context  : Cairo.Cairo_Context;
-      Element  : Instance_Access) return Boolean;
+     (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
+      Context : Cairo.Cairo_Context;
+      Element : Instance_Access)
+      return Boolean;
 
    procedure On_Destroy
      (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
@@ -59,7 +57,7 @@ package body Coyote_GUI.Math_Element is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
       use Gtk.Style_Provider;
-      CSS : constant String :=
+      CSS       : constant String :=
         ".coyote-response-content { background-color: @theme_base_color; "
         & "color: @theme_text_color; }";
       Provider  : Gtk_Css_Provider;
@@ -76,21 +74,22 @@ package body Coyote_GUI.Math_Element is
    end Apply_Response_Style;
 
    procedure Measure (Element : in out Instance) is
-      C_Text  : constant Interfaces.C.char_array :=
-        Interfaces.C.To_C (To_String (Element.MathML_Text),
-                           Append_Nul => True);
-      Width   : aliased Interfaces.C.unsigned := 0;
-      Height  : aliased Interfaces.C.unsigned := 0;
-      Baseline : aliased Interfaces.C.unsigned := 0;
-      Error   : Interfaces.C.Strings.chars_ptr;
+      C_Text   : constant Interfaces.C.char_array :=
+        Interfaces.C.To_C
+          (To_String (Element.MathML_Text), Append_Nul => True);
+      Width    : aliased Interfaces.C.unsigned    := 0;
+      Height   : aliased Interfaces.C.unsigned    := 0;
+      Baseline : aliased Interfaces.C.unsigned    := 0;
+      Error    : Interfaces.C.Strings.chars_ptr;
    begin
-      Error := Coyote_Lasem.Measure_MathML
-        (C_Text,
-         Interfaces.C.long (Length (Element.MathML_Text)),
-         Width'Access,
-         Height'Access,
-         Baseline'Access,
-         Interfaces.C.double (Element.Math_Scale));
+      Error :=
+        Coyote_Lasem.Measure_MathML
+          (C_Text,
+           Interfaces.C.long (Length (Element.MathML_Text)),
+           Width'Access,
+           Height'Access,
+           Baseline'Access,
+           Interfaces.C.double (Element.Math_Scale));
       if Error = Interfaces.C.Strings.Null_Ptr then
          Element.Math_Width    := Natural (Width);
          Element.Math_Height   := Natural'Max (1, Natural (Height));
@@ -98,10 +97,10 @@ package body Coyote_GUI.Math_Element is
          Element.Valid         := True;
       else
          Coyote_Lasem.Free_Error (Error);
-         Element.Math_Width     := 0;
-         Element.Math_Height    := 1;
-         Element.Math_Baseline  := 0;
-         Element.Valid          := False;
+         Element.Math_Width    := 0;
+         Element.Math_Height   := 1;
+         Element.Math_Baseline := 0;
+         Element.Valid         := False;
       end if;
    end Measure;
 
@@ -124,9 +123,10 @@ package body Coyote_GUI.Math_Element is
    end Update_Visibility;
 
    function On_Draw
-     (Area     : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
-      Context  : Cairo.Cairo_Context;
-      Element  : Instance_Access) return Boolean
+     (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
+      Context : Cairo.Cairo_Context;
+      Element : Instance_Access)
+      return Boolean
    is
       Error : Interfaces.C.Strings.chars_ptr;
    begin
@@ -138,16 +138,18 @@ package body Coyote_GUI.Math_Element is
            Interfaces.C.double'Max
              (0.0,
               (Interfaces.C.double (Area.Get_Allocated_Width)
-               - Interfaces.C.double (Element.Math_Width)) / 2.0);
+               - Interfaces.C.double (Element.Math_Width))
+              / 2.0);
       begin
-         Error := Coyote_Lasem.Render_MathML
-           (Interfaces.C.To_C (To_String (Element.MathML_Text),
-                               Append_Nul => True),
-            Interfaces.C.long (Length (Element.MathML_Text)),
-            Context,
-            X,
-            0.0,
-            Interfaces.C.double (Element.Math_Scale));
+         Error :=
+           Coyote_Lasem.Render_MathML
+             (Interfaces.C.To_C
+                (To_String (Element.MathML_Text), Append_Nul => True),
+              Interfaces.C.long (Length (Element.MathML_Text)),
+              Context,
+              X,
+              0.0,
+              Interfaces.C.double (Element.Math_Scale));
          if Error /= Interfaces.C.Strings.Null_Ptr then
             Coyote_Lasem.Free_Error (Error);
             Element.Valid := False;
@@ -168,7 +170,7 @@ package body Coyote_GUI.Math_Element is
    begin
       if Element /= null then
          Element.Detached := True;
-         Element.Area := null;
+         Element.Area     := null;
       end if;
    exception
       when others =>
@@ -178,7 +180,8 @@ package body Coyote_GUI.Math_Element is
    function New_Element
      (MathML : String;
       Source : String;
-      Scale  : Long_Float := 1.0) return Instance_Access
+      Scale  : Long_Float := 1.0)
+      return Instance_Access
    is
       Element : Instance_Access := new Instance;
    begin
@@ -192,9 +195,9 @@ package body Coyote_GUI.Math_Element is
 
    procedure Create
      (Element : in out Instance;
-      MathML  : String;
-      Source  : String;
-      Scale   : Long_Float := 1.0)
+      MathML  :        String;
+      Source  :        String;
+      Scale   :        Long_Float := 1.0)
    is
    begin
       Element.Source_Text := To_Unbounded_String (Source);
@@ -243,9 +246,7 @@ package body Coyote_GUI.Math_Element is
    end Widget;
 
    procedure Set_MathML
-     (Element : in out Instance;
-      MathML  : String;
-      Source  : String)
+     (Element : in out Instance; MathML : String; Source : String)
    is
    begin
       Element.Source_Text := To_Unbounded_String (Source);
@@ -255,10 +256,7 @@ package body Coyote_GUI.Math_Element is
       Queue_Redraw (Element);
    end Set_MathML;
 
-   procedure Set_Scale
-     (Element : in out Instance;
-      Scale   : Long_Float)
-   is
+   procedure Set_Scale (Element : in out Instance; Scale : Long_Float) is
    begin
       Element.Math_Scale := Long_Float'Max (Scale, 0.01);
       Measure (Element);

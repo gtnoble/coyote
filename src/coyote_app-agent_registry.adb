@@ -13,8 +13,7 @@ package body Coyote_App.Agent_Registry is
 
    use Ada.Strings.Unbounded;
 
-   Empty_Id : constant Agent_Id :=
-     (Value => Null_Unbounded_String);
+   Empty_Id : constant Agent_Id := (Value => Null_Unbounded_String);
 
    Empty_Record : constant Agent_Record :=
      (Runtime_Id         => Empty_Id,
@@ -44,8 +43,7 @@ package body Coyote_App.Agent_Registry is
    end "=";
 
    function Find_Index
-     (R          : Registry;
-      Runtime_Id : Agent_Id) return Agent_Vectors.Extended_Index
+     (R : Registry; Runtime_Id : Agent_Id) return Agent_Vectors.Extended_Index
    is
    begin
       for Position in R.Agents.First_Index .. R.Agents.Last_Index loop
@@ -58,17 +56,16 @@ package body Coyote_App.Agent_Registry is
 
    function Register_Agent
      (R                  : in out Registry;
-      Runtime_Id         : Agent_Id;
-      Parent_Runtime_Id  : Agent_Id;
-      Endpoint           : Endpoint_Kind;
-      Durable_Session_Id : String := "";
-      Label              : String := "agent";
-      Status             : Lifecycle_Status := Starting) return Boolean
+      Runtime_Id         :        Agent_Id;
+      Parent_Runtime_Id  :        Agent_Id;
+      Endpoint           :        Endpoint_Kind;
+      Durable_Session_Id :        String           := "";
+      Label              :        String           := "agent";
+      Status             :        Lifecycle_Status := Starting)
+      return Boolean
    is
    begin
-      if Is_Empty (Runtime_Id)
-        or else Has_Agent (R, Runtime_Id)
-      then
+      if Is_Empty (Runtime_Id) or else Has_Agent (R, Runtime_Id) then
          return False;
       end if;
 
@@ -92,39 +89,43 @@ package body Coyote_App.Agent_Registry is
 
    function Register_Root
      (R                  : in out Registry;
-      Runtime_Id         : Agent_Id;
-      Durable_Session_Id : String := "";
-      Label              : String := "main";
-      Status             : Lifecycle_Status := Starting) return Boolean
+      Runtime_Id         :        Agent_Id;
+      Durable_Session_Id :        String           := "";
+      Label              :        String           := "main";
+      Status             :        Lifecycle_Status := Starting)
+      return Boolean
    is
    begin
-      return Register_Agent
-        (R                  => R,
-         Runtime_Id         => Runtime_Id,
-         Parent_Runtime_Id  => Empty_Id,
-         Endpoint           => Local_Endpoint,
-         Durable_Session_Id => Durable_Session_Id,
-         Label              => Label,
-         Status             => Status);
+      return
+        Register_Agent
+          (R                  => R,
+           Runtime_Id         => Runtime_Id,
+           Parent_Runtime_Id  => Empty_Id,
+           Endpoint           => Local_Endpoint,
+           Durable_Session_Id => Durable_Session_Id,
+           Label              => Label,
+           Status             => Status);
    end Register_Root;
 
    function Register_Child
      (R                  : in out Registry;
-      Runtime_Id         : Agent_Id;
-      Parent_Runtime_Id  : Agent_Id;
-      Durable_Session_Id : String := "";
-      Label              : String := "subagent";
-      Status             : Lifecycle_Status := Starting) return Boolean
+      Runtime_Id         :        Agent_Id;
+      Parent_Runtime_Id  :        Agent_Id;
+      Durable_Session_Id :        String           := "";
+      Label              :        String           := "subagent";
+      Status             :        Lifecycle_Status := Starting)
+      return Boolean
    is
    begin
-      return Register_Agent
-        (R                  => R,
-         Runtime_Id         => Runtime_Id,
-         Parent_Runtime_Id  => Parent_Runtime_Id,
-         Endpoint           => RPC_Endpoint,
-         Durable_Session_Id => Durable_Session_Id,
-         Label              => Label,
-         Status             => Status);
+      return
+        Register_Agent
+          (R                  => R,
+           Runtime_Id         => Runtime_Id,
+           Parent_Runtime_Id  => Parent_Runtime_Id,
+           Endpoint           => RPC_Endpoint,
+           Durable_Session_Id => Durable_Session_Id,
+           Label              => Label,
+           Status             => Status);
    end Register_Child;
 
    function Agent_Count (R : Registry) return Natural is
@@ -132,10 +133,7 @@ package body Coyote_App.Agent_Registry is
       return Natural (R.Agents.Length);
    end Agent_Count;
 
-   function Child_Count
-     (R         : Registry;
-      Parent_Id : Agent_Id) return Natural
-   is
+   function Child_Count (R : Registry; Parent_Id : Agent_Id) return Natural is
       Count : Natural := 0;
    begin
       if Is_Empty (Parent_Id) or else R.Agents.Is_Empty then
@@ -150,23 +148,16 @@ package body Coyote_App.Agent_Registry is
       return Count;
    end Child_Count;
 
-   function Agent_At
-     (R        : Registry;
-      Position : Positive) return Agent_Record
-   is
+   function Agent_At (R : Registry; Position : Positive) return Agent_Record is
    begin
-      if R.Agents.Is_Empty
-        or else Position > Natural (R.Agents.Length)
-      then
+      if R.Agents.Is_Empty or else Position > Natural (R.Agents.Length) then
          return Empty_Record;
       end if;
       return R.Agents.Element (Position);
    end Agent_At;
 
    function Child_At
-     (R         : Registry;
-      Parent_Id : Agent_Id;
-      Position  : Positive) return Agent_Id
+     (R : Registry; Parent_Id : Agent_Id; Position : Positive) return Agent_Id
    is
       Child_Position : Natural := 0;
    begin
@@ -185,9 +176,7 @@ package body Coyote_App.Agent_Registry is
       return Empty_Id;
    end Child_At;
 
-   function Get_Agent
-     (R          : Registry;
-      Runtime_Id : Agent_Id) return Agent_Record
+   function Get_Agent (R : Registry; Runtime_Id : Agent_Id) return Agent_Record
    is
       Position : constant Agent_Vectors.Extended_Index :=
         Find_Index (R, Runtime_Id);
@@ -198,19 +187,18 @@ package body Coyote_App.Agent_Registry is
       return R.Agents.Element (Position);
    end Get_Agent;
 
-   function Has_Agent
-     (R          : Registry;
-      Runtime_Id : Agent_Id) return Boolean
-   is
+   function Has_Agent (R : Registry; Runtime_Id : Agent_Id) return Boolean is
    begin
-      return not Is_Empty (Runtime_Id)
+      return
+        not Is_Empty (Runtime_Id)
         and then Find_Index (R, Runtime_Id) /= Agent_Vectors.No_Index;
    end Has_Agent;
 
    function Set_Status
      (R          : in out Registry;
-      Runtime_Id : Agent_Id;
-      Status     : Lifecycle_Status) return Boolean
+      Runtime_Id :        Agent_Id;
+      Status     :        Lifecycle_Status)
+      return Boolean
    is
       Position : constant Agent_Vectors.Extended_Index :=
         Find_Index (R, Runtime_Id);
@@ -230,25 +218,25 @@ package body Coyote_App.Agent_Registry is
    end Set_Status;
    function Set_Durable_Session_Id
      (R          : in out Registry;
-      Runtime_Id : Agent_Id;
-      Session_Id : String) return Boolean
+      Runtime_Id :        Agent_Id;
+      Session_Id :        String)
+      return Boolean
    is
       Position : constant Agent_Vectors.Extended_Index :=
         Find_Index (R, Runtime_Id);
-      Current : Agent_Record;
+      Current  : Agent_Record;
    begin
       if Position = Agent_Vectors.No_Index then
          return False;
       end if;
-      Current := R.Agents.Element (Position);
+      Current                    := R.Agents.Element (Position);
       Current.Durable_Session_Id := To_Unbounded_String (Session_Id);
       R.Agents.Replace_Element (Position, Current);
       return True;
    end Set_Durable_Session_Id;
 
    function Select_Agent
-     (R          : in out Registry;
-      Runtime_Id : Agent_Id) return Boolean
+     (R : in out Registry; Runtime_Id : Agent_Id) return Boolean
    is
    begin
       if not Has_Agent (R, Runtime_Id) then
@@ -273,10 +261,7 @@ package body Coyote_App.Agent_Registry is
       return not Is_Empty (R.Selected);
    end Has_Selection;
 
-   function Can_Control
-     (R          : Registry;
-      Runtime_Id : Agent_Id) return Boolean
-   is
+   function Can_Control (R : Registry; Runtime_Id : Agent_Id) return Boolean is
       Position : constant Agent_Vectors.Extended_Index :=
         Find_Index (R, Runtime_Id);
       Current  : Lifecycle_Status;
@@ -286,9 +271,8 @@ package body Coyote_App.Agent_Registry is
       end if;
 
       Current := R.Agents.Element (Position).Status;
-      return Current = Starting
-        or else Current = Ready
-        or else Current = Running
+      return
+        Current = Starting or else Current = Ready or else Current = Running
         or else Current = Paused;
    end Can_Control;
 

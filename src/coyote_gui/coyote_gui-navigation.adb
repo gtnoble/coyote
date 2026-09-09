@@ -12,12 +12,13 @@ package body Coyote_GUI.Navigation is
       Upper     : Glib.Gdouble;
       Page_Size : Glib.Gdouble;
       Line_Size : Glib.Gdouble;
-      Move      : Movement) return Glib.Gdouble
+      Move      : Movement)
+      return Glib.Gdouble
    is
       Maximum : constant Glib.Gdouble :=
         Glib.Gdouble'Max (Lower, Upper - Glib.Gdouble'Max (Page_Size, 0.0));
-      Step : constant Glib.Gdouble := Glib.Gdouble'Max (Line_Size, 1.0);
-      Value : Glib.Gdouble := Current;
+      Step    : constant Glib.Gdouble := Glib.Gdouble'Max (Line_Size, 1.0);
+      Value   : Glib.Gdouble          := Current;
    begin
       case Move is
          when Line_Up =>

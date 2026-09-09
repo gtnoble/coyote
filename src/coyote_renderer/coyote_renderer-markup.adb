@@ -6,12 +6,12 @@
 --  Project: coyote
 
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
-with Coyote_App.Utils;       use Coyote_App.Utils;
-with Coyote_Cmark;           use Coyote_Cmark;
-with Interfaces.C;           use Interfaces.C;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_App.Utils;      use Coyote_App.Utils;
+with Coyote_Cmark;          use Coyote_Cmark;
+with Interfaces.C;          use Interfaces.C;
 with Interfaces.C.Strings;
-with System;                 use System;
+with System;                use System;
 
 package body Coyote_Renderer.Markup is
 
@@ -20,10 +20,14 @@ package body Coyote_Renderer.Markup is
    begin
       for C of S loop
          case C is
-            when '&'    => Append (R, "&amp;");
-            when '<'    => Append (R, "&lt;");
-            when '>'    => Append (R, "&gt;");
-            when others => Append (R, C);
+            when '&' =>
+               Append (R, "&amp;");
+            when '<' =>
+               Append (R, "&lt;");
+            when '>' =>
+               Append (R, "&gt;");
+            when others =>
+               Append (R, C);
          end case;
       end loop;
       return To_String (R);
@@ -40,8 +44,10 @@ package body Coyote_Renderer.Markup is
 
       --  Ordered list counter stack (up to 8 levels)
       type Level_T is range 0 .. 7;
-      List_Counter : array (Level_T) of Integer := (others => 0);
-      Is_Bullet    : array (Level_T) of Boolean := (others => True);
+      List_Counter : array (Level_T)
+        of Integer := (others => 0);
+      Is_Bullet    : array (Level_T)
+        of Boolean := (others => True);
       List_Depth   : Natural := 0;
 
       function List_Indent (Depth : Natural) return String is
@@ -62,36 +68,35 @@ package body Coyote_Renderer.Markup is
       Table_Cols : Natural := 0;
       Cur_Row    : Natural := 0;
       Cur_Col    : Natural := 0;
-      Table_Data : array (Row_Index, Col_Index) of Unbounded_String;
+      Table_Data : array (Row_Index, Col_Index)
+        of Unbounded_String;
 
       function Cstr (N : Node_Ptr) return String is
       begin
-         return Interfaces.C.Strings.Value
-           (Coyote_Cmark.Node_Get_Type_String (N));
+         return
+           Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Type_String (N));
       end Cstr;
 
       function Lit (N : Node_Ptr) return String is
       begin
-         return Interfaces.C.Strings.Value
-           (Coyote_Cmark.Node_Get_Literal (N));
+         return Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Literal (N));
       end Lit;
 
       procedure Cell_Append (S : String) is
       begin
          if Cur_Row < Max_Table_Rows and then Cur_Col < Max_Table_Cols then
-            Append
-              (Table_Data (Row_Index (Cur_Row), Col_Index (Cur_Col)), S);
+            Append (Table_Data (Row_Index (Cur_Row), Col_Index (Cur_Col)), S);
          end if;
       end Cell_Append;
 
       procedure Render_Table is
          Max_Col_Width : constant := 35;
-         Col_Widths    : array (0 .. Max_Table_Cols - 1) of Natural :=
-           (others => 0);
+         Col_Widths : array (0 .. Max_Table_Cols - 1)
+           of Natural := (others => 0);
 
          function Pad (S : String; W : Natural) return String is
             L : constant Natural := Natural'Min (S'Length, W);
-            R : String (1 .. W) := (others => ' ');
+            R : String (1 .. W)  := (others => ' ');
          begin
             R (1 .. L) := S (S'First .. S'First + L - 1);
             return R;
@@ -139,12 +144,12 @@ package body Coyote_Renderer.Markup is
             Append (Out_S, UC_BOX_V);
             for C in 0 .. Table_Cols - 1 loop
                Append (Out_S, " ");
-               Append (Out_S,
-                 Xml_Escape
-                   (Pad
-                      (To_String
-                         (Table_Data (Row_Index (R), Col_Index (C))),
-                       Col_Widths (C))));
+               Append
+                 (Out_S,
+                  Xml_Escape
+                    (Pad
+                       (To_String (Table_Data (Row_Index (R), Col_Index (C))),
+                        Col_Widths (C))));
                Append (Out_S, " " & UC_BOX_V);
             end loop;
             Append (Out_S, "" & ASCII.LF);
@@ -158,8 +163,7 @@ package body Coyote_Renderer.Markup is
          Append (Out_S, "</tt>" & ASCII.LF);
       end Render_Table;
 
-      C_Text : constant Interfaces.C.char_array :=
-        Interfaces.C.To_C (MD_Text);
+      C_Text : constant Interfaces.C.char_array := Interfaces.C.To_C (MD_Text);
 
    begin
       if MD_Text'Length = 0 then
@@ -179,7 +183,7 @@ package body Coyote_Renderer.Markup is
 
          declare
             NT : constant Node_Type_Int := Node_Get_Type (Node);
-            TS : constant String := Cstr (Node);
+            TS : constant String        := Cstr (Node);
          begin
             if TS = "table" then
                if Ev = EVENT_ENTER then
@@ -213,8 +217,7 @@ package body Coyote_Renderer.Markup is
 
             elsif TS = "table_cell" then
                if Ev = EVENT_ENTER then
-                  if Cur_Row < Max_Table_Rows
-                    and then Cur_Col < Max_Table_Cols
+                  if Cur_Row < Max_Table_Rows and then Cur_Col < Max_Table_Cols
                   then
                      Table_Data (Row_Index (Cur_Row), Col_Index (Cur_Col)) :=
                        Null_Unbounded_String;
@@ -241,16 +244,17 @@ package body Coyote_Renderer.Markup is
                           Node_Get_Heading_Level (Node);
                      begin
                         if H_Level <= 2 then
-                           Append (Out_S, ASCII.LF
-                                   & "<span weight=""bold"""
-                                   & " size=""larger"">");
+                           Append
+                             (Out_S,
+                              ASCII.LF & "<span weight=""bold"""
+                              & " size=""larger"">");
                         elsif H_Level <= 4 then
-                           Append (Out_S, ASCII.LF
-                                   & "<span weight=""bold"""
-                                   & " size=""medium"">");
+                           Append
+                             (Out_S,
+                              ASCII.LF & "<span weight=""bold"""
+                              & " size=""medium"">");
                         else
-                           Append (Out_S, ASCII.LF
-                                   & "<span weight=""bold"">");
+                           Append (Out_S, ASCII.LF & "<span weight=""bold"">");
                         end if;
                      end;
                   else
@@ -298,8 +302,8 @@ package body Coyote_Renderer.Markup is
 
             elsif NT = NODE_CODE_BLOCK then
                if Ev = EVENT_ENTER and then not In_Cell then
-                  Append (Out_S, ASCII.LF
-                          & "<span background=""#f4f4f4""><tt>");
+                  Append
+                    (Out_S, ASCII.LF & "<span background=""#f4f4f4""><tt>");
                   Append (Out_S, Xml_Escape (Lit (Node)));
                   Append (Out_S, "</tt></span>" & ASCII.LF);
                end if;
@@ -307,9 +311,11 @@ package body Coyote_Renderer.Markup is
             elsif NT = NODE_BLOCK_QUOTE then
                if not In_Cell then
                   if Ev = EVENT_ENTER then
-                     Append (Out_S, ASCII.LF
-                             & "<span alpha=""50%%"" font_style=""italic"">"
-                             & UC_BOX_V & " ");
+                     Append
+                       (Out_S,
+                        ASCII.LF
+                        & "<span alpha=""50%%"" font_style=""italic"">"
+                        & UC_BOX_V & " ");
                   else
                      Append (Out_S, "</span>" & ASCII.LF & ASCII.LF);
                   end if;
@@ -319,10 +325,10 @@ package body Coyote_Renderer.Markup is
                if not In_Cell then
                   if Ev = EVENT_ENTER then
                      if List_Depth < Natural (Level_T'Last) then
-                        List_Depth := List_Depth + 1;
+                        List_Depth                          := List_Depth + 1;
                         List_Counter (Level_T (List_Depth)) :=
                           Integer (Node_Get_List_Start (Node)) - 1;
-                        Is_Bullet   (Level_T (List_Depth)) :=
+                        Is_Bullet (Level_T (List_Depth))    :=
                           (Node_Get_List_Type (Node) = LIST_BULLET);
                      end if;
                   else
@@ -334,9 +340,7 @@ package body Coyote_Renderer.Markup is
                end if;
 
             elsif NT = NODE_ITEM then
-               if Ev = EVENT_ENTER
-                 and then List_Depth > 0
-                 and then not In_Cell
+               if Ev = EVENT_ENTER and then List_Depth > 0 and then not In_Cell
                then
                   Append (Out_S, List_Indent (List_Depth));
                   if Is_Bullet (Level_T (List_Depth)) then
@@ -344,11 +348,12 @@ package body Coyote_Renderer.Markup is
                   else
                      List_Counter (Level_T (List_Depth)) :=
                        List_Counter (Level_T (List_Depth)) + 1;
-                     Append (Out_S,
-                       Ada.Strings.Fixed.Trim
-                         (Integer'Image
-                            (List_Counter (Level_T (List_Depth))),
-                          Ada.Strings.Left) & ". ");
+                     Append
+                       (Out_S,
+                        Ada.Strings.Fixed.Trim
+                          (Integer'Image (List_Counter (Level_T (List_Depth))),
+                           Ada.Strings.Left)
+                        & ". ");
                   end if;
                end if;
 
@@ -381,12 +386,12 @@ package body Coyote_Renderer.Markup is
 
             elsif NT = NODE_THEMATIC_BREAK then
                if Ev = EVENT_ENTER and then not In_Cell then
-                  Append (Out_S,
-                    "<span alpha=""50%%"">"
-                    & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ
-                    & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ
-                    & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ
-                    & "</span>" & ASCII.LF);
+                  Append
+                    (Out_S,
+                     "<span alpha=""50%%"">" & UC_HORIZ & UC_HORIZ & UC_HORIZ
+                     & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ
+                     & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ & "</span>"
+                     & ASCII.LF);
                end if;
 
             else

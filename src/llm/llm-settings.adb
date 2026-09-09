@@ -96,7 +96,8 @@ package body LLM.Settings is
    function Get_Boolean_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : Boolean) return Boolean
+      Default : Boolean)
+      return Boolean
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -110,7 +111,8 @@ package body LLM.Settings is
    end Get_Boolean_Field;
 
    function Get_Array_Field
-     (Value : GNATCOLL.JSON.JSON_Value; Field : String)
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String)
       return GNATCOLL.JSON.JSON_Array
    is
    begin
@@ -127,7 +129,8 @@ package body LLM.Settings is
    function Get_Natural_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : Natural) return Natural
+      Default : Natural)
+      return Natural
    is
       Raw : Long_Integer;
    begin
@@ -145,7 +148,8 @@ package body LLM.Settings is
    end Get_Natural_Field;
 
    function Get_Object_Field
-     (Value : GNATCOLL.JSON.JSON_Value; Field : String)
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String)
       return GNATCOLL.JSON.JSON_Value
    is
    begin
@@ -160,7 +164,8 @@ package body LLM.Settings is
    end Get_Object_Field;
 
    function Find_Provider_Config
-     (Root : GNATCOLL.JSON.JSON_Value; Provider : String)
+     (Root     : GNATCOLL.JSON.JSON_Value;
+      Provider : String)
       return GNATCOLL.JSON.JSON_Value
    is
       Providers : constant GNATCOLL.JSON.JSON_Value :=
@@ -273,23 +278,23 @@ package body LLM.Settings is
         Load_Json_File (Settings_Path);
    begin
       return
-        (Default_Provider =>
+        (Default_Provider                =>
            To_Unbounded_String (Get_String_Field (Root, "defaultProvider")),
-         Default_Model    =>
+         Default_Model                   =>
            To_Unbounded_String (Get_String_Field (Root, "defaultModel")),
-         Default_Thinking =>
+         Default_Thinking                =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultThinkingLevel")),
-         Default_Sandbox           =>
+         Default_Sandbox                 =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultSandboxProfile")),
-         Default_Subagent_Provider =>
+         Default_Subagent_Provider       =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultSubagentProvider")),
-         Default_Subagent_Model    =>
+         Default_Subagent_Model          =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultSubagentModel")),
-         Max_Recursion_Depth       =>
+         Max_Recursion_Depth             =>
            Get_Natural_Field (Root, "maxRecursionDepth", 1),
          Shell_Termination_Grace_Seconds =>
            Natural'Min
@@ -298,19 +303,16 @@ package body LLM.Settings is
                 (Root,
                  "shellTerminationGraceSeconds",
                  Default_Termination_Grace_Seconds)),
-         Append_System_Prompt      =>
-           To_Unbounded_String
-             (Get_String_Field (Root, "appendSystemPrompt")),
-         Prompt_Filter =>
-           To_Unbounded_String
-             (Get_String_Field (Root, "promptFilter")),
-         Completion_Notifications =>
+         Append_System_Prompt            =>
+           To_Unbounded_String (Get_String_Field (Root, "appendSystemPrompt")),
+         Prompt_Filter                   =>
+           To_Unbounded_String (Get_String_Field (Root, "promptFilter")),
+         Completion_Notifications        =>
            Get_Boolean_Field (Root, "completionNotifications", True),
-         Price_Display =>
-           (if Get_String_Field (Root, "priceDisplay") = "db"
-            then Decibels
+         Price_Display                   =>
+           (if Get_String_Field (Root, "priceDisplay") = "db" then Decibels
             else SI_Prefixes),
-         Skill_Paths => Get_Skill_Paths (Root));
+         Skill_Paths                     => Get_Skill_Paths (Root));
    end Load_Settings;
 
    function Resolve_Api_Key (Provider : String) return String is
@@ -351,15 +353,15 @@ package body LLM.Settings is
    end Delete_If_Exists;
 
    procedure Write_Atomically (Path : String; Content : String) is
-      File      : Ada.Text_IO.File_Type;
-      Tmp_Path  : constant String := Temp_Path (Path);
-      Renamed   : Boolean         := False;
-      Dir_Path  : constant String :=
+      File     : Ada.Text_IO.File_Type;
+      Tmp_Path : constant String := Temp_Path (Path);
+      Renamed  : Boolean         := False;
+      Dir_Path : constant String :=
         Ada.Directories.Containing_Directory (Path);
    begin
       if Path'Length = 0 then
-         raise Ada.IO_Exceptions.Use_Error with
-           "HOME is not set; cannot write settings";
+         raise Ada.IO_Exceptions.Use_Error
+           with "HOME is not set; cannot write settings";
       end if;
 
       Ada.Directories.Create_Path (Dir_Path);
@@ -373,8 +375,8 @@ package body LLM.Settings is
 
       if not Renamed then
          Delete_If_Exists (Tmp_Path);
-         raise Ada.IO_Exceptions.Use_Error with
-           "Failed to rename temporary settings file";
+         raise Ada.IO_Exceptions.Use_Error
+           with "Failed to rename temporary settings file";
       end if;
    exception
       when others =>
@@ -386,31 +388,27 @@ package body LLM.Settings is
    end Write_Atomically;
 
    procedure Save_Preferences
-     (Provider                 : String;
-      Model_Id                 : String;
-      Think_Level              : String;
-      Sandbox                  : String;
-      Price_Display            : Price_Display_Mode;
-      Subagent_Provider        : String := "";
-      Subagent_Model           : String := "";
-      Max_Recursion_Depth      : Natural := 1;
-      Completion_Notifications : Boolean := True;
-      Skill_Paths               : String_Vectors.Vector :=
-        String_Vectors.Empty_Vector;
-      Termination_Grace_Seconds : Natural :=
-        Default_Termination_Grace_Seconds)
+     (Provider                  : String;
+      Model_Id                  : String;
+      Think_Level               : String;
+      Sandbox                   : String;
+      Price_Display             : Price_Display_Mode;
+      Subagent_Provider         : String                := "";
+      Subagent_Model            : String                := "";
+      Max_Recursion_Depth       : Natural               := 1;
+      Completion_Notifications  : Boolean               := True;
+      Skill_Paths : String_Vectors.Vector := String_Vectors.Empty_Vector;
+      Termination_Grace_Seconds : Natural := Default_Termination_Grace_Seconds)
    is
-      Path     : constant String := Settings_Path;
-      Existing : constant GNATCOLL.JSON.JSON_Value :=
-        Load_Json_File (Path);
+      Path     : constant String                   := Settings_Path;
+      Existing : constant GNATCOLL.JSON.JSON_Value := Load_Json_File (Path);
       Root     : constant GNATCOLL.JSON.JSON_Value :=
-        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
-         then Existing
+        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type then Existing
          else GNATCOLL.JSON.Create_Object);
    begin
       if Path'Length = 0 then
-         raise Ada.IO_Exceptions.Use_Error with
-           "HOME is not set; cannot write settings";
+         raise Ada.IO_Exceptions.Use_Error
+           with "HOME is not set; cannot write settings";
       end if;
 
       if Provider'Length > 0 then
@@ -449,18 +447,15 @@ package body LLM.Settings is
          Root.Unset_Field ("defaultSubagentModel");
       end if;
 
-      Root.Set_Field
-        ("maxRecursionDepth", Long_Integer (Max_Recursion_Depth));
+      Root.Set_Field ("maxRecursionDepth", Long_Integer (Max_Recursion_Depth));
       Root.Set_Field
         ("shellTerminationGraceSeconds",
          Long_Integer
            (Natural'Min
-              (Max_Termination_Grace_Seconds,
-               Termination_Grace_Seconds)));
+              (Max_Termination_Grace_Seconds, Termination_Grace_Seconds)));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
       Root.Set_Field
-        ("priceDisplay",
-         (if Price_Display = Decibels then "db" else "si"));
+        ("priceDisplay", (if Price_Display = Decibels then "db" else "si"));
 
       if Skill_Paths.Is_Empty then
          Root.Unset_Field ("skillPaths");
@@ -478,21 +473,16 @@ package body LLM.Settings is
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
    end Save_Preferences;
 
-   procedure Rename_Default_Sandbox
-     (Old_Name : String;
-      New_Name : String)
-   is
-      Path     : constant String := Settings_Path;
-      Existing : constant GNATCOLL.JSON.JSON_Value :=
-        Load_Json_File (Path);
+   procedure Rename_Default_Sandbox (Old_Name : String; New_Name : String) is
+      Path     : constant String                   := Settings_Path;
+      Existing : constant GNATCOLL.JSON.JSON_Value := Load_Json_File (Path);
       Root     : constant GNATCOLL.JSON.JSON_Value :=
-        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
-         then Existing
+        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type then Existing
          else GNATCOLL.JSON.Create_Object);
    begin
       if Path'Length = 0 then
-         raise Ada.IO_Exceptions.Use_Error with
-           "HOME is not set; cannot write settings";
+         raise Ada.IO_Exceptions.Use_Error
+           with "HOME is not set; cannot write settings";
       end if;
 
       if Get_String_Field (Root, "defaultSandboxProfile") = Old_Name then

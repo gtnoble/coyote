@@ -24,8 +24,7 @@ package LLM.Providers.OpenCode_Go is
    --  rejects requests without it (HTTP 400 MissingSessionID).
    function Create (Session_Id : String := "") return Provider;
 
-   overriding
-   procedure Send
+   overriding procedure Send
      (P             : in out Provider;
       Model_Id      :        String;
       System_Prompt :        String;

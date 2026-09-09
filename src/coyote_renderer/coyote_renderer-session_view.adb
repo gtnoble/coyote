@@ -7,14 +7,14 @@ with Ada.Containers.Hashed_Maps;
 with Ada.Containers;
 with Ada.Directories;
 with Ada.Exceptions;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with Coyote_App.Utils;       use Coyote_App.Utils;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Renderer.Markup;
 with Coyote_SQC.Session_Parser;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Glib.Object;
-with Glib.Properties;        use Glib.Properties;
+with Glib.Properties;       use Glib.Properties;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with Gtk.Button;
@@ -33,8 +33,7 @@ package body Coyote_Renderer.Session_View is
 
    function Get_Str (V : GNATCOLL.JSON.JSON_Value; F : String) return String is
    begin
-      if V.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then V.Has_Field (F)
+      if V.Kind = GNATCOLL.JSON.JSON_Object_Type and then V.Has_Field (F)
         and then V.Get (F).Kind = GNATCOLL.JSON.JSON_String_Type
       then
          return V.Get (F).Get;
@@ -42,10 +41,10 @@ package body Coyote_Renderer.Session_View is
       return "";
    end Get_Str;
 
-   function Get_Bool (V : GNATCOLL.JSON.JSON_Value; F : String) return Boolean is
+   function Get_Bool (V : GNATCOLL.JSON.JSON_Value; F : String) return Boolean
+   is
    begin
-      if V.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then V.Has_Field (F)
+      if V.Kind = GNATCOLL.JSON.JSON_Object_Type and then V.Has_Field (F)
         and then V.Get (F).Kind = GNATCOLL.JSON.JSON_Boolean_Type
       then
          return V.Get (F).Get;
@@ -57,8 +56,8 @@ package body Coyote_Renderer.Session_View is
 
    procedure Append_Tagged
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Text   :  String;
-      Tag    :  Gtk.Text_Tag.Gtk_Text_Tag)
+      Text   : String;
+      Tag    : Gtk.Text_Tag.Gtk_Text_Tag)
    is
       Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
@@ -68,7 +67,7 @@ package body Coyote_Renderer.Session_View is
 
    procedure Append_Text
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Text   :  String)
+      Text   : String)
    is
       Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
@@ -78,7 +77,7 @@ package body Coyote_Renderer.Session_View is
 
    procedure Append_Markup
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Markup :  String)
+      Markup : String)
    is
       Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
@@ -131,19 +130,18 @@ package body Coyote_Renderer.Session_View is
    type Tool_Result is record
       Id       : Unbounded_String;
       Text     : Unbounded_String;
-      Is_Err   : Boolean := False;
-      Is_Image : Boolean := False;
+      Is_Err   : Boolean         := False;
+      Is_Image : Boolean         := False;
       Status   : Tool_End_Status := Success;
    end record;
 
    package TR_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Tool_Result);
+     (Index_Type => Natural, Element_Type => Tool_Result);
 
-   function Collect_Tool_Results (Path :  String) return TR_Vectors.Vector is
+   function Collect_Tool_Results (Path : String) return TR_Vectors.Vector is
       Results : TR_Vectors.Vector;
       File    : Ada.Text_IO.File_Type;
-      Line    : String (1 .. 65536);
+      Line    : String (1 .. 65_536);
       Last    : Natural;
    begin
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
@@ -156,15 +154,15 @@ package body Coyote_Renderer.Session_View is
                Append (Full_Line, Line (1 .. Last));
                exit when Last < Line'Last;
             end loop;
-               declare
-                  Root : constant GNATCOLL.JSON.JSON_Value :=
-                    GNATCOLL.JSON.Read (To_String (Full_Line));
+            declare
+               Root : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Read (To_String (Full_Line));
                Msg  : GNATCOLL.JSON.JSON_Value;
             begin
                if Root.Kind = GNATCOLL.JSON.JSON_Object_Type then
                   if Root.Has_Field ("type")
-                    and then Root.Get ("type").Kind =
-                      GNATCOLL.JSON.JSON_String_Type
+                    and then Root.Get ("type").Kind
+                      = GNATCOLL.JSON.JSON_String_Type
                     and then String'(Root.Get ("type").Get) = "message"
                     and then Root.Has_Field ("message")
                   then
@@ -174,21 +172,25 @@ package body Coyote_Renderer.Session_View is
                   end if;
                   if Get_Str (Msg, "role") = "toolResult" then
                      declare
-                        TC_Id  : constant String := Get_Str (Msg, "toolCallId");
+                        TC_Id : constant String := Get_Str (Msg, "toolCallId");
                         Is_Err : constant Boolean := Get_Bool (Msg, "isError");
                         Status : constant Tool_End_Status :=
-                          (if Get_Str (Msg, "status") = "timed_out"
-                           then Timed_Out
-                           elsif Get_Str (Msg, "status") = "cancelled"
-                           then Cancelled
+                          (if
+                             Get_Str (Msg, "status") = "timed_out"
+                           then
+                             Timed_Out
+                           elsif
+                             Get_Str (Msg, "status") = "cancelled"
+                           then
+                             Cancelled
                            elsif Is_Err then Error
                            else Success);
                         Text   : Unbounded_String;
-                        Is_Img : Boolean := False;
+                        Is_Img : Boolean                  := False;
                      begin
                         if Msg.Has_Field ("content")
-                          and then Msg.Get ("content").Kind =
-                            GNATCOLL.JSON.JSON_Array_Type
+                          and then Msg.Get ("content").Kind
+                            = GNATCOLL.JSON.JSON_Array_Type
                         then
                            declare
                               Arr : constant GNATCOLL.JSON.JSON_Array :=
@@ -196,9 +198,10 @@ package body Coyote_Renderer.Session_View is
                            begin
                               for I in 1 .. GNATCOLL.JSON.Length (Arr) loop
                                  declare
-                                    B : constant GNATCOLL.JSON.JSON_Value :=
+                                    B  : constant GNATCOLL.JSON.JSON_Value :=
                                       GNATCOLL.JSON.Get (Arr, I);
-                                    BT : constant String := Get_Str (B, "type");
+                                    BT : constant String                   :=
+                                      Get_Str (B, "type");
                                  begin
                                     if BT = "text"
                                       and then B.Has_Field ("text")
@@ -209,12 +212,15 @@ package body Coyote_Renderer.Session_View is
                                     then
                                        --  Anthropic-style image block.
                                        declare
-                                          Src : constant GNATCOLL.JSON.JSON_Value
-                                            := B.Get ("source");
+                                          Src :
+                                            constant GNATCOLL.JSON
+                                              .JSON_Value :=
+                                            B.Get ("source");
                                        begin
                                           if Src.Has_Field ("data") then
-                                             Text := To_Unbounded_String
-                                               (Get_Str (Src, "data"));
+                                             Text   :=
+                                               To_Unbounded_String
+                                                 (Get_Str (Src, "data"));
                                              Is_Img := True;
                                           end if;
                                        end;
@@ -237,20 +243,19 @@ package body Coyote_Renderer.Session_View is
             when E : others =>
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
-                  "coyote_renderer: session_view: "
-                  & "Collect_Tool_Results: "
+                  "coyote_renderer: session_view: " & "Collect_Tool_Results: "
                   & Ada.Exceptions.Exception_Information (E));
          end;
       end loop;
       Ada.Text_IO.Close (File);
       return Results;
    exception
-      when others => return Results;
+      when others =>
+         return Results;
    end Collect_Tool_Results;
 
    function Find_Result
-     (Results :  TR_Vectors.Vector;
-      Id      :  String) return Tool_Result
+     (Results : TR_Vectors.Vector; Id : String) return Tool_Result
    is
    begin
       for R of Results loop
@@ -258,11 +263,12 @@ package body Coyote_Renderer.Session_View is
             return R;
          end if;
       end loop;
-      return (Id       => Null_Unbounded_String,
-              Text     => Null_Unbounded_String,
-              Is_Err   => False,
-              Is_Image => False,
-              Status   => Success);
+      return
+        (Id       => Null_Unbounded_String,
+         Text     => Null_Unbounded_String,
+         Is_Err   => False,
+         Is_Image => False,
+         Status   => Success);
    end Find_Result;
 
    --  ── Tool call button closure map ──────────────────────────────────────
@@ -276,16 +282,15 @@ package body Coyote_Renderer.Session_View is
       Tool_Name    : Unbounded_String;
       Arguments    : Unbounded_String;
       Result_Text  : Unbounded_String;
-      Is_Image     : Boolean         := False;
-      Status       : Tool_End_Status := Success;
-      Turn_Index   : Positive        := 1;
-      Call_In_Turn : Positive        := 1;
+      Is_Image     : Boolean             := False;
+      Status       : Tool_End_Status     := Success;
+      Turn_Index   : Positive            := 1;
+      Call_In_Turn : Positive            := 1;
       Session      : Coyote_SQC.Data_Model.Session_Record;
       Callback     : Tool_Click_Callback := null;
    end record;
 
-   function Address_Hash
-     (Key :  System.Address) return Ada.Containers.Hash_Type
+   function Address_Hash (Key : System.Address) return Ada.Containers.Hash_Type
    is
       use System.Storage_Elements;
    begin
@@ -304,10 +309,8 @@ package body Coyote_Renderer.Session_View is
    procedure On_Tool_Button_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
-      Key    : constant System.Address :=
-        Glib.Object.Get_Object (Button);
-      Cursor : constant Closure_Maps.Cursor :=
-        Button_Map.Find (Key);
+      Key    : constant System.Address      := Glib.Object.Get_Object (Button);
+      Cursor : constant Closure_Maps.Cursor := Button_Map.Find (Key);
    begin
       if Closure_Maps.Has_Element (Cursor) then
          declare
@@ -331,21 +334,21 @@ package body Coyote_Renderer.Session_View is
    --  ── Rendering pass ────────────────────────────────────────────────────
 
    procedure Render_Pass
-     (Path     :      String;
+     (Path     : String;
       Buffer   : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       View     : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
-      Tags     :      Tag_Set;
-      Results  :      TR_Vectors.Vector;
-      Callback :      Tool_Click_Callback;
-      Session  :      Coyote_SQC.Data_Model.Session_Record)
+      Tags     : Tag_Set;
+      Results  : TR_Vectors.Vector;
+      Callback : Tool_Click_Callback;
+      Session  : Coyote_SQC.Data_Model.Session_Record)
    is
       File : Ada.Text_IO.File_Type;
-      Line : String (1 .. 65536);
+      Line : String (1 .. 65_536);
       Last : Natural;
 
       Turn_No : Natural := 0;
 
-      procedure Render_User_Msg (Msg :  GNATCOLL.JSON.JSON_Value) is
+      procedure Render_User_Msg (Msg : GNATCOLL.JSON.JSON_Value) is
       begin
          if Msg.Has_Field ("content") then
             declare
@@ -354,8 +357,8 @@ package body Coyote_Renderer.Session_View is
             begin
                if Content_V.Kind = GNATCOLL.JSON.JSON_String_Type then
                   Append_Tagged (Buffer, UC_TRI_R & " ", Tags.User);
-                  Append_Text (Buffer,
-                    String'(Content_V.Get) & ASCII.LF & ASCII.LF);
+                  Append_Text
+                    (Buffer, String'(Content_V.Get) & ASCII.LF & ASCII.LF);
                elsif Content_V.Kind = GNATCOLL.JSON.JSON_Array_Type then
                   declare
                      Arr : constant GNATCOLL.JSON.JSON_Array :=
@@ -369,10 +372,11 @@ package body Coyote_Renderer.Session_View is
                            if Get_Str (B, "type") = "text"
                              and then B.Has_Field ("text")
                            then
-                              Append_Tagged (Buffer, UC_TRI_R & " ", Tags.User);
+                              Append_Tagged
+                                (Buffer, UC_TRI_R & " ", Tags.User);
                               Append_Text
-                                (Buffer, Get_Str (B, "text")
-                                 & ASCII.LF & ASCII.LF);
+                                (Buffer,
+                                 Get_Str (B, "text") & ASCII.LF & ASCII.LF);
                            end if;
                         end;
                      end loop;
@@ -382,12 +386,11 @@ package body Coyote_Renderer.Session_View is
          end if;
       end Render_User_Msg;
 
-      procedure Render_Assistant_Msg (Msg :  GNATCOLL.JSON.JSON_Value) is
+      procedure Render_Assistant_Msg (Msg : GNATCOLL.JSON.JSON_Value) is
          Call_In_Turn : Natural := 0;
       begin
          Turn_No := Turn_No + 1;
-         Append_Tagged (Buffer, "Turn " & Turn_No'Image & ASCII.LF,
-                        Tags.Dim);
+         Append_Tagged (Buffer, "Turn " & Turn_No'Image & ASCII.LF, Tags.Dim);
 
          if not Msg.Has_Field ("content") then
             return;
@@ -408,8 +411,8 @@ package body Coyote_Renderer.Session_View is
                   if Kind = "thinking" and then B.Has_Field ("thinking") then
                      Append_Tagged
                        (Buffer,
-                        "[ thinking ]" & ASCII.LF
-                        & Get_Str (B, "thinking") & ASCII.LF & ASCII.LF,
+                        "[ thinking ]" & ASCII.LF & Get_Str (B, "thinking")
+                        & ASCII.LF & ASCII.LF,
                         Tags.Thinking);
 
                   elsif Kind = "text" and then B.Has_Field ("text") then
@@ -425,15 +428,18 @@ package body Coyote_Renderer.Session_View is
                      declare
                         TC_Id   : constant String := Get_Str (B, "id");
                         TC_Name : constant String := Get_Str (B, "name");
-                        TC_Args : constant String :=
-                          (if B.Has_Field ("arguments")
+                        TC_Args : constant String          :=
+                          (if
+                             B.Has_Field ("arguments")
                            then
-                             (if B.Get ("arguments").Kind =
-                                GNATCOLL.JSON.JSON_String_Type
-                              then B.Get ("arguments").Get
+                             (if
+                                B.Get ("arguments").Kind
+                                = GNATCOLL.JSON.JSON_String_Type
+                              then
+                                B.Get ("arguments").Get
                               else B.Get ("arguments").Write)
                            else "");
-                        Res     : constant Tool_Result :=
+                        Res     : constant Tool_Result     :=
                           Find_Result (Results, TC_Id);
                         Status  : constant Tool_End_Status :=
                           (if To_String (Res.Id) = "" then Cancelled
@@ -446,29 +452,26 @@ package body Coyote_Renderer.Session_View is
                            declare
                               use Gtk.Button;
                               use Gtk.Text_Child_Anchor;
-                              Anchor : Gtk.Text_Child_Anchor.Gtk_Text_Child_Anchor;
+                              Anchor :
+                                Gtk.Text_Child_Anchor.Gtk_Text_Child_Anchor;
                               Btn    : Gtk.Button.Gtk_Button;
                               Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
                            begin
                               Buffer.Get_End_Iter (Iter);
                               Anchor := Buffer.Create_Child_Anchor (Iter);
-                              Gtk.Button.Gtk_New
-                                (Btn,
+                              Gtk.Button.Gtk_New (Btn,
                                  (case Status is
-                                    when Success   => UC_CHECK,
-                                    when Error     => UC_CROSS,
+                                    when Success => UC_CHECK,
+                                    when Error => UC_CROSS,
                                     when Timed_Out => "!",
-                                    when Cancelled => "-")
-                                 & " " & TC_Name);
+                                    when Cancelled => "-") & " " & TC_Name);
                               View.Add_Child_At_Anchor (Btn, Anchor);
                               Btn.Show;
                               --  Register closure keyed by GObject address.
                               Button_Map.Insert
                                 (Glib.Object.Get_Object (Btn),
-                                 (Tool_Name    => To_Unbounded_String
-                                                    (TC_Name),
-                                  Arguments    => To_Unbounded_String
-                                                    (TC_Args),
+                                 (Tool_Name => To_Unbounded_String (TC_Name),
+                                  Arguments => To_Unbounded_String (TC_Args),
                                   Result_Text  => Res.Text,
                                   Is_Image     => Res.Is_Image,
                                   Status       => Status,
@@ -476,23 +479,21 @@ package body Coyote_Renderer.Session_View is
                                   Call_In_Turn => Call_In_Turn,
                                   Session      => Session,
                                   Callback     => Callback));
-                              Btn.On_Clicked
-                                (On_Tool_Button_Clicked'Access);
+                              Btn.On_Clicked (On_Tool_Button_Clicked'Access);
                               Append_Text (Buffer, "" & ASCII.LF);
                            end;
                         else
                            --  Non-interactive plain-text fallback.
-                           Append_Tagged
-                             (Buffer,
+                           Append_Tagged (Buffer,
                               (case Status is
-                                 when Success   => UC_CHECK,
-                                 when Error     => UC_CROSS,
+                                 when Success => UC_CHECK,
+                                 when Error => UC_CROSS,
                                  when Timed_Out => "!",
-                                 when Cancelled => "-")
-                              & " " & TC_Name & ASCII.LF
-                              & (if TC_Args'Length > 0
-                                 then TC_Args & ASCII.LF
-                                 else ""),
+                                 when Cancelled => "-") & " " & TC_Name
+                              & ASCII.LF
+                              &
+                              (if TC_Args'Length > 0 then TC_Args & ASCII.LF
+                               else ""),
                               Tags.Tool);
                            if To_String (Res.Id) /= "" then
                               if Res.Status = Timed_Out then
@@ -503,8 +504,8 @@ package body Coyote_Renderer.Session_View is
                               elsif Res.Is_Err then
                                  Append_Tagged
                                    (Buffer,
-                                    UC_CROSS & " "
-                                    & To_String (Res.Text) & ASCII.LF,
+                                    UC_CROSS & " " & To_String (Res.Text)
+                                    & ASCII.LF,
                                     Tags.Error);
                               else
                                  Append_Tagged
@@ -514,8 +515,7 @@ package body Coyote_Renderer.Session_View is
                               end if;
                            else
                               Append_Tagged
-                                (Buffer, "- cancelled" & ASCII.LF,
-                                 Tags.Dim);
+                                (Buffer, "- cancelled" & ASCII.LF, Tags.Dim);
                            end if;
                            Append_Text (Buffer, "" & ASCII.LF);
                         end if;
@@ -538,29 +538,27 @@ package body Coyote_Renderer.Session_View is
                Append (Full_Line, Line (1 .. Last));
                exit when Last < Line'Last;
             end loop;
-               declare
-                  Root : constant GNATCOLL.JSON.JSON_Value :=
-                    GNATCOLL.JSON.Read (To_String (Full_Line));
+            declare
+               Root : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Read (To_String (Full_Line));
                Msg  : GNATCOLL.JSON.JSON_Value;
             begin
                if Root.Kind = GNATCOLL.JSON.JSON_Object_Type then
                   if Root.Has_Field ("type")
-                    and then Root.Get ("type").Kind =
-                      GNATCOLL.JSON.JSON_String_Type
+                    and then Root.Get ("type").Kind
+                      = GNATCOLL.JSON.JSON_String_Type
                   then
                      declare
-                        T : constant String :=
-                          String'(Root.Get ("type").Get);
+                        T : constant String := String'(Root.Get ("type").Get);
                      begin
-                        if T = "message" and then Root.Has_Field ("message") then
+                        if T = "message" and then Root.Has_Field ("message")
+                        then
                            Msg := Root.Get ("message");
                         elsif T = "model_change" then
                            Append_Tagged
                              (Buffer,
-                              "[Model: "
-                              & Get_Str (Root, "provider") & "/"
-                              & Get_Str (Root, "modelId") & "]"
-                              & ASCII.LF,
+                              "[Model: " & Get_Str (Root, "provider") & "/"
+                              & Get_Str (Root, "modelId") & "]" & ASCII.LF,
                               Tags.Dim);
                            goto Next_Line;
                         else
@@ -575,8 +573,10 @@ package body Coyote_Renderer.Session_View is
                   declare
                      Role : constant String := Get_Str (Msg, "role");
                   begin
-                     if    Role = "user"      then Render_User_Msg (Msg);
-                     elsif Role = "assistant" then Render_Assistant_Msg (Msg);
+                     if Role = "user" then
+                        Render_User_Msg (Msg);
+                     elsif Role = "assistant" then
+                        Render_Assistant_Msg (Msg);
                      end if;
                   end;
                end if;
@@ -585,8 +585,7 @@ package body Coyote_Renderer.Session_View is
             when E : others =>
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
-                  "coyote_renderer: session_view: "
-                  & "Render_Pass line: "
+                  "coyote_renderer: session_view: " & "Render_Pass line: "
                   & Ada.Exceptions.Exception_Information (E));
          end;
          <<Next_Line>>
@@ -603,16 +602,14 @@ package body Coyote_Renderer.Session_View is
    --  ── Public interface ──────────────────────────────────────────────────
 
    function Find_Session_File
-     (Session_Id       :  String;
-      Source_Directory :  String) return String
+     (Session_Id : String; Source_Directory : String) return String
    is
       use Ada.Directories;
-      Home  : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
-      Slug  : constant String :=
+      Home : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
+      Slug : constant String :=
         Coyote_SQC.Session_Parser.Encode_Cwd (Source_Directory);
-      Dir   : constant String :=
-        Home & "/.coyote/sessions/" & Slug & "/";
-      Path  : constant String := Dir & Session_Id & ".jsonl";
+      Dir  : constant String := Home & "/.coyote/sessions/" & Slug & "/";
+      Path : constant String := Dir & Session_Id & ".jsonl";
    begin
       if Exists (Path) then
          return Path;
@@ -626,8 +623,12 @@ package body Coyote_Renderer.Session_View is
          if not Exists (Base) then
             return "";
          end if;
-         Start_Search (Search, Base, "",
-                       (Directory => True, others => False));
+         Start_Search
+           (Search,
+            Base,
+            "",
+            (Directory => True,
+             others    => False));
          while More_Entries (Search) loop
             Get_Next_Entry (Search, Dirent);
             declare
@@ -644,14 +645,15 @@ package body Coyote_Renderer.Session_View is
       end;
       return "";
    exception
-      when others => return "";
+      when others =>
+         return "";
    end Find_Session_File;
 
    procedure Render_Session
-     (Session       :      Coyote_SQC.Data_Model.Session_Record;
-      Buffer        : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+     (Session       : Coyote_SQC.Data_Model.Session_Record;
+      Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       View          : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
-      On_Tool_Click :      Tool_Click_Callback := null)
+      On_Tool_Click : Tool_Click_Callback := null)
    is
       use Ada.Strings.Unbounded;
       Path : constant String :=
@@ -670,12 +672,11 @@ package body Coyote_Renderer.Session_View is
       end if;
 
       declare
-         Tags    : constant Tag_Set    := Make_Tags (Buffer);
-         Results : constant TR_Vectors.Vector :=
-           Collect_Tool_Results (Path);
+         Tags    : constant Tag_Set           := Make_Tags (Buffer);
+         Results : constant TR_Vectors.Vector := Collect_Tool_Results (Path);
       begin
-         Render_Pass (Path, Buffer, View, Tags, Results, On_Tool_Click,
-                      Session);
+         Render_Pass
+           (Path, Buffer, View, Tags, Results, On_Tool_Click, Session);
       end;
    exception
       when E : others =>

@@ -18,17 +18,13 @@ package Coyote_App_Frontend_GUI_Tests is
    overriding procedure Set_Up (T : in out Test);
    overriding procedure Tear_Down (T : in out Test);
 
-   procedure Test_Layout_And_Shutdown_Lifecycle
-     (T : in out Test);
+   procedure Test_Layout_And_Shutdown_Lifecycle (T : in out Test);
 
-   procedure Test_Agent_Tree_Expands_New_Subagents
-     (T : in out Test);
+   procedure Test_Agent_Tree_Expands_New_Subagents (T : in out Test);
 
-   procedure Test_Product_Information_Icon
-     (T : in out Test);
+   procedure Test_Product_Information_Icon (T : in out Test);
 
-   procedure Test_Sandbox_Profiles_Menu
-     (T : in out Test);
+   procedure Test_Sandbox_Profiles_Menu (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

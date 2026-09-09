@@ -80,50 +80,50 @@ package Coyote_SQC.Charts is
       Session_Tool_Call_MI_Sum_MR,
       Session_Tool_Call_MI_Sum_EWMA,
       Tool_Call_MI_Quantile,
-   --  Token Cost Charts — Session-level I/MR/EWMA (6 categories × 3):
-   Session_Total_Cost_I,
-   Session_Total_Cost_MR,
-   Session_Total_Cost_EWMA,
-   Session_Input_Cost_I,
-   Session_Input_Cost_MR,
-   Session_Input_Cost_EWMA,
-   Session_Output_Cost_I,
-   Session_Output_Cost_MR,
-   Session_Output_Cost_EWMA,
-   Session_Cache_Read_Cost_I,
-   Session_Cache_Read_Cost_MR,
-   Session_Cache_Read_Cost_EWMA,
-   Session_Cache_Write_Cost_I,
-   Session_Cache_Write_Cost_MR,
-   Session_Cache_Write_Cost_EWMA,
-   Session_Uncached_Input_Cost_I,
-   Session_Uncached_Input_Cost_MR,
-   Session_Uncached_Input_Cost_EWMA,
-   --  Token Cost Charts — Turn-level Xbar/s (6 categories × 2):
-   Turn_Total_Cost_Xbar,
-   Turn_Total_Cost_S,
-   Turn_Input_Cost_Xbar,
-   Turn_Input_Cost_S,
-   Turn_Output_Cost_Xbar,
-   Turn_Output_Cost_S,
-   Turn_Cache_Read_Cost_Xbar,
-   Turn_Cache_Read_Cost_S,
-   Turn_Cache_Write_Cost_Xbar,
-   Turn_Cache_Write_Cost_S,
-   Turn_Uncached_Input_Cost_Xbar,
-   Turn_Uncached_Input_Cost_S);
+      --  Token Cost Charts — Session-level I/MR/EWMA (6 categories × 3):
+      Session_Total_Cost_I,
+      Session_Total_Cost_MR,
+      Session_Total_Cost_EWMA,
+      Session_Input_Cost_I,
+      Session_Input_Cost_MR,
+      Session_Input_Cost_EWMA,
+      Session_Output_Cost_I,
+      Session_Output_Cost_MR,
+      Session_Output_Cost_EWMA,
+      Session_Cache_Read_Cost_I,
+      Session_Cache_Read_Cost_MR,
+      Session_Cache_Read_Cost_EWMA,
+      Session_Cache_Write_Cost_I,
+      Session_Cache_Write_Cost_MR,
+      Session_Cache_Write_Cost_EWMA,
+      Session_Uncached_Input_Cost_I,
+      Session_Uncached_Input_Cost_MR,
+      Session_Uncached_Input_Cost_EWMA,
+      --  Token Cost Charts — Turn-level Xbar/s (6 categories × 2):
+      Turn_Total_Cost_Xbar,
+      Turn_Total_Cost_S,
+      Turn_Input_Cost_Xbar,
+      Turn_Input_Cost_S,
+      Turn_Output_Cost_Xbar,
+      Turn_Output_Cost_S,
+      Turn_Cache_Read_Cost_Xbar,
+      Turn_Cache_Read_Cost_S,
+      Turn_Cache_Write_Cost_Xbar,
+      Turn_Cache_Write_Cost_S,
+      Turn_Uncached_Input_Cost_Xbar,
+      Turn_Uncached_Input_Cost_S);
 
    --  Display metadata for one chart.
    type Chart_Properties is record
-      Label        : Ada.Strings.Unbounded.Unbounded_String;
-      Group_Path        : Ada.Strings.Unbounded.Unbounded_String;
-      Y_Axis_Label : Ada.Strings.Unbounded.Unbounded_String;
-      Is_P_Chart   : Boolean;
-      Is_I_Chart      : Boolean;
-      Is_MR_Chart     : Boolean;
-      Is_Xbar_S_Chart : Boolean;
-      Is_EWMA_Chart   : Boolean;
-      Is_S_Chart      : Boolean;  --  True for s charts (stays in z-space when Box-Cox active)
+      Label                : Ada.Strings.Unbounded.Unbounded_String;
+      Group_Path           : Ada.Strings.Unbounded.Unbounded_String;
+      Y_Axis_Label         : Ada.Strings.Unbounded.Unbounded_String;
+      Is_P_Chart           : Boolean;
+      Is_I_Chart           : Boolean;
+      Is_MR_Chart          : Boolean;
+      Is_Xbar_S_Chart      : Boolean;
+      Is_EWMA_Chart        : Boolean;
+      Is_S_Chart : Boolean;  --  True for s charts (stays in z-space when Box-Cox active)
       Is_Quantile_CC_Chart : Boolean;
    end record;
 

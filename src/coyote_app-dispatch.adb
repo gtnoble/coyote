@@ -3,11 +3,11 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with LLM.Types;
 with Coyote_App.Frontend;
-with Coyote_App.Utils;       use Coyote_App.Utils;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 
 package body Coyote_App.Dispatch is
 
@@ -15,75 +15,81 @@ package body Coyote_App.Dispatch is
    use type LLM.Events.Message_Update_Kind;
    use type LLM.Types.Stop_Reason;
 
-   function Stop_Reason_Image
-     (Reason : LLM.Types.Stop_Reason) return String
-   is
+   function Stop_Reason_Image (Reason : LLM.Types.Stop_Reason) return String is
    begin
       case Reason is
-         when LLM.Types.Stop       => return "stop";
-         when LLM.Types.Length     => return "length";
-         when LLM.Types.Tool_Use   => return "toolUse";
-         when LLM.Types.Aborted    => return "aborted";
-         when LLM.Types.Error_Stop => return "error";
-         when others               => return "unknown";
+         when LLM.Types.Stop =>
+            return "stop";
+         when LLM.Types.Length =>
+            return "length";
+         when LLM.Types.Tool_Use =>
+            return "toolUse";
+         when LLM.Types.Aborted =>
+            return "aborted";
+         when LLM.Types.Error_Stop =>
+            return "error";
+         when others =>
+            return "unknown";
       end case;
    end Stop_Reason_Image;
 
    --  Build the one-line status string.
    function Format_Status
-     (State : App_State;
-      Extra : String := "ready") return String
+     (State : App_State; Extra : String := "ready") return String
    is
-      Model_Text   : constant String  := State.Current_Model;
-      Session_Text : constant String  := State.Session_Id;
-      Think_Text   : constant String  := State.Current_Thinking;
-      Sandbox_Text : constant String  := State.Current_Sandbox;
-      Subagent_Text : constant String :=
+      Model_Text      : constant String  := State.Current_Model;
+      Session_Text    : constant String  := State.Session_Id;
+      Think_Text      : constant String  := State.Current_Thinking;
+      Sandbox_Text    : constant String  := State.Current_Sandbox;
+      Subagent_Text   : constant String  :=
         Coyote_App.Subagent_Model_Override_State.Current;
-      Input_Tokens : constant Natural := State.Turn_Input_Tokens;
-      Ctx_Window   : constant Natural := State.Context_Window;
+      Input_Tokens    : constant Natural := State.Turn_Input_Tokens;
+      Ctx_Window      : constant Natural := State.Context_Window;
       Tools_Running_N : constant Natural := State.Tools_Running;
       Tools_Done_N    : constant Natural := State.Tools_Done;
 
-      Model_Part   : constant String :=
-        (if Model_Text'Length > 0
-         then " [" & Model_Text & "]"
-         else "");
-      Think_Part   : constant String :=
+      Model_Part    : constant String :=
+        (if Model_Text'Length > 0 then " [" & Model_Text & "]" else "");
+      Think_Part    : constant String :=
         (if Think_Text'Length > 0 then " ~" & Think_Text else "");
-      Sandbox_Part : constant String :=
-        (if Sandbox_Text'Length > 0
-         then " [" & Sandbox_Text & "]"
-         else "");
+      Sandbox_Part  : constant String :=
+        (if Sandbox_Text'Length > 0 then " [" & Sandbox_Text & "]" else "");
       Subagent_Part : constant String :=
-        (if Subagent_Text'Length > 0
-         then " " & UC_TRI_R & "sub " & Subagent_Text
+        (if
+           Subagent_Text'Length > 0
+         then
+           " " & UC_TRI_R & "sub " & Subagent_Text
          else "");
-      Session_Part : constant String :=
-        (if Session_Text'Length >= 8
-         then " session:"
-              & Session_Text (Session_Text'First
-                               .. Session_Text'First + 7)
+      Session_Part  : constant String :=
+        (if
+           Session_Text'Length >= 8
+         then
+           " session:"
+           & Session_Text (Session_Text'First .. Session_Text'First + 7)
          else "");
-      Context_Part : constant String :=
-        (if Input_Tokens > 0 and then Ctx_Window > 0
-         then " " & Format_SI_Count (Input_Tokens)
-              & "/" & Format_SI_Count (Ctx_Window)
-              & " (" & Natural_Image (Input_Tokens * 100 / Ctx_Window)
-              & "%)"
+      Context_Part  : constant String :=
+        (if
+           Input_Tokens > 0 and then Ctx_Window > 0
+         then
+           " " & Format_SI_Count (Input_Tokens) & "/"
+           & Format_SI_Count (Ctx_Window) & " ("
+           & Natural_Image (Input_Tokens * 100 / Ctx_Window) & "%)"
          else "");
-      Tool_Part    : constant String :=
-        (if Tools_Running_N > 0
-         then " " & Natural_Image (Tools_Done_N)
-              & "+" & Natural_Image (Tools_Running_N)
-              & " tools"
-         elsif Tools_Done_N > 0
-         then " " & Natural_Image (Tools_Done_N) & " tools done"
+      Tool_Part     : constant String :=
+        (if
+           Tools_Running_N > 0
+         then
+           " " & Natural_Image (Tools_Done_N) & "+"
+           & Natural_Image (Tools_Running_N) & " tools"
+         elsif
+           Tools_Done_N > 0
+         then
+           " " & Natural_Image (Tools_Done_N) & " tools done"
          else "");
    begin
-      return UC_BULLET & " " & Extra
-             & Model_Part & Think_Part & Sandbox_Part & Subagent_Part
-             & Context_Part & Tool_Part & Session_Part;
+      return
+        UC_BULLET & " " & Extra & Model_Part & Think_Part & Sandbox_Part
+        & Subagent_Part & Context_Part & Tool_Part & Session_Part;
    end Format_Status;
 
    --  Append a live turn footer and advance the turn counter.
@@ -98,7 +104,7 @@ package body Coyote_App.Dispatch is
       Turn_Cost_Dmil    : constant Natural := State.Turn_Cost_Dmil;
       Session_Cost_Dmil : constant Natural := State.Session_Cost_Dmil;
       Stop_Reason_Text  : constant String  := State.Last_Stop_Reason;
-      Footer_Summary    : constant String :=
+      Footer_Summary    : constant String  :=
         Format_Turn_Summary
           (Input_Tokens      => Input_Tokens,
            Output_Tokens     => Output_Tokens,
@@ -117,12 +123,10 @@ package body Coyote_App.Dispatch is
             Model_Text        => Model_Text,
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
             Session_Cost_Dmil => Session_Cost_Dmil,
-            Stop_Reason_Text => Stop_Reason_Text),
+            Stop_Reason_Text  => Stop_Reason_Text),
          Summary => Footer_Summary);
       Frontend.Append_Fork_Action
-        (UUID   => State.Session_Id,
-         Turn_N => State.Turn_Count,
-         Step_N => 0);
+        (UUID => State.Session_Id, Turn_N => State.Turn_Count, Step_N => 0);
    end Append_Live_Turn_Footer;
 
    --  Append a step-level turn footer for an intermediate assistant message
@@ -131,20 +135,20 @@ package body Coyote_App.Dispatch is
      (Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State)
    is
-      Input_Tokens      : constant Natural := State.Turn_Input_Tokens;
-      Output_Tokens     : constant Natural := State.Turn_Output_Tokens;
-      Ctx_Window        : constant Natural := State.Context_Window;
-      Model_Text        : constant String  := State.Current_Model;
-      Turn_Cost_Dmil    : constant Natural := State.Turn_Cost_Dmil;
-      Stop_Reason_Text  : constant String  := State.Last_Stop_Reason;
-      Footer_Summary    : constant String :=
+      Input_Tokens     : constant Natural := State.Turn_Input_Tokens;
+      Output_Tokens    : constant Natural := State.Turn_Output_Tokens;
+      Ctx_Window       : constant Natural := State.Context_Window;
+      Model_Text       : constant String  := State.Current_Model;
+      Turn_Cost_Dmil   : constant Natural := State.Turn_Cost_Dmil;
+      Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
+      Footer_Summary   : constant String  :=
         Format_Turn_Summary
-          (Input_Tokens      => Input_Tokens,
-           Output_Tokens     => Output_Tokens,
-           Ctx_Window        => Ctx_Window,
-           Model_Text        => Model_Text,
-           Turn_Cost_Dmil    => Turn_Cost_Dmil,
-           Stop_Reason_Text  => Stop_Reason_Text);
+          (Input_Tokens     => Input_Tokens,
+           Output_Tokens    => Output_Tokens,
+           Ctx_Window       => Ctx_Window,
+           Model_Text       => Model_Text,
+           Turn_Cost_Dmil   => Turn_Cost_Dmil,
+           Stop_Reason_Text => Stop_Reason_Text);
    begin
       Frontend.Append_Turn_Footer
         (Format_Turn_Footer_Display
@@ -154,8 +158,8 @@ package body Coyote_App.Dispatch is
             Model_Text        => Model_Text,
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
             Session_Cost_Dmil => 0,  --  session cost unavailable at step level
-            Stop_Reason_Text => Stop_Reason_Text,
-            Is_Step          => True),
+            Stop_Reason_Text  => Stop_Reason_Text,
+            Is_Step           => True),
          Kind    => Coyote_App.Frontend.Step_Footer,
          Summary => Footer_Summary);
       Frontend.Append_Fork_Action
@@ -165,7 +169,7 @@ package body Coyote_App.Dispatch is
    end Append_Step_Footer;
 
    procedure Dispatch_Event
-     (Event    : LLM.Events.Agent_Event'Class;
+     (Event    :        LLM.Events.Agent_Event'Class;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State;
       Section  : in out Section_Kind)
@@ -187,7 +191,7 @@ package body Coyote_App.Dispatch is
          Frontend.Set_Status (Format_Status (State, "running"));
          Frontend.Set_Mode (Coyote_App.Frontend.Running);
 
-      --  ── agent_end ─────────────────────────────────────────────────────
+         --  ── agent_end ─────────────────────────────────────────────────────
       elsif Event in LLM.Events.Agent_End_Event then
          State.Set_Streaming (False);
          State.Set_Paused (False);
@@ -209,8 +213,7 @@ package body Coyote_App.Dispatch is
             Frontend.Append_Notice
               (Coyote_App.Frontend.Info,
                ASCII.LF & "[STOP] Aborted." & ASCII.LF);
-            Frontend.Complete_Request
-              (Coyote_App.Frontend.Aborted);
+            Frontend.Complete_Request (Coyote_App.Frontend.Aborted);
             State.Set_Pending_Stats (False);
             State.Set_Aborted (False);
          else
@@ -222,24 +225,18 @@ package body Coyote_App.Dispatch is
                   Frontend.Append_Notice
                     (Coyote_App.Frontend.Warning,
                      "Agent stopped with an error"
-                     & (if Err_Msg'Length > 0
-                        then ": " & Err_Msg
-                        else ""));
-                  Frontend.Complete_Request
-                    (Coyote_App.Frontend.Failed);
+                     & (if Err_Msg'Length > 0 then ": " & Err_Msg else ""));
+                  Frontend.Complete_Request (Coyote_App.Frontend.Failed);
                   State.Set_Pending_Stats (False);
-               elsif not State.Text_Emitted
-                 and then not State.Is_Retrying
-               then
+               elsif not State.Text_Emitted and then not State.Is_Retrying then
                   Frontend.Append_Notice
                     (Coyote_App.Frontend.Warning,
                      "No response from the agent"
-                     & (if Err_Msg'Length > 0
-                        then ": " & Err_Msg
-                        else " -- context may be too long, or a temporary"
-                             & " error occurred. Try New."));
-                  Frontend.Complete_Request
-                    (Coyote_App.Frontend.Failed);
+                     &
+                     (if Err_Msg'Length > 0 then ": " & Err_Msg
+                      else " -- context may be too long, or a temporary"
+                        & " error occurred. Try New."));
+                  Frontend.Complete_Request (Coyote_App.Frontend.Failed);
                end if;
             end;
          end if;
@@ -285,7 +282,7 @@ package body Coyote_App.Dispatch is
             end if;
          end;
 
-      --  ── tool_execution_start ──────────────────────────────────────────
+         --  ── tool_execution_start ──────────────────────────────────────────
       elsif Event in LLM.Events.Tool_Execution_Start_Event then
          State.Set_Text_Emitted (True);
          State.Set_Has_Tool_In_Turn (True);
@@ -303,17 +300,17 @@ package body Coyote_App.Dispatch is
               (Name             => Tool,
                Args_Json        => To_String (Ev.Args_Json),
                Session_Id       => Sess,
-               Tool_Id           => Tool_Id,
+               Tool_Id          => Tool_Id,
                Model            => State.Current_Model,
                Source_Directory => State.Source_Directory,
                Session_Start    => State.Session_Start,
                Turn_Index       => State.Turn_Count + 1,
                Call_In_Turn     => State.Current_Tool_Call,
-               Initial_Status  => Coyote_App.Frontend.Queued);
+               Initial_Status   => Coyote_App.Frontend.Queued);
             Section := Tool_Section;
          end;
 
-      --  ── tool_execution_running ────────────────────────────────────────
+         --  ── tool_execution_running ────────────────────────────────────────
       elsif Event in LLM.Events.Tool_Execution_Running_Event then
          declare
             Ev : constant LLM.Events.Tool_Execution_Running_Event :=
@@ -324,7 +321,7 @@ package body Coyote_App.Dispatch is
                Status  => Coyote_App.Frontend.Running);
          end;
 
-      --  ── tool_execution_end ────────────────────────────────────────────
+         --  ── tool_execution_end ────────────────────────────────────────────
       elsif Event in LLM.Events.Tool_Execution_End_Event then
          declare
             Ev      : constant LLM.Events.Tool_Execution_End_Event :=
@@ -348,32 +345,28 @@ package body Coyote_App.Dispatch is
             Section := No_Section;
          end;
 
-      --  ── tool_execution_end continued: tool-done counting ──────────────
-            State.Increment_Tools_Done;
+         --  ── tool_execution_end continued: tool-done counting ──────────────
+         State.Increment_Tools_Done;
 
-            --  When the last tool in a batch completes and the assistant
-            --  is continuing the turn (stop = toolUse), emit a step-level
-            --  fork footer so the user can branch the session at this
-            --  intermediate decision point.
-            if State.Tools_Running = 0
-              and then State.Has_Tool_In_Turn
-              and then not State.Tool_Cancelled
-              and then State.Last_Stop_Reason = "toolUse"
-            then
-               State.Increment_Turn_Step;
-               Append_Step_Footer
-                 (Frontend => Frontend,
-                  State    => State);
-            end if;
+         --  When the last tool in a batch completes and the assistant
+         --  is continuing the turn (stop = toolUse), emit a step-level
+         --  fork footer so the user can branch the session at this
+         --  intermediate decision point.
+         if State.Tools_Running = 0 and then State.Has_Tool_In_Turn
+           and then not State.Tool_Cancelled
+           and then State.Last_Stop_Reason = "toolUse"
+         then
+            State.Increment_Turn_Step;
+            Append_Step_Footer (Frontend => Frontend, State => State);
+         end if;
 
-            Frontend.Set_Status (Format_Status (State, "running"));
+         Frontend.Set_Status (Format_Status (State, "running"));
       elsif Event in LLM.Events.Message_End_Event then
          declare
             Ev           : constant LLM.Events.Message_End_Event :=
               LLM.Events.Message_End_Event (Event);
-            Input_Count  : constant Natural :=
-              Ev.Tok_Usage.Input
-              + Ev.Tok_Usage.Cache_Read
+            Input_Count  : constant Natural                      :=
+              Ev.Tok_Usage.Input + Ev.Tok_Usage.Cache_Read
               + Ev.Tok_Usage.Cache_Write;
             Output_Count : constant Natural := Ev.Tok_Usage.Output;
          begin
@@ -391,7 +384,7 @@ package body Coyote_App.Dispatch is
             end if;
          end;
 
-      --  ── auto_retry_start ──────────────────────────────────────────────
+         --  ── auto_retry_start ──────────────────────────────────────────────
       elsif Event in LLM.Events.Auto_Retry_Start_Event then
          State.Set_Is_Retrying (True);
          declare
@@ -400,25 +393,20 @@ package body Coyote_App.Dispatch is
             Attempt     : constant Natural := Ev.Attempt;
             Max_Att     : constant Natural := Ev.Max_Attempts;
             Delay_Ms    : constant Natural := Ev.Delay_Ms;
-            Err_Msg     : constant String  := To_String (Ev.Error_Msg);
-            Delay_S_Str : constant String  :=
-              (if Delay_Ms >= 1000
-               then Natural_Image (Delay_Ms / 1000) & "s"
+            Err_Msg     : constant String := To_String (Ev.Error_Msg);
+            Delay_S_Str : constant String                            :=
+              (if Delay_Ms >= 1_000 then Natural_Image (Delay_Ms / 1_000) & "s"
                else Natural_Image (Delay_Ms) & "ms");
          begin
             Frontend.Append_Notice
               (Coyote_App.Frontend.Info,
-               ASCII.LF
-               & UC_RETRY & " Retry "
-               & Natural_Image (Attempt)
-               & "/" & Natural_Image (Max_Att)
-               & " in " & Delay_S_Str
-               & ": " & Err_Msg
-               & ASCII.LF);
+               ASCII.LF & UC_RETRY & " Retry " & Natural_Image (Attempt) & "/"
+               & Natural_Image (Max_Att) & " in " & Delay_S_Str & ": "
+               & Err_Msg & ASCII.LF);
             Frontend.Set_Status (Format_Status (State, "retrying"));
          end;
 
-      --  ── auto_retry_end ────────────────────────────────────────────────
+         --  ── auto_retry_end ────────────────────────────────────────────────
       elsif Event in LLM.Events.Auto_Retry_End_Event then
          State.Set_Is_Retrying (False);
          declare
@@ -427,33 +415,32 @@ package body Coyote_App.Dispatch is
          begin
             if not Ev.Success then
                declare
-                  Final_Err : constant String := To_String (Ev.Final_Error);
+                  Final_Err : constant String  := To_String (Ev.Final_Error);
                   Attempts  : constant Natural := Ev.Attempt;
                begin
                   Frontend.Append_Notice
                     (Coyote_App.Frontend.Info,
-                     ASCII.LF
-                     & UC_CROSS & " Retry failed after "
+                     ASCII.LF & UC_CROSS & " Retry failed after "
                      & Natural_Image (Attempts)
                      & (if Attempts = 1 then " attempt" else " attempts")
-                     & (if Final_Err'Length > 0
-                        then ": " & Final_Err
-                        else "")
+                     & (if Final_Err'Length > 0 then ": " & Final_Err else "")
                      & ASCII.LF);
                end;
             end if;
          end;
 
-      --  ── auto_compaction_start ─────────────────────────────────────────
+         --  ── auto_compaction_start ─────────────────────────────────────────
       elsif Event in LLM.Events.Auto_Compaction_Start_Event then
          State.Set_Compacting (True);
          declare
             Ev     : constant LLM.Events.Auto_Compaction_Start_Event :=
               LLM.Events.Auto_Compaction_Start_Event (Event);
             Reason : constant String := To_String (Ev.Reason);
-            Label  : constant String :=
-              (if Reason = "overflow"
-               then "Overflow: compacting context" & UC_ELLIP
+            Label  : constant String                                 :=
+              (if
+                 Reason = "overflow"
+               then
+                 "Overflow: compacting context" & UC_ELLIP
                else "Compacting context" & UC_ELLIP);
          begin
             Frontend.Append_Notice
@@ -462,13 +449,13 @@ package body Coyote_App.Dispatch is
          end;
          Frontend.Set_Status (Format_Status (State, "compacting"));
 
-      --  ── auto_compaction_end ───────────────────────────────────────────
+         --  ── auto_compaction_end ───────────────────────────────────────────
       elsif Event in LLM.Events.Auto_Compaction_End_Event then
          State.Set_Compacting (False);
          declare
             Ev         : constant LLM.Events.Auto_Compaction_End_Event :=
               LLM.Events.Auto_Compaction_End_Event (Event);
-            Err_Msg    : constant String  := To_String (Ev.Err_Msg);
+            Err_Msg    : constant String := To_String (Ev.Err_Msg);
             Is_Aborted : constant Boolean := Ev.Aborted;
             Will_Retry : constant Boolean := Ev.Will_Retry;
          begin
@@ -483,9 +470,8 @@ package body Coyote_App.Dispatch is
             elsif Will_Retry then
                Frontend.Append_Notice
                  (Coyote_App.Frontend.Info,
-                  ASCII.LF & UC_CHECK
-                  & " Context compacted, retrying" & UC_ELLIP
-                  & ASCII.LF);
+                  ASCII.LF & UC_CHECK & " Context compacted, retrying"
+                  & UC_ELLIP & ASCII.LF);
             else
                Frontend.Append_Notice
                  (Coyote_App.Frontend.Info,
@@ -494,16 +480,15 @@ package body Coyote_App.Dispatch is
          end;
          Frontend.Set_Status
            (Format_Status
-              (State,
-               (if State.Is_Streaming then "running" else "ready")));
+              (State, (if State.Is_Streaming then "running" else "ready")));
 
-      --  ── model_select ──────────────────────────────────────────────────
+         --  ── model_select ──────────────────────────────────────────────────
       elsif Event in LLM.Events.Model_Select_Event then
          declare
             Ev         : constant LLM.Events.Model_Select_Event :=
               LLM.Events.Model_Select_Event (Event);
-            Provider   : constant String  := To_String (Ev.Provider);
-            Model_Id   : constant String  := To_String (Ev.Model_Id);
+            Provider   : constant String := To_String (Ev.Provider);
+            Model_Id   : constant String := To_String (Ev.Model_Id);
             Ctx_Window : constant Natural := Ev.Context_Window;
          begin
             if Provider'Length > 0 and then Model_Id'Length > 0 then
@@ -515,10 +500,9 @@ package body Coyote_App.Dispatch is
          end;
          Frontend.Set_Status
            (Format_Status
-              (State,
-               (if State.Is_Streaming then "running" else "ready")));
+              (State, (if State.Is_Streaming then "running" else "ready")));
 
-      --  ── session_info ──────────────────────────────────────────────────
+         --  ── session_info ──────────────────────────────────────────────────
       elsif Event in LLM.Events.Session_Info_Event then
          declare
             Ev           : constant LLM.Events.Session_Info_Event :=
@@ -543,7 +527,7 @@ package body Coyote_App.Dispatch is
          end;
          Frontend.Set_Status (Format_Status (State, "ready"));
 
-      --  ── session_stats ─────────────────────────────────────────────────
+         --  ── session_stats ─────────────────────────────────────────────────
       elsif Event in LLM.Events.Session_Stats_Event then
          declare
             Ev : constant LLM.Events.Session_Stats_Event :=
@@ -559,22 +543,19 @@ package body Coyote_App.Dispatch is
          end;
          if State.Pending_Stats then
             State.Set_Pending_Stats (False);
-            Append_Live_Turn_Footer
-              (Frontend => Frontend,
-               State    => State);
-            Frontend.Complete_Request
-              (Coyote_App.Frontend.Completed);
+            Append_Live_Turn_Footer (Frontend => Frontend, State => State);
+            Frontend.Complete_Request (Coyote_App.Frontend.Completed);
          end if;
          Frontend.Set_Status (Format_Status (State, "ready"));
 
-      --  ── agent_paused ──────────────────────────────────────────────────
+         --  ── agent_paused ──────────────────────────────────────────────────
       elsif Event in LLM.Events.Agent_Paused_Event then
          State.Set_Paused (True);
          State.Set_Pause_Armed (False);
          Frontend.Set_Status (Format_Status (State, "paused"));
          Frontend.Set_Mode (Coyote_App.Frontend.Paused);
 
-      --  ── agent_resumed ─────────────────────────────────────────────────
+         --  ── agent_resumed ─────────────────────────────────────────────────
       elsif Event in LLM.Events.Agent_Resumed_Event then
          State.Set_Paused (False);
          Frontend.Set_Status (Format_Status (State, "running"));

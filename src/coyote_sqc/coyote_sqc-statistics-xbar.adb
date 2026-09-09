@@ -11,7 +11,8 @@ package body Coyote_SQC.Statistics.Xbar is
    function Compute_Limits
      (Grand_Mean : Long_Float;
       Pooled_S   : Long_Float;
-      N          : Positive) return Limits_Record
+      N          : Positive)
+      return Limits_Record
    is
    begin
       if N = 1 then
@@ -34,12 +35,11 @@ package body Coyote_SQC.Statistics.Xbar is
             Has_LCL => False);
       end if;
 
-         --  Pooled_S is a direct estimator of sigma (not s_bar),
-         --  so no c4 unbiasing constant is needed here.
+      --  Pooled_S is a direct estimator of sigma (not s_bar),
+      --  so no c4 unbiasing constant is needed here.
       declare
          NF     : constant Long_Float := Long_Float (N);
-         Spread : constant Long_Float :=
-           3.0 * Pooled_S / Sqrt (NF);
+         Spread : constant Long_Float := 3.0 * Pooled_S / Sqrt (NF);
       begin
          --  Xbar LCL can be negative; it is always drawn when limits exist.
          return

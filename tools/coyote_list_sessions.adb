@@ -15,10 +15,8 @@ procedure Coyote_List_Sessions is
 begin
    for S of Sessions loop
       Ada.Text_IO.Put_Line
-        (To_String (S.UUID)
-         & ASCII.HT & To_String (S.Name)
-         & ASCII.HT & To_String (S.Date)
-         & ASCII.HT & To_String (S.Snippet));
+        (To_String (S.UUID) & ASCII.HT & To_String (S.Name) & ASCII.HT
+         & To_String (S.Date) & ASCII.HT & To_String (S.Snippet));
    end loop;
    Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
 end Coyote_List_Sessions;

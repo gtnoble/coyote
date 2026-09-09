@@ -45,11 +45,11 @@ package body Coyote_GUI.Model_Picker is
 
    type Picker_State is record
       Filter : Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter := null;
-      Sort   : Gtk.Tree_Model_Sort.Gtk_Tree_Model_Sort := null;
-      View   : Gtk.Tree_View.Gtk_Tree_View := null;
-      Search : Gtk.Search_Entry.Gtk_Search_Entry := null;
-      Count  : Gtk.Label.Gtk_Label := null;
-      Dialog : Gtk.Dialog.Gtk_Dialog := null;
+      Sort   : Gtk.Tree_Model_Sort.Gtk_Tree_Model_Sort     := null;
+      View   : Gtk.Tree_View.Gtk_Tree_View                 := null;
+      Search : Gtk.Search_Entry.Gtk_Search_Entry           := null;
+      Count  : Gtk.Label.Gtk_Label                         := null;
+      Dialog : Gtk.Dialog.Gtk_Dialog                       := null;
       Query  : Unbounded_String := Null_Unbounded_String;
    end record;
 
@@ -62,26 +62,28 @@ package body Coyote_GUI.Model_Picker is
 
    function Row_Visible
      (Model : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter) return Boolean
+      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter)
+      return Boolean
    is
       use Gtk.Tree_Model;
    begin
       if Iter = Null_Iter then
          return False;
       end if;
-      return Model_Row_Matches
-        (Provider => Get_String (Model, Iter, 0),
-         Name     => Get_String (Model, Iter, 1),
-         Spec     => Get_String (Model, Iter, 7),
-         Query    => To_String (State.Query));
+      return
+        Model_Row_Matches
+          (Provider => Get_String (Model, Iter, 0),
+           Name     => Get_String (Model, Iter, 1),
+           Spec     => Get_String (Model, Iter, 7),
+           Query    => To_String (State.Query));
    end Row_Visible;
 
    procedure Update_Count is
       use Gtk.Tree_Model;
       use Gtk.Tree_Model_Filter;
-      Needle  : constant String := Ada.Strings.Fixed.Trim
-        (To_String (State.Query), Ada.Strings.Both);
-      Visible : Natural := 0;
+      Needle  : constant String :=
+        Ada.Strings.Fixed.Trim (To_String (State.Query), Ada.Strings.Both);
+      Visible : Natural         := 0;
    begin
       if State.Filter = null or else State.Count = null then
          return;
@@ -152,7 +154,9 @@ package body Coyote_GUI.Model_Picker is
    procedure On_Row_Activated
      (Self   : access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
       Path   : Gtk.Tree_Model.Gtk_Tree_Path;
-      Column : not null access Gtk.Tree_View_Column.Gtk_Tree_View_Column_Record'Class)
+      Column : not null access Gtk.Tree_View_Column
+        .Gtk_Tree_View_Column_Record'
+        Class)
    is
       pragma Unreferenced (Self, Path, Column);
    begin
@@ -162,9 +166,9 @@ package body Coyote_GUI.Model_Picker is
    end On_Row_Activated;
 
    procedure Add_Text_Column
-     (View    : not null access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
-      Title   : String;
-      Col_Num : Glib.Gint;
+     (View     : not null access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
+      Title    : String;
+      Col_Num  : Glib.Gint;
       Sort_Col : Glib.Gint := -1)
    is
       Column   : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
@@ -199,7 +203,8 @@ package body Coyote_GUI.Model_Picker is
 
    function Price_Text
      (Price         : Long_Float;
-      Price_Display : LLM.Settings.Price_Display_Mode) return String
+      Price_Display : LLM.Settings.Price_Display_Mode)
+      return String
    is
    begin
       if Price = 0.0 then
@@ -214,8 +219,9 @@ package body Coyote_GUI.Model_Picker is
    end Price_Text;
 
    function Initial_Iter
-     (Model        : Gtk.Tree_Model.Gtk_Tree_Model;
-      Spec         : String) return Gtk.Tree_Model.Gtk_Tree_Iter
+     (Model : Gtk.Tree_Model.Gtk_Tree_Model;
+      Spec  : String)
+      return Gtk.Tree_Model.Gtk_Tree_Iter
    is
       use Gtk.Tree_Model;
       Iter : Gtk_Tree_Iter := Get_Iter_First (Model);
@@ -233,8 +239,9 @@ package body Coyote_GUI.Model_Picker is
      (Parent        : not null access Gtk.Window.Gtk_Window_Record'Class;
       Models        : LLM.Model_Registry.Model_Info_Vectors.Vector;
       Price_Display : LLM.Settings.Price_Display_Mode;
-      Initial_Spec  : String := "";
-      Allow_Default : Boolean := False) return Selection_Result
+      Initial_Spec  : String  := "";
+      Allow_Default : Boolean := False)
+      return Selection_Result
    is
       use Gtk.Dialog;
       use Gtk.List_Store;
@@ -285,8 +292,7 @@ package body Coyote_GUI.Model_Picker is
          declare
             Provider : constant String := To_String (Model_Info.Provider);
             Name     : constant String :=
-              (if Length (Model_Info.Name) > 0
-               then To_String (Model_Info.Name)
+              (if Length (Model_Info.Name) > 0 then To_String (Model_Info.Name)
                else To_String (Model_Info.Model_Id));
             Context  : constant String :=
               Format_SI_Count (Model_Info.Context_Window) & " ctx";
@@ -331,20 +337,28 @@ package body Coyote_GUI.Model_Picker is
       Add_Text_Column (View, "Context", 2, 8);
       Add_Text_Column
         (View,
-         (if Price_Display = LLM.Settings.Decibels
-          then "In dB ($/tok)" else "In $/MTok"), 3, 9);
+         (if Price_Display = LLM.Settings.Decibels then "In dB ($/tok)"
+          else "In $/MTok"),
+         3,
+         9);
       Add_Text_Column
         (View,
-         (if Price_Display = LLM.Settings.Decibels
-          then "Out dB ($/tok)" else "Out $/MTok"), 4, 10);
+         (if Price_Display = LLM.Settings.Decibels then "Out dB ($/tok)"
+          else "Out $/MTok"),
+         4,
+         10);
       Add_Text_Column
         (View,
-         (if Price_Display = LLM.Settings.Decibels
-          then "CR dB ($/tok)" else "CR $/MTok"), 5, 11);
+         (if Price_Display = LLM.Settings.Decibels then "CR dB ($/tok)"
+          else "CR $/MTok"),
+         5,
+         11);
       Add_Text_Column
         (View,
-         (if Price_Display = LLM.Settings.Decibels
-          then "CW dB ($/tok)" else "CW $/MTok"), 6, 12);
+         (if Price_Display = LLM.Settings.Decibels then "CW dB ($/tok)"
+          else "CW $/MTok"),
+         6,
+         12);
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy
@@ -352,7 +366,7 @@ package body Coyote_GUI.Model_Picker is
       Scroll.Add (View);
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Select Model");
-      Dialog.Set_Default_Size (1000, 520);
+      Dialog.Set_Default_Size (1_000, 520);
       Dialog.Set_Transient_For (Parent);
       declare
          Button : Gtk.Widget.Gtk_Widget;
@@ -375,16 +389,16 @@ package body Coyote_GUI.Model_Picker is
       Search_Row.Pack_Start (State.Search, True, True, 0);
       Search_Row.Pack_Start (State.Count, False, False, 0);
 
-      State.View := View;
+      State.View   := View;
       State.Dialog := Dialog;
-      State.Query := Null_Unbounded_String;
+      State.Query  := Null_Unbounded_String;
       if Allow_Default and then Length (Initial) = 0 then
          Initial := To_Unbounded_String (Default_Spec);
       end if;
       Update_Count;
       if Length (Initial) > 0 then
          Selection := View.Get_Selection;
-         Iter := Initial_Iter (+State.Sort, To_String (Initial));
+         Iter      := Initial_Iter (+State.Sort, To_String (Initial));
          if Iter /= Null_Iter then
             Selection.Select_Iter (Iter);
          else

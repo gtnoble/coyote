@@ -18,7 +18,7 @@ package body LLM.Providers.GitHub_Copilot is
    use type LLM.Types.Role;
 
    subtype Cat_Vector is
-      LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
+     LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
 
    function Create return Provider is
    begin
@@ -29,12 +29,12 @@ package body LLM.Providers.GitHub_Copilot is
 
    function Effective_Base_Url (Access_Token : String) return String is
    begin
-      if Ada.Environment_Variables.Exists
-         ("COYOTE_GITHUB_COPILOT_BASE_URL")
+      if Ada.Environment_Variables.Exists ("COYOTE_GITHUB_COPILOT_BASE_URL")
       then
          declare
-            Value : constant String := Ada.Environment_Variables.Value
-               ("COYOTE_GITHUB_COPILOT_BASE_URL");
+            Value : constant String :=
+              Ada.Environment_Variables.Value
+                ("COYOTE_GITHUB_COPILOT_BASE_URL");
          begin
             if Value'Length > 0 then
                return Value;
@@ -46,7 +46,7 @@ package body LLM.Providers.GitHub_Copilot is
    end Effective_Base_Url;
 
    function Initiator_Header_Value
-      (Messages : LLM.Types.Message_Vectors.Vector) return String
+     (Messages : LLM.Types.Message_Vectors.Vector) return String
    is
    begin
       if Messages.Is_Empty then
@@ -59,8 +59,7 @@ package body LLM.Providers.GitHub_Copilot is
    end Initiator_Header_Value;
 
    procedure Add_Header_Line
-      (P      : in out LLM.Providers.OpenAI_Completions.Provider;
-     Header :        String)
+     (P : in out LLM.Providers.OpenAI_Completions.Provider; Header : String)
    is
       Separator : constant Natural := Ada.Strings.Fixed.Index (Header, ": ");
    begin
@@ -69,14 +68,13 @@ package body LLM.Providers.GitHub_Copilot is
       end if;
 
       LLM.Providers.OpenAI_Completions.Add_Header
-         (P     => P,
-       Name  => Header (Header'First .. Separator - 1),
-       Value => Header (Separator + 2 .. Header'Last));
+        (P     => P,
+         Name  => Header (Header'First .. Separator - 1),
+         Value => Header (Separator + 2 .. Header'Last));
    end Add_Header_Line;
 
    procedure Add_Header_Line
-      (P      : in out LLM.Providers.Anthropic_Messages.Provider;
-     Header :        String)
+     (P : in out LLM.Providers.Anthropic_Messages.Provider; Header : String)
    is
       Separator : constant Natural := Ada.Strings.Fixed.Index (Header, ": ");
    begin
@@ -85,14 +83,13 @@ package body LLM.Providers.GitHub_Copilot is
       end if;
 
       LLM.Providers.Anthropic_Messages.Add_Header
-         (P     => P,
-       Name  => Header (Header'First .. Separator - 1),
-       Value => Header (Separator + 2 .. Header'Last));
+        (P     => P,
+         Name  => Header (Header'First .. Separator - 1),
+         Value => Header (Separator + 2 .. Header'Last));
    end Add_Header_Line;
 
    procedure Add_Copilot_Headers
-      (P         : in out LLM.Providers.OpenAI_Completions.Provider;
-     Initiator :        String)
+     (P : in out LLM.Providers.OpenAI_Completions.Provider; Initiator : String)
    is
    begin
       Add_Header_Line (P, LLM.Auth.GitHub_Copilot.User_Agent_Header);
@@ -101,12 +98,11 @@ package body LLM.Providers.GitHub_Copilot is
       Add_Header_Line (P, LLM.Auth.GitHub_Copilot.Integration_Id_Header);
       Add_Header_Line (P, LLM.Auth.GitHub_Copilot.Intent_Header);
       LLM.Providers.OpenAI_Completions.Add_Header
-         (P, "X-Initiator", Initiator);
+        (P, "X-Initiator", Initiator);
    end Add_Copilot_Headers;
 
    procedure Add_Copilot_Headers
-      (P         : in out LLM.Providers.Anthropic_Messages.Provider;
-     Initiator :        String)
+     (P : in out LLM.Providers.Anthropic_Messages.Provider; Initiator : String)
    is
    begin
       Add_Header_Line (P, LLM.Auth.GitHub_Copilot.User_Agent_Header);
@@ -115,13 +111,11 @@ package body LLM.Providers.GitHub_Copilot is
       Add_Header_Line (P, LLM.Auth.GitHub_Copilot.Integration_Id_Header);
       Add_Header_Line (P, LLM.Auth.GitHub_Copilot.Intent_Header);
       LLM.Providers.Anthropic_Messages.Add_Header
-         (P, "X-Initiator", Initiator);
+        (P, "X-Initiator", Initiator);
    end Add_Copilot_Headers;
 
    function Supports_Anthropic
-      (Model_Id : String;
-     Models   : Cat_Vector)
-     return Boolean
+     (Model_Id : String; Models : Cat_Vector) return Boolean
    is
    begin
       for Model of Models loop
@@ -133,22 +127,21 @@ package body LLM.Providers.GitHub_Copilot is
       return False;
    end Supports_Anthropic;
 
-   overriding
-   procedure Send
-      (P             : in out Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null)
+   overriding procedure Send
+     (P             : in out Provider;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
       pragma Unreferenced (P);
 
       Creds      : LLM.Auth.Provider_Credentials :=
-         LLM.Auth.Load_Credentials ("github-copilot");
+        LLM.Auth.Load_Credentials ("github-copilot");
       Models     : Cat_Vector;
       Access_Tok : Unbounded_String;
       Base_Url   : Unbounded_String;
@@ -161,12 +154,11 @@ package body LLM.Providers.GitHub_Copilot is
       begin
          Access_Tok := Creds.Access_Token;
          Base_Url   :=
-            To_Unbounded_String
-               (Effective_Base_Url (To_String (Access_Tok)));
+           To_Unbounded_String (Effective_Base_Url (To_String (Access_Tok)));
          LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue
-            (Base_Url => To_String (Base_Url),
-           Token    => To_String (Access_Tok),
-           Models   => Models);
+           (Base_Url => To_String (Base_Url),
+            Token    => To_String (Access_Tok),
+            Models   => Models);
       end Setup_Connection;
 
       --  Build the appropriate delegate provider and forward the request.
@@ -175,38 +167,38 @@ package body LLM.Providers.GitHub_Copilot is
          if Supports_Anthropic (Model_Id, Models) then
             declare
                Delegate : LLM.Providers.Anthropic_Messages.Provider :=
-                  LLM.Providers.Anthropic_Messages.Create
-                     (Base_Url => To_String (Base_Url),
-                Api_Key  => To_String (Access_Tok));
+                 LLM.Providers.Anthropic_Messages.Create
+                   (Base_Url => To_String (Base_Url),
+                    Api_Key  => To_String (Access_Tok));
             begin
                Add_Copilot_Headers (Delegate, Initiator);
                Delegate.Send
-                  (Model_Id      => Model_Id,
-              System_Prompt => System_Prompt,
-              Messages      => Messages,
-              Tools_Json    => Tools_Json,
-              Thinking      => Thinking,
-              Max_Tokens    => Max_Tokens,
-              Handler       => Handler,
-              Abort_Check  => Abort_Check);
+                 (Model_Id      => Model_Id,
+                  System_Prompt => System_Prompt,
+                  Messages      => Messages,
+                  Tools_Json    => Tools_Json,
+                  Thinking      => Thinking,
+                  Max_Tokens    => Max_Tokens,
+                  Handler       => Handler,
+                  Abort_Check   => Abort_Check);
             end;
          else
             declare
                Delegate : LLM.Providers.OpenAI_Completions.Provider :=
-                  LLM.Providers.OpenAI_Completions.Create
-                     (Base_Url => To_String (Base_Url),
-                Api_Key  => To_String (Access_Tok));
+                 LLM.Providers.OpenAI_Completions.Create
+                   (Base_Url => To_String (Base_Url),
+                    Api_Key  => To_String (Access_Tok));
             begin
                Add_Copilot_Headers (Delegate, Initiator);
                Delegate.Send
-                  (Model_Id      => Model_Id,
-              System_Prompt => System_Prompt,
-              Messages      => Messages,
-              Tools_Json    => Tools_Json,
-              Thinking      => Thinking,
-              Max_Tokens    => Max_Tokens,
-              Handler       => Handler,
-              Abort_Check  => Abort_Check);
+                 (Model_Id      => Model_Id,
+                  System_Prompt => System_Prompt,
+                  Messages      => Messages,
+                  Tools_Json    => Tools_Json,
+                  Thinking      => Thinking,
+                  Max_Tokens    => Max_Tokens,
+                  Handler       => Handler,
+                  Abort_Check   => Abort_Check);
             end;
          end if;
       end Invoke_Delegate;
@@ -219,18 +211,18 @@ package body LLM.Providers.GitHub_Copilot is
 
    begin
       if Length (Creds.Refresh_Token) = 0
-         and then Length (Creds.Access_Token) = 0
+        and then Length (Creds.Access_Token) = 0
       then
-         raise LLM.Auth.GitHub_Copilot.Auth_Error with
-            "GitHub Copilot credentials are not configured; run `coyote login "
-            & "github-copilot`";
+         raise LLM.Auth.GitHub_Copilot.Auth_Error
+           with "GitHub Copilot credentials are not configured; run `coyote login "
+           & "github-copilot`";
       end if;
 
       LLM.Auth.GitHub_Copilot.Ensure_Valid (Creds);
 
       if Length (Creds.Access_Token) = 0 then
-         raise LLM.Auth.GitHub_Copilot.Auth_Error with
-            "GitHub Copilot access token is missing";
+         raise LLM.Auth.GitHub_Copilot.Auth_Error
+           with "GitHub Copilot access token is missing";
       end if;
 
       Setup_Connection;
@@ -252,8 +244,8 @@ package body LLM.Providers.GitHub_Copilot is
             LLM.Auth.GitHub_Copilot.Refresh_Token (Creds);
 
             if Length (Creds.Access_Token) = 0 then
-               raise LLM.Auth.GitHub_Copilot.Auth_Error with
-                  "GitHub Copilot access token missing after forced refresh";
+               raise LLM.Auth.GitHub_Copilot.Auth_Error
+                 with "GitHub Copilot access token missing after forced refresh";
             end if;
 
             Setup_Connection;

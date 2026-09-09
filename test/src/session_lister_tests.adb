@@ -90,13 +90,10 @@ package body Session_Lister_Tests is
    begin
       Write_File
         (Path,
-         "{""version"":1,""id"":""" & UUID & ""","
-         & """createdAt"":" & Long_Long_Image (Created_At)
-         & ",""workDir"":""" & Cwd_Slug & """}"
-         & ASCII.LF
-         & "{""role"":""session_info"",""name"":""" & Name
-         & """,""timestamp"":" & Long_Long_Image (Created_At)
-         & "}"
+         "{""version"":1,""id"":""" & UUID & """," & """createdAt"":"
+         & Long_Long_Image (Created_At) & ",""workDir"":""" & Cwd_Slug & """}"
+         & ASCII.LF & "{""role"":""session_info"",""name"":""" & Name
+         & """,""timestamp"":" & Long_Long_Image (Created_At) & "}"
          & ASCII.LF);
    end Rewrite_Native_Header;
 
@@ -105,27 +102,30 @@ package body Session_Lister_Tests is
    procedure Test_Encode_Cwd_Absolute (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Encode_Cwd ("/home/user/proj") = "--home-user-proj--",
-              "Absolute path encoding");
-      Assert (Encode_Cwd ("/home/gtnoble/Projects/coyote")
-              = "--home-gtnoble-Projects-coyote--",
-              "Deeper absolute path");
+      Assert
+        (Encode_Cwd ("/home/user/proj") = "--home-user-proj--",
+         "Absolute path encoding");
+      Assert
+        (Encode_Cwd ("/home/gtnoble/Projects/coyote")
+         = "--home-gtnoble-Projects-coyote--",
+         "Deeper absolute path");
    end Test_Encode_Cwd_Absolute;
 
    procedure Test_Encode_Cwd_Relative (T : in out Test) is
       pragma Unreferenced (T);
    begin
       --  A path not starting with '/' is kept as-is (slashes -> dashes).
-      Assert (Encode_Cwd ("foo/bar") = "--foo-bar--",
-              "Relative path encoding");
+      Assert
+        (Encode_Cwd ("foo/bar") = "--foo-bar--", "Relative path encoding");
    end Test_Encode_Cwd_Relative;
 
    procedure Test_Encode_Cwd_Empty (T : in out Test) is
       pragma Unreferenced (T);
    begin
       Assert (Encode_Cwd ("") = "----", "Empty path -> '----'");
-      Assert (Encode_Cwd ("/") = "----",
-              "Root '/' -> '----' (leading slash stripped, nothing left)");
+      Assert
+        (Encode_Cwd ("/") = "----",
+         "Root '/' -> '----' (leading slash stripped, nothing left)");
    end Test_Encode_Cwd_Empty;
 
    --  ── Format_Timestamp ─────────────────────────────────────────────────
@@ -145,8 +145,8 @@ package body Session_Lister_Tests is
       pragma Unreferenced (T);
    begin
       --  Short/empty timestamps are returned verbatim.
-      Assert (Format_Timestamp ("2024") = "2024",     "Short string verbatim");
-      Assert (Format_Timestamp ("") = "",             "Empty string verbatim");
+      Assert (Format_Timestamp ("2024") = "2024", "Short string verbatim");
+      Assert (Format_Timestamp ("") = "", "Empty string verbatim");
    end Test_Format_Timestamp_Short;
 
    --  ── Parse_Session_File ────────────────────────────────────────────────
@@ -164,57 +164,57 @@ package body Session_Lister_Tests is
 
    procedure Test_Parse_Session_Full (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("{""type"":""session"","
-         & """id"":""abc-def-123"","
-         & """timestamp"":""2024-06-01T12:00:00Z""}"
-         & ASCII.LF
-         & "{""type"":""session_info"",""name"":""My Session""}"
-         & ASCII.LF
-         & "{""type"":""message"","
-         & """message"":{""role"":""user"","
-         & """content"":[{""type"":""text"",""text"":""Hello pi""}]}}"
-         & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("{""type"":""session""," & """id"":""abc-def-123"","
+           & """timestamp"":""2024-06-01T12:00:00Z""}" & ASCII.LF
+           & "{""type"":""session_info"",""name"":""My Session""}" & ASCII.LF
+           & "{""type"":""message""," & """message"":{""role"":""user"","
+           & """content"":[{""type"":""text"",""text"":""Hello pi""}]}}"
+           & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
-      Assert (To_String (Info.UUID)    = "abc-def-123",
-              "UUID should be 'abc-def-123'");
-      Assert (To_String (Info.Name)    = "My Session",
-              "Name should be 'My Session'");
-      Assert (To_String (Info.Date)    = "2024-06-01 12:00",
-              "Date should be '2024-06-01 12:00'");
-      Assert (To_String (Info.Snippet) = "Hello pi",
-              "Snippet should be 'Hello pi'");
+      Assert
+        (To_String (Info.UUID) = "abc-def-123",
+         "UUID should be 'abc-def-123'");
+      Assert
+        (To_String (Info.Name) = "My Session", "Name should be 'My Session'");
+      Assert
+        (To_String (Info.Date) = "2024-06-01 12:00",
+         "Date should be '2024-06-01 12:00'");
+      Assert
+        (To_String (Info.Snippet) = "Hello pi",
+         "Snippet should be 'Hello pi'");
    end Test_Parse_Session_Full;
 
    procedure Test_Parse_Session_No_Name (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("{""type"":""session"","
-         & """id"":""xyz-789"","
-         & """timestamp"":""2024-03-10T08:15:00Z""}"
-         & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("{""type"":""session""," & """id"":""xyz-789"","
+           & """timestamp"":""2024-03-10T08:15:00Z""}" & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
-      Assert (To_String (Info.UUID)    = "xyz-789",
-              "UUID should be parsed");
-      Assert (To_String (Info.Name)    = "",
-              "Name should be empty when absent");
-      Assert (To_String (Info.Snippet) = "",
-              "Snippet should be empty when no messages");
-      Assert (To_String (Info.Date)    = "2024-03-10 08:15",
-              "Date should be formatted");
+      Assert (To_String (Info.UUID) = "xyz-789", "UUID should be parsed");
+      Assert (To_String (Info.Name) = "", "Name should be empty when absent");
+      Assert
+        (To_String (Info.Snippet) = "",
+         "Snippet should be empty when no messages");
+      Assert
+        (To_String (Info.Date) = "2024-03-10 08:15",
+         "Date should be formatted");
    end Test_Parse_Session_No_Name;
 
    procedure Test_Parse_Session_Bad_Json (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("this is not json" & ASCII.LF
-         & "also not json" & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("this is not json" & ASCII.LF & "also not json" & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
-      Assert (To_String (Info.UUID) = "",
-              "UUID should be empty when file has no valid session record");
+      Assert
+        (To_String (Info.UUID) = "",
+         "UUID should be empty when file has no valid session record");
    end Test_Parse_Session_Bad_Json;
 
    procedure Test_Parse_Session_Long_Line (T : in out Test) is
@@ -224,31 +224,30 @@ package body Session_Lister_Tests is
       --  form in a loop and must survive any line length.
       pragma Unreferenced (T);
       Long_Text : constant String (1 .. 100_000) := (others => 'x');
-      Path      : constant String :=
-        "/tmp/test_pi_long_line.jsonl";
+      Path      : constant String := "/tmp/test_pi_long_line.jsonl";
       F         : Ada.Text_IO.File_Type;
       Info      : Session_Info;
    begin
       Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put_Line
         (F,
-         "{""type"":""session"","
-         & """id"":""long-line-uuid"","
+         "{""type"":""session""," & """id"":""long-line-uuid"","
          & """timestamp"":""2024-06-01T12:00:00Z""}");
       Ada.Text_IO.Put_Line
         (F,
-         "{""type"":""message"","
-         & """message"":{""role"":""user"","
-         & """content"":[{""type"":""text"","
-         & """text"":""" & Long_Text & """}]}}");
+         "{""type"":""message""," & """message"":{""role"":""user"","
+         & """content"":[{""type"":""text""," & """text"":""" & Long_Text
+         & """}]}}");
       Ada.Text_IO.Close (F);
 
       Info := Parse_Session_File (Path);
 
-      Assert (To_String (Info.UUID) = "long-line-uuid",
-              "UUID must be parsed correctly despite a 100 KiB JSONL line");
-      Assert (Length (Info.Snippet) > 0,
-              "Snippet must be extracted from the long text line");
+      Assert
+        (To_String (Info.UUID) = "long-line-uuid",
+         "UUID must be parsed correctly despite a 100 KiB JSONL line");
+      Assert
+        (Length (Info.Snippet) > 0,
+         "Snippet must be extracted from the long text line");
    exception
       when others =>
          if Ada.Text_IO.Is_Open (F) then
@@ -261,53 +260,50 @@ package body Session_Lister_Tests is
 
    procedure Test_Parse_Session_Parent_Id (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("{""type"":""session"","
-         & """id"":""child-uuid"","
-         & """timestamp"":""2024-06-01T12:00:00Z"","
-         & """parentSession"":""parent-uuid""}"
-         & ASCII.LF
-         & "{""type"":""session_info"",""name"":""Child Session""}"
-         & ASCII.LF
-         & "{""type"":""message"","
-         & """message"":{""role"":""user"","
-         & """content"":[{""type"":""text"","
-         & """text"":""Do the thing""}]}}"
-         & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("{""type"":""session""," & """id"":""child-uuid"","
+           & """timestamp"":""2024-06-01T12:00:00Z"","
+           & """parentSession"":""parent-uuid""}" & ASCII.LF
+           & "{""type"":""session_info"",""name"":""Child Session""}"
+           & ASCII.LF & "{""type"":""message"","
+           & """message"":{""role"":""user"","
+           & """content"":[{""type"":""text"","
+           & """text"":""Do the thing""}]}}" & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
-      Assert (To_String (Info.UUID)      = "child-uuid",
-              "UUID should be 'child-uuid'");
-      Assert (To_String (Info.Parent_Id) = "parent-uuid",
-              "Parent_Id should be 'parent-uuid'");
+      Assert
+        (To_String (Info.UUID) = "child-uuid", "UUID should be 'child-uuid'");
+      Assert
+        (To_String (Info.Parent_Id) = "parent-uuid",
+         "Parent_Id should be 'parent-uuid'");
    end Test_Parse_Session_Parent_Id;
 
    procedure Test_Parse_Session_No_Parent_Id (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("{""type"":""session"","
-         & """id"":""solo-uuid"","
-         & """timestamp"":""2024-06-01T10:00:00Z""}"
-         & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("{""type"":""session""," & """id"":""solo-uuid"","
+           & """timestamp"":""2024-06-01T10:00:00Z""}" & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
-      Assert (To_String (Info.UUID)      = "solo-uuid",
-              "UUID should be 'solo-uuid'");
-      Assert (To_String (Info.Parent_Id) = "",
-              "Parent_Id should be empty for a top-level session");
+      Assert
+        (To_String (Info.UUID) = "solo-uuid", "UUID should be 'solo-uuid'");
+      Assert
+        (To_String (Info.Parent_Id) = "",
+         "Parent_Id should be empty for a top-level session");
    end Test_Parse_Session_No_Parent_Id;
 
    procedure Test_Parse_Session_Is_Fork_True (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("{""type"":""session"","
-         & """id"":""fork-uuid"","
-         & """timestamp"":""2024-06-01T12:00:00Z"","
-         & """parentSession"":""parent-uuid"","
-         & """parentRelation"":""fork""}"
-         & ASCII.LF
-         & "{""type"":""session_info"",""name"":""Fork Session""}"
-         & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("{""type"":""session""," & """id"":""fork-uuid"","
+           & """timestamp"":""2024-06-01T12:00:00Z"","
+           & """parentSession"":""parent-uuid"","
+           & """parentRelation"":""fork""}" & ASCII.LF
+           & "{""type"":""session_info"",""name"":""Fork Session""}"
+           & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
       Assert (Info.Is_Fork, "Is_Fork should be True for fork relation");
@@ -315,19 +311,18 @@ package body Session_Lister_Tests is
 
    procedure Test_Parse_Session_Is_Fork_False (T : in out Test) is
       pragma Unreferenced (T);
-      Path : constant String := Write_Temp
-        ("{""type"":""session"","
-         & """id"":""sub-uuid"","
-         & """timestamp"":""2024-06-01T12:00:00Z"","
-         & """parentSession"":""parent-uuid"","
-         & """parentRelation"":""subagent""}"
-         & ASCII.LF
-         & "{""type"":""session_info"",""name"":""Sub Session""}"
-         & ASCII.LF);
+      Path : constant String       :=
+        Write_Temp
+          ("{""type"":""session""," & """id"":""sub-uuid"","
+           & """timestamp"":""2024-06-01T12:00:00Z"","
+           & """parentSession"":""parent-uuid"","
+           & """parentRelation"":""subagent""}" & ASCII.LF
+           & "{""type"":""session_info"",""name"":""Sub Session""}"
+           & ASCII.LF);
       Info : constant Session_Info := Parse_Session_File (Path);
    begin
-      Assert (not Info.Is_Fork,
-              "Is_Fork should be False for subagent relation");
+      Assert
+        (not Info.Is_Fork, "Is_Fork should be False for subagent relation");
    end Test_Parse_Session_Is_Fork_False;
    --  ── Find_Session_File ─────────────────────────────────────────────────
    --
@@ -337,22 +332,21 @@ package body Session_Lister_Tests is
    --  Directory slug used exclusively by these tests.
    function Sessions_Test_Dir_A return String is
    begin
-      return Ada.Environment_Variables.Value ("HOME", "")
-             & "/.coyote/sessions/--coyote-test--";
+      return
+        Ada.Environment_Variables.Value ("HOME", "")
+        & "/.coyote/sessions/--coyote-test--";
    end Sessions_Test_Dir_A;
 
    function Sessions_Test_Dir_B return String is
    begin
-      return Ada.Environment_Variables.Value ("HOME", "")
-             & "/.coyote/sessions/--coyote-test-B--";
+      return
+        Ada.Environment_Variables.Value ("HOME", "")
+        & "/.coyote/sessions/--coyote-test-B--";
    end Sessions_Test_Dir_B;
 
    --  Create JSONL file containing UUID in its name under Dir.
    --  Returns the full path of the created file.
-   function Write_Session_File
-     (Dir  : String;
-      UUID : String) return String
-   is
+   function Write_Session_File (Dir : String; UUID : String) return String is
       Path : constant String := Dir & "/" & UUID & ".jsonl";
       F    : Ada.Text_IO.File_Type;
    begin
@@ -362,8 +356,7 @@ package body Session_Lister_Tests is
       Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put_Line
         (F,
-         "{""type"":""session"","
-         & """id"":""" & UUID & ""","
+         "{""type"":""session""," & """id"":""" & UUID & ""","
          & """timestamp"":""2024-01-01T00:00:00Z""}");
       Ada.Text_IO.Close (F);
       return Path;
@@ -382,20 +375,20 @@ package body Session_Lister_Tests is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/find-found";
-      UUID         : constant String := "test-piacme-find-found";
+      Home         : constant String  := Test_Home_Root & "/find-found";
+      UUID         : constant String  := "test-piacme-find-found";
    begin
       Prepare_Test_Home (Home);
       declare
          Path : constant String :=
            Write_Session_File (Sessions_Test_Dir_A, UUID);
       begin
-         Assert (Find_Session_File (UUID) = Path,
-                 "Find_Session_File should return the full path of "
-                 & "the matching file");
+         Assert
+           (Find_Session_File (UUID) = Path,
+            "Find_Session_File should return the full path of "
+            & "the matching file");
          Delete_Session_File (Sessions_Test_Dir_A, UUID);
       exception
          when others =>
@@ -413,23 +406,22 @@ package body Session_Lister_Tests is
 
    procedure Test_Find_Session_File_Not_Found (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String :=
-        "test-piacme-no-such-uuid-xyzzy-99999999";
+      UUID : constant String := "test-piacme-no-such-uuid-xyzzy-99999999";
    begin
       --  This UUID should not match any real session file.
-      Assert (Find_Session_File (UUID) = "",
-              "Find_Session_File should return empty when UUID not found");
+      Assert
+        (Find_Session_File (UUID) = "",
+         "Find_Session_File should return empty when UUID not found");
    end Test_Find_Session_File_Not_Found;
 
    procedure Test_Find_Session_File_Any_Dir (T : in out Test) is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/find-any-dir";
-      UUID         : constant String := "test-piacme-find-any-dir";
+      Home         : constant String  := Test_Home_Root & "/find-any-dir";
+      UUID         : constant String  := "test-piacme-find-any-dir";
    begin
       Prepare_Test_Home (Home);
       declare
@@ -437,9 +429,10 @@ package body Session_Lister_Tests is
            Write_Session_File (Sessions_Test_Dir_B, UUID);
       begin
          --  File is in a different directory slug; should still be found.
-         Assert (Find_Session_File (UUID) = Path,
-                 "Find_Session_File should locate sessions in any "
-                 & "subdirectory, not just the current CWD slug");
+         Assert
+           (Find_Session_File (UUID) = Path,
+            "Find_Session_File should locate sessions in any "
+            & "subdirectory, not just the current CWD slug");
          Delete_Session_File (Sessions_Test_Dir_B, UUID);
       exception
          when others =>
@@ -460,8 +453,9 @@ package body Session_Lister_Tests is
    --  Test directory used for fork source files.
    function Sessions_Fork_Dir return String is
    begin
-      return Ada.Environment_Variables.Value ("HOME", "")
-             & "/.coyote/sessions/--coyote-fork-test--";
+      return
+        Ada.Environment_Variables.Value ("HOME", "")
+        & "/.coyote/sessions/--coyote-fork-test--";
    end Sessions_Fork_Dir;
 
    --  Target CWD for forked sessions (maps to the fork test dir).
@@ -476,26 +470,23 @@ package body Session_Lister_Tests is
         "{""type"":""session"",""id"":""" & UUID & ""","
         & """timestamp"":""2024-01-01T00:00:00Z""}" & ASCII.LF
         & "{""type"":""session_info"",""name"":""Original""}" & ASCII.LF
-        --  Turn 1
+      --  Turn 1
+
         & "{""type"":""message"",""message"":{""role"":""user"","
-        & """content"":[{""type"":""text"",""text"":""Hello""}]}}"
-        & ASCII.LF
+        & """content"":[{""type"":""text"",""text"":""Hello""}]}}" & ASCII.LF
         & "{""type"":""message"",""message"":{""role"":""assistant"","
-        & """content"":[{""type"":""text"",""text"":""World""}]}}"
-        & ASCII.LF
-        --  Turn 2
+        & """content"":[{""type"":""text"",""text"":""World""}]}}" & ASCII.LF
+      --  Turn 2
+
         & "{""type"":""message"",""message"":{""role"":""user"","
-        & """content"":[{""type"":""text"",""text"":""Foo""}]}}"
-        & ASCII.LF
+        & """content"":[{""type"":""text"",""text"":""Foo""}]}}" & ASCII.LF
         & "{""type"":""message"",""message"":{""role"":""assistant"","
-        & """content"":[{""type"":""text"",""text"":""Bar""}]}}"
-        & ASCII.LF;
+        & """content"":[{""type"":""text"",""text"":""Bar""}]}}" & ASCII.LF;
    end Two_Turn_JSONL;
 
    --  Write a JSONL string as a session file under Sessions_Fork_Dir.
    procedure Write_Fork_Source (UUID : String; Content : String) is
-      Path : constant String :=
-        Sessions_Fork_Dir & "/" & UUID & ".jsonl";
+      Path : constant String := Sessions_Fork_Dir & "/" & UUID & ".jsonl";
       F    : Ada.Text_IO.File_Type;
    begin
       if not Ada.Directories.Exists (Sessions_Fork_Dir) then
@@ -508,8 +499,7 @@ package body Session_Lister_Tests is
 
    --  Delete the source session file from Sessions_Fork_Dir.
    procedure Delete_Fork_Source (UUID : String) is
-      Path : constant String :=
-        Sessions_Fork_Dir & "/" & UUID & ".jsonl";
+      Path : constant String := Sessions_Fork_Dir & "/" & UUID & ".jsonl";
    begin
       if Ada.Directories.Exists (Path) then
          Ada.Directories.Delete_File (Path);
@@ -519,8 +509,7 @@ package body Session_Lister_Tests is
    --  Delete a fork-result session by its UUID from the target dir.
    procedure Delete_Fork_Result (UUID : String) is
       Target_Dir : constant String := Sessions_Dir (Fork_Target_Cwd);
-      Path       : constant String :=
-        Target_Dir & "/" & UUID & ".jsonl";
+      Path       : constant String := Target_Dir & "/" & UUID & ".jsonl";
    begin
       if Ada.Directories.Exists (Path) then
          Ada.Directories.Delete_File (Path);
@@ -552,11 +541,10 @@ package body Session_Lister_Tests is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/fork-one-turn";
-      Src_UUID     : constant String := "test-fork-src-one-turn";
+      Home         : constant String  := Test_Home_Root & "/fork-one-turn";
+      Src_UUID     : constant String  := "test-fork-src-one-turn";
    begin
       Prepare_Test_Home (Home);
       Write_Fork_Source (Src_UUID, Two_Turn_JSONL (Src_UUID));
@@ -564,25 +552,32 @@ package body Session_Lister_Tests is
          New_UUID : constant String :=
            Fork_Session (Src_UUID, 1, Fork_Target_Cwd);
       begin
-         Assert (New_UUID'Length > 0,
-                 "Fork_Session should return a non-empty UUID");
+         Assert
+           (New_UUID'Length > 0,
+            "Fork_Session should return a non-empty UUID");
          declare
             Content : constant String :=
-              Read_File (Sessions_Dir (Fork_Target_Cwd)
-                         & "/" & New_UUID & ".jsonl");
+              Read_File
+                (Sessions_Dir (Fork_Target_Cwd) & "/" & New_UUID & ".jsonl");
          begin
-            Assert (Ada.Strings.Fixed.Index (Content, "Hello") > 0,
-                    "Fork @1 should contain turn-1 user message");
-            Assert (Ada.Strings.Fixed.Index (Content, "World") > 0,
-                    "Fork @1 should contain turn-1 assistant message");
-            Assert (Ada.Strings.Fixed.Index (Content, "Foo") = 0,
-                    "Fork @1 must not contain turn-2 user message");
-            Assert (Ada.Strings.Fixed.Index (Content, "Bar") = 0,
-                    "Fork @1 must not contain turn-2 assistant message");
-            Assert (Ada.Strings.Fixed.Index (Content, "Fork of") > 0,
-                    "Fork result should carry a fork session name");
-            Assert (Ada.Strings.Fixed.Index (Content, "@1") > 0,
-                    "Fork name should include the turn number");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Hello") > 0,
+               "Fork @1 should contain turn-1 user message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "World") > 0,
+               "Fork @1 should contain turn-1 assistant message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Foo") = 0,
+               "Fork @1 must not contain turn-2 user message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Bar") = 0,
+               "Fork @1 must not contain turn-2 assistant message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Fork of") > 0,
+               "Fork result should carry a fork session name");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "@1") > 0,
+               "Fork name should include the turn number");
          end;
          Delete_Fork_Result (New_UUID);
       end;
@@ -602,11 +597,10 @@ package body Session_Lister_Tests is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/fork-second-turn";
-      Src_UUID     : constant String := "test-fork-src-two-turn";
+      Home         : constant String  := Test_Home_Root & "/fork-second-turn";
+      Src_UUID     : constant String  := "test-fork-src-two-turn";
    begin
       Prepare_Test_Home (Home);
       Write_Fork_Source (Src_UUID, Two_Turn_JSONL (Src_UUID));
@@ -614,19 +608,23 @@ package body Session_Lister_Tests is
          New_UUID : constant String :=
            Fork_Session (Src_UUID, 2, Fork_Target_Cwd);
       begin
-         Assert (New_UUID'Length > 0,
-                 "Fork @2 should succeed for a two-turn session");
+         Assert
+           (New_UUID'Length > 0,
+            "Fork @2 should succeed for a two-turn session");
          declare
             Content : constant String :=
-              Read_File (Sessions_Dir (Fork_Target_Cwd)
-                         & "/" & New_UUID & ".jsonl");
+              Read_File
+                (Sessions_Dir (Fork_Target_Cwd) & "/" & New_UUID & ".jsonl");
          begin
-            Assert (Ada.Strings.Fixed.Index (Content, "Hello") > 0,
-                    "Fork @2 should contain turn-1 user message");
-            Assert (Ada.Strings.Fixed.Index (Content, "Foo") > 0,
-                    "Fork @2 should contain turn-2 user message");
-            Assert (Ada.Strings.Fixed.Index (Content, "Bar") > 0,
-                    "Fork @2 should contain turn-2 assistant message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Hello") > 0,
+               "Fork @2 should contain turn-1 user message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Foo") > 0,
+               "Fork @2 should contain turn-2 user message");
+            Assert
+              (Ada.Strings.Fixed.Index (Content, "Bar") > 0,
+               "Fork @2 should contain turn-2 assistant message");
          end;
          Delete_Fork_Result (New_UUID);
       end;
@@ -646,16 +644,16 @@ package body Session_Lister_Tests is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/fork-beyond-end";
-      Src_UUID     : constant String := "test-fork-src-beyond";
+      Home         : constant String  := Test_Home_Root & "/fork-beyond-end";
+      Src_UUID     : constant String  := "test-fork-src-beyond";
    begin
       Prepare_Test_Home (Home);
       Write_Fork_Source (Src_UUID, Two_Turn_JSONL (Src_UUID));
-      Assert (Fork_Session (Src_UUID, 99, Fork_Target_Cwd) = "",
-              "Fork beyond last turn should return empty string");
+      Assert
+        (Fork_Session (Src_UUID, 99, Fork_Target_Cwd) = "",
+         "Fork beyond last turn should return empty string");
       Delete_Fork_Source (Src_UUID);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
@@ -679,14 +677,13 @@ package body Session_Lister_Tests is
    procedure Test_List_Sessions_Newest_First (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set : constant Boolean           :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String            :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/list-sessions-newest-first";
+      Home : constant String := Test_Home_Root & "/list-sessions-newest-first";
       Cwd          : constant String := "/tmp/session-lister-newest-first";
-      Cwd_Slug     : constant String := Encode_Cwd (Cwd);
+      Cwd_Slug     : constant String            := Encode_Cwd (Cwd);
       Newest_Ms    : constant Long_Long_Integer := 1_735_689_600_000;
       Middle_Ms    : constant Long_Long_Integer := 1_704_067_200_000;
       Oldest_Ms    : constant Long_Long_Integer := 1_672_531_200_000;
@@ -695,19 +692,13 @@ package body Session_Lister_Tests is
       declare
          Middle_UUID : constant String :=
            Session_Fixture.Create_Native_Session
-             (Home     => Home,
-              Cwd_Slug => Cwd_Slug,
-              Name     => "middle");
+             (Home => Home, Cwd_Slug => Cwd_Slug, Name => "middle");
          Newest_UUID : constant String :=
            Session_Fixture.Create_Native_Session
-             (Home     => Home,
-              Cwd_Slug => Cwd_Slug,
-              Name     => "newest");
+             (Home => Home, Cwd_Slug => Cwd_Slug, Name => "newest");
          Oldest_UUID : constant String :=
            Session_Fixture.Create_Native_Session
-             (Home     => Home,
-              Cwd_Slug => Cwd_Slug,
-              Name     => "oldest");
+             (Home => Home, Cwd_Slug => Cwd_Slug, Name => "oldest");
          Sessions    : Session_Vectors.Vector;
       begin
          Rewrite_Native_Header
@@ -751,14 +742,13 @@ package body Session_Lister_Tests is
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
+      Home         : constant String  :=
         Test_Home_Root & "/list-sessions-skips-invalid";
-      Cwd          : constant String := "/tmp/session-lister-invalid-files";
-      Cwd_Slug     : constant String := Encode_Cwd (Cwd);
-      Dir          : constant String :=
-        Home & "/.coyote/sessions/" & Cwd_Slug;
+      Cwd          : constant String  := "/tmp/session-lister-invalid-files";
+      Cwd_Slug     : constant String  := Encode_Cwd (Cwd);
+      Dir          : constant String := Home & "/.coyote/sessions/" & Cwd_Slug;
    begin
       Prepare_Test_Home (Home);
       declare
@@ -768,7 +758,7 @@ package body Session_Lister_Tests is
               Cwd_Slug => Cwd_Slug,
               Name     => "valid native session");
          pragma Unreferenced (Valid_UUID);
-         Sessions   : Session_Vectors.Vector;
+         Sessions : Session_Vectors.Vector;
       begin
          Ada.Directories.Create_Path (Dir);
          Write_File (Dir & "/not-a-session.txt", "garbage" & ASCII.LF);
@@ -789,20 +779,18 @@ package body Session_Lister_Tests is
          raise;
    end Test_List_Sessions_Skips_Invalid_Files;
 
-   procedure Test_Fork_Native_Format_Preserves_Turn_Boundary
-     (T : in out Test)
+   procedure Test_Fork_Native_Format_Preserves_Turn_Boundary (T : in out Test)
    is
       pragma Unreferenced (T);
 
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Home         : constant String :=
-        Test_Home_Root & "/fork-native-turn-boundary";
-      Source_Cwd   : constant String := "/tmp/native-fork-source";
-      Target_Cwd   : constant String := "/tmp/native-fork-target";
-      Source_Slug  : constant String := Encode_Cwd (Source_Cwd);
+      Home : constant String  := Test_Home_Root & "/fork-native-turn-boundary";
+      Source_Cwd   : constant String  := "/tmp/native-fork-source";
+      Target_Cwd   : constant String  := "/tmp/native-fork-target";
+      Source_Slug  : constant String  := Encode_Cwd (Source_Cwd);
    begin
       Prepare_Test_Home (Home);
       declare
@@ -823,9 +811,7 @@ package body Session_Lister_Tests is
             UUID     => Source_UUID,
             Text     => "Turn one answer");
          Session_Fixture.Append_Turn_End
-           (Home     => Home,
-            Cwd_Slug => Source_Slug,
-            UUID     => Source_UUID);
+           (Home => Home, Cwd_Slug => Source_Slug, UUID => Source_UUID);
          Session_Fixture.Append_User_Message
            (Home     => Home,
             Cwd_Slug => Source_Slug,
@@ -838,7 +824,7 @@ package body Session_Lister_Tests is
             Text     => "Turn two answer");
 
          declare
-            Fork_UUID : constant String :=
+            Fork_UUID : constant String                           :=
               Fork_Session (Source_UUID, 1, Target_Cwd);
             Messages  : constant LLM.Types.Message_Vectors.Vector :=
               LLM.Session_Store.Load_Messages (Fork_UUID);
@@ -855,11 +841,11 @@ package body Session_Lister_Tests is
                "Forked message 2 should be the first-turn assistant message");
             Assert
               (To_String (Messages.Element (0).Content.Element (0).Text)
-                 = "Turn one question",
+               = "Turn one question",
                "Fork should preserve the first-turn user text");
             Assert
               (To_String (Messages.Element (1).Content.Element (0).Text)
-                 = "Turn one answer",
+               = "Turn one answer",
                "Fork should preserve the first-turn assistant text");
          end;
       end;
@@ -873,83 +859,108 @@ package body Session_Lister_Tests is
          raise;
    end Test_Fork_Native_Format_Preserves_Turn_Boundary;
 
-   package Session_Lister_Caller is
-     new AUnit.Test_Caller (Session_Lister_Tests.Test);
+   package Session_Lister_Caller is new AUnit.Test_Caller
+     (Session_Lister_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Encode_Cwd absolute path",
-         Session_Lister_Tests.Test_Encode_Cwd_Absolute'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Encode_Cwd relative path",
-         Session_Lister_Tests.Test_Encode_Cwd_Relative'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Encode_Cwd empty/root path",
-         Session_Lister_Tests.Test_Encode_Cwd_Empty'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Format_Timestamp ISO with Z",
-         Session_Lister_Tests.Test_Format_Timestamp'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Format_Timestamp short string verbatim",
-         Session_Lister_Tests.Test_Format_Timestamp_Short'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse full session JSONL",
-         Session_Lister_Tests.Test_Parse_Session_Full'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse session JSONL without name",
-         Session_Lister_Tests.Test_Parse_Session_No_Name'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse session JSONL with bad JSON",
-         Session_Lister_Tests.Test_Parse_Session_Bad_Json'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse session JSONL with a very long line (no stack overflow)",
-         Session_Lister_Tests.Test_Parse_Session_Long_Line'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse_Session_File extracts Parent_Id from header",
-         Session_Lister_Tests.Test_Parse_Session_Parent_Id'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse_Session_File leaves Parent_Id empty when absent",
-         Session_Lister_Tests.Test_Parse_Session_No_Parent_Id'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse_Session_File: Is_Fork True when relation is fork",
-         Session_Lister_Tests.Test_Parse_Session_Is_Fork_True'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Parse_Session_File: Is_Fork False when relation is subagent",
-         Session_Lister_Tests.Test_Parse_Session_Is_Fork_False'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Find_Session_File found in test dir",
-         Session_Lister_Tests.Test_Find_Session_File_Found'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Find_Session_File returns empty when UUID absent",
-         Session_Lister_Tests.Test_Find_Session_File_Not_Found'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Find_Session_File searches all session subdirectories",
-         Session_Lister_Tests.Test_Find_Session_File_Any_Dir'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Fork_Session forks after first turn",
-         Session_Lister_Tests.Test_Fork_Session_One_Turn'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Fork_Session forks after second turn",
-         Session_Lister_Tests.Test_Fork_Session_Second_Turn'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Fork_Session returns empty beyond last turn",
-         Session_Lister_Tests.Test_Fork_Session_Beyond_End'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Fork_Session returns empty for missing source",
-         Session_Lister_Tests.Test_Fork_Session_Missing_Src'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("List_Sessions sorts native sessions newest first",
-         Session_Lister_Tests.Test_List_Sessions_Newest_First'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("List_Sessions ignores invalid non-session files",
-         Session_Lister_Tests.Test_List_Sessions_Skips_Invalid_Files'Access));
-      Result.Add_Test (Session_Lister_Caller.Create
-        ("Fork_Session preserves native turn boundaries",
-         Session_Lister_Tests
-           .Test_Fork_Native_Format_Preserves_Turn_Boundary'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Encode_Cwd absolute path",
+            Session_Lister_Tests.Test_Encode_Cwd_Absolute'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Encode_Cwd relative path",
+            Session_Lister_Tests.Test_Encode_Cwd_Relative'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Encode_Cwd empty/root path",
+            Session_Lister_Tests.Test_Encode_Cwd_Empty'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Format_Timestamp ISO with Z",
+            Session_Lister_Tests.Test_Format_Timestamp'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Format_Timestamp short string verbatim",
+            Session_Lister_Tests.Test_Format_Timestamp_Short'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse full session JSONL",
+            Session_Lister_Tests.Test_Parse_Session_Full'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse session JSONL without name",
+            Session_Lister_Tests.Test_Parse_Session_No_Name'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse session JSONL with bad JSON",
+            Session_Lister_Tests.Test_Parse_Session_Bad_Json'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse session JSONL with a very long line (no stack overflow)",
+            Session_Lister_Tests.Test_Parse_Session_Long_Line'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse_Session_File extracts Parent_Id from header",
+            Session_Lister_Tests.Test_Parse_Session_Parent_Id'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse_Session_File leaves Parent_Id empty when absent",
+            Session_Lister_Tests.Test_Parse_Session_No_Parent_Id'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse_Session_File: Is_Fork True when relation is fork",
+            Session_Lister_Tests.Test_Parse_Session_Is_Fork_True'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Parse_Session_File: Is_Fork False when relation is subagent",
+            Session_Lister_Tests.Test_Parse_Session_Is_Fork_False'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Find_Session_File found in test dir",
+            Session_Lister_Tests.Test_Find_Session_File_Found'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Find_Session_File returns empty when UUID absent",
+            Session_Lister_Tests.Test_Find_Session_File_Not_Found'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Find_Session_File searches all session subdirectories",
+            Session_Lister_Tests.Test_Find_Session_File_Any_Dir'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Fork_Session forks after first turn",
+            Session_Lister_Tests.Test_Fork_Session_One_Turn'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Fork_Session forks after second turn",
+            Session_Lister_Tests.Test_Fork_Session_Second_Turn'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Fork_Session returns empty beyond last turn",
+            Session_Lister_Tests.Test_Fork_Session_Beyond_End'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Fork_Session returns empty for missing source",
+            Session_Lister_Tests.Test_Fork_Session_Missing_Src'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("List_Sessions sorts native sessions newest first",
+            Session_Lister_Tests.Test_List_Sessions_Newest_First'Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("List_Sessions ignores invalid non-session files",
+            Session_Lister_Tests.Test_List_Sessions_Skips_Invalid_Files'
+              Access));
+      Result.Add_Test
+        (Session_Lister_Caller.Create
+           ("Fork_Session preserves native turn boundaries",
+            Session_Lister_Tests
+              .Test_Fork_Native_Format_Preserves_Turn_Boundary'
+              Access));
 
       return Result;
    end Suite;

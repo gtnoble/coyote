@@ -15,11 +15,7 @@ package body LLM.Compaction is
 
    function Usage_Total (Value : LLM.Types.Usage) return Natural is
    begin
-      return
-        Value.Input
-        + Value.Output
-        + Value.Cache_Read
-        + Value.Cache_Write;
+      return Value.Input + Value.Output + Value.Cache_Read + Value.Cache_Write;
    end Usage_Total;
 
    function Ceil_Quarter (Chars : Natural) return Natural is
@@ -34,9 +30,7 @@ package body LLM.Compaction is
    end Ceil_Quarter;
 
    procedure Append_With_Separator
-     (Target    : in out Unbounded_String;
-      Fragment  : String;
-      Separator : String)
+     (Target : in out Unbounded_String; Fragment : String; Separator : String)
    is
    begin
       if Fragment'Length = 0 then
@@ -50,14 +44,10 @@ package body LLM.Compaction is
       Append (Target, Fragment);
    end Append_With_Separator;
 
-   procedure Append_Line
-     (Target : in out Unbounded_String;
-      Line   : String) is
+   procedure Append_Line (Target : in out Unbounded_String; Line : String) is
    begin
       Append_With_Separator
-        (Target    => Target,
-         Fragment  => Line,
-         Separator => "" & ASCII.LF);
+        (Target => Target, Fragment => Line, Separator => "" & ASCII.LF);
    end Append_Line;
 
    function Scalar_Image (Value : GNATCOLL.JSON.JSON_Value) return String is
@@ -69,19 +59,16 @@ package body LLM.Compaction is
       return GNATCOLL.JSON.Write (Value);
    end Scalar_Image;
 
-   function Render_Tool_Call
-     (Block : LLM.Types.Content_Block) return String
-   is
+   function Render_Tool_Call (Block : LLM.Types.Content_Block) return String is
       Tool_Name : constant String := To_String (Block.Tool_Name);
       Raw_Args  : constant String := To_String (Block.Arguments_Json);
       Parsed    : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Raw_Args);
       Fields    : Unbounded_String;
-      First     : Boolean := True;
+      First     : Boolean                            := True;
 
       procedure Collect_Field
-        (Name  : GNATCOLL.JSON.UTF8_String;
-         Value : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Value : GNATCOLL.JSON.JSON_Value)
       is
       begin
          if not First then
@@ -126,14 +113,15 @@ package body LLM.Compaction is
    function Strip_Analysis_Block (Summary : String) return String is
       Open_Pos  : constant Natural :=
         Ada.Strings.Fixed.Index (Summary, "<analysis>");
-      Close_Pos : Natural := 0;
+      Close_Pos : Natural          := 0;
    begin
       if Open_Pos = 0 then
          return Summary;
       end if;
 
-      Close_Pos := Ada.Strings.Fixed.Index
-        (Summary (Open_Pos .. Summary'Last), "</analysis>");
+      Close_Pos :=
+        Ada.Strings.Fixed.Index
+          (Summary (Open_Pos .. Summary'Last), "</analysis>");
 
       if Close_Pos = 0 then
          --  Malformed: opening tag without closing tag;
@@ -142,8 +130,7 @@ package body LLM.Compaction is
       end if;
 
       declare
-         Before : constant String :=
-           Summary (Summary'First .. Open_Pos - 1);
+         Before : constant String := Summary (Summary'First .. Open_Pos - 1);
          After  : constant String :=
            Summary (Open_Pos + Close_Pos + 11 .. Summary'Last);
          Result : Unbounded_String;
@@ -176,10 +163,9 @@ package body LLM.Compaction is
       First : Positive := S'First;
    begin
       while First <= S'Last
-        and then (S (First) = ' '
-                  or else S (First) = ASCII.LF
-                  or else S (First) = ASCII.CR
-                  or else S (First) = ASCII.HT)
+        and then
+        (S (First) = ' ' or else S (First) = ASCII.LF
+         or else S (First) = ASCII.CR or else S (First) = ASCII.HT)
       loop
          First := First + 1;
       end loop;
@@ -196,10 +182,9 @@ package body LLM.Compaction is
       Last : Integer := S'Last;
    begin
       while Last >= S'First
-        and then (S (Last) = ' '
-                  or else S (Last) = ASCII.LF
-                  or else S (Last) = ASCII.CR
-                  or else S (Last) = ASCII.HT)
+        and then
+        (S (Last) = ' ' or else S (Last) = ASCII.LF or else S (Last) = ASCII.CR
+         or else S (Last) = ASCII.HT)
       loop
          Last := Last - 1;
       end loop;
@@ -213,8 +198,9 @@ package body LLM.Compaction is
 
    function Build_Compact_Prompt
      (Conversation     : String;
-      Previous_Summary : String := "";
-      Is_Partial       : Boolean := False) return String
+      Previous_Summary : String  := "";
+      Is_Partial       : Boolean := False)
+      return String
    is
       Result : Unbounded_String;
    begin
@@ -225,8 +211,8 @@ package body LLM.Compaction is
             & " longer session.  Summarise it as a continuation preamble."
             & "  The continuation agent will receive this summary"
             & " prefixed with ""This session is being continued from a"
-            & " previous conversation that ran out of context."""
-            & ASCII.LF & ASCII.LF);
+            & " previous conversation that ran out of context.""" & ASCII.LF
+            & ASCII.LF);
       end if;
 
       Append (Result, "<conversation>" & ASCII.LF);
@@ -237,8 +223,7 @@ package body LLM.Compaction is
          Append (Result, "<previous-summary>" & ASCII.LF);
          Append (Result, Previous_Summary);
          Append
-           (Result,
-            ASCII.LF & "</previous-summary>" & ASCII.LF & ASCII.LF);
+           (Result, ASCII.LF & "</previous-summary>" & ASCII.LF & ASCII.LF);
          Append (Result, Update_Summarization_Prompt);
       else
          Append (Result, Summarization_Prompt);
@@ -302,21 +287,25 @@ package body LLM.Compaction is
    function Should_Compact
      (Context_Tokens : Natural;
       Context_Window : Natural;
-      Settings       : Compact_Settings) return Boolean
+      Settings       : Compact_Settings)
+      return Boolean
    is
       Threshold : constant Natural :=
-        (if Context_Window > Natural (Settings.Reserve_Tokens)
-         then Context_Window - Natural (Settings.Reserve_Tokens)
+        (if
+           Context_Window > Natural (Settings.Reserve_Tokens)
+         then
+           Context_Window - Natural (Settings.Reserve_Tokens)
          else 0);
    begin
-      return Settings.Enabled
-        and then not Settings.Tripped
+      return
+        Settings.Enabled and then not Settings.Tripped
         and then Context_Tokens >= Threshold;
    end Should_Compact;
 
    function Find_Cut_Point
      (History  : LLM.Types.Message_Vectors.Vector;
-      Settings : Compact_Settings) return Natural
+      Settings : Compact_Settings)
+      return Natural
    is
       Accumulated     : Natural := 0;
       Threshold_Index : Natural := 0;
@@ -379,9 +368,7 @@ package body LLM.Compaction is
                      end if;
                   end loop;
 
-                  Append_Line
-                    (Serialized,
-                     "[User]: " & To_String (Text));
+                  Append_Line (Serialized, "[User]: " & To_String (Text));
                end;
             elsif Msg.Role = LLM.Types.Assistant then
                declare
@@ -443,9 +430,7 @@ package body LLM.Compaction is
                      end if;
                   end loop;
 
-                  Append_Line
-                    (Serialized,
-                     "[Summary]: " & To_String (Text));
+                  Append_Line (Serialized, "[Summary]: " & To_String (Text));
                end;
             else
                declare

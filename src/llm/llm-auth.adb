@@ -67,7 +67,8 @@ package body LLM.Auth is
 
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Value
+      Field : String)
+      return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -81,8 +82,7 @@ package body LLM.Auth is
    end Get_Object_Field;
 
    function Get_String_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return String
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -97,7 +97,8 @@ package body LLM.Auth is
 
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Long_Integer
+      Field : String)
+      return Long_Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -116,7 +117,8 @@ package body LLM.Auth is
 
    function Find_Provider_Value
      (Root     : GNATCOLL.JSON.JSON_Value;
-      Provider : String) return GNATCOLL.JSON.JSON_Value
+      Provider : String)
+      return GNATCOLL.JSON.JSON_Value
    is
       Lower : constant String := Ada.Characters.Handling.To_Lower (Provider);
    begin
@@ -130,8 +132,7 @@ package body LLM.Auth is
          return Root.Get (Provider);
       end if;
 
-      if Lower /= Provider
-        and then Root.Has_Field (Lower)
+      if Lower /= Provider and then Root.Has_Field (Lower)
         and then Root.Get (Lower).Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          return Root.Get (Lower);
@@ -151,15 +152,15 @@ package body LLM.Auth is
    end Delete_If_Exists;
 
    procedure Write_Atomically (Path : String; Content : String) is
-      File      : Ada.Text_IO.File_Type;
-      Tmp_Path  : constant String := Temp_Path (Path);
-      Renamed   : Boolean         := False;
-      Dir_Path  : constant String :=
+      File     : Ada.Text_IO.File_Type;
+      Tmp_Path : constant String := Temp_Path (Path);
+      Renamed  : Boolean         := False;
+      Dir_Path : constant String :=
         Ada.Directories.Containing_Directory (Path);
    begin
       if Path'Length = 0 then
-         raise Ada.IO_Exceptions.Use_Error with
-           "HOME is not set; cannot write auth.json";
+         raise Ada.IO_Exceptions.Use_Error
+           with "HOME is not set; cannot write auth.json";
       end if;
 
       Ada.Directories.Create_Path (Dir_Path);
@@ -173,8 +174,8 @@ package body LLM.Auth is
 
       if not Renamed then
          Delete_If_Exists (Tmp_Path);
-         raise Ada.IO_Exceptions.Use_Error with
-           "Failed to rename temporary auth file";
+         raise Ada.IO_Exceptions.Use_Error
+           with "Failed to rename temporary auth file";
       end if;
    exception
       when others =>
@@ -186,8 +187,7 @@ package body LLM.Auth is
    end Write_Atomically;
 
    function Load_Credentials (Provider : String) return Provider_Credentials is
-      Root         : constant GNATCOLL.JSON.JSON_Value :=
-        Load_Json_File (Auth_Path);
+      Root : constant GNATCOLL.JSON.JSON_Value := Load_Json_File (Auth_Path);
       Provider_Val : constant GNATCOLL.JSON.JSON_Value :=
         Find_Provider_Value (Root, Provider);
    begin
@@ -204,20 +204,15 @@ package body LLM.Auth is
            To_Unbounded_String (Get_String_Field (Provider_Val, "access")),
          Expires_Ms      => Get_Long_Long_Field (Provider_Val, "expires"),
          Account_Id      =>
-           To_Unbounded_String
-             (Get_String_Field (Provider_Val, "accountId")));
+           To_Unbounded_String (Get_String_Field (Provider_Val, "accountId")));
    end Load_Credentials;
 
-   procedure Save_Credentials
-     (Provider : String;
-      Creds    : Provider_Credentials)
+   procedure Save_Credentials (Provider : String; Creds : Provider_Credentials)
    is
-      Path         : constant String := Auth_Path;
-      Existing     : constant GNATCOLL.JSON.JSON_Value :=
-        Load_Json_File (Path);
+      Path         : constant String                   := Auth_Path;
+      Existing : constant GNATCOLL.JSON.JSON_Value := Load_Json_File (Path);
       Root         : constant GNATCOLL.JSON.JSON_Value :=
-        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
-         then Existing
+        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type then Existing
          else GNATCOLL.JSON.Create_Object);
       Provider_Obj : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
@@ -225,11 +220,9 @@ package body LLM.Auth is
       Provider_Obj.Set_Field ("type", To_String (Creds.Credential_Type));
       Provider_Obj.Set_Field ("refresh", To_String (Creds.Refresh_Token));
       Provider_Obj.Set_Field ("access", To_String (Creds.Access_Token));
-      Provider_Obj.Set_Field
-        ("expires", Long_Integer (Creds.Expires_Ms));
+      Provider_Obj.Set_Field ("expires", Long_Integer (Creds.Expires_Ms));
       if Length (Creds.Account_Id) > 0 then
-         Provider_Obj.Set_Field
-           ("accountId", To_String (Creds.Account_Id));
+         Provider_Obj.Set_Field ("accountId", To_String (Creds.Account_Id));
       end if;
 
       Root.Set_Field (Provider, Provider_Obj);

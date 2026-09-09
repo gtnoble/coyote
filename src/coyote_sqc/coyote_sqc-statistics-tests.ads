@@ -30,8 +30,7 @@ package Coyote_SQC.Statistics.Tests is
    --  Returns the asymptotic p-value in [0, 1].
    --  Returns -1.0 when Values'Length < 3 or the sample standard deviation
    --  is zero (degenerate sample).
-   function KS_Normality_P_Value
-     (Values : Long_Float_Array) return Long_Float;
+   function KS_Normality_P_Value (Values : Long_Float_Array) return Long_Float;
 
    --  One-sample Kolmogorov-Smirnov test for an exponential distribution.
    --  Null hypothesis: the sample comes from Exponential(lambda) where
@@ -48,8 +47,7 @@ package Coyote_SQC.Statistics.Tests is
    --  Returns the two-sided asymptotic p-value in [0, 1].
    --  Returns -1.0 when Values'Length < 10 or when one side of the median
    --  has no observations (degenerate split).
-   function Runs_Test_P_Value
-     (Values : Long_Float_Array) return Long_Float;
+   function Runs_Test_P_Value (Values : Long_Float_Array) return Long_Float;
 
    --  Hartigan dip test for unimodality.
    --  Null hypothesis: the sample is drawn from a unimodal distribution.
@@ -61,7 +59,6 @@ package Coyote_SQC.Statistics.Tests is
    --  Returns -1.0 (displayed as "N/A") when Values'Length < 4.
    --  A small p-value (e.g. < 0.05) is evidence of multimodality.
    function Dip_Test_P_Value
-     (Values : Long_Float_Array;
-      K      : Positive := 2_000) return Long_Float;
+     (Values : Long_Float_Array; K : Positive := 2_000) return Long_Float;
 
 end Coyote_SQC.Statistics.Tests;

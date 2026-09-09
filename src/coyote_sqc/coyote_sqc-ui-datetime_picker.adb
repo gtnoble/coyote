@@ -9,14 +9,14 @@
 with Ada.Calendar.Formatting;
 with Ada.Strings;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
-with Glib;                   use Glib;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Glib;                  use Glib;
 with Gtk.Adjustment;
 with Gtk.Box;
 with Gtk.Enums;
 with Gtk.Label;
 with Gtk.Separator;
-with Gtk.Widget;             use Gtk.Widget;
+with Gtk.Widget;            use Gtk.Widget;
 
 package body Coyote_SQC.UI.Datetime_Picker is
 
@@ -30,20 +30,21 @@ package body Coyote_SQC.UI.Datetime_Picker is
    --  instance by searching this registry.
 
    Max_Reg : constant := 8;
-   type Registry_Array is array (1 .. Max_Reg) of Instance_Access;
+   type Registry_Array is
+     array (1 .. Max_Reg)
+     of Instance_Access;
    Registry      : Registry_Array := (others => null);
    Registry_Size : Natural        := 0;
 
    procedure Register (P : Instance_Access) is
    begin
       if Registry_Size < Max_Reg then
-         Registry_Size := Registry_Size + 1;
+         Registry_Size            := Registry_Size + 1;
          Registry (Registry_Size) := P;
       end if;
    end Register;
 
-   function Find_By_Entry
-     (E : Gtk.GEntry.Gtk_Entry) return Instance_Access is
+   function Find_By_Entry (E : Gtk.GEntry.Gtk_Entry) return Instance_Access is
    begin
       for I in 1 .. Registry_Size loop
          if Registry (I) /= null and then Registry (I).Entry_W = E then
@@ -54,7 +55,8 @@ package body Coyote_SQC.UI.Datetime_Picker is
    end Find_By_Entry;
 
    function Find_By_Calendar
-     (C : Gtk.Calendar.Gtk_Calendar) return Instance_Access is
+     (C : Gtk.Calendar.Gtk_Calendar) return Instance_Access
+   is
    begin
       for I in 1 .. Registry_Size loop
          if Registry (I) /= null and then Registry (I).Calendar = C then
@@ -65,11 +67,13 @@ package body Coyote_SQC.UI.Datetime_Picker is
    end Find_By_Calendar;
 
    function Find_By_Spin
-     (S : Gtk.Spin_Button.Gtk_Spin_Button) return Instance_Access is
+     (S : Gtk.Spin_Button.Gtk_Spin_Button) return Instance_Access
+   is
    begin
       for I in 1 .. Registry_Size loop
-         if Registry (I) /= null and then
-            (Registry (I).Hour_Spin = S or else Registry (I).Min_Spin = S)
+         if Registry (I) /= null
+           and then
+           (Registry (I).Hour_Spin = S or else Registry (I).Min_Spin = S)
          then
             return Registry (I);
          end if;
@@ -82,36 +86,36 @@ package body Coyote_SQC.UI.Datetime_Picker is
    function Pad2 (N : Natural) return String is
       use Ada.Strings.Fixed;
    begin
-      return (if N < 10 then "0" else "")
-             & Trim (Natural'Image (N), Ada.Strings.Left);
+      return
+        (if N < 10 then "0" else "")
+        & Trim (Natural'Image (N), Ada.Strings.Left);
    end Pad2;
 
    function Format_Time (T : Ada.Calendar.Time) return String is
       use Ada.Calendar;
-      Y  : constant Year_Number   := Year   (T);
-      Mo : constant Month_Number  := Month  (T);
-      D  : constant Day_Number    := Day    (T);
+      Y  : constant Year_Number                           := Year (T);
+      Mo : constant Month_Number                          := Month (T);
+      D  : constant Day_Number                            := Day (T);
       H  : constant Ada.Calendar.Formatting.Hour_Number   :=
-        Ada.Calendar.Formatting.Hour   (T);
+        Ada.Calendar.Formatting.Hour (T);
       Mi : constant Ada.Calendar.Formatting.Minute_Number :=
         Ada.Calendar.Formatting.Minute (T);
    begin
-      return Ada.Strings.Fixed.Trim (Natural'Image (Y), Ada.Strings.Left)
-             & "-" & Pad2 (Natural (Mo))
-             & "-" & Pad2 (Natural (D))
-             & " " & Pad2 (Natural (H))
-             & ":" & Pad2 (Natural (Mi));
+      return
+        Ada.Strings.Fixed.Trim (Natural'Image (Y), Ada.Strings.Left) & "-"
+        & Pad2 (Natural (Mo)) & "-" & Pad2 (Natural (D)) & " "
+        & Pad2 (Natural (H)) & ":" & Pad2 (Natural (Mi));
    end Format_Time;
 
    --  ── Apply Time → Entry + Spinbuttons ──────────────────────────────────
 
    procedure Apply_Time (Self : in out Instance) is
       use Ada.Calendar;
-      Y  : constant Year_Number   := Year   (Self.Current);
-      Mo : constant Month_Number  := Month  (Self.Current);
-      D  : constant Day_Number    := Day    (Self.Current);
+      Y  : constant Year_Number := Year (Self.Current);
+      Mo : constant Month_Number := Month (Self.Current);
+      D  : constant Day_Number := Day (Self.Current);
       H  : constant Ada.Calendar.Formatting.Hour_Number   :=
-        Ada.Calendar.Formatting.Hour   (Self.Current);
+        Ada.Calendar.Formatting.Hour (Self.Current);
       Mi : constant Ada.Calendar.Formatting.Minute_Number :=
         Ada.Calendar.Formatting.Minute (Self.Current);
    begin
@@ -119,7 +123,7 @@ package body Coyote_SQC.UI.Datetime_Picker is
       Self.Entry_W.Set_Text (Format_Time (Self.Current));
       if Self.Calendar /= null then
          Self.Calendar.Select_Month (Guint (Mo) - 1, Guint (Y));
-         Self.Calendar.Select_Day   (Guint (D));
+         Self.Calendar.Select_Day (Guint (D));
       end if;
       if Self.Hour_Spin /= null then
          Self.Hour_Spin.Set_Value (Gdouble (H));
@@ -152,24 +156,27 @@ package body Coyote_SQC.UI.Datetime_Picker is
       P : constant Instance_Access :=
         Find_By_Calendar (Gtk.Calendar.Gtk_Calendar (Self));
    begin
-      if P = null or else P.Updating then return; end if;
+      if P = null or else P.Updating then
+         return;
+      end if;
       declare
          Year_V  : Glib.Guint;
          Month_V : Glib.Guint;
          Day_V   : Glib.Guint;
          Old_H   : constant Ada.Calendar.Formatting.Hour_Number   :=
-           Ada.Calendar.Formatting.Hour   (P.Current);
+           Ada.Calendar.Formatting.Hour (P.Current);
          Old_M   : constant Ada.Calendar.Formatting.Minute_Number :=
            Ada.Calendar.Formatting.Minute (P.Current);
       begin
          P.Calendar.Get_Date (Year_V, Month_V, Day_V);
-         P.Current := Ada.Calendar.Formatting.Time_Of
-           (Year   => Ada.Calendar.Year_Number   (Year_V),
-            Month  => Ada.Calendar.Month_Number  (Month_V + 1),
-            Day    => Ada.Calendar.Day_Number    (Day_V),
-            Hour   => Old_H,
-            Minute => Old_M,
-            Second => 0);
+         P.Current  :=
+           Ada.Calendar.Formatting.Time_Of
+             (Year   => Ada.Calendar.Year_Number (Year_V),
+              Month  => Ada.Calendar.Month_Number (Month_V + 1),
+              Day    => Ada.Calendar.Day_Number (Day_V),
+              Hour   => Old_H,
+              Minute => Old_M,
+              Second => 0);
          P.Updating := True;
          P.Entry_W.Set_Text (Format_Time (P.Current));
          P.Updating := False;
@@ -186,18 +193,21 @@ package body Coyote_SQC.UI.Datetime_Picker is
       P : constant Instance_Access :=
         Find_By_Spin (Gtk.Spin_Button.Gtk_Spin_Button (Self));
    begin
-      if P = null or else P.Updating then return; end if;
+      if P = null or else P.Updating then
+         return;
+      end if;
       declare
          H : constant Natural := Natural (P.Hour_Spin.Get_Value);
          M : constant Natural := Natural (P.Min_Spin.Get_Value);
       begin
-         P.Current := Ada.Calendar.Formatting.Time_Of
-           (Year   => Ada.Calendar.Year   (P.Current),
-            Month  => Ada.Calendar.Month  (P.Current),
-            Day    => Ada.Calendar.Day    (P.Current),
-            Hour   => Ada.Calendar.Formatting.Hour_Number   (H),
-            Minute => Ada.Calendar.Formatting.Minute_Number (M),
-            Second => 0);
+         P.Current  :=
+           Ada.Calendar.Formatting.Time_Of
+             (Year   => Ada.Calendar.Year (P.Current),
+              Month  => Ada.Calendar.Month (P.Current),
+              Day    => Ada.Calendar.Day (P.Current),
+              Hour   => Ada.Calendar.Formatting.Hour_Number (H),
+              Minute => Ada.Calendar.Formatting.Minute_Number (M),
+              Second => 0);
          P.Updating := True;
          P.Entry_W.Set_Text (Format_Time (P.Current));
          P.Updating := False;
@@ -211,8 +221,8 @@ package body Coyote_SQC.UI.Datetime_Picker is
 
    procedure Create
      (Self      : out Instance;
-      Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Label     : String := "")
+      Container :     not null access Gtk.Box.Gtk_Box_Record'Class;
+      Label     :     String := "")
    is
       use Gtk.Box;
       use Gtk.GEntry;
@@ -223,14 +233,14 @@ package body Coyote_SQC.UI.Datetime_Picker is
       use Gtk.Label;
       use Gtk.Enums;
 
-      Outer   : Gtk.Box.Gtk_Box;
-      Lbl     : Gtk.Label.Gtk_Label;
-      VBox    : Gtk.Box.Gtk_Box;
-      HBox    : Gtk.Box.Gtk_Box;
-      Sep     : Gtk.Separator.Gtk_Separator;
-      Colon   : Gtk.Label.Gtk_Label;
-      Adj_H   : Gtk.Adjustment.Gtk_Adjustment;
-      Adj_M   : Gtk.Adjustment.Gtk_Adjustment;
+      Outer : Gtk.Box.Gtk_Box;
+      Lbl   : Gtk.Label.Gtk_Label;
+      VBox  : Gtk.Box.Gtk_Box;
+      HBox  : Gtk.Box.Gtk_Box;
+      Sep   : Gtk.Separator.Gtk_Separator;
+      Colon : Gtk.Label.Gtk_Label;
+      Adj_H : Gtk.Adjustment.Gtk_Adjustment;
+      Adj_M : Gtk.Adjustment.Gtk_Adjustment;
    begin
       Self.Current  := Ada.Calendar.Clock;
       Self.Updating := False;
@@ -268,18 +278,18 @@ package body Coyote_SQC.UI.Datetime_Picker is
       Gtk.Adjustment.Gtk_New (Adj_H, 0.0, 0.0, 23.0, 1.0, 1.0, 0.0);
       Gtk.Adjustment.Gtk_New (Adj_M, 0.0, 0.0, 59.0, 1.0, 5.0, 0.0);
       Gtk.Spin_Button.Gtk_New (Self.Hour_Spin, Adj_H, 1.0, 0);
-      Gtk.Spin_Button.Gtk_New (Self.Min_Spin,  Adj_M, 1.0, 0);
+      Gtk.Spin_Button.Gtk_New (Self.Min_Spin, Adj_M, 1.0, 0);
       Self.Hour_Spin.Set_Wrap (True);
-      Self.Min_Spin.Set_Wrap  (True);
+      Self.Min_Spin.Set_Wrap (True);
       Self.Hour_Spin.Set_Width_Chars (2);
-      Self.Min_Spin.Set_Width_Chars  (2);
+      Self.Min_Spin.Set_Width_Chars (2);
       Self.Hour_Spin.On_Value_Changed (On_Spin_Value_Changed'Access);
-      Self.Min_Spin.On_Value_Changed  (On_Spin_Value_Changed'Access);
+      Self.Min_Spin.On_Value_Changed (On_Spin_Value_Changed'Access);
 
       Gtk.Label.Gtk_New (Colon, ":");
       HBox.Pack_Start (Self.Hour_Spin, False, False, 0);
       HBox.Pack_Start (Colon, False, False, 0);
-      HBox.Pack_Start (Self.Min_Spin,  False, False, 0);
+      HBox.Pack_Start (Self.Min_Spin, False, False, 0);
       VBox.Pack_Start (HBox, False, False, 0);
 
       Self.Popover.Add (VBox);

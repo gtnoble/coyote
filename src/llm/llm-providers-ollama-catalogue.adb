@@ -54,7 +54,7 @@ package body LLM.Providers.Ollama.Catalogue is
    procedure Write_Atomically (Path : String; Content : String) is
       File     : Ada.Text_IO.File_Type;
       Tmp_Name : constant String := Temp_Path (Path);
-      Renamed  : Boolean := False;
+      Renamed  : Boolean         := False;
       Dir_Path : constant String :=
         Ada.Directories.Containing_Directory (Path);
    begin
@@ -87,20 +87,16 @@ package body LLM.Providers.Ollama.Catalogue is
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
       Epoch : constant Time :=
-        Time_Of (Year    => 1970,
-                 Month   => 1,
-                 Day     => 1,
-                 Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
 
    function Is_Fresh
-     (Fetched_At    : Long_Long_Integer;
-      Max_Age_Hours : Natural) return Boolean
+     (Fetched_At : Long_Long_Integer; Max_Age_Hours : Natural) return Boolean
    is
       Age_Limit : constant Long_Long_Integer :=
-        Long_Long_Integer (Max_Age_Hours) * 3600;
+        Long_Long_Integer (Max_Age_Hours) * 3_600;
       Now_S     : constant Long_Long_Integer := Current_Unix_S;
    begin
       if Fetched_At <= 0 then
@@ -115,7 +111,8 @@ package body LLM.Providers.Ollama.Catalogue is
    function Get_String_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : String := "") return String
+      Default : String := "")
+      return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -129,7 +126,8 @@ package body LLM.Providers.Ollama.Catalogue is
 
    function Get_Array_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Array
+      Field : String)
+      return GNATCOLL.JSON.JSON_Array
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -143,7 +141,8 @@ package body LLM.Providers.Ollama.Catalogue is
 
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Long_Integer
+      Field : String)
+      return Long_Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -162,7 +161,8 @@ package body LLM.Providers.Ollama.Catalogue is
    function Get_Natural_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : Natural := 0) return Natural
+      Default : Natural := 0)
+      return Natural
    is
       Raw : Long_Integer;
    begin
@@ -180,13 +180,13 @@ package body LLM.Providers.Ollama.Catalogue is
 
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Value
+      Field : String)
+      return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
         and then Value.Has_Field (Field)
-        and then Value.Get (Field).Kind
-          = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          return Value.Get (Field);
       end if;
@@ -195,21 +195,22 @@ package body LLM.Providers.Ollama.Catalogue is
 
    --  Parse_Model — now reads fields written by Fetch_Live from
    --  /api/show enrichment (context, reasoning, vision booleans).
-   function Parse_Model
-     (Value : GNATCOLL.JSON.JSON_Value) return Model_Info
-   is
-      Id         : constant String := Get_String_Field (Value, "name");
-      Ctx        : constant Natural :=
-        Get_Natural_Field (Value, "context", 128_000);
+   function Parse_Model (Value : GNATCOLL.JSON.JSON_Value) return Model_Info is
+      Id         : constant String  := Get_String_Field (Value, "name");
+      Ctx : constant Natural := Get_Natural_Field (Value, "context", 128_000);
       Has_Reason : constant Boolean :=
-        (if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        (if
+           Value.Kind = GNATCOLL.JSON.JSON_Object_Type
            and then Value.Has_Field ("reasoning")
-         then Value.Get ("reasoning").Get
+         then
+           Value.Get ("reasoning").Get
          else False);
       Has_Vis    : constant Boolean :=
-        (if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        (if
+           Value.Kind = GNATCOLL.JSON.JSON_Object_Type
            and then Value.Has_Field ("vision")
-         then Value.Get ("vision").Get
+         then
+           Value.Get ("vision").Get
          else False);
    begin
       return
@@ -223,14 +224,12 @@ package body LLM.Providers.Ollama.Catalogue is
    end Parse_Model;
 
    procedure Parse_Models
-     (Items  :     GNATCOLL.JSON.JSON_Array;
-      Models : out Catalogue_Vectors.Vector)
+     (Items : GNATCOLL.JSON.JSON_Array; Models : out Catalogue_Vectors.Vector)
    is
    begin
       Models.Clear;
       for I in 1 .. GNATCOLL.JSON.Length (Items) loop
-         Models.Append
-           (Parse_Model (GNATCOLL.JSON.Get (Items, I)));
+         Models.Append (Parse_Model (GNATCOLL.JSON.Get (Items, I)));
       end loop;
    end Parse_Models;
 
@@ -240,11 +239,9 @@ package body LLM.Providers.Ollama.Catalogue is
       Models : Catalogue_Vectors.Vector;
    end record;
 
-   function Load_Cache
-     (Max_Age_Hours : Natural) return Cache_Load_Result
-   is
-      Path       : constant String := Cache_Path;
-      Content    : constant String := Read_File (Path);
+   function Load_Cache (Max_Age_Hours : Natural) return Cache_Load_Result is
+      Path       : constant String   := Cache_Path;
+      Content    : constant String   := Read_File (Path);
       Parsed     : GNATCOLL.JSON.Read_Result;
       Root       : GNATCOLL.JSON.JSON_Value;
       Fetched_At : Long_Long_Integer := 0;
@@ -264,7 +261,7 @@ package body LLM.Providers.Ollama.Catalogue is
       then
          return Result;
       end if;
-      Fetched_At := Get_Long_Long_Field (Root, "fetched_at");
+      Fetched_At   := Get_Long_Long_Field (Root, "fetched_at");
       Result.Found := True;
       Result.Fresh := Is_Fresh (Fetched_At, Max_Age_Hours);
       Parse_Models (Root.Get ("models").Get, Result.Models);
@@ -275,12 +272,10 @@ package body LLM.Providers.Ollama.Catalogue is
    end Load_Cache;
 
    procedure Save_Cache (Data : GNATCOLL.JSON.JSON_Value) is
-      Path : constant String := Cache_Path;
-      Root : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Path : constant String                   := Cache_Path;
+      Root : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
-      if Path'Length = 0
-        or else Data.Kind /= GNATCOLL.JSON.JSON_Array_Type
+      if Path'Length = 0 or else Data.Kind /= GNATCOLL.JSON.JSON_Array_Type
       then
          return;
       end if;
@@ -297,13 +292,14 @@ package body LLM.Providers.Ollama.Catalogue is
    --  /api/show per model to extract capabilities, context length,
    --  reasoning, and vision flags.
    function Fetch_Live
-     (Base_Url  : String;
-      Api_Key   : String;
+     (Base_Url  :     String;
+      Api_Key   :     String;
       Models    : out Catalogue_Vectors.Vector;
-      Root_Data : out GNATCOLL.JSON.JSON_Value) return Boolean
+      Root_Data : out GNATCOLL.JSON.JSON_Value)
+      return Boolean
    is
       Headers       : LLM.HTTP.Header_List;
-      Status        : Natural := 0;
+      Status        : Natural         := 0;
       Response_Body : Unbounded_String;
       Parsed        : GNATCOLL.JSON.Read_Result;
       Root          : GNATCOLL.JSON.JSON_Value;
@@ -336,8 +332,7 @@ package body LLM.Providers.Ollama.Catalogue is
             Append (Body_Text, Chunk);
          end On_Chunk_Show;
 
-         Req_Obj : GNATCOLL.JSON.JSON_Value :=
-           GNATCOLL.JSON.Create_Object;
+         Req_Obj : GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
       begin
          Ctx        := 128_000;
          Has_Reason := False;
@@ -346,11 +341,9 @@ package body LLM.Providers.Ollama.Catalogue is
          Req_Obj.Set_Field ("name", Model_Name);
 
          if Api_Key'Length > 0 then
-            LLM.HTTP.Add_Header
-              (Hdrs, "Authorization", "Bearer " & Api_Key);
+            LLM.HTTP.Add_Header (Hdrs, "Authorization", "Bearer " & Api_Key);
          end if;
-         LLM.HTTP.Add_Header
-           (Hdrs, "Content-Type", "application/json");
+         LLM.HTTP.Add_Header (Hdrs, "Content-Type", "application/json");
 
          LLM.HTTP.Post
            (URL      => Show_Base & "api/show",
@@ -372,8 +365,7 @@ package body LLM.Providers.Ollama.Catalogue is
             end if;
 
             declare
-               Show_Root  : constant GNATCOLL.JSON.JSON_Value :=
-                 Result.Value;
+               Show_Root  : constant GNATCOLL.JSON.JSON_Value := Result.Value;
                Caps_Array : GNATCOLL.JSON.JSON_Array;
                MI_Obj     : GNATCOLL.JSON.JSON_Value;
             begin
@@ -409,8 +401,7 @@ package body LLM.Providers.Ollama.Catalogue is
                      declare
                         Arch    : constant String :=
                           MI_Obj.Get ("general.architecture").Get;
-                        Ctx_Key : constant String :=
-                          Arch & ".context_length";
+                        Ctx_Key : constant String := Arch & ".context_length";
                      begin
                         if MI_Obj.Has_Field (Ctx_Key)
                           and then MI_Obj.Get (Ctx_Key).Kind
@@ -441,8 +432,7 @@ package body LLM.Providers.Ollama.Catalogue is
       Root_Data := GNATCOLL.JSON.JSON_Null;
 
       if Api_Key'Length > 0 then
-         LLM.HTTP.Add_Header
-           (Headers, "Authorization", "Bearer " & Api_Key);
+         LLM.HTTP.Add_Header (Headers, "Authorization", "Bearer " & Api_Key);
       end if;
 
       --  Step 1: get model list from /api/tags.
@@ -476,15 +466,14 @@ package body LLM.Providers.Ollama.Catalogue is
          Ctx              : Natural;
          Has_Reason       : Boolean;
          Has_Vis          : Boolean;
-         Enriched_Entries : GNATCOLL.JSON.JSON_Array :=
+         Enriched_Entries : GNATCOLL.JSON.JSON_Array          :=
            GNATCOLL.JSON.Empty_Array;
       begin
          for I in 1 .. GNATCOLL.JSON.Length (Tag_Items) loop
             declare
                Item     : constant GNATCOLL.JSON.JSON_Value :=
                  GNATCOLL.JSON.Get (Tag_Items, I);
-               Name_Str : constant String :=
-                 Get_String_Field (Item, "name");
+               Name_Str : constant String := Get_String_Field (Item, "name");
             begin
                if Name_Str'Length > 0 then
                   Fetch_Show_Detail (Name_Str, Ctx, Has_Reason, Has_Vis);
@@ -493,8 +482,7 @@ package body LLM.Providers.Ollama.Catalogue is
                        GNATCOLL.JSON.Create_Object;
                   begin
                      Entry_Obj.Set_Field ("name", Name_Str);
-                     Entry_Obj.Set_Field
-                       ("context", Long_Integer (Ctx));
+                     Entry_Obj.Set_Field ("context", Long_Integer (Ctx));
                      Entry_Obj.Set_Field ("reasoning", Has_Reason);
                      Entry_Obj.Set_Field ("vision", Has_Vis);
                      GNATCOLL.JSON.Append (Enriched_Entries, Entry_Obj);
@@ -516,23 +504,25 @@ package body LLM.Providers.Ollama.Catalogue is
    end Fetch_Live;
 
    procedure Load_Catalogue
-     (Models        :    out Catalogue_Vectors.Vector;
-      Base_Url      :        String := "";
-      Api_Key       :        String := "";
-      Max_Age_Hours :        Natural := 24)
+     (Models        : out Catalogue_Vectors.Vector;
+      Base_Url      :     String  := "";
+      Api_Key       :     String  := "";
+      Max_Age_Hours :     Natural := 24)
    is
-      Cache_Result : constant Cache_Load_Result :=
-        Load_Cache (Max_Age_Hours);
-      Live_Models : Catalogue_Vectors.Vector;
-      Live_Data   : GNATCOLL.JSON.JSON_Value;
+      Cache_Result : constant Cache_Load_Result := Load_Cache (Max_Age_Hours);
+      Live_Models  : Catalogue_Vectors.Vector;
+      Live_Data    : GNATCOLL.JSON.JSON_Value;
    begin
       if Cache_Result.Found and then Cache_Result.Fresh then
          Models := Cache_Result.Models;
          return;
       end if;
 
-      if Fetch_Live (Base_Url => Base_Url, Api_Key => Api_Key,
-                     Models => Live_Models, Root_Data => Live_Data)
+      if Fetch_Live
+          (Base_Url  => Base_Url,
+           Api_Key   => Api_Key,
+           Models    => Live_Models,
+           Root_Data => Live_Data)
       then
          Models := Live_Models;
          Save_Cache (Live_Data);

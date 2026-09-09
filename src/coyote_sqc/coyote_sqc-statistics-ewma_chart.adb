@@ -13,7 +13,8 @@ package body Coyote_SQC.Statistics.EWMA_Chart is
    function Compute_Z
      (X      : Long_Float;
       Z_Prev : Long_Float;
-      Weight : Long_Float) return Long_Float
+      Weight : Long_Float)
+      return Long_Float
    is
    begin
       return Weight * X + (1.0 - Weight) * Z_Prev;
@@ -24,7 +25,8 @@ package body Coyote_SQC.Statistics.EWMA_Chart is
       Sigma      : Long_Float;
       Weight     : Long_Float;
       L          : Long_Float;
-      T          : Positive) return Limits_Record
+      T          : Positive)
+      return Limits_Record
    is
       --  Sigma is already the process-sigma estimate (Mean_MR / d2).
       --  Scale factor accounts for the variance reduction due to smoothing
@@ -34,16 +36,19 @@ package body Coyote_SQC.Statistics.EWMA_Chart is
       Raw_LCL      : Long_Float;
    begin
       if Sigma <= 0.0 then
-         return (UCL => 0.0, CL => Grand_Mean, LCL => 0.0,
-                 Has_UCL => False, Has_LCL => False);
+         return
+           (UCL     => 0.0,
+            CL      => Grand_Mean,
+            LCL     => 0.0,
+            Has_UCL => False,
+            Has_LCL => False);
       end if;
 
       --  Variance factor: lambda/(2-lambda) * [1 - (1-lambda)^(2t)]
       --  Use the exact formula; the term (1-Weight)^(2*T) vanishes for
       --  large T, giving the steady-state factor Weight / (2 - Weight).
       Scale_Factor :=
-        Sqrt (Weight / (2.0 - Weight)
-              * (1.0 - (1.0 - Weight) ** (2 * T)));
+        Sqrt (Weight / (2.0 - Weight) * (1.0 - (1.0 - Weight)**(2 * T)));
 
       Half_Width := L * Sigma * Scale_Factor;
       Raw_LCL    := Grand_Mean - Half_Width;

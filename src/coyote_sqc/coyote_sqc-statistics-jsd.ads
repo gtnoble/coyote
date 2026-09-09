@@ -37,13 +37,13 @@ package Coyote_SQC.Statistics.JSD is
      (Tool_Name_1 : String;
       Arguments_1 : String;
       Tool_Name_2 : String;
-      Arguments_2 : String) return Long_Float;
+      Arguments_2 : String)
+      return Long_Float;
 
    --  Return the total token count for a single tool call: prepend tool name,
    --  extract all JSON string values from the whole Arguments blob (character
    --  scan), whitespace-split, lowercase.  Exposed for unit testing.
    function Token_Count
-     (Tool_Name : String;
-      Arguments : String) return Natural;
+     (Tool_Name : String; Arguments : String) return Natural;
 
 end Coyote_SQC.Statistics.JSD;

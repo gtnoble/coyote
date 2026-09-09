@@ -17,15 +17,15 @@ package Coyote_GUI.Prompt_Queue is
    --  Persistent defaults selected in the Preferences dialog.  Empty
    --  strings explicitly clear the corresponding stored preference.
    type Preferences_Record is record
-      Provider          : Ada.Strings.Unbounded.Unbounded_String;
-      Model_Id          : Ada.Strings.Unbounded.Unbounded_String;
-      Thinking          : LLM.Providers.Thinking_Level := LLM.Providers.Off;
-      Sandbox           : Ada.Strings.Unbounded.Unbounded_String;
-      Subagent_Provider        : Ada.Strings.Unbounded.Unbounded_String;
-      Subagent_Model           : Ada.Strings.Unbounded.Unbounded_String;
-      Max_Recursion_Depth      : Natural := 1;
-      Termination_Grace_Seconds : Natural := 2;
-      Completion_Notifications : Boolean := True;
+      Provider                  : Ada.Strings.Unbounded.Unbounded_String;
+      Model_Id                  : Ada.Strings.Unbounded.Unbounded_String;
+      Thinking : LLM.Providers.Thinking_Level    := LLM.Providers.Off;
+      Sandbox                   : Ada.Strings.Unbounded.Unbounded_String;
+      Subagent_Provider         : Ada.Strings.Unbounded.Unbounded_String;
+      Subagent_Model            : Ada.Strings.Unbounded.Unbounded_String;
+      Max_Recursion_Depth       : Natural                         := 1;
+      Termination_Grace_Seconds : Natural                         := 2;
+      Completion_Notifications  : Boolean                         := True;
       Price_Display             : LLM.Settings.Price_Display_Mode :=
         LLM.Settings.SI_Prefixes;
       Skill_Paths               : LLM.Settings.String_Vectors.Vector;
@@ -59,20 +59,20 @@ package Coyote_GUI.Prompt_Queue is
         Ada.Strings.Unbounded.Null_Unbounded_String;
       case Kind is
          when User_Prompt =>
-            Text         : Ada.Strings.Unbounded.Unbounded_String;
+            Text : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Model =>
-            Model_Spec   : Ada.Strings.Unbounded.Unbounded_String;
+            Model_Spec : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Subagent_Model =>
             --  Empty clears the override; otherwise "provider/model-id".
             Override_Spec : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Thinking =>
-            Level        : LLM.Providers.Thinking_Level;
+            Level : LLM.Providers.Thinking_Level;
          when Set_Sandbox =>
             Profile_Name : Ada.Strings.Unbounded.Unbounded_String;
          when Switch_Session =>
             Session_UUID : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Preferences =>
-            Preferences   : Preferences_Record;
+            Preferences : Preferences_Record;
          when others =>
             null;
       end case;
@@ -81,7 +81,9 @@ package Coyote_GUI.Prompt_Queue is
    --  ── Queue ─────────────────────────────────────────────────────────────
 
    Max_Depth : constant Positive := 64;
-   type Item_Array is array (1 .. Max_Depth) of Item;
+   type Item_Array is
+     array (1 .. Max_Depth)
+     of Item;
 
    protected type Queue is
       --  Enqueue an item.  Does not block; Accepted is False when full.

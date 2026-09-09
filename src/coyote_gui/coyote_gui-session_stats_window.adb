@@ -2,8 +2,8 @@
 --
 --  Project: coyote
 
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
-with Coyote_App.Utils;       use Coyote_App.Utils;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
@@ -30,8 +30,8 @@ package body Coyote_GUI.Session_Stats_Window is
    use type Gtk.Window.Gtk_Window;
 
    System_Font_Family  : Unbounded_String;
-   System_Font_Size_Pt : Integer := 11;
-   System_Font_Inited  : Boolean := False;
+   System_Font_Size_Pt : Integer               := 11;
+   System_Font_Inited  : Boolean               := False;
    Current_Window      : Gtk.Window.Gtk_Window := null;
 
    procedure On_Close_Clicked
@@ -45,15 +45,15 @@ package body Coyote_GUI.Session_Stats_Window is
    end On_Close_Clicked;
 
    procedure Ensure_System_Font_Init is
-      Settings : constant Gtk.Settings.Gtk_Settings :=
+      Settings  : constant Gtk.Settings.Gtk_Settings :=
         Gtk.Settings.Get_Default;
-      Font_Str : constant String :=
+      Font_Str  : constant String                    :=
         Glib.Properties.Get_Property
           (Settings, Gtk.Settings.Gtk_Font_Name_Property);
-      Font_Desc : Pango.Font.Pango_Font_Description :=
+      Font_Desc : Pango.Font.Pango_Font_Description  :=
         Pango.Font.From_String (Font_Str);
    begin
-      System_Font_Family :=
+      System_Font_Family  :=
         To_Unbounded_String (Pango.Font.Get_Family (Font_Desc));
       System_Font_Size_Pt :=
         Integer (Pango.Font.Get_Size (Font_Desc)) / Pango.Enums.Pango_Scale;
@@ -64,9 +64,9 @@ package body Coyote_GUI.Session_Stats_Window is
       System_Font_Inited := True;
    exception
       when others =>
-         System_Font_Family := To_Unbounded_String ("sans");
+         System_Font_Family  := To_Unbounded_String ("sans");
          System_Font_Size_Pt := 11;
-         System_Font_Inited := True;
+         System_Font_Inited  := True;
    end Ensure_System_Font_Init;
 
    function Font_Size_Image return String is
@@ -94,8 +94,7 @@ package body Coyote_GUI.Session_Stats_Window is
    end Apply_System_Font;
 
    procedure Set_Value
-     (Label : not null access Gtk.Label.Gtk_Label_Record'Class;
-      Text  : String)
+     (Label : not null access Gtk.Label.Gtk_Label_Record'Class; Text : String)
    is
    begin
       Label.Set_Text (Text);
@@ -106,9 +105,9 @@ package body Coyote_GUI.Session_Stats_Window is
    end Set_Value;
 
    procedure Add_Row
-     (Grid  : not null access Gtk.Grid.Gtk_Grid_Record'Class;
-      Row   : Glib.Gint;
-      Name  : String;
+     (Grid  :     not null access Gtk.Grid.Gtk_Grid_Record'Class;
+      Row   :     Glib.Gint;
+      Name  :     String;
       Value : out Gtk.Label.Gtk_Label)
    is
       Key : Gtk.Label.Gtk_Label;
@@ -124,7 +123,8 @@ package body Coyote_GUI.Session_Stats_Window is
 
    function On_Window_Delete
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event) return Boolean
+      Event : Gdk.Event.Gdk_Event)
+      return Boolean
    is
       pragma Unreferenced (Event);
    begin
@@ -134,7 +134,8 @@ package body Coyote_GUI.Session_Stats_Window is
 
    function On_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+      Event : Gdk.Event.Gdk_Event_Key)
+      return Boolean
    is
       pragma Unreferenced (Self);
    begin
@@ -155,8 +156,7 @@ package body Coyote_GUI.Session_Stats_Window is
    end On_Key_Press;
 
    procedure Update_Labels
-     (S     : in out Instance;
-      Stats :  Coyote_GUI.Session_Stats_Record)
+     (S : in out Instance; Stats : Coyote_GUI.Session_Stats_Record)
    is
    begin
       Set_Value (S.Session_Id, To_String (Stats.Session_Id));
@@ -174,7 +174,7 @@ package body Coyote_GUI.Session_Stats_Window is
 
    procedure Create
      (S           : in out Instance;
-      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class)
+      Main_Window :        not null access Gtk.Window.Gtk_Window_Record'Class)
    is
       use Gtk.Box;
       use Gtk.Frame;
@@ -276,8 +276,7 @@ package body Coyote_GUI.Session_Stats_Window is
    end Show;
 
    procedure Update
-     (S     : in out Instance;
-      Stats :  Coyote_GUI.Session_Stats_Record)
+     (S : in out Instance; Stats : Coyote_GUI.Session_Stats_Record)
    is
    begin
       S.Stats := Stats;
@@ -286,8 +285,7 @@ package body Coyote_GUI.Session_Stats_Window is
       end if;
    end Update;
 
-   function Current_Stats
-     (S : Instance) return Coyote_GUI.Session_Stats_Record
+   function Current_Stats (S : Instance) return Coyote_GUI.Session_Stats_Record
    is
    begin
       return S.Stats;

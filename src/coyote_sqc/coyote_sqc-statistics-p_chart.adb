@@ -9,8 +9,7 @@ package body Coyote_SQC.Statistics.P_Chart is
    use Ada.Numerics.Long_Elementary_Functions;
 
    function Compute_Limits
-     (Grand_P : Long_Float;
-      N       : Natural) return Limits_Record
+     (Grand_P : Long_Float; N : Natural) return Limits_Record
    is
    begin
       if N = 0 then

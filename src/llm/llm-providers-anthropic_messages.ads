@@ -20,30 +20,24 @@ package LLM.Providers.Anthropic_Messages is
    --  Requests are sent to Base_Url & "/v1/messages". For GitHub Copilot
    --  this uses bearer authentication; direct Anthropic endpoints may use
    --  x-api-key based on the configured base URL.
-   function Create
-      (Base_Url : String;
-     Api_Key  : String) return Provider;
+   function Create (Base_Url : String; Api_Key : String) return Provider;
 
    --  Add one extra HTTP request header.
    --
    --  This is used for provider-specific extensions such as GitHub Copilot's
    --  editor headers and X-Initiator routing hint.
-   procedure Add_Header
-      (P     : in out Provider;
-     Name  :        String;
-     Value :        String);
+   procedure Add_Header (P : in out Provider; Name : String; Value : String);
 
-   overriding
-   procedure Send
-      (P             : in out Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null);
+   overriding procedure Send
+     (P             : in out Provider;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null);
 
 private
 
@@ -53,8 +47,7 @@ private
    end record;
 
    package Header_Entry_Vectors is new Ada.Containers.Vectors
-      (Index_Type   => Positive,
-     Element_Type => Header_Entry);
+     (Index_Type => Positive, Element_Type => Header_Entry);
 
    type Provider is new LLM.Providers.Provider with record
       Base_Url      : Ada.Strings.Unbounded.Unbounded_String;

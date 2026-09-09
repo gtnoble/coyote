@@ -19,25 +19,21 @@ package body Coyote_SQC.Statistics is
 
    --  Internal Long_Float vector used for robust estimation accumulation.
    package LF_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Long_Float);
-
+     (Index_Type => Positive, Element_Type => Long_Float);
 
    --  Sort a slice of a LF_Value_Array in-place (insertion sort).
    procedure Sort_Slice
-     (A : in out LF_Value_Array;
-      Lo : Positive;
-      Hi : Natural)
+     (A : in out LF_Value_Array; Lo : Positive; Hi : Natural)
    is
    begin
       for I in Lo + 1 .. Hi loop
          declare
             Key : constant Long_Float := A (I);
-            J   : Integer := I - 1;
+            J   : Integer             := I - 1;
          begin
             while J >= Lo and then A (J) > Key loop
                A (J + 1) := A (J);
-               J := J - 1;
+               J         := J - 1;
             end loop;
             A (J + 1) := Key;
          end;
@@ -55,7 +51,7 @@ package body Coyote_SQC.Statistics is
       end if;
       declare
          --  Work on a copy so we do not modify the caller's array.
-         Copy : LF_Value_Array := Values;
+         Copy : LF_Value_Array    := Values;
          Mid  : constant Positive := Copy'First + (N - 1) / 2;
       begin
          Sort_Slice (Copy, Copy'First, Copy'Last);
@@ -71,8 +67,8 @@ package body Coyote_SQC.Statistics is
      (Metrics    :     Metrics_Vectors.Vector;
       Setup_Ids  :     UUID_Set;
       Kind       :     Coyote_SQC.Charts.Chart_Kind;
-      Method     :     Coyote_SQC.Data_Model.Estimation_Method_Kind
-      := Coyote_SQC.Data_Model.Classical;
+      Method     :     Coyote_SQC.Data_Model.Estimation_Method_Kind :=
+        Coyote_SQC.Data_Model.Classical;
       Parameters : out Setup_Parameters)
    is
       use Coyote_SQC.Charts;
@@ -122,9 +118,7 @@ package body Coyote_SQC.Statistics is
       --  Canonical accumulate for Xbar/s charts.  Operates on Long_Float
       --  values (per-pair JSD similarity, per-pair MI, or converted
       --  per-turn token counts).
-      procedure Accumulate_Xbar_S_LF
-        (Values : Long_Float_Vectors.Vector)
-      is
+      procedure Accumulate_Xbar_S_LF (Values : Long_Float_Vectors.Vector) is
          N : constant Natural := Natural (Values.Length);
       begin
          if N = 0 then
@@ -138,20 +132,20 @@ package body Coyote_SQC.Statistics is
             for V of Values loop
                Sum := Sum + V;
             end loop;
-            Mean := Sum / Long_Float (N);
+            Mean                := Sum / Long_Float (N);
             --  Classical accumulators.
             Total_N             := Total_N + Long_Float (N);
-            Total_Weighted_Mean :=
-              Total_Weighted_Mean + Long_Float (N) * Mean;
+            Total_Weighted_Mean := Total_Weighted_Mean + Long_Float (N) * Mean;
             if N >= 2 then
                for V of Values loop
-                  declare D : constant Long_Float := V - Mean;
-                  begin Sq := Sq + D * D; end;
+                  declare
+                     D : constant Long_Float := V - Mean;
+                  begin
+                     Sq := Sq + D * D;
+                  end;
                end loop;
-               Sum_Numerator   :=
-                 Sum_Numerator + Sq;
-               Sum_Denominator :=
-                 Sum_Denominator + Long_Float (N - 1);
+               Sum_Numerator   := Sum_Numerator + Sq;
+               Sum_Denominator := Sum_Denominator + Long_Float (N - 1);
             end if;
             --  Robust accumulators.
             Robust_XS_Means.Append (Mean);
@@ -163,9 +157,7 @@ package body Coyote_SQC.Statistics is
 
       --  Accumulate per-turn Natural values for Xbar/s charts.
       --  Converts to Long_Float and delegates to Accumulate_Xbar_S_LF.
-      procedure Accumulate_Xbar_S
-        (Values : Natural_Vectors.Vector)
-      is
+      procedure Accumulate_Xbar_S (Values : Natural_Vectors.Vector) is
          LF_Vals : Long_Float_Vectors.Vector;
       begin
          if Values.Is_Empty then
@@ -176,7 +168,6 @@ package body Coyote_SQC.Statistics is
          end loop;
          Accumulate_Xbar_S_LF (LF_Vals);
       end Accumulate_Xbar_S;
-
 
       --  Accumulate a single I-chart observation (session total or turn count).
       procedure Accumulate_I (Val : Long_Float) is
@@ -210,25 +201,30 @@ package body Coyote_SQC.Statistics is
 
          case Kind is
 
-            when Turn_Tokens_Xbar | Turn_Tokens_S =>
+            when Turn_Tokens_Xbar
+               | Turn_Tokens_S =>
                Accumulate_Xbar_S (M.Per_Turn_Output_Tokens);
 
-            when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
+            when Tool_Call_Tokens_Xbar
+               | Tool_Call_Tokens_S =>
                if M.N_Tool_Call_Turns_For_Chart > 0 then
                   Accumulate_Xbar_S (M.Per_Turn_Tool_Tokens);
                end if;
 
-            when Thinking_Tokens_Xbar | Thinking_Tokens_S =>
+            when Thinking_Tokens_Xbar
+               | Thinking_Tokens_S =>
                if M.Any_Thinking then
                   Accumulate_Xbar_S (M.Per_Turn_Thinking_Tokens);
                end if;
 
-            when Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
+            when Tool_Call_JSD_Xbar
+               | Tool_Call_JSD_S =>
                if M.N_Consecutive_Tool_Pairs >= 1 then
                   Accumulate_Xbar_S_LF (M.Per_Consecutive_Tool_S);
                end if;
 
-            when Tool_Call_MI_Xbar | Tool_Call_MI_S =>
+            when Tool_Call_MI_Xbar
+               | Tool_Call_MI_S =>
                if M.N_Consecutive_Tool_MI_Pairs >= 1 then
                   Accumulate_Xbar_S_LF (M.Per_Consecutive_Tool_MI);
                end if;
@@ -237,21 +233,16 @@ package body Coyote_SQC.Statistics is
                if M.N_Tool_Calls > 0 then
                   Total_Events :=
                     Total_Events + Long_Float (M.N_Failed_Tool_Calls);
-                  Total_Trials :=
-                    Total_Trials + Long_Float (M.N_Tool_Calls);
+                  Total_Trials := Total_Trials + Long_Float (M.N_Tool_Calls);
                end if;
 
             when Fraction_Tool_Call_Turns =>
-               Total_Events :=
-                 Total_Events + Long_Float (M.N_Tool_Call_Turns);
-               Total_Trials :=
-                 Total_Trials + Long_Float (M.N_Turns);
+               Total_Events := Total_Events + Long_Float (M.N_Tool_Call_Turns);
+               Total_Trials := Total_Trials + Long_Float (M.N_Turns);
 
             when Fraction_Thinking_Turns =>
-               Total_Events :=
-                 Total_Events + Long_Float (M.N_Thinking_Turns);
-               Total_Trials :=
-                 Total_Trials + Long_Float (M.N_Turns);
+               Total_Events := Total_Events + Long_Float (M.N_Thinking_Turns);
+               Total_Trials := Total_Trials + Long_Float (M.N_Turns);
 
             when Fraction_Thinking_Tokens_I
                | Fraction_Thinking_Tokens_MR
@@ -289,18 +280,21 @@ package body Coyote_SQC.Statistics is
                      / Long_Float (M.Total_Input_Tokens));
                end if;
 
-
-            when Session_Input_Tokens_I | Session_Input_Tokens_MR
+            when Session_Input_Tokens_I
+               | Session_Input_Tokens_MR
                | Session_Input_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Input_Tokens));
 
-            when Session_Output_Tokens_I | Session_Output_Tokens_MR
+            when Session_Output_Tokens_I
+               | Session_Output_Tokens_MR
                | Session_Output_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Output_Tokens));
-            when Session_Cache_Read_Tokens_I | Session_Cache_Read_Tokens_MR
+            when Session_Cache_Read_Tokens_I
+               | Session_Cache_Read_Tokens_MR
                | Session_Cache_Read_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Cache_Read_Tokens));
-            when Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR
+            when Session_Cache_Write_Tokens_I
+               | Session_Cache_Write_Tokens_MR
                | Session_Cache_Write_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Cache_Write_Tokens));
             when Session_Thinking_Tokens_I
@@ -333,58 +327,72 @@ package body Coyote_SQC.Statistics is
 
             when Session_Tool_Call_MI_Sum_I
                | Session_Tool_Call_MI_Sum_MR
-               | Session_Tool_Call_MI_Sum_EWMA=>
+               | Session_Tool_Call_MI_Sum_EWMA =>
                if M.N_Consecutive_Tool_MI_Pairs > 0 then
                   Accumulate_I (M.Total_Tool_Call_MI);
                end if;
 
-
-            --  Token cost Xbar/S charts.
-            when Turn_Total_Cost_Xbar | Turn_Total_Cost_S =>
+               --  Token cost Xbar/S charts.
+            when Turn_Total_Cost_Xbar
+               | Turn_Total_Cost_S =>
                Accumulate_Xbar_S_LF (M.Per_Turn_Cost);
 
-            when Turn_Input_Cost_Xbar | Turn_Input_Cost_S =>
+            when Turn_Input_Cost_Xbar
+               | Turn_Input_Cost_S =>
                Accumulate_Xbar_S_LF (M.Per_Turn_Input_Cost);
 
-            when Turn_Output_Cost_Xbar | Turn_Output_Cost_S =>
+            when Turn_Output_Cost_Xbar
+               | Turn_Output_Cost_S =>
                Accumulate_Xbar_S_LF (M.Per_Turn_Output_Cost);
 
-            when Turn_Cache_Read_Cost_Xbar | Turn_Cache_Read_Cost_S =>
+            when Turn_Cache_Read_Cost_Xbar
+               | Turn_Cache_Read_Cost_S =>
                Accumulate_Xbar_S_LF (M.Per_Turn_Cache_Read_Cost);
 
-            when Turn_Cache_Write_Cost_Xbar | Turn_Cache_Write_Cost_S =>
+            when Turn_Cache_Write_Cost_Xbar
+               | Turn_Cache_Write_Cost_S =>
                Accumulate_Xbar_S_LF (M.Per_Turn_Cache_Write_Cost);
 
-            when Turn_Uncached_Input_Cost_Xbar | Turn_Uncached_Input_Cost_S =>
+            when Turn_Uncached_Input_Cost_Xbar
+               | Turn_Uncached_Input_Cost_S =>
                Accumulate_Xbar_S_LF (M.Per_Turn_Uncached_Input_Cost);
 
-            --  Token cost I/MR/EWMA charts (session-level scalars).
-            when Session_Total_Cost_I | Session_Total_Cost_MR
+               --  Token cost I/MR/EWMA charts (session-level scalars).
+            when Session_Total_Cost_I
+               | Session_Total_Cost_MR
                | Session_Total_Cost_EWMA =>
                Accumulate_I (M.Total_Cost);
 
-            when Session_Input_Cost_I | Session_Input_Cost_MR
+            when Session_Input_Cost_I
+               | Session_Input_Cost_MR
                | Session_Input_Cost_EWMA =>
                Accumulate_I (M.Total_Input_Cost);
 
-            when Session_Output_Cost_I | Session_Output_Cost_MR
+            when Session_Output_Cost_I
+               | Session_Output_Cost_MR
                | Session_Output_Cost_EWMA =>
                Accumulate_I (M.Total_Output_Cost);
 
-            when Session_Cache_Read_Cost_I | Session_Cache_Read_Cost_MR
+            when Session_Cache_Read_Cost_I
+               | Session_Cache_Read_Cost_MR
                | Session_Cache_Read_Cost_EWMA =>
                Accumulate_I (M.Total_Cache_Read_Cost);
 
-            when Session_Cache_Write_Cost_I | Session_Cache_Write_Cost_MR
+            when Session_Cache_Write_Cost_I
+               | Session_Cache_Write_Cost_MR
                | Session_Cache_Write_Cost_EWMA =>
                Accumulate_I (M.Total_Cache_Write_Cost);
 
-            when Session_Uncached_Input_Cost_I | Session_Uncached_Input_Cost_MR
+            when Session_Uncached_Input_Cost_I
+               | Session_Uncached_Input_Cost_MR
                | Session_Uncached_Input_Cost_EWMA =>
                Accumulate_I (M.Total_Uncached_Input_Cost);
 
-            when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
-               | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile | Tool_Call_MI_Quantile =>
+            when Turn_Tokens_Quantile
+               | Tool_Call_Tokens_Quantile
+               | Thinking_Tokens_Quantile
+               | Tool_Call_JSD_Quantile
+               | Tool_Call_MI_Quantile =>
                null;  --  Quantile CC uses bootstrap; no parameters to accumulate.
 
          end case;
@@ -396,10 +404,28 @@ package body Coyote_SQC.Statistics is
 
       case Kind is
 
-         when Turn_Tokens_Xbar | Turn_Tokens_S
-            | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
-            | Thinking_Tokens_Xbar | Thinking_Tokens_S
-            | Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S | Turn_Total_Cost_Xbar | Turn_Total_Cost_S | Turn_Input_Cost_Xbar | Turn_Input_Cost_S | Turn_Output_Cost_Xbar | Turn_Output_Cost_S | Turn_Cache_Read_Cost_Xbar | Turn_Cache_Read_Cost_S | Turn_Cache_Write_Cost_Xbar | Turn_Cache_Write_Cost_S | Turn_Uncached_Input_Cost_Xbar | Turn_Uncached_Input_Cost_S =>
+         when Turn_Tokens_Xbar
+            | Turn_Tokens_S
+            | Tool_Call_Tokens_Xbar
+            | Tool_Call_Tokens_S
+            | Thinking_Tokens_Xbar
+            | Thinking_Tokens_S
+            | Tool_Call_JSD_Xbar
+            | Tool_Call_JSD_S
+            | Tool_Call_MI_Xbar
+            | Tool_Call_MI_S
+            | Turn_Total_Cost_Xbar
+            | Turn_Total_Cost_S
+            | Turn_Input_Cost_Xbar
+            | Turn_Input_Cost_S
+            | Turn_Output_Cost_Xbar
+            | Turn_Output_Cost_S
+            | Turn_Cache_Read_Cost_Xbar
+            | Turn_Cache_Read_Cost_S
+            | Turn_Cache_Write_Cost_Xbar
+            | Turn_Cache_Write_Cost_S
+            | Turn_Uncached_Input_Cost_Xbar
+            | Turn_Uncached_Input_Cost_S =>
 
             if Method = Robust_Median then
                --  Grand_Mean: unweighted median of session arithmetic means.
@@ -414,9 +440,9 @@ package body Coyote_SQC.Statistics is
                      begin
                         for V of Robust_XS_Means loop
                            Means_Arr (I) := V;
-                           I := I + 1;
+                           I             := I + 1;
                         end loop;
-                        Parameters.Grand_Mean := Median_Of (Means_Arr);
+                        Parameters.Grand_Mean       := Median_Of (Means_Arr);
                         Parameters.Parameters_Valid := True;
                      end;
                   end if;
@@ -434,7 +460,7 @@ package body Coyote_SQC.Statistics is
                      begin
                         for V of Robust_XS_Residuals loop
                            Res_Arr (I) := V;
-                           I := I + 1;
+                           I           := I + 1;
                         end loop;
                         --  Qn_Scale requires strictly positive values;
                         --  residuals can be negative.  We shift all values
@@ -449,8 +475,7 @@ package body Coyote_SQC.Statistics is
                            end loop;
                            if Min_Val <= 0.0 then
                               declare
-                                 Shift : constant Long_Float :=
-                                   -Min_Val + 1.0;
+                                 Shift : constant Long_Float := -Min_Val + 1.0;
                               begin
                                  for K in Res_Arr'Range loop
                                     Res_Arr (K) := Res_Arr (K) + Shift;
@@ -458,8 +483,7 @@ package body Coyote_SQC.Statistics is
                               end;
                            end if;
                            --  Qn_Scale is shift-equivariant: Qn(x + c) = Qn(x).
-                           Parameters.Pooled_S :=
-                             I_Chart.Qn_Scale (Res_Arr);
+                           Parameters.Pooled_S := I_Chart.Qn_Scale (Res_Arr);
                         end;
                      end;
                   end if;
@@ -468,7 +492,7 @@ package body Coyote_SQC.Statistics is
             else
                --  Classical path.
                if Total_N > 0.0 then
-                  Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+                  Parameters.Grand_Mean       := Total_Weighted_Mean / Total_N;
                   Parameters.Parameters_Valid := True;
                end if;
                if Sum_Denominator > 0.0 then
@@ -482,48 +506,78 @@ package body Coyote_SQC.Statistics is
             | Fraction_Thinking_Turns =>
             --  p-charts always use classical grand proportion.
             if Total_Trials > 0.0 then
-               Parameters.Grand_P := Total_Events / Total_Trials;
+               Parameters.Grand_P          := Total_Events / Total_Trials;
                Parameters.Parameters_Valid := True;
             end if;
 
-         when Session_Input_Tokens_I  | Session_Input_Tokens_MR
+         when Session_Input_Tokens_I
+            | Session_Input_Tokens_MR
             | Session_Input_Tokens_EWMA
-            | Session_Output_Tokens_I | Session_Output_Tokens_MR
+            | Session_Output_Tokens_I
+            | Session_Output_Tokens_MR
             | Session_Output_Tokens_EWMA
-            | Session_Cache_Read_Tokens_I  | Session_Cache_Read_Tokens_MR
+            | Session_Cache_Read_Tokens_I
+            | Session_Cache_Read_Tokens_MR
             | Session_Cache_Read_Tokens_EWMA
-            | Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR
+            | Session_Cache_Write_Tokens_I
+            | Session_Cache_Write_Tokens_MR
             | Session_Cache_Write_Tokens_EWMA
-            | Session_Thinking_Tokens_I  | Session_Thinking_Tokens_MR
+            | Session_Thinking_Tokens_I
+            | Session_Thinking_Tokens_MR
             | Session_Thinking_Tokens_EWMA
-            | Session_Tool_Call_Tokens_I | Session_Tool_Call_Tokens_MR
+            | Session_Tool_Call_Tokens_I
+            | Session_Tool_Call_Tokens_MR
             | Session_Tool_Call_Tokens_EWMA
             | Session_Tool_Call_Result_Tokens_I
             | Session_Tool_Call_Result_Tokens_MR
             | Session_Tool_Call_Result_Tokens_EWMA
             | Session_Turn_Count_I
             | Session_Turn_Count_MR
-            | Session_Turn_Count_EWMA | Session_Uncached_Input_Tokens_I | Session_Uncached_Input_Tokens_MR | Session_Uncached_Input_Tokens_EWMA
-            | Fraction_Thinking_Tokens_I  | Fraction_Thinking_Tokens_MR
+            | Session_Turn_Count_EWMA
+            | Session_Uncached_Input_Tokens_I
+            | Session_Uncached_Input_Tokens_MR
+            | Session_Uncached_Input_Tokens_EWMA
+            | Fraction_Thinking_Tokens_I
+            | Fraction_Thinking_Tokens_MR
             | Fraction_Thinking_Tokens_EWMA
-            | Fraction_Tool_Call_Tokens_I | Fraction_Tool_Call_Tokens_MR
+            | Fraction_Tool_Call_Tokens_I
+            | Fraction_Tool_Call_Tokens_MR
             | Fraction_Tool_Call_Tokens_EWMA
-            | Fraction_Thinking_Per_Tool_Call_I  | Fraction_Thinking_Per_Tool_Call_MR
+            | Fraction_Thinking_Per_Tool_Call_I
+            | Fraction_Thinking_Per_Tool_Call_MR
             | Fraction_Thinking_Per_Tool_Call_EWMA
-            | Fraction_Uncached_Input_I | Fraction_Uncached_Input_MR
+            | Fraction_Uncached_Input_I
+            | Fraction_Uncached_Input_MR
             | Fraction_Uncached_Input_EWMA
             | Session_Tool_Call_JSD_Sum_I
             | Session_Tool_Call_JSD_Sum_MR
             | Session_Tool_Call_JSD_Sum_EWMA
             | Session_Tool_Call_MI_Sum_I
             | Session_Tool_Call_MI_Sum_MR
-            | Session_Tool_Call_MI_Sum_EWMA | Session_Total_Cost_I | Session_Total_Cost_MR | Session_Total_Cost_EWMA | Session_Input_Cost_I | Session_Input_Cost_MR | Session_Input_Cost_EWMA | Session_Output_Cost_I | Session_Output_Cost_MR | Session_Output_Cost_EWMA | Session_Cache_Read_Cost_I | Session_Cache_Read_Cost_MR | Session_Cache_Read_Cost_EWMA | Session_Cache_Write_Cost_I | Session_Cache_Write_Cost_MR | Session_Cache_Write_Cost_EWMA | Session_Uncached_Input_Cost_I | Session_Uncached_Input_Cost_MR | Session_Uncached_Input_Cost_EWMA =>
+            | Session_Tool_Call_MI_Sum_EWMA
+            | Session_Total_Cost_I
+            | Session_Total_Cost_MR
+            | Session_Total_Cost_EWMA
+            | Session_Input_Cost_I
+            | Session_Input_Cost_MR
+            | Session_Input_Cost_EWMA
+            | Session_Output_Cost_I
+            | Session_Output_Cost_MR
+            | Session_Output_Cost_EWMA
+            | Session_Cache_Read_Cost_I
+            | Session_Cache_Read_Cost_MR
+            | Session_Cache_Read_Cost_EWMA
+            | Session_Cache_Write_Cost_I
+            | Session_Cache_Write_Cost_MR
+            | Session_Cache_Write_Cost_EWMA
+            | Session_Uncached_Input_Cost_I
+            | Session_Uncached_Input_Cost_MR
+            | Session_Uncached_Input_Cost_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.
                declare
-                  N_Obs : constant Natural :=
-                    Natural (Robust_I_Obs.Length);
+                  N_Obs : constant Natural := Natural (Robust_I_Obs.Length);
                begin
                   if N_Obs > 0 then
                      declare
@@ -532,23 +586,24 @@ package body Coyote_SQC.Statistics is
                      begin
                         for V of Robust_I_Obs loop
                            Obs_Arr (I) := V;
-                           I := I + 1;
+                           I           := I + 1;
                         end loop;
-                        Parameters.Grand_Mean := Median_Of (Obs_Arr);
+                        Parameters.Grand_Mean       := Median_Of (Obs_Arr);
                         Parameters.Parameters_Valid := True;
                         --  I_Sigma: Qn of observations / 2.2219
                         --  (replaces median(MR) / d₄ per spec §7.13).
                         if Obs_Arr'Length >= 2 then
                            declare
-                              IC_Arr : I_Chart.Long_Float_Array
-                                (1 .. Obs_Arr'Length);
-                              J : Positive := 1;
+                              IC_Arr :
+                                I_Chart.Long_Float_Array (1 .. Obs_Arr'Length);
+                              J      : Positive := 1;
                            begin
                               for K in Obs_Arr'Range loop
-                                 IC_Arr (J) := Obs_Arr (K); J := J + 1;
+                                 IC_Arr (J) := Obs_Arr (K);
+                                 J          := J + 1;
                               end loop;
                               Parameters.I_Sigma :=
-                                I_Chart.Qn_Scale_Any (IC_Arr) / 2.2219;
+                                I_Chart.Qn_Scale_Any (IC_Arr) / 2.221_9;
                            end;
                         end if;
                      end;
@@ -558,8 +613,7 @@ package body Coyote_SQC.Statistics is
                --  Mean_MR: median of consecutive moving ranges.
                --  Used for MR chart UCL (D4 × median in robust mode).
                declare
-                  N_MR : constant Natural :=
-                    Natural (Robust_I_MR.Length);
+                  N_MR : constant Natural := Natural (Robust_I_MR.Length);
                begin
                   if N_MR > 0 then
                      declare
@@ -568,7 +622,7 @@ package body Coyote_SQC.Statistics is
                      begin
                         for V of Robust_I_MR loop
                            MR_Arr (I) := V;
-                           I := I + 1;
+                           I          := I + 1;
                         end loop;
                         Parameters.Mean_MR := Median_Of (MR_Arr);
                      end;
@@ -578,19 +632,21 @@ package body Coyote_SQC.Statistics is
             else
                --  Classical path.
                if Total_N > 0.0 then
-                  Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+                  Parameters.Grand_Mean       := Total_Weighted_Mean / Total_N;
                   Parameters.Parameters_Valid := True;
                end if;
                if MR_Count > 0 then
                   Parameters.Mean_MR := MR_Sum / Long_Float (MR_Count);
-               if Total_N > 0.0 and then MR_Count > 0 then
-                  Parameters.I_Sigma :=
-                    Parameters.Mean_MR / 1.128;
-               end if;
+                  if Total_N > 0.0 and then MR_Count > 0 then
+                     Parameters.I_Sigma := Parameters.Mean_MR / 1.128;
+                  end if;
                end if;
             end if;
-         when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
-            | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile | Tool_Call_MI_Quantile =>
+         when Turn_Tokens_Quantile
+            | Tool_Call_Tokens_Quantile
+            | Thinking_Tokens_Quantile
+            | Tool_Call_JSD_Quantile
+            | Tool_Call_MI_Quantile =>
             Parameters.Parameters_Valid := False;
             --  Quantile CC uses bootstrap; no classical parameters to finalize.
 

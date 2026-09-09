@@ -7,23 +7,23 @@ with Coyote_SQC.Zlib;
 
 package body Coyote_SQC.Statistics.MI is
 
---  Coyote_SQC.Statistics.MI body.
---
---  Implements per-argument compression-based mutual information MI_k
---  using zlib deflate streaming dictionary-preloaded compression at
---  level 9.
---
---    MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
---            + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
---
---  where C and Q are the argument strings from each call, and
---  |compress(X, dict=D)| is the compressed size of X in bytes when
---  compressed with dictionary D pre-loaded into the compressor.
---
---  Negative MI_k values (when the dictionary misleads the compressor)
---  are retained.  Both-side-empty keys are skipped.
---
---  Project: coyote
+   --  Coyote_SQC.Statistics.MI body.
+   --
+   --  Implements per-argument compression-based mutual information MI_k
+   --  using zlib deflate streaming dictionary-preloaded compression at
+   --  level 9.
+   --
+   --    MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
+   --            + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
+   --
+   --  where C and Q are the argument strings from each call, and
+   --  |compress(X, dict=D)| is the compressed size of X in bytes when
+   --  compressed with dictionary D pre-loaded into the compressor.
+   --
+   --  Negative MI_k values (when the dictionary misleads the compressor)
+   --  are retained.  Both-side-empty keys are skipped.
+   --
+   --  Project: coyote
 
    use Ada.Characters.Handling;
    use Ada.Strings.Unbounded;
@@ -40,19 +40,17 @@ package body Coyote_SQC.Statistics.MI is
    --  Returns 0 on compression error.
    function Compressed_Size_Bare (Source : String) return Natural is
    begin
-      return Coyote_SQC.Zlib.Compress_With_Dict
-        (Source, 9, "");
+      return Coyote_SQC.Zlib.Compress_With_Dict (Source, 9, "");
    end Compressed_Size_Bare;
 
    --  Compress Source with Dict pre-loaded into the compressor and return
    --  the compressed size in bytes.  Uses zlib streaming deflate at level 9.
    --  Returns 0 on compression error.
    function Compressed_Size_With_Dict
-     (Source : String;
-      Dict   : String) return Natural is
+     (Source : String; Dict : String) return Natural
+   is
    begin
-      return Coyote_SQC.Zlib.Compress_With_Dict
-        (Source, 9, Dict);
+      return Coyote_SQC.Zlib.Compress_With_Dict (Source, 9, Dict);
    end Compressed_Size_With_Dict;
 
    --  Extract all string-valued leaf content from a JSON value, returning a
@@ -66,8 +64,7 @@ package body Coyote_SQC.Statistics.MI is
       procedure Append_Value (V2 : GNATCOLL.JSON.JSON_Value);
 
       procedure Visit_Field
-        (Name  : GNATCOLL.JSON.UTF8_String;
-         Value : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Value : GNATCOLL.JSON.JSON_Value)
       is
          pragma Unreferenced (Name);
       begin
@@ -146,10 +143,10 @@ package body Coyote_SQC.Statistics.MI is
    --  ── Public operations ─────────────────────────────────────────────────
 
    procedure Compute_MI_Values
-     (Tool_Name_1 : String;
-      Arguments_1 : String;
-      Tool_Name_2 : String;
-      Arguments_2 : String;
+     (Tool_Name_1 :        String;
+      Arguments_1 :        String;
+      Tool_Name_2 :        String;
+      Arguments_2 :        String;
       Result      : in out Coyote_SQC.Data_Model.Long_Float_Vectors.Vector)
    is
       Parse_1 : constant GNATCOLL.JSON.Read_Result :=
@@ -158,15 +155,21 @@ package body Coyote_SQC.Statistics.MI is
         GNATCOLL.JSON.Read (Arguments_2);
 
       JSON_1 : constant GNATCOLL.JSON.JSON_Value :=
-        (if Parse_1.Success and then
-            GNATCOLL.JSON.Kind (Parse_1.Value) = GNATCOLL.JSON.JSON_Object_Type
-         then Parse_1.Value
+        (if
+           Parse_1.Success
+           and then GNATCOLL.JSON.Kind (Parse_1.Value)
+             = GNATCOLL.JSON.JSON_Object_Type
+         then
+           Parse_1.Value
          else GNATCOLL.JSON.JSON_Null);
 
       JSON_2 : constant GNATCOLL.JSON.JSON_Value :=
-        (if Parse_2.Success and then
-            GNATCOLL.JSON.Kind (Parse_2.Value) = GNATCOLL.JSON.JSON_Object_Type
-         then Parse_2.Value
+        (if
+           Parse_2.Success
+           and then GNATCOLL.JSON.Kind (Parse_2.Value)
+             = GNATCOLL.JSON.JSON_Object_Type
+         then
+           Parse_2.Value
          else GNATCOLL.JSON.JSON_Null);
 
       Is_Obj_1 : constant Boolean :=
@@ -186,10 +189,8 @@ package body Coyote_SQC.Statistics.MI is
             return;  --  both empty: skip
          end if;
          declare
-            C1_Dict : constant Natural :=
-              Compressed_Size_With_Dict (S1, S2);
-            C2_Dict : constant Natural :=
-              Compressed_Size_With_Dict (S2, S1);
+            C1_Dict : constant Natural := Compressed_Size_With_Dict (S1, S2);
+            C2_Dict : constant Natural := Compressed_Size_With_Dict (S2, S1);
             Raw     : constant Long_Float :=
               Long_Float (C1_Bare - C1_Dict + C2_Bare - C2_Dict) / 2.0;
          begin
@@ -199,14 +200,14 @@ package body Coyote_SQC.Statistics.MI is
 
       --  Process one key from JSON_1 and its counterpart from JSON_2.
       procedure Process_Key_1
-        (Name : GNATCOLL.JSON.UTF8_String;
-         Val1 : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Val1 : GNATCOLL.JSON.JSON_Value)
       is
-         Text1 : constant String :=
-           To_String (Extract_From_Value (Val1));
+         Text1 : constant String := To_String (Extract_From_Value (Val1));
          Text2 : constant String :=
-           (if Is_Obj_2 and then JSON_2.Has_Field (Name)
-            then To_String (Extract_From_Value (JSON_2.Get (Name)))
+           (if
+              Is_Obj_2 and then JSON_2.Has_Field (Name)
+            then
+              To_String (Extract_From_Value (JSON_2.Get (Name)))
             else "");
       begin
          Append_MI_For_Strings (Text1, Text2);
@@ -215,20 +216,17 @@ package body Coyote_SQC.Statistics.MI is
 
       --  Process a key only present in JSON_2.
       procedure Process_Key_2
-        (Name : GNATCOLL.JSON.UTF8_String;
-         Val2 : GNATCOLL.JSON.JSON_Value)
+        (Name : GNATCOLL.JSON.UTF8_String; Val2 : GNATCOLL.JSON.JSON_Value)
       is
       begin
          if not Seen_Keys.Contains (To_Unbounded_String (Name)) then
-            Append_MI_For_Strings
-              ("", To_String (Extract_From_Value (Val2)));
+            Append_MI_For_Strings ("", To_String (Extract_From_Value (Val2)));
          end if;
       end Process_Key_2;
 
    begin
       --  Step 1: tool-name comparison (always first).
-      Append_MI_For_Strings
-        (To_Lower (Tool_Name_1), To_Lower (Tool_Name_2));
+      Append_MI_For_Strings (To_Lower (Tool_Name_1), To_Lower (Tool_Name_2));
 
       --  Step 2: per-argument comparisons.
       if Is_Obj_1 then

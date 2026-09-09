@@ -39,7 +39,8 @@ package body Collapse_Utils_Tests is
          "Empty input should return empty");
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Collapse_Thinking_Delta
-           (ASCII.LF & ASCII.HT & ASCII.LF) = "",
+           (ASCII.LF & ASCII.HT & ASCII.LF)
+         = "",
          "LF/HT-only should return empty");
    end Test_Collapse_Empty;
 
@@ -50,16 +51,14 @@ package body Collapse_Utils_Tests is
         Coyote_App.Utils.Collapse_Thinking_Delta (Input);
    begin
       AUnit.Assertions.Assert
-        (Result = "Hello world",
-         "Input with no newlines should be unchanged");
+        (Result = "Hello world", "Input with no newlines should be unchanged");
    end Test_Collapse_NoLF;
 
    procedure Test_Collapse_Leading_Trailing_WS (T : in out Test) is
       pragma Unreferenced (T);
       --  Spaces are content (word boundaries from Anthropic).
       --  Only LF/CR/HT are trimmed; spaces are preserved.
-      Input  : constant String :=
-        ASCII.LF & "  Hello  " & ASCII.LF & ASCII.LF;
+      Input  : constant String := ASCII.LF & "  Hello  " & ASCII.LF & ASCII.LF;
       Result : constant String :=
         Coyote_App.Utils.Collapse_Thinking_Delta (Input);
    begin
@@ -105,37 +104,45 @@ package body Collapse_Utils_Tests is
          "Expected single LFs collapsed to spaces, got '" & Result & "'");
    end Test_Collapse_OpenAI_Mid_Stream;
 
-   package Collapse_Utils_Caller is
-     new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
+   package Collapse_Utils_Caller is new AUnit.Test_Caller
+     (Collapse_Utils_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: single-LF collapse to spaces",
-         Collapse_Utils_Tests.Test_Collapse_Basic'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved",
-         Collapse_Utils_Tests.Test_Collapse_Paragraph'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: empty input returns empty string",
-         Collapse_Utils_Tests.Test_Collapse_Empty'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: no-LF input returned verbatim",
-         Collapse_Utils_Tests.Test_Collapse_NoLF'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: leading/trailing whitespace stripped",
-         Collapse_Utils_Tests.Test_Collapse_Leading_Trailing_WS'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: spaces preserved as word boundaries",
-         Collapse_Utils_Tests.Test_Collapse_Preserves_Spaces'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: OpenAI-style trailing LF stripped",
-         Collapse_Utils_Tests.Test_Collapse_OpenAI_Style'Access));
-      Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: OpenAI mid-stream LFs become spaces",
-         Collapse_Utils_Tests.Test_Collapse_OpenAI_Mid_Stream'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: single-LF collapse to spaces",
+            Collapse_Utils_Tests.Test_Collapse_Basic'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved",
+            Collapse_Utils_Tests.Test_Collapse_Paragraph'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: empty input returns empty string",
+            Collapse_Utils_Tests.Test_Collapse_Empty'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: no-LF input returned verbatim",
+            Collapse_Utils_Tests.Test_Collapse_NoLF'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: leading/trailing whitespace stripped",
+            Collapse_Utils_Tests.Test_Collapse_Leading_Trailing_WS'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: spaces preserved as word boundaries",
+            Collapse_Utils_Tests.Test_Collapse_Preserves_Spaces'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: OpenAI-style trailing LF stripped",
+            Collapse_Utils_Tests.Test_Collapse_OpenAI_Style'Access));
+      Result.Add_Test
+        (Collapse_Utils_Caller.Create
+           ("Collapse_Thinking_Delta: OpenAI mid-stream LFs become spaces",
+            Collapse_Utils_Tests.Test_Collapse_OpenAI_Mid_Stream'Access));
 
       return Result;
    end Suite;

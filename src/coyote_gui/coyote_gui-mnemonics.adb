@@ -30,17 +30,14 @@ package body Coyote_GUI.Mnemonics is
       Context.Used := (others => False);
    end Clear;
 
-   procedure Reserve
-     (Context : in out Registry;
-      Label   : String;
-      Name    : String)
+   procedure Reserve (Context : in out Registry; Label : String; Name : String)
    is
       Mnemonic : constant Character := Key (Label);
    begin
       if Mnemonic /= Character'Val (0) then
          if Context.Used (Mnemonic) then
-            raise Program_Error with
-              "duplicate mnemonic '" & Mnemonic & "' in " & Name;
+            raise Program_Error
+              with "duplicate mnemonic '" & Mnemonic & "' in " & Name;
          end if;
          Context.Used (Mnemonic) := True;
       end if;

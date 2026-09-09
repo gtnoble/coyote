@@ -6,13 +6,13 @@
 with Ada.Containers.Vectors;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNATCOLL.JSON;          use GNATCOLL.JSON;
+with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with LLM.Session_Store;
 with LLM.Types;
-with Session_Lister;         use Session_Lister;
+with Session_Lister;        use Session_Lister;
 
 package body Coyote_App.History is
 
@@ -27,13 +27,11 @@ package body Coyote_App.History is
       Id         : Unbounded_String;
       Text       : Unbounded_String;
       Media_Type : Unbounded_String;
-      Is_Err     : Boolean := False;
-      Status     : LLM.Types.Tool_Result_Status :=
-        LLM.Types.Result_Success;
+      Is_Err     : Boolean                      := False;
+      Status     : LLM.Types.Tool_Result_Status := LLM.Types.Result_Success;
    end record;
    package TR_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Tool_Result_Entry);
+     (Index_Type => Natural, Element_Type => Tool_Result_Entry);
 
    --  ── Read_Line ─────────────────────────────────────────────────────────
    --
@@ -42,9 +40,7 @@ package body Coyote_App.History is
    --  the stack on very long lines: it uses the fixed-buffer procedure form
    --  in a loop and simply appends each chunk to the result.
 
-   function Read_Line
-     (File : Ada.Text_IO.File_Type) return Unbounded_String
-   is
+   function Read_Line (File : Ada.Text_IO.File_Type) return Unbounded_String is
       Chunk  : String (1 .. 65_536);   --  64 KiB per iteration
       Last   : Natural;
       Result : Unbounded_String;
@@ -72,26 +68,24 @@ package body Coyote_App.History is
    --  the replayed history so subsequent live turns are numbered correctly.
 
    procedure Render_Session_History
-     (UUID     : String;
+     (UUID     :        String;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State)
    is
-      Path         : constant String :=
-        Find_Session_File (UUID);
-      Tool_Results : TR_Vectors.Vector;
-      Last_Input   : Natural         := 0;
-      Last_Output  : Natural         := 0;
-      Turn_Input   : Natural         := 0;
-      Turn_Output  : Natural         := 0;
-      Call_In_Turn : Natural         := 0;
-      Turn_Step    : Natural         := 0;
-      Cur_Model    : Unbounded_String :=
+      Path           : constant String  := Find_Session_File (UUID);
+      Tool_Results   : TR_Vectors.Vector;
+      Last_Input     : Natural          := 0;
+      Last_Output    : Natural          := 0;
+      Turn_Input     : Natural          := 0;
+      Turn_Output    : Natural          := 0;
+      Call_In_Turn   : Natural          := 0;
+      Turn_Step      : Natural          := 0;
+      Cur_Model      : Unbounded_String :=
         To_Unbounded_String (State.Current_Model);
-      Turns_Rendered : Natural         := 0;
-      In_Turn        : Boolean         := False;
-      Saw_Asst_Text  : Boolean         := False;
-      Turn_Stop    : Unbounded_String := Null_Unbounded_String;
-
+      Turns_Rendered : Natural          := 0;
+      In_Turn        : Boolean          := False;
+      Saw_Asst_Text  : Boolean          := False;
+      Turn_Stop      : Unbounded_String := Null_Unbounded_String;
 
       --  Return the Tool_Result_Entry whose Id matches, or a blank entry.
       function Find_TR (Id : String) return Tool_Result_Entry is
@@ -101,11 +95,12 @@ package body Coyote_App.History is
                return TR;
             end if;
          end loop;
-         return (Id         => Null_Unbounded_String,
-                 Text       => Null_Unbounded_String,
-                 Media_Type => Null_Unbounded_String,
-                 Is_Err     => False,
-                 Status     => LLM.Types.Result_Success);
+         return
+           (Id         => Null_Unbounded_String,
+            Text       => Null_Unbounded_String,
+            Media_Type => Null_Unbounded_String,
+            Is_Err     => False,
+            Status     => LLM.Types.Result_Success);
       end Find_TR;
 
       --  Return the direct message object for either supported session
@@ -113,8 +108,7 @@ package body Coyote_App.History is
       function Message_Object (Value : JSON_Value) return JSON_Value is
          Role : constant String := Get_String (Value, "role");
       begin
-         if Role = "user"
-           or else Role = "assistant"
+         if Role = "user" or else Role = "assistant"
            or else Role = "toolResult"
          then
             return Value;
@@ -130,8 +124,7 @@ package body Coyote_App.History is
    begin
       if Path'Length = 0 then
          Frontend.Append_Notice
-           (Coyote_App.Frontend.Error,
-            "session file not found for " & UUID);
+           (Coyote_App.Frontend.Error, "session file not found for " & UUID);
          return;
       end if;
 
@@ -147,37 +140,45 @@ package body Coyote_App.History is
             begin
                if Parse.Success then
                   declare
-                     Ev  : constant JSON_Value := Parse.Value;
-                     Msg : constant JSON_Value := Message_Object (Ev);
-                     Role : constant String :=
-                       (if Msg.Kind = JSON_Object_Type
-                        then Get_String (Msg, "role")
+                     Ev   : constant JSON_Value := Parse.Value;
+                     Msg  : constant JSON_Value := Message_Object (Ev);
+                     Role : constant String     :=
+                       (if
+                          Msg.Kind = JSON_Object_Type
+                        then
+                          Get_String (Msg, "role")
                         else "");
                   begin
                      if Msg.Kind = JSON_Object_Type
                        and then Role = "toolResult"
                      then
                         declare
-                           Tid    : constant String  :=
+                           Tid         : constant String :=
                              Get_String (Msg, "toolCallId");
-                           Is_Err : constant Boolean :=
+                           Is_Err      : constant Boolean :=
                              Get_Boolean (Msg, "isError");
                            Status_Text : constant String :=
                              Get_String (Msg, "status");
                            Status : constant LLM.Types.Tool_Result_Status :=
-                             (if Status_Text = "timed_out"
-                              then LLM.Types.Result_Timed_Out
-                              elsif Status_Text = "cancelled"
-                              then LLM.Types.Result_Cancelled
-                              elsif Status_Text = "error" or else Is_Err
-                              then LLM.Types.Result_Error
+                             (if
+                                Status_Text = "timed_out"
+                              then
+                                LLM.Types.Result_Timed_Out
+                              elsif
+                                Status_Text = "cancelled"
+                              then
+                                LLM.Types.Result_Cancelled
+                              elsif
+                                Status_Text = "error" or else Is_Err
+                              then
+                                LLM.Types.Result_Error
                               else LLM.Types.Result_Success);
-                           Parts      : Unbounded_String;
-                           Media_Type : Unbounded_String;
+                           Parts       : Unbounded_String;
+                           Media_Type  : Unbounded_String;
                         begin
                            if Msg.Has_Field ("content")
-                             and then
-                               Msg.Get ("content").Kind = JSON_Array_Type
+                             and then Msg.Get ("content").Kind
+                               = JSON_Array_Type
                            then
                               declare
                                  Content : constant JSON_Array :=
@@ -189,8 +190,8 @@ package body Coyote_App.History is
                                          Get (Content, I);
                                     begin
                                        if Block.Kind = JSON_Object_Type
-                                         and then
-                                           Get_String (Block, "type") = "text"
+                                         and then Get_String (Block, "type")
+                                           = "text"
                                        then
                                           if Length (Parts) > 0 then
                                              Append (Parts, ASCII.LF);
@@ -199,13 +200,16 @@ package body Coyote_App.History is
                                             (Parts,
                                              Get_String (Block, "text"));
                                        elsif Block.Kind = JSON_Object_Type
-                                         and then
-                                           Get_String (Block, "type") = "image"
+                                         and then Get_String (Block, "type")
+                                           = "image"
                                        then
-                                          Parts := To_Unbounded_String
-                                            (Get_String (Block, "data"));
-                                          Media_Type := To_Unbounded_String
-                                            (Get_String (Block, "media_type"));
+                                          Parts      :=
+                                            To_Unbounded_String
+                                              (Get_String (Block, "data"));
+                                          Media_Type :=
+                                            To_Unbounded_String
+                                              (Get_String
+                                                 (Block, "media_type"));
                                        end if;
                                     end;
                                  end loop;
@@ -254,25 +258,26 @@ package body Coyote_App.History is
             begin
                if Parse.Success then
                   declare
-                     Ev : constant JSON_Value := Parse.Value;
-                     Kind : constant String := Get_String (Ev, "type");
-                     Msg : constant JSON_Value := Message_Object (Ev);
-                     Role : constant String :=
-                       (if Msg.Kind = JSON_Object_Type
-                        then Get_String (Msg, "role")
+                     Ev   : constant JSON_Value := Parse.Value;
+                     Kind : constant String     := Get_String (Ev, "type");
+                     Msg  : constant JSON_Value := Message_Object (Ev);
+                     Role : constant String     :=
+                       (if
+                          Msg.Kind = JSON_Object_Type
+                        then
+                          Get_String (Msg, "role")
                         else "");
                   begin
 
                      --  ── model_change ──────────────────────────────────
                      if Kind = "model_change" then
                         declare
-                           Provider  : constant String :=
+                           Provider : constant String :=
                              Get_String (Ev, "provider");
-                           Model_Id  : constant String :=
+                           Model_Id : constant String :=
                              Get_String (Ev, "modelId");
                         begin
-                           if Provider'Length > 0
-                             and then Model_Id'Length > 0
+                           if Provider'Length > 0 and then Model_Id'Length > 0
                            then
                               declare
                                  New_Model : constant String :=
@@ -283,37 +288,32 @@ package body Coyote_App.History is
                                       To_Unbounded_String (New_Model);
                                     Frontend.Append_Notice
                                       (Coyote_App.Frontend.Info,
-                                       ASCII.LF
-                                       & "[Model " & UC_TRI_R & " "
+                                       ASCII.LF & "[Model " & UC_TRI_R & " "
                                        & New_Model & "]" & ASCII.LF);
                                  end if;
                               end;
                            end if;
                         end;
 
-                     --  ── compaction ────────────────────────────────────
+                        --  ── compaction ────────────────────────────────────
                      elsif Kind = "compaction" then
                         declare
-                           Summary : constant String :=
+                           Summary     : constant String :=
                              Get_String (Ev, "summary");
-                           Start   : Natural         :=
-                             Summary'First;
+                           Start       : Natural         := Summary'First;
                            Compact_Buf : Unbounded_String;
                         begin
                            if Summary'Length > 0 then
                               Append
                                 (Compact_Buf,
-                                 ASCII.LF
-                                 & UC_HORIZ & UC_HORIZ & " Compacted "
-                                 & Str_Repeat (UC_HORIZ, 47)
-                                 & ASCII.LF);
+                                 ASCII.LF & UC_HORIZ & UC_HORIZ & " Compacted "
+                                 & Str_Repeat (UC_HORIZ, 47) & ASCII.LF);
                               for I in Summary'Range loop
                                  if Summary (I) = ASCII.LF then
                                     Append
                                       (Compact_Buf,
                                        UC_BOX_V & " "
-                                       & Summary (Start .. I - 1)
-                                       & ASCII.LF);
+                                       & Summary (Start .. I - 1) & ASCII.LF);
                                     Start := I + 1;
                                  end if;
                               end loop;
@@ -327,43 +327,40 @@ package body Coyote_App.History is
                               Append
                                 (Compact_Buf,
                                  UC_HORIZ & UC_HORIZ & " "
-                                 & Str_Repeat (UC_HORIZ, 57)
-                                 & ASCII.LF);
+                                 & Str_Repeat (UC_HORIZ, 57) & ASCII.LF);
                               Frontend.Append_Notice
                                 (Coyote_App.Frontend.Info,
                                  To_String (Compact_Buf));
                            end if;
                         end;
 
-                     --  ── message ───────────────────────────────────────
+                        --  ── message ───────────────────────────────────────
                      elsif Msg.Kind = JSON_Object_Type then
 
                         --  User turn
                         if Role = "user" then
                            --  If the previous turn was complete, emit its
                            --  footer before this user message.
-                           if In_Turn
-                             and then Saw_Asst_Text
+                           if In_Turn and then Saw_Asst_Text
                              and then To_String (Turn_Stop) /= "toolUse"
                            then
                               Turns_Rendered := Turns_Rendered + 1;
                               Frontend.Append_Turn_Footer
                                 (Format_Turn_Footer_Display
-                                   (Input_Tokens      => Turn_Input,
-                                    Output_Tokens     => Turn_Output,
-                                    Ctx_Window        =>
-                                      State.Context_Window,
-                                    Model_Text        =>
-                                      To_String (Cur_Model),
-                                    Stop_Reason_Text =>
-                                      To_String (Turn_Stop)),
-                               Kind    => Coyote_App.Frontend.Final_Footer,
-                               Summary => Format_Turn_Summary
-                                 (Input_Tokens      => Turn_Input,
-                                  Output_Tokens     => Turn_Output,
-                                  Ctx_Window        => State.Context_Window,
-                                  Model_Text        => To_String (Cur_Model),
-                                  Stop_Reason_Text  => To_String (Turn_Stop)));
+                                   (Input_Tokens     => Turn_Input,
+                                    Output_Tokens    => Turn_Output,
+                                    Ctx_Window       => State.Context_Window,
+                                    Model_Text       => To_String (Cur_Model),
+                                    Stop_Reason_Text => To_String (Turn_Stop)),
+                                 Kind    => Coyote_App.Frontend.Final_Footer,
+                                 Summary =>
+                                   Format_Turn_Summary
+                                     (Input_Tokens     => Turn_Input,
+                                      Output_Tokens    => Turn_Output,
+                                      Ctx_Window       => State.Context_Window,
+                                      Model_Text => To_String (Cur_Model),
+                                      Stop_Reason_Text =>
+                                        To_String (Turn_Stop)));
                               Frontend.Append_Fork_Action
                                 (UUID   => UUID,
                                  Turn_N => Turns_Rendered,
@@ -373,12 +370,12 @@ package body Coyote_App.History is
                            Saw_Asst_Text := False;
                            Turn_Input    := 0;
                            Turn_Output   := 0;
-                           Call_In_Turn := 0;
-                           Turn_Step    := 0;
-                           Turn_Stop    := Null_Unbounded_String;
+                           Call_In_Turn  := 0;
+                           Turn_Step     := 0;
+                           Turn_Stop     := Null_Unbounded_String;
                            if Msg.Has_Field ("content")
-                             and then
-                               Msg.Get ("content").Kind = JSON_Array_Type
+                             and then Msg.Get ("content").Kind
+                               = JSON_Array_Type
                            then
                               declare
                                  Content : constant JSON_Array :=
@@ -390,8 +387,8 @@ package body Coyote_App.History is
                                          Get (Content, I);
                                     begin
                                        if Block.Kind = JSON_Object_Type
-                                         and then
-                                           Get_String (Block, "type") = "text"
+                                         and then Get_String (Block, "type")
+                                           = "text"
                                        then
                                           declare
                                              Text    : constant String :=
@@ -404,7 +401,8 @@ package body Coyote_App.History is
                                                 Frontend.Begin_Request
                                                   (Text => Trimmed,
                                                    Kind =>
-                                                     Coyote_App.Frontend.Prompt);
+                                                     Coyote_App.Frontend
+                                                       .Prompt);
                                              end if;
                                           end;
                                        end if;
@@ -413,12 +411,12 @@ package body Coyote_App.History is
                               end;
                            end if;
 
-                        --  Assistant turn
+                           --  Assistant turn
                         elsif Role = "assistant" then
                            declare
-                              Provider : constant String :=
+                              Provider : constant String     :=
                                 Get_String (Msg, "provider");
-                              Model_Id : constant String :=
+                              Model_Id : constant String     :=
                                 Get_String (Msg, "model");
                               Usage    : constant JSON_Value :=
                                 Get_Object (Msg, "usage");
@@ -442,8 +440,7 @@ package body Coyote_App.History is
                                  begin
                                     Turn_Input  := Input_Count;
                                     Turn_Output := Output_Count;
-                                    if Input_Count > 0
-                                      or else Output_Count > 0
+                                    if Input_Count > 0 or else Output_Count > 0
                                     then
                                        Last_Input  := Input_Count;
                                        Last_Output := Output_Count;
@@ -457,18 +454,18 @@ package body Coyote_App.History is
                                (Get_String (Msg, "stopReason"));
                            --  Render content blocks.
                            if Msg.Has_Field ("content")
-                             and then
-                               Msg.Get ("content").Kind = JSON_Array_Type
+                             and then Msg.Get ("content").Kind
+                               = JSON_Array_Type
                            then
                               declare
-                                 Content        : constant JSON_Array :=
+                                 Content : constant JSON_Array :=
                                    Msg.Get ("content");
                               begin
                                  for I in 1 .. Length (Content) loop
                                     declare
                                        Block : constant JSON_Value :=
                                          Get (Content, I);
-                                       BType : constant String    :=
+                                       BType : constant String     :=
                                          Get_String (Block, "type");
                                     begin
                                        --  thinking block — render individually
@@ -478,7 +475,7 @@ package body Coyote_App.History is
                                             (Get_String (Block, "thinking"));
                                           Frontend.End_Thinking;
 
-                                       --  text block
+                                          --  text block
                                        elsif BType = "text" then
                                           declare
                                              Text : constant String :=
@@ -491,7 +488,7 @@ package body Coyote_App.History is
                                              end if;
                                           end;
 
-                                       --  toolCall block
+                                          --  toolCall block
                                        elsif BType = "toolCall" then
                                           declare
                                              Tool_Id   : constant String :=
@@ -499,36 +496,37 @@ package body Coyote_App.History is
                                              Tool_Name : constant String :=
                                                Get_String (Block, "name");
                                              Args      : constant JSON_Value :=
-                                               Get_Object
-                                                 (Block, "arguments");
-                                             TR        : constant
-                                               Tool_Result_Entry :=
-                                                 Find_TR (Tool_Id);
+                                               Get_Object (Block, "arguments");
+                                             TR : constant Tool_Result_Entry :=
+                                               Find_TR (Tool_Id);
                                              Args_Json : constant String :=
-                                               (if Args.Kind
-                                                   = JSON_Object_Type
-                                                then Write (Args)
+                                               (if
+                                                  Args.Kind = JSON_Object_Type
+                                                then
+                                                  Write (Args)
                                                 else "{}");
                                              Status    :
                                                Coyote_App.Frontend
                                                  .Tool_End_Status :=
-                                                   Coyote_App.Frontend
-                                                     .Success;
+                                               Coyote_App.Frontend.Success;
                                           begin
                                              Call_In_Turn := Call_In_Turn + 1;
                                              if To_String (TR.Id) = "" then
                                                 Status :=
-                                                  Coyote_App.Frontend.Cancelled;
-                                             elsif TR.Status =
-                                               LLM.Types.Result_Timed_Out
+                                                  Coyote_App.Frontend
+                                                    .Cancelled;
+                                             elsif TR.Status
+                                               = LLM.Types.Result_Timed_Out
                                              then
                                                 Status :=
-                                                  Coyote_App.Frontend.Timed_Out;
-                                             elsif TR.Status =
-                                               LLM.Types.Result_Cancelled
+                                                  Coyote_App.Frontend
+                                                    .Timed_Out;
+                                             elsif TR.Status
+                                               = LLM.Types.Result_Cancelled
                                              then
                                                 Status :=
-                                                  Coyote_App.Frontend.Cancelled;
+                                                  Coyote_App.Frontend
+                                                    .Cancelled;
                                              elsif TR.Is_Err then
                                                 Status :=
                                                   Coyote_App.Frontend.Error;
@@ -539,24 +537,26 @@ package body Coyote_App.History is
                                                (Name             => Tool_Name,
                                                 Args_Json        => Args_Json,
                                                 Session_Id       => UUID,
-                                                Tool_Id           => Tool_Id,
-                                                Model            => To_String
-                                                  (Cur_Model),
+                                                Tool_Id          => Tool_Id,
+                                                Model => To_String (Cur_Model),
                                                 Source_Directory =>
-                                                  LLM.Session_Store.Session_Work_Dir
+                                                  LLM.Session_Store
+                                                    .Session_Work_Dir
                                                     (UUID),
                                                 Session_Start    =>
-                                                  LLM.Session_Store.Session_Created_At
+                                                  LLM.Session_Store
+                                                    .Session_Created_At
                                                     (UUID),
-                                                Turn_Index       => Turns_Rendered + 1,
-                                                Call_In_Turn     => Call_In_Turn);
+                                                Turn_Index       =>
+                                                  Turns_Rendered + 1,
+                                                Call_In_Turn => Call_In_Turn);
                                              Frontend.End_Tool
                                                (Tool_Id     => Tool_Id,
                                                 Status      => Status,
                                                 Result_Text =>
                                                   To_String (TR.Text),
-                                                Media_Type  => To_String
-                                                  (TR.Media_Type));
+                                                Media_Type  =>
+                                                  To_String (TR.Media_Type));
                                           end;
                                        end if;
                                     end;
@@ -568,19 +568,21 @@ package body Coyote_App.History is
                               Turn_Step := Turn_Step + 1;
                               Frontend.Append_Turn_Footer
                                 (Format_Turn_Footer_Display
-                                   (Input_Tokens      => Turn_Input,
-                                    Output_Tokens     => Turn_Output,
-                                    Ctx_Window        => State.Context_Window,
-                                    Model_Text        => To_String (Cur_Model),
-                                    Stop_Reason_Text => To_String (Turn_Stop),
-                                    Is_Step          => True),
-                                 Kind    => Coyote_App.Frontend.Step_Footer,
-                                 Summary => Format_Turn_Summary
                                    (Input_Tokens     => Turn_Input,
                                     Output_Tokens    => Turn_Output,
                                     Ctx_Window       => State.Context_Window,
                                     Model_Text       => To_String (Cur_Model),
-                                    Stop_Reason_Text => To_String (Turn_Stop)));
+                                    Stop_Reason_Text => To_String (Turn_Stop),
+                                    Is_Step          => True),
+                                 Kind    => Coyote_App.Frontend.Step_Footer,
+                                 Summary =>
+                                   Format_Turn_Summary
+                                     (Input_Tokens     => Turn_Input,
+                                      Output_Tokens    => Turn_Output,
+                                      Ctx_Window       => State.Context_Window,
+                                      Model_Text => To_String (Cur_Model),
+                                      Stop_Reason_Text =>
+                                        To_String (Turn_Stop)));
                               Frontend.Append_Fork_Action
                                 (UUID   => UUID,
                                  Turn_N => Turns_Rendered + 1,
@@ -617,24 +619,21 @@ package body Coyote_App.History is
          Turns_Rendered := Turns_Rendered + 1;
          Frontend.Append_Turn_Footer
            (Format_Turn_Footer_Display
-              (Input_Tokens      => Turn_Input,
-               Output_Tokens     => Turn_Output,
-               Ctx_Window        => State.Context_Window,
-               Model_Text        => To_String (Cur_Model),
-               Stop_Reason_Text =>
-                 To_String (Turn_Stop)),
-            Summary => Format_Turn_Summary
               (Input_Tokens     => Turn_Input,
                Output_Tokens    => Turn_Output,
                Ctx_Window       => State.Context_Window,
                Model_Text       => To_String (Cur_Model),
-               Stop_Reason_Text => To_String (Turn_Stop)));
+               Stop_Reason_Text => To_String (Turn_Stop)),
+            Summary =>
+              Format_Turn_Summary
+                (Input_Tokens     => Turn_Input,
+                 Output_Tokens    => Turn_Output,
+                 Ctx_Window       => State.Context_Window,
+                 Model_Text       => To_String (Cur_Model),
+                 Stop_Reason_Text => To_String (Turn_Stop)));
          Frontend.Append_Fork_Action
-           (UUID   => UUID,
-            Turn_N => Turns_Rendered,
-            Step_N => 0);
-         Frontend.Complete_Request
-           (Coyote_App.Frontend.Completed);
+           (UUID => UUID, Turn_N => Turns_Rendered, Step_N => 0);
+         Frontend.Complete_Request (Coyote_App.Frontend.Completed);
       end if;
       --  Restore turn count so subsequent live turns are numbered correctly.
       State.Set_Turn_Count (Turns_Rendered);

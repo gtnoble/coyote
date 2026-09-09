@@ -26,14 +26,15 @@ package body LLM_Compaction_Tests is
       return
         (Role      => LLM.Types.User,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Make_User_Message;
 
    function Make_Assistant_Text_Message
-     (Text : String;
-      Usage : LLM.Types.Usage := (others => 0);
+     (Text  : String;
+      Usage : LLM.Types.Usage       := (others => 0);
       Stop  : LLM.Types.Stop_Reason := LLM.Types.Stop)
       return LLM.Types.Message
    is
@@ -52,9 +53,9 @@ package body LLM_Compaction_Tests is
    end Make_Assistant_Text_Message;
 
    function Make_Assistant_Thinking_Tool_Message
-     (Text          : String;
-      Thinking      : String;
-      Tool_Name     : String;
+     (Text           : String;
+      Thinking       : String;
+      Tool_Name      : String;
       Arguments_Json : String)
       return LLM.Types.Message
    is
@@ -78,7 +79,8 @@ package body LLM_Compaction_Tests is
       return
         (Role      => LLM.Types.Assistant,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Tool_Use,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Thinking_Tool_Message;
@@ -100,14 +102,16 @@ package body LLM_Compaction_Tests is
       return
         (Role      => LLM.Types.Assistant,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Tool_Use,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Tool_Call_Message;
 
    function Make_Tool_Result_Message
-     (Result_Text : String;
-      Tool_Call_Id : String := "call-1") return LLM.Types.Message
+     (Result_Text  : String;
+      Tool_Call_Id : String := "call-1")
+      return LLM.Types.Message
    is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
@@ -122,7 +126,8 @@ package body LLM_Compaction_Tests is
       return
         (Role      => LLM.Types.Tool_Result,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Tool_Result_Message;
@@ -130,16 +135,15 @@ package body LLM_Compaction_Tests is
    procedure Test_Estimate_Tokens (T : in out Test) is
       pragma Unreferenced (T);
 
-      User_Msg : constant LLM.Types.Message :=
-        Make_User_Message ("abcdefghi");
+      User_Msg : constant LLM.Types.Message := Make_User_Message ("abcdefghi");
       Assistant_Msg : constant LLM.Types.Message :=
         Make_Assistant_Thinking_Tool_Message
           (Text           => "abcd",
            Thinking       => "efgh",
            Tool_Name      => "read",
            Arguments_Json => "{""path"":""x""}");
-      Long_Result : constant String := (1 .. 2_003 => 'r');
-      Result_Msg  : constant LLM.Types.Message :=
+      Long_Result   : constant String            := (1 .. 2_003 => 'r');
+      Result_Msg    : constant LLM.Types.Message :=
         Make_Tool_Result_Message (Long_Result);
    begin
       Assert
@@ -165,12 +169,14 @@ package body LLM_Compaction_Tests is
          "empty histories should estimate to zero tokens");
 
       Usage_History.Append (Make_User_Message ("ignored because usage wins"));
-      Usage_History.Append
-        (Make_Assistant_Text_Message
+      Usage_History.Append (Make_Assistant_Text_Message
            (Text  => "reply",
             Usage =>
-              (Input => 11, Output => 7, Cache_Read => 3, Cache_Write => 2,
-               Thinking => 0)));
+              (Input       => 11,
+               Output      => 7,
+               Cache_Read  => 3,
+               Cache_Write => 2,
+               Thinking    => 0)));
       Assert
         (LLM.Compaction.Estimate_Context_Tokens (Usage_History) = 23,
          "non-zero assistant usage should override heuristic estimates");
@@ -186,13 +192,17 @@ package body LLM_Compaction_Tests is
       pragma Unreferenced (T);
 
       Disabled : constant LLM.Compaction.Compact_Settings :=
-        (Enabled            => False,
-         Reserve_Tokens     => 30,
-         Keep_Recent_Tokens => 20, Consecutive_Failures => 0, Tripped => False);
-      Enabled : constant LLM.Compaction.Compact_Settings :=
-        (Enabled            => True,
-         Reserve_Tokens     => 30,
-         Keep_Recent_Tokens => 20, Consecutive_Failures => 0, Tripped => False);
+        (Enabled              => False,
+         Reserve_Tokens       => 30,
+         Keep_Recent_Tokens   => 20,
+         Consecutive_Failures => 0,
+         Tripped              => False);
+      Enabled  : constant LLM.Compaction.Compact_Settings :=
+        (Enabled              => True,
+         Reserve_Tokens       => 30,
+         Keep_Recent_Tokens   => 20,
+         Consecutive_Failures => 0,
+         Tripped              => False);
    begin
       Assert
         (not LLM.Compaction.Should_Compact (70, 100, Disabled),
@@ -208,20 +218,26 @@ package body LLM_Compaction_Tests is
    procedure Test_Find_Cut_Point (T : in out Test) is
       pragma Unreferenced (T);
 
-      Short_History : LLM.Types.Message_Vectors.Vector;
-      History       : LLM.Types.Message_Vectors.Vector;
-      Short_Setting : constant LLM.Compaction.Compact_Settings :=
-        (Enabled            => True,
-         Reserve_Tokens     => 10,
-         Keep_Recent_Tokens => 100, Consecutive_Failures => 0, Tripped => False);
+      Short_History  : LLM.Types.Message_Vectors.Vector;
+      History        : LLM.Types.Message_Vectors.Vector;
+      Short_Setting  : constant LLM.Compaction.Compact_Settings :=
+        (Enabled              => True,
+         Reserve_Tokens       => 10,
+         Keep_Recent_Tokens   => 100,
+         Consecutive_Failures => 0,
+         Tripped              => False);
       Keep_Last_Turn : constant LLM.Compaction.Compact_Settings :=
-        (Enabled            => True,
-         Reserve_Tokens     => 10,
-         Keep_Recent_Tokens => 30, Consecutive_Failures => 0, Tripped => False);
-      Keep_All : constant LLM.Compaction.Compact_Settings :=
-        (Enabled            => True,
-         Reserve_Tokens     => 10,
-         Keep_Recent_Tokens => 200, Consecutive_Failures => 0, Tripped => False);
+        (Enabled              => True,
+         Reserve_Tokens       => 10,
+         Keep_Recent_Tokens   => 30,
+         Consecutive_Failures => 0,
+         Tripped              => False);
+      Keep_All       : constant LLM.Compaction.Compact_Settings :=
+        (Enabled              => True,
+         Reserve_Tokens       => 10,
+         Keep_Recent_Tokens   => 200,
+         Consecutive_Failures => 0,
+         Tripped              => False);
    begin
       Short_History.Append (Make_User_Message ("short"));
       Short_History.Append (Make_Assistant_Text_Message ("reply"));
@@ -260,10 +276,10 @@ package body LLM_Compaction_Tests is
    procedure Test_Serialize_Conversation (T : in out Test) is
       pragma Unreferenced (T);
 
-      Messages     : LLM.Types.Message_Vectors.Vector;
-      Long_Result  : constant String := (1 .. 2_005 => 'x');
-      Truncated    : constant String := (1 .. 2_000 => 'x');
-      Serialized   : Unbounded_String;
+      Messages    : LLM.Types.Message_Vectors.Vector;
+      Long_Result : constant String := (1 .. 2_005 => 'x');
+      Truncated   : constant String := (1 .. 2_000 => 'x');
+      Serialized  : Unbounded_String;
    begin
       Messages.Append (Make_User_Message ("Review src/llm/llm-agent.adb"));
       Messages.Append
@@ -275,13 +291,11 @@ package body LLM_Compaction_Tests is
       Messages.Append (Make_Tool_Result_Message (Long_Result));
 
       Serialized :=
-        To_Unbounded_String
-          (LLM.Compaction.Serialize_Conversation (Messages));
+        To_Unbounded_String (LLM.Compaction.Serialize_Conversation (Messages));
 
       Assert
         (Contains
-           (To_String (Serialized),
-            "[User]: Review src/llm/llm-agent.adb"),
+           (To_String (Serialized), "[User]: Review src/llm/llm-agent.adb"),
          "user messages should be labelled with [User]");
       Assert
         (Contains (To_String (Serialized), "[Assistant]: I checked the file."),
@@ -297,20 +311,16 @@ package body LLM_Compaction_Tests is
             "[Assistant tool calls]: read(path=src/llm/llm-agent.adb)"),
          "assistant tool calls should render their names and arguments");
       Assert
-        (Contains
-           (To_String (Serialized),
-            "[Tool result]: " & Truncated),
+        (Contains (To_String (Serialized), "[Tool result]: " & Truncated),
          "tool results should be truncated to 2000 characters");
       Assert
         (not Contains
-           (To_String (Serialized),
-            "[Tool result]: " & Long_Result),
+           (To_String (Serialized), "[Tool result]: " & Long_Result),
          "serialisation should not include tool-result text past 2000 chars");
       Assert
         (Contains
            (To_String (Serialized),
-            "[User]: Review src/llm/llm-agent.adb"
-            & ASCII.LF & ASCII.LF
+            "[User]: Review src/llm/llm-agent.adb" & ASCII.LF & ASCII.LF
             & "[Assistant]: I checked the file."),
          "messages should be separated by one blank line");
    end Test_Serialize_Conversation;
@@ -321,9 +331,11 @@ package body LLM_Compaction_Tests is
       History   : LLM.Types.Message_Vectors.Vector;
       Candidate : LLM.Types.Message_Vectors.Vector;
       Settings  : constant LLM.Compaction.Compact_Settings :=
-        (Enabled            => True,
-         Reserve_Tokens     => 100,
-         Keep_Recent_Tokens => 30, Consecutive_Failures => 0, Tripped => False);
+        (Enabled              => True,
+         Reserve_Tokens       => 100,
+         Keep_Recent_Tokens   => 30,
+         Consecutive_Failures => 0,
+         Tripped              => False);
       Cut       : Natural;
       Text      : Unbounded_String;
    begin
@@ -362,31 +374,37 @@ package body LLM_Compaction_Tests is
          "serialised candidate should include assistant text labels");
    end Test_Full_Compaction_Candidate;
 
-   package LLM_Compaction_Caller is
-     new AUnit.Test_Caller (LLM_Compaction_Tests.Test);
+   package LLM_Compaction_Caller is new AUnit.Test_Caller
+     (LLM_Compaction_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction estimates message tokens conservatively",
-         LLM_Compaction_Tests.Test_Estimate_Tokens'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction estimates context tokens from usage or heuristics",
-         LLM_Compaction_Tests.Test_Estimate_Context_Tokens'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction decides when to compact",
-         LLM_Compaction_Tests.Test_Should_Compact'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction finds safe user-turn cut points",
-         LLM_Compaction_Tests.Test_Find_Cut_Point'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction serialises conversations for summarisation",
-         LLM_Compaction_Tests.Test_Serialize_Conversation'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction builds a realistic compaction candidate",
-         LLM_Compaction_Tests.Test_Full_Compaction_Candidate'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction estimates message tokens conservatively",
+            LLM_Compaction_Tests.Test_Estimate_Tokens'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction estimates context tokens from usage or heuristics",
+            LLM_Compaction_Tests.Test_Estimate_Context_Tokens'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction decides when to compact",
+            LLM_Compaction_Tests.Test_Should_Compact'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction finds safe user-turn cut points",
+            LLM_Compaction_Tests.Test_Find_Cut_Point'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction serialises conversations for summarisation",
+            LLM_Compaction_Tests.Test_Serialize_Conversation'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction builds a realistic compaction candidate",
+            LLM_Compaction_Tests.Test_Full_Compaction_Candidate'Access));
 
       return Result;
    end Suite;

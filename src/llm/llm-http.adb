@@ -49,7 +49,7 @@ package body LLM.HTTP is
          declare
             Header_C : Interfaces.C.Strings.chars_ptr :=
               Interfaces.C.Strings.New_String (Header);
-            Next : constant Curl_Binding.Slist :=
+            Next     : constant Curl_Binding.Slist    :=
               Curl_Binding.Slist_Append (Result, Header_C);
          begin
             Interfaces.C.Strings.Free (Header_C);
@@ -69,9 +69,9 @@ package body LLM.HTTP is
    end Build_Slist;
 
    procedure Cleanup
-     (H : in out Curl_Binding.Handle;
-      Headers : in out Curl_Binding.Slist;
-      URL_C : in out Interfaces.C.Strings.chars_ptr;
+     (H         : in out Curl_Binding.Handle;
+      Headers   : in out Curl_Binding.Slist;
+      URL_C     : in out Interfaces.C.Strings.chars_ptr;
       Payload_C : in out Interfaces.C.Strings.chars_ptr)
    is
    begin
@@ -97,40 +97,36 @@ package body LLM.HTTP is
    end Cleanup;
 
    procedure Perform_Request
-     (URL         : String;
-      Headers     : Header_List;
-      Use_Post    : Boolean;
-      Payload     : String;
-      On_Chunk    : not null access procedure (Data : String);
+     (URL         :     String;
+      Headers     :     Header_List;
+      Use_Post    :     Boolean;
+      Payload     :     String;
+      On_Chunk    :     not null access procedure (Data : String);
       Status      : out Natural;
-      Abort_Check : LLM.Tools.Abort_Flag_Access)
+      Abort_Check :     LLM.Tools.Abort_Flag_Access)
    is
-      H : Curl_Binding.Handle := Curl_Binding.Easy_Init;
-      Header_S : Curl_Binding.Slist := Curl_Binding.NULL_SLIST;
-      URL_C : Interfaces.C.Strings.chars_ptr :=
-        Interfaces.C.Strings.Null_Ptr;
+      H         : Curl_Binding.Handle            := Curl_Binding.Easy_Init;
+      Header_S  : Curl_Binding.Slist             := Curl_Binding.NULL_SLIST;
+      URL_C : Interfaces.C.Strings.chars_ptr := Interfaces.C.Strings.Null_Ptr;
       Payload_C : Interfaces.C.Strings.chars_ptr :=
         Interfaces.C.Strings.Null_Ptr;
-      Ctx : aliased Write_Context :=
-        (On_Chunk_Address => On_Chunk'Address,
+      Ctx       : aliased Write_Context          :=
+        (On_Chunk_Address   => On_Chunk'Address,
          Exception_Occurred => False,
-         Exception_Message =>
-           Ada.Strings.Unbounded.Null_Unbounded_String);
-      Response : aliased Interfaces.C.long := 0;
+         Exception_Message  => Ada.Strings.Unbounded.Null_Unbounded_String);
+      Response  : aliased Interfaces.C.long      := 0;
    begin
       if H = Curl_Binding.NULL_HANDLE then
          raise Curl_Error with "curl_easy_init failed";
       end if;
 
-      URL_C := Interfaces.C.Strings.New_String (URL);
+      URL_C    := Interfaces.C.Strings.New_String (URL);
       Header_S := Build_Slist (Headers);
 
       Check
         (Curl_Binding.Set_No_Signal (H, 1),
          "curl_easy_setopt(CURLOPT_NOSIGNAL)");
-      Check
-        (Curl_Binding.Set_URL (H, URL_C),
-         "curl_easy_setopt(CURLOPT_URL)");
+      Check (Curl_Binding.Set_URL (H, URL_C), "curl_easy_setopt(CURLOPT_URL)");
 
       if Header_S /= Curl_Binding.NULL_SLIST then
          Check
@@ -163,8 +159,7 @@ package body LLM.HTTP is
       if Use_Post then
          Payload_C := Interfaces.C.Strings.New_String (Payload);
          Check
-           (Curl_Binding.Set_Post (H, 1),
-            "curl_easy_setopt(CURLOPT_POST)");
+           (Curl_Binding.Set_Post (H, 1), "curl_easy_setopt(CURLOPT_POST)");
          Check
            (Curl_Binding.Set_Post_Fields (H, Payload_C),
             "curl_easy_setopt(CURLOPT_POSTFIELDS)");
@@ -178,8 +173,8 @@ package body LLM.HTTP is
            Curl_Binding.Easy_Perform (H);
       begin
          if Ctx.Exception_Occurred then
-            raise Curl_Error with
-              Ada.Strings.Unbounded.To_String (Ctx.Exception_Message);
+            raise Curl_Error
+              with Ada.Strings.Unbounded.To_String (Ctx.Exception_Message);
          end if;
 
          Check (Curl_Result, "curl_easy_perform");
@@ -209,30 +204,40 @@ package body LLM.HTTP is
    end Add_Header;
 
    procedure Post
-     (URL         : String;
-      Headers     : Header_List;
-      Payload     : String;
-      On_Chunk    : not null access procedure (Data : String);
+     (URL         :     String;
+      Headers     :     Header_List;
+      Payload     :     String;
+      On_Chunk    :     not null access procedure (Data : String);
       Status      : out Natural;
-      Abort_Check : LLM.Tools.Abort_Flag_Access := null)
+      Abort_Check :     LLM.Tools.Abort_Flag_Access := null)
    is
    begin
       Perform_Request
-        (URL => URL, Headers => Headers, Use_Post => True, Payload => Payload,
-         On_Chunk => On_Chunk, Status => Status, Abort_Check => Abort_Check);
+        (URL         => URL,
+         Headers     => Headers,
+         Use_Post    => True,
+         Payload     => Payload,
+         On_Chunk    => On_Chunk,
+         Status      => Status,
+         Abort_Check => Abort_Check);
    end Post;
 
    procedure Get
-     (URL         : String;
-      Headers     : Header_List;
-      On_Chunk    : not null access procedure (Data : String);
+     (URL         :     String;
+      Headers     :     Header_List;
+      On_Chunk    :     not null access procedure (Data : String);
       Status      : out Natural;
-      Abort_Check : LLM.Tools.Abort_Flag_Access := null)
+      Abort_Check :     LLM.Tools.Abort_Flag_Access := null)
    is
    begin
       Perform_Request
-        (URL => URL, Headers => Headers, Use_Post => False, Payload => "",
-         On_Chunk => On_Chunk, Status => Status, Abort_Check => Abort_Check);
+        (URL         => URL,
+         Headers     => Headers,
+         Use_Post    => False,
+         Payload     => "",
+         On_Chunk    => On_Chunk,
+         Status      => Status,
+         Abort_Check => Abort_Check);
    end Get;
 
 begin

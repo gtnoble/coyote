@@ -19,11 +19,9 @@ package Coyote_Notify is
    procedure Finalize;
 
 private
-   function Native_Show_Completion return Interfaces.C.int
-   with Import, Convention => C,
-        External_Name => "coyote_notify_show_completion";
+   function Native_Show_Completion return Interfaces.C.int with
+     Import, Convention => C, External_Name => "coyote_notify_show_completion";
 
-   procedure Native_Finalize
-   with Import, Convention => C,
-        External_Name => "coyote_notify_finalize";
+   procedure Native_Finalize with
+     Import, Convention => C, External_Name => "coyote_notify_finalize";
 end Coyote_Notify;

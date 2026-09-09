@@ -17,7 +17,6 @@ package Coyote_SQC.UI.Chart_Canvas is
    --  Update X_Min/X_Max in Canvas_State to match App_State.Date_From/Date_To.
    procedure Sync_X_From_Dates;
 
-
    --  Reset X and Y ranges to show all sessions.
    procedure Reset_View;
    --  Switch the x-axis scale mode.  Converts the current X_Min/X_Max viewport

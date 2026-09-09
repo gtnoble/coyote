@@ -20,8 +20,7 @@ package body LLM.Providers.OpenCode_Go is
       if Ada.Environment_Variables.Exists ("COYOTE_OPENCODE_GO_BASE_URL") then
          declare
             Value : constant String :=
-              Ada.Environment_Variables.Value
-                ("COYOTE_OPENCODE_GO_BASE_URL");
+              Ada.Environment_Variables.Value ("COYOTE_OPENCODE_GO_BASE_URL");
          begin
             if Value'Length > 0 then
                return Value;
@@ -55,8 +54,7 @@ package body LLM.Providers.OpenCode_Go is
       end return;
    end Create;
 
-   overriding
-   procedure Send
+   overriding procedure Send
      (P             : in out Provider;
       Model_Id      :        String;
       System_Prompt :        String;
@@ -69,13 +67,13 @@ package body LLM.Providers.OpenCode_Go is
    is
       Session_Id : constant String := To_String (P.Session_Id);
       Api_Key    : constant String := Resolve_Api_Key;
-      Base_Url : constant String := Default_Base_Url;
-      Wire     : constant LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind :=
+      Base_Url   : constant String := Default_Base_Url;
+      Wire       : constant LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind :=
         LLM.Providers.OpenCode_Go.Catalogue.Wire_Format_For (Model_Id);
    begin
       if Api_Key'Length = 0 then
-         raise LLM.HTTP.Curl_Error with
-           "OpenCode Go API key is not configured; "
+         raise LLM.HTTP.Curl_Error
+           with "OpenCode Go API key is not configured; "
            & "set OPENCODE_API_KEY or configure "
            & "providers.opencode-go.apiKey";
       end if;
@@ -85,8 +83,7 @@ package body LLM.Providers.OpenCode_Go is
          declare
             Delegate : LLM.Providers.Anthropic_Messages.Provider :=
               LLM.Providers.Anthropic_Messages.Create
-                (Base_Url => Base_Url,
-                 Api_Key  => Api_Key);
+                (Base_Url => Base_Url, Api_Key => Api_Key);
          begin
             --  The Anthropic_Messages provider uses Bearer auth for
             --  non-anthropic.com base URLs, which is correct for OpenCode Go.
@@ -104,20 +101,20 @@ package body LLM.Providers.OpenCode_Go is
                Thinking      => Thinking,
                Max_Tokens    => Max_Tokens,
                Handler       => Handler,
-               Abort_Check  => Abort_Check);
+               Abort_Check   => Abort_Check);
          end;
       elsif Wire = LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
       then
          declare
-            V1_Base : constant String :=
-              (if Base_Url'Length > 0
-                    and then Base_Url (Base_Url'Last) = '/'
-               then Base_Url & "v1"
+            V1_Base  : constant String                         :=
+              (if
+                 Base_Url'Length > 0 and then Base_Url (Base_Url'Last) = '/'
+               then
+                 Base_Url & "v1"
                else Base_Url & "/v1");
             Delegate : LLM.Providers.OpenAI_Responses.Provider :=
               LLM.Providers.OpenAI_Responses.Create
-                (Base_Url => V1_Base,
-                 Api_Key  => Api_Key);
+                (Base_Url => V1_Base, Api_Key => Api_Key);
          begin
             if Session_Id'Length > 0 then
                LLM.Providers.OpenAI_Responses.Add_Header
@@ -136,22 +133,22 @@ package body LLM.Providers.OpenCode_Go is
                Thinking      => Thinking,
                Max_Tokens    => Max_Tokens,
                Handler       => Handler,
-               Abort_Check  => Abort_Check);
+               Abort_Check   => Abort_Check);
          end;
       else
          declare
             --  OpenCode Go's OpenAI-compatible endpoint lives under
             --  /v1/chat/completions, so the base URL passed to the
             --  delegate must include the /v1 prefix.
-            V1_Base : constant String :=
-              (if Base_Url'Length > 0
-                    and then Base_Url (Base_Url'Last) = '/'
-               then Base_Url & "v1"
+            V1_Base  : constant String                           :=
+              (if
+                 Base_Url'Length > 0 and then Base_Url (Base_Url'Last) = '/'
+               then
+                 Base_Url & "v1"
                else Base_Url & "/v1");
             Delegate : LLM.Providers.OpenAI_Completions.Provider :=
               LLM.Providers.OpenAI_Completions.Create
-                (Base_Url => V1_Base,
-                 Api_Key  => Api_Key);
+                (Base_Url => V1_Base, Api_Key => Api_Key);
          begin
             if Session_Id'Length > 0 then
                LLM.Providers.OpenAI_Completions.Add_Header
@@ -170,7 +167,7 @@ package body LLM.Providers.OpenCode_Go is
                Thinking      => Thinking,
                Max_Tokens    => Max_Tokens,
                Handler       => Handler,
-               Abort_Check  => Abort_Check);
+               Abort_Check   => Abort_Check);
          end;
       end if;
    end Send;

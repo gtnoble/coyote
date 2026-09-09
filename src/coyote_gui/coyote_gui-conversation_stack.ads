@@ -38,33 +38,26 @@ package Coyote_GUI.Conversation_Stack is
 
    procedure Create
      (C           : in out Instance;
-      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class);
-   function Widget (C : Instance)
-     return Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Main_Window :        not null access Gtk.Window.Gtk_Window_Record'Class);
+   function Widget
+     (C : Instance) return Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    procedure Clear (C : in out Instance);
 
    --  Callback invoked by a native Fork button on the GTK main-loop thread.
-   type Fork_Handler is access procedure
-     (UUID   : String;
-      Turn_N : Positive;
-      Step_N : Natural);
+   type Fork_Handler is
+     access procedure (UUID : String; Turn_N : Positive; Step_N : Natural);
 
    --  Register the callback used by native fork buttons.
-   procedure Set_Fork_Handler
-     (C       : in out Instance;
-      Handler : Fork_Handler);
+   procedure Set_Fork_Handler (C : in out Instance; Handler : Fork_Handler);
 
    --  Register the callback used by native tool actions.
    procedure Set_Tool_Action_Handler
-     (C       : in out Instance;
-      Handler : Coyote_GUI.Tool_Action_Handler);
+     (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler);
 
    function Selected_Tool_Id (C : Instance) return String;
 
    procedure Begin_Request
-     (C    : in out Instance;
-      Text : String;
-      Kind : Coyote_GUI.Request_Kind);
+     (C : in out Instance; Text : String; Kind : Coyote_GUI.Request_Kind);
 
    procedure Append_Text (C : in out Instance; Text : String);
    procedure End_Text_Block (C : in out Instance);
@@ -73,71 +66,61 @@ package Coyote_GUI.Conversation_Stack is
    procedure End_Thinking (C : in out Instance);
 
    procedure Begin_Tool
-     (C               : in out Instance;
-      Name            : String;
-      Args            : String;
-      Session_Id      : String;
-      Tool_Id         : String;
-      Model           : String := "";
-      Source_Directory : String := "";
-      Session_Start   : String := "";
-      Turn_Index      : Positive := 1;
-      Call_In_Turn    : Positive := 1;
-      Initial_Status  : Coyote_GUI.Tool_Status :=
-        Coyote_GUI.Running);
+     (C                : in out Instance;
+      Name             :        String;
+      Args             :        String;
+      Session_Id       :        String;
+      Tool_Id          :        String;
+      Model            :        String                 := "";
+      Source_Directory :        String                 := "";
+      Session_Start    :        String                 := "";
+      Turn_Index       :        Positive               := 1;
+      Call_In_Turn     :        Positive               := 1;
+      Initial_Status   :        Coyote_GUI.Tool_Status := Coyote_GUI.Running);
 
    procedure Set_Tool_Status
-     (C       : in out Instance;
-      Tool_Id : String;
-      Status  : Coyote_GUI.Tool_Status);
+     (C : in out Instance; Tool_Id : String; Status : Coyote_GUI.Tool_Status);
 
    procedure End_Tool
      (C          : in out Instance;
-      Tool_Id    : String;
-      Status     : Coyote_GUI.Tool_End_Status;
-      Result     : String;
-      Media_Type : String := "");
+      Tool_Id    :        String;
+      Status     :        Coyote_GUI.Tool_End_Status;
+      Result     :        String;
+      Media_Type :        String := "");
 
    procedure Append_Notice
-     (C    : in out Instance;
-      Kind : Coyote_GUI.Notice_Kind;
-      Text : String);
+     (C : in out Instance; Kind : Coyote_GUI.Notice_Kind; Text : String);
 
    --  Summary is the typed status text used by the native footer label.
    procedure Append_Turn_Footer
      (C       : in out Instance;
-      Text    : String;
-      Kind    : Coyote_GUI.Footer_Kind;
-      Summary : String := "");
+      Text    :        String;
+      Kind    :        Coyote_GUI.Footer_Kind;
+      Summary :        String := "");
 
    procedure Append_Fork_Action
-     (C       : in out Instance;
-      Label   : String;
-      UUID    : String;
-      Turn_N  : Positive;
-      Step_N  : Natural);
+     (C      : in out Instance;
+      Label  :        String;
+      UUID   :        String;
+      Turn_N :        Positive;
+      Step_N :        Natural);
 
    procedure Complete_Request
-     (C      : in out Instance;
-      Status : Coyote_GUI.Completion_Status);
+     (C : in out Instance; Status : Coyote_GUI.Completion_Status);
 
    --  Return the compact summary rendered for Tool_Id.
-   function Tool_Summary
-     (C       : Instance;
-      Tool_Id : String) return String;
+   function Tool_Summary (C : Instance; Tool_Id : String) return String;
 
    --  Return the complete detail payload retained for Tool_Id.
    function Tool_Detail
-     (C       : Instance;
-      Tool_Id : String) return Coyote_GUI.Tool_Info;
+     (C : Instance; Tool_Id : String) return Coyote_GUI.Tool_Info;
 
    --  Keep the active exchange at the bottom of the outer host.
    procedure Scroll_To_End (C : in out Instance);
 
    --  Move the outer conversation viewport without changing widget focus.
    procedure Move_Viewport
-     (C    : in out Instance;
-      Move : Coyote_GUI.Navigation.Movement);
+     (C : in out Instance; Move : Coyote_GUI.Navigation.Movement);
 
    --  Return whether focus belongs to a conversation text component.
    function Has_Focus (C : Instance) return Boolean;
@@ -152,15 +135,15 @@ package Coyote_GUI.Conversation_Stack is
 
    procedure Set_Font
      (C          : in out Instance;
-      Desc       : Pango.Font.Pango_Font_Description;
-      Math_Scale : Long_Float := 1.0);
+      Desc       :        Pango.Font.Pango_Font_Description;
+      Math_Scale :        Long_Float := 1.0);
    procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean);
 
 private
 
    type Tool_Entry is record
-      Summary_Text : Ada.Strings.Unbounded.Unbounded_String;
-      Status       : Gtk.Label.Gtk_Label;
+      Summary_Text         : Ada.Strings.Unbounded.Unbounded_String;
+      Status               : Gtk.Label.Gtk_Label;
       Details              : Gtk.Button.Gtk_Button;
       Abort_Button         : Gtk.Button.Gtk_Button;
       Abort_Message_Button : Gtk.Button.Gtk_Button;
@@ -174,69 +157,64 @@ private
       Equivalent_Keys => "=");
 
    package Exchange_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Gtk.Box.Gtk_Box);
+     (Index_Type => Positive, Element_Type => Gtk.Box.Gtk_Box);
 
    package Frame_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Gtk.Frame.Gtk_Frame);
+     (Index_Type => Positive, Element_Type => Gtk.Frame.Gtk_Frame);
 
    package Text_View_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Gtk.Text_View.Gtk_Text_View);
+     (Index_Type => Positive, Element_Type => Gtk.Text_View.Gtk_Text_View);
 
    package Math_Element_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Positive,
       Element_Type => Coyote_GUI.Math_Element.Instance_Access);
 
    package Table_Grid_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Gtk.Grid.Gtk_Grid);
+     (Index_Type => Positive, Element_Type => Gtk.Grid.Gtk_Grid);
 
    package Table_Cell_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Gtk.Label.Gtk_Label);
+     (Index_Type => Positive, Element_Type => Gtk.Label.Gtk_Label);
 
    type Instance is tagged limited record
-      Scroll            : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Main_Window       : Gtk.Window.Gtk_Window;
-      Host              : Gtk.Box.Gtk_Box;
-      Exchange          : Gtk.Box.Gtk_Box;
-      Exchanges         : Exchange_Vectors.Vector;
-      Step_Frame        : Gtk.Frame.Gtk_Frame;
-      Step_Box          : Gtk.Box.Gtk_Box;
-      Tool_Flow         : Gtk.Flow_Box.Gtk_Flow_Box;
-      Step_Frames       : Frame_Vectors.Vector;
-      Active_Text       : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Active_View       : Gtk.Text_View.Gtk_Text_View;
-      Response_Section  : Gtk.Box.Gtk_Box;
-      Response_Box      : Gtk.Box.Gtk_Box;
-      Stream_Mark       : Gtk.Text_Mark.Gtk_Text_Mark;
-      Stream_Buf        : Ada.Strings.Unbounded.Unbounded_String;
-      Text_Views        : Text_View_Vectors.Vector;
-      Math_Elements     : Math_Element_Vectors.Vector;
-      Table_Grids       : Table_Grid_Vectors.Vector;
-      Table_Cells       : Table_Cell_Vectors.Vector;
-      Math_Scale        : Long_Float := 1.0;
-      Thinking          : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Thinking_View     : Gtk.Text_View.Gtk_Text_View;
-      Tools             : Tool_Maps.Map;
+      Scroll              : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Main_Window         : Gtk.Window.Gtk_Window;
+      Host                : Gtk.Box.Gtk_Box;
+      Exchange            : Gtk.Box.Gtk_Box;
+      Exchanges           : Exchange_Vectors.Vector;
+      Step_Frame          : Gtk.Frame.Gtk_Frame;
+      Step_Box            : Gtk.Box.Gtk_Box;
+      Tool_Flow           : Gtk.Flow_Box.Gtk_Flow_Box;
+      Step_Frames         : Frame_Vectors.Vector;
+      Active_Text         : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Active_View         : Gtk.Text_View.Gtk_Text_View;
+      Response_Section    : Gtk.Box.Gtk_Box;
+      Response_Box        : Gtk.Box.Gtk_Box;
+      Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
+      Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
+      Text_Views          : Text_View_Vectors.Vector;
+      Math_Elements       : Math_Element_Vectors.Vector;
+      Table_Grids         : Table_Grid_Vectors.Vector;
+      Table_Cells         : Table_Cell_Vectors.Vector;
+      Math_Scale          : Long_Float                   := 1.0;
+      Thinking            : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Thinking_View       : Gtk.Text_View.Gtk_Text_View;
+      Tools               : Tool_Maps.Map;
       Tool_Action_Handler : Coyote_GUI.Tool_Action_Handler;
-      Selected_Tool     : Ada.Strings.Unbounded.Unbounded_String;
-      Has_Exchange      : Boolean := False;
-      Step_Open         : Boolean := False;
-      Footer_Pending    : Boolean := False;
-      Step_Number       : Natural := 0;
-      Text_Open         : Boolean := False;
-      Thinking_Open     : Boolean := False;
-      Completed         : Boolean := False;
-      Last_Status       : Coyote_GUI.Completion_Status := Coyote_GUI.Completed;
-      Debug_Logging     : Boolean := False;
-      Fork_Callback     : Fork_Handler;
-      Render_Markdown   : Boolean := True;
-      Footer_Separator  : Gtk.Separator.Gtk_Separator;
-      Footer_Heading    : Gtk.Label.Gtk_Label;
-      Footer_Label      : Gtk.Label.Gtk_Label;
-      Fork_Button       : Gtk.Button.Gtk_Button;
+      Selected_Tool       : Ada.Strings.Unbounded.Unbounded_String;
+      Has_Exchange        : Boolean                      := False;
+      Step_Open           : Boolean                      := False;
+      Footer_Pending      : Boolean                      := False;
+      Step_Number         : Natural                      := 0;
+      Text_Open           : Boolean                      := False;
+      Thinking_Open       : Boolean                      := False;
+      Completed           : Boolean                      := False;
+      Last_Status : Coyote_GUI.Completion_Status := Coyote_GUI.Completed;
+      Debug_Logging       : Boolean                      := False;
+      Fork_Callback       : Fork_Handler;
+      Render_Markdown     : Boolean                      := True;
+      Footer_Separator    : Gtk.Separator.Gtk_Separator;
+      Footer_Heading      : Gtk.Label.Gtk_Label;
+      Footer_Label        : Gtk.Label.Gtk_Label;
+      Fork_Button         : Gtk.Button.Gtk_Button;
    end record;
 end Coyote_GUI.Conversation_Stack;

@@ -69,18 +69,13 @@ package body LLM_Parallel_Tools_Tests is
          raise;
    end Write_File;
 
-   procedure Write_Minimal_OpenRouter_Cache
-     (Home     : String;
-      Model_Id : String)
+   procedure Write_Minimal_OpenRouter_Cache (Home : String; Model_Id : String)
    is
    begin
       Write_File
         (Home & "/.coyote/openrouter_models_cache.json",
-         "{""fetched_at"":9999999999,""data"":[{""id"":"""
-         & Model_Id
-         & """,""name"":"""
-         & Model_Id
-         & """,""context_length"":128000,"
+         "{""fetched_at"":9999999999,""data"":[{""id"":""" & Model_Id
+         & """,""name"":""" & Model_Id & """,""context_length"":128000,"
          & """architecture"":{""input_modalities"":[""text""],"
          & """output_modalities"":[""text""]},"
          & """pricing"":{""prompt"":""0.000001"","
@@ -88,8 +83,7 @@ package body LLM_Parallel_Tools_Tests is
          & """input_cache_read"":""0.0000005""},"
          & """top_provider"":{""context_length"":128000,"
          & """max_completion_tokens"":4096},"
-         & """supported_parameters"":[""max_tokens"",""tools""]}]}"
-        );
+         & """supported_parameters"":[""max_tokens"",""tools""]}]}");
    end Write_Minimal_OpenRouter_Cache;
 
    procedure Write_Settings_File
@@ -103,8 +97,7 @@ package body LLM_Parallel_Tools_Tests is
         (Home & "/.coyote/settings.json",
          "{""defaultProvider"":""" & Default_Provider
          & """,""defaultModel"":""" & Default_Model
-         & """,""defaultThinkingLevel"":"""
-         & Default_Thinking & """}");
+         & """,""defaultThinkingLevel"":""" & Default_Thinking & """}");
    end Write_Settings_File;
 
    --  Build a two-event SSE payload that streams Text then closes with stop.
@@ -113,13 +106,12 @@ package body LLM_Parallel_Tools_Tests is
    --    data: <finish event with usage>\n\n
    --    data: [DONE]\n\n
    function Legacy_Message_Array
-      (Request : GNATCOLL.JSON.JSON_Value)
-      return GNATCOLL.JSON.JSON_Array
+     (Request : GNATCOLL.JSON.JSON_Value) return GNATCOLL.JSON.JSON_Array
    is
       use GNATCOLL.JSON;
-      Result        : JSON_Array := Empty_Array;
-      Pending_Calls : JSON_Array := Empty_Array;
-      Pending_Has   : Boolean := False;
+      Result        : JSON_Array          := Empty_Array;
+      Pending_Calls : JSON_Array          := Empty_Array;
+      Pending_Has   : Boolean             := False;
       Input         : constant JSON_Array := Request.Get ("input").Get;
 
       procedure Flush_Pending_Calls is
@@ -133,7 +125,7 @@ package body LLM_Parallel_Tools_Tests is
          Legacy.Set_Field ("tool_calls", Pending_Calls);
          Append (Result, Legacy);
          Pending_Calls := Empty_Array;
-         Pending_Has := False;
+         Pending_Has   := False;
       end Flush_Pending_Calls;
    begin
       if Request.Has_Field ("instructions") then
@@ -149,11 +141,9 @@ package body LLM_Parallel_Tools_Tests is
 
       for I in 1 .. GNATCOLL.JSON.Length (Input) loop
          declare
-            Item      : constant JSON_Value :=
-              GNATCOLL.JSON.Get (Input, I);
-            Item_Type : constant String :=
-              (if Item.Has_Field ("type")
-               then String'(Item.Get ("type").Get)
+            Item      : constant JSON_Value := GNATCOLL.JSON.Get (Input, I);
+            Item_Type : constant String     :=
+              (if Item.Has_Field ("type") then String'(Item.Get ("type").Get)
                else "");
          begin
             if Item_Type = "message" then
@@ -161,18 +151,17 @@ package body LLM_Parallel_Tools_Tests is
                declare
                   Legacy  : constant JSON_Value := Create_Object;
                   Content : constant JSON_Value := Item.Get ("content");
-                  Text    : constant String :=
-                    (if Content.Kind = JSON_String_Type
-                     then Content.Get
-                     elsif Content.Kind = JSON_Array_Type
+                  Text    : constant String     :=
+                    (if Content.Kind = JSON_String_Type then Content.Get
+                     elsif
+                       Content.Kind = JSON_Array_Type
                        and then GNATCOLL.JSON.Length (Content.Get) > 0
-                     then String'
-                       (GNATCOLL.JSON.Get (Content.Get, 1)
-                          .Get ("text").Get)
+                     then
+                       String'
+                         (GNATCOLL.JSON.Get (Content.Get, 1).Get ("text").Get)
                      else "");
                begin
-                  Legacy.Set_Field
-                    ("role", String'(Item.Get ("role").Get));
+                  Legacy.Set_Field ("role", String'(Item.Get ("role").Get));
                   Legacy.Set_Field ("content", Text);
                   Append (Result, Legacy);
                end;
@@ -181,11 +170,9 @@ package body LLM_Parallel_Tools_Tests is
                   Call : constant JSON_Value := Create_Object;
                   Func : constant JSON_Value := Create_Object;
                begin
-                  Call.Set_Field
-                    ("id", String'(Item.Get ("call_id").Get));
+                  Call.Set_Field ("id", String'(Item.Get ("call_id").Get));
                   Call.Set_Field ("type", "function");
-                  Func.Set_Field
-                    ("name", String'(Item.Get ("name").Get));
+                  Func.Set_Field ("name", String'(Item.Get ("name").Get));
                   Func.Set_Field
                     ("arguments", String'(Item.Get ("arguments").Get));
                   Call.Set_Field ("function", Func);
@@ -197,14 +184,14 @@ package body LLM_Parallel_Tools_Tests is
                declare
                   Legacy : constant JSON_Value := Create_Object;
                   Output : constant JSON_Value := Item.Get ("output");
-                  Text   : constant String :=
-                    (if Output.Kind = JSON_String_Type
-                     then Output.Get
-                     elsif Output.Kind = JSON_Array_Type
+                  Text   : constant String     :=
+                    (if Output.Kind = JSON_String_Type then Output.Get
+                     elsif
+                       Output.Kind = JSON_Array_Type
                        and then GNATCOLL.JSON.Length (Output.Get) > 0
-                     then String'
-                       (GNATCOLL.JSON.Get (Output.Get, 1)
-                          .Get ("text").Get)
+                     then
+                       String'
+                         (GNATCOLL.JSON.Get (Output.Get, 1).Get ("text").Get)
                      else "");
                begin
                   Legacy.Set_Field ("role", "tool");
@@ -223,7 +210,8 @@ package body LLM_Parallel_Tools_Tests is
    function Text_SSE_Payload
      (Text              : String;
       Prompt_Tokens     : Natural := 8;
-      Completion_Tokens : Natural := 3) return String
+      Completion_Tokens : Natural := 3)
+      return String
    is
       use GNATCOLL.JSON;
       Delta_Event : constant JSON_Value := Create_Object;
@@ -231,8 +219,8 @@ package body LLM_Parallel_Tools_Tests is
       Response    : constant JSON_Value := Create_Object;
       Item        : constant JSON_Value := Create_Object;
       Part        : constant JSON_Value := Create_Object;
-      Output      : JSON_Array := Empty_Array;
-      Content     : JSON_Array := Empty_Array;
+      Output      : JSON_Array          := Empty_Array;
+      Content     : JSON_Array          := Empty_Array;
       Usage       : constant JSON_Value := Create_Object;
    begin
       Delta_Event.Set_Field ("type", "response.output_text.delta");
@@ -261,10 +249,10 @@ package body LLM_Parallel_Tools_Tests is
       Completed.Set_Field ("type", "response.completed");
       Completed.Set_Field ("response", Response);
       return
-        "event: response.output_text.delta" & ASCII.LF
-        & "data: " & Write (Delta_Event) & ASCII.LF & ASCII.LF
-        & "event: response.completed" & ASCII.LF
-        & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
+        "event: response.output_text.delta" & ASCII.LF & "data: "
+        & Write (Delta_Event) & ASCII.LF & ASCII.LF
+        & "event: response.completed" & ASCII.LF & "data: " & Write (Completed)
+        & ASCII.LF & ASCII.LF;
    end Text_SSE_Payload;
 
    --  Append a Content-Type: text/event-stream header to a response.
@@ -282,12 +270,14 @@ package body LLM_Parallel_Tools_Tests is
    end record;
 
    type Tool_Call_Definition_Array is
-     array (Positive range <>) of Tool_Call_Definition;
+     array (Positive range <>)
+     of Tool_Call_Definition;
 
    function Tool_Call_Def
      (Tool_Call_Id   : String;
       Tool_Name      : String;
-      Arguments_Json : String) return Tool_Call_Definition
+      Arguments_Json : String)
+      return Tool_Call_Definition
    is
    begin
       return
@@ -299,26 +289,24 @@ package body LLM_Parallel_Tools_Tests is
    function Tool_Call_SSE_Payload
      (Calls             : Tool_Call_Definition_Array;
       Prompt_Tokens     : Natural := 12;
-      Completion_Tokens : Natural := 6) return String
+      Completion_Tokens : Natural := 6)
+      return String
    is
       use GNATCOLL.JSON;
       Completed : constant JSON_Value := Create_Object;
       Response  : constant JSON_Value := Create_Object;
-      Output    : JSON_Array := Empty_Array;
+      Output    : JSON_Array          := Empty_Array;
       Usage     : constant JSON_Value := Create_Object;
    begin
       for I in Calls'Range loop
          declare
             Item : constant JSON_Value := Create_Object;
          begin
-            Item.Set_Field
-              ("id", "fc_" & To_String (Calls (I).Tool_Call_Id));
+            Item.Set_Field ("id", "fc_" & To_String (Calls (I).Tool_Call_Id));
             Item.Set_Field ("type", "function_call");
-            Item.Set_Field
-              ("call_id", To_String (Calls (I).Tool_Call_Id));
+            Item.Set_Field ("call_id", To_String (Calls (I).Tool_Call_Id));
             Item.Set_Field ("name", To_String (Calls (I).Tool_Name));
-            Item.Set_Field
-              ("arguments", To_String (Calls (I).Arguments_Json));
+            Item.Set_Field ("arguments", To_String (Calls (I).Arguments_Json));
             Item.Set_Field ("status", "completed");
             Append (Output, Item);
          end;
@@ -335,33 +323,32 @@ package body LLM_Parallel_Tools_Tests is
       Completed.Set_Field ("type", "response.completed");
       Completed.Set_Field ("response", Response);
       return
-        "event: response.completed" & ASCII.LF
-        & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
+        "event: response.completed" & ASCII.LF & "data: " & Write (Completed)
+        & ASCII.LF & ASCII.LF;
    end Tool_Call_SSE_Payload;
 
    procedure Test_Parallel_Tools_Run_Concurrently (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_parallel_test_1";
+      Home           : constant String   := "/tmp/coyote_parallel_test_1";
       Port           : constant Positive := 18_801;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
       Before         : Ada.Calendar.Time;
       After          : Ada.Calendar.Time;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
          pragma Unreferenced (E);
@@ -369,31 +356,30 @@ package body LLM_Parallel_Tools_Tests is
          null;
       end Ignore_Event;
 
-      Two_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_1",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""sleep 0.4"",""run_group"":1}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_2",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""sleep 0.4"",""run_group"":1}")));
+      Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_1",
+                 Tool_Name      => "shell",
+                 Arguments_Json =>
+                   "{""command"":""sleep 0.4"",""run_group"":1}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_2",
+                 Tool_Name      => "shell",
+                 Arguments_Json =>
+                   "{""command"":""sleep 0.4"",""run_group"":1}")));
 
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
 
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -409,7 +395,7 @@ package body LLM_Parallel_Tools_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
@@ -417,7 +403,8 @@ package body LLM_Parallel_Tools_Tests is
             Assert
               (Ada.Strings.Fixed.Index
                  (String'(Get (Msgs, 1).Get ("content").Get),
-                  "Run two sleeps in parallel") = 1,
+                  "Run two sleeps in parallel")
+               = 1,
                "Parallel req 1: wrong prompt");
             Append (Res.Body_Data, Two_Tool_SSE);
          else
@@ -426,8 +413,7 @@ package body LLM_Parallel_Tools_Tests is
               (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
                "Parallel req 2: second msg should be assistant");
             Assert
-              (GNATCOLL.JSON.Length (Get (Msgs, 2).Get ("tool_calls").Get)
-                 = 2,
+              (GNATCOLL.JSON.Length (Get (Msgs, 2).Get ("tool_calls").Get) = 2,
                "Parallel req 2: expected 2 tool calls");
             Assert
               (String'(Get (Msgs, 3).Get ("role").Get) = "tool",
@@ -473,8 +459,8 @@ package body LLM_Parallel_Tools_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
         (Ada.Calendar."-" (After, Before) < 0.75,
@@ -496,11 +482,11 @@ package body LLM_Parallel_Tools_Tests is
          "Fourth message should be the second tool result");
       Assert
         (To_String (Messages.Element (2).Content.Element (0).Result_Id)
-           = "call_1",
+         = "call_1",
          "First tool result should keep call_1");
       Assert
         (To_String (Messages.Element (3).Content.Element (0).Result_Id)
-           = "call_2",
+         = "call_2",
          "Second tool result should keep call_2");
       Assert
         (Messages.Element (4).Role = LLM.Types.Assistant,
@@ -516,7 +502,8 @@ package body LLM_Parallel_Tools_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -529,24 +516,23 @@ package body LLM_Parallel_Tools_Tests is
    procedure Test_Parallel_Abort_During_Batch (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_parallel_test_2";
+      Home           : constant String   := "/tmp/coyote_parallel_test_2";
       Port           : constant Positive := 18_802;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
          procedure Note_End (Was_Aborted : Boolean);
@@ -587,29 +573,28 @@ package body LLM_Parallel_Tools_Tests is
          end if;
       end On_Event;
 
-      Two_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_1",
-              Tool_Name      => "shell",
-              Arguments_Json => "{""command"":""sleep 2""}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_2",
-              Tool_Name      => "shell",
-              Arguments_Json => "{""command"":""echo done""}")));
+      Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_1",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""sleep 2""}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_2",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""echo done""}")));
 
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
 
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -625,7 +610,7 @@ package body LLM_Parallel_Tools_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
@@ -678,15 +663,16 @@ package body LLM_Parallel_Tools_Tests is
             delay 0.05;
          end loop;
 
-         Assert (Runner'Terminated,
-                 "Aborted parallel tool batch must finish within 10 s");
+         Assert
+           (Runner'Terminated,
+            "Aborted parallel tool batch must finish within 10 s");
       end;
 
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
         (not State.Had_Error,
@@ -708,7 +694,8 @@ package body LLM_Parallel_Tools_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -721,26 +708,25 @@ package body LLM_Parallel_Tools_Tests is
    procedure Test_Tools_Run_Sequentially_By_Default (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_parallel_test_3";
+      Home           : constant String   := "/tmp/coyote_parallel_test_3";
       Port           : constant Positive := 18_803;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
       Before         : Ada.Calendar.Time;
       After          : Ada.Calendar.Time;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
          pragma Unreferenced (E);
@@ -749,31 +735,28 @@ package body LLM_Parallel_Tools_Tests is
       end Ignore_Event;
 
       --  Two tools without run_group — must execute sequentially (default).
-      Two_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_s1",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""sleep 0.3""}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_s2",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""sleep 0.3""}")));
+      Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_s1",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""sleep 0.3""}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_s2",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""sleep 0.3""}")));
 
       Request_Count : aliased Natural := 0;
       Saw_Req_2     : aliased Boolean := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -789,7 +772,7 @@ package body LLM_Parallel_Tools_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
@@ -797,8 +780,7 @@ package body LLM_Parallel_Tools_Tests is
          else
             Saw_Req_2 := True;
             Append
-              (Res.Body_Data,
-               Text_SSE_Payload ("Sequential done", 18, 5));
+              (Res.Body_Data, Text_SSE_Payload ("Sequential done", 18, 5));
          end if;
       end Handle_Request;
 
@@ -830,8 +812,8 @@ package body LLM_Parallel_Tools_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       --  Two 0.3 s sleeps sequentially should take > 0.5 s total.
       --  If they ran in parallel it would be ~0.31 s.
@@ -856,7 +838,8 @@ package body LLM_Parallel_Tools_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -869,24 +852,23 @@ package body LLM_Parallel_Tools_Tests is
    procedure Test_Tools_Run_In_Group_Order (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_parallel_test_4";
+      Home           : constant String   := "/tmp/coyote_parallel_test_4";
       Port           : constant Positive := 18_804;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
          pragma Unreferenced (E);
@@ -896,35 +878,35 @@ package body LLM_Parallel_Tools_Tests is
 
       --  Three tools: first two in group 1, third in group 2.
       --  Group 1 must execute first (in parallel), then group 2.
-      Three_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_g1a",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf group1-a"",""run_group"":1}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_g1b",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf group1-b"",""run_group"":1}"),
-            3 => Tool_Call_Def
-             (Tool_Call_Id   => "call_g2",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf group2"",""run_group"":2}")));
+      Three_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_g1a",
+                 Tool_Name      => "shell",
+                 Arguments_Json =>
+                   "{""command"":""printf group1-a"",""run_group"":1}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_g1b",
+                 Tool_Name      => "shell",
+                 Arguments_Json =>
+                   "{""command"":""printf group1-b"",""run_group"":1}"),
+            3 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_g2",
+                 Tool_Name      => "shell",
+                 Arguments_Json =>
+                   "{""command"":""printf group2"",""run_group"":2}")));
 
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -940,7 +922,7 @@ package body LLM_Parallel_Tools_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
@@ -952,8 +934,7 @@ package body LLM_Parallel_Tools_Tests is
               (Length (Msgs) = 5,
                "Group-order req 2: expected 5 msgs (assistant + 3 results)");
             Append
-              (Res.Body_Data,
-               Text_SSE_Payload ("Group order done", 22, 5));
+              (Res.Body_Data, Text_SSE_Payload ("Group order done", 22, 5));
          end if;
       end Handle_Request;
 
@@ -983,8 +964,8 @@ package body LLM_Parallel_Tools_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
         (Messages.Length = 6,
@@ -1000,15 +981,15 @@ package body LLM_Parallel_Tools_Tests is
       for I in 2 .. 4 loop
          Assert
            (Messages.Element (I).Role = LLM.Types.Tool_Result,
-            "Message " & Natural_Image (I)
-            & " should be a tool result");
+            "Message " & Natural_Image (I) & " should be a tool result");
          Assert
            (Messages.Element (I).Content.Length = 1,
             "Tool result " & Natural_Image (I - 1)
             & " should have one content block");
          Assert
            (Ada.Strings.Unbounded.Length
-              (Messages.Element (I).Content.Element (0).Result_Text) > 0,
+              (Messages.Element (I).Content.Element (0).Result_Text)
+            > 0,
             "Tool result " & Natural_Image (I - 1)
             & " should have non-empty result text");
       end loop;
@@ -1027,7 +1008,8 @@ package body LLM_Parallel_Tools_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -1037,29 +1019,31 @@ package body LLM_Parallel_Tools_Tests is
          raise;
    end Test_Tools_Run_In_Group_Order;
 
-   package LLM_Parallel_Caller is
-     new AUnit.Test_Caller (LLM_Parallel_Tools_Tests.Test);
+   package LLM_Parallel_Caller is new AUnit.Test_Caller
+     (LLM_Parallel_Tools_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Parallel_Caller.Create
-        ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
-         LLM_Parallel_Tools_Tests
-           .Test_Parallel_Tools_Run_Concurrently'Access));
-      Result.Add_Test (LLM_Parallel_Caller.Create
-        ("Parallel batch: abort during batch sets Was_Aborted",
-         LLM_Parallel_Tools_Tests
-           .Test_Parallel_Abort_During_Batch'Access));
-      Result.Add_Test (LLM_Parallel_Caller.Create
-        ("Sequential default: tools without run_group run sequentially",
-         LLM_Parallel_Tools_Tests
-           .Test_Tools_Run_Sequentially_By_Default'Access));
-      Result.Add_Test (LLM_Parallel_Caller.Create
-        ("Group order: group 1 runs before group 2",
-         LLM_Parallel_Tools_Tests
-           .Test_Tools_Run_In_Group_Order'Access));
+      Result.Add_Test
+        (LLM_Parallel_Caller.Create
+           ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
+            LLM_Parallel_Tools_Tests.Test_Parallel_Tools_Run_Concurrently'
+              Access));
+      Result.Add_Test
+        (LLM_Parallel_Caller.Create
+           ("Parallel batch: abort during batch sets Was_Aborted",
+            LLM_Parallel_Tools_Tests.Test_Parallel_Abort_During_Batch'Access));
+      Result.Add_Test
+        (LLM_Parallel_Caller.Create
+           ("Sequential default: tools without run_group run sequentially",
+            LLM_Parallel_Tools_Tests.Test_Tools_Run_Sequentially_By_Default'
+              Access));
+      Result.Add_Test
+        (LLM_Parallel_Caller.Create
+           ("Group order: group 1 runs before group 2",
+            LLM_Parallel_Tools_Tests.Test_Tools_Run_In_Group_Order'Access));
 
       return Result;
    end Suite;

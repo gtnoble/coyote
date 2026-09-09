@@ -120,21 +120,16 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of
-          (Year    => 1970,
-           Month   => 1,
-           Day     => 1,
-           Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
 
    function Is_Fresh
-     (Fetched_At    : Long_Long_Integer;
-      Max_Age_Hours : Natural) return Boolean
+     (Fetched_At : Long_Long_Integer; Max_Age_Hours : Natural) return Boolean
    is
       Age_Limit : constant Long_Long_Integer :=
-        Long_Long_Integer (Max_Age_Hours) * 3600;
+        Long_Long_Integer (Max_Age_Hours) * 3_600;
       Now_S     : constant Long_Long_Integer := Current_Unix_S;
    begin
       if Fetched_At <= 0 then
@@ -150,7 +145,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
 
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Value
+      Field : String)
+      return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -165,7 +161,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
 
    function Get_Array_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Array
+      Field : String)
+      return GNATCOLL.JSON.JSON_Array
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -181,7 +178,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    function Get_String_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : String := "") return String
+      Default : String := "")
+      return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -197,7 +195,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    function Get_Natural_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : Natural) return Natural
+      Default : Natural)
+      return Natural
    is
       Raw : Long_Integer;
    begin
@@ -217,7 +216,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
 
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Long_Integer
+      Field : String)
+      return Long_Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -237,7 +237,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    function Get_Boolean_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : Boolean) return Boolean
+      Default : Boolean)
+      return Boolean
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -251,8 +252,7 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    end Get_Boolean_Field;
 
    function Array_Contains
-     (Items : GNATCOLL.JSON.JSON_Array;
-      Want  : String) return Boolean
+     (Items : GNATCOLL.JSON.JSON_Array; Want : String) return Boolean
    is
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Items) loop
@@ -278,46 +278,44 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    function Parse_Model
      (Value : GNATCOLL.JSON.JSON_Value) return Model_Capability_Info
    is
-      Result     : Model_Capability_Info;
-      Caps       : constant GNATCOLL.JSON.JSON_Value :=
+      Result    : Model_Capability_Info;
+      Caps      : constant GNATCOLL.JSON.JSON_Value :=
         Get_Object_Field (Value, "capabilities");
-      Limits     : constant GNATCOLL.JSON.JSON_Value :=
+      Limits    : constant GNATCOLL.JSON.JSON_Value :=
         Get_Object_Field (Caps, "limits");
-      Supports   : constant GNATCOLL.JSON.JSON_Value :=
+      Supports  : constant GNATCOLL.JSON.JSON_Value :=
         Get_Object_Field (Caps, "supports");
-      Endpoints  : constant GNATCOLL.JSON.JSON_Array :=
+      Endpoints : constant GNATCOLL.JSON.JSON_Array :=
         Get_Array_Field (Value, "supported_endpoints");
-      Reasoning  : constant GNATCOLL.JSON.JSON_Array :=
+      Reasoning : constant GNATCOLL.JSON.JSON_Array :=
         Get_Array_Field (Supports, "reasoning_effort");
    begin
       Result.Model_Id := To_Unbounded_String (Get_String_Field (Value, "id"));
       Result.Name := To_Unbounded_String (Get_String_Field (Value, "name"));
-      Result.Context_Window :=
+      Result.Context_Window      :=
         Get_Natural_Field
           (Limits, "max_context_window_tokens", Result.Context_Window);
-      Result.Max_Tokens :=
+      Result.Max_Tokens          :=
         Get_Natural_Field (Limits, "max_output_tokens", Result.Max_Tokens);
-      Result.Supports_Tools :=
+      Result.Supports_Tools      :=
         Get_Boolean_Field (Supports, "tool_calls", Result.Supports_Tools);
-      Result.Supports_Images :=
+      Result.Supports_Images     :=
         Get_Boolean_Field (Supports, "vision", Result.Supports_Images);
-      Result.Reasoning := GNATCOLL.JSON.Length (Reasoning) > 0;
+      Result.Reasoning           := GNATCOLL.JSON.Length (Reasoning) > 0;
       Result.Max_Thinking_Budget :=
         Get_Natural_Field
           (Supports, "max_thinking_budget", Result.Max_Thinking_Budget);
       Result.Min_Thinking_Budget :=
         Get_Natural_Field
           (Supports, "min_thinking_budget", Result.Min_Thinking_Budget);
-      Result.Supports_Anthropic :=
-        Array_Contains (Endpoints, "/v1/messages");
-      Result.Supports_OpenAI :=
+      Result.Supports_Anthropic  := Array_Contains (Endpoints, "/v1/messages");
+      Result.Supports_OpenAI     :=
         Array_Contains (Endpoints, "/chat/completions");
       return Result;
    end Parse_Model;
 
    procedure Parse_Models
-     (Items  :     GNATCOLL.JSON.JSON_Array;
-      Models : out Catalogue_Vectors.Vector)
+     (Items : GNATCOLL.JSON.JSON_Array; Models : out Catalogue_Vectors.Vector)
    is
    begin
       Models.Clear;
@@ -337,11 +335,9 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    end Parse_Models;
 
    procedure Add_Header_Line
-     (Headers : in out LLM.HTTP.Header_List;
-      Header  : String)
+     (Headers : in out LLM.HTTP.Header_List; Header : String)
    is
-      Separator : constant Natural :=
-        Ada.Strings.Fixed.Index (Header, ": ");
+      Separator : constant Natural := Ada.Strings.Fixed.Index (Header, ": ");
    begin
       if Separator = 0 then
          return;
@@ -354,16 +350,17 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    end Add_Header_Line;
 
    function Fetch_Live
-     (Base_Url : String;
-      Token    : String;
+     (Base_Url :     String;
+      Token    :     String;
       Models   : out Catalogue_Vectors.Vector;
-      Data     : out GNATCOLL.JSON.JSON_Value) return Boolean
+      Data     : out GNATCOLL.JSON.JSON_Value)
+      return Boolean
    is
-      Headers  : LLM.HTTP.Header_List;
-      Status   : Natural := 0;
+      Headers       : LLM.HTTP.Header_List;
+      Status        : Natural := 0;
       Response_Body : Unbounded_String;
-      Parsed   : GNATCOLL.JSON.Read_Result;
-      Root     : GNATCOLL.JSON.JSON_Value;
+      Parsed        : GNATCOLL.JSON.Read_Result;
+      Root          : GNATCOLL.JSON.JSON_Value;
 
       procedure On_Chunk (Chunk : String) is
       begin
@@ -374,16 +371,11 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
       Data := GNATCOLL.JSON.JSON_Null;
 
       LLM.HTTP.Add_Header (Headers, "Authorization", "Bearer " & Token);
-      Add_Header_Line
-        (Headers, LLM.Auth.GitHub_Copilot.User_Agent_Header);
-      Add_Header_Line
-        (Headers, LLM.Auth.GitHub_Copilot.Editor_Version_Header);
-      Add_Header_Line
-        (Headers, LLM.Auth.GitHub_Copilot.Editor_Plugin_Header);
-      Add_Header_Line
-        (Headers, LLM.Auth.GitHub_Copilot.Integration_Id_Header);
-      Add_Header_Line
-        (Headers, LLM.Auth.GitHub_Copilot.Intent_Header);
+      Add_Header_Line (Headers, LLM.Auth.GitHub_Copilot.User_Agent_Header);
+      Add_Header_Line (Headers, LLM.Auth.GitHub_Copilot.Editor_Version_Header);
+      Add_Header_Line (Headers, LLM.Auth.GitHub_Copilot.Editor_Plugin_Header);
+      Add_Header_Line (Headers, LLM.Auth.GitHub_Copilot.Integration_Id_Header);
+      Add_Header_Line (Headers, LLM.Auth.GitHub_Copilot.Intent_Header);
 
       LLM.HTTP.Get
         (URL      => Endpoint_Url (Base_Url),
@@ -420,15 +412,11 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
          return False;
    end Fetch_Live;
 
-   procedure Save_Cache
-     (Base_Url : String;
-      Data     : GNATCOLL.JSON.JSON_Value)
-   is
-      Path : constant String := Cache_Path;
+   procedure Save_Cache (Base_Url : String; Data : GNATCOLL.JSON.JSON_Value) is
+      Path : constant String                   := Cache_Path;
       Root : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
-      if Path'Length = 0
-        or else Data.Kind /= GNATCOLL.JSON.JSON_Array_Type
+      if Path'Length = 0 or else Data.Kind /= GNATCOLL.JSON.JSON_Array_Type
       then
          return;
       end if;
@@ -446,11 +434,10 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    end Save_Cache;
 
    function Load_Cache
-     (Base_Url      : String;
-      Max_Age_Hours : Natural) return Cache_Load_Result
+     (Base_Url : String; Max_Age_Hours : Natural) return Cache_Load_Result
    is
-      Path       : constant String := Cache_Path;
-      Content    : constant String := Read_File (Path);
+      Path       : constant String   := Cache_Path;
+      Content    : constant String   := Read_File (Path);
       Parsed     : GNATCOLL.JSON.Read_Result;
       Root       : GNATCOLL.JSON.JSON_Value;
       Cached_Url : Unbounded_String;
@@ -509,10 +496,10 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
       end if;
 
       if Fetch_Live
-           (Base_Url => Base_Url,
-            Token    => Token,
-            Models   => Live_Models,
-            Data     => Live_Data)
+          (Base_Url => Base_Url,
+           Token    => Token,
+           Models   => Live_Models,
+           Data     => Live_Data)
       then
          Models := Live_Models;
          Save_Cache (Base_Url, Live_Data);

@@ -21,27 +21,24 @@ package LLM.Providers.OpenRouter is
    --  configuration supplies the key at send time. Session_Id identifies
    --  related requests for OpenRouter broadcast observability.
    function Create
-      (Api_Key    : String := "";
-       Session_Id : String := "") return Provider;
+     (Api_Key : String := ""; Session_Id : String := "") return Provider;
 
-   overriding
-   procedure Customize_Request
-      (P        : in out Provider;
-       Model_Id :        String;
-       Thinking :        LLM.Providers.Thinking_Level;
-       Request  :        GNATCOLL.JSON.JSON_Value);
+   overriding procedure Customize_Request
+     (P        : in out Provider;
+      Model_Id :        String;
+      Thinking :        LLM.Providers.Thinking_Level;
+      Request  :        GNATCOLL.JSON.JSON_Value);
 
-   overriding
-   procedure Send
-      (P             : in out Provider;
-       Model_Id      :        String;
-       System_Prompt :        String;
-       Messages      :        LLM.Types.Message_Vectors.Vector;
-       Tools_Json    :        String;
-       Thinking      :        LLM.Providers.Thinking_Level;
-       Max_Tokens    :        Positive;
-       Handler       :        LLM.Providers.Event_Handler;
-       Abort_Check   :        LLM.Providers.Abort_Callback := null);
+   overriding procedure Send
+     (P             : in out Provider;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null);
 
 private
 

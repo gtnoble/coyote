@@ -2,7 +2,6 @@
 --
 --  Project: coyote
 
-
 with Ada.Numerics.Long_Elementary_Functions;
 package body Coyote_SQC.Statistics.Quantile_CC is
 
@@ -23,7 +22,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          J   := I;
          while J > A'First and then A (J - 1) > Tmp loop
             A (J) := A (J - 1);
-            J := J - 1;
+            J     := J - 1;
          end loop;
          A (J) := Tmp;
       end loop;
@@ -39,7 +38,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
       procedure Sift_Down (Start, Last : Positive) is
          Root   : constant Long_Float := A (Start);
-         Parent : Positive := Start;
+         Parent : Positive            := Start;
          Child  : Positive;
       begin
          loop
@@ -50,7 +49,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
             end if;
             exit when Root >= A (Child);
             A (Parent) := A (Child);
-            Parent := Child;
+            Parent     := Child;
          end loop;
          A (Parent) := Root;
       end Sift_Down;
@@ -71,7 +70,6 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          Sift_Down (1, I - 1);
       end loop;
    end Heap_Sort;
-
 
    --  In-place quicksort with median-of-three pivot.
    --  Falls back to Insertion_Sort for segments of size <= 16.
@@ -113,9 +111,9 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          end if;
 
          declare
-            Mid    : constant Positive := Lo + (Hi - Lo) / 2;
-            Pivot  : constant Positive := Median_Of_Three (Lo, Mid, Hi);
-            P_Val  : constant Long_Float := A (Pivot);
+            Mid   : constant Positive   := Lo + (Hi - Lo) / 2;
+            Pivot : constant Positive   := Median_Of_Three (Lo, Mid, Hi);
+            P_Val : constant Long_Float := A (Pivot);
          begin
             Swap (Pivot, Hi);
 
@@ -132,8 +130,8 @@ package body Coyote_SQC.Statistics.Quantile_CC is
                Swap (Store + 1, Hi);
 
                declare
-                  Left_Sz  : constant Natural := Store + 1 - Lo;
-                  Right_Sz : constant Natural := Hi - (Store + 1);
+                  Left_Sz  : constant Natural  := Store + 1 - Lo;
+                  Right_Sz : constant Natural  := Hi - (Store + 1);
                   Piv_Pos  : constant Positive := Store + 1;
                begin
                   if Left_Sz < Right_Sz then
@@ -167,7 +165,8 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
    procedure LC_Next (State : in out LC_State; R : out Float) is
    begin
-      State.X := (State.X * Long_Long_Integer (1_103_515_245) + 12_345) mod Modulus;
+      State.X :=
+        (State.X * Long_Long_Integer (1_103_515_245) + 12_345) mod Modulus;
       if State.X = 0 then
          State.X := 1;
       end if;
@@ -185,16 +184,15 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  ── Compute_Quantiles ─────────────────────────────────────────────────
 
    function Compute_Quantiles
-     (Values : Long_Float_Array;
-      N      : Natural) return Quantile_Array
+     (Values : Long_Float_Array; N : Natural) return Quantile_Array
    is
       Sorted_Vals : Long_Float_Array (1 .. N) := Values (1 .. N);
       Result      : Quantile_Array;
 
       function Linear_Quantile (P : Long_Float) return Long_Float is
-         Pos : constant Long_Float := P * Long_Float (N - 1);
-         K   : constant Natural     := Natural (Long_Float'Truncation (Pos));
-         F   : constant Long_Float  := Pos - Long_Float (K);
+         Pos  : constant Long_Float := P * Long_Float (N - 1);
+         K    : constant Natural    := Natural (Long_Float'Truncation (Pos));
+         F    : constant Long_Float := Pos - Long_Float (K);
          Idx1 : constant Positive   := K + 1;
          Idx2 : constant Positive   := Positive'Min (K + 2, N);
       begin
@@ -207,12 +205,10 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
    begin
       if N < 1 then
-         raise Constraint_Error with
-           "Compute_Quantiles: N must be >= 1";
+         raise Constraint_Error with "Compute_Quantiles: N must be >= 1";
       end if;
       if Values'Length < N then
-         raise Constraint_Error with
-           "Compute_Quantiles: Values'Length < N";
+         raise Constraint_Error with "Compute_Quantiles: Values'Length < N";
       end if;
 
       Quick_Sort (Sorted_Vals);
@@ -263,12 +259,12 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       Pool_Lengths : Natural_Vectors.Vector;
       N_I          : Positive;
       Seed         : Integer := Bootstrap_Seed)
-     return Bootstrap_Distribution
+      return Bootstrap_Distribution
    is
-      K : constant Natural := Natural (Pool_Offsets.Length);
-      Dist : Bootstrap_Distribution;
+      K            : constant Natural := Natural (Pool_Offsets.Length);
+      Dist         : Bootstrap_Distribution;
       Resample_Buf : Long_Float_Array (1 .. N_I);
-      RNG : LC_State;
+      RNG          : LC_State;
 
       function Rand return Float is
          R : Float;
@@ -299,12 +295,12 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
       for B in 1 .. B_Replicates loop
          declare
-            Sess_Idx : constant Positive := Random_Natural (K) + 1;
-            Offset   : constant Natural :=
+            Sess_Idx  : constant Positive := Random_Natural (K) + 1;
+            Offset    : constant Natural  :=
               Natural (Pool_Offsets.Element (Sess_Idx));
-            Length   : constant Natural :=
+            Length    : constant Natural  :=
               Natural (Pool_Lengths.Element (Sess_Idx));
-            Sess_Size : constant Natural := Length;
+            Sess_Size : constant Natural  := Length;
          begin
             for J in 1 .. N_I loop
                declare
@@ -335,7 +331,9 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  ── Extract_Limits ────────────────────────────────────────────────────
 
    function Extract_Limits
-     (Dist : Bootstrap_Distribution; Bonferroni_Enabled : Boolean := True) return Quantile_Limits_Array
+     (Dist               : Bootstrap_Distribution;
+      Bonferroni_Enabled : Boolean := True)
+      return Quantile_Limits_Array
    is
       Result : Quantile_Limits_Array;
    begin
@@ -345,24 +343,25 @@ package body Coyote_SQC.Statistics.Quantile_CC is
             S : constant Natural := Natural (V.Length);
          begin
             if S = 0 then
-               Result (Comp) := (UCL     => 0.0,
-                                 CL      => 0.0,
-                                 LCL     => 0.0,
-                                 Has_UCL => False,
-                                 Has_LCL => False);
+               Result (Comp) :=
+                 (UCL     => 0.0,
+                  CL      => 0.0,
+                  LCL     => 0.0,
+                  Has_UCL => False,
+                  Has_LCL => False);
             else
                Result (Comp) :=
-                 (UCL      => V.Element (
-                    (if Bonferroni_Enabled
-                     then UCL_Rank - 1
-                     else B_Replicates - Unadjusted_Rank)),
-                  CL       => V.Element (B_Replicates / 2 - 1),
-                  LCL      => V.Element (
-                    (if Bonferroni_Enabled
-                     then Bonferroni_Rank - 1
-                     else Unadjusted_Rank - 1)),
-                  Has_UCL  => True,
-                  Has_LCL  => True);
+                 (UCL     =>
+                    V.Element
+                      ((if Bonferroni_Enabled then UCL_Rank - 1
+                        else B_Replicates - Unadjusted_Rank)),
+                  CL      => V.Element (B_Replicates / 2 - 1),
+                  LCL     =>
+                    V.Element
+                      ((if Bonferroni_Enabled then Bonferroni_Rank - 1
+                        else Unadjusted_Rank - 1)),
+                  Has_UCL => True,
+                  Has_LCL => True);
             end if;
          end;
       end loop;
@@ -372,8 +371,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  ── Is_OOC ────────────────────────────────────────────────────────────
 
    function Is_OOC
-     (Value  : Long_Float;
-      Limits : Quantile_Limits_Record) return Boolean
+     (Value : Long_Float; Limits : Quantile_Limits_Record) return Boolean
    is
    begin
       if Limits.Has_UCL and then Value > Limits.UCL then
@@ -388,8 +386,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  ── Session_Is_OOC ────────────────────────────────────────────────────
 
    function Session_Is_OOC
-     (Values : Quantile_Array;
-      Limits : Quantile_Limits_Array) return Boolean
+     (Values : Quantile_Array; Limits : Quantile_Limits_Array) return Boolean
    is
    begin
       for Comp in Quantile_Index loop
@@ -404,7 +401,8 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
    function OOC_Components
      (Values : Quantile_Array;
-      Limits : Quantile_Limits_Array) return Quantile_Component_Set
+      Limits : Quantile_Limits_Array)
+      return Quantile_Component_Set
    is
       Result : Quantile_Component_Set;
    begin
@@ -418,11 +416,12 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
    function Get_Distribution
      (Cache        : in out Quantile_CC_Cache;
-      Pool_Values  : Long_Float_Array;
-      Pool_Offsets : Natural_Vectors.Vector;
-      Pool_Lengths : Natural_Vectors.Vector;
-      N_I          : Positive;
-      Seed         : Integer := Bootstrap_Seed) return Bootstrap_Distribution
+      Pool_Values  :        Long_Float_Array;
+      Pool_Offsets :        Natural_Vectors.Vector;
+      Pool_Lengths :        Natural_Vectors.Vector;
+      N_I          :        Positive;
+      Seed         :        Integer := Bootstrap_Seed)
+      return Bootstrap_Distribution
    is
    begin
       for E of Cache.Entries loop
@@ -436,7 +435,9 @@ package body Coyote_SQC.Statistics.Quantile_CC is
            Build_Distribution
              (Pool_Values, Pool_Offsets, Pool_Lengths, N_I, Seed);
       begin
-         Cache.Entries.Append ((N => N_I, Dist => Dist));
+         Cache.Entries.Append
+           ((N    => N_I,
+             Dist => Dist));
          return Dist;
       end;
    end Get_Distribution;
@@ -465,7 +466,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    function X_Midpoint (A, B : Positive) return Positive is
       X_Mid : constant Long_Float :=
         (1.0 / Sqrt (Long_Float (A)) + 1.0 / Sqrt (Long_Float (B))) / 2.0;
-      N_Mid : constant Positive := N_Of_X (X_Mid);
+      N_Mid : constant Positive   := N_Of_X (X_Mid);
    begin
       if N_Mid <= A then
          return A + 1;
@@ -478,36 +479,33 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
    --  Linear interpolation in x = 1/√n space between two anchors.
    procedure Interpolate_From_Anchors
-     (N_A       : Positive;
-      Lims_A    : Quantile_Limits_Array;
-      N_B       : Positive;
-      Lims_B    : Quantile_Limits_Array;
-      N_Target  : Positive;
-      Result    : out Quantile_Limits_Array)
+     (N_A      :     Positive;
+      Lims_A   :     Quantile_Limits_Array;
+      N_B      :     Positive;
+      Lims_B   :     Quantile_Limits_Array;
+      N_Target :     Positive;
+      Result   : out Quantile_Limits_Array)
    is
-      X_A      : constant Long_Float := X_Of_N (N_A);
-      X_B      : constant Long_Float := X_Of_N (N_B);
-      X_T      : constant Long_Float := X_Of_N (N_Target);
-      Frac     : constant Long_Float := (X_T - X_A) / (X_B - X_A);
+      X_A  : constant Long_Float := X_Of_N (N_A);
+      X_B  : constant Long_Float := X_Of_N (N_B);
+      X_T  : constant Long_Float := X_Of_N (N_Target);
+      Frac : constant Long_Float := (X_T - X_A) / (X_B - X_A);
    begin
       for Comp in Quantile_Index loop
          declare
             LA : Quantile_Limits_Record renames Lims_A (Comp);
             LB : Quantile_Limits_Record renames Lims_B (Comp);
          begin
-            Result (Comp).CL :=
-              LA.CL + (LB.CL - LA.CL) * Frac;
+            Result (Comp).CL      := LA.CL + (LB.CL - LA.CL) * Frac;
             Result (Comp).Has_UCL := LA.Has_UCL and LB.Has_UCL;
             Result (Comp).Has_LCL := LA.Has_LCL and LB.Has_LCL;
             if Result (Comp).Has_UCL then
-               Result (Comp).UCL :=
-                 LA.UCL + (LB.UCL - LA.UCL) * Frac;
+               Result (Comp).UCL := LA.UCL + (LB.UCL - LA.UCL) * Frac;
             else
                Result (Comp).UCL := 0.0;
             end if;
             if Result (Comp).Has_LCL then
-               Result (Comp).LCL :=
-                 LA.LCL + (LB.LCL - LA.LCL) * Frac;
+               Result (Comp).LCL := LA.LCL + (LB.LCL - LA.LCL) * Frac;
             else
                Result (Comp).LCL := 0.0;
             end if;
@@ -519,15 +517,16 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  distribution if needed.
    function Exact_Limits_At
      (Cache        : in out Quantile_CC_Cache;
-      Pool_Values  : Long_Float_Array;
-      Pool_Offsets : Natural_Vectors.Vector;
-      Pool_Lengths : Natural_Vectors.Vector;
-      N            : Positive;
-      Seed         : Integer) return Quantile_Limits_Array
+      Pool_Values  :        Long_Float_Array;
+      Pool_Offsets :        Natural_Vectors.Vector;
+      Pool_Lengths :        Natural_Vectors.Vector;
+      N            :        Positive;
+      Seed         :        Integer)
+      return Quantile_Limits_Array
    is
       Dist : constant Bootstrap_Distribution :=
-        Get_Distribution (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
-                          N, Seed);
+        Get_Distribution
+          (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, N, Seed);
    begin
       return Extract_Limits (Dist, Cache.Bonferroni_Enabled);
    end Exact_Limits_At;
@@ -544,14 +543,20 @@ package body Coyote_SQC.Statistics.Quantile_CC is
             D : Long_Float;
          begin
             D := abs (Exact (Comp).CL - Interp (Comp).CL);
-            if D > E then E := D; end if;
+            if D > E then
+               E := D;
+            end if;
             if Exact (Comp).Has_UCL and Interp (Comp).Has_UCL then
                D := abs (Exact (Comp).UCL - Interp (Comp).UCL);
-               if D > E then E := D; end if;
+               if D > E then
+                  E := D;
+               end if;
             end if;
             if Exact (Comp).Has_LCL and Interp (Comp).Has_LCL then
                D := abs (Exact (Comp).LCL - Interp (Comp).LCL);
-               if D > E then E := D; end if;
+               if D > E then
+                  E := D;
+               end if;
             end if;
          end;
       end loop;
@@ -565,18 +570,20 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       for Comp in Quantile_Index loop
          if Limits (Comp).Has_UCL then
             declare
-               H : constant Long_Float :=
-                 Limits (Comp).UCL - Limits (Comp).CL;
+               H : constant Long_Float := Limits (Comp).UCL - Limits (Comp).CL;
             begin
-               if H > HW then HW := H; end if;
+               if H > HW then
+                  HW := H;
+               end if;
             end;
          end if;
          if Limits (Comp).Has_LCL then
             declare
-               H : constant Long_Float :=
-                 Limits (Comp).CL - Limits (Comp).LCL;
+               H : constant Long_Float := Limits (Comp).CL - Limits (Comp).LCL;
             begin
-               if H > HW then HW := H; end if;
+               if H > HW then
+                  HW := H;
+               end if;
             end;
          end if;
       end loop;
@@ -584,9 +591,11 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    end Max_HW;
 
    --  Compute the tolerance for an anchor pair: max(pct * HW_a, abs_floor).
-   function Tolerance_For (Lims_A : Quantile_Limits_Array;
-                           Rel    : Long_Float;
-                           Abs_Min : Long_Float) return Long_Float
+   function Tolerance_For
+     (Lims_A  : Quantile_Limits_Array;
+      Rel     : Long_Float;
+      Abs_Min : Long_Float)
+      return Long_Float
    is
       H : constant Long_Float := Max_HW (Lims_A);
    begin
@@ -597,15 +606,15 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  are stored in Cache.Anchors as a sorted vector.
    procedure Ensure_Anchors_Cover
      (Cache        : in out Quantile_CC_Cache;
-      Pool_Values  : Long_Float_Array;
-      Pool_Offsets : Natural_Vectors.Vector;
-      Pool_Lengths : Natural_Vectors.Vector;
-      Target_N     : Positive;
-      Seed         : Integer)
+      Pool_Values  :        Long_Float_Array;
+      Pool_Offsets :        Natural_Vectors.Vector;
+      Pool_Lengths :        Natural_Vectors.Vector;
+      Target_N     :        Positive;
+      Seed         :        Integer)
    is
       Anchors : Natural_Vectors.Vector renames Cache.Anchors;
       Rel     : constant Long_Float := Cache.Tolerance_Rel;
-      Abs_Min  : constant Long_Float := Cache.Tolerance_Abs;
+      Abs_Min : constant Long_Float := Cache.Tolerance_Abs;
 
       --  Seed the discrete regime on first use.
       procedure Seed_Discrete is
@@ -618,8 +627,8 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       --  Recursively refine the gap (Idx_Left, Idx_Right) — indices
       --  into Anchors, with corresponding n values A and B.
       procedure Refine_Gap (Idx_Left, Idx_Right : Positive) is
-         A : constant Positive := Anchors.Element (Idx_Left);
-         B : constant Positive := Anchors.Element (Idx_Right);
+         A     : constant Positive := Anchors.Element (Idx_Left);
+         B     : constant Positive := Anchors.Element (Idx_Right);
          N_Mid : constant Positive := X_Midpoint (A, B);
          --  Guard: if the gap is too narrow, accept it.
       begin
@@ -628,15 +637,15 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          end if;
 
          declare
-            Lims_A  : constant Quantile_Limits_Array :=
-              Exact_Limits_At (Cache, Pool_Values,
-                               Pool_Offsets, Pool_Lengths, A, Seed);
-            Lims_B  : constant Quantile_Limits_Array :=
-              Exact_Limits_At (Cache, Pool_Values,
-                               Pool_Offsets, Pool_Lengths, B, Seed);
-            Lims_Exact : constant Quantile_Limits_Array :=
-              Exact_Limits_At (Cache, Pool_Values,
-                               Pool_Offsets, Pool_Lengths, N_Mid, Seed);
+            Lims_A      : constant Quantile_Limits_Array :=
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, A, Seed);
+            Lims_B      : constant Quantile_Limits_Array :=
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, B, Seed);
+            Lims_Exact  : constant Quantile_Limits_Array :=
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, N_Mid, Seed);
             Lims_Interp : Quantile_Limits_Array;
             Error       : Long_Float;
             Tol         : Long_Float;
@@ -644,7 +653,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
             Interpolate_From_Anchors
               (A, Lims_A, B, Lims_B, N_Mid, Lims_Interp);
             Error := Max_Limit_Error (Lims_Exact, Lims_Interp);
-            Tol := Tolerance_For (Lims_A, Rel, Abs_Min);
+            Tol   := Tolerance_For (Lims_A, Rel, Abs_Min);
 
             if Error > Tol then
                --  Insert N_Mid as a new anchor.
@@ -672,11 +681,11 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
          --  Refine the gap from the previous anchor to Target_N.
          if Natural (Anchors.Length) >= 2 then
-         declare
-            LI : constant Natural := Natural (Anchors.Last_Index);
-         begin
-            Refine_Gap (LI - 1, LI);
-         end;
+            declare
+               LI : constant Natural := Natural (Anchors.Last_Index);
+            begin
+               Refine_Gap (LI - 1, LI);
+            end;
          end if;
       end Extend_And_Refine;
 
@@ -687,22 +696,23 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  ── Interpolate_Limits ─────────────────────────────────────────────
 
    function Interpolate_Limits
-     (Cache        : in out Quantile_CC_Cache;
-      Pool_Values  : Long_Float_Array;
-      Pool_Offsets : Natural_Vectors.Vector;
-      Pool_Lengths : Natural_Vectors.Vector;
-      N_I          : Positive;
-      Seed         : Integer := Bootstrap_Seed;
-      Bonferroni_Enabled : Boolean := True)
-     return Quantile_Limits_Array
+     (Cache              : in out Quantile_CC_Cache;
+      Pool_Values        :        Long_Float_Array;
+      Pool_Offsets       :        Natural_Vectors.Vector;
+      Pool_Lengths       :        Natural_Vectors.Vector;
+      N_I                :        Positive;
+      Seed               :        Integer := Bootstrap_Seed;
+      Bonferroni_Enabled :        Boolean := True)
+      return Quantile_Limits_Array
    is
       Anchors : Natural_Vectors.Vector renames Cache.Anchors;
    begin
       --  n = 1 is degenerate — use exact bootstrap.
       Cache.Bonferroni_Enabled := Bonferroni_Enabled;
       if N_I = 1 then
-         return Exact_Limits_At
-           (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, 1, Seed);
+         return
+           Exact_Limits_At
+             (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, 1, Seed);
       end if;
 
       --  Ensure anchors cover N_I.
@@ -712,9 +722,9 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       --  If N_I is itself an anchor, return exact limits.
       for I in 2 .. Natural (Anchors.Last_Index) loop
          if Anchors.Element (I) = N_I then
-            return Exact_Limits_At
-              (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
-               N_I, Seed);
+            return
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, N_I, Seed);
          end if;
       end loop;
 
@@ -739,20 +749,20 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          if Idx_Left = 0 or else Idx_Right = 0 then
             --  Should not happen — anchors always cover N_I.
             pragma Assert (False, "Interpolate_Limits: no bounding anchors");
-            return Exact_Limits_At
-              (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
-               N_I, Seed);
+            return
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, N_I, Seed);
          end if;
 
          declare
-            A : constant Positive := Anchors.Element (Idx_Left);
-            B : constant Positive := Anchors.Element (Idx_Right);
+            A      : constant Positive := Anchors.Element (Idx_Left);
+            B      : constant Positive := Anchors.Element (Idx_Right);
             Lims_A : constant Quantile_Limits_Array :=
-              Exact_Limits_At (Cache, Pool_Values,
-                               Pool_Offsets, Pool_Lengths, A, Seed);
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, A, Seed);
             Lims_B : constant Quantile_Limits_Array :=
-              Exact_Limits_At (Cache, Pool_Values,
-                               Pool_Offsets, Pool_Lengths, B, Seed);
+              Exact_Limits_At
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, B, Seed);
             Result : Quantile_Limits_Array;
          begin
             Interpolate_From_Anchors (A, Lims_A, B, Lims_B, N_I, Result);

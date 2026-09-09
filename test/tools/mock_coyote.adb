@@ -29,12 +29,12 @@ procedure Mock_Coyote is
    use Ada.Command_Line;
    use Ada.Text_IO;
 
-   Prompt          : Unbounded_String;
-   Model           : Unbounded_String;
-   Agent           : Unbounded_String;
-   Name            : Unbounded_String;
-   Have_One_Shot   : Boolean := False;
-   I               : Positive := 1;
+   Prompt        : Unbounded_String;
+   Model         : Unbounded_String;
+   Agent         : Unbounded_String;
+   Name          : Unbounded_String;
+   Have_One_Shot : Boolean  := False;
+   I             : Positive := 1;
 
 begin
    while I <= Argument_Count loop
@@ -68,10 +68,8 @@ begin
 
    Put_Line ("noise before json");
    Put_Line
-     ("{""session_id"": ""123"", ""output"": """
-      & To_String (Prompt) & "|"
-      & To_String (Model)  & "|"
-      & To_String (Agent)  & "|"
-      & To_String (Name)   & """}");
+     ("{""session_id"": ""123"", ""output"": """ & To_String (Prompt) & "|"
+      & To_String (Model) & "|" & To_String (Agent) & "|" & To_String (Name)
+      & """}");
 
 end Mock_Coyote;

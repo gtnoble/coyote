@@ -21,17 +21,16 @@ package Coyote_GUI.Zoom is
    --  Levels that would clamp to the same effective size are skipped, so
    --  every accepted step produces a visible change.
    procedure Step_Zoom
-     (Level     : in out Integer;
-      Steps     :        Integer;
-      Base_Pt   :        Integer;
-      Changed   :    out Boolean);
+     (Level   : in out Integer;
+      Steps   :        Integer;
+      Base_Pt :        Integer;
+      Changed :    out Boolean);
    --  Adjust Level by Steps (positive = zoom in), skipping levels that
    --  clamp to the current effective size.  Changed is True when the
    --  effective point size actually changed.
 
    function Effective_Size_Pt
-     (Level   : Integer;
-      Base_Pt : Integer) return Integer;
+     (Level : Integer; Base_Pt : Integer) return Integer;
    --  Effective font point size for a zoom level, clamped to
    --  [Min_Size_Pt, Max_Size_Pt].
 

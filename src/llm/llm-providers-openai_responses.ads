@@ -20,34 +20,24 @@ package LLM.Providers.OpenAI_Responses is
    --
    --  Requests are sent to Base_Url & "/responses" using bearer
    --  authentication.
-   function Create
-      (Base_Url : String;
-     Api_Key  : String) return Provider;
+   function Create (Base_Url : String; Api_Key : String) return Provider;
 
    --  Replace the configured base URL.
-   procedure Set_Base_Url
-      (P        : in out Provider;
-     Base_Url :        String);
+   procedure Set_Base_Url (P : in out Provider; Base_Url : String);
 
    --  Return the configured base URL.
    function Get_Base_Url (P : Provider) return String;
 
    --  Replace the configured bearer token.
-   procedure Set_Api_Key
-      (P       : in out Provider;
-     Api_Key :        String);
+   procedure Set_Api_Key (P : in out Provider; Api_Key : String);
 
    --  Enable or disable provider-independent inline cache hints.
-   procedure Set_Inline_Cache_Hints
-      (P       : in out Provider;
-     Enabled :        Boolean);
+   procedure Set_Inline_Cache_Hints (P : in out Provider; Enabled : Boolean);
 
    --  When Omit_Max_Tokens is True the request body leaves out
    --  max_output_tokens.  The Codex backend rejects or ignores that
    --  field; reference clients never send it.
-   procedure Set_Omit_Max_Tokens
-      (P       : in out Provider;
-     Enabled :        Boolean);
+   procedure Set_Omit_Max_Tokens (P : in out Provider; Enabled : Boolean);
 
    --  When Store_Enabled is False the request body carries
    --  "store": false.  When True (the default) the store field is
@@ -55,15 +45,11 @@ package LLM.Providers.OpenAI_Responses is
    --  backend requires store to be false and rejects requests that
    --  omit it (HTTP 400 "Store must be set to false"); reference
    --  clients always send store: false there.
-   procedure Set_Store_Enabled
-      (P       : in out Provider;
-     Enabled :        Boolean);
+   procedure Set_Store_Enabled (P : in out Provider; Enabled : Boolean);
 
    --  When Prompt_Cache_Key is non-empty the request body carries it as
    --  the prompt_cache_key field for backend cache affinity.
-   procedure Set_Prompt_Cache_Key
-      (P   : in out Provider;
-     Key :        String);
+   procedure Set_Prompt_Cache_Key (P : in out Provider; Key : String);
 
    --  Return the configured bearer token.
    function Get_Api_Key (P : Provider) return String;
@@ -72,10 +58,7 @@ package LLM.Providers.OpenAI_Responses is
    --
    --  This is used for provider-specific extensions such as OpenRouter
    --  metadata headers.
-   procedure Add_Header
-      (P     : in out Provider;
-     Name  :        String;
-     Value :        String);
+   procedure Add_Header (P : in out Provider; Name : String; Value : String);
 
    --  Inject reasoning-effort configuration into the request.
    --
@@ -84,36 +67,35 @@ package LLM.Providers.OpenAI_Responses is
    --  Thinking is Off this is a no-op.  Descendants may override to
    --  add provider-specific logic.
    procedure Customize_Request
-      (P        : in out Provider;
-     Model_Id :        String;
-     Thinking :        LLM.Providers.Thinking_Level;
-     Request  :        GNATCOLL.JSON.JSON_Value);
+     (P        : in out Provider;
+      Model_Id :        String;
+      Thinking :        LLM.Providers.Thinking_Level;
+      Request  :        GNATCOLL.JSON.JSON_Value);
 
    --  Internal helper used by derived providers after they resolve any
    --  provider-specific configuration. Dispatching on Customize_Request is
    --  preserved when P is a descendant object.
    procedure Send_Request
-      (P             : in out Provider'Class;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null);
+     (P             : in out Provider'Class;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null);
 
-   overriding
-   procedure Send
-      (P             : in out Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler;
-     Abort_Check   :        LLM.Providers.Abort_Callback := null);
+   overriding procedure Send
+     (P             : in out Provider;
+      Model_Id      :        String;
+      System_Prompt :        String;
+      Messages      :        LLM.Types.Message_Vectors.Vector;
+      Tools_Json    :        String;
+      Thinking      :        LLM.Providers.Thinking_Level;
+      Max_Tokens    :        Positive;
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null);
 
 private
 
@@ -123,8 +105,7 @@ private
    end record;
 
    package Header_Entry_Vectors is new Ada.Containers.Vectors
-      (Index_Type   => Positive,
-     Element_Type => Header_Entry);
+     (Index_Type => Positive, Element_Type => Header_Entry);
 
    type Provider is new LLM.Providers.Provider with record
       Base_Url           : Ada.Strings.Unbounded.Unbounded_String;

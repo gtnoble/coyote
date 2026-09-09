@@ -23,9 +23,7 @@ package body Coyote_Help is
       end if;
    end Help_URI;
 
-   function Help_Data_Directory
-     (Executable : String := "") return String
-   is
+   function Help_Data_Directory (Executable : String := "") return String is
       Base : constant String := LLM.Skills.Install_Base (Executable);
    begin
       if Base'Length = 0 then
@@ -56,8 +54,8 @@ package body Coyote_Help is
    end Topic_For_Area;
 
    function Yelp_Available return Boolean is
-      Path : GNAT.OS_Lib.String_Access := Locate_Yelp;
-      Found : constant Boolean := Path /= null;
+      Path  : GNAT.OS_Lib.String_Access := Locate_Yelp;
+      Found : constant Boolean          := Path /= null;
    begin
       if Path /= null then
          GNAT.OS_Lib.Free (Path);
@@ -70,12 +68,12 @@ package body Coyote_Help is
 
       Path              : GNAT.OS_Lib.String_Access := Locate_Yelp;
       Args              : Argument_List;
-      Help_Data         : constant String := Help_Data_Directory;
-      XDG_Was_Set       : constant Boolean :=
+      Help_Data         : constant String           := Help_Data_Directory;
+      XDG_Was_Set       : constant Boolean          :=
         Ada.Environment_Variables.Exists ("XDG_DATA_DIRS");
-      Old_XDG_Data_Dirs : constant String :=
+      Old_XDG_Data_Dirs : constant String           :=
         Ada.Environment_Variables.Value ("XDG_DATA_DIRS", "");
-      Environment_Set   : Boolean := False;
+      Environment_Set   : Boolean                   := False;
 
       procedure Restore_Data_Directory is
       begin
@@ -98,8 +96,7 @@ package body Coyote_Help is
       --  executable-relative share directory for both installed binaries and
       --  development checkouts, but do not alter the parent after spawning.
       if Help_Data'Length > 0
-        and then Ada.Directories.Exists
-          (Help_Data & "/help/C/coyote")
+        and then Ada.Directories.Exists (Help_Data & "/help/C/coyote")
       then
          if Old_XDG_Data_Dirs'Length > 0 then
             Ada.Environment_Variables.Set

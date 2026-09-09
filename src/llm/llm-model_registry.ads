@@ -32,95 +32,92 @@ package LLM.Model_Registry is
    end record;
 
    package Model_Info_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Model_Info);
+     (Index_Type => Positive, Element_Type => Model_Info);
 
    Not_Found : exception;
 
-  --  Populate the registry from the cached GitHub Copilot catalogue.
-  --
-  --  Uses the access token already stored in ~/.coyote/auth.json when
-  --  that token is present and non-expired; no live token refresh is
-  --  performed.  Token refresh is deferred to the provider's Send.
-  --
-  --  Load_Catalogue errors (network failure, expired subscription, etc.)
-  --  are silently swallowed so the agent can start even when the Copilot
-  --  API is unreachable or credentials are invalid.
-  --
-  --  All existing "github-copilot" entries are cleared before the refreshed
-  --  catalogue data is appended. When no Copilot credentials are configured
-  --  or the cached token has expired, the Copilot portion of the registry
-  --  becomes empty.
+   --  Populate the registry from the cached GitHub Copilot catalogue.
+   --
+   --  Uses the access token already stored in ~/.coyote/auth.json when
+   --  that token is present and non-expired; no live token refresh is
+   --  performed.  Token refresh is deferred to the provider's Send.
+   --
+   --  Load_Catalogue errors (network failure, expired subscription, etc.)
+   --  are silently swallowed so the agent can start even when the Copilot
+   --  API is unreachable or credentials are invalid.
+   --
+   --  All existing "github-copilot" entries are cleared before the refreshed
+   --  catalogue data is appended. When no Copilot credentials are configured
+   --  or the cached token has expired, the Copilot portion of the registry
+   --  becomes empty.
    procedure Refresh_GitHub_Copilot;
 
-  --  Populate the registry from the live OpenRouter catalogue.
-  --
-  --  Calls LLM.Providers.OpenRouter.Catalogue.Load_Catalogue.
-  --
-  --  All existing "openrouter" entries are cleared before the refreshed
-  --  catalogue data is appended.
+   --  Populate the registry from the live OpenRouter catalogue.
+   --
+   --  Calls LLM.Providers.OpenRouter.Catalogue.Load_Catalogue.
+   --
+   --  All existing "openrouter" entries are cleared before the refreshed
+   --  catalogue data is appended.
    procedure Refresh_OpenRouter;
 
-  --  Populate the registry with the direct Anthropic model subset.
-  --
-  --  When an Anthropic API key resolves from the environment or models.json,
-  --  the registry gains a curated set of well-known Claude models using the
-  --  Anthropic Messages wire format. All existing "anthropic" entries are
-  --  cleared before the refreshed data is appended.
+   --  Populate the registry with the direct Anthropic model subset.
+   --
+   --  When an Anthropic API key resolves from the environment or models.json,
+   --  the registry gains a curated set of well-known Claude models using the
+   --  Anthropic Messages wire format. All existing "anthropic" entries are
+   --  cleared before the refreshed data is appended.
    procedure Refresh_Anthropic;
 
-  --  Populate the registry from the live OpenCode Go catalogue.
-  --
-  --  Calls LLM.Providers.OpenCode_Go.Catalogue.Load_Catalogue.
-  --
-  --  All existing "opencode-go" entries are cleared before the refreshed
-  --  catalogue data is appended. When no OpenCode Go API key is configured,
-  --  the OpenCode Go portion of the registry becomes empty.
+   --  Populate the registry from the live OpenCode Go catalogue.
+   --
+   --  Calls LLM.Providers.OpenCode_Go.Catalogue.Load_Catalogue.
+   --
+   --  All existing "opencode-go" entries are cleared before the refreshed
+   --  catalogue data is appended. When no OpenCode Go API key is configured,
+   --  the OpenCode Go portion of the registry becomes empty.
    procedure Refresh_OpenCode_Go;
    procedure Refresh_OpenAI;
    procedure Refresh_Ollama;
 
-  --  Populate the registry with the curated OpenAI Codex subscription
-  --  catalogue.
-  --
-  --  Codex models are included when ~/.coyote/auth.json contains a
-  --  "codex" OAuth credential entry. All existing "codex" entries are
-  --  cleared before the refreshed catalogue data is appended.
+   --  Populate the registry with the curated OpenAI Codex subscription
+   --  catalogue.
+   --
+   --  Codex models are included when ~/.coyote/auth.json contains a
+   --  "codex" OAuth credential entry. All existing "codex" entries are
+   --  cleared before the refreshed catalogue data is appended.
    procedure Refresh_Codex;
 
-  --  Look up one model by provider and model identifier.
-  --
-  --  For "openrouter", an unknown Model_Id returns a default record with
-  --  OpenAI-Responses wire format and conservative limits rather than
-  --  raising an exception.
-  --
-  --  For "opencode-go", an unknown Model_Id returns a default record with
-  --  OpenAI-completions wire format and conservative limits.
-  --
-  --  For "github-copilot", a missing Model_Id returns a default record
-  --  with conservative limits and a wire-format heuristic (Claude models
-  --  use "anthropic-messages", all others "openai-completions").
-  --
-  --  For "openai", a missing Model_Id returns a default record with
-  --  the Responses wire format and conservative limits.
-  --
-  --  For "codex", a missing Model_Id returns a default record with
-  --  the Responses wire format and conservative limits.
-  --
-  --  Unknown providers also raise Not_Found.
-   function Lookup
-     (Provider : String;
-      Model_Id : String) return Model_Info;
+   --  Look up one model by provider and model identifier.
+   --
+   --  For "openrouter", an unknown Model_Id returns a default record with
+   --  OpenAI-Responses wire format and conservative limits rather than
+   --  raising an exception.
+   --
+   --  For "opencode-go", an unknown Model_Id returns a default record with
+   --  OpenAI-completions wire format and conservative limits.
+   --
+   --  For "github-copilot", a missing Model_Id returns a default record
+   --  with conservative limits and a wire-format heuristic (Claude models
+   --  use "anthropic-messages", all others "openai-completions").
+   --
+   --  For "openai", a missing Model_Id returns a default record with
+   --  the Responses wire format and conservative limits.
+   --
+   --  For "codex", a missing Model_Id returns a default record with
+   --  the Responses wire format and conservative limits.
+   --
+   --  Unknown providers also raise Not_Found.
+   function Lookup (Provider : String; Model_Id : String) return Model_Info;
 
-  --  Return all registered models for providers that are currently
-  --  configured.
-  --
-  --  GitHub Copilot models are included when auth.json contains a
-  --  github-copilot credential entry. OpenRouter and Anthropic models are
-  --  included when an API key resolves from the environment or models.json.
-  --  OpenCode Go models are included when an OPENCODE_API_KEY is available
-  --  or providers.opencode-go.apiKey is configured. Codex models are
-  --  included when auth.json contains a codex OAuth credential entry.
+   --  Return all registered models for providers that are currently
+   --  configured.
+   --
+   --  GitHub Copilot models are included when auth.json contains a
+   --  github-copilot credential entry. OpenRouter and Anthropic models are
+   --  included when an API key resolves from the environment or models.json.
+   --  OpenCode Go models are included when an OPENCODE_API_KEY is available
+   --  or providers.opencode-go.apiKey is configured. Codex models are
+   --  included when auth.json contains a codex OAuth credential entry.
    function Available_Models return Model_Info_Vectors.Vector;
 
 end LLM.Model_Registry;

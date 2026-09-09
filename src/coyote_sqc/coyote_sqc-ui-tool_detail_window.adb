@@ -5,13 +5,13 @@
 with Ada.Calendar.Formatting;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with Coyote_App.Utils;       use Coyote_App.Utils;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 with Gdk.Pixbuf;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Glib.Error;
-with Glib.Properties;         use Glib.Properties;
+with Glib.Properties;       use Glib.Properties;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with Gtk.Box;
@@ -51,16 +51,13 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
    procedure Ensure_System_Font_Init is
       Settings : constant Gtk.Settings.Gtk_Settings :=
         Gtk.Settings.Get_Default;
-      Font_Str : constant String :=
+      Font_Str : constant String                    :=
         Glib.Properties.Get_Property
-          (Settings,
-           Gtk.Settings.Gtk_Font_Name_Property);
-      FD : Pango_Font_Description :=
-        Pango.Font.From_String (Font_Str);
+          (Settings, Gtk.Settings.Gtk_Font_Name_Property);
+      FD       : Pango_Font_Description := Pango.Font.From_String (Font_Str);
    begin
-      System_Font_Size_Pt :=
-        Integer (Pango.Font.Get_Size (FD)) / Pango_Scale;
-      System_Font_Inited := True;
+      System_Font_Size_Pt := Integer (Pango.Font.Get_Size (FD)) / Pango_Scale;
+      System_Font_Inited  := True;
       Pango.Font.Free (FD);
    exception
       when others =>
@@ -69,14 +66,15 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
    function Mono_Font_Str return String is
    begin
-      return "monospace "
+      return
+        "monospace "
         & Integer'Image (System_Font_Size_Pt)
-            (2 .. Integer'Image (System_Font_Size_Pt)'Last);
+          (2 .. Integer'Image (System_Font_Size_Pt)'Last);
    end Mono_Font_Str;
 
    --  ── Base64 decoder ────────────────────────────────────────────────────
 
-   function Char_Val (C :  Character) return Integer is
+   function Char_Val (C : Character) return Integer is
    begin
       case C is
          when 'A' .. 'Z' =>
@@ -85,17 +83,20 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
             return 26 + Character'Pos (C) - Character'Pos ('a');
          when '0' .. '9' =>
             return 52 + Character'Pos (C) - Character'Pos ('0');
-         when '+' => return 62;
-         when '/' => return 63;
-         when others => return -1;
+         when '+' =>
+            return 62;
+         when '/' =>
+            return 63;
+         when others =>
+            return -1;
       end case;
    end Char_Val;
 
-   function Decode_Base64 (Input :  String) return String is
-      Max_Len : constant Natural := (Input'Length * 3) / 4 + 4;
-      Output  : String (1 .. Max_Len);
-      Pos     : Natural := 0;
-      I       : Natural := Input'First;
+   function Decode_Base64 (Input : String) return String is
+      Max_Len        : constant Natural := (Input'Length * 3) / 4 + 4;
+      Output         : String (1 .. Max_Len);
+      Pos            : Natural          := 0;
+      I              : Natural          := Input'First;
       V0, V1, V2, V3 : Integer;
    begin
       while I + 3 <= Input'Last loop
@@ -105,15 +106,15 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          V3 := Char_Val (Input (I + 3));
 
          if V0 >= 0 and then V1 >= 0 then
-            Pos := Pos + 1;
+            Pos          := Pos + 1;
             Output (Pos) := Character'Val (V0 * 4 + V1 / 16);
          end if;
          if V2 >= 0 and then Input (I + 2) /= '=' then
-            Pos := Pos + 1;
+            Pos          := Pos + 1;
             Output (Pos) := Character'Val ((V1 mod 16) * 16 + V2 / 4);
          end if;
          if V3 >= 0 and then Input (I + 3) /= '=' then
-            Pos := Pos + 1;
+            Pos          := Pos + 1;
             Output (Pos) := Character'Val ((V2 mod 4) * 64 + V3);
          end if;
 
@@ -160,25 +161,25 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
    procedure Apply_Banner_Css
      (Label  : not null access Gtk.Label.Gtk_Label_Record'Class;
-      Status :  Coyote_Renderer.Session_View.Tool_End_Status)
+      Status : Coyote_Renderer.Session_View.Tool_End_Status)
    is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
       use Gtk.Style_Provider;
-      CSS : constant String :=
+      CSS      : constant String :=
         (case Status is
-            when Coyote_Renderer.Session_View.Success   =>
-               "label { background-color: #d4edda; color: #155724;"
-               & " padding: 4px; font-weight: bold; }",
-            when Coyote_Renderer.Session_View.Error     =>
-               "label { background-color: #f8d7da; color: #721c24;"
-               & " padding: 4px; font-weight: bold; }",
-            when Coyote_Renderer.Session_View.Timed_Out =>
-               "label { background-color: #fff3cd; color: #856404;"
-               & " padding: 4px; font-weight: bold; }",
-            when Coyote_Renderer.Session_View.Cancelled =>
-               "label { background-color: #e2e3e5; color: #383d41;"
-               & " padding: 4px; font-weight: bold; }");
+           when Coyote_Renderer.Session_View.Success =>
+             "label { background-color: #d4edda; color: #155724;"
+             & " padding: 4px; font-weight: bold; }",
+           when Coyote_Renderer.Session_View.Error =>
+             "label { background-color: #f8d7da; color: #721c24;"
+             & " padding: 4px; font-weight: bold; }",
+           when Coyote_Renderer.Session_View.Timed_Out =>
+             "label { background-color: #fff3cd; color: #856404;"
+             & " padding: 4px; font-weight: bold; }",
+           when Coyote_Renderer.Session_View.Cancelled =>
+             "label { background-color: #e2e3e5; color: #383d41;"
+             & " padding: 4px; font-weight: bold; }");
       Provider : Gtk_Css_Provider;
       Ignored  : Boolean;
       Error    : aliased Glib.Error.GError;
@@ -195,7 +196,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
    procedure Build_Args_Section
      (Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Arguments :  String)
+      Arguments : String)
    is
       use Gtk.Box;
       use Gtk.Label;
@@ -255,8 +256,10 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
                Field_Value : GNATCOLL.JSON.JSON_Value)
             is
                Val : constant String :=
-                 (if Field_Value.Kind = GNATCOLL.JSON.JSON_String_Type
-                  then Field_Value.Get
+                 (if
+                    Field_Value.Kind = GNATCOLL.JSON.JSON_String_Type
+                  then
+                    Field_Value.Get
                   else Field_Value.Write);
             begin
                Add_Field (Field_Name, Val);
@@ -273,14 +276,14 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
    --  ── Public ────────────────────────────────────────────────────────────
 
    procedure Show
-     (Tool_Name    :  String;
-      Arguments    :  String;
-      Result_Text  :  String;
-      Is_Image     :  Boolean;
-      Status       :  Coyote_Renderer.Session_View.Tool_End_Status;
-      Turn_Index   :  Positive;
-      Call_In_Turn :  Positive;
-      Session      :  Coyote_SQC.Data_Model.Session_Record;
+     (Tool_Name    : String;
+      Arguments    : String;
+      Result_Text  : String;
+      Is_Image     : Boolean;
+      Status       : Coyote_Renderer.Session_View.Tool_End_Status;
+      Turn_Index   : Positive;
+      Call_In_Turn : Positive;
+      Session      : Coyote_SQC.Data_Model.Session_Record;
       Main_Window  : not null access Gtk.Window.Gtk_Window_Record'Class)
    is
       use Gtk.Box;
@@ -296,7 +299,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
       --  ── Helpers ────────────────────────────────────────────────────────
 
-      function Trim_Path (P :  String) return String is
+      function Trim_Path (P : String) return String is
          Home : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
       begin
          if P'Length > Home'Length
@@ -310,19 +313,23 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
       function Status_Icon return String is
       begin
          case Status is
-            when Coyote_Renderer.Session_View.Success   => return UC_CHECK;
-            when Coyote_Renderer.Session_View.Error     => return UC_CROSS;
-            when Coyote_Renderer.Session_View.Timed_Out => return "!";
-            when Coyote_Renderer.Session_View.Cancelled => return "-";
+            when Coyote_Renderer.Session_View.Success =>
+               return UC_CHECK;
+            when Coyote_Renderer.Session_View.Error =>
+               return UC_CROSS;
+            when Coyote_Renderer.Session_View.Timed_Out =>
+               return "!";
+            when Coyote_Renderer.Session_View.Cancelled =>
+               return "-";
          end case;
       end Status_Icon;
 
       function Banner_Text return String is
       begin
          case Status is
-            when Coyote_Renderer.Session_View.Success   =>
+            when Coyote_Renderer.Session_View.Success =>
                return UC_CHECK & " success";
-            when Coyote_Renderer.Session_View.Error     =>
+            when Coyote_Renderer.Session_View.Error =>
                return UC_CROSS & " error";
             when Coyote_Renderer.Session_View.Timed_Out =>
                return "! timed out";
@@ -348,19 +355,18 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
       end Format_Short_Datetime;
 
       --  ── Widget references ──────────────────────────────────────────────
-      Win    : Gtk.Window.Gtk_Window;
-      Outer  : Gtk.Box.Gtk_Box;
-      Grid   : Gtk.Grid.Gtk_Grid;
-      Frame  : Gtk.Frame.Gtk_Frame;
-      Lbl    : Gtk.Label.Gtk_Label;
-      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Win      : Gtk.Window.Gtk_Window;
+      Outer    : Gtk.Box.Gtk_Box;
+      Grid     : Gtk.Grid.Gtk_Grid;
+      Frame    : Gtk.Frame.Gtk_Frame;
+      Lbl      : Gtk.Label.Gtk_Label;
+      Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Args_Box : Gtk.Box.Gtk_Box;
 
-      Title  : constant String :=
-        Status_Icon & " " & Tool_Name
-        & " -- Turn "
-        & Trim (Positive'Image (Turn_Index), Ada.Strings.Left)
-        & " -- " & Format_Short_Datetime;
+      Title : constant String :=
+        Status_Icon & " " & Tool_Name & " -- Turn "
+        & Trim (Positive'Image (Turn_Index), Ada.Strings.Left) & " -- "
+        & Format_Short_Datetime;
    begin
       --  ── Create window ──────────────────────────────────────────────────
       Gtk.Window.Gtk_New (Win);
@@ -408,10 +414,8 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
       Grid.Attach (Lbl, 0, 3);
       Gtk.Label.Gtk_New
         (Lbl,
-         "Turn "
-         & Trim (Positive'Image (Turn_Index), Ada.Strings.Left)
-         & ", call "
-         & Trim (Positive'Image (Call_In_Turn), Ada.Strings.Left));
+         "Turn " & Trim (Positive'Image (Turn_Index), Ada.Strings.Left)
+         & ", call " & Trim (Positive'Image (Call_In_Turn), Ada.Strings.Left));
       Lbl.Set_Xalign (0.0);
       Grid.Attach (Lbl, 1, 3);
 
@@ -431,8 +435,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          Result_Box : Gtk.Box.Gtk_Box;
          Banner     : Gtk.Label.Gtk_Label;
       begin
-         Gtk.Box.Gtk_New_Vbox
-           (Result_Box, Homogeneous => False, Spacing => 4);
+         Gtk.Box.Gtk_New_Vbox (Result_Box, Homogeneous => False, Spacing => 4);
          Result_Box.Set_Border_Width (4);
 
          --  Status banner.
@@ -444,8 +447,8 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          if Is_Image then
             --  Decode base64, write to temp file, load as GtkImage.
             declare
-               Decoded   : constant String  := Decode_Base64 (Result_Text);
-               Temp_Path : constant String  := Write_Temp_Image (Decoded);
+               Decoded   : constant String := Decode_Base64 (Result_Text);
+               Temp_Path : constant String := Write_Temp_Image (Decoded);
             begin
                if Temp_Path /= "" then
                   declare
@@ -465,8 +468,8 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          else
             --  Text result: read-only monospace GtkTextView.
             declare
-               TV  : Gtk.Text_View.Gtk_Text_View;
-               Buf : Gtk.Text_Buffer.Gtk_Text_Buffer;
+               TV   : Gtk.Text_View.Gtk_Text_View;
+               Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;
                Iter : Gtk.Text_Iter.Gtk_Text_Iter;
             begin
                Gtk.Text_Buffer.Gtk_New (Buf);

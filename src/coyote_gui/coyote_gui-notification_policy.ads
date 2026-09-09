@@ -11,6 +11,7 @@ package Coyote_GUI.Notification_Policy is
    function Should_Notify_Completion
      (Allowed       : Boolean;
       Enabled       : Boolean;
-      Window_Active : Boolean) return Boolean;
+      Window_Active : Boolean)
+      return Boolean;
 
 end Coyote_GUI.Notification_Policy;

@@ -6,14 +6,14 @@
 --  Project: coyote
 
 with Ada.Directories;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
-with Coyote_App.Utils;       use Coyote_App.Utils;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Help;
 with Gdk.Event;
 with Gdk.Pixbuf;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Glib.Error;
 with Glib.Object;
 with Glib.Properties;
@@ -72,7 +72,8 @@ package body Coyote_GUI.Tool_Detail_Window is
 
    function On_Detail_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+      Event : Gdk.Event.Gdk_Event_Key)
+      return Boolean
    is
       use type Gdk.Types.Gdk_Key_Type;
    begin
@@ -92,13 +93,12 @@ package body Coyote_GUI.Tool_Detail_Window is
    System_Font_Inited  : Boolean := False;
 
    procedure Ensure_System_Font_Init is
-      Settings : constant Gtk.Settings.Gtk_Settings :=
+      Settings         : constant Gtk.Settings.Gtk_Settings :=
         Gtk.Settings.Get_Default;
-      Font_Str : constant String :=
+      Font_Str         : constant String                    :=
         Glib.Properties.Get_Property
           (Settings, Gtk.Settings.Gtk_Font_Name_Property);
-      Font_Description : Pango_Font_Description :=
-        From_String (Font_Str);
+      Font_Description : Pango_Font_Description := From_String (Font_Str);
    begin
       System_Font_Size_Pt :=
         Integer (Get_Size (Font_Description)) / Pango_Scale;
@@ -110,13 +110,14 @@ package body Coyote_GUI.Tool_Detail_Window is
    exception
       when others =>
          System_Font_Size_Pt := 10;
-         System_Font_Inited := True;
+         System_Font_Inited  := True;
    end Ensure_System_Font_Init;
 
    function Mono_Font_String return String is
       Size_Image : constant String := Integer'Image (System_Font_Size_Pt);
    begin
-      return "monospace " & Size_Image (Size_Image'First + 1 .. Size_Image'Last);
+      return
+        "monospace " & Size_Image (Size_Image'First + 1 .. Size_Image'Last);
    end Mono_Font_String;
 
    function Escape_Markup (Value : String) return String is
@@ -124,11 +125,16 @@ package body Coyote_GUI.Tool_Detail_Window is
    begin
       for Character_Value of Value loop
          case Character_Value is
-            when '&' => Append (Result, "&amp;");
-            when '<' => Append (Result, "&lt;");
-            when '>' => Append (Result, "&gt;");
-            when '"' => Append (Result, "&quot;");
-            when others => Append (Result, Character_Value);
+            when '&' =>
+               Append (Result, "&amp;");
+            when '<' =>
+               Append (Result, "&lt;");
+            when '>' =>
+               Append (Result, "&gt;");
+            when '"' =>
+               Append (Result, "&quot;");
+            when others =>
+               Append (Result, Character_Value);
          end case;
       end loop;
       return To_String (Result);
@@ -150,22 +156,23 @@ package body Coyote_GUI.Tool_Detail_Window is
    function Text_View_Height
      (Value          : String;
       Minimum_Height : Glib.Gint;
-      Maximum_Height : Glib.Gint) return Glib.Gint
+      Maximum_Height : Glib.Gint)
+      return Glib.Gint
    is
       Characters_Per_Line : constant Positive := 72;
       Line_Height         : constant Positive := 18;
       Vertical_Padding    : constant Positive := 12;
-      Lines               : Natural := 1;
-      Column              : Natural := 0;
+      Lines               : Natural           := 1;
+      Column              : Natural           := 0;
       Height              : Glib.Gint;
    begin
       for Character_Value of Value loop
          if Character_Value = ASCII.LF then
-            Lines := Lines + 1;
+            Lines  := Lines + 1;
             Column := 0;
          else
             if Column >= Characters_Per_Line then
-               Lines := Lines + 1;
+               Lines  := Lines + 1;
                Column := 0;
             end if;
             Column := Column + 1;
@@ -211,9 +218,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Container.Pack_Start (Scroll, Expand, True, 0);
    end Add_Text_View;
 
-   function Status_Text
-     (Info : Coyote_GUI.Tool_Info) return String
-   is
+   function Status_Text (Info : Coyote_GUI.Tool_Info) return String is
    begin
       case Info.Result_Status is
          when Coyote_GUI.Queued =>
@@ -238,20 +243,20 @@ package body Coyote_GUI.Tool_Detail_Window is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
       use Gtk.Style_Provider;
-      CSS : constant String :=
+      CSS       : constant String :=
         (case Status is
-            when Coyote_GUI.Queued =>
-               "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Running =>
-               "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Success =>
-               "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Error =>
-               "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Timed_Out =>
-               "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Cancelled =>
-               "label { font-weight: bold; padding: 7px 10px; }");
+           when Coyote_GUI.Queued =>
+             "label { font-weight: bold; padding: 7px 10px; }",
+           when Coyote_GUI.Running =>
+             "label { font-weight: bold; padding: 7px 10px; }",
+           when Coyote_GUI.Success =>
+             "label { font-weight: bold; padding: 7px 10px; }",
+           when Coyote_GUI.Error =>
+             "label { font-weight: bold; padding: 7px 10px; }",
+           when Coyote_GUI.Timed_Out =>
+             "label { font-weight: bold; padding: 7px 10px; }",
+           when Coyote_GUI.Cancelled =>
+             "label { font-weight: bold; padding: 7px 10px; }");
       Provider  : Gtk_Css_Provider;
       CSS_Error : aliased Glib.Error.GError;
       Ignored   : Boolean;
@@ -270,7 +275,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Name  : String;
       Value : String)
    is
-      Key   : Gtk.Label.Gtk_Label;
+      Key         : Gtk.Label.Gtk_Label;
       Value_Label : Gtk.Label.Gtk_Label;
    begin
       Gtk.Label.Gtk_New (Key);
@@ -326,13 +331,13 @@ package body Coyote_GUI.Tool_Detail_Window is
                Field_Value : GNATCOLL.JSON.JSON_Value)
             is
                Value : constant String :=
-                 (if Field_Value.Kind = GNATCOLL.JSON.JSON_String_Type
-                  then Field_Value.Get
+                 (if
+                    Field_Value.Kind = GNATCOLL.JSON.JSON_String_Type
+                  then
+                    Field_Value.Get
                   else Field_Value.Write);
             begin
-               if not Is_Hidden_Tool_Argument
-                 (Field_Name, Field_Value)
-               then
+               if not Is_Hidden_Tool_Argument (Field_Name, Field_Value) then
                   Add_Argument_Field (Container, Field_Name, Value);
                   Visible_Count := Visible_Count + 1;
                end if;
@@ -351,8 +356,10 @@ package body Coyote_GUI.Tool_Detail_Window is
          end;
       else
          Add_Text_View
-           (Container, Arguments,
-            Text_View_Height (Arguments, 30, 120), False);
+           (Container,
+            Arguments,
+            Text_View_Height (Arguments, 30, 120),
+            False);
       end if;
    end Build_Arguments;
 
@@ -363,21 +370,24 @@ package body Coyote_GUI.Tool_Detail_Window is
             when 'A' .. 'Z' =>
                return Character'Pos (Character_Value) - Character'Pos ('A');
             when 'a' .. 'z' =>
-               return 26 + Character'Pos (Character_Value)
-                 - Character'Pos ('a');
+               return
+                 26 + Character'Pos (Character_Value) - Character'Pos ('a');
             when '0' .. '9' =>
-               return 52 + Character'Pos (Character_Value)
-                 - Character'Pos ('0');
-            when '+' => return 62;
-            when '/' => return 63;
-            when others => return -1;
+               return
+                 52 + Character'Pos (Character_Value) - Character'Pos ('0');
+            when '+' =>
+               return 62;
+            when '/' =>
+               return 63;
+            when others =>
+               return -1;
          end case;
       end Value_Of;
 
       Maximum_Length : constant Natural := (Input'Length * 3) / 4 + 4;
       Output         : String (1 .. Maximum_Length);
-      Output_Length  : Natural := 0;
-      Position       : Natural := Input'First;
+      Output_Length  : Natural          := 0;
+      Position       : Natural          := Input'First;
       V0, V1, V2, V3 : Integer;
    begin
       while Position + 3 <= Input'Last loop
@@ -386,18 +396,17 @@ package body Coyote_GUI.Tool_Detail_Window is
          V2 := Value_Of (Input (Position + 2));
          V3 := Value_Of (Input (Position + 3));
          if V0 >= 0 and then V1 >= 0 then
-            Output_Length := Output_Length + 1;
+            Output_Length          := Output_Length + 1;
             Output (Output_Length) := Character'Val (V0 * 4 + V1 / 16);
          end if;
          if V2 >= 0 and then Input (Position + 2) /= '=' then
-            Output_Length := Output_Length + 1;
+            Output_Length          := Output_Length + 1;
             Output (Output_Length) :=
               Character'Val ((V1 mod 16) * 16 + V2 / 4);
          end if;
          if V3 >= 0 and then Input (Position + 3) /= '=' then
-            Output_Length := Output_Length + 1;
-            Output (Output_Length) :=
-              Character'Val ((V2 mod 4) * 64 + V3);
+            Output_Length          := Output_Length + 1;
+            Output (Output_Length) := Character'Val ((V2 mod 4) * 64 + V3);
          end if;
          Position := Position + 4;
       end loop;
@@ -416,8 +425,8 @@ package body Coyote_GUI.Tool_Detail_Window is
       if Descriptor = GNAT.OS_Lib.Invalid_FD or else Name = null then
          return "";
       end if;
-      Written := GNAT.OS_Lib.Write
-        (Descriptor, Decoded'Address, Decoded'Length);
+      Written :=
+        GNAT.OS_Lib.Write (Descriptor, Decoded'Address, Decoded'Length);
       GNAT.OS_Lib.Close (Descriptor);
       declare
          Path : constant String := Name.all;
@@ -434,8 +443,7 @@ package body Coyote_GUI.Tool_Detail_Window is
    end Write_Temp_Image;
 
    procedure Add_Image_Result
-     (Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Data      : String)
+     (Container : not null access Gtk.Box.Gtk_Box_Record'Class; Data : String)
    is
       Decoded   : constant String := Decode_Base64 (Data);
       Temp_Path : constant String := Write_Temp_Image (Decoded);
@@ -460,7 +468,8 @@ package body Coyote_GUI.Tool_Detail_Window is
          declare
             Failure : Gtk.Label.Gtk_Label;
          begin
-            Gtk.Label.Gtk_New (Failure, "[ image result could not be decoded ]");
+            Gtk.Label.Gtk_New
+              (Failure, "[ image result could not be decoded ]");
             Failure.Set_Xalign (0.0);
             Container.Pack_Start (Failure, False, False, 0);
          end;
@@ -480,13 +489,15 @@ package body Coyote_GUI.Tool_Detail_Window is
       end;
    exception
       when others =>
-         if Temp_Path'Length > 0 and then Ada.Directories.Exists (Temp_Path) then
+         if Temp_Path'Length > 0 and then Ada.Directories.Exists (Temp_Path)
+         then
             Ada.Directories.Delete_File (Temp_Path);
          end if;
          declare
             Failure : Gtk.Label.Gtk_Label;
          begin
-            Gtk.Label.Gtk_New (Failure, "[ image result could not be displayed ]");
+            Gtk.Label.Gtk_New
+              (Failure, "[ image result could not be displayed ]");
             Failure.Set_Xalign (0.0);
             Container.Pack_Start (Failure, False, False, 0);
          end;
@@ -502,35 +513,36 @@ package body Coyote_GUI.Tool_Detail_Window is
       use Gtk.Label;
       use Gtk.Scrolled_Window;
 
-      Window       : Gtk.Window.Gtk_Window;
-      Root         : Gtk_Box;
-      Content_Scroll : Gtk_Scrolled_Window;
-      Content      : Gtk_Box;
-      Header       : Gtk_Grid;
+      Window          : Gtk.Window.Gtk_Window;
+      Root            : Gtk_Box;
+      Content_Scroll  : Gtk_Scrolled_Window;
+      Content         : Gtk_Box;
+      Header          : Gtk_Grid;
       Arguments_Frame : Gtk_Frame;
-      Arguments_Box : Gtk_Box;
-      Result_Frame : Gtk_Frame;
-      Result_Box   : Gtk_Box;
-      Banner       : Gtk_Label;
-      Button_Box   : Gtk_Box;
-      Close_Button : Gtk.Button.Gtk_Button;
-      Help_Button  : Gtk.Button.Gtk_Button;
-      Name         : constant String := To_String (Info.Name);
-      Arguments    : constant String := To_String (Info.Args);
-      Result       : constant String := To_String (Info.Result_Text);
-      Model        : constant String :=
+      Arguments_Box   : Gtk_Box;
+      Result_Frame    : Gtk_Frame;
+      Result_Box      : Gtk_Box;
+      Banner          : Gtk_Label;
+      Button_Box      : Gtk_Box;
+      Close_Button    : Gtk.Button.Gtk_Button;
+      Help_Button     : Gtk.Button.Gtk_Button;
+      Name            : constant String := To_String (Info.Name);
+      Arguments       : constant String := To_String (Info.Args);
+      Result          : constant String := To_String (Info.Result_Text);
+      Model           : constant String :=
         (if Length (Info.Model) > 0 then To_String (Info.Model) else "-");
-      Directory    : constant String :=
-        (if Length (Info.Source_Directory) > 0
-         then To_String (Info.Source_Directory)
+      Directory       : constant String :=
+        (if
+           Length (Info.Source_Directory) > 0
+         then
+           To_String (Info.Source_Directory)
          else "-");
-      Session_Start : constant String :=
-        (if Length (Info.Session_Start) > 0
-         then To_String (Info.Session_Start)
+      Session_Start   : constant String :=
+        (if Length (Info.Session_Start) > 0 then To_String (Info.Session_Start)
          else "-");
-      Turn_Text : constant String :=
-        "Turn " & Positive'Image (Info.Turn_Index)
-        & ", call " & Positive'Image (Info.Call_In_Turn);
+      Turn_Text       : constant String :=
+        "Turn " & Positive'Image (Info.Turn_Index) & ", call "
+        & Positive'Image (Info.Call_In_Turn);
    begin
       Gtk.Window.Gtk_New (Window, Gtk.Enums.Window_Toplevel);
       Window.Set_Title ("coyote : Tool Call Details");

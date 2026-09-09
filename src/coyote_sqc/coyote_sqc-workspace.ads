@@ -27,8 +27,7 @@ package Coyote_SQC.Workspace is
    --  Save a workspace to a .sqcw JSON file at version 10.
    --  Raises Workspace_Error on file I/O failure.
    procedure Save
-     (Path      : String;
-      Workspace : Coyote_SQC.Data_Model.Workspace_Record);
+     (Path : String; Workspace : Coyote_SQC.Data_Model.Workspace_Record);
 
    --  Return the Chart_Settings_Record for Kind, falling back to the
    --  all-default record when Kind is absent from the workspace map.

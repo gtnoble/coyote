@@ -15,30 +15,26 @@ package LLM.Auth.Codex is
    Auth_Error : exception;
 
    --  Constants describing the OAuth endpoint set.  Exposed for tests.
-   Client_Id        : constant String := "app_EMoamEEZ73f0CkXaXp7hrann";
-   User_Agent_Value : constant String := "coyote/0.1.0-dev";
-   Auth_Base_Url    : constant String := "https://auth.openai.com";
-   Authorize_Url    : constant String :=
-     Auth_Base_Url & "/oauth/authorize";
-   Token_Url        : constant String :=
-     Auth_Base_Url & "/oauth/token";
+   Client_Id        : constant String   := "app_EMoamEEZ73f0CkXaXp7hrann";
+   User_Agent_Value : constant String   := "coyote/0.1.0-dev";
+   Auth_Base_Url    : constant String   := "https://auth.openai.com";
+   Authorize_Url    : constant String   := Auth_Base_Url & "/oauth/authorize";
+   Token_Url        : constant String   := Auth_Base_Url & "/oauth/token";
    --  Local callback listener port for the browser flow.  The redirect
    --  URI stays http://localhost:1455/auth/callback as registered with
    --  the OpenAI OAuth client.
-   Redirect_Port    : constant Positive := 1455;
-   Redirect_Host    : constant String := "127.0.0.1";
-   Redirect_Path    : constant String := "/auth/callback";
-   Redirect_Uri     : constant String :=
-     "http://localhost:1455/auth/callback";
-   Scope            : constant String :=
-     "openid profile email offline_access";
-   Jwt_Claim_Path   : constant String := "https://api.openai.com/auth";
+   Redirect_Port    : constant Positive := 1_455;
+   Redirect_Host    : constant String   := "127.0.0.1";
+   Redirect_Path    : constant String   := "/auth/callback";
+   Redirect_Uri     : constant String := "http://localhost:1455/auth/callback";
+   Scope            : constant String := "openid profile email offline_access";
+   Jwt_Claim_Path   : constant String   := "https://api.openai.com/auth";
 
    --  Build the PKCE code verifier (43 unreserved characters) and its
    --  S256 challenge (base64url of the SHA-256 digest).
    procedure Make_Pkce
-     (Verifier  :    out Ada.Strings.Unbounded.Unbounded_String;
-      Challenge :    out Ada.Strings.Unbounded.Unbounded_String);
+     (Verifier  : out Ada.Strings.Unbounded.Unbounded_String;
+      Challenge : out Ada.Strings.Unbounded.Unbounded_String);
 
    --  Return a random 16-byte hex state value.
    function New_State return String;
@@ -47,8 +43,7 @@ package LLM.Auth.Codex is
    --  16-byte hex value; the caller must retain it for callback
    --  validation.
    function Build_Authorize_Url
-     (Code_Challenge : String;
-      State          : String) return String;
+     (Code_Challenge : String; State : String) return String;
 
    --  Extract the ChatGPT account id from a JWT access token by
    --  decoding the payload claim "https://api.openai.com/auth" ->
@@ -74,8 +69,8 @@ package LLM.Auth.Codex is
 
    --  Return True when the access token is missing or expires within
    --  five minutes.
-   function Token_Expired (Creds : LLM.Auth.Provider_Credentials)
-      return Boolean;
+   function Token_Expired
+     (Creds : LLM.Auth.Provider_Credentials) return Boolean;
 
    --  Ensure the credential carries a non-expired access token,
    --  refreshing (and re-extracting the account id) when needed.

@@ -42,8 +42,7 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
    function Response_Box
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Box.Gtk_Box;
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Box.Gtk_Box;
 
    function Response_Text_Has_Style
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
@@ -53,55 +52,64 @@ package Coyote_GUI.Conversation_Stack.Testing is
 
    function Table_Grid
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Gtk.Grid.Gtk_Grid;
+      Index : Positive)
+      return Gtk.Grid.Gtk_Grid;
 
    function Table_Cell
      (C      : Coyote_GUI.Conversation_Stack.Instance;
       Table  : Positive;
       Row    : Positive;
-      Column : Positive) return Gtk.Label.Gtk_Label;
+      Column : Positive)
+      return Gtk.Label.Gtk_Label;
 
    function Math_Area_Visible
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean;
+      Index : Positive)
+      return Boolean;
 
    function Math_Fallback_Visible
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean;
+      Index : Positive)
+      return Boolean;
 
    function Math_Has_Response_Style
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean;
+      Index : Positive)
+      return Boolean;
 
    function Math_Element_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 
    function Math_Source
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Index   : Positive) return String;
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive)
+      return String;
 
    function Math_Is_Valid
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Index   : Positive) return Boolean;
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive)
+      return Boolean;
 
    function Math_Width
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Index   : Positive) return Natural;
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive)
+      return Natural;
 
    function Math_Height
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Index   : Positive) return Natural;
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive)
+      return Natural;
 
    function Math_Scale
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Index   : Positive) return Long_Float;
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive)
+      return Long_Float;
 
    function Step_Frame_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 
    function Active_Step_Frame
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Frame.Gtk_Frame;
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Frame.Gtk_Frame;
 
    function Tool_Flow
      (C : Coyote_GUI.Conversation_Stack.Instance)
@@ -109,27 +117,33 @@ package Coyote_GUI.Conversation_Stack.Testing is
 
    function Tool_Summary
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return String;
+      Tool_Id : String)
+      return String;
 
    function Tool_Detail
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Coyote_GUI.Tool_Info;
+      Tool_Id : String)
+      return Coyote_GUI.Tool_Info;
 
    function Details_Label
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return String;
+      Tool_Id : String)
+      return String;
 
    function Details_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Boolean;
+      Tool_Id : String)
+      return Boolean;
 
    function Abort_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Boolean;
+      Tool_Id : String)
+      return Boolean;
 
    function Abort_Message_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Boolean;
+      Tool_Id : String)
+      return Boolean;
 
    function Footer_Separator
      (C : Coyote_GUI.Conversation_Stack.Instance)
@@ -145,7 +159,6 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
    function Fork_Button
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Button.Gtk_Button;
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Button.Gtk_Button;
 
 end Coyote_GUI.Conversation_Stack.Testing;

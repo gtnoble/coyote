@@ -9,17 +9,16 @@ package body Coyote_GUI.Updates is
       entry Enqueue (U : Update; Wake_Needed : out Boolean)
         when (Count < Max_Depth) or else Stopped
       is
-         Tail : constant Positive :=
-           (Head - 1 + Count) mod Max_Depth + 1;
+         Tail : constant Positive := (Head - 1 + Count) mod Max_Depth + 1;
       begin
          Wake_Needed := False;
          if not Stopped then
             if not Idle_Registered then
                Idle_Registered := True;
-               Wake_Needed := True;
+               Wake_Needed     := True;
             end if;
             Items (Tail) := U;
-            Count := Count + 1;
+            Count        := Count + 1;
          end if;
       end Enqueue;
 

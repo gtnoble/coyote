@@ -47,6 +47,7 @@ package Coyote_SQC.Statistics.Bootstrap is
      (Set_A : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
       Set_B : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
       B     : Positive := 10_000;
-      Seed  : Integer  := 12_345) return Three_CI_Results;
+      Seed  : Integer  := 12_345)
+      return Three_CI_Results;
 
 end Coyote_SQC.Statistics.Bootstrap;

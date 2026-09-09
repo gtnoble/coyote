@@ -46,15 +46,16 @@ package LLM.System_Prompt is
    --  The current date (YYYY-MM-DD), Cwd, and shell are appended last,
    --  regardless of which other parameters are set.
    function Build_System_Prompt
-     (Cwd                : String;
-      No_Tools           : Boolean := False;
-      Has_Editing_Tools  : Boolean := False;
-      Agent              : String  := "";
-      Context_Sections   : String  := "";
-      Skills_Section     : String  := "";
-      Memory_Block       : String  := "";
-      Executable_Path    : String  := "";
-      Coordinator_Mode   : Boolean := False) return String;
+     (Cwd               : String;
+      No_Tools          : Boolean := False;
+      Has_Editing_Tools : Boolean := False;
+      Agent             : String  := "";
+      Context_Sections  : String  := "";
+      Skills_Section    : String  := "";
+      Memory_Block      : String  := "";
+      Executable_Path   : String  := "";
+      Coordinator_Mode  : Boolean := False)
+      return String;
 
    --  Return per-turn reminder instructions for appending to each user
    --  prompt (REQ-CORE-172).  The instructions reinforce: persist until

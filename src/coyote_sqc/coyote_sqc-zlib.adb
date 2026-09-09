@@ -15,9 +15,11 @@ package body Coyote_SQC.Zlib is
 
    --  Internal C-oriented byte array for FFI.
    subtype C_Byte is Interfaces.C.unsigned_char;
-   type C_Byte_Array is array (Natural range <>) of C_Byte;
+   type C_Byte_Array is
+     array (Natural range <>)
+     of C_Byte;
 
-   --  z_stream mirror (x86_64 Linux).
+     --  z_stream mirror (x86_64 Linux).
    type z_stream is record
       next_in   : System.Address;
       avail_in  : Interfaces.C.unsigned;
@@ -39,11 +41,11 @@ package body Coyote_SQC.Zlib is
    type z_stream_Access is access all z_stream;
 
    --  zlib constants.
-   Z_DEFLATED         : constant := 8;
+   Z_DEFLATED         : constant                  := 8;
    Z_FINISH           : constant Interfaces.C.int := 4;
-   MAX_WBITS          : constant := 15;
-   MAX_MEM_LEVEL      : constant := 8;
-   Z_DEFAULT_STRATEGY : constant := 0;
+   MAX_WBITS          : constant                  := 15;
+   MAX_MEM_LEVEL      : constant                  := 8;
+   Z_DEFAULT_STRATEGY : constant                  := 0;
 
    --  C imports.
    function c_deflateInit2
@@ -54,35 +56,37 @@ package body Coyote_SQC.Zlib is
       memLevel    : Interfaces.C.int;
       strategy    : Interfaces.C.int;
       version     : System.Address;
-      stream_size : Interfaces.C.int) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "deflateInit2_";
+      stream_size : Interfaces.C.int)
+      return Interfaces.C.int with
+     Import, Convention => C, External_Name => "deflateInit2_";
 
    function c_deflateSetDictionary
      (strm       : System.Address;
       dictionary : System.Address;
-      dictLength : Interfaces.C.unsigned) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "deflateSetDictionary";
+      dictLength : Interfaces.C.unsigned)
+      return Interfaces.C.int with
+     Import, Convention => C, External_Name => "deflateSetDictionary";
 
    function c_deflate
      (strm  : System.Address;
-      flush : Interfaces.C.int) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "deflate";
+      flush : Interfaces.C.int)
+      return Interfaces.C.int with
+     Import, Convention => C, External_Name => "deflate";
 
    function c_deflateResetKeep
-     (strm : System.Address) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "deflateResetKeep";
+     (strm : System.Address) return Interfaces.C.int with
+     Import, Convention => C, External_Name => "deflateResetKeep";
 
-   function c_deflateEnd
-     (strm : System.Address) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "deflateEnd";
+   function c_deflateEnd (strm : System.Address) return Interfaces.C.int with
+     Import, Convention => C, External_Name => "deflateEnd";
 
    ZLIB_VERSION : constant String := "1.2.13" & ASCII.NUL;
 
-   function To_Access is
-     new Ada.Unchecked_Conversion (System.Address, z_stream_Access);
+   function To_Access is new Ada.Unchecked_Conversion
+     (System.Address, z_stream_Access);
 
-   procedure Free_zstream is
-     new Ada.Unchecked_Deallocation (z_stream, z_stream_Access);
+   procedure Free_zstream is new Ada.Unchecked_Deallocation
+     (z_stream, z_stream_Access);
 
    --  ==================================================================
 
@@ -92,15 +96,16 @@ package body Coyote_SQC.Zlib is
    begin
       Raw.all := (others => <>);
 
-      Rc := c_deflateInit2
-        (Raw.all'Address,
-         Level,
-         Z_DEFLATED,
-         MAX_WBITS,
-         MAX_MEM_LEVEL,
-         Z_DEFAULT_STRATEGY,
-         ZLIB_VERSION'Address,
-         Interfaces.C.int (z_stream'Size / 8));
+      Rc :=
+        c_deflateInit2
+          (Raw.all'Address,
+           Level,
+           Z_DEFLATED,
+           MAX_WBITS,
+           MAX_MEM_LEVEL,
+           Z_DEFAULT_STRATEGY,
+           ZLIB_VERSION'Address,
+           Interfaces.C.int (z_stream'Size / 8));
 
       if Rc /= Z_OK then
          raise Program_Error with "zlib deflateInit2_ failed";
@@ -115,10 +120,9 @@ package body Coyote_SQC.Zlib is
       Ptr : constant z_stream_Access := To_Access (S.Raw);
       Rc  : Interfaces.C.int;
    begin
-      Rc := c_deflateSetDictionary
-        (Ptr.all'Address,
-         Dict'Address,
-         Interfaces.C.unsigned (Dict'Length));
+      Rc :=
+        c_deflateSetDictionary
+          (Ptr.all'Address, Dict'Address, Interfaces.C.unsigned (Dict'Length));
       if Rc /= Z_OK then
          raise Program_Error with "zlib deflateSetDictionary failed";
       end if;
@@ -128,9 +132,9 @@ package body Coyote_SQC.Zlib is
 
    procedure Compress_Stream
      (S        : in out ZStream;
-      Source   : String;
-      Dest     : out Interfaces.C.char_array;
-      Dest_Len : out uLongf)
+      Source   :        String;
+      Dest     :    out Interfaces.C.char_array;
+      Dest_Len :    out uLongf)
    is
       Ptr    : constant z_stream_Access := To_Access (S.Raw);
       Rc     : Interfaces.C.int;
@@ -164,21 +168,19 @@ package body Coyote_SQC.Zlib is
       Ignore : Interfaces.C.int;
    begin
       Ignore := c_deflateEnd (Ptr.all'Address);
-      S.Raw := System.Null_Address;
+      S.Raw  := System.Null_Address;
       Free_zstream (Ptr);
    end Free_Stream;
 
    --  ==================================================================
 
    function Compress_With_Dict
-     (Source : String;
-      Level  : Interfaces.C.int;
-      Dict   : String) return Natural
+     (Source : String; Level : Interfaces.C.int; Dict : String) return Natural
    is
-      Ctx  : ZStream := Init_Stream (Level);
+      Ctx   : ZStream        := Init_Stream (Level);
       Bound : constant uLong := Compress_Bound (uLong (Source'Length));
-      Dest : Interfaces.C.char_array (0 .. Interfaces.C.size_t (Bound - 1));
-      Dlen : aliased uLongf;
+      Dest  : Interfaces.C.char_array (0 .. Interfaces.C.size_t (Bound - 1));
+      Dlen  : aliased uLongf;
    begin
       Set_Dict (Ctx, Dict);
       Compress_Stream (Ctx, Source, Dest, Dlen);

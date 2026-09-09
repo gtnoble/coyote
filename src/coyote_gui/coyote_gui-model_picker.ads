@@ -21,7 +21,8 @@ package Coyote_GUI.Model_Picker is
       case Status is
          when Selected =>
             Model_Spec : Ada.Strings.Unbounded.Unbounded_String;
-         when Cancelled | Use_Default =>
+         when Cancelled
+            | Use_Default =>
             null;
       end case;
    end record;
@@ -33,7 +34,8 @@ package Coyote_GUI.Model_Picker is
      (Parent        : not null access Gtk.Window.Gtk_Window_Record'Class;
       Models        : LLM.Model_Registry.Model_Info_Vectors.Vector;
       Price_Display : LLM.Settings.Price_Display_Mode;
-      Initial_Spec  : String := "";
-      Allow_Default : Boolean := False) return Selection_Result;
+      Initial_Spec  : String  := "";
+      Allow_Default : Boolean := False)
+      return Selection_Result;
 
 end Coyote_GUI.Model_Picker;

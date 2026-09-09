@@ -12,7 +12,7 @@ with Coyote_App.Frontend;
 package Coyote_App.Headless is
 
    procedure Run
-     (Opts     : Coyote_App.Options;
+     (Opts     :        Coyote_App.Options;
       Frontend : in out Coyote_App.Frontend.Instance'Class);
 
 end Coyote_App.Headless;

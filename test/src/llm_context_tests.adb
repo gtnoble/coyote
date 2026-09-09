@@ -61,11 +61,11 @@ package body LLM_Context_Tests is
    procedure Test_No_Files_Returns_Empty (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_1";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_1_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_1";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_1_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -75,12 +75,11 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String := LLM.System_Prompt.Load_Context_Sections
-           (Cwd);
+         Result : constant String :=
+           LLM.System_Prompt.Load_Context_Sections (Cwd);
       begin
          Assert
-           (Result = "",
-            "no context files should return the empty string");
+           (Result = "", "no context files should return the empty string");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -97,11 +96,11 @@ package body LLM_Context_Tests is
    procedure Test_Agents_Md_In_Cwd (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_2";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_2_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_2";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_2_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -109,14 +108,13 @@ package body LLM_Context_Tests is
       Mkdir (Home & "/.coyote");
       Mkdir (Cwd);
       Write_File
-        (Cwd & "/AGENTS.md",
-         "# Agent Instructions" & ASCII.LF & "Do stuff.");
+        (Cwd & "/AGENTS.md", "# Agent Instructions" & ASCII.LF & "Do stuff.");
 
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String := LLM.System_Prompt.Load_Context_Sections
-           (Cwd);
+         Result : constant String :=
+           LLM.System_Prompt.Load_Context_Sections (Cwd);
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result, "Agent Instructions") > 0,
@@ -140,11 +138,11 @@ package body LLM_Context_Tests is
    procedure Test_Global_Context_Dir (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_3";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_3_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_3";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_3_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -154,8 +152,8 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String := LLM.System_Prompt.Load_Context_Sections
-           (Cwd);
+         Result : constant String :=
+           LLM.System_Prompt.Load_Context_Sections (Cwd);
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result, "GLOBAL_CONTENT") > 0,
@@ -176,11 +174,11 @@ package body LLM_Context_Tests is
    procedure Test_Project_Context_Dir (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_4";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_4_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_4";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_4_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -191,8 +189,8 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String := LLM.System_Prompt.Load_Context_Sections
-           (Cwd);
+         Result : constant String :=
+           LLM.System_Prompt.Load_Context_Sections (Cwd);
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result, "PROJECT_CONTENT") > 0,
@@ -213,11 +211,11 @@ package body LLM_Context_Tests is
    procedure Test_Global_Before_Project (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_5";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_5_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_5";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_5_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -228,7 +226,7 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result      : constant String :=
+         Result      : constant String  :=
            LLM.System_Prompt.Load_Context_Sections (Cwd);
          Global_Pos  : constant Natural :=
            Ada.Strings.Fixed.Index (Result, "GLOBAL");
@@ -256,11 +254,11 @@ package body LLM_Context_Tests is
    procedure Test_Project_Before_Agents_Md (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_6";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_6_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_6";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_6_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -272,11 +270,11 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result     : constant String :=
+         Result      : constant String  :=
            LLM.System_Prompt.Load_Context_Sections (Cwd);
          Project_Pos : constant Natural :=
            Ada.Strings.Fixed.Index (Result, "PROJECT_FILE");
-         Agents_Pos : constant Natural :=
+         Agents_Pos  : constant Natural :=
            Ada.Strings.Fixed.Index (Result, "AGENTS_FILE");
       begin
          Assert (Project_Pos > 0, "project file should be present");
@@ -300,11 +298,11 @@ package body LLM_Context_Tests is
    procedure Test_Context_Files_Alpha_Order (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_7";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_7_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_7";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_7_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -315,7 +313,7 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String :=
+         Result : constant String  :=
            LLM.System_Prompt.Load_Context_Sections (Cwd);
          A_Pos  : constant Natural :=
            Ada.Strings.Fixed.Index (Result, "A_CONTENT");
@@ -344,11 +342,11 @@ package body LLM_Context_Tests is
    procedure Test_Outer_Header_Present (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_8";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_8_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_8";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_8_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -359,15 +357,15 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String := LLM.System_Prompt.Load_Context_Sections
-           (Cwd);
+         Result : constant String :=
+           LLM.System_Prompt.Load_Context_Sections (Cwd);
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result, "# Project Context") > 0,
             "non-empty context output should include the outer header");
          Assert
-           (Ada.Strings.Fixed.Index
-              (Result, "Project-specific instructions") > 0,
+           (Ada.Strings.Fixed.Index (Result, "Project-specific instructions")
+            > 0,
             "non-empty context output should include the outer preamble");
       end;
 
@@ -385,11 +383,11 @@ package body LLM_Context_Tests is
    procedure Test_No_Header_When_Empty (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_9";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_9_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_9";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_9_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -399,8 +397,8 @@ package body LLM_Context_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
 
       declare
-         Result : constant String := LLM.System_Prompt.Load_Context_Sections
-           (Cwd);
+         Result : constant String :=
+           LLM.System_Prompt.Load_Context_Sections (Cwd);
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result, "# Project Context") = 0,
@@ -421,11 +419,11 @@ package body LLM_Context_Tests is
    procedure Test_Injected_Into_Built_Prompt (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_ctx_test_10";
-      Cwd          : constant String := "/tmp/coyote_ctx_test_10_cwd";
+      Home         : constant String  := "/tmp/coyote_ctx_test_10";
+      Cwd          : constant String  := "/tmp/coyote_ctx_test_10_cwd";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
    begin
       Cleanup (Home);
@@ -440,8 +438,8 @@ package body LLM_Context_Tests is
            LLM.System_Prompt.Build_System_Prompt (Cwd => Cwd);
       begin
          Assert
-           (Ada.Strings.Fixed.Index
-              (Prompt, "INJECTED_AGENT_INSTRUCTIONS") > 0,
+           (Ada.Strings.Fixed.Index (Prompt, "INJECTED_AGENT_INSTRUCTIONS")
+            > 0,
             "Build_System_Prompt should include auto-loaded context files");
       end;
 
@@ -456,43 +454,53 @@ package body LLM_Context_Tests is
          raise;
    end Test_Injected_Into_Built_Prompt;
 
-   package LLM_Context_Caller is
-     new AUnit.Test_Caller (LLM_Context_Tests.Test);
+   package LLM_Context_Caller is new AUnit.Test_Caller
+     (LLM_Context_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections returns empty with no files",
-         LLM_Context_Tests.Test_No_Files_Returns_Empty'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections loads AGENTS.md from cwd",
-         LLM_Context_Tests.Test_Agents_Md_In_Cwd'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections loads global context dir",
-         LLM_Context_Tests.Test_Global_Context_Dir'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections loads project context dir",
-         LLM_Context_Tests.Test_Project_Context_Dir'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections: global before project",
-         LLM_Context_Tests.Test_Global_Before_Project'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections: project before AGENTS",
-         LLM_Context_Tests.Test_Project_Before_Agents_Md'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections sorts files alphabetically",
-         LLM_Context_Tests.Test_Context_Files_Alpha_Order'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections adds outer header",
-         LLM_Context_Tests.Test_Outer_Header_Present'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections omits header when empty",
-         LLM_Context_Tests.Test_No_Header_When_Empty'Access));
-      Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Build_System_Prompt injects loaded context",
-         LLM_Context_Tests.Test_Injected_Into_Built_Prompt'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections returns empty with no files",
+            LLM_Context_Tests.Test_No_Files_Returns_Empty'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections loads AGENTS.md from cwd",
+            LLM_Context_Tests.Test_Agents_Md_In_Cwd'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections loads global context dir",
+            LLM_Context_Tests.Test_Global_Context_Dir'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections loads project context dir",
+            LLM_Context_Tests.Test_Project_Context_Dir'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections: global before project",
+            LLM_Context_Tests.Test_Global_Before_Project'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections: project before AGENTS",
+            LLM_Context_Tests.Test_Project_Before_Agents_Md'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections sorts files alphabetically",
+            LLM_Context_Tests.Test_Context_Files_Alpha_Order'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections adds outer header",
+            LLM_Context_Tests.Test_Outer_Header_Present'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Load_Context_Sections omits header when empty",
+            LLM_Context_Tests.Test_No_Header_When_Empty'Access));
+      Result.Add_Test
+        (LLM_Context_Caller.Create
+           ("LLM.System_Prompt Build_System_Prompt injects loaded context",
+            LLM_Context_Tests.Test_Injected_Into_Built_Prompt'Access));
 
       return Result;
    end Suite;

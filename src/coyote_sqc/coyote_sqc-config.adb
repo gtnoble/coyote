@@ -6,7 +6,7 @@ with Ada.Calendar;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with GNAT.OS_Lib;
@@ -28,14 +28,15 @@ package body Coyote_SQC.Config is
       return Dir;
    end Config_Dir;
 
-   function Recent_File return String is (Config_Dir & "/recent_workspaces.json");
+   function Recent_File return String is
+     (Config_Dir & "/recent_workspaces.json");
 
    --  ── JSON helpers ──────────────────────────────────────────────────────
 
-   function Get_String (V : GNATCOLL.JSON.JSON_Value; F : String) return String is
+   function Get_String (V : GNATCOLL.JSON.JSON_Value; F : String) return String
+   is
    begin
-      if V.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then V.Has_Field (F)
+      if V.Kind = GNATCOLL.JSON.JSON_Object_Type and then V.Has_Field (F)
         and then V.Get (F).Kind = GNATCOLL.JSON.JSON_String_Type
       then
          return V.Get (F).Get;
@@ -43,10 +44,11 @@ package body Coyote_SQC.Config is
       return "";
    end Get_String;
 
-   function Get_Int (V : GNATCOLL.JSON.JSON_Value; F : String) return Long_Long_Integer is
+   function Get_Int
+     (V : GNATCOLL.JSON.JSON_Value; F : String) return Long_Long_Integer
+   is
    begin
-      if V.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then V.Has_Field (F)
+      if V.Kind = GNATCOLL.JSON.JSON_Object_Type and then V.Has_Field (F)
         and then V.Get (F).Kind = GNATCOLL.JSON.JSON_Int_Type
       then
          return Long_Long_Integer (Long_Integer'(V.Get (F).Get));
@@ -74,14 +76,14 @@ package body Coyote_SQC.Config is
 
       declare
          Arr : constant GNATCOLL.JSON.JSON_Array := Root.Get ("recent");
-         N   : constant Natural := GNATCOLL.JSON.Length (Arr);
+         N   : constant Natural                  := GNATCOLL.JSON.Length (Arr);
       begin
          for I in 1 .. Natural'Min (N, Max_Recent) loop
             declare
                E : constant GNATCOLL.JSON.JSON_Value :=
                  GNATCOLL.JSON.Get (Arr, I);
             begin
-               Result.Count := Result.Count + 1;
+               Result.Count       := Result.Count + 1;
                Result.Entries (I) :=
                  (Name        => To_Unbounded_String (Get_String (E, "name")),
                   Path        => To_Unbounded_String (Get_String (E, "path")),
@@ -99,20 +101,18 @@ package body Coyote_SQC.Config is
          return Result;
    end Load_Recent;
 
-
-
    procedure Record_Open (Name : String; Path : String) is
       use Ada.Calendar;
-      Epoch   : constant Ada.Calendar.Time :=
-        Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
-      Now_Ms  : constant Long_Long_Integer :=
-        Long_Long_Integer ((Ada.Calendar.Clock - Epoch) * 1000.0);
+      Epoch  : constant Ada.Calendar.Time :=
+        Ada.Calendar.Time_Of (1_970, 1, 1, 0.0);
+      Now_Ms : constant Long_Long_Integer :=
+        Long_Long_Integer ((Ada.Calendar.Clock - Epoch) * 1_000.0);
 
-      Old     : Recent_List := Load_Recent;
-      New_L   : Recent_List;
+      Old   : Recent_List := Load_Recent;
+      New_L : Recent_List;
 
       --  Build the new entry.
-      New_E   : constant Recent_Entry :=
+      New_E : constant Recent_Entry :=
         (Name        => To_Unbounded_String (Name),
          Path        => To_Unbounded_String (Path),
          Last_Opened => Now_Ms);
@@ -120,21 +120,21 @@ package body Coyote_SQC.Config is
       --  Write as JSON.
       procedure Write is
          use GNATCOLL.JSON;
-         Root    : JSON_Value := Create_Object;
-         Arr     : JSON_Array := Empty_Array;
-         Tmp     : constant String := Recent_File & ".tmp";
-         Dest    : constant String := Recent_File;
-         File    : Ada.Text_IO.File_Type;
+         Root : JSON_Value      := Create_Object;
+         Arr  : JSON_Array      := Empty_Array;
+         Tmp  : constant String := Recent_File & ".tmp";
+         Dest : constant String := Recent_File;
+         File : Ada.Text_IO.File_Type;
       begin
          Root.Set_Field ("version", Integer (1));
          for I in 1 .. Integer (New_L.Count) loop
             declare
-               Obj : JSON_Value := Create_Object;
+               Obj : JSON_Value   := Create_Object;
                E   : Recent_Entry := New_L.Entries (I);
             begin
-               Obj.Set_Field ("name",        To_String (E.Name));
-               Obj.Set_Field ("path",        To_String (E.Path));
-               Obj.Set_Field ("lastOpened",  Long_Integer (E.Last_Opened));
+               Obj.Set_Field ("name", To_String (E.Name));
+               Obj.Set_Field ("path", To_String (E.Path));
+               Obj.Set_Field ("lastOpened", Long_Integer (E.Last_Opened));
                Append (Arr, Obj);
             end;
          end loop;
@@ -150,14 +150,14 @@ package body Coyote_SQC.Config is
 
    begin
       --  Put the new entry first.
-      New_L.Count := 1;
+      New_L.Count       := 1;
       New_L.Entries (1) := New_E;
 
       --  Append old entries, skipping any that match the same path.
       for I in 1 .. Integer (Old.Count) loop
          exit when Integer (New_L.Count) = Max_Recent;
          if To_String (Old.Entries (I).Path) /= Path then
-            New_L.Count := New_L.Count + 1;
+            New_L.Count                           := New_L.Count + 1;
             New_L.Entries (Integer (New_L.Count)) := Old.Entries (I);
          end if;
       end loop;
@@ -205,14 +205,13 @@ package body Coyote_SQC.Config is
 
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
-      Epoch : constant Time :=
-        Time_Of (1970, 1, 1, 0.0);
+      Epoch : constant Time := Time_Of (1_970, 1, 1, 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
 
    function Cache_Is_Fresh (Fetched_At : Long_Long_Integer) return Boolean is
-      Age_Limit : constant Long_Long_Integer := 24 * 3600;
+      Age_Limit : constant Long_Long_Integer := 24 * 3_600;
       Now_S     : constant Long_Long_Integer := Current_Unix_S;
    begin
       if Fetched_At <= 0 then
@@ -241,8 +240,7 @@ package body Coyote_SQC.Config is
    is
       use GNATCOLL.JSON;
    begin
-      if Obj.Kind /= JSON_Object_Type
-        or else not Obj.Has_Field ("pricing")
+      if Obj.Kind /= JSON_Object_Type or else not Obj.Has_Field ("pricing")
       then
          return (others => 0.0);
       end if;
@@ -273,8 +271,7 @@ package body Coyote_SQC.Config is
    --  Fetch pricing from the live OpenRouter API.
    --  Returns True and populates Models_Json with the "data" array on success.
    procedure Fetch_OpenRouter_Pricing
-     (Models_Json : out GNATCOLL.JSON.JSON_Value;
-      Success     : out Boolean)
+     (Models_Json : out GNATCOLL.JSON.JSON_Value; Success : out Boolean)
    is
       Headers       : LLM.HTTP.Header_List;
       Status        : Natural := 0;
@@ -308,9 +305,7 @@ package body Coyote_SQC.Config is
       end if;
 
       Root := Parsed.Value;
-      if Root.Kind /= JSON_Object_Type
-        or else not Root.Has_Field ("data")
-      then
+      if Root.Kind /= JSON_Object_Type or else not Root.Has_Field ("data") then
          return;
       end if;
 
@@ -324,10 +319,10 @@ package body Coyote_SQC.Config is
 
    --  Save the OpenRouter cache file atomically.
    procedure Save_OpenRouter_Cache (Models_Array : GNATCOLL.JSON.JSON_Array) is
-      Path     : constant String := OpenRouter_Cache_Path;
-      Tmp_Path : constant String := Path & ".tmp";
+      Path     : constant String          := OpenRouter_Cache_Path;
+      Tmp_Path : constant String          := Path & ".tmp";
       File     : Ada.Text_IO.File_Type;
-      Renamed  : Boolean := False;
+      Renamed  : Boolean                  := False;
       Root     : GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Root.Set_Field ("fetched_at", Long_Integer (Current_Unix_S));
@@ -381,8 +376,7 @@ package body Coyote_SQC.Config is
       end if;
 
       Root := Parsed.Value;
-      if Root.Kind /= JSON_Object_Type
-        or else not Root.Has_Field ("models")
+      if Root.Kind /= JSON_Object_Type or else not Root.Has_Field ("models")
       then
          return;
       end if;
@@ -391,11 +385,13 @@ package body Coyote_SQC.Config is
       for I in 1 .. Length (Arr) loop
          declare
             Model_Obj : constant JSON_Value := Get (Arr, I);
-            Model_Id  : constant String :=
-              (if Model_Obj.Kind = JSON_Object_Type
+            Model_Id  : constant String     :=
+              (if
+                 Model_Obj.Kind = JSON_Object_Type
                  and then Model_Obj.Has_Field ("id")
                  and then Model_Obj.Get ("id").Kind = JSON_String_Type
-               then Model_Obj.Get ("id").Get
+               then
+                 Model_Obj.Get ("id").Get
                else "");
          begin
             if Model_Id'Length > 0
@@ -419,8 +415,9 @@ package body Coyote_SQC.Config is
       Dir      : constant String := Config_Dir;
       Cfg_Path : constant String := Dir & "/pricing.json";
 
-      function Parse_Prices (Obj : GNATCOLL.JSON.JSON_Value)
-        return Coyote_SQC.Metrics.Per_Token_Prices
+      function Parse_Prices
+        (Obj : GNATCOLL.JSON.JSON_Value)
+         return Coyote_SQC.Metrics.Per_Token_Prices
       is
          function Get_LF (F : String) return Long_Float is
             V : constant GNATCOLL.JSON.JSON_Value := Obj.Get (F);
@@ -441,13 +438,9 @@ package body Coyote_SQC.Config is
       end Parse_Prices;
 
       --  Callback for Map_JSON_Object: accumulate model name → prices.
-      procedure Add_Model
-        (Name  : String;
-         Value : GNATCOLL.JSON.JSON_Value)
-      is
+      procedure Add_Model (Name : String; Value : GNATCOLL.JSON.JSON_Value) is
       begin
-         Result.Include
-           (To_Unbounded_String (Name), Parse_Prices (Value));
+         Result.Include (To_Unbounded_String (Name), Parse_Prices (Value));
       end Add_Model;
 
    begin
@@ -461,8 +454,7 @@ package body Coyote_SQC.Config is
             if Content'Length > 0 then
                Root := GNATCOLL.JSON.Read (Content);
                if Root.Has_Field ("models") then
-                  Root.Get ("models").Map_JSON_Object
-                    (Add_Model'Access);
+                  Root.Get ("models").Map_JSON_Object (Add_Model'Access);
                end if;
             end if;
          end;
@@ -476,28 +468,29 @@ package body Coyote_SQC.Config is
       --  2. OpenRouter fallback: try to refresh the cache, then load
       --     any models not already found in the local pricing file.
       declare
-         Cache_Path : constant String := OpenRouter_Cache_Path;
-         Reuse_Cache : Boolean := False;
-         Stale       : Boolean := True;
+         Cache_Path  : constant String := OpenRouter_Cache_Path;
+         Reuse_Cache : Boolean         := False;
+         Stale       : Boolean         := True;
       begin
          --  Check if cache is fresh enough to reuse.
          if Ada.Directories.Exists (Cache_Path) then
             declare
-               Content : constant String :=
+               Content : constant String                    :=
                  Coyote_Utils.Read_Whole_File (Cache_Path);
                Parsed  : constant GNATCOLL.JSON.Read_Result :=
                  GNATCOLL.JSON.Read (Content);
-               Fetched : Long_Long_Integer := 0;
+               Fetched : Long_Long_Integer                  := 0;
             begin
                if Parsed.Success then
                   Fetched := Get_Int (Parsed.Value, "fetched_at");
                end if;
                if Cache_Is_Fresh (Fetched) then
                   Reuse_Cache := True;
-                  Stale := False;
+                  Stale       := False;
                end if;
             exception
-               when others => null;
+               when others =>
+                  null;
             end;
          end if;
 
@@ -526,36 +519,36 @@ package body Coyote_SQC.Config is
             Load_OpenRouter_Cache (Result);
          end if;
 
-      --  3. Build fallback entries keyed by model name only (no provider
-      --     prefix).  Sessions recorded with proxy-provider prefixes
-      --     (e.g. github-copilot/claude-sonnet-4.6) can then match
-      --     OpenRouter pricing entries (e.g. anthropic/claude-sonnet-4.6)
-      --     by looking up the model-name portion alone.
-      declare
-         use Coyote_SQC.Metrics;
-         Curs : Pricing_Maps.Cursor := Result.First;
-         use Ada.Strings.Fixed;
-      begin
-         while Pricing_Maps.Has_Element (Curs) loop
-            declare
-               Key : constant String := To_String (Pricing_Maps.Key (Curs));
-               Slash : constant Natural := Index (Key, "/");
-            begin
-               if Slash > 0 and then Slash < Key'Last then
-                  declare
-                     Model_Only : constant Unbounded_String :=
-                       To_Unbounded_String (Key (Slash + 1 .. Key'Last));
-                  begin
-                     if not Result.Contains (Model_Only) then
-                        Result.Include
-                          (Model_Only, Pricing_Maps.Element (Curs));
-                     end if;
-                  end;
-               end if;
-            end;
-            Pricing_Maps.Next (Curs);
-         end loop;
-      end;
+         --  3. Build fallback entries keyed by model name only (no provider
+         --     prefix).  Sessions recorded with proxy-provider prefixes
+         --     (e.g. github-copilot/claude-sonnet-4.6) can then match
+         --     OpenRouter pricing entries (e.g. anthropic/claude-sonnet-4.6)
+         --     by looking up the model-name portion alone.
+         declare
+            use Coyote_SQC.Metrics;
+            Curs : Pricing_Maps.Cursor := Result.First;
+            use Ada.Strings.Fixed;
+         begin
+            while Pricing_Maps.Has_Element (Curs) loop
+               declare
+                  Key : constant String := To_String (Pricing_Maps.Key (Curs));
+                  Slash : constant Natural := Index (Key, "/");
+               begin
+                  if Slash > 0 and then Slash < Key'Last then
+                     declare
+                        Model_Only : constant Unbounded_String :=
+                          To_Unbounded_String (Key (Slash + 1 .. Key'Last));
+                     begin
+                        if not Result.Contains (Model_Only) then
+                           Result.Include
+                             (Model_Only, Pricing_Maps.Element (Curs));
+                        end if;
+                     end;
+                  end if;
+               end;
+               Pricing_Maps.Next (Curs);
+            end loop;
+         end;
       end;
 
       return Result;

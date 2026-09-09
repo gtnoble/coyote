@@ -12,9 +12,9 @@ package Coyote_SQC.Statistics is
 
    --  Control-limit output record.
    type Limits_Record is record
-      UCL    : Long_Float;
-      CL     : Long_Float;
-      LCL    : Long_Float;
+      UCL     : Long_Float;
+      CL      : Long_Float;
+      LCL     : Long_Float;
       --  True when limits could not be computed (e.g. n=1, p denominator=0).
       --  True when the UCL can be drawn (limits were successfully computed).
       Has_UCL : Boolean := False;
@@ -24,23 +24,23 @@ package Coyote_SQC.Statistics is
 
    --  Parameter estimates derived from the setup interval.
    type Setup_Parameters is record
-      Grand_Mean : Long_Float := 0.0;
-      Pooled_S   : Long_Float := 0.0;
-      Grand_P    : Long_Float := 0.0;
+      Grand_Mean       : Long_Float := 0.0;
+      Pooled_S         : Long_Float := 0.0;
+      Grand_P          : Long_Float := 0.0;
       --  MR chart scale: classical = mean(MR_i); robust = median(MR_i).
       --  Used by Compute_MR_Limits; NOT used for I chart sigma.
-      Mean_MR    : Long_Float := 0.0;
+      Mean_MR          : Long_Float := 0.0;
       --  I chart process sigma: classical = Mean_MR / d2 (1.128);
       --  robust = Qn_Scale_Any (setup-interval observations) / 2.2219.
       --  Overridden with z-space value by Box-Cox blocks in Recompute_Chart.
-      I_Sigma    : Long_Float := 0.0;
+      I_Sigma          : Long_Float := 0.0;
       --  True when at least one eligible session contributed to the
       --  estimate; False when no setup-interval data was accumulated
       --  (e.g. no sessions loaded, or all sessions excluded by the
       --  chart's exclusion rule).  When False, callers must not use
       --  Grand_Mean / Pooled_S / Grand_P / I_Sigma / Mean_MR as chart
       --  parameters, because they retain their default value of 0.0.
-      Parameters_Valid : Boolean := False;
+      Parameters_Valid : Boolean    := False;
    end record;
 
    --  Estimate grand mean / pooled s (Xbar/s charts) or grand p (p charts)
@@ -48,7 +48,9 @@ package Coyote_SQC.Statistics is
    --  Session_Id is in Setup_Ids are used; when Setup_Ids is empty, all
    --  metrics in the vector are used (retrospective mode).
    --  Long_Float array type for Median_Of helper and robust estimation.
-   type LF_Value_Array is array (Positive range <>) of Long_Float;
+   type LF_Value_Array is
+     array (Positive range <>)
+     of Long_Float;
 
    --  Return the median of an LF_Value_Array.
    --  For even N, returns the mean of the two middle values.
@@ -59,8 +61,8 @@ package Coyote_SQC.Statistics is
      (Metrics    :     Coyote_SQC.Data_Model.Metrics_Vectors.Vector;
       Setup_Ids  :     Coyote_SQC.Data_Model.UUID_Set;
       Kind       :     Coyote_SQC.Charts.Chart_Kind;
-      Method     :     Coyote_SQC.Data_Model.Estimation_Method_Kind
-      := Coyote_SQC.Data_Model.Classical;
+      Method     :     Coyote_SQC.Data_Model.Estimation_Method_Kind :=
+        Coyote_SQC.Data_Model.Classical;
       Parameters : out Setup_Parameters);
 
 end Coyote_SQC.Statistics;

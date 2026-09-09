@@ -34,7 +34,8 @@ package body Coyote_SQC.Statistics.C4 is
    end Log_Gamma;
 
    --  Precomputed table: Table(N) = c4(N) for N = 2..100.
-   Table : array (2 .. 100) of Long_Float;
+   Table : array (2 .. 100)
+     of Long_Float;
 
    function C4 (N : Positive) return Long_Float is
    begin
@@ -52,12 +53,11 @@ begin
    --  Populate the lookup table at package elaboration.
    for N in 2 .. 100 loop
       declare
-         NF : constant Long_Float := Long_Float (N);
+         NF     : constant Long_Float := Long_Float (N);
          --  c4(n) = sqrt(2/(n-1)) * Γ(n/2) / Γ((n-1)/2)
          --        = exp(0.5*log(2/(n-1)) + log_Γ(n/2) - log_Γ((n-1)/2))
          Log_C4 : constant Long_Float :=
-           0.5 * Log (2.0 / (NF - 1.0))
-           + Log_Gamma (NF / 2.0)
+           0.5 * Log (2.0 / (NF - 1.0)) + Log_Gamma (NF / 2.0)
            - Log_Gamma ((NF - 1.0) / 2.0);
       begin
          Table (N) := Exp (Log_C4);

@@ -17,8 +17,7 @@ package Coyote_Renderer.MathML is
    end record;
 
    package Display_Math_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Display_Math_Block);
+     (Index_Type => Positive, Element_Type => Display_Math_Block);
 
    type Extraction_Result is record
       Masked_Text : Ada.Strings.Unbounded.Unbounded_String;
@@ -27,7 +26,6 @@ package Coyote_Renderer.MathML is
 
    --  Parse Markdown with cmark-gfm, protect all code-block source ranges,
    --  and replace eligible display-math blocks with stable placeholders.
-   function Extract_Display_Math
-     (Markdown : String) return Extraction_Result;
+   function Extract_Display_Math (Markdown : String) return Extraction_Result;
 
 end Coyote_Renderer.MathML;

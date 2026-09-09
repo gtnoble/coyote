@@ -14,10 +14,10 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNAT.OS_Lib;
 with GNAT.Strings;
 with GNATCOLL.JSON;
-with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
+with GNATCOLL.OS.FS;        use GNATCOLL.OS.FS;
 with LLM.Tools.Sandbox;
 with Coyote_Process_Control;
-with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
+with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
 package body LLM.Tools.Shell is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
@@ -32,11 +32,11 @@ package body LLM.Tools.Shell is
 
    --  Encode the bytes of Data as standard base64 with '=' padding.
    function Base64_Encode (Data : String) return String is
-      Len    : constant Natural := Data'Length;
+      Len        : constant Natural := Data'Length;
       --  Output length: ceil(Len / 3) * 4
-      Out_Len : constant Natural := ((Len + 2) / 3) * 4;
-      Result  : String (1 .. Out_Len);
-      Out_Pos : Positive := 1;
+      Out_Len    : constant Natural := ((Len + 2) / 3) * 4;
+      Result     : String (1 .. Out_Len);
+      Out_Pos    : Positive         := 1;
       B0, B1, B2 : Natural;
    begin
       if Len = 0 then
@@ -47,32 +47,30 @@ package body LLM.Tools.Shell is
          In_Pos : Positive := Data'First;
       begin
          while In_Pos <= Data'Last loop
-            B0 := Character'Pos (Data (In_Pos));
+            B0     := Character'Pos (Data (In_Pos));
             In_Pos := In_Pos + 1;
 
             if In_Pos <= Data'Last then
-               B1 := Character'Pos (Data (In_Pos));
+               B1     := Character'Pos (Data (In_Pos));
                In_Pos := In_Pos + 1;
             else
                B1 := 0;
             end if;
 
             if In_Pos <= Data'Last then
-               B2 := Character'Pos (Data (In_Pos));
+               B2     := Character'Pos (Data (In_Pos));
                In_Pos := In_Pos + 1;
             else
                B2 := 0;
             end if;
 
-            Result (Out_Pos)     :=
-              Base64_Alphabet (1 + B0 / 4);
+            Result (Out_Pos)     := Base64_Alphabet (1 + B0 / 4);
             Result (Out_Pos + 1) :=
               Base64_Alphabet (1 + (B0 mod 4) * 16 + B1 / 16);
             Result (Out_Pos + 2) :=
               Base64_Alphabet (1 + (B1 mod 16) * 4 + B2 / 64);
-            Result (Out_Pos + 3) :=
-              Base64_Alphabet (1 + B2 mod 64);
-            Out_Pos := Out_Pos + 4;
+            Result (Out_Pos + 3) := Base64_Alphabet (1 + B2 mod 64);
+            Out_Pos              := Out_Pos + 4;
          end loop;
       end;
 
@@ -96,10 +94,8 @@ package body LLM.Tools.Shell is
         Ada.Characters.Handling.To_Lower
           (Ada.Strings.Fixed.Trim (Value, Ada.Strings.Both));
    begin
-      if Normalized = "image/png"
-        or else Normalized = "image/jpeg"
-        or else Normalized = "image/gif"
-        or else Normalized = "image/webp"
+      if Normalized = "image/png" or else Normalized = "image/jpeg"
+        or else Normalized = "image/gif" or else Normalized = "image/webp"
       then
          return Normalized;
       end if;
@@ -107,30 +103,31 @@ package body LLM.Tools.Shell is
    end Canonical_Image_Mime;
 
    function Image_Signature_Matches
-     (Media_Type : String;
-      Data       : String) return Boolean
+     (Media_Type : String; Data : String) return Boolean
    is
       First : constant Positive := Data'First;
    begin
       if Media_Type = "image/png" then
-         return Data'Length >= 8
-           and then Data (First) = Character'Val (16#89#)
+         return
+           Data'Length >= 8 and then Data (First) = Character'Val (16#89#)
            and then Data (First + 1 .. First + 3) = "PNG"
            and then Data (First + 4) = Character'Val (16#0D#)
            and then Data (First + 5) = Character'Val (16#0A#)
            and then Data (First + 6) = Character'Val (16#1A#)
            and then Data (First + 7) = Character'Val (16#0A#);
       elsif Media_Type = "image/jpeg" then
-         return Data'Length >= 2
-           and then Data (First) = Character'Val (16#FF#)
+         return
+           Data'Length >= 2 and then Data (First) = Character'Val (16#FF#)
            and then Data (First + 1) = Character'Val (16#D8#);
       elsif Media_Type = "image/gif" then
-         return Data'Length >= 6
-           and then (Data (First .. First + 5) = "GIF87a"
-                     or else Data (First .. First + 5) = "GIF89a");
+         return
+           Data'Length >= 6
+           and then
+           (Data (First .. First + 5) = "GIF87a"
+            or else Data (First .. First + 5) = "GIF89a");
       elsif Media_Type = "image/webp" then
-         return Data'Length >= 12
-           and then Data (First .. First + 3) = "RIFF"
+         return
+           Data'Length >= 12 and then Data (First .. First + 3) = "RIFF"
            and then Data (First + 8 .. First + 11) = "WEBP";
       end if;
       return False;
@@ -138,7 +135,7 @@ package body LLM.Tools.Shell is
 
    function New_Temporary_Path return String is
       FD   : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
-      Name : GNAT.Strings.String_Access := null;
+      Name : GNAT.Strings.String_Access  := null;
       use type GNAT.OS_Lib.File_Descriptor;
       use type GNAT.Strings.String_Access;
    begin
@@ -161,14 +158,12 @@ package body LLM.Tools.Shell is
          raise;
    end New_Temporary_Path;
 
-   function Read_File_Prefix
-     (Path : String) return String
-   is
-      FD       : File_Descriptor := Invalid_FD;
-      Buffer   : String (1 .. 4096);
-      Read_N   : Integer;
-      Result   : Unbounded_String;
-      Remaining : Natural := 8 * 1024;
+   function Read_File_Prefix (Path : String) return String is
+      FD        : File_Descriptor := Invalid_FD;
+      Buffer    : String (1 .. 4_096);
+      Read_N    : Integer;
+      Result    : Unbounded_String;
+      Remaining : Natural         := 8 * 1_024;
    begin
       if Path'Length = 0 then
          return "";
@@ -182,8 +177,7 @@ package body LLM.Tools.Shell is
          exit when Read_N <= 0;
          if Remaining > 0 then
             declare
-               Keep : constant Natural :=
-                 Natural'Min (Remaining, Read_N);
+               Keep : constant Natural := Natural'Min (Remaining, Read_N);
             begin
                Append (Result, Buffer (1 .. Keep));
                Remaining := Remaining - Keep;
@@ -217,23 +211,22 @@ package body LLM.Tools.Shell is
    end Resolve_Shell;
 
    function Descriptor return Tool_Descriptor is
-      Schema     : constant GNATCOLL.JSON.JSON_Value :=
+      Schema    : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Props      : constant GNATCOLL.JSON.JSON_Value :=
+      Props : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Command   : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Command    : constant GNATCOLL.JSON.JSON_Value :=
+      Desc_P    : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Desc_P     : constant GNATCOLL.JSON.JSON_Value :=
+      Stdin_P   : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Stdin_P    : constant GNATCOLL.JSON.JSON_Value :=
+      Media_P   : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Media_P    : constant GNATCOLL.JSON.JSON_Value :=
+      Run_Grp_P : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Run_Grp_P  : constant GNATCOLL.JSON.JSON_Value :=
+      Timeout_P : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Timeout_P  : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
-      Required   : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Required  : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       Command.Set_Field ("type", "string");
       Command.Set_Field ("description", "The shell command to execute");
@@ -287,29 +280,30 @@ package body LLM.Tools.Shell is
 
       return
         (Name        => To_Unbounded_String ("shell"),
-         Description => To_Unbounded_String
-           ("Execute a shell command and return its combined output."
-            & " Optionally pipe text into the command via the `stdin` field."
-            & " Never use heredocs or interpreter inline-code flags"
-            & " (-e, -E) to pass multi-line content; always use `stdin`"
-            & " instead. Set `media_type` to a MIME type string (e.g."
-            & " ""image/png"") when the command produces binary image output;"
-            & " the bytes will be base64-encoded and returned as an image"
-            & " content block."),
+         Description =>
+           To_Unbounded_String
+             ("Execute a shell command and return its combined output."
+              & " Optionally pipe text into the command via the `stdin` field."
+              & " Never use heredocs or interpreter inline-code flags"
+              & " (-e, -E) to pass multi-line content; always use `stdin`"
+              & " instead. Set `media_type` to a MIME type string (e.g."
+              & " ""image/png"") when the command produces binary image output;"
+              & " the bytes will be base64-encoded and returned as an image"
+              & " content block."),
          Schema_Json => Schema);
    end Descriptor;
 
    function Image_Of (Value : Integer) return String is
    begin
-      return Ada.Strings.Fixed.Trim
-        (Integer'Image (Value), Ada.Strings.Both);
+      return Ada.Strings.Fixed.Trim (Integer'Image (Value), Ada.Strings.Both);
    end Image_Of;
 
    procedure Set_Error
      (Message    :     String;
       Result     : out Unbounded_String;
       Media_Type : out Unbounded_String;
-      Is_Error   : out Boolean) is
+      Is_Error   : out Boolean)
+   is
    begin
       Result     := To_Unbounded_String (Message);
       Media_Type := Null_Unbounded_String;
@@ -322,8 +316,8 @@ package body LLM.Tools.Shell is
       Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error        : out Boolean;
       Status          : out Execution_Status;
-      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
-      Sandbox_Profile :     String := "")
+      Abort_Flg       :     access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String                      := "")
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args_Json);
@@ -336,7 +330,9 @@ package body LLM.Tools.Shell is
       if not Parsed.Success then
          Set_Error
            ("invalid JSON arguments for shell tool",
-            Result, Media_Type, Is_Error);
+            Result,
+            Media_Type,
+            Is_Error);
          return;
       end if;
 
@@ -346,7 +342,9 @@ package body LLM.Tools.Shell is
          if Root.Kind /= GNATCOLL.JSON.JSON_Object_Type then
             Set_Error
               ("invalid JSON arguments for shell tool",
-               Result, Media_Type, Is_Error);
+               Result,
+               Media_Type,
+               Is_Error);
             return;
          end if;
 
@@ -355,34 +353,36 @@ package body LLM.Tools.Shell is
          then
             Set_Error
               ("shell tool requires a string field 'command'",
-               Result, Media_Type, Is_Error);
+               Result,
+               Media_Type,
+               Is_Error);
             return;
          end if;
 
          declare
-            Command          : constant String := Root.Get ("command").Get;
-            Shell_Path       : constant String := Resolve_Shell;
-            Output_R         : File_Descriptor := Invalid_FD;
-            Output_W         : File_Descriptor := Invalid_FD;
-            Diagnostic_W     : File_Descriptor := Invalid_FD;
-            Null_In          : File_Descriptor := Invalid_FD;
-            Handle           : Process_Handle  := Invalid_Handle;
-            Args             : Argument_List;
-            Chunk            : String (1 .. 4096);
-            Bytes_Read       : Integer;
-            Exit_Code        : Integer         := 0;
-            Output           : Unbounded_String;
-            Diagnostic       : Unbounded_String;
-            Diagnostic_Path  : Unbounded_String;
-            Has_Stdin_Text   : Boolean         := False;
-            Stdin_Text       : Unbounded_String := Null_Unbounded_String;
-            Timeout_Seconds  : Integer := 0;
-            Stdin_R          : File_Descriptor := Invalid_FD;
-            Stdin_W          : File_Descriptor := Invalid_FD;
-            Requested_Mime   : Unbounded_String := Null_Unbounded_String;
-            Started          : Boolean := False;
-            Waited           : Boolean := False;
-            Registered       : Boolean := False;
+            Command         : constant String  := Root.Get ("command").Get;
+            Shell_Path      : constant String  := Resolve_Shell;
+            Output_R        : File_Descriptor  := Invalid_FD;
+            Output_W        : File_Descriptor  := Invalid_FD;
+            Diagnostic_W    : File_Descriptor  := Invalid_FD;
+            Null_In         : File_Descriptor  := Invalid_FD;
+            Handle          : Process_Handle   := Invalid_Handle;
+            Args            : Argument_List;
+            Chunk           : String (1 .. 4_096);
+            Bytes_Read      : Integer;
+            Exit_Code       : Integer          := 0;
+            Output          : Unbounded_String;
+            Diagnostic      : Unbounded_String;
+            Diagnostic_Path : Unbounded_String;
+            Has_Stdin_Text  : Boolean          := False;
+            Stdin_Text      : Unbounded_String := Null_Unbounded_String;
+            Timeout_Seconds : Integer          := 0;
+            Stdin_R         : File_Descriptor  := Invalid_FD;
+            Stdin_W         : File_Descriptor  := Invalid_FD;
+            Requested_Mime  : Unbounded_String := Null_Unbounded_String;
+            Started         : Boolean          := False;
+            Waited          : Boolean          := False;
+            Registered      : Boolean          := False;
 
             protected type Termination_State is
                procedure Mark_Timeout;
@@ -435,7 +435,7 @@ package body LLM.Tools.Shell is
             begin
                if Started and then not Waited then
                   Exit_Code := Wait (Handle);
-                  Waited := True;
+                  Waited    := True;
                end if;
             end Reap_Child;
 
@@ -492,8 +492,7 @@ package body LLM.Tools.Shell is
          begin
             --  Parse the optional "stdin" field before spawning the child.
             if Root.Has_Field ("stdin")
-              and then
-                Root.Get ("stdin").Kind = GNATCOLL.JSON.JSON_String_Type
+              and then Root.Get ("stdin").Kind = GNATCOLL.JSON.JSON_String_Type
             then
                declare
                   Value : constant String := Root.Get ("stdin").Get;
@@ -507,8 +506,8 @@ package body LLM.Tools.Shell is
 
             --  Parse the optional "media_type" field.
             if Root.Has_Field ("media_type")
-              and then Root.Get ("media_type").Kind =
-                GNATCOLL.JSON.JSON_String_Type
+              and then Root.Get ("media_type").Kind
+                = GNATCOLL.JSON.JSON_String_Type
             then
                declare
                   Value : constant String := Root.Get ("media_type").Get;
@@ -522,7 +521,9 @@ package body LLM.Tools.Shell is
                            Set_Error
                              ("shell tool rejected unsupported image media "
                               & "type: " & Value,
-                              Result, Media_Type, Is_Error);
+                              Result,
+                              Media_Type,
+                              Is_Error);
                            return;
                         end if;
                         Requested_Mime := To_Unbounded_String (Canonical);
@@ -533,28 +534,23 @@ package body LLM.Tools.Shell is
 
             --  Parse the optional "timeout" field.
             if Root.Has_Field ("timeout")
-              and then Root.Get ("timeout").Kind =
-                GNATCOLL.JSON.JSON_Int_Type
+              and then Root.Get ("timeout").Kind = GNATCOLL.JSON.JSON_Int_Type
             then
                declare
                   Raw : constant Long_Integer := Root.Get ("timeout").Get;
                begin
-                  if Raw > 0 and then Raw <=
-                    Long_Integer (Integer'Last)
-                  then
+                  if Raw > 0 and then Raw <= Long_Integer (Integer'Last) then
                      Timeout_Seconds := Integer (Raw);
                   end if;
                end;
             end if;
 
             if Length (Requested_Mime) > 0 then
-               Diagnostic_Path :=
-                 To_Unbounded_String (New_Temporary_Path);
-               Diagnostic_W := Open
-                 (To_String (Diagnostic_Path), Write_Mode);
+               Diagnostic_Path := To_Unbounded_String (New_Temporary_Path);
+               Diagnostic_W := Open (To_String (Diagnostic_Path), Write_Mode);
                if Diagnostic_W = Invalid_FD then
-                  raise Program_Error with
-                    "unable to open image diagnostic file";
+                  raise Program_Error
+                    with "unable to open image diagnostic file";
                end if;
                Set_Close_On_Exec (Diagnostic_W, False);
             end if;
@@ -583,11 +579,10 @@ package body LLM.Tools.Shell is
 
             if Sandbox_Profile'Length > 0 then
                declare
-                  Bwrap_Args : constant
-                    LLM.Tools.Sandbox.String_Vectors.Vector :=
-                      LLM.Tools.Sandbox.Build_Bwrap_Args
-                        (Sandbox_Profile,
-                         Ada.Directories.Current_Directory);
+                  Bwrap_Args :
+                    constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+                    LLM.Tools.Sandbox.Build_Bwrap_Args
+                      (Sandbox_Profile, Ada.Directories.Current_Directory);
                begin
                   Args.Append ("bwrap");
                   Args.Append ("--ro-bind");
@@ -626,18 +621,21 @@ package body LLM.Tools.Shell is
                if not Launch_Accepted then
                   Set_Error
                     ("shell tool rejected during process shutdown",
-                     Result, Media_Type, Is_Error);
+                     Result,
+                     Media_Type,
+                     Is_Error);
                   Cleanup;
                   return;
                end if;
                begin
-                  Handle := Start
-                    (Args   => Args,
-                     Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
-                     Stdout => Output_W,
-                     Stderr => (if Length (Requested_Mime) > 0
-                                then Diagnostic_W
-                                else Output_W));
+                  Handle  :=
+                    Start
+                      (Args   => Args,
+                       Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
+                       Stdout => Output_W,
+                       Stderr =>
+                         (if Length (Requested_Mime) > 0 then Diagnostic_W
+                          else Output_W));
                   Started := True;
                   Coyote_Process_Control.Complete_Launch
                     (Integer (Handle), Needs_Signal);
@@ -694,8 +692,7 @@ package body LLM.Tools.Shell is
                         select
                            Abort_Flg.Wait_Requested;
                            Termination.Mark_Aborted;
-                           if not Coyote_Process_Control
-                             .Shutdown_Requested
+                           if not Coyote_Process_Control.Shutdown_Requested
                            then
                               Coyote_Process_Control.Signal_Group
                                 (Integer (Handle),
@@ -728,7 +725,7 @@ package body LLM.Tools.Shell is
                                  Abort_Flg.Wait_Requested;
                                  Termination.Mark_Aborted;
                                  if not Coyote_Process_Control
-                                   .Shutdown_Requested
+                                     .Shutdown_Requested
                                  then
                                     Coyote_Process_Control.Signal_Group
                                       (Integer (Handle),
@@ -762,8 +759,7 @@ package body LLM.Tools.Shell is
                         Bytes_Read := Read (Output_R, Chunk);
                      exception
                         when others =>
-                           if Termination.Killed
-                             or else Termination.Timed_Out
+                           if Termination.Killed or else Termination.Timed_Out
                              or else Termination.Aborted
                            then
                               --  Termination released the output pipe;
@@ -852,14 +848,14 @@ package body LLM.Tools.Shell is
                   Append
                     (Output,
                      "[command timed out after"
-                     & Integer'Image (Timeout_Seconds)
-                     & " seconds]");
+                     & Integer'Image (Timeout_Seconds) & " seconds]");
                   Result := Output;
                else
-                  Result := To_Unbounded_String
-                    ("[command timed out after"
-                     & Integer'Image (Timeout_Seconds)
-                     & " seconds -- no output]");
+                  Result :=
+                    To_Unbounded_String
+                      ("[command timed out after"
+                       & Integer'Image (Timeout_Seconds)
+                       & " seconds -- no output]");
                end if;
                Cleanup;
                return;
@@ -881,8 +877,8 @@ package body LLM.Tools.Shell is
                   Append (Output, "[command was aborted]");
                   Result := Output;
                else
-                  Result := To_Unbounded_String
-                    ("[command was aborted -- no output]");
+                  Result :=
+                    To_Unbounded_String ("[command was aborted -- no output]");
                end if;
                Cleanup;
                return;
@@ -894,8 +890,9 @@ package body LLM.Tools.Shell is
             Reap_Child;
 
             if Length (Diagnostic_Path) > 0 then
-               Diagnostic := To_Unbounded_String
-                 (Read_File_Prefix (To_String (Diagnostic_Path)));
+               Diagnostic :=
+                 To_Unbounded_String
+                   (Read_File_Prefix (To_String (Diagnostic_Path)));
             end if;
 
             if Exit_Code /= 0 then
@@ -904,12 +901,12 @@ package body LLM.Tools.Shell is
                   Append (Output, ASCII.LF);
                   Append
                     (Output,
-                     "[command exited with status "
-                     & Image_Of (Exit_Code)
+                     "[command exited with status " & Image_Of (Exit_Code)
                      & "]");
                else
-                  Output := To_Unbounded_String
-                    ("command exited with status " & Image_Of (Exit_Code));
+                  Output :=
+                    To_Unbounded_String
+                      ("command exited with status " & Image_Of (Exit_Code));
                end if;
                if Length (Diagnostic) > 0 then
                   Append (Output, ASCII.LF);
@@ -930,17 +927,21 @@ package body LLM.Tools.Shell is
                   Set_Error
                     ("shell tool produced empty output for "
                      & To_String (Requested_Mime),
-                     Result, Media_Type, Is_Error);
+                     Result,
+                     Media_Type,
+                     Is_Error);
                elsif not Image_Signature_Matches
-                 (To_String (Requested_Mime), To_String (Output))
+                   (To_String (Requested_Mime), To_String (Output))
                then
                   Set_Error
                     ("shell tool stdout is not a valid "
                      & To_String (Requested_Mime) & " image",
-                     Result, Media_Type, Is_Error);
+                     Result,
+                     Media_Type,
+                     Is_Error);
                else
-                  Result     := To_Unbounded_String
-                    (Base64_Encode (To_String (Output)));
+                  Result     :=
+                    To_Unbounded_String (Base64_Encode (To_String (Output)));
                   Media_Type := Requested_Mime;
                end if;
             else
@@ -955,7 +956,9 @@ package body LLM.Tools.Shell is
                Set_Error
                  ("shell tool failed: "
                   & Ada.Exceptions.Exception_Message (Ex),
-                  Result, Media_Type, Is_Error);
+                  Result,
+                  Media_Type,
+                  Is_Error);
          end;
       end;
    end Execute_With_Status;
@@ -965,8 +968,8 @@ package body LLM.Tools.Shell is
       Result          : out Ada.Strings.Unbounded.Unbounded_String;
       Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error        : out Boolean;
-      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
-      Sandbox_Profile :     String := "")
+      Abort_Flg       :     access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String                      := "")
    is
       Ignored_Status : Execution_Status;
    begin

@@ -3,11 +3,11 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNATCOLL.JSON;           use GNATCOLL.JSON;
+with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
-with GNATCOLL.OS.Process;     use GNATCOLL.OS.Process;
+with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
 
 package body Subagent_Integration_Tests is
 
@@ -19,7 +19,8 @@ package body Subagent_Integration_Tests is
    begin
       return Ada.Environment_Variables.Value (Name, "0") = "1";
    exception
-      when others => return False;
+      when others =>
+         return False;
    end Is_Guarded;
 
    --  Locate the coyote binary under test.  Checks ../bin/coyote
@@ -35,9 +36,7 @@ package body Subagent_Integration_Tests is
          Env_Bin : constant String :=
            Ada.Environment_Variables.Value ("COYOTE_BIN", "");
       begin
-         if Env_Bin'Length > 0
-           and then Ada.Directories.Exists (Env_Bin)
-         then
+         if Env_Bin'Length > 0 and then Ada.Directories.Exists (Env_Bin) then
             return Env_Bin;
          end if;
       end;
@@ -69,17 +68,12 @@ package body Subagent_Integration_Tests is
    --  Extract a string field from a JSON object value.  Returns "" on
    --  any type mismatch or missing field rather than raising an exception,
    --  so callers can assert on the result instead of catching errors.
-   function Json_Str
-     (V : JSON_Value;
-      F : UTF8_String) return String
-   is
+   function Json_Str (V : JSON_Value; F : UTF8_String) return String is
    begin
       if V.Kind /= JSON_Object_Type then
          return "";
       end if;
-      if V.Has_Field (F)
-        and then V.Get (F).Kind = JSON_String_Type
-      then
+      if V.Has_Field (F) and then V.Get (F).Kind = JSON_String_Type then
          return V.Get (F).Get;
       end if;
       return "";
@@ -87,9 +81,7 @@ package body Subagent_Integration_Tests is
 
    --  Copy one test prerequisite file into the subprocess HOME when it
    --  exists in the real HOME.
-   procedure Copy_If_Exists
-     (Source : String;
-      Target : String) is
+   procedure Copy_If_Exists (Source : String; Target : String) is
    begin
       if Ada.Directories.Exists (Source) then
          Ada.Directories.Copy_File (Source, Target);
@@ -103,22 +95,17 @@ package body Subagent_Integration_Tests is
    --  subagent tests run the child with a temporary HOME, so copy the
    --  relevant cache files as well as auth/settings to preserve the same
    --  model-resolution behaviour as the parent environment.
-   procedure Populate_Test_Home
-     (Test_Home : String;
-      Real_Home : String) is
+   procedure Populate_Test_Home (Test_Home : String; Real_Home : String) is
       Real_Agent_Dir : constant String := Real_Home & "/.coyote";
       Test_Agent_Dir : constant String := Test_Home & "/.coyote";
    begin
       Ada.Directories.Create_Path (Test_Agent_Dir & "/sessions");
       Copy_If_Exists
-        (Real_Agent_Dir & "/auth.json",
-         Test_Agent_Dir & "/auth.json");
+        (Real_Agent_Dir & "/auth.json", Test_Agent_Dir & "/auth.json");
       Copy_If_Exists
-        (Real_Agent_Dir & "/settings.json",
-         Test_Agent_Dir & "/settings.json");
+        (Real_Agent_Dir & "/settings.json", Test_Agent_Dir & "/settings.json");
       Copy_If_Exists
-        (Real_Agent_Dir & "/models.json",
-         Test_Agent_Dir & "/models.json");
+        (Real_Agent_Dir & "/models.json", Test_Agent_Dir & "/models.json");
       Copy_If_Exists
         (Real_Agent_Dir & "/github_copilot_models_cache.json",
          Test_Agent_Dir & "/github_copilot_models_cache.json");
@@ -132,7 +119,7 @@ package body Subagent_Integration_Tests is
    --  task uses select/or delay to impose a wall-clock timeout.
    protected type Done_Flag is
       procedure Signal;
-      entry     Wait;
+      entry Wait;
    private
       Complete : Boolean := False;
    end Done_Flag;
@@ -158,9 +145,9 @@ package body Subagent_Integration_Tests is
    procedure Test_One_Shot_Returns_Json (T : in out Test) is
       pragma Unreferenced (T);
 
-      Coyote     : constant String  := Find_Coyote;
+      Coyote     : constant String := Find_Coyote;
       Stdout_Out : Unbounded_String;
-      Got_Result : Boolean          := False;
+      Got_Result : Boolean         := False;
       Flag       : Done_Flag;
 
       task Runner;
@@ -194,22 +181,22 @@ package body Subagent_Integration_Tests is
          Args.Append (Coyote);
          Args.Append ("--one-shot");
          Args.Append ("--prompt");
-         Args.Append
-           ("Reply with only the word PONG and nothing else.");
-         Handle := Start
-           (Args        => Args,
-            Env         => Env_Override,
-            Stdin       => Null_In,
-            Stdout      => Stdout_W,
-            Stderr      => Null_Err,
-            Cwd         => Ada.Directories.Current_Directory,
-            Inherit_Env => True);
+         Args.Append ("Reply with only the word PONG and nothing else.");
+         Handle :=
+           Start
+             (Args        => Args,
+              Env         => Env_Override,
+              Stdin       => Null_In,
+              Stdout      => Stdout_W,
+              Stderr      => Null_Err,
+              Cwd         => Ada.Directories.Current_Directory,
+              Inherit_Env => True);
          Close (Null_In);
          Close (Null_Err);
          Close (Stdout_W);
          Stdout_Out := GNATCOLL.OS.FS.Read (Stdout_R);
          Close (Stdout_R);
-         Exit_Code  := Wait (Handle);
+         Exit_Code := Wait (Handle);
          --  Clean up temp HOME now that coyote has exited.
          if Ada.Directories.Exists (Test_Home) then
             Ada.Directories.Delete_Tree (Test_Home);
@@ -239,20 +226,15 @@ package body Subagent_Integration_Tests is
          delay 60.0;
       end select;
 
-      Assert (Got_Result,
-              "One-shot subprocess must complete within 60 s");
+      Assert (Got_Result, "One-shot subprocess must complete within 60 s");
       declare
-         Raw : constant String :=
-           First_Line (To_String (Stdout_Out));
+         Raw : constant String      := First_Line (To_String (Stdout_Out));
          R   : constant Read_Result := Read (Raw);
       begin
-         Assert (R.Success,
-                 "stdout must be valid JSON, got: " & Raw);
+         Assert (R.Success, "stdout must be valid JSON, got: " & Raw);
          declare
-            Output_Text : constant String :=
-              Json_Str (R.Value, "output");
-            Session_Id  : constant String :=
-              Json_Str (R.Value, "session_id");
+            Output_Text : constant String := Json_Str (R.Value, "output");
+            Session_Id  : constant String := Json_Str (R.Value, "session_id");
          begin
             Assert
               (Output_Text'Length > 0,
@@ -262,8 +244,7 @@ package body Subagent_Integration_Tests is
                "output should contain ""PONG"", got: " & Output_Text);
             Assert
               (Session_Id'Length = 36,
-               "session_id must be a 36-character UUID, got: "
-               & Session_Id);
+               "session_id must be a 36-character UUID, got: " & Session_Id);
          end;
       end;
    end Test_One_Shot_Returns_Json;
@@ -277,11 +258,11 @@ package body Subagent_Integration_Tests is
    procedure Test_One_Shot_Fresh_Session_Each_Run (T : in out Test) is
       pragma Unreferenced (T);
 
-      Coyote : constant String  := Find_Coyote;
+      Coyote : constant String := Find_Coyote;
       Out_1  : Unbounded_String;
       Out_2  : Unbounded_String;
-      Done_1 : Boolean          := False;
-      Done_2 : Boolean          := False;
+      Done_1 : Boolean         := False;
+      Done_2 : Boolean         := False;
       Flag   : Done_Flag;
 
       --  Invoke coyote --one-shot once and store stdout in Result.
@@ -289,8 +270,7 @@ package body Subagent_Integration_Tests is
       --  writable temp HOME for the subprocess so it can write session
       --  files and refresh auth tokens without touching the real HOME.
       procedure Run_One_Shot
-        (Result : out Unbounded_String;
-         Done   : out Boolean)
+        (Result : out Unbounded_String; Done : out Boolean)
       is
          use GNATCOLL.OS.FS;
          Stdout_R, Stdout_W : File_Descriptor;
@@ -320,18 +300,19 @@ package body Subagent_Integration_Tests is
          Args.Append ("--one-shot");
          Args.Append ("--prompt");
          Args.Append ("Reply with the single word PONG.");
-         Handle := Start
-           (Args        => Args,
-            Env         => Env_Override,
-            Stdin       => Null_In,
-            Stdout      => Stdout_W,
-            Stderr      => Null_Err,
-            Cwd         => Ada.Directories.Current_Directory,
-            Inherit_Env => True);
+         Handle :=
+           Start
+             (Args        => Args,
+              Env         => Env_Override,
+              Stdin       => Null_In,
+              Stdout      => Stdout_W,
+              Stderr      => Null_Err,
+              Cwd         => Ada.Directories.Current_Directory,
+              Inherit_Env => True);
          Close (Null_In);
          Close (Null_Err);
          Close (Stdout_W);
-         Result    := GNATCOLL.OS.FS.Read (Stdout_R);
+         Result := GNATCOLL.OS.FS.Read (Stdout_R);
          Close (Stdout_R);
          Exit_Code := Wait (Handle);
          --  Clean up temp HOME now that coyote has exited.
@@ -354,7 +335,8 @@ package body Subagent_Integration_Tests is
          Run_One_Shot (Out_2, Done_2);
          Flag.Signal;
       exception
-         when others => Flag.Signal;
+         when others =>
+            Flag.Signal;
       end Runner;
 
    begin
@@ -388,10 +370,8 @@ package body Subagent_Integration_Tests is
             return Json_Str (R.Value, "session_id");
          end Extract_Session_Id;
 
-         Sess_1 : constant String :=
-           Extract_Session_Id (To_String (Out_1));
-         Sess_2 : constant String :=
-           Extract_Session_Id (To_String (Out_2));
+         Sess_1 : constant String := Extract_Session_Id (To_String (Out_1));
+         Sess_2 : constant String := Extract_Session_Id (To_String (Out_2));
       begin
          Assert
            (Sess_1'Length = 36,
@@ -417,14 +397,12 @@ package body Subagent_Integration_Tests is
    --  Populate_Test_Home, so Agent.Create succeeds without any live
    --  network calls.  Only Run_Prompt touches the API and fails.
 
-   procedure Test_One_Shot_Prompt_Failure_Has_Session_Id
-     (T : in out Test)
-   is
+   procedure Test_One_Shot_Prompt_Failure_Has_Session_Id (T : in out Test) is
       pragma Unreferenced (T);
 
-      Coyote     : constant String  := Find_Coyote;
+      Coyote     : constant String := Find_Coyote;
       Stdout_Out : Unbounded_String;
-      Got_Result : Boolean          := False;
+      Got_Result : Boolean         := False;
       Flag       : Done_Flag;
 
       task Runner;
@@ -456,8 +434,7 @@ package body Subagent_Integration_Tests is
          --  HTTP 401 and raises Constraint_Error, which exercises the
          --  Run_Queued_Prompt exception handler.
          Env_Override.Include ("HOME", Test_Home);
-         Env_Override.Include
-           ("OPENROUTER_API_KEY", "invalid_token_for_test");
+         Env_Override.Include ("OPENROUTER_API_KEY", "invalid_token_for_test");
 
          Open_Pipe (Stdout_R, Stdout_W);
          Null_In  := Open (Null_File, Read_Mode);
@@ -468,20 +445,21 @@ package body Subagent_Integration_Tests is
          Args.Append ("openrouter/openai/gpt-4o-mini");
          Args.Append ("--prompt");
          Args.Append ("Hello.");
-         Handle := Start
-           (Args        => Args,
-            Env         => Env_Override,
-            Stdin       => Null_In,
-            Stdout      => Stdout_W,
-            Stderr      => Null_Err,
-            Cwd         => Ada.Directories.Current_Directory,
-            Inherit_Env => True);
+         Handle :=
+           Start
+             (Args        => Args,
+              Env         => Env_Override,
+              Stdin       => Null_In,
+              Stdout      => Stdout_W,
+              Stderr      => Null_Err,
+              Cwd         => Ada.Directories.Current_Directory,
+              Inherit_Env => True);
          Close (Null_In);
          Close (Null_Err);
          Close (Stdout_W);
          Stdout_Out := GNATCOLL.OS.FS.Read (Stdout_R);
          Close (Stdout_R);
-         Exit_Code  := Wait (Handle);
+         Exit_Code := Wait (Handle);
          if Ada.Directories.Exists (Test_Home) then
             Ada.Directories.Delete_Tree (Test_Home);
          end if;
@@ -510,20 +488,17 @@ package body Subagent_Integration_Tests is
          delay 30.0;
       end select;
 
-      Assert (Got_Result,
-              "Prompt-failure one-shot must complete within 30 s");
+      Assert (Got_Result, "Prompt-failure one-shot must complete within 30 s");
       declare
-         Raw : constant String :=
-           First_Line (To_String (Stdout_Out));
+         Raw : constant String      := First_Line (To_String (Stdout_Out));
          R   : constant Read_Result := Read (Raw);
       begin
-         Assert (R.Success,
-                 "stdout must be valid JSON on prompt failure, got: " & Raw);
+         Assert
+           (R.Success,
+            "stdout must be valid JSON on prompt failure, got: " & Raw);
          declare
-            Error_Text : constant String :=
-              Json_Str (R.Value, "error");
-            Session_Id : constant String :=
-              Json_Str (R.Value, "session_id");
+            Error_Text : constant String := Json_Str (R.Value, "error");
+            Session_Id : constant String := Json_Str (R.Value, "session_id");
          begin
             Assert
               (Error_Text'Length > 0,
@@ -532,30 +507,28 @@ package body Subagent_Integration_Tests is
             Assert
               (Session_Id'Length = 36,
                "JSON must have a 36-char ""session_id"""
-               & " even on prompt failure,"
-               & " got: " & Session_Id);
+               & " even on prompt failure," & " got: " & Session_Id);
          end;
       end;
    end Test_One_Shot_Prompt_Failure_Has_Session_Id;
 
    procedure Test_Subagent_Recursion_Limit (T : in out Test) is
       pragma Unreferenced (T);
-      Coyote     : constant String := Find_Coyote;
-      Stdout_Out : Unbounded_String;
-      Stderr_Out : Unbounded_String;
-      Exit_Code  : Integer := 0;
-      Home       : constant String :=
-        "/tmp/coyote_subagent_depth_test_" & PID_Image;
-      Home_Was_Set : constant Boolean :=
+      Coyote         : constant String  := Find_Coyote;
+      Stdout_Out     : Unbounded_String;
+      Stderr_Out     : Unbounded_String;
+      Exit_Code      : Integer          := 0;
+      Home : constant String := "/tmp/coyote_subagent_depth_test_" & PID_Image;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home       : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Depth_Was_Set : constant Boolean :=
+      Depth_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_RECURSION_DEPTH");
-      Old_Depth     : constant String :=
+      Old_Depth      : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_RECURSION_DEPTH", "");
-      Max_Depth_Path : constant String := Home & "/.coyote/settings.json";
-      File       : Ada.Text_IO.File_Type;
+      Max_Depth_Path : constant String  := Home & "/.coyote/settings.json";
+      File           : Ada.Text_IO.File_Type;
    begin
       if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
          return;
@@ -567,20 +540,19 @@ package body Subagent_Integration_Tests is
 
       Ada.Directories.Create_Path (Home & "/.coyote");
       Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Max_Depth_Path);
-      Ada.Text_IO.Put
-        (File, "{""maxRecursionDepth"":1}");
+      Ada.Text_IO.Put (File, "{""maxRecursionDepth"":1}");
       Ada.Text_IO.Close (File);
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("COYOTE_RECURSION_DEPTH", "1");
 
       declare
          use GNATCOLL.OS.FS;
-         Args : Argument_List;
-         Env  : Environment_Dict;
-         Null_In : File_Descriptor;
+         Args         : Argument_List;
+         Env          : Environment_Dict;
+         Null_In      : File_Descriptor;
          Out_R, Out_W : File_Descriptor;
          Err_R, Err_W : File_Descriptor;
-         Handle : Process_Handle;
+         Handle       : Process_Handle;
       begin
          Open_Pipe (Out_R, Out_W);
          Open_Pipe (Err_R, Err_W);
@@ -589,14 +561,15 @@ package body Subagent_Integration_Tests is
          Args.Append ("--subagent");
          Args.Append ("--frontend");
          Args.Append ("invalid");
-         Handle := Start
-           (Args        => Args,
-            Env         => Env,
-            Stdin       => Null_In,
-            Stdout      => Out_W,
-            Stderr      => Err_W,
-            Cwd         => Ada.Directories.Current_Directory,
-            Inherit_Env => True);
+         Handle :=
+           Start
+             (Args        => Args,
+              Env         => Env,
+              Stdin       => Null_In,
+              Stdout      => Out_W,
+              Stderr      => Err_W,
+              Cwd         => Ada.Directories.Current_Directory,
+              Inherit_Env => True);
          Close (Null_In);
          Close (Out_W);
          Close (Err_W);
@@ -607,26 +580,26 @@ package body Subagent_Integration_Tests is
          Exit_Code := Wait (Handle);
       end;
 
-      Assert (Exit_Code /= 0,
-              "subagent at the configured depth must fail");
+      Assert (Exit_Code /= 0, "subagent at the configured depth must fail");
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Stderr_Out),
             "maximum subagent recursion depth exceeded")
-           > 0,
+         > 0,
          "recursion-limit error should be reported on stderr");
-      Assert (To_String (Stdout_Out)'Length = 0,
-              "rejected subagent must not print help or start a frontend");
+      Assert
+        (To_String (Stdout_Out)'Length = 0,
+         "rejected subagent must not print help or start a frontend");
 
       Ada.Environment_Variables.Set ("COYOTE_RECURSION_DEPTH", "bad");
       declare
          use GNATCOLL.OS.FS;
-         Args : Argument_List;
-         Env  : Environment_Dict;
-         Null_In : File_Descriptor;
+         Args         : Argument_List;
+         Env          : Environment_Dict;
+         Null_In      : File_Descriptor;
          Out_R, Out_W : File_Descriptor;
          Err_R, Err_W : File_Descriptor;
-         Handle : Process_Handle;
+         Handle       : Process_Handle;
       begin
          Open_Pipe (Out_R, Out_W);
          Open_Pipe (Err_R, Err_W);
@@ -635,14 +608,15 @@ package body Subagent_Integration_Tests is
          Args.Append ("--subagent");
          Args.Append ("--frontend");
          Args.Append ("invalid");
-         Handle := Start
-           (Args        => Args,
-            Env         => Env,
-            Stdin       => Null_In,
-            Stdout      => Out_W,
-            Stderr      => Err_W,
-            Cwd         => Ada.Directories.Current_Directory,
-            Inherit_Env => True);
+         Handle :=
+           Start
+             (Args        => Args,
+              Env         => Env,
+              Stdin       => Null_In,
+              Stdout      => Out_W,
+              Stderr      => Err_W,
+              Cwd         => Ada.Directories.Current_Directory,
+              Inherit_Env => True);
          Close (Null_In);
          Close (Out_W);
          Close (Err_W);
@@ -653,12 +627,11 @@ package body Subagent_Integration_Tests is
          Exit_Code := Wait (Handle);
       end;
 
-      Assert (Exit_Code /= 0,
-              "malformed inherited depth must fail");
+      Assert (Exit_Code /= 0, "malformed inherited depth must fail");
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Stderr_Out), "invalid COYOTE_RECURSION_DEPTH")
-           > 0,
+         > 0,
          "malformed depth error should be reported on stderr");
 
       Ada.Environment_Variables.Set ("HOME", Old_Home);
@@ -666,8 +639,7 @@ package body Subagent_Integration_Tests is
          Ada.Environment_Variables.Clear ("HOME");
       end if;
       if Depth_Was_Set then
-         Ada.Environment_Variables.Set
-           ("COYOTE_RECURSION_DEPTH", Old_Depth);
+         Ada.Environment_Variables.Set ("COYOTE_RECURSION_DEPTH", Old_Depth);
       else
          Ada.Environment_Variables.Clear ("COYOTE_RECURSION_DEPTH");
       end if;
@@ -695,27 +667,32 @@ package body Subagent_Integration_Tests is
          raise;
    end Test_Subagent_Recursion_Limit;
 
-   package Subagent_Int_Caller is
-     new AUnit.Test_Caller (Subagent_Integration_Tests.Test);
+   package Subagent_Int_Caller is new AUnit.Test_Caller
+     (Subagent_Integration_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Subagent_Int_Caller.Create
-        ("[subagent] One-shot returns JSON with output and session_id",
-         Subagent_Integration_Tests.Test_One_Shot_Returns_Json'Access));
-      Result.Add_Test (Subagent_Int_Caller.Create
-        ("[subagent] Two --one-shot runs use distinct sessions",
-         Subagent_Integration_Tests
-           .Test_One_Shot_Fresh_Session_Each_Run'Access));
-      Result.Add_Test (Subagent_Int_Caller.Create
-        ("[subagent] Prompt-failure one-shot still returns session_id",
-         Subagent_Integration_Tests
-           .Test_One_Shot_Prompt_Failure_Has_Session_Id'Access));
-      Result.Add_Test (Subagent_Int_Caller.Create
-        ("[subagent] Recursion limit rejects nested invocation",
-         Subagent_Integration_Tests.Test_Subagent_Recursion_Limit'Access));
+      Result.Add_Test
+        (Subagent_Int_Caller.Create
+           ("[subagent] One-shot returns JSON with output and session_id",
+            Subagent_Integration_Tests.Test_One_Shot_Returns_Json'Access));
+      Result.Add_Test
+        (Subagent_Int_Caller.Create
+           ("[subagent] Two --one-shot runs use distinct sessions",
+            Subagent_Integration_Tests.Test_One_Shot_Fresh_Session_Each_Run'
+              Access));
+      Result.Add_Test
+        (Subagent_Int_Caller.Create
+           ("[subagent] Prompt-failure one-shot still returns session_id",
+            Subagent_Integration_Tests
+              .Test_One_Shot_Prompt_Failure_Has_Session_Id'
+              Access));
+      Result.Add_Test
+        (Subagent_Int_Caller.Create
+           ("[subagent] Recursion limit rejects nested invocation",
+            Subagent_Integration_Tests.Test_Subagent_Recursion_Limit'Access));
 
       return Result;
    end Suite;

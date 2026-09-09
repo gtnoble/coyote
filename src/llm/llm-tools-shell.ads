@@ -44,7 +44,11 @@ package LLM.Tools.Shell is
    --  the MIME type and matching image signature have been validated.
    --  Media_Type receives the canonical image MIME type, or an empty
    --  Unbounded_String when absent or when image validation fails.
-   type Execution_Status is (Completed, Failed, Timed_Out, Aborted);
+   type Execution_Status is
+     (Completed,
+      Failed,
+      Timed_Out,
+      Aborted);
 
    --  Is_Error is True when the arguments are invalid or the
    --  command exits non-zero.
@@ -53,8 +57,8 @@ package LLM.Tools.Shell is
       Result          : out Ada.Strings.Unbounded.Unbounded_String;
       Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error        : out Boolean;
-      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
-      Sandbox_Profile :     String := "");
+      Abort_Flg       :     access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String                      := "");
 
    --  Execute while returning the structured process termination cause.
    procedure Execute_With_Status
@@ -63,6 +67,6 @@ package LLM.Tools.Shell is
       Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error        : out Boolean;
       Status          : out Execution_Status;
-      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
-      Sandbox_Profile :     String := "");
+      Abort_Flg       :     access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String                      := "");
 end LLM.Tools.Shell;

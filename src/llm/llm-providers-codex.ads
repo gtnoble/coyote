@@ -17,8 +17,7 @@ with LLM.Types;
 package LLM.Providers.Codex is
 
    --  Default Codex backend endpoint prefix.
-   Default_Base_Url : constant String :=
-     "https://chatgpt.com/backend-api";
+   Default_Base_Url : constant String := "https://chatgpt.com/backend-api";
 
    type Provider is new LLM.Providers.Provider with private;
 
@@ -27,8 +26,7 @@ package LLM.Providers.Codex is
    --  the prompt_cache_key body field (clamped to 64 characters).
    function Create (Session_Id : String := "") return Provider;
 
-   overriding
-   procedure Send
+   overriding procedure Send
      (P             : in out Provider;
       Model_Id      :        String;
       System_Prompt :        String;

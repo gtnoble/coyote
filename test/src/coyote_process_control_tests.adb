@@ -16,8 +16,8 @@ package body Coyote_Process_Control_Tests is
       Coyote_Process_Control.Set_Grace_Seconds
         (LLM.Settings.Max_Termination_Grace_Seconds + 1);
       Assert
-        (Coyote_Process_Control.Grace_Seconds =
-           LLM.Settings.Max_Termination_Grace_Seconds,
+        (Coyote_Process_Control.Grace_Seconds
+         = LLM.Settings.Max_Termination_Grace_Seconds,
          "shutdown grace should clamp to the configured maximum");
       Coyote_Process_Control.Set_Grace_Seconds (0);
       Assert
@@ -51,22 +51,26 @@ package body Coyote_Process_Control_Tests is
       Assert (not Accepted, "writes should be rejected after freeze");
    end Test_Persistence_Freezes;
 
-   package Coyote_Process_Control_Caller is
-     new AUnit.Test_Caller (Coyote_Process_Control_Tests.Test);
+   package Coyote_Process_Control_Caller is new AUnit.Test_Caller
+     (Coyote_Process_Control_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Coyote_Process_Control_Caller.Create
-        ("Coyote process control clamps shutdown grace",
-         Coyote_Process_Control_Tests.Test_Grace_Clamps'Access));
-      Result.Add_Test (Coyote_Process_Control_Caller.Create
-        ("Coyote process control freezes persistence",
-         Coyote_Process_Control_Tests.Test_Persistence_Freezes'Access));
-      Result.Add_Test (Coyote_Process_Control_Caller.Create
-        ("Coyote process control rejects launches after shutdown",
-         Coyote_Process_Control_Tests.Test_Launches_Reject_After_Shutdown'Access));
+      Result.Add_Test
+        (Coyote_Process_Control_Caller.Create
+           ("Coyote process control clamps shutdown grace",
+            Coyote_Process_Control_Tests.Test_Grace_Clamps'Access));
+      Result.Add_Test
+        (Coyote_Process_Control_Caller.Create
+           ("Coyote process control freezes persistence",
+            Coyote_Process_Control_Tests.Test_Persistence_Freezes'Access));
+      Result.Add_Test
+        (Coyote_Process_Control_Caller.Create
+           ("Coyote process control rejects launches after shutdown",
+            Coyote_Process_Control_Tests.Test_Launches_Reject_After_Shutdown'
+              Access));
 
       return Result;
    end Suite;

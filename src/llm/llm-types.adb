@@ -12,7 +12,7 @@ package body LLM.Types is
          Output      => Left.Output + Right.Output,
          Cache_Read  => Left.Cache_Read + Right.Cache_Read,
          Cache_Write => Left.Cache_Write + Right.Cache_Write,
-         Thinking    => Left.Thinking    + Right.Thinking);
+         Thinking    => Left.Thinking + Right.Thinking);
    end "+";
 
 end LLM.Types;

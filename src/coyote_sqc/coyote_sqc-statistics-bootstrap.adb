@@ -28,7 +28,7 @@ package body Coyote_SQC.Statistics.Bootstrap is
    --  Use the shared heap-backed vector type from Data_Model so that
    --  Compute's parameters and internal containers have the same type.
    package LF_Vectors renames Coyote_SQC.Data_Model.Long_Float_Vectors;
-   package LF_Sorting  is new LF_Vectors.Generic_Sorting;
+   package LF_Sorting is new LF_Vectors.Generic_Sorting;
 
    --  ── Random number generation ──────────────────────────────────────────
 
@@ -38,8 +38,7 @@ package body Coyote_SQC.Statistics.Bootstrap is
    --  Maps negative Random values to non-negative integers without
    --  overflow: Integer'First + 1 → Integer'Last, -1 → 0.
    function Rand_Index
-     (Gen : in out Int_Random.Generator;
-      N   :        Positive) return Positive
+     (Gen : in out Int_Random.Generator; N : Positive) return Positive
    is
       Raw : Integer := Int_Random.Random (Gen);
    begin
@@ -66,7 +65,7 @@ package body Coyote_SQC.Statistics.Bootstrap is
    function Std_Dev_Of (V : LF_Vectors.Vector) return Long_Float is
       N    : constant Natural := Natural (V.Length);
       M    : Long_Float;
-      Sum  : Long_Float := 0.0;
+      Sum  : Long_Float       := 0.0;
       Diff : Long_Float;
    begin
       if N < 2 then
@@ -77,8 +76,8 @@ package body Coyote_SQC.Statistics.Bootstrap is
          Diff := X - M;
          Sum  := Sum + Diff * Diff;
       end loop;
-      return Ada.Numerics.Long_Elementary_Functions.Sqrt
-        (Sum / Long_Float (N - 1));
+      return
+        Ada.Numerics.Long_Elementary_Functions.Sqrt (Sum / Long_Float (N - 1));
    end Std_Dev_Of;
 
    --  Return the median of an already-sorted vector.
@@ -100,15 +99,22 @@ package body Coyote_SQC.Statistics.Bootstrap is
      (Set_A : LF_Vectors.Vector;
       Set_B : LF_Vectors.Vector;
       B     : Positive := 10_000;
-      Seed  : Integer  := 12_345) return Three_CI_Results
+      Seed  : Integer  := 12_345)
+      return Three_CI_Results
    is
       M : constant Natural := Natural (Set_A.Length);
       N : constant Natural := Natural (Set_B.Length);
 
       Invalid_All : constant Three_CI_Results :=
-        (Mean_Diff   => (Valid => False, others => <>),
-         Median_Diff => (Valid => False, others => <>),
-         SD_Ratio    => (Valid => False, others => <>));
+        (Mean_Diff   =>
+           (Valid  => False,
+            others => <>),
+         Median_Diff =>
+           (Valid  => False,
+            others => <>),
+         SD_Ratio    =>
+           (Valid  => False,
+            others => <>));
 
       Gen : Int_Random.Generator;
 
@@ -148,8 +154,8 @@ package body Coyote_SQC.Statistics.Bootstrap is
 
       --  Pre-allocate replicate vectors to avoid reallocation in the loop.
       Mean_Boot.Reserve_Capacity (Ada.Containers.Count_Type (B));
-      Med_Boot.Reserve_Capacity  (Ada.Containers.Count_Type (B));
-      SD_Boot.Reserve_Capacity   (Ada.Containers.Count_Type (B));
+      Med_Boot.Reserve_Capacity (Ada.Containers.Count_Type (B));
+      SD_Boot.Reserve_Capacity (Ada.Containers.Count_Type (B));
 
       --  Pre-allocate and fill resample vectors with sentinel zeros; the
       --  main loop overwrites every element on each iteration.
@@ -186,13 +192,11 @@ package body Coyote_SQC.Statistics.Bootstrap is
       for I in 1 .. B loop
          --  Draw M values with replacement from Set_A (1-based vector).
          for J in 1 .. M loop
-            A_Star.Replace_Element
-              (Positive (J), Set_A (Rand_Index (Gen, M)));
+            A_Star.Replace_Element (Positive (J), Set_A (Rand_Index (Gen, M)));
          end loop;
          --  Draw N values with replacement from Set_B (1-based vector).
          for J in 1 .. N loop
-            B_Star.Replace_Element
-              (Positive (J), Set_B (Rand_Index (Gen, N)));
+            B_Star.Replace_Element (Positive (J), Set_B (Rand_Index (Gen, N)));
          end loop;
 
          --  Sort in place (required for median; harmless for mean/SD).
@@ -201,7 +205,7 @@ package body Coyote_SQC.Statistics.Bootstrap is
 
          --  Compute bootstrap replicate statistics.
          Mean_Boot.Append (Mean_Of (B_Star) - Mean_Of (A_Star));
-         Med_Boot.Append  (Median_Sorted (B_Star) - Median_Sorted (A_Star));
+         Med_Boot.Append (Median_Sorted (B_Star) - Median_Sorted (A_Star));
 
          declare
             SD_A_Star : constant Long_Float := Std_Dev_Of (A_Star);
@@ -209,7 +213,7 @@ package body Coyote_SQC.Statistics.Bootstrap is
          begin
             if SD_A_Star = 0.0 then
                SD_Boot.Append (0.0);
-               SD_Boot_NA  := SD_Boot_NA + 1;
+               SD_Boot_NA := SD_Boot_NA + 1;
             else
                SD_Boot.Append (SD_B_Star / SD_A_Star);
             end if;
@@ -241,7 +245,9 @@ package body Coyote_SQC.Statistics.Bootstrap is
          Valid          => True);
 
       if not SD_Ratio_Valid or else SD_Boot_NA * 2 > B then
-         Result.SD_Ratio := (Valid => False, others => <>);
+         Result.SD_Ratio :=
+           (Valid  => False,
+            others => <>);
       else
          Result.SD_Ratio :=
            (Point_Estimate => Pt_SD_Ratio,

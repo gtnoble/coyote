@@ -23,13 +23,12 @@ package body LLM_OpenAI_Responses_Tests is
    use type LLM.Types.Stop_Reason;
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
+     (Index_Type => Positive, Element_Type => String);
 
    type Event_Collector is record
-      Sequence  : String_Vectors.Vector;
-      Last_Stop : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Usage     : LLM.Types.Usage := (others => 0);
+      Sequence   : String_Vectors.Vector;
+      Last_Stop  : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      Usage      : LLM.Types.Usage       := (others => 0);
       Last_Error : Unbounded_String;
    end record;
 
@@ -41,8 +40,7 @@ package body LLM_OpenAI_Responses_Tests is
       System_Prompt :        String;
       Messages      :        LLM.Types.Message_Vectors.Vector;
       Tools_Json    :        String;
-      Thinking      :        LLM.Providers.Thinking_Level :=
-        LLM.Providers.Off;
+      Thinking      :        LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Max_Tokens    :        Positive;
       Handler       :        LLM.Providers.Event_Handler)
    is
@@ -73,8 +71,8 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Reset_Collector is
    begin
       Current_Collector.Sequence.Clear;
-      Current_Collector.Last_Stop := LLM.Types.Unknown_Stop;
-      Current_Collector.Usage := (others => 0);
+      Current_Collector.Last_Stop  := LLM.Types.Unknown_Stop;
+      Current_Collector.Usage      := (others => 0);
       Current_Collector.Last_Error := Null_Unbounded_String;
    end Reset_Collector;
 
@@ -87,13 +85,12 @@ package body LLM_OpenAI_Responses_Tests is
    function SSE_Event (Event_Type : String; Data : String) return String is
    begin
       return
-        "event: " & Event_Type & ASCII.LF
-        & "data: " & Data & ASCII.LF & ASCII.LF;
+        "event: " & Event_Type & ASCII.LF & "data: " & Data & ASCII.LF
+        & ASCII.LF;
    end SSE_Event;
 
    function SSE_Event
-     (Event_Type : String;
-      Data       : GNATCOLL.JSON.JSON_Value) return String
+     (Event_Type : String; Data : GNATCOLL.JSON.JSON_Value) return String
    is
    begin
       return SSE_Event (Event_Type, GNATCOLL.JSON.Write (Data));
@@ -114,13 +111,10 @@ package body LLM_OpenAI_Responses_Tests is
    begin
       Usage.Set_Field ("input_tokens", Integer (Input_Tokens));
       Usage.Set_Field ("output_tokens", Integer (Output_Tokens));
-      Usage.Set_Field
-        ("total_tokens", Integer (Input_Tokens + Output_Tokens));
+      Usage.Set_Field ("total_tokens", Integer (Input_Tokens + Output_Tokens));
       Input_Det.Set_Field ("cached_tokens", Integer (Cached_Tokens));
-      Input_Det.Set_Field
-        ("cache_write_tokens", Integer (Cache_Write_Tokens));
-      Output_Det.Set_Field
-        ("reasoning_tokens", Integer (Reasoning_Tokens));
+      Input_Det.Set_Field ("cache_write_tokens", Integer (Cache_Write_Tokens));
+      Output_Det.Set_Field ("reasoning_tokens", Integer (Reasoning_Tokens));
       Usage.Set_Field ("input_tokens_details", Input_Det);
       Usage.Set_Field ("output_tokens_details", Output_Det);
       return Usage;
@@ -132,14 +126,15 @@ package body LLM_OpenAI_Responses_Tests is
       Output_Tokens : Natural;
       Cached        : Natural := 0;
       Cache_Write   : Natural := 0;
-      Reasoning     : Natural := 0) return GNATCOLL.JSON.JSON_Value
+      Reasoning     : Natural := 0)
+      return GNATCOLL.JSON.JSON_Value
    is
       use GNATCOLL.JSON;
       Response : constant JSON_Value := Create_Object;
       Item     : constant JSON_Value := Create_Object;
       Part     : constant JSON_Value := Create_Object;
-      Output   : JSON_Array := Empty_Array;
-      Content  : JSON_Array := Empty_Array;
+      Output   : JSON_Array          := Empty_Array;
+      Content  : JSON_Array          := Empty_Array;
    begin
       Part.Set_Field ("type", "output_text");
       Part.Set_Field ("text", Text);
@@ -166,18 +161,19 @@ package body LLM_OpenAI_Responses_Tests is
       Input_Tokens  : Natural;
       Output_Tokens : Natural;
       Cached        : Natural := 0;
-      Cache_Write   : Natural := 0) return String
+      Cache_Write   : Natural := 0)
+      return String
    is
       use GNATCOLL.JSON;
-      Created       : constant JSON_Value := Create_Object;
-      Added         : constant JSON_Value := Create_Object;
-      Item          : constant JSON_Value := Create_Object;
-      Delta_Value   : constant JSON_Value := Create_Object;
+      Created         : constant JSON_Value := Create_Object;
+      Added           : constant JSON_Value := Create_Object;
+      Item            : constant JSON_Value := Create_Object;
+      Delta_Value     : constant JSON_Value := Create_Object;
       Text_Done       : constant JSON_Value := Create_Object;
       Item_Done       : constant JSON_Value := Create_Object;
       Item_Done_Event : constant JSON_Value := Create_Object;
       Done_Part       : constant JSON_Value := Create_Object;
-      Done_Content    : JSON_Array := Empty_Array;
+      Done_Content    : JSON_Array          := Empty_Array;
       Completed       : constant JSON_Value := Create_Object;
    begin
       Created.Set_Field ("type", "response.created");
@@ -227,19 +223,17 @@ package body LLM_OpenAI_Responses_Tests is
    end Build_Text_SSE;
 
    function Build_Tool_SSE
-     (Call_Id   : String;
-      Name      : String;
-      Arguments : String) return String
+     (Call_Id : String; Name : String; Arguments : String) return String
    is
       use GNATCOLL.JSON;
-      Added      : constant JSON_Value := Create_Object;
-      Item       : constant JSON_Value := Create_Object;
+      Added       : constant JSON_Value := Create_Object;
+      Item        : constant JSON_Value := Create_Object;
       Delta_Value : constant JSON_Value := Create_Object;
-      Done       : constant JSON_Value := Create_Object;
-      Completed  : constant JSON_Value := Create_Object;
-      Response   : constant JSON_Value := Create_Object;
-      Output     : JSON_Array := Empty_Array;
-      Out_Item   : constant JSON_Value := Create_Object;
+      Done        : constant JSON_Value := Create_Object;
+      Completed   : constant JSON_Value := Create_Object;
+      Response    : constant JSON_Value := Create_Object;
+      Output      : JSON_Array          := Empty_Array;
+      Out_Item    : constant JSON_Value := Create_Object;
    begin
       Item.Set_Field ("id", "fc_test");
       Item.Set_Field ("type", "function_call");
@@ -279,21 +273,19 @@ package body LLM_OpenAI_Responses_Tests is
         & SSE_Event ("response.completed", Completed);
    end Build_Tool_SSE;
 
-   function Build_Thinking_SSE
-     (Thinking : String;
-      Text     : String) return String
+   function Build_Thinking_SSE (Thinking : String; Text : String) return String
    is
       use GNATCOLL.JSON;
       Reason_Delta_Value : constant JSON_Value := Create_Object;
-      Text_Delta_Value : constant JSON_Value := Create_Object;
-      Completed    : constant JSON_Value := Create_Object;
-      Response     : constant JSON_Value := Create_Object;
-      R_Item       : constant JSON_Value := Create_Object;
-      M_Item       : constant JSON_Value := Create_Object;
-      Part         : constant JSON_Value := Create_Object;
-      Output       : JSON_Array := Empty_Array;
-      Content      : JSON_Array := Empty_Array;
-      Summary      : JSON_Array := Empty_Array;
+      Text_Delta_Value   : constant JSON_Value := Create_Object;
+      Completed          : constant JSON_Value := Create_Object;
+      Response           : constant JSON_Value := Create_Object;
+      R_Item             : constant JSON_Value := Create_Object;
+      M_Item             : constant JSON_Value := Create_Object;
+      Part               : constant JSON_Value := Create_Object;
+      Output             : JSON_Array          := Empty_Array;
+      Content            : JSON_Array          := Empty_Array;
+      Summary            : JSON_Array          := Empty_Array;
    begin
       Reason_Delta_Value.Set_Field ("type", "response.reasoning_text.delta");
       Reason_Delta_Value.Set_Field ("item_id", "rs_test");
@@ -327,8 +319,7 @@ package body LLM_OpenAI_Responses_Tests is
          Reason_Item.Set_Field ("type", "reasoning");
          Reason_Item.Set_Field ("id", "rs_test");
          Reason_Item.Set_Field ("encrypted_content", "enc-secret");
-         Reason_Added.Set_Field
-           ("type", "response.output_item.added");
+         Reason_Added.Set_Field ("type", "response.output_item.added");
          Reason_Added.Set_Field ("output_index", Integer (0));
          Reason_Added.Set_Field ("item", Reason_Item);
          return
@@ -340,8 +331,7 @@ package body LLM_OpenAI_Responses_Tests is
    end Build_Thinking_SSE;
 
    procedure Collect_Event
-     (Collector : in out Event_Collector;
-      E         :        LLM.Events.Agent_Event'Class)
+     (Collector : in out Event_Collector; E : LLM.Events.Agent_Event'Class)
    is
    begin
       if E'Tag = LLM.Events.Agent_Start_Event'Tag then
@@ -353,8 +343,8 @@ package body LLM_OpenAI_Responses_Tests is
             Event : constant LLM.Events.Message_End_Event :=
               LLM.Events.Message_End_Event (E);
          begin
-            Collector.Last_Stop := Event.Stop;
-            Collector.Usage := Event.Tok_Usage;
+            Collector.Last_Stop  := Event.Stop;
+            Collector.Usage      := Event.Tok_Usage;
             Collector.Last_Error := Event.Err_Msg;
             Collector.Sequence.Append ("message_end");
          end;
@@ -382,15 +372,15 @@ package body LLM_OpenAI_Responses_Tests is
                   Collector.Sequence.Append ("text_end");
                when LLM.Events.Tool_Call_Start =>
                   Collector.Sequence.Append
-                    ("tool_call_start:" & To_String (Event.Tool_Call_Id)
-                     & ":" & To_String (Event.Tool_Name));
+                    ("tool_call_start:" & To_String (Event.Tool_Call_Id) & ":"
+                     & To_String (Event.Tool_Name));
                when LLM.Events.Tool_Call_Delta =>
                   Collector.Sequence.Append
                     ("tool_call_delta:" & To_String (Event.Delta_Text));
                when LLM.Events.Tool_Call_End =>
                   Collector.Sequence.Append
-                    ("tool_call_end:" & To_String (Event.Tool_Call_Id)
-                     & ":" & To_String (Event.Delta_Text));
+                    ("tool_call_end:" & To_String (Event.Tool_Call_Id) & ":"
+                     & To_String (Event.Delta_Text));
             end case;
          end;
       else
@@ -427,8 +417,7 @@ package body LLM_OpenAI_Responses_Tests is
    end Count_Event;
 
    function Field_String
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return String
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -450,7 +439,8 @@ package body LLM_OpenAI_Responses_Tests is
       Messages.Append
         ((Role      => LLM.Types.User,
           Content   => Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       return Messages;
@@ -459,18 +449,15 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Stream_Text_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_101;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port     : constant Positive                         := 19_101;
+      Provider : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19101",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19101", Api_Key => "test-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Payload  : constant String :=
-        Build_Text_SSE ("Hello", 10, 5);
+      Payload  : constant String := Build_Text_SSE ("Hello", 10, 5);
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed  : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
@@ -479,11 +466,10 @@ package body LLM_OpenAI_Responses_Tests is
          Item_0  : GNATCOLL.JSON.JSON_Value;
       begin
          Assert
-           (To_String (Req.Path) = "/responses",
-            "Expected path /responses");
+           (To_String (Req.Path) = "/responses", "Expected path /responses");
          Assert
-           (Test_HTTP_Server.Get_Header
-              (Req.Headers, "Authorization") = "Bearer test-key",
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+            = "Bearer test-key",
             "Expected Bearer test-key authorization");
          Assert (Parsed.Success, "Failed to parse request body as JSON");
          Body_JS := Parsed.Value;
@@ -491,8 +477,7 @@ package body LLM_OpenAI_Responses_Tests is
            (Json_String (Body_JS.Get ("model")) = "test-model",
             "Wrong model in request");
          Assert
-           (Boolean'(Body_JS.Get ("stream").Get),
-            "stream should be true");
+           (Boolean'(Body_JS.Get ("stream").Get), "stream should be true");
          Assert
            (Integer'(Body_JS.Get ("max_output_tokens").Get) = 128,
             "max_output_tokens should be 128");
@@ -504,7 +489,8 @@ package body LLM_OpenAI_Responses_Tests is
             "Responses request must not use messages");
          Assert
            (not Body_JS.Has_Field ("store")
-            or else Body_JS.Get ("store").Kind = GNATCOLL.JSON.JSON_Boolean_Type,
+            or else Body_JS.Get ("store").Kind
+              = GNATCOLL.JSON.JSON_Boolean_Type,
             "store field unexpected shape");
          if Body_JS.Has_Field ("store") then
             Assert
@@ -526,8 +512,9 @@ package body LLM_OpenAI_Responses_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Srv.Bind (Port);
@@ -553,8 +540,7 @@ package body LLM_OpenAI_Responses_Tests is
         (Current_Collector.Last_Stop = LLM.Types.Stop,
          "Stop reason should map to Stop");
       Assert (Current_Collector.Usage.Input = 10, "Usage.Input should be 10");
-      Assert
-        (Current_Collector.Usage.Output = 5, "Usage.Output should be 5");
+      Assert (Current_Collector.Usage.Output = 5, "Usage.Output should be 5");
    exception
       when others =>
          if not Server_Stopped then
@@ -566,25 +552,23 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Stream_Tool_Call_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_102;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port          : constant Positive                         := 19_102;
+      Provider      : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19102",
-           Api_Key  => "test-key");
-      Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Tools    : constant String :=
+          (Base_Url => "http://127.0.0.1:19102", Api_Key => "test-key");
+      Messages      : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Tools         : constant String                           :=
         "[{""type"":""function"",""name"":""read"","
         & """description"":""Read file"","
         & """parameters"":{""type"":""object""}}]";
-      Payload  : constant String :=
+      Payload       : constant String                           :=
         Build_Tool_SSE ("call_abc", "read", "{""path"":""a.adb""}");
-      Saw_Flat_Tool : Boolean := False;
+      Saw_Flat_Tool : Boolean                                   := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
-         Parsed : constant GNATCOLL.JSON.Read_Result :=
+         Parsed  : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
          Tools_A : GNATCOLL.JSON.JSON_Array;
          Tool_0  : GNATCOLL.JSON.JSON_Value;
@@ -592,10 +576,8 @@ package body LLM_OpenAI_Responses_Tests is
          Assert (To_String (Req.Path) = "/responses", "path");
          Assert (Parsed.Success, "parse body");
          Tools_A := Parsed.Value.Get ("tools").Get;
-         Tool_0 := GNATCOLL.JSON.Get (Tools_A, 1);
-         Assert
-           (Json_String (Tool_0.Get ("type")) = "function",
-            "tool type");
+         Tool_0  := GNATCOLL.JSON.Get (Tools_A, 1);
+         Assert (Json_String (Tool_0.Get ("type")) = "function", "tool type");
          Assert
            (Tool_0.Has_Field ("name"),
             "Responses tools must be flat (name at top level)");
@@ -603,13 +585,14 @@ package body LLM_OpenAI_Responses_Tests is
            (not Tool_0.Has_Field ("function"),
             "Responses tools must not nest a function object");
          Saw_Flat_Tool := True;
-         Res.Status := 200;
+         Res.Status    := 200;
          Ada.Strings.Unbounded.Append (Res.Body_Data, Payload);
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Srv.Bind (Port);
@@ -626,7 +609,8 @@ package body LLM_OpenAI_Responses_Tests is
       Assert (Saw_Flat_Tool, "handler should have seen a flat tool");
       Assert
         (Current_Collector.Sequence.Find_Index
-           ("tool_call_start:call_abc:read") > 0,
+           ("tool_call_start:call_abc:read")
+         > 0,
          "tool start: " & Sequence_Image);
       Assert
         (Current_Collector.Last_Stop = LLM.Types.Tool_Use,
@@ -642,18 +626,15 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Stream_Thinking_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_103;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port     : constant Positive                         := 19_103;
+      Provider : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19103",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19103", Api_Key => "test-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Payload  : constant String :=
-        Build_Thinking_SSE ("pondering", "done");
+      Payload  : constant String := Build_Thinking_SSE ("pondering", "done");
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -662,8 +643,9 @@ package body LLM_OpenAI_Responses_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Srv.Bind (Port);
@@ -679,12 +661,11 @@ package body LLM_OpenAI_Responses_Tests is
       Srv.Stop;
       Server_Stopped := True;
       Assert
-        (Current_Collector.Sequence.Find_Index
-           ("thinking_delta:pondering") > 0,
+        (Current_Collector.Sequence.Find_Index ("thinking_delta:pondering")
+         > 0,
          "thinking delta: " & Sequence_Image);
       Assert
-        (Current_Collector.Sequence.Find_Index
-           ("thinking_end") > 0,
+        (Current_Collector.Sequence.Find_Index ("thinking_end") > 0,
          "thinking end should be emitted: " & Sequence_Image);
       Assert
         (Current_Collector.Sequence.Find_Index ("text_delta:done") > 0,
@@ -703,18 +684,16 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Compaction_Summary_Encodes_As_User (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_104;
+      Port     : constant Positive                       := 19_104;
       Provider : LLM.Providers.OpenAI_Responses.Provider :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19104",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19104", Api_Key => "test-key");
       Messages : LLM.Types.Message_Vectors.Vector;
       Content  : LLM.Types.Content_Block_Vectors.Vector;
-      Role_OK  : Boolean := False;
+      Role_OK  : Boolean                                 := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
@@ -723,18 +702,20 @@ package body LLM_OpenAI_Responses_Tests is
       begin
          Assert (Parsed.Success, "parse");
          Input := Parsed.Value.Get ("input").Get;
-         Item := GNATCOLL.JSON.Get (Input, 1);
+         Item  := GNATCOLL.JSON.Get (Input, 1);
          Assert
            (Json_String (Item.Get ("role")) = "user",
             "compaction summary must encode as user");
-         Role_OK := True;
+         Role_OK    := True;
          Res.Status := 200;
-         Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
+         Ada.Strings.Unbounded.Append
+           (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Content.Append
@@ -743,7 +724,8 @@ package body LLM_OpenAI_Responses_Tests is
       Messages.Append
         ((Role      => LLM.Types.Compaction_Summary,
           Content   => Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       Srv.Bind (Port);
@@ -769,16 +751,14 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Non_Streaming_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_105;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port     : constant Positive                         := 19_105;
+      Provider : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19105",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19105", Api_Key => "test-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
          Payload : constant String :=
@@ -789,12 +769,12 @@ package body LLM_OpenAI_Responses_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
-      LLM.Providers.OpenAI_Responses.Testing.Set_Streaming
-        (Provider, False);
+      LLM.Providers.OpenAI_Responses.Testing.Set_Streaming (Provider, False);
       Srv.Bind (Port);
       Send_With_Retry
         (P             => Provider,
@@ -821,24 +801,21 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_HTTP_Error_Propagates (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_106;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port          : constant Positive                         := 19_106;
+      Provider      : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19106",
-           Api_Key  => "bad-key");
-      Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Raised   : Boolean := False;
-      Error_Payload : constant String :=
+          (Base_Url => "http://127.0.0.1:19106", Api_Key => "bad-key");
+      Messages      : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Raised        : Boolean                                   := False;
+      Error_Payload : constant String                           :=
         "{""error"":{""message"":"""
         & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
         & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
         & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
-        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
-        & """}}";
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" & """}}";
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -847,8 +824,9 @@ package body LLM_OpenAI_Responses_Tests is
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Srv.Bind (Port);
@@ -877,7 +855,7 @@ package body LLM_OpenAI_Responses_Tests is
         (Ada.Strings.Fixed.Index
            (To_String (Current_Collector.Last_Error),
             "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" & """}}")
-           > 0,
+         > 0,
          "HTTP error event should preserve the complete response body");
       Assert
         (Current_Collector.Sequence.Length = 4,
@@ -893,29 +871,27 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Usage_Includes_Cache_Write (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_107;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port     : constant Positive                         := 19_107;
+      Provider : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19107",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19107", Api_Key => "test-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Res.Status := 200;
          Append
            (Res.Body_Data,
-            Build_Text_SSE
-              ("ok", 100, 10, Cached => 40, Cache_Write => 12));
+            Build_Text_SSE ("ok", 100, 10, Cached => 40, Cache_Write => 12));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Srv.Bind (Port);
@@ -929,10 +905,8 @@ package body LLM_OpenAI_Responses_Tests is
          Handler       => On_Event'Access);
       Srv.Stop;
       Server_Stopped := True;
-      Assert
-        (Current_Collector.Usage.Cache_Read = 40, "cached_tokens");
-      Assert
-        (Current_Collector.Usage.Cache_Write = 12, "cache_write_tokens");
+      Assert (Current_Collector.Usage.Cache_Read = 40, "cached_tokens");
+      Assert (Current_Collector.Usage.Cache_Write = 12, "cache_write_tokens");
    exception
       when others =>
          if not Server_Stopped then
@@ -944,25 +918,23 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Tool_Result_Image_Serialised (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_108;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port           : constant Positive                       := 19_108;
+      Provider       : LLM.Providers.OpenAI_Responses.Provider :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19108",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19108", Api_Key => "test-key");
       Messages       : LLM.Types.Message_Vectors.Vector;
       User_Content   : LLM.Types.Content_Block_Vectors.Vector;
       Asst_Content   : LLM.Types.Content_Block_Vectors.Vector;
       Result_Content : LLM.Types.Content_Block_Vectors.Vector;
-      Image_OK       : Boolean := False;
+      Image_OK       : Boolean                                 := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
          Input  : GNATCOLL.JSON.JSON_Array;
-         Found  : Boolean := False;
+         Found  : Boolean                            := False;
       begin
          Assert (Parsed.Success, "parse");
          Input := Parsed.Value.Get ("input").Get;
@@ -971,8 +943,7 @@ package body LLM_OpenAI_Responses_Tests is
                Item : constant GNATCOLL.JSON.JSON_Value :=
                  GNATCOLL.JSON.Get (Input, I);
             begin
-               if Field_String (Item, "type") = "function_call_output"
-               then
+               if Field_String (Item, "type") = "function_call_output" then
                   declare
                      Output : constant GNATCOLL.JSON.JSON_Value :=
                        Item.Get ("output");
@@ -986,8 +957,8 @@ package body LLM_OpenAI_Responses_Tests is
                        (Json_String (Part.Get ("type")) = "input_image",
                         "part type");
                      Assert
-                       (Json_String (Part.Get ("image_url")) =
-                          "data:image/png;base64,SGVsbG8=",
+                       (Json_String (Part.Get ("image_url"))
+                        = "data:image/png;base64,SGVsbG8=",
                         "data uri");
                      Found := True;
                   end;
@@ -995,14 +966,16 @@ package body LLM_OpenAI_Responses_Tests is
             end;
          end loop;
          Assert (Found, "function_call_output with image not found");
-         Image_OK := True;
+         Image_OK   := True;
          Res.Status := 200;
-         Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("seen", 1, 1));
+         Ada.Strings.Unbounded.Append
+           (Res.Body_Data, Build_Text_SSE ("seen", 1, 1));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       User_Content.Append
@@ -1011,7 +984,8 @@ package body LLM_OpenAI_Responses_Tests is
       Messages.Append
         ((Role      => LLM.Types.User,
           Content   => User_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       Asst_Content.Append
@@ -1022,7 +996,8 @@ package body LLM_OpenAI_Responses_Tests is
       Messages.Append
         ((Role      => LLM.Types.Assistant,
           Content   => Asst_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Tool_Use,
           Timestamp => Null_Unbounded_String));
       Result_Content.Append
@@ -1035,7 +1010,8 @@ package body LLM_OpenAI_Responses_Tests is
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
           Content   => Result_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       Srv.Bind (Port);
@@ -1061,25 +1037,23 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Reasoning_Item_Replayed (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_109;
+      Port     : constant Positive                       := 19_109;
       Provider : LLM.Providers.OpenAI_Responses.Provider :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19109",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19109", Api_Key => "test-key");
       Messages : LLM.Types.Message_Vectors.Vector;
       User_C   : LLM.Types.Content_Block_Vectors.Vector;
       Asst_C   : LLM.Types.Content_Block_Vectors.Vector;
-      Replayed : Boolean := False;
+      Replayed : Boolean                                 := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
-         Parsed : constant GNATCOLL.JSON.Read_Result :=
+         Parsed          : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
          Input           : GNATCOLL.JSON.JSON_Array;
-         Found           : Boolean := False;
-         Reasoning_Count : Natural := 0;
+         Found           : Boolean                            := False;
+         Reasoning_Count : Natural                            := 0;
       begin
          Assert (Parsed.Success, "parse");
          Input := Parsed.Value.Get ("input").Get;
@@ -1089,7 +1063,8 @@ package body LLM_OpenAI_Responses_Tests is
                  GNATCOLL.JSON.Get (Input, I);
             begin
                if Item.Has_Field ("type")
-                 and then Item.Get ("type").Kind = GNATCOLL.JSON.JSON_String_Type
+                 and then Item.Get ("type").Kind
+                   = GNATCOLL.JSON.JSON_String_Type
                  and then String'(Item.Get ("type").Get) = "reasoning"
                then
                   Reasoning_Count := Reasoning_Count + 1;
@@ -1097,8 +1072,8 @@ package body LLM_OpenAI_Responses_Tests is
                     (Item.Has_Field ("encrypted_content"),
                      "encrypted_content should be replayed");
                   Assert
-                    (Json_String (Item.Get ("encrypted_content")) =
-                       "enc-secret",
+                    (Json_String (Item.Get ("encrypted_content"))
+                     = "enc-secret",
                      "encrypted_content value");
                   Assert
                     (Json_String (Item.Get ("id")) = "rs_test",
@@ -1111,14 +1086,16 @@ package body LLM_OpenAI_Responses_Tests is
          Assert
            (Reasoning_Count = 1,
             "opaque signatures must not become Responses reasoning items");
-         Replayed := True;
+         Replayed   := True;
          Res.Status := 200;
-         Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
+         Ada.Strings.Unbounded.Append
+           (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       User_C.Append
@@ -1127,30 +1104,32 @@ package body LLM_OpenAI_Responses_Tests is
       Messages.Append
         ((Role      => LLM.Types.User,
           Content   => User_C,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       Asst_C.Append
         ((Kind            => LLM.Types.Thinking_Block,
           Thinking        => To_Unbounded_String ("because"),
-          Signature       => To_Unbounded_String
-            ("{""id"":""rs_test"",""encrypted_content"":""enc-secret""}"),
+          Signature       =>
+            To_Unbounded_String
+              ("{""id"":""rs_test"",""encrypted_content"":""enc-secret""}"),
           Origin_Provider => To_Unbounded_String ("openrouter"),
           Origin_Model    => To_Unbounded_String ("test-model")));
       Asst_C.Append
         ((Kind            => LLM.Types.Thinking_Block,
           Thinking        => To_Unbounded_String ("foreign thinking"),
-          Signature       => To_Unbounded_String
-            ("opaque-anthropic-signature"),
+          Signature => To_Unbounded_String ("opaque-anthropic-signature"),
           Origin_Provider => To_Unbounded_String ("anthropic"),
           Origin_Model    => To_Unbounded_String ("claude-test")));
       Asst_C.Append
         ((Kind => LLM.Types.Text_Block,
-          Text => To_Unbounded_String ("answer")));
+         Text  => To_Unbounded_String ("answer")));
       Messages.Append
         ((Role      => LLM.Types.Assistant,
           Content   => Asst_C,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
       Srv.Bind (Port);
@@ -1176,39 +1155,38 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Omits_Store_And_Previous_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_110;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port     : constant Positive                         := 19_110;
+      Provider : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19110",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19110", Api_Key => "test-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Clean    : Boolean := False;
+      Clean    : Boolean                                   := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
       begin
          Assert (Parsed.Success, "parse");
          Assert
-           (not Parsed.Value.Has_Field ("store"),
-            "store must be omitted");
+           (not Parsed.Value.Has_Field ("store"), "store must be omitted");
          Assert
            (not Parsed.Value.Has_Field ("previous_response_id"),
             "previous_response_id must be omitted");
          Assert
            (Parsed.Value.Has_Field ("include"),
             "include should request encrypted reasoning");
-         Clean := True;
+         Clean      := True;
          Res.Status := 200;
-         Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
+         Ada.Strings.Unbounded.Append
+           (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Srv.Bind (Port);
@@ -1234,17 +1212,15 @@ package body LLM_OpenAI_Responses_Tests is
    procedure Test_Store_Disabled_Sends_False (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port     : constant Positive := 19_111;
-      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+      Port     : constant Positive                         := 19_111;
+      Provider : LLM.Providers.OpenAI_Responses.Provider   :=
         LLM.Providers.OpenAI_Responses.Create
-          (Base_Url => "http://127.0.0.1:19111",
-           Api_Key  => "test-key");
+          (Base_Url => "http://127.0.0.1:19111", Api_Key => "test-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
-      Clean    : Boolean := False;
+      Clean    : Boolean                                   := False;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          Parsed : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
@@ -1257,14 +1233,16 @@ package body LLM_OpenAI_Responses_Tests is
            (Parsed.Value.Has_Field ("store")
             and then not Boolean'(Parsed.Value.Get ("store").Get),
             "store must be false when Store_Enabled is False");
-         Clean := True;
+         Clean      := True;
          Res.Status := 200;
-         Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
+         Ada.Strings.Unbounded.Append
+           (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
-      Srv            : Test_HTTP_Server.Server
-        (Handler => Handle_Request'Unrestricted_Access);
+      Srv            :
+        Test_HTTP_Server.Server
+          (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       LLM.Providers.OpenAI_Responses.Set_Store_Enabled (Provider, False);
@@ -1288,49 +1266,62 @@ package body LLM_OpenAI_Responses_Tests is
          raise;
    end Test_Store_Disabled_Sends_False;
 
-   package LLM_OpenAI_Responses_Caller is
-     new AUnit.Test_Caller (LLM_OpenAI_Responses_Tests.Test);
+   package LLM_OpenAI_Responses_Caller is new AUnit.Test_Caller
+     (LLM_OpenAI_Responses_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses streams text SSE responses",
-         LLM_OpenAI_Responses_Tests.Test_Stream_Text_Response'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses streams function_call items",
-         LLM_OpenAI_Responses_Tests.Test_Stream_Tool_Call_Response'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses emits thinking and encrypted signature",
-         LLM_OpenAI_Responses_Tests.Test_Stream_Thinking_Response'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses encodes compaction summaries as user",
-         LLM_OpenAI_Responses_Tests
-           .Test_Compaction_Summary_Encodes_As_User'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses parses non-streaming JSON responses",
-         LLM_OpenAI_Responses_Tests.Test_Non_Streaming_Response'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses propagates HTTP errors",
-         LLM_OpenAI_Responses_Tests.Test_HTTP_Error_Propagates'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses parses cache_write_tokens",
-         LLM_OpenAI_Responses_Tests.Test_Usage_Includes_Cache_Write'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses encodes image tool results as input_image",
-         LLM_OpenAI_Responses_Tests.Test_Tool_Result_Image_Serialised'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses replays reasoning items",
-         LLM_OpenAI_Responses_Tests.Test_Reasoning_Item_Replayed'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses omits store and previous_response_id",
-         LLM_OpenAI_Responses_Tests
-           .Test_Omits_Store_And_Previous_Response'Access));
-      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
-        ("LLM.OpenAI_Responses sends store false when disabled",
-         LLM_OpenAI_Responses_Tests
-           .Test_Store_Disabled_Sends_False'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses streams text SSE responses",
+            LLM_OpenAI_Responses_Tests.Test_Stream_Text_Response'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses streams function_call items",
+            LLM_OpenAI_Responses_Tests.Test_Stream_Tool_Call_Response'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses emits thinking and encrypted signature",
+            LLM_OpenAI_Responses_Tests.Test_Stream_Thinking_Response'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses encodes compaction summaries as user",
+            LLM_OpenAI_Responses_Tests.Test_Compaction_Summary_Encodes_As_User'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses parses non-streaming JSON responses",
+            LLM_OpenAI_Responses_Tests.Test_Non_Streaming_Response'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses propagates HTTP errors",
+            LLM_OpenAI_Responses_Tests.Test_HTTP_Error_Propagates'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses parses cache_write_tokens",
+            LLM_OpenAI_Responses_Tests.Test_Usage_Includes_Cache_Write'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses encodes image tool results as input_image",
+            LLM_OpenAI_Responses_Tests.Test_Tool_Result_Image_Serialised'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses replays reasoning items",
+            LLM_OpenAI_Responses_Tests.Test_Reasoning_Item_Replayed'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses omits store and previous_response_id",
+            LLM_OpenAI_Responses_Tests.Test_Omits_Store_And_Previous_Response'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses sends store false when disabled",
+            LLM_OpenAI_Responses_Tests.Test_Store_Disabled_Sends_False'
+              Access));
 
       return Result;
    end Suite;

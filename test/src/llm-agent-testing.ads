@@ -9,17 +9,16 @@ package LLM.Agent.Testing is
 
    --  Return one in-memory transcript message by zero-based index.
    function History_Element
-     (S     : LLM.Agent.Session;
-      Index :        Natural) return LLM.Types.Message;
+     (S : LLM.Agent.Session; Index : Natural) return LLM.Types.Message;
 
    --  Return the system prompt string for the session.
-   function System_Prompt
-     (S : LLM.Agent.Session) return String;
+   function System_Prompt (S : LLM.Agent.Session) return String;
 
    --  Return the request history compatible with Provider and Model_Id.
    function Compatible_History
      (History  : LLM.Types.Message_Vectors.Vector;
       Provider : String;
-      Model_Id : String) return LLM.Types.Message_Vectors.Vector;
+      Model_Id : String)
+      return LLM.Types.Message_Vectors.Vector;
 
 end LLM.Agent.Testing;

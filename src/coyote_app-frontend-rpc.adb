@@ -19,10 +19,7 @@ package body Coyote_App.Frontend.RPC is
    use Coyote_App.Agent_RPC;
    use Coyote_App.Agent_RPC.Transport;
 
-   procedure Emit
-     (F     : in out Instance;
-      Name  : Event_Kind;
-      Data  : JSON_Value)
+   procedure Emit (F : in out Instance; Name : Event_Kind; Data : JSON_Value)
    is
       Value : constant Frame :=
         Make_Event
@@ -42,21 +39,21 @@ package body Coyote_App.Frontend.RPC is
 
    procedure Create
      (F               : in out Instance;
-      Endpoint        : String;
-      Agent_Id        : String;
-      Parent_Agent_Id : String := "";
-      Label           : String := "subagent")
+      Endpoint        :        String;
+      Agent_Id        :        String;
+      Parent_Agent_Id :        String := "";
+      Label           :        String := "subagent")
    is
    begin
       Connect (F.Channel, Endpoint);
-      F.Agent_Id := To_Unbounded_String (Agent_Id);
-      F.Next_Sequence := 1;
-      F.Is_Connected := True;
-      F.Is_Terminated := False;
-      F.Terminal_State := Completed;
-      F.Pending_Prompt := Null_Unbounded_String;
-      F.Pending_Steer := False;
-      F.Control_Closed := False;
+      F.Agent_Id           := To_Unbounded_String (Agent_Id);
+      F.Next_Sequence      := 1;
+      F.Is_Connected       := True;
+      F.Is_Terminated      := False;
+      F.Terminal_State     := Completed;
+      F.Pending_Prompt     := Null_Unbounded_String;
+      F.Pending_Steer      := False;
+      F.Control_Closed     := False;
       F.Shutdown_Requested := False;
       Send_Frame
         (F.Channel,
@@ -66,9 +63,7 @@ package body Coyote_App.Frontend.RPC is
             Label           => Label));
    end Create;
 
-   overriding procedure Set_Status
-     (F : in out Instance; Text : String)
-   is
+   overriding procedure Set_Status (F : in out Instance; Text : String) is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("text", Text);
@@ -80,33 +75,30 @@ package body Coyote_App.Frontend.RPC is
    is
       Data : constant JSON_Value := Object;
    begin
-      Data.Set_Field
-        ("mode", (case Mode is
-                    when Coyote_App.Frontend.Idle    => "idle",
-                    when Coyote_App.Frontend.Running => "running",
-                    when Coyote_App.Frontend.Armed  => "armed",
-                    when Coyote_App.Frontend.Paused  => "paused"));
+      Data.Set_Field ("mode",
+         (case Mode is
+            when Coyote_App.Frontend.Idle => "idle",
+            when Coyote_App.Frontend.Running => "running",
+            when Coyote_App.Frontend.Armed => "armed",
+            when Coyote_App.Frontend.Paused => "paused"));
       Emit (F, Coyote_App.Agent_RPC.Mode, Data);
    end Set_Mode;
 
    overriding procedure Begin_Request
-     (F : in out Instance;
-      Text : String;
-      Kind : Coyote_App.Frontend.Request_Kind :=
-        Coyote_App.Frontend.Prompt)
+     (F    : in out Instance;
+      Text :        String;
+      Kind :    Coyote_App.Frontend.Request_Kind := Coyote_App.Frontend.Prompt)
    is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("text", Text);
       Data.Set_Field
-        ("kind", (if Kind = Coyote_App.Frontend.Steer
-                  then "steer" else "prompt"));
+        ("kind",
+         (if Kind = Coyote_App.Frontend.Steer then "steer" else "prompt"));
       Emit (F, Request_Start, Data);
    end Begin_Request;
 
-   overriding procedure Append_Text
-     (F : in out Instance; Text : String)
-   is
+   overriding procedure Append_Text (F : in out Instance; Text : String) is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("text", Text);
@@ -125,9 +117,7 @@ package body Coyote_App.Frontend.RPC is
       Emit (F, Thinking_Start, Data);
    end Begin_Thinking;
 
-   overriding procedure Append_Thinking
-     (F : in out Instance; Text : String)
-   is
+   overriding procedure Append_Thinking (F : in out Instance; Text : String) is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("text", Text);
@@ -141,17 +131,17 @@ package body Coyote_App.Frontend.RPC is
    end End_Thinking;
 
    overriding procedure Begin_Tool
-     (F               : in out Instance;
-      Name            : String;
-      Args_Json       : String;
-      Session_Id      : String;
-      Tool_Id         : String;
-      Model           : String := "";
-      Source_Directory : String := "";
-      Session_Start   : String := "";
-      Turn_Index      : Positive := 1;
-      Call_In_Turn    : Positive := 1;
-      Initial_Status  : Coyote_App.Frontend.Tool_Status :=
+     (F                : in out Instance;
+      Name             :        String;
+      Args_Json        :        String;
+      Session_Id       :        String;
+      Tool_Id          :        String;
+      Model            :        String                          := "";
+      Source_Directory :        String                          := "";
+      Session_Start    :        String                          := "";
+      Turn_Index       :        Positive                        := 1;
+      Call_In_Turn     :        Positive                        := 1;
+      Initial_Status   :        Coyote_App.Frontend.Tool_Status :=
         Coyote_App.Frontend.Running)
    is
       Data : constant JSON_Value := Object;
@@ -160,8 +150,7 @@ package body Coyote_App.Frontend.RPC is
       declare
          Parsed : constant Read_Result := Read (Args_Json);
       begin
-         if not Parsed.Success
-           or else Parsed.Value.Kind /= JSON_Object_Type
+         if not Parsed.Success or else Parsed.Value.Kind /= JSON_Object_Type
          then
             Data.Set_Field ("args", Args_Json);
          else
@@ -175,71 +164,71 @@ package body Coyote_App.Frontend.RPC is
       Data.Set_Field ("sessionStart", Session_Start);
       Data.Set_Field ("turn", Integer (Turn_Index));
       Data.Set_Field ("call", Integer (Call_In_Turn));
-      Data.Set_Field
-        ("status", (case Initial_Status is
-                       when Coyote_App.Frontend.Queued => "queued",
-                       when Coyote_App.Frontend.Running => "running",
-                       when Coyote_App.Frontend.Success => "success",
-                       when Coyote_App.Frontend.Error => "error",
-                       when Coyote_App.Frontend.Timed_Out => "timed_out",
-                       when Coyote_App.Frontend.Cancelled => "cancelled"));
+      Data.Set_Field ("status",
+         (case Initial_Status is
+            when Coyote_App.Frontend.Queued => "queued",
+            when Coyote_App.Frontend.Running => "running",
+            when Coyote_App.Frontend.Success => "success",
+            when Coyote_App.Frontend.Error => "error",
+            when Coyote_App.Frontend.Timed_Out => "timed_out",
+            when Coyote_App.Frontend.Cancelled => "cancelled"));
       Emit (F, Tool_Start, Data);
    end Begin_Tool;
 
    overriding procedure Set_Tool_Status
      (F       : in out Instance;
-      Tool_Id : String;
-      Status  : Coyote_App.Frontend.Tool_Status)
+      Tool_Id :        String;
+      Status  :        Coyote_App.Frontend.Tool_Status)
    is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("toolId", Tool_Id);
-      Data.Set_Field
-        ("status", (case Status is
-                       when Coyote_App.Frontend.Queued => "queued",
-                       when Coyote_App.Frontend.Running => "running",
-                       when Coyote_App.Frontend.Success => "success",
-                       when Coyote_App.Frontend.Error => "error",
-                       when Coyote_App.Frontend.Timed_Out => "timed_out",
-                       when Coyote_App.Frontend.Cancelled => "cancelled"));
+      Data.Set_Field ("status",
+         (case Status is
+            when Coyote_App.Frontend.Queued => "queued",
+            when Coyote_App.Frontend.Running => "running",
+            when Coyote_App.Frontend.Success => "success",
+            when Coyote_App.Frontend.Error => "error",
+            when Coyote_App.Frontend.Timed_Out => "timed_out",
+            when Coyote_App.Frontend.Cancelled => "cancelled"));
       Emit (F, Coyote_App.Agent_RPC.Tool_Status, Data);
    end Set_Tool_Status;
 
    overriding procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     : String;
-      Status      : Coyote_App.Frontend.Tool_End_Status;
-      Result_Text : String := "";
-      Media_Type  : String := "")
+      Tool_Id     :        String;
+      Status      :        Coyote_App.Frontend.Tool_End_Status;
+      Result_Text :        String := "";
+      Media_Type  :        String := "")
    is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("toolId", Tool_Id);
       Data.Set_Field ("result", Result_Text);
       Data.Set_Field ("mediaType", Media_Type);
-      Data.Set_Field
-        ("status", (case Status is
-                      when Coyote_App.Frontend.Success => "success",
-                      when Coyote_App.Frontend.Error => "error",
-                      when Coyote_App.Frontend.Timed_Out => "timed_out",
-                      when Coyote_App.Frontend.Cancelled => "cancelled"));
+      Data.Set_Field ("status",
+         (case Status is
+            when Coyote_App.Frontend.Success => "success",
+            when Coyote_App.Frontend.Error => "error",
+            when Coyote_App.Frontend.Timed_Out => "timed_out",
+            when Coyote_App.Frontend.Cancelled => "cancelled"));
       Emit (F, Tool_End, Data);
    end End_Tool;
 
    overriding procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    : String;
-      Kind    : Coyote_App.Frontend.Footer_Kind :=
+      Text    :        String;
+      Kind    :        Coyote_App.Frontend.Footer_Kind :=
         Coyote_App.Frontend.Final_Footer;
-      Summary : String := "")
+      Summary :        String                          := "")
    is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("text", Text);
       Data.Set_Field ("summary", Summary);
       Data.Set_Field
-        ("kind", (if Kind = Coyote_App.Frontend.Step_Footer
-                  then "step" else "final"));
+        ("kind",
+         (if Kind = Coyote_App.Frontend.Step_Footer then "step" else "final"));
       Emit (F, Footer, Data);
    end Append_Turn_Footer;
 
@@ -248,22 +237,24 @@ package body Coyote_App.Frontend.RPC is
    is
       Data : constant JSON_Value := Object;
    begin
-      Data.Set_Field
-        ("status", (case Status is
-                      when Coyote_App.Frontend.Completed => "completed",
-                      when Coyote_App.Frontend.Aborted => "aborted",
-                      when Coyote_App.Frontend.Failed => "failed"));
+      Data.Set_Field ("status",
+         (case Status is
+            when Coyote_App.Frontend.Completed => "completed",
+            when Coyote_App.Frontend.Aborted => "aborted",
+            when Coyote_App.Frontend.Failed => "failed"));
       F.Terminal_State :=
         (case Status is
-            when Coyote_App.Frontend.Completed => Completed,
-            when Coyote_App.Frontend.Aborted => Aborted,
-            when Coyote_App.Frontend.Failed => Failed);
+           when Coyote_App.Frontend.Completed => Completed,
+           when Coyote_App.Frontend.Aborted => Aborted,
+           when Coyote_App.Frontend.Failed => Failed);
       Emit (F, Request_End, Data);
    end Complete_Request;
 
    overriding procedure Append_Fork_Action
-     (F : in out Instance; UUID : String; Turn_N : Positive;
-      Step_N : Natural := 0)
+     (F      : in out Instance;
+      UUID   :        String;
+      Turn_N :        Positive;
+      Step_N :        Natural := 0)
    is
       Data : constant JSON_Value := Object;
    begin
@@ -274,18 +265,18 @@ package body Coyote_App.Frontend.RPC is
    end Append_Fork_Action;
 
    overriding procedure Append_Notice
-     (F : in out Instance;
-      Kind : Coyote_App.Frontend.Notice_Kind;
-      Text : String)
+     (F    : in out Instance;
+      Kind :        Coyote_App.Frontend.Notice_Kind;
+      Text :        String)
    is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field ("text", Text);
-      Data.Set_Field
-        ("severity", (case Kind is
-                        when Coyote_App.Frontend.Info => "info",
-                        when Coyote_App.Frontend.Warning => "warning",
-                        when Coyote_App.Frontend.Error => "error"));
+      Data.Set_Field ("severity",
+         (case Kind is
+            when Coyote_App.Frontend.Info => "info",
+            when Coyote_App.Frontend.Warning => "warning",
+            when Coyote_App.Frontend.Error => "error"));
       Emit (F, Notice, Data);
    end Append_Notice;
 
@@ -306,7 +297,8 @@ package body Coyote_App.Frontend.RPC is
 
    overriding function Read_Control
      (F       : in out Instance;
-      Command : out Coyote_App.Frontend.Control_Command) return Boolean
+      Command :    out Coyote_App.Frontend.Control_Command)
+      return Boolean
    is
       Value  : Frame;
       Status : Receive_Status;
@@ -318,7 +310,7 @@ package body Coyote_App.Frontend.RPC is
          return False;
       end if;
       if not Receive_Frame
-        (F.Channel, Value, Status, Error, Timeout => 0.0, Ready => Ready)
+          (F.Channel, Value, Status, Error, Timeout => 0.0, Ready => Ready)
         or else not Ready
       then
          if Status = Peer_Closed then
@@ -330,13 +322,13 @@ package body Coyote_App.Frontend.RPC is
          return False;
       end if;
       case Value.Command_Name is
-         when Prompt | Steer =>
+         when Prompt
+            | Steer =>
             declare
                Parsed : constant Read_Result :=
                  Read (To_String (Value.Payload_Json));
             begin
-               if Parsed.Success
-                 and then Parsed.Value.Has_Field ("text")
+               if Parsed.Success and then Parsed.Value.Has_Field ("text")
                  and then Parsed.Value.Get ("text").Kind = JSON_String_Type
                then
                   declare
@@ -344,7 +336,7 @@ package body Coyote_App.Frontend.RPC is
                        String'(Parsed.Value.Get ("text").Get);
                   begin
                      F.Pending_Prompt := To_Unbounded_String (Prompt_Text);
-                     F.Pending_Steer := Value.Command_Name = Steer;
+                     F.Pending_Steer  := Value.Command_Name = Steer;
                   end;
                end if;
             end;
@@ -360,21 +352,21 @@ package body Coyote_App.Frontend.RPC is
                Parsed : constant Read_Result :=
                  Read (To_String (Value.Payload_Json));
             begin
-               if Parsed.Success
-                 and then Parsed.Value.Has_Field ("toolId")
+               if Parsed.Success and then Parsed.Value.Has_Field ("toolId")
                  and then Parsed.Value.Get ("toolId").Kind = JSON_String_Type
                then
-                  Command.Kind := Coyote_App.Frontend.Control_Abort_Tool;
-                  Command.Tool_Id := To_Unbounded_String
-                    (Coyote_App.Utils.Get_String
-                       (Parsed.Value, "toolId"));
+                  Command.Kind    := Coyote_App.Frontend.Control_Abort_Tool;
+                  Command.Tool_Id :=
+                    To_Unbounded_String
+                      (Coyote_App.Utils.Get_String (Parsed.Value, "toolId"));
                   if Parsed.Value.Has_Field ("message")
-                    and then Parsed.Value.Get ("message").Kind =
-                      JSON_String_Type
+                    and then Parsed.Value.Get ("message").Kind
+                      = JSON_String_Type
                   then
-                     Command.Abort_Message := To_Unbounded_String
-                       (Coyote_App.Utils.Get_String
-                          (Parsed.Value, "message"));
+                     Command.Abort_Message :=
+                       To_Unbounded_String
+                         (Coyote_App.Utils.Get_String
+                            (Parsed.Value, "message"));
                   end if;
                else
                   return False;
@@ -385,21 +377,19 @@ package body Coyote_App.Frontend.RPC is
                Parsed : constant Read_Result :=
                  Read (To_String (Value.Payload_Json));
             begin
-               if Parsed.Success
-                 and then Parsed.Value.Has_Field ("profile")
+               if Parsed.Success and then Parsed.Value.Has_Field ("profile")
                  and then Parsed.Value.Get ("profile").Kind = JSON_String_Type
                then
                   Command.Kind := Coyote_App.Frontend.Control_Set_Sandbox;
                   Command.Sandbox_Profile :=
                     Ada.Strings.Unbounded.To_Unbounded_String
-                      (Coyote_App.Utils.Get_String
-                         (Parsed.Value, "profile"));
+                      (Coyote_App.Utils.Get_String (Parsed.Value, "profile"));
                else
                   return False;
                end if;
             end;
          when Shutdown =>
-            Command.Kind := Coyote_App.Frontend.Control_Shutdown;
+            Command.Kind         := Coyote_App.Frontend.Control_Shutdown;
             F.Shutdown_Requested := True;
       end case;
       return True;
@@ -418,7 +408,7 @@ package body Coyote_App.Frontend.RPC is
             Prompt : constant String := To_String (F.Pending_Prompt);
          begin
             F.Pending_Prompt := Null_Unbounded_String;
-            F.Pending_Steer := False;
+            F.Pending_Steer  := False;
             return Prompt;
          end;
       end if;
@@ -427,15 +417,14 @@ package body Coyote_App.Frontend.RPC is
             return "";
          end if;
          if Value.Kind = Command
-           and then (Value.Command_Name = Prompt
-                     or else Value.Command_Name = Steer)
+           and then
+           (Value.Command_Name = Prompt or else Value.Command_Name = Steer)
          then
             declare
                Parsed : constant Read_Result :=
                  Read (To_String (Value.Payload_Json));
             begin
-               if Parsed.Success
-                 and then Parsed.Value.Has_Field ("text")
+               if Parsed.Success and then Parsed.Value.Has_Field ("text")
                  and then Parsed.Value.Get ("text").Kind = JSON_String_Type
                then
                   return Parsed.Value.Get ("text").Get;
@@ -451,8 +440,8 @@ package body Coyote_App.Frontend.RPC is
          Send_Frame
            (F.Channel,
             Make_Terminal
-              (Agent_Id => To_String (F.Agent_Id),
-               Status   => F.Terminal_State,
+              (Agent_Id      => To_String (F.Agent_Id),
+               Status        => F.Terminal_State,
                Last_Sequence => F.Next_Sequence - 1));
          F.Is_Terminated := True;
       end if;

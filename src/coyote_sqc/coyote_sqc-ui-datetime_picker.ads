@@ -23,11 +23,11 @@ package Coyote_SQC.UI.Datetime_Picker is
    --  Create a new picker and add it to Container.
    procedure Create
      (Self      : out Instance;
-      Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Label     : String := "");
+      Container :     not null access Gtk.Box.Gtk_Box_Record'Class;
+      Label     :     String := "");
 
-   function  Get_Time  (Self : Instance) return Ada.Calendar.Time;
-   procedure Set_Time  (Self : in out Instance; T : Ada.Calendar.Time);
+   function Get_Time (Self : Instance) return Ada.Calendar.Time;
+   procedure Set_Time (Self : in out Instance; T : Ada.Calendar.Time);
    procedure On_Changed (Self : in out Instance; CB : Changed_Callback);
 
    --  Return the GtkEntry widget for embedding in toolbars.
@@ -35,14 +35,14 @@ package Coyote_SQC.UI.Datetime_Picker is
 
 private
    type Instance is tagged limited record
-      Entry_W  : Gtk.GEntry.Gtk_Entry;
-      Popover  : Gtk.Popover.Gtk_Popover;
-      Calendar : Gtk.Calendar.Gtk_Calendar;
-      Hour_Spin: Gtk.Spin_Button.Gtk_Spin_Button;
-      Min_Spin : Gtk.Spin_Button.Gtk_Spin_Button;
-      Current  : Ada.Calendar.Time;
-      Callback : Changed_Callback := null;
-      Updating : Boolean := False;
+      Entry_W   : Gtk.GEntry.Gtk_Entry;
+      Popover   : Gtk.Popover.Gtk_Popover;
+      Calendar  : Gtk.Calendar.Gtk_Calendar;
+      Hour_Spin : Gtk.Spin_Button.Gtk_Spin_Button;
+      Min_Spin  : Gtk.Spin_Button.Gtk_Spin_Button;
+      Current   : Ada.Calendar.Time;
+      Callback  : Changed_Callback := null;
+      Updating  : Boolean          := False;
    end record;
 
 end Coyote_SQC.UI.Datetime_Picker;

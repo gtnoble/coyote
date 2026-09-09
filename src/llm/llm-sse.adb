@@ -36,12 +36,10 @@ package body LLM.SSE is
    end Strip_Trailing_CR;
 
    function Find_Delimiter
-     (Buffer_String     : String;
-      Delimiter_Length  :    out Natural)
-      return Natural
+     (Buffer_String : String; Delimiter_Length : out Natural) return Natural
    is
-      LF_Delimiter   : constant String := ASCII.LF & ASCII.LF;
-      CRLF_Delimiter : constant String :=
+      LF_Delimiter   : constant String  := ASCII.LF & ASCII.LF;
+      CRLF_Delimiter : constant String  :=
         ASCII.CR & ASCII.LF & ASCII.CR & ASCII.LF;
       LF_Position    : constant Natural :=
         Ada.Strings.Fixed.Index (Buffer_String, LF_Delimiter);
@@ -64,13 +62,13 @@ package body LLM.SSE is
 
    procedure Parse_Block
      (Block      :     String;
-      Event_Name :    out Unbounded_String;
-      Data       :    out Unbounded_String)
+      Event_Name : out Unbounded_String;
+      Data       : out Unbounded_String)
    is
       Position : Positive := Block'First;
    begin
       Event_Name := Null_Unbounded_String;
-      Data := Null_Unbounded_String;
+      Data       := Null_Unbounded_String;
 
       if Block'Length = 0 then
          return;
@@ -81,15 +79,13 @@ package body LLM.SSE is
          declare
             Line_End : Natural := Position;
          begin
-            while Line_End <= Block'Last
-              and then Block (Line_End) /= ASCII.LF
+            while Line_End <= Block'Last and then Block (Line_End) /= ASCII.LF
             loop
                Line_End := Line_End + 1;
             end loop;
 
             declare
-               Raw_Line : constant String :=
-                 Block (Position .. Line_End - 1);
+               Raw_Line : constant String := Block (Position .. Line_End - 1);
                Line     : constant String := Strip_Trailing_CR (Raw_Line);
             begin
                if Starts_With (Line, "event:") then
@@ -128,14 +124,14 @@ package body LLM.SSE is
    is
    begin
       Event_Name := Null_Unbounded_String;
-      Data := Null_Unbounded_String;
+      Data       := Null_Unbounded_String;
 
       Find_Event :
       loop
          declare
-            Buffer_String     : constant String := To_String (P.Buffer);
-            Delimiter_Length  : Natural;
-            Block_End         : constant Natural :=
+            Buffer_String    : constant String  := To_String (P.Buffer);
+            Delimiter_Length : Natural;
+            Block_End        : constant Natural :=
               Find_Delimiter (Buffer_String, Delimiter_Length);
          begin
             if Block_End = 0 then
@@ -144,16 +140,14 @@ package body LLM.SSE is
 
             declare
                Block : constant String :=
-                 (if Block_End = Buffer_String'First
-                  then ""
+                 (if Block_End = Buffer_String'First then ""
                   else Buffer_String (Buffer_String'First .. Block_End - 1));
             begin
                if Block_End + Delimiter_Length <= Buffer_String'Last then
                   P.Buffer :=
                     To_Unbounded_String
                       (Buffer_String
-                         (Block_End + Delimiter_Length
-                            .. Buffer_String'Last));
+                         (Block_End + Delimiter_Length .. Buffer_String'Last));
                else
                   P.Buffer := Null_Unbounded_String;
                end if;
@@ -162,7 +156,7 @@ package body LLM.SSE is
 
                if To_String (Event_Name) = "ping" then
                   Event_Name := Null_Unbounded_String;
-                  Data := Null_Unbounded_String;
+                  Data       := Null_Unbounded_String;
                elsif Length (Event_Name) = 0 and then Length (Data) = 0 then
                   null;
                else

@@ -33,15 +33,16 @@ package body LLM.Session_Store is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
-      return Long_Long_Integer ((Clock - Epoch) * 1000.0);
+      return Long_Long_Integer ((Clock - Epoch) * 1_000.0);
    end Current_Unix_Milliseconds;
 
    function Get_String_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : String := "") return String
+      Default : String := "")
+      return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -56,7 +57,8 @@ package body LLM.Session_Store is
 
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Value
+      Field : String)
+      return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -71,7 +73,8 @@ package body LLM.Session_Store is
 
    function Get_Array_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Array
+      Field : String)
+      return GNATCOLL.JSON.JSON_Array
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -87,7 +90,8 @@ package body LLM.Session_Store is
    function Get_Natural_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : Natural := 0) return Natural
+      Default : Natural := 0)
+      return Natural
    is
       Raw : Long_Integer;
    begin
@@ -105,8 +109,7 @@ package body LLM.Session_Store is
    end Get_Natural_Field;
 
    function Get_Boolean_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Boolean
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return Boolean
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -120,8 +123,7 @@ package body LLM.Session_Store is
    end Get_Boolean_Field;
 
    function Get_Integer_Image
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return String
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
    is
       Raw : Long_Integer;
    begin
@@ -130,8 +132,9 @@ package body LLM.Session_Store is
       then
          if Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type then
             Raw := Value.Get (Field).Get;
-            return Ada.Strings.Fixed.Trim
-              (Long_Integer'Image (Raw), Ada.Strings.Both);
+            return
+              Ada.Strings.Fixed.Trim
+                (Long_Integer'Image (Raw), Ada.Strings.Both);
          elsif Value.Get (Field).Kind = GNATCOLL.JSON.JSON_String_Type then
             return Value.Get (Field).Get;
          end if;
@@ -162,16 +165,19 @@ package body LLM.Session_Store is
    is
    begin
       case Status is
-         when LLM.Types.Result_Success   => return "success";
-         when LLM.Types.Result_Error     => return "error";
-         when LLM.Types.Result_Timed_Out => return "timed_out";
-         when LLM.Types.Result_Cancelled => return "cancelled";
+         when LLM.Types.Result_Success =>
+            return "success";
+         when LLM.Types.Result_Error =>
+            return "error";
+         when LLM.Types.Result_Timed_Out =>
+            return "timed_out";
+         when LLM.Types.Result_Cancelled =>
+            return "cancelled";
       end case;
    end Tool_Result_Status_Image;
 
    function Tool_Result_Status_Value
-     (Text : String;
-      Is_Error : Boolean) return LLM.Types.Tool_Result_Status
+     (Text : String; Is_Error : Boolean) return LLM.Types.Tool_Result_Status
    is
    begin
       if Text = "timed_out" then
@@ -219,7 +225,8 @@ package body LLM.Session_Store is
 
    function New_UUID return String is
       Generator : Byte_Random.Generator;
-      Bytes     : array (Positive range 1 .. 16) of Byte;
+      Bytes     : array (Positive range 1 .. 16)
+        of Byte;
    begin
       Byte_Random.Reset (Generator);
 
@@ -232,26 +239,15 @@ package body LLM.Session_Store is
       Bytes (7) := (Bytes (7) and 16#0F#) or 16#40#;
       Bytes (9) := (Bytes (9) and 16#3F#) or 16#80#;
 
-      return Byte_Image (Bytes (1))
-        & Byte_Image (Bytes (2))
-        & Byte_Image (Bytes (3))
-        & Byte_Image (Bytes (4))
-        & "-"
-        & Byte_Image (Bytes (5))
-        & Byte_Image (Bytes (6))
-        & "-"
-        & Byte_Image (Bytes (7))
-        & Byte_Image (Bytes (8))
-        & "-"
-        & Byte_Image (Bytes (9))
-        & Byte_Image (Bytes (10))
-        & "-"
-        & Byte_Image (Bytes (11))
-        & Byte_Image (Bytes (12))
-        & Byte_Image (Bytes (13))
-        & Byte_Image (Bytes (14))
-        & Byte_Image (Bytes (15))
-        & Byte_Image (Bytes (16));
+      return
+        Byte_Image (Bytes (1)) & Byte_Image (Bytes (2))
+        & Byte_Image (Bytes (3)) & Byte_Image (Bytes (4)) & "-"
+        & Byte_Image (Bytes (5)) & Byte_Image (Bytes (6)) & "-"
+        & Byte_Image (Bytes (7)) & Byte_Image (Bytes (8)) & "-"
+        & Byte_Image (Bytes (9)) & Byte_Image (Bytes (10)) & "-"
+        & Byte_Image (Bytes (11)) & Byte_Image (Bytes (12))
+        & Byte_Image (Bytes (13)) & Byte_Image (Bytes (14))
+        & Byte_Image (Bytes (15)) & Byte_Image (Bytes (16));
    end New_UUID;
 
    procedure Write_Raw_Line
@@ -301,9 +297,7 @@ package body LLM.Session_Store is
          raise;
    end Write_Raw_Line;
 
-   function Read_Line
-     (File : Ada.Text_IO.File_Type) return Unbounded_String
-   is
+   function Read_Line (File : Ada.Text_IO.File_Type) return Unbounded_String is
       Chunk  : String (1 .. 65_536);
       Last   : Natural;
       Result : Unbounded_String;
@@ -328,14 +322,15 @@ package body LLM.Session_Store is
       return
         (Role      => LLM.Types.Compaction_Summary,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => To_Unbounded_String (""));
    end Compaction_Summary_Message;
 
    procedure Append_Vector
      (Target : in out LLM.Types.Message_Vectors.Vector;
-      Source : LLM.Types.Message_Vectors.Vector)
+      Source :        LLM.Types.Message_Vectors.Vector)
    is
    begin
       for Msg of Source loop
@@ -345,8 +340,8 @@ package body LLM.Session_Store is
 
    procedure Append_Kept_Messages
      (Target           : in out LLM.Types.Message_Vectors.Vector;
-      Source           : LLM.Types.Message_Vectors.Vector;
-      First_Kept_Index : Natural)
+      Source           :        LLM.Types.Message_Vectors.Vector;
+      First_Kept_Index :        Natural)
    is
    begin
       if First_Kept_Index < Natural (Source.Length) then
@@ -361,9 +356,7 @@ package body LLM.Session_Store is
    is
       Role : constant String := Get_String_Field (Value, "role");
    begin
-      if Role = "user"
-        or else Role = "assistant"
-        or else Role = "toolResult"
+      if Role = "user" or else Role = "assistant" or else Role = "toolResult"
       then
          return Value;
       end if;
@@ -377,15 +370,22 @@ package body LLM.Session_Store is
 
    function Message_Timestamp
      (Envelope : GNATCOLL.JSON.JSON_Value;
-      Msg      : GNATCOLL.JSON.JSON_Value) return Unbounded_String
+      Msg      : GNATCOLL.JSON.JSON_Value)
+      return Unbounded_String
    is
       Image : constant String :=
-        (if Get_Integer_Image (Msg, "timestamp")'Length > 0
-         then Get_Integer_Image (Msg, "timestamp")
-         elsif Get_Integer_Image (Envelope, "timestamp")'Length > 0
-         then Get_Integer_Image (Envelope, "timestamp")
-         elsif Get_String_Field (Envelope, "timestamp")'Length > 0
-         then Get_String_Field (Envelope, "timestamp")
+        (if
+           Get_Integer_Image (Msg, "timestamp")'Length > 0
+         then
+           Get_Integer_Image (Msg, "timestamp")
+         elsif
+           Get_Integer_Image (Envelope, "timestamp")'Length > 0
+         then
+           Get_Integer_Image (Envelope, "timestamp")
+         elsif
+           Get_String_Field (Envelope, "timestamp")'Length > 0
+         then
+           Get_String_Field (Envelope, "timestamp")
          else "");
    begin
       return To_Unbounded_String (Image);
@@ -398,7 +398,8 @@ package body LLM.Session_Store is
    begin
       for Block of Msg.Content loop
          case Msg.Role is
-            when LLM.Types.User | LLM.Types.Compaction_Summary =>
+            when LLM.Types.User
+               | LLM.Types.Compaction_Summary =>
                if Block.Kind = LLM.Types.Text_Block then
                   declare
                      Item : constant GNATCOLL.JSON.JSON_Value :=
@@ -440,7 +441,7 @@ package body LLM.Session_Store is
                      end;
                   when LLM.Types.Tool_Call_Block =>
                      declare
-                        Item      : constant GNATCOLL.JSON.JSON_Value :=
+                        Item      : constant GNATCOLL.JSON.JSON_Value  :=
                           GNATCOLL.JSON.Create_Object;
                         Parsed    : constant GNATCOLL.JSON.Read_Result :=
                           GNATCOLL.JSON.Read
@@ -493,9 +494,8 @@ package body LLM.Session_Store is
       Tool_Name    : Unbounded_String;
       Result_Text  : Unbounded_String;
       Media_Type   : Unbounded_String;
-      Is_Error     : Boolean := False;
-      Status       : LLM.Types.Tool_Result_Status :=
-        LLM.Types.Result_Success;
+      Is_Error     : Boolean                           := False;
+      Status       : LLM.Types.Tool_Result_Status := LLM.Types.Result_Success;
    begin
       for Block of Msg.Content loop
          case Block.Kind is
@@ -504,7 +504,7 @@ package body LLM.Session_Store is
                   Tool_Call_Id := Block.Result_Id;
                end if;
                Is_Error := Is_Error or else Block.Is_Error;
-               Status := Block.Status;
+               Status   := Block.Status;
                if Length (Block.Media_Type) > 0 then
                   Media_Type := Block.Media_Type;
                end if;
@@ -528,7 +528,7 @@ package body LLM.Session_Store is
       declare
          Item : constant GNATCOLL.JSON.JSON_Value :=
            GNATCOLL.JSON.Create_Object;
-         Ms   : constant Long_Integer :=
+         Ms   : constant Long_Integer             :=
            Long_Integer (Current_Unix_Milliseconds);
       begin
          if Length (Media_Type) > 0 then
@@ -556,15 +556,13 @@ package body LLM.Session_Store is
    function Message_To_Json (Msg : LLM.Types.Message) return String is
       Result : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Usage  : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
-      Ms     : constant Long_Integer :=
-        Long_Integer (Current_Unix_Milliseconds);
+      Usage : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Ms : constant Long_Integer := Long_Integer (Current_Unix_Milliseconds);
    begin
       case Msg.Role is
          when LLM.Types.Compaction_Summary =>
-            raise Session_Error with
-              "Compaction_Summary messages must not be persisted directly";
+            raise Session_Error
+              with "Compaction_Summary messages must not be persisted directly";
 
          when LLM.Types.User =>
             Result.Set_Field ("role", "user");
@@ -574,12 +572,10 @@ package body LLM.Session_Store is
          when LLM.Types.Assistant =>
             Usage.Set_Field ("input", Integer (Msg.Tok_Usage.Input));
             Usage.Set_Field ("output", Integer (Msg.Tok_Usage.Output));
-            Usage.Set_Field
-              ("cacheRead", Integer (Msg.Tok_Usage.Cache_Read));
+            Usage.Set_Field ("cacheRead", Integer (Msg.Tok_Usage.Cache_Read));
             Usage.Set_Field
               ("cacheWrite", Integer (Msg.Tok_Usage.Cache_Write));
-            Usage.Set_Field
-              ("thinking", Integer (Msg.Tok_Usage.Thinking));
+            Usage.Set_Field ("thinking", Integer (Msg.Tok_Usage.Thinking));
 
             Result.Set_Field ("role", "assistant");
             Result.Set_Field ("content", Content_To_Array (Msg));
@@ -610,7 +606,8 @@ package body LLM.Session_Store is
 
    function Parse_User_Message
      (Envelope : GNATCOLL.JSON.JSON_Value;
-      Msg      : GNATCOLL.JSON.JSON_Value) return LLM.Types.Message
+      Msg      : GNATCOLL.JSON.JSON_Value)
+      return LLM.Types.Message
    is
       Content : LLM.Types.Content_Block_Vectors.Vector;
       Blocks  : constant GNATCOLL.JSON.JSON_Array :=
@@ -624,8 +621,8 @@ package body LLM.Session_Store is
             if Get_String_Field (Block, "type") = "text" then
                Content.Append
                  ((Kind => LLM.Types.Text_Block,
-                   Text => To_Unbounded_String
-                     (Get_String_Field (Block, "text"))));
+                   Text =>
+                     To_Unbounded_String (Get_String_Field (Block, "text"))));
             end if;
          end;
       end loop;
@@ -633,7 +630,8 @@ package body LLM.Session_Store is
       return
         (Role      => LLM.Types.User,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Message_Timestamp (Envelope, Msg));
    end Parse_User_Message;
@@ -642,20 +640,25 @@ package body LLM.Session_Store is
      (Envelope         : GNATCOLL.JSON.JSON_Value;
       Msg              : GNATCOLL.JSON.JSON_Value;
       Default_Provider : String;
-      Default_Model    : String) return LLM.Types.Message
+      Default_Model    : String)
+      return LLM.Types.Message
    is
       Content  : LLM.Types.Content_Block_Vectors.Vector;
       Blocks   : constant GNATCOLL.JSON.JSON_Array :=
         Get_Array_Field (Msg, "content");
       Usage    : constant GNATCOLL.JSON.JSON_Value :=
         Get_Object_Field (Msg, "usage");
-      Provider : constant String :=
-        (if Get_String_Field (Msg, "provider")'Length > 0
-         then Get_String_Field (Msg, "provider")
+      Provider : constant String                   :=
+        (if
+           Get_String_Field (Msg, "provider")'Length > 0
+         then
+           Get_String_Field (Msg, "provider")
          else Default_Provider);
-      Model_Id : constant String :=
-        (if Get_String_Field (Msg, "model")'Length > 0
-         then Get_String_Field (Msg, "model")
+      Model_Id : constant String                   :=
+        (if
+           Get_String_Field (Msg, "model")'Length > 0
+         then
+           Get_String_Field (Msg, "model")
          else Default_Model);
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
@@ -667,40 +670,53 @@ package body LLM.Session_Store is
             if Kind = "text" then
                Content.Append
                  ((Kind => LLM.Types.Text_Block,
-                   Text => To_Unbounded_String
-                     (Get_String_Field (Block, "text"))));
+                   Text =>
+                     To_Unbounded_String (Get_String_Field (Block, "text"))));
             elsif Kind = "thinking" then
                Content.Append
                  ((Kind            => LLM.Types.Thinking_Block,
-                   Thinking        => To_Unbounded_String
-                     (Get_String_Field (Block, "thinking")),
-                   Signature       => To_Unbounded_String
-                     (Get_String_Field (Block, "signature")),
-                   Origin_Provider => To_Unbounded_String
-                     ((if Get_String_Field (Block, "originProvider")'Length > 0
-                       then Get_String_Field (Block, "originProvider")
-                       else Provider)),
-                   Origin_Model    => To_Unbounded_String
-                     ((if Get_String_Field (Block, "originModel")'Length > 0
-                       then Get_String_Field (Block, "originModel")
-                       else Model_Id))));
+                   Thinking        =>
+                     To_Unbounded_String
+                       (Get_String_Field (Block, "thinking")),
+                   Signature       =>
+                     To_Unbounded_String
+                       (Get_String_Field (Block, "signature")),
+                   Origin_Provider =>
+                     To_Unbounded_String
+                       ((if
+                           Get_String_Field (Block, "originProvider")'Length
+                           > 0
+                         then
+                           Get_String_Field (Block, "originProvider")
+                         else Provider)),
+                   Origin_Model    =>
+                     To_Unbounded_String
+                       ((if
+                           Get_String_Field (Block, "originModel")'Length > 0
+                         then
+                           Get_String_Field (Block, "originModel")
+                         else Model_Id))));
             elsif Kind = "toolCall" then
                declare
                   Arguments : constant GNATCOLL.JSON.JSON_Value :=
                     Block.Get ("arguments");
-                  Args_Json : constant String :=
-                    (if Arguments.Kind = GNATCOLL.JSON.JSON_Object_Type
-                     then GNATCOLL.JSON.Write (Arguments)
-                     elsif Arguments.Kind = GNATCOLL.JSON.JSON_String_Type
-                     then Arguments.Get
+                  Args_Json : constant String                   :=
+                    (if
+                       Arguments.Kind = GNATCOLL.JSON.JSON_Object_Type
+                     then
+                       GNATCOLL.JSON.Write (Arguments)
+                     elsif
+                       Arguments.Kind = GNATCOLL.JSON.JSON_String_Type
+                     then
+                       Arguments.Get
                      else "{}");
                begin
                   Content.Append
                     ((Kind           => LLM.Types.Tool_Call_Block,
-                      Tool_Call_Id   => To_Unbounded_String
-                        (Get_String_Field (Block, "id")),
-                      Tool_Name      => To_Unbounded_String
-                        (Get_String_Field (Block, "name")),
+                      Tool_Call_Id   =>
+                        To_Unbounded_String (Get_String_Field (Block, "id")),
+                      Tool_Name      =>
+                        To_Unbounded_String (Get_String_Field (Block, "name")),
                       Arguments_Json => To_Unbounded_String (Args_Json)));
                end;
             end if;
@@ -722,17 +738,17 @@ package body LLM.Session_Store is
 
    function Parse_Tool_Result_Message
      (Envelope : GNATCOLL.JSON.JSON_Value;
-      Msg      : GNATCOLL.JSON.JSON_Value) return LLM.Types.Message
+      Msg      : GNATCOLL.JSON.JSON_Value)
+      return LLM.Types.Message
    is
       Content    : LLM.Types.Content_Block_Vectors.Vector;
-      Blocks     : constant GNATCOLL.JSON.JSON_Array :=
+      Blocks     : constant GNATCOLL.JSON.JSON_Array     :=
         Get_Array_Field (Msg, "content");
       Text       : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Error   : constant Boolean := Get_Boolean_Field (Msg, "isError");
       Status     : constant LLM.Types.Tool_Result_Status :=
-        Tool_Result_Status_Value
-          (Get_String_Field (Msg, "status"), Is_Error);
+        Tool_Result_Status_Value (Get_String_Field (Msg, "status"), Is_Error);
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
@@ -746,18 +762,17 @@ package body LLM.Session_Store is
                end if;
                Append (Text, Get_String_Field (Block, "text"));
             elsif Block_Type = "image" then
-               Media_Type := To_Unbounded_String
-                 (Get_String_Field (Block, "media_type"));
-               Text       := To_Unbounded_String
-                 (Get_String_Field (Block, "data"));
+               Media_Type :=
+                 To_Unbounded_String (Get_String_Field (Block, "media_type"));
+               Text := To_Unbounded_String (Get_String_Field (Block, "data"));
             end if;
          end;
       end loop;
 
       Content.Append
         ((Kind        => LLM.Types.Tool_Result_Block,
-          Result_Id   => To_Unbounded_String
-            (Get_String_Field (Msg, "toolCallId")),
+          Result_Id   =>
+            To_Unbounded_String (Get_String_Field (Msg, "toolCallId")),
           Result_Text => Text,
           Media_Type  => Media_Type,
           Is_Error    => Is_Error,
@@ -766,11 +781,11 @@ package body LLM.Session_Store is
       return
         (Role      => LLM.Types.Tool_Result,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Message_Timestamp (Envelope, Msg));
    end Parse_Tool_Result_Message;
-
 
    function Session_File_Path (Session_Id : String) return String is
    begin
@@ -784,12 +799,11 @@ package body LLM.Session_Store is
 
       loop
          declare
-            Session_Id : constant String := New_UUID;
-            Path       : constant String :=
-              Dir_Path & "/" & Session_Id & ".jsonl";
+            Session_Id : constant String                   := New_UUID;
+            Path : constant String := Dir_Path & "/" & Session_Id & ".jsonl";
             Header     : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Create_Object;
-            Created_At : constant Long_Integer :=
+            Created_At : constant Long_Integer             :=
               Long_Integer (Current_Unix_Milliseconds);
          begin
             if not Ada.Directories.Exists (Path) then
@@ -843,13 +857,12 @@ package body LLM.Session_Store is
       end loop;
    exception
       when Ex : others =>
-         raise Session_Error with
-           "Create_Session failed: " & Ada.Exceptions.Exception_Message (Ex);
+         raise Session_Error
+           with "Create_Session failed: "
+           & Ada.Exceptions.Exception_Message (Ex);
    end Create_Session;
 
-   procedure Delete_Session
-     (Session_Id : String)
-   is
+   procedure Delete_Session (Session_Id : String) is
       Path : constant String := Session_File_Path (Session_Id);
    begin
       if Path'Length > 0 and then Ada.Directories.Exists (Path) then
@@ -857,31 +870,30 @@ package body LLM.Session_Store is
       end if;
    exception
       when Ex : others =>
-         raise Session_Error with
-           "Delete_Session failed: " & Ada.Exceptions.Exception_Message (Ex);
+         raise Session_Error
+           with "Delete_Session failed: "
+           & Ada.Exceptions.Exception_Message (Ex);
    end Delete_Session;
 
-   procedure Append_Message
-     (Session_Id : String;
-      Msg        : LLM.Types.Message)
-   is
+   procedure Append_Message (Session_Id : String; Msg : LLM.Types.Message) is
       Path : constant String := Session_File_Path (Session_Id);
    begin
       if Path'Length = 0 then
-         raise Session_Error with
-           "Append_Message: session file not found for " & Session_Id;
+         raise Session_Error
+           with "Append_Message: session file not found for " & Session_Id;
       end if;
 
       Write_Raw_Line
-        (Path  => Path,
-         Line  => Message_To_Json (Msg),
-         Mode  => Ada.Streams.Stream_IO.Append_File);
+        (Path => Path,
+         Line => Message_To_Json (Msg),
+         Mode => Ada.Streams.Stream_IO.Append_File);
    exception
       when Session_Error =>
          raise;
-      when Ex : others =>
-         raise Session_Error with
-           "Append_Message failed: " & Ada.Exceptions.Exception_Message (Ex);
+      when Ex : others   =>
+         raise Session_Error
+           with "Append_Message failed: "
+           & Ada.Exceptions.Exception_Message (Ex);
    end Append_Message;
 
    procedure Append_Compaction
@@ -895,8 +907,8 @@ package body LLM.Session_Store is
         GNATCOLL.JSON.Create_Object;
    begin
       if Path'Length = 0 then
-         raise Session_Error with
-           "Append_Compaction: session file not found for " & Session_Id;
+         raise Session_Error
+           with "Append_Compaction: session file not found for " & Session_Id;
       end if;
 
       Record_Value.Set_Field ("type", "compaction");
@@ -906,46 +918,45 @@ package body LLM.Session_Store is
       Record_Value.Set_Field ("tokensBefore", Integer (Tokens_Before));
 
       Write_Raw_Line
-        (Path  => Path,
-         Line  => GNATCOLL.JSON.Write (Record_Value),
-         Mode  => Ada.Streams.Stream_IO.Append_File);
+        (Path => Path,
+         Line => GNATCOLL.JSON.Write (Record_Value),
+         Mode => Ada.Streams.Stream_IO.Append_File);
    exception
       when Session_Error =>
          raise;
-      when Ex : others =>
-         raise Session_Error with
-           "Append_Compaction failed: "
+      when Ex : others   =>
+         raise Session_Error
+           with "Append_Compaction failed: "
            & Ada.Exceptions.Exception_Message (Ex);
    end Append_Compaction;
 
    procedure Append_Model_Change
-     (Session_Id : String;
-      Provider   : String;
-      Model_Id   : String)
+     (Session_Id : String; Provider : String; Model_Id : String)
    is
       Path         : constant String := Session_File_Path (Session_Id);
       Record_Value : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
    begin
       if Path'Length = 0 then
-         raise Session_Error with
-           "Append_Model_Change: session file not found for " & Session_Id;
+         raise Session_Error
+           with "Append_Model_Change: session file not found for "
+           & Session_Id;
       end if;
 
-      Record_Value.Set_Field ("type",     "model_change");
+      Record_Value.Set_Field ("type", "model_change");
       Record_Value.Set_Field ("provider", Provider);
-      Record_Value.Set_Field ("modelId",  Model_Id);
+      Record_Value.Set_Field ("modelId", Model_Id);
 
       Write_Raw_Line
-        (Path  => Path,
-         Line  => GNATCOLL.JSON.Write (Record_Value),
-         Mode  => Ada.Streams.Stream_IO.Append_File);
+        (Path => Path,
+         Line => GNATCOLL.JSON.Write (Record_Value),
+         Mode => Ada.Streams.Stream_IO.Append_File);
    exception
       when Session_Error =>
          raise;
-      when Ex : others =>
-         raise Session_Error with
-           "Append_Model_Change failed: "
+      when Ex : others   =>
+         raise Session_Error
+           with "Append_Model_Change failed: "
            & Ada.Exceptions.Exception_Message (Ex);
    end Append_Model_Change;
 
@@ -995,24 +1006,24 @@ package body LLM.Session_Store is
            GNATCOLL.JSON.Read (Line);
       begin
          Ada.Text_IO.Close (File);
-         if Parsed.Success
-           and then Parsed.Value.Has_Field ("createdAt")
-           and then Parsed.Value.Get ("createdAt").Kind =
-                        GNATCOLL.JSON.JSON_Int_Type
+         if Parsed.Success and then Parsed.Value.Has_Field ("createdAt")
+           and then Parsed.Value.Get ("createdAt").Kind
+             = GNATCOLL.JSON.JSON_Int_Type
          then
             declare
                use Ada.Calendar;
-               Epoch : constant Ada.Calendar.Time :=
+               Epoch      : constant Ada.Calendar.Time :=
                  Ada.Calendar.Formatting.Value
                    ("1970-01-01 00:00:00",
                     Ada.Calendar.Time_Zones.Time_Offset (0));
-               Created_Ms : constant Long_Integer :=
+               Created_Ms : constant Long_Integer      :=
                  Parsed.Value.Get ("createdAt").Get;
-               Created : constant Ada.Calendar.Time :=
-                 Epoch + Duration (Long_Float (Created_Ms) / 1000.0);
+               Created    : constant Ada.Calendar.Time :=
+                 Epoch + Duration (Long_Float (Created_Ms) / 1_000.0);
             begin
-               return Ada.Calendar.Formatting.Local_Image
-                 (Created, Include_Time_Fraction => False);
+               return
+                 Ada.Calendar.Formatting.Local_Image
+                   (Created, Include_Time_Fraction => False);
             end;
          end if;
       end;
@@ -1039,10 +1050,12 @@ package body LLM.Session_Store is
          Line    : constant String := To_String (Read_Line (File));
          Parsed  : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (Line);
-         Profile : constant String :=
-           (if Parsed.Success
-              then Get_String_Field (Parsed.Value, "sandboxProfile")
-              else "");
+         Profile : constant String                    :=
+           (if
+              Parsed.Success
+            then
+              Get_String_Field (Parsed.Value, "sandboxProfile")
+            else "");
       begin
          Ada.Text_IO.Close (File);
          return Profile;
@@ -1063,10 +1076,10 @@ package body LLM.Session_Store is
       Pre_Messages       : LLM.Types.Message_Vectors.Vector;
       Post_Messages      : LLM.Types.Message_Vectors.Vector;
       File               : Ada.Text_IO.File_Type;
-      Line_N             : Natural := 0;
-      Compaction_Found   : Boolean := False;
+      Line_N             : Natural         := 0;
+      Compaction_Found   : Boolean         := False;
       Compaction_Summary : Unbounded_String;
-      First_Kept         : Natural := 0;
+      First_Kept         : Natural         := 0;
       Current_Provider   : Unbounded_String;
       Current_Model      : Unbounded_String;
    begin
@@ -1093,11 +1106,11 @@ package body LLM.Session_Store is
                      declare
                         Envelope    : constant GNATCOLL.JSON.JSON_Value :=
                           Parsed.Value;
-                        Record_Type : constant String :=
+                        Record_Type : constant String                   :=
                           Get_String_Field (Envelope, "type");
                         Msg         : constant GNATCOLL.JSON.JSON_Value :=
                           Message_Object (Envelope);
-                        Role        : constant String :=
+                        Role        : constant String                   :=
                           Get_String_Field (Msg, "role");
                      begin
                         if Record_Type = "compaction" then
@@ -1106,39 +1119,49 @@ package body LLM.Session_Store is
                               Post_Messages.Clear;
                            end if;
 
-                           Compaction_Found := True;
-                           Compaction_Summary := To_Unbounded_String
-                             (Get_String_Field (Envelope, "summary"));
-                           First_Kept := Get_Natural_Field
-                             (Envelope, "firstKeptMessageIndex");
+                           Compaction_Found   := True;
+                           Compaction_Summary :=
+                             To_Unbounded_String
+                               (Get_String_Field (Envelope, "summary"));
+                           First_Kept         :=
+                             Get_Natural_Field
+                               (Envelope, "firstKeptMessageIndex");
                         elsif Record_Type = "model_change" then
-                           Current_Provider := To_Unbounded_String
-                             (Get_String_Field (Envelope, "provider"));
-                           Current_Model := To_Unbounded_String
-                             (Get_String_Field (Envelope, "modelId"));
+                           Current_Provider :=
+                             To_Unbounded_String
+                               (Get_String_Field (Envelope, "provider"));
+                           Current_Model    :=
+                             To_Unbounded_String
+                               (Get_String_Field (Envelope, "modelId"));
                         elsif Msg.Kind = GNATCOLL.JSON.JSON_Object_Type then
                            declare
                               Parsed_Message : constant LLM.Types.Message :=
-                                (if Role = "user"
-                                 then Parse_User_Message (Envelope, Msg)
-                                 elsif Role = "assistant"
-                                 then Parse_Assistant_Message
-                                   (Envelope,
-                                    Msg,
-                                    To_String (Current_Provider),
-                                    To_String (Current_Model))
-                                 elsif Role = "toolResult"
-                                 then Parse_Tool_Result_Message (Envelope, Msg)
-                                 else (Role      => LLM.Types.User,
-                                       Content   =>
-                                         LLM.Types.Content_Block_Vectors
-                                           .Empty_Vector,
-                                       Tok_Usage => (others => 0),
-                                       Stop      => LLM.Types.Unknown_Stop,
-                                       Timestamp => Null_Unbounded_String));
+                                (if
+                                   Role = "user"
+                                 then
+                                   Parse_User_Message (Envelope, Msg)
+                                 elsif
+                                   Role = "assistant"
+                                 then
+                                   Parse_Assistant_Message
+                                     (Envelope,
+                                      Msg,
+                                      To_String (Current_Provider),
+                                      To_String (Current_Model))
+                                 elsif
+                                   Role = "toolResult"
+                                 then
+                                   Parse_Tool_Result_Message (Envelope, Msg)
+                                 else (Role   => LLM.Types.User,
+                                    Content   =>
+                                      LLM.Types.Content_Block_Vectors
+                                        .Empty_Vector,
+                                    Tok_Usage =>
+                                      (others => 0),
+                                    Stop      => LLM.Types.Unknown_Stop,
+                                    Timestamp => Null_Unbounded_String));
                            begin
-                              if Role = "user"
-                                or else Role = "assistant"
+                              if Role = "user" or else Role = "assistant"
                                 or else Role = "toolResult"
                               then
                                  if Compaction_Found then

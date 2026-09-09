@@ -29,9 +29,7 @@ package Coyote_Process_Control is
 
    --  Complete a reserved launch and register its process-group leader.
    --  Needs_Signal is True when shutdown began during Start.
-   procedure Complete_Launch
-     (Pid          : Integer;
-      Needs_Signal : out Boolean);
+   procedure Complete_Launch (Pid : Integer; Needs_Signal : out Boolean);
 
    --  Cancel a launch reservation when Start fails.
    procedure Cancel_Launch;

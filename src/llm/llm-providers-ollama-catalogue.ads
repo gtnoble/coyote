@@ -23,8 +23,7 @@ package LLM.Providers.Ollama.Catalogue is
    end record;
 
    package Catalogue_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Model_Info);
+     (Index_Type => Positive, Element_Type => Model_Info);
 
    --  Load the model catalogue from the Ollama /api/tags endpoint.
    --
@@ -33,9 +32,9 @@ package LLM.Providers.Ollama.Catalogue is
    --  When a live fetch fails, stale cached data is used when available;
    --  otherwise Models is returned empty.
    procedure Load_Catalogue
-     (Models        :    out Catalogue_Vectors.Vector;
-      Base_Url      :        String := "";
-      Api_Key       :        String := "";
-      Max_Age_Hours :        Natural := 24);
+     (Models        : out Catalogue_Vectors.Vector;
+      Base_Url      :     String  := "";
+      Api_Key       :     String  := "";
+      Max_Age_Hours :     Natural := 24);
 
 end LLM.Providers.Ollama.Catalogue;

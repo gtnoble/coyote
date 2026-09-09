@@ -30,8 +30,7 @@ package body LLM.Tools.Temp_File is
 
    function Trimmed_Image (Value : Integer) return String is
    begin
-      return Ada.Strings.Fixed.Trim
-        (Integer'Image (Value), Ada.Strings.Both);
+      return Ada.Strings.Fixed.Trim (Integer'Image (Value), Ada.Strings.Both);
    end Trimmed_Image;
 
    function Next_Temp_Path (Tool_Name : String) return String is
@@ -39,13 +38,8 @@ package body LLM.Tools.Temp_File is
    begin
       Sequence.Next (Suffix);
       return
-        "/tmp/coyote_"
-        & Tool_Name
-        & "_"
-        & Trimmed_Image (C_Getpid)
-        & "_"
-        & Trimmed_Image (Integer (Suffix))
-        & ".txt";
+        "/tmp/coyote_" & Tool_Name & "_" & Trimmed_Image (C_Getpid) & "_"
+        & Trimmed_Image (Integer (Suffix)) & ".txt";
    end Next_Temp_Path;
 
    function Result_Threshold (Context_Window : Natural) return Positive is
@@ -74,17 +68,14 @@ package body LLM.Tools.Temp_File is
       P : Natural := Pos;
    begin
       --  Continuation bytes: 16#80# .. 16#BF# (bit pattern 10xxxxxx)
-      while P >= Text'First
-        and then Character'Pos (Text (P)) >= 16#80#
+      while P >= Text'First and then Character'Pos (Text (P)) >= 16#80#
         and then Character'Pos (Text (P)) <= 16#BF#
       loop
          P := P - 1;
       end loop;
       --  P now points at the leading byte of a (possibly truncated) sequence.
       --  Exclude it only if it is a multi-byte leading byte, i.e. >= 16#C0#.
-      if P >= Text'First
-        and then Character'Pos (Text (P)) >= 16#C0#
-      then
+      if P >= Text'First and then Character'Pos (Text (P)) >= 16#C0# then
          return P - 1;
       end if;
       return P;
@@ -93,7 +84,8 @@ package body LLM.Tools.Temp_File is
    function Truncated
      (Text      : String;
       Threshold : Positive;
-      Tool_Name : String := "tool") return String
+      Tool_Name : String := "tool")
+      return String
    is
    begin
       if Text'Length <= Threshold then
@@ -103,7 +95,8 @@ package body LLM.Tools.Temp_File is
       declare
          Path    : constant String := Next_Temp_Path (Tool_Name);
          Excerpt : constant String :=
-           Text (Text'First .. Utf8_Safe_Cut (Text, Text'First + Threshold - 1));
+           Text
+             (Text'First .. Utf8_Safe_Cut (Text, Text'First + Threshold - 1));
          File    : Ada.Streams.Stream_IO.File_Type;
       begin
          Ada.Streams.Stream_IO.Create
@@ -112,15 +105,9 @@ package body LLM.Tools.Temp_File is
          Ada.Streams.Stream_IO.Close (File);
 
          return
-           Excerpt
-           & ASCII.LF
-           & "[output truncated at "
-           & Trimmed_Image (Threshold)
-           & " bytes; full output saved to "
-           & Path
-           & "; total bytes "
-           & Trimmed_Image (Text'Length)
-           & "]";
+           Excerpt & ASCII.LF & "[output truncated at "
+           & Trimmed_Image (Threshold) & " bytes; full output saved to " & Path
+           & "; total bytes " & Trimmed_Image (Text'Length) & "]";
 
       exception
          when others =>
@@ -128,13 +115,10 @@ package body LLM.Tools.Temp_File is
                Ada.Streams.Stream_IO.Close (File);
             end if;
             return
-              Excerpt
-              & ASCII.LF
-              & "[output truncated at "
+              Excerpt & ASCII.LF & "[output truncated at "
               & Trimmed_Image (Threshold)
               & " bytes; could not write temp file; total bytes "
-              & Trimmed_Image (Text'Length)
-              & "]";
+              & Trimmed_Image (Text'Length) & "]";
       end;
    end Truncated;
 

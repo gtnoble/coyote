@@ -18,7 +18,7 @@ package Coyote_App.History is
    --  Calls Frontend.Append_Notice (Error, …) if the session file cannot
    --  be located or read.
    procedure Render_Session_History
-     (UUID     : String;
+     (UUID     :        String;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State);
 

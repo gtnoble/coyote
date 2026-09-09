@@ -74,7 +74,8 @@ package Coyote_Cmark_Tests is
    procedure Test_Display_Math_Extraction_Preserves_Source (T : in out Test);
 
    --  An unmatched display delimiter remains ordinary Markdown.
-   procedure Test_Display_Math_Extraction_Preserves_Unmatched (T : in out Test);
+   procedure Test_Display_Math_Extraction_Preserves_Unmatched
+     (T : in out Test);
 
    --  Plain Markdown does not cause an empty table-vector lookup.
    procedure Test_Table_Extraction_Preserves_Plain_Text (T : in out Test);

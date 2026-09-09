@@ -13,7 +13,12 @@ package Coyote_GUI is
 
    --  Tool status shared by native cards and the GTK update queue.
    type Tool_Status is
-     (Queued, Running, Success, Error, Timed_Out, Cancelled);
+     (Queued,
+      Running,
+      Success,
+      Error,
+      Timed_Out,
+      Cancelled);
    subtype Tool_End_Status is Tool_Status range Success .. Cancelled;
 
    --  Tool metadata retained for native detail windows and tool cards.
@@ -26,15 +31,16 @@ package Coyote_GUI is
       Result_Text      : Ada.Strings.Unbounded.Unbounded_String;
       Media_Type       : Ada.Strings.Unbounded.Unbounded_String;
       Result_Status    : Tool_Status := Queued;
-      Completed        : Boolean := False;
+      Completed        : Boolean     := False;
       Model            : Ada.Strings.Unbounded.Unbounded_String;
       Source_Directory : Ada.Strings.Unbounded.Unbounded_String;
       Session_Start    : Ada.Strings.Unbounded.Unbounded_String;
-      Turn_Index       : Positive := 1;
-      Call_In_Turn     : Positive := 1;
+      Turn_Index       : Positive    := 1;
+      Call_In_Turn     : Positive    := 1;
    end record;
 
-   type Action_Kind is (Fork);
+   type Action_Kind is
+     (Fork);
 
    type Action_Info (Kind : Action_Kind := Fork) is record
       case Kind is
@@ -45,12 +51,13 @@ package Coyote_GUI is
       end case;
    end record;
 
-   type Tool_Action_Kind is (Abort_Tool, Abort_With_Message);
+   type Tool_Action_Kind is
+     (Abort_Tool,
+      Abort_With_Message);
 
-   type Tool_Action_Handler is access procedure
-     (Tool_Id : String;
-      Action  : Tool_Action_Kind;
-      Message : String);
+   type Tool_Action_Handler is
+     access procedure
+       (Tool_Id : String; Action : Tool_Action_Kind; Message : String);
 
    type Tool_Click_Result (Found : Boolean := False) is record
       case Found is
@@ -73,30 +80,43 @@ package Coyote_GUI is
    --  ── Run mode ──────────────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Run_Mode.
 
-   type Run_Mode is (Idle, Running, Armed, Paused);
+   type Run_Mode is
+     (Idle,
+      Running,
+      Armed,
+      Paused);
 
    --  Agent-menu availability.  Stop applies to any live turn; Pause
    --  applies only while a turn is running; Resume applies only while
    --  paused.  Armed means Pause has been requested but not yet taken.
-   function Stop_Available (Mode : Run_Mode) return Boolean
-     is (Mode /= Idle);
-   function Pause_Available (Mode : Run_Mode) return Boolean
-     is (Mode = Running);
-   function Resume_Available (Mode : Run_Mode) return Boolean
-     is (Mode = Paused);
+   function Stop_Available (Mode : Run_Mode) return Boolean is (Mode /= Idle);
+   function Pause_Available (Mode : Run_Mode) return Boolean is
+     (Mode = Running);
+   function Resume_Available (Mode : Run_Mode) return Boolean is
+     (Mode = Paused);
 
    --  ── Request lifecycle ─────────────────────────────────────────────────
    --  These types mirror the abstract frontend lifecycle values while
    --  keeping the update queue independent of frontend implementation types.
 
-   type Request_Kind is (Prompt, Steer);
-   type Footer_Kind is (Step_Footer, Final_Footer);
-   type Completion_Status is (Completed, Aborted, Failed);
+   type Request_Kind is
+     (Prompt,
+      Steer);
+   type Footer_Kind is
+     (Step_Footer,
+      Final_Footer);
+   type Completion_Status is
+     (Completed,
+      Aborted,
+      Failed);
 
    --  ── Notice severity ───────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Notice_Kind.
 
-   type Notice_Kind is (Info, Warning, Error);
+   type Notice_Kind is
+     (Info,
+      Warning,
+      Error);
 
    --  ── Update variant record ─────────────────────────────────────────────
    --
@@ -142,17 +162,17 @@ package Coyote_GUI is
    --  Strings identify the active session; counters are cumulative unless
    --  explicitly labelled as last-turn values.
    type Session_Stats_Record is record
-      Model              : Ada.Strings.Unbounded.Unbounded_String;
-      Session_Id         : Ada.Strings.Unbounded.Unbounded_String;
-      Turn_Count         : Natural := 0;
-      Last_Input         : Natural := 0;
-      Last_Output        : Natural := 0;
-      Last_Cost_Dmil     : Natural := 0;
-      Input              : Natural := 0;
-      Cache_Read         : Natural := 0;
-      Cache_Write        : Natural := 0;
-      Output             : Natural := 0;
-      Cost_Dmil          : Natural := 0;
+      Model          : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
+      Turn_Count     : Natural := 0;
+      Last_Input     : Natural := 0;
+      Last_Output    : Natural := 0;
+      Last_Cost_Dmil : Natural := 0;
+      Input          : Natural := 0;
+      Cache_Read     : Natural := 0;
+      Cache_Write    : Natural := 0;
+      Output         : Natural := 0;
+      Cost_Dmil      : Natural := 0;
    end record;
    --    Set_Session_Identity Text = session identifier for window role
    --    Show_Detail          Text = window title; Text2 = content
@@ -186,26 +206,26 @@ package Coyote_GUI is
       Shutdown);
 
    type Update is record
-      Kind     : Update_Kind := Append_Text;
+      Kind             : Update_Kind       := Append_Text;
       --  Originating runtime agent; empty is the legacy single-agent value.
       Runtime_Agent_Id : Ada.Strings.Unbounded.Unbounded_String;
-      Text     : Ada.Strings.Unbounded.Unbounded_String;
-      Text2    : Ada.Strings.Unbounded.Unbounded_String;
-      Text3    : Ada.Strings.Unbounded.Unbounded_String;
-      Text4    : Ada.Strings.Unbounded.Unbounded_String;
-      Text5    : Ada.Strings.Unbounded.Unbounded_String;
-      Text6    : Ada.Strings.Unbounded.Unbounded_String;
-      Text7    : Ada.Strings.Unbounded.Unbounded_String;
-      Tool_Turn : Natural := 0;
-      Tool_Call : Natural := 0;
-      Stats    : Session_Stats_Record;
-      T_Status : Tool_Status := Queued;
-      Mode     : Run_Mode        := Idle;
-      N_Kind   : Notice_Kind     := Info;
-      R_Kind   : Request_Kind    := Prompt;
-      F_Kind   : Footer_Kind     := Final_Footer;
-      C_Status : Completion_Status := Completed;
-      Enabled  : Boolean         := False;
+      Text             : Ada.Strings.Unbounded.Unbounded_String;
+      Text2            : Ada.Strings.Unbounded.Unbounded_String;
+      Text3            : Ada.Strings.Unbounded.Unbounded_String;
+      Text4            : Ada.Strings.Unbounded.Unbounded_String;
+      Text5            : Ada.Strings.Unbounded.Unbounded_String;
+      Text6            : Ada.Strings.Unbounded.Unbounded_String;
+      Text7            : Ada.Strings.Unbounded.Unbounded_String;
+      Tool_Turn        : Natural           := 0;
+      Tool_Call        : Natural           := 0;
+      Stats            : Session_Stats_Record;
+      T_Status         : Tool_Status       := Queued;
+      Mode             : Run_Mode          := Idle;
+      N_Kind           : Notice_Kind       := Info;
+      R_Kind           : Request_Kind      := Prompt;
+      F_Kind           : Footer_Kind       := Final_Footer;
+      C_Status         : Completion_Status := Completed;
+      Enabled          : Boolean           := False;
    end record;
 
 end Coyote_GUI;

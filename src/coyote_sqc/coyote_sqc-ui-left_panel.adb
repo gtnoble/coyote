@@ -4,12 +4,12 @@
 
 with Ada.Containers.Generic_Array_Sort;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_SQC.App;
 with Coyote_SQC.Charts;
 with Coyote_SQC.UI.Chart_Canvas;
 with Coyote_SQC.UI.Detail_Panel;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Gtk.Enums;
 with Gtk.Label;
 with Gtk.List_Box;
@@ -31,8 +31,12 @@ package body Coyote_SQC.UI.Left_Panel is
 
    --  Mapping: GtkListBox row index -> Chart_Kind (only valid when
    --  Row_Is_Chart(I) = True).  Separator rows are not chart rows.
-   type Row_Map_Array   is array (0 .. Max_LB_Rows - 1) of Chart_Kind;
-   type Row_Valid_Array is array (0 .. Max_LB_Rows - 1) of Boolean;
+   type Row_Map_Array is
+     array (0 .. Max_LB_Rows - 1)
+     of Chart_Kind;
+   type Row_Valid_Array is
+     array (0 .. Max_LB_Rows - 1)
+     of Boolean;
 
    Row_Map      : Row_Map_Array   := (others => Chart_Kind'First);
    Row_Is_Chart : Row_Valid_Array := (others => False);
@@ -42,14 +46,12 @@ package body Coyote_SQC.UI.Left_Panel is
 
    procedure On_Row_Activated
      (List_Box : access Gtk.List_Box.Gtk_List_Box_Record'Class;
-      Row     : not null access Gtk.List_Box_Row.Gtk_List_Box_Row_Record'Class)
+      Row : not null access Gtk.List_Box_Row.Gtk_List_Box_Row_Record'Class)
    is
       pragma Unreferenced (List_Box);
       Idx : constant Integer := Integer (Row.Get_Index);
    begin
-      if Idx >= 0 and then Idx < LB_Row_Count
-        and then Row_Is_Chart (Idx)
-      then
+      if Idx >= 0 and then Idx < LB_Row_Count and then Row_Is_Chart (Idx) then
          Coyote_SQC.App.State.Active_Chart := Row_Map (Idx);
          --  Recompute y-fit for the new chart.
          Coyote_SQC.App.Y_Fit;
@@ -76,10 +78,12 @@ package body Coyote_SQC.UI.Left_Panel is
       end record;
 
       Num_Charts : constant Positive :=
-        Chart_Kind'Pos (Chart_Kind'Last)
-        - Chart_Kind'Pos (Chart_Kind'First) + 1;
+        Chart_Kind'Pos (Chart_Kind'Last) - Chart_Kind'Pos (Chart_Kind'First)
+        + 1;
 
-      type Chart_Entry_Array is array (Positive range <>) of Chart_Entry;
+      type Chart_Entry_Array is
+        array (Positive range <>)
+        of Chart_Entry;
 
       --  Three-key comparison: top group and sub-group alphabetically, then
       --  enum position to preserve relative order within a sub-group.
@@ -107,12 +111,9 @@ package body Coyote_SQC.UI.Left_Panel is
       --  When no "/" is present, Top receives the full string and Sub is
       --  left empty.
       procedure Split_Path
-        (Path : String;
-         Top  : out Unbounded_String;
-         Sub  : out Unbounded_String)
+        (Path : String; Top : out Unbounded_String; Sub : out Unbounded_String)
       is
-         Sep : constant Natural :=
-           Ada.Strings.Fixed.Index (Path, "/");
+         Sep : constant Natural := Ada.Strings.Fixed.Index (Path, "/");
       begin
          if Sep = 0 then
             Top := To_Unbounded_String (Path);
@@ -146,7 +147,7 @@ package body Coyote_SQC.UI.Left_Panel is
          LB.Add (Sep_Row);
          if LB_Row_Count < Max_LB_Rows then
             Row_Is_Chart (LB_Row_Count) := False;
-            LB_Row_Count := LB_Row_Count + 1;
+            LB_Row_Count                := LB_Row_Count + 1;
          end if;
       end Add_Separator;
 
@@ -167,17 +168,18 @@ package body Coyote_SQC.UI.Left_Panel is
       --  Collect every chart with its Group_Path split into components.
       for K in Chart_Kind loop
          declare
-            Props : constant Coyote_SQC.Charts.Chart_Properties :=
+            Props    : constant Coyote_SQC.Charts.Chart_Properties :=
               Coyote_SQC.Charts.Properties (K);
-            Path  : constant String := To_String (Props.Group_Path);
-            Idx   : constant Positive :=
+            Path     : constant String := To_String (Props.Group_Path);
+            Idx      : constant Positive                           :=
               Chart_Kind'Pos (K) - Chart_Kind'Pos (Chart_Kind'First) + 1;
             Top, Sub : Unbounded_String;
          begin
             Split_Path (Path, Top, Sub);
-            Entries (Idx) := (Top_Group => Top,
-                              Sub_Group => Sub,
-                              Kind      => K);
+            Entries (Idx) :=
+              (Top_Group => Top,
+               Sub_Group => Sub,
+               Kind      => K);
          end;
       end loop;
 
@@ -188,8 +190,7 @@ package body Coyote_SQC.UI.Left_Panel is
       for E of Entries loop
          --  Bold top-group separator whenever the top-level group changes.
          if E.Top_Group /= Last_Top then
-            Add_Separator
-              ("<b>" & To_String (E.Top_Group) & "</b>", 0);
+            Add_Separator ("<b>" & To_String (E.Top_Group) & "</b>", 0);
             Last_Top := E.Top_Group;
             Last_Sub := Null_Unbounded_String;
          end if;
@@ -197,8 +198,7 @@ package body Coyote_SQC.UI.Left_Panel is
          --  Italic sub-group separator whenever the sub-group changes
          --  (and a sub-group is present for this chart).
          if Length (E.Sub_Group) > 0 and then E.Sub_Group /= Last_Sub then
-            Add_Separator
-              ("<i>" & To_String (E.Sub_Group) & "</i>", 8);
+            Add_Separator ("<i>" & To_String (E.Sub_Group) & "</i>", 8);
             Last_Sub := E.Sub_Group;
          end if;
 
@@ -206,8 +206,8 @@ package body Coyote_SQC.UI.Left_Panel is
          declare
             Props : constant Coyote_SQC.Charts.Chart_Properties :=
               Coyote_SQC.Charts.Properties (E.Kind);
-            Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
-            Lbl : Gtk.Label.Gtk_Label;
+            Row   : Gtk.List_Box_Row.Gtk_List_Box_Row;
+            Lbl   : Gtk.Label.Gtk_Label;
          begin
             Gtk.List_Box_Row.Gtk_New (Row);
             Gtk.Label.Gtk_New (Lbl, To_String (Props.Label));
@@ -218,7 +218,7 @@ package body Coyote_SQC.UI.Left_Panel is
             if LB_Row_Count < Max_LB_Rows then
                Row_Map (LB_Row_Count)      := E.Kind;
                Row_Is_Chart (LB_Row_Count) := True;
-               LB_Row_Count := LB_Row_Count + 1;
+               LB_Row_Count                := LB_Row_Count + 1;
             end if;
          end;
       end loop;

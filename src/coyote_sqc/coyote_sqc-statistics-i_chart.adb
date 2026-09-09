@@ -8,8 +8,7 @@ with Ada.Containers.Vectors;
 
 package body Coyote_SQC.Statistics.I_Chart is
    package LF_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Long_Float);
+     (Index_Type => Positive, Element_Type => Long_Float);
 
    use Ada.Numerics.Long_Elementary_Functions;
 
@@ -21,10 +20,8 @@ package body Coyote_SQC.Statistics.I_Chart is
 
    --  ── Standard I/MR limit computation ───────────────────────────────────
 
-
    function Compute_I_Limits
-     (Grand_Mean : Long_Float;
-      Sigma      : Long_Float) return Limits_Record
+     (Grand_Mean : Long_Float; Sigma : Long_Float) return Limits_Record
    is
    begin
       if Sigma = 0.0 then
@@ -75,14 +72,14 @@ package body Coyote_SQC.Statistics.I_Chart is
    function Box_Cox (X : Long_Float; Lambda : Long_Float) return Long_Float is
    begin
       if X <= 0.0 then
-         raise Constraint_Error with
-           "Box_Cox: X must be strictly positive; got"
+         raise Constraint_Error
+           with "Box_Cox: X must be strictly positive; got"
            & Long_Float'Image (X);
       end if;
       if abs Lambda < 1.0e-10 then
          return Log (X);
       else
-         return (X ** Lambda - 1.0) / Lambda;
+         return (X**Lambda - 1.0) / Lambda;
       end if;
    end Box_Cox;
 
@@ -96,12 +93,12 @@ package body Coyote_SQC.Statistics.I_Chart is
       else
          Base := Z * Lambda + 1.0;
          if Base <= 0.0 then
-            raise Constraint_Error with
-              "Box_Cox_Inverse: non-positive base"
-              & " (lambda=" & Long_Float'Image (Lambda)
-              & ", z=" & Long_Float'Image (Z) & ")";
+            raise Constraint_Error
+              with "Box_Cox_Inverse: non-positive base" & " (lambda="
+              & Long_Float'Image (Lambda) & ", z=" & Long_Float'Image (Z)
+              & ")";
          end if;
-         return Base ** (1.0 / Lambda);
+         return Base**(1.0 / Lambda);
       end if;
    end Box_Cox_Inverse;
 
@@ -114,8 +111,7 @@ package body Coyote_SQC.Statistics.I_Chart is
       N : constant Positive := Vals'Length;
    begin
       if N < 2 then
-         raise Constraint_Error with
-           "Qn_Scale: need at least 2 observations";
+         raise Constraint_Error with "Qn_Scale: need at least 2 observations";
       end if;
 
       declare
@@ -143,7 +139,9 @@ package body Coyote_SQC.Statistics.I_Chart is
          --  Even/odd asymptotic formulae for n >= 10 from the same paper.
          if N <= 9 then
             declare
-               type Cn_Table is array (2 .. 9) of Long_Float;
+               type Cn_Table is
+                 array (2 .. 9)
+                 of Long_Float;
                Cn_Values : constant Cn_Table :=
                  (2 => 0.399_0,
                   3 => 0.994_0,
@@ -165,7 +163,7 @@ package body Coyote_SQC.Statistics.I_Chart is
             end if;
          end if;
 
-         return Cn * 2.2219 * Dists (H);
+         return Cn * 2.221_9 * Dists (H);
       end;
    end Qn_Scale_Core;
 
@@ -173,8 +171,8 @@ package body Coyote_SQC.Statistics.I_Chart is
    begin
       for V of Values loop
          if V <= 0.0 then
-            raise Constraint_Error with
-              "Qn_Scale: all values must be strictly positive; got"
+            raise Constraint_Error
+              with "Qn_Scale: all values must be strictly positive; got"
               & Long_Float'Image (V);
          end if;
       end loop;
@@ -212,19 +210,19 @@ package body Coyote_SQC.Statistics.I_Chart is
       end;
    end Median_Of;
 
-
    --  ── Lambda estimation ─────────────────────────────────────────────────
    --  Evaluate the Box-Cox MLE profile log-likelihood for a given lambda.
    --  L(lambda) = -(n/2) * ln(var_z) + (lambda-1) * sum ln(x_i)
    --  Returns Long_Float'First when variance is zero or computation overflows.
    function Log_Likelihood
-     (Values      : Long_Float_Array;
-      Lambda      : Long_Float;
-      Sum_Log_X   : Long_Float) return Long_Float
+     (Values    : Long_Float_Array;
+      Lambda    : Long_Float;
+      Sum_Log_X : Long_Float)
+      return Long_Float
    is
       N      : constant Long_Float := Long_Float (Values'Length);
-      Sum_Z  : Long_Float := 0.0;
-      Sum_Z2 : Long_Float := 0.0;
+      Sum_Z  : Long_Float          := 0.0;
+      Sum_Z2 : Long_Float          := 0.0;
       Var_Z  : Long_Float;
       Mean_Z : Long_Float;
    begin
@@ -232,7 +230,7 @@ package body Coyote_SQC.Statistics.I_Chart is
          declare
             Z : constant Long_Float := Box_Cox (X, Lambda);
          begin
-            Sum_Z  := Sum_Z  + Z;
+            Sum_Z  := Sum_Z + Z;
             Sum_Z2 := Sum_Z2 + Z * Z;
          end;
       end loop;
@@ -252,9 +250,10 @@ package body Coyote_SQC.Statistics.I_Chart is
    --  L_robust(lambda) = -N * ln(Qn(z)) + (lambda-1) * sum ln(x_i)
    --  Returns Long_Float'First when Qn_Scale is zero or overflows.
    function Robust_Log_Likelihood
-     (Values      : Long_Float_Array;
-      Lambda      : Long_Float;
-      Sum_Log_X   : Long_Float) return Long_Float
+     (Values    : Long_Float_Array;
+      Lambda    : Long_Float;
+      Sum_Log_X : Long_Float)
+      return Long_Float
    is
       N      : constant Long_Float := Long_Float (Values'Length);
       Z_Vals : Long_Float_Array (1 .. Values'Length);
@@ -274,9 +273,10 @@ package body Coyote_SQC.Statistics.I_Chart is
    end Robust_Log_Likelihood;
 
    function Estimate_Lambda
-     (Values        : Long_Float_Array;
-      Use_Robust    : Boolean := False;
-      Fallback_Used : out Boolean) return Long_Float
+     (Values        :     Long_Float_Array;
+      Use_Robust    :     Boolean := False;
+      Fallback_Used : out Boolean)
+      return Long_Float
    is
    begin
       Fallback_Used := False;
@@ -295,8 +295,12 @@ package body Coyote_SQC.Statistics.I_Chart is
          Max_X : Long_Float := Values (Values'First);
       begin
          for X of Values loop
-            if X < Min_X then Min_X := X; end if;
-            if X > Max_X then Max_X := X; end if;
+            if X < Min_X then
+               Min_X := X;
+            end if;
+            if X > Max_X then
+               Max_X := X;
+            end if;
          end loop;
          if Max_X - Min_X < 1.0e-10 * Max_X then
             Fallback_Used := True;
@@ -310,8 +314,8 @@ package body Coyote_SQC.Statistics.I_Chart is
       begin
          for X of Values loop
             if X <= 0.0 then
-               raise Constraint_Error with
-                 "Estimate_Lambda: all values must be strictly positive";
+               raise Constraint_Error
+                 with "Estimate_Lambda: all values must be strictly positive";
             end if;
             Sum_Log_X := Sum_Log_X + Log (X);
          end loop;
@@ -324,9 +328,12 @@ package body Coyote_SQC.Statistics.I_Chart is
             --  Objective: profile log-likelihood (MLE or robust) at lambda L.
             function Objective (L : Long_Float) return Long_Float is
             begin
-               return (if Use_Robust
-                       then Robust_Log_Likelihood (Values, L, Sum_Log_X)
-                       else Log_Likelihood        (Values, L, Sum_Log_X));
+               return
+                 (if
+                    Use_Robust
+                  then
+                    Robust_Log_Likelihood (Values, L, Sum_Log_X)
+                  else Log_Likelihood (Values, L, Sum_Log_X));
             end Objective;
 
             Best_Lambda : Long_Float := 0.0;
@@ -361,15 +368,14 @@ package body Coyote_SQC.Statistics.I_Chart is
                GR         : constant Long_Float := 0.381_966_011_250_105;
                --  (3 - sqrt(5)) / 2 — golden-section ratio, used for the
                --  fallback step when parabolic interpolation is rejected.
-               Brent_A    : Long_Float :=
-                 Long_Float'Max (0.0,  Best_Lambda - 0.5);
-               Brent_B    : Long_Float :=
+               Brent_A : Long_Float := Long_Float'Max (0.0, Best_Lambda - 0.5);
+               Brent_B    : Long_Float          :=
                  Long_Float'Min (30.0, Best_Lambda + 0.5);
                X_Min      : Long_Float := Brent_A + GR * (Brent_B - Brent_A);
-               W, V       : Long_Float := X_Min;
-               FX         : Long_Float := -Objective (X_Min);
-               FW, FV     : Long_Float := FX;
-               D, E       : Long_Float := 0.0;
+               W, V       : Long_Float          := X_Min;
+               FX         : Long_Float          := -Objective (X_Min);
+               FW, FV     : Long_Float          := FX;
+               D, E       : Long_Float          := 0.0;
                Tol1, Tol2 : Long_Float;
                Mid        : Long_Float;
                R, Q, P    : Long_Float;
@@ -379,10 +385,12 @@ package body Coyote_SQC.Statistics.I_Chart is
                   Mid  := 0.5 * (Brent_A + Brent_B);
                   Tol1 := 1.0e-6 * abs X_Min + 1.0e-10;
                   Tol2 := 2.0 * Tol1;
-                  exit when abs (X_Min - Mid) <=
-                              Tol2 - 0.5 * (Brent_B - Brent_A);
+                  exit when abs (X_Min - Mid)
+                    <= Tol2 - 0.5 * (Brent_B - Brent_A);
 
-                  R := 0.0;  Q := 0.0;  P := 0.0;
+                  R := 0.0;
+                  Q := 0.0;
+                  P := 0.0;
 
                   --  Attempt parabolic interpolation from X_Min, W, V.
                   if abs E > Tol1 then
@@ -390,52 +398,69 @@ package body Coyote_SQC.Statistics.I_Chart is
                      Q := (X_Min - V) * (FX - FW);
                      P := (X_Min - V) * Q - (X_Min - W) * R;
                      Q := 2.0 * (Q - R);
-                     if Q > 0.0 then P := -P;  else Q := -Q;  end if;
+                     if Q > 0.0 then
+                        P := -P;
+                     else
+                        Q := -Q;
+                     end if;
                      R := E;
                      E := D;
                   end if;
 
                   --  Accept parabolic step when within bounds and small enough.
-                  if abs P < abs (0.5 * Q * R)         and then
-                     P > Q * (Brent_A - X_Min)         and then
-                     P < Q * (Brent_B - X_Min)
+                  if abs P < abs (0.5 * Q * R)
+                    and then P > Q * (Brent_A - X_Min)
+                    and then P < Q * (Brent_B - X_Min)
                   then
                      D := P / Q;
                      U := X_Min + D;
                      --  U must not land within Tol2 of either bracket end.
-                     if (U - Brent_A) < Tol2 or else (Brent_B - U) < Tol2
-                     then
+                     if (U - Brent_A) < Tol2 or else (Brent_B - U) < Tol2 then
                         D := (if X_Min < Mid then Tol1 else -Tol1);
                      end if;
                   else
                      --  Golden-section fallback: step into the larger half.
-                     E := (if X_Min >= Mid then Brent_A - X_Min
-                                           else Brent_B - X_Min);
+                     E :=
+                       (if X_Min >= Mid then Brent_A - X_Min
+                        else Brent_B - X_Min);
                      D := GR * E;
                   end if;
 
                   --  U must be at least Tol1 away from X_Min.
-                  U  := X_Min + (if abs D >= Tol1 then D
-                                 else (if D > 0.0 then Tol1 else -Tol1));
+                  U  :=
+                    X_Min
+                    +
+                    (if abs D >= Tol1 then D
+                     else (if D > 0.0 then Tol1 else -Tol1));
                   FU := -Objective (U);
 
                   --  Update bracket and best point (Brent 1973, pp. 79–80).
                   if FU <= FX then
-                     if U < X_Min then Brent_B := X_Min;
-                     else              Brent_A := X_Min;
+                     if U < X_Min then
+                        Brent_B := X_Min;
+                     else
+                        Brent_A := X_Min;
                      end if;
-                     V := W;      FV := FW;
-                     W := X_Min;  FW := FX;
-                     X_Min := U;  FX  := FU;
+                     V     := W;
+                     FV    := FW;
+                     W     := X_Min;
+                     FW    := FX;
+                     X_Min := U;
+                     FX    := FU;
                   else
-                     if U < X_Min then Brent_A := U;
-                     else              Brent_B := U;
+                     if U < X_Min then
+                        Brent_A := U;
+                     else
+                        Brent_B := U;
                      end if;
                      if FU <= FW or else W = X_Min then
-                        V := W;   FV := FW;
-                        W := U;   FW := FU;
+                        V  := W;
+                        FV := FW;
+                        W  := U;
+                        FW := FU;
                      elsif FU <= FV or else V = X_Min or else V = W then
-                        V := U;   FV := FU;
+                        V  := U;
+                        FV := FU;
                      end if;
                   end if;
                end loop;
@@ -504,8 +529,8 @@ package body Coyote_SQC.Statistics.I_Chart is
    end Freeman_Tukey;
 
    function Freeman_Tukey_Inverse (Z : Long_Float) return Long_Float is
-      --  Algebraic inverse: x = (z² − 1)² / (4·z²) for z > 0.
-      --  For z = 0 the inverse is 0; for z < 0 return 0 (domain guard).
+   --  Algebraic inverse: x = (z² − 1)² / (4·z²) for z > 0.
+   --  For z = 0 the inverse is 0; for z < 0 return 0 (domain guard).
    begin
       if Z <= 0.0 then
          return 0.0;
@@ -522,34 +547,48 @@ package body Coyote_SQC.Statistics.I_Chart is
    function Apply_Transform
      (X      : Long_Float;
       Kind   : Coyote_SQC.Data_Model.Transform_Kind;
-      Lambda : Long_Float := 0.0) return Long_Float
+      Lambda : Long_Float := 0.0)
+      return Long_Float
    is
       use Coyote_SQC.Data_Model;
    begin
       case Kind is
-         when None          => return X;
-         when Box_Cox       => return Box_Cox (X, Lambda);
-         when Sqrt_VS       => return Sqrt_VS (X);
-         when Anscombe      => return Anscombe (X);
-         when Arcsinh_VS    => return Arcsinh_VS (X);
-         when Freeman_Tukey => return Freeman_Tukey (X);
+         when None =>
+            return X;
+         when Box_Cox =>
+            return Box_Cox (X, Lambda);
+         when Sqrt_VS =>
+            return Sqrt_VS (X);
+         when Anscombe =>
+            return Anscombe (X);
+         when Arcsinh_VS =>
+            return Arcsinh_VS (X);
+         when Freeman_Tukey =>
+            return Freeman_Tukey (X);
       end case;
    end Apply_Transform;
 
    function Invert_Transform
      (Z      : Long_Float;
       Kind   : Coyote_SQC.Data_Model.Transform_Kind;
-      Lambda : Long_Float := 0.0) return Long_Float
+      Lambda : Long_Float := 0.0)
+      return Long_Float
    is
       use Coyote_SQC.Data_Model;
    begin
       case Kind is
-         when None          => return Z;
-         when Box_Cox       => return Box_Cox_Inverse (Z, Lambda);
-         when Sqrt_VS       => return Sqrt_VS_Inverse (Z);
-         when Anscombe      => return Anscombe_Inverse (Z);
-         when Arcsinh_VS    => return Arcsinh_VS_Inverse (Z);
-         when Freeman_Tukey => return Freeman_Tukey_Inverse (Z);
+         when None =>
+            return Z;
+         when Box_Cox =>
+            return Box_Cox_Inverse (Z, Lambda);
+         when Sqrt_VS =>
+            return Sqrt_VS_Inverse (Z);
+         when Anscombe =>
+            return Anscombe_Inverse (Z);
+         when Arcsinh_VS =>
+            return Arcsinh_VS_Inverse (Z);
+         when Freeman_Tukey =>
+            return Freeman_Tukey_Inverse (Z);
       end case;
    end Invert_Transform;
 

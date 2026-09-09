@@ -33,7 +33,8 @@ package body LLM.Model_Registry is
       Creds : constant LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("github-copilot");
    begin
-      return Length (Creds.Refresh_Token) > 0
+      return
+        Length (Creds.Refresh_Token) > 0
         or else Length (Creds.Access_Token) > 0;
    end Has_GitHub_Copilot_Credentials;
 
@@ -61,20 +62,23 @@ package body LLM.Model_Registry is
       Creds : constant LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("codex");
    begin
-      return Length (Creds.Refresh_Token) > 0
+      return
+        Length (Creds.Refresh_Token) > 0
         or else Length (Creds.Access_Token) > 0;
    end Has_Codex_Credentials;
 
    function Is_Ollama_Configured_Internal return Boolean is
-      Root : constant GNATCOLL.JSON.JSON_Value :=
+      Root         : constant GNATCOLL.JSON.JSON_Value :=
         LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
-      Prov : constant GNATCOLL.JSON.JSON_Value :=
+      Prov         : constant GNATCOLL.JSON.JSON_Value :=
         LLM.Settings.Find_Provider_Config (Root, "ollama");
-      Base_Url_Str : constant String :=
-        (if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
+      Base_Url_Str : constant String                   :=
+        (if
+           Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
            and then Prov.Has_Field ("baseUrl")
            and then Prov.Get ("baseUrl").Kind = GNATCOLL.JSON.JSON_String_Type
-         then Prov.Get ("baseUrl").Get
+         then
+           Prov.Get ("baseUrl").Get
          else "");
    begin
       if LLM.Settings.Resolve_Api_Key ("ollama")'Length > 0 then
@@ -92,8 +96,7 @@ package body LLM.Model_Registry is
    end Is_Ollama_Configured;
 
    function To_Model_Info
-     (Item : LLM.Providers.OpenCode_Go.Catalogue.Model_Info)
-        return Model_Info
+     (Item : LLM.Providers.OpenCode_Go.Catalogue.Model_Info) return Model_Info
    is
    begin
       return
@@ -108,12 +111,16 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         =>
-           (if Item.Wire =
-              LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
-            then To_Unbounded_String ("anthropic-messages")
-            elsif Item.Wire =
-              LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
-            then To_Unbounded_String ("openai-responses")
+           (if
+              Item.Wire
+              = LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
+            then
+              To_Unbounded_String ("anthropic-messages")
+            elsif
+              Item.Wire
+              = LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
+            then
+              To_Unbounded_String ("openai-responses")
             else To_Unbounded_String ("openai-completions")),
          Cost                =>
            (Input       => Item.Cost_Input,
@@ -122,8 +129,7 @@ package body LLM.Model_Registry is
             Cache_Write => Item.Cost_Cache_Write));
    end To_Model_Info;
 
-   function Default_OpenCode_Go_Model (Model_Id : String) return Model_Info
-   is
+   function Default_OpenCode_Go_Model (Model_Id : String) return Model_Info is
       Wire : constant LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind :=
         LLM.Providers.OpenCode_Go.Catalogue.Wire_Format_For (Model_Id);
    begin
@@ -139,14 +145,18 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         =>
-           (if Wire =
-              LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
-            then To_Unbounded_String ("anthropic-messages")
-            elsif Wire =
-              LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
-            then To_Unbounded_String ("openai-responses")
+           (if
+              Wire
+              = LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
+            then
+              To_Unbounded_String ("anthropic-messages")
+            elsif
+              Wire = LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
+            then
+              To_Unbounded_String ("openai-responses")
             else To_Unbounded_String ("openai-completions")),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end Default_OpenCode_Go_Model;
 
    procedure Remove_Provider_Entries (Provider : String) is
@@ -165,7 +175,7 @@ package body LLM.Model_Registry is
 
    function To_Model_Info
      (Item : LLM.Providers.GitHub_Copilot.Catalogue.Model_Capability_Info)
-        return Model_Info
+      return Model_Info
    is
    begin
       return
@@ -180,15 +190,17 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => Item.Max_Thinking_Budget,
          Min_Thinking_Budget => Item.Min_Thinking_Budget,
          Wire_Format         =>
-           (if Item.Supports_Anthropic
-            then To_Unbounded_String ("anthropic-messages")
+           (if
+              Item.Supports_Anthropic
+            then
+              To_Unbounded_String ("anthropic-messages")
             else To_Unbounded_String ("openai-completions")),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end To_Model_Info;
 
    function To_Model_Info
-     (Item : LLM.Providers.OpenRouter.Catalogue.Model_Info)
-        return Model_Info
+     (Item : LLM.Providers.OpenRouter.Catalogue.Model_Info) return Model_Info
    is
    begin
       return
@@ -211,8 +223,7 @@ package body LLM.Model_Registry is
    end To_Model_Info;
 
    function To_Model_Info
-     (Item : LLM.Providers.Ollama.Catalogue.Model_Info)
-        return Model_Info
+     (Item : LLM.Providers.Ollama.Catalogue.Model_Info) return Model_Info
    is
    begin
       return
@@ -227,7 +238,8 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         => To_Unbounded_String ("openai-completions"),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end To_Model_Info;
 
    function Default_Ollama_Model (Model_Id : String) return Model_Info is
@@ -244,7 +256,8 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         => To_Unbounded_String ("openai-completions"),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end Default_Ollama_Model;
 
    function Default_OpenAI_Model (Model_Id : String) return Model_Info is
@@ -261,7 +274,8 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         => To_Unbounded_String ("openai-responses"),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end Default_OpenAI_Model;
 
    function Default_OpenRouter_Model (Model_Id : String) return Model_Info is
@@ -278,7 +292,8 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         => To_Unbounded_String ("openai-responses"),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end Default_OpenRouter_Model;
 
    procedure Add_Anthropic_Model
@@ -286,7 +301,8 @@ package body LLM.Model_Registry is
       Name         : String;
       Context_Size : Natural;
       Max_Tokens   : Natural;
-      Reasoning    : Boolean) is
+      Reasoning    : Boolean)
+   is
    begin
       Registry.Append
         ((Model_Id            => To_Unbounded_String (Model_Id),
@@ -300,7 +316,8 @@ package body LLM.Model_Registry is
           Max_Thinking_Budget => 0,
           Min_Thinking_Budget => 0,
           Wire_Format         => To_Unbounded_String ("anthropic-messages"),
-          Cost                => (others => 0.0)));
+          Cost                =>
+            (others => 0.0)));
    end Add_Anthropic_Model;
 
    procedure Refresh_OpenAI is
@@ -333,9 +350,9 @@ package body LLM.Model_Registry is
          when Ex : others =>
             Models.Clear;
             Ada.Text_IO.Put_Line
-               (Ada.Text_IO.Standard_Error,
-            "[!] Codex model registry refresh failed: "
-            & Ada.Exceptions.Exception_Message (Ex));
+              (Ada.Text_IO.Standard_Error,
+               "[!] Codex model registry refresh failed: "
+               & Ada.Exceptions.Exception_Message (Ex));
       end;
 
       for Item of Models loop
@@ -348,8 +365,7 @@ package body LLM.Model_Registry is
              --  compaction still keys off the served window via
              --  LLM.Compaction, so this is a display/lookup value.
              Context_Window      =>
-               (if Item.Max_Context_Window > 0
-                then Item.Max_Context_Window
+               (if Item.Max_Context_Window > 0 then Item.Max_Context_Window
                 else Item.Context_Window),
              Max_Tokens          => 0,
              Reasoning           => Item.Reasoning,
@@ -358,7 +374,8 @@ package body LLM.Model_Registry is
              Max_Thinking_Budget => 0,
              Min_Thinking_Budget => 0,
              Wire_Format         => To_Unbounded_String ("openai-responses"),
-             Cost                => (others => 0.0)));
+             Cost                =>
+               (others => 0.0)));
       end loop;
    end Refresh_Codex;
 
@@ -373,23 +390,29 @@ package body LLM.Model_Registry is
 
       --  use settings to allow local baseUrl and apiKey overrides
       declare
-         Root     : constant GNATCOLL.JSON.JSON_Value :=
+         Root : constant GNATCOLL.JSON.JSON_Value :=
            LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
-         Prov     : constant GNATCOLL.JSON.JSON_Value :=
+         Prov : constant GNATCOLL.JSON.JSON_Value :=
            LLM.Settings.Find_Provider_Config (Root, "ollama");
 
          Base_Url : constant String :=
-           (if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
+           (if
+              Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
               and then Prov.Has_Field ("baseUrl")
-              and then Prov.Get ("baseUrl").Kind = GNATCOLL.JSON.JSON_String_Type
-            then Prov.Get ("baseUrl").Get
+              and then Prov.Get ("baseUrl").Kind
+                = GNATCOLL.JSON.JSON_String_Type
+            then
+              Prov.Get ("baseUrl").Get
             else "");
 
          Json_Api_Key : constant String :=
-           (if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
+           (if
+              Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
               and then Prov.Has_Field ("apiKey")
-              and then Prov.Get ("apiKey").Kind = GNATCOLL.JSON.JSON_String_Type
-            then Prov.Get ("apiKey").Get
+              and then Prov.Get ("apiKey").Kind
+                = GNATCOLL.JSON.JSON_String_Type
+            then
+              Prov.Get ("apiKey").Get
             else "");
 
          Api_Key : constant String :=
@@ -408,8 +431,7 @@ package body LLM.Model_Registry is
    procedure Refresh_GitHub_Copilot is
       Creds  : constant LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("github-copilot");
-      Models :
-      LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
+      Models : LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
    begin
       Remove_Provider_Entries ("github-copilot");
 
@@ -419,8 +441,8 @@ package body LLM.Model_Registry is
          return;
       end if;
 
-    --  Do not refresh the token at startup; only use a cached
-    --  non-expired token.  The provider's Send refreshes lazily.
+      --  Do not refresh the token at startup; only use a cached
+      --  non-expired token.  The provider's Send refreshes lazily.
       if LLM.Auth.GitHub_Copilot.Token_Expired (Creds) then
          return;
       end if;
@@ -429,9 +451,9 @@ package body LLM.Model_Registry is
          return;
       end if;
 
-    --  Load the catalogue and populate the registry.  Any failure
-    --  (network error, expired subscription, etc.) is swallowed so
-    --  the agent can start with an empty Copilot registry.
+      --  Load the catalogue and populate the registry.  Any failure
+      --  (network error, expired subscription, etc.) is swallowed so
+      --  the agent can start with an empty Copilot registry.
       begin
          declare
             Base_Url : constant String :=
@@ -510,7 +532,7 @@ package body LLM.Model_Registry is
 
    function Default_GitHub_Copilot_Model (Model_Id : String) return Model_Info
    is
-      Lower_Id  : constant String :=
+      Lower_Id  : constant String  :=
         Ada.Characters.Handling.To_Lower (Model_Id);
       Is_Claude : constant Boolean :=
         Ada.Strings.Fixed.Index (Lower_Id, "claude") > 0;
@@ -527,16 +549,13 @@ package body LLM.Model_Registry is
          Max_Thinking_Budget => 0,
          Min_Thinking_Budget => 0,
          Wire_Format         =>
-           (if Is_Claude
-            then To_Unbounded_String ("anthropic-messages")
+           (if Is_Claude then To_Unbounded_String ("anthropic-messages")
             else To_Unbounded_String ("openai-completions")),
-         Cost                => (others => 0.0));
+         Cost                =>
+           (others => 0.0));
    end Default_GitHub_Copilot_Model;
 
-   function Lookup
-     (Provider : String;
-      Model_Id : String) return Model_Info
-   is
+   function Lookup (Provider : String; Model_Id : String) return Model_Info is
       Want_Provider : constant String := Provider_Key (Provider);
    begin
       for Item of Registry loop
@@ -562,16 +581,15 @@ package body LLM.Model_Registry is
       else
          --  "codex" reaches this branch for unlisted model IDs; the
          --  live catalogue is the only source of codex model info.
-         raise Not_Found with "Unknown provider/model: " & Provider
-           & "/" & Model_Id;
+         raise Not_Found
+           with "Unknown provider/model: " & Provider & "/" & Model_Id;
       end if;
    end Lookup;
 
-  --  Compare two Model_Info values for ascending sort by provider then
-  --  model identifier, both case-insensitive.
+   --  Compare two Model_Info values for ascending sort by provider then
+   --  model identifier, both case-insensitive.
    function Model_Info_Before
-     (Left  : Model_Info;
-      Right : Model_Info) return Boolean
+     (Left : Model_Info; Right : Model_Info) return Boolean
    is
       L_Prov : constant String :=
         Ada.Characters.Handling.To_Lower (To_String (Left.Provider));
@@ -581,8 +599,9 @@ package body LLM.Model_Registry is
       if L_Prov /= R_Prov then
          return L_Prov < R_Prov;
       end if;
-      return Ada.Characters.Handling.To_Lower (To_String (Left.Model_Id))
-                < Ada.Characters.Handling.To_Lower (To_String (Right.Model_Id));
+      return
+        Ada.Characters.Handling.To_Lower (To_String (Left.Model_Id))
+        < Ada.Characters.Handling.To_Lower (To_String (Right.Model_Id));
    end Model_Info_Before;
 
    package Model_Sort is new Model_Info_Vectors.Generic_Sorting
@@ -590,14 +609,13 @@ package body LLM.Model_Registry is
 
    function Available_Models return Model_Info_Vectors.Vector is
       Result             : Model_Info_Vectors.Vector;
-      Include_GitHub     : constant Boolean :=
-        Has_GitHub_Copilot_Credentials;
+      Include_GitHub     : constant Boolean := Has_GitHub_Copilot_Credentials;
       Include_OpenRouter : constant Boolean := Has_OpenRouter_Key;
       Include_Anthropic  : constant Boolean := Has_Anthropic_Key;
-      Include_OpenCode : constant Boolean := Has_OpenCode_Go_Key;
-      Include_Ollama   : constant Boolean := Is_Ollama_Configured;
-      Include_OpenAI   : constant Boolean := Has_OpenAI_Key;
-      Include_Codex    : constant Boolean := Has_Codex_Credentials;
+      Include_OpenCode   : constant Boolean := Has_OpenCode_Go_Key;
+      Include_Ollama     : constant Boolean := Is_Ollama_Configured;
+      Include_OpenAI     : constant Boolean := Has_OpenAI_Key;
+      Include_Codex      : constant Boolean := Has_Codex_Credentials;
    begin
       for Item of Registry loop
          declare
@@ -606,16 +624,11 @@ package body LLM.Model_Registry is
             if (Provider_Name = "github-copilot" and then Include_GitHub)
               or else
               (Provider_Name = "openrouter" and then Include_OpenRouter)
-              or else
-              (Provider_Name = "anthropic" and then Include_Anthropic)
-              or else
-              (Provider_Name = "opencode-go" and then Include_OpenCode)
-              or else
-              (Provider_Name = "ollama" and then Include_Ollama)
-              or else
-              (Provider_Name = "openai" and then Include_OpenAI)
-              or else
-              (Provider_Name = "codex" and then Include_Codex)
+              or else (Provider_Name = "anthropic" and then Include_Anthropic)
+              or else (Provider_Name = "opencode-go" and then Include_OpenCode)
+              or else (Provider_Name = "ollama" and then Include_Ollama)
+              or else (Provider_Name = "openai" and then Include_OpenAI)
+              or else (Provider_Name = "codex" and then Include_Codex)
             then
                Result.Append (Item);
             end if;

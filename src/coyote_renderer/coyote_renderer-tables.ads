@@ -11,19 +11,21 @@ with Ada.Strings.Unbounded;
 
 package Coyote_Renderer.Tables is
 
-   type Table_Alignment is (Unspecified, Left, Center, Right);
+   type Table_Alignment is
+     (Unspecified,
+      Left,
+      Center,
+      Right);
 
    package Table_Alignment_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Table_Alignment);
+     (Index_Type => Positive, Element_Type => Table_Alignment);
 
    type Table_Cell is record
       Text : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    package Table_Cell_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Table_Cell);
+     (Index_Type => Positive, Element_Type => Table_Cell);
 
    type Table_Row is record
       Is_Header : Boolean := False;
@@ -31,21 +33,19 @@ package Coyote_Renderer.Tables is
    end record;
 
    package Table_Row_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Table_Row);
+     (Index_Type => Positive, Element_Type => Table_Row);
 
    type Table_Block is record
-      Start_Line  : Positive := 1;
-      End_Line    : Positive := 1;
-      Column_Count : Natural := 0;
-      Alignments  : Table_Alignment_Vectors.Vector;
-      Rows        : Table_Row_Vectors.Vector;
-      Placeholder : Ada.Strings.Unbounded.Unbounded_String;
+      Start_Line   : Positive := 1;
+      End_Line     : Positive := 1;
+      Column_Count : Natural  := 0;
+      Alignments   : Table_Alignment_Vectors.Vector;
+      Rows         : Table_Row_Vectors.Vector;
+      Placeholder  : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    package Table_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Table_Block);
+     (Index_Type => Positive, Element_Type => Table_Block);
 
    type Extraction_Result is record
       Masked_Text : Ada.Strings.Unbounded.Unbounded_String;

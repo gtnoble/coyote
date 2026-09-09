@@ -111,12 +111,12 @@ package body LLM_Model_Registry_Tests is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read
           (Read_File
-             (Ada.Directories.Current_Directory
-                & "/fixtures/" & Fixture_Name));
+             (Ada.Directories.Current_Directory & "/fixtures/"
+              & Fixture_Name));
    begin
       if not Parsed.Success then
-         raise Constraint_Error with
-           "Failed to parse fixture: " & Fixture_Name;
+         raise Constraint_Error
+           with "Failed to parse fixture: " & Fixture_Name;
       end if;
 
       if Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
@@ -132,12 +132,10 @@ package body LLM_Model_Registry_Tests is
    begin
       Write_File
         (Home & "/.coyote/auth.json",
-         "{""github-copilot"":{"
-         & """type"":""oauth"","
+         "{""github-copilot"":{" & """type"":""oauth"","
          & """refresh"":""fixture-refresh"","
          & """access"":""tid=test;proxy-ep=proxy.individual.githubcopilot"
-         & ".com;"","
-         & """expires"":9999999999000}}");
+         & ".com;""," & """expires"":9999999999000}}");
    end Write_GitHub_Copilot_Auth;
 
    procedure Write_GitHub_Copilot_Cache (Home : String) is
@@ -146,34 +144,30 @@ package body LLM_Model_Registry_Tests is
         (Home & "/.coyote/github_copilot_models_cache.json",
          "{""fetched_at"":9999999999,"
          & """base_url"":""https://api.individual.githubcopilot.com"","
-         & """data"":"
-         & Fixture_Data_Array ("copilot_models_catalogue.json")
-           & "}");
+         & """data"":" & Fixture_Data_Array ("copilot_models_catalogue.json")
+         & "}");
    end Write_GitHub_Copilot_Cache;
 
    procedure Write_OpenRouter_Cache (Home : String) is
    begin
       Write_File
         (Home & "/.coyote/openrouter_models_cache.json",
-         "{""fetched_at"":9999999999,"
-         & """data"":"
-         & Fixture_Data_Array ("openrouter_models.json")
-           & "}");
+         "{""fetched_at"":9999999999," & """data"":"
+         & Fixture_Data_Array ("openrouter_models.json") & "}");
    end Write_OpenRouter_Cache;
 
    procedure Write_OpenCode_Go_Cache (Home : String) is
    begin
       Write_File
         (Home & "/.coyote/opencode_go_models_cache.json",
-         "{""fetched_at"":9999999999,"
-         & """data"":"
-         & Fixture_Data_Array ("opencode_go_models.json")
-           & "}");
+         "{""fetched_at"":9999999999," & """data"":"
+         & Fixture_Data_Array ("opencode_go_models.json") & "}");
    end Write_OpenCode_Go_Cache;
 
    function Count_Provider
      (Models   : LLM.Model_Registry.Model_Info_Vectors.Vector;
-      Provider : String) return Natural
+      Provider : String)
+      return Natural
    is
       Result : Natural := 0;
    begin
@@ -187,9 +181,10 @@ package body LLM_Model_Registry_Tests is
    end Count_Provider;
 
    function Has_Model
-     (Models    : LLM.Model_Registry.Model_Info_Vectors.Vector;
-      Provider  : String;
-      Model_Id  : String) return Boolean
+     (Models   : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Provider : String;
+      Model_Id : String)
+      return Boolean
    is
    begin
       for Model of Models loop
@@ -228,10 +223,10 @@ package body LLM_Model_Registry_Tests is
    procedure Test_GitHub_Copilot_Anthropic_Wire_Format (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_1";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_1";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Model        : LLM.Model_Registry.Model_Info;
    begin
@@ -258,10 +253,10 @@ package body LLM_Model_Registry_Tests is
    procedure Test_GitHub_Copilot_OpenAI_Wire_Format (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_2";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_2";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Model        : LLM.Model_Registry.Model_Info;
    begin
@@ -287,10 +282,10 @@ package body LLM_Model_Registry_Tests is
    procedure Test_GitHub_Copilot_Default_Fallback (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_3";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_3";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Model        : LLM.Model_Registry.Model_Info;
    begin
@@ -299,9 +294,9 @@ package body LLM_Model_Registry_Tests is
 
       LLM.Model_Registry.Refresh_GitHub_Copilot;
 
-    --  Unknown models should return a default record rather than raising
-    --  Not_Found, so the agent can start even when the Copilot catalogue
-    --  is not populated.
+      --  Unknown models should return a default record rather than raising
+      --  Not_Found, so the agent can start even when the Copilot catalogue
+      --  is not populated.
 
       Model := LLM.Model_Registry.Lookup ("github-copilot", "nonexistent");
       Assert
@@ -314,7 +309,7 @@ package body LLM_Model_Registry_Tests is
         (To_String (Model.Wire_Format) = "openai-completions",
          "Non-Claude default fallback should use openai-completions");
 
-   --  Claude-like model IDs should get the Anthropic wire format.
+      --  Claude-like model IDs should get the Anthropic wire format.
       Model := LLM.Model_Registry.Lookup ("github-copilot", "claude-unknown");
       Assert
         (To_String (Model.Wire_Format) = "anthropic-messages",
@@ -332,10 +327,10 @@ package body LLM_Model_Registry_Tests is
    procedure Test_OpenRouter_Cost_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_4";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_4";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Model        : LLM.Model_Registry.Model_Info;
    begin
@@ -401,16 +396,16 @@ package body LLM_Model_Registry_Tests is
    procedure Test_Available_Models_Filtering (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_model_registry_test_5";
-      Home_Was_Set   : constant Boolean :=
+      Home         : constant String  := "/tmp/coyote_model_registry_test_5";
+      Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key      : constant String  :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Available      : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Available    : LLM.Model_Registry.Model_Info_Vectors.Vector;
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
@@ -470,14 +465,14 @@ package body LLM_Model_Registry_Tests is
       Home            : constant String := "/tmp/coyote_model_registry_test_6";
       Home_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home        : constant String :=
+      Old_Home        : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Key_Was_Set     : constant Boolean :=
         Ada.Environment_Variables.Exists ("ANTHROPIC_API_KEY");
-      Old_Key         : constant String :=
+      Old_Key         : constant String  :=
         Ada.Environment_Variables.Value ("ANTHROPIC_API_KEY", "");
       Available       : LLM.Model_Registry.Model_Info_Vectors.Vector;
-      Sonnet_Model_Id : constant String := "claude-sonnet-4-20250514";
+      Sonnet_Model_Id : constant String  := "claude-sonnet-4-20250514";
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
@@ -509,25 +504,24 @@ package body LLM_Model_Registry_Tests is
          raise;
    end Test_Anthropic_Available_Models;
 
-  --  Verify Available_Models returns entries sorted by provider then
-  --  model identifier, both compared case-insensitively.
+   --  Verify Available_Models returns entries sorted by provider then
+   --  model identifier, both compared case-insensitively.
    procedure Test_Available_Models_Sorted (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String :=
-        "/tmp/coyote_model_registry_test_7";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_7";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Key_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key      : constant String :=
+      Old_Key      : constant String  :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
       Available    : LLM.Model_Registry.Model_Info_Vectors.Vector;
       Prev_Prov    : Unbounded_String;
       Prev_Id      : Unbounded_String;
-      Is_First     : Boolean := True;
+      Is_First     : Boolean          := True;
    begin
       Prepare_GitHub_Copilot_Fixture_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -549,27 +543,24 @@ package body LLM_Model_Registry_Tests is
          if not Is_First then
             declare
                Cur_Prov : constant String :=
-                 Ada.Characters.Handling.To_Lower
-                   (To_String (Model.Provider));
+                 Ada.Characters.Handling.To_Lower (To_String (Model.Provider));
                Pre_Prov : constant String :=
                  Ada.Characters.Handling.To_Lower (To_String (Prev_Prov));
                Cur_Id   : constant String :=
-                 Ada.Characters.Handling.To_Lower
-                   (To_String (Model.Model_Id));
+                 Ada.Characters.Handling.To_Lower (To_String (Model.Model_Id));
                Pre_Id   : constant String :=
                  Ada.Characters.Handling.To_Lower (To_String (Prev_Id));
             begin
                if Pre_Prov = Cur_Prov then
                   Assert
                     (Pre_Id <= Cur_Id,
-                     "Within provider " & Pre_Prov
-                     & ": " & Pre_Id
+                     "Within provider " & Pre_Prov & ": " & Pre_Id
                      & " should sort before " & Cur_Id);
                else
                   Assert
                     (Pre_Prov < Cur_Prov,
-                     "Provider " & Pre_Prov
-                     & " should sort before " & Cur_Prov);
+                     "Provider " & Pre_Prov & " should sort before "
+                     & Cur_Prov);
                end if;
             end;
          end if;
@@ -593,14 +584,14 @@ package body LLM_Model_Registry_Tests is
    procedure Test_OpenCode_Go_Wire_Format_Anthropic (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_8";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_8";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Key_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
-      Old_Key      : constant String :=
+      Old_Key      : constant String  :=
         Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
       Model        : LLM.Model_Registry.Model_Info;
    begin
@@ -633,14 +624,14 @@ package body LLM_Model_Registry_Tests is
    procedure Test_OpenCode_Go_Wire_Format_OpenAI (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_9";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_9";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Key_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
-      Old_Key      : constant String :=
+      Old_Key      : constant String  :=
         Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
       Model        : LLM.Model_Registry.Model_Info;
    begin
@@ -703,19 +694,19 @@ package body LLM_Model_Registry_Tests is
          "Default OpenCode Go fallback should use OpenAI completions");
    end Test_OpenCode_Go_Default_Fallback;
 
-  --  Verify that OpenCode Go models appear in Available_Models only when
-  --  an API key is configured.
+   --  Verify that OpenCode Go models appear in Available_Models only when
+   --  an API key is configured.
    procedure Test_OpenCode_Go_Available_With_Key (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_model_registry_test_10";
+      Home         : constant String  := "/tmp/coyote_model_registry_test_10";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Key_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
-      Old_Key      : constant String :=
+      Old_Key      : constant String  :=
         Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
       Available    : LLM.Model_Registry.Model_Info_Vectors.Vector;
    begin
@@ -766,9 +757,9 @@ package body LLM_Model_Registry_Tests is
       pragma Unreferenced (T);
       Key_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENAI_API_KEY");
-      Old_Key : constant String :=
+      Old_Key     : constant String  :=
         Ada.Environment_Variables.Value ("OPENAI_API_KEY", "");
-      Available : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Available   : LLM.Model_Registry.Model_Info_Vectors.Vector;
    begin
       Ada.Environment_Variables.Set ("OPENAI_API_KEY", "fixture-openai-key");
       LLM.Model_Registry.Refresh_OpenAI;
@@ -783,68 +774,84 @@ package body LLM_Model_Registry_Tests is
          raise;
    end Test_OpenAI_Available_With_Key;
 
-   package LLM_Model_Registry_Caller is
-   new AUnit.Test_Caller (LLM_Model_Registry_Tests.Test);
+   package LLM_Model_Registry_Caller is new AUnit.Test_Caller
+     (LLM_Model_Registry_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry marks Claude Copilot models as Anthropic",
-            LLM_Model_Registry_Tests
-              .Test_GitHub_Copilot_Anthropic_Wire_Format'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_GitHub_Copilot_Anthropic_Wire_Format'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry marks GPT Copilot models as OpenAI",
-            LLM_Model_Registry_Tests
-              .Test_GitHub_Copilot_OpenAI_Wire_Format'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_GitHub_Copilot_OpenAI_Wire_Format'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry returns a default for unknown Copilot ids",
-            LLM_Model_Registry_Tests
-              .Test_GitHub_Copilot_Default_Fallback'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_GitHub_Copilot_Default_Fallback'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry preserves OpenRouter model pricing",
             LLM_Model_Registry_Tests.Test_OpenRouter_Cost_Loaded'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry defaults unknown OpenRouter ids",
             LLM_Model_Registry_Tests.Test_OpenRouter_Default_Fallback'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry raises Not_Found for unknown providers",
             LLM_Model_Registry_Tests.Test_Unknown_Provider_Not_Found'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry filters Available_Models by credentials",
             LLM_Model_Registry_Tests.Test_Available_Models_Filtering'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry adds Anthropic models only with credentials",
             LLM_Model_Registry_Tests.Test_Anthropic_Available_Models'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry Available_Models returns sorted order",
             LLM_Model_Registry_Tests.Test_Available_Models_Sorted'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry MiniMax M2.7 uses Anthropic wire format",
-            LLM_Model_Registry_Tests
-              .Test_OpenCode_Go_Wire_Format_Anthropic'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_OpenCode_Go_Wire_Format_Anthropic'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry DeepSeek V4 Pro uses OpenAI wire format",
-            LLM_Model_Registry_Tests
-              .Test_OpenCode_Go_Wire_Format_OpenAI'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_OpenCode_Go_Wire_Format_OpenAI'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry Responses OpenCode Go models use "
             & "Responses wire",
-            LLM_Model_Registry_Tests
-              .Test_OpenCode_Go_Wire_Format_Responses'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_OpenCode_Go_Wire_Format_Responses'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry defaults unknown opencode-go ids",
-            LLM_Model_Registry_Tests
-              .Test_OpenCode_Go_Default_Fallback'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_OpenCode_Go_Default_Fallback'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry OpenCode Go models available with key",
-            LLM_Model_Registry_Tests
-              .Test_OpenCode_Go_Available_With_Key'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+            LLM_Model_Registry_Tests.Test_OpenCode_Go_Available_With_Key'
+              Access));
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry defaults unknown OpenAI ids to Responses",
             LLM_Model_Registry_Tests.Test_OpenAI_Default_Fallback'Access));
-      Result.Add_Test (LLM_Model_Registry_Caller.Create
+      Result.Add_Test
+        (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry OpenAI models available with key",
             LLM_Model_Registry_Tests.Test_OpenAI_Available_With_Key'Access));
 

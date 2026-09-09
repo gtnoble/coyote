@@ -6,7 +6,7 @@ with Ada.Calendar;
 with Coyote_SQC.App;
 with Coyote_SQC.UI.Chart_Canvas;
 with Coyote_SQC.UI.Datetime_Picker;
-with Glib;           use Glib;
+with Glib; use Glib;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Check_Button;
@@ -23,14 +23,14 @@ package body Coyote_SQC.UI.Toolbar is
 
    --  Module-level picker instances (heap-allocated).
    type Picker_Access is access all Coyote_SQC.UI.Datetime_Picker.Instance;
-   From_Picker : Picker_Access := null;
-   To_Picker   : Picker_Access := null;
+   From_Picker   : Picker_Access                     := null;
+   To_Picker     : Picker_Access                     := null;
    --  Module-level Run Sequence checkbox handle (set by Build).
    Run_Seq_Check : Gtk.Check_Button.Gtk_Check_Button := null;
-   Log_Y_Check : Gtk.Check_Button.Gtk_Check_Button := null;
+   Log_Y_Check   : Gtk.Check_Button.Gtk_Check_Button := null;
    --  Guard to prevent recursive activation when syncing the checkbox
    --  programmatically (e.g. when the View menu item toggles the mode).
-   Updating : Boolean := False;
+   Updating      : Boolean                           := False;
 
    --  ── Callbacks ─────────────────────────────────────────────────────────
 
@@ -85,8 +85,12 @@ package body Coyote_SQC.UI.Toolbar is
      (Self : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
    is
    begin
-      if Updating then return; end if;
-      if Coyote_SQC.App.State = null then return; end if;
+      if Updating then
+         return;
+      end if;
+      if Coyote_SQC.App.State = null then
+         return;
+      end if;
       Coyote_SQC.UI.Chart_Canvas.Switch_X_Scale_Mode (Self.Get_Active);
       --  Keep the View menu check item in sync.
       if Coyote_SQC.App.State.Run_Sequence_Item /= null then
@@ -101,12 +105,16 @@ package body Coyote_SQC.UI.Toolbar is
    is
       New_Mode : constant Boolean := Self.Get_Active;
    begin
-      if Coyote_SQC.App.State = null then return; end if;
+      if Coyote_SQC.App.State = null then
+         return;
+      end if;
       --  No-op when value unchanged (prevents spurious side effects during
       --  programmatic syncs from Sync_Log_Y_Button).
-      if New_Mode = Coyote_SQC.App.State.Workspace.Log_Y_Mode then return; end if;
+      if New_Mode = Coyote_SQC.App.State.Workspace.Log_Y_Mode then
+         return;
+      end if;
       Coyote_SQC.App.State.Workspace.Log_Y_Mode := New_Mode;
-      Coyote_SQC.App.State.Modified := True;
+      Coyote_SQC.App.State.Modified             := True;
       --  Keep the View menu check item in sync.
       if Coyote_SQC.App.State.Log_Y_Item /= null then
          Coyote_SQC.App.State.Log_Y_Item.Set_Active (New_Mode);
@@ -118,19 +126,19 @@ package body Coyote_SQC.UI.Toolbar is
    is
       New_Mode : constant Boolean := Self.Get_Active;
    begin
-      if Coyote_SQC.App.State = null then return; end if;
+      if Coyote_SQC.App.State = null then
+         return;
+      end if;
       --  Same-value guard: no side effects when syncing programmatically.
-      if New_Mode = Coyote_SQC.App.State.Edit_Set_B_Mode then return; end if;
+      if New_Mode = Coyote_SQC.App.State.Edit_Set_B_Mode then
+         return;
+      end if;
       Coyote_SQC.App.State.Edit_Set_B_Mode := New_Mode;
    end On_Edit_Set_B_Toggled;
 
-
-
-
    --  ── Build ─────────────────────────────────────────────────────────────
 
-   procedure Build
-     (Container : not null access Gtk.Box.Gtk_Box_Record'Class)
+   procedure Build (Container : not null access Gtk.Box.Gtk_Box_Record'Class)
    is
       use Gtk.Box;
       use Gtk.Button;
@@ -151,17 +159,13 @@ package body Coyote_SQC.UI.Toolbar is
       --  From picker.
       From_Picker := new Coyote_SQC.UI.Datetime_Picker.Instance;
       Coyote_SQC.UI.Datetime_Picker.Create
-        (Self      => From_Picker.all,
-         Container => Toolbar,
-         Label     => "From");
+        (Self => From_Picker.all, Container => Toolbar, Label => "From");
       From_Picker.On_Changed (On_From_Changed'Access);
 
       --  To picker.
       To_Picker := new Coyote_SQC.UI.Datetime_Picker.Instance;
       Coyote_SQC.UI.Datetime_Picker.Create
-        (Self      => To_Picker.all,
-         Container => Toolbar,
-         Label     => "To");
+        (Self => To_Picker.all, Container => Toolbar, Label => "To");
       To_Picker.On_Changed (On_To_Changed'Access);
 
       --  Separator.
@@ -257,8 +261,5 @@ package body Coyote_SQC.UI.Toolbar is
            (Coyote_SQC.App.State.Edit_Set_B_Mode);
       end if;
    end Sync_Edit_Set_B_Button;
-
-
-
 
 end Coyote_SQC.UI.Toolbar;

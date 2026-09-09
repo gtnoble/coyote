@@ -10,8 +10,7 @@ with Coyote_SQC.App;
 
 procedure Coyote_SQC_Main is
    Workspace_Path : constant String :=
-     (if Ada.Command_Line.Argument_Count > 0
-      then Ada.Command_Line.Argument (1)
+     (if Ada.Command_Line.Argument_Count > 0 then Ada.Command_Line.Argument (1)
       else "");
 begin
    Coyote_SQC.App.Run (Workspace_Path);

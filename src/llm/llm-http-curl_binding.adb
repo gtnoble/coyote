@@ -10,8 +10,11 @@ package body LLM.HTTP.Curl_Binding is
    use type System.Address;
 
    function Ada_Write_Callback
-     (Buffer    : System.Address; Size : Size_T; NMemb : Size_T;
-      User_Data : System.Address) return Size_T
+     (Buffer    : System.Address;
+      Size      : Size_T;
+      NMemb     : Size_T;
+      User_Data : System.Address)
+      return Size_T
    is
       use type Interfaces.C.size_t;
 
@@ -49,7 +52,7 @@ package body LLM.HTTP.Curl_Binding is
       exception
          when E : others =>
             Ctx.Exception_Occurred := True;
-            Ctx.Exception_Message :=
+            Ctx.Exception_Message  :=
               Ada.Strings.Unbounded.To_Unbounded_String
                 (Ada.Exceptions.Exception_Information (E));
             return 0;

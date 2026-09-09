@@ -13,6 +13,7 @@ package Coyote_SQC.Statistics.Xbar is
    function Compute_Limits
      (Grand_Mean : Long_Float;
       Pooled_S   : Long_Float;
-      N          : Positive) return Limits_Record;
+      N          : Positive)
+      return Limits_Record;
 
 end Coyote_SQC.Statistics.Xbar;

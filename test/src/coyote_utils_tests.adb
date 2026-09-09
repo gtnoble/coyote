@@ -71,9 +71,7 @@ package body Coyote_Utils_Tests is
       Result : constant String :=
         Coyote_Utils.Read_File_If_Exists ("you are helpful");
    begin
-      Assert
-        (Result = "",
-         "non-file path should return an empty string");
+      Assert (Result = "", "non-file path should return an empty string");
    end Test_Returns_Arg_When_Not_A_File;
 
    procedure Test_Returns_Empty_For_Empty_Path (T : in out Test) is
@@ -81,9 +79,7 @@ package body Coyote_Utils_Tests is
 
       Result : constant String := Coyote_Utils.Read_File_If_Exists ("");
    begin
-      Assert
-        (Result = "",
-         "empty path should return an empty string");
+      Assert (Result = "", "empty path should return an empty string");
    end Test_Returns_Empty_For_Empty_Path;
 
    procedure Test_Reads_Multiline_File (T : in out Test) is
@@ -119,7 +115,7 @@ package body Coyote_Utils_Tests is
    begin
       Assert
         (Coyote_Utils.Strip_Session_Prefix ("coyote-session+abc-123-def")
-           = "abc-123-def",
+         = "abc-123-def",
          "Strip_Session_Prefix should remove the coyote-session+ prefix");
    end Test_Strip_Session_Prefix_With_Prefix;
 
@@ -146,8 +142,7 @@ package body Coyote_Utils_Tests is
       Path : constant String := Coyote_Utils.Active_Executable_Path;
    begin
       Assert
-        (Path'Length > 0
-         and then Path (Path'First) = '/'
+        (Path'Length > 0 and then Path (Path'First) = '/'
          and then Path /= "/proc/self/exe"
          and then Ada.Strings.Fixed.Index (Path, "coyote_test") > 0,
          "active executable path should identify the running test binary");
@@ -167,8 +162,8 @@ package body Coyote_Utils_Tests is
       pragma Unreferenced (T);
    begin
       Assert
-        (Coyote_Utils.Shell_Quote ("/tmp/coyote agent/bin/coyote") =
-           "'/tmp/coyote agent/bin/coyote'",
+        (Coyote_Utils.Shell_Quote ("/tmp/coyote agent/bin/coyote")
+         = "'/tmp/coyote agent/bin/coyote'",
          "Shell_Quote should protect spaces inside a path");
    end Test_Shell_Quote_Preserves_Spaces;
 
@@ -176,8 +171,8 @@ package body Coyote_Utils_Tests is
       pragma Unreferenced (T);
    begin
       Assert
-        (Coyote_Utils.Shell_Quote ("/tmp/coyote's/bin/coyote") =
-           "'/tmp/coyote'\''s/bin/coyote'",
+        (Coyote_Utils.Shell_Quote ("/tmp/coyote's/bin/coyote")
+         = "'/tmp/coyote'\''s/bin/coyote'",
          "Shell_Quote should escape apostrophes for POSIX shells");
    end Test_Shell_Quote_Escapes_Apostrophes;
 
@@ -190,262 +185,291 @@ package body Coyote_Utils_Tests is
       Text_Value : constant JSON_Value := Create ("data");
    begin
       Assert
-        (Coyote_App.Utils.Is_Hidden_Tool_Argument
-           ("run_group", Zero_Group),
+        (Coyote_App.Utils.Is_Hidden_Tool_Argument ("run_group", Zero_Group),
          "zero run_group should be hidden");
       Assert
         (not Coyote_App.Utils.Is_Hidden_Tool_Argument
            ("run_group", Create (Integer'(1))),
          "positive run_group should remain visible");
       Assert
-        (Coyote_App.Utils.Is_Hidden_Tool_Argument
-           ("stdin", Empty_Text),
+        (Coyote_App.Utils.Is_Hidden_Tool_Argument ("stdin", Empty_Text),
          "empty stdin should be hidden");
       Assert
-        (Coyote_App.Utils.Is_Hidden_Tool_Argument
-           ("media_type", Null_Value),
+        (Coyote_App.Utils.Is_Hidden_Tool_Argument ("media_type", Null_Value),
          "null media_type should be hidden");
       Assert
-        (not Coyote_App.Utils.Is_Hidden_Tool_Argument
-           ("stdin", Text_Value),
+        (not Coyote_App.Utils.Is_Hidden_Tool_Argument ("stdin", Text_Value),
          "non-empty stdin should remain visible");
       Assert
-        (not Coyote_App.Utils.Is_Hidden_Tool_Argument
-           ("command", Empty_Text),
+        (not Coyote_App.Utils.Is_Hidden_Tool_Argument ("command", Empty_Text),
          "empty command should remain visible");
    end Test_Hidden_Tool_Arguments;
 
    --  ── Sanitize_UTF8 tests ────────────────────────────────────────────────
 
-   U_FFFD : constant String := Character'Val (16#EF#)
-                               & Character'Val (16#BF#)
-                               & Character'Val (16#BD#);
+   U_FFFD : constant String :=
+     Character'Val (16#EF#) & Character'Val (16#BF#) & Character'Val (16#BD#);
 
    procedure Test_Sanitize_UTF8_Passthrough_Pure_ASCII (T : in out Test) is
       pragma Unreferenced (T);
       Input  : constant String := "Hello, world! 123.";
       Output : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
    begin
-      Assert (Output = Input,
-              "pure ASCII should pass through unchanged, got: " & Output);
+      Assert
+        (Output = Input,
+         "pure ASCII should pass through unchanged, got: " & Output);
    end Test_Sanitize_UTF8_Passthrough_Pure_ASCII;
 
    procedure Test_Sanitize_UTF8_Passthrough_Valid_UTF8 (T : in out Test) is
       pragma Unreferenced (T);
       --  "café" with U+00E9 (C3 A9) plus euro sign U+20AC (E2 82 AC)
       Input  : constant String :=
-        "caf"
-        & Character'Val (16#C3#) & Character'Val (16#A9#)
-        & " 10"
+        "caf" & Character'Val (16#C3#) & Character'Val (16#A9#) & " 10"
         & Character'Val (16#E2#) & Character'Val (16#82#)
-                                 & Character'Val (16#AC#);
-      Output : constant String :=
-        Coyote_App.Utils.Sanitize_UTF8 (Input);
+        & Character'Val (16#AC#);
+      Output : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
    begin
-      Assert (Output = Input,
-              "valid multi-byte UTF-8 should pass through unchanged");
+      Assert
+        (Output = Input,
+         "valid multi-byte UTF-8 should pass through unchanged");
    end Test_Sanitize_UTF8_Passthrough_Valid_UTF8;
 
    procedure Test_Sanitize_UTF8_Replaces_Latin1_Mojibake (T : in out Test) is
       pragma Unreferenced (T);
       --  Common Latin-1 mojibake: "résumé" in Latin-1 (F1 is ñ in Latin-1!)
       --  Better example: "café" Latin-1 -> e-acute = 0xE9 solo byte
-      Input  : constant String :=
+      Input    : constant String :=
         "caf" & Character'Val (16#E9#);  --  0xE9 alone = invalid
       Expected : constant String := "caf" & U_FFFD;
-      Output  : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
+      Output   : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
    begin
-      Assert (Output = Expected,
-              "Latin-1 0xE9 should be replaced with U+FFFD");
+      Assert
+        (Output = Expected, "Latin-1 0xE9 should be replaced with U+FFFD");
    end Test_Sanitize_UTF8_Replaces_Latin1_Mojibake;
 
    procedure Test_Sanitize_UTF8_Replaces_Isolated_Cont (T : in out Test) is
       pragma Unreferenced (T);
       --  Isolated continuation byte 0xBF by itself
-      Input  : constant String := "abc"
-                                 & Character'Val (16#BF#)
-                                 & "def";
+      Input    : constant String := "abc" & Character'Val (16#BF#) & "def";
       Expected : constant String := "abc" & U_FFFD & "def";
-      Output  : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
+      Output   : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
    begin
-      Assert (Output = Expected,
-              "isolated continuation byte should be replaced with U+FFFD");
+      Assert
+        (Output = Expected,
+         "isolated continuation byte should be replaced with U+FFFD");
    end Test_Sanitize_UTF8_Replaces_Isolated_Cont;
 
    procedure Test_Sanitize_UTF8_Replaces_Truncated_Seq (T : in out Test) is
       pragma Unreferenced (T);
       --  3-byte leader 0xE2 followed by only one continuation byte (truncated)
-      Input  : constant String := "x"
-                                 & Character'Val (16#E2#)
-                                 & Character'Val (16#82#);
+      Input    : constant String :=
+        "x" & Character'Val (16#E2#) & Character'Val (16#82#);
       Expected : constant String := "x" & U_FFFD & U_FFFD;
-      Output  : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
+      Output   : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
    begin
-      Assert (Output = Expected,
-              "truncated 3-byte sequence should be replaced with U+FFFD");
+      Assert
+        (Output = Expected,
+         "truncated 3-byte sequence should be replaced with U+FFFD");
    end Test_Sanitize_UTF8_Replaces_Truncated_Seq;
 
    procedure Test_Sanitize_UTF8_Handles_Overlong_Seq (T : in out Test) is
       pragma Unreferenced (T);
       --  Overlong 2-byte encoding of ASCII '/': 0xC0 0xAF
-      Input  : constant String := Character'Val (16#C0#)
-                                 & Character'Val (16#AF#);
+      Input    : constant String :=
+        Character'Val (16#C0#) & Character'Val (16#AF#);
       Expected : constant String := U_FFFD & U_FFFD;
-      Output  : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
+      Output   : constant String := Coyote_App.Utils.Sanitize_UTF8 (Input);
    begin
-      Assert (Output = Expected,
-              "overlong 2-byte encoding should be replaced with U+FFFD");
+      Assert
+        (Output = Expected,
+         "overlong 2-byte encoding should be replaced with U+FFFD");
    end Test_Sanitize_UTF8_Handles_Overlong_Seq;
 
    procedure Test_Sanitize_UTF8_Handles_Empty_String (T : in out Test) is
       pragma Unreferenced (T);
       Output : constant String := Coyote_App.Utils.Sanitize_UTF8 ("");
    begin
-      Assert (Output = "",
-              "empty string should return empty string");
+      Assert (Output = "", "empty string should return empty string");
    end Test_Sanitize_UTF8_Handles_Empty_String;
 
    procedure Test_UTF8_Stream_Reassembles_Two_Byte (T : in out Test) is
       pragma Unreferenced (T);
-      S       : Coyote_App.Utils.UTF8_Stream.Instance;
-      Output  : Ada.Strings.Unbounded.Unbounded_String;
-      Accent  : constant String := Character'Val (16#C3#)
-                                   & Character'Val (16#A9#);
+      S      : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output : Ada.Strings.Unbounded.Unbounded_String;
+      Accent : constant String :=
+        Character'Val (16#C3#) & Character'Val (16#A9#);
    begin
       S.Feed (Accent (Accent'First .. Accent'First), Output);
-      Assert (Ada.Strings.Unbounded.Length (Output) = 0,
-              "incomplete two-byte sequence should be held");
+      Assert
+        (Ada.Strings.Unbounded.Length (Output) = 0,
+         "incomplete two-byte sequence should be held");
       S.Feed (Accent (Accent'First + 1 .. Accent'Last), Output);
-      Assert (Ada.Strings.Unbounded.To_String (Output) = Accent,
-              "two-byte sequence should be reassembled");
+      Assert
+        (Ada.Strings.Unbounded.To_String (Output) = Accent,
+         "two-byte sequence should be reassembled");
    end Test_UTF8_Stream_Reassembles_Two_Byte;
 
    procedure Test_UTF8_Stream_Reassembles_Three_Byte (T : in out Test) is
       pragma Unreferenced (T);
-      S       : Coyote_App.Utils.UTF8_Stream.Instance;
-      Output  : Ada.Strings.Unbounded.Unbounded_String;
-      Euro    : constant String := Character'Val (16#E2#)
-                                   & Character'Val (16#82#)
-                                   & Character'Val (16#AC#);
+      S      : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output : Ada.Strings.Unbounded.Unbounded_String;
+      Euro   : constant String :=
+        Character'Val (16#E2#) & Character'Val (16#82#)
+        & Character'Val (16#AC#);
    begin
       S.Feed (Euro (Euro'First .. Euro'First + 1), Output);
-      Assert (Ada.Strings.Unbounded.Length (Output) = 0,
-              "incomplete three-byte sequence should be held");
+      Assert
+        (Ada.Strings.Unbounded.Length (Output) = 0,
+         "incomplete three-byte sequence should be held");
       S.Feed (Euro (Euro'First + 2 .. Euro'Last), Output);
-      Assert (Ada.Strings.Unbounded.To_String (Output) = Euro,
-              "three-byte sequence should be reassembled");
+      Assert
+        (Ada.Strings.Unbounded.To_String (Output) = Euro,
+         "three-byte sequence should be reassembled");
    end Test_UTF8_Stream_Reassembles_Three_Byte;
 
    procedure Test_UTF8_Stream_Reassembles_Four_Byte (T : in out Test) is
       pragma Unreferenced (T);
-      S       : Coyote_App.Utils.UTF8_Stream.Instance;
-      Output  : Ada.Strings.Unbounded.Unbounded_String;
-      Smile   : constant String := Character'Val (16#F0#)
-                                   & Character'Val (16#9F#)
-                                   & Character'Val (16#98#)
-                                   & Character'Val (16#80#);
+      S      : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output : Ada.Strings.Unbounded.Unbounded_String;
+      Smile  : constant String :=
+        Character'Val (16#F0#) & Character'Val (16#9F#)
+        & Character'Val (16#98#) & Character'Val (16#80#);
    begin
       S.Feed (Smile (Smile'First .. Smile'First + 2), Output);
-      Assert (Ada.Strings.Unbounded.Length (Output) = 0,
-              "incomplete four-byte sequence should be held");
+      Assert
+        (Ada.Strings.Unbounded.Length (Output) = 0,
+         "incomplete four-byte sequence should be held");
       S.Feed (Smile (Smile'First + 3 .. Smile'Last), Output);
-      Assert (Ada.Strings.Unbounded.To_String (Output) = Smile,
-              "four-byte sequence should be reassembled");
+      Assert
+        (Ada.Strings.Unbounded.To_String (Output) = Smile,
+         "four-byte sequence should be reassembled");
    end Test_UTF8_Stream_Reassembles_Four_Byte;
 
    procedure Test_UTF8_Stream_Flushes_Incomplete (T : in out Test) is
       pragma Unreferenced (T);
-      S       : Coyote_App.Utils.UTF8_Stream.Instance;
-      Output  : Ada.Strings.Unbounded.Unbounded_String;
-      Expected : constant String := Character'Val (16#EF#)
-                                    & Character'Val (16#BF#)
-                                    & Character'Val (16#BD#);
+      S        : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output   : Ada.Strings.Unbounded.Unbounded_String;
+      Expected : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);
    begin
       S.Feed ("" & Character'Val (16#E2#), Output);
       S.Flush (Output);
-      Assert (Ada.Strings.Unbounded.To_String (Output) = Expected,
-              "flush should replace an incomplete sequence");
+      Assert
+        (Ada.Strings.Unbounded.To_String (Output) = Expected,
+         "flush should replace an incomplete sequence");
    end Test_UTF8_Stream_Flushes_Incomplete;
 
-   package Coyote_Utils_Caller is
-     new AUnit.Test_Caller (Coyote_Utils_Tests.Test);
+   package Coyote_Utils_Caller is new AUnit.Test_Caller
+     (Coyote_Utils_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils reads file when path exists",
-         Coyote_Utils_Tests.Test_Reads_File_When_Path_Exists'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils returns empty when arg is not a file",
-         Coyote_Utils_Tests.Test_Returns_Arg_When_Not_A_File'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils returns empty for empty path",
-         Coyote_Utils_Tests.Test_Returns_Empty_For_Empty_Path'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils reads multiline file",
-         Coyote_Utils_Tests.Test_Reads_Multiline_File'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils Strip_Session_Prefix removes coyote-session+ prefix",
-         Coyote_Utils_Tests
-           .Test_Strip_Session_Prefix_With_Prefix'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils Strip_Session_Prefix returns input unchanged "
-         & "when prefix absent",
-         Coyote_Utils_Tests
-           .Test_Strip_Session_Prefix_Without_Prefix'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
-         Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils resolves the active executable path",
-         Coyote_Utils_Tests.Test_Active_Executable_Path_Is_Absolute'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Spawn rejects empty argument lists",
-         Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Args'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils shell-quotes paths containing spaces",
-         Coyote_Utils_Tests.Test_Shell_Quote_Preserves_Spaces'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils shell-quotes apostrophes",
-         Coyote_Utils_Tests.Test_Shell_Quote_Escapes_Apostrophes'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Coyote_Utils hides default and empty tool arguments",
-         Coyote_Utils_Tests.Test_Hidden_Tool_Arguments'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 passes through pure ASCII unchanged",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Pure_ASCII'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 passes through valid multi-byte UTF-8",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Valid_UTF8'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 replaces Latin-1 text with U+FFFD",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Latin1_Mojibake'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 replaces isolated continuation bytes",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Isolated_Cont'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 replaces truncated multi-byte sequences",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Truncated_Seq'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 replaces overlong encoding with U+FFFD",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Overlong_Seq'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("Sanitize_UTF8 returns empty string unchanged",
-         Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Empty_String'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("UTF8_Stream reassembles two-byte sequences",
-         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Two_Byte'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("UTF8_Stream reassembles three-byte sequences",
-         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Three_Byte'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("UTF8_Stream reassembles four-byte sequences",
-         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Four_Byte'Access));
-      Result.Add_Test (Coyote_Utils_Caller.Create
-        ("UTF8_Stream flushes incomplete sequences",
-         Coyote_Utils_Tests.Test_UTF8_Stream_Flushes_Incomplete'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils reads file when path exists",
+            Coyote_Utils_Tests.Test_Reads_File_When_Path_Exists'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils returns empty when arg is not a file",
+            Coyote_Utils_Tests.Test_Returns_Arg_When_Not_A_File'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils returns empty for empty path",
+            Coyote_Utils_Tests.Test_Returns_Empty_For_Empty_Path'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils reads multiline file",
+            Coyote_Utils_Tests.Test_Reads_Multiline_File'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils Strip_Session_Prefix removes coyote-session+ prefix",
+            Coyote_Utils_Tests.Test_Strip_Session_Prefix_With_Prefix'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils Strip_Session_Prefix returns input unchanged "
+            & "when prefix absent",
+            Coyote_Utils_Tests.Test_Strip_Session_Prefix_Without_Prefix'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
+            Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils resolves the active executable path",
+            Coyote_Utils_Tests.Test_Active_Executable_Path_Is_Absolute'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn rejects empty argument lists",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Args'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils shell-quotes paths containing spaces",
+            Coyote_Utils_Tests.Test_Shell_Quote_Preserves_Spaces'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils shell-quotes apostrophes",
+            Coyote_Utils_Tests.Test_Shell_Quote_Escapes_Apostrophes'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils hides default and empty tool arguments",
+            Coyote_Utils_Tests.Test_Hidden_Tool_Arguments'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 passes through pure ASCII unchanged",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Pure_ASCII'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 passes through valid multi-byte UTF-8",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Valid_UTF8'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 replaces Latin-1 text with U+FFFD",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Latin1_Mojibake'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 replaces isolated continuation bytes",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Isolated_Cont'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 replaces truncated multi-byte sequences",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Truncated_Seq'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 replaces overlong encoding with U+FFFD",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Overlong_Seq'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Sanitize_UTF8 returns empty string unchanged",
+            Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Empty_String'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("UTF8_Stream reassembles two-byte sequences",
+            Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Two_Byte'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("UTF8_Stream reassembles three-byte sequences",
+            Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Three_Byte'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("UTF8_Stream reassembles four-byte sequences",
+            Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Four_Byte'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("UTF8_Stream flushes incomplete sequences",
+            Coyote_Utils_Tests.Test_UTF8_Stream_Flushes_Incomplete'Access));
 
       return Result;
    end Suite;

@@ -14,8 +14,7 @@ package LLM_Auth_Tests is
    procedure Test_Refresh_Token (T : in out Test);
    procedure Test_Refresh_Token_Non_200_Raises (T : in out Test);
    procedure Test_Refresh_Token_Invalid_JSON_Raises (T : in out Test);
-   procedure Test_Refresh_Token_Missing_Token_Field_Raises
-     (T : in out Test);
+   procedure Test_Refresh_Token_Missing_Token_Field_Raises (T : in out Test);
    procedure Test_Refresh_Token_Missing_Expires_At_Field_Raises
      (T : in out Test);
 

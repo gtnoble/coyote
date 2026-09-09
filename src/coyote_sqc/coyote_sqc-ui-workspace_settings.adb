@@ -9,7 +9,7 @@
 
 with Ada.Strings;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_SQC.App;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.UI.Chart_Canvas;
@@ -18,7 +18,7 @@ with Gtk.Box;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Toggle_Button;
-with Gtk.Dialog;             use Gtk.Dialog;
+with Gtk.Dialog;            use Gtk.Dialog;
 with Gtk.Enums;
 with Gtk.GEntry;
 with Gtk.Label;
@@ -45,14 +45,14 @@ package body Coyote_SQC.UI.Workspace_Settings is
    use Glib;
 
    --  Module-level state for the currently-open settings dialog.
-   WS_Dir_LB   : Gtk.List_Box.Gtk_List_Box := null;
-   WS_New_Dirs : Coyote_SQC.Data_Model.String_Vectors.Vector;
-   WS_Dialog   : Gtk.Dialog.Gtk_Dialog     := null;
-   WS_Analyze_All_CB : Gtk.Check_Button.Gtk_Check_Button     := null;
+   WS_Dir_LB         : Gtk.List_Box.Gtk_List_Box               := null;
+   WS_New_Dirs       : Coyote_SQC.Data_Model.String_Vectors.Vector;
+   WS_Dialog         : Gtk.Dialog.Gtk_Dialog                   := null;
+   WS_Analyze_All_CB : Gtk.Check_Button.Gtk_Check_Button       := null;
    WS_Dir_Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window := null;
    WS_Dir_HBox       : Gtk.Box.Gtk_Box                         := null;
-   WS_Interp_CB : Gtk.Check_Button.Gtk_Check_Button := null;
-   WS_Bf_CB : Gtk.Check_Button.Gtk_Check_Button := null;
+   WS_Interp_CB      : Gtk.Check_Button.Gtk_Check_Button       := null;
+   WS_Bf_CB          : Gtk.Check_Button.Gtk_Check_Button       := null;
 
    --  ── Directory management callbacks ─────────────────────────────────────
 
@@ -66,7 +66,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
       D   : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
       Res : Gtk.Dialog.Gtk_Response_Type;
    begin
-      if WS_Dir_LB = null then return; end if;
+      if WS_Dir_LB = null then
+         return;
+      end if;
       Gtk.File_Chooser_Dialog.Gtk_New
         (D,
          Title  => "Add Source Directory",
@@ -74,28 +76,29 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Action => Gtk.File_Chooser.Action_Select_Folder);
       declare
          Dummy : Gtk.Widget.Gtk_Widget;
-         DLG   : constant Gtk.Dialog.Gtk_Dialog :=
-           Gtk.Dialog.Gtk_Dialog (D);
+         DLG   : constant Gtk.Dialog.Gtk_Dialog := Gtk.Dialog.Gtk_Dialog (D);
          pragma Unreferenced (Dummy);
       begin
-         Dummy := DLG.Add_Button ("_Add",    Gtk.Dialog.Gtk_Response_OK);
+         Dummy := DLG.Add_Button ("_Add", Gtk.Dialog.Gtk_Response_OK);
          Dummy := DLG.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
       end;
       D.Show_All;
       Res := Gtk.Dialog.Gtk_Dialog (D).Run;
       if Res = Gtk.Dialog.Gtk_Response_OK then
          declare
-            Path : constant String := D.Get_Filename;
+            Path : constant String           := D.Get_Filename;
             Row  : Gtk.List_Box_Row.Gtk_List_Box_Row;
             Lbl  : Gtk.Label.Gtk_Label;
-            PUS  : constant Unbounded_String :=
-              To_Unbounded_String (Path);
+            PUS  : constant Unbounded_String := To_Unbounded_String (Path);
          begin
             declare
                Is_Dup : Boolean := False;
             begin
                for D2 of WS_New_Dirs loop
-                  if D2 = PUS then Is_Dup := True; exit; end if;
+                  if D2 = PUS then
+                     Is_Dup := True;
+                     exit;
+                  end if;
                end loop;
                if not Is_Dup then
                   WS_New_Dirs.Append (PUS);
@@ -117,12 +120,16 @@ package body Coyote_SQC.UI.Workspace_Settings is
    is
       pragma Unreferenced (Button);
    begin
-      if WS_Dir_LB = null then return; end if;
+      if WS_Dir_LB = null then
+         return;
+      end if;
       declare
          Row : constant Gtk.List_Box_Row.Gtk_List_Box_Row :=
            WS_Dir_LB.Get_Selected_Row;
       begin
-         if Row = null then return; end if;
+         if Row = null then
+            return;
+         end if;
          declare
             Idx : constant Glib.Gint := Row.Get_Index;
          begin
@@ -149,7 +156,6 @@ package body Coyote_SQC.UI.Workspace_Settings is
       end if;
    end On_Analyze_All_Toggled;
 
-
    --  ── Show_Dialog ─────────────────────────────────────────────────────────
 
    procedure Show_Dialog is
@@ -162,16 +168,19 @@ package body Coyote_SQC.UI.Workspace_Settings is
       Filter_Buf : Gtk.Text_Buffer.Gtk_Text_Buffer := null;
       Res        : Gtk_Response_Type;
 
-      New_Name : Unbounded_String :=
-        Coyote_SQC.App.State.Workspace.Name;
+      New_Name : Unbounded_String      := Coyote_SQC.App.State.Workspace.Name;
       New_Dirs : String_Vectors.Vector :=
         Coyote_SQC.App.State.Workspace.Source_Directories;
 
    begin
-      if Coyote_SQC.App.State = null then return; end if;
+      if Coyote_SQC.App.State = null then
+         return;
+      end if;
 
       Gtk.Dialog.Gtk_New
-        (D, "Workspace Settings", Coyote_SQC.App.State.Main_Window,
+        (D,
+         "Workspace Settings",
+         Coyote_SQC.App.State.Main_Window,
          Gtk.Dialog.Modal);
       D.Set_Default_Size (500, 480);
       WS_Dialog := D;
@@ -197,11 +206,11 @@ package body Coyote_SQC.UI.Workspace_Settings is
 
       --  ── Source directories ──────────────────────────────────────────────
       declare
-         Lbl    : Gtk.Label.Gtk_Label;
-         HBox   : Gtk.Box.Gtk_Box;
-         Add_B  : Gtk.Button.Gtk_Button;
-         Rm_B   : Gtk.Button.Gtk_Button;
-         Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+         Lbl        : Gtk.Label.Gtk_Label;
+         HBox       : Gtk.Box.Gtk_Box;
+         Add_B      : Gtk.Button.Gtk_Button;
+         Rm_B       : Gtk.Button.Gtk_Button;
+         Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
          Analyze_CB : Gtk.Check_Button.Gtk_Check_Button;
       begin
          Gtk.Label.Gtk_New (Lbl, "Source Directories:");
@@ -209,8 +218,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
          VBox.Pack_Start (Lbl, False, False, 0);
 
          Gtk.Check_Button.Gtk_New_With_Mnemonic
-           (Analyze_CB,
-            "Analy_ze all source directories");
+           (Analyze_CB, "Analy_ze all source directories");
          Analyze_CB.Set_Tooltip_Text
            ("Load sessions from every project directory, "
             & "ignoring the list below.");
@@ -232,8 +240,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
                & " for other sizes using 1/sqrt(N) scaling.  Approximately"
                & " 10× faster; negligible accuracy loss for N >= 10.");
             Interp_CB.Set_Active
-              (Coyote_SQC.App.State.Workspace
-                 .Interpolate_Quantile_Limits);
+              (Coyote_SQC.App.State.Workspace.Interpolate_Quantile_Limits);
             VBox.Pack_Start (Interp_CB, False, False, 0);
             WS_Interp_CB := Interp_CB;
 
@@ -242,8 +249,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
                Bf_CB : Gtk.Check_Button.Gtk_Check_Button;
             begin
                Gtk.Check_Button.Gtk_New_With_Mnemonic
-                 (Bf_CB,
-                  "Apply _Bonferroni correction to quantile charts");
+                 (Bf_CB, "Apply _Bonferroni correction to quantile charts");
                Bf_CB.Set_Tooltip_Text
                  ("When enabled (default), Bonferroni"
                   & " multiplicity correction controls the"
@@ -253,8 +259,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
                   & " unadjusted 3-sigma level for increased"
                   & " detection sensitivity.");
                Bf_CB.Set_Active
-                 (Coyote_SQC.App.State.Workspace
-                    .Quantile_Bonferroni);
+                 (Coyote_SQC.App.State.Workspace.Quantile_Bonferroni);
                VBox.Pack_Start (Bf_CB, False, False, 0);
                WS_Bf_CB := Bf_CB;
             end;
@@ -282,22 +287,22 @@ package body Coyote_SQC.UI.Workspace_Settings is
 
          Gtk.Box.Gtk_New_Hbox (HBox);
          Gtk.Button.Gtk_New_With_Mnemonic (Add_B, "_Add Directory...");
-         Gtk.Button.Gtk_New_With_Mnemonic (Rm_B,  "_Remove Selected");
+         Gtk.Button.Gtk_New_With_Mnemonic (Rm_B, "_Remove Selected");
          Add_B.On_Clicked (On_Add_Dir_Clicked'Access);
-         Rm_B.On_Clicked  (On_Remove_Dir_Clicked'Access);
+         Rm_B.On_Clicked (On_Remove_Dir_Clicked'Access);
          HBox.Pack_Start (Add_B, False, False, 0);
-         HBox.Pack_Start (Rm_B,  False, False, 4);
+         HBox.Pack_Start (Rm_B, False, False, 4);
          VBox.Pack_Start (HBox, False, False, 0);
 
-         WS_Dir_LB   := Dir_LB;
-         WS_New_Dirs := New_Dirs;
+         WS_Dir_LB         := Dir_LB;
+         WS_New_Dirs       := New_Dirs;
          WS_Analyze_All_CB := Analyze_CB;
          WS_Dir_Scroll     := Scroll;
          WS_Dir_HBox       := HBox;
          --  Apply initial sensitivity based on current checkbox state.
          if Coyote_SQC.App.State.Workspace.Analyze_All_Directories then
             Scroll.Set_Sensitive (False);
-            HBox.Set_Sensitive   (False);
+            HBox.Set_Sensitive (False);
          end if;
       end;
 
@@ -308,16 +313,15 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Filter_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
          Filter_Text   : Unbounded_String;
       begin
-         Gtk.Label.Gtk_New (Filter_Lbl,
-           "Model Filter (one per line; empty = all):");
+         Gtk.Label.Gtk_New
+           (Filter_Lbl, "Model Filter (one per line; empty = all):");
          Filter_Lbl.Set_Halign (Gtk.Widget.Align_Start);
          VBox.Pack_Start (Filter_Lbl, False, False, 0);
 
          Gtk.Text_Buffer.Gtk_New (Filter_Buf);
          for F of Coyote_SQC.App.State.Workspace.Model_Filter loop
             Append (Filter_Text, F);
-            Append (Filter_Text,
-              To_Unbounded_String ("" & ASCII.LF));
+            Append (Filter_Text, To_Unbounded_String ("" & ASCII.LF));
          end loop;
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
@@ -343,7 +347,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
          pragma Unreferenced (Dummy);
       begin
          Content.Pack_Start (VBox, True, True, 0);
-         Dummy := D.Add_Button ("_OK",     Gtk_Response_OK);
+         Dummy := D.Add_Button ("_OK", Gtk_Response_OK);
          Dummy := D.Add_Button ("_Cancel", Gtk_Response_Cancel);
       end;
       D.Show_All;
@@ -354,63 +358,60 @@ package body Coyote_SQC.UI.Workspace_Settings is
          New_Name := To_Unbounded_String (Name_E.Get_Text);
          if New_Name /= Coyote_SQC.App.State.Workspace.Name then
             Coyote_SQC.App.State.Workspace.Name := New_Name;
-            Coyote_SQC.App.State.Modified := True;
+            Coyote_SQC.App.State.Modified       := True;
          end if;
 
          --  Apply source directories.
          if WS_New_Dirs /= Coyote_SQC.App.State.Workspace.Source_Directories
          then
             Coyote_SQC.App.State.Workspace.Source_Directories := WS_New_Dirs;
-            Coyote_SQC.App.State.Modified := True;
+            Coyote_SQC.App.State.Modified                     := True;
          end if;
 
          --  Apply Analyze_All_Directories.
          if WS_Analyze_All_CB /= null then
             declare
-               New_Val : constant Boolean :=
-                 WS_Analyze_All_CB.Get_Active;
+               New_Val : constant Boolean := WS_Analyze_All_CB.Get_Active;
             begin
-               if New_Val /=
-                  Coyote_SQC.App.State.Workspace.Analyze_All_Directories
+               if New_Val
+                 /= Coyote_SQC.App.State.Workspace.Analyze_All_Directories
                then
                   Coyote_SQC.App.State.Workspace.Analyze_All_Directories :=
                     New_Val;
                   Coyote_SQC.App.State.Modified := True;
                end if;
             end;
-         --  Apply Interpolate_Quantile_Limits.
-         if WS_Interp_CB /= null then
-            declare
-               New_Val : constant Boolean :=
-                 WS_Interp_CB.Get_Active;
-            begin
-               if New_Val /=
-                  Coyote_SQC.App.State.Workspace
-                    .Interpolate_Quantile_Limits
-               then
-                  Coyote_SQC.App.State.Workspace
-                    .Interpolate_Quantile_Limits := New_Val;
-                  Coyote_SQC.App.State.Modified := True;
-               end if;
-            end;
+            --  Apply Interpolate_Quantile_Limits.
+            if WS_Interp_CB /= null then
+               declare
+                  New_Val : constant Boolean := WS_Interp_CB.Get_Active;
+               begin
+                  if New_Val
+                    /= Coyote_SQC.App.State.Workspace
+                      .Interpolate_Quantile_Limits
+                  then
+                     Coyote_SQC.App.State.Workspace
+                       .Interpolate_Quantile_Limits :=
+                       New_Val;
+                     Coyote_SQC.App.State.Modified  := True;
+                  end if;
+               end;
 
-         --  Apply Quantile_Bonferroni.
-         if WS_Bf_CB /= null then
-            declare
-               New_Val : constant Boolean :=
-                 WS_Bf_CB.Get_Active;
-            begin
-               if New_Val /=
-                  Coyote_SQC.App.State.Workspace
-                    .Quantile_Bonferroni
-               then
-                  Coyote_SQC.App.State.Workspace
-                    .Quantile_Bonferroni := New_Val;
-                  Coyote_SQC.App.State.Modified := True;
+               --  Apply Quantile_Bonferroni.
+               if WS_Bf_CB /= null then
+                  declare
+                     New_Val : constant Boolean := WS_Bf_CB.Get_Active;
+                  begin
+                     if New_Val
+                       /= Coyote_SQC.App.State.Workspace.Quantile_Bonferroni
+                     then
+                        Coyote_SQC.App.State.Workspace.Quantile_Bonferroni :=
+                          New_Val;
+                        Coyote_SQC.App.State.Modified := True;
+                     end if;
+                  end;
                end if;
-            end;
-         end if;
-         end if;
+            end if;
 
          end if;
 
@@ -425,13 +426,12 @@ package body Coyote_SQC.UI.Workspace_Settings is
             begin
                Filter_Buf.Get_Start_Iter (SI);
                Filter_Buf.Get_End_Iter (EI);
-               Text := To_Unbounded_String
-                 (Filter_Buf.Get_Text (SI, EI));
+               Text := To_Unbounded_String (Filter_Buf.Get_Text (SI, EI));
 
                declare
                   New_Filter : String_Vectors.Vector;
-                  S     : constant String := To_String (Text);
-                  Start : Positive := S'First;
+                  S          : constant String := To_String (Text);
+                  Start      : Positive        := S'First;
                   procedure Add_Token (T : String) is
                      TT : constant String := Trim (T, Both);
                   begin
@@ -451,27 +451,25 @@ package body Coyote_SQC.UI.Workspace_Settings is
                   end if;
                   if New_Filter /= Coyote_SQC.App.State.Workspace.Model_Filter
                   then
-                     Coyote_SQC.App.State.Workspace.Model_Filter :=
-                       New_Filter;
-                     Coyote_SQC.App.State.Modified := True;
+                     Coyote_SQC.App.State.Workspace.Model_Filter := New_Filter;
+                     Coyote_SQC.App.State.Modified               := True;
                   end if;
                end;
             end;
          end if;
-
 
          Coyote_SQC.App.Reload_Sessions;
          Coyote_SQC.App.Update_Title;
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
       end if;
 
-      WS_Dialog   := null;
-      WS_Dir_LB   := null;
+      WS_Dialog := null;
+      WS_Dir_LB := null;
       WS_New_Dirs.Clear;
       WS_Analyze_All_CB := null;
       WS_Dir_Scroll     := null;
-      WS_Interp_CB := null;
-      WS_Bf_CB := null;
+      WS_Interp_CB      := null;
+      WS_Bf_CB          := null;
       WS_Dir_HBox       := null;
       D.Destroy;
    end Show_Dialog;

@@ -31,8 +31,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    begin
       --  OpenCode Go documents these models on the OpenAI Responses
       --  endpoint.
-      if Lower_Id = "grok-4.6"
-        or else Lower_Id = "gpt-5.6-luna"
+      if Lower_Id = "grok-4.6" or else Lower_Id = "gpt-5.6-luna"
         or else Lower_Id = "muse-spark-1.3-contributor"
         or else Lower_Id = "muse-spark-1.2-contributor"
       then
@@ -40,8 +39,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       end if;
 
       --  MiniMax models use the Anthropic /v1/messages endpoint.
-      if Lower_Id = "minimax-m2.5"
-        or else Lower_Id = "minimax-m2.7"
+      if Lower_Id = "minimax-m2.5" or else Lower_Id = "minimax-m2.7"
         or else Lower_Id = "minimax-m3"
       then
          return Anthropic_Messages_Wire;
@@ -63,16 +61,17 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
          end if;
       end loop;
       if Pos > 0 and then Pos < Model_Id'Last then
-         return Ada.Characters.Handling.To_Lower
-           (Model_Id (Pos + 1 .. Model_Id'Last));
+         return
+           Ada.Characters.Handling.To_Lower
+             (Model_Id (Pos + 1 .. Model_Id'Last));
       end if;
       return Ada.Characters.Handling.To_Lower (Model_Id);
    end Base_Name;
 
    function Find_OpenRouter_Meta
      (Go_Model_Id : String;
-      OR_Models   : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
-     return LLM.Providers.OpenRouter.Catalogue.Model_Info
+      OR_Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+      return LLM.Providers.OpenRouter.Catalogue.Model_Info
    is
       Lower_Id : constant String :=
         Ada.Characters.Handling.To_Lower (Go_Model_Id);
@@ -84,16 +83,16 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       end loop;
       --  Return a default with conservative values.
       return
-        (Model_Id        => To_Unbounded_String (Go_Model_Id),
-         Name            => To_Unbounded_String (Go_Model_Id),
-         Context_Window  => 128_000,
-         Max_Tokens      => 16_384,
-         Supports_Tools  => True,
-         Supports_Images => False,
-         Reasoning       => False,
-         Cost_Input      => 0.0,
-         Cost_Output     => 0.0,
-         Cost_Cache_Read => 0.0,
+        (Model_Id         => To_Unbounded_String (Go_Model_Id),
+         Name             => To_Unbounded_String (Go_Model_Id),
+         Context_Window   => 128_000,
+         Max_Tokens       => 16_384,
+         Supports_Tools   => True,
+         Supports_Images  => False,
+         Reasoning        => False,
+         Cost_Input       => 0.0,
+         Cost_Output      => 0.0,
+         Cost_Cache_Read  => 0.0,
          Cost_Cache_Write => 0.0);
    end Find_OpenRouter_Meta;
 
@@ -115,8 +114,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       if Ada.Environment_Variables.Exists ("COYOTE_OPENCODE_GO_BASE_URL") then
          declare
             Value : constant String :=
-              Ada.Environment_Variables.Value
-                ("COYOTE_OPENCODE_GO_BASE_URL");
+              Ada.Environment_Variables.Value ("COYOTE_OPENCODE_GO_BASE_URL");
          begin
             if Value'Length > 0 then
                return Value;
@@ -165,7 +163,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    procedure Write_Atomically (Path : String; Content : String) is
       File     : Ada.Text_IO.File_Type;
       Tmp_Name : constant String := Temp_Path (Path);
-      Renamed  : Boolean := False;
+      Renamed  : Boolean         := False;
       Dir_Path : constant String :=
         Ada.Directories.Containing_Directory (Path);
    begin
@@ -198,20 +196,16 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
       Epoch : constant Time :=
-        Time_Of (Year    => 1970,
-                 Month   => 1,
-                 Day     => 1,
-                 Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
 
    function Is_Fresh
-     (Fetched_At    : Long_Long_Integer;
-      Max_Age_Hours : Natural) return Boolean
+     (Fetched_At : Long_Long_Integer; Max_Age_Hours : Natural) return Boolean
    is
       Age_Limit : constant Long_Long_Integer :=
-        Long_Long_Integer (Max_Age_Hours) * 3600;
+        Long_Long_Integer (Max_Age_Hours) * 3_600;
       Now_S     : constant Long_Long_Integer := Current_Unix_S;
    begin
       if Fetched_At <= 0 then
@@ -226,7 +220,8 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    function Get_String_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
-      Default : String := "") return String
+      Default : String := "")
+      return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -240,7 +235,8 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
 
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Long_Integer
+      Field : String)
+      return Long_Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -261,31 +257,31 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    ------------------------------------------------------------
 
    function Parse_Model
-     (Value    : GNATCOLL.JSON.JSON_Value;
-      OR_Meta  : LLM.Providers.OpenRouter.Catalogue.Model_Info)
-     return Model_Info
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      OR_Meta : LLM.Providers.OpenRouter.Catalogue.Model_Info)
+      return Model_Info
    is
       Id : constant String := Get_String_Field (Value, "id");
    begin
       return
-        (Model_Id        => To_Unbounded_String (Id),
-         Name            => To_Unbounded_String (Id),
-         Context_Window  => OR_Meta.Context_Window,
-         Max_Tokens      => OR_Meta.Max_Tokens,
-         Reasoning       => OR_Meta.Reasoning,
-         Supports_Tools  => OR_Meta.Supports_Tools,
-         Supports_Images => OR_Meta.Supports_Images,
-         Wire            => Wire_Format_For (Id),
-         Cost_Input      => OR_Meta.Cost_Input,
-         Cost_Output     => OR_Meta.Cost_Output,
-         Cost_Cache_Read => OR_Meta.Cost_Cache_Read,
+        (Model_Id         => To_Unbounded_String (Id),
+         Name             => To_Unbounded_String (Id),
+         Context_Window   => OR_Meta.Context_Window,
+         Max_Tokens       => OR_Meta.Max_Tokens,
+         Reasoning        => OR_Meta.Reasoning,
+         Supports_Tools   => OR_Meta.Supports_Tools,
+         Supports_Images  => OR_Meta.Supports_Images,
+         Wire             => Wire_Format_For (Id),
+         Cost_Input       => OR_Meta.Cost_Input,
+         Cost_Output      => OR_Meta.Cost_Output,
+         Cost_Cache_Read  => OR_Meta.Cost_Cache_Read,
          Cost_Cache_Write => OR_Meta.Cost_Cache_Write);
    end Parse_Model;
 
    procedure Parse_Models
      (Items     :     GNATCOLL.JSON.JSON_Array;
       Models    : out Catalogue_Vectors.Vector;
-      OR_Models :     LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+      OR_Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
    is
       Go_Id   : String (1 .. 256);
       Go_Len  : Natural;
@@ -294,16 +290,14 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       Models.Clear;
       for I in 1 .. GNATCOLL.JSON.Length (Items) loop
          declare
-            Raw_Id : constant String := Get_String_Field
-              (GNATCOLL.JSON.Get (Items, I), "id");
+            Raw_Id : constant String :=
+              Get_String_Field (GNATCOLL.JSON.Get (Items, I), "id");
          begin
-            Go_Len := Raw_Id'Length;
+            Go_Len              := Raw_Id'Length;
             Go_Id (1 .. Go_Len) := Raw_Id;
          end;
          OR_Meta := Find_OpenRouter_Meta (Go_Id (1 .. Go_Len), OR_Models);
-         Models.Append
-           (Parse_Model
-             (GNATCOLL.JSON.Get (Items, I), OR_Meta));
+         Models.Append (Parse_Model (GNATCOLL.JSON.Get (Items, I), OR_Meta));
       end loop;
    end Parse_Models;
 
@@ -319,11 +313,11 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
 
    function Load_Cache
      (Max_Age_Hours : Natural;
-      OR_Models     : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
-     return Cache_Load_Result
+      OR_Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+      return Cache_Load_Result
    is
-      Path       : constant String := Cache_Path;
-      Content    : constant String := Read_File (Path);
+      Path       : constant String   := Cache_Path;
+      Content    : constant String   := Read_File (Path);
       Parsed     : GNATCOLL.JSON.Read_Result;
       Root       : GNATCOLL.JSON.JSON_Value;
       Fetched_At : Long_Long_Integer := 0;
@@ -343,7 +337,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       then
          return Result;
       end if;
-      Fetched_At := Get_Long_Long_Field (Root, "fetched_at");
+      Fetched_At   := Get_Long_Long_Field (Root, "fetched_at");
       Result.Found := True;
       Result.Fresh := Is_Fresh (Fetched_At, Max_Age_Hours);
       Parse_Models (Root.Get ("data").Get, Result.Models, OR_Models);
@@ -354,12 +348,10 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    end Load_Cache;
 
    procedure Save_Cache (Data : GNATCOLL.JSON.JSON_Value) is
-      Path : constant String := Cache_Path;
-      Root : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
+      Path : constant String                   := Cache_Path;
+      Root : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
-      if Path'Length = 0
-        or else Data.Kind /= GNATCOLL.JSON.JSON_Array_Type
+      if Path'Length = 0 or else Data.Kind /= GNATCOLL.JSON.JSON_Array_Type
       then
          return;
       end if;
@@ -375,8 +367,8 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    function Fetch_Live
      (Models    : out Catalogue_Vectors.Vector;
       Data      : out GNATCOLL.JSON.JSON_Value;
-      OR_Models :     LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
-     return Boolean
+      OR_Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+      return Boolean
    is
       Headers       : LLM.HTTP.Header_List;
       Status        : Natural := 0;
@@ -425,12 +417,11 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    ------------------------------------------------------------
 
    procedure Load_Catalogue
-     (Models        :    out Catalogue_Vectors.Vector;
-      Max_Age_Hours :        Natural := 24)
+     (Models : out Catalogue_Vectors.Vector; Max_Age_Hours : Natural := 24)
    is
       --  Load the OpenRouter catalogue first so its metadata is
       --  available for cross-referencing during cache and live paths.
-      OR_Models    : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector;
+      OR_Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector;
       Cache_Result : Cache_Load_Result;
       Live_Models  : Catalogue_Vectors.Vector;
       Live_Data    : GNATCOLL.JSON.JSON_Value;
@@ -445,8 +436,8 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
          return;
       end if;
 
-      if Fetch_Live (Models => Live_Models, Data => Live_Data,
-                     OR_Models => OR_Models)
+      if Fetch_Live
+          (Models => Live_Models, Data => Live_Data, OR_Models => OR_Models)
       then
          Models := Live_Models;
          Save_Cache (Live_Data);

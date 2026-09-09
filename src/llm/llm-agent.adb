@@ -49,8 +49,7 @@ package body LLM.Agent is
    end record;
 
    package Pending_Tool_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Pending_Tool);
+     (Index_Type => Natural, Element_Type => Pending_Tool);
 
    --  Extract the optional integer "run_group" from a tool call's JSON
    --  arguments.  Returns 0 when absent, non-integer, or after the JSON
@@ -68,16 +67,15 @@ package body LLM.Agent is
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Media_Type  : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Is_Error    : Boolean := False;
-      Status      : LLM.Tools.Shell.Execution_Status :=
-        LLM.Tools.Shell.Aborted;
+      Is_Error    : Boolean                                := False;
+      Status : LLM.Tools.Shell.Execution_Status := LLM.Tools.Shell.Aborted;
    end record;
 
    protected body Tool_Control_Registry is
 
       procedure Register
-        (Tool_Id  : String;
-         Flag     : LLM.Tools.Abort_Flag_Access;
+        (Tool_Id  :     String;
+         Flag     :     LLM.Tools.Abort_Flag_Access;
          Accepted : out Boolean)
       is
       begin
@@ -93,16 +91,14 @@ package body LLM.Agent is
                   Note     => Null_Unbounded_String,
                   Active   => True,
                   Finished => False);
-               Accepted := True;
+               Accepted    := True;
                return;
             end if;
          end loop;
       end Register;
 
       procedure Request
-        (Tool_Id : String;
-         Message : String;
-         Accepted : out Boolean)
+        (Tool_Id : String; Message : String; Accepted : out Boolean)
       is
       begin
          Accepted := False;
@@ -122,7 +118,7 @@ package body LLM.Agent is
       end Request;
 
       procedure Complete
-        (Tool_Id : String;
+        (Tool_Id :     String;
          Message : out Ada.Strings.Unbounded.Unbounded_String)
       is
       begin
@@ -131,7 +127,7 @@ package body LLM.Agent is
             if Entries (I).Active
               and then To_String (Entries (I).Tool_Id) = Tool_Id
             then
-               Message := Entries (I).Note;
+               Message              := Entries (I).Note;
                Entries (I).Finished := True;
                return;
             end if;
@@ -144,8 +140,8 @@ package body LLM.Agent is
             if Entries (I).Active
               and then To_String (Entries (I).Tool_Id) = Tool_Id
             then
-               return Entries (I).Flag /= null
-                 and then Entries (I).Flag.Requested;
+               return
+                 Entries (I).Flag /= null and then Entries (I).Flag.Requested;
             end if;
          end loop;
          return False;
@@ -166,8 +162,7 @@ package body LLM.Agent is
       procedure Abort_All is
       begin
          for I in Entries'Range loop
-            if Entries (I).Active
-              and then not Entries (I).Finished
+            if Entries (I).Active and then not Entries (I).Finished
               and then Entries (I).Flag /= null
             then
                Entries (I).Flag.Set;
@@ -189,11 +184,12 @@ package body LLM.Agent is
 
    end Tool_Control_Registry;
 
-   type Tool_Result_Slot_Array is array (Positive range <>) of
-     Tool_Result_Slot;
+   type Tool_Result_Slot_Array is
+     array (Positive range <>)
+     of Tool_Result_Slot;
 
-   --  Fork-join barrier.  Each worker calls Set once; the main task calls
-   --  Wait_All to block until every slot is filled.
+     --  Fork-join barrier.  Each worker calls Set once; the main task calls
+     --  Wait_All to block until every slot is filled.
    protected type Results_Store (Count : Positive) is
       procedure Set
         (Index      : Positive;
@@ -213,12 +209,9 @@ package body LLM.Agent is
       Registry        : not null access Tool_Control_Registry;
       Abort_Flg       : access LLM.Tools.Abort_Flag;
       Context_Window  : Natural;
-      Sandbox_Profile : access constant
-        Ada.Strings.Unbounded.Unbounded_String)
+      Sandbox_Profile : access constant Ada.Strings.Unbounded.Unbounded_String)
    is
-      entry Start
-        (Index : Positive;
-         Tool  : Pending_Tool);
+      entry Start (Index : Positive; Tool : Pending_Tool);
    end Worker_Task;
 
    protected body Results_Store is
@@ -236,7 +229,7 @@ package body LLM.Agent is
             Media_Type  => Media_Type,
             Is_Error    => Is_Error,
             Status      => Status);
-         Done_Count := Done_Count + 1;
+         Done_Count    := Done_Count + 1;
       end Set;
 
       entry Wait_All when Done_Count = Count is
@@ -252,30 +245,26 @@ package body LLM.Agent is
    end Results_Store;
 
    task body Worker_Task is
-      My_Index   : Positive;
-      My_Tool    : Pending_Tool;
-      Result     : Ada.Strings.Unbounded.Unbounded_String;
-      Media_Type : Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error   : Boolean := False;
-      Status     : LLM.Tools.Shell.Execution_Status :=
-        LLM.Tools.Shell.Failed;
+      My_Index    : Positive;
+      My_Tool     : Pending_Tool;
+      Result      : Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type  : Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error    : Boolean                          := False;
+      Status      : LLM.Tools.Shell.Execution_Status := LLM.Tools.Shell.Failed;
       Cancel_Note : Ada.Strings.Unbounded.Unbounded_String;
    begin
-      accept Start
-        (Index : Positive;
-         Tool  : Pending_Tool)
-      do
+      accept Start (Index : Positive; Tool : Pending_Tool) do
          My_Index := Index;
          My_Tool  := Tool;
       end Start;
 
       begin
          if Abort_Flg /= null and then Abort_Flg.Requested then
-            Result := To_Unbounded_String
-              ("[tool was cancelled before execution]");
+            Result     :=
+              To_Unbounded_String ("[tool was cancelled before execution]");
             Media_Type := Null_Unbounded_String;
-            Is_Error := True;
-            Status := LLM.Tools.Shell.Aborted;
+            Is_Error   := True;
+            Status     := LLM.Tools.Shell.Aborted;
          elsif To_String (My_Tool.Tool_Name) = "shell" then
             LLM.Tools.Shell.Execute_With_Status
               (Args_Json       => To_String (My_Tool.Arguments_Json),
@@ -290,16 +279,17 @@ package body LLM.Agent is
             --  results (Media_Type non-empty) are base64-encoded binary and
             --  must not be truncated.
             if Length (Media_Type) = 0 then
-               Result := To_Unbounded_String
-                 (LLM.Tools.Temp_File.Truncated
-                    (To_String (Result),
-                     Threshold => LLM.Tools.Temp_File.Result_Threshold
-                                    (Context_Window),
-                     Tool_Name => To_String (My_Tool.Tool_Name)));
+               Result :=
+                 To_Unbounded_String
+                   (LLM.Tools.Temp_File.Truncated
+                      (To_String (Result),
+                       Threshold =>
+                         LLM.Tools.Temp_File.Result_Threshold (Context_Window),
+                       Tool_Name => To_String (My_Tool.Tool_Name)));
             end if;
          else
             --  The model called a tool name that is not registered.
-            Result :=
+            Result     :=
               To_Unbounded_String
                 ("unknown tool: " & To_String (My_Tool.Tool_Name));
             Media_Type := Null_Unbounded_String;
@@ -308,8 +298,8 @@ package body LLM.Agent is
          end if;
       exception
          when Ex : others =>
-            Result     := To_Unbounded_String
-              (Ada.Exceptions.Exception_Message (Ex));
+            Result     :=
+              To_Unbounded_String (Ada.Exceptions.Exception_Message (Ex));
             Media_Type := Null_Unbounded_String;
             Is_Error   := True;
             Status     := LLM.Tools.Shell.Failed;
@@ -319,26 +309,29 @@ package body LLM.Agent is
       Store.Set (My_Index, Result, Media_Type, Is_Error, Status);
    end Worker_Task;
 
-   type Open_Block_Kind is (No_Open_Block, Open_Text, Open_Thinking);
+   type Open_Block_Kind is
+     (No_Open_Block,
+      Open_Text,
+      Open_Thinking);
 
    type Assistant_Builder is record
       Content         : LLM.Types.Content_Block_Vectors.Vector;
-      Open_Kind       : Open_Block_Kind := No_Open_Block;
+      Open_Kind       : Open_Block_Kind       := No_Open_Block;
       Open_Text       : Unbounded_String;
       Open_Sig        : Unbounded_String;
       Origin_Provider : Unbounded_String;
       Origin_Model    : Unbounded_String;
       Stop            : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Tok_Usage       : LLM.Types.Usage := (others => 0);
+      Tok_Usage       : LLM.Types.Usage       := (others => 0);
       Error_Text      : Unbounded_String;
-      Saw_Content     : Boolean := False;
-      Saw_Msg_End     : Boolean := False;
+      Saw_Content     : Boolean               := False;
+      Saw_Msg_End     : Boolean               := False;
    end record;
 
    procedure Emit
-     (Handler : not null access procedure
-        (E : LLM.Events.Agent_Event'Class);
-      Event   : LLM.Events.Agent_Event'Class) is
+     (Handler : not null access procedure (E : LLM.Events.Agent_Event'Class);
+      Event   : LLM.Events.Agent_Event'Class)
+   is
    begin
       Handler.all (Event);
    end Emit;
@@ -375,9 +368,7 @@ package body LLM.Agent is
             declare
                Value : constant Long_Integer := Field.Get;
             begin
-               if Value < 1
-                 or else Value > Long_Integer (Max_Group)
-               then
+               if Value < 1 or else Value > Long_Integer (Max_Group) then
                   return 0;
                else
                   return Natural (Value);
@@ -424,14 +415,14 @@ package body LLM.Agent is
    function Is_Context_Overflow_Error (Msg : String) return Boolean is
       Lower : constant String := Ada.Characters.Handling.To_Lower (Msg);
    begin
-      return Ada.Strings.Fixed.Index (Lower, "prompt is too long") > 0
-        or else Ada.Strings.Fixed.Index
-          (Lower, "context_length_exceeded") > 0
-        or else Ada.Strings.Fixed.Index
-          (Lower, "maximum context length") > 0
+      return
+        Ada.Strings.Fixed.Index (Lower, "prompt is too long") > 0
+        or else Ada.Strings.Fixed.Index (Lower, "context_length_exceeded") > 0
+        or else Ada.Strings.Fixed.Index (Lower, "maximum context length") > 0
         or else Ada.Strings.Fixed.Index (Lower, "too many tokens") > 0
-        or else Ada.Strings.Fixed.Index
-          (Lower, "reduce the length of the messages") > 0;
+        or else
+          Ada.Strings.Fixed.Index (Lower, "reduce the length of the messages")
+          > 0;
    end Is_Context_Overflow_Error;
 
    function Thinking_From_String
@@ -454,8 +445,7 @@ package body LLM.Agent is
       end if;
    end Thinking_From_String;
 
-   function Thinking_Image
-     (Level : LLM.Providers.Thinking_Level) return String
+   function Thinking_Image (Level : LLM.Providers.Thinking_Level) return String
    is
    begin
       case Level is
@@ -474,9 +464,7 @@ package body LLM.Agent is
       end case;
    end Thinking_Image;
 
-   function Stop_Reason_Image
-     (Reason : LLM.Types.Stop_Reason) return String
-   is
+   function Stop_Reason_Image (Reason : LLM.Types.Stop_Reason) return String is
    begin
       case Reason is
          when LLM.Types.Stop =>
@@ -501,12 +489,9 @@ package body LLM.Agent is
    is
       Slash : constant Natural := Ada.Strings.Fixed.Index (Spec, "/");
    begin
-      if Slash = 0
-        or else Slash = Spec'First
-        or else Slash = Spec'Last
-      then
-         raise Constraint_Error with
-           "Model spec must be provider/model-id: " & Spec;
+      if Slash = 0 or else Slash = Spec'First or else Slash = Spec'Last then
+         raise Constraint_Error
+           with "Model spec must be provider/model-id: " & Spec;
       end if;
 
       Provider := To_Unbounded_String (Spec (Spec'First .. Slash - 1));
@@ -521,10 +506,9 @@ package body LLM.Agent is
    end Normalized_Model_Spec;
 
    function Effective_Model_Spec
-     (Requested : String;
-      Subagent  : Boolean := False) return String
+     (Requested : String; Subagent : Boolean := False) return String
    is
-      Settings_Value : constant LLM.Settings.Settings :=
+      Settings_Value : constant LLM.Settings.Settings                        :=
         LLM.Settings.Load_Settings;
       Available      : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
         LLM.Model_Registry.Available_Models;
@@ -538,8 +522,9 @@ package body LLM.Agent is
       --  outranks the persistent subagent default but never an explicit
       --  child --model argument.
       if Subagent
-        and then Ada.Environment_Variables.Value
-                   ("COYOTE_SUBAGENT_MODEL", "")'Length > 0
+        and then
+          Ada.Environment_Variables.Value ("COYOTE_SUBAGENT_MODEL", "")'Length
+          > 0
       then
          return Ada.Environment_Variables.Value ("COYOTE_SUBAGENT_MODEL");
       end if;
@@ -548,22 +533,24 @@ package body LLM.Agent is
         and then Length (Settings_Value.Default_Subagent_Provider) > 0
         and then Length (Settings_Value.Default_Subagent_Model) > 0
       then
-         return To_String (Settings_Value.Default_Subagent_Provider)
-           & "/"
+         return
+           To_String (Settings_Value.Default_Subagent_Provider) & "/"
            & To_String (Settings_Value.Default_Subagent_Model);
       end if;
 
       if Length (Settings_Value.Default_Provider) > 0
         and then Length (Settings_Value.Default_Model) > 0
       then
-         return To_String (Settings_Value.Default_Provider)
-           & "/"
+         return
+           To_String (Settings_Value.Default_Provider) & "/"
            & To_String (Settings_Value.Default_Model);
       end if;
 
       if Length (Settings_Value.Default_Model) > 0
-        and then Ada.Strings.Fixed.Index
-          (To_String (Settings_Value.Default_Model), "/") > 0
+        and then
+          Ada.Strings.Fixed.Index
+            (To_String (Settings_Value.Default_Model), "/")
+          > 0
       then
          return To_String (Settings_Value.Default_Model);
       end if;
@@ -572,20 +559,20 @@ package body LLM.Agent is
          return Normalized_Model_Spec (Available.First_Element);
       end if;
 
-      raise Constraint_Error with
-        "No model configured; pass --model or set ~/.coyote/settings.json";
+      raise Constraint_Error
+        with "No model configured; pass --model or set ~/.coyote/settings.json";
    end Effective_Model_Spec;
 
-   function Resolved_Model_Info (Spec : String)
-      return LLM.Model_Registry.Model_Info
+   function Resolved_Model_Info
+     (Spec : String) return LLM.Model_Registry.Model_Info
    is
       Provider : Unbounded_String;
       Model_Id : Unbounded_String;
    begin
       Split_Model_Spec (Spec, Provider, Model_Id);
-      return LLM.Model_Registry.Lookup
-        (Provider => To_String (Provider),
-         Model_Id => To_String (Model_Id));
+      return
+        LLM.Model_Registry.Lookup
+          (Provider => To_String (Provider), Model_Id => To_String (Model_Id));
    end Resolved_Model_Info;
 
    function Max_Tokens_For
@@ -602,7 +589,7 @@ package body LLM.Agent is
    procedure Finish_Open_Block (Builder : in out Assistant_Builder) is
    begin
       if Builder.Open_Kind = Open_Text
-         and then Builder.Open_Text /= Null_Unbounded_String
+        and then Builder.Open_Text /= Null_Unbounded_String
       then
          Builder.Content.Append
            ((Kind => LLM.Types.Text_Block,
@@ -624,8 +611,8 @@ package body LLM.Agent is
    end Finish_Open_Block;
 
    procedure Start_Open_Block
-     (Builder : in out Assistant_Builder;
-      Kind    :        Open_Block_Kind) is
+     (Builder : in out Assistant_Builder; Kind : Open_Block_Kind)
+   is
    begin
       if Builder.Open_Kind /= Kind then
          Finish_Open_Block (Builder);
@@ -636,7 +623,8 @@ package body LLM.Agent is
 
    procedure Consume_Update
      (Builder : in out Assistant_Builder;
-      Event   :        LLM.Events.Message_Update_Event) is
+      Event   :        LLM.Events.Message_Update_Event)
+   is
    begin
       case Event.Kind is
          when LLM.Events.Thinking_Start =>
@@ -660,7 +648,8 @@ package body LLM.Agent is
          when LLM.Events.Text_End =>
             Finish_Open_Block (Builder);
 
-         when LLM.Events.Tool_Call_Start | LLM.Events.Tool_Call_Delta =>
+         when LLM.Events.Tool_Call_Start
+            | LLM.Events.Tool_Call_Delta =>
             null;
 
          when LLM.Events.Tool_Call_End =>
@@ -674,8 +663,8 @@ package body LLM.Agent is
       end case;
    end Consume_Update;
 
-   function Has_Assistant_Message
-     (Builder : Assistant_Builder) return Boolean is
+   function Has_Assistant_Message (Builder : Assistant_Builder) return Boolean
+   is
    begin
       return Builder.Saw_Content or else Builder.Saw_Msg_End;
    end Has_Assistant_Message;
@@ -704,7 +693,8 @@ package body LLM.Agent is
       return
         (Role      => LLM.Types.User,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end User_Message;
@@ -713,9 +703,9 @@ package body LLM.Agent is
      (Tool_Call_Id : String;
       Result_Text  : String;
       Is_Error     : Boolean;
-      Status       : LLM.Types.Tool_Result_Status :=
-        LLM.Types.Result_Success;
-      Media_Type   : String := "") return LLM.Types.Message
+      Status       : LLM.Types.Tool_Result_Status := LLM.Types.Result_Success;
+      Media_Type   : String                       := "")
+      return LLM.Types.Message
    is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
@@ -730,7 +720,8 @@ package body LLM.Agent is
       return
         (Role      => LLM.Types.Tool_Result,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Tool_Result_Message;
@@ -760,14 +751,14 @@ package body LLM.Agent is
       return
         (Role      => LLM.Types.Compaction_Summary,
          Content   => Content,
-         Tok_Usage => (others => 0),
+         Tok_Usage =>
+           (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Null_Unbounded_String);
    end Compaction_Summary_Message;
 
    function Build_Tools_Json
-     (Info     : LLM.Model_Registry.Model_Info;
-      No_Tools : Boolean) return String
+     (Info : LLM.Model_Registry.Model_Info; No_Tools : Boolean) return String
    is
       Tools : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
@@ -779,8 +770,7 @@ package body LLM.Agent is
          Descriptor : constant LLM.Tools.Tool_Descriptor :=
            LLM.Tools.Shell.Descriptor;
       begin
-         if Lowercase (To_String (Info.Wire_Format)) =
-           "anthropic-messages"
+         if Lowercase (To_String (Info.Wire_Format)) = "anthropic-messages"
          then
             declare
                Tool_Object : constant GNATCOLL.JSON.JSON_Value :=
@@ -789,12 +779,10 @@ package body LLM.Agent is
                Tool_Object.Set_Field ("name", To_String (Descriptor.Name));
                Tool_Object.Set_Field
                  ("description", To_String (Descriptor.Description));
-               Tool_Object.Set_Field
-                 ("input_schema", Descriptor.Schema_Json);
+               Tool_Object.Set_Field ("input_schema", Descriptor.Schema_Json);
                GNATCOLL.JSON.Append (Tools, Tool_Object);
             end;
-         elsif Lowercase (To_String (Info.Wire_Format)) =
-           "openai-responses"
+         elsif Lowercase (To_String (Info.Wire_Format)) = "openai-responses"
          then
             declare
                Tool_Object : constant GNATCOLL.JSON.JSON_Value :=
@@ -804,8 +792,7 @@ package body LLM.Agent is
                Tool_Object.Set_Field ("name", To_String (Descriptor.Name));
                Tool_Object.Set_Field
                  ("description", To_String (Descriptor.Description));
-               Tool_Object.Set_Field
-                 ("parameters", Descriptor.Schema_Json);
+               Tool_Object.Set_Field ("parameters", Descriptor.Schema_Json);
                GNATCOLL.JSON.Append (Tools, Tool_Object);
             end;
          else
@@ -815,8 +802,7 @@ package body LLM.Agent is
                Function_Object : constant GNATCOLL.JSON.JSON_Value :=
                  GNATCOLL.JSON.Create_Object;
             begin
-               Function_Object.Set_Field
-                 ("name", To_String (Descriptor.Name));
+               Function_Object.Set_Field ("name", To_String (Descriptor.Name));
                Function_Object.Set_Field
                  ("description", To_String (Descriptor.Description));
                Function_Object.Set_Field
@@ -842,8 +828,7 @@ package body LLM.Agent is
       Pos : Natural := Message'First;
    begin
       while Pos <= Message'Last loop
-         if Pos + 3 <= Message'Last
-           and then Message (Pos .. Pos + 3) = "HTTP"
+         if Pos + 3 <= Message'Last and then Message (Pos .. Pos + 3) = "HTTP"
          then
             declare
                Scan : Natural := Pos + 4;
@@ -883,34 +868,37 @@ package body LLM.Agent is
    --  CURLE_WRITE_ERROR (23) is deliberately excluded: coyote raises it
    --  through the write callback when the user aborts, so retrying it
    --  would resurrect cancelled turns.
-   function Is_Transport_Error_Message
-     (Message : String) return Boolean
-   is
+   function Is_Transport_Error_Message (Message : String) return Boolean is
    begin
       return
         Ada.Strings.Fixed.Index
-          (Message, "Stream error in the HTTP/2 framing layer") > 0
-        or else Ada.Strings.Fixed.Index
-          (Message, "Error in the HTTP2 framing layer") > 0
-        or else Ada.Strings.Fixed.Index
-          (Message, "Failure when receiving data from the peer") > 0
-        or else Ada.Strings.Fixed.Index
-          (Message, "Failed sending data to the peer") > 0
-        or else Ada.Strings.Fixed.Index
-          (Message, "Server returned nothing") > 0
-        or else Ada.Strings.Fixed.Index
-          (Message, "Transferred a partial file") > 0;
+          (Message, "Stream error in the HTTP/2 framing layer")
+        > 0
+        or else
+          Ada.Strings.Fixed.Index (Message, "Error in the HTTP2 framing layer")
+          > 0
+        or else
+          Ada.Strings.Fixed.Index
+            (Message, "Failure when receiving data from the peer")
+          > 0
+        or else
+          Ada.Strings.Fixed.Index (Message, "Failed sending data to the peer")
+          > 0
+        or else Ada.Strings.Fixed.Index (Message, "Server returned nothing")
+          > 0
+        or else Ada.Strings.Fixed.Index (Message, "Transferred a partial file")
+          > 0;
    end Is_Transport_Error_Message;
 
    function Is_Retryable_Error
      (Occurrence : Ada.Exceptions.Exception_Occurrence) return Boolean
    is
-      Message : constant String :=
+      Message : constant String  :=
         Ada.Exceptions.Exception_Message (Occurrence);
       Status  : constant Natural := Retryable_Status_Code (Message);
    begin
-      return Status = 429
-        or else Status = 529
+      return
+        Status = 429 or else Status = 529
         or else (Status >= 500 and then Status <= 599)
         or else Is_Transport_Error_Message (Message);
    end Is_Retryable_Error;
@@ -921,8 +909,7 @@ package body LLM.Agent is
    begin
       if not History.Is_Empty then
          declare
-            Last_Message : constant LLM.Types.Message :=
-              History.Last_Element;
+            Last_Message : constant LLM.Types.Message := History.Last_Element;
          begin
             if Last_Message.Stop = LLM.Types.Error_Stop
               or else Last_Message.Stop = LLM.Types.Aborted
@@ -934,11 +921,9 @@ package body LLM.Agent is
    end Remove_Trailing_Error_Message;
 
    procedure Delay_With_Abort
-     (S           : in out Session;
-      Delay_Ms    :        Natural;
-      Was_Aborted :    out Boolean)
+     (S : in out Session; Delay_Ms : Natural; Was_Aborted : out Boolean)
    is
-      Remaining : Natural := Delay_Ms;
+      Remaining : Natural          := Delay_Ms;
       Step_Ms   : constant Natural := 100;
    begin
       Was_Aborted := False;
@@ -953,7 +938,7 @@ package body LLM.Agent is
             Sleep_Ms : constant Natural :=
               (if Remaining > Step_Ms then Step_Ms else Remaining);
          begin
-            delay Duration (Sleep_Ms) / 1000.0;
+            delay Duration (Sleep_Ms) / 1_000.0;
             Remaining := Remaining - Sleep_Ms;
          end;
       end loop;
@@ -970,10 +955,9 @@ package body LLM.Agent is
    --  stripped.  Only used internally for SI-prefixed token counts and
    --  cost strings.
    function Format_Compact (V : Long_Float) return String is
-      Total     : constant Natural :=
-        Natural (Long_Float'Rounding (V * 100.0));
-      Int_Part  : constant Natural  := Total / 100;
-      Frac_Part : constant Natural  := Total mod 100;
+      Total : constant Natural   := Natural (Long_Float'Rounding (V * 100.0));
+      Int_Part  : constant Natural   := Total / 100;
+      Frac_Part : constant Natural   := Total mod 100;
       D1        : constant Character :=
         Character'Val (Character'Pos ('0') + Frac_Part / 10);
       D2        : constant Character :=
@@ -1021,29 +1005,27 @@ package body LLM.Agent is
       end Pad4;
 
    begin
-      return "$"
-        & Natural_Image (Dmil / 10_000)
-        & "."
-        & Pad4 (Dmil mod 10_000);
+      return
+        "$" & Natural_Image (Dmil / 10_000) & "." & Pad4 (Dmil mod 10_000);
    end Cost_Image;
 
    function Usage_Cost_Dollars
      (Tok_Usage : LLM.Types.Usage;
-      Rates     : LLM.Types.Model_Cost) return Long_Float
+      Rates     : LLM.Types.Model_Cost)
+      return Long_Float
    is
    begin
-      return Long_Float (Tok_Usage.Input - Tok_Usage.Cache_Read - Tok_Usage.Cache_Write)
+      return
+        Long_Float
+          (Tok_Usage.Input - Tok_Usage.Cache_Read - Tok_Usage.Cache_Write)
         * Rates.Input / 1_000_000.0
-        + Long_Float (Tok_Usage.Output)
-        * Rates.Output / 1_000_000.0
-        + Long_Float (Tok_Usage.Cache_Read)
-        * Rates.Cache_Read / 1_000_000.0
+        + Long_Float (Tok_Usage.Output) * Rates.Output / 1_000_000.0
+        + Long_Float (Tok_Usage.Cache_Read) * Rates.Cache_Read / 1_000_000.0
         + Long_Float (Tok_Usage.Cache_Write) * Rates.Cache_Write / 1_000_000.0;
    end Usage_Cost_Dollars;
 
    function Usage_Cost_Dmil
-     (Tok_Usage : LLM.Types.Usage;
-      Rates     : LLM.Types.Model_Cost) return Natural
+     (Tok_Usage : LLM.Types.Usage; Rates : LLM.Types.Model_Cost) return Natural
    is
       Cost : constant Long_Float := Usage_Cost_Dollars (Tok_Usage, Rates);
    begin
@@ -1061,20 +1043,16 @@ package body LLM.Agent is
    --  Returns "" when Turn_Usage is all zeros (no token data available).
    --  The cost segment is omitted when the active model has no pricing.
    function Format_Session_Cost_Footer
-     (S          : Session;
-      Turn_Usage : LLM.Types.Usage) return String
+     (S : Session; Turn_Usage : LLM.Types.Usage) return String
    is
       Turn_Input  : constant Natural :=
-        Turn_Usage.Input
-        + Turn_Usage.Cache_Read
-        + Turn_Usage.Cache_Write;
+        Turn_Usage.Input + Turn_Usage.Cache_Read + Turn_Usage.Cache_Write;
       Turn_Output : constant Natural := Turn_Usage.Output;
       Sess_Input  : Natural          := Turn_Input;
       Sess_Output : Natural          := Turn_Output;
       Sess_Cost   : Long_Float       := 0.0;
       Has_Cost    : constant Boolean :=
-        S.Model_Info.Cost.Input > 0.0
-        or else S.Model_Info.Cost.Output > 0.0;
+        S.Model_Info.Cost.Input > 0.0 or else S.Model_Info.Cost.Output > 0.0;
       Footer      : Unbounded_String;
    begin
       if Turn_Input = 0 and then Turn_Output = 0 then
@@ -1086,9 +1064,7 @@ package body LLM.Agent is
       --  call site, so Turn_Usage is added to the running sums above.
       for Msg of S.History loop
          Sess_Input  :=
-           Sess_Input
-           + Msg.Tok_Usage.Input
-           + Msg.Tok_Usage.Cache_Read
+           Sess_Input + Msg.Tok_Usage.Input + Msg.Tok_Usage.Cache_Read
            + Msg.Tok_Usage.Cache_Write;
          Sess_Output := Sess_Output + Msg.Tok_Usage.Output;
          if Msg.Role = LLM.Types.Assistant then
@@ -1121,8 +1097,7 @@ package body LLM.Agent is
       return To_String (Footer);
    end Format_Session_Cost_Footer;
 
-   function Session_Stats
-     (S : Session) return LLM.Events.Session_Stats_Event
+   function Session_Stats (S : Session) return LLM.Events.Session_Stats_Event
    is
       Totals     : LLM.Types.Usage := (others => 0);
       Total_Cost : Long_Float      := 0.0;
@@ -1138,21 +1113,17 @@ package body LLM.Agent is
 
       return
         (LLM.Events.Agent_Event with
-         Cost_Dmil   =>
-           Natural (Long_Float'Floor (Total_Cost * 10_000.0 + 0.5)),
+         Cost_Dmil => Natural (Long_Float'Floor (Total_Cost * 10_000.0 + 0.5)),
          Input       => Totals.Input,
          Output      => Totals.Output,
          Cache_Read  => Totals.Cache_Read,
          Cache_Write => Totals.Cache_Write,
-         Total       => Totals.Input
-           + Totals.Output
-           + Totals.Cache_Read
+         Total       =>
+           Totals.Input + Totals.Output + Totals.Cache_Read
            + Totals.Cache_Write);
    end Session_Stats;
 
-   procedure Set_Model_Internal
-     (S    : in out Session;
-      Spec :        String) is
+   procedure Set_Model_Internal (S : in out Session; Spec : String) is
    begin
       S.Model_Info := Resolved_Model_Info (Spec);
       S.Model_Spec :=
@@ -1162,7 +1133,8 @@ package body LLM.Agent is
    function Compatible_History
      (History  : LLM.Types.Message_Vectors.Vector;
       Provider : String;
-      Model_Id : String) return LLM.Types.Message_Vectors.Vector
+      Model_Id : String)
+      return LLM.Types.Message_Vectors.Vector
    is
       Result : LLM.Types.Message_Vectors.Vector;
    begin
@@ -1176,9 +1148,9 @@ package body LLM.Agent is
                for Block of Msg.Content loop
                   if Block.Kind /= LLM.Types.Thinking_Block
                     or else
-                      (Lowercase (To_String (Block.Origin_Provider)) =
-                         Lowercase (Provider)
-                       and then To_String (Block.Origin_Model) = Model_Id)
+                    (Lowercase (To_String (Block.Origin_Provider))
+                     = Lowercase (Provider)
+                     and then To_String (Block.Origin_Model) = Model_Id)
                   then
                      Compatible_Content.Append (Block);
                   end if;
@@ -1205,19 +1177,23 @@ package body LLM.Agent is
       Tools_Json    :        String;
       Builder       : in out Assistant_Builder;
       Pending_Tools : in out Pending_Tool_Vectors.Vector;
-      On_Event      :        not null access procedure
-        (E : LLM.Events.Agent_Event'Class))
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class))
    is
-      Delays_Ms   : constant array (Positive range 1 .. 3) of Natural :=
-        (if Ada.Environment_Variables.Value
-              ("COYOTE_TEST_FAST_RETRY", "") = "1"
-         then (50, 100, 200)
-         else (2_000, 4_000, 8_000));
-      Succeeded   : Boolean := False;
-      Attempt     : Positive := 1;
-      Retry_Used  : Boolean := False;
+      Delays_Ms                   : constant array (Positive range 1 .. 3)
+        of Natural :=
+        (if
+           Ada.Environment_Variables.Value ("COYOTE_TEST_FAST_RETRY", "") = "1"
+         then
+           (50,
+            100,
+            200) else (2_000,
+            4_000,
+            8_000));
+      Succeeded                   : Boolean := False;
+      Attempt                     : Positive := 1;
+      Retry_Used                  : Boolean := False;
       Overflow_Recovery_Attempted : Boolean := False;
-      Compact_OK : Boolean := False;
+      Compact_OK                  : Boolean := False;
 
       procedure Reset_Attempt_State is
       begin
@@ -1229,7 +1205,8 @@ package body LLM.Agent is
             Origin_Provider => S.Model_Info.Provider,
             Origin_Model    => S.Model_Info.Model_Id,
             Stop            => LLM.Types.Unknown_Stop,
-            Tok_Usage       => (others => 0),
+            Tok_Usage       =>
+              (others => 0),
             Error_Text      => Null_Unbounded_String,
             Saw_Content     => False,
             Saw_Msg_End     => False);
@@ -1268,20 +1245,17 @@ package body LLM.Agent is
                Consume_Update (Builder, Update);
                if Update.Kind = LLM.Events.Tool_Call_End then
                   declare
-                     Args_Json : constant String :=
+                     Args_Json : constant String  :=
                        To_String (Update.Delta_Text);
-                     Group     : constant Natural :=
-                       Extract_Run_Group (Args_Json);
-                     Cleaned   : constant String :=
-                       (if Group > 0
-                        then Strip_Run_Group (Args_Json)
+                     Group : constant Natural := Extract_Run_Group (Args_Json);
+                     Cleaned   : constant String  :=
+                       (if Group > 0 then Strip_Run_Group (Args_Json)
                         else Args_Json);
                   begin
                      Pending_Tools.Append
                        ((Tool_Call_Id   => Update.Tool_Call_Id,
                          Tool_Name      => Update.Tool_Name,
-                         Arguments_Json =>
-                           To_Unbounded_String (Cleaned),
+                         Arguments_Json => To_Unbounded_String (Cleaned),
                          Run_Group      => Group));
                   end;
                end if;
@@ -1289,23 +1263,20 @@ package body LLM.Agent is
             end;
          elsif E in LLM.Events.Message_End_Event then
             declare
-               Msg_End : constant LLM.Events.Message_End_Event :=
+               Msg_End  : constant LLM.Events.Message_End_Event :=
                  LLM.Events.Message_End_Event (E);
                Turn_End : constant LLM.Events.Message_End_Event :=
-                 (LLM.Events.Agent_Event with
-                  Stop      => Msg_End.Stop,
-                  Err_Msg   => Msg_End.Err_Msg,
-                  Tok_Usage => Msg_End.Tok_Usage,
-                  Cost_Dmil =>
-                    (if Msg_End.Cost_Dmil > 0
-                     then Msg_End.Cost_Dmil
-                     else
-                       Usage_Cost_Dmil
+                 (LLM.Events.Agent_Event with Stop => Msg_End.Stop,
+                  Err_Msg                          => Msg_End.Err_Msg,
+                  Tok_Usage                        => Msg_End.Tok_Usage,
+                  Cost_Dmil                        =>
+                    (if Msg_End.Cost_Dmil > 0 then Msg_End.Cost_Dmil
+                     else Usage_Cost_Dmil
                          (Msg_End.Tok_Usage, S.Model_Info.Cost)));
             begin
-               Builder.Stop := Turn_End.Stop;
-               Builder.Tok_Usage := Turn_End.Tok_Usage;
-               Builder.Error_Text := Turn_End.Err_Msg;
+               Builder.Stop        := Turn_End.Stop;
+               Builder.Tok_Usage   := Turn_End.Tok_Usage;
+               Builder.Error_Text  := Turn_End.Err_Msg;
                Builder.Saw_Msg_End := True;
                Emit (On_Event, Turn_End);
             end;
@@ -1327,23 +1298,22 @@ package body LLM.Agent is
                   Provider.Send
                     (Model_Id      => To_String (S.Model_Info.Model_Id),
                      System_Prompt => To_String (S.System_Prompt),
-                     Messages      => Compatible_History
-                       (History  => S.History,
-                        Provider => To_String (S.Model_Info.Provider),
-                        Model_Id => To_String (S.Model_Info.Model_Id)),
+                     Messages      =>
+                       Compatible_History
+                         (History  => S.History,
+                          Provider => To_String (S.Model_Info.Provider),
+                          Model_Id => To_String (S.Model_Info.Model_Id)),
                      Tools_Json    => Tools_Json,
                      Thinking      => S.Thinking,
                      Max_Tokens    => Max_Tokens_For (S.Model_Info),
-                     Handler =>
-                       Provider_Event_Handler'Unrestricted_Access,
-                     Abort_Check => S.Abort_State'Unchecked_Access);
+                     Handler => Provider_Event_Handler'Unrestricted_Access,
+                     Abort_Check   => S.Abort_State'Unchecked_Access);
 
                   if Retry_Used then
                      declare
                         Event : constant LLM.Events.Auto_Retry_End_Event :=
-                          (LLM.Events.Agent_Event with
-                           Success     => True,
-                           Attempt     => Attempt,
+                          (LLM.Events.Agent_Event with Success => True,
+                           Attempt                             => Attempt,
                            Final_Error => Null_Unbounded_String);
                      begin
                         Emit (On_Event, Event);
@@ -1356,18 +1326,19 @@ package body LLM.Agent is
                   when Occurrence : others =>
                      if S.Abort_State.Requested then
                         exit Attempt_Loop;
-                     elsif Is_Context_Overflow_Error
-                       (Error_Text (Occurrence))
+                     elsif Is_Context_Overflow_Error (Error_Text (Occurrence))
                      then
                         if Overflow_Recovery_Attempted then
                            declare
-                              Event : constant
-                                LLM.Events.Auto_Compaction_End_Event :=
-                                  (LLM.Events.Agent_Event with
-                                   Summary    => Null_Unbounded_String,
-                                   Aborted    => True,
-                                   Will_Retry => False,
-                                   Err_Msg    => To_Unbounded_String
+                              Event :
+                                constant LLM.Events
+                                  .Auto_Compaction_End_Event :=
+                                (LLM.Events.Agent_Event with
+                                 Summary    => Null_Unbounded_String,
+                                 Aborted    => True,
+                                 Will_Retry => False,
+                                 Err_Msg    =>
+                                   To_Unbounded_String
                                      ("Context overflow recovery failed"
                                       & " after one attempt."));
                            begin
@@ -1389,13 +1360,13 @@ package body LLM.Agent is
                         end if;
 
                         declare
-                           Event : constant
-                             LLM.Events.Auto_Compaction_End_Event :=
-                               (LLM.Events.Agent_Event with
-                                Summary    => Null_Unbounded_String,
-                                Aborted    => False,
-                                Will_Retry => True,
-                                Err_Msg    => Null_Unbounded_String);
+                           Event :
+                             constant LLM.Events.Auto_Compaction_End_Event :=
+                             (LLM.Events.Agent_Event with
+                              Summary    => Null_Unbounded_String,
+                              Aborted    => False,
+                              Will_Retry => True,
+                              Err_Msg    => Null_Unbounded_String);
                         begin
                            Emit (On_Event, Event);
                         end;
@@ -1407,14 +1378,13 @@ package body LLM.Agent is
                         Retry_Used := True;
                         declare
                            Delay_Ms : constant Natural := Delays_Ms (Attempt);
-                           Event : constant
-                             LLM.Events.Auto_Retry_Start_Event :=
-                               (LLM.Events.Agent_Event with
-                              Attempt      => Attempt,
+                           Event       :
+                             constant LLM.Events.Auto_Retry_Start_Event :=
+                             (LLM.Events.Agent_Event with Attempt => Attempt,
                               Max_Attempts => Delays_Ms'Last + 1,
-                              Delay_Ms     => Delay_Ms,
-                              Error_Msg    => To_Unbounded_String
-                                (Error_Text (Occurrence)));
+                              Delay_Ms                            => Delay_Ms,
+                              Error_Msg                           =>
+                                To_Unbounded_String (Error_Text (Occurrence)));
                            Was_Aborted : Boolean;
                         begin
                            Emit (On_Event, Event);
@@ -1423,16 +1393,14 @@ package body LLM.Agent is
                               exit Attempt_Loop;
                            end if;
                         end;
-                     elsif Is_Retryable_Error (Occurrence)
-                       and then Retry_Used
+                     elsif Is_Retryable_Error (Occurrence) and then Retry_Used
                      then
                         declare
                            Event : constant LLM.Events.Auto_Retry_End_Event :=
-                             (LLM.Events.Agent_Event with
-                              Success     => False,
-                              Attempt     => Attempt,
-                              Final_Error => To_Unbounded_String
-                                (Error_Text (Occurrence)));
+                             (LLM.Events.Agent_Event with Success => False,
+                              Attempt                             => Attempt,
+                              Final_Error                         =>
+                                To_Unbounded_String (Error_Text (Occurrence)));
                         begin
                            Emit (On_Event, Event);
                         end;
@@ -1461,14 +1429,14 @@ package body LLM.Agent is
    end Send_With_Retry;
 
    procedure Create
-     (S             :    out Session;
-      Model_Spec    :        String  := "";
-      Agent         :        String  := "";
-      No_Tools      :        Boolean := False;
-      Session_Id    :        String  := "";
-      Subagent      :        Boolean := False)
+     (S          : out Session;
+      Model_Spec :     String  := "";
+      Agent      :     String  := "";
+      No_Tools   :     Boolean := False;
+      Session_Id :     String  := "";
+      Subagent   :     Boolean := False)
    is
-      Effective_Spec : constant String :=
+      Effective_Spec : constant String                :=
         Effective_Model_Spec (Model_Spec, Subagent);
       Settings_Value : constant LLM.Settings.Settings :=
         LLM.Settings.Load_Settings;
@@ -1487,8 +1455,7 @@ package body LLM.Agent is
             Saved_Dir : constant String :=
               LLM.Session_Store.Session_Work_Dir (Session_Id);
          begin
-            if Saved_Dir'Length > 0
-              and then Ada.Directories.Exists (Saved_Dir)
+            if Saved_Dir'Length > 0 and then Ada.Directories.Exists (Saved_Dir)
             then
                Ada.Directories.Set_Directory (Saved_Dir);
                S.Cwd := To_Unbounded_String (Saved_Dir);
@@ -1496,35 +1463,37 @@ package body LLM.Agent is
          end;
       end if;
 
-      S.System_Prompt := To_Unbounded_String
-        (LLM.System_Prompt.Build_System_Prompt
-           (Cwd               => To_String (S.Cwd),
-            No_Tools          => No_Tools,
-            Has_Editing_Tools => not No_Tools,
-            Agent             => Agent,
-            Memory_Block      =>
-              (if Ada.Environment_Variables.Value
-                    ("COYOTE_ENABLE_MEMORY", "0") = "1"
-               then LLM.Memory.Load_Memory_Index (To_String (S.Cwd))
-                    & ASCII.LF
-                    & LLM.Memory.Format_Memory_Taxonomy_For_Prompt
-               else ""),
-            Coordinator_Mode  => not No_Tools));
-      S.Session_UUID := Null_Unbounded_String;
+      S.System_Prompt           :=
+        To_Unbounded_String
+          (LLM.System_Prompt.Build_System_Prompt
+             (Cwd               => To_String (S.Cwd),
+              No_Tools          => No_Tools,
+              Has_Editing_Tools => not No_Tools,
+              Agent             => Agent,
+              Memory_Block      =>
+                (if
+                   Ada.Environment_Variables.Value
+                     ("COYOTE_ENABLE_MEMORY", "0")
+                   = "1"
+                 then
+                   LLM.Memory.Load_Memory_Index (To_String (S.Cwd)) & ASCII.LF
+                   & LLM.Memory.Format_Memory_Taxonomy_For_Prompt
+                 else ""),
+              Coordinator_Mode  => not No_Tools));
+      S.Session_UUID            := Null_Unbounded_String;
       S.OpenRouter_Session_UUID := Null_Unbounded_String;
       S.History.Clear;
-      S.Subagent_Mode := Subagent;
-      S.No_Tools := No_Tools;
-      S.Thinking := Thinking_From_String
-        (To_String (Settings_Value.Default_Thinking));
+      S.Subagent_Mode   := Subagent;
+      S.No_Tools        := No_Tools;
+      S.Thinking        :=
+        Thinking_From_String (To_String (Settings_Value.Default_Thinking));
       S.Sandbox_Profile :=
         Ada.Strings.Unbounded.To_Unbounded_String
           (To_String (Settings_Value.Default_Sandbox));
       --  Inherit sandbox profile from parent subagent process.
       declare
          Inherited : constant String :=
-           Ada.Environment_Variables.Value
-             ("COYOTE_SANDBOX_PROFILE", "");
+           Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
       begin
          if Inherited'Length > 0 then
             S.Sandbox_Profile :=
@@ -1532,13 +1501,14 @@ package body LLM.Agent is
          end if;
       end;
       S.Abort_State.Clear;
-      S.Streaming := False;
-      S.Model_Info := EMPTY_MODEL_INFO;
-      S.Compact_Settings := LLM.Compaction.Default_Compact_Settings;
+      S.Streaming           := False;
+      S.Model_Info          := EMPTY_MODEL_INFO;
+      S.Compact_Settings    := LLM.Compaction.Default_Compact_Settings;
       S.Last_Context_Tokens := 0;
 
       if Ada.Environment_Variables.Value
-           ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "") /= "1"
+          ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "")
+        /= "1"
       then
          LLM.Model_Registry.Refresh_GitHub_Copilot;
          LLM.Model_Registry.Refresh_OpenRouter;
@@ -1553,21 +1523,22 @@ package body LLM.Agent is
 
       if Session_Id'Length > 0 then
          if LLM.Session_Store.Session_File_Path (Session_Id)'Length = 0 then
-            raise LLM.Session_Store.Session_Error with
-              "Session not found: " & Session_Id;
+            raise LLM.Session_Store.Session_Error
+              with "Session not found: " & Session_Id;
          end if;
 
-         S.Session_UUID := To_Unbounded_String (Session_Id);
-         S.Sandbox_Profile :=
+         S.Session_UUID          := To_Unbounded_String (Session_Id);
+         S.Sandbox_Profile       :=
            Ada.Strings.Unbounded.To_Unbounded_String
              (LLM.Session_Store.Session_Sandbox_Profile (Session_Id));
          S.History := LLM.Session_Store.Load_Messages (Session_Id);
-         S.Last_Context_Tokens :=
+         S.Last_Context_Tokens   :=
            LLM.Compaction.Estimate_Context_Tokens (S.History);
          S.Has_Submitted_Prompts := True;
       else
-         S.Session_UUID := To_Unbounded_String
-           (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
+         S.Session_UUID          :=
+           To_Unbounded_String
+             (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
          S.Has_Submitted_Prompts := False;
       end if;
 
@@ -1578,8 +1549,7 @@ package body LLM.Agent is
                 ("COYOTE_OPENROUTER_SESSION_ID", "");
          begin
             if Inherited_Id'Length > 0 then
-               S.OpenRouter_Session_UUID :=
-                 To_Unbounded_String (Inherited_Id);
+               S.OpenRouter_Session_UUID := To_Unbounded_String (Inherited_Id);
             else
                S.OpenRouter_Session_UUID := S.Session_UUID;
             end if;
@@ -1590,41 +1560,36 @@ package body LLM.Agent is
    end Create;
 
    procedure Compact
-     (S        : in out Session;
-      On_Event :        not null access procedure
-        (E : LLM.Events.Agent_Event'Class);
+     (S         : in out Session;
+      On_Event  : not null access procedure (E : LLM.Events.Agent_Event'Class);
       Reason    :        String := "manual";
       Succeeded :    out Boolean)
    is
       Original_History : constant LLM.Types.Message_Vectors.Vector :=
         S.History;
-      Original_Last_Context_Tokens : constant Natural :=
-        S.Last_Context_Tokens;
-      Cut              : Natural := 0;
-      Previous_Summary : Unbounded_String := Null_Unbounded_String;
-      Prompt_Text      : Unbounded_String := Null_Unbounded_String;
-      Summary_Text     : Unbounded_String := Null_Unbounded_String;
-      Summary_Request  : LLM.Types.Message_Vectors.Vector;
-      Candidate        : LLM.Types.Message_Vectors.Vector;
+      Original_Last_Context_Tokens : constant Natural := S.Last_Context_Tokens;
+      Cut                          : Natural := 0;
+      Previous_Summary             : Unbounded_String := Null_Unbounded_String;
+      Prompt_Text                  : Unbounded_String := Null_Unbounded_String;
+      Summary_Text                 : Unbounded_String := Null_Unbounded_String;
+      Summary_Request              : LLM.Types.Message_Vectors.Vector;
+      Candidate                    : LLM.Types.Message_Vectors.Vector;
 
       procedure Emit_End_Event
-        (Summary    : Unbounded_String;
-         Aborted    : Boolean;
-         Err_Msg    : Unbounded_String)
+        (Summary : Unbounded_String;
+         Aborted : Boolean;
+         Err_Msg : Unbounded_String)
       is
          Event : constant LLM.Events.Auto_Compaction_End_Event :=
-           (LLM.Events.Agent_Event with
-            Summary    => Summary,
-            Aborted    => Aborted,
-            Will_Retry => False,
-            Err_Msg    => Err_Msg);
+           (LLM.Events.Agent_Event with Summary => Summary,
+            Aborted                             => Aborted,
+            Will_Retry                          => False,
+            Err_Msg                             => Err_Msg);
       begin
          Emit (On_Event, Event);
       end Emit_End_Event;
 
-      procedure Summary_Event_Handler
-        (E : LLM.Events.Agent_Event'Class)
-      is
+      procedure Summary_Event_Handler (E : LLM.Events.Agent_Event'Class) is
       begin
          if S.Abort_State.Requested then
             return;
@@ -1662,8 +1627,7 @@ package body LLM.Agent is
          Emit (On_Event, Event);
       end;
 
-      Cut := LLM.Compaction.Find_Cut_Point
-        (S.History, S.Compact_Settings);
+      Cut := LLM.Compaction.Find_Cut_Point (S.History, S.Compact_Settings);
       if Cut = 0 and then S.History.Length <= 1 then
          Emit_End_Event
            (Summary => Null_Unbounded_String,
@@ -1675,8 +1639,8 @@ package body LLM.Agent is
       if not S.History.Is_Empty
         and then S.History.First_Element.Role = LLM.Types.Compaction_Summary
       then
-         Previous_Summary := To_Unbounded_String
-           (Message_Text (S.History.First_Element));
+         Previous_Summary :=
+           To_Unbounded_String (Message_Text (S.History.First_Element));
       end if;
 
       if Cut > 0 then
@@ -1689,19 +1653,17 @@ package body LLM.Agent is
          Serialized : constant String :=
            LLM.Compaction.Serialize_Conversation (Candidate);
       begin
-         Prompt_Text := To_Unbounded_String
-           (LLM.Compaction.Build_Compact_Prompt
-              (Conversation     => Serialized,
-               Previous_Summary =>
-                 To_String (Previous_Summary),
-               Is_Partial       => False));
+         Prompt_Text :=
+           To_Unbounded_String
+             (LLM.Compaction.Build_Compact_Prompt
+                (Conversation     => Serialized,
+                 Previous_Summary => To_String (Previous_Summary),
+                 Is_Partial       => False));
       end;
 
       Summary_Request.Append (User_Message (To_String (Prompt_Text)));
 
-      if Lowercase (To_String (S.Model_Info.Provider)) =
-        "github-copilot"
-      then
+      if Lowercase (To_String (S.Model_Info.Provider)) = "github-copilot" then
          declare
             Provider : LLM.Providers.GitHub_Copilot.Provider :=
               LLM.Providers.GitHub_Copilot.Create;
@@ -1714,7 +1676,7 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "openrouter" then
          declare
@@ -1730,11 +1692,11 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "anthropic" then
          declare
-            Api_Key  : constant String :=
+            Api_Key  : constant String                           :=
               LLM.Settings.Resolve_Api_Key ("anthropic");
             Provider : LLM.Providers.Anthropic_Messages.Provider :=
               LLM.Providers.Anthropic_Messages.Create
@@ -1748,11 +1710,11 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
          declare
-            Api_Key  : constant String :=
+            Api_Key  : constant String                           :=
               LLM.Settings.Resolve_Api_Key ("ollama");
             Provider : LLM.Providers.OpenAI_Completions.Provider :=
               LLM.Providers.OpenAI_Completions.Create
@@ -1766,11 +1728,11 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "openai" then
          declare
-            Api_Key  : constant String :=
+            Api_Key  : constant String                         :=
               LLM.Settings.Resolve_Api_Key ("openai");
             Provider : LLM.Providers.OpenAI_Responses.Provider :=
               LLM.Providers.OpenAI_Responses.Create
@@ -1784,7 +1746,7 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go" then
          declare
@@ -1800,7 +1762,7 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "codex" then
          declare
@@ -1816,11 +1778,11 @@ package body LLM.Agent is
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access,
-               Abort_Check  => S.Abort_State'Unchecked_Access);
+               Abort_Check   => S.Abort_State'Unchecked_Access);
          end;
       else
-         raise Constraint_Error with
-           "Unsupported provider: " & To_String (S.Model_Info.Provider);
+         raise Constraint_Error
+           with "Unsupported provider: " & To_String (S.Model_Info.Provider);
       end if;
 
       if S.Abort_State.Requested then
@@ -1842,11 +1804,10 @@ package body LLM.Agent is
       --  Strip the <analysis> drafting block from the summary before
       --  storing it in context (REQ-CORE-066).
       declare
-         Stripped_Summary : constant String :=
+         Stripped_Summary : constant String  :=
            LLM.Compaction.Strip_Analysis_Block (To_String (Summary_Text));
-         Tokens_Before : constant Natural :=
-           (if S.Last_Context_Tokens > 0
-            then S.Last_Context_Tokens
+         Tokens_Before    : constant Natural :=
+           (if S.Last_Context_Tokens > 0 then S.Last_Context_Tokens
             else LLM.Compaction.Estimate_Context_Tokens (S.History));
       begin
          LLM.Session_Store.Append_Compaction
@@ -1859,10 +1820,9 @@ package body LLM.Agent is
       declare
          Stripped_Summary : constant String :=
            LLM.Compaction.Strip_Analysis_Block (To_String (Summary_Text));
-         New_History : LLM.Types.Message_Vectors.Vector;
+         New_History      : LLM.Types.Message_Vectors.Vector;
       begin
-         New_History.Append
-           (Compaction_Summary_Message (Stripped_Summary));
+         New_History.Append (Compaction_Summary_Message (Stripped_Summary));
 
          if not S.History.Is_Empty and then Cut <= S.History.Last_Index then
             for I in Cut .. S.History.Last_Index loop
@@ -1883,37 +1843,35 @@ package body LLM.Agent is
          Err_Msg => Null_Unbounded_String);
    exception
       when Occurrence : others =>
-         S.History := Original_History;
+         S.History             := Original_History;
          S.Last_Context_Tokens := Original_Last_Context_Tokens;
          Emit_End_Event
            (Summary => Null_Unbounded_String,
             Aborted => True,
-            Err_Msg => To_Unbounded_String
-              (Ada.Exceptions.Exception_Message (Occurrence)));
+            Err_Msg =>
+              To_Unbounded_String
+                (Ada.Exceptions.Exception_Message (Occurrence)));
    end Compact;
 
    procedure Run_Prompt
      (S        : in out Session;
       Prompt   :        String;
-      On_Event :        not null access procedure
-        (E : LLM.Events.Agent_Event'Class))
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class))
    is
-      Builder                : Assistant_Builder;
-      Pending_Tools          : Pending_Tool_Vectors.Vector;
-      Messages_To_Persist    : LLM.Types.Message_Vectors.Vector;
-      Tools_Json             : constant String :=
+      Builder                 : Assistant_Builder;
+      Pending_Tools           : Pending_Tool_Vectors.Vector;
+      Messages_To_Persist     : LLM.Types.Message_Vectors.Vector;
+      Tools_Json              : constant String            :=
         Build_Tools_Json (S.Model_Info, S.No_Tools);
-      Prompt_With_Reminder : constant String :=
-        Prompt
-        & ASCII.LF
-        & ASCII.LF
+      Prompt_With_Reminder    : constant String            :=
+        Prompt & ASCII.LF & ASCII.LF
         & LLM.System_Prompt.Build_Reminder_Instructions
-            (Has_Tools => not S.No_Tools);
+          (Has_Tools => not S.No_Tools);
       Prompt_Msg              : constant LLM.Types.Message :=
         User_Message (Prompt_With_Reminder);
-      Was_Aborted             : Boolean := False;
-      Turn_Completed_Normally : Boolean := False;
-      Compact_OK              : Boolean := False;
+      Was_Aborted             : Boolean                    := False;
+      Turn_Completed_Normally : Boolean                    := False;
+      Compact_OK              : Boolean                    := False;
       Had_Submitted_Prompts   : constant Boolean := S.Has_Submitted_Prompts;
 
       procedure Append_Pending_Message (Msg : LLM.Types.Message) is
@@ -1935,8 +1893,7 @@ package body LLM.Agent is
       begin
          while not Messages_To_Persist.Is_Empty loop
             LLM.Session_Store.Append_Message
-              (To_String (S.Session_UUID),
-               Messages_To_Persist.First_Element);
+              (To_String (S.Session_UUID), Messages_To_Persist.First_Element);
             Messages_To_Persist.Delete_First;
          end loop;
       end Flush_Pending_Messages;
@@ -1967,11 +1924,10 @@ package body LLM.Agent is
 
       declare
          Model_Event : constant LLM.Events.Model_Select_Event :=
-           (LLM.Events.Agent_Event with
-            Provider       => S.Model_Info.Provider,
-            Model_Id       => S.Model_Info.Model_Id,
+           (LLM.Events.Agent_Event with Provider => S.Model_Info.Provider,
+            Model_Id                             => S.Model_Info.Model_Id,
             Context_Window => S.Model_Info.Context_Window);
-         Start_Event : constant LLM.Events.Agent_Start_Event :=
+         Start_Event : constant LLM.Events.Agent_Start_Event  :=
            (LLM.Events.Agent_Event with null record);
       begin
          Emit (On_Event, Model_Event);
@@ -1991,7 +1947,8 @@ package body LLM.Agent is
                Origin_Provider => S.Model_Info.Provider,
                Origin_Model    => S.Model_Info.Model_Id,
                Stop            => LLM.Types.Unknown_Stop,
-               Tok_Usage       => (others => 0),
+               Tok_Usage       =>
+                 (others => 0),
                Error_Text      => Null_Unbounded_String,
                Saw_Content     => False,
                Saw_Msg_End     => False);
@@ -2020,8 +1977,7 @@ package body LLM.Agent is
                     (LLM.Events.Agent_Event with null record));
             end if;
 
-            if Lowercase (To_String (S.Model_Info.Provider)) =
-              "github-copilot"
+            if Lowercase (To_String (S.Model_Info.Provider)) = "github-copilot"
             then
                declare
                   Provider : LLM.Providers.GitHub_Copilot.Provider :=
@@ -2035,8 +1991,7 @@ package body LLM.Agent is
                      Pending_Tools => Pending_Tools,
                      On_Event      => On_Event);
                end;
-            elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "openrouter"
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "openrouter"
             then
                declare
                   Provider : LLM.Providers.OpenRouter.Provider :=
@@ -2051,8 +2006,7 @@ package body LLM.Agent is
                      Pending_Tools => Pending_Tools,
                      On_Event      => On_Event);
                end;
-            elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "opencode-go"
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go"
             then
                declare
                   Provider : LLM.Providers.OpenCode_Go.Provider :=
@@ -2067,11 +2021,9 @@ package body LLM.Agent is
                      Pending_Tools => Pending_Tools,
                      On_Event      => On_Event);
                end;
-            elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "ollama"
-            then
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
                declare
-                  Api_Key  : constant String :=
+                  Api_Key  : constant String                           :=
                     LLM.Settings.Resolve_Api_Key ("ollama");
                   Provider : LLM.Providers.OpenAI_Completions.Provider :=
                     LLM.Providers.OpenAI_Completions.Create
@@ -2085,11 +2037,9 @@ package body LLM.Agent is
                      Pending_Tools => Pending_Tools,
                      On_Event      => On_Event);
                end;
-            elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "openai"
-            then
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "openai" then
                declare
-                  Api_Key  : constant String :=
+                  Api_Key  : constant String                         :=
                     LLM.Settings.Resolve_Api_Key ("openai");
                   Provider : LLM.Providers.OpenAI_Responses.Provider :=
                     LLM.Providers.OpenAI_Responses.Create
@@ -2103,9 +2053,7 @@ package body LLM.Agent is
                      Pending_Tools => Pending_Tools,
                      On_Event      => On_Event);
                end;
-            elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "codex"
-            then
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "codex" then
                declare
                   Provider : LLM.Providers.Codex.Provider :=
                     LLM.Providers.Codex.Create
@@ -2120,8 +2068,9 @@ package body LLM.Agent is
                      On_Event      => On_Event);
                end;
             else
-               raise Constraint_Error with
-                 "Unsupported provider: " & To_String (S.Model_Info.Provider);
+               raise Constraint_Error
+                 with "Unsupported provider: "
+                 & To_String (S.Model_Info.Provider);
             end if;
 
             Finish_Open_Block (Builder);
@@ -2160,14 +2109,14 @@ package body LLM.Agent is
                   Reply         : constant LLM.Types.Message :=
                     Assistant_Message (Builder);
                   Tool_Messages : LLM.Types.Message_Vectors.Vector;
-                  N             : constant Positive :=
-                    Positive (Pending_Tools.Length);
+                  N : constant Positive := Positive (Pending_Tools.Length);
                   type Worker_Access is access all Worker_Task;
 
                   --  Collect results in a persistent array so Phase 3
                   --  can read them regardless of execution strategy.
-                  Results : Tool_Result_Slot_Array (1 .. N)
-                    := (others => (others => <>));
+                  Results : Tool_Result_Slot_Array (1 .. N) :=
+                    (others =>
+                       (others => <>));
 
                   --  True when every tool carries a valid run_group > 0.
                   All_Have_Groups : constant Boolean :=
@@ -2175,8 +2124,8 @@ package body LLM.Agent is
                        Pending_Tools.Element (I - 1).Run_Group > 0);
                begin
                   if not Has_Assistant_Message (Builder) then
-                     raise Constraint_Error with
-                       "Tool batch missing assistant message";
+                     raise Constraint_Error
+                       with "Tool batch missing assistant message";
                   end if;
 
                   --  Register each invocation before publishing its card so
@@ -2186,13 +2135,14 @@ package body LLM.Agent is
                         Accepted : Boolean;
                      begin
                         S.Tool_Registry.Register
-                          (Tool_Id  => To_String
-                             (Pending_Tools.Element (I - 1).Tool_Call_Id),
+                          (Tool_Id  =>
+                             To_String
+                               (Pending_Tools.Element (I - 1).Tool_Call_Id),
                            Flag     => S.Tool_Flags (I)'Unchecked_Access,
                            Accepted => Accepted);
                         if not Accepted then
-                           raise Program_Error with
-                             "active tool registry is full";
+                           raise Program_Error
+                             with "active tool registry is full";
                         end if;
                         if S.Abort_State.Requested then
                            S.Tool_Flags (I).Set;
@@ -2203,18 +2153,18 @@ package body LLM.Agent is
                   --  Phase 1: emit Tool_Execution_Start_Event for every
                   --  tool (main task, sequential) before any worker is
                   --  spawned.
-                  for I in Pending_Tools.First_Index
-                    .. Pending_Tools.Last_Index
+                  for I in
+                    Pending_Tools.First_Index .. Pending_Tools.Last_Index
                   loop
                      declare
                         Tool_Block  : constant Pending_Tool :=
                           Pending_Tools.Element (I);
-                        Start_Event : constant
-                          LLM.Events.Tool_Execution_Start_Event :=
-                            (LLM.Events.Agent_Event with
-                             Tool_Call_Id => Tool_Block.Tool_Call_Id,
-                             Tool_Name    => Tool_Block.Tool_Name,
-                             Args_Json    => Tool_Block.Arguments_Json);
+                        Start_Event :
+                          constant LLM.Events.Tool_Execution_Start_Event :=
+                          (LLM.Events.Agent_Event with
+                           Tool_Call_Id => Tool_Block.Tool_Call_Id,
+                           Tool_Name    => Tool_Block.Tool_Name,
+                           Args_Json    => Tool_Block.Arguments_Json);
                      begin
                         Emit (On_Event, Start_Event);
                      end;
@@ -2224,9 +2174,11 @@ package body LLM.Agent is
                      --  ── grouped execution ─────────────────────────
                      --  Collect unique group numbers, sort ascending.
                      declare
-                        type Group_Map is array (1 .. N) of Natural;
+                        type Group_Map is
+                          array (1 .. N)
+                          of Natural;
                         Groups      : Group_Map := (others => 0);
-                        Group_Count : Natural  := 0;
+                        Group_Count : Natural   := 0;
 
                         procedure Append_Group (Grp : Natural) is
                            Found : Boolean := False;
@@ -2238,7 +2190,7 @@ package body LLM.Agent is
                               end if;
                            end loop;
                            if not Found then
-                              Group_Count := Group_Count + 1;
+                              Group_Count          := Group_Count + 1;
                               Groups (Group_Count) := Grp;
                            end if;
                         end Append_Group;
@@ -2268,24 +2220,23 @@ package body LLM.Agent is
                            exit when S.Abort_State.Requested;
 
                            declare
-                              Group_Number : constant Natural :=
-                                Groups (G);
-                              Group_Size   : Natural := 0;
+                              Group_Number : constant Natural := Groups (G);
+                              Group_Size   : Natural          := 0;
                               Slot_Map     : array (1 .. N)
                                 of Natural := (others => 0);
                            begin
                               for I in 1 .. N loop
-                                 if Pending_Tools.Element (I - 1)
-                                   .Run_Group = Group_Number
+                                 if Pending_Tools.Element (I - 1).Run_Group
+                                   = Group_Number
                                  then
-                                    Group_Size := Group_Size + 1;
+                                    Group_Size            := Group_Size + 1;
                                     Slot_Map (Group_Size) := I;
                                  end if;
                               end loop;
 
                               declare
-                                 Store   : aliased Results_Store
-                                   (Count => Group_Size);
+                                 Store   :
+                                   aliased Results_Store (Count => Group_Size);
                                  Workers : array (1 .. Group_Size)
                                    of Worker_Access;
                               begin
@@ -2294,42 +2245,45 @@ package body LLM.Agent is
                                        Tool_Index : constant Positive :=
                                          Slot_Map (W);
                                     begin
-                                       Workers (W) := new Worker_Task
-                                         (Store           =>
-                                            Store'Unchecked_Access,
-                                          Registry        =>
-                                            S.Tool_Registry'Access,
-                                          Abort_Flg       =>
-                                            S.Tool_Flags (Tool_Index)'Unchecked_Access,
-                                          Context_Window  =>
-                                            S.Model_Info.Context_Window,
-                                          Sandbox_Profile =>
-                                            S.Sandbox_Profile'Access);
-                                       if not S.Tool_Flags (Tool_Index).Requested
+                                       Workers (W) :=
+                                         new Worker_Task
+                                           (Store => Store'Unchecked_Access,
+                                            Registry => S.Tool_Registry'Access,
+                                            Abort_Flg       =>
+                                              S.Tool_Flags (Tool_Index)'
+                                                Unchecked_Access,
+                                            Context_Window  =>
+                                              S.Model_Info.Context_Window,
+                                            Sandbox_Profile =>
+                                              S.Sandbox_Profile'Access);
+                                       if not S.Tool_Flags (Tool_Index)
+                                           .Requested
                                        then
                                           declare
-                                             Running_Event : constant
-                                               LLM.Events.Tool_Execution_Running_Event :=
-                                                 (LLM.Events.Agent_Event with
-                                                  Tool_Call_Id =>
-                                                    Pending_Tools.Element
-                                                      (Tool_Index - 1).Tool_Call_Id);
+                                             Running_Event :
+                                               constant LLM.Events
+                                                 .Tool_Execution_Running_Event :=
+                                               (LLM.Events.Agent_Event with
+                                                Tool_Call_Id =>
+                                                  Pending_Tools.Element
+                                                    (Tool_Index - 1)
+                                                    .Tool_Call_Id);
                                           begin
                                              Emit (On_Event, Running_Event);
                                           end;
                                        end if;
                                        Workers (W).Start
                                          (Index => W,
-                                          Tool  => Pending_Tools.Element
-                                            (Tool_Index - 1));
+                                          Tool  =>
+                                            Pending_Tools.Element
+                                              (Tool_Index - 1));
                                     end;
                                  end loop;
 
                                  Store.Wait_All;
 
                                  for W in 1 .. Group_Size loop
-                                    Results (Slot_Map (W)) :=
-                                      Store.Get (W);
+                                    Results (Slot_Map (W)) := Store.Get (W);
                                  end loop;
                               end;
                            end;
@@ -2342,40 +2296,40 @@ package body LLM.Agent is
                         exit when S.Abort_State.Requested;
 
                         declare
-                           Store  : aliased Results_Store
-                             (Count => 1);
+                           Store  : aliased Results_Store (Count => 1);
                            Worker : Worker_Access;
                            Tool   : constant Pending_Tool :=
                              Pending_Tools.Element (I - 1);
                         begin
                            if S.Tool_Flags (I).Requested then
                               Results (I) :=
-                                (Result_Text => To_Unbounded_String
-                                   ("[tool was cancelled before execution]"),
+                                (Result_Text =>
+                                   To_Unbounded_String
+                                     ("[tool was cancelled before execution]"),
                                  Media_Type  => Null_Unbounded_String,
                                  Is_Error    => True,
                                  Status      => LLM.Tools.Shell.Aborted);
                            else
-                              Worker := new Worker_Task
-                                (Store           => Store'Unchecked_Access,
-                                 Registry        =>
-                                   S.Tool_Registry'Access,
-                                 Abort_Flg       =>
-                                   S.Tool_Flags (I)'Unchecked_Access,
-                                 Context_Window  =>
-                                   S.Model_Info.Context_Window,
-                                 Sandbox_Profile =>
-                                   S.Sandbox_Profile'Access);
+                              Worker :=
+                                new Worker_Task
+                                  (Store           => Store'Unchecked_Access,
+                                   Registry        => S.Tool_Registry'Access,
+                                   Abort_Flg       =>
+                                     S.Tool_Flags (I)'Unchecked_Access,
+                                   Context_Window  =>
+                                     S.Model_Info.Context_Window,
+                                   Sandbox_Profile =>
+                                     S.Sandbox_Profile'Access);
                               declare
-                                 Running_Event : constant
-                                   LLM.Events.Tool_Execution_Running_Event :=
-                                    (LLM.Events.Agent_Event with
-                                     Tool_Call_Id => Tool.Tool_Call_Id);
+                                 Running_Event :
+                                   constant LLM.Events
+                                     .Tool_Execution_Running_Event :=
+                                   (LLM.Events.Agent_Event with
+                                    Tool_Call_Id => Tool.Tool_Call_Id);
                               begin
                                  Emit (On_Event, Running_Event);
                               end;
-                              Worker.Start
-                                (Index => 1, Tool => Tool);
+                              Worker.Start (Index => 1, Tool => Tool);
                               Store.Wait_All;
                               Results (I) := Store.Get (1);
                            end if;
@@ -2389,52 +2343,50 @@ package body LLM.Agent is
                   --  to the persisted result text of the last tool.
                   declare
                      Stats_Footer : constant String :=
-                       Format_Session_Cost_Footer
-                         (S, Builder.Tok_Usage);
+                       Format_Session_Cost_Footer (S, Builder.Tok_Usage);
                   begin
                      for I in 1 .. N loop
                         declare
-                           Tool_Block  : constant Pending_Tool :=
+                           Tool_Block   : constant Pending_Tool :=
                              Pending_Tools.Element (I - 1);
-                           Slot        : constant
-                             Tool_Result_Slot := Results (I);
-                           End_Event   :
-                             LLM.Events.Tool_Execution_End_Event :=
-                               (LLM.Events.Agent_Event with
-                                Tool_Call_Id =>
-                                  Tool_Block.Tool_Call_Id,
-                                Tool_Name    =>
-                                  Tool_Block.Tool_Name,
-                                Result_Text  =>
-                                  Slot.Result_Text,
-                                Media_Type   =>
-                                  Slot.Media_Type,
-                                Is_Error     =>
-                                  Slot.Is_Error,
-                                Is_Timed_Out =>
-                                  Slot.Status = LLM.Tools.Shell.Timed_Out,
-                                Is_Cancelled =>
-                                  Slot.Status = LLM.Tools.Shell.Aborted);
-                           Cancel_Note : Ada.Strings.Unbounded.Unbounded_String;
+                           Slot : constant Tool_Result_Slot := Results (I);
+                           End_Event : LLM.Events.Tool_Execution_End_Event :=
+                             (LLM.Events.Agent_Event with
+                              Tool_Call_Id => Tool_Block.Tool_Call_Id,
+                              Tool_Name    => Tool_Block.Tool_Name,
+                              Result_Text  => Slot.Result_Text,
+                              Media_Type   => Slot.Media_Type,
+                              Is_Error     => Slot.Is_Error,
+                              Is_Timed_Out =>
+                                Slot.Status = LLM.Tools.Shell.Timed_Out,
+                              Is_Cancelled =>
+                                Slot.Status = LLM.Tools.Shell.Aborted);
+                           Cancel_Note  :
+                             Ada.Strings.Unbounded.Unbounded_String;
                            Message_Text : constant String :=
-                             (if Slot.Status = LLM.Tools.Shell.Aborted
-                              then S.Tool_Registry.Message
-                                (To_String (Tool_Block.Tool_Call_Id))
+                             (if
+                                Slot.Status = LLM.Tools.Shell.Aborted
+                              then
+                                S.Tool_Registry.Message
+                                  (To_String (Tool_Block.Tool_Call_Id))
                               else "");
-                           Stored_Text : constant String :=
-                             Ada.Strings.Unbounded.To_String
-                               (Slot.Result_Text)
-                             & (if Message_Text'Length > 0
-                                then ASCII.LF
-                                  & "[user message accompanying cancellation]"
-                                  & ASCII.LF & Message_Text
-                                else "")
-                             & (if I = N
-                                   and then Stats_Footer'Length > 0
-                                   and then Ada.Strings.Unbounded.Length
-                                              (Slot.Media_Type) = 0
-                                then ASCII.LF & Stats_Footer
-                                else "");
+                           Stored_Text  : constant String :=
+                             Ada.Strings.Unbounded.To_String (Slot.Result_Text)
+                             &
+                             (if Message_Text'Length > 0 then
+                                ASCII.LF
+                                & "[user message accompanying cancellation]"
+                                & ASCII.LF & Message_Text
+                              else "")
+                             &
+                             (if
+                                I = N and then Stats_Footer'Length > 0
+                                and then
+                                  Ada.Strings.Unbounded.Length
+                                    (Slot.Media_Type)
+                                  = 0
+                              then ASCII.LF & Stats_Footer
+                              else "");
                         begin
                            S.Tool_Registry.Complete
                              (To_String (Tool_Block.Tool_Call_Id),
@@ -2451,14 +2403,14 @@ package body LLM.Agent is
                                  Is_Error     => Slot.Is_Error,
                                  Status       =>
                                    (case Slot.Status is
-                                       when LLM.Tools.Shell.Completed =>
-                                         LLM.Types.Result_Success,
-                                       when LLM.Tools.Shell.Timed_Out =>
-                                         LLM.Types.Result_Timed_Out,
-                                       when LLM.Tools.Shell.Aborted =>
-                                         LLM.Types.Result_Cancelled,
-                                       when LLM.Tools.Shell.Failed =>
-                                         LLM.Types.Result_Error),
+                                      when LLM.Tools.Shell.Completed =>
+                                        LLM.Types.Result_Success,
+                                      when LLM.Tools.Shell.Timed_Out =>
+                                        LLM.Types.Result_Timed_Out,
+                                      when LLM.Tools.Shell.Aborted =>
+                                        LLM.Types.Result_Cancelled,
+                                      when LLM.Tools.Shell.Failed =>
+                                        LLM.Types.Result_Error),
                                  Media_Type   =>
                                    Ada.Strings.Unbounded.To_String
                                      (Slot.Media_Type)));
@@ -2499,15 +2451,12 @@ package body LLM.Agent is
          if not S.Abort_State.Requested and then Turn_Completed_Normally then
             Flush_Pending_Messages;
             S.Last_Context_Tokens :=
-              Builder.Tok_Usage.Input
-              + Builder.Tok_Usage.Output
-              + Builder.Tok_Usage.Cache_Read
-              + Builder.Tok_Usage.Cache_Write;
+              Builder.Tok_Usage.Input + Builder.Tok_Usage.Output
+              + Builder.Tok_Usage.Cache_Read + Builder.Tok_Usage.Cache_Write;
 
             if not S.Abort_State.Requested
               and then LLM.Compaction.Should_Compact
-                (S.Last_Context_Tokens,
-                 S.Model_Info.Context_Window,
+                (S.Last_Context_Tokens, S.Model_Info.Context_Window,
                  S.Compact_Settings)
             then
                Compact (S, On_Event, "threshold", Compact_OK);
@@ -2532,14 +2481,15 @@ package body LLM.Agent is
             Roll_Back_Pending_Messages;
             S.Streaming := False;
             declare
-               Error_Text : constant String :=
-                 (if Length (Builder.Error_Text) > 0
-                  then To_String (Builder.Error_Text)
+               Error_Text : constant String                     :=
+                 (if
+                    Length (Builder.Error_Text) > 0
+                  then
+                    To_String (Builder.Error_Text)
                   else Ada.Exceptions.Exception_Message (Occurrence));
-               End_Event : constant LLM.Events.Agent_End_Event :=
-                 (LLM.Events.Agent_Event with
-                  Was_Aborted => Was_Aborted,
-                  Error_Msg   => To_Unbounded_String (Error_Text));
+               End_Event  : constant LLM.Events.Agent_End_Event :=
+                 (LLM.Events.Agent_Event with Was_Aborted => Was_Aborted,
+                  Error_Msg => To_Unbounded_String (Error_Text));
             begin
                Emit (On_Event, End_Event);
                S.Abort_State.Clear;
@@ -2556,9 +2506,8 @@ package body LLM.Agent is
       S.Streaming := False;
       declare
          End_Event : constant LLM.Events.Agent_End_Event :=
-           (LLM.Events.Agent_Event with
-            Was_Aborted => Was_Aborted,
-            Error_Msg   => Null_Unbounded_String);
+           (LLM.Events.Agent_Event with Was_Aborted => Was_Aborted,
+            Error_Msg                               => Null_Unbounded_String);
       begin
          Emit (On_Event, End_Event);
       end;
@@ -2576,8 +2525,9 @@ package body LLM.Agent is
 
    function Request_Tool_Abort
      (S       : in out Session;
-      Tool_Id : String;
-      Message : String := "") return Boolean
+      Tool_Id :        String;
+      Message :        String := "")
+      return Boolean
    is
       Accepted : Boolean;
    begin
@@ -2608,18 +2558,18 @@ package body LLM.Agent is
    procedure Switch_Session (S : in out Session; UUID : String) is
    begin
       if LLM.Session_Store.Session_File_Path (UUID)'Length = 0 then
-         raise LLM.Session_Store.Session_Error with
-           "Session not found: " & UUID;
+         raise LLM.Session_Store.Session_Error
+           with "Session not found: " & UUID;
       end if;
 
       S.Session_UUID := To_Unbounded_String (UUID);
       if not S.Subagent_Mode then
          S.OpenRouter_Session_UUID := S.Session_UUID;
       end if;
-      S.Sandbox_Profile :=
+      S.Sandbox_Profile     :=
         Ada.Strings.Unbounded.To_Unbounded_String
           (LLM.Session_Store.Session_Sandbox_Profile (UUID));
-      S.History := LLM.Session_Store.Load_Messages (UUID);
+      S.History             := LLM.Session_Store.Load_Messages (UUID);
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);
       S.Abort_State.Clear;
@@ -2633,18 +2583,15 @@ package body LLM.Agent is
    end Set_Model;
 
    procedure Set_Thinking
-     (S     : in out Session;
-      Level :        LLM.Providers.Thinking_Level) is
+     (S : in out Session; Level : LLM.Providers.Thinking_Level)
+   is
    begin
       S.Thinking := Level;
    end Set_Thinking;
 
-   procedure Set_Sandbox_Profile
-     (S       : in out Session;
-      Profile :        String) is
+   procedure Set_Sandbox_Profile (S : in out Session; Profile : String) is
    begin
-      S.Sandbox_Profile :=
-        Ada.Strings.Unbounded.To_Unbounded_String (Profile);
+      S.Sandbox_Profile := Ada.Strings.Unbounded.To_Unbounded_String (Profile);
    end Set_Sandbox_Profile;
 
    function Current_Sandbox (S : Session) return String is
@@ -2653,8 +2600,8 @@ package body LLM.Agent is
    end Current_Sandbox;
 
    procedure Set_Compact_Settings
-     (S        : in out Session;
-      Settings :        LLM.Compaction.Compact_Settings) is
+     (S : in out Session; Settings : LLM.Compaction.Compact_Settings)
+   is
    begin
       S.Compact_Settings := Settings;
    end Set_Compact_Settings;

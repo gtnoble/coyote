@@ -38,12 +38,12 @@ package LLM.Agent is
    --  coordinator override) is selected before the persistent subagent
    --  default from ~/.coyote/settings.json.
    procedure Create
-     (S             :    out Session;
-      Model_Spec    :        String  := "";
-      Agent         :        String  := "";
-      No_Tools      :        Boolean := False;
-      Session_Id    :        String  := "";
-      Subagent      :        Boolean := False);
+     (S          : out Session;
+      Model_Spec :     String  := "";
+      Agent      :     String  := "";
+      No_Tools   :     Boolean := False;
+      Session_Id :     String  := "";
+      Subagent   :     Boolean := False);
 
    --  Send Prompt as a new user turn and run the full agentic loop until
    --  the agent completes, is aborted, or raises an error.
@@ -53,8 +53,7 @@ package LLM.Agent is
    procedure Run_Prompt
      (S        : in out Session;
       Prompt   :        String;
-      On_Event :        not null access procedure
-                          (E : LLM.Events.Agent_Event'Class));
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class));
 
    --  Compact the session context by summarising older messages.
    --
@@ -77,8 +76,7 @@ package LLM.Agent is
    --  False on any abort or error path.
    procedure Compact
      (S         : in out Session;
-      On_Event  :        not null access procedure
-                           (E : LLM.Events.Agent_Event'Class);
+      On_Event  : not null access procedure (E : LLM.Events.Agent_Event'Class);
       Reason    :        String := "manual";
       Succeeded :    out Boolean);
 
@@ -92,8 +90,9 @@ package LLM.Agent is
    --  is not active in the current tool batch.
    function Request_Tool_Abort
      (S       : in out Session;
-      Tool_Id : String;
-      Message : String := "") return Boolean;
+      Tool_Id :        String;
+      Message :        String := "")
+      return Boolean;
 
    --  Arm a pause that will fire at the next turn boundary inside
    --  Run_Prompt.  The loop emits Agent_Paused_Event and blocks until
@@ -118,14 +117,11 @@ package LLM.Agent is
 
    --  Change the requested thinking level for subsequent prompts.
    procedure Set_Thinking
-     (S     : in out Session;
-      Level :        LLM.Providers.Thinking_Level);
+     (S : in out Session; Level : LLM.Providers.Thinking_Level);
 
    --  Change the sandbox profile for shell tool commands.
    --  Pass "" to disable sandboxing.
-   procedure Set_Sandbox_Profile
-     (S       : in out Session;
-      Profile :        String);
+   procedure Set_Sandbox_Profile (S : in out Session; Profile : String);
 
    --  Return the active sandbox profile name ("" when none).
    function Current_Sandbox (S : Session) return String;
@@ -134,8 +130,7 @@ package LLM.Agent is
    --  Pass a value with Enabled => False to disable automatic
    --  context compaction entirely (e.g. for ephemeral one-shot sessions).
    procedure Set_Compact_Settings
-     (S        : in out Session;
-      Settings :        LLM.Compaction.Compact_Settings);
+     (S : in out Session; Settings : LLM.Compaction.Compact_Settings);
 
    --  Return the active session UUID.
    function Session_Id (S : Session) return String;
@@ -170,39 +165,40 @@ private
       Max_Thinking_Budget => 0,
       Min_Thinking_Budget => 0,
       Wire_Format         => Ada.Strings.Unbounded.Null_Unbounded_String,
-      Cost                => (others => 0.0));
+      Cost                =>
+        (others => 0.0));
 
    --  Return a provider request view that excludes model-bound thinking
    --  blocks not owned by Provider and Model_Id.
    function Compatible_History
      (History  : LLM.Types.Message_Vectors.Vector;
       Provider : String;
-      Model_Id : String) return LLM.Types.Message_Vectors.Vector;
+      Model_Id : String)
+      return LLM.Types.Message_Vectors.Vector;
 
    Max_Active_Tools : constant Positive := 64;
 
    type Tool_Control_Entry is record
-      Tool_Id : Ada.Strings.Unbounded.Unbounded_String;
-      Flag    : LLM.Tools.Abort_Flag_Access := null;
-      Note    : Ada.Strings.Unbounded.Unbounded_String;
-      Active  : Boolean := False;
-      Finished : Boolean := False;
+      Tool_Id  : Ada.Strings.Unbounded.Unbounded_String;
+      Flag     : LLM.Tools.Abort_Flag_Access := null;
+      Note     : Ada.Strings.Unbounded.Unbounded_String;
+      Active   : Boolean                     := False;
+      Finished : Boolean                     := False;
    end record;
    type Tool_Control_Entry_Array is
-     array (Positive range <>) of Tool_Control_Entry;
+     array (Positive range <>)
+     of Tool_Control_Entry;
 
    protected type Tool_Control_Registry (Capacity : Positive) is
       procedure Register
-        (Tool_Id  : String;
-         Flag     : LLM.Tools.Abort_Flag_Access;
+        (Tool_Id  :     String;
+         Flag     :     LLM.Tools.Abort_Flag_Access;
          Accepted : out Boolean);
       procedure Request
-        (Tool_Id : String;
-         Message : String;
-         Accepted : out Boolean);
+        (Tool_Id : String; Message : String; Accepted : out Boolean);
       procedure Complete
-        (Tool_Id  : String;
-         Message  : out Ada.Strings.Unbounded.Unbounded_String);
+        (Tool_Id :     String;
+         Message : out Ada.Strings.Unbounded.Unbounded_String);
       function Requested (Tool_Id : String) return Boolean;
       function Message (Tool_Id : String) return String;
       procedure Abort_All;
@@ -211,36 +207,37 @@ private
       Entries : Tool_Control_Entry_Array (1 .. Capacity);
    end Tool_Control_Registry;
 
-   type Tool_Flag_Array is array (Positive range <>) of aliased
-     LLM.Tools.Abort_Flag;
+   type Tool_Flag_Array is
+     array (Positive range <>)
+     of aliased LLM.Tools.Abort_Flag;
 
    type Session is limited record
-      Model_Spec    : Ada.Strings.Unbounded.Unbounded_String :=
+      Model_Spec              : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      System_Prompt : Ada.Strings.Unbounded.Unbounded_String :=
+      System_Prompt           : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Session_UUID  : Ada.Strings.Unbounded.Unbounded_String :=
+      Session_UUID            : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
       --  Stable OpenRouter Broadcast identity shared by descendants.
       OpenRouter_Session_UUID : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      History       : LLM.Types.Message_Vectors.Vector;
-      Subagent_Mode : Boolean := False;
-      No_Tools      : Boolean := False;
-      Thinking        : LLM.Providers.Thinking_Level := LLM.Providers.Off;
-      Sandbox_Profile : aliased Ada.Strings.Unbounded.Unbounded_String;
-      Abort_State   : aliased LLM.Tools.Abort_Flag;
+      History                 : LLM.Types.Message_Vectors.Vector;
+      Subagent_Mode           : Boolean := False;
+      No_Tools                : Boolean := False;
+      Thinking : LLM.Providers.Thinking_Level           := LLM.Providers.Off;
+      Sandbox_Profile         : aliased Ada.Strings.Unbounded.Unbounded_String;
+      Abort_State             : aliased LLM.Tools.Abort_Flag;
       Tool_Registry : aliased Tool_Control_Registry (Max_Active_Tools);
-      Tool_Flags    : Tool_Flag_Array (1 .. Max_Active_Tools);
-      Pause_State   : aliased LLM.Tools.Pause_Flag;
-      Streaming     : Boolean := False;
-      Cwd           : Ada.Strings.Unbounded.Unbounded_String :=
+      Tool_Flags              : Tool_Flag_Array (1 .. Max_Active_Tools);
+      Pause_State             : aliased LLM.Tools.Pause_Flag;
+      Streaming               : Boolean := False;
+      Cwd                     : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Model_Info    : LLM.Model_Registry.Model_Info := EMPTY_MODEL_INFO;
-      Compact_Settings : LLM.Compaction.Compact_Settings :=
+      Model_Info : LLM.Model_Registry.Model_Info          := EMPTY_MODEL_INFO;
+      Compact_Settings        : LLM.Compaction.Compact_Settings        :=
         LLM.Compaction.Default_Compact_Settings;
-      Last_Context_Tokens : Natural := 0;
-      Has_Submitted_Prompts : Boolean := False;
+      Last_Context_Tokens     : Natural                                := 0;
+      Has_Submitted_Prompts   : Boolean := False;
    end record;
 
 end LLM.Agent;

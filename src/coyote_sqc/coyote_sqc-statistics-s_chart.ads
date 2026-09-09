@@ -9,7 +9,6 @@ package Coyote_SQC.Statistics.S_Chart is
    --
    --  When N = 1 the returned record has Undefined = True (no s statistic).
    function Compute_Limits
-     (Pooled_S : Long_Float;
-      N        : Positive) return Limits_Record;
+     (Pooled_S : Long_Float; N : Positive) return Limits_Record;
 
 end Coyote_SQC.Statistics.S_Chart;

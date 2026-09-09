@@ -19,30 +19,31 @@ package body LLM_Tools_Tests is
    end Contains;
 
    function Image_Arguments
-     (Command : String; Media_Type : String := "image/png") return String is
+     (Command : String; Media_Type : String := "image/png") return String
+   is
    begin
-      return "{""command"":""" & Command
-        & """,""media_type"":""" & Media_Type & """}";
+      return
+        "{""command"":""" & Command & """,""media_type"":""" & Media_Type
+        & """}";
    end Image_Arguments;
 
    --  Minimal 1x1 PNG used by image-result tests.
-   PNG_Base64 : constant String :=
+   PNG_Base64  : constant String :=
      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-   PNG_Command : constant String :=
-     "printf '" & PNG_Base64 & "' | base64 -d";
+   PNG_Command : constant String := "printf '" & PNG_Base64 & "' | base64 -d";
 
    procedure Test_Shell_Success (T : in out Test) is
       pragma Unreferenced (T);
 
-      Result   : Unbounded_String;
-      Is_Error : Boolean;
+      Result     : Unbounded_String;
+      Is_Error   : Boolean;
       Media_Type : Unbounded_String;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json => "{""command"":""echo hello""}",
-         Result    => Result,
+        (Args_Json  => "{""command"":""echo hello""}",
+         Result     => Result,
          Media_Type => Media_Type,
-         Is_Error  => Is_Error);
+         Is_Error   => Is_Error);
 
       Assert (not Is_Error, "echo hello should succeed");
       Assert
@@ -53,15 +54,15 @@ package body LLM_Tools_Tests is
    procedure Test_Shell_Failure (T : in out Test) is
       pragma Unreferenced (T);
 
-      Result   : Unbounded_String;
-      Is_Error : Boolean;
+      Result     : Unbounded_String;
+      Is_Error   : Boolean;
       Media_Type : Unbounded_String;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json => "{""command"":""exit 1""}",
-         Result    => Result,
+        (Args_Json  => "{""command"":""exit 1""}",
+         Result     => Result,
          Media_Type => Media_Type,
-         Is_Error  => Is_Error);
+         Is_Error   => Is_Error);
 
       Assert (Is_Error, "exit 1 should report a tool error");
       Assert
@@ -72,18 +73,17 @@ package body LLM_Tools_Tests is
    procedure Test_Shell_Stdin_Piped (T : in out Test) is
       pragma Unreferenced (T);
 
-      Result   : Unbounded_String;
-      Is_Error : Boolean;
+      Result     : Unbounded_String;
+      Is_Error   : Boolean;
       Media_Type : Unbounded_String;
    begin
       --  "cat" reads its stdin and writes it to stdout.  The output should
       --  exactly reproduce the text supplied via the "stdin" field.
       LLM.Tools.Shell.Execute
-        (Args_Json =>
-           "{""command"":""cat"",""stdin"":""hello from stdin\n""}",
-         Result    => Result,
+        (Args_Json => "{""command"":""cat"",""stdin"":""hello from stdin\n""}",
+         Result     => Result,
          Media_Type => Media_Type,
-         Is_Error  => Is_Error);
+         Is_Error   => Is_Error);
 
       Assert (not Is_Error, "cat with stdin should succeed");
       Assert
@@ -94,17 +94,17 @@ package body LLM_Tools_Tests is
    procedure Test_Shell_Stdin_Empty_Ignored (T : in out Test) is
       pragma Unreferenced (T);
 
-      Result   : Unbounded_String;
-      Is_Error : Boolean;
+      Result     : Unbounded_String;
+      Is_Error   : Boolean;
       Media_Type : Unbounded_String;
    begin
       --  An empty "stdin" field should be treated as absent: the command
       --  reads from /dev/null so it receives EOF immediately and succeeds.
       LLM.Tools.Shell.Execute
-        (Args_Json => "{""command"":""cat"",""stdin"":""""}",
-         Result    => Result,
+        (Args_Json  => "{""command"":""cat"",""stdin"":""""}",
+         Result     => Result,
          Media_Type => Media_Type,
-         Is_Error  => Is_Error);
+         Is_Error   => Is_Error);
 
       Assert (not Is_Error, "cat with empty stdin should succeed");
       Assert
@@ -115,17 +115,17 @@ package body LLM_Tools_Tests is
    procedure Test_Shell_Stdin_Absent_Dev_Null (T : in out Test) is
       pragma Unreferenced (T);
 
-      Result   : Unbounded_String;
-      Is_Error : Boolean;
+      Result     : Unbounded_String;
+      Is_Error   : Boolean;
       Media_Type : Unbounded_String;
    begin
       --  When no "stdin" field is present the command should still run
       --  normally, receiving EOF from /dev/null.
       LLM.Tools.Shell.Execute
-        (Args_Json => "{""command"":""echo no-stdin""}",
-         Result    => Result,
+        (Args_Json  => "{""command"":""echo no-stdin""}",
+         Result     => Result,
          Media_Type => Media_Type,
-         Is_Error  => Is_Error);
+         Is_Error   => Is_Error);
 
       Assert (not Is_Error, "echo without stdin should succeed");
       Assert
@@ -139,8 +139,8 @@ package body LLM_Tools_Tests is
       pragma Unreferenced (T);
    begin
       Assert
-        (LLM.Tools.Temp_File.Result_Threshold (0) =
-            LLM.Tools.Temp_File.MAX_RESULT_THRESHOLD,
+        (LLM.Tools.Temp_File.Result_Threshold (0)
+         = LLM.Tools.Temp_File.MAX_RESULT_THRESHOLD,
          "Context_Window = 0 should return MAX_RESULT_THRESHOLD");
    end Test_Result_Threshold_Zero_Returns_Max;
 
@@ -149,8 +149,8 @@ package body LLM_Tools_Tests is
    begin
       --  8 k tokens → 8_000 × 4 ÷ 8 = 4_000 bytes < MIN (4_096)
       Assert
-        (LLM.Tools.Temp_File.Result_Threshold (8_000) =
-            LLM.Tools.Temp_File.MIN_RESULT_THRESHOLD,
+        (LLM.Tools.Temp_File.Result_Threshold (8_000)
+         = LLM.Tools.Temp_File.MIN_RESULT_THRESHOLD,
          "8k context should clamp to MIN_RESULT_THRESHOLD");
    end Test_Result_Threshold_Small_Clamped_To_Min;
 
@@ -177,8 +177,8 @@ package body LLM_Tools_Tests is
    begin
       --  1_000_000 × 4 ÷ 8 = 500_000 > MAX (204_800)
       Assert
-        (LLM.Tools.Temp_File.Result_Threshold (1_000_000) =
-            LLM.Tools.Temp_File.MAX_RESULT_THRESHOLD,
+        (LLM.Tools.Temp_File.Result_Threshold (1_000_000)
+         = LLM.Tools.Temp_File.MAX_RESULT_THRESHOLD,
          "1M context should clamp to MAX_RESULT_THRESHOLD");
    end Test_Result_Threshold_Large_Clamped_To_Max;
 
@@ -188,7 +188,7 @@ package body LLM_Tools_Tests is
       pragma Unreferenced (T);
       Flag : LLM.Tools.Pause_Flag;
    begin
-      Assert (not Flag.Is_Armed,  "initial Is_Armed must be False");
+      Assert (not Flag.Is_Armed, "initial Is_Armed must be False");
       Assert (not Flag.Is_Paused, "initial Is_Paused must be False");
    end Test_Pause_Flag_Initial_State;
 
@@ -197,7 +197,7 @@ package body LLM_Tools_Tests is
       Flag : LLM.Tools.Pause_Flag;
    begin
       Flag.Arm;
-      Assert (Flag.Is_Armed,      "Arm must set Is_Armed");
+      Assert (Flag.Is_Armed, "Arm must set Is_Armed");
       Assert (not Flag.Is_Paused, "Arm must not set Is_Paused");
    end Test_Pause_Flag_Arm_Sets_Armed;
 
@@ -207,7 +207,7 @@ package body LLM_Tools_Tests is
    begin
       Flag.Arm;
       Flag.Unarm;
-      Assert (not Flag.Is_Armed,  "Unarm must clear Is_Armed");
+      Assert (not Flag.Is_Armed, "Unarm must clear Is_Armed");
       Assert (not Flag.Is_Paused, "Unarm must not set Is_Paused");
    end Test_Pause_Flag_Unarm_Cancels_Arm;
 
@@ -217,8 +217,8 @@ package body LLM_Tools_Tests is
    begin
       Flag.Arm;
       Flag.Fire;
-      Assert (not Flag.Is_Armed,  "Fire must clear Armed");
-      Assert (Flag.Is_Paused,     "Fire must set Paused when Armed was True");
+      Assert (not Flag.Is_Armed, "Fire must clear Armed");
+      Assert (Flag.Is_Paused, "Fire must set Paused when Armed was True");
    end Test_Pause_Flag_Fire_Transitions;
 
    procedure Test_Pause_Flag_Fire_No_Op_When_Not_Armed (T : in out Test) is
@@ -226,8 +226,9 @@ package body LLM_Tools_Tests is
       Flag : LLM.Tools.Pause_Flag;
    begin
       Flag.Fire;
-      Assert (not Flag.Is_Armed,  "Fire without Arm must leave Is_Armed False");
-      Assert (not Flag.Is_Paused, "Fire without Arm must leave Is_Paused False");
+      Assert (not Flag.Is_Armed, "Fire without Arm must leave Is_Armed False");
+      Assert
+        (not Flag.Is_Paused, "Fire without Arm must leave Is_Paused False");
    end Test_Pause_Flag_Fire_No_Op_When_Not_Armed;
 
    procedure Test_Pause_Flag_Release_Clears_Paused (T : in out Test) is
@@ -236,7 +237,8 @@ package body LLM_Tools_Tests is
    begin
       Flag.Arm;
       Flag.Fire;
-      Assert (Flag.Is_Paused, "precondition: Is_Paused must be True after Fire");
+      Assert
+        (Flag.Is_Paused, "precondition: Is_Paused must be True after Fire");
       Flag.Release;
       Assert (not Flag.Is_Paused, "Release must clear Is_Paused");
    end Test_Pause_Flag_Release_Clears_Paused;
@@ -286,8 +288,7 @@ package body LLM_Tools_Tests is
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
-      Assert (Is_Error,
-              "Broken JSON arguments should produce an error");
+      Assert (Is_Error, "Broken JSON arguments should produce an error");
    end Test_Validate_Arguments_Invalid_Json;
 
    procedure Test_Validate_Arguments_Non_Object (T : in out Test) is
@@ -301,8 +302,8 @@ package body LLM_Tools_Tests is
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
-      Assert (Is_Error,
-              "JSON array instead of object should produce an error");
+      Assert
+        (Is_Error, "JSON array instead of object should produce an error");
    end Test_Validate_Arguments_Non_Object;
 
    procedure Test_Validate_Arguments_Empty_String (T : in out Test) is
@@ -316,8 +317,7 @@ package body LLM_Tools_Tests is
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
-      Assert (Is_Error,
-              "Empty string arguments should produce an error");
+      Assert (Is_Error, "Empty string arguments should produce an error");
    end Test_Validate_Arguments_Empty_String;
 
    --  ── Shell media_type tests ────────────────────────────────────────────
@@ -336,8 +336,7 @@ package body LLM_Tools_Tests is
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (not Is_Error,
-              "command with media_type should succeed");
+      Assert (not Is_Error, "command with media_type should succeed");
       Assert
         (To_String (Media_Type) = "image/png",
          "Media_Type out param should be ""image/png"", got: "
@@ -356,14 +355,12 @@ package body LLM_Tools_Tests is
    begin
       LLM.Tools.Shell.Execute
         (Args_Json  =>
-           "{""command"":""exit 1"","
-           & """media_type"":""image/jpeg""}",
+           "{""command"":""exit 1""," & """media_type"":""image/jpeg""}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (Is_Error,
-              "failed command should set Is_Error");
+      Assert (Is_Error, "failed command should set Is_Error");
       Assert
         (To_String (Media_Type) = "",
          "Media_Type should be empty on command error, got: "
@@ -383,8 +380,7 @@ package body LLM_Tools_Tests is
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (not Is_Error,
-              "echo without media_type should succeed");
+      Assert (not Is_Error, "echo without media_type should succeed");
       Assert
         (To_String (Media_Type) = "",
          "Media_Type should be empty when field is absent, got: "
@@ -402,18 +398,20 @@ package body LLM_Tools_Tests is
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json  => Image_Arguments
-           ("printf warning >&2; " & PNG_Command),
+        (Args_Json  => Image_Arguments ("printf warning >&2; " & PNG_Command),
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (not Is_Error,
-              "valid image stdout with stderr diagnostics should succeed");
-      Assert (To_String (Media_Type) = "image/png",
-              "image MIME type should be preserved");
-      Assert (To_String (Result) = PNG_Base64,
-              "stderr must not be included in image base64 data");
+      Assert
+        (not Is_Error,
+         "valid image stdout with stderr diagnostics should succeed");
+      Assert
+        (To_String (Media_Type) = "image/png",
+         "image MIME type should be preserved");
+      Assert
+        (To_String (Result) = PNG_Base64,
+         "stderr must not be included in image base64 data");
    end Test_Shell_Image_Separates_Stderr;
 
    procedure Test_Shell_Image_Rejects_Invalid_Data (T : in out Test) is
@@ -430,10 +428,12 @@ package body LLM_Tools_Tests is
          Is_Error   => Is_Error);
 
       Assert (Is_Error, "non-image bytes should be rejected");
-      Assert (To_String (Media_Type) = "",
-              "invalid image output must not retain a media type");
-      Assert (Contains (To_String (Result), "not a valid image/png"),
-              "invalid image result should explain the validation failure");
+      Assert
+        (To_String (Media_Type) = "",
+         "invalid image output must not retain a media type");
+      Assert
+        (Contains (To_String (Result), "not a valid image/png"),
+         "invalid image result should explain the validation failure");
    end Test_Shell_Image_Rejects_Invalid_Data;
 
    procedure Test_Shell_Image_Rejects_Unsupported_Mime (T : in out Test) is
@@ -444,17 +444,18 @@ package body LLM_Tools_Tests is
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json => Image_Arguments
-           ("printf should-not-run", "image/bmp"),
+        (Args_Json  => Image_Arguments ("printf should-not-run", "image/bmp"),
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
       Assert (Is_Error, "unsupported image MIME should be rejected");
-      Assert (To_String (Media_Type) = "",
-              "unsupported image MIME must not be returned");
-      Assert (Contains (To_String (Result), "unsupported image media type"),
-              "MIME failure should identify the rejected media type");
+      Assert
+        (To_String (Media_Type) = "",
+         "unsupported image MIME must not be returned");
+      Assert
+        (Contains (To_String (Result), "unsupported image media type"),
+         "MIME failure should identify the rejected media type");
    end Test_Shell_Image_Rejects_Unsupported_Mime;
 
    procedure Test_Execute_Image_Not_Truncated (T : in out Test) is
@@ -477,15 +478,15 @@ package body LLM_Tools_Tests is
 
       --  Apply the result-size cap: image results must bypass it entirely.
       if Ada.Strings.Unbounded.Length (Media_Type) = 0 then
-         Result := Ada.Strings.Unbounded.To_Unbounded_String
-           (LLM.Tools.Temp_File.Truncated
-              (Ada.Strings.Unbounded.To_String (Result),
-               Threshold => LLM.Tools.Temp_File.Result_Threshold (8_000),
-               Tool_Name => "shell"));
+         Result :=
+           Ada.Strings.Unbounded.To_Unbounded_String
+             (LLM.Tools.Temp_File.Truncated
+                (Ada.Strings.Unbounded.To_String (Result),
+                 Threshold => LLM.Tools.Temp_File.Result_Threshold (8_000),
+                 Tool_Name => "shell"));
       end if;
 
-      Assert (not Is_Error,
-              "large image command should succeed");
+      Assert (not Is_Error, "large image command should succeed");
       Assert
         (To_String (Media_Type) = "image/png",
          "Media_Type should be image/png");
@@ -508,14 +509,14 @@ package body LLM_Tools_Tests is
    begin
       LLM.Tools.Shell.Execute
         (Args_Json  =>
-           "{""command"":""sleep 0.5 && echo ok"","
-           & """timeout"":5}",
+           "{""command"":""sleep 0.5 && echo ok""," & """timeout"":5}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (not Is_Error,
-              "command that finishes under the timeout should succeed");
+      Assert
+        (not Is_Error,
+         "command that finishes under the timeout should succeed");
       Assert
         (Contains (To_String (Result), "ok"),
          "output should contain the expected text");
@@ -532,15 +533,12 @@ package body LLM_Tools_Tests is
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json  =>
-           "{""command"":""sleep 10"","
-           & """timeout"":2}",
+        (Args_Json  => "{""command"":""sleep 10""," & """timeout"":2}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (Is_Error,
-              "command exceeding the timeout should set Is_Error");
+      Assert (Is_Error, "command exceeding the timeout should set Is_Error");
       Assert
         (Contains (To_String (Result), "timed out after 2 seconds"),
          "output should contain ""timed out after 2 seconds"", got: "
@@ -561,8 +559,9 @@ package body LLM_Tools_Tests is
          Is_Error   => Is_Error,
          Status     => Status);
       Assert (Is_Error, "timed-out command remains an error result");
-      Assert (Status = LLM.Tools.Shell.Timed_Out,
-              "structured shell status identifies a timeout");
+      Assert
+        (Status = LLM.Tools.Shell.Timed_Out,
+         "structured shell status identifies a timeout");
    end Test_Shell_Timeout_Status;
 
    procedure Test_Shell_Timeout_Zero (T : in out Test) is
@@ -573,15 +572,12 @@ package body LLM_Tools_Tests is
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json  =>
-           "{""command"":""echo ok"","
-           & """timeout"":0}",
+        (Args_Json  => "{""command"":""echo ok""," & """timeout"":0}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (not Is_Error,
-              "timeout=0 should be treated as no time limit");
+      Assert (not Is_Error, "timeout=0 should be treated as no time limit");
       Assert
         (Contains (To_String (Result), "ok"),
          "output should contain the expected text");
@@ -595,15 +591,13 @@ package body LLM_Tools_Tests is
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json  =>
-           "{""command"":""echo ok"","
-           & """timeout"":-5}",
+        (Args_Json  => "{""command"":""echo ok""," & """timeout"":-5}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
-      Assert (not Is_Error,
-              "negative timeout should be treated as no time limit");
+      Assert
+        (not Is_Error, "negative timeout should be treated as no time limit");
       Assert
         (Contains (To_String (Result), "ok"),
          "output should contain the expected text");
@@ -624,16 +618,16 @@ package body LLM_Tools_Tests is
    begin
       LLM.Tools.Shell.Execute
         (Args_Json  =>
-           "{""command"":""sleep 0.5 && echo ok"","
-           & """timeout"":5}",
+           "{""command"":""sleep 0.5 && echo ok""," & """timeout"":5}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
       Elapsed := Clock - Start;
 
-      Assert (not Is_Error,
-              "command that finishes under the timeout should succeed");
+      Assert
+        (not Is_Error,
+         "command that finishes under the timeout should succeed");
       Assert
         (Contains (To_String (Result), "ok"),
          "output should contain the expected text");
@@ -658,17 +652,14 @@ package body LLM_Tools_Tests is
       Elapsed    : Time_Span;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json  =>
-           "{""command"":""sleep 10"","
-           & """timeout"":2}",
+        (Args_Json  => "{""command"":""sleep 10""," & """timeout"":2}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
 
       Elapsed := Clock - Start;
 
-      Assert (Is_Error,
-              "command exceeding the timeout should set Is_Error");
+      Assert (Is_Error, "command exceeding the timeout should set Is_Error");
       Assert
         (Contains (To_String (Result), "timed out after 2 seconds"),
          "output should contain ""timed out after 2 seconds"", got: "
@@ -696,8 +687,7 @@ package body LLM_Tools_Tests is
       --  the output written before the kill should be preserved.
       LLM.Tools.Shell.Execute
         (Args_Json  =>
-           "{""command"":""echo hello && sleep 10"","
-           & """timeout"":1}",
+           "{""command"":""echo hello && sleep 10""," & """timeout"":1}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
@@ -705,8 +695,8 @@ package body LLM_Tools_Tests is
       declare
          Result_Text : constant String := To_String (Result);
       begin
-         Assert (Is_Error,
-                 "command exceeding the timeout should set Is_Error");
+         Assert
+           (Is_Error, "command exceeding the timeout should set Is_Error");
          Assert
            (Contains (Result_Text, "hello"),
             "stdout emitted before the timeout should be preserved, got: "
@@ -716,7 +706,7 @@ package body LLM_Tools_Tests is
             "timeout notice must be present");
          Assert
            (Ada.Strings.Fixed.Index (Result_Text, "hello")
-              < Ada.Strings.Fixed.Index (Result_Text, "timed out"),
+            < Ada.Strings.Fixed.Index (Result_Text, "timed out"),
             "stdout must appear before the timeout notice, got: "
             & Result_Text);
       end;
@@ -725,8 +715,8 @@ package body LLM_Tools_Tests is
    procedure Test_Shell_Abort_Preserves_Stdout (T : in out Test) is
       pragma Unreferenced (T);
 
-      Flag    : aliased LLM.Tools.Abort_Flag;
-      Result  : Unbounded_String;
+      Flag       : aliased LLM.Tools.Abort_Flag;
+      Result     : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Error   : Boolean;
    begin
@@ -764,30 +754,26 @@ package body LLM_Tools_Tests is
             end loop;
          end;
 
-         Assert (Executor'Terminated,
-                 "aborted shell must terminate within 2 s");
+         Assert
+           (Executor'Terminated, "aborted shell must terminate within 2 s");
       end;
 
       declare
-         Result_Text : constant String := To_String (Result);
+         Result_Text : constant String  := To_String (Result);
          Hello_Pos   : constant Natural :=
            Ada.Strings.Fixed.Index (Result_Text, "hello");
          Abort_Pos   : constant Natural :=
            Ada.Strings.Fixed.Index (Result_Text, "was aborted");
       begin
-         Assert (Is_Error,
-                 "aborted command should set Is_Error");
+         Assert (Is_Error, "aborted command should set Is_Error");
          Assert
            (Hello_Pos > 0,
             "stdout emitted before the abort should be preserved, got: "
             & Result_Text);
-         Assert
-           (Abort_Pos > 0,
-            "abort notice must be present");
+         Assert (Abort_Pos > 0, "abort notice must be present");
          Assert
            (Hello_Pos < Abort_Pos,
-            "stdout must appear before the abort notice, got: "
-            & Result_Text);
+            "stdout must appear before the abort notice, got: " & Result_Text);
       end;
    end Test_Shell_Abort_Preserves_Stdout;
 
@@ -797,8 +783,7 @@ package body LLM_Tools_Tests is
       Result      : Unbounded_String;
       Media_Type  : Unbounded_String;
       Is_Error    : Boolean;
-      Saved_Grace : constant Natural :=
-        Coyote_Process_Control.Grace_Seconds;
+      Saved_Grace : constant Natural := Coyote_Process_Control.Grace_Seconds;
    begin
       Coyote_Process_Control.Set_Grace_Seconds (1);
       LLM.Tools.Shell.Execute
@@ -830,22 +815,21 @@ package body LLM_Tools_Tests is
       Result      : Unbounded_String;
       Media_Type  : Unbounded_String;
       Is_Error    : Boolean;
-      Start       : constant Time := Clock;
+      Start       : constant Time    := Clock;
       Elapsed     : Time_Span;
-      Saved_Grace : constant Natural :=
-        Coyote_Process_Control.Grace_Seconds;
+      Saved_Grace : constant Natural := Coyote_Process_Control.Grace_Seconds;
    begin
       Coyote_Process_Control.Set_Grace_Seconds (1);
       LLM.Tools.Shell.Execute
-        (Args_Json  =>
-           "{""command"":""trap '' TERM; sleep 10"",""timeout"":1}",
+        (Args_Json => "{""command"":""trap '' TERM; sleep 10"",""timeout"":1}",
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
       Elapsed := Clock - Start;
       Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
 
-      Assert (Is_Error, "TERM-ignoring timeout command should report an error");
+      Assert
+        (Is_Error, "TERM-ignoring timeout command should report an error");
       Assert
         (Contains (To_String (Result), "timed out after 1 seconds"),
          "forced timeout result should contain its timeout notice");
@@ -861,130 +845,171 @@ package body LLM_Tools_Tests is
          raise;
    end Test_Shell_Timeout_Escalates_After_Grace;
 
-   package LLM_Tools_Caller is
-     new AUnit.Test_Caller (LLM_Tools_Tests.Test);
+   package LLM_Tools_Caller is new AUnit.Test_Caller (LLM_Tools_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell executes a successful command",
-         LLM_Tools_Tests.Test_Shell_Success'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell reports a non-zero exit status",
-         LLM_Tools_Tests.Test_Shell_Failure'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell pipes stdin text into the command",
-         LLM_Tools_Tests.Test_Shell_Stdin_Piped'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell treats empty stdin field as absent",
-         LLM_Tools_Tests.Test_Shell_Stdin_Empty_Ignored'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell succeeds without a stdin field",
-         LLM_Tools_Tests.Test_Shell_Stdin_Absent_Dev_Null'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Result_Threshold zero returns MAX",
-         LLM_Tools_Tests.Test_Result_Threshold_Zero_Returns_Max'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Result_Threshold small clamped to MIN",
-         LLM_Tools_Tests.Test_Result_Threshold_Small_Clamped_To_Min'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Result_Threshold 128k yields 64 KB",
-         LLM_Tools_Tests.Test_Result_Threshold_Typical_128k'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Result_Threshold 200k yields 100 KB",
-         LLM_Tools_Tests.Test_Result_Threshold_Typical_200k'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Result_Threshold large clamped to MAX",
-         LLM_Tools_Tests.Test_Result_Threshold_Large_Clamped_To_Max'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Validate_Arguments accepts valid JSON object",
-         LLM_Tools_Tests.Test_Validate_Arguments_Valid_Object'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Validate_Arguments rejects invalid JSON",
-         LLM_Tools_Tests.Test_Validate_Arguments_Invalid_Json'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Validate_Arguments rejects non-object JSON",
-         LLM_Tools_Tests.Test_Validate_Arguments_Non_Object'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Validate_Arguments rejects empty string",
-         LLM_Tools_Tests.Test_Validate_Arguments_Empty_String'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag initial state is not armed and not paused",
-         LLM_Tools_Tests.Test_Pause_Flag_Initial_State'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag Arm sets Is_Armed",
-         LLM_Tools_Tests.Test_Pause_Flag_Arm_Sets_Armed'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag Unarm cancels a pending Arm",
-         LLM_Tools_Tests.Test_Pause_Flag_Unarm_Cancels_Arm'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag Fire transitions Armed to Paused",
-         LLM_Tools_Tests.Test_Pause_Flag_Fire_Transitions'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag Fire without Arm is a no-op",
-         LLM_Tools_Tests.Test_Pause_Flag_Fire_No_Op_When_Not_Armed'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag Release clears Paused",
-         LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Paused'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Pause_Flag Release also clears Armed",
-         LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Armed'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell media_type base64-encodes stdout",
-         LLM_Tools_Tests.Test_Shell_Media_Type_Sets_Base64_Result'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell media_type on error returns empty Media_Type",
-         LLM_Tools_Tests.Test_Shell_Media_Type_Error_Clears_Type'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell absent media_type is plain text",
-         LLM_Tools_Tests.Test_Shell_Media_Type_Absent_Is_Plain_Text'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell image keeps stderr out of payload",
-         LLM_Tools_Tests.Test_Shell_Image_Separates_Stderr'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell image rejects invalid data",
-         LLM_Tools_Tests.Test_Shell_Image_Rejects_Invalid_Data'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell image rejects unsupported MIME",
-         LLM_Tools_Tests.Test_Shell_Image_Rejects_Unsupported_Mime'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Execute image results bypass truncation cap",
-         LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout finishes before deadline",
-         LLM_Tools_Tests.Test_Shell_Timeout_Under'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout kills an over-running command",
-         LLM_Tools_Tests.Test_Shell_Timeout_Triggers'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell reports structured timeout status",
-         LLM_Tools_Tests.Test_Shell_Timeout_Status'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout=0 disables the timer",
-         LLM_Tools_Tests.Test_Shell_Timeout_Zero'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell negative timeout is ignored",
-         LLM_Tools_Tests.Test_Shell_Timeout_Negative'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout under: elapsed time verifies fast finish",
-         LLM_Tools_Tests.Test_Shell_Timeout_Under_Elapsed'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout triggers: elapsed time verifies tight window",
-         LLM_Tools_Tests.Test_Shell_Timeout_Triggers_Elapsed'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout preserves stdout emitted before kill",
-         LLM_Tools_Tests.Test_Shell_Timeout_Preserves_Stdout'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout allows TERM-aware exit during grace",
-         LLM_Tools_Tests.Test_Shell_Timeout_Allows_Term_Exit'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell timeout escalates after grace",
-         LLM_Tools_Tests.Test_Shell_Timeout_Escalates_After_Grace'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Shell abort preserves stdout emitted before kill",
-         LLM_Tools_Tests.Test_Shell_Abort_Preserves_Stdout'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell executes a successful command",
+            LLM_Tools_Tests.Test_Shell_Success'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell reports a non-zero exit status",
+            LLM_Tools_Tests.Test_Shell_Failure'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell pipes stdin text into the command",
+            LLM_Tools_Tests.Test_Shell_Stdin_Piped'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell treats empty stdin field as absent",
+            LLM_Tools_Tests.Test_Shell_Stdin_Empty_Ignored'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell succeeds without a stdin field",
+            LLM_Tools_Tests.Test_Shell_Stdin_Absent_Dev_Null'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Result_Threshold zero returns MAX",
+            LLM_Tools_Tests.Test_Result_Threshold_Zero_Returns_Max'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Result_Threshold small clamped to MIN",
+            LLM_Tools_Tests.Test_Result_Threshold_Small_Clamped_To_Min'
+              Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Result_Threshold 128k yields 64 KB",
+            LLM_Tools_Tests.Test_Result_Threshold_Typical_128k'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Result_Threshold 200k yields 100 KB",
+            LLM_Tools_Tests.Test_Result_Threshold_Typical_200k'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Result_Threshold large clamped to MAX",
+            LLM_Tools_Tests.Test_Result_Threshold_Large_Clamped_To_Max'
+              Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Validate_Arguments accepts valid JSON object",
+            LLM_Tools_Tests.Test_Validate_Arguments_Valid_Object'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Validate_Arguments rejects invalid JSON",
+            LLM_Tools_Tests.Test_Validate_Arguments_Invalid_Json'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Validate_Arguments rejects non-object JSON",
+            LLM_Tools_Tests.Test_Validate_Arguments_Non_Object'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Validate_Arguments rejects empty string",
+            LLM_Tools_Tests.Test_Validate_Arguments_Empty_String'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag initial state is not armed and not paused",
+            LLM_Tools_Tests.Test_Pause_Flag_Initial_State'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag Arm sets Is_Armed",
+            LLM_Tools_Tests.Test_Pause_Flag_Arm_Sets_Armed'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag Unarm cancels a pending Arm",
+            LLM_Tools_Tests.Test_Pause_Flag_Unarm_Cancels_Arm'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag Fire transitions Armed to Paused",
+            LLM_Tools_Tests.Test_Pause_Flag_Fire_Transitions'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag Fire without Arm is a no-op",
+            LLM_Tools_Tests.Test_Pause_Flag_Fire_No_Op_When_Not_Armed'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag Release clears Paused",
+            LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Paused'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Pause_Flag Release also clears Armed",
+            LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Armed'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell media_type base64-encodes stdout",
+            LLM_Tools_Tests.Test_Shell_Media_Type_Sets_Base64_Result'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell media_type on error returns empty Media_Type",
+            LLM_Tools_Tests.Test_Shell_Media_Type_Error_Clears_Type'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell absent media_type is plain text",
+            LLM_Tools_Tests.Test_Shell_Media_Type_Absent_Is_Plain_Text'
+              Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell image keeps stderr out of payload",
+            LLM_Tools_Tests.Test_Shell_Image_Separates_Stderr'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell image rejects invalid data",
+            LLM_Tools_Tests.Test_Shell_Image_Rejects_Invalid_Data'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell image rejects unsupported MIME",
+            LLM_Tools_Tests.Test_Shell_Image_Rejects_Unsupported_Mime'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Execute image results bypass truncation cap",
+            LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout finishes before deadline",
+            LLM_Tools_Tests.Test_Shell_Timeout_Under'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout kills an over-running command",
+            LLM_Tools_Tests.Test_Shell_Timeout_Triggers'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell reports structured timeout status",
+            LLM_Tools_Tests.Test_Shell_Timeout_Status'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout=0 disables the timer",
+            LLM_Tools_Tests.Test_Shell_Timeout_Zero'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell negative timeout is ignored",
+            LLM_Tools_Tests.Test_Shell_Timeout_Negative'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout under: elapsed time verifies fast finish",
+            LLM_Tools_Tests.Test_Shell_Timeout_Under_Elapsed'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout triggers: elapsed time verifies tight window",
+            LLM_Tools_Tests.Test_Shell_Timeout_Triggers_Elapsed'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout preserves stdout emitted before kill",
+            LLM_Tools_Tests.Test_Shell_Timeout_Preserves_Stdout'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout allows TERM-aware exit during grace",
+            LLM_Tools_Tests.Test_Shell_Timeout_Allows_Term_Exit'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell timeout escalates after grace",
+            LLM_Tools_Tests.Test_Shell_Timeout_Escalates_After_Grace'Access));
+      Result.Add_Test
+        (LLM_Tools_Caller.Create
+           ("LLM.Tools.Shell abort preserves stdout emitted before kill",
+            LLM_Tools_Tests.Test_Shell_Abort_Preserves_Stdout'Access));
 
       return Result;
    end Suite;

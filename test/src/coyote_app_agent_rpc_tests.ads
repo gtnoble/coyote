@@ -15,8 +15,7 @@ package Coyote_App_Agent_RPC_Tests is
    procedure Test_Command_Round_Trip (T : in out Test);
    procedure Test_Stop_Command_Round_Trip (T : in out Test);
    procedure Test_Abort_Tool_Command_Round_Trip (T : in out Test);
-   procedure Test_Abort_Tool_Command_Rejects_Invalid_Payload
-     (T : in out Test);
+   procedure Test_Abort_Tool_Command_Rejects_Invalid_Payload (T : in out Test);
    procedure Test_Set_Sandbox_Command_Round_Trip (T : in out Test);
    procedure Test_Terminal_Round_Trip (T : in out Test);
    procedure Test_JSON_Escaping (T : in out Test);

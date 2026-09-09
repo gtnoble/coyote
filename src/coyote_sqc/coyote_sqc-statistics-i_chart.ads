@@ -15,7 +15,9 @@ with Coyote_SQC.Data_Model;
 package Coyote_SQC.Statistics.I_Chart is
 
    --  Array of Long_Float observations used by Box-Cox functions.
-   type Long_Float_Array is array (Positive range <>) of Long_Float;
+   type Long_Float_Array is
+     array (Positive range <>)
+     of Long_Float;
 
    --  ── Standard I/MR limit computation ───────────────────────────────────
    --  Compute the I-chart (Individuals) control limits.
@@ -29,9 +31,7 @@ package Coyote_SQC.Statistics.I_Chart is
    --  The LCL is clamped to 0 when the formula yields a negative value;
    --  Has_LCL is True only when the clamped LCL value would be > 0.
    function Compute_I_Limits
-     (Grand_Mean : Long_Float;
-      Sigma      : Long_Float) return Limits_Record;
-
+     (Grand_Mean : Long_Float; Sigma : Long_Float) return Limits_Record;
 
    --  Compute the MR-chart (Moving Range) control limits.
    --
@@ -107,9 +107,10 @@ package Coyote_SQC.Statistics.I_Chart is
    --  (Brent 1973) then refines within +-0.5 of the coarse best, clamped to
    --  [0.0, 30.0], converging to tolerance 1.0e-6 on lambda.
    function Estimate_Lambda
-     (Values        : Long_Float_Array;
-      Use_Robust    : Boolean := False;
-      Fallback_Used : out Boolean) return Long_Float;
+     (Values        :     Long_Float_Array;
+      Use_Robust    :     Boolean := False;
+      Fallback_Used : out Boolean)
+      return Long_Float;
 
    --  ── Additional variance-stabilization transforms ───────────────────────
    --
@@ -150,7 +151,8 @@ package Coyote_SQC.Statistics.I_Chart is
    function Apply_Transform
      (X      : Long_Float;
       Kind   : Coyote_SQC.Data_Model.Transform_Kind;
-      Lambda : Long_Float := 0.0) return Long_Float;
+      Lambda : Long_Float := 0.0)
+      return Long_Float;
 
    --  Invert the transform selected by Kind.
    --  Lambda is only used when Kind = Box_Cox.
@@ -158,6 +160,7 @@ package Coyote_SQC.Statistics.I_Chart is
    function Invert_Transform
      (Z      : Long_Float;
       Kind   : Coyote_SQC.Data_Model.Transform_Kind;
-      Lambda : Long_Float := 0.0) return Long_Float;
+      Lambda : Long_Float := 0.0)
+      return Long_Float;
 
 end Coyote_SQC.Statistics.I_Chart;

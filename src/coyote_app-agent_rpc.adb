@@ -17,24 +17,23 @@ package body Coyote_App.Agent_RPC is
    use GNATCOLL.JSON;
 
    Empty_Frame : constant Frame :=
-     (Kind          => Handshake,
-      Version       => Current_Version,
-      Agent_Id      => Null_Unbounded_String,
-      Payload_Json  => Null_Unbounded_String,
+     (Kind            => Handshake,
+      Version         => Current_Version,
+      Agent_Id        => Null_Unbounded_String,
+      Payload_Json    => Null_Unbounded_String,
       Parent_Agent_Id => Null_Unbounded_String,
-      Session_Id    => Null_Unbounded_String,
-      Label         => Null_Unbounded_String);
+      Session_Id      => Null_Unbounded_String,
+      Label           => Null_Unbounded_String);
 
    function String_Value
-     (Value : JSON_Value;
-      Name  : String;
-      Required : Boolean := True) return String
+     (Value    : JSON_Value;
+      Name     : String;
+      Required : Boolean := True)
+      return String
    is
       Field : JSON_Value;
    begin
-      if Value.Kind /= JSON_Object_Type
-        or else not Value.Has_Field (Name)
-      then
+      if Value.Kind /= JSON_Object_Type or else not Value.Has_Field (Name) then
          if Required then
             raise RPC_Error with "missing RPC field: " & Name;
          else
@@ -48,16 +47,11 @@ package body Coyote_App.Agent_RPC is
       return Field.Get;
    end String_Value;
 
-   function Natural_Value
-     (Value : JSON_Value;
-      Name  : String) return Natural
-   is
-      Field : JSON_Value;
+   function Natural_Value (Value : JSON_Value; Name : String) return Natural is
+      Field  : JSON_Value;
       Number : Long_Long_Integer;
    begin
-      if Value.Kind /= JSON_Object_Type
-        or else not Value.Has_Field (Name)
-      then
+      if Value.Kind /= JSON_Object_Type or else not Value.Has_Field (Name) then
          raise RPC_Error with "missing RPC field: " & Name;
       end if;
       Field := Value.Get (Name);
@@ -65,9 +59,7 @@ package body Coyote_App.Agent_RPC is
          raise RPC_Error with "RPC field is not an integer: " & Name;
       end if;
       Number := Field.Get;
-      if Number < 0
-        or else Number > Long_Long_Integer (Natural'Last)
-      then
+      if Number < 0 or else Number > Long_Long_Integer (Natural'Last) then
          raise RPC_Error with "RPC field is outside Natural range: " & Name;
       end if;
       return Natural (Number);
@@ -77,8 +69,8 @@ package body Coyote_App.Agent_RPC is
       Parsed : constant Read_Result := Read (Text);
    begin
       if not Parsed.Success then
-         raise RPC_Error with
-           "invalid RPC payload JSON: "
+         raise RPC_Error
+           with "invalid RPC payload JSON: "
            & Format_Parsing_Error (Parsed.Error);
       end if;
       if Parsed.Value.Kind /= JSON_Object_Type then
@@ -90,81 +82,133 @@ package body Coyote_App.Agent_RPC is
    function Frame_Type_Image (Value : Frame_Kind) return String is
    begin
       case Value is
-         when Handshake => return "handshake";
-         when Event     => return "event";
-         when Command   => return "command";
-         when Terminal  => return "terminal";
+         when Handshake =>
+            return "handshake";
+         when Event =>
+            return "event";
+         when Command =>
+            return "command";
+         when Terminal =>
+            return "terminal";
       end case;
    end Frame_Type_Image;
 
    function Event_Image (Value : Event_Kind) return String is
    begin
       case Value is
-         when Request_Start  => return "requestStart";
-         when Request_End    => return "requestEnd";
-         when Agent_Start    => return "agentStart";
-         when Thinking_Start => return "thinkingStart";
-         when Thinking_Delta => return "thinkingDelta";
-         when Thinking_End   => return "thinkingEnd";
-         when Text_Delta     => return "textDelta";
-         when Text_End       => return "textEnd";
-         when Tool_Start     => return "toolStart";
-         when Tool_Status    => return "toolStatus";
-         when Tool_End       => return "toolEnd";
-         when Notice         => return "notice";
-         when Status         => return "status";
-         when Mode           => return "mode";
-         when Footer         => return "footer";
-         when Fork_Action    => return "forkAction";
-         when Statistics     => return "statistics";
-         when Session_Info   => return "sessionInfo";
+         when Request_Start =>
+            return "requestStart";
+         when Request_End =>
+            return "requestEnd";
+         when Agent_Start =>
+            return "agentStart";
+         when Thinking_Start =>
+            return "thinkingStart";
+         when Thinking_Delta =>
+            return "thinkingDelta";
+         when Thinking_End =>
+            return "thinkingEnd";
+         when Text_Delta =>
+            return "textDelta";
+         when Text_End =>
+            return "textEnd";
+         when Tool_Start =>
+            return "toolStart";
+         when Tool_Status =>
+            return "toolStatus";
+         when Tool_End =>
+            return "toolEnd";
+         when Notice =>
+            return "notice";
+         when Status =>
+            return "status";
+         when Mode =>
+            return "mode";
+         when Footer =>
+            return "footer";
+         when Fork_Action =>
+            return "forkAction";
+         when Statistics =>
+            return "statistics";
+         when Session_Info =>
+            return "sessionInfo";
       end case;
    end Event_Image;
 
    function Command_Image (Value : Command_Kind) return String is
    begin
       case Value is
-         when Prompt   => return "prompt";
-         when Steer    => return "steer";
-         when Stop       => return "stop";
-         when Pause      => return "pause";
-         when Resume     => return "resume";
-         when Abort_Tool => return "abortTool";
-         when Set_Sandbox => return "setSandbox";
-         when Shutdown   => return "shutdown";
+         when Prompt =>
+            return "prompt";
+         when Steer =>
+            return "steer";
+         when Stop =>
+            return "stop";
+         when Pause =>
+            return "pause";
+         when Resume =>
+            return "resume";
+         when Abort_Tool =>
+            return "abortTool";
+         when Set_Sandbox =>
+            return "setSandbox";
+         when Shutdown =>
+            return "shutdown";
       end case;
    end Command_Image;
 
    function Terminal_Image (Value : Terminal_Status) return String is
    begin
       case Value is
-         when Completed    => return "completed";
-         when Aborted      => return "aborted";
-         when Failed       => return "failed";
-         when Disconnected => return "disconnected";
+         when Completed =>
+            return "completed";
+         when Aborted =>
+            return "aborted";
+         when Failed =>
+            return "failed";
+         when Disconnected =>
+            return "disconnected";
       end case;
    end Terminal_Image;
 
    function Event_Value (Value : String) return Event_Kind is
    begin
-      if Value = "requestStart" then return Request_Start;
-      elsif Value = "requestEnd" then return Request_End;
-      elsif Value = "agentStart" then return Agent_Start;
-      elsif Value = "thinkingStart" then return Thinking_Start;
-      elsif Value = "thinkingDelta" then return Thinking_Delta;
-      elsif Value = "thinkingEnd" then return Thinking_End;
-      elsif Value = "textDelta" then return Text_Delta;
-      elsif Value = "textEnd" then return Text_End;
-      elsif Value = "toolStart" then return Tool_Start;
-      elsif Value = "toolStatus" then return Tool_Status;
-      elsif Value = "toolEnd" then return Tool_End;
-      elsif Value = "notice" then return Notice;
-      elsif Value = "status" then return Status;
-      elsif Value = "mode" then return Mode;
-      elsif Value = "footer" then return Footer;
-      elsif Value = "forkAction" then return Fork_Action;
-      elsif Value = "statistics" then return Statistics;
-      elsif Value = "sessionInfo" then return Session_Info;
+      if Value = "requestStart" then
+         return Request_Start;
+      elsif Value = "requestEnd" then
+         return Request_End;
+      elsif Value = "agentStart" then
+         return Agent_Start;
+      elsif Value = "thinkingStart" then
+         return Thinking_Start;
+      elsif Value = "thinkingDelta" then
+         return Thinking_Delta;
+      elsif Value = "thinkingEnd" then
+         return Thinking_End;
+      elsif Value = "textDelta" then
+         return Text_Delta;
+      elsif Value = "textEnd" then
+         return Text_End;
+      elsif Value = "toolStart" then
+         return Tool_Start;
+      elsif Value = "toolStatus" then
+         return Tool_Status;
+      elsif Value = "toolEnd" then
+         return Tool_End;
+      elsif Value = "notice" then
+         return Notice;
+      elsif Value = "status" then
+         return Status;
+      elsif Value = "mode" then
+         return Mode;
+      elsif Value = "footer" then
+         return Footer;
+      elsif Value = "forkAction" then
+         return Fork_Action;
+      elsif Value = "statistics" then
+         return Statistics;
+      elsif Value = "sessionInfo" then
+         return Session_Info;
       else
          raise RPC_Error with "unknown RPC event: " & Value;
       end if;
@@ -172,14 +216,22 @@ package body Coyote_App.Agent_RPC is
 
    function Command_Value (Value : String) return Command_Kind is
    begin
-      if Value = "prompt" then return Prompt;
-      elsif Value = "steer" then return Steer;
-      elsif Value = "stop" then return Stop;
-      elsif Value = "pause" then return Pause;
-      elsif Value = "resume" then return Resume;
-      elsif Value = "abortTool" then return Abort_Tool;
-      elsif Value = "setSandbox" then return Set_Sandbox;
-      elsif Value = "shutdown" then return Shutdown;
+      if Value = "prompt" then
+         return Prompt;
+      elsif Value = "steer" then
+         return Steer;
+      elsif Value = "stop" then
+         return Stop;
+      elsif Value = "pause" then
+         return Pause;
+      elsif Value = "resume" then
+         return Resume;
+      elsif Value = "abortTool" then
+         return Abort_Tool;
+      elsif Value = "setSandbox" then
+         return Set_Sandbox;
+      elsif Value = "shutdown" then
+         return Shutdown;
       else
          raise RPC_Error with "unknown RPC command: " & Value;
       end if;
@@ -187,10 +239,14 @@ package body Coyote_App.Agent_RPC is
 
    function Terminal_Value (Value : String) return Terminal_Status is
    begin
-      if Value = "completed" then return Completed;
-      elsif Value = "aborted" then return Aborted;
-      elsif Value = "failed" then return Failed;
-      elsif Value = "disconnected" then return Disconnected;
+      if Value = "completed" then
+         return Completed;
+      elsif Value = "aborted" then
+         return Aborted;
+      elsif Value = "failed" then
+         return Failed;
+      elsif Value = "disconnected" then
+         return Disconnected;
       else
          raise RPC_Error with "unknown RPC terminal status: " & Value;
       end if;
@@ -200,16 +256,17 @@ package body Coyote_App.Agent_RPC is
      (Agent_Id        : String;
       Parent_Agent_Id : String := "";
       Session_Id      : String := "";
-      Label           : String := "subagent") return Frame
+      Label           : String := "subagent")
+      return Frame
    is
       Result : Frame (Handshake) :=
-        (Kind             => Handshake,
-         Version          => Current_Version,
-         Agent_Id         => To_Unbounded_String (Agent_Id),
-         Payload_Json     => Null_Unbounded_String,
-         Parent_Agent_Id  => To_Unbounded_String (Parent_Agent_Id),
-         Session_Id       => To_Unbounded_String (Session_Id),
-         Label            => To_Unbounded_String (Label));
+        (Kind            => Handshake,
+         Version         => Current_Version,
+         Agent_Id        => To_Unbounded_String (Agent_Id),
+         Payload_Json    => Null_Unbounded_String,
+         Parent_Agent_Id => To_Unbounded_String (Parent_Agent_Id),
+         Session_Id      => To_Unbounded_String (Session_Id),
+         Label           => To_Unbounded_String (Label));
    begin
       Validate (Result);
       return Result;
@@ -219,33 +276,35 @@ package body Coyote_App.Agent_RPC is
      (Agent_Id     : String;
       Sequence     : Natural;
       Event_Name   : Event_Kind;
-      Payload_Json : String := "{}") return Frame
+      Payload_Json : String := "{}")
+      return Frame
    is
       Result : Frame (Event) :=
-        (Kind          => Event,
-         Version       => Current_Version,
-         Agent_Id      => To_Unbounded_String (Agent_Id),
-         Payload_Json  => To_Unbounded_String (Payload_Json),
-         Sequence      => Sequence,
-         Event_Name    => Event_Name);
+        (Kind         => Event,
+         Version      => Current_Version,
+         Agent_Id     => To_Unbounded_String (Agent_Id),
+         Payload_Json => To_Unbounded_String (Payload_Json),
+         Sequence     => Sequence,
+         Event_Name   => Event_Name);
    begin
       Validate (Result);
       return Result;
    end Make_Event;
 
    function Make_Command
-     (Agent_Id      : String;
-      Request_Id    : String;
-      Command_Name  : Command_Kind;
-      Payload_Json  : String := "{}") return Frame
+     (Agent_Id     : String;
+      Request_Id   : String;
+      Command_Name : Command_Kind;
+      Payload_Json : String := "{}")
+      return Frame
    is
       Result : Frame (Command) :=
-        (Kind          => Command,
-         Version       => Current_Version,
-         Agent_Id      => To_Unbounded_String (Agent_Id),
-         Payload_Json  => To_Unbounded_String (Payload_Json),
-         Request_Id    => To_Unbounded_String (Request_Id),
-         Command_Name  => Command_Name);
+        (Kind         => Command,
+         Version      => Current_Version,
+         Agent_Id     => To_Unbounded_String (Agent_Id),
+         Payload_Json => To_Unbounded_String (Payload_Json),
+         Request_Id   => To_Unbounded_String (Request_Id),
+         Command_Name => Command_Name);
    begin
       Validate (Result);
       return Result;
@@ -254,8 +313,9 @@ package body Coyote_App.Agent_RPC is
    function Make_Terminal
      (Agent_Id      : String;
       Status        : Terminal_Status;
-      Error_Text    : String := "";
-      Last_Sequence : Natural := 0) return Frame
+      Error_Text    : String  := "";
+      Last_Sequence : Natural := 0)
+      return Frame
    is
       Result : Frame (Terminal) :=
         (Kind          => Terminal,
@@ -293,13 +353,15 @@ package body Coyote_App.Agent_RPC is
                Payload : constant JSON_Value :=
                  Payload_Value (To_String (Value.Payload_Json));
             begin
-               if (Value.Event_Name = Text_Delta
-                   or else Value.Event_Name = Thinking_Delta)
-                 and then (not Payload.Has_Field ("text")
-                           or else Payload.Get ("text").Kind /= JSON_String_Type)
+               if
+                 (Value.Event_Name = Text_Delta
+                  or else Value.Event_Name = Thinking_Delta)
+                 and then
+                 (not Payload.Has_Field ("text")
+                  or else Payload.Get ("text").Kind /= JSON_String_Type)
                then
-                  raise RPC_Error with
-                    "text RPC event payload requires string field: text";
+                  raise RPC_Error
+                    with "text RPC event payload requires string field: text";
                end if;
             end;
          when Command =>
@@ -310,34 +372,36 @@ package body Coyote_App.Agent_RPC is
                Payload : constant JSON_Value :=
                  Payload_Value (To_String (Value.Payload_Json));
             begin
-               if (Value.Command_Name = Prompt
-                   or else Value.Command_Name = Steer)
-                 and then (not Payload.Has_Field ("text")
-                           or else Payload.Get ("text").Kind /= JSON_String_Type)
+               if
+                 (Value.Command_Name = Prompt
+                  or else Value.Command_Name = Steer)
+                 and then
+                 (not Payload.Has_Field ("text")
+                  or else Payload.Get ("text").Kind /= JSON_String_Type)
                then
-                  raise RPC_Error with
-                    "prompt RPC command payload requires string field: text";
+                  raise RPC_Error
+                    with "prompt RPC command payload requires string field: text";
                elsif Value.Command_Name = Set_Sandbox
-                 and then (not Payload.Has_Field ("profile")
-                           or else Payload.Get ("profile").Kind /=
-                             JSON_String_Type)
+                 and then
+                 (not Payload.Has_Field ("profile")
+                  or else Payload.Get ("profile").Kind /= JSON_String_Type)
                then
-                  raise RPC_Error with
-                    "sandbox RPC command payload requires string field: profile";
+                  raise RPC_Error
+                    with "sandbox RPC command payload requires string field: profile";
                elsif Value.Command_Name = Abort_Tool
-                 and then (not Payload.Has_Field ("toolId")
-                           or else Payload.Get ("toolId").Kind /=
-                             JSON_String_Type
-                           or else String'(Payload.Get ("toolId").Get)'Length = 0)
+                 and then
+                 (not Payload.Has_Field ("toolId")
+                  or else Payload.Get ("toolId").Kind /= JSON_String_Type
+                  or else String'(Payload.Get ("toolId").Get)'Length = 0)
                then
-                  raise RPC_Error with
-                    "abort-tool RPC payload requires string field: toolId";
+                  raise RPC_Error
+                    with "abort-tool RPC payload requires string field: toolId";
                elsif Value.Command_Name = Abort_Tool
                  and then Payload.Has_Field ("message")
                  and then Payload.Get ("message").Kind /= JSON_String_Type
                then
-                  raise RPC_Error with
-                    "abort-tool RPC payload message must be a string";
+                  raise RPC_Error
+                    with "abort-tool RPC payload message must be a string";
                end if;
             end;
          when Terminal =>
@@ -373,26 +437,25 @@ package body Coyote_App.Agent_RPC is
          when Terminal =>
             Root.Set_Field ("status", Terminal_Image (Value.Status));
             Root.Set_Field ("error", To_String (Value.Error_Text));
-            Root.Set_Field
-              ("lastSequence", Integer (Value.Last_Sequence));
+            Root.Set_Field ("lastSequence", Integer (Value.Last_Sequence));
       end case;
       return Write (Root);
    end Encode;
 
    function Decode (Text : String) return Frame is
-      Parsed : constant Read_Result := Read (Text);
-      Root   : JSON_Value;
+      Parsed        : constant Read_Result := Read (Text);
+      Root          : JSON_Value;
       Version_Field : JSON_Value;
       Version_Value : Long_Long_Integer;
-      Type_Name     : String := "";
-      Agent         : String := "";
+      Type_Name     : String               := "";
+      Agent         : String               := "";
    begin
       if Text'Length = 0 then
          raise RPC_Error with "malformed JSON: empty RPC frame";
       end if;
       if not Parsed.Success then
-         raise RPC_Error with
-           "malformed JSON: " & Format_Parsing_Error (Parsed.Error);
+         raise RPC_Error
+           with "malformed JSON: " & Format_Parsing_Error (Parsed.Error);
       end if;
       Root := Parsed.Value;
       if Root.Kind /= JSON_Object_Type then
@@ -418,122 +481,125 @@ package body Coyote_App.Agent_RPC is
          Agent     : constant String := String_Value (Root, "agentId");
       begin
          if Type_Name = "handshake" then
-         declare
-            Result : constant Frame :=
-              (Kind             => Handshake,
-               Version          => Current_Version,
-               Agent_Id         => To_Unbounded_String (Agent),
-               Payload_Json     => Null_Unbounded_String,
-               Parent_Agent_Id  =>
-                 To_Unbounded_String
-                   (String_Value (Root, "parentAgentId", False)),
-               Session_Id       =>
-                 To_Unbounded_String (String_Value (Root, "sessionId", False)),
-               Label            => To_Unbounded_String
-                 (String_Value (Root, "label")));
-         begin
-            Validate (Result);
-            return Result;
-         end;
-      elsif Type_Name = "event" then
-         declare
-            Payload : constant JSON_Value := Root.Get ("payload");
-            Result : constant Frame :=
-              (Kind          => Event,
-               Version       => Current_Version,
-               Agent_Id      => To_Unbounded_String (Agent),
-               Payload_Json  => To_Unbounded_String (Write (Payload)),
-               Sequence      => Natural_Value (Root, "sequence"),
-               Event_Name    => Event_Value (String_Value (Root, "event")));
-         begin
-            Validate (Result);
-            return Result;
-         exception
-            when Constraint_Error =>
-               raise RPC_Error with "invalid event RPC frame";
-         end;
-      elsif Type_Name = "command" then
-         declare
-            Payload : constant JSON_Value := Root.Get ("payload");
-            Result : constant Frame :=
-              (Kind          => Command,
-               Version       => Current_Version,
-               Agent_Id      => To_Unbounded_String (Agent),
-               Payload_Json  => To_Unbounded_String (Write (Payload)),
-               Request_Id    => To_Unbounded_String
-                 (String_Value (Root, "requestId")),
-               Command_Name  =>
-                 Command_Value (String_Value (Root, "command")));
-         begin
-            Validate (Result);
-            return Result;
-         exception
-            when Constraint_Error =>
-               raise RPC_Error with "invalid command RPC frame";
-         end;
-      elsif Type_Name = "terminal" then
-         declare
-            Result : constant Frame :=
-              (Kind          => Terminal,
-               Version       => Current_Version,
-               Agent_Id      => To_Unbounded_String (Agent),
-               Payload_Json  => Null_Unbounded_String,
-               Status        =>
-                 Terminal_Value (String_Value (Root, "status")),
-               Error_Text    => To_Unbounded_String
-                 (String_Value (Root, "error", False)),
-               Last_Sequence => Natural_Value (Root, "lastSequence"));
-         begin
-            Validate (Result);
-            return Result;
-         exception
-            when Constraint_Error =>
-               raise RPC_Error with "invalid terminal RPC frame";
-         end;
-      else
-         raise RPC_Error with "unknown RPC frame type: " & Type_Name;
-      end if;
+            declare
+               Result : constant Frame :=
+                 (Kind            => Handshake,
+                  Version         => Current_Version,
+                  Agent_Id        => To_Unbounded_String (Agent),
+                  Payload_Json    => Null_Unbounded_String,
+                  Parent_Agent_Id =>
+                    To_Unbounded_String
+                      (String_Value (Root, "parentAgentId", False)),
+                  Session_Id      =>
+                    To_Unbounded_String
+                      (String_Value (Root, "sessionId", False)),
+                  Label => To_Unbounded_String (String_Value (Root, "label")));
+            begin
+               Validate (Result);
+               return Result;
+            end;
+         elsif Type_Name = "event" then
+            declare
+               Payload : constant JSON_Value := Root.Get ("payload");
+               Result  : constant Frame      :=
+                 (Kind         => Event,
+                  Version      => Current_Version,
+                  Agent_Id     => To_Unbounded_String (Agent),
+                  Payload_Json => To_Unbounded_String (Write (Payload)),
+                  Sequence     => Natural_Value (Root, "sequence"),
+                  Event_Name   => Event_Value (String_Value (Root, "event")));
+            begin
+               Validate (Result);
+               return Result;
+            exception
+               when Constraint_Error =>
+                  raise RPC_Error with "invalid event RPC frame";
+            end;
+         elsif Type_Name = "command" then
+            declare
+               Payload : constant JSON_Value := Root.Get ("payload");
+               Result  : constant Frame      :=
+                 (Kind         => Command,
+                  Version      => Current_Version,
+                  Agent_Id     => To_Unbounded_String (Agent),
+                  Payload_Json => To_Unbounded_String (Write (Payload)),
+                  Request_Id   =>
+                    To_Unbounded_String (String_Value (Root, "requestId")),
+                  Command_Name =>
+                    Command_Value (String_Value (Root, "command")));
+            begin
+               Validate (Result);
+               return Result;
+            exception
+               when Constraint_Error =>
+                  raise RPC_Error with "invalid command RPC frame";
+            end;
+         elsif Type_Name = "terminal" then
+            declare
+               Result : constant Frame :=
+                 (Kind          => Terminal,
+                  Version       => Current_Version,
+                  Agent_Id      => To_Unbounded_String (Agent),
+                  Payload_Json  => Null_Unbounded_String,
+                  Status => Terminal_Value (String_Value (Root, "status")),
+                  Error_Text    =>
+                    To_Unbounded_String (String_Value (Root, "error", False)),
+                  Last_Sequence => Natural_Value (Root, "lastSequence"));
+            begin
+               Validate (Result);
+               return Result;
+            exception
+               when Constraint_Error =>
+                  raise RPC_Error with "invalid terminal RPC frame";
+            end;
+         else
+            raise RPC_Error with "unknown RPC frame type: " & Type_Name;
+         end if;
       end;
    exception
       when E : RPC_Error =>
          raise;
-      when E : others =>
+      when E : others    =>
          raise RPC_Error with Ada.Exceptions.Exception_Message (E);
    end Decode;
 
    function Try_Decode
-     (Text   : String;
+     (Text   :     String;
       Value  : out Frame;
       Status : out Decode_Status;
-      Error  : out Unbounded_String) return Boolean
+      Error  : out Unbounded_String)
+      return Boolean
    is
       Message : Unbounded_String;
    begin
-      Value := Empty_Frame;
+      Value  := Empty_Frame;
       Status := Invalid_Frame;
-      Error := Null_Unbounded_String;
+      Error  := Null_Unbounded_String;
       begin
-         Value := Decode (Text);
+         Value  := Decode (Text);
          Status := Valid;
          return True;
       exception
          when E : RPC_Error =>
-            Message := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
-            Error := Message;
-            if Ada.Strings.Fixed.Index
-              (To_String (Message), "malformed JSON") > 0
+            Message :=
+              To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
+            Error   := Message;
+            if Ada.Strings.Fixed.Index (To_String (Message), "malformed JSON")
+              > 0
             then
                Status := Malformed_JSON;
             elsif Ada.Strings.Fixed.Index
-              (To_String (Message), "unsupported RPC version") > 0
+                (To_String (Message), "unsupported RPC version")
+              > 0
             then
                Status := Unsupported_Version;
             else
                Status := Invalid_Frame;
             end if;
             return False;
-         when E : others =>
-            Error := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
+         when E : others    =>
+            Error  :=
+              To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
             Status := Invalid_Frame;
             return False;
       end;

@@ -40,13 +40,11 @@ package LLM.Auth.GitHub_Copilot is
    --  Static headers required on GitHub Copilot API requests.
    User_Agent_Header     : constant String :=
      "User-Agent: GitHubCopilotChat/0.35.0";
-   Editor_Version_Header : constant String :=
-     "Editor-Version: vscode/1.107.0";
+   Editor_Version_Header : constant String := "Editor-Version: vscode/1.107.0";
    Editor_Plugin_Header  : constant String :=
      "Editor-Plugin-Version: copilot-chat/0.35.0";
    Integration_Id_Header : constant String :=
      "Copilot-Integration-Id: vscode-chat";
-   Intent_Header         : constant String :=
-     "Openai-Intent: conversation-edits";
+   Intent_Header : constant String := "Openai-Intent: conversation-edits";
 
 end LLM.Auth.GitHub_Copilot;

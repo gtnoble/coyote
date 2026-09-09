@@ -7,7 +7,7 @@
 --  Project: coyote
 
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Cmark;
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -22,26 +22,26 @@ package body Coyote_Renderer.Tables is
       C_Text : constant Interfaces.C.char_array :=
         Interfaces.C.To_C (Markdown, Append_Nul => True);
    begin
-      return Coyote_Cmark.Parse_Document
-        (C_Text, Interfaces.C.size_t (Markdown'Length),
-         Coyote_Cmark.OPT_DEFAULT);
+      return
+        Coyote_Cmark.Parse_Document
+          (C_Text,
+           Interfaces.C.size_t (Markdown'Length),
+           Coyote_Cmark.OPT_DEFAULT);
    end Parse_Source;
 
    function Type_Name (Node : Coyote_Cmark.Node_Ptr) return String is
    begin
-      return Interfaces.C.Strings.Value
-        (Coyote_Cmark.Node_Get_Type_String (Node));
+      return
+        Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Type_String (Node));
    end Type_Name;
 
    function Literal (Node : Coyote_Cmark.Node_Ptr) return String is
    begin
-      return Interfaces.C.Strings.Value
-        (Coyote_Cmark.Node_Get_Literal (Node));
+      return Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Literal (Node));
    end Literal;
 
    procedure Append_Inline_Text
-     (Node   : Coyote_Cmark.Node_Ptr;
-      Result : in out Unbounded_String)
+     (Node : Coyote_Cmark.Node_Ptr; Result : in out Unbounded_String)
    is
       Child : Coyote_Cmark.Node_Ptr;
       Name  : constant String := Type_Name (Node);
@@ -75,9 +75,10 @@ package body Coyote_Renderer.Tables is
       Result : Table_Row;
       Child  : Coyote_Cmark.Node_Ptr;
    begin
-      Result.Is_Header := Type_Name (Node) = "table_header"
+      Result.Is_Header :=
+        Type_Name (Node) = "table_header"
         or else Coyote_Cmark.Table_Row_Is_Header (Node) /= 0;
-      Child := Coyote_Cmark.Node_First_Child (Node);
+      Child            := Coyote_Cmark.Node_First_Child (Node);
       while Child /= System.Null_Address loop
          if Type_Name (Child) = "table_cell" then
             Result.Cells.Append (Read_Cell (Child));
@@ -88,46 +89,48 @@ package body Coyote_Renderer.Tables is
    end Read_Row;
 
    function Read_Alignment
-     (Node   : Coyote_Cmark.Node_Ptr;
-      Column : Natural) return Table_Alignment
+     (Node : Coyote_Cmark.Node_Ptr; Column : Natural) return Table_Alignment
    is
       Value : constant Interfaces.C.int :=
-        Coyote_Cmark.Table_Column_Alignment
-          (Node, Interfaces.C.int (Column));
+        Coyote_Cmark.Table_Column_Alignment (Node, Interfaces.C.int (Column));
    begin
       case Integer (Value) is
-         when Character'Pos ('l') => return Left;
-         when Character'Pos ('c') => return Center;
-         when Character'Pos ('r') => return Right;
-         when others              => return Unspecified;
+         when Character'Pos ('l') =>
+            return Left;
+         when Character'Pos ('c') =>
+            return Center;
+         when Character'Pos ('r') =>
+            return Right;
+         when others =>
+            return Unspecified;
       end case;
    end Read_Alignment;
 
    function Read_Table
-     (Node        : Coyote_Cmark.Node_Ptr;
-      Block_Index : Positive) return Table_Block
+     (Node : Coyote_Cmark.Node_Ptr; Block_Index : Positive) return Table_Block
    is
       Result       : Table_Block;
       Child        : Coyote_Cmark.Node_Ptr;
       Column_Count : constant Interfaces.C.int :=
         Coyote_Cmark.Table_Column_Count (Node);
    begin
-      Result.Start_Line := Positive'Max
-        (1, Integer (Coyote_Cmark.Node_Get_Start_Line (Node)));
-      Result.End_Line := Positive'Max
-        (Result.Start_Line,
-         Integer (Coyote_Cmark.Node_Get_End_Line (Node)));
+      Result.Start_Line :=
+        Positive'Max (1, Integer (Coyote_Cmark.Node_Get_Start_Line (Node)));
+      Result.End_Line   :=
+        Positive'Max
+          (Result.Start_Line, Integer (Coyote_Cmark.Node_Get_End_Line (Node)));
       if Column_Count > 0 then
          Result.Column_Count := Natural (Column_Count);
          for Column in 0 .. Result.Column_Count - 1 loop
             Result.Alignments.Append (Read_Alignment (Node, Column));
          end loop;
       end if;
-      Result.Placeholder := To_Unbounded_String
-        ("COYOTE_TABLE_BLOCK_"
-         & Ada.Strings.Fixed.Trim
+      Result.Placeholder :=
+        To_Unbounded_String
+          ("COYOTE_TABLE_BLOCK_"
+           & Ada.Strings.Fixed.Trim
              (Positive'Image (Block_Index), Ada.Strings.Both)
-         & "__");
+           & "__");
 
       Child := Coyote_Cmark.Node_First_Child (Node);
       while Child /= System.Null_Address loop
@@ -143,24 +146,20 @@ package body Coyote_Renderer.Tables is
       return Result;
    end Read_Table;
 
-   procedure Append_Line
-     (Result : in out Unbounded_String;
-      Line   : String)
-   is
+   procedure Append_Line (Result : in out Unbounded_String; Line : String) is
    begin
       Append (Result, Line);
       Append (Result, ASCII.LF);
    end Append_Line;
 
    function Mask_Source
-     (Markdown : String;
-      Blocks   : Table_Vectors.Vector) return Unbounded_String
+     (Markdown : String; Blocks : Table_Vectors.Vector) return Unbounded_String
    is
-      Result       : Unbounded_String;
-      Start        : Natural := Markdown'First;
-      Line_Number  : Positive := 1;
-      Skip_Until   : Natural := 0;
-      Block_Index  : Table_Vectors.Extended_Index :=
+      Result      : Unbounded_String;
+      Start       : Natural                      := Markdown'First;
+      Line_Number : Positive                     := 1;
+      Skip_Until  : Natural                      := 0;
+      Block_Index : Table_Vectors.Extended_Index :=
         (if Blocks.Is_Empty then Table_Vectors.No_Index
          else Blocks.First_Index);
    begin
@@ -169,13 +168,11 @@ package body Coyote_Renderer.Tables is
       end if;
 
       for I in Markdown'Range loop
-         if Markdown (I) = ASCII.LF
-           or else I = Markdown'Last
-         then
+         if Markdown (I) = ASCII.LF or else I = Markdown'Last then
             declare
                Last : constant Natural :=
                  (if Markdown (I) = ASCII.LF then I - 1 else I);
-               Line : constant String :=
+               Line : constant String  :=
                  (if Last >= Start then Markdown (Start .. Last) else "");
             begin
                if Line_Number <= Skip_Until then
@@ -189,8 +186,8 @@ package body Coyote_Renderer.Tables is
                   if Block_Index = Blocks.Last_Index then
                      Block_Index := Table_Vectors.No_Index;
                   else
-                     Block_Index := Table_Vectors.Extended_Index'Succ
-                       (Block_Index);
+                     Block_Index :=
+                       Table_Vectors.Extended_Index'Succ (Block_Index);
                   end if;
                else
                   Append_Line (Result, Line);

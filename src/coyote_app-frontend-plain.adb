@@ -7,10 +7,7 @@ with Coyote_App.Utils; use Coyote_App.Utils;
 
 package body Coyote_App.Frontend.Plain is
 
-   procedure Put
-     (F    : in out Instance;
-      Text :      String)
-   is
+   procedure Put (F : in out Instance; Text : String) is
    begin
       if F.To_Standard_Error then
          Ada.Text_IO.Put (Ada.Text_IO.Standard_Error, Text);
@@ -19,49 +16,35 @@ package body Coyote_App.Frontend.Plain is
       end if;
    end Put;
 
-   procedure Put_Line
-     (F    : in out Instance;
-      Text :      String)
-   is
+   procedure Put_Line (F : in out Instance; Text : String) is
    begin
       Put (F, Text & ASCII.LF);
    end Put_Line;
 
-   procedure Create
-     (F        : in out Instance;
-      One_Shot :  Boolean := False)
-   is
+   procedure Create (F : in out Instance; One_Shot : Boolean := False) is
    begin
       F.To_Standard_Error := One_Shot;
-      F.Thinking_Started := False;
-      F.Text_Started := False;
+      F.Thinking_Started  := False;
+      F.Text_Started      := False;
    end Create;
 
-   overriding
-   procedure Set_Status
-     (F    : in out Instance;
-      Text :      String)
-   is
+   overriding procedure Set_Status (F : in out Instance; Text : String) is
    begin
       Put_Line (F, UC_BULLET & " " & Text);
    end Set_Status;
 
-   overriding
-   procedure Set_Mode
-     (F    : in out Instance;
-      Mode :      Coyote_App.Frontend.Run_Mode)
+   overriding procedure Set_Mode
+     (F : in out Instance; Mode : Coyote_App.Frontend.Run_Mode)
    is
       pragma Unreferenced (F, Mode);
    begin
       null;
    end Set_Mode;
 
-   overriding
-   procedure Begin_Request
+   overriding procedure Begin_Request
      (F    : in out Instance;
-      Text :      String;
-      Kind :      Coyote_App.Frontend.Request_Kind :=
-        Coyote_App.Frontend.Prompt)
+      Text :        String;
+      Kind :    Coyote_App.Frontend.Request_Kind := Coyote_App.Frontend.Prompt)
    is
       Label : constant String :=
         (if Kind = Coyote_App.Frontend.Steer then "steer" else "prompt");
@@ -69,18 +52,13 @@ package body Coyote_App.Frontend.Plain is
       Put_Line (F, UC_TRI_R & " " & Label & ": " & Text);
    end Begin_Request;
 
-   overriding
-   procedure Append_Text
-     (F    : in out Instance;
-      Text :      String)
-   is
+   overriding procedure Append_Text (F : in out Instance; Text : String) is
    begin
       F.Text_Started := True;
       Put (F, Text);
    end Append_Text;
 
-   overriding
-   procedure End_Text_Block (F : in out Instance) is
+   overriding procedure End_Text_Block (F : in out Instance) is
    begin
       if F.Text_Started then
          Put (F, "" & ASCII.LF);
@@ -88,8 +66,7 @@ package body Coyote_App.Frontend.Plain is
       end if;
    end End_Text_Block;
 
-   overriding
-   procedure Begin_Thinking (F : in out Instance) is
+   overriding procedure Begin_Thinking (F : in out Instance) is
    begin
       if F.Thinking_Started then
          Put (F, "" & ASCII.LF);
@@ -98,17 +75,12 @@ package body Coyote_App.Frontend.Plain is
       F.Thinking_Started := True;
    end Begin_Thinking;
 
-   overriding
-   procedure Append_Thinking
-     (F    : in out Instance;
-      Text :      String)
-   is
+   overriding procedure Append_Thinking (F : in out Instance; Text : String) is
    begin
       Put (F, Text);
    end Append_Thinking;
 
-   overriding
-   procedure End_Thinking (F : in out Instance) is
+   overriding procedure End_Thinking (F : in out Instance) is
    begin
       if F.Thinking_Started then
          Put (F, "" & ASCII.LF);
@@ -116,92 +88,90 @@ package body Coyote_App.Frontend.Plain is
       end if;
    end End_Thinking;
 
-   overriding
-   procedure Begin_Tool
-     (F               : in out Instance;
-      Name            :      String;
-      Args_Json       :      String;
-      Session_Id      :      String;
-      Tool_Id         :      String;
-      Model           :      String := "";
-      Source_Directory :      String := "";
-      Session_Start   :      String := "";
-      Turn_Index      :      Positive := 1;
-      Call_In_Turn    :      Positive := 1;
-      Initial_Status  :      Coyote_App.Frontend.Tool_Status :=
+   overriding procedure Begin_Tool
+     (F                : in out Instance;
+      Name             :        String;
+      Args_Json        :        String;
+      Session_Id       :        String;
+      Tool_Id          :        String;
+      Model            :        String                          := "";
+      Source_Directory :        String                          := "";
+      Session_Start    :        String                          := "";
+      Turn_Index       :        Positive                        := 1;
+      Call_In_Turn     :        Positive                        := 1;
+      Initial_Status   :        Coyote_App.Frontend.Tool_Status :=
         Coyote_App.Frontend.Running)
    is
       pragma Unreferenced
-        (Session_Id, Tool_Id, Model, Source_Directory, Session_Start,
-         Turn_Index, Call_In_Turn, Initial_Status);
+        (Session_Id,
+         Tool_Id,
+         Model,
+         Source_Directory,
+         Session_Start,
+         Turn_Index,
+         Call_In_Turn,
+         Initial_Status);
    begin
       Put_Line (F, "[tool] " & Name & " " & Args_Json);
    end Begin_Tool;
 
-   overriding
-   procedure Set_Tool_Status
+   overriding procedure Set_Tool_Status
      (F       : in out Instance;
-      Tool_Id :      String;
-      Status  :      Coyote_App.Frontend.Tool_Status)
+      Tool_Id :        String;
+      Status  :        Coyote_App.Frontend.Tool_Status)
    is
       pragma Unreferenced (Tool_Id);
       Label : constant String :=
         (case Status is
-            when Coyote_App.Frontend.Queued     => "queued",
-            when Coyote_App.Frontend.Running    => "running",
-            when Coyote_App.Frontend.Success    => "ok",
-            when Coyote_App.Frontend.Error      => "error",
-            when Coyote_App.Frontend.Timed_Out  => "timed out",
-            when Coyote_App.Frontend.Cancelled  => "cancelled");
+           when Coyote_App.Frontend.Queued => "queued",
+           when Coyote_App.Frontend.Running => "running",
+           when Coyote_App.Frontend.Success => "ok",
+           when Coyote_App.Frontend.Error => "error",
+           when Coyote_App.Frontend.Timed_Out => "timed out",
+           when Coyote_App.Frontend.Cancelled => "cancelled");
    begin
       Put_Line (F, "[tool " & Label & "]");
    end Set_Tool_Status;
 
-   overriding
-   procedure End_Tool
+   overriding procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     :      String;
-      Status      :      Coyote_App.Frontend.Tool_End_Status;
-      Result_Text :      String := "";
-      Media_Type  :      String := "")
+      Tool_Id     :        String;
+      Status      :        Coyote_App.Frontend.Tool_End_Status;
+      Result_Text :        String := "";
+      Media_Type  :        String := "")
    is
       pragma Unreferenced (Tool_Id, Media_Type);
       Label : constant String :=
         (case Status is
-            when Coyote_App.Frontend.Success   => "ok",
-            when Coyote_App.Frontend.Error     => "error",
-            when Coyote_App.Frontend.Timed_Out => "timed out",
-            when Coyote_App.Frontend.Cancelled => "cancelled");
+           when Coyote_App.Frontend.Success => "ok",
+           when Coyote_App.Frontend.Error => "error",
+           when Coyote_App.Frontend.Timed_Out => "timed out",
+           when Coyote_App.Frontend.Cancelled => "cancelled");
    begin
       Put_Line (F, "[tool " & Label & "]");
-      if Status = Coyote_App.Frontend.Error
-        and then Result_Text'Length > 0
+      if Status = Coyote_App.Frontend.Error and then Result_Text'Length > 0
       then
          Put_Line (F, Result_Text);
       end if;
    end End_Tool;
 
-   overriding
-   procedure Append_Turn_Footer
+   overriding procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    :      String;
-      Kind    :      Coyote_App.Frontend.Footer_Kind :=
+      Text    :        String;
+      Kind    :        Coyote_App.Frontend.Footer_Kind :=
         Coyote_App.Frontend.Final_Footer;
-      Summary :      String := "")
+      Summary :        String                          := "")
    is
       pragma Unreferenced (Summary);
       Label : constant String :=
-        (if Kind = Coyote_App.Frontend.Step_Footer
-         then "[step] "
+        (if Kind = Coyote_App.Frontend.Step_Footer then "[step] "
          else "[turn] ");
    begin
       Put_Line (F, Label & Text);
    end Append_Turn_Footer;
 
-   overriding
-   procedure Complete_Request
-     (F      : in out Instance;
-      Status :      Coyote_App.Frontend.Completion_Status)
+   overriding procedure Complete_Request
+     (F : in out Instance; Status : Coyote_App.Frontend.Completion_Status)
    is
       pragma Unreferenced (Status);
    begin
@@ -209,46 +179,40 @@ package body Coyote_App.Frontend.Plain is
       End_Text_Block (F);
    end Complete_Request;
 
-   overriding
-   procedure Append_Fork_Action
-     (F       : in out Instance;
-      UUID    :      String;
-      Turn_N  :      Positive;
-      Step_N  :      Natural := 0)
+   overriding procedure Append_Fork_Action
+     (F      : in out Instance;
+      UUID   :        String;
+      Turn_N :        Positive;
+      Step_N :        Natural := 0)
    is
       pragma Unreferenced (UUID, Turn_N, Step_N);
    begin
       null;
    end Append_Fork_Action;
 
-   overriding
-   procedure Append_Notice
+   overriding procedure Append_Notice
      (F    : in out Instance;
-      Kind :      Coyote_App.Frontend.Notice_Kind;
-      Text :      String)
+      Kind :        Coyote_App.Frontend.Notice_Kind;
+      Text :        String)
    is
       Label : constant String :=
         (case Kind is
-            when Coyote_App.Frontend.Info    => "info",
-            when Coyote_App.Frontend.Warning => "warning",
-            when Coyote_App.Frontend.Error   => "error");
+           when Coyote_App.Frontend.Info => "info",
+           when Coyote_App.Frontend.Warning => "warning",
+           when Coyote_App.Frontend.Error => "error");
    begin
       Put_Line (F, "[" & Label & "] " & Text);
    end Append_Notice;
 
-   overriding
-   procedure Show_Detail
-     (F       : in out Instance;
-      Title   :      String;
-      Content :      String)
+   overriding procedure Show_Detail
+     (F : in out Instance; Title : String; Content : String)
    is
    begin
       Put_Line (F, "[" & Title & "]");
       Put_Line (F, Content);
    end Show_Detail;
 
-   overriding
-   function Read_Prompt (F : in out Instance) return String is
+   overriding function Read_Prompt (F : in out Instance) return String is
       pragma Unreferenced (F);
    begin
       if Ada.Text_IO.End_Of_File then
@@ -257,8 +221,7 @@ package body Coyote_App.Frontend.Plain is
       return Ada.Text_IO.Get_Line;
    end Read_Prompt;
 
-   overriding
-   procedure Shutdown (F : in out Instance) is
+   overriding procedure Shutdown (F : in out Instance) is
    begin
       End_Thinking (F);
       End_Text_Block (F);

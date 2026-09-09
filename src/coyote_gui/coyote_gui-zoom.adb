@@ -20,10 +20,10 @@ package body Coyote_GUI.Zoom is
    ----------------
 
    procedure Step_Zoom
-     (Level     : in out Integer;
-      Steps     :        Integer;
-      Base_Pt   :        Integer;
-      Changed   :    out Boolean)
+     (Level   : in out Integer;
+      Steps   :        Integer;
+      Base_Pt :        Integer;
+      Changed :    out Boolean)
    is
       Old_Size : constant Integer := Effective_Size_Pt (Level, Base_Pt);
    begin
@@ -54,12 +54,10 @@ package body Coyote_GUI.Zoom is
    --------------------------
 
    function Effective_Size_Pt
-     (Level   : Integer;
-      Base_Pt : Integer) return Integer
+     (Level : Integer; Base_Pt : Integer) return Integer
    is
    begin
-      return Clamp (Base_Pt + Level * Zoom_Step_Pt,
-                    Min_Size_Pt, Max_Size_Pt);
+      return Clamp (Base_Pt + Level * Zoom_Step_Pt, Min_Size_Pt, Max_Size_Pt);
    end Effective_Size_Pt;
 
    -----------------------

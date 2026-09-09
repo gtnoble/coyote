@@ -2,19 +2,19 @@
 --
 --  Project: coyote
 
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_SQC.App;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.Workspace;
 with Coyote_SQC.UI.Chart_Canvas;
 with Coyote_SQC.UI.Detail_Panel;
-with Glib;                   use Glib;
+with Glib;                  use Glib;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Combo_Box;
 with Gtk.Combo_Box_Text;
-with Gtk.Dialog;             use Gtk.Dialog;
+with Gtk.Dialog;            use Gtk.Dialog;
 with Gtk.Expander;
 with Gtk.Label;
 with Gtk.Spin_Button;
@@ -41,11 +41,11 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       2 => Character'Val (16#BB#));
 
    --  Transform-kind combo indices.
-   Tf_None        : constant Glib.Gint := 0;
-   Tf_Box_Cox     : constant Glib.Gint := 1;
-   Tf_Sqrt_VS     : constant Glib.Gint := 2;
-   Tf_Anscombe    : constant Glib.Gint := 3;
-   Tf_Arcsinh_VS  : constant Glib.Gint := 4;
+   Tf_None          : constant Glib.Gint := 0;
+   Tf_Box_Cox       : constant Glib.Gint := 1;
+   Tf_Sqrt_VS       : constant Glib.Gint := 2;
+   Tf_Anscombe      : constant Glib.Gint := 3;
+   Tf_Arcsinh_VS    : constant Glib.Gint := 4;
    Tf_Freeman_Tukey : constant Glib.Gint := 5;
 
    --  Source-combo indices (used only when kind = Box-Cox).
@@ -61,7 +61,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
 
       Props : constant Coyote_SQC.Charts.Chart_Properties :=
         Coyote_SQC.Charts.Properties (Kind);
-      Cur   : constant Chart_Settings_Record :=
+      Cur   : constant Chart_Settings_Record              :=
         Coyote_SQC.Workspace.Chart_Settings
           (Coyote_SQC.App.State.Workspace, Kind);
 
@@ -70,7 +70,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       Res  : Gtk_Response_Type;
 
       --  Variance-stabilization transform kind combo.
-      Tf_C   : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Tf_C : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
 
       --  Box-Cox sub-panel widgets (visible only when kind = Box-Cox).
       BC_Src     : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
@@ -80,13 +80,12 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
 
       --  Estimation-method widget.
       Est_C : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-   --  Plot-method combo (Xbar/s charts only; null otherwise).
-   PM_C : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text := null;
+      --  Plot-method combo (Xbar/s charts only; null otherwise).
+      PM_C  : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text := null;
 
-   --  Plot-method combo indices (shown only for Xbar/s charts).
-   Plot_Classical : constant Glib.Gint := 0;
-   Plot_Robust    : constant Glib.Gint := 1;
-
+      --  Plot-method combo indices (shown only for Xbar/s charts).
+      Plot_Classical : constant Glib.Gint := 0;
+      Plot_Robust    : constant Glib.Gint := 1;
 
       --  EWMA parameter widgets.
       Wt_Sp : Gtk.Spin_Button.Gtk_Spin_Button := null;
@@ -95,44 +94,51 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       --  A p-chart or ratio-based chart: show advisory note.
       Is_Ratio : constant Boolean :=
         Props.Is_P_Chart
-        or else Kind in Fraction_Thinking_Tokens_I
-                       | Fraction_Thinking_Tokens_MR
-                       | Fraction_Thinking_Tokens_EWMA
-                       | Fraction_Tool_Call_Tokens_I
-                       | Fraction_Tool_Call_Tokens_MR
-                       | Fraction_Tool_Call_Tokens_EWMA
-                       | Fraction_Thinking_Per_Tool_Call_I
-                       | Fraction_Thinking_Per_Tool_Call_MR
-                       | Fraction_Thinking_Per_Tool_Call_EWMA
-                       | Fraction_Uncached_Input_I
-                       | Fraction_Uncached_Input_MR
-                       | Fraction_Uncached_Input_EWMA;
+        or else Kind in
+          Fraction_Thinking_Tokens_I | Fraction_Thinking_Tokens_MR
+          | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_I
+          | Fraction_Tool_Call_Tokens_MR | Fraction_Tool_Call_Tokens_EWMA
+          | Fraction_Thinking_Per_Tool_Call_I
+          | Fraction_Thinking_Per_Tool_Call_MR
+          | Fraction_Thinking_Per_Tool_Call_EWMA | Fraction_Uncached_Input_I
+          | Fraction_Uncached_Input_MR | Fraction_Uncached_Input_EWMA;
 
       --  Map Transform_Kind to combo index.
       function To_Tf_Idx (K : Transform_Kind) return Glib.Gint is
       begin
          case K is
-            when None          => return Tf_None;
-            when Box_Cox       => return Tf_Box_Cox;
-            when Sqrt_VS       => return Tf_Sqrt_VS;
-            when Anscombe      => return Tf_Anscombe;
-            when Arcsinh_VS    => return Tf_Arcsinh_VS;
-            when Freeman_Tukey => return Tf_Freeman_Tukey;
+            when None =>
+               return Tf_None;
+            when Box_Cox =>
+               return Tf_Box_Cox;
+            when Sqrt_VS =>
+               return Tf_Sqrt_VS;
+            when Anscombe =>
+               return Tf_Anscombe;
+            when Arcsinh_VS =>
+               return Tf_Arcsinh_VS;
+            when Freeman_Tukey =>
+               return Tf_Freeman_Tukey;
          end case;
       end To_Tf_Idx;
 
       --  Map combo index to Transform_Kind.
       function From_Tf_Idx return Transform_Kind is
          Idx : constant Glib.Gint :=
-           Gtk.Combo_Box.Get_Active
-             (Gtk.Combo_Box.Gtk_Combo_Box (Tf_C));
+           Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (Tf_C));
       begin
-         if    Idx = Tf_Box_Cox       then return Box_Cox;
-         elsif Idx = Tf_Sqrt_VS       then return Sqrt_VS;
-         elsif Idx = Tf_Anscombe      then return Anscombe;
-         elsif Idx = Tf_Arcsinh_VS    then return Arcsinh_VS;
-         elsif Idx = Tf_Freeman_Tukey then return Freeman_Tukey;
-         else                              return None;
+         if Idx = Tf_Box_Cox then
+            return Box_Cox;
+         elsif Idx = Tf_Sqrt_VS then
+            return Sqrt_VS;
+         elsif Idx = Tf_Anscombe then
+            return Anscombe;
+         elsif Idx = Tf_Arcsinh_VS then
+            return Arcsinh_VS;
+         elsif Idx = Tf_Freeman_Tukey then
+            return Freeman_Tukey;
+         else
+            return None;
          end if;
       end From_Tf_Idx;
 
@@ -140,29 +146,34 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       function To_Src_Idx (S : Box_Cox_Lambda_Source) return Glib.Gint is
       begin
          case S is
-            when Robust_Auto => return Src_Robust;
-            when Fixed       => return Src_Fixed;
-            when Auto        => return Src_MLE;
+            when Robust_Auto =>
+               return Src_Robust;
+            when Fixed =>
+               return Src_Fixed;
+            when Auto =>
+               return Src_MLE;
          end case;
       end To_Src_Idx;
 
       --  Read Lambda_Source from the source combo.
       function From_Src_Idx return Box_Cox_Lambda_Source is
          Idx : constant Glib.Gint :=
-           Gtk.Combo_Box.Get_Active
-             (Gtk.Combo_Box.Gtk_Combo_Box (BC_Src));
+           Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (BC_Src));
       begin
-         if Idx = Src_Robust then return Robust_Auto;
-         elsif Idx = Src_Fixed then return Fixed;
-         else return Auto;
+         if Idx = Src_Robust then
+            return Robust_Auto;
+         elsif Idx = Src_Fixed then
+            return Fixed;
+         else
+            return Auto;
          end if;
       end From_Src_Idx;
 
       --  Update sensitivity of fixed-lambda widgets.
       procedure Refresh_Fixed_Sens is
          F : constant Boolean :=
-           Gtk.Combo_Box.Get_Active
-             (Gtk.Combo_Box.Gtk_Combo_Box (BC_Src)) = Src_Fixed;
+           Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (BC_Src))
+           = Src_Fixed;
       begin
          BC_Fixed_C.Set_Sensitive (F);
          BC_Spin.Set_Sensitive (F);
@@ -171,8 +182,8 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       --  Show/hide the Box-Cox sub-panel based on the transform kind combo.
       procedure Refresh_BC_Panel is
          Is_BC : constant Boolean :=
-           Gtk.Combo_Box.Get_Active
-             (Gtk.Combo_Box.Gtk_Combo_Box (Tf_C)) = Tf_Box_Cox;
+           Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (Tf_C))
+           = Tf_Box_Cox;
       begin
          BC_Box.Set_Visible (Is_BC);
          if Is_BC then
@@ -204,12 +215,14 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       is
          pragma Unreferenced (W);
          Idx : constant Glib.Gint :=
-           Gtk.Combo_Box.Get_Active
-             (Gtk.Combo_Box.Gtk_Combo_Box (BC_Fixed_C));
+           Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (BC_Fixed_C));
       begin
-         if Idx = 0 then BC_Spin.Set_Value (0.0);
-         elsif Idx = 1 then BC_Spin.Set_Value (0.5);
-         elsif Idx = 2 then BC_Spin.Set_Value (1.0);
+         if Idx = 0 then
+            BC_Spin.Set_Value (0.0);
+         elsif Idx = 1 then
+            BC_Spin.Set_Value (0.5);
+         elsif Idx = 2 then
+            BC_Spin.Set_Value (1.0);
          end if;
       end On_Fixed_Preset;
 
@@ -236,9 +249,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       end On_Spin_Changed;
 
       --  Reset-to-defaults callback.
-      procedure On_Reset
-        (W : access Gtk.Button.Gtk_Button_Record'Class)
-      is
+      procedure On_Reset (W : access Gtk.Button.Gtk_Button_Record'Class) is
          pragma Unreferenced (W);
       begin
          Gtk.Combo_Box.Set_Active
@@ -261,12 +272,13 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       end On_Reset;
 
    begin
-      if Coyote_SQC.App.State = null then return; end if;
+      if Coyote_SQC.App.State = null then
+         return;
+      end if;
 
       Gtk.Dialog.Gtk_New
         (D,
-         "Chart Settings " & EM_Dash & " "
-         & To_String (Props.Label),
+         "Chart Settings " & EM_Dash & " " & To_String (Props.Label),
          Coyote_SQC.App.State.Main_Window,
          Gtk.Dialog.Modal);
       D.Set_Default_Size (420, -1);
@@ -277,17 +289,16 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
 
       --  ── Variance-Stabilization Transform expander ──────────────────────
       declare
-         Exp    : Gtk.Expander.Gtk_Expander;
-         Innr   : Gtk.Box.Gtk_Box;
-         Kd_Rw  : Gtk.Box.Gtk_Box;
-         S_Rw   : Gtk.Box.Gtk_Box;
-         F_Rw   : Gtk.Box.Gtk_Box;
-         Kd_Lb  : Gtk.Label.Gtk_Label;
-         S_Lb   : Gtk.Label.Gtk_Label;
-         F_Lb   : Gtk.Label.Gtk_Label;
-         Adv    : Gtk.Label.Gtk_Label;
-         Non_Def : constant Boolean :=
-           Cur.Transform.Kind /= None;
+         Exp     : Gtk.Expander.Gtk_Expander;
+         Innr    : Gtk.Box.Gtk_Box;
+         Kd_Rw   : Gtk.Box.Gtk_Box;
+         S_Rw    : Gtk.Box.Gtk_Box;
+         F_Rw    : Gtk.Box.Gtk_Box;
+         Kd_Lb   : Gtk.Label.Gtk_Label;
+         S_Lb    : Gtk.Label.Gtk_Label;
+         F_Lb    : Gtk.Label.Gtk_Label;
+         Adv     : Gtk.Label.Gtk_Label;
+         Non_Def : constant Boolean := Cur.Transform.Kind /= None;
       begin
          Gtk.Expander.Gtk_New (Exp, "Variance-Stabilization Transform");
          Exp.Set_Expanded (Non_Def);
@@ -399,13 +410,12 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
 
       --  ── Estimation Method expander ─────────────────────────────────────
       declare
-         Exp  : Gtk.Expander.Gtk_Expander;
-         Innr : Gtk.Box.Gtk_Box;
-         M_Rw : Gtk.Box.Gtk_Box;
-         M_Lb : Gtk.Label.Gtk_Label;
-         Note : Gtk.Label.Gtk_Label;
-         Non_Def : constant Boolean :=
-           Cur.Estimation_Method /= Classical;
+         Exp     : Gtk.Expander.Gtk_Expander;
+         Innr    : Gtk.Box.Gtk_Box;
+         M_Rw    : Gtk.Box.Gtk_Box;
+         M_Lb    : Gtk.Label.Gtk_Label;
+         Note    : Gtk.Label.Gtk_Label;
+         Non_Def : constant Boolean := Cur.Estimation_Method /= Classical;
       begin
          Gtk.Expander.Gtk_New (Exp, "Estimation Method");
          Exp.Set_Expanded (Non_Def);
@@ -423,8 +433,8 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
          Est_C.Append_Text ("Robust (median / Qn / median MR)");
          Gtk.Combo_Box.Set_Active
            (Gtk.Combo_Box.Gtk_Combo_Box (Est_C),
-            (if Cur.Estimation_Method = Robust_Median
-             then Est_Robust else Est_Classical));
+            (if Cur.Estimation_Method = Robust_Median then Est_Robust
+             else Est_Classical));
          M_Rw.Pack_Start (Est_C, True, True, 0);
          Innr.Pack_Start (M_Rw, False, False, 0);
 
@@ -451,17 +461,15 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
          VBox.Pack_Start (Exp, False, False, 0);
       end;
 
-
       --  ── Plot Method expander (Xbar/s charts only) ─────────────────────
       if Props.Is_Xbar_S_Chart then
          declare
-            Exp     : Gtk.Expander.Gtk_Expander;
-            Innr    : Gtk.Box.Gtk_Box;
-            PM_Rw   : Gtk.Box.Gtk_Box;
-            PM_Lb   : Gtk.Label.Gtk_Label;
-            PM_Note : Gtk.Label.Gtk_Label;
-            PM_Non_Def : constant Boolean :=
-              Cur.Plot_Method /= Classical;
+            Exp        : Gtk.Expander.Gtk_Expander;
+            Innr       : Gtk.Box.Gtk_Box;
+            PM_Rw      : Gtk.Box.Gtk_Box;
+            PM_Lb      : Gtk.Label.Gtk_Label;
+            PM_Note    : Gtk.Label.Gtk_Label;
+            PM_Non_Def : constant Boolean := Cur.Plot_Method /= Classical;
          begin
             Gtk.Expander.Gtk_New (Exp, "Plot Method");
             Exp.Set_Expanded (PM_Non_Def);
@@ -475,14 +483,12 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
             Gtk.Label.Gtk_New (PM_Lb, "Method:");
             PM_Rw.Pack_Start (PM_Lb, False, False, 0);
             Gtk.Combo_Box_Text.Gtk_New (PM_C);
-            PM_C.Append_Text
-              ("Classical (mean / sample s)");
-            PM_C.Append_Text
-              ("Robust (median / Qn)");
+            PM_C.Append_Text ("Classical (mean / sample s)");
+            PM_C.Append_Text ("Robust (median / Qn)");
             Gtk.Combo_Box.Set_Active
               (Gtk.Combo_Box.Gtk_Combo_Box (PM_C),
-               (if Cur.Plot_Method = Robust_Median
-                then Plot_Robust else Plot_Classical));
+               (if Cur.Plot_Method = Robust_Median then Plot_Robust
+                else Plot_Classical));
             PM_Rw.Pack_Start (PM_C, True, True, 0);
             Innr.Pack_Start (PM_Rw, False, False, 0);
 
@@ -503,13 +509,13 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       --  ── EWMA Parameters expander (EWMA charts only) ────────────────────
       if Props.Is_EWMA_Chart then
          declare
-            Exp  : Gtk.Expander.Gtk_Expander;
-            Innr : Gtk.Box.Gtk_Box;
-            W_Rw : Gtk.Box.Gtk_Box;
-            L_Rw : Gtk.Box.Gtk_Box;
-            W_Lb : Gtk.Label.Gtk_Label;
-            L_Lb : Gtk.Label.Gtk_Label;
-            Desc : Gtk.Label.Gtk_Label;
+            Exp     : Gtk.Expander.Gtk_Expander;
+            Innr    : Gtk.Box.Gtk_Box;
+            W_Rw    : Gtk.Box.Gtk_Box;
+            L_Rw    : Gtk.Box.Gtk_Box;
+            W_Lb    : Gtk.Label.Gtk_Label;
+            L_Lb    : Gtk.Label.Gtk_Label;
+            Desc    : Gtk.Label.Gtk_Label;
             Non_Def : constant Boolean :=
               Cur.EWMA_Weight /= 0.2 or else Cur.EWMA_L /= 3.0;
          begin
@@ -544,8 +550,8 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
               (Desc,
                "Smaller " & Lambda_Sym
                & " gives more smoothing and better detection of"
-               & " small sustained shifts; "
-               & Lambda_Sym & " = 1 reduces to the raw I chart.");
+               & " small sustained shifts; " & Lambda_Sym
+               & " = 1 reduces to the raw I chart.");
             Desc.Set_Halign (Gtk.Widget.Align_Start);
             Desc.Set_Line_Wrap (True);
             Innr.Pack_Start (Desc, False, False, 0);
@@ -571,7 +577,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
          pragma Unreferenced (Dummy);
       begin
          Content.Pack_Start (VBox, True, True, 0);
-         Dummy := D.Add_Button ("_OK",     Gtk_Response_OK);
+         Dummy := D.Add_Button ("_OK", Gtk_Response_OK);
          Dummy := D.Add_Button ("_Cancel", Gtk_Response_Cancel);
       end;
 
@@ -591,8 +597,8 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
             end if;
 
             --  Estimation method.
-            if Gtk.Combo_Box.Get_Active
-              (Gtk.Combo_Box.Gtk_Combo_Box (Est_C)) = Est_Robust
+            if Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (Est_C))
+              = Est_Robust
             then
                New_Cfg.Estimation_Method := Robust_Median;
             else
@@ -600,8 +606,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
             end if;
 
             --  EWMA parameters (EWMA charts only).
-            if Props.Is_EWMA_Chart
-              and then Wt_Sp /= null and then L_Sp /= null
+            if Props.Is_EWMA_Chart and then Wt_Sp /= null and then L_Sp /= null
             then
                New_Cfg.EWMA_Weight := Long_Float (Wt_Sp.Get_Value);
                New_Cfg.EWMA_L      := Long_Float (L_Sp.Get_Value);
@@ -609,8 +614,8 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
 
             --  Plot method (Xbar/s charts only).
             if Props.Is_Xbar_S_Chart and then PM_C /= null then
-               if Gtk.Combo_Box.Get_Active
-                 (Gtk.Combo_Box.Gtk_Combo_Box (PM_C)) = Plot_Robust
+               if Gtk.Combo_Box.Get_Active (Gtk.Combo_Box.Gtk_Combo_Box (PM_C))
+                 = Plot_Robust
                then
                   New_Cfg.Plot_Method := Robust_Median;
                end if;

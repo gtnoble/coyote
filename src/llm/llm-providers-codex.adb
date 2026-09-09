@@ -45,8 +45,7 @@ package body LLM.Providers.Codex is
       end return;
    end Create;
 
-   overriding
-   procedure Send
+   overriding procedure Send
      (P             : in out Provider;
       Model_Id      :        String;
       System_Prompt :        String;
@@ -58,7 +57,7 @@ package body LLM.Providers.Codex is
       Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
       Session_Id : constant String := To_String (P.Session_Id);
-      Creds      : LLM.Auth.Provider_Credentials :=
+      Creds      : LLM.Auth.Provider_Credentials           :=
         LLM.Auth.Load_Credentials ("codex");
       --  The Codex backend serves the Responses API under
       --  /codex/responses, so the delegate base URL carries the
@@ -77,26 +76,18 @@ package body LLM.Providers.Codex is
             Name  => "chatgpt-account-id",
             Value => To_String (Creds.Account_Id));
          LLM.Providers.OpenAI_Responses.Add_Header
-           (P     => Delegate,
-            Name  => "originator",
-            Value => "coyote");
+           (P => Delegate, Name => "originator", Value => "coyote");
          LLM.Providers.OpenAI_Responses.Add_Header
-           (P     => Delegate,
-            Name  => "User-Agent",
-            Value => "coyote/0.1.0-dev");
+           (P => Delegate, Name => "User-Agent", Value => "coyote/0.1.0-dev");
          LLM.Providers.OpenAI_Responses.Add_Header
            (P     => Delegate,
             Name  => "OpenAI-Beta",
             Value => "responses=experimental");
          LLM.Providers.OpenAI_Responses.Add_Header
-           (P     => Delegate,
-            Name  => "accept",
-            Value => "text/event-stream");
+           (P => Delegate, Name => "accept", Value => "text/event-stream");
          if Session_Id'Length > 0 then
             LLM.Providers.OpenAI_Responses.Add_Header
-              (P     => Delegate,
-               Name  => "session-id",
-               Value => Session_Id);
+              (P => Delegate, Name => "session-id", Value => Session_Id);
             LLM.Providers.OpenAI_Responses.Add_Header
               (P     => Delegate,
                Name  => "x-client-request-id",
@@ -104,12 +95,10 @@ package body LLM.Providers.Codex is
          end if;
          LLM.Providers.OpenAI_Responses.Set_Inline_Cache_Hints
            (Delegate, False);
-         LLM.Providers.OpenAI_Responses.Set_Omit_Max_Tokens
-           (Delegate, True);
+         LLM.Providers.OpenAI_Responses.Set_Omit_Max_Tokens (Delegate, True);
          --  The Codex backend requires store to be false and rejects
          --  requests that omit the field.
-         LLM.Providers.OpenAI_Responses.Set_Store_Enabled
-           (Delegate, False);
+         LLM.Providers.OpenAI_Responses.Set_Store_Enabled (Delegate, False);
          if Session_Id'Length > 0 then
             LLM.Providers.OpenAI_Responses.Set_Prompt_Cache_Key
               (Delegate, Clamped_Session_Key (Session_Id));
@@ -119,16 +108,16 @@ package body LLM.Providers.Codex is
       if Length (Creds.Refresh_Token) = 0
         and then Length (Creds.Access_Token) = 0
       then
-         raise LLM.Auth.Codex.Auth_Error with
-           "OpenAI Codex subscription is not configured; "
+         raise LLM.Auth.Codex.Auth_Error
+           with "OpenAI Codex subscription is not configured; "
            & "log in via Options > Subscriptions";
       end if;
 
       LLM.Auth.Codex.Ensure_Valid (Creds);
 
       if Length (Creds.Account_Id) = 0 then
-         raise LLM.Auth.Codex.Auth_Error with
-           "OpenAI Codex access token does not carry a "
+         raise LLM.Auth.Codex.Auth_Error
+           with "OpenAI Codex access token does not carry a "
            & "chatgpt_account_id claim; log in again via "
            & "Options > Subscriptions";
       end if;
@@ -153,8 +142,8 @@ package body LLM.Providers.Codex is
            (Ada.Text_IO.Standard_Error,
             "[!] OpenAI Codex authentication failed: "
             & Ada.Exceptions.Exception_Message (E));
-         raise Constraint_Error with
-           "OpenAI Codex authentication failed: "
+         raise Constraint_Error
+           with "OpenAI Codex authentication failed: "
            & Ada.Exceptions.Exception_Message (E);
    end Send;
 

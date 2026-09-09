@@ -20,9 +20,9 @@
 --  Project: coyote
 
 with Ada.Containers.Vectors;
-with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI;
-with Glib;                          use Glib;
+with Glib;                  use Glib;
 with LLM.Agent;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
@@ -57,123 +57,96 @@ package Coyote_App.Frontend.GUI is
    --  Initialise the GTK window and register the idle drain callback.
    --  Must be called from the GTK main loop thread.
    procedure Create
-     (F                          : in out Instance;
-      Win_Name                   : String;
-      Pop_Under                  : Boolean := False;
-      Notifications_Allowed      : Boolean := True;
-      Notifications_Enabled      : Boolean := True);
+     (F                     : in out Instance;
+      Win_Name              :        String;
+      Pop_Under             :        Boolean := False;
+      Notifications_Allowed :        Boolean := True;
+      Notifications_Enabled :        Boolean := True);
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
-   overriding
-   procedure Set_Status
-     (F    : in out Instance;
-      Text :      String);
+   overriding procedure Set_Status (F : in out Instance; Text : String);
 
-   overriding
-   procedure Set_Mode
-     (F    : in out Instance;
-      Mode :      Coyote_App.Frontend.Run_Mode);
+   overriding procedure Set_Mode
+     (F : in out Instance; Mode : Coyote_App.Frontend.Run_Mode);
 
-   overriding
-   procedure Begin_Request
+   overriding procedure Begin_Request
      (F    : in out Instance;
-      Text :      String;
-      Kind :      Coyote_App.Frontend.Request_Kind :=
-        Coyote_App.Frontend.Prompt);
+      Text :        String;
+      Kind : Coyote_App.Frontend.Request_Kind := Coyote_App.Frontend.Prompt);
 
-   overriding
-   procedure Append_Text
-     (F    : in out Instance;
-      Text :      String);
+   overriding procedure Append_Text (F : in out Instance; Text : String);
 
    overriding procedure End_Text_Block (F : in out Instance);
 
    overriding procedure Begin_Thinking (F : in out Instance);
 
-   overriding
-   procedure Append_Thinking
-     (F    : in out Instance;
-      Text :      String);
+   overriding procedure Append_Thinking (F : in out Instance; Text : String);
 
    overriding procedure End_Thinking (F : in out Instance);
 
-   overriding
-   procedure Begin_Tool
-     (F               : in out Instance;
-      Name            :      String;
-      Args_Json       :      String;
-      Session_Id      :      String;
-      Tool_Id          :      String;
-      Model           :      String := "";
-      Source_Directory :      String := "";
-      Session_Start   :      String := "";
-      Turn_Index      :      Positive := 1;
-      Call_In_Turn    :      Positive := 1;
-      Initial_Status  :      Coyote_App.Frontend.Tool_Status :=
+   overriding procedure Begin_Tool
+     (F                : in out Instance;
+      Name             :        String;
+      Args_Json        :        String;
+      Session_Id       :        String;
+      Tool_Id          :        String;
+      Model            :        String                          := "";
+      Source_Directory :        String                          := "";
+      Session_Start    :        String                          := "";
+      Turn_Index       :        Positive                        := 1;
+      Call_In_Turn     :        Positive                        := 1;
+      Initial_Status   :        Coyote_App.Frontend.Tool_Status :=
         Coyote_App.Frontend.Running);
-   overriding
-   procedure Set_Tool_Status
+   overriding procedure Set_Tool_Status
      (F       : in out Instance;
-      Tool_Id :      String;
-      Status  :      Coyote_App.Frontend.Tool_Status);
-   overriding
-   procedure End_Tool
+      Tool_Id :        String;
+      Status  :        Coyote_App.Frontend.Tool_Status);
+   overriding procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     :      String;
-      Status      :      Coyote_App.Frontend.Tool_End_Status;
-      Result_Text :      String := "";
-      Media_Type  :      String := "");
-   overriding
-   procedure Append_Turn_Footer
+      Tool_Id     :        String;
+      Status      :        Coyote_App.Frontend.Tool_End_Status;
+      Result_Text :        String := "";
+      Media_Type  :        String := "");
+   overriding procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    :      String;
-      Kind    :      Coyote_App.Frontend.Footer_Kind :=
+      Text    :        String;
+      Kind    :        Coyote_App.Frontend.Footer_Kind :=
         Coyote_App.Frontend.Final_Footer;
-      Summary :      String := "");
+      Summary :        String                          := "");
 
-   overriding
-   procedure Complete_Request
+   overriding procedure Complete_Request
+     (F : in out Instance; Status : Coyote_App.Frontend.Completion_Status);
+
+   overriding procedure Append_Fork_Action
      (F      : in out Instance;
-      Status :      Coyote_App.Frontend.Completion_Status);
+      UUID   :        String;
+      Turn_N :        Positive;
+      Step_N :        Natural := 0);
 
-   overriding
-   procedure Append_Fork_Action
-     (F       : in out Instance;
-      UUID    :      String;
-      Turn_N  :      Positive;
-      Step_N  :      Natural := 0);
-
-   overriding
-   procedure Append_Notice
+   overriding procedure Append_Notice
      (F    : in out Instance;
-      Kind :      Coyote_App.Frontend.Notice_Kind;
-      Text :      String);
+      Kind :        Coyote_App.Frontend.Notice_Kind;
+      Text :        String);
 
-   overriding
-   procedure Show_Detail
-     (F       : in out Instance;
-      Title   :      String;
-      Content :      String);
+   overriding procedure Show_Detail
+     (F : in out Instance; Title : String; Content : String);
 
    --  Read the next item from the prompt queue.  Blocks until an item is
    --  available or Shutdown is called (returns Shutdown_Item in that case).
    --  Called from Agent_Task in Run_GUI; preferred over Read_Prompt.
-   function Read_Item (F : in out Instance)
-     return Coyote_GUI.Prompt_Queue.Item;
+   function Read_Item
+     (F : in out Instance) return Coyote_GUI.Prompt_Queue.Item;
 
-   overriding
-   function Read_Prompt (F : in out Instance) return String;
+   overriding function Read_Prompt (F : in out Instance) return String;
 
-   overriding
-   procedure Shutdown (F : in out Instance);
+   overriding procedure Shutdown (F : in out Instance);
 
    --  ── GUI-specific (not in abstract interface) ──────────────────────────
 
    --  Queue a typed session-statistics snapshot for the support window.
    procedure Set_Stats_Summary
-     (F     : in out Instance;
-      Stats : Coyote_GUI.Session_Stats_Record);
+     (F : in out Instance; Stats : Coyote_GUI.Session_Stats_Record);
 
    --  Clear the support-window report for a new or switched session.
    procedure Clear_Stats (F : in out Instance);
@@ -191,8 +164,7 @@ package Coyote_App.Frontend.GUI is
    --  the prompt queue.  Must be called from Agent_Task after
    --  LLM.Agent.Create.
    procedure Register_Session
-     (F : in out Instance;
-      S : access LLM.Agent.Session);
+     (F : in out Instance; S : access LLM.Agent.Session);
 
    --  Request application shutdown from a GTK callback.  This stops the
    --  process-control monitor, aborts any active request, wakes Agent_Task,
@@ -215,36 +187,29 @@ package Coyote_App.Frontend.GUI is
 
    --  Update the window-manager identity for the active session.  The
    --  request is queued so the GTK window is changed only on the GTK task.
-   procedure Set_Session_Identity
-     (F : in out Instance;
-      Session_Id : String);
+   procedure Set_Session_Identity (F : in out Instance; Session_Id : String);
 
 private
 
    use type Coyote_GUI.Update;
 
    procedure Build_Product_Information
-     (Parent : Gtk.Window.Gtk_Window;
+     (Parent :     Gtk.Window.Gtk_Window;
       Dialog : out Gtk.Dialog.Gtk_Dialog;
       Image  : out Gtk.Image.Gtk_Image);
 
-   procedure Apply_RPC_Frame
-     (F : in out Instance;
-      U : Coyote_GUI.Update);
+   procedure Apply_RPC_Frame (F : in out Instance; U : Coyote_GUI.Update);
 
    protected type Session_Reference is
       procedure Set (Value : access LLM.Agent.Session);
       procedure Request_Abort;
-      procedure Request_Tool_Abort
-        (Tool_Id : String;
-         Message : String);
+      procedure Request_Tool_Abort (Tool_Id : String; Message : String);
    private
       Value : access LLM.Agent.Session := null;
    end Session_Reference;
 
    package Update_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Coyote_GUI.Update);
+     (Index_Type => Positive, Element_Type => Coyote_GUI.Update);
 
    type History_Entry is record
       Runtime_Id : Unbounded_String;
@@ -252,82 +217,80 @@ private
    end record;
 
    package History_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => History_Entry);
+     (Index_Type => Positive, Element_Type => History_Entry);
 
    type Instance is new Coyote_App.Frontend.Instance with record
       --  Update queue: agent task → GTK idle drain.
-      Updates   : aliased Coyote_GUI.Updates.Queue;
+      Updates                 : aliased Coyote_GUI.Updates.Queue;
       --  Prompt queue: GTK callbacks → agent task.
-      PQ        : aliased Coyote_GUI.Prompt_Queue.Queue;
+      PQ                      : aliased Coyote_GUI.Prompt_Queue.Queue;
       --  Native component-stack presentation.
-      Stack     : Coyote_GUI.Conversation_Stack.Instance;
+      Stack                   : Coyote_GUI.Conversation_Stack.Instance;
       --  Runtime hierarchy; it owns no GTK objects.
-      Agent_Registry : Coyote_App.Agent_Registry.Registry;
-      Root_Agent_Id  : Unbounded_String;
+      Agent_Registry          : Coyote_App.Agent_Registry.Registry;
+      Root_Agent_Id           : Unbounded_String;
       --  Coordinator-side local RPC service.  Its callback only enqueues
       --  opaque frames; GTK state is applied by Drain_Idle.
-      RPC_Service   : Coyote_App.Agent_RPC.Service.Service;
-      RPC_Endpoint  : Unbounded_String;
-      Selected_Agent_Id : Unbounded_String :=
-        To_Unbounded_String ("root");
-      RPC_Request_Sequence : Natural := 0;
-      Histories : History_Vectors.Vector;
-      Replaying : Boolean := False;
+      RPC_Service             : Coyote_App.Agent_RPC.Service.Service;
+      RPC_Endpoint            : Unbounded_String;
+      Selected_Agent_Id : Unbounded_String := To_Unbounded_String ("root");
+      RPC_Request_Sequence    : Natural                      := 0;
+      Histories               : History_Vectors.Vector;
+      Replaying               : Boolean                      := False;
       --  GTK widgets.
-      Win       : Gtk.Window.Gtk_Window;
-      Agents_Window : Gtk.Window.Gtk_Window;
-      Agents_Store  : Gtk.Tree_Store.Gtk_Tree_Store;
-      Agents_View   : Gtk.Tree_View.Gtk_Tree_View;
-      Agent_Root_Iter : Gtk.Tree_Model.Gtk_Tree_Iter :=
+      Win                     : Gtk.Window.Gtk_Window;
+      Agents_Window           : Gtk.Window.Gtk_Window;
+      Agents_Store            : Gtk.Tree_Store.Gtk_Tree_Store;
+      Agents_View             : Gtk.Tree_View.Gtk_Tree_View;
+      Agent_Root_Iter         : Gtk.Tree_Model.Gtk_Tree_Iter :=
         Gtk.Tree_Model.Null_Iter;
-      Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
-      Stop_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
-      Abort_Tool_Item       : Gtk.Menu_Item.Gtk_Menu_Item;
+      Render_Markdown_Item    : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Stop_Item               : Gtk.Menu_Item.Gtk_Menu_Item;
+      Abort_Tool_Item         : Gtk.Menu_Item.Gtk_Menu_Item;
       Abort_Tool_Message_Item : Gtk.Menu_Item.Gtk_Menu_Item;
-      Pause_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
-      Resume_Item           : Gtk.Menu_Item.Gtk_Menu_Item;
-      Clear_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
-      Cut_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
-      Copy_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
-      Paste_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
-      Select_All_Item       : Gtk.Menu_Item.Gtk_Menu_Item;
-      Deselect_Item         : Gtk.Menu_Item.Gtk_Menu_Item;
-      Notification_Check    : Gtk.Check_Button.Gtk_Check_Button;
-      Notifications_Allowed : Boolean := False;
-      Notifications_Enabled : Boolean := False;
-      Accel_Group : Gtk.Accel_Group.Gtk_Accel_Group;
-      Menu_Bar  : Gtk.Menu_Bar.Gtk_Menu_Bar;
-      Prompt_View              : Gtk.Text_View.Gtk_Text_View;
-      Prompt_Buf               : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Send_Btn                 : Gtk.Button.Gtk_Button;
-      Stop_Btn                 : Gtk.Button.Gtk_Button;
-      Status_Bar               : Gtk.Label.Gtk_Label;
-      Prompt_Box               : Gtk.Box.Gtk_Box;
-      Status_Box               : Gtk.Box.Gtk_Box;
-      Conversation_Prompt_Sep  : Gtk.Separator.Gtk_Separator;
-      Prompt_Status_Sep        : Gtk.Separator.Gtk_Separator;
-      Outer_Box                : Gtk.Box.Gtk_Box;
+      Pause_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
+      Resume_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
+      Clear_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
+      Cut_Item                : Gtk.Menu_Item.Gtk_Menu_Item;
+      Copy_Item               : Gtk.Menu_Item.Gtk_Menu_Item;
+      Paste_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
+      Select_All_Item         : Gtk.Menu_Item.Gtk_Menu_Item;
+      Deselect_Item           : Gtk.Menu_Item.Gtk_Menu_Item;
+      Notification_Check      : Gtk.Check_Button.Gtk_Check_Button;
+      Notifications_Allowed   : Boolean                      := False;
+      Notifications_Enabled   : Boolean                      := False;
+      Accel_Group             : Gtk.Accel_Group.Gtk_Accel_Group;
+      Menu_Bar                : Gtk.Menu_Bar.Gtk_Menu_Bar;
+      Prompt_View             : Gtk.Text_View.Gtk_Text_View;
+      Prompt_Buf              : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Send_Btn                : Gtk.Button.Gtk_Button;
+      Stop_Btn                : Gtk.Button.Gtk_Button;
+      Status_Bar              : Gtk.Label.Gtk_Label;
+      Prompt_Box              : Gtk.Box.Gtk_Box;
+      Status_Box              : Gtk.Box.Gtk_Box;
+      Conversation_Prompt_Sep : Gtk.Separator.Gtk_Separator;
+      Prompt_Status_Sep       : Gtk.Separator.Gtk_Separator;
+      Outer_Box               : Gtk.Box.Gtk_Box;
       --  State
-      Win_Name     : Unbounded_String;
-      Stats_Window           : Coyote_GUI.Session_Stats_Window.Instance;
-      Sandbox_Profile_Window : aliased Coyote_GUI.Sandbox_Profile_Window.Instance;
-      Sandbox_Profiles_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
-      Subscription_Window    : aliased Coyote_GUI.Subscription_Window.Instance;
-      Subscriptions_Item     : Gtk.Menu_Item.Gtk_Menu_Item;
-      Current_Mode           : Coyote_App.Frontend.Run_Mode :=
-        Coyote_App.Frontend.Idle;
-      Agent_Sess             : Session_Reference;
+      Win_Name                : Unbounded_String;
+      Stats_Window            : Coyote_GUI.Session_Stats_Window.Instance;
+      Sandbox_Profile_Window  : aliased Coyote_GUI.Sandbox_Profile_Window
+        .Instance;
+      Sandbox_Profiles_Item   : Gtk.Menu_Item.Gtk_Menu_Item;
+      Subscription_Window : aliased Coyote_GUI.Subscription_Window.Instance;
+      Subscriptions_Item      : Gtk.Menu_Item.Gtk_Menu_Item;
+      Current_Mode : Coyote_App.Frontend.Run_Mode := Coyote_App.Frontend.Idle;
+      Agent_Sess              : Session_Reference;
       --  Auto-scroll: when True, the conversation view snaps to the bottom
       --  whenever its adjustment changes (new content arrives).  Toggled
       --  via View → Auto-scroll check menu item.  Enabled by default.
-      Auto_Scroll         : Boolean := True;
-      Auto_Scroll_Item    : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
-      Agents_Window_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
-      Zoom_Level          : Integer := 0;
-      Smooth_Zoom_Accumulator : Gdouble := 0.0;
+      Auto_Scroll             : Boolean                      := True;
+      Auto_Scroll_Item        : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Agents_Window_Item      : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Zoom_Level              : Integer                      := 0;
+      Smooth_Zoom_Accumulator : Gdouble                      := 0.0;
       --  True after Shift+F1 until the next click selects a help target.
-      Help_Mode : Boolean := False;
+      Help_Mode               : Boolean                      := False;
    end record;
 
 end Coyote_App.Frontend.GUI;

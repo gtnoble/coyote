@@ -51,30 +51,30 @@ package body Coyote_GUI.Subscription_Window is
    subtype Provider_Index is Natural range 0 .. 1;
 
    type Credential_Info is record
-      Logged_In  : Boolean := False;
-      Account    : Unbounded_String := Null_Unbounded_String;
+      Logged_In  : Boolean           := False;
+      Account    : Unbounded_String  := Null_Unbounded_String;
       Expires_Ms : Long_Long_Integer := 0;
    end record;
 
    function Codex_Info return Credential_Info is
-      Creds : constant LLM.Auth.Provider_Credentials :=
+      Creds  : constant LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("codex");
       Result : Credential_Info;
    begin
-      Result.Logged_In :=
+      Result.Logged_In  :=
         Length (Creds.Refresh_Token) > 0
         or else Length (Creds.Access_Token) > 0;
-      Result.Account := Creds.Account_Id;
+      Result.Account    := Creds.Account_Id;
       Result.Expires_Ms := Creds.Expires_Ms;
       return Result;
    end Codex_Info;
 
    function Copilot_Info return Credential_Info is
-      Creds : constant LLM.Auth.Provider_Credentials :=
+      Creds  : constant LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("github-copilot");
       Result : Credential_Info;
    begin
-      Result.Logged_In :=
+      Result.Logged_In  :=
         Length (Creds.Refresh_Token) > 0
         or else Length (Creds.Access_Token) > 0;
       Result.Expires_Ms := Creds.Expires_Ms;
@@ -114,29 +114,29 @@ package body Coyote_GUI.Subscription_Window is
       function Succeeded return Boolean;
       function Error_Text return String;
    private
-      Done    : Boolean := False;
-      OK      : Boolean := False;
+      Done    : Boolean          := False;
+      OK      : Boolean          := False;
       Err_Msg : Unbounded_String := Null_Unbounded_String;
    end Login_Outcome;
 
    protected body Login_Outcome is
       procedure Clear is
       begin
-         Done := False;
-         OK := False;
+         Done    := False;
+         OK      := False;
          Err_Msg := Null_Unbounded_String;
       end Clear;
 
       procedure Record_Success is
       begin
          Done := True;
-         OK := True;
+         OK   := True;
       end Record_Success;
 
       procedure Record_Failure (Message : String) is
       begin
-         Done := True;
-         OK := False;
+         Done    := True;
+         OK      := False;
          Err_Msg := To_Unbounded_String (Message);
       end Record_Failure;
 
@@ -177,8 +177,8 @@ package body Coyote_GUI.Subscription_Window is
       if not Coyote_Spawn.Spawn_Detached (Args) then
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
-            "[!] Failed to launch browser; open this URL manually:"
-            & " " & Url);
+            "[!] Failed to launch browser; open this URL manually:" & " "
+            & Url);
       end if;
    end Open_In_Browser;
 
@@ -192,11 +192,9 @@ package body Coyote_GUI.Subscription_Window is
       Outcome.Record_Success;
    exception
       when E : LLM.Auth.Codex.Login.Login_Error =>
-         Outcome.Record_Failure
-           (Ada.Exceptions.Exception_Message (E));
-      when E : others =>
-         Outcome.Record_Failure
-           (Ada.Exceptions.Exception_Message (E));
+         Outcome.Record_Failure (Ada.Exceptions.Exception_Message (E));
+      when E : others                           =>
+         Outcome.Record_Failure (Ada.Exceptions.Exception_Message (E));
    end Login_Task_Type;
 
    --  ── Widget construction and callbacks ────────────────────────────────
@@ -204,8 +202,7 @@ package body Coyote_GUI.Subscription_Window is
    procedure Update_Detail_Fields;
 
    procedure Update_Button_Sensitivity is
-      State : constant Provider_State :=
-        Provider_State'Val (Selected_Row);
+      State : constant Provider_State  := Provider_State'Val (Selected_Row);
       Info  : constant Credential_Info := Info_For (State);
    begin
       if Current_Instance = null then
@@ -221,25 +218,20 @@ package body Coyote_GUI.Subscription_Window is
 
       case State is
          when Codex_Subscription =>
-            Current_Instance.Login_Button.Set_Sensitive
-              (not Info.Logged_In);
-            Current_Instance.Refresh_Button.Set_Sensitive
-              (Info.Logged_In);
-            Current_Instance.Logout_Button.Set_Sensitive
-              (Info.Logged_In);
+            Current_Instance.Login_Button.Set_Sensitive (not Info.Logged_In);
+            Current_Instance.Refresh_Button.Set_Sensitive (Info.Logged_In);
+            Current_Instance.Logout_Button.Set_Sensitive (Info.Logged_In);
          when GitHub_Copilot_Subscription =>
             --  Copilot credential management stays in the CLI; the window
             --  only reports state for it.
             Current_Instance.Login_Button.Set_Sensitive (False);
-            Current_Instance.Refresh_Button.Set_Sensitive
-              (Info.Logged_In);
+            Current_Instance.Refresh_Button.Set_Sensitive (Info.Logged_In);
             Current_Instance.Logout_Button.Set_Sensitive (False);
       end case;
    end Update_Button_Sensitivity;
 
    procedure Update_Detail_Fields is
-      State : constant Provider_State :=
-        Provider_State'Val (Selected_Row);
+      State : constant Provider_State  := Provider_State'Val (Selected_Row);
       Info  : constant Credential_Info := Info_For (State);
    begin
       if Current_Instance = null then
@@ -249,8 +241,7 @@ package body Coyote_GUI.Subscription_Window is
       if Info.Logged_In then
          Current_Instance.Status_Field.Set_Text ("Logged in");
          if Length (Info.Account) > 0 then
-            Current_Instance.Account_Field.Set_Text
-              (To_String (Info.Account));
+            Current_Instance.Account_Field.Set_Text (To_String (Info.Account));
          else
             Current_Instance.Account_Field.Set_Text ("(not reported)");
          end if;
@@ -265,8 +256,7 @@ package body Coyote_GUI.Subscription_Window is
    procedure Rebuild_Provider_List is
       Iter : Gtk_Tree_Iter;
    begin
-      if Current_Instance = null
-        or else Current_Instance.Provider_Store = null
+      if Current_Instance = null or else Current_Instance.Provider_Store = null
       then
          return;
       end if;
@@ -274,15 +264,13 @@ package body Coyote_GUI.Subscription_Window is
       Current_Instance.Provider_Store.Clear;
       for P in Provider_State'Range loop
          declare
-            Info : constant Credential_Info := Info_For (P);
-            State_Text : constant String :=
+            Info       : constant Credential_Info := Info_For (P);
+            State_Text : constant String          :=
               (if Info.Logged_In then "Logged in" else "Not configured");
          begin
             Current_Instance.Provider_Store.Append (Iter);
-            Current_Instance.Provider_Store.Set
-              (Iter, 0, Provider_Name (P));
-            Current_Instance.Provider_Store.Set
-              (Iter, 1, State_Text);
+            Current_Instance.Provider_Store.Set (Iter, 0, Provider_Name (P));
+            Current_Instance.Provider_Store.Set (Iter, 1, State_Text);
          end;
       end loop;
 
@@ -293,10 +281,9 @@ package body Coyote_GUI.Subscription_Window is
          Selection : constant Gtk.Tree_Selection.Gtk_Tree_Selection :=
            Current_Instance.Provider_View.Get_Selection;
          Target    : Gtk.Tree_Model.Gtk_Tree_Iter;
-         Walk_To   : constant Provider_Index :=
-           (if Selected_Row > Provider_Index'Last
-              then Provider_Index'Last
-              else Selected_Row);
+         Walk_To   : constant Provider_Index                        :=
+           (if Selected_Row > Provider_Index'Last then Provider_Index'Last
+            else Selected_Row);
          Position  : Provider_Index := Provider_Index'First;
       begin
          Selection.Unselect_All;
@@ -316,14 +303,14 @@ package body Coyote_GUI.Subscription_Window is
    --  refreshes credential state and resets the buttons.
 
    Poll_Source_Id : Glib.Main.G_Source_Id := 0;
-   Poll_Active    : Boolean := False;
+   Poll_Active    : Boolean               := False;
 
    procedure Start_Poll is
    begin
       if Poll_Active then
          return;
       end if;
-      Poll_Active := True;
+      Poll_Active    := True;
       Poll_Source_Id := Glib.Main.Timeout_Add (250, Login_Poll_Idle'Access);
    end Start_Poll;
 
@@ -347,13 +334,12 @@ package body Coyote_GUI.Subscription_Window is
          return True;
       end if;
 
-      Poll_Active := False;
+      Poll_Active                   := False;
       Current_Instance.Login_Active := False;
-      Login_Handle := null;
+      Login_Handle                  := null;
 
       if Outcome.Succeeded then
-         Current_Instance.Status.Set_Text
-           ("OpenAI Codex login complete");
+         Current_Instance.Status.Set_Text ("OpenAI Codex login complete");
       else
          Current_Instance.Status.Set_Text
            ("Login failed: " & Outcome.Error_Text);
@@ -374,9 +360,7 @@ package body Coyote_GUI.Subscription_Window is
    is
       pragma Unreferenced (Self);
    begin
-      if Current_Instance = null
-        or else Current_Instance.Login_Active
-      then
+      if Current_Instance = null or else Current_Instance.Login_Active then
          return;
       end if;
 
@@ -402,7 +386,7 @@ package body Coyote_GUI.Subscription_Window is
       end if;
 
       State := Provider_State'Val (Selected_Row);
-      Info := Info_For (State);
+      Info  := Info_For (State);
 
       case State is
          when Codex_Subscription =>
@@ -414,8 +398,7 @@ package body Coyote_GUI.Subscription_Window is
                        LLM.Auth.Load_Credentials ("codex");
                   begin
                      LLM.Auth.Codex.Ensure_Valid (Creds);
-                     Current_Instance.Status.Set_Text
-                       ("Token refreshed");
+                     Current_Instance.Status.Set_Text ("Token refreshed");
                   end;
                exception
                   when E : LLM.Auth.Codex.Auth_Error =>
@@ -447,9 +430,7 @@ package body Coyote_GUI.Subscription_Window is
 
       case Provider_State'Val (Selected_Row) is
          when Codex_Subscription =>
-            LLM.Auth.Save_Credentials
-              ("codex",
-               (others => <>));
+            LLM.Auth.Save_Credentials ("codex", (others => <>));
             Current_Instance.Status.Set_Text
               ("OpenAI Codex subscription removed");
          when GitHub_Copilot_Subscription =>
@@ -475,7 +456,7 @@ package body Coyote_GUI.Subscription_Window is
       end if;
       declare
          use Gtk.Tree_Model;
-         Path : constant Gtk_Tree_Path := Get_Path (Model, Iter);
+         Path    : constant Gtk_Tree_Path   := Get_Path (Model, Iter);
          Indices : constant Glib.Gint_Array := Get_Indices (Path);
       begin
          if Indices'Length > 0 then
@@ -491,16 +472,15 @@ package body Coyote_GUI.Subscription_Window is
 
    function On_Window_Delete
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event) return Boolean
+      Event : Gdk.Event.Gdk_Event)
+      return Boolean
    is
       pragma Unreferenced (Self, Event);
    begin
       --  A running login keeps going; the outcome lands when the window
       --  is reopened.  Hide rather than destroy so the instance stays
       --  reusable, matching the Sandbox Profiles manager.
-      if Current_Instance /= null
-        and then Current_Instance.Window /= null
-      then
+      if Current_Instance /= null and then Current_Instance.Window /= null then
          Current_Instance.Window.Hide;
       end if;
       return True;
@@ -508,7 +488,8 @@ package body Coyote_GUI.Subscription_Window is
 
    function On_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+      Event : Gdk.Event.Gdk_Event_Key)
+      return Boolean
    is
       pragma Unreferenced (Self);
       use type Gdk.Types.Gdk_Key_Type;
@@ -516,8 +497,7 @@ package body Coyote_GUI.Subscription_Window is
       if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_w
         and then (Event.State and Gdk.Types.Control_Mask) /= 0
       then
-         if Current_Instance /= null
-           and then Current_Instance.Window /= null
+         if Current_Instance /= null and then Current_Instance.Window /= null
          then
             Current_Instance.Window.Hide;
          end if;
@@ -530,22 +510,22 @@ package body Coyote_GUI.Subscription_Window is
 
    procedure Create
      (S            : aliased in out Instance;
-      Main_Window  : not null access Gtk.Window.Gtk_Window_Record'Class;
-      Prompt_Queue : not null access Coyote_GUI.Prompt_Queue.Queue)
+      Main_Window  :     not null access Gtk.Window.Gtk_Window_Record'Class;
+      Prompt_Queue :            not null access Coyote_GUI.Prompt_Queue.Queue)
    is
       pragma Unreferenced (Prompt_Queue);
-      Content   : Gtk.Box.Gtk_Box;
-      Detail    : Gtk.Frame.Gtk_Frame;
+      Content    : Gtk.Box.Gtk_Box;
+      Detail     : Gtk.Frame.Gtk_Frame;
       Detail_Box : Gtk.Box.Gtk_Box;
-      Grid      : Gtk.Box.Gtk_Box;
-      Row_Box   : Gtk.Box.Gtk_Box;
-      Label     : Gtk.Label.Gtk_Label;
-      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Actions   : Gtk.Box.Gtk_Box;
-      Mnemonics : Coyote_GUI.Mnemonics.Registry;
+      Grid       : Gtk.Box.Gtk_Box;
+      Row_Box    : Gtk.Box.Gtk_Box;
+      Label      : Gtk.Label.Gtk_Label;
+      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Actions    : Gtk.Box.Gtk_Box;
+      Mnemonics  : Coyote_GUI.Mnemonics.Registry;
       pragma Unreferenced (Mnemonics);
-      Renderer  : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
-      Column    : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+      Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
+      Column   : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
    begin
       if S.Created then
          return;
@@ -571,7 +551,8 @@ package body Coyote_GUI.Subscription_Window is
 
       Gtk.List_Store.Gtk_New
         (S.Provider_Store,
-         (1 => Glib.GType_String, 2 => Glib.GType_String));
+        (1  => Glib.GType_String,
+          2 => Glib.GType_String));
       Gtk.Tree_View.Gtk_New (S.Provider_View, S.Provider_Store);
       Gtk.Cell_Renderer_Text.Gtk_New (Renderer);
       Gtk.Tree_View_Column.Gtk_New (Column);
@@ -598,14 +579,12 @@ package body Coyote_GUI.Subscription_Window is
       S.Provider_View.Set_Headers_Visible (True);
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
-      Scroll.Set_Policy
-        (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
+      Scroll.Set_Policy (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
       Scroll.Add (S.Provider_View);
       Scroll.Set_Size_Request (-1, 90);
       Content.Pack_Start (Scroll, False, False, 0);
 
-      S.Provider_View.Get_Selection.On_Changed
-        (On_Selection_Changed'Access);
+      S.Provider_View.Get_Selection.On_Changed (On_Selection_Changed'Access);
 
       Gtk.Frame.Gtk_New (Detail);
       Detail.Set_Label ("Selected subscription");

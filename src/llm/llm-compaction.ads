@@ -15,15 +15,15 @@ package LLM.Compaction is
    --  Settings controlling when context compaction is eligible and how
    --  much recent history must be retained verbatim.
    type Compact_Settings is record
-      Enabled              : Boolean := True;
+      Enabled              : Boolean  := True;
       Reserve_Tokens       : Positive := 16_384;
       Keep_Recent_Tokens   : Positive := 20_000;
       --  Circuit breaker: after Consecutive_Failures reaches
       --  Max_Consecutive_Failures, Tripped is set to True and
       --  auto-compaction is suspended for the remainder of the session.
       --  Manual compaction is still available.  Reset to 0 on success.
-      Consecutive_Failures : Natural := 0;
-      Tripped              : Boolean := False;
+      Consecutive_Failures : Natural  := 0;
+      Tripped              : Boolean  := False;
    end record;
 
    --  Maximum number of consecutive compaction failures before the
@@ -43,8 +43,7 @@ package LLM.Compaction is
      "You are a context summarization assistant. Your task is to read a"
      & " conversation between a user and an AI coding assistant, then"
      & " produce a structured summary following the exact format"
-     & " specified."
-     & ASCII.LF & ASCII.LF
+     & " specified." & ASCII.LF & ASCII.LF
      & "Do NOT continue the conversation. Do NOT respond to any"
      & " questions in the conversation. ONLY output the structured"
      & " summary.";
@@ -54,87 +53,55 @@ package LLM.Compaction is
    Summarization_Prompt : constant String :=
      "The messages above are a conversation to summarize. Create a"
      & " structured context checkpoint summary that another LLM will use"
-     & " to continue the work."
-     & ASCII.LF & ASCII.LF
+     & " to continue the work." & ASCII.LF & ASCII.LF
      & "Before writing the summary, draft an <analysis> block where you"
      & " organise your reasoning. The analysis block will be stripped"
      & " from the stored summary; only the summary content is retained"
-     & " in context."
-     & ASCII.LF & ASCII.LF
-     & "<analysis>"
-     & ASCII.LF
+     & " in context." & ASCII.LF & ASCII.LF & "<analysis>" & ASCII.LF
      & "[Organise your understanding: what is the primary objective,"
      & " what has been accomplished, what is still pending, what"
      & " decisions were made and why, what errors were encountered"
      & " and how they were resolved.  Identify the files and code"
      & " sections that were created or modified, and note any"
-     & " non-obvious technical details a future agent will need.]"
-     & ASCII.LF
-     & "</analysis>"
-     & ASCII.LF & ASCII.LF
+     & " non-obvious technical details a future agent will need.]" & ASCII.LF
+     & "</analysis>" & ASCII.LF & ASCII.LF
      & "After the analysis, write the summary using this EXACT format:"
-     & ASCII.LF & ASCII.LF
-     & "## 1. Primary Request and Intent"
-     & ASCII.LF
+     & ASCII.LF & ASCII.LF & "## 1. Primary Request and Intent" & ASCII.LF
      & "[What is the user trying to accomplish?  State the task in one"
      & " or two sentences, including any explicit constraints or"
-     & " success criteria the user specified.]"
-     & ASCII.LF & ASCII.LF
-     & "## 2. Key Technical Concepts"
-     & ASCII.LF
+     & " success criteria the user specified.]" & ASCII.LF & ASCII.LF
+     & "## 2. Key Technical Concepts" & ASCII.LF
      & "- [List the technologies, frameworks, patterns, and domain"
-     & " concepts that are relevant to the work.]"
-     & ASCII.LF & ASCII.LF
-     & "## 3. Files and Code Sections"
-     & ASCII.LF
-     & "For each file that was created, modified, or examined:"
-     & ASCII.LF
+     & " concepts that are relevant to the work.]" & ASCII.LF & ASCII.LF
+     & "## 3. Files and Code Sections" & ASCII.LF
+     & "For each file that was created, modified, or examined:" & ASCII.LF
      & "- `path/to/file` -- [what was done and why.  Include full code"
-     & " snippets for files that were created or significantly"
-     & " modified.]"
-     & ASCII.LF & ASCII.LF
-     & "## 4. Errors and Fixes"
-     & ASCII.LF
+     & " snippets for files that were created or significantly" & " modified.]"
+     & ASCII.LF & ASCII.LF & "## 4. Errors and Fixes" & ASCII.LF
      & "- [Each error encountered, the attempted fix, and the outcome.]"
-     & ASCII.LF
-     & "- [Or ""(none)"" if no errors were encountered.]"
-     & ASCII.LF & ASCII.LF
-     & "## 5. Problem Solving"
-     & ASCII.LF
+     & ASCII.LF & "- [Or ""(none)"" if no errors were encountered.]" & ASCII.LF
+     & ASCII.LF & "## 5. Problem Solving" & ASCII.LF
      & "- [Non-trivial problems solved: what approach was tried, what"
      & " alternatives were considered, and why the chosen approach was"
-     & " selected.]"
-     & ASCII.LF
+     & " selected.]" & ASCII.LF
      & "- [Or ""(none)"" if no significant problem-solving occurred.]"
-     & ASCII.LF & ASCII.LF
-     & "## 6. All User Messages"
-     & ASCII.LF
+     & ASCII.LF & ASCII.LF & "## 6. All User Messages" & ASCII.LF
      & "- [Quote or closely paraphrase every message the user sent, in"
      & " chronological order.  Do NOT include tool results -- only"
-     & " actual user messages.]"
-     & ASCII.LF & ASCII.LF
-     & "## 7. Pending Tasks"
-     & ASCII.LF
-     & "- [ ] [Tasks the user explicitly requested that are not yet"
-     & " complete.  Include any deferred sub-tasks.]"
-     & ASCII.LF
+     & " actual user messages.]" & ASCII.LF & ASCII.LF & "## 7. Pending Tasks"
+     & ASCII.LF & "- [ ] [Tasks the user explicitly requested that are not yet"
+     & " complete.  Include any deferred sub-tasks.]" & ASCII.LF
      & "- [Or ""(none)"" if everything requested has been completed.]"
-     & ASCII.LF & ASCII.LF
-     & "## 8. Current Work"
-     & ASCII.LF
+     & ASCII.LF & ASCII.LF & "## 8. Current Work" & ASCII.LF
      & "[Describe in detail what was happening in the most recent"
      & " conversation turns.  Include verbatim quotes from the last"
      & " assistant response where relevant -- the continuation agent"
-     & " needs to pick up exactly where this agent left off.]"
-     & ASCII.LF & ASCII.LF
-     & "## 9. Optional Next Step"
-     & ASCII.LF
+     & " needs to pick up exactly where this agent left off.]" & ASCII.LF
+     & ASCII.LF & "## 9. Optional Next Step" & ASCII.LF
      & "[If the conversation was mid-task, suggest ONE concrete next"
      & " action the continuation agent should take.  Be specific:"
-     & " name the file, function, or command.]"
-     & ASCII.LF
-     & "[Or ""(none)"" if the task appears complete.]"
-     & ASCII.LF & ASCII.LF
+     & " name the file, function, or command.]" & ASCII.LF
+     & "[Or ""(none)"" if the task appears complete.]" & ASCII.LF & ASCII.LF
      & "Keep each section concise. Preserve exact file paths, function"
      & " names, error messages, and verbatim quotes. The <analysis>"
      & " block will be removed automatically -- do not duplicate its"
@@ -148,73 +115,46 @@ package LLM.Compaction is
      & ASCII.LF & ASCII.LF
      & "Before writing the updated summary, draft an <analysis> block"
      & " where you organise your reasoning. The analysis block will be"
-     & " stripped from the stored summary."
-     & ASCII.LF & ASCII.LF
-     & "<analysis>"
-     & ASCII.LF
+     & " stripped from the stored summary." & ASCII.LF & ASCII.LF
+     & "<analysis>" & ASCII.LF
      & "[Review what has changed: what new work was done, what was"
      & " completed, what new problems arose, what decisions were made.]"
-     & ASCII.LF
-     & "</analysis>"
-     & ASCII.LF & ASCII.LF
+     & ASCII.LF & "</analysis>" & ASCII.LF & ASCII.LF
      & "Update the existing structured summary with new information."
-     & " RULES:"
-     & ASCII.LF
+     & " RULES:" & ASCII.LF
      & "- PRESERVE all existing information from the previous summary"
      & ASCII.LF
      & "- ADD new progress, decisions, and context from the new messages"
-     & ASCII.LF
-     & "- UPDATE sections 3 (Files), 7 (Pending Tasks), 8 (Current"
-     & " Work), and 9 (Next Step) based on what was accomplished"
-     & ASCII.LF
+     & ASCII.LF & "- UPDATE sections 3 (Files), 7 (Pending Tasks), 8 (Current"
+     & " Work), and 9 (Next Step) based on what was accomplished" & ASCII.LF
      & "- PRESERVE exact file paths, function names, and error messages"
      & ASCII.LF
      & "- If a completed task is no longer relevant, you may remove it"
      & ASCII.LF
      & "- The <analysis> block will be removed automatically -- do not"
-     & " duplicate its content in the summary sections."
-     & ASCII.LF & ASCII.LF
-     & "Use this EXACT format:"
-     & ASCII.LF & ASCII.LF
-     & "## 1. Primary Request and Intent"
-     & ASCII.LF
-     & "[Preserve existing, update if the task has changed.]"
-     & ASCII.LF & ASCII.LF
-     & "## 2. Key Technical Concepts"
-     & ASCII.LF
-     & "- [Preserve existing, add new ones discovered.]"
-     & ASCII.LF & ASCII.LF
-     & "## 3. Files and Code Sections"
-     & ASCII.LF
+     & " duplicate its content in the summary sections." & ASCII.LF & ASCII.LF
+     & "Use this EXACT format:" & ASCII.LF & ASCII.LF
+     & "## 1. Primary Request and Intent" & ASCII.LF
+     & "[Preserve existing, update if the task has changed.]" & ASCII.LF
+     & ASCII.LF & "## 2. Key Technical Concepts" & ASCII.LF
+     & "- [Preserve existing, add new ones discovered.]" & ASCII.LF & ASCII.LF
+     & "## 3. Files and Code Sections" & ASCII.LF
      & "- [Preserve all existing file entries; add new files that were"
-     & " created or modified.]"
-     & ASCII.LF & ASCII.LF
-     & "## 4. Errors and Fixes"
-     & ASCII.LF
+     & " created or modified.]" & ASCII.LF & ASCII.LF
+     & "## 4. Errors and Fixes" & ASCII.LF
      & "- [Preserve all existing; add new errors encountered and how they"
-     & " were resolved.]"
-     & ASCII.LF & ASCII.LF
-     & "## 5. Problem Solving"
+     & " were resolved.]" & ASCII.LF & ASCII.LF & "## 5. Problem Solving"
      & ASCII.LF
      & "- [Preserve all existing; add new non-trivial problems solved.]"
-     & ASCII.LF & ASCII.LF
-     & "## 6. All User Messages"
-     & ASCII.LF
+     & ASCII.LF & ASCII.LF & "## 6. All User Messages" & ASCII.LF
      & "- [Preserve all existing user messages; append any new user"
-     & " messages from the new conversation.]"
-     & ASCII.LF & ASCII.LF
-     & "## 7. Pending Tasks"
-     & ASCII.LF
+     & " messages from the new conversation.]" & ASCII.LF & ASCII.LF
+     & "## 7. Pending Tasks" & ASCII.LF
      & "- [ ] [Update: move completed items from pending; add new pending"
-     & " items.]"
-     & ASCII.LF & ASCII.LF
-     & "## 8. Current Work"
-     & ASCII.LF
+     & " items.]" & ASCII.LF & ASCII.LF & "## 8. Current Work" & ASCII.LF
      & "[Update to describe the most recent conversation turns, with"
-     & " verbatim quotes where relevant.]"
-     & ASCII.LF & ASCII.LF
-     & "## 9. Optional Next Step"
-     & ASCII.LF
+     & " verbatim quotes where relevant.]" & ASCII.LF & ASCII.LF
+     & "## 9. Optional Next Step" & ASCII.LF
      & "[Update based on current state -- suggest the one concrete next"
      & " action.]";
 
@@ -236,8 +176,9 @@ package LLM.Compaction is
    --  continuation preamble (REQ-CORE-068).
    function Build_Compact_Prompt
      (Conversation     : String;
-      Previous_Summary : String := "";
-      Is_Partial       : Boolean := False) return String;
+      Previous_Summary : String  := "";
+      Is_Partial       : Boolean := False)
+      return String;
 
    --  Estimate the token count for one message conservatively as
    --  ceiling(character_count / 4).
@@ -263,7 +204,8 @@ package LLM.Compaction is
    function Should_Compact
      (Context_Tokens : Natural;
       Context_Window : Natural;
-      Settings       : Compact_Settings) return Boolean;
+      Settings       : Compact_Settings)
+      return Boolean;
 
    --  Find the 0-based index of the first message that must be kept after
    --  compaction.
@@ -281,7 +223,8 @@ package LLM.Compaction is
    --  budget or when no earlier user boundary exists.
    function Find_Cut_Point
      (History  : LLM.Types.Message_Vectors.Vector;
-      Settings : Compact_Settings) return Natural;
+      Settings : Compact_Settings)
+      return Natural;
 
    --  Serialise messages into a plain labelled text transcript suitable
    --  for a summarisation prompt.

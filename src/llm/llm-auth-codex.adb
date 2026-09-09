@@ -24,8 +24,7 @@ package body LLM.Auth.Codex is
    --  Byte value used for random PKCE and state material.
    type Random_Byte_Type is mod 256;
 
-   package Byte_Random is new Ada.Numerics.Discrete_Random
-     (Random_Byte_Type);
+   package Byte_Random is new Ada.Numerics.Discrete_Random (Random_Byte_Type);
 
    protected type Refresh_Mutex is
       entry Acquire;
@@ -65,13 +64,9 @@ package body LLM.Auth.Codex is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of
-          (Year    => 1970,
-           Month   => 1,
-           Day     => 1,
-           Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
-      return Long_Long_Integer ((Clock - Epoch) * 1000.0);
+      return Long_Long_Integer ((Clock - Epoch) * 1_000.0);
    end Current_Unix_Ms;
 
    function Token_Endpoint return String is
@@ -98,13 +93,11 @@ package body LLM.Auth.Codex is
       end if;
    end Hex_Digit;
 
-   function Byte_Hex
-     (Value : Ada.Streams.Stream_Element) return String is
+   function Byte_Hex (Value : Ada.Streams.Stream_Element) return String is
       Uns : constant Natural :=
         Natural (Ada.Streams.Stream_Element'Pos (Value));
    begin
-      return ""
-        & Hex_Digit (Uns / 16) & Hex_Digit (Uns mod 16);
+      return "" & Hex_Digit (Uns / 16) & Hex_Digit (Uns mod 16);
    end Byte_Hex;
 
    function Base64url_Encode
@@ -114,46 +107,40 @@ package body LLM.Auth.Codex is
       Alphabet  : constant String :=
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
       Result    : Unbounded_String;
-      Group     : array (0 .. 2) of Natural := (others => 0);
-      Group_Len : Natural := 0;
+      Group     : array (0 .. 2)
+        of Natural := (others => 0);
+      Group_Len : Natural         := 0;
    begin
       for Byte_Value of Data loop
          Group (Group_Len) := Natural (Byte_Value);
-         Group_Len := Group_Len + 1;
+         Group_Len         := Group_Len + 1;
 
          if Group_Len = 3 then
             Append (Result, Alphabet (Group (0) / 4 + Alphabet'First));
             Append
               (Result,
                Alphabet
-                 ((Group (0) mod 4) * 16 + Group (1) / 16
-                  + Alphabet'First));
+                 ((Group (0) mod 4) * 16 + Group (1) / 16 + Alphabet'First));
             Append
               (Result,
                Alphabet
-                 ((Group (1) mod 16) * 4 + Group (2) / 64
-                  + Alphabet'First));
+                 ((Group (1) mod 16) * 4 + Group (2) / 64 + Alphabet'First));
             Append (Result, Alphabet (Group (2) mod 64 + Alphabet'First));
-            Group := (others => 0);
+            Group     := (others => 0);
             Group_Len := 0;
          end if;
       end loop;
 
       if Group_Len = 1 then
          Append (Result, Alphabet (Group (0) / 4 + Alphabet'First));
-         Append
-           (Result,
-            Alphabet ((Group (0) mod 4) * 16 + Alphabet'First));
+         Append (Result, Alphabet ((Group (0) mod 4) * 16 + Alphabet'First));
       elsif Group_Len = 2 then
          Append (Result, Alphabet (Group (0) / 4 + Alphabet'First));
          Append
            (Result,
             Alphabet
-              ((Group (0) mod 4) * 16 + Group (1) / 16
-               + Alphabet'First));
-         Append
-           (Result,
-            Alphabet ((Group (1) mod 16) * 4 + Alphabet'First));
+              ((Group (0) mod 4) * 16 + Group (1) / 16 + Alphabet'First));
+         Append (Result, Alphabet ((Group (1) mod 16) * 4 + Alphabet'First));
       end if;
 
       return To_String (Result);
@@ -185,17 +172,16 @@ package body LLM.Auth.Codex is
    --  too) into raw bytes.
    function Base64url_Decode (Text : String) return String is
       Result : Unbounded_String;
-      Group  : Interfaces.Unsigned_32 := 0;
-      Bits   : Natural := 0;
+      Group  : Interfaces.Unsigned_32          := 0;
+      Bits   : Natural                         := 0;
       Sixty4 : constant Interfaces.Unsigned_32 := 64;
       Two55  : constant Interfaces.Unsigned_32 := 256;
    begin
       for Char of Text loop
          if Char /= '=' then
             Group :=
-              Group * Sixty4
-              + Interfaces.Unsigned_32 (Base64_Value (Char));
-            Bits := Bits + 6;
+              Group * Sixty4 + Interfaces.Unsigned_32 (Base64_Value (Char));
+            Bits  := Bits + 6;
             if Bits >= 8 then
                Bits := Bits - 8;
                declare
@@ -220,11 +206,8 @@ package body LLM.Auth.Codex is
       Result : Unbounded_String;
    begin
       for Char of Value loop
-         if Is_Alphanumeric (Char)
-           or else Char = '-'
-           or else Char = '_'
-           or else Char = '.'
-           or else Char = '~'
+         if Is_Alphanumeric (Char) or else Char = '-' or else Char = '_'
+           or else Char = '.' or else Char = '~'
          then
             Append (Result, Char);
          else
@@ -235,8 +218,7 @@ package body LLM.Auth.Codex is
                Append (Result, Hex_Digit (Code / 16));
                Append
                  (Result,
-                  Ada.Characters.Handling.To_Upper
-                    (Hex_Digit (Code mod 16)));
+                  Ada.Characters.Handling.To_Upper (Hex_Digit (Code mod 16)));
             end;
          end if;
       end loop;
@@ -245,25 +227,22 @@ package body LLM.Auth.Codex is
    end Encode_Form;
 
    function Build_Authorize_Url
-     (Code_Challenge : String;
-      State          : String) return String
+     (Code_Challenge : String; State : String) return String
    is
    begin
-      return Authorize_Url
-        & "?response_type=code"
-        & "&client_id=" & Encode_Form (Client_Id)
-        & "&redirect_uri=" & Encode_Form (Redirect_Uri)
-        & "&scope=" & Encode_Form (Scope)
+      return
+        Authorize_Url & "?response_type=code" & "&client_id="
+        & Encode_Form (Client_Id) & "&redirect_uri="
+        & Encode_Form (Redirect_Uri) & "&scope=" & Encode_Form (Scope)
         & "&code_challenge=" & Encode_Form (Code_Challenge)
-        & "&code_challenge_method=S256"
-        & "&state=" & Encode_Form (State)
+        & "&code_challenge_method=S256" & "&state=" & Encode_Form (State)
         & "&id_token_add_organizations=true"
-        & "&codex_cli_simplified_flow=true"
-        & "&originator=coyote";
+        & "&codex_cli_simplified_flow=true" & "&originator=coyote";
    end Build_Authorize_Url;
 
    function New_State return String is
-      Bytes : array (1 .. 16) of Ada.Streams.Stream_Element;
+      Bytes : array (1 .. 16)
+        of Ada.Streams.Stream_Element;
    begin
       for I in Bytes'Range loop
          Bytes (I) := Random_Byte;
@@ -275,21 +254,22 @@ package body LLM.Auth.Codex is
                Pair : constant String := Byte_Hex (Bytes (I));
             begin
                Result (2 * I - 1) := Pair (1);
-               Result (2 * I) := Pair (2);
+               Result (2 * I)     := Pair (2);
             end;
          end loop;
       end return;
    end New_State;
 
    procedure Make_Pkce
-     (Verifier  :    out Ada.Strings.Unbounded.Unbounded_String;
-      Challenge :    out Ada.Strings.Unbounded.Unbounded_String)
+     (Verifier  : out Ada.Strings.Unbounded.Unbounded_String;
+      Challenge : out Ada.Strings.Unbounded.Unbounded_String)
    is
       --  Unreserved characters used by the reference clients for PKCE
       --  verifier material.
       Charset : constant String :=
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-      Bytes   : array (1 .. 43) of Ada.Streams.Stream_Element;
+      Bytes   : array (1 .. 43)
+        of Ada.Streams.Stream_Element;
    begin
       for I in Bytes'Range loop
          Bytes (I) := Random_Byte;
@@ -298,8 +278,7 @@ package body LLM.Auth.Codex is
       for I in Bytes'Range loop
          Append
            (Verifier,
-            Charset
-              (Natural (Bytes (I)) mod Charset'Length + Charset'First));
+            Charset (Natural (Bytes (I)) mod Charset'Length + Charset'First));
       end loop;
 
       Challenge :=
@@ -328,18 +307,16 @@ package body LLM.Auth.Codex is
          end if;
       end loop;
 
-      if First_Sep = 0
-        or else Second_Sep = 0
+      if First_Sep = 0 or else Second_Sep = 0
         or else Second_Sep - First_Sep < 2
       then
          return "";
       end if;
 
       declare
-         Payload_B64 : constant String :=
+         Payload_B64  : constant String                    :=
            Access_Token (First_Sep + 1 .. Second_Sep - 1);
-         Payload_Json : constant String :=
-           Base64url_Decode (Payload_B64);
+         Payload_Json : constant String := Base64url_Decode (Payload_B64);
          Parsed       : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (Payload_Json);
       begin
@@ -357,12 +334,12 @@ package body LLM.Auth.Codex is
              = GNATCOLL.JSON.JSON_Object_Type
            and then Parsed.Value.Get (Jwt_Claim_Path).Has_Field
              ("chatgpt_account_id")
-           and then Parsed.Value.Get (Jwt_Claim_Path)
-                      .Get ("chatgpt_account_id").Kind
+           and then
+             Parsed.Value.Get (Jwt_Claim_Path).Get ("chatgpt_account_id").Kind
              = GNATCOLL.JSON.JSON_String_Type
          then
-            return Parsed.Value.Get (Jwt_Claim_Path)
-                     .Get ("chatgpt_account_id").Get;
+            return
+              Parsed.Value.Get (Jwt_Claim_Path).Get ("chatgpt_account_id").Get;
          end if;
 
          return "";
@@ -373,8 +350,7 @@ package body LLM.Auth.Codex is
    end Account_Id_From_Jwt;
 
    function Get_String_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return String
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -389,7 +365,8 @@ package body LLM.Auth.Codex is
 
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return Long_Long_Integer
+      Field : String)
+      return Long_Long_Integer
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -407,18 +384,18 @@ package body LLM.Auth.Codex is
    end Get_Long_Long_Field;
 
    procedure Parse_Token_Response
-     (Body_Text   :     String;
-      What        :     String;
-      Creds       : out LLM.Auth.Provider_Credentials)
+     (Body_Text :     String;
+      What      :     String;
+      Creds     : out LLM.Auth.Provider_Credentials)
    is
       use GNATCOLL.JSON;
 
-      Parsed     : constant GNATCOLL.JSON.Read_Result :=
+      Parsed      : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Body_Text);
-      Root       : GNATCOLL.JSON.JSON_Value;
-      Access_Str : Unbounded_String;
+      Root        : GNATCOLL.JSON.JSON_Value;
+      Access_Str  : Unbounded_String;
       Refresh_Str : Unbounded_String;
-      Expires_In : Long_Long_Integer := 0;
+      Expires_In  : Long_Long_Integer                  := 0;
    begin
       Creds := (others => <>);
 
@@ -430,34 +407,32 @@ package body LLM.Auth.Codex is
 
       Root := Parsed.Value;
 
-      Access_Str :=
+      Access_Str  :=
         To_Unbounded_String (Get_String_Field (Root, "access_token"));
       Refresh_Str :=
         To_Unbounded_String (Get_String_Field (Root, "refresh_token"));
-      Expires_In := Get_Long_Long_Field (Root, "expires_in");
+      Expires_In  := Get_Long_Long_Field (Root, "expires_in");
 
-      if Length (Access_Str) = 0
-        or else Length (Refresh_Str) = 0
+      if Length (Access_Str) = 0 or else Length (Refresh_Str) = 0
         or else Expires_In <= 0
       then
-         raise Auth_Error with
-           "OpenAI Codex " & What & " response missing fields";
+         raise Auth_Error
+           with "OpenAI Codex " & What & " response missing fields";
       end if;
 
       Creds :=
         (Credential_Type => To_Unbounded_String ("oauth"),
          Refresh_Token   => Refresh_Str,
          Access_Token    => Access_Str,
-         Expires_Ms      => Current_Unix_Ms + Expires_In * 1000,
+         Expires_Ms      => Current_Unix_Ms + Expires_In * 1_000,
          Account_Id      =>
-           To_Unbounded_String
-             (Account_Id_From_Jwt (To_String (Access_Str))));
+           To_Unbounded_String (Account_Id_From_Jwt (To_String (Access_Str))));
    exception
       when Auth_Error =>
          raise;
       when E : others =>
-         raise Auth_Error with
-           "OpenAI Codex " & What & " response parse error: "
+         raise Auth_Error
+           with "OpenAI Codex " & What & " response parse error: "
            & Ada.Exceptions.Exception_Message (E);
    end Parse_Token_Response;
 
@@ -468,12 +443,11 @@ package body LLM.Auth.Codex is
       Creds                 : out LLM.Auth.Provider_Credentials)
    is
       Headers       : LLM.HTTP.Header_List;
-      Status        : Natural := 0;
+      Status        : Natural         := 0;
       Response_Body : Unbounded_String;
       Form          : Unbounded_String;
       Redirect      : constant String :=
-        (if Redirect_Uri_Override'Length > 0
-         then Redirect_Uri_Override
+        (if Redirect_Uri_Override'Length > 0 then Redirect_Uri_Override
          else Redirect_Uri);
 
       procedure On_Chunk (Data : String) is
@@ -504,10 +478,9 @@ package body LLM.Auth.Codex is
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "[!] OpenAI Codex token exchange request:"
-            & " grant_type=authorization_code"
-            & " code_len" & Natural'Image (Code'Length)
-            & " verifier_len" & Natural'Image (Code_Verifier'Length)
-            & " redirect=" & Redirect
+            & " grant_type=authorization_code" & " code_len"
+            & Natural'Image (Code'Length) & " verifier_len"
+            & Natural'Image (Code_Verifier'Length) & " redirect=" & Redirect
             & " endpoint=" & Token_Endpoint);
          --  The exception message is capped at 200 characters by the
          --  GNAT runtime (System.Parameters.
@@ -517,17 +490,13 @@ package body LLM.Auth.Codex is
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "[!] OpenAI Codex token exchange response (HTTP"
-            & Natural'Image (Status)
-            & "): "
-            & To_String (Response_Body));
-         raise Auth_Error with
-           "OpenAI Codex token exchange failed with HTTP"
-           & Natural'Image (Status)
-           & " (full response logged to stderr)";
+            & Natural'Image (Status) & "): " & To_String (Response_Body));
+         raise Auth_Error
+           with "OpenAI Codex token exchange failed with HTTP"
+           & Natural'Image (Status) & " (full response logged to stderr)";
       end if;
 
-      Parse_Token_Response
-        (To_String (Response_Body), "exchange", Creds);
+      Parse_Token_Response (To_String (Response_Body), "exchange", Creds);
    exception
       when Auth_Error =>
          raise;
@@ -553,8 +522,7 @@ package body LLM.Auth.Codex is
       Append (Form, "grant_type=refresh_token");
       Append
         (Form,
-         "&refresh_token="
-         & Encode_Form (To_String (Creds.Refresh_Token)));
+         "&refresh_token=" & Encode_Form (To_String (Creds.Refresh_Token)));
       Append (Form, "&client_id=" & Encode_Form (Client_Id));
 
       LLM.HTTP.Add_Header
@@ -574,20 +542,16 @@ package body LLM.Auth.Codex is
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "[!] OpenAI Codex token refresh response (HTTP"
-            & Natural'Image (Status)
-            & "): "
-            & To_String (Response_Body));
-         raise Auth_Error with
-           "OpenAI Codex token refresh failed with HTTP"
-           & Natural'Image (Status)
-           & " (full response logged to stderr)";
+            & Natural'Image (Status) & "): " & To_String (Response_Body));
+         raise Auth_Error
+           with "OpenAI Codex token refresh failed with HTTP"
+           & Natural'Image (Status) & " (full response logged to stderr)";
       end if;
 
       declare
          Fresh : LLM.Auth.Provider_Credentials;
       begin
-         Parse_Token_Response
-           (To_String (Response_Body), "refresh", Fresh);
+         Parse_Token_Response (To_String (Response_Body), "refresh", Fresh);
 
          --  The refresh endpoint may omit refresh_token (rotation is
          --  optional); keep the previous refresh token in that case.
@@ -597,8 +561,8 @@ package body LLM.Auth.Codex is
          if Length (Fresh.Account_Id) > 0 then
             Creds.Account_Id := Fresh.Account_Id;
          end if;
-         Creds.Access_Token := Fresh.Access_Token;
-         Creds.Expires_Ms := Fresh.Expires_Ms;
+         Creds.Access_Token  := Fresh.Access_Token;
+         Creds.Expires_Ms    := Fresh.Expires_Ms;
          Creds.Refresh_Token := Fresh.Refresh_Token;
       end;
 
@@ -612,8 +576,9 @@ package body LLM.Auth.Codex is
          raise;
    end Refresh_Token;
 
-   function Token_Expired (Creds : LLM.Auth.Provider_Credentials)
-      return Boolean is
+   function Token_Expired
+     (Creds : LLM.Auth.Provider_Credentials) return Boolean
+   is
    begin
       return Creds.Expires_Ms <= Current_Unix_Ms + 300_000;
    end Token_Expired;

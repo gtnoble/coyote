@@ -77,8 +77,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Active_Text;
 
    function Response_Box
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Box.Gtk_Box
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Box.Gtk_Box
    is
    begin
       return C.Response_Box;
@@ -93,13 +92,13 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       if C.Response_Section = null then
          return False;
       end if;
-      Children := Gtk.Container.Get_Children
-        (Gtk.Container.Gtk_Container (C.Response_Section));
+      Children :=
+        Gtk.Container.Get_Children
+          (Gtk.Container.Gtk_Container (C.Response_Section));
       Children := Gtk.Widget.Widget_List.First (Children);
       while Children /= Gtk.Widget.Widget_List.Null_List loop
          Child := Gtk.Widget.Widget_List.Get_Data (Children);
-         if Child /= null
-           and then Child.Get_Name = "coyote-response-stream"
+         if Child /= null and then Child.Get_Name = "coyote-response-stream"
          then
             return True;
          end if;
@@ -112,9 +111,10 @@ package body Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is
    begin
-      return C.Active_View /= null
-        and then Gtk.Style_Context.Get_Style_Context
-          (C.Active_View).Has_Class ("coyote-response-content");
+      return
+        C.Active_View /= null
+        and then Gtk.Style_Context.Get_Style_Context (C.Active_View).Has_Class
+          ("coyote-response-content");
    end Response_Text_Has_Style;
 
    function Table_Count
@@ -126,7 +126,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Table_Grid
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Gtk.Grid.Gtk_Grid
+      Index : Positive)
+      return Gtk.Grid.Gtk_Grid
    is
    begin
       if Index <= Natural (C.Table_Grids.Length) then
@@ -139,7 +140,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
      (C      : Coyote_GUI.Conversation_Stack.Instance;
       Table  : Positive;
       Row    : Positive;
-      Column : Positive) return Gtk.Label.Gtk_Label
+      Column : Positive)
+      return Gtk.Label.Gtk_Label
    is
       Grid  : constant Gtk.Grid.Gtk_Grid := Table_Grid (C, Table);
       Child : Gtk.Widget.Gtk_Widget;
@@ -147,8 +149,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       if Grid = null then
          return null;
       end if;
-      Child := Grid.Get_Child_At
-        (Glib.Gint (Column - 1), Glib.Gint (Row - 1));
+      Child := Grid.Get_Child_At (Glib.Gint (Column - 1), Glib.Gint (Row - 1));
       if Child = null then
          return null;
       end if;
@@ -157,30 +158,36 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Math_Area_Visible
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean
+      Index : Positive)
+      return Boolean
    is
    begin
-      return Index <= Natural (C.Math_Elements.Length)
+      return
+        Index <= Natural (C.Math_Elements.Length)
         and then Coyote_GUI.Math_Element.Testing.Area_Visible
           (C.Math_Elements (Index).all);
    end Math_Area_Visible;
 
    function Math_Fallback_Visible
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean
+      Index : Positive)
+      return Boolean
    is
    begin
-      return Index <= Natural (C.Math_Elements.Length)
+      return
+        Index <= Natural (C.Math_Elements.Length)
         and then Coyote_GUI.Math_Element.Testing.Fallback_Visible
           (C.Math_Elements (Index).all);
    end Math_Fallback_Visible;
 
    function Math_Has_Response_Style
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean
+      Index : Positive)
+      return Boolean
    is
    begin
-      return Index <= Natural (C.Math_Elements.Length)
+      return
+        Index <= Natural (C.Math_Elements.Length)
         and then Coyote_GUI.Math_Element.Testing.Has_Response_Style
           (C.Math_Elements (Index).all);
    end Math_Has_Response_Style;
@@ -194,58 +201,60 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Math_Source
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return String
+      Index : Positive)
+      return String
    is
    begin
       if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Source
-           (C.Math_Elements (Index).all);
+         return Coyote_GUI.Math_Element.Source (C.Math_Elements (Index).all);
       end if;
       return "";
    end Math_Source;
 
    function Math_Is_Valid
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Boolean
+      Index : Positive)
+      return Boolean
    is
    begin
-      return Index <= Natural (C.Math_Elements.Length)
+      return
+        Index <= Natural (C.Math_Elements.Length)
         and then Coyote_GUI.Math_Element.Is_Valid
           (C.Math_Elements (Index).all);
    end Math_Is_Valid;
 
    function Math_Width
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Natural
+      Index : Positive)
+      return Natural
    is
    begin
       if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Width
-           (C.Math_Elements (Index).all);
+         return Coyote_GUI.Math_Element.Width (C.Math_Elements (Index).all);
       end if;
       return 0;
    end Math_Width;
 
    function Math_Height
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Natural
+      Index : Positive)
+      return Natural
    is
    begin
       if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Height
-           (C.Math_Elements (Index).all);
+         return Coyote_GUI.Math_Element.Height (C.Math_Elements (Index).all);
       end if;
       return 0;
    end Math_Height;
 
    function Math_Scale
      (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return Long_Float
+      Index : Positive)
+      return Long_Float
    is
    begin
       if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Scale
-           (C.Math_Elements (Index).all);
+         return Coyote_GUI.Math_Element.Scale (C.Math_Elements (Index).all);
       end if;
       return 0.0;
    end Math_Scale;
@@ -258,8 +267,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Step_Frame_Count;
 
    function Active_Step_Frame
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Frame.Gtk_Frame
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Frame.Gtk_Frame
    is
    begin
       return C.Step_Frame;
@@ -275,7 +283,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Tool_Summary
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return String
+      Tool_Id : String)
+      return String
    is
    begin
       return C.Tool_Summary (Tool_Id);
@@ -283,7 +292,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Tool_Detail
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Coyote_GUI.Tool_Info
+      Tool_Id : String)
+      return Coyote_GUI.Tool_Info
    is
    begin
       return C.Tool_Detail (Tool_Id);
@@ -291,7 +301,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Details_Label
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return String
+      Tool_Id : String)
+      return String
    is
    begin
       if C.Tools.Contains (Tool_Id) then
@@ -302,7 +313,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Details_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Boolean
+      Tool_Id : String)
+      return Boolean
    is
    begin
       if C.Tools.Contains (Tool_Id) then
@@ -313,7 +325,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Abort_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Boolean
+      Tool_Id : String)
+      return Boolean
    is
    begin
       if C.Tools.Contains (Tool_Id) then
@@ -324,7 +337,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Abort_Message_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Boolean
+      Tool_Id : String)
+      return Boolean
    is
    begin
       if C.Tools.Contains (Tool_Id) then
@@ -372,8 +386,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Footer_Summary_Selectable;
 
    function Fork_Button
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Button.Gtk_Button
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Button.Gtk_Button
    is
    begin
       return C.Fork_Button;

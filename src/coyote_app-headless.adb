@@ -6,16 +6,16 @@ with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNATCOLL.JSON; use GNATCOLL.JSON;
+with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with LLM.Agent;
 with LLM.Compaction;
 with LLM.Events;
 with LLM.Session_Store;
 with LLM.Settings;
 with LLM.Types;
-with Coyote_App.Dispatch; use Coyote_App.Dispatch;
-with Coyote_App.History; use Coyote_App.History;
-with Coyote_App.Utils; use Coyote_App.Utils;
+with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
+with Coyote_App.History;    use Coyote_App.History;
+with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Process_Control;
 
 package body Coyote_App.Headless is
@@ -24,18 +24,18 @@ package body Coyote_App.Headless is
    use type Coyote_App.Frontend.Control_Command_Kind;
 
    procedure Run
-     (Opts     : Coyote_App.Options;
-      Frontend : in out Coyote_App.Frontend.Instance'Class) is
+     (Opts     :        Coyote_App.Options;
+      Frontend : in out Coyote_App.Frontend.Instance'Class)
+   is
       State            : Coyote_App.App_State;
       Agent_Session    : aliased LLM.Agent.Session;
-      Settings         : constant LLM.Settings.Settings :=
-        LLM.Settings.Load_Settings;
+      Settings : constant LLM.Settings.Settings := LLM.Settings.Load_Settings;
       Current_Thinking : Unbounded_String := Settings.Default_Thinking;
       Current_Text     : Unbounded_String;
       Final_Text       : Unbounded_String;
       Final_Error      : Unbounded_String;
-      Was_Aborted      : Boolean := False;
-      Agent_Ready      : Boolean := False;
+      Was_Aborted      : Boolean                        := False;
+      Agent_Ready      : Boolean                        := False;
       Section          : Coyote_App.Section_Kind := Coyote_App.No_Section;
 
       task Shutdown_Monitor;
@@ -122,8 +122,8 @@ package body Coyote_App.Headless is
             return;
          end if;
          case Command.Kind is
-            when Coyote_App.Frontend.Control_Stop |
-                 Coyote_App.Frontend.Control_Shutdown =>
+            when Coyote_App.Frontend.Control_Stop
+               | Coyote_App.Frontend.Control_Shutdown =>
                LLM.Agent.Request_Abort (Agent_Session);
                if Command.Kind = Coyote_App.Frontend.Control_Shutdown then
                   State.Signal_Shutdown;
@@ -147,8 +147,7 @@ package body Coyote_App.Headless is
                LLM.Agent.Set_Sandbox_Profile
                  (S       => Agent_Session,
                   Profile => To_String (Command.Sandbox_Profile));
-               State.Set_Sandbox
-                 (To_String (Command.Sandbox_Profile));
+               State.Set_Sandbox (To_String (Command.Sandbox_Profile));
                Ada.Environment_Variables.Set
                  ("COYOTE_SANDBOX_PROFILE",
                   To_String (Command.Sandbox_Profile));
@@ -159,9 +158,7 @@ package body Coyote_App.Headless is
             null;
       end Poll_Control;
 
-      procedure Dispatch_Agent_Event
-        (Event : LLM.Events.Agent_Event'Class)
-      is
+      procedure Dispatch_Agent_Event (Event : LLM.Events.Agent_Event'Class) is
       begin
          Poll_Control;
          Track_Event (Event);
@@ -175,7 +172,7 @@ package body Coyote_App.Headless is
       procedure Emit_Model_Select is
          Model_Spec : constant String :=
            LLM.Agent.Current_Model_Spec (Agent_Session);
-         Slash      : Natural := 0;
+         Slash      : Natural         := 0;
       begin
          if Model_Spec'Length = 0 then
             return;
@@ -194,10 +191,12 @@ package body Coyote_App.Headless is
          declare
             Event : constant LLM.Events.Model_Select_Event :=
               (LLM.Events.Agent_Event with
-               Provider       => To_Unbounded_String
-                 (Model_Spec (Model_Spec'First .. Slash - 1)),
-               Model_Id       => To_Unbounded_String
-                 (Model_Spec (Slash + 1 .. Model_Spec'Last)),
+               Provider       =>
+                 To_Unbounded_String
+                   (Model_Spec (Model_Spec'First .. Slash - 1)),
+               Model_Id       =>
+                 To_Unbounded_String
+                   (Model_Spec (Slash + 1 .. Model_Spec'Last)),
                Context_Window => LLM.Agent.Context_Window (Agent_Session));
          begin
             Dispatch_Agent_Event (Event);
@@ -205,20 +204,22 @@ package body Coyote_App.Headless is
       end Emit_Model_Select;
 
       procedure Emit_Session_Info is
-         Session_Id : constant String :=
-           LLM.Agent.Session_Id (Agent_Session);
-         Event : constant LLM.Events.Session_Info_Event :=
+         Session_Id : constant String := LLM.Agent.Session_Id (Agent_Session);
+         Event      : constant LLM.Events.Session_Info_Event :=
            (LLM.Events.Agent_Event with
             Session_Id       => To_Unbounded_String (Session_Id),
             Thinking_Level   => Current_Thinking,
-            Sandbox_Profile  => To_Unbounded_String
-              (LLM.Agent.Current_Sandbox (Agent_Session)),
-            Model            => To_Unbounded_String
-              (LLM.Agent.Current_Model_Spec (Agent_Session)),
-            Source_Directory => To_Unbounded_String
-              (LLM.Session_Store.Session_Work_Dir (Session_Id)),
-            Session_Start    => To_Unbounded_String
-              (LLM.Session_Store.Session_Created_At (Session_Id)));
+            Sandbox_Profile  =>
+              To_Unbounded_String (LLM.Agent.Current_Sandbox (Agent_Session)),
+            Model            =>
+              To_Unbounded_String
+                (LLM.Agent.Current_Model_Spec (Agent_Session)),
+            Source_Directory =>
+              To_Unbounded_String
+                (LLM.Session_Store.Session_Work_Dir (Session_Id)),
+            Session_Start    =>
+              To_Unbounded_String
+                (LLM.Session_Store.Session_Created_At (Session_Id)));
       begin
          Dispatch_Agent_Event (Event);
       end Emit_Session_Info;
@@ -232,19 +233,16 @@ package body Coyote_App.Headless is
          end if;
          declare
             Inherited_Thinking : constant String :=
-              Ada.Environment_Variables.Value
-                ("COYOTE_THINKING_LEVEL", "");
-            Inherited_Session : constant String :=
+              Ada.Environment_Variables.Value ("COYOTE_THINKING_LEVEL", "");
+            Inherited_Session  : constant String :=
               Ada.Environment_Variables.Value ("COYOTE_SESSION_ID", "");
-            Parent_Session : constant String :=
-              Ada.Environment_Variables.Value
-                ("COYOTE_PARENT_SESSION", "");
+            Parent_Session     : constant String :=
+              Ada.Environment_Variables.Value ("COYOTE_PARENT_SESSION", "");
          begin
             if Inherited_Thinking'Length > 0 then
                Current_Thinking := To_Unbounded_String (Inherited_Thinking);
             end if;
-            if Parent_Session'Length = 0
-              and then Inherited_Session'Length > 0
+            if Parent_Session'Length = 0 and then Inherited_Session'Length > 0
             then
                Ada.Environment_Variables.Set
                  ("COYOTE_PARENT_SESSION", Inherited_Session);
@@ -253,9 +251,8 @@ package body Coyote_App.Headless is
       end Configure_Environment;
 
       procedure Publish_Environment is
-         Session_Id : constant String :=
-           LLM.Agent.Session_Id (Agent_Session);
-         Sandbox : constant String :=
+         Session_Id : constant String := LLM.Agent.Session_Id (Agent_Session);
+         Sandbox    : constant String :=
            LLM.Agent.Current_Sandbox (Agent_Session);
       begin
          if Session_Id'Length > 0 then
@@ -272,20 +269,21 @@ package body Coyote_App.Headless is
       procedure Reset_Prompt_Tracking is
       begin
          Current_Text := Null_Unbounded_String;
-         Final_Text := Null_Unbounded_String;
-         Final_Error := Null_Unbounded_String;
-         Was_Aborted := False;
+         Final_Text   := Null_Unbounded_String;
+         Final_Error  := Null_Unbounded_String;
+         Was_Aborted  := False;
       end Reset_Prompt_Tracking;
 
       procedure Run_Prompt (Prompt : String) is
       begin
          Reset_Prompt_Tracking;
          declare
-            Warning : Unbounded_String;
-            Filtered : constant String := Apply_Prompt_Filter
-              (Raw      => Prompt,
-               Filter   => State.Prompt_Filter,
-               Warn_Buf => Warning);
+            Warning  : Unbounded_String;
+            Filtered : constant String :=
+              Apply_Prompt_Filter
+                (Raw      => Prompt,
+                 Filter   => State.Prompt_Filter,
+                 Warn_Buf => Warning);
          begin
             if Length (Warning) > 0 then
                Frontend.Append_Notice
@@ -304,19 +302,17 @@ package body Coyote_App.Headless is
          when Ex : others =>
             declare
                Error_Text : constant String :=
-                 (if Length (Final_Error) > 0
-                  then To_String (Final_Error)
+                 (if Length (Final_Error) > 0 then To_String (Final_Error)
                   else Ada.Exceptions.Exception_Message (Ex));
             begin
                Frontend.Append_Notice
-                 (Coyote_App.Frontend.Error,
-                  "prompt failed: " & Error_Text);
+                 (Coyote_App.Frontend.Error, "prompt failed: " & Error_Text);
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
                   "[!] prompt failed: " & Error_Text);
                if Opts.One_Shot then
-                  Final_Error := To_Unbounded_String
-                    ("prompt failed: " & Error_Text);
+                  Final_Error :=
+                    To_Unbounded_String ("prompt failed: " & Error_Text);
                   Store_One_Shot_Result;
                end if;
             end;
@@ -388,8 +384,7 @@ package body Coyote_App.Headless is
       end if;
       if Length (Opts.Work_Dir_Warning) > 0 then
          Frontend.Append_Notice
-           (Coyote_App.Frontend.Warning,
-            To_String (Opts.Work_Dir_Warning));
+           (Coyote_App.Frontend.Warning, To_String (Opts.Work_Dir_Warning));
       end if;
       Emit_Model_Select;
       Emit_Session_Info;
@@ -412,7 +407,8 @@ package body Coyote_App.Headless is
       end if;
 
       if not Opts.One_Shot then
-         Prompt_Loop : loop
+         Prompt_Loop :
+         loop
             declare
                Prompt : constant String := Frontend.Read_Prompt;
             begin
@@ -425,8 +421,7 @@ package body Coyote_App.Headless is
       Stop_Monitor;
       Frontend.Shutdown;
       Signal_Shutdown;
-      if not Opts.No_Session
-        and then Length (Opts.Session_Id) = 0
+      if not Opts.No_Session and then Length (Opts.Session_Id) = 0
         and then not LLM.Agent.Has_Submitted_Prompts (Agent_Session)
       then
          declare
@@ -453,8 +448,8 @@ package body Coyote_App.Headless is
                Result : constant JSON_Value := Create_Object;
             begin
                Result.Set_Field
-                 ("error", "headless runner: "
-                  & Ada.Exceptions.Exception_Message (Ex));
+                 ("error",
+                  "headless runner: " & Ada.Exceptions.Exception_Message (Ex));
                if Agent_Ready then
                   Result.Set_Field
                     ("session_id",

@@ -34,10 +34,7 @@ package body Coyote_App.Agent_RPC.Transport is
       end if;
    end Require_Open;
 
-   procedure Create_Listener
-     (L    : out Listener;
-      Path : String)
-   is
+   procedure Create_Listener (L : out Listener; Path : String) is
       Address : Sock_Addr_Type;
    begin
       if Path'Length = 0 then
@@ -59,18 +56,15 @@ package body Coyote_App.Agent_RPC.Transport is
 
    procedure Initialize_Channel (C : out Channel) is
    begin
-      C.Input := Null_Unbounded_String;
-      C.Sent_Handshake := False;
-      C.Sent_Terminal := False;
-      C.Got_Handshake := False;
-      C.Got_Terminal := False;
+      C.Input               := Null_Unbounded_String;
+      C.Sent_Handshake      := False;
+      C.Sent_Terminal       := False;
+      C.Got_Handshake       := False;
+      C.Got_Terminal        := False;
       C.Last_Event_Sequence := 0;
    end Initialize_Channel;
 
-   procedure Accept_Channel
-     (L : in out Listener;
-      C : out Channel)
-   is
+   procedure Accept_Channel (L : in out Listener; C : out Channel) is
       Accepted : Boolean;
    begin
       Accept_Channel (L, C, Forever, Accepted);
@@ -81,14 +75,15 @@ package body Coyote_App.Agent_RPC.Transport is
 
    procedure Accept_Channel
      (L        : in out Listener;
-      C        : out Channel;
-      Timeout  : Duration;
-      Accepted : out Boolean)
+      C        :    out Channel;
+      Timeout  :        Duration;
+      Accepted :    out Boolean)
    is
       Address        : Sock_Addr_Type;
       Selector_State : Selector_Status;
       Request        : Request_Type :=
-        (Name => Non_Blocking_IO, Enabled => False);
+        (Name    => Non_Blocking_IO,
+         Enabled => False);
    begin
       Accepted := False;
       if L.Socket = No_Socket then
@@ -111,10 +106,7 @@ package body Coyote_App.Agent_RPC.Transport is
          raise Transport_Error with Ada.Exceptions.Exception_Message (E);
    end Accept_Channel;
 
-   procedure Connect
-     (C    : out Channel;
-      Path : String)
-   is
+   procedure Connect (C : out Channel; Path : String) is
       Address : Sock_Addr_Type;
    begin
       if Path'Length = 0 then
@@ -123,11 +115,11 @@ package body Coyote_App.Agent_RPC.Transport is
       Create_Socket (C.Socket, Family_Unix, Socket_Stream);
       Address := Unix_Socket_Address (Path);
       Connect_Socket (C.Socket, Address);
-      C.Input := Null_Unbounded_String;
-      C.Sent_Handshake := False;
-      C.Sent_Terminal := False;
-      C.Got_Handshake := False;
-      C.Got_Terminal := False;
+      C.Input               := Null_Unbounded_String;
+      C.Sent_Handshake      := False;
+      C.Sent_Terminal       := False;
+      C.Got_Handshake       := False;
+      C.Got_Terminal        := False;
       C.Last_Event_Sequence := 0;
    exception
       when E : others =>
@@ -138,24 +130,21 @@ package body Coyote_App.Agent_RPC.Transport is
          raise Transport_Error with Ada.Exceptions.Exception_Message (E);
    end Connect;
 
-   procedure Create_Pair
-     (Left  : out Channel;
-      Right : out Channel)
-   is
+   procedure Create_Pair (Left : out Channel; Right : out Channel) is
    begin
       Create_Socket_Pair
         (Left.Socket, Right.Socket, Family_Unspec, Socket_Stream);
-      Left.Input := Null_Unbounded_String;
-      Right.Input := Null_Unbounded_String;
-      Left.Sent_Handshake := False;
-      Right.Sent_Handshake := False;
-      Left.Sent_Terminal := False;
-      Right.Sent_Terminal := False;
-      Left.Got_Handshake := False;
-      Right.Got_Handshake := False;
-      Left.Got_Terminal := False;
-      Right.Got_Terminal := False;
-      Left.Last_Event_Sequence := 0;
+      Left.Input                := Null_Unbounded_String;
+      Right.Input               := Null_Unbounded_String;
+      Left.Sent_Handshake       := False;
+      Right.Sent_Handshake      := False;
+      Left.Sent_Terminal        := False;
+      Right.Sent_Terminal       := False;
+      Left.Got_Handshake        := False;
+      Right.Got_Handshake       := False;
+      Left.Got_Terminal         := False;
+      Right.Got_Terminal        := False;
+      Left.Last_Event_Sequence  := 0;
       Right.Last_Event_Sequence := 0;
    exception
       when E : others =>
@@ -192,13 +181,11 @@ package body Coyote_App.Agent_RPC.Transport is
       return C.Socket /= No_Socket;
    end Is_Open;
 
-   procedure Send_Bytes
-     (C     : in out Channel;
-      Text  : String)
-   is
-      Data : Ada.Streams.Stream_Element_Array
-        (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
-      Last : Ada.Streams.Stream_Element_Offset;
+   procedure Send_Bytes (C : in out Channel; Text : String) is
+      Data   :
+        Ada.Streams.Stream_Element_Array
+          (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
+      Last   : Ada.Streams.Stream_Element_Offset;
       Offset : Ada.Streams.Stream_Element_Offset := Data'First;
    begin
       Require_Open (C);
@@ -206,9 +193,9 @@ package body Coyote_App.Agent_RPC.Transport is
          return;
       end if;
       for Index in Text'Range loop
-         Data (Offset) := Ada.Streams.Stream_Element
-           (Character'Pos (Text (Index)));
-         Offset := Offset + 1;
+         Data (Offset) :=
+           Ada.Streams.Stream_Element (Character'Pos (Text (Index)));
+         Offset        := Offset + 1;
       end loop;
       Offset := Data'First;
       while Offset <= Data'Last loop
@@ -224,8 +211,7 @@ package body Coyote_App.Agent_RPC.Transport is
    end Send_Bytes;
 
    procedure Send_Frame
-     (C     : in out Channel;
-      Value : Coyote_App.Agent_RPC.Frame)
+     (C : in out Channel; Value : Coyote_App.Agent_RPC.Frame)
    is
       use Coyote_App.Agent_RPC;
       Text : constant String := Encode (Value) & Ada.Characters.Latin_1.LF;
@@ -245,7 +231,8 @@ package body Coyote_App.Agent_RPC.Transport is
                raise Transport_Error with "RPC event precedes handshake";
             end if;
             if Value.Sequence <= C.Last_Event_Sequence then
-               raise Transport_Error with "RPC event sequence is not increasing";
+               raise Transport_Error
+                 with "RPC event sequence is not increasing";
             end if;
             C.Last_Event_Sequence := Value.Sequence;
          when Command =>
@@ -264,34 +251,36 @@ package body Coyote_App.Agent_RPC.Transport is
 
    function Receive_Frame
      (C      : in out Channel;
-      Value  : out Coyote_App.Agent_RPC.Frame;
-      Status : out Receive_Status;
-      Error  : out Unbounded_String) return Boolean
+      Value  :    out Coyote_App.Agent_RPC.Frame;
+      Status :    out Receive_Status;
+      Error  :    out Unbounded_String)
+      return Boolean
    is
       use Coyote_App.Agent_RPC;
-      Buffer : Ada.Streams.Stream_Element_Array (1 .. 4096);
-      Last   : Ada.Streams.Stream_Element_Offset;
-      Newline : Natural;
-      Line : Unbounded_String;
+      Buffer         : Ada.Streams.Stream_Element_Array (1 .. 4_096);
+      Last           : Ada.Streams.Stream_Element_Offset;
+      Newline        : Natural;
+      Line           : Unbounded_String;
       Decoded_Status : Decode_Status;
    begin
       Require_Open (C);
       Status := Invalid_Frame;
-      Error := Null_Unbounded_String;
+      Error  := Null_Unbounded_String;
 
       loop
-         Newline := Ada.Strings.Fixed.Index (To_String (C.Input), "" & ASCII.LF);
+         Newline :=
+           Ada.Strings.Fixed.Index (To_String (C.Input), "" & ASCII.LF);
          exit when Newline > 0;
          if Length (C.Input) > Max_Frame_Length then
             Status := Invalid_Frame;
-            Error := To_Unbounded_String ("RPC frame exceeds maximum length");
+            Error  := To_Unbounded_String ("RPC frame exceeds maximum length");
             return False;
          end if;
          Receive_Socket (C.Socket, Buffer, Last);
          if Last < Buffer'First then
             Close (C);
             Status := Peer_Closed;
-            Error := To_Unbounded_String ("RPC peer closed the channel");
+            Error  := To_Unbounded_String ("RPC peer closed the channel");
             return False;
          end if;
          for Index in Buffer'First .. Last loop
@@ -299,43 +288,45 @@ package body Coyote_App.Agent_RPC.Transport is
          end loop;
       end loop;
 
-      Line := To_Unbounded_String
-        (To_String (C.Input) (To_String (C.Input)'First .. Newline - 1));
+      Line :=
+        To_Unbounded_String
+          (To_String (C.Input) (To_String (C.Input)'First .. Newline - 1));
       Delete (C.Input, 1, Newline);
       if Length (Line) = 0 then
          return Receive_Frame (C, Value, Status, Error);
       end if;
 
       if Try_Decode
-        (Text   => To_String (Line),
-         Value  => Value,
-         Status => Decoded_Status,
-         Error  => Error)
+          (Text   => To_String (Line),
+           Value  => Value,
+           Status => Decoded_Status,
+           Error  => Error)
       then
          if C.Got_Terminal then
             Status := Invalid_Frame;
-            Error := To_Unbounded_String
-              ("RPC frame follows terminal frame");
+            Error  := To_Unbounded_String ("RPC frame follows terminal frame");
             return False;
          end if;
          case Value.Kind is
             when Handshake =>
                if C.Got_Handshake then
                   Status := Invalid_Frame;
-                  Error := To_Unbounded_String ("duplicate RPC handshake");
+                  Error  := To_Unbounded_String ("duplicate RPC handshake");
                   return False;
                end if;
                C.Got_Handshake := True;
             when Event =>
                if not C.Got_Handshake then
                   Status := Invalid_Frame;
-                  Error := To_Unbounded_String ("RPC event precedes handshake");
+                  Error  :=
+                    To_Unbounded_String ("RPC event precedes handshake");
                   return False;
                end if;
                if Value.Sequence <= C.Last_Event_Sequence then
                   Status := Invalid_Frame;
-                  Error := To_Unbounded_String
-                    ("RPC event sequence is not increasing");
+                  Error  :=
+                    To_Unbounded_String
+                      ("RPC event sequence is not increasing");
                   return False;
                end if;
                C.Last_Event_Sequence := Value.Sequence;
@@ -344,7 +335,8 @@ package body Coyote_App.Agent_RPC.Transport is
             when Terminal =>
                if not C.Got_Handshake then
                   Status := Invalid_Frame;
-                  Error := To_Unbounded_String ("RPC terminal precedes handshake");
+                  Error  :=
+                    To_Unbounded_String ("RPC terminal precedes handshake");
                   return False;
                end if;
                C.Got_Terminal := True;
@@ -354,55 +346,60 @@ package body Coyote_App.Agent_RPC.Transport is
       end if;
 
       case Decoded_Status is
-         when Malformed_JSON       => Status := Malformed_Frame;
-         when Unsupported_Version  => Status := Unsupported_Frame_Version;
-         when Invalid_Frame        => Status := Invalid_Frame;
-         when Valid                 => Status := Invalid_Frame;
+         when Malformed_JSON =>
+            Status := Malformed_Frame;
+         when Unsupported_Version =>
+            Status := Unsupported_Frame_Version;
+         when Invalid_Frame =>
+            Status := Invalid_Frame;
+         when Valid =>
+            Status := Invalid_Frame;
       end case;
       return False;
    exception
       when E : Transport_Error =>
          Status := Invalid_Frame;
-         Error := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
+         Error  := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
          return False;
-      when E : others =>
+      when E : others          =>
          Status := Invalid_Frame;
-         Error := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
+         Error  := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
          return False;
    end Receive_Frame;
 
    function Receive_Frame
      (C       : in out Channel;
-      Value   : out Coyote_App.Agent_RPC.Frame;
-      Status  : out Receive_Status;
-      Error   : out Unbounded_String;
-      Timeout : Duration;
-      Ready   : out Boolean) return Boolean
+      Value   :    out Coyote_App.Agent_RPC.Frame;
+      Status  :    out Receive_Status;
+      Error   :    out Unbounded_String;
+      Timeout :        Duration;
+      Ready   :    out Boolean)
+      return Boolean
    is
-      Buffer         : Ada.Streams.Stream_Element_Array (1 .. 4096);
+      Buffer         : Ada.Streams.Stream_Element_Array (1 .. 4_096);
       Last           : Ada.Streams.Stream_Element_Offset;
-      Request        : Request_Type :=
-        (Name => Non_Blocking_IO, Enabled => True);
+      Request        : Request_Type      :=
+        (Name    => Non_Blocking_IO,
+         Enabled => True);
       Selector       : Selector_Type;
       Read_Set       : Socket_Set_Type;
       Write_Set      : Socket_Set_Type;
       Selector_State : Selector_Status;
-      Complete       : Boolean := False;
-      Result         : Boolean := False;
+      Complete       : Boolean           := False;
+      Result         : Boolean           := False;
       Timeout_Value  : constant Duration := Duration'Max (Timeout, 0.0);
    begin
       Require_Open (C);
-      Ready := False;
+      Ready  := False;
       Status := Invalid_Frame;
-      Error := Null_Unbounded_String;
+      Error  := Null_Unbounded_String;
       Create_Selector (Selector);
       begin
          Control_Socket (C.Socket, Request);
 
-         if Ada.Strings.Fixed.Index
-           (To_String (C.Input), "" & ASCII.LF) > 0
+         if Ada.Strings.Fixed.Index (To_String (C.Input), "" & ASCII.LF) > 0
          then
-            Result := Receive_Frame (C, Value, Status, Error);
+            Result   := Receive_Frame (C, Value, Status, Error);
             Complete := True;
          else
             Empty (Read_Set);
@@ -420,26 +417,26 @@ package body Coyote_App.Agent_RPC.Transport is
                   Receive_Socket (C.Socket, Buffer, Last);
                   if Last < Buffer'First then
                      Close (C);
-                     Status := Peer_Closed;
-                     Error := To_Unbounded_String
-                       ("RPC peer closed the channel");
+                     Status   := Peer_Closed;
+                     Error    :=
+                       To_Unbounded_String ("RPC peer closed the channel");
                      Complete := True;
                   else
                      for Index in Buffer'First .. Last loop
-                        Append
-                          (C.Input, Character'Val (Buffer (Index)));
+                        Append (C.Input, Character'Val (Buffer (Index)));
                      end loop;
                      if Ada.Strings.Fixed.Index
-                       (To_String (C.Input), "" & ASCII.LF) > 0
+                         (To_String (C.Input), "" & ASCII.LF)
+                       > 0
                      then
-                        Result := Receive_Frame (C, Value, Status, Error);
+                        Result   := Receive_Frame (C, Value, Status, Error);
                         Complete := True;
                      end if;
                   end if;
                exception
                   when E : Socket_Error =>
-                     if Resolve_Exception (E) /=
-                       Resource_Temporarily_Unavailable
+                     if Resolve_Exception (E)
+                       /= Resource_Temporarily_Unavailable
                      then
                         raise;
                      end if;
@@ -448,7 +445,9 @@ package body Coyote_App.Agent_RPC.Transport is
          end if;
 
          if Is_Open (C) then
-            Request := (Name => Non_Blocking_IO, Enabled => False);
+            Request :=
+              (Name    => Non_Blocking_IO,
+               Enabled => False);
             Control_Socket (C.Socket, Request);
          end if;
          Close_Selector (Selector);
@@ -457,7 +456,9 @@ package body Coyote_App.Agent_RPC.Transport is
       exception
          when others =>
             if Is_Open (C) then
-               Request := (Name => Non_Blocking_IO, Enabled => False);
+               Request :=
+                 (Name    => Non_Blocking_IO,
+                  Enabled => False);
                Control_Socket (C.Socket, Request);
             end if;
             Close_Selector (Selector);
@@ -465,14 +466,14 @@ package body Coyote_App.Agent_RPC.Transport is
       end;
    exception
       when E : Transport_Error =>
-         Ready := False;
+         Ready  := False;
          Status := Invalid_Frame;
-         Error := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
+         Error  := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
          return False;
-      when E : others =>
-         Ready := False;
+      when E : others          =>
+         Ready  := False;
          Status := Invalid_Frame;
-         Error := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
+         Error  := To_Unbounded_String (Ada.Exceptions.Exception_Message (E));
          return False;
    end Receive_Frame;
 

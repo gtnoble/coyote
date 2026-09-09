@@ -9,13 +9,13 @@ package body LLM.Tools is
 
       procedure Set is
       begin
-         Value := True;
+         Value   := True;
          C_Value := 1;
       end Set;
 
       procedure Clear is
       begin
-         Value := False;
+         Value   := False;
          C_Value := 0;
       end Clear;
 

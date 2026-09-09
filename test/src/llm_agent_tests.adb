@@ -44,8 +44,7 @@ package body LLM_Agent_Tests is
       Auto_Compaction_End_Kind);
 
    package Recorded_Event_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Recorded_Event_Kind);
+     (Index_Type => Natural, Element_Type => Recorded_Event_Kind);
 
    No_Event_Index : constant Natural := Natural'Last;
 
@@ -87,7 +86,8 @@ package body LLM_Agent_Tests is
    function First_Event_Index
      (Events : Recorded_Event_Vectors.Vector;
       Kind   : Recorded_Event_Kind;
-      Start  : Natural := 0) return Natural
+      Start  : Natural := 0)
+      return Natural
    is
    begin
       if Events.Is_Empty then
@@ -95,9 +95,7 @@ package body LLM_Agent_Tests is
       end if;
 
       for Index in Events.First_Index .. Events.Last_Index loop
-         if Index >= Start
-           and then Events.Element (Index) = Kind
-         then
+         if Index >= Start and then Events.Element (Index) = Kind then
             return Index;
          end if;
       end loop;
@@ -109,7 +107,7 @@ package body LLM_Agent_Tests is
       use Ada.Calendar;
 
       Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+        Time_Of (Year => 1_970, Month => 1, Day => 1, Seconds => 0.0);
    begin
       return Long_Long_Integer (Clock - Epoch);
    end Current_Unix_S;
@@ -207,15 +205,14 @@ package body LLM_Agent_Tests is
               & "/fixtures/openrouter_models.json"));
    begin
       if not Parsed.Success then
-         raise Constraint_Error with
-           "Failed to parse OpenRouter fixture";
+         raise Constraint_Error with "Failed to parse OpenRouter fixture";
       end if;
 
       if Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
         or else not Parsed.Value.Has_Field ("data")
       then
-         raise Constraint_Error with
-           "OpenRouter fixture is missing the data field";
+         raise Constraint_Error
+           with "OpenRouter fixture is missing the data field";
       end if;
 
       return GNATCOLL.JSON.Write (Parsed.Value.Get ("data"));
@@ -225,8 +222,8 @@ package body LLM_Agent_Tests is
    begin
       Write_File
         (Home & "/.coyote/openrouter_models_cache.json",
-         "{""fetched_at"":" & Long_Long_Image (Current_Unix_S)
-         & ",""data"":" & Fixture_Data_Array & "}");
+         "{""fetched_at"":" & Long_Long_Image (Current_Unix_S) & ",""data"":"
+         & Fixture_Data_Array & "}");
    end Write_OpenRouter_Cache;
 
    procedure Write_Settings_File
@@ -242,37 +239,25 @@ package body LLM_Agent_Tests is
         (Home & "/.coyote/settings.json",
          "{""defaultProvider"":""" & Default_Provider
          & """,""defaultModel"":""" & Default_Model
-         & """,""defaultThinkingLevel"":"""
-         & Default_Thinking
-         & """,""defaultSubagentProvider"":"""
-         & Subagent_Provider
-         & """,""defaultSubagentModel"":"""
-         & Subagent_Model & """}");
+         & """,""defaultThinkingLevel"":""" & Default_Thinking
+         & """,""defaultSubagentProvider"":""" & Subagent_Provider
+         & """,""defaultSubagentModel"":""" & Subagent_Model & """}");
    end Write_Settings_File;
 
-   procedure Write_OpenRouter_Models_File
-     (Home    : String;
-      Api_Key : String)
-   is
+   procedure Write_OpenRouter_Models_File (Home : String; Api_Key : String) is
    begin
       Write_File
         (Home & "/.coyote/models.json",
-         "{""providers"":{""openrouter"":{""apiKey"":"""
-         & Api_Key & """}}}");
+         "{""providers"":{""openrouter"":{""apiKey"":""" & Api_Key & """}}}");
    end Write_OpenRouter_Models_File;
 
-   procedure Write_Minimal_OpenRouter_Cache
-     (Home     : String;
-      Model_Id : String)
+   procedure Write_Minimal_OpenRouter_Cache (Home : String; Model_Id : String)
    is
    begin
       Write_File
         (Home & "/.coyote/openrouter_models_cache.json",
-         "{""fetched_at"":9999999999,""data"":[{""id"":"""
-         & Model_Id
-         & """,""name"":"""
-         & Model_Id
-         & """,""context_length"":128000,"
+         "{""fetched_at"":9999999999,""data"":[{""id"":""" & Model_Id
+         & """,""name"":""" & Model_Id & """,""context_length"":128000,"
          & """architecture"":{""input_modalities"":[""text""],"
          & """output_modalities"":[""text""]},"
          & """pricing"":{""prompt"":""0.000001"","
@@ -280,8 +265,7 @@ package body LLM_Agent_Tests is
          & """input_cache_read"":""0.0000005""},"
          & """top_provider"":{""context_length"":128000,"
          & """max_completion_tokens"":4096},"
-         & """supported_parameters"":[""max_tokens"",""tools""]}]}"
-        );
+         & """supported_parameters"":[""max_tokens"",""tools""]}]}");
    end Write_Minimal_OpenRouter_Cache;
 
    --  Build a two-event SSE payload that streams Text then closes with stop.
@@ -290,13 +274,12 @@ package body LLM_Agent_Tests is
    --    data: <finish event with usage>\n\n
    --    data: [DONE]\n\n
    function Legacy_Message_Array
-      (Request : GNATCOLL.JSON.JSON_Value)
-      return GNATCOLL.JSON.JSON_Array
+     (Request : GNATCOLL.JSON.JSON_Value) return GNATCOLL.JSON.JSON_Array
    is
       use GNATCOLL.JSON;
-      Result        : JSON_Array := Empty_Array;
-      Pending_Calls : JSON_Array := Empty_Array;
-      Pending_Has   : Boolean := False;
+      Result        : JSON_Array          := Empty_Array;
+      Pending_Calls : JSON_Array          := Empty_Array;
+      Pending_Has   : Boolean             := False;
       Input         : constant JSON_Array := Request.Get ("input").Get;
 
       procedure Flush_Pending_Calls is
@@ -310,7 +293,7 @@ package body LLM_Agent_Tests is
          Legacy.Set_Field ("tool_calls", Pending_Calls);
          Append (Result, Legacy);
          Pending_Calls := Empty_Array;
-         Pending_Has := False;
+         Pending_Has   := False;
       end Flush_Pending_Calls;
    begin
       if Request.Has_Field ("instructions") then
@@ -326,11 +309,9 @@ package body LLM_Agent_Tests is
 
       for I in 1 .. GNATCOLL.JSON.Length (Input) loop
          declare
-            Item      : constant JSON_Value :=
-              GNATCOLL.JSON.Get (Input, I);
-            Item_Type : constant String :=
-              (if Item.Has_Field ("type")
-               then String'(Item.Get ("type").Get)
+            Item      : constant JSON_Value := GNATCOLL.JSON.Get (Input, I);
+            Item_Type : constant String     :=
+              (if Item.Has_Field ("type") then String'(Item.Get ("type").Get)
                else "");
          begin
             if Item_Type = "message" then
@@ -338,18 +319,17 @@ package body LLM_Agent_Tests is
                declare
                   Legacy  : constant JSON_Value := Create_Object;
                   Content : constant JSON_Value := Item.Get ("content");
-                  Text    : constant String :=
-                    (if Content.Kind = JSON_String_Type
-                     then Content.Get
-                     elsif Content.Kind = JSON_Array_Type
+                  Text    : constant String     :=
+                    (if Content.Kind = JSON_String_Type then Content.Get
+                     elsif
+                       Content.Kind = JSON_Array_Type
                        and then GNATCOLL.JSON.Length (Content.Get) > 0
-                     then String'
-                       (GNATCOLL.JSON.Get (Content.Get, 1)
-                          .Get ("text").Get)
+                     then
+                       String'
+                         (GNATCOLL.JSON.Get (Content.Get, 1).Get ("text").Get)
                      else "");
                begin
-                  Legacy.Set_Field
-                    ("role", String'(Item.Get ("role").Get));
+                  Legacy.Set_Field ("role", String'(Item.Get ("role").Get));
                   Legacy.Set_Field ("content", Text);
                   Append (Result, Legacy);
                end;
@@ -358,11 +338,9 @@ package body LLM_Agent_Tests is
                   Call : constant JSON_Value := Create_Object;
                   Func : constant JSON_Value := Create_Object;
                begin
-                  Call.Set_Field
-                    ("id", String'(Item.Get ("call_id").Get));
+                  Call.Set_Field ("id", String'(Item.Get ("call_id").Get));
                   Call.Set_Field ("type", "function");
-                  Func.Set_Field
-                    ("name", String'(Item.Get ("name").Get));
+                  Func.Set_Field ("name", String'(Item.Get ("name").Get));
                   Func.Set_Field
                     ("arguments", String'(Item.Get ("arguments").Get));
                   Call.Set_Field ("function", Func);
@@ -374,14 +352,14 @@ package body LLM_Agent_Tests is
                declare
                   Legacy : constant JSON_Value := Create_Object;
                   Output : constant JSON_Value := Item.Get ("output");
-                  Text   : constant String :=
-                    (if Output.Kind = JSON_String_Type
-                     then Output.Get
-                     elsif Output.Kind = JSON_Array_Type
+                  Text   : constant String     :=
+                    (if Output.Kind = JSON_String_Type then Output.Get
+                     elsif
+                       Output.Kind = JSON_Array_Type
                        and then GNATCOLL.JSON.Length (Output.Get) > 0
-                     then String'
-                       (GNATCOLL.JSON.Get (Output.Get, 1)
-                          .Get ("text").Get)
+                     then
+                       String'
+                         (GNATCOLL.JSON.Get (Output.Get, 1).Get ("text").Get)
                      else "");
                begin
                   Legacy.Set_Field ("role", "tool");
@@ -400,7 +378,8 @@ package body LLM_Agent_Tests is
    function Text_SSE_Payload
      (Text              : String;
       Prompt_Tokens     : Natural := 8;
-      Completion_Tokens : Natural := 3) return String
+      Completion_Tokens : Natural := 3)
+      return String
    is
       use GNATCOLL.JSON;
       Delta_Event : constant JSON_Value := Create_Object;
@@ -408,8 +387,8 @@ package body LLM_Agent_Tests is
       Response    : constant JSON_Value := Create_Object;
       Item        : constant JSON_Value := Create_Object;
       Part        : constant JSON_Value := Create_Object;
-      Output      : JSON_Array := Empty_Array;
-      Content     : JSON_Array := Empty_Array;
+      Output      : JSON_Array          := Empty_Array;
+      Content     : JSON_Array          := Empty_Array;
       Usage       : constant JSON_Value := Create_Object;
    begin
       Delta_Event.Set_Field ("type", "response.output_text.delta");
@@ -438,10 +417,10 @@ package body LLM_Agent_Tests is
       Completed.Set_Field ("type", "response.completed");
       Completed.Set_Field ("response", Response);
       return
-        "event: response.output_text.delta" & ASCII.LF
-        & "data: " & Write (Delta_Event) & ASCII.LF & ASCII.LF
-        & "event: response.completed" & ASCII.LF
-        & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
+        "event: response.output_text.delta" & ASCII.LF & "data: "
+        & Write (Delta_Event) & ASCII.LF & ASCII.LF
+        & "event: response.completed" & ASCII.LF & "data: " & Write (Completed)
+        & ASCII.LF & ASCII.LF;
    end Text_SSE_Payload;
 
    --  Append a Content-Type: text/event-stream header to a response.
@@ -459,12 +438,14 @@ package body LLM_Agent_Tests is
    end record;
 
    type Tool_Call_Definition_Array is
-     array (Positive range <>) of Tool_Call_Definition;
+     array (Positive range <>)
+     of Tool_Call_Definition;
 
    function Tool_Call_Def
      (Tool_Call_Id   : String;
       Tool_Name      : String;
-      Arguments_Json : String) return Tool_Call_Definition
+      Arguments_Json : String)
+      return Tool_Call_Definition
    is
    begin
       return
@@ -476,26 +457,24 @@ package body LLM_Agent_Tests is
    function Tool_Call_SSE_Payload
      (Calls             : Tool_Call_Definition_Array;
       Prompt_Tokens     : Natural := 12;
-      Completion_Tokens : Natural := 6) return String
+      Completion_Tokens : Natural := 6)
+      return String
    is
       use GNATCOLL.JSON;
       Completed : constant JSON_Value := Create_Object;
       Response  : constant JSON_Value := Create_Object;
-      Output    : JSON_Array := Empty_Array;
+      Output    : JSON_Array          := Empty_Array;
       Usage     : constant JSON_Value := Create_Object;
    begin
       for I in Calls'Range loop
          declare
             Item : constant JSON_Value := Create_Object;
          begin
-            Item.Set_Field
-              ("id", "fc_" & To_String (Calls (I).Tool_Call_Id));
+            Item.Set_Field ("id", "fc_" & To_String (Calls (I).Tool_Call_Id));
             Item.Set_Field ("type", "function_call");
-            Item.Set_Field
-              ("call_id", To_String (Calls (I).Tool_Call_Id));
+            Item.Set_Field ("call_id", To_String (Calls (I).Tool_Call_Id));
             Item.Set_Field ("name", To_String (Calls (I).Tool_Name));
-            Item.Set_Field
-              ("arguments", To_String (Calls (I).Arguments_Json));
+            Item.Set_Field ("arguments", To_String (Calls (I).Arguments_Json));
             Item.Set_Field ("status", "completed");
             Append (Output, Item);
          end;
@@ -512,8 +491,8 @@ package body LLM_Agent_Tests is
       Completed.Set_Field ("type", "response.completed");
       Completed.Set_Field ("response", Response);
       return
-        "event: response.completed" & ASCII.LF
-        & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
+        "event: response.completed" & ASCII.LF & "data: " & Write (Completed)
+        & ASCII.LF & ASCII.LF;
    end Tool_Call_SSE_Payload;
 
    function Assistant_Text (Msg : LLM.Types.Message) return String is
@@ -529,9 +508,8 @@ package body LLM_Agent_Tests is
    end Assistant_Text;
 
    procedure Append_Text_Message
-     (Session_Id : String;
-      Role       : LLM.Types.Role;
-      Text       : String) is
+     (Session_Id : String; Role : LLM.Types.Role; Text : String)
+   is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
       Content.Append
@@ -540,19 +518,17 @@ package body LLM_Agent_Tests is
 
       LLM.Session_Store.Append_Message
         (Session_Id,
-         (Role      => Role,
+        (Role       => Role,
           Content   => Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      =>
-            (if Role = LLM.Types.Assistant
-             then LLM.Types.Stop
+            (if Role = LLM.Types.Assistant then LLM.Types.Stop
              else LLM.Types.Unknown_Stop),
           Timestamp => Null_Unbounded_String));
    end Append_Text_Message;
 
-   procedure Seed_Compaction_History
-     (S : in out LLM.Agent.Session)
-   is
+   procedure Seed_Compaction_History (S : in out LLM.Agent.Session) is
       Session_UUID : constant String := LLM.Agent.Session_Id (S);
       Large_User_1 : constant String := (1 .. 50_000 => 'u');
       Large_Asst_1 : constant String := (1 .. 50_000 => 'a');
@@ -569,22 +545,22 @@ package body LLM_Agent_Tests is
    procedure Test_Single_Turn_Prompt (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_1";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_1";
       Port           : constant Positive := 18_781;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -594,8 +570,7 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -629,8 +604,8 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert (Messages.Length = 2, "Expected user + assistant messages");
       Assert
@@ -658,7 +633,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -671,22 +647,22 @@ package body LLM_Agent_Tests is
    procedure Test_Tool_Call_Loop (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_2";
-      Port          : constant Positive := 18_782;
-      Agent_Session : LLM.Agent.Session;
-      Messages      : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_2";
+      Port           : constant Positive := 18_782;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -698,14 +674,12 @@ package body LLM_Agent_Tests is
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -721,24 +695,24 @@ package body LLM_Agent_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
             Assert (Length (Msgs) = 1, "Tool call req 1: expected 1 msg");
             Assert
               (Ada.Strings.Fixed.Index
-                 (String'(Get (Msgs, 1).Get ("content").Get),
-                  "Use a tool") = 1,
+                 (String'(Get (Msgs, 1).Get ("content").Get), "Use a tool")
+               = 1,
                "Tool call req 1: wrong prompt");
             declare
                Tool_Call_SSE : constant String :=
                  Tool_Call_SSE_Payload
-                   ((1 => Tool_Call_Def
-                      (Tool_Call_Id   => "call_1",
-                       Tool_Name      => "shell",
-                       Arguments_Json =>
-                         "{""command"":""echo tool-ok""}")),
+                   ((1 =>
+                       Tool_Call_Def
+                         (Tool_Call_Id   => "call_1",
+                          Tool_Name      => "shell",
+                          Arguments_Json => "{""command"":""echo tool-ok""}")),
                     Prompt_Tokens     => 12,
                     Completion_Tokens => 6);
             begin
@@ -747,8 +721,8 @@ package body LLM_Agent_Tests is
          else
             Assert (Length (Msgs) = 3, "Tool call req 2: expected 3 msgs");
             Assert
-              (String'(Get
-                 (Get (Msgs, 2).Get ("tool_calls").Get, 1).Get ("id").Get)
+              (String'
+                 (Get (Get (Msgs, 2).Get ("tool_calls").Get, 1).Get ("id").Get)
                = "call_1",
                "Tool call req 2: wrong tool call id");
             Assert
@@ -756,7 +730,8 @@ package body LLM_Agent_Tests is
                "Tool call req 2: expected tool result");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Get (Msgs, 3).Get ("content").Get, "tool-ok") > 0,
+                 (Get (Msgs, 3).Get ("content").Get, "tool-ok")
+               > 0,
                "Tool call req 2: tool output not present");
             Append (Res.Body_Data, Text_SSE_Payload ("Done", 20, 4));
          end if;
@@ -787,18 +762,17 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
-        (Messages.Length = 4,
-         "Expected user, tool call, tool result, reply");
+        (Messages.Length = 4, "Expected user, tool call, tool result, reply");
       Assert
         (Messages.Element (1).Role = LLM.Types.Assistant,
          "Second message should be the assistant tool-call message");
       Assert
         (Messages.Element (1).Content.Element (0).Kind
-           = LLM.Types.Tool_Call_Block,
+         = LLM.Types.Tool_Call_Block,
          "Assistant tool-call message should contain a tool call block");
       Assert
         (Messages.Element (2).Role = LLM.Types.Tool_Result,
@@ -820,7 +794,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -833,22 +808,22 @@ package body LLM_Agent_Tests is
    procedure Test_Two_Tool_Call_Loop (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_7";
-      Port          : constant Positive := 18_789;
-      Agent_Session : LLM.Agent.Session;
-      Messages      : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_7";
+      Port           : constant Positive := 18_789;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -857,32 +832,29 @@ package body LLM_Agent_Tests is
          null;
       end Ignore_Event;
 
-      Two_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_1",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf first-ok""}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_2",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf second-ok""}")),
+      Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_1",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""printf first-ok""}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_2",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""printf second-ok""}")),
            Prompt_Tokens     => 14,
            Completion_Tokens => 7);
 
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -898,15 +870,15 @@ package body LLM_Agent_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
             Assert (Length (Msgs) = 1, "Two-tool req 1: expected 1 msg");
             Assert
               (Ada.Strings.Fixed.Index
-                 (String'(Get (Msgs, 1).Get ("content").Get),
-                  "Use two tools") = 1,
+                 (String'(Get (Msgs, 1).Get ("content").Get), "Use two tools")
+               = 1,
                "Two-tool req 1: wrong prompt");
             Append (Res.Body_Data, Two_Tool_SSE);
          else
@@ -925,7 +897,8 @@ package body LLM_Agent_Tests is
                "Two-tool req 2: first tool result id wrong");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Get (Msgs, 3).Get ("content").Get, "first-ok") > 0,
+                 (Get (Msgs, 3).Get ("content").Get, "first-ok")
+               > 0,
                "Two-tool req 2: first-ok not in tool result");
             Assert
               (String'(Get (Msgs, 4).Get ("role").Get) = "tool",
@@ -935,7 +908,8 @@ package body LLM_Agent_Tests is
                "Two-tool req 2: second tool result id wrong");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Get (Msgs, 4).Get ("content").Get, "second-ok") > 0,
+                 (Get (Msgs, 4).Get ("content").Get, "second-ok")
+               > 0,
                "Two-tool req 2: second-ok not in tool result");
             Append (Res.Body_Data, Text_SSE_Payload ("All done", 24, 5));
          end if;
@@ -966,8 +940,8 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
         (Messages.Length = 5,
@@ -980,11 +954,11 @@ package body LLM_Agent_Tests is
          "Assistant tool-call batch should contain two tool-call blocks");
       Assert
         (Messages.Element (1).Content.Element (0).Kind
-           = LLM.Types.Tool_Call_Block,
+         = LLM.Types.Tool_Call_Block,
          "First assistant block should be a tool call");
       Assert
         (Messages.Element (1).Content.Element (1).Kind
-           = LLM.Types.Tool_Call_Block,
+         = LLM.Types.Tool_Call_Block,
          "Second assistant block should be a tool call");
       Assert
         (Messages.Element (2).Role = LLM.Types.Tool_Result,
@@ -995,12 +969,14 @@ package body LLM_Agent_Tests is
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Messages.Element (2).Content.Element (0).Result_Text),
-            "first-ok") > 0,
+            "first-ok")
+         > 0,
          "First tool result should contain first-ok");
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Messages.Element (3).Content.Element (0).Result_Text),
-            "second-ok") > 0,
+            "second-ok")
+         > 0,
          "Second tool result should contain second-ok");
       Assert
         (Messages.Element (4).Role = LLM.Types.Assistant,
@@ -1019,7 +995,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -1032,25 +1009,25 @@ package body LLM_Agent_Tests is
    procedure Test_Tool_Execution_Failure (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home               : constant String := "/tmp/coyote_llm_agent_test_8";
-      Port               : constant Positive := 18_793;
-      Agent_Session      : LLM.Agent.Session;
-      Messages           : LLM.Types.Message_Vectors.Vector;
-      Saw_Tool_End       : Boolean := False;
-      Tool_End_Is_Error  : Boolean := False;
-      Tool_End_Result    : Unbounded_String := Null_Unbounded_String;
-      Server_Stopped     : Boolean := False;
-      Home_Was_Set       : constant Boolean :=
+      Home              : constant String   := "/tmp/coyote_llm_agent_test_8";
+      Port              : constant Positive := 18_793;
+      Agent_Session     : LLM.Agent.Session;
+      Messages          : LLM.Types.Message_Vectors.Vector;
+      Saw_Tool_End      : Boolean           := False;
+      Tool_End_Is_Error : Boolean           := False;
+      Tool_End_Result   : Unbounded_String  := Null_Unbounded_String;
+      Server_Stopped    : Boolean           := False;
+      Home_Was_Set      : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home           : constant String :=
+      Old_Home          : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set        : constant Boolean :=
+      Key_Was_Set       : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key            : constant String :=
+      Old_Key           : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set        : constant Boolean :=
+      Url_Was_Set       : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url            : constant String :=
+      Old_Url           : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -1060,28 +1037,25 @@ package body LLM_Agent_Tests is
                Event : constant LLM.Events.Tool_Execution_End_Event :=
                  LLM.Events.Tool_Execution_End_Event (E);
             begin
-               Saw_Tool_End := True;
+               Saw_Tool_End      := True;
                Tool_End_Is_Error := Event.Is_Error;
-               Tool_End_Result := Event.Result_Text;
+               Tool_End_Result   := Event.Result_Text;
             end;
          end if;
       end On_Event;
 
       Missing_Path : constant String :=
-        "/tmp/coyote_missing_tool_input_"
-        & Natural_Image (Port) & ".txt";
+        "/tmp/coyote_missing_tool_input_" & Natural_Image (Port) & ".txt";
 
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -1097,7 +1071,7 @@ package body LLM_Agent_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
@@ -1105,7 +1079,8 @@ package body LLM_Agent_Tests is
             Assert
               (Ada.Strings.Fixed.Index
                  (String'(Get (Msgs, 1).Get ("content").Get),
-                  "Use failing tool") = 1,
+                  "Use failing tool")
+               = 1,
                "Tool-fail req 1: wrong prompt");
             declare
                Args : constant JSON_Value := Create_Object;
@@ -1115,8 +1090,7 @@ package body LLM_Agent_Tests is
                declare
                   Read_SSE : constant String :=
                     Tool_Call_SSE_Payload
-                      ((1 => Tool_Call_Def
-                          ("call_1", "read", Write (Args))),
+                      ((1 => Tool_Call_Def ("call_1", "read", Write (Args))),
                        Prompt_Tokens     => 12,
                        Completion_Tokens => 6);
                begin
@@ -1133,11 +1107,11 @@ package body LLM_Agent_Tests is
                "Tool-fail req 2: wrong tool call id");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Get (Msgs, 3).Get ("content").Get, "unknown tool") > 0,
+                 (Get (Msgs, 3).Get ("content").Get, "unknown tool")
+               > 0,
                "Tool-fail req 2: error text not present");
             Append
-              (Res.Body_Data,
-               Text_SSE_Payload ("Handled failure", 18, 4));
+              (Res.Body_Data, Text_SSE_Payload ("Handled failure", 18, 4));
          end if;
       end Handle_Request;
 
@@ -1166,16 +1140,16 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert (Saw_Tool_End, "Tool_Execution_End_Event should be emitted");
       Assert
         (Tool_End_Is_Error,
          "Tool_Execution_End_Event.Is_Error should be True");
       Assert
-        (Ada.Strings.Fixed.Index (To_String (Tool_End_Result),
-           "unknown tool") > 0,
+        (Ada.Strings.Fixed.Index (To_String (Tool_End_Result), "unknown tool")
+         > 0,
          "Tool failure result text should describe the unknown tool");
       Assert
         (Messages.Length = 4,
@@ -1189,7 +1163,8 @@ package body LLM_Agent_Tests is
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Messages.Element (2).Content.Element (0).Result_Text),
-            "unknown tool") > 0,
+            "unknown tool")
+         > 0,
          "Persisted tool result text should describe the unknown tool");
       Assert
         (Assistant_Text (Messages.Element (3)) = "Handled failure",
@@ -1205,7 +1180,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -1218,18 +1194,18 @@ package body LLM_Agent_Tests is
    procedure Test_Switch_Session_Loads_History (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_9";
+      Home          : constant String  := "/tmp/coyote_llm_agent_test_9";
       Agent_Session : LLM.Agent.Session;
       Existing_Id   : Unbounded_String;
       User_Content  : LLM.Types.Content_Block_Vectors.Vector;
       Reply_Content : LLM.Types.Content_Block_Vectors.Vector;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Key_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key       : constant String  :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
    begin
       Prepare_Test_Home (Home);
@@ -1237,8 +1213,10 @@ package body LLM_Agent_Tests is
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
 
-      Existing_Id := To_Unbounded_String
-        (LLM.Session_Store.Create_Session (Ada.Directories.Current_Directory));
+      Existing_Id :=
+        To_Unbounded_String
+          (LLM.Session_Store.Create_Session
+             (Ada.Directories.Current_Directory));
 
       User_Content.Append
         ((Kind => LLM.Types.Text_Block,
@@ -1247,20 +1225,24 @@ package body LLM_Agent_Tests is
         (To_String (Existing_Id),
          (Role      => LLM.Types.User,
           Content   => User_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
 
       Reply_Content.Append
         ((Kind => LLM.Types.Text_Block,
-          Text => To_Unbounded_String ("Earlier answer")));
+         Text  => To_Unbounded_String ("Earlier answer")));
       LLM.Session_Store.Append_Message
         (To_String (Existing_Id),
          (Role      => LLM.Types.Assistant,
           Content   => Reply_Content,
-          Tok_Usage => (Input => 3, Output => 2, Cache_Read => 0,
-                        Cache_Write => 0,
-                        Thinking    => 0),
+          Tok_Usage =>
+            (Input       => 3,
+             Output      => 2,
+             Cache_Read  => 0,
+             Cache_Write => 0,
+             Thinking    => 0),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
 
@@ -1279,21 +1261,22 @@ package body LLM_Agent_Tests is
          "Switch_Session should pre-load the persisted history");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.User,
+         = LLM.Types.User,
          "First pre-loaded message should be the stored user message");
       Assert
         (To_String
-           (LLM.Agent.Testing.History_Element
-              (Agent_Session, 0).Content.Element (0).Text)
+           (LLM.Agent.Testing.History_Element (Agent_Session, 0).Content
+              .Element
+              (0)
+              .Text)
          = "Earlier question",
          "Stored user text should be pre-loaded into S.History");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 1).Role
-           = LLM.Types.Assistant,
+         = LLM.Types.Assistant,
          "Second pre-loaded message should be the stored assistant reply");
       Assert
-        (Assistant_Text
-           (LLM.Agent.Testing.History_Element (Agent_Session, 1))
+        (Assistant_Text (LLM.Agent.Testing.History_Element (Agent_Session, 1))
          = "Earlier answer",
          "Stored assistant text should be pre-loaded into S.History");
 
@@ -1311,22 +1294,22 @@ package body LLM_Agent_Tests is
    procedure Test_Abort_Request (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_3";
-      Port          : constant Positive := 18_783;
-      Agent_Session : LLM.Agent.Session;
-      Messages      : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_3";
+      Port           : constant Positive := 18_783;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
@@ -1369,8 +1352,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -1419,25 +1401,21 @@ package body LLM_Agent_Tests is
             delay 0.05;
          end loop;
 
-         Assert (Runner'Terminated,
-                 "Abort request must terminate within 10 s");
+         Assert
+           (Runner'Terminated, "Abort request must terminate within 10 s");
       end;
 
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
-      Assert
-        (not State.Had_Error,
-         "Run_Prompt task should not raise");
+      Assert (not State.Had_Error, "Run_Prompt task should not raise");
       Assert
         (State.Saw_Aborted_End,
          "Agent_End_Event should report Was_Aborted=True");
-      Assert
-        (Messages.Length = 0,
-         "Abort should not persist any messages");
+      Assert (Messages.Length = 0, "Abort should not persist any messages");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -1449,7 +1427,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -1459,30 +1438,28 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Abort_Request;
 
-   procedure Test_Abort_Batched_Tools_Keep_History_Valid
-     (T : in out Test)
-   is
+   procedure Test_Abort_Batched_Tools_Keep_History_Valid (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_5";
-      Capture_Path   : constant String := Home & "/resume_request.json";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_5";
+      Capture_Path   : constant String   := Home & "/resume_request.json";
       Abort_Port     : constant Positive := 18_786;
       Resume_Port    : constant Positive := 18_787;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Abort_Stopped  : Boolean := False;
-      Resume_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Abort_Stopped  : Boolean           := False;
+      Resume_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
@@ -1553,24 +1530,22 @@ package body LLM_Agent_Tests is
          null;
       end Ignore_Event;
 
-      Two_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_1",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf first-ok""}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_2",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""printf second-ok""}")),
+      Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_1",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""printf first-ok""}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_2",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""printf second-ok""}")),
            Prompt_Tokens     => 14,
            Completion_Tokens => 7);
 
       procedure Handle_Abort
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -1579,12 +1554,10 @@ package body LLM_Agent_Tests is
          Append (Res.Body_Data, Two_Tool_SSE);
       end Handle_Abort;
 
-      Srv_Abort : Test_HTTP_Server.Server
-        (Handle_Abort'Unrestricted_Access);
+      Srv_Abort : Test_HTTP_Server.Server (Handle_Abort'Unrestricted_Access);
 
       procedure Handle_Resume
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          File : Ada.Text_IO.File_Type;
       begin
@@ -1597,8 +1570,7 @@ package body LLM_Agent_Tests is
          Append (Res.Body_Data, Text_SSE_Payload ("Recovered", 16, 3));
       end Handle_Resume;
 
-      Srv_Resume : Test_HTTP_Server.Server
-        (Handle_Resume'Unrestricted_Access);
+      Srv_Resume : Test_HTTP_Server.Server (Handle_Resume'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1654,8 +1626,8 @@ package body LLM_Agent_Tests is
         (State.Saw_Aborted_End,
          "Agent_End_Event should report Was_Aborted=True");
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
       Assert
         (Messages.Length = 4,
          "Aborted turn should persist tool results for recoverability");
@@ -1681,8 +1653,7 @@ package body LLM_Agent_Tests is
 
          declare
             function Json_String
-              (Value : GNATCOLL.JSON.JSON_Value;
-               Field : String) return String
+              (Value : GNATCOLL.JSON.JSON_Value; Field : String) return String
             is
             begin
                return Value.Get (Field).Get;
@@ -1691,34 +1662,35 @@ package body LLM_Agent_Tests is
             Request    : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
             Msgs       : constant GNATCOLL.JSON.JSON_Array :=
               Legacy_Message_Array (Request);
-            Sys_Offset : constant Natural :=
-              (if GNATCOLL.JSON.Length (Msgs) > 0
-                 and then Json_String
-                   (GNATCOLL.JSON.Get (Msgs, 1), "role") = "system"
-               then 1 else 0);
+            Sys_Offset : constant Natural                  :=
+              (if
+                 GNATCOLL.JSON.Length (Msgs) > 0
+                 and then Json_String (GNATCOLL.JSON.Get (Msgs, 1), "role")
+                   = "system"
+               then
+                 1
+               else 0);
             Calls      : constant GNATCOLL.JSON.JSON_Array :=
-              GNATCOLL.JSON.Get
-                (Msgs, 2 + Sys_Offset).Get ("tool_calls").Get;
+              GNATCOLL.JSON.Get (Msgs, 2 + Sys_Offset).Get ("tool_calls").Get;
          begin
             Assert
               (GNATCOLL.JSON.Length (Msgs) = 5 + Sys_Offset,
                "Resume request should include the aborted tool batch"
                & " in memory");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "role")
-                 = "user",
+              (Json_String (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "role")
+               = "user",
                "First request message should be the original user prompt");
             Assert
               (Ada.Strings.Fixed.Index
                  (Json_String
                     (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "content"),
-                  "Use two tools") = 1,
+                  "Use two tools")
+               = 1,
                "Original user prompt should remain in history");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 2 + Sys_Offset), "role")
-                 = "assistant",
+              (Json_String (GNATCOLL.JSON.Get (Msgs, 2 + Sys_Offset), "role")
+               = "assistant",
                "Assistant tool-call message should precede tool results");
             Assert
               (GNATCOLL.JSON.Length (Calls) = 2,
@@ -1730,48 +1702,46 @@ package body LLM_Agent_Tests is
               (Json_String (GNATCOLL.JSON.Get (Calls, 2), "id") = "call_2",
                "Second tool call id should be preserved");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "role")
-                 = "tool",
+              (Json_String (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "role")
+               = "tool",
                "First tool result should follow the assistant tool call");
             Assert
               (Json_String
                  (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "tool_call_id")
-                 = "call_1",
+               = "call_1",
                "First tool result should match call_1");
             Assert
               (Ada.Strings.Fixed.Index
                  (Json_String
                     (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "content"),
-                  "first-ok") > 0,
+                  "first-ok")
+               > 0,
                "First tool result should contain the real command output");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 4 + Sys_Offset), "role")
-                 = "tool",
+              (Json_String (GNATCOLL.JSON.Get (Msgs, 4 + Sys_Offset), "role")
+               = "tool",
                "Second tool result should be present after abort");
             Assert
               (Json_String
-                 (GNATCOLL.JSON.Get
-                    (Msgs, 4 + Sys_Offset), "tool_call_id")
-                 = "call_2",
+                 (GNATCOLL.JSON.Get (Msgs, 4 + Sys_Offset), "tool_call_id")
+               = "call_2",
                "Second tool result should match call_2");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "role")
-                 = "user",
+              (Json_String (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "role")
+               = "user",
                "Final message should be the after-abort user prompt");
             Assert
               (Ada.Strings.Fixed.Index
                  (Json_String
                     (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "content"),
-                  "After abort") = 1,
+                  "After abort")
+               = 1,
                "After-abort user prompt should be preserved in history");
          end;
       end;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
       Assert
         (Messages.Length = 6,
          "Session file should contain aborted tool results plus completed turn");
@@ -1789,14 +1759,16 @@ package body LLM_Agent_Tests is
             begin
                Srv_Abort.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          if not Resume_Stopped then
             begin
                Srv_Resume.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -1806,30 +1778,26 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Abort_Batched_Tools_Keep_History_Valid;
 
-   procedure Test_Abort_During_Shell_With_Timeout
-     (T : in out Test)
-   is
+   procedure Test_Abort_During_Shell_With_Timeout (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String :=
-        "/tmp/coyote_llm_agent_test_timeout_abort";
+      Home : constant String   := "/tmp/coyote_llm_agent_test_timeout_abort";
       Port           : constant Positive := 18_790;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
          procedure Note_End (Was_Aborted : Boolean);
@@ -1876,17 +1844,17 @@ package body LLM_Agent_Tests is
       --  abort flag should win the select-or-delay race immediately.
       Timeout_Tool_SSE : constant String :=
         Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_timeout",
-              Tool_Name      => "shell",
-              Arguments_Json =>
-                "{""command"":""sleep 100"",""timeout"":60}")),
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_timeout",
+                 Tool_Name      => "shell",
+                 Arguments_Json =>
+                   "{""command"":""sleep 100"",""timeout"":60}")),
            Prompt_Tokens     => 14,
            Completion_Tokens => 7);
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -1895,8 +1863,7 @@ package body LLM_Agent_Tests is
          Append (Res.Body_Data, Timeout_Tool_SSE);
       end Handle_Request;
 
-      Srv : Test_HTTP_Server.Server
-        (Handle_Request'Unrestricted_Access);
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1940,22 +1907,21 @@ package body LLM_Agent_Tests is
             delay 0.05;
          end loop;
 
-         Assert (Runner'Terminated,
-                 "Aborted timeout tool call must terminate within 10 s");
+         Assert
+           (Runner'Terminated,
+            "Aborted timeout tool call must terminate within 10 s");
       end;
 
       Srv.Stop;
       Server_Stopped := True;
 
-      Assert
-        (not State.Had_Error,
-         "Run_Prompt task should not raise");
+      Assert (not State.Had_Error, "Run_Prompt task should not raise");
       Assert
         (State.Saw_Aborted_End,
          "Agent_End_Event should report Was_Aborted=True");
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       --  Aborted turn should persist: user, assistant tool call,
       --  and tool result with the abort marker.
@@ -1979,13 +1945,15 @@ package body LLM_Agent_Tests is
          "Tool result should have one content block");
       Assert
         (Ada.Strings.Unbounded.Length
-           (Messages.Element (2).Content.Element (0).Result_Text) > 0,
+           (Messages.Element (2).Content.Element (0).Result_Text)
+         > 0,
          "Tool result should have non-empty text");
       Assert
         (Ada.Strings.Fixed.Index
            (Ada.Strings.Unbounded.To_String
               (Messages.Element (2).Content.Element (0).Result_Text),
-            "aborted") > 0,
+            "aborted")
+         > 0,
          "Tool result text should contain ""aborted""");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -1998,7 +1966,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -2008,28 +1977,26 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Abort_During_Shell_With_Timeout;
 
-   procedure Test_Session_File_Written_Only_After_Turn_End
-     (T : in out Test)
-   is
+   procedure Test_Session_File_Written_Only_After_Turn_End (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_6";
-      Port          : constant Positive := 18_788;
-      Agent_Session : LLM.Agent.Session;
-      Mid_Messages  : LLM.Types.Message_Vectors.Vector;
-      End_Messages  : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_6";
+      Port           : constant Positive := 18_788;
+      Agent_Session  : LLM.Agent.Session;
+      Mid_Messages   : LLM.Types.Message_Vectors.Vector;
+      End_Messages   : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
@@ -2074,14 +2041,12 @@ package body LLM_Agent_Tests is
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -2097,14 +2062,15 @@ package body LLM_Agent_Tests is
          end loop;
 
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
             Assert
               (Ada.Strings.Fixed.Index
                  (String'(Get (Msgs, 1).Get ("content").Get),
-                  "Use delayed tool") = 1,
+                  "Use delayed tool")
+               = 1,
                "Delayed-tool req 1: wrong prompt");
             Assert
               (GNATCOLL.JSON.Length (Req_Body.Get ("tools").Get) > 0,
@@ -2117,8 +2083,7 @@ package body LLM_Agent_Tests is
                declare
                   Tool_SSE : constant String :=
                     Tool_Call_SSE_Payload
-                      ((1 => Tool_Call_Def
-                          ("call_1", "shell", Write (Args))),
+                      ((1 => Tool_Call_Def ("call_1", "shell", Write (Args))),
                        Prompt_Tokens     => 12,
                        Completion_Tokens => 6);
                begin
@@ -2130,8 +2095,8 @@ package body LLM_Agent_Tests is
               (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
                "Delayed-tool req 2: second msg should be assistant");
             Assert
-              (String'(Get
-                 (Get (Msgs, 2).Get ("tool_calls").Get, 1).Get ("id").Get)
+              (String'
+                 (Get (Get (Msgs, 2).Get ("tool_calls").Get, 1).Get ("id").Get)
                = "call_1",
                "Delayed-tool req 2: wrong tool call id");
             Assert
@@ -2139,7 +2104,8 @@ package body LLM_Agent_Tests is
                "Delayed-tool req 2: third msg should be tool result");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Get (Msgs, 3).Get ("content").Get, "slow-ok") > 0,
+                 (Get (Msgs, 3).Get ("content").Get, "slow-ok")
+               > 0,
                "Delayed-tool req 2: slow-ok not in result");
             delay 1.0;
             Append (Res.Body_Data, Text_SSE_Payload ("Done", 20, 4));
@@ -2187,8 +2153,9 @@ package body LLM_Agent_Tests is
             "Tool execution should finish before checking mid-turn storage");
 
          delay 0.20;
-         Mid_Messages := LLM.Session_Store.Load_Messages
-           (LLM.Agent.Session_Id (Agent_Session));
+         Mid_Messages :=
+           LLM.Session_Store.Load_Messages
+             (LLM.Agent.Session_Id (Agent_Session));
 
          Assert
            (Mid_Messages.Length = 3,
@@ -2219,8 +2186,8 @@ package body LLM_Agent_Tests is
 
       Assert (not State.Had_Error, "Delayed Run_Prompt should not raise");
 
-      End_Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      End_Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
         (End_Messages.Length = 4,
@@ -2245,7 +2212,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -2258,27 +2226,26 @@ package body LLM_Agent_Tests is
    procedure Test_Session_Resume (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home                 : constant String :=
-        "/tmp/coyote_llm_agent_test_4";
-      First_Port           : constant Positive := 18_784;
-      Second_Port          : constant Positive := 18_785;
-      First_Session        : LLM.Agent.Session;
-      Resume_Session       : LLM.Agent.Session;
-      Session_UUID         : Unbounded_String;
-      Messages             : LLM.Types.Message_Vectors.Vector;
-      First_Server_Stopped  : Boolean := False;
-      Second_Server_Stopped : Boolean := False;
-      Home_Was_Set         : constant Boolean :=
+      Home : constant String   := "/tmp/coyote_llm_agent_test_4";
+      First_Port            : constant Positive := 18_784;
+      Second_Port           : constant Positive := 18_785;
+      First_Session         : LLM.Agent.Session;
+      Resume_Session        : LLM.Agent.Session;
+      Session_UUID          : Unbounded_String;
+      Messages              : LLM.Types.Message_Vectors.Vector;
+      First_Server_Stopped  : Boolean           := False;
+      Second_Server_Stopped : Boolean           := False;
+      Home_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home             : constant String :=
+      Old_Home              : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set          : constant Boolean :=
+      Key_Was_Set           : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key              : constant String :=
+      Old_Key               : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set          : constant Boolean :=
+      Url_Was_Set           : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url              : constant String :=
+      Old_Url               : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -2288,8 +2255,7 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_First_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -2298,18 +2264,16 @@ package body LLM_Agent_Tests is
          Append (Res.Body_Data, Text_SSE_Payload ("Hello", 10, 5));
       end Handle_First_Request;
 
-      Srv_First : Test_HTTP_Server.Server
-        (Handle_First_Request'Unrestricted_Access);
+      Srv_First :
+        Test_HTTP_Server.Server (Handle_First_Request'Unrestricted_Access);
 
       procedure Handle_Second_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          use GNATCOLL.JSON;
-         Parsed   : constant Read_Result :=
-           Read (To_String (Req.Body_Data));
-         Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
+         Parsed   : constant Read_Result := Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value  := Parsed.Value;
+         All_Msgs : constant JSON_Array  := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -2330,8 +2294,8 @@ package body LLM_Agent_Tests is
             "Resume req: first msg should be user");
          Assert
            (Ada.Strings.Fixed.Index
-              (String'(Get (Msgs, 1).Get ("content").Get),
-               "Say hello") = 1,
+              (String'(Get (Msgs, 1).Get ("content").Get), "Say hello")
+            = 1,
             "Resume req: wrong original user prompt");
          Assert
            (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
@@ -2344,8 +2308,8 @@ package body LLM_Agent_Tests is
             "Resume req: third msg should be user");
          Assert
            (Ada.Strings.Fixed.Index
-              (String'(Get (Msgs, 3).Get ("content").Get),
-               "Second prompt") = 1,
+              (String'(Get (Msgs, 3).Get ("content").Get), "Second prompt")
+            = 1,
             "Resume req: wrong second user prompt");
 
          Res.Status := 200;
@@ -2353,8 +2317,8 @@ package body LLM_Agent_Tests is
          Append (Res.Body_Data, Text_SSE_Payload ("Resumed", 9, 3));
       end Handle_Second_Request;
 
-      Srv_Second : Test_HTTP_Server.Server
-        (Handle_Second_Request'Unrestricted_Access);
+      Srv_Second :
+        Test_HTTP_Server.Server (Handle_Second_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -2402,8 +2366,7 @@ package body LLM_Agent_Tests is
       Messages := LLM.Session_Store.Load_Messages (To_String (Session_UUID));
 
       Assert
-        (Messages.Length = 4,
-         "Resumed session should contain four messages");
+        (Messages.Length = 4, "Resumed session should contain four messages");
       Assert
         (Assistant_Text (Messages.Element (1)) = "Hello",
          "Resumed session should preserve the original assistant reply");
@@ -2421,14 +2384,16 @@ package body LLM_Agent_Tests is
             begin
                Srv_First.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          if not Second_Server_Stopped then
             begin
                Srv_Second.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -2443,21 +2408,19 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_openrouter_session_id";
-      Root_Session   : LLM.Agent.Session;
-      Child_Session  : LLM.Agent.Session;
-      Grandchild     : LLM.Agent.Session;
-      Fallback       : LLM.Agent.Session;
-      Home_Was_Set   : constant Boolean :=
+      Home : constant String  := "/tmp/coyote_llm_agent_openrouter_session_id";
+      Root_Session  : LLM.Agent.Session;
+      Child_Session : LLM.Agent.Session;
+      Grandchild    : LLM.Agent.Session;
+      Fallback      : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Id_Was_Set     : constant Boolean :=
+      Id_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_SESSION_ID");
-      Old_Id         : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_SESSION_ID", "");
+      Old_Id        : constant String  :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_SESSION_ID", "");
    begin
       Prepare_Test_Home (Home);
       Write_Settings_File
@@ -2466,8 +2429,7 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Clear ("COYOTE_OPENROUTER_SESSION_ID");
 
@@ -2526,14 +2488,12 @@ package body LLM_Agent_Tests is
          = LLM.Agent.Session_Id (Fallback),
          "subagent without inherited ID should use its own UUID");
 
-      Restore_Env
-        ("COYOTE_OPENROUTER_SESSION_ID", Id_Was_Set, Old_Id);
+      Restore_Env ("COYOTE_OPENROUTER_SESSION_ID", Id_Was_Set, Old_Id);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Restore_Env
-           ("COYOTE_OPENROUTER_SESSION_ID", Id_Was_Set, Old_Id);
+         Restore_Env ("COYOTE_OPENROUTER_SESSION_ID", Id_Was_Set, Old_Id);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -2544,27 +2504,27 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_10";
-      Port           : constant Positive := 18_794;
-      Agent_Session      : LLM.Agent.Session;
-      Subagent_Session   : LLM.Agent.Session;
-      Explicit_Session   : LLM.Agent.Session;
-      Fallback_Session   : LLM.Agent.Session;
-      Saw_Model          : Boolean := False;
-      Selected_Prov  : Unbounded_String := Null_Unbounded_String;
-      Selected_Model : Unbounded_String := Null_Unbounded_String;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Home             : constant String   := "/tmp/coyote_llm_agent_test_10";
+      Port             : constant Positive := 18_794;
+      Agent_Session    : LLM.Agent.Session;
+      Subagent_Session : LLM.Agent.Session;
+      Explicit_Session : LLM.Agent.Session;
+      Fallback_Session : LLM.Agent.Session;
+      Saw_Model        : Boolean           := False;
+      Selected_Prov    : Unbounded_String  := Null_Unbounded_String;
+      Selected_Model   : Unbounded_String  := Null_Unbounded_String;
+      Server_Stopped   : Boolean           := False;
+      Home_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home         : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set      : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key          : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set      : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url          : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -2574,16 +2534,15 @@ package body LLM_Agent_Tests is
                Event : constant LLM.Events.Model_Select_Event :=
                  LLM.Events.Model_Select_Event (E);
             begin
-               Saw_Model := True;
-               Selected_Prov := Event.Provider;
+               Saw_Model      := True;
+               Selected_Prov  := Event.Provider;
                Selected_Model := Event.Model_Id;
             end;
          end if;
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -2603,8 +2562,7 @@ package body LLM_Agent_Tests is
          Subagent_Model    => "test/subagent-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Clear ("OPENROUTER_API_KEY");
@@ -2613,13 +2571,11 @@ package body LLM_Agent_Tests is
          "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
 
       LLM.Agent.Create
-        (S          => Agent_Session,
-         Model_Spec => "",
-         No_Tools   => True);
+        (S => Agent_Session, Model_Spec => "", No_Tools => True);
 
       Assert
         (LLM.Agent.Current_Model_Spec (Agent_Session)
-           = "openrouter/test/default-model",
+         = "openrouter/test/default-model",
          "Create should use the settings.json default model");
 
       LLM.Agent.Create
@@ -2629,7 +2585,7 @@ package body LLM_Agent_Tests is
          Subagent   => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Subagent_Session)
-           = "openrouter/test/subagent-model",
+         = "openrouter/test/subagent-model",
          "Subagent should use the dedicated settings default model");
 
       LLM.Agent.Create
@@ -2639,7 +2595,7 @@ package body LLM_Agent_Tests is
          Subagent   => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Explicit_Session)
-           = "openrouter/test/default-model",
+         = "openrouter/test/default-model",
          "Explicit model should override the subagent default");
 
       Write_Settings_File
@@ -2653,7 +2609,7 @@ package body LLM_Agent_Tests is
          Subagent   => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Fallback_Session)
-           = "openrouter/test/default-model",
+         = "openrouter/test/default-model",
          "Incomplete subagent preference should fall back to ordinary default");
 
       Srv.Bind (Port);
@@ -2684,7 +2640,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -2702,18 +2659,18 @@ package body LLM_Agent_Tests is
    procedure Test_Subagent_Model_Env_Override (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_llm_agent_test_10c";
+      Home         : constant String  := "/tmp/coyote_llm_agent_test_10c";
       Sub_Session  : LLM.Agent.Session;
       Sub_Clear    : LLM.Agent.Session;
       Sub_Explicit : LLM.Agent.Session;
       Ord_Session  : LLM.Agent.Session;
-      Home_Was_Set   : constant Boolean :=
+      Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Ovr_Was_Set    : constant Boolean :=
+      Ovr_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_SUBAGENT_MODEL");
-      Old_Ovr        : constant String :=
+      Old_Ovr      : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_SUBAGENT_MODEL", "");
    begin
       Prepare_Test_Home (Home);
@@ -2725,8 +2682,7 @@ package body LLM_Agent_Tests is
          Subagent_Model    => "test/subagent-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
@@ -2740,7 +2696,7 @@ package body LLM_Agent_Tests is
          Subagent   => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Sub_Session)
-           = "openrouter/test/ephemeral-model",
+         = "openrouter/test/ephemeral-model",
          "ephemeral override should outrank the persistent subagent default");
 
       --  An explicit model still outranks the override.
@@ -2751,31 +2707,25 @@ package body LLM_Agent_Tests is
          Subagent   => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Sub_Explicit)
-           = "openrouter/test/default-model",
+         = "openrouter/test/default-model",
          "explicit model should outrank the ephemeral override");
 
       --  An empty override value means no override.
       Ada.Environment_Variables.Set ("COYOTE_SUBAGENT_MODEL", "");
       LLM.Agent.Create
-        (S          => Sub_Clear,
-         Model_Spec => "",
-         No_Tools   => True,
-         Subagent   => True);
+        (S => Sub_Clear, Model_Spec => "", No_Tools => True, Subagent => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Sub_Clear)
-           = "openrouter/test/subagent-model",
+         = "openrouter/test/subagent-model",
          "empty override should fall back to the persistent default");
 
       --  Ordinary (non-subagent) sessions ignore the override.
       Ada.Environment_Variables.Set
         ("COYOTE_SUBAGENT_MODEL", "openrouter/test/ephemeral-model");
-      LLM.Agent.Create
-        (S          => Ord_Session,
-         Model_Spec => "",
-         No_Tools   => True);
+      LLM.Agent.Create (S => Ord_Session, Model_Spec => "", No_Tools => True);
       Assert
         (LLM.Agent.Current_Model_Spec (Ord_Session)
-           = "openrouter/test/default-model",
+         = "openrouter/test/default-model",
          "ordinary sessions should ignore the ephemeral override");
 
       Restore_Env ("COYOTE_SUBAGENT_MODEL", Ovr_Was_Set, Old_Ovr);
@@ -2792,15 +2742,15 @@ package body LLM_Agent_Tests is
    procedure Test_Memory_Enabled_By_Env_Var (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_10b";
-      Agent_Session  : LLM.Agent.Session;
-      Home_Was_Set   : constant Boolean :=
+      Home          : constant String  := "/tmp/coyote_llm_agent_test_10b";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Mem_Was_Set    : constant Boolean :=
+      Mem_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_ENABLE_MEMORY");
-      Old_Mem        : constant String :=
+      Old_Mem       : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_ENABLE_MEMORY", "");
    begin
       Prepare_Test_Home (Home);
@@ -2810,21 +2760,18 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("COYOTE_ENABLE_MEMORY", "1");
 
       LLM.Agent.Create
-        (S          => Agent_Session,
-         Model_Spec => "",
-         No_Tools   => True);
+        (S => Agent_Session, Model_Spec => "", No_Tools => True);
 
       Assert
         (Ada.Strings.Fixed.Index
-           (LLM.Agent.Testing.System_Prompt (Agent_Session),
-            "# Memory System") > 0,
+           (LLM.Agent.Testing.System_Prompt (Agent_Session), "# Memory System")
+         > 0,
          "COYOTE_ENABLE_MEMORY=1 should inject memory taxonomy");
 
       Restore_Env ("COYOTE_ENABLE_MEMORY", Mem_Was_Set, Old_Mem);
@@ -2841,15 +2788,15 @@ package body LLM_Agent_Tests is
    procedure Test_Memory_Disabled_By_Default (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_10c";
-      Agent_Session  : LLM.Agent.Session;
-      Home_Was_Set   : constant Boolean :=
+      Home          : constant String  := "/tmp/coyote_llm_agent_test_10c";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Mem_Was_Set    : constant Boolean :=
+      Mem_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_ENABLE_MEMORY");
-      Old_Mem        : constant String :=
+      Old_Mem       : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_ENABLE_MEMORY", "");
    begin
       Prepare_Test_Home (Home);
@@ -2859,21 +2806,18 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Clear ("COYOTE_ENABLE_MEMORY");
 
       LLM.Agent.Create
-        (S          => Agent_Session,
-         Model_Spec => "",
-         No_Tools   => True);
+        (S => Agent_Session, Model_Spec => "", No_Tools => True);
 
       Assert
         (Ada.Strings.Fixed.Index
-           (LLM.Agent.Testing.System_Prompt (Agent_Session),
-            "# Memory System") = 0,
+           (LLM.Agent.Testing.System_Prompt (Agent_Session), "# Memory System")
+         = 0,
          "memory taxonomy should be absent when COYOTE_ENABLE_MEMORY is unset");
 
       Restore_Env ("COYOTE_ENABLE_MEMORY", Mem_Was_Set, Old_Mem);
@@ -2887,27 +2831,25 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Memory_Disabled_By_Default;
 
-   procedure Test_Multi_Turn_Same_Session_Carries_History
-     (T : in out Test)
-   is
+   procedure Test_Multi_Turn_Same_Session_Carries_History (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_11";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_11";
       Port           : constant Positive := 18_795;
       Agent_Session  : LLM.Agent.Session;
-      Server_Stopped : Boolean := False;
-      Request_Count  : Natural := 0;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Request_Count  : Natural           := 0;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -2917,20 +2859,17 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
          if Request_Count = 1 then
-            Append (Res.Body_Data,
-                    Text_SSE_Payload ("turn one reply", 8, 3));
+            Append (Res.Body_Data, Text_SSE_Payload ("turn one reply", 8, 3));
          else
-            Append (Res.Body_Data,
-                    Text_SSE_Payload ("turn two reply", 8, 3));
+            Append (Res.Body_Data, Text_SSE_Payload ("turn two reply", 8, 3));
          end if;
       end Handle_Request;
 
@@ -2968,13 +2907,11 @@ package body LLM_Agent_Tests is
         (LLM.Agent.Testing.History_Length (Agent_Session) >= 4,
          "Same session should retain both user and assistant turns");
       Assert
-        (Assistant_Text
-           (LLM.Agent.Testing.History_Element (Agent_Session, 1))
+        (Assistant_Text (LLM.Agent.Testing.History_Element (Agent_Session, 1))
          = "turn one reply",
          "First assistant reply should remain in the in-memory history");
       Assert
-        (Assistant_Text
-           (LLM.Agent.Testing.History_Element (Agent_Session, 3))
+        (Assistant_Text (LLM.Agent.Testing.History_Element (Agent_Session, 3))
          = "turn two reply",
          "Second assistant reply should be appended to the same session");
 
@@ -2988,7 +2925,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3003,8 +2941,7 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home               : constant String :=
-        "/tmp/coyote_llm_agent_test_13";
+      Home               : constant String := "/tmp/coyote_llm_agent_test_13";
       Port               : constant Positive := 18_798;
       Agent_Session      : LLM.Agent.Session;
       Events             : Recorded_Event_Vectors.Vector;
@@ -3014,18 +2951,18 @@ package body LLM_Agent_Tests is
       Message_End_Pos    : Natural;
       Agent_End_Pos      : Natural;
       Session_Stats_Pos  : Natural;
-      Server_Stopped     : Boolean := False;
-      Home_Was_Set       : constant Boolean :=
+      Server_Stopped     : Boolean           := False;
+      Home_Was_Set       : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home           : constant String :=
+      Old_Home           : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set        : constant Boolean :=
+      Key_Was_Set        : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key            : constant String :=
+      Old_Key            : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set        : constant Boolean :=
+      Url_Was_Set        : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url            : constant String :=
+      Old_Url            : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -3034,8 +2971,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -3124,7 +3060,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3139,29 +3076,29 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home              : constant String := "/tmp/coyote_llm_agent_test_14";
-      Port              : constant Positive := 18_799;
-      Agent_Session     : LLM.Agent.Session;
-      Saw_Tool_Start    : Boolean := False;
-      Saw_Tool_End      : Boolean := False;
-      Saw_Agent_End     : Boolean := False;
-      Tool_End_Error    : Boolean := False;
-      End_Was_Aborted   : Boolean := True;
-      Tool_Name         : Unbounded_String := Null_Unbounded_String;
-      Session_Text      : Unbounded_String := Null_Unbounded_String;
-      Server_Stopped    : Boolean := False;
-      Request_Count     : Natural := 0;
-      Home_Was_Set      : constant Boolean :=
+      Home            : constant String   := "/tmp/coyote_llm_agent_test_14";
+      Port            : constant Positive := 18_799;
+      Agent_Session   : LLM.Agent.Session;
+      Saw_Tool_Start  : Boolean           := False;
+      Saw_Tool_End    : Boolean           := False;
+      Saw_Agent_End   : Boolean           := False;
+      Tool_End_Error  : Boolean           := False;
+      End_Was_Aborted : Boolean           := True;
+      Tool_Name       : Unbounded_String  := Null_Unbounded_String;
+      Session_Text    : Unbounded_String  := Null_Unbounded_String;
+      Server_Stopped  : Boolean           := False;
+      Request_Count   : Natural           := 0;
+      Home_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home          : constant String :=
+      Old_Home        : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set       : constant Boolean :=
+      Key_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key           : constant String :=
+      Old_Key         : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set       : constant Boolean :=
+      Url_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url           : constant String :=
+      Old_Url         : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -3172,38 +3109,38 @@ package body LLM_Agent_Tests is
                  LLM.Events.Tool_Execution_Start_Event (E);
             begin
                Saw_Tool_Start := True;
-               Tool_Name := Event.Tool_Name;
+               Tool_Name      := Event.Tool_Name;
             end;
          elsif E in LLM.Events.Tool_Execution_End_Event then
             declare
                Event : constant LLM.Events.Tool_Execution_End_Event :=
                  LLM.Events.Tool_Execution_End_Event (E);
             begin
-               Saw_Tool_End := True;
+               Saw_Tool_End   := True;
                Tool_End_Error := Event.Is_Error;
             end;
          elsif E in LLM.Events.Agent_End_Event then
-            Saw_Agent_End := True;
+            Saw_Agent_End   := True;
             End_Was_Aborted := LLM.Events.Agent_End_Event (E).Was_Aborted;
          end if;
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
          Tool_SSE : constant String :=
            Tool_Call_SSE_Payload
-             ((1 => Tool_Call_Def
-                (Tool_Call_Id   => "call_1",
-                 Tool_Name      => "nonexistent_tool_xyz",
-                 Arguments_Json => "{}")),
+             ((1 =>
+                 Tool_Call_Def
+                   (Tool_Call_Id   => "call_1",
+                    Tool_Name      => "nonexistent_tool_xyz",
+                    Arguments_Json => "{}")),
               Prompt_Tokens     => 11,
               Completion_Tokens => 5);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
          if Request_Count = 1 then
             Append (Res.Body_Data, Tool_SSE);
@@ -3237,10 +3174,11 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Session_Text := To_Unbounded_String
-        (Read_File
-           (LLM.Session_Store.Session_File_Path
-              (LLM.Agent.Session_Id (Agent_Session))));
+      Session_Text :=
+        To_Unbounded_String
+          (Read_File
+             (LLM.Session_Store.Session_File_Path
+                (LLM.Agent.Session_Id (Agent_Session))));
 
       Assert
         (Saw_Tool_Start,
@@ -3259,11 +3197,12 @@ package body LLM_Agent_Tests is
          "Agent should continue after an unknown tool and end normally");
       Assert
         (Ada.Strings.Fixed.Index
-           (To_String (Session_Text), """role"":""toolResult""") > 0,
+           (To_String (Session_Text), """role"":""toolResult""")
+         > 0,
          "Session file should contain a persisted tool-result record");
       Assert
-        (Ada.Strings.Fixed.Index
-           (To_String (Session_Text), """isError"":true") > 0,
+        (Ada.Strings.Fixed.Index (To_String (Session_Text), """isError"":true")
+         > 0,
          "Persisted tool-result record should preserve Is_Error=True");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3276,7 +3215,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3286,31 +3226,29 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Unknown_Tool_Becomes_Error_And_Agent_Continues;
 
-   procedure Test_Auto_Retry_On_HTTP_500_Then_Success
-     (T : in out Test)
-   is
+   procedure Test_Auto_Retry_On_HTTP_500_Then_Success (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home            : constant String := "/tmp/coyote_llm_agent_test_15";
+      Home            : constant String   := "/tmp/coyote_llm_agent_test_15";
       Port            : constant Positive := 18_800;
       Agent_Session   : LLM.Agent.Session;
-      Saw_Retry       : Boolean := False;
-      Saw_Text_Delta  : Boolean := False;
-      End_Was_Aborted : Boolean := True;
-      Text_Result     : Unbounded_String := Null_Unbounded_String;
-      Server_Stopped  : Boolean := False;
-      Request_Count   : Natural := 0;
-      Home_Was_Set    : constant Boolean :=
+      Saw_Retry       : Boolean           := False;
+      Saw_Text_Delta  : Boolean           := False;
+      End_Was_Aborted : Boolean           := True;
+      Text_Result     : Unbounded_String  := Null_Unbounded_String;
+      Server_Stopped  : Boolean           := False;
+      Request_Count   : Natural           := 0;
+      Home_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home        : constant String :=
+      Old_Home        : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set     : constant Boolean :=
+      Key_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key         : constant String :=
+      Old_Key         : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set     : constant Boolean :=
+      Url_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url         : constant String :=
+      Old_Url         : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -3333,8 +3271,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -3348,8 +3285,7 @@ package body LLM_Agent_Tests is
          else
             Res.Status := 200;
             Add_SSE_Header (Res);
-            Append (Res.Body_Data,
-                    Text_SSE_Payload ("retried reply", 8, 3));
+            Append (Res.Body_Data, Text_SSE_Payload ("retried reply", 8, 3));
          end if;
       end Handle_Request;
 
@@ -3397,7 +3333,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3407,32 +3344,30 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Retry_On_HTTP_500_Then_Success;
 
-   procedure Test_Auto_Retry_On_Transport_Error_Then_Success
-     (T : in out Test)
+   procedure Test_Auto_Retry_On_Transport_Error_Then_Success (T : in out Test)
    is
       pragma Unreferenced (T);
 
-      Home            : constant String :=
-        "/tmp/coyote_llm_agent_test_transport_retry";
+      Home : constant String   := "/tmp/coyote_llm_agent_test_transport_retry";
       Port            : constant Positive := 18_801;
       Agent_Session   : LLM.Agent.Session;
-      Saw_Retry       : Boolean := False;
-      Saw_Text_Delta  : Boolean := False;
-      End_Was_Aborted : Boolean := True;
-      Text_Result     : Unbounded_String := Null_Unbounded_String;
-      Server_Stopped  : Boolean := False;
-      Request_Count   : Natural := 0;
-      Home_Was_Set    : constant Boolean :=
+      Saw_Retry       : Boolean           := False;
+      Saw_Text_Delta  : Boolean           := False;
+      End_Was_Aborted : Boolean           := True;
+      Text_Result     : Unbounded_String  := Null_Unbounded_String;
+      Server_Stopped  : Boolean           := False;
+      Request_Count   : Natural           := 0;
+      Home_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home        : constant String :=
+      Old_Home        : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set     : constant Boolean :=
+      Key_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key         : constant String :=
+      Old_Key         : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set     : constant Boolean :=
+      Url_Was_Set     : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url         : constant String :=
+      Old_Url         : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -3455,8 +3390,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -3469,8 +3403,7 @@ package body LLM_Agent_Tests is
          end if;
          Res.Status := 200;
          Add_SSE_Header (Res);
-         Append (Res.Body_Data,
-                 Text_SSE_Payload ("transport retried", 8, 3));
+         Append (Res.Body_Data, Text_SSE_Payload ("transport retried", 8, 3));
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
@@ -3499,14 +3432,13 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Assert (Saw_Retry,
-              "transport error should trigger Auto_Retry_Start_Event");
+      Assert
+        (Saw_Retry, "transport error should trigger Auto_Retry_Start_Event");
       Assert
         (not End_Was_Aborted,
          "Successful transport retry should end the turn normally");
       Assert
-        (Saw_Text_Delta
-           and then To_String (Text_Result) = "transport retried",
+        (Saw_Text_Delta and then To_String (Text_Result) = "transport retried",
          "Transport retry success should stream the final text");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3519,7 +3451,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3529,18 +3462,17 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Retry_On_Transport_Error_Then_Success;
 
-   procedure Test_Compatible_History_Filters_Foreign_Thinking
-     (T : in out Test)
+   procedure Test_Compatible_History_Filters_Foreign_Thinking (T : in out Test)
    is
       pragma Unreferenced (T);
 
-      History      : LLM.Types.Message_Vectors.Vector;
-      User_Content : LLM.Types.Content_Block_Vectors.Vector;
-      Grok_Content : LLM.Types.Content_Block_Vectors.Vector;
+      History         : LLM.Types.Message_Vectors.Vector;
+      User_Content    : LLM.Types.Content_Block_Vectors.Vector;
+      Grok_Content    : LLM.Types.Content_Block_Vectors.Vector;
       Luna_Content    : LLM.Types.Content_Block_Vectors.Vector;
       Unknown_Content : LLM.Types.Content_Block_Vectors.Vector;
       Grok_View       : LLM.Types.Message_Vectors.Vector;
-      Luna_View    : LLM.Types.Message_Vectors.Vector;
+      Luna_View       : LLM.Types.Message_Vectors.Vector;
 
       function Thinking_Count
         (Messages : LLM.Types.Message_Vectors.Vector) return Natural
@@ -3563,7 +3495,8 @@ package body LLM_Agent_Tests is
       History.Append
         ((Role      => LLM.Types.User,
           Content   => User_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
 
@@ -3575,11 +3508,12 @@ package body LLM_Agent_Tests is
           Origin_Model    => To_Unbounded_String ("x-ai/grok-4.6")));
       Grok_Content.Append
         ((Kind => LLM.Types.Text_Block,
-          Text => To_Unbounded_String ("grok answer")));
+         Text  => To_Unbounded_String ("grok answer")));
       History.Append
         ((Role      => LLM.Types.Assistant,
           Content   => Grok_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
 
@@ -3591,11 +3525,12 @@ package body LLM_Agent_Tests is
           Origin_Model    => To_Unbounded_String ("openai/gpt-5.6-luna")));
       Luna_Content.Append
         ((Kind => LLM.Types.Text_Block,
-          Text => To_Unbounded_String ("luna answer")));
+         Text  => To_Unbounded_String ("luna answer")));
       History.Append
         ((Role      => LLM.Types.Assistant,
           Content   => Luna_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
 
@@ -3608,18 +3543,21 @@ package body LLM_Agent_Tests is
       History.Append
         ((Role      => LLM.Types.Assistant,
           Content   => Unknown_Content,
-          Tok_Usage => (others => 0),
+          Tok_Usage =>
+            (others => 0),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
 
-      Grok_View := LLM.Agent.Testing.Compatible_History
-        (History  => History,
-         Provider => "openrouter",
-         Model_Id => "x-ai/grok-4.6");
-      Luna_View := LLM.Agent.Testing.Compatible_History
-        (History  => History,
-         Provider => "openrouter",
-         Model_Id => "openai/gpt-5.6-luna");
+      Grok_View :=
+        LLM.Agent.Testing.Compatible_History
+          (History  => History,
+           Provider => "openrouter",
+           Model_Id => "x-ai/grok-4.6");
+      Luna_View :=
+        LLM.Agent.Testing.Compatible_History
+          (History  => History,
+           Provider => "openrouter",
+           Model_Id => "openai/gpt-5.6-luna");
 
       Assert
         (Thinking_Count (Grok_View) = 1,
@@ -3643,30 +3581,26 @@ package body LLM_Agent_Tests is
          "request filtering must not mutate durable history");
    end Test_Compatible_History_Filters_Foreign_Thinking;
 
-   procedure Test_Non_Retryable_Error_Rolls_Back_Prompt
-     (T : in out Test)
-   is
+   procedure Test_Non_Retryable_Error_Rolls_Back_Prompt (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String :=
-        "/tmp/coyote_llm_agent_non_retryable_rollback";
+      Home : constant String := "/tmp/coyote_llm_agent_non_retryable_rollback";
       Port           : constant Positive := 18_840;
       Agent_Session  : LLM.Agent.Session;
-      Server_Stopped : Boolean := False;
-      Raised         : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Raised         : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
          pragma Unreferenced (E);
@@ -3675,8 +3609,7 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -3691,8 +3624,7 @@ package body LLM_Agent_Tests is
    begin
       Prepare_Test_Home (Home);
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "openai/gpt-5.6-luna");
+        (Home => Home, Model_Id => "openai/gpt-5.6-luna");
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
       Ada.Environment_Variables.Set
@@ -3726,8 +3658,9 @@ package body LLM_Agent_Tests is
         (not LLM.Agent.Has_Submitted_Prompts (Agent_Session),
          "failed first prompt should restore submitted-state flag");
       Assert
-        (LLM.Session_Store.Load_Messages
-           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+        (LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session))
+           .Length
+         = 0,
          "failed prompt should remain absent from persisted history");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3740,7 +3673,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3750,31 +3684,28 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Non_Retryable_Error_Rolls_Back_Prompt;
 
-   procedure Test_Retry_Exhaustion_Rolls_Back_Prompt
-     (T : in out Test)
-   is
+   procedure Test_Retry_Exhaustion_Rolls_Back_Prompt (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String :=
+      Home           : constant String   :=
         "/tmp/coyote_llm_agent_retry_exhaustion_rollback";
       Port           : constant Positive := 18_841;
       Agent_Session  : LLM.Agent.Session;
-      Server_Stopped : Boolean := False;
-      Raised         : Boolean := False;
-      Request_Count  : Natural := 0;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Raised         : Boolean           := False;
+      Request_Count  : Natural           := 0;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_OPENROUTER_BASE_URL", "");
+      Old_Url        : constant String   :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
          pragma Unreferenced (E);
@@ -3783,13 +3714,12 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 500;
+         Res.Status    := 500;
          Append (Res.Body_Data, "{""error"":""server error""}");
       end Handle_Request;
 
@@ -3797,8 +3727,7 @@ package body LLM_Agent_Tests is
    begin
       Prepare_Test_Home (Home);
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "openai/gpt-5.6-luna");
+        (Home => Home, Model_Id => "openai/gpt-5.6-luna");
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
       Ada.Environment_Variables.Set
@@ -3833,8 +3762,9 @@ package body LLM_Agent_Tests is
         (not LLM.Agent.Has_Submitted_Prompts (Agent_Session),
          "retry exhaustion should restore submitted-state flag");
       Assert
-        (LLM.Session_Store.Load_Messages
-           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+        (LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session))
+           .Length
+         = 0,
          "retry-exhausted prompt should remain absent from JSONL history");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3847,7 +3777,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -3862,12 +3793,14 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      type Phrase_Array is array (Positive range <>) of Unbounded_String;
+      type Phrase_Array is
+        array (Positive range <>)
+        of Unbounded_String;
 
-      Home         : constant String := "/tmp/coyote_llm_agent_test_24";
-      Summary_Text : constant String :=
+      Home          : constant String       := "/tmp/coyote_llm_agent_test_24";
+      Summary_Text  : constant String       :=
         "## Goal" & ASCII.LF & "overflow detection";
-      Reply_Text   : constant String := "overflow detection reply";
+      Reply_Text    : constant String       := "overflow detection reply";
       Exact_Phrases : constant Phrase_Array :=
         (To_Unbounded_String ("prompt is too long"),
          To_Unbounded_String ("context_length_exceeded"),
@@ -3880,31 +3813,29 @@ package body LLM_Agent_Tests is
          To_Unbounded_String ("Maximum Context Length"),
          To_Unbounded_String ("Too Many Tokens"),
          To_Unbounded_String ("Reduce The Length Of The Messages"));
-      Next_Port    : Positive := 18_810;
-      Home_Was_Set : constant Boolean :=
+      Next_Port     : Positive              := 18_810;
+      Home_Was_Set  : constant Boolean      :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home      : constant String       :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set  : constant Boolean :=
+      Key_Was_Set   : constant Boolean      :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key      : constant String :=
+      Old_Key       : constant String       :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set  : constant Boolean :=
+      Url_Was_Set   : constant Boolean      :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url      : constant String :=
+      Old_Url       : constant String       :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Run_Case
-        (Port            : Positive;
-         Error_Text      : String;
-         Expect_Overflow : Boolean)
+        (Port : Positive; Error_Text : String; Expect_Overflow : Boolean)
       is
          Agent_Session        : LLM.Agent.Session;
-         Saw_Compaction_Start : Boolean := False;
+         Saw_Compaction_Start : Boolean          := False;
          Text_Result          : Unbounded_String := Null_Unbounded_String;
-         Raised               : Boolean := False;
-         Server_Stopped       : Boolean := False;
-         Request_Count        : Natural := 0;
+         Raised               : Boolean          := False;
+         Server_Stopped       : Boolean          := False;
+         Request_Count        : Natural          := 0;
 
          procedure On_Event (E : LLM.Events.Agent_Event'Class) is
          begin
@@ -3937,13 +3868,13 @@ package body LLM_Agent_Tests is
                   when 2 =>
                      Res.Status := 200;
                      Add_SSE_Header (Res);
-                     Append (Res.Body_Data,
-                             Text_SSE_Payload (Summary_Text, 8, 3));
+                     Append
+                       (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
                   when others =>
                      Res.Status := 200;
                      Add_SSE_Header (Res);
-                     Append (Res.Body_Data,
-                             Text_SSE_Payload (Reply_Text, 8, 3));
+                     Append
+                       (Res.Body_Data, Text_SSE_Payload (Reply_Text, 8, 3));
                end case;
             else
                Res.Status := 400;
@@ -3951,8 +3882,7 @@ package body LLM_Agent_Tests is
             end if;
          end Handle_Request;
 
-         Srv : Test_HTTP_Server.Server
-           (Handle_Request'Unrestricted_Access);
+         Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
       begin
          Ada.Environment_Variables.Set
            ("COYOTE_OPENROUTER_BASE_URL",
@@ -3999,7 +3929,8 @@ package body LLM_Agent_Tests is
                begin
                   Srv.Stop;
                exception
-                  when Tasking_Error => null;
+                  when Tasking_Error =>
+                     null;
                end;
             end if;
             raise;
@@ -4044,43 +3975,40 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Is_Context_Overflow_Error_Detects_Known_Phrases;
 
-   procedure Test_Overflow_Triggers_Compact_And_Retry
-     (T : in out Test)
-   is
+   procedure Test_Overflow_Triggers_Compact_And_Retry (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home                  : constant String :=
-        "/tmp/coyote_llm_agent_test_25";
-      Port                  : constant Positive := 18_821;
-      Agent_Session         : LLM.Agent.Session;
-      Saw_Compaction_Start  : Boolean := False;
-      Compaction_Reason     : Unbounded_String := Null_Unbounded_String;
-      Final_Text            : Unbounded_String := Null_Unbounded_String;
-      Final_Stop            : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      End_Was_Aborted       : Boolean := True;
-      Summary_Text          : constant String :=
+      Home : constant String       := "/tmp/coyote_llm_agent_test_25";
+      Port                 : constant Positive     := 18_821;
+      Agent_Session        : LLM.Agent.Session;
+      Saw_Compaction_Start : Boolean               := False;
+      Compaction_Reason    : Unbounded_String      := Null_Unbounded_String;
+      Final_Text           : Unbounded_String      := Null_Unbounded_String;
+      Final_Stop           : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      End_Was_Aborted      : Boolean               := True;
+      Summary_Text         : constant String       :=
         "## Goal" & ASCII.LF & "overflow retry";
-      Reply_Text            : constant String := "overflow recovered";
-      Server_Stopped        : Boolean := False;
-      Request_Count         : Natural := 0;
-      Home_Was_Set          : constant Boolean :=
+      Reply_Text           : constant String       := "overflow recovered";
+      Server_Stopped       : Boolean               := False;
+      Request_Count        : Natural               := 0;
+      Home_Was_Set         : constant Boolean      :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home              : constant String :=
+      Old_Home             : constant String       :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set           : constant Boolean :=
+      Key_Was_Set          : constant Boolean      :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key               : constant String :=
+      Old_Key              : constant String       :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set           : constant Boolean :=
+      Url_Was_Set          : constant Boolean      :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url               : constant String :=
+      Old_Url              : constant String       :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
       begin
          if E in LLM.Events.Auto_Compaction_Start_Event then
             Saw_Compaction_Start := True;
-            Compaction_Reason :=
+            Compaction_Reason    :=
               LLM.Events.Auto_Compaction_Start_Event (E).Reason;
          elsif E in LLM.Events.Message_Update_Event then
             declare
@@ -4099,8 +4027,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -4112,13 +4039,11 @@ package body LLM_Agent_Tests is
             when 2 =>
                Res.Status := 200;
                Add_SSE_Header (Res);
-               Append (Res.Body_Data,
-                       Text_SSE_Payload (Summary_Text, 8, 3));
+               Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
             when others =>
                Res.Status := 200;
                Add_SSE_Header (Res);
-               Append (Res.Body_Data,
-                       Text_SSE_Payload (Reply_Text, 8, 3));
+               Append (Res.Body_Data, Text_SSE_Payload (Reply_Text, 8, 3));
          end case;
       end Handle_Request;
 
@@ -4155,8 +4080,7 @@ package body LLM_Agent_Tests is
         (To_String (Compaction_Reason) = "overflow",
          "Overflow compaction should record the overflow reason");
       Assert
-        (not End_Was_Aborted,
-         "Recovered overflow turn should end normally");
+        (not End_Was_Aborted, "Recovered overflow turn should end normally");
       Assert
         (Final_Stop = LLM.Types.Stop,
          "Recovered overflow turn should finish with Stop");
@@ -4165,7 +4089,7 @@ package body LLM_Agent_Tests is
          "Recovered overflow turn should stream the retried reply");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.Compaction_Summary,
+         = LLM.Types.Compaction_Summary,
          "Overflow recovery should compact the in-memory history");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4178,7 +4102,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4188,33 +4113,30 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Overflow_Triggers_Compact_And_Retry;
 
-   procedure Test_Overflow_Recovery_Not_Attempted_Twice
-     (T : in out Test)
-   is
+   procedure Test_Overflow_Recovery_Not_Attempted_Twice (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home                 : constant String :=
-        "/tmp/coyote_llm_agent_test_26";
-      Port                 : constant Positive := 18_822;
-      Agent_Session        : LLM.Agent.Session;
-      Saw_Aborted_End      : Boolean := False;
-      Aborted_Error_Text   : Unbounded_String := Null_Unbounded_String;
-      Saw_Agent_End        : Boolean := False;
-      Summary_Text         : constant String :=
+      Home               : constant String := "/tmp/coyote_llm_agent_test_26";
+      Port               : constant Positive := 18_822;
+      Agent_Session      : LLM.Agent.Session;
+      Saw_Aborted_End    : Boolean           := False;
+      Aborted_Error_Text : Unbounded_String  := Null_Unbounded_String;
+      Saw_Agent_End      : Boolean           := False;
+      Summary_Text       : constant String   :=
         "## Goal" & ASCII.LF & "overflow retry failure";
-      Server_Stopped       : Boolean := False;
-      Request_Count        : Natural := 0;
-      Home_Was_Set         : constant Boolean :=
+      Server_Stopped     : Boolean           := False;
+      Request_Count      : Natural           := 0;
+      Home_Was_Set       : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home             : constant String :=
+      Old_Home           : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set          : constant Boolean :=
+      Key_Was_Set        : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key              : constant String :=
+      Old_Key            : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set          : constant Boolean :=
+      Url_Was_Set        : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url              : constant String :=
+      Old_Url            : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4225,7 +4147,7 @@ package body LLM_Agent_Tests is
                  LLM.Events.Auto_Compaction_End_Event (E);
             begin
                if Event.Aborted then
-                  Saw_Aborted_End := True;
+                  Saw_Aborted_End    := True;
                   Aborted_Error_Text := Event.Err_Msg;
                end if;
             end;
@@ -4235,8 +4157,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -4244,8 +4165,7 @@ package body LLM_Agent_Tests is
          if Request_Count = 2 then
             Res.Status := 200;
             Add_SSE_Header (Res);
-            Append (Res.Body_Data,
-                    Text_SSE_Payload (Summary_Text, 8, 3));
+            Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
          else
             Res.Status := 400;
             Append (Res.Body_Data, "prompt is too long");
@@ -4284,11 +4204,11 @@ package body LLM_Agent_Tests is
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Aborted_Error_Text),
-            "Context overflow recovery failed after one attempt.") > 0,
+            "Context overflow recovery failed after one attempt.")
+         > 0,
          "Second overflow should report the one-attempt failure message");
       Assert
-        (Saw_Agent_End,
-         "Run_Prompt should still emit Agent_End and return");
+        (Saw_Agent_End, "Run_Prompt should still emit Agent_End and return");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -4300,7 +4220,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4310,33 +4231,30 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Overflow_Recovery_Not_Attempted_Twice;
 
-   procedure Test_Overflow_Will_Retry_Event_Emitted
-     (T : in out Test)
-   is
+   procedure Test_Overflow_Will_Retry_Event_Emitted (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home              : constant String :=
-        "/tmp/coyote_llm_agent_test_27";
-      Port              : constant Positive := 18_823;
-      Agent_Session     : LLM.Agent.Session;
-      Event_Count       : Natural := 0;
-      Will_Retry_Pos    : Natural := No_Event_Index;
-      Final_Text_Pos    : Natural := No_Event_Index;
-      Summary_Text      : constant String :=
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_27";
+      Port           : constant Positive := 18_823;
+      Agent_Session  : LLM.Agent.Session;
+      Event_Count    : Natural           := 0;
+      Will_Retry_Pos : Natural           := No_Event_Index;
+      Final_Text_Pos : Natural           := No_Event_Index;
+      Summary_Text   : constant String   :=
         "## Goal" & ASCII.LF & "overflow retry event";
-      Server_Stopped    : Boolean := False;
-      Request_Count     : Natural := 0;
-      Home_Was_Set      : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Request_Count  : Natural           := 0;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home          : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set       : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key           : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set       : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url           : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4368,8 +4286,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -4381,13 +4298,11 @@ package body LLM_Agent_Tests is
             when 2 =>
                Res.Status := 200;
                Add_SSE_Header (Res);
-               Append (Res.Body_Data,
-                       Text_SSE_Payload (Summary_Text, 8, 3));
+               Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
             when others =>
                Res.Status := 200;
                Add_SSE_Header (Res);
-               Append (Res.Body_Data,
-                       Text_SSE_Payload ("retry reply", 8, 3));
+               Append (Res.Body_Data, Text_SSE_Payload ("retry reply", 8, 3));
          end case;
       end Handle_Request;
 
@@ -4439,7 +4354,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4449,31 +4365,27 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Overflow_Will_Retry_Event_Emitted;
 
-   procedure Test_Compact_Produces_Summary_Message
-     (T : in out Test)
-   is
+   procedure Test_Compact_Produces_Summary_Message (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_16";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_16";
       Port           : constant Positive := 18_801;
       Agent_Session  : LLM.Agent.Session;
-      Summary_Text   : constant String :=
-        "## Goal" & ASCII.LF
-        & "Verify compact creates a summary." & ASCII.LF & ASCII.LF
-        & "## Constraints & Preferences" & ASCII.LF
-        & "- (none)";
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Summary_Text   : constant String   :=
+        "## Goal" & ASCII.LF & "Verify compact creates a summary." & ASCII.LF
+        & ASCII.LF & "## Constraints & Preferences" & ASCII.LF & "- (none)";
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4483,8 +4395,7 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -4513,8 +4424,8 @@ package body LLM_Agent_Tests is
       Srv.Bind (Port);
 
       LLM.Agent.Compact
-        (S        => Agent_Session,
-         On_Event => Ignore_Event'Access,
+        (S         => Agent_Session,
+         On_Event  => Ignore_Event'Access,
          Succeeded => Compact_OK);
 
       Srv.Stop;
@@ -4525,11 +4436,10 @@ package body LLM_Agent_Tests is
          "Compact should replace old history with summary plus kept tail");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.Compaction_Summary,
+         = LLM.Types.Compaction_Summary,
          "First history message should be the synthetic summary");
       Assert
-        (Assistant_Text
-           (LLM.Agent.Testing.History_Element (Agent_Session, 0))
+        (Assistant_Text (LLM.Agent.Testing.History_Element (Agent_Session, 0))
          = Summary_Text,
          "Summary text should be stored in the first history message");
 
@@ -4543,7 +4453,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4553,28 +4464,26 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Compact_Produces_Summary_Message;
 
-   procedure Test_Compact_Emits_Start_And_End_Events
-     (T : in out Test)
-   is
+   procedure Test_Compact_Emits_Start_And_End_Events (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_17";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_17";
       Port           : constant Positive := 18_802;
       Agent_Session  : LLM.Agent.Session;
       Events         : Recorded_Event_Vectors.Vector;
-      End_Aborted    : Boolean := True;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      End_Aborted    : Boolean           := True;
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4586,16 +4495,15 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Res.Status := 200;
          Add_SSE_Header (Res);
-         Append (Res.Body_Data,
-                 Text_SSE_Payload
-                   ("## Goal" & ASCII.LF & "event test", 8, 3));
+         Append
+           (Res.Body_Data,
+            Text_SSE_Payload ("## Goal" & ASCII.LF & "event test", 8, 3));
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
@@ -4618,8 +4526,8 @@ package body LLM_Agent_Tests is
       Srv.Bind (Port);
 
       LLM.Agent.Compact
-        (S        => Agent_Session,
-         On_Event => On_Event'Access,
+        (S         => Agent_Session,
+         On_Event  => On_Event'Access,
          Succeeded => Compact_OK);
 
       Srv.Stop;
@@ -4653,7 +4561,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4663,30 +4572,28 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Compact_Emits_Start_And_End_Events;
 
-   procedure Test_Compact_Short_History_Aborts
-     (T : in out Test)
-   is
+   procedure Test_Compact_Short_History_Aborts (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home              : constant String := "/tmp/coyote_llm_agent_test_18";
-      Agent_Session     : LLM.Agent.Session;
-      Saw_End           : Boolean := False;
-      End_Aborted       : Boolean := False;
-      Original_Length   : Ada.Containers.Count_Type;
-      Original_Text     : Unbounded_String := Null_Unbounded_String;
-      Home_Was_Set      : constant Boolean :=
+      Home            : constant String  := "/tmp/coyote_llm_agent_test_18";
+      Agent_Session   : LLM.Agent.Session;
+      Saw_End         : Boolean          := False;
+      End_Aborted     : Boolean          := False;
+      Original_Length : Ada.Containers.Count_Type;
+      Original_Text   : Unbounded_String := Null_Unbounded_String;
+      Home_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home          : constant String :=
+      Old_Home        : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set       : constant Boolean :=
+      Key_Was_Set     : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key           : constant String :=
+      Old_Key         : constant String  :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
       begin
          if E in LLM.Events.Auto_Compaction_End_Event then
-            Saw_End := True;
+            Saw_End     := True;
             End_Aborted := LLM.Events.Auto_Compaction_End_Event (E).Aborted;
          end if;
       end On_Event;
@@ -4709,13 +4616,14 @@ package body LLM_Agent_Tests is
         (Agent_Session, LLM.Agent.Session_Id (Agent_Session));
 
       Original_Length := LLM.Agent.Testing.History_Length (Agent_Session);
-      Original_Text := To_Unbounded_String
-        (Assistant_Text
-           (LLM.Agent.Testing.History_Element (Agent_Session, 0)));
+      Original_Text   :=
+        To_Unbounded_String
+          (Assistant_Text
+             (LLM.Agent.Testing.History_Element (Agent_Session, 0)));
 
       LLM.Agent.Compact
-        (S        => Agent_Session,
-         On_Event => On_Event'Access,
+        (S         => Agent_Session,
+         On_Event  => On_Event'Access,
          Succeeded => Compact_OK);
 
       Assert (Saw_End, "Short-history compaction should emit an end event");
@@ -4725,7 +4633,7 @@ package body LLM_Agent_Tests is
          "Short-history abort should leave history unchanged");
       Assert
         (Assistant_Text (LLM.Agent.Testing.History_Element (Agent_Session, 0))
-           = To_String (Original_Text),
+         = To_String (Original_Text),
          "Short-history abort should preserve the original message text");
 
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -4739,27 +4647,25 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Compact_Short_History_Aborts;
 
-   procedure Test_Compact_Persists_Entry
-     (T : in out Test)
-   is
+   procedure Test_Compact_Persists_Entry (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_19";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_19";
       Port           : constant Positive := 18_803;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4769,16 +4675,15 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Res.Status := 200;
          Add_SSE_Header (Res);
-         Append (Res.Body_Data,
-                 Text_SSE_Payload
-                   ("## Goal" & ASCII.LF & "persist", 8, 3));
+         Append
+           (Res.Body_Data,
+            Text_SSE_Payload ("## Goal" & ASCII.LF & "persist", 8, 3));
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
@@ -4801,15 +4706,15 @@ package body LLM_Agent_Tests is
       Srv.Bind (Port);
 
       LLM.Agent.Compact
-        (S        => Agent_Session,
-         On_Event => Ignore_Event'Access,
+        (S         => Agent_Session,
+         On_Event  => Ignore_Event'Access,
          Succeeded => Compact_OK);
 
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
       Assert
         (not Messages.Is_Empty,
          "Compacted session should reload from disk with synthetic history");
@@ -4827,7 +4732,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4837,38 +4743,35 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Compact_Persists_Entry;
 
-   procedure Test_Auto_Compact_Fires_At_Threshold
-     (T : in out Test)
-   is
+   procedure Test_Auto_Compact_Fires_At_Threshold (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home                  : constant String :=
-        "/tmp/coyote_llm_agent_test_21";
-      Port                  : constant Positive := 18_805;
-      Agent_Session         : LLM.Agent.Session;
-      Saw_Compaction_Start  : Boolean := False;
-      Compaction_Reason     : Unbounded_String := Null_Unbounded_String;
-      Summary_Text          : constant String :=
+      Home : constant String   := "/tmp/coyote_llm_agent_test_21";
+      Port                 : constant Positive := 18_805;
+      Agent_Session        : LLM.Agent.Session;
+      Saw_Compaction_Start : Boolean           := False;
+      Compaction_Reason    : Unbounded_String  := Null_Unbounded_String;
+      Summary_Text         : constant String   :=
         "## Goal" & ASCII.LF & "threshold compaction";
-      Server_Stopped        : Boolean := False;
-      Home_Was_Set          : constant Boolean :=
+      Server_Stopped       : Boolean           := False;
+      Home_Was_Set         : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home              : constant String :=
+      Old_Home             : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set           : constant Boolean :=
+      Key_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key               : constant String :=
+      Old_Key              : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set           : constant Boolean :=
+      Url_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url               : constant String :=
+      Old_Url              : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
       begin
          if E in LLM.Events.Auto_Compaction_Start_Event then
             Saw_Compaction_Start := True;
-            Compaction_Reason :=
+            Compaction_Reason    :=
               LLM.Events.Auto_Compaction_Start_Event (E).Reason;
          end if;
       end On_Event;
@@ -4876,17 +4779,17 @@ package body LLM_Agent_Tests is
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
          if Request_Count = 1 then
-            Append (Res.Body_Data,
-                    Text_SSE_Payload ("threshold reply", 120_000, 616));
+            Append
+              (Res.Body_Data,
+               Text_SSE_Payload ("threshold reply", 120_000, 616));
          else
             Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
          end if;
@@ -4928,11 +4831,10 @@ package body LLM_Agent_Tests is
          "Auto-compaction should leave a non-empty in-memory history");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.Compaction_Summary,
+         = LLM.Types.Compaction_Summary,
          "Auto-compaction should prepend a Compaction_Summary message");
       Assert
-        (Assistant_Text
-           (LLM.Agent.Testing.History_Element (Agent_Session, 0))
+        (Assistant_Text (LLM.Agent.Testing.History_Element (Agent_Session, 0))
          = Summary_Text,
          "Threshold compaction should store the returned summary text");
 
@@ -4946,7 +4848,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -4956,30 +4859,27 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Compact_Fires_At_Threshold;
 
-   procedure Test_Auto_Compact_Does_Not_Fire_Below_Threshold
-     (T : in out Test)
+   procedure Test_Auto_Compact_Does_Not_Fire_Below_Threshold (T : in out Test)
    is
       pragma Unreferenced (T);
 
-      Home                  : constant String :=
-        "/tmp/coyote_llm_agent_test_22";
-      Capture_Path          : constant String :=
-        Home & "/threshold_request.json";
-      Port                  : constant Positive := 18_806;
-      Agent_Session         : LLM.Agent.Session;
-      Saw_Compaction_Start  : Boolean := False;
-      Server_Stopped        : Boolean := False;
-      Home_Was_Set          : constant Boolean :=
+      Home : constant String   := "/tmp/coyote_llm_agent_test_22";
+      Capture_Path : constant String   := Home & "/threshold_request.json";
+      Port                 : constant Positive := 18_806;
+      Agent_Session        : LLM.Agent.Session;
+      Saw_Compaction_Start : Boolean           := False;
+      Server_Stopped       : Boolean           := False;
+      Home_Was_Set         : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home              : constant String :=
+      Old_Home             : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set           : constant Boolean :=
+      Key_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key               : constant String :=
+      Old_Key              : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set           : constant Boolean :=
+      Url_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url               : constant String :=
+      Old_Url              : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4990,8 +4890,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          File : Ada.Text_IO.File_Type;
       begin
@@ -5036,7 +4935,7 @@ package body LLM_Agent_Tests is
          "Below-threshold prompt should leave just user and assistant turns");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.User,
+         = LLM.Types.User,
          "Below-threshold history should remain un-compacted");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5049,7 +4948,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5064,24 +4964,24 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_23";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_23";
       Port           : constant Positive := 18_807;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Summary_Text   : constant String :=
+      Server_Stopped : Boolean           := False;
+      Summary_Text   : constant String   :=
         "## Goal" & ASCII.LF & "persisted threshold";
-      Home_Was_Set   : constant Boolean :=
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5093,17 +4993,17 @@ package body LLM_Agent_Tests is
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
          if Request_Count = 1 then
-            Append (Res.Body_Data,
-                    Text_SSE_Payload ("persisted reply", 120_000, 616));
+            Append
+              (Res.Body_Data,
+               Text_SSE_Payload ("persisted reply", 120_000, 616));
          else
             Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
          end if;
@@ -5134,8 +5034,8 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
       Assert
         (not Messages.Is_Empty,
          "Threshold compaction should leave a reloadable session history");
@@ -5153,7 +5053,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5163,28 +5064,25 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Compact_Session_Persisted_After_Threshold;
 
-   procedure Test_Set_Compact_Settings_Disabled
-     (T : in out Test)
-   is
+   procedure Test_Set_Compact_Settings_Disabled (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home                  : constant String :=
-        "/tmp/coyote_llm_agent_test_24";
-      Port                  : constant Positive := 18_808;
-      Agent_Session         : LLM.Agent.Session;
-      Saw_Compaction_Start  : Boolean := False;
-      Server_Stopped        : Boolean := False;
-      Home_Was_Set          : constant Boolean :=
+      Home : constant String   := "/tmp/coyote_llm_agent_test_24";
+      Port                 : constant Positive := 18_808;
+      Agent_Session        : LLM.Agent.Session;
+      Saw_Compaction_Start : Boolean           := False;
+      Server_Stopped       : Boolean           := False;
+      Home_Was_Set         : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home              : constant String :=
+      Old_Home             : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set           : constant Boolean :=
+      Key_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key               : constant String :=
+      Old_Key              : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set           : constant Boolean :=
+      Url_Was_Set          : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url               : constant String :=
+      Old_Url              : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5195,15 +5093,15 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Res.Status := 200;
          Add_SSE_Header (Res);
-         Append (Res.Body_Data,
-                 Text_SSE_Payload ("disabled compact reply", 120_000, 616));
+         Append
+           (Res.Body_Data,
+            Text_SSE_Payload ("disabled compact reply", 120_000, 616));
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
@@ -5222,7 +5120,7 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       LLM.Agent.Set_Compact_Settings
         (Agent_Session,
-         (Enabled              => False,
+        (Enabled               => False,
           Reserve_Tokens       =>
             LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
           Keep_Recent_Tokens   =>
@@ -5248,7 +5146,7 @@ package body LLM_Agent_Tests is
          "History should contain only user and assistant turns");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           /= LLM.Types.Compaction_Summary,
+         /= LLM.Types.Compaction_Summary,
          "Disabled compaction should not prepend a Compaction_Summary message");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5261,7 +5159,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5271,27 +5170,25 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Set_Compact_Settings_Disabled;
 
-      procedure Test_Compact_Then_Resume
-     (T : in out Test)
-   is
+   procedure Test_Compact_Then_Resume (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String := "/tmp/coyote_llm_agent_test_20";
+      Home           : constant String   := "/tmp/coyote_llm_agent_test_20";
       Port           : constant Positive := 18_804;
       Agent_Session  : LLM.Agent.Session;
-      Session_UUID   : Unbounded_String := Null_Unbounded_String;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Session_UUID   : Unbounded_String  := Null_Unbounded_String;
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5301,16 +5198,15 @@ package body LLM_Agent_Tests is
       end Ignore_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Res.Status := 200;
          Add_SSE_Header (Res);
-         Append (Res.Body_Data,
-                 Text_SSE_Payload
-                   ("## Goal" & ASCII.LF & "resume", 8, 3));
+         Append
+           (Res.Body_Data,
+            Text_SSE_Payload ("## Goal" & ASCII.LF & "resume", 8, 3));
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
@@ -5335,8 +5231,8 @@ package body LLM_Agent_Tests is
       Srv.Bind (Port);
 
       LLM.Agent.Compact
-        (S        => Agent_Session,
-         On_Event => Ignore_Event'Access,
+        (S         => Agent_Session,
+         On_Event  => Ignore_Event'Access,
          Succeeded => Compact_OK);
 
       Srv.Stop;
@@ -5348,7 +5244,7 @@ package body LLM_Agent_Tests is
          "Switch_Session should reload compacted history");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.Compaction_Summary,
+         = LLM.Types.Compaction_Summary,
          "Reloaded in-memory history should start with Compaction_Summary");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5361,7 +5257,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5371,13 +5268,11 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Compact_Then_Resume;
 
-   procedure Test_Compact_Live_Summarises_Conversation
-     (T : in out Test)
-   is
+   procedure Test_Compact_Live_Summarises_Conversation (T : in out Test) is
       pragma Unreferenced (T);
 
-      Guard_Name : constant String := "COYOTE_TEST_LIVE";
-      Auth_Path  : constant String :=
+      Guard_Name    : constant String := "COYOTE_TEST_LIVE";
+      Auth_Path     : constant String :=
         Ada.Environment_Variables.Value ("HOME", "") & "/.coyote/auth.json";
       Agent_Session : LLM.Agent.Session;
 
@@ -5419,8 +5314,8 @@ package body LLM_Agent_Tests is
          On_Event => Ignore_Event'Access);
 
       LLM.Agent.Compact
-        (S        => Agent_Session,
-         On_Event => Ignore_Event'Access,
+        (S         => Agent_Session,
+         On_Event  => Ignore_Event'Access,
          Succeeded => Compact_OK);
 
       Assert
@@ -5428,7 +5323,7 @@ package body LLM_Agent_Tests is
          "Live compaction should leave a non-empty history");
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
-           = LLM.Types.Compaction_Summary,
+         = LLM.Types.Compaction_Summary,
          "Live compaction should prepend a Compaction_Summary message");
       declare
          Summary : constant String :=
@@ -5452,23 +5347,22 @@ package body LLM_Agent_Tests is
    procedure Test_Tool_Result_Has_Stats_Footer (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String :=
-        "/tmp/coyote_llm_agent_footer_1";
+      Home           : constant String   := "/tmp/coyote_llm_agent_footer_1";
       Port           : constant Positive := 18_860;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5480,23 +5374,23 @@ package body LLM_Agent_Tests is
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
             Append
               (Res.Body_Data,
                Tool_Call_SSE_Payload
-                 ((1 => Tool_Call_Def
-                    (Tool_Call_Id   => "call_footer_1",
-                     Tool_Name      => "shell",
-                     Arguments_Json => "{""command"":""echo footer-ok""}")),
+                 ((1 =>
+                     Tool_Call_Def
+                       (Tool_Call_Id   => "call_footer_1",
+                        Tool_Name      => "shell",
+                        Arguments_Json => "{""command"":""echo footer-ok""}")),
                   Prompt_Tokens     => 50,
                   Completion_Tokens => 20));
          else
@@ -5529,21 +5423,18 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       --  Messages: user, assistant tool call, tool result, assistant reply.
-      Assert
-        (Messages.Length = 4,
-         "Footer test: expected 4 messages");
+      Assert (Messages.Length = 4, "Footer test: expected 4 messages");
       Assert
         (Messages.Element (2).Role = LLM.Types.Tool_Result,
          "Footer test: third message should be the tool result");
 
       declare
          Result_Text : constant String :=
-           To_String
-             (Messages.Element (2).Content.Element (0).Result_Text);
+           To_String (Messages.Element (2).Content.Element (0).Result_Text);
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result_Text, "footer-ok") > 0,
@@ -5576,7 +5467,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5591,28 +5483,25 @@ package body LLM_Agent_Tests is
    --  In a two-tool batch only the last tool result should carry the stats
    --  footer; the first should contain only its raw tool output.
 
-   procedure Test_Stats_Footer_Only_On_Last_Tool_In_Batch
-     (T : in out Test)
-   is
+   procedure Test_Stats_Footer_Only_On_Last_Tool_In_Batch (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String :=
-        "/tmp/coyote_llm_agent_footer_2";
+      Home           : constant String   := "/tmp/coyote_llm_agent_footer_2";
       Port           : constant Positive := 18_861;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5623,27 +5512,27 @@ package body LLM_Agent_Tests is
 
       Request_Count : aliased Natural := 0;
 
-      Two_Tool_SSE : constant String :=
-        Tool_Call_SSE_Payload
-          ((1 => Tool_Call_Def
-             (Tool_Call_Id   => "call_f1",
-              Tool_Name      => "shell",
-              Arguments_Json => "{""command"":""printf first-ok""}"),
-            2 => Tool_Call_Def
-             (Tool_Call_Id   => "call_f2",
-              Tool_Name      => "shell",
-              Arguments_Json => "{""command"":""printf second-ok""}")),
+      Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
+          ((1 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_f1",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""printf first-ok""}"),
+            2 =>
+              Tool_Call_Def
+                (Tool_Call_Id   => "call_f2",
+                 Tool_Name      => "shell",
+                 Arguments_Json => "{""command"":""printf second-ok""}")),
            Prompt_Tokens     => 30,
            Completion_Tokens => 10);
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
@@ -5678,22 +5567,19 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       --  Messages: user, assistant tool batch, first result,
       --  second result, assistant reply.
       Assert
-        (Messages.Length = 5,
-         "Two-tool footer test: expected 5 messages");
+        (Messages.Length = 5, "Two-tool footer test: expected 5 messages");
 
       declare
          First_Result  : constant String :=
-           To_String
-             (Messages.Element (2).Content.Element (0).Result_Text);
+           To_String (Messages.Element (2).Content.Element (0).Result_Text);
          Second_Result : constant String :=
-           To_String
-             (Messages.Element (3).Content.Element (0).Result_Text);
+           To_String (Messages.Element (3).Content.Element (0).Result_Text);
       begin
          Assert
            (Ada.Strings.Fixed.Index (First_Result, "first-ok") > 0,
@@ -5719,7 +5605,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5738,23 +5625,22 @@ package body LLM_Agent_Tests is
    procedure Test_Image_Tool_Result_No_Footer (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String :=
-        "/tmp/coyote_llm_agent_footer_3";
+      Home           : constant String   := "/tmp/coyote_llm_agent_footer_3";
       Port           : constant Positive := 18_862;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5766,24 +5652,24 @@ package body LLM_Agent_Tests is
       Request_Count : aliased Natural := 0;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
          Request_Count := Request_Count + 1;
-         Res.Status := 200;
+         Res.Status    := 200;
          Add_SSE_Header (Res);
 
          if Request_Count = 1 then
             Append
               (Res.Body_Data,
                Tool_Call_SSE_Payload
-                 ((1 => Tool_Call_Def
-                    (Tool_Call_Id   => "call_footer_3",
-                     Tool_Name      => "shell",
-                     Arguments_Json =>
-                       "{""command"":""printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' | base64 -d"",""media_type"":""image/png""}")),
+                 ((1 =>
+                     Tool_Call_Def
+                       (Tool_Call_Id   => "call_footer_3",
+                        Tool_Name      => "shell",
+                        Arguments_Json =>
+                          "{""command"":""printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' | base64 -d"",""media_type"":""image/png""}")),
                   Prompt_Tokens     => 50,
                   Completion_Tokens => 20));
          else
@@ -5816,13 +5702,11 @@ package body LLM_Agent_Tests is
       Srv.Stop;
       Server_Stopped := True;
 
-      Messages := LLM.Session_Store.Load_Messages
-        (LLM.Agent.Session_Id (Agent_Session));
+      Messages :=
+        LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       --  Messages: user, assistant tool call, tool result, assistant reply.
-      Assert
-        (Messages.Length = 4,
-         "Footer test: expected 4 messages");
+      Assert (Messages.Length = 4, "Footer test: expected 4 messages");
       Assert
         (Messages.Element (2).Role = LLM.Types.Tool_Result,
          "Footer test: third message should be the tool result");
@@ -5835,8 +5719,10 @@ package body LLM_Agent_Tests is
            (Ada.Strings.Unbounded.Length (Block.Media_Type) > 0,
             "Image tool result should have non-empty Media_Type");
          Assert
-           (Ada.Strings.Fixed.Index (Ada.Strings.Unbounded.To_String
-            (Block.Result_Text), "[coyote: turn=") = 0,
+           (Ada.Strings.Fixed.Index
+              (Ada.Strings.Unbounded.To_String (Block.Result_Text),
+               "[coyote: turn=")
+            = 0,
             "Stats footer must not be appended to base64 image data");
       end;
 
@@ -5850,7 +5736,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -5865,21 +5752,21 @@ package body LLM_Agent_Tests is
    procedure Test_Pause_Fires_At_Turn_Boundary (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String  := "/tmp/coyote_llm_agent_pause_1";
+      Home           : constant String   := "/tmp/coyote_llm_agent_pause_1";
       Port           : constant Positive := 18_870;
       Agent_Session  : LLM.Agent.Session;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
@@ -5887,33 +5774,42 @@ package body LLM_Agent_Tests is
          procedure Note_Resumed;
          procedure Note_End (Was_Aborted : Boolean);
          procedure Note_Error;
-         function Saw_Paused  return Boolean;
+         function Saw_Paused return Boolean;
          function Saw_Resumed return Boolean;
-         function Saw_End     return Boolean;
+         function Saw_End return Boolean;
          function Was_Aborted return Boolean;
-         function Had_Error   return Boolean;
+         function Had_Error return Boolean;
       private
-         P_Paused    : Boolean := False;
-         P_Resumed   : Boolean := False;
-         P_End       : Boolean := False;
-         P_Aborted   : Boolean := False;
-         P_Error     : Boolean := False;
+         P_Paused  : Boolean := False;
+         P_Resumed : Boolean := False;
+         P_End     : Boolean := False;
+         P_Aborted : Boolean := False;
+         P_Error   : Boolean := False;
       end State;
 
       protected body State is
-         procedure Note_Paused  is begin P_Paused  := True; end Note_Paused;
-         procedure Note_Resumed is begin P_Resumed := True; end Note_Resumed;
+         procedure Note_Paused is
+         begin
+            P_Paused := True;
+         end Note_Paused;
+         procedure Note_Resumed is
+         begin
+            P_Resumed := True;
+         end Note_Resumed;
          procedure Note_End (Was_Aborted : Boolean) is
          begin
             P_End     := True;
             P_Aborted := Was_Aborted;
          end Note_End;
-         procedure Note_Error   is begin P_Error   := True; end Note_Error;
-         function Saw_Paused  return Boolean is (P_Paused);
+         procedure Note_Error is
+         begin
+            P_Error := True;
+         end Note_Error;
+         function Saw_Paused return Boolean is (P_Paused);
          function Saw_Resumed return Boolean is (P_Resumed);
-         function Saw_End     return Boolean is (P_End);
+         function Saw_End return Boolean is (P_End);
          function Was_Aborted return Boolean is (P_Aborted);
-         function Had_Error   return Boolean is (P_Error);
+         function Had_Error return Boolean is (P_Error);
       end State;
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -5928,8 +5824,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -5979,10 +5874,12 @@ package body LLM_Agent_Tests is
             delay 0.05;
          end loop;
 
-         Assert (State.Saw_Paused,
-                 "Agent_Paused_Event should be received within 5 s");
-         Assert (not State.Saw_Resumed,
-                 "Agent_Resumed_Event should not fire before Resume");
+         Assert
+           (State.Saw_Paused,
+            "Agent_Paused_Event should be received within 5 s");
+         Assert
+           (not State.Saw_Resumed,
+            "Agent_Resumed_Event should not fire before Resume");
 
          LLM.Agent.Resume (Agent_Session);
 
@@ -5992,20 +5889,20 @@ package body LLM_Agent_Tests is
             delay 0.05;
          end loop;
 
-         Assert (Runner'Terminated,
-                 "Runner must finish after Resume within 10 s");
+         Assert
+           (Runner'Terminated, "Runner must finish after Resume within 10 s");
       end;
 
       Srv.Stop;
       Server_Stopped := True;
 
       Assert (not State.Had_Error, "Run_Prompt task should not raise");
-      Assert (State.Saw_Resumed,
-              "Agent_Resumed_Event should be received after Resume");
-      Assert (State.Saw_End,
-              "Agent_End_Event should be received");
-      Assert (not State.Was_Aborted,
-              "Run should complete normally (not aborted)");
+      Assert
+        (State.Saw_Resumed,
+         "Agent_Resumed_Event should be received after Resume");
+      Assert (State.Saw_End, "Agent_End_Event should be received");
+      Assert
+        (not State.Was_Aborted, "Run should complete normally (not aborted)");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -6017,7 +5914,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -6030,31 +5928,31 @@ package body LLM_Agent_Tests is
    procedure Test_Stop_While_Paused (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home           : constant String  := "/tmp/coyote_llm_agent_pause_2";
+      Home           : constant String   := "/tmp/coyote_llm_agent_pause_2";
       Port           : constant Positive := 18_871;
       Agent_Session  : LLM.Agent.Session;
-      Server_Stopped : Boolean := False;
-      Home_Was_Set   : constant Boolean :=
+      Server_Stopped : Boolean           := False;
+      Home_Was_Set   : constant Boolean  :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home       : constant String   :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set    : constant Boolean :=
+      Key_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key        : constant String :=
+      Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set    : constant Boolean  :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String :=
+      Old_Url        : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       protected State is
          procedure Note_Paused;
          procedure Note_End (Was_Aborted : Boolean);
          procedure Note_Error;
-         function Saw_Paused  return Boolean;
-         function Saw_End     return Boolean;
+         function Saw_Paused return Boolean;
+         function Saw_End return Boolean;
          function Was_Aborted return Boolean;
-         function Had_Error   return Boolean;
+         function Had_Error return Boolean;
       private
          P_Paused  : Boolean := False;
          P_End     : Boolean := False;
@@ -6063,17 +5961,23 @@ package body LLM_Agent_Tests is
       end State;
 
       protected body State is
-         procedure Note_Paused is begin P_Paused := True; end Note_Paused;
+         procedure Note_Paused is
+         begin
+            P_Paused := True;
+         end Note_Paused;
          procedure Note_End (Was_Aborted : Boolean) is
          begin
             P_End     := True;
             P_Aborted := Was_Aborted;
          end Note_End;
-         procedure Note_Error   is begin P_Error := True; end Note_Error;
-         function Saw_Paused  return Boolean is (P_Paused);
-         function Saw_End     return Boolean is (P_End);
+         procedure Note_Error is
+         begin
+            P_Error := True;
+         end Note_Error;
+         function Saw_Paused return Boolean is (P_Paused);
+         function Saw_End return Boolean is (P_End);
          function Was_Aborted return Boolean is (P_Aborted);
-         function Had_Error   return Boolean is (P_Error);
+         function Had_Error return Boolean is (P_Error);
       end State;
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -6086,8 +5990,7 @@ package body LLM_Agent_Tests is
       end On_Event;
 
       procedure Handle_Request
-        (Req :     Test_HTTP_Server.Request;
-         Res : out Test_HTTP_Server.Response)
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
       is
          pragma Unreferenced (Req);
       begin
@@ -6137,8 +6040,9 @@ package body LLM_Agent_Tests is
             delay 0.05;
          end loop;
 
-         Assert (State.Saw_Paused,
-                 "Agent_Paused_Event should be received within 5 s");
+         Assert
+           (State.Saw_Paused,
+            "Agent_Paused_Event should be received within 5 s");
 
          --  Abort while paused: should unblock the loop and exit.
          LLM.Agent.Request_Abort (Agent_Session);
@@ -6148,8 +6052,9 @@ package body LLM_Agent_Tests is
             delay 0.05;
          end loop;
 
-         Assert (Runner'Terminated,
-                 "Runner must terminate after Abort while paused within 10 s");
+         Assert
+           (Runner'Terminated,
+            "Runner must terminate after Abort while paused within 10 s");
       end;
 
       Srv.Stop;
@@ -6157,8 +6062,8 @@ package body LLM_Agent_Tests is
 
       Assert (not State.Had_Error, "Run_Prompt task should not raise");
       Assert (State.Saw_End, "Agent_End_Event should be received");
-      Assert (State.Was_Aborted,
-              "Agent_End_Event should report Was_Aborted=True");
+      Assert
+        (State.Was_Aborted, "Agent_End_Event should report Was_Aborted=True");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -6170,7 +6075,8 @@ package body LLM_Agent_Tests is
             begin
                Srv.Stop;
             exception
-               when Tasking_Error => null;
+               when Tasking_Error =>
+                  null;
             end;
          end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
@@ -6185,19 +6091,16 @@ package body LLM_Agent_Tests is
    procedure Test_Sandbox_Set_And_Get (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_sandbox_1";
+      Home          : constant String  := "/tmp/coyote_llm_agent_sandbox_1";
       Agent_Session : LLM.Agent.Session;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set   : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx       : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_SANDBOX_PROFILE", "");
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String  :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home (Home);
       Write_Settings_File
@@ -6206,16 +6109,13 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
 
       LLM.Agent.Create
-        (S          => Agent_Session,
-         Model_Spec => "",
-         No_Tools   => True);
+        (S => Agent_Session, Model_Spec => "", No_Tools => True);
 
       --  Initially empty.
       Assert
@@ -6223,37 +6123,32 @@ package body LLM_Agent_Tests is
          "sandbox should be empty initially");
 
       --  Set a profile and verify round-trip.
-      LLM.Agent.Set_Sandbox_Profile
-        (Agent_Session, "restricted");
+      LLM.Agent.Set_Sandbox_Profile (Agent_Session, "restricted");
       Assert
         (LLM.Agent.Current_Sandbox (Agent_Session) = "restricted",
          "sandbox should return ""restricted"" after set, got: "
          & LLM.Agent.Current_Sandbox (Agent_Session));
 
       --  Change to a different profile.
-      LLM.Agent.Set_Sandbox_Profile
-        (Agent_Session, "full-access");
+      LLM.Agent.Set_Sandbox_Profile (Agent_Session, "full-access");
       Assert
         (LLM.Agent.Current_Sandbox (Agent_Session) = "full-access",
          "sandbox should return ""full-access"" after second set, got: "
          & LLM.Agent.Current_Sandbox (Agent_Session));
 
       --  Clear the profile.
-      LLM.Agent.Set_Sandbox_Profile
-        (Agent_Session, "");
+      LLM.Agent.Set_Sandbox_Profile (Agent_Session, "");
       Assert
         (LLM.Agent.Current_Sandbox (Agent_Session) = "",
          "sandbox should return """" after clearing, got: "
          & LLM.Agent.Current_Sandbox (Agent_Session));
 
-      Restore_Env
-        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Restore_Env
-           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -6262,19 +6157,16 @@ package body LLM_Agent_Tests is
    procedure Test_Sandbox_Env_Var_Inherited (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_sandbox_2";
+      Home          : constant String  := "/tmp/coyote_llm_agent_sandbox_2";
       Agent_Session : LLM.Agent.Session;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set   : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx       : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_SANDBOX_PROFILE", "");
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String  :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home (Home);
       Write_Settings_File
@@ -6283,33 +6175,27 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
         ("COYOTE_SANDBOX_PROFILE", "child-profile");
 
       LLM.Agent.Create
-        (S          => Agent_Session,
-         Model_Spec => "",
-         No_Tools   => True);
+        (S => Agent_Session, Model_Spec => "", No_Tools => True);
 
       --  The COYOTE_SANDBOX_PROFILE env var should be inherited.
       Assert
-        (LLM.Agent.Current_Sandbox (Agent_Session)
-         = "child-profile",
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "child-profile",
          "sandbox should inherit from COYOTE_SANDBOX_PROFILE, got: "
          & LLM.Agent.Current_Sandbox (Agent_Session));
 
-      Restore_Env
-        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Restore_Env
-           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -6318,16 +6204,15 @@ package body LLM_Agent_Tests is
    procedure Test_Sandbox_Default_From_Settings (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_sandbox_3b";
+      Home          : constant String  := "/tmp/coyote_llm_agent_sandbox_3b";
       Agent_Session : LLM.Agent.Session;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx       : constant String :=
+      Old_Sbx       : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home (Home);
@@ -6337,14 +6222,13 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_File
         (Home & "/.coyote/settings.json",
-         "{""defaultProvider"":""openrouter""," &
-         """defaultModel"":""test/default-model""," &
-         """defaultThinkingLevel"":""""," &
-         """defaultSandboxProfile"":""settings-profile""}");
+         "{""defaultProvider"":""openrouter"","
+         & """defaultModel"":""test/default-model"","
+         & """defaultThinkingLevel"":"""","
+         & """defaultSandboxProfile"":""settings-profile""}");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
@@ -6370,73 +6254,15 @@ package body LLM_Agent_Tests is
    procedure Test_Sandbox_Default_Empty (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_sandbox_3";
+      Home          : constant String  := "/tmp/coyote_llm_agent_sandbox_3";
       Agent_Session : LLM.Agent.Session;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
-        Ada.Environment_Variables.Value ("HOME", "");
-      Sbx_Was_Set   : constant Boolean :=
-        Ada.Environment_Variables.Exists
-          ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx       : constant String :=
-        Ada.Environment_Variables.Value
-          ("COYOTE_SANDBOX_PROFILE", "");
-   begin
-      Prepare_Test_Home (Home);
-      Write_Settings_File
-        (Home             => Home,
-         Default_Provider => "openrouter",
-         Default_Model    => "test/default-model");
-      Write_OpenRouter_Models_File (Home, "settings-key");
-      Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
-
-      Ada.Environment_Variables.Set ("HOME", Home);
-      Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
-
-      LLM.Agent.Create
-        (S          => Agent_Session,
-         Model_Spec => "",
-         No_Tools   => True);
-
-      Assert
-        (LLM.Agent.Current_Sandbox (Agent_Session) = "",
-         "sandbox should be empty when COYOTE_SANDBOX_PROFILE"
-         & " is absent, got: "
-         & LLM.Agent.Current_Sandbox (Agent_Session));
-
-      Restore_Env
-        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
-      Restore_Env ("HOME", Home_Was_Set, Old_Home);
-      Cleanup_Test_Home (Home);
-   exception
-      when others =>
-         Restore_Env
-           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
-         Restore_Env ("HOME", Home_Was_Set, Old_Home);
-         Cleanup_Test_Home (Home);
-         raise;
-   end Test_Sandbox_Default_Empty;
-
-   procedure Test_Sandbox_Profile_Restored_On_Resume
-     (T : in out Test)
-   is
-      pragma Unreferenced (T);
-
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_sandbox_resume";
-      Agent_Session : LLM.Agent.Session;
-      Session_Id    : Unbounded_String;
-      Home_Was_Set  : constant Boolean :=
-        Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx       : constant String :=
+      Old_Sbx       : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home (Home);
@@ -6446,15 +6272,60 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
-      Ada.Environment_Variables.Set
-        ("COYOTE_SANDBOX_PROFILE", "restricted");
-      Session_Id := To_Unbounded_String
-        (LLM.Session_Store.Create_Session
-           (Ada.Directories.Current_Directory));
+      Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
+
+      LLM.Agent.Create
+        (S => Agent_Session, Model_Spec => "", No_Tools => True);
+
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "",
+         "sandbox should be empty when COYOTE_SANDBOX_PROFILE"
+         & " is absent, got: " & LLM.Agent.Current_Sandbox (Agent_Session));
+
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Sandbox_Default_Empty;
+
+   procedure Test_Sandbox_Profile_Restored_On_Resume (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home : constant String  := "/tmp/coyote_llm_agent_sandbox_resume";
+      Agent_Session : LLM.Agent.Session;
+      Session_Id    : Unbounded_String;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Sbx_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String  :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home => Home, Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("COYOTE_SANDBOX_PROFILE", "restricted");
+      Session_Id :=
+        To_Unbounded_String
+          (LLM.Session_Store.Create_Session
+             (Ada.Directories.Current_Directory));
 
       Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
       LLM.Agent.Create
@@ -6483,18 +6354,17 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String :=
-        "/tmp/coyote_llm_agent_sandbox_switch";
+      Home : constant String  := "/tmp/coyote_llm_agent_sandbox_switch";
       Agent_Session : LLM.Agent.Session;
       Profiled_Id   : Unbounded_String;
       Unprofiled_Id : Unbounded_String;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home      : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Sbx_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
-      Old_Sbx       : constant String :=
+      Old_Sbx       : constant String  :=
         Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
    begin
       Prepare_Test_Home (Home);
@@ -6504,20 +6374,20 @@ package body LLM_Agent_Tests is
          Default_Model    => "test/default-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
-        (Home     => Home,
-         Model_Id => "test/default-model");
+        (Home => Home, Model_Id => "test/default-model");
 
       Ada.Environment_Variables.Set ("HOME", Home);
-      Ada.Environment_Variables.Set
-        ("COYOTE_SANDBOX_PROFILE", "restricted");
-      Profiled_Id := To_Unbounded_String
-        (LLM.Session_Store.Create_Session
-           (Ada.Directories.Current_Directory));
+      Ada.Environment_Variables.Set ("COYOTE_SANDBOX_PROFILE", "restricted");
+      Profiled_Id :=
+        To_Unbounded_String
+          (LLM.Session_Store.Create_Session
+             (Ada.Directories.Current_Directory));
 
       Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
-      Unprofiled_Id := To_Unbounded_String
-        (LLM.Session_Store.Create_Session
-           (Ada.Directories.Current_Directory));
+      Unprofiled_Id :=
+        To_Unbounded_String
+          (LLM.Session_Store.Create_Session
+             (Ada.Directories.Current_Directory));
 
       LLM.Agent.Create
         (S          => Agent_Session,
@@ -6526,15 +6396,13 @@ package body LLM_Agent_Tests is
       LLM.Agent.Set_Sandbox_Profile (Agent_Session, "stale-profile");
 
       LLM.Agent.Switch_Session
-        (S    => Agent_Session,
-         UUID => To_String (Profiled_Id));
+        (S => Agent_Session, UUID => To_String (Profiled_Id));
       Assert
         (LLM.Agent.Current_Sandbox (Agent_Session) = "restricted",
          "switching should restore the target session sandbox profile");
 
       LLM.Agent.Switch_Session
-        (S    => Agent_Session,
-         UUID => To_String (Unprofiled_Id));
+        (S => Agent_Session, UUID => To_String (Unprofiled_Id));
       Assert
         (LLM.Agent.Current_Sandbox (Agent_Session) = "",
          "switching to an unprofiled session should clear the old profile");
@@ -6550,188 +6418,227 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Sandbox_Profile_Restored_And_Cleared_On_Switch;
 
-   package LLM_Agent_Caller is
-     new AUnit.Test_Caller (LLM_Agent_Tests.Test);
+   package LLM_Agent_Caller is new AUnit.Test_Caller (LLM_Agent_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent runs a single-turn prompt and persists it",
-         LLM_Agent_Tests.Test_Single_Turn_Prompt'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent executes a tool call and loops for the final reply",
-         LLM_Agent_Tests.Test_Tool_Call_Loop'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent executes two tool calls in one turn",
-         LLM_Agent_Tests.Test_Two_Tool_Call_Loop'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent preserves tool execution failures",
-         LLM_Agent_Tests.Test_Tool_Execution_Failure'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Switch_Session pre-loads existing history",
-         LLM_Agent_Tests.Test_Switch_Session_Loads_History'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent honours cross-task abort requests",
-         LLM_Agent_Tests.Test_Abort_Request'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent keeps aborted multi-tool history structurally valid",
-         LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent aborts shell tool with timeout promptly",
-         LLM_Agent_Tests.Test_Abort_During_Shell_With_Timeout'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent flushes tool batch to session file as soon as it"
-         & " completes",
-         LLM_Agent_Tests.
-           Test_Session_File_Written_Only_After_Turn_End'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent resumes persisted session history",
-         LLM_Agent_Tests.Test_Session_Resume'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent preserves OpenRouter Broadcast ID across subagents",
-         LLM_Agent_Tests
-           .Test_OpenRouter_Session_Id_Inherited_By_Subagents'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent uses settings defaults when Model_Spec is empty",
-         LLM_Agent_Tests
-           .Test_Create_Without_Model_Spec_Uses_Settings_Default'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent ephemeral COYOTE_SUBAGENT_MODEL override precedence",
-         LLM_Agent_Tests
-           .Test_Subagent_Model_Env_Override'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent memory enabled by COYOTE_ENABLE_MEMORY=1",
-         LLM_Agent_Tests.Test_Memory_Enabled_By_Env_Var'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent memory disabled by default (env var unset)",
-         LLM_Agent_Tests.Test_Memory_Disabled_By_Default'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent reuses history across multiple turns in one session",
-         LLM_Agent_Tests
-           .Test_Multi_Turn_Same_Session_Carries_History'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent emits model/start/update/end/stats in order",
-         LLM_Agent_Tests
-           .Test_Event_Sequence_Agent_Start_Through_Session_Stats'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent turns unknown tool calls into tool errors",
-         LLM_Agent_Tests
-           .Test_Unknown_Tool_Becomes_Error_And_Agent_Continues'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent retries HTTP 500 errors and succeeds on retry",
-         LLM_Agent_Tests
-           .Test_Auto_Retry_On_HTTP_500_Then_Success'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent retries curl transport errors and succeeds on retry",
-         LLM_Agent_Tests
-           .Test_Auto_Retry_On_Transport_Error_Then_Success'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent filters encrypted thinking across model switches",
-         LLM_Agent_Tests
-           .Test_Compatible_History_Filters_Foreign_Thinking'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent rolls back prompts after non-retryable errors",
-         LLM_Agent_Tests
-           .Test_Non_Retryable_Error_Rolls_Back_Prompt'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent rolls back prompts after retry exhaustion",
-         LLM_Agent_Tests
-           .Test_Retry_Exhaustion_Rolls_Back_Prompt'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent detects known context-overflow error phrases",
-         LLM_Agent_Tests
-           .Test_Is_Context_Overflow_Error_Detects_Known_Phrases'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent compacts and retries after a context overflow",
-         LLM_Agent_Tests
-           .Test_Overflow_Triggers_Compact_And_Retry'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent gives up after one overflow recovery attempt",
-         LLM_Agent_Tests
-           .Test_Overflow_Recovery_Not_Attempted_Twice'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent emits a compaction will-retry event on overflow",
-         LLM_Agent_Tests
-           .Test_Overflow_Will_Retry_Event_Emitted'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Compact replaces old history with a summary message",
-         LLM_Agent_Tests
-           .Test_Compact_Produces_Summary_Message'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Compact emits compaction start and end events",
-         LLM_Agent_Tests
-           .Test_Compact_Emits_Start_And_End_Events'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Compact aborts cleanly on very short history",
-         LLM_Agent_Tests
-           .Test_Compact_Short_History_Aborts'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Compact persists a resumable compaction entry",
-         LLM_Agent_Tests
-           .Test_Compact_Persists_Entry'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent auto-compacts when the context threshold is reached",
-         LLM_Agent_Tests
-           .Test_Auto_Compact_Fires_At_Threshold'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent skips auto-compaction below the context threshold",
-         LLM_Agent_Tests
-           .Test_Auto_Compact_Does_Not_Fire_Below_Threshold'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent persists threshold-triggered compaction entries",
-         LLM_Agent_Tests
-           .Test_Auto_Compact_Session_Persisted_After_Threshold'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Set_Compact_Settings Enabled=False prevents compaction",
-         LLM_Agent_Tests
-           .Test_Set_Compact_Settings_Disabled'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Compact survives a session reload round-trip",
-         LLM_Agent_Tests
-           .Test_Compact_Then_Resume'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("[live] LLM.Agent Compact summarises a GitHub Copilot conversation",
-         LLM_Agent_Tests
-           .Test_Compact_Live_Summarises_Conversation'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("Tool result contains [coyote: turn=...] stats footer",
-         LLM_Agent_Tests
-           .Test_Tool_Result_Has_Stats_Footer'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("Stats footer appears only on last tool in a batch",
-         LLM_Agent_Tests
-           .Test_Stats_Footer_Only_On_Last_Tool_In_Batch'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("Image tool results have no stats footer appended",
-         LLM_Agent_Tests
-           .Test_Image_Tool_Result_No_Footer'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent pause fires at turn boundary and resumes normally",
-         LLM_Agent_Tests.Test_Pause_Fires_At_Turn_Boundary'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
-         LLM_Agent_Tests.Test_Stop_While_Paused'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Set_Sandbox_Profile and Current_Sandbox round-trip",
-         LLM_Agent_Tests.Test_Sandbox_Set_And_Get'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent COYOTE_SANDBOX_PROFILE inherited by Create",
-         LLM_Agent_Tests.Test_Sandbox_Env_Var_Inherited'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent sandbox defaults to empty without env var",
-         LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent persistent sandbox default from settings",
-         LLM_Agent_Tests.Test_Sandbox_Default_From_Settings'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent restores sandbox profile on session resume",
-         LLM_Agent_Tests.Test_Sandbox_Profile_Restored_On_Resume'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent restores and clears sandbox profile on session switch",
-         LLM_Agent_Tests
-           .Test_Sandbox_Profile_Restored_And_Cleared_On_Switch'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent runs a single-turn prompt and persists it",
+            LLM_Agent_Tests.Test_Single_Turn_Prompt'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent executes a tool call and loops for the final reply",
+            LLM_Agent_Tests.Test_Tool_Call_Loop'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent executes two tool calls in one turn",
+            LLM_Agent_Tests.Test_Two_Tool_Call_Loop'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent preserves tool execution failures",
+            LLM_Agent_Tests.Test_Tool_Execution_Failure'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Switch_Session pre-loads existing history",
+            LLM_Agent_Tests.Test_Switch_Session_Loads_History'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent honours cross-task abort requests",
+            LLM_Agent_Tests.Test_Abort_Request'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent keeps aborted multi-tool history structurally valid",
+            LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent aborts shell tool with timeout promptly",
+            LLM_Agent_Tests.Test_Abort_During_Shell_With_Timeout'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent flushes tool batch to session file as soon as it"
+            & " completes",
+            LLM_Agent_Tests.Test_Session_File_Written_Only_After_Turn_End'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent resumes persisted session history",
+            LLM_Agent_Tests.Test_Session_Resume'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent preserves OpenRouter Broadcast ID across subagents",
+            LLM_Agent_Tests.Test_OpenRouter_Session_Id_Inherited_By_Subagents'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent uses settings defaults when Model_Spec is empty",
+            LLM_Agent_Tests
+              .Test_Create_Without_Model_Spec_Uses_Settings_Default'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent ephemeral COYOTE_SUBAGENT_MODEL override precedence",
+            LLM_Agent_Tests.Test_Subagent_Model_Env_Override'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent memory enabled by COYOTE_ENABLE_MEMORY=1",
+            LLM_Agent_Tests.Test_Memory_Enabled_By_Env_Var'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent memory disabled by default (env var unset)",
+            LLM_Agent_Tests.Test_Memory_Disabled_By_Default'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent reuses history across multiple turns in one session",
+            LLM_Agent_Tests.Test_Multi_Turn_Same_Session_Carries_History'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent emits model/start/update/end/stats in order",
+            LLM_Agent_Tests
+              .Test_Event_Sequence_Agent_Start_Through_Session_Stats'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent turns unknown tool calls into tool errors",
+            LLM_Agent_Tests
+              .Test_Unknown_Tool_Becomes_Error_And_Agent_Continues'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent retries HTTP 500 errors and succeeds on retry",
+            LLM_Agent_Tests.Test_Auto_Retry_On_HTTP_500_Then_Success'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent retries curl transport errors and succeeds on retry",
+            LLM_Agent_Tests.Test_Auto_Retry_On_Transport_Error_Then_Success'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent filters encrypted thinking across model switches",
+            LLM_Agent_Tests.Test_Compatible_History_Filters_Foreign_Thinking'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent rolls back prompts after non-retryable errors",
+            LLM_Agent_Tests.Test_Non_Retryable_Error_Rolls_Back_Prompt'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent rolls back prompts after retry exhaustion",
+            LLM_Agent_Tests.Test_Retry_Exhaustion_Rolls_Back_Prompt'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent detects known context-overflow error phrases",
+            LLM_Agent_Tests
+              .Test_Is_Context_Overflow_Error_Detects_Known_Phrases'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent compacts and retries after a context overflow",
+            LLM_Agent_Tests.Test_Overflow_Triggers_Compact_And_Retry'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent gives up after one overflow recovery attempt",
+            LLM_Agent_Tests.Test_Overflow_Recovery_Not_Attempted_Twice'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent emits a compaction will-retry event on overflow",
+            LLM_Agent_Tests.Test_Overflow_Will_Retry_Event_Emitted'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Compact replaces old history with a summary message",
+            LLM_Agent_Tests.Test_Compact_Produces_Summary_Message'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Compact emits compaction start and end events",
+            LLM_Agent_Tests.Test_Compact_Emits_Start_And_End_Events'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Compact aborts cleanly on very short history",
+            LLM_Agent_Tests.Test_Compact_Short_History_Aborts'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Compact persists a resumable compaction entry",
+            LLM_Agent_Tests.Test_Compact_Persists_Entry'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent auto-compacts when the context threshold is reached",
+            LLM_Agent_Tests.Test_Auto_Compact_Fires_At_Threshold'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent skips auto-compaction below the context threshold",
+            LLM_Agent_Tests.Test_Auto_Compact_Does_Not_Fire_Below_Threshold'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent persists threshold-triggered compaction entries",
+            LLM_Agent_Tests
+              .Test_Auto_Compact_Session_Persisted_After_Threshold'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Set_Compact_Settings Enabled=False prevents compaction",
+            LLM_Agent_Tests.Test_Set_Compact_Settings_Disabled'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Compact survives a session reload round-trip",
+            LLM_Agent_Tests.Test_Compact_Then_Resume'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("[live] LLM.Agent Compact summarises a GitHub Copilot conversation",
+            LLM_Agent_Tests.Test_Compact_Live_Summarises_Conversation'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("Tool result contains [coyote: turn=...] stats footer",
+            LLM_Agent_Tests.Test_Tool_Result_Has_Stats_Footer'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("Stats footer appears only on last tool in a batch",
+            LLM_Agent_Tests.Test_Stats_Footer_Only_On_Last_Tool_In_Batch'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("Image tool results have no stats footer appended",
+            LLM_Agent_Tests.Test_Image_Tool_Result_No_Footer'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent pause fires at turn boundary and resumes normally",
+            LLM_Agent_Tests.Test_Pause_Fires_At_Turn_Boundary'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
+            LLM_Agent_Tests.Test_Stop_While_Paused'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent Set_Sandbox_Profile and Current_Sandbox round-trip",
+            LLM_Agent_Tests.Test_Sandbox_Set_And_Get'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent COYOTE_SANDBOX_PROFILE inherited by Create",
+            LLM_Agent_Tests.Test_Sandbox_Env_Var_Inherited'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent sandbox defaults to empty without env var",
+            LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent persistent sandbox default from settings",
+            LLM_Agent_Tests.Test_Sandbox_Default_From_Settings'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent restores sandbox profile on session resume",
+            LLM_Agent_Tests.Test_Sandbox_Profile_Restored_On_Resume'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent restores and clears sandbox profile on session switch",
+            LLM_Agent_Tests
+              .Test_Sandbox_Profile_Restored_And_Cleared_On_Switch'
+              Access));
 
       return Result;
    end Suite;

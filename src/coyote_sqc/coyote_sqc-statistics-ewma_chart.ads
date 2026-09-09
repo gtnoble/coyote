@@ -20,7 +20,6 @@
 --
 --  Project: coyote
 
-
 package Coyote_SQC.Statistics.EWMA_Chart is
 
    --  Update the EWMA statistic for one new observation.
@@ -33,7 +32,8 @@ package Coyote_SQC.Statistics.EWMA_Chart is
    function Compute_Z
      (X      : Long_Float;
       Z_Prev : Long_Float;
-      Weight : Long_Float) return Long_Float;
+      Weight : Long_Float)
+      return Long_Float;
 
    --  Compute time-varying EWMA control limits at step T (1-based).
    --
@@ -51,6 +51,7 @@ package Coyote_SQC.Statistics.EWMA_Chart is
       Sigma      : Long_Float;
       Weight     : Long_Float;
       L          : Long_Float;
-      T          : Positive) return Limits_Record;
+      T          : Positive)
+      return Limits_Record;
 
 end Coyote_SQC.Statistics.EWMA_Chart;

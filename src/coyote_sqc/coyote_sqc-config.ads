@@ -18,7 +18,9 @@ package Coyote_SQC.Config is
    end record;
 
    Max_Recent : constant := 5;
-   type Recent_Array is array (1 .. Max_Recent) of Recent_Entry;
+   type Recent_Array is
+     array (1 .. Max_Recent)
+     of Recent_Entry;
    type Recent_Count is range 0 .. Max_Recent;
 
    type Recent_List is record

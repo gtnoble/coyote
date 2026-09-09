@@ -20,27 +20,24 @@ package Coyote_GUI.Math_Element is
    function New_Element
      (MathML : String;
       Source : String;
-      Scale  : Long_Float := 1.0) return Instance_Access;
+      Scale  : Long_Float := 1.0)
+      return Instance_Access;
 
    --  Initialize an existing element and measure MathML at Scale.
    procedure Create
      (Element : in out Instance;
-      MathML  : String;
-      Source  : String;
-      Scale   : Long_Float := 1.0);
+      MathML  :        String;
+      Source  :        String;
+      Scale   :        Long_Float := 1.0);
    --  Return the root widget to pack into a native response container.
    function Widget (Element : Instance) return Gtk.Box.Gtk_Box;
 
    --  Change the retained MathML and source, then remeasure.
    procedure Set_MathML
-     (Element : in out Instance;
-      MathML  : String;
-      Source  : String);
+     (Element : in out Instance; MathML : String; Source : String);
 
    --  Remeasure and redraw at the requested positive scale.
-   procedure Set_Scale
-     (Element : in out Instance;
-      Scale   : Long_Float);
+   procedure Set_Scale (Element : in out Instance; Scale : Long_Float);
 
    --  Mark GTK callbacks inactive before the owning component is removed.
    procedure Detach (Element : in out Instance);
@@ -65,11 +62,11 @@ private
       Source_Text   : Ada.Strings.Unbounded.Unbounded_String;
       MathML_Text   : Ada.Strings.Unbounded.Unbounded_String;
       Math_Scale    : Long_Float := 1.0;
-      Math_Width    : Natural := 0;
-      Math_Height   : Natural := 1;
-      Math_Baseline : Natural := 0;
-      Valid         : Boolean := False;
-      Detached      : Boolean := False;
+      Math_Width    : Natural    := 0;
+      Math_Height   : Natural    := 1;
+      Math_Baseline : Natural    := 0;
+      Valid         : Boolean    := False;
+      Detached      : Boolean    := False;
    end record;
 
 end Coyote_GUI.Math_Element;

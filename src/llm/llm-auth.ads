@@ -17,7 +17,7 @@ package LLM.Auth is
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Access_Token    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Expires_Ms      : Long_Long_Integer := 0;
+      Expires_Ms      : Long_Long_Integer                      := 0;
       --  ChatGPT account identifier carried by OAuth subscription
       --  providers such as OpenAI Codex.  Empty for providers that do
       --  not use one.
@@ -36,7 +36,6 @@ package LLM.Auth is
    --  The file is updated atomically by writing a temporary file in the same
    --  directory and renaming it over the original path.
    procedure Save_Credentials
-     (Provider : String;
-      Creds    : Provider_Credentials);
+     (Provider : String; Creds : Provider_Credentials);
 
 end LLM.Auth;

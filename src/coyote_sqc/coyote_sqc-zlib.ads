@@ -11,28 +11,25 @@ with System;
 package Coyote_SQC.Zlib is
 
    --  Opaque types matching zlib's C declarations.
-   subtype uLong  is Interfaces.C.unsigned_long;
+   subtype uLong is Interfaces.C.unsigned_long;
    subtype uLongf is Interfaces.C.unsigned_long;
 
    --  Return an upper bound on the compressed size after compress2 of
    --  sourceLen bytes.
-   function Compress_Bound (Source_Len : uLong) return uLong
-     with Import => True,
-     Convention    => C,
-     External_Name => "compressBound";
+   function Compress_Bound (Source_Len : uLong) return uLong with
+     Import => True, Convention => C, External_Name => "compressBound";
 
    --  Compress source bytes into dest.  Returns Z_OK (0) on success.
    --  dest must be at least Compress_Bound(sourceLen) bytes.
    --  Level: 0 (no compression) to 9 (best compression).
    function Compress2
-     (Dest       : out Interfaces.C.char_array;
+     (Dest       :    out Interfaces.C.char_array;
       Dest_Len   : in out uLongf;
-      Source     : Interfaces.C.char_array;
-      Source_Len : uLong;
-      Level      : Interfaces.C.int) return Interfaces.C.int
-     with Import => True,
-     Convention    => C,
-     External_Name => "compress2";
+      Source     :        Interfaces.C.char_array;
+      Source_Len :        uLong;
+      Level      :        Interfaces.C.int)
+      return Interfaces.C.int with
+     Import => True, Convention => C, External_Name => "compress2";
 
    Z_OK : constant Interfaces.C.int := 0;
 
@@ -58,9 +55,9 @@ package Coyote_SQC.Zlib is
    --  be reused; the dictionary is preserved.
    procedure Compress_Stream
      (S        : in out ZStream;
-      Source   : String;
-      Dest     : out Interfaces.C.char_array;
-      Dest_Len : out uLongf);
+      Source   :        String;
+      Dest     :    out Interfaces.C.char_array;
+      Dest_Len :    out uLongf);
 
    --  Deallocate the stream.
    procedure Free_Stream (S : in out ZStream);
@@ -68,9 +65,7 @@ package Coyote_SQC.Zlib is
    --  Convenience: init stream, set dictionary, compress Source, free stream.
    --  Returns the compressed size in bytes, or 0 on failure.
    function Compress_With_Dict
-     (Source : String;
-      Level  : Interfaces.C.int;
-      Dict   : String) return Natural;
+     (Source : String; Level : Interfaces.C.int; Dict : String) return Natural;
 
 private
 
