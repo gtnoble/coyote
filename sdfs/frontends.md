@@ -1183,6 +1183,19 @@ silenced with a pragma.
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 864/864 including all GUI domain tests.
 
+## 2026-09-09 — Auto-compaction Preferences (REQ-CORE-116..119)
+
+The GTK Preferences dialog now exposes automatic compaction enablement and a
+1..100 compaction threshold percentage, defaulting to 80. Values are carried
+through `Coyote_GUI.Prompt_Queue.Preferences_Record` and persisted by the agent
+task as `autoCompaction` and `compactionThresholdPercent`, while preserving the
+existing rule that persistent preference changes apply to new sessions rather
+than silently changing the active session.
+
+Verification: queue and settings regressions cover typed transport, persistence,
+malformed/out-of-range defaults, and unrelated-field preservation. The complete
+AUnit suite passes 875/875.
+
 ## 2026-09-08 — IRIX-style targeted tool actions (REQ-CORE-055c..055d)
 
 Native tool cards now provide focusable `Abort` and `Abort With Message...`

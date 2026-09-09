@@ -12,11 +12,18 @@ with LLM.Types;
 
 package LLM.Compaction is
 
+   --  Valid percentage values for the automatic compaction threshold.
+   subtype Threshold_Percent_Range is Positive range 1 .. 100;
+
+   --  Default automatic compaction threshold.
+   Default_Threshold_Percent : constant Threshold_Percent_Range := 80;
+
    --  Settings controlling when context compaction is eligible and how
    --  much recent history must be retained verbatim.
    type Compact_Settings is record
-      Enabled              : Boolean  := True;
-      Reserve_Tokens       : Positive := 16_384;
+      Enabled              : Boolean := True;
+      Threshold_Percent    : Threshold_Percent_Range :=
+        Default_Threshold_Percent;
       Keep_Recent_Tokens   : Positive := 20_000;
       --  Circuit breaker: after Consecutive_Failures reaches
       --  Max_Consecutive_Failures, Tripped is set to True and
@@ -33,7 +40,7 @@ package LLM.Compaction is
    --  Default compaction settings used when no override is configured.
    Default_Compact_Settings : constant Compact_Settings :=
      (Enabled              => True,
-      Reserve_Tokens       => 16_384,
+      Threshold_Percent    => Default_Threshold_Percent,
       Keep_Recent_Tokens   => 20_000,
       Consecutive_Failures => 0,
       Tripped              => False);

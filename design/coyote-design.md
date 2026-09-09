@@ -232,8 +232,11 @@ by conversation length; no rotation or size cap is applied.
 
 **In-memory history:** `LLM.Types.Message_Vectors.Vector` grows unboundedly
 until compaction. Compaction (`LLM.Compaction.Find_Cut_Point`) is triggered
-when the estimated token count of the history approaches the model's context
-window minus the `Reserve_Tokens` margin (default 16 384).
+when the estimated token count reaches the configured percentage of the active
+model's context window. The default `Threshold_Percent` is 80, with valid
+values from 1 through 100. The trigger is evaluated after each completed
+model/tool step has been persisted and before another provider request; it does
+not wait for the complete user turn.
 
 ## 4. Architectural Design
 
@@ -786,8 +789,12 @@ loop:
   --  The run_group field is stripped from arguments JSON before the tool
   --  executor sees it.
   persist the pending user/assistant/tool-result batch
+  --  Estimate persisted history and compare it with
+  --  floor(Context_Window * Threshold_Percent / 100).
+  --  If the threshold is reached and another provider request is needed,
+  --  compact before continuing. Never compact between tools in one batch.
+  evaluate step-wise auto-compaction before the next model request
 end loop
--- check compaction threshold; compact if needed
 emit Session_Stats_Event
 ```
 
@@ -1130,8 +1137,14 @@ REQ-CORE-068).
 
 **`Compact_Settings`:**
 - `Enabled`: whether auto-compaction is active.
-- `Reserve_Tokens`: headroom reserved for the model's response (default 16 384).
-- `Keep_Recent_Tokens`: minimum recent history to retain verbatim (default 20 000).
+- `Threshold_Percent`: percentage of the active context window at which
+  auto-compaction is triggered; valid values are 1 through 100, default 80.
+- `Keep_Recent_Tokens`: minimum recent history to retain verbatim (default
+  20 000).
+
+The threshold in tokens is computed as
+`floor(Context_Window × Threshold_Percent / 100)`. The check is made after
+completed model/tool steps are persisted and before the next provider request.
 
 ---
 
@@ -1343,9 +1356,12 @@ made by the GUI Preferences dialog. Plain execution does not persist settings th
 empty/default values. A malformed or absent file does not prevent startup.
 
 **`Save_Preferences` operation:** Updates the model, thinking, sandbox,
-optional subagent-model, maximum recursion depth, completion-notification,
-`priceDisplay`, and `skillPaths` preference fields while preserving unrelated
-JSON fields. The file is written through an atomic same-directory replacement.
+optional subagent-model, automatic compaction enablement, compaction threshold
+percentage, maximum recursion depth, completion-notification, `priceDisplay`,
+and `skillPaths` preference fields while preserving unrelated JSON fields. The
+file is written through an atomic same-directory replacement. The compaction
+fields are persisted as `autoCompaction` and `compactionThresholdPercent`;
+missing or malformed values load as enabled and 80 percent respectively.
 `priceDisplay` is `"si"` or `"db"`; missing or invalid values load as SI. In
 `"db"` mode, positive stored $/MTok values are converted to $/tok and shown as
 `10 × log10 (p / 1,000,000)` dB. Zero is shown as `free`; negative values are
@@ -2252,7 +2268,7 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 | `Set_Thinking` | `Level` | Change the reasoning level |
 | `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
 | `Switch_Session` | `Session_UUID` | Load a different session by UUID |
-| `Set_Preferences` | Preferences record | Persist model, thinking, sandbox, recursion-depth, notification, and skill-path defaults without changing the active session |
+| `Set_Preferences` | Preferences record | Persist model, thinking, sandbox, automatic compaction, threshold percentage, recursion-depth, notification, and skill-path defaults without changing the active session |
 | `Shutdown_Item` | — | Queue is closing; `Agent_Task` should exit |
 
 The `Preferences record` contains the selected provider/model, thinking level,

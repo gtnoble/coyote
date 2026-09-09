@@ -365,8 +365,8 @@ package body Coyote_App.Headless is
          LLM.Agent.Set_Compact_Settings
            (Agent_Session,
             (Enabled              => False,
-             Reserve_Tokens       =>
-               LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
+             Threshold_Percent       =>
+               LLM.Compaction.Default_Compact_Settings.Threshold_Percent,
              Keep_Recent_Tokens   =>
                LLM.Compaction.Default_Compact_Settings.Keep_Recent_Tokens,
              Consecutive_Failures => 0,

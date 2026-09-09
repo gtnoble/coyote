@@ -31,6 +31,8 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Max_Recursion_Depth       => 3,
              Termination_Grace_Seconds => 7,
              Completion_Notifications  => False,
+             Auto_Compaction           => False,
+             Compaction_Threshold_Percent => 65,
              Price_Display             => LLM.Settings.Decibels,
              Skill_Paths => LLM.Settings.String_Vectors.Empty_Vector)));
       Queue.Dequeue (Got);
@@ -65,6 +67,12 @@ package body Coyote_GUI_Prompt_Queue_Tests is
       Assert
         (not Got.Preferences.Completion_Notifications,
          "disabled completion preference should survive queue transport");
+      Assert
+        (not Got.Preferences.Auto_Compaction,
+         "disabled auto-compaction preference should survive queue transport");
+      Assert
+        (Got.Preferences.Compaction_Threshold_Percent = 65,
+         "compaction threshold should survive queue transport");
       declare
          Paths : LLM.Settings.String_Vectors.Vector;
       begin
@@ -83,6 +91,8 @@ package body Coyote_GUI_Prompt_Queue_Tests is
                 Max_Recursion_Depth       => 1,
                 Termination_Grace_Seconds => 2,
                 Completion_Notifications  => True,
+                Auto_Compaction           => True,
+                Compaction_Threshold_Percent => 80,
                 Price_Display             => LLM.Settings.SI_Prefixes,
                 Skill_Paths               => Paths)));
          Queue.Dequeue (Got);
@@ -110,6 +120,8 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Max_Recursion_Depth       => 0,
              Termination_Grace_Seconds => 0,
              Completion_Notifications  => True,
+             Auto_Compaction           => True,
+             Compaction_Threshold_Percent => 80,
              Price_Display             => LLM.Settings.SI_Prefixes,
              Skill_Paths => LLM.Settings.String_Vectors.Empty_Vector)));
       Queue.Dequeue (Got);

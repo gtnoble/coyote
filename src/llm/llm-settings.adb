@@ -147,6 +147,23 @@ package body LLM.Settings is
       return Default;
    end Get_Natural_Field;
 
+   function Get_Threshold_Percent
+     (Value : GNATCOLL.JSON.JSON_Value)
+      return LLM.Compaction.Threshold_Percent_Range
+   is
+      Raw : constant Natural :=
+        Get_Natural_Field
+          (Value,
+           "compactionThresholdPercent",
+           LLM.Compaction.Default_Threshold_Percent);
+   begin
+      if Raw in LLM.Compaction.Threshold_Percent_Range then
+         return LLM.Compaction.Threshold_Percent_Range (Raw);
+      else
+         return LLM.Compaction.Default_Threshold_Percent;
+      end if;
+   end Get_Threshold_Percent;
+
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value;
       Field : String)
@@ -309,6 +326,10 @@ package body LLM.Settings is
            To_Unbounded_String (Get_String_Field (Root, "promptFilter")),
          Completion_Notifications        =>
            Get_Boolean_Field (Root, "completionNotifications", True),
+         Auto_Compaction                 =>
+           Get_Boolean_Field (Root, "autoCompaction", True),
+         Compaction_Threshold_Percent    =>
+           Get_Threshold_Percent (Root),
          Price_Display                   =>
            (if Get_String_Field (Root, "priceDisplay") = "db" then Decibels
             else SI_Prefixes),
@@ -395,8 +416,11 @@ package body LLM.Settings is
       Price_Display             : Price_Display_Mode;
       Subagent_Provider         : String                := "";
       Subagent_Model            : String                := "";
-      Max_Recursion_Depth       : Natural               := 1;
-      Completion_Notifications  : Boolean               := True;
+      Max_Recursion_Depth          : Natural := 1;
+      Completion_Notifications     : Boolean := True;
+      Auto_Compaction              : Boolean := True;
+      Compaction_Threshold_Percent : LLM.Compaction.Threshold_Percent_Range :=
+        LLM.Compaction.Default_Threshold_Percent;
       Skill_Paths : String_Vectors.Vector := String_Vectors.Empty_Vector;
       Termination_Grace_Seconds : Natural := Default_Termination_Grace_Seconds)
    is
@@ -454,6 +478,10 @@ package body LLM.Settings is
            (Natural'Min
               (Max_Termination_Grace_Seconds, Termination_Grace_Seconds)));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
+      Root.Set_Field ("autoCompaction", Auto_Compaction);
+      Root.Set_Field
+        ("compactionThresholdPercent",
+         Long_Integer (Compaction_Threshold_Percent));
       Root.Set_Field
         ("priceDisplay", (if Price_Display = Decibels then "db" else "si"));
 

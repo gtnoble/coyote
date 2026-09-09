@@ -9,6 +9,7 @@ package LLM_Compaction_Tests is
    procedure Test_Estimate_Tokens (T : in out Test);
    procedure Test_Estimate_Context_Tokens (T : in out Test);
    procedure Test_Should_Compact (T : in out Test);
+   procedure Test_Should_Compact_Uses_Percentage (T : in out Test);
    procedure Test_Find_Cut_Point (T : in out Test);
    procedure Test_Serialize_Conversation (T : in out Test);
    procedure Test_Full_Compaction_Candidate (T : in out Test);

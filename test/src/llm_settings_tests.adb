@@ -84,7 +84,8 @@ package body LLM_Settings_Tests is
          & """defaultModel"":""anthropic/claude-sonnet-4"","
          & """defaultThinkingLevel"":""medium"","
          & """defaultSubagentProvider"":""openrouter"","
-         & """defaultSubagentModel"":""anthropic/claude-haiku""}");
+         & """defaultSubagentModel"":""anthropic/claude-haiku"","
+         & """autoCompaction"":false,""compactionThresholdPercent"":65}");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Loaded := LLM.Settings.Load_Settings;
@@ -107,6 +108,31 @@ package body LLM_Settings_Tests is
       Assert
         (Loaded.Completion_Notifications,
          "completion notifications should default to enabled");
+      Assert
+        (not Loaded.Auto_Compaction,
+         "autoCompaction should load from settings.json");
+      Assert
+        (Loaded.Compaction_Threshold_Percent = 65,
+         "compactionThresholdPercent should load from settings.json");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""autoCompaction"":""bad"",""compactionThresholdPercent"":0}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Auto_Compaction,
+         "malformed autoCompaction should default to enabled");
+      Assert
+        (Loaded.Compaction_Threshold_Percent = 80,
+         "zero compaction threshold should default to 80 percent");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""compactionThresholdPercent"":101}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Compaction_Threshold_Percent = 80,
+         "out-of-range compaction threshold should default to 80 percent");
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
@@ -745,6 +771,8 @@ package body LLM_Settings_Tests is
          Subagent_Model            => "new/fast-model",
          Max_Recursion_Depth       => 3,
          Completion_Notifications  => False,
+         Auto_Compaction           => False,
+         Compaction_Threshold_Percent => 65,
          Price_Display             => LLM.Settings.SI_Prefixes,
          Skill_Paths               =>
            (LLM.Settings.String_Vectors.To_Vector ("/opt/skills", 1)),
@@ -784,6 +812,13 @@ package body LLM_Settings_Tests is
       Assert
         (not Coyote_App.Utils.Get_Boolean (Root, "completionNotifications"),
          "Save_Preferences should write disabled completion notifications");
+      Assert
+        (not Coyote_App.Utils.Get_Boolean (Root, "autoCompaction"),
+         "Save_Preferences should write disabled auto-compaction");
+      Assert
+        (Coyote_App.Utils.Get_Integer (Root, "compactionThresholdPercent")
+         = 65,
+         "Save_Preferences should write the compaction threshold percentage");
       Assert
         (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") = "keep",
          "Save_Preferences should preserve unrelated fields");

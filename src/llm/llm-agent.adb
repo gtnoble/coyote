@@ -1503,7 +1503,13 @@ package body LLM.Agent is
       S.Abort_State.Clear;
       S.Streaming           := False;
       S.Model_Info          := EMPTY_MODEL_INFO;
-      S.Compact_Settings    := LLM.Compaction.Default_Compact_Settings;
+      S.Compact_Settings    :=
+        (Enabled              => Settings_Value.Auto_Compaction,
+         Threshold_Percent    => Settings_Value.Compaction_Threshold_Percent,
+         Keep_Recent_Tokens   =>
+           LLM.Compaction.Default_Compact_Settings.Keep_Recent_Tokens,
+         Consecutive_Failures => 0,
+         Tripped              => False);
       S.Last_Context_Tokens := 0;
 
       if Ada.Environment_Variables.Value
@@ -1608,14 +1614,8 @@ package body LLM.Agent is
       end Summary_Event_Handler;
 
       function Summary_Max_Tokens return Positive is
-         Raw : constant Natural :=
-           (Natural (S.Compact_Settings.Reserve_Tokens) * 4) / 5;
       begin
-         if Raw = 0 then
-            return 1;
-         else
-            return Positive (Raw);
-         end if;
+         return Max_Tokens_For (S.Model_Info);
       end Summary_Max_Tokens;
    begin
       Succeeded := False;
@@ -1913,6 +1913,33 @@ package body LLM.Agent is
             S.Has_Submitted_Prompts := Had_Submitted_Prompts;
          end if;
       end Roll_Back_Pending_Messages;
+
+      procedure Maybe_Auto_Compact (Another_Request : Boolean) is
+      begin
+         S.Last_Context_Tokens :=
+           LLM.Compaction.Estimate_Context_Tokens (S.History);
+
+         if Another_Request
+           and then not S.Abort_State.Requested
+           and then LLM.Compaction.Should_Compact
+             (S.Last_Context_Tokens, S.Model_Info.Context_Window,
+              S.Compact_Settings)
+         then
+            Compact (S, On_Event, "threshold", Compact_OK);
+
+            if Compact_OK then
+               S.Compact_Settings.Consecutive_Failures := 0;
+            else
+               S.Compact_Settings.Consecutive_Failures :=
+                 S.Compact_Settings.Consecutive_Failures + 1;
+               if S.Compact_Settings.Consecutive_Failures
+                 >= LLM.Compaction.Max_Consecutive_Failures
+               then
+                  S.Compact_Settings.Tripped := True;
+               end if;
+            end if;
+         end if;
+      end Maybe_Auto_Compact;
    begin
       S.History.Append (Prompt_Msg);
       S.Has_Submitted_Prompts := True;
@@ -2428,6 +2455,7 @@ package body LLM.Agent is
                   Messages_To_Persist.Clear;
                end;
 
+               Maybe_Auto_Compact (Another_Request => True);
                exit Agentic_Loop when S.Abort_State.Requested;
             else
                exit Agentic_Loop when S.Abort_State.Requested;
@@ -2450,30 +2478,7 @@ package body LLM.Agent is
 
          if not S.Abort_State.Requested and then Turn_Completed_Normally then
             Flush_Pending_Messages;
-            S.Last_Context_Tokens :=
-              Builder.Tok_Usage.Input + Builder.Tok_Usage.Output
-              + Builder.Tok_Usage.Cache_Read + Builder.Tok_Usage.Cache_Write;
-
-            if not S.Abort_State.Requested
-              and then LLM.Compaction.Should_Compact
-                (S.Last_Context_Tokens, S.Model_Info.Context_Window,
-                 S.Compact_Settings)
-            then
-               Compact (S, On_Event, "threshold", Compact_OK);
-
-               if Compact_OK then
-                  S.Compact_Settings.Consecutive_Failures := 0;
-               else
-                  S.Compact_Settings.Consecutive_Failures :=
-                    S.Compact_Settings.Consecutive_Failures + 1;
-
-                  if S.Compact_Settings.Consecutive_Failures
-                    >= LLM.Compaction.Max_Consecutive_Failures
-                  then
-                     S.Compact_Settings.Tripped := True;
-                  end if;
-               end if;
-            end if;
+            Maybe_Auto_Compact (Another_Request => False);
          end if;
       exception
          when Occurrence : others =>

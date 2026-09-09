@@ -788,8 +788,9 @@ package body Coyote_App is
                   LLM.Agent.Set_Compact_Settings
                     (Agent_Session,
                     (Enabled               => False,
-                      Reserve_Tokens       =>
-                        LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
+                      Threshold_Percent       =>
+                        LLM.Compaction.Default_Compact_Settings
+                          .Threshold_Percent,
                       Keep_Recent_Tokens   =>
                         LLM.Compaction.Default_Compact_Settings
                           .Keep_Recent_Tokens,
@@ -974,9 +975,9 @@ package body Coyote_App is
                                  LLM.Agent.Set_Compact_Settings
                                    (Agent_Session,
                                     (Enabled              => False,
-                                     Reserve_Tokens       =>
+                                     Threshold_Percent       =>
                                        LLM.Compaction.Default_Compact_Settings
-                                         .Reserve_Tokens,
+                                         .Threshold_Percent,
                                      Keep_Recent_Tokens   =>
                                        LLM.Compaction.Default_Compact_Settings
                                          .Keep_Recent_Tokens,
@@ -1136,6 +1137,10 @@ package body Coyote_App is
                                    It.Preferences.Max_Recursion_Depth,
                                  Completion_Notifications  =>
                                    It.Preferences.Completion_Notifications,
+                                 Auto_Compaction =>
+                                   It.Preferences.Auto_Compaction,
+                                 Compaction_Threshold_Percent =>
+                                   It.Preferences.Compaction_Threshold_Percent,
                                  Price_Display => It.Preferences.Price_Display,
                                  Skill_Paths => It.Preferences.Skill_Paths,
                                  Termination_Grace_Seconds =>

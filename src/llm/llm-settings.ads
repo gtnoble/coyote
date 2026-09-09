@@ -9,6 +9,7 @@ with GNATCOLL.JSON;
 
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
+with LLM.Compaction;
 
 package LLM.Settings is
 
@@ -51,6 +52,12 @@ package LLM.Settings is
       Prompt_Filter                   : Ada.Strings.Unbounded.Unbounded_String;
       --  Whether interactive GUI completion notifications are enabled.
       Completion_Notifications        : Boolean            := True;
+      --  Whether automatic context compaction is enabled for new sessions.
+      Auto_Compaction                 : Boolean            := True;
+      --  Percentage of the model context window that triggers compaction.
+      Compaction_Threshold_Percent    :
+        LLM.Compaction.Threshold_Percent_Range :=
+          LLM.Compaction.Default_Threshold_Percent;
       --  Price units shown in the GTK model picker.
       Price_Display                   : Price_Display_Mode := SI_Prefixes;
       --  Additional skill roots from the skillPaths JSON array.
@@ -99,6 +106,9 @@ package LLM.Settings is
       Subagent_Model            : String                := "";
       Max_Recursion_Depth       : Natural               := 1;
       Completion_Notifications  : Boolean               := True;
+      Auto_Compaction           : Boolean               := True;
+      Compaction_Threshold_Percent : LLM.Compaction.Threshold_Percent_Range :=
+        LLM.Compaction.Default_Threshold_Percent;
       Skill_Paths : String_Vectors.Vector := String_Vectors.Empty_Vector;
       Termination_Grace_Seconds : Natural               :=
         Default_Termination_Grace_Seconds);

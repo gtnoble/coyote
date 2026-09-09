@@ -7,6 +7,7 @@
 --  Project: coyote
 
 with Ada.Strings.Unbounded;
+with LLM.Compaction;
 with LLM.Providers;
 with LLM.Settings;
 
@@ -26,6 +27,9 @@ package Coyote_GUI.Prompt_Queue is
       Max_Recursion_Depth       : Natural                         := 1;
       Termination_Grace_Seconds : Natural                         := 2;
       Completion_Notifications  : Boolean                         := True;
+      Auto_Compaction           : Boolean                         := True;
+      Compaction_Threshold_Percent : LLM.Compaction.Threshold_Percent_Range :=
+        LLM.Compaction.Default_Threshold_Percent;
       Price_Display             : LLM.Settings.Price_Display_Mode :=
         LLM.Settings.SI_Prefixes;
       Skill_Paths               : LLM.Settings.String_Vectors.Vector;

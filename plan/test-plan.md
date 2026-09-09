@@ -150,17 +150,17 @@ SRS-CORE requirement groups.
 | `llm_settings_tests.adb` | REQ-CORE-025, 090a, 230â234, 070â073; skillPaths loading and Save_Preferences persistence | ~29 |
 | `subagent_integration_tests.adb` | REQ-CORE-025, 019–020; subprocess startup, one-shot, and steering behavior | 4 |
 | Coordinator/RPC implementation tests | REQ-CORE-020a–020c, 115, 115a; registry hierarchy/selection, runtime identity transport, versioned codec, Unix transport, service command/disconnect routing | Focused tests pass; DEM-050..053 remain for GUI/display and real-provider end-to-end qualification |
-| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference and skill-path payload, acceptance, and overflow transport | 3 |
+| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference, compaction, and skill-path payload, acceptance, and overflow transport | 3 |
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
-| `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
+| `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30; percentage threshold boundaries and validation |
 | `llm_tools_tests.adb` | REQ-CORE-050â053, 057 | ~27; timeout TERM/grace/KILL escalation |
 | `llm_system_prompt_tests.adb` | REQ-CORE-090â092, REQ-CORE-173 (display and inline math guidance) | ~11 |
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 
 | `sandbox_tests.adb` | Sandbox profile subsystem, including timeout and abort process-group termination | 24 |
-| `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
+| `llm_context_tests.adb` | REQ-CORE-060 (percentage compaction threshold and step-wise trigger) | ~15 |
 | `coyote_app_tests.adb` | REQ-CORE-010â023 (CLI parsing) | ~30 |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
 | `collapse_utils_tests.adb` | REQ-CORE-023 (thinking collapse) | 5 |
@@ -219,7 +219,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-010 | REQ-CORE-070 | Set defaultModel in settings.json; start coyote without --model; verify correct model used |
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
 | DEM-014 | REQ-CORE-110â115, 125, 132 | In a display-backed GUI, verify Markdown/tool presentation, conversation vi navigation only when a conversation text view has focus (`j`, `k`, `g`, `G`/Shift+`g`, Ctrl+D, Ctrl+U), native wheel scrolling, prompt Return/Ctrl+Return/Shift+Return behavior, focused Edit actions, visible primary accelerators, menu mnemonics, and Ctrl+wheel zoom. Record that current automated navigation tests cover only clamped movement arithmetic; GTK event routing remains manual. |
-| DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, verify Default model initial focus, Save as the default response, Escape cancellation, label mnemonics, ordinary and subagent model/thinking/sandbox defaults, recursion depth, termination grace, notifications, price display, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, saved paths persist in `skillPaths`, the active session is unchanged, and new sessions inherit the paths. |
+| DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, verify Default model initial focus, Save as the default response, Escape cancellation, label mnemonics, ordinary and subagent model/thinking/sandbox defaults, automatic compaction enablement, compaction threshold percentage (including 1 and 100 boundary values), recursion depth, termination grace, notifications, price display, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, saved compaction fields persist as `autoCompaction` and `compactionThresholdPercent`, the active session is unchanged, and new sessions inherit the settings. |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113c | Exercise the GUI menu bar and support windows: verify top-level order `File`, `Edit`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles for in-process support windows, the prominent coyote application icon above the Product Information name/version/license text, Yelp ownership for Overview/Keys topics, an in-process Product Information dialog, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
@@ -309,7 +309,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-055 | D | DEM-007 |
 | REQ-CORE-056 | T | `llm_parallel_tools_tests.adb` |
 | REQ-CORE-057 | T | `llm_tools_tests.adb` (TERM-aware and escalation regressions) |
-| REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009 |
+| REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009; percentage threshold boundaries and step-wise trigger timing |
 | REQ-CORE-065â068 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-020..022, code inspection |
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
 | REQ-CORE-070a | T | `llm_agent_tests.adb` |

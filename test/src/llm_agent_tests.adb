@@ -4789,7 +4789,15 @@ package body LLM_Agent_Tests is
          if Request_Count = 1 then
             Append
               (Res.Body_Data,
-               Text_SSE_Payload ("threshold reply", 120_000, 616));
+               Tool_Call_SSE_Payload
+                 ((1 =>
+                     Tool_Call_Def
+                       (Tool_Call_Id   => "call_threshold",
+                        Tool_Name      => "shell",
+                        Arguments_Json =>
+                          "{""command"":""printf threshold-tool""}")),
+                  Prompt_Tokens     => 120_000,
+                  Completion_Tokens => 616));
          else
             Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
          end if;
@@ -4808,7 +4816,7 @@ package body LLM_Agent_Tests is
       LLM.Agent.Create
         (S          => Agent_Session,
          Model_Spec => "openrouter/openai/gpt-4o-mini",
-         No_Tools   => True);
+         No_Tools   => False);
 
       Srv.Bind (Port);
 
@@ -5003,7 +5011,15 @@ package body LLM_Agent_Tests is
          if Request_Count = 1 then
             Append
               (Res.Body_Data,
-               Text_SSE_Payload ("persisted reply", 120_000, 616));
+               Tool_Call_SSE_Payload
+                 ((1 =>
+                     Tool_Call_Def
+                       (Tool_Call_Id   => "call_persist_threshold",
+                        Tool_Name      => "shell",
+                        Arguments_Json =>
+                          "{""command"":""printf persisted-tool""}")),
+                  Prompt_Tokens     => 120_000,
+                  Completion_Tokens => 616));
          else
             Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
          end if;
@@ -5022,7 +5038,7 @@ package body LLM_Agent_Tests is
       LLM.Agent.Create
         (S          => Agent_Session,
          Model_Spec => "openrouter/openai/gpt-4o-mini",
-         No_Tools   => True);
+         No_Tools   => False);
 
       Srv.Bind (Port);
 
@@ -5121,8 +5137,8 @@ package body LLM_Agent_Tests is
       LLM.Agent.Set_Compact_Settings
         (Agent_Session,
         (Enabled               => False,
-          Reserve_Tokens       =>
-            LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
+          Threshold_Percent       =>
+            LLM.Compaction.Default_Compact_Settings.Threshold_Percent,
           Keep_Recent_Tokens   =>
             LLM.Compaction.Default_Compact_Settings.Keep_Recent_Tokens,
           Consecutive_Failures => 0,
@@ -5147,7 +5163,8 @@ package body LLM_Agent_Tests is
       Assert
         (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
          /= LLM.Types.Compaction_Summary,
-         "Disabled compaction should not prepend a Compaction_Summary message");
+         "Disabled compaction should not prepend a Compaction_Summary"
+         & " message");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);

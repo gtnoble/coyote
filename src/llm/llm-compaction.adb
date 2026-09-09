@@ -291,11 +291,10 @@ package body LLM.Compaction is
       return Boolean
    is
       Threshold : constant Natural :=
-        (if
-           Context_Window > Natural (Settings.Reserve_Tokens)
-         then
-           Context_Window - Natural (Settings.Reserve_Tokens)
-         else 0);
+        Natural
+          ((Long_Long_Integer (Context_Window)
+            * Long_Long_Integer (Settings.Threshold_Percent))
+           / 100);
    begin
       return
         Settings.Enabled and then not Settings.Tripped

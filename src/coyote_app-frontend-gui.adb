@@ -59,6 +59,7 @@ with Gtk.List_Box;
 with Gtk.List_Box_Row;
 with Gtk.File_Chooser;
 with Gtk.File_Chooser_Dialog;
+with LLM.Compaction;
 with LLM.Settings;
 with Gtk.Tree_Model;
 with Gtk.Tree_Selection;
@@ -3026,6 +3027,8 @@ package body Coyote_App.Frontend.GUI is
       Recursion_C           : Gtk.Spin_Button.Gtk_Spin_Button;
       Grace_C               : Gtk.Spin_Button.Gtk_Spin_Button;
       Notification_C        : Gtk.Check_Button.Gtk_Check_Button;
+      Auto_Compaction_C     : Gtk.Check_Button.Gtk_Check_Button;
+      Compaction_Threshold_C : Gtk.Spin_Button.Gtk_Spin_Button;
       Skill_Paths_Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Resp                  : Gtk.Dialog.Gtk_Response_Type;
       Btn                   : Gtk.Widget.Gtk_Widget;
@@ -3081,6 +3084,14 @@ package body Coyote_App.Frontend.GUI is
       Coyote_GUI.Mnemonics.Reserve
         (Mnemonic_Context,
          "Desktop noti_fications when agent completes",
+         "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context,
+         "Enable _automatic context compaction",
+         "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context,
+         "Compaction threshold (_percent):",
          "Preferences");
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Preferences");
@@ -3304,6 +3315,34 @@ package body Coyote_App.Frontend.GUI is
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Check_Button.Gtk_New_With_Mnemonic
+           (Auto_Compaction_C, "Enable _automatic context compaction");
+         Auto_Compaction_C.Set_Active (Settings_Value.Auto_Compaction);
+         Row.Pack_Start (Auto_Compaction_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row   : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New_With_Mnemonic
+           (Label, "Compaction threshold (_percent):");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Spin_Button.Gtk_New (Compaction_Threshold_C, 1.0, 100.0, 1.0);
+         Label.Set_Mnemonic_Widget (Compaction_Threshold_C);
+         Compaction_Threshold_C.Set_Value
+           (Gdouble (Settings_Value.Compaction_Threshold_Percent));
+         Compaction_Threshold_C.Set_Width_Chars (8);
+         Row.Pack_Start (Compaction_Threshold_C, False, False, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Check_Button.Gtk_New_With_Mnemonic
            (Notification_C, "Desktop noti_fications when agent completes");
          Notification_C.Set_Active (Settings_Value.Completion_Notifications);
          Row.Pack_Start (Notification_C, True, True, 0);
@@ -3361,6 +3400,10 @@ package body Coyote_App.Frontend.GUI is
                    Max_Recursion_Depth => Natural (Recursion_C.Get_Value),
                    Termination_Grace_Seconds => Natural (Grace_C.Get_Value),
                    Completion_Notifications  => Notification_C.Get_Active,
+                   Auto_Compaction           => Auto_Compaction_C.Get_Active,
+                   Compaction_Threshold_Percent =>
+                     LLM.Compaction.Threshold_Percent_Range
+                       (Natural (Compaction_Threshold_C.Get_Value)),
                    Price_Display             =>
                      LLM.Settings.Price_Display_Mode'Val
                        (Price_Display_C.Get_Active),

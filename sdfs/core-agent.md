@@ -926,6 +926,22 @@ catalogue exceptions instead of swallowing them.
 `supports_parallel_tool_calls: true`, and the live-fetch test asserts the
 default stays False when the field is absent; full suite passes 870/870.
 
+## 2026-09-09 — Percentage-based step-wise auto-compaction (REQ-CORE-060, REQ-CORE-116..119, REQ-CORE-230)
+
+Auto-compaction now uses `Threshold_Percent` (valid range 1..100, default
+80) rather than a fixed reserve-token margin. `Should_Compact` computes
+`floor(Context_Window * Threshold_Percent / 100)`. The agent evaluates the
+estimated persisted history after every complete assistant/tool step and
+compacts before the next provider request; final responses do not trigger an
+unnecessary post-turn compaction, and individual tools in one batch are never
+split by compaction. Persistent `autoCompaction` and
+`compactionThresholdPercent` settings are loaded and saved atomically.
+
+Verification: production and test development builds succeed; the complete
+AUnit suite passes 875/875. Agent regressions cover multi-step threshold
+compaction and session reload persistence; settings and queue tests cover
+loading, saving, malformed/out-of-range defaults, and typed GUI transport.
+
 ## 2026-09-08 — Targeted tool cancellation and result-channel messages (REQ-CORE-055a..055d)
 
 `LLM.Agent` now maintains a protected per-session registry of active tool-call

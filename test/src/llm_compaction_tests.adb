@@ -193,13 +193,13 @@ package body LLM_Compaction_Tests is
 
       Disabled : constant LLM.Compaction.Compact_Settings :=
         (Enabled              => False,
-         Reserve_Tokens       => 30,
+         Threshold_Percent    => 70,
          Keep_Recent_Tokens   => 20,
          Consecutive_Failures => 0,
          Tripped              => False);
       Enabled  : constant LLM.Compaction.Compact_Settings :=
         (Enabled              => True,
-         Reserve_Tokens       => 30,
+         Threshold_Percent    => 70,
          Keep_Recent_Tokens   => 20,
          Consecutive_Failures => 0,
          Tripped              => False);
@@ -209,11 +209,28 @@ package body LLM_Compaction_Tests is
          "disabled compaction should never trigger");
       Assert
         (not LLM.Compaction.Should_Compact (69, 100, Enabled),
-         "usage below the reserve threshold should not compact");
+         "usage below the percentage threshold should not compact");
       Assert
         (LLM.Compaction.Should_Compact (70, 100, Enabled),
          "usage at the threshold should compact");
    end Test_Should_Compact;
+
+   procedure Test_Should_Compact_Uses_Percentage (T : in out Test) is
+      pragma Unreferenced (T);
+      Settings : constant LLM.Compaction.Compact_Settings :=
+        (Enabled              => True,
+         Threshold_Percent    => 1,
+         Keep_Recent_Tokens   => 20,
+         Consecutive_Failures => 0,
+         Tripped              => False);
+   begin
+      Assert
+        (not LLM.Compaction.Should_Compact (0, 10_000, Settings),
+         "zero usage should be below a one percent threshold");
+      Assert
+        (LLM.Compaction.Should_Compact (100, 10_000, Settings),
+         "one percent usage should reach a one percent threshold");
+   end Test_Should_Compact_Uses_Percentage;
 
    procedure Test_Find_Cut_Point (T : in out Test) is
       pragma Unreferenced (T);
@@ -222,19 +239,19 @@ package body LLM_Compaction_Tests is
       History        : LLM.Types.Message_Vectors.Vector;
       Short_Setting  : constant LLM.Compaction.Compact_Settings :=
         (Enabled              => True,
-         Reserve_Tokens       => 10,
+         Threshold_Percent       => 10,
          Keep_Recent_Tokens   => 100,
          Consecutive_Failures => 0,
          Tripped              => False);
       Keep_Last_Turn : constant LLM.Compaction.Compact_Settings :=
         (Enabled              => True,
-         Reserve_Tokens       => 10,
+         Threshold_Percent       => 10,
          Keep_Recent_Tokens   => 30,
          Consecutive_Failures => 0,
          Tripped              => False);
       Keep_All       : constant LLM.Compaction.Compact_Settings :=
         (Enabled              => True,
-         Reserve_Tokens       => 10,
+         Threshold_Percent       => 10,
          Keep_Recent_Tokens   => 200,
          Consecutive_Failures => 0,
          Tripped              => False);
@@ -332,7 +349,7 @@ package body LLM_Compaction_Tests is
       Candidate : LLM.Types.Message_Vectors.Vector;
       Settings  : constant LLM.Compaction.Compact_Settings :=
         (Enabled              => True,
-         Reserve_Tokens       => 100,
+         Threshold_Percent       => 100,
          Keep_Recent_Tokens   => 30,
          Consecutive_Failures => 0,
          Tripped              => False);
@@ -393,6 +410,10 @@ package body LLM_Compaction_Tests is
         (LLM_Compaction_Caller.Create
            ("LLM.Compaction decides when to compact",
             LLM_Compaction_Tests.Test_Should_Compact'Access));
+      Result.Add_Test
+        (LLM_Compaction_Caller.Create
+           ("LLM.Compaction uses percentage threshold boundaries",
+            LLM_Compaction_Tests.Test_Should_Compact_Uses_Percentage'Access));
       Result.Add_Test
         (LLM_Compaction_Caller.Create
            ("LLM.Compaction finds safe user-turn cut points",

@@ -375,9 +375,15 @@ stripped from the arguments JSON before the command executor receives it.
 #### 3.1.6 Context Compaction
 
 **REQ-CORE-060** (D)
-When the estimated token count of the conversation history exceeds the
-compaction threshold (context window minus `Reserve_Tokens`), the agent shall
-automatically trigger context compaction before sending the next request.
+When the estimated token count of the conversation history reaches or exceeds
+the configured compaction threshold, the agent shall automatically trigger
+context compaction before sending the next provider request. The threshold
+shall be expressed as a percentage of the active model's context window:
+`floor(Context_Window × Compaction_Threshold_Percent / 100)`. The percentage
+shall be configurable from 1 through 100, with a default of 80 percent.
+Automatic compaction shall be evaluated on a step-wise basis: after each
+completed model/tool step has been appended and persisted, and before another
+model request is sent. It shall not wait for the complete user turn to finish.
 
 **REQ-CORE-061** (D)
 The agent shall support manual compaction triggered by the user through the
@@ -420,7 +426,8 @@ still be available.
 
 **REQ-CORE-068** (D)
 The agent shall support partial compaction: when the conversation history
-exceeds the compaction threshold, the agent may keep the most recent N
+reaches the configured percentage compaction threshold, the agent may keep the
+most recent N
 turns verbatim and summarise only the earlier portion. The summarised
 portion shall be presented as a continuation preamble prefixed with
 "This session is being continued from a previous conversation that ran
@@ -869,9 +876,11 @@ GTK/Lasem realization, selectable source fallback, and zoom propagation.
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
 expose the default model, default thinking level, default sandbox profile,
-optional default subagent model, maximum subagent recursion depth, the shell
+optional default subagent model, automatic compaction enablement, the
+compaction threshold percentage, maximum subagent recursion depth, the shell
 termination grace period, the ordered list of additional skill directories, and
-whether the GTK model picker displays SI-prefixed or dB prices.
+whether the GTK model picker displays SI-prefixed or dB prices. The threshold
+percentage shall be an integer from 1 through 100 and shall default to 80.
 
 **REQ-CORE-117** (D)
 When the user saves GUI preferences, the frontend shall persist the default
@@ -897,7 +906,13 @@ format preference shall be persisted as the optional `priceDisplay` string in
 shall default to `"si"`. In `"db"` mode, each positive stored price `p` in
 $/MTok shall be displayed as `10 × log10 (p / 1,000,000)` dB, representing
 $/tok. Zero-valued fields shall display `free`, and negative fields shall be
-blank. The preference shall affect subsequently opened GTK model pickers.
+blank. The preference shall affect subsequently opened GTK model pickers. Automatic
+compaction enablement shall be persisted as the boolean `autoCompaction`, and
+the threshold percentage shall be persisted as the integer
+`compactionThresholdPercent`. Missing or malformed `autoCompaction` shall
+default to enabled. Missing, malformed, or out-of-range threshold percentages
+shall default to 80. These preferences affect subsequently created sessions
+without changing the active session.
 
 **REQ-CORE-118** (T)
 GUI preference persistence shall preserve unrelated fields in
@@ -1423,6 +1438,11 @@ default provider, model, thinking level, optional subagent provider/model,
 compaction settings, `promptFilter`, `completionNotifications`, the
 optional nonnegative `maxRecursionDepth` setting, `shellTerminationGraceSeconds`,
 and the optional `skillPaths` array, and the optional `priceDisplay` string.
+The compaction settings shall include the boolean `autoCompaction` and the
+integer `compactionThresholdPercent`. An absent or malformed
+`autoCompaction` shall default to enabled. An absent, malformed, or
+out-of-range `compactionThresholdPercent` shall default to 80; valid values
+shall be limited to 1 through 100.
 An absent or invalid `maxRecursionDepth` shall default to 1. An absent,
 negative, non-integer, or over-limit
 `shellTerminationGraceSeconds` shall default to 2 and values above 30 shall
