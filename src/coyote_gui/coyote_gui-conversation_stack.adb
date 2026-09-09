@@ -948,6 +948,7 @@ package body Coyote_GUI.Conversation_Stack is
       Details              : Gtk.Button.Gtk_Button;
       Abort_Button         : Gtk.Button.Gtk_Button;
       Abort_Message_Button : Gtk.Button.Gtk_Button;
+      Action_Box           : Gtk.Box.Gtk_Box;
       Info                 : Coyote_GUI.Tool_Info;
       Summary_Text         : constant String :=
         Format_Tool_Summary (Name, Args, Initial_Status, "", Running => False);
@@ -1038,7 +1039,11 @@ package body Coyote_GUI.Conversation_Stack is
          On_Detail_Clicked'Access,
         (Stack   => C'Unchecked_Access,
          Tool_Id => To_Unbounded_String (Tool_Id)));
-      Box.Pack_Start (Details, Expand => False, Fill => False, Padding => 0);
+      Gtk.Box.Gtk_New_Hbox (Action_Box, Homogeneous => False, Spacing => 4);
+      Box.Pack_Start
+        (Action_Box, Expand => False, Fill => False, Padding => 0);
+      Action_Box.Pack_Start
+        (Details, Expand => False, Fill => False, Padding => 0);
 
       Gtk.Button.Gtk_New (Abort_Button, "Abort");
       Abort_Button.Set_Can_Focus (True);
@@ -1051,7 +1056,7 @@ package body Coyote_GUI.Conversation_Stack is
          On_Tool_Abort_Clicked'Access,
         (Stack   => C'Unchecked_Access,
          Tool_Id => To_Unbounded_String (Tool_Id)));
-      Box.Pack_Start
+      Action_Box.Pack_Start
         (Abort_Button, Expand => False, Fill => False, Padding => 0);
       Gtk.Button.Gtk_New (Abort_Message_Button, "Abort With Message...");
       Abort_Message_Button.Set_Can_Focus (True);
@@ -1065,7 +1070,7 @@ package body Coyote_GUI.Conversation_Stack is
          On_Tool_Abort_Message_Clicked'Access,
         (Stack   => C'Unchecked_Access,
          Tool_Id => To_Unbounded_String (Tool_Id)));
-      Box.Pack_Start
+      Action_Box.Pack_Start
         (Abort_Message_Button, Expand => False, Fill => False, Padding => 0);
       C.Tool_Flow.Insert (Frame, -1);
       Show_Contents (C);
@@ -1076,6 +1081,7 @@ package body Coyote_GUI.Conversation_Stack is
           Details              => Details,
           Abort_Button         => Abort_Button,
           Abort_Message_Button => Abort_Message_Button,
+          Action_Box           => Action_Box,
           Info                 => Info));
    end Begin_Tool;
 

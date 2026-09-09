@@ -147,6 +147,7 @@ private
       Details              : Gtk.Button.Gtk_Button;
       Abort_Button         : Gtk.Button.Gtk_Button;
       Abort_Message_Button : Gtk.Button.Gtk_Button;
+      Action_Box           : Gtk.Box.Gtk_Box;
       Info                 : Coyote_GUI.Tool_Info;
    end record;
 

@@ -347,6 +347,18 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return False;
    end Abort_Message_Enabled;
 
+   function Tool_Action_Box
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String)
+      return Gtk.Box.Gtk_Box
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Action_Box;
+      end if;
+      return null;
+   end Tool_Action_Box;
+
    function Footer_Separator
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Separator.Gtk_Separator

@@ -145,6 +145,11 @@ package Coyote_GUI.Conversation_Stack.Testing is
       Tool_Id : String)
       return Boolean;
 
+   function Tool_Action_Box
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String)
+      return Gtk.Box.Gtk_Box;
+
    function Footer_Separator
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Separator.Gtk_Separator;

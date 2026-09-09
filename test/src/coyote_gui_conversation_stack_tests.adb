@@ -8,6 +8,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Glib;
+with Gtk.Box;
 with Gtk.Button;
 with Gtk.Container;
 with Gtk.Widget;
@@ -31,6 +32,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Glib.Gfloat;
    use type Glib.Gint;
    use type Glib.Guint;
+   use type Gtk.Box.Gtk_Box;
+   use type Gtk.Enums.Gtk_Orientation;
    use type Gtk.Flow_Box.Gtk_Flow_Box;
    use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
    use type Gtk.Frame.Gtk_Frame;
@@ -543,6 +546,43 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "View Details remains enabled after cancellation");
    end Test_Tool_Abort_Controls_Follow_Status;
 
+   procedure Test_Tool_Action_Buttons_Use_Horizontal_Row (T : in out Test) is
+      Action_Box : Gtk.Box.Gtk_Box;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Tool
+        (C          => T.Stack,
+         Name       => "shell",
+         Args       => "{""command"":""true""}",
+         Session_Id => "session",
+         Tool_Id    => "action-row");
+
+      Action_Box := Tool_Action_Box (T.Stack, "action-row");
+      Assert (Action_Box /= null, "tool card creates an action row");
+      Assert
+        (Action_Box.Get_Orientation = Gtk.Enums.Orientation_Horizontal,
+         "tool card action row is horizontal");
+      Assert
+        (Gtk.Widget.Widget_List.Length
+           (Gtk.Container.Get_Children
+              (Gtk.Container.Gtk_Container (Action_Box))) = 3,
+         "tool card action row contains three buttons");
+      Assert
+        (Gtk.Button.Gtk_Button (Action_Box.Get_Child (0)).Get_Label
+           = "View Details",
+         "action row starts with View Details");
+      Assert
+        (Gtk.Button.Gtk_Button (Action_Box.Get_Child (1)).Get_Label = "Abort",
+         "action row places Abort beside View Details");
+      Assert
+        (Gtk.Button.Gtk_Button (Action_Box.Get_Child (2)).Get_Label
+           = "Abort With Message...",
+         "action row places message abort beside View Details");
+   end Test_Tool_Action_Buttons_Use_Horizontal_Row;
+
    procedure Test_Tool_Cards_Use_Responsive_Flow (T : in out Test) is
       Flow         : Gtk.Flow_Box.Gtk_Flow_Box;
       First_Child  : Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
@@ -962,7 +1002,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack resets step frames for new requests",
+           ("Coyote.GUI.Conversation_Stack resets step frames for new "
+            & "requests",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_New_Request_Resets_Step_Frames'
               Access));
@@ -984,13 +1025,20 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack uses horizontal tool actions",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Tool_Action_Buttons_Use_Horizontal_Row'
+              Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack uses responsive tool flow",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Tool_Cards_Use_Responsive_Flow'
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack uses native labels and View Details action",
+           ("Coyote.GUI.Conversation_Stack uses native labels and "
+            & "View Details action",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Tool_Card_Uses_Native_Labels'
               Access));

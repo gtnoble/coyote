@@ -1081,6 +1081,15 @@ later run groups no longer appear active prematurely.
 The native conversation lifecycle regression covers queued → running → timed
 out transitions and passes 1/1 focused, 22/22 in the conversation-stack group.
 
+## 2026-09-09 — Horizontal tool-card action row
+
+Tool-card `View Details`, `Abort`, and `Abort With Message...` controls now share
+one horizontal GTK action row inside each card instead of being packed directly
+into the card's vertical content box. Existing callbacks, sensitivity transitions,
+button order, and the responsive flow of multiple cards are unchanged. Added a
+conversation-stack regression that verifies the row orientation, child count, and
+native button order.
+
 ## 2026-09-07 — Options → Subscriptions… manager (Codex provider GUI)
 
 The GTK frontend registers `Options → Subscriptions...` (mnemonic
