@@ -327,6 +327,32 @@ shall be cancelled and the agent loop shall terminate cleanly. A running
 provider HTTP/SSE request shall also be interruptible without waiting for the
 next response-body chunk.
 
+**REQ-CORE-055a** (D)
+A live or queued tool invocation shall support targeted cancellation by its
+stable tool-call ID without cancelling unrelated tools or the enclosing agent
+turn. A queued target shall produce one terminal cancelled tool result without
+being started. Global GUI Stop shall retain its existing whole-turn semantics.
+
+**REQ-CORE-055b** (D)
+Targeted cancellation shall preserve the existing tool-result identity and
+status contract: the result shall retain the original tool-call ID, use
+`status: "cancelled"`, set the error flag, and remain in the ordered tool
+result batch sent to the provider and persisted to session JSONL. A supplied
+user message shall be appended to that cancelled result text rather than
+persisted as a separate semantic user message.
+
+**REQ-CORE-055c** (D/T)
+The GTK GUI shall expose targeted cancellation as card-level `Abort` and
+`Abort With Message...` actions, preserve `View Details` for terminal cards,
+and keep targeted actions disabled after completion. The Agent menu shall
+provide equivalent actions and distinguish them from whole-turn `Stop`.
+
+**REQ-CORE-055d** (D/T)
+Coordinator RPC shall carry an `abortTool` command containing a required
+`toolId` string and optional `message` string. Local and RPC controls shall
+remain distinct from whole-agent Stop.
+
+
 **REQ-CORE-057** (T)
 When the shell tool receives a positive `timeout` value, it shall send SIGTERM
 to the command process group when the timeout expires, allow the configured
@@ -1670,6 +1696,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-053 | Image results bypass size cap | I | TC-053 |
 | REQ-CORE-054 | --no-tools returns error to model | D | TC-054 |
 | REQ-CORE-055 | Stop aborts tool execution | D | TC-055 |
+| REQ-CORE-055a..055d | Targeted tool cancellation, result-channel message, GTK actions, and abortTool RPC | D/T | New targeted-abort agent, GUI, and RPC tests |
 | REQ-CORE-056 | run_group controls parallel/sequential execution | T | TC-056 |
 | REQ-CORE-057 | shell timeout TERM/grace/KILL escalation | T | `llm_tools_tests.adb` |
 | REQ-CORE-060 | Auto compaction at threshold | D | TC-060 |

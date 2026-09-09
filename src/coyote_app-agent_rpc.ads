@@ -41,6 +41,7 @@ package Coyote_App.Agent_RPC is
       Stop,
       Pause,
       Resume,
+      Abort_Tool,
       Set_Sandbox,
       Shutdown);
 

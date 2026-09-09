@@ -38,6 +38,7 @@ package body LLM.Agent is
    use type LLM.Types.Stop_Reason;
    use type LLM.Types.Usage;
    use type LLM.Tools.Shell.Execution_Status;
+   use type LLM.Tools.Abort_Flag_Access;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    type Pending_Tool is record
@@ -72,6 +73,122 @@ package body LLM.Agent is
         LLM.Tools.Shell.Aborted;
    end record;
 
+   protected body Tool_Control_Registry is
+
+      procedure Register
+        (Tool_Id  : String;
+         Flag     : LLM.Tools.Abort_Flag_Access;
+         Accepted : out Boolean)
+      is
+      begin
+         Accepted := False;
+         for I in Entries'Range loop
+            if not Entries (I).Active then
+               if Flag /= null then
+                  Flag.Clear;
+               end if;
+               Entries (I) :=
+                 (Tool_Id  => To_Unbounded_String (Tool_Id),
+                  Flag     => Flag,
+                  Note     => Null_Unbounded_String,
+                  Active   => True,
+                  Finished => False);
+               Accepted := True;
+               return;
+            end if;
+         end loop;
+      end Register;
+
+      procedure Request
+        (Tool_Id : String;
+         Message : String;
+         Accepted : out Boolean)
+      is
+      begin
+         Accepted := False;
+         for I in Entries'Range loop
+            if Entries (I).Active
+              and then To_String (Entries (I).Tool_Id) = Tool_Id
+              and then not Entries (I).Finished
+            then
+               Entries (I).Note := To_Unbounded_String (Message);
+               if Entries (I).Flag /= null then
+                  Entries (I).Flag.Set;
+               end if;
+               Accepted := True;
+               return;
+            end if;
+         end loop;
+      end Request;
+
+      procedure Complete
+        (Tool_Id : String;
+         Message : out Ada.Strings.Unbounded.Unbounded_String)
+      is
+      begin
+         Message := Null_Unbounded_String;
+         for I in Entries'Range loop
+            if Entries (I).Active
+              and then To_String (Entries (I).Tool_Id) = Tool_Id
+            then
+               Message := Entries (I).Note;
+               Entries (I).Finished := True;
+               return;
+            end if;
+         end loop;
+      end Complete;
+
+      function Requested (Tool_Id : String) return Boolean is
+      begin
+         for I in Entries'Range loop
+            if Entries (I).Active
+              and then To_String (Entries (I).Tool_Id) = Tool_Id
+            then
+               return Entries (I).Flag /= null
+                 and then Entries (I).Flag.Requested;
+            end if;
+         end loop;
+         return False;
+      end Requested;
+
+      function Message (Tool_Id : String) return String is
+      begin
+         for I in Entries'Range loop
+            if Entries (I).Active
+              and then To_String (Entries (I).Tool_Id) = Tool_Id
+            then
+               return To_String (Entries (I).Note);
+            end if;
+         end loop;
+         return "";
+      end Message;
+
+      procedure Abort_All is
+      begin
+         for I in Entries'Range loop
+            if Entries (I).Active
+              and then not Entries (I).Finished
+              and then Entries (I).Flag /= null
+            then
+               Entries (I).Flag.Set;
+            end if;
+         end loop;
+      end Abort_All;
+
+      procedure Unregister (Tool_Id : String) is
+      begin
+         for I in Entries'Range loop
+            if Entries (I).Active
+              and then To_String (Entries (I).Tool_Id) = Tool_Id
+            then
+               Entries (I).Active := False;
+               return;
+            end if;
+         end loop;
+      end Unregister;
+
+   end Tool_Control_Registry;
+
    type Tool_Result_Slot_Array is array (Positive range <>) of
      Tool_Result_Slot;
 
@@ -93,6 +210,7 @@ package body LLM.Agent is
    --  Executes one tool call and stores the result in a Results_Store.
    task type Worker_Task
      (Store           : not null access Results_Store;
+      Registry        : not null access Tool_Control_Registry;
       Abort_Flg       : access LLM.Tools.Abort_Flag;
       Context_Window  : Natural;
       Sandbox_Profile : access constant
@@ -141,6 +259,7 @@ package body LLM.Agent is
       Is_Error   : Boolean := False;
       Status     : LLM.Tools.Shell.Execution_Status :=
         LLM.Tools.Shell.Failed;
+      Cancel_Note : Ada.Strings.Unbounded.Unbounded_String;
    begin
       accept Start
         (Index : Positive;
@@ -151,50 +270,52 @@ package body LLM.Agent is
       end Start;
 
       begin
-         if Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name) = "shell"
-         then
+         if Abort_Flg /= null and then Abort_Flg.Requested then
+            Result := To_Unbounded_String
+              ("[tool was cancelled before execution]");
+            Media_Type := Null_Unbounded_String;
+            Is_Error := True;
+            Status := LLM.Tools.Shell.Aborted;
+         elsif To_String (My_Tool.Tool_Name) = "shell" then
             LLM.Tools.Shell.Execute_With_Status
-              (Args_Json       => Ada.Strings.Unbounded.To_String
-                                    (My_Tool.Arguments_Json),
+              (Args_Json       => To_String (My_Tool.Arguments_Json),
                Result          => Result,
                Media_Type      => Media_Type,
                Is_Error        => Is_Error,
                Status          => Status,
                Abort_Flg       => Abort_Flg,
-               Sandbox_Profile => Ada.Strings.Unbounded.To_String
-                                    (Sandbox_Profile.all));
+               Sandbox_Profile => To_String (Sandbox_Profile.all));
 
             --  Apply the result-size cap to plain-text results.  Image
             --  results (Media_Type non-empty) are base64-encoded binary and
             --  must not be truncated.
-            if Ada.Strings.Unbounded.Length (Media_Type) = 0 then
-               Result := Ada.Strings.Unbounded.To_Unbounded_String
+            if Length (Media_Type) = 0 then
+               Result := To_Unbounded_String
                  (LLM.Tools.Temp_File.Truncated
-                    (Ada.Strings.Unbounded.To_String (Result),
+                    (To_String (Result),
                      Threshold => LLM.Tools.Temp_File.Result_Threshold
                                     (Context_Window),
-                     Tool_Name => Ada.Strings.Unbounded.To_String
-                                    (My_Tool.Tool_Name)));
+                     Tool_Name => To_String (My_Tool.Tool_Name)));
             end if;
          else
             --  The model called a tool name that is not registered.
             Result :=
-              Ada.Strings.Unbounded.To_Unbounded_String
-                ("unknown tool: "
-                 & Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name));
-            Media_Type := Ada.Strings.Unbounded.Null_Unbounded_String;
+              To_Unbounded_String
+                ("unknown tool: " & To_String (My_Tool.Tool_Name));
+            Media_Type := Null_Unbounded_String;
             Is_Error   := True;
             Status     := LLM.Tools.Shell.Failed;
          end if;
       exception
          when Ex : others =>
-            Result     := Ada.Strings.Unbounded.To_Unbounded_String
+            Result     := To_Unbounded_String
               (Ada.Exceptions.Exception_Message (Ex));
-            Media_Type := Ada.Strings.Unbounded.Null_Unbounded_String;
+            Media_Type := Null_Unbounded_String;
             Is_Error   := True;
             Status     := LLM.Tools.Shell.Failed;
       end;
 
+      Registry.Complete (To_String (My_Tool.Tool_Call_Id), Cancel_Note);
       Store.Set (My_Index, Result, Media_Type, Is_Error, Status);
    end Worker_Task;
 
@@ -2058,6 +2179,27 @@ package body LLM.Agent is
                        "Tool batch missing assistant message";
                   end if;
 
+                  --  Register each invocation before publishing its card so
+                  --  a control request can cancel a queued tool.
+                  for I in 1 .. N loop
+                     declare
+                        Accepted : Boolean;
+                     begin
+                        S.Tool_Registry.Register
+                          (Tool_Id  => To_String
+                             (Pending_Tools.Element (I - 1).Tool_Call_Id),
+                           Flag     => S.Tool_Flags (I)'Unchecked_Access,
+                           Accepted => Accepted);
+                        if not Accepted then
+                           raise Program_Error with
+                             "active tool registry is full";
+                        end if;
+                        if S.Abort_State.Requested then
+                           S.Tool_Flags (I).Set;
+                        end if;
+                     end;
+                  end loop;
+
                   --  Phase 1: emit Tool_Execution_Start_Event for every
                   --  tool (main task, sequential) before any worker is
                   --  spawned.
@@ -2148,31 +2290,39 @@ package body LLM.Agent is
                                    of Worker_Access;
                               begin
                                  for W in 1 .. Group_Size loop
-                                    Workers (W) := new Worker_Task
-                                      (Store           =>
-                                         Store'Unchecked_Access,
-                                       Abort_Flg       =>
-                                         S.Abort_State'Access,
-                                       Context_Window  =>
-                                         S.Model_Info
-                                           .Context_Window,
-                                       Sandbox_Profile =>
-                                         S.Sandbox_Profile'Access);
                                     declare
-                                       Running_Event : constant
-                                         LLM.Events.Tool_Execution_Running_Event :=
-                                           (LLM.Events.Agent_Event with
-                                            Tool_Call_Id =>
-                                              Pending_Tools.Element
-                                                (Slot_Map (W) - 1).Tool_Call_Id);
+                                       Tool_Index : constant Positive :=
+                                         Slot_Map (W);
                                     begin
-                                       Emit (On_Event, Running_Event);
+                                       Workers (W) := new Worker_Task
+                                         (Store           =>
+                                            Store'Unchecked_Access,
+                                          Registry        =>
+                                            S.Tool_Registry'Access,
+                                          Abort_Flg       =>
+                                            S.Tool_Flags (Tool_Index)'Unchecked_Access,
+                                          Context_Window  =>
+                                            S.Model_Info.Context_Window,
+                                          Sandbox_Profile =>
+                                            S.Sandbox_Profile'Access);
+                                       if not S.Tool_Flags (Tool_Index).Requested
+                                       then
+                                          declare
+                                             Running_Event : constant
+                                               LLM.Events.Tool_Execution_Running_Event :=
+                                                 (LLM.Events.Agent_Event with
+                                                  Tool_Call_Id =>
+                                                    Pending_Tools.Element
+                                                      (Tool_Index - 1).Tool_Call_Id);
+                                          begin
+                                             Emit (On_Event, Running_Event);
+                                          end;
+                                       end if;
+                                       Workers (W).Start
+                                         (Index => W,
+                                          Tool  => Pending_Tools.Element
+                                            (Tool_Index - 1));
                                     end;
-                                    Workers (W).Start
-                                      (Index => W,
-                                       Tool  =>
-                                         Pending_Tools.Element
-                                           (Slot_Map (W) - 1));
                                  end loop;
 
                                  Store.Wait_All;
@@ -2198,26 +2348,37 @@ package body LLM.Agent is
                            Tool   : constant Pending_Tool :=
                              Pending_Tools.Element (I - 1);
                         begin
-                           Worker := new Worker_Task
-                             (Store           => Store'Unchecked_Access,
-                              Abort_Flg       =>
-                                S.Abort_State'Access,
-                              Context_Window  =>
-                                S.Model_Info.Context_Window,
-                              Sandbox_Profile =>
-                                S.Sandbox_Profile'Access);
-                           declare
-                              Running_Event : constant
-                                LLM.Events.Tool_Execution_Running_Event :=
-                                  (LLM.Events.Agent_Event with
-                                   Tool_Call_Id => Tool.Tool_Call_Id);
-                           begin
-                              Emit (On_Event, Running_Event);
-                           end;
-                           Worker.Start
-                             (Index => 1, Tool => Tool);
-                           Store.Wait_All;
-                           Results (I) := Store.Get (1);
+                           if S.Tool_Flags (I).Requested then
+                              Results (I) :=
+                                (Result_Text => To_Unbounded_String
+                                   ("[tool was cancelled before execution]"),
+                                 Media_Type  => Null_Unbounded_String,
+                                 Is_Error    => True,
+                                 Status      => LLM.Tools.Shell.Aborted);
+                           else
+                              Worker := new Worker_Task
+                                (Store           => Store'Unchecked_Access,
+                                 Registry        =>
+                                   S.Tool_Registry'Access,
+                                 Abort_Flg       =>
+                                   S.Tool_Flags (I)'Unchecked_Access,
+                                 Context_Window  =>
+                                   S.Model_Info.Context_Window,
+                                 Sandbox_Profile =>
+                                   S.Sandbox_Profile'Access);
+                              declare
+                                 Running_Event : constant
+                                   LLM.Events.Tool_Execution_Running_Event :=
+                                    (LLM.Events.Agent_Event with
+                                     Tool_Call_Id => Tool.Tool_Call_Id);
+                              begin
+                                 Emit (On_Event, Running_Event);
+                              end;
+                              Worker.Start
+                                (Index => 1, Tool => Tool);
+                              Store.Wait_All;
+                              Results (I) := Store.Get (1);
+                           end if;
                         end;
                      end loop;
                   end if;
@@ -2237,7 +2398,7 @@ package body LLM.Agent is
                              Pending_Tools.Element (I - 1);
                            Slot        : constant
                              Tool_Result_Slot := Results (I);
-                           End_Event   : constant
+                           End_Event   :
                              LLM.Events.Tool_Execution_End_Event :=
                                (LLM.Events.Agent_Event with
                                 Tool_Call_Id =>
@@ -2254,9 +2415,20 @@ package body LLM.Agent is
                                   Slot.Status = LLM.Tools.Shell.Timed_Out,
                                 Is_Cancelled =>
                                   Slot.Status = LLM.Tools.Shell.Aborted);
+                           Cancel_Note : Ada.Strings.Unbounded.Unbounded_String;
+                           Message_Text : constant String :=
+                             (if Slot.Status = LLM.Tools.Shell.Aborted
+                              then S.Tool_Registry.Message
+                                (To_String (Tool_Block.Tool_Call_Id))
+                              else "");
                            Stored_Text : constant String :=
                              Ada.Strings.Unbounded.To_String
                                (Slot.Result_Text)
+                             & (if Message_Text'Length > 0
+                                then ASCII.LF
+                                  & "[user message accompanying cancellation]"
+                                  & ASCII.LF & Message_Text
+                                else "")
                              & (if I = N
                                    and then Stats_Footer'Length > 0
                                    and then Ada.Strings.Unbounded.Length
@@ -2264,6 +2436,11 @@ package body LLM.Agent is
                                 then ASCII.LF & Stats_Footer
                                 else "");
                         begin
+                           S.Tool_Registry.Complete
+                             (To_String (Tool_Block.Tool_Call_Id),
+                              Cancel_Note);
+                           End_Event.Result_Text :=
+                             To_Unbounded_String (Stored_Text);
                            Emit (On_Event, End_Event);
                            Tool_Messages.Append
                              (Tool_Result_Message
@@ -2285,6 +2462,8 @@ package body LLM.Agent is
                                  Media_Type   =>
                                    Ada.Strings.Unbounded.To_String
                                      (Slot.Media_Type)));
+                           S.Tool_Registry.Unregister
+                             (To_String (Tool_Block.Tool_Call_Id));
                         end;
                      end loop;
                   end;
@@ -2391,8 +2570,20 @@ package body LLM.Agent is
    procedure Request_Abort (S : in out Session) is
    begin
       S.Abort_State.Set;
+      S.Tool_Registry.Abort_All;
       S.Pause_State.Release;
    end Request_Abort;
+
+   function Request_Tool_Abort
+     (S       : in out Session;
+      Tool_Id : String;
+      Message : String := "") return Boolean
+   is
+      Accepted : Boolean;
+   begin
+      S.Tool_Registry.Request (Tool_Id, Message, Accepted);
+      return Accepted;
+   end Request_Tool_Abort;
 
    procedure Request_Pause (S : in out Session) is
    begin

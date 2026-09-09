@@ -469,6 +469,39 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "timed-out status is visible in the compact card");
    end Test_Tool_Status_Transitions;
 
+   procedure Test_Tool_Abort_Controls_Follow_Status (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Tool
+        (C            => T.Stack,
+         Name         => "shell",
+         Args         => "{""command"":""sleep 10""}",
+         Session_Id   => "session",
+         Tool_Id      => "abort-controls",
+         Initial_Status => Queued);
+      Assert (Abort_Enabled (T.Stack, "abort-controls"),
+              "Abort is enabled for queued tools");
+      Assert (Abort_Message_Enabled (T.Stack, "abort-controls"),
+              "Abort With Message is enabled for queued tools");
+      Set_Tool_Status (T.Stack, "abort-controls", Running);
+      Assert (Abort_Enabled (T.Stack, "abort-controls"),
+              "Abort remains enabled while running");
+      End_Tool
+        (C        => T.Stack,
+         Tool_Id  => "abort-controls",
+         Status   => Cancelled,
+         Result   => "cancelled by test");
+      Assert (not Abort_Enabled (T.Stack, "abort-controls"),
+              "Abort is disabled after cancellation");
+      Assert (not Abort_Message_Enabled (T.Stack, "abort-controls"),
+              "Abort With Message is disabled after cancellation");
+      Assert (Details_Enabled (T.Stack, "abort-controls"),
+              "View Details remains enabled after cancellation");
+   end Test_Tool_Abort_Controls_Follow_Status;
+
    procedure Test_Tool_Cards_Use_Responsive_Flow (T : in out Test) is
       Flow : Gtk.Flow_Box.Gtk_Flow_Box;
       First_Child : Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
@@ -844,6 +877,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack tracks tool status transitions",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Status_Transitions'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack tracks abort controls by status",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Abort_Controls_Follow_Status'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses responsive tool flow",
          Coyote_GUI_Conversation_Stack_Tests

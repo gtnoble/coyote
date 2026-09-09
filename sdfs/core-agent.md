@@ -925,3 +925,20 @@ catalogue exceptions instead of swallowing them.
 `Supports_Tools = True` for the fixture record carrying
 `supports_parallel_tool_calls: true`, and the live-fetch test asserts the
 default stays False when the field is absent; full suite passes 870/870.
+
+## 2026-09-08 — Targeted tool cancellation and result-channel messages (REQ-CORE-055a..055d)
+
+`LLM.Agent` now maintains a protected per-session registry of active tool-call
+IDs, individual abort flags, completion state, and optional cancellation
+messages. `Request_Abort` remains whole-turn Stop and fans out to every tool;
+`Request_Tool_Abort` cancels only the requested queued or running invocation.
+Queued cancellation synthesizes a terminal cancelled result without a Running
+event. Running shell cancellation preserves partial output, emits the normal
+cancelled end event, and appends the supplied message to the model-facing and
+persisted `Tool_Result` text. The existing call ID and `status: "cancelled"`
+contract remain unchanged.
+
+The typed frontend control and versioned RPC codec now support `abortTool` with
+required `toolId` and optional `message` fields. Global Stop remains distinct.
+Focused RPC tests cover round-trip and invalid payloads; existing global and
+parallel abort regressions remain active.

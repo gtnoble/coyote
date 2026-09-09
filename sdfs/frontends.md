@@ -1156,3 +1156,15 @@ silenced with a pragma.
 
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 864/864 including all GUI domain tests.
+
+## 2026-09-08 — IRIX-style targeted tool actions (REQ-CORE-055c..055d)
+
+Native tool cards now provide focusable `Abort` and `Abort With Message...`
+pushbuttons beside `View Details`. The actions are enabled for queued/running
+calls and disabled for terminal calls; `View Details` remains available for
+review. The Agent menu provides equivalent selected-tool actions, while the
+existing Agent `Stop` remains whole-turn cancellation. The message prompt is a
+transient `coyote : Prompt` dialog with a multiline field and specific Abort,
+Cancel, and Help responses. Local actions call the protected session bridge;
+virtual-agent actions send the typed `abortTool` RPC command. Focused GUI tests
+cover active/terminal sensitivity and terminal detail availability.

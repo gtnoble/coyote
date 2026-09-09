@@ -132,6 +132,17 @@ package body Coyote_App.Headless is
                LLM.Agent.Request_Pause (Agent_Session);
             when Coyote_App.Frontend.Control_Resume =>
                LLM.Agent.Resume (Agent_Session);
+            when Coyote_App.Frontend.Control_Abort_Tool =>
+               declare
+                  Accepted : constant Boolean :=
+                    LLM.Agent.Request_Tool_Abort
+                      (S       => Agent_Session,
+                       Tool_Id => To_String (Command.Tool_Id),
+                       Message => To_String (Command.Abort_Message));
+                  pragma Unreferenced (Accepted);
+               begin
+                  null;
+               end;
             when Coyote_App.Frontend.Control_Set_Sandbox =>
                LLM.Agent.Set_Sandbox_Profile
                  (S       => Agent_Session,

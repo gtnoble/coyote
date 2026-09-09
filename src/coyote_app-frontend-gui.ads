@@ -235,6 +235,9 @@ private
    protected type Session_Reference is
       procedure Set (Value : access LLM.Agent.Session);
       procedure Request_Abort;
+      procedure Request_Tool_Abort
+        (Tool_Id : String;
+         Message : String);
    private
       Value : access LLM.Agent.Session := null;
    end Session_Reference;
@@ -280,6 +283,8 @@ private
         Gtk.Tree_Model.Null_Iter;
       Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Stop_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
+      Abort_Tool_Item       : Gtk.Menu_Item.Gtk_Menu_Item;
+      Abort_Tool_Message_Item : Gtk.Menu_Item.Gtk_Menu_Item;
       Pause_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
       Resume_Item           : Gtk.Menu_Item.Gtk_Menu_Item;
       Clear_Item            : Gtk.Menu_Item.Gtk_Menu_Item;

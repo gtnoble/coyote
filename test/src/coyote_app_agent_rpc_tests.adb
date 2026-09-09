@@ -3,6 +3,7 @@ with AUnit.Test_Caller;
 --
 --  Project: coyote
 
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
@@ -100,6 +101,40 @@ package body Coyote_App_Agent_RPC_Tests is
       Assert (To_String (Output.Request_Id) = "stop-19",
               "Stop command request identity must round-trip");
    end Test_Stop_Command_Round_Trip;
+
+   procedure Test_Abort_Tool_Command_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant Frame :=
+        Make_Command
+          (Agent_Id      => "worker-7",
+           Request_Id    => "abort-19",
+           Command_Name  => Abort_Tool,
+           Payload_Json  =>
+             "{""toolId"":""call-2"",""message"":""continue manually""}");
+      Output : constant Frame := Decode (Encode (Input));
+   begin
+      Assert (Output.Command_Name = Abort_Tool,
+              "Abort_Tool command name must round-trip");
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Output.Payload_Json), """toolId"":""call-2""") > 0,
+              "Abort_Tool tool ID must round-trip");
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Output.Payload_Json), """message"":""continue manually""") > 0,
+              "Abort_Tool message must round-trip");
+   end Test_Abort_Tool_Command_Round_Trip;
+
+   procedure Test_Abort_Tool_Command_Rejects_Invalid_Payload
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Expect_RPC_Error
+        ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""command"",""agentId"":""worker"",""requestId"":""abort"",""command"":""abortTool"",""payload"":{}}",
+         "Abort_Tool must reject a missing tool ID");
+      Expect_RPC_Error
+        ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""command"",""agentId"":""worker"",""requestId"":""abort"",""command"":""abortTool"",""payload"":{""toolId"":""call"",""message"":3}}",
+         "Abort_Tool must reject a non-string message");
+   end Test_Abort_Tool_Command_Rejects_Invalid_Payload;
 
    procedure Test_Set_Sandbox_Command_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
@@ -230,6 +265,14 @@ package body Coyote_App_Agent_RPC_Tests is
         ("Agent RPC Stop command round-trips",
          Coyote_App_Agent_RPC_Tests
            .Test_Stop_Command_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC Abort_Tool command round-trips",
+         Coyote_App_Agent_RPC_Tests
+           .Test_Abort_Tool_Command_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC Abort_Tool rejects invalid payloads",
+         Coyote_App_Agent_RPC_Tests
+           .Test_Abort_Tool_Command_Rejects_Invalid_Payload'Access));
       Result.Add_Test (Agent_RPC_Caller.Create
         ("Agent RPC Set_Sandbox command round-trips",
          Coyote_App_Agent_RPC_Tests

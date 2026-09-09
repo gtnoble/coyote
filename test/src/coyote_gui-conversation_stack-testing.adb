@@ -311,6 +311,28 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return False;
    end Details_Enabled;
 
+   function Abort_Enabled
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Boolean
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Abort_Button.Get_Sensitive;
+      end if;
+      return False;
+   end Abort_Enabled;
+
+   function Abort_Message_Enabled
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Boolean
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Abort_Message_Button.Get_Sensitive;
+      end if;
+      return False;
+   end Abort_Message_Enabled;
+
    function Footer_Separator
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Separator.Gtk_Separator

@@ -279,6 +279,7 @@ package body Coyote_App.Frontend.GUI is
                  and then Status = Coyote_App.Agent_Registry.Paused)
               or else Command = Coyote_App.Agent_RPC.Prompt
               or else Command = Coyote_App.Agent_RPC.Steer
+              or else Command = Coyote_App.Agent_RPC.Abort_Tool
               or else Command = Coyote_App.Agent_RPC.Set_Sandbox);
       begin
          if not Allowed then
@@ -702,6 +703,20 @@ package body Coyote_App.Frontend.GUI is
             LLM.Agent.Request_Abort (Session_Reference.Value.all);
          end if;
       end Request_Abort;
+
+      procedure Request_Tool_Abort
+        (Tool_Id : String;
+         Message : String)
+      is
+         Accepted : Boolean;
+      begin
+         if Session_Reference.Value /= null then
+            Accepted := LLM.Agent.Request_Tool_Abort
+              (S       => Session_Reference.Value.all,
+               Tool_Id => Tool_Id,
+               Message => Message);
+         end if;
+      end Request_Tool_Abort;
    end Session_Reference;
 
    use type Gtk.Dialog.Gtk_Dialog;
@@ -719,6 +734,7 @@ package body Coyote_App.Frontend.GUI is
    use type Coyote_GUI.Model_Picker.Selection_Status;
    use type LLM.Settings.Price_Display_Mode;
    use type Coyote_GUI.Run_Mode;
+   use type Coyote_GUI.Tool_Action_Kind;
 
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
@@ -730,6 +746,22 @@ package body Coyote_App.Frontend.GUI is
      (UUID   : String;
       Turn_N : Positive;
       Step_N : Natural);
+
+   procedure On_Native_Tool_Action
+     (Tool_Id : String;
+      Action  : Coyote_GUI.Tool_Action_Kind;
+      Message : String);
+
+   procedure Prompt_Tool_Abort_Message
+     (Tool_Id  : String;
+      Message  : out Unbounded_String;
+      Accepted : out Boolean);
+
+   procedure On_Abort_Tool_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+
+   procedure On_Abort_Tool_Message_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    function On_Prompt_Button_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -1014,6 +1046,7 @@ package body Coyote_App.Frontend.GUI is
       Pause_Enabled : Boolean := False;
       Resume_Enabled : Boolean := False;
       Clear_Enabled : Boolean := True;
+      Tool_Enabled : Boolean := False;
    begin
       if not Is_Local_Agent
         (F, To_String (F.Selected_Agent_Id))
@@ -1045,8 +1078,26 @@ package body Coyote_App.Frontend.GUI is
          Resume_Enabled := Coyote_GUI.Resume_Available (Mode);
          Clear_Enabled := Mode = Coyote_GUI.Idle;
       end if;
+      declare
+         Selected_Tool : constant String :=
+           Coyote_GUI.Conversation_Stack.Selected_Tool_Id (F.Stack);
+         Selected_Info : constant Coyote_GUI.Tool_Info :=
+           Coyote_GUI.Conversation_Stack.Tool_Detail
+             (F.Stack, Selected_Tool);
+      begin
+         Tool_Enabled :=
+           Selected_Tool'Length > 0
+           and then not Selected_Info.Completed
+           and then Stop_Enabled;
+      end;
       if F.Stop_Btn /= null then
          F.Stop_Btn.Set_Sensitive (Stop_Enabled);
+      end if;
+      if F.Abort_Tool_Item /= null then
+         F.Abort_Tool_Item.Set_Sensitive (Tool_Enabled);
+      end if;
+      if F.Abort_Tool_Message_Item /= null then
+         F.Abort_Tool_Message_Item.Set_Sensitive (Tool_Enabled);
       end if;
       if F.Stop_Item /= null then
          F.Stop_Item.Set_Sensitive (Stop_Enabled);
@@ -1257,6 +1308,148 @@ package body Coyote_App.Frontend.GUI is
       end;
    end On_Stack_Adj_Changed;
 
+   procedure Prompt_Tool_Abort_Message
+     (Tool_Id  : String;
+      Message  : out Unbounded_String;
+      Accepted : out Boolean)
+   is
+      Dialog    : Gtk.Dialog.Gtk_Dialog;
+      Content   : Gtk.Box.Gtk_Box;
+      Row       : Gtk.Box.Gtk_Box;
+      Label     : Gtk.Label.Gtk_Label;
+      Buffer    : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View      : Gtk.Text_View.Gtk_Text_View;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Button    : Gtk.Widget.Gtk_Widget;
+      Response  : Gtk.Dialog.Gtk_Response_Type;
+      Start_It  : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_It    : Gtk.Text_Iter.Gtk_Text_Iter;
+      pragma Unreferenced (Tool_Id);
+      use type Gtk.Dialog.Gtk_Response_Type;
+   begin
+      Message := Null_Unbounded_String;
+      Accepted := False;
+      if Current_Frontend = null then
+         return;
+      end if;
+      Gtk.Dialog.Gtk_New (Dialog);
+      Dialog.Set_Title ("coyote : Prompt");
+      Dialog.Set_Default_Size (560, 300);
+      Dialog.Set_Transient_For (Current_Frontend.Win);
+      Content := Dialog.Get_Content_Area;
+      Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+      Gtk.Label.Gtk_New (Label, "Message:");
+      Label.Set_Xalign (0.0);
+      Row.Pack_Start (Label, False, False, 0);
+      Content.Pack_Start (Row, False, False, 4);
+      Gtk.Text_Buffer.Gtk_New (Buffer);
+      Gtk.Text_View.Gtk_New (View, Buffer);
+      View.Set_Wrap_Mode (Gtk.Enums.Wrap_Word_Char);
+      View.Set_Size_Request (500, 140);
+      Gtk.Scrolled_Window.Gtk_New (Scroll);
+      Scroll.Set_Policy
+        (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
+      Scroll.Add (View);
+      Content.Pack_Start (Scroll, True, True, 4);
+      Button := Dialog.Add_Button
+        ("_Abort With Message", Gtk.Dialog.Gtk_Response_OK);
+      Button := Dialog.Add_Button
+        ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
+      Button := Dialog.Add_Button
+        ("_Help", Gtk.Dialog.Gtk_Response_Help);
+      Dialog.Set_Default_Response (Gtk.Dialog.Gtk_Response_OK);
+      Dialog.Show_All;
+      View.Grab_Focus;
+      Response := Dialog.Run;
+      if Response = Gtk.Dialog.Gtk_Response_OK then
+         Buffer.Get_Start_Iter (Start_It);
+         Buffer.Get_End_Iter (End_It);
+         Message := To_Unbounded_String
+           (Buffer.Get_Text (Start_It, End_It));
+         Accepted := Ada.Strings.Fixed.Trim
+           (To_String (Message), Ada.Strings.Both)'Length > 0;
+      end if;
+      Dialog.Destroy;
+   end Prompt_Tool_Abort_Message;
+
+   procedure On_Abort_Tool_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         On_Native_Tool_Action
+           (Coyote_GUI.Conversation_Stack.Selected_Tool_Id
+              (Current_Frontend.Stack),
+            Coyote_GUI.Abort_Tool, "");
+      end if;
+   end On_Abort_Tool_Activate;
+
+   procedure On_Abort_Tool_Message_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      Tool_Id : Unbounded_String;
+      Message : Unbounded_String;
+      Accepted : Boolean;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      Tool_Id := To_Unbounded_String
+        (Coyote_GUI.Conversation_Stack.Selected_Tool_Id
+           (Current_Frontend.Stack));
+      Prompt_Tool_Abort_Message (To_String (Tool_Id), Message, Accepted);
+      if Accepted then
+         On_Native_Tool_Action
+           (To_String (Tool_Id), Coyote_GUI.Abort_With_Message,
+            To_String (Message));
+      end if;
+   end On_Abort_Tool_Message_Activate;
+
+   procedure On_Native_Tool_Action
+     (Tool_Id : String;
+      Action  : Coyote_GUI.Tool_Action_Kind;
+      Message : String)
+   is
+      Payload : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      if Action = Coyote_GUI.Abort_With_Message
+        and then (Message'Length = 0 or else Message = "__PROMPT__")
+      then
+         declare
+            Entered : Unbounded_String;
+            Accepted : Boolean;
+         begin
+            Prompt_Tool_Abort_Message (Tool_Id, Entered, Accepted);
+            if not Accepted then
+               return;
+            end if;
+            On_Native_Tool_Action
+              (Tool_Id, Coyote_GUI.Abort_With_Message, To_String (Entered));
+            return;
+         end;
+      elsif Action /= Coyote_GUI.Abort_Tool
+        and then Action /= Coyote_GUI.Abort_With_Message
+      then
+         return;
+      end if;
+      Payload.Set_Field ("toolId", Tool_Id);
+      Payload.Set_Field ("message", Message);
+      if Selected_Is_Local then
+         Current_Frontend.Agent_Sess.Request_Tool_Abort
+           (Tool_Id, Message);
+      else
+         Send_Selected_RPC_Command
+           (Coyote_App.Agent_RPC.Abort_Tool,
+            GNATCOLL.JSON.Write (Payload));
+      end if;
+   end On_Native_Tool_Action;
+
    procedure On_Native_Fork
      (UUID   : String;
       Turn_N : Positive;
@@ -1416,11 +1609,13 @@ package body Coyote_App.Frontend.GUI is
                Turn_Index       => Positive'Max (U.Tool_Turn, 1),
                Call_In_Turn     => Positive'Max (U.Tool_Call, 1),
                Initial_Status  => U.T_Status);
+            Apply_Agent_Menu_Sensitivity (F);
 
          when Set_Tool_Status =>
             F.Stack.Set_Tool_Status
               (Tool_Id => To_String (U.Text),
                Status  => U.T_Status);
+            Apply_Agent_Menu_Sensitivity (F);
 
          when End_Tool =>
             F.Stack.End_Tool
@@ -1428,6 +1623,7 @@ package body Coyote_App.Frontend.GUI is
                Status     => U.T_Status,
                Result     => To_String (U.Text2),
                Media_Type => To_String (U.Text3));
+            Apply_Agent_Menu_Sensitivity (F);
 
          when Append_Notice =>
             F.Stack.Append_Notice
@@ -1499,6 +1695,7 @@ package body Coyote_App.Frontend.GUI is
 
          when Clear_Conversation =>
             F.Stack.Clear;
+            Apply_Agent_Menu_Sensitivity (F);
 
          when Set_Session_Identity =>
             F.Win.Set_Role
@@ -3721,6 +3918,16 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_Escape,
          0,
          Gtk.Accel_Group.Accel_Visible);
+      F.Abort_Tool_Item :=
+        Make_Item ("Abort Selected Tool", Agent_Menu, Agent_Mnemonics);
+      F.Abort_Tool_Item.On_Activate (On_Abort_Tool_Activate'Access);
+      F.Abort_Tool_Message_Item :=
+        Make_Item
+          ("Abort Selected Tool With Message...",
+           Agent_Menu,
+           Agent_Mnemonics);
+      F.Abort_Tool_Message_Item.On_Activate
+        (On_Abort_Tool_Message_Activate'Access);
       F.Pause_Item := Make_Item ("_Pause", Agent_Menu, Agent_Mnemonics);
       F.Pause_Item.On_Activate (On_Pause_Activate'Access);
       F.Pause_Item.Add_Accelerator
@@ -4008,6 +4215,8 @@ package body Coyote_App.Frontend.GUI is
         (F.Stack, F.Win.all'Access);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
         (F.Stack, On_Native_Fork'Access);
+      Coyote_GUI.Conversation_Stack.Set_Tool_Action_Handler
+        (F.Stack, On_Native_Tool_Action'Access);
 
       declare
          Adj : constant Gtk.Adjustment.Gtk_Adjustment :=

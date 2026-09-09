@@ -45,6 +45,13 @@ package Coyote_GUI is
       end case;
    end record;
 
+   type Tool_Action_Kind is (Abort_Tool, Abort_With_Message);
+
+   type Tool_Action_Handler is access procedure
+     (Tool_Id : String;
+      Action  : Tool_Action_Kind;
+      Message : String);
+
    type Tool_Click_Result (Found : Boolean := False) is record
       case Found is
          when True =>

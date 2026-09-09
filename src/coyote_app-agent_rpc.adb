@@ -129,6 +129,7 @@ package body Coyote_App.Agent_RPC is
          when Stop       => return "stop";
          when Pause      => return "pause";
          when Resume     => return "resume";
+         when Abort_Tool => return "abortTool";
          when Set_Sandbox => return "setSandbox";
          when Shutdown   => return "shutdown";
       end case;
@@ -176,6 +177,7 @@ package body Coyote_App.Agent_RPC is
       elsif Value = "stop" then return Stop;
       elsif Value = "pause" then return Pause;
       elsif Value = "resume" then return Resume;
+      elsif Value = "abortTool" then return Abort_Tool;
       elsif Value = "setSandbox" then return Set_Sandbox;
       elsif Value = "shutdown" then return Shutdown;
       else
@@ -322,6 +324,20 @@ package body Coyote_App.Agent_RPC is
                then
                   raise RPC_Error with
                     "sandbox RPC command payload requires string field: profile";
+               elsif Value.Command_Name = Abort_Tool
+                 and then (not Payload.Has_Field ("toolId")
+                           or else Payload.Get ("toolId").Kind /=
+                             JSON_String_Type
+                           or else String'(Payload.Get ("toolId").Get)'Length = 0)
+               then
+                  raise RPC_Error with
+                    "abort-tool RPC payload requires string field: toolId";
+               elsif Value.Command_Name = Abort_Tool
+                 and then Payload.Has_Field ("message")
+                 and then Payload.Get ("message").Kind /= JSON_String_Type
+               then
+                  raise RPC_Error with
+                    "abort-tool RPC payload message must be a string";
                end if;
             end;
          when Terminal =>

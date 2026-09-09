@@ -86,6 +86,15 @@ package LLM.Agent is
    --  Safe to call from another task.
    procedure Request_Abort (S : in out Session);
 
+   --  Cancel one active or queued tool invocation without cancelling the
+   --  enclosing agent turn.  The optional message is included in the
+   --  cancelled tool result sent to the model.  Returns False when Tool_Id
+   --  is not active in the current tool batch.
+   function Request_Tool_Abort
+     (S       : in out Session;
+      Tool_Id : String;
+      Message : String := "") return Boolean;
+
    --  Arm a pause that will fire at the next turn boundary inside
    --  Run_Prompt.  The loop emits Agent_Paused_Event and blocks until
    --  Resume is called.  Safe to call from another task.
@@ -170,6 +179,41 @@ private
       Provider : String;
       Model_Id : String) return LLM.Types.Message_Vectors.Vector;
 
+   Max_Active_Tools : constant Positive := 64;
+
+   type Tool_Control_Entry is record
+      Tool_Id : Ada.Strings.Unbounded.Unbounded_String;
+      Flag    : LLM.Tools.Abort_Flag_Access := null;
+      Note    : Ada.Strings.Unbounded.Unbounded_String;
+      Active  : Boolean := False;
+      Finished : Boolean := False;
+   end record;
+   type Tool_Control_Entry_Array is
+     array (Positive range <>) of Tool_Control_Entry;
+
+   protected type Tool_Control_Registry (Capacity : Positive) is
+      procedure Register
+        (Tool_Id  : String;
+         Flag     : LLM.Tools.Abort_Flag_Access;
+         Accepted : out Boolean);
+      procedure Request
+        (Tool_Id : String;
+         Message : String;
+         Accepted : out Boolean);
+      procedure Complete
+        (Tool_Id  : String;
+         Message  : out Ada.Strings.Unbounded.Unbounded_String);
+      function Requested (Tool_Id : String) return Boolean;
+      function Message (Tool_Id : String) return String;
+      procedure Abort_All;
+      procedure Unregister (Tool_Id : String);
+   private
+      Entries : Tool_Control_Entry_Array (1 .. Capacity);
+   end Tool_Control_Registry;
+
+   type Tool_Flag_Array is array (Positive range <>) of aliased
+     LLM.Tools.Abort_Flag;
+
    type Session is limited record
       Model_Spec    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
@@ -186,6 +230,8 @@ private
       Thinking        : LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Sandbox_Profile : aliased Ada.Strings.Unbounded.Unbounded_String;
       Abort_State   : aliased LLM.Tools.Abort_Flag;
+      Tool_Registry : aliased Tool_Control_Registry (Max_Active_Tools);
+      Tool_Flags    : Tool_Flag_Array (1 .. Max_Active_Tools);
       Pause_State   : aliased LLM.Tools.Pause_Flag;
       Streaming     : Boolean := False;
       Cwd           : Ada.Strings.Unbounded.Unbounded_String :=

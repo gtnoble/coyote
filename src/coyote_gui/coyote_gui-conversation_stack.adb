@@ -98,6 +98,22 @@ package body Coyote_GUI.Conversation_Stack is
      (Button : access Gtk.Button.Gtk_Button_Record'Class;
       Data   : Detail_Context);
 
+   type Tool_Action_Context is record
+      Stack   : Instance_Access;
+      Tool_Id : Unbounded_String;
+   end record;
+
+   package Tool_Action_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Button.Gtk_Button_Record, Tool_Action_Context);
+
+   procedure On_Tool_Abort_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Tool_Action_Context);
+
+   procedure On_Tool_Abort_Message_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Tool_Action_Context);
+
    procedure On_Fork_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class;
       Data   : Fork_Context);
@@ -643,6 +659,38 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
    end On_Detail_Clicked;
 
+   procedure On_Tool_Abort_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Tool_Action_Context)
+   is
+      pragma Unreferenced (Button);
+   begin
+      if Data.Stack /= null
+        and then Data.Stack.Tool_Action_Handler /= null
+      then
+         Data.Stack.Selected_Tool := Data.Tool_Id;
+         Data.Stack.Tool_Action_Handler.all
+           (To_String (Data.Tool_Id), Coyote_GUI.Abort_Tool, "");
+      end if;
+   end On_Tool_Abort_Clicked;
+
+   procedure On_Tool_Abort_Message_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Tool_Action_Context)
+   is
+      pragma Unreferenced (Button);
+   begin
+      if Data.Stack /= null
+        and then Data.Stack.Tool_Action_Handler /= null
+      then
+         Data.Stack.Selected_Tool := Data.Tool_Id;
+         Data.Stack.Tool_Action_Handler.all
+           (To_String (Data.Tool_Id),
+            Coyote_GUI.Abort_With_Message,
+            "__PROMPT__");
+      end if;
+   end On_Tool_Abort_Message_Clicked;
+
    function Widget (C : Instance)
      return Gtk.Scrolled_Window.Gtk_Scrolled_Window
    is
@@ -658,8 +706,22 @@ package body Coyote_GUI.Conversation_Stack is
       C.Fork_Callback := Handler;
    end Set_Fork_Handler;
 
+   procedure Set_Tool_Action_Handler
+     (C       : in out Instance;
+      Handler : Coyote_GUI.Tool_Action_Handler)
+   is
+   begin
+      C.Tool_Action_Handler := Handler;
+   end Set_Tool_Action_Handler;
+
+   function Selected_Tool_Id (C : Instance) return String is
+   begin
+      return To_String (C.Selected_Tool);
+   end Selected_Tool_Id;
+
    procedure Clear (C : in out Instance) is
    begin
+      C.Selected_Tool := Null_Unbounded_String;
       if not C.Math_Elements.Is_Empty then
          for Math_Index in C.Math_Elements.First_Index
            .. C.Math_Elements.Last_Index
@@ -896,8 +958,10 @@ package body Coyote_GUI.Conversation_Stack is
       Header       : Gtk.Label.Gtk_Label;
       Status       : Gtk.Label.Gtk_Label;
       Arguments    : Gtk.Grid.Gtk_Grid;
-      Details      : Gtk.Button.Gtk_Button;
-      Info         : Coyote_GUI.Tool_Info;
+      Details              : Gtk.Button.Gtk_Button;
+      Abort_Button         : Gtk.Button.Gtk_Button;
+      Abort_Message_Button : Gtk.Button.Gtk_Button;
+      Info                 : Coyote_GUI.Tool_Info;
       Summary_Text : constant String :=
         Format_Tool_Summary
           (Name, Args, Initial_Status, "", Running => False);
@@ -994,14 +1058,44 @@ package body Coyote_GUI.Conversation_Stack is
          (Stack   => C'Unchecked_Access,
           Tool_Id => To_Unbounded_String (Tool_Id)));
       Box.Pack_Start (Details, Expand => False, Fill => False, Padding => 0);
+
+      Gtk.Button.Gtk_New (Abort_Button, "Abort");
+      Abort_Button.Set_Can_Focus (True);
+      Abort_Button.Set_Sensitive (Initial_Status in Coyote_GUI.Queued ..
+                                  Coyote_GUI.Running);
+      Abort_Button.Set_Tooltip_Text ("Abort this tool call");
+      Tool_Action_Callback.Connect
+        (Abort_Button,
+         Gtk.Button.Signal_Clicked,
+         On_Tool_Abort_Clicked'Access,
+         (Stack   => C'Unchecked_Access,
+          Tool_Id => To_Unbounded_String (Tool_Id)));
+      Box.Pack_Start
+        (Abort_Button, Expand => False, Fill => False, Padding => 0);
+      Gtk.Button.Gtk_New (Abort_Message_Button, "Abort With Message...");
+      Abort_Message_Button.Set_Can_Focus (True);
+      Abort_Message_Button.Set_Sensitive
+        (Initial_Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
+      Abort_Message_Button.Set_Tooltip_Text
+        ("Abort this tool call with a message");
+      Tool_Action_Callback.Connect
+        (Abort_Message_Button,
+         Gtk.Button.Signal_Clicked,
+         On_Tool_Abort_Message_Clicked'Access,
+         (Stack   => C'Unchecked_Access,
+          Tool_Id => To_Unbounded_String (Tool_Id)));
+      Box.Pack_Start
+        (Abort_Message_Button, Expand => False, Fill => False, Padding => 0);
       C.Tool_Flow.Insert (Frame, -1);
       Show_Contents (C);
       C.Tools.Insert
         (Tool_Id,
-         (Summary_Text => To_Unbounded_String (Summary_Text),
-          Status       => Status,
-          Details      => Details,
-          Info         => Info));
+         (Summary_Text         => To_Unbounded_String (Summary_Text),
+          Status               => Status,
+          Details              => Details,
+          Abort_Button         => Abort_Button,
+          Abort_Message_Button => Abort_Message_Button,
+          Info                 => Info));
    end Begin_Tool;
 
    procedure Set_Tool_Status
@@ -1032,6 +1126,10 @@ package body Coyote_GUI.Conversation_Stack is
              (Status,
               To_String (Tool_Value.Info.Result_Text),
               Running => Status = Coyote_GUI.Running));
+      Tool_Value.Abort_Button.Set_Sensitive
+        (Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
+      Tool_Value.Abort_Message_Button.Set_Sensitive
+        (Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
       C.Tools.Replace (Tool_Id, Tool_Value);
    end Set_Tool_Status;
 
@@ -1065,6 +1163,8 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Status.Set_Text
         ("Status: "
          & Tool_Status_Text (Status, Result, Running => False));
+      Tool_Value.Abort_Button.Set_Sensitive (False);
+      Tool_Value.Abort_Message_Button.Set_Sensitive (False);
       Tool_Value.Details.Set_Sensitive (True);
       C.Tools.Replace (Tool_Id, Tool_Value);
    end End_Tool;

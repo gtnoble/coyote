@@ -87,9 +87,15 @@ coyote is an event-driven streaming agent. The central behavioral model is:
 5. The callback is `Dispatch_Event` in `Coyote_App.Dispatch`, which maps
    each event type to the appropriate `Frontend'Class` primitive calls.
 6. If the model requests a tool call, the agent loop executes the tool and
-   sends a new request with the tool result appended to the history.
-7. The loop continues until the model produces a final response with no
-   further tool calls, or until the user aborts.
+   sends a new request with the tool result appended to the history. Each
+   active invocation has an independent cancellation flag registered by
+   `LLM.Agent`; global Stop fans out to all flags, while targeted Abort sets
+   only the selected invocation's flag.
+7. A targeted cancellation emits and persists one ordered `Tool_Result` with
+   the original call ID and `Result_Cancelled` status. An optional user message
+   is appended to that result text and is not a separate semantic user record.
+8. The loop continues until the model produces a final response with no
+   further tool calls, or until the user aborts the whole turn.
 
 This model has two key properties:
 - **Streaming is the primary path.** Display of text does not wait for the
@@ -2460,14 +2466,23 @@ menu.
 
 *(Supplement to §5.5, which covers `Create` and `Run_Prompt`.)*
 
-**`Request_Abort (S : in out Session)`:** Sets `S.Abort_Flg`. The libcurl
-transfer-info callback and the tool executor both poll this flag; a blocked
-provider request is interrupted by libcurl and a running tool is terminated
-by its process-group watcher. `Run_Prompt` detects the flag at the top of its
-outer loop and exits cleanly. The GUI Stop callback requests the abort directly
-through its protected session reference rather than queueing a stale Stop item.
-`Dispatch_Event` treats `Agent_End_Event.Was_Aborted` as authoritative when
-classifying completion.
+**`Request_Abort (S : in out Session)`:** Sets the session-wide abort flag and
+fans out cancellation to every registered tool flag. The libcurl transfer-info
+callback and each tool executor poll their respective flags; a blocked
+provider request is interrupted by libcurl and running tools are terminated
+by their process-group watchers. `Run_Prompt` detects the session flag at the
+top of its outer loop and exits cleanly. The GUI Stop callback requests the
+abort directly through its protected session reference rather than queueing a
+stale Stop item. `Dispatch_Event` treats `Agent_End_Event.Was_Aborted` as
+authoritative when classifying completion.
+
+**`Request_Tool_Abort (S, Tool_Id, Message)`:** Looks up the active or queued
+call in the protected per-session registry, sets only that invocation's flag,
+and records the optional message. A queued call receives a synthesized
+cancelled result without a Running event. A running call preserves partial
+shell output, emits one cancelled end event, appends the message to the result
+text, persists the matching `Tool_Result`, and permits the agent loop to
+continue. Unknown or already-finished IDs are harmless no-ops.
 
 **`Request_Pause (S : in out Session)`:** Sets `S.Pause_Flg`. After the
 current tool call completes (or immediately if no tool call is active),

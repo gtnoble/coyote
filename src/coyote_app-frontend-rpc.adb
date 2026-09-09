@@ -355,6 +355,31 @@ package body Coyote_App.Frontend.RPC is
             Command.Kind := Coyote_App.Frontend.Control_Pause;
          when Resume =>
             Command.Kind := Coyote_App.Frontend.Control_Resume;
+         when Abort_Tool =>
+            declare
+               Parsed : constant Read_Result :=
+                 Read (To_String (Value.Payload_Json));
+            begin
+               if Parsed.Success
+                 and then Parsed.Value.Has_Field ("toolId")
+                 and then Parsed.Value.Get ("toolId").Kind = JSON_String_Type
+               then
+                  Command.Kind := Coyote_App.Frontend.Control_Abort_Tool;
+                  Command.Tool_Id := To_Unbounded_String
+                    (Coyote_App.Utils.Get_String
+                       (Parsed.Value, "toolId"));
+                  if Parsed.Value.Has_Field ("message")
+                    and then Parsed.Value.Get ("message").Kind =
+                      JSON_String_Type
+                  then
+                     Command.Abort_Message := To_Unbounded_String
+                       (Coyote_App.Utils.Get_String
+                          (Parsed.Value, "message"));
+                  end if;
+               else
+                  return False;
+               end if;
+            end;
          when Set_Sandbox =>
             declare
                Parsed : constant Read_Result :=

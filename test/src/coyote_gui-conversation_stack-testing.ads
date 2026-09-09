@@ -123,6 +123,14 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return Boolean;
 
+   function Abort_Enabled
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Boolean;
+
+   function Abort_Message_Enabled
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Boolean;
+
    function Footer_Separator
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Separator.Gtk_Separator;

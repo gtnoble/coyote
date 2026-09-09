@@ -54,6 +54,13 @@ package Coyote_GUI.Conversation_Stack is
      (C       : in out Instance;
       Handler : Fork_Handler);
 
+   --  Register the callback used by native tool actions.
+   procedure Set_Tool_Action_Handler
+     (C       : in out Instance;
+      Handler : Coyote_GUI.Tool_Action_Handler);
+
+   function Selected_Tool_Id (C : Instance) return String;
+
    procedure Begin_Request
      (C    : in out Instance;
       Text : String;
@@ -154,8 +161,10 @@ private
    type Tool_Entry is record
       Summary_Text : Ada.Strings.Unbounded.Unbounded_String;
       Status       : Gtk.Label.Gtk_Label;
-      Details      : Gtk.Button.Gtk_Button;
-      Info         : Coyote_GUI.Tool_Info;
+      Details              : Gtk.Button.Gtk_Button;
+      Abort_Button         : Gtk.Button.Gtk_Button;
+      Abort_Message_Button : Gtk.Button.Gtk_Button;
+      Info                 : Coyote_GUI.Tool_Info;
    end record;
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps
@@ -212,6 +221,8 @@ private
       Thinking          : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View     : Gtk.Text_View.Gtk_Text_View;
       Tools             : Tool_Maps.Map;
+      Tool_Action_Handler : Coyote_GUI.Tool_Action_Handler;
+      Selected_Tool     : Ada.Strings.Unbounded.Unbounded_String;
       Has_Exchange      : Boolean := False;
       Step_Open         : Boolean := False;
       Footer_Pending    : Boolean := False;
