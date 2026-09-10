@@ -197,7 +197,8 @@ package body Coyote_App.Headless is
                Model_Id       =>
                  To_Unbounded_String
                    (Model_Spec (Slash + 1 .. Model_Spec'Last)),
-               Context_Window => LLM.Agent.Context_Window (Agent_Session));
+               Context_Window => LLM.Agent.Context_Window (Agent_Session),
+               Context_Tokens => LLM.Agent.Context_Tokens (Agent_Session));
          begin
             Dispatch_Agent_Event (Event);
          end;

@@ -6,6 +6,7 @@ with Gtk.Box;
 with Gtk.Dialog;
 with Gtk.Image;
 with Gtk.Menu_Item;
+with Gtk.Progress_Bar;
 with Gtk.Separator;
 with Gtk.Tree_View;
 with Gtk.Window;
@@ -23,6 +24,13 @@ package Coyote_App.Frontend.GUI.Testing is
 
    function Status_Box
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Box.Gtk_Box;
+
+   function Status_Content_Box
+     (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Box.Gtk_Box;
+
+   function Context_Progress
+     (F : Coyote_App.Frontend.GUI.Instance)
+     return Gtk.Progress_Bar.Gtk_Progress_Bar;
 
    function Conversation_Prompt_Separator
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Separator.Gtk_Separator;

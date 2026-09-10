@@ -148,6 +148,9 @@ package LLM.Agent is
    --  Return the active model's context-window size.
    function Context_Window (S : Session) return Natural;
 
+   --  Return the current estimated context occupancy.
+   function Context_Tokens (S : Session) return Natural;
+
    --  True while Run_Prompt is actively processing a turn.
    function Is_Streaming (S : Session) return Boolean;
 

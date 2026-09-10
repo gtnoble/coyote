@@ -39,6 +39,13 @@ package Coyote_App.Frontend is
    --  already formatted by Coyote_App.Dispatch.Format_Status.
    procedure Set_Status (F : in out Instance; Text : String) is abstract;
 
+   --  Update the context-window fill indicator.  Headless frontends do not
+   --  need to render this optional GUI-only value.
+   procedure Set_Context_Progress
+     (F              : in out Instance;
+      Context_Tokens :        Natural;
+      Context_Window :        Natural) is null;
+
    type Run_Mode is
      (Idle,
       Running,

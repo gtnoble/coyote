@@ -75,9 +75,10 @@ package LLM.Events is
       Is_Cancelled : Boolean                                := False;
    end record;
    type Model_Select_Event is new Agent_Event with record
-      Provider       : Ada.Strings.Unbounded.Unbounded_String;
-      Model_Id       : Ada.Strings.Unbounded.Unbounded_String;
-      Context_Window : Natural := 0;
+      Provider        : Ada.Strings.Unbounded.Unbounded_String;
+      Model_Id        : Ada.Strings.Unbounded.Unbounded_String;
+      Context_Window  : Natural := 0;
+      Context_Tokens  : Natural := 0;
    end record;
 
    type Auto_Retry_Start_Event is new Agent_Event with record
@@ -116,12 +117,13 @@ package LLM.Events is
         Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
    type Session_Stats_Event is new Agent_Event with record
-      Cost_Dmil   : Natural := 0;
-      Input       : Natural := 0;
-      Output      : Natural := 0;
-      Cache_Read  : Natural := 0;
-      Cache_Write : Natural := 0;
-      Total       : Natural := 0;
+      Cost_Dmil      : Natural := 0;
+      Input          : Natural := 0;
+      Output         : Natural := 0;
+      Cache_Read     : Natural := 0;
+      Cache_Write    : Natural := 0;
+      Total          : Natural := 0;
+      Context_Tokens : Natural := 0;
    end record;
 
    --  Emitted by Run_Prompt when a pending pause fires at a turn boundary.

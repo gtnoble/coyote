@@ -497,6 +497,9 @@ package body Coyote_App.Dispatch is
             if Ctx_Window > 0 then
                State.Set_Context_Window (Ctx_Window);
             end if;
+            Frontend.Set_Context_Progress
+              (Context_Tokens => Ev.Context_Tokens,
+               Context_Window => Ctx_Window);
          end;
          Frontend.Set_Status
            (Format_Status
@@ -540,6 +543,9 @@ package body Coyote_App.Dispatch is
                Cache_Read  => Ev.Cache_Read,
                Cache_Write => Ev.Cache_Write,
                Total       => Ev.Total);
+            Frontend.Set_Context_Progress
+              (Context_Tokens => Ev.Context_Tokens,
+               Context_Window => State.Context_Window);
          end;
          if State.Pending_Stats then
             State.Set_Pending_Stats (False);

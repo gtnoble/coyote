@@ -493,12 +493,16 @@ The native GTK main window now makes the three primary regions explicit. The
 conversation scroller remains the sole expanding work area. A horizontal
 `Gtk.Separator` separates it from a prompt control box with four pixels of
 internal border spacing; a second separator divides that control area from a
-four-pixel padded status box containing the lifecycle label. This follows the
-IRIX work-area/control-area/status-area grouping without adding nested scrolling
-or changing prompt and status behavior. The structural regression
-`Coyote.GUI separates conversation, prompt, and status` verifies the widget
-order and configured borders. Display-backed human review remains required to
-confirm the separators have sufficient contrast under the active GTK theme.
+four-pixel padded status box. The status box retains its outer vertical layout
+and contains an inner horizontal box with the lifecycle label and a fixed-width
+context-window progress indicator. Typed context updates cross the existing
+protected queue and are applied only on the GTK main task; session reset clears
+the indicator. This follows the IRIX work-area/control-area/status-area
+grouping without adding nested scrolling or changing prompt and status
+behavior. The structural regression `Coyote.GUI layout and shutdown lifecycle`
+verifies the widget order, configured borders, inner orientation, and initial
+progress state. Display-backed human review remains required to confirm the
+indicator's sizing and theme contrast.
 
 ### Historical — GUI visual spacing and layout
 

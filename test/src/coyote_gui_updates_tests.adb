@@ -152,6 +152,26 @@ package body Coyote_GUI_Updates_Tests is
          "footer summary must survive the update queue");
    end Test_Footer_Summary_Round_Trips;
 
+   procedure Test_Context_Progress_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue  : Coyote_GUI.Updates.Queue;
+      Input  : Coyote_GUI.Update;
+      Output : Coyote_GUI.Update;
+      Got    : Boolean;
+      Wake   : Boolean;
+   begin
+      Input.Kind           := Coyote_GUI.Set_Context_Progress;
+      Input.Context_Tokens := 25_000;
+      Input.Context_Window := 100_000;
+      Queue.Enqueue (Input, Wake);
+      Queue.Dequeue (Output, Got);
+      Assert (Got, "context progress update must be dequeued");
+      Assert
+        (Output.Context_Tokens = Input.Context_Tokens
+         and then Output.Context_Window = Input.Context_Window,
+         "context progress payload must survive the update queue");
+   end Test_Context_Progress_Round_Trips;
+
    package Coyote_GUI_Updates_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Updates_Tests.Test);
 
@@ -199,6 +219,10 @@ package body Coyote_GUI_Updates_Tests is
         (Coyote_GUI_Updates_Caller.Create
            ("Coyote.GUI.Updates preserves footer summary",
             Coyote_GUI_Updates_Tests.Test_Footer_Summary_Round_Trips'Access));
+      Result.Add_Test
+        (Coyote_GUI_Updates_Caller.Create
+           ("Coyote.GUI.Updates preserves context progress",
+            Coyote_GUI_Updates_Tests.Test_Context_Progress_Round_Trips'Access));
 
       return Result;
    end Suite;

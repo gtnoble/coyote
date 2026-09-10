@@ -43,6 +43,7 @@ with Gtk.Dialog;
 with Gtk.Image;
 with Gtk.Label;
 with Gtk.Menu_Bar;
+with Gtk.Progress_Bar;
 with Gtk.Menu_Item;
 with Gtk.Check_Menu_Item;
 with Gtk.Separator;
@@ -66,6 +67,11 @@ package Coyote_App.Frontend.GUI is
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
    overriding procedure Set_Status (F : in out Instance; Text : String);
+
+   overriding procedure Set_Context_Progress
+     (F              : in out Instance;
+      Context_Tokens :        Natural;
+      Context_Window :        Natural);
 
    overriding procedure Set_Mode
      (F : in out Instance; Mode : Coyote_App.Frontend.Run_Mode);
@@ -266,6 +272,8 @@ private
       Send_Btn                : Gtk.Button.Gtk_Button;
       Stop_Btn                : Gtk.Button.Gtk_Button;
       Status_Bar              : Gtk.Label.Gtk_Label;
+      Status_Content_Box      : Gtk.Box.Gtk_Box;
+      Context_Progress        : Gtk.Progress_Bar.Gtk_Progress_Bar;
       Prompt_Box              : Gtk.Box.Gtk_Box;
       Status_Box              : Gtk.Box.Gtk_Box;
       Conversation_Prompt_Sep : Gtk.Separator.Gtk_Separator;

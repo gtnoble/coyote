@@ -20,6 +20,7 @@ with Gtk.Image;
 with Gtk.Icon_Theme;
 with Gtk.Main;
 with Gtk.Menu_Item;
+with Gtk.Progress_Bar;
 with Gtk.Separator;
 with Gtk.Tree_Model;
 with Gtk.Tree_View;
@@ -31,12 +32,15 @@ package body Coyote_App_Frontend_GUI_Tests is
    use AUnit.Assertions;
    use type Glib.Gint;
    use type Glib.Guint;
+   use type Glib.Gdouble;
+   use type Gtk.Enums.Gtk_Orientation;
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Dialog.Gtk_Dialog;
    use type Gtk.Image.Gtk_Image;
    use type Gtk.Image.Gtk_Image_Type;
    use type Gtk.Icon_Theme.Gtk_Icon_Info;
    use type Gtk.Menu_Item.Gtk_Menu_Item;
+   use type Gtk.Progress_Bar.Gtk_Progress_Bar;
    use type GNAT.Strings.String_Access;
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Tree_View.Gtk_Tree_View;
@@ -75,6 +79,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Outer                : Gtk.Box.Gtk_Box;
       Prompt               : Gtk.Box.Gtk_Box;
       Status               : Gtk.Box.Gtk_Box;
+      Status_Content       : Gtk.Box.Gtk_Box;
+      Progress             : Gtk.Progress_Bar.Gtk_Progress_Bar;
       Conv_Prompt          : Gtk.Separator.Gtk_Separator;
       Prompt_Status        : Gtk.Separator.Gtk_Separator;
       Agents_Window_Widget : Gtk.Window.Gtk_Window;
@@ -89,6 +95,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Outer                := Outer_Box (Frontend);
       Prompt               := Prompt_Box (Frontend);
       Status               := Status_Box (Frontend);
+      Status_Content       := Status_Content_Box (Frontend);
+      Progress             := Context_Progress (Frontend);
       Conv_Prompt          := Conversation_Prompt_Separator (Frontend);
       Prompt_Status        := Prompt_Status_Separator (Frontend);
       Agents_Window_Widget := Agents_Window (Frontend);
@@ -142,6 +150,20 @@ package body Coyote_App_Frontend_GUI_Tests is
              (Gtk.Container.Gtk_Container (Status))
            = 4,
          "status area has a four-pixel breathing-room border");
+      Assert (Status_Content /= null, "status area creates an inner box");
+      Assert (Progress /= null, "status area creates a context progress bar");
+      Assert
+        (Status.Get_Child (0) = Gtk.Widget.Gtk_Widget (Status_Content),
+         "status area contains the inner status box");
+      Assert
+        (Status_Content.Get_Orientation = Gtk.Enums.Orientation_Horizontal,
+         "inner status box is horizontal");
+      Assert
+        (Status_Content.Get_Child (1) = Gtk.Widget.Gtk_Widget (Progress),
+         "inner status box contains the progress bar");
+      Assert
+        (Progress.Get_Fraction = 0.0,
+         "context progress starts empty");
 
       Assert
         (Outer.Get_Child (2) = Gtk.Widget.Gtk_Widget (Conv_Prompt),

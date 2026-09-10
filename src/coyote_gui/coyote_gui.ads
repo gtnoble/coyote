@@ -153,6 +153,8 @@ package Coyote_GUI is
    --                        Text2 = action kind ("fork");
    --                        Text3 = action data JSON (uuid, turn, step, pid)
    --    Set_Status         Text = status bar text
+   --    Set_Context_Progress Context_Tokens = current context usage;
+   --                         Context_Window = active model context window
    --    Set_Mode           Mode = new mode
    --    Set_Stats          Stats = typed session statistics snapshot
    --    Clear_Stats        (no extra fields)
@@ -194,6 +196,7 @@ package Coyote_GUI is
       Append_Turn_Footer,
       Append_Action_Strip,
       Set_Status,
+      Set_Context_Progress,
       Set_Mode,
       Set_Stats,
       Clear_Stats,
@@ -218,6 +221,8 @@ package Coyote_GUI is
       Text7            : Ada.Strings.Unbounded.Unbounded_String;
       Tool_Turn        : Natural           := 0;
       Tool_Call        : Natural           := 0;
+      Context_Tokens   : Natural           := 0;
+      Context_Window   : Natural           := 0;
       Stats            : Session_Stats_Record;
       T_Status         : Tool_Status       := Queued;
       Mode             : Run_Mode          := Idle;

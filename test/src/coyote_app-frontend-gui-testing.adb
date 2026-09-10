@@ -36,6 +36,21 @@ package body Coyote_App.Frontend.GUI.Testing is
       return F.Status_Box;
    end Status_Box;
 
+   function Status_Content_Box
+     (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Box.Gtk_Box
+   is
+   begin
+      return F.Status_Content_Box;
+   end Status_Content_Box;
+
+   function Context_Progress
+     (F : Coyote_App.Frontend.GUI.Instance)
+     return Gtk.Progress_Bar.Gtk_Progress_Bar
+   is
+   begin
+      return F.Context_Progress;
+   end Context_Progress;
+
    function Conversation_Prompt_Separator
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Separator.Gtk_Separator
    is

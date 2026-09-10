@@ -654,11 +654,15 @@ sessions inherit the current configuration as their default.
 **REQ-CORE-110** (D)
 The GUI frontend shall open a GTK3 application window containing a
 conversation view, a prompt input area, a menu bar, and a status bar.  The
-main menu bar shall use the top-level order `File`, `Edit`, `View`, custom
-agent controls, `Options`, and `Help`; `Help` shall be the rightmost menu.  The
-window title shall identify the application and optional instance label,
-shall use spaces around the colon separator, and shall not contain
-transient lifecycle status.
+status bar shall remain persistent at the bottom of the window and shall
+contain lifecycle status text plus a context-window fill indicator.  The
+indicator shall use the active model context window as its denominator, clamp
+its displayed fraction to [0, 1], and display an empty fraction when the
+context window is unavailable.  The main menu bar shall use the top-level
+order `File`, `Edit`, `View`, custom agent controls, `Options`, and `Help`;
+`Help` shall be the rightmost menu.  The window title shall identify the
+application and optional instance label, shall use spaces around the colon
+separator, and shall not contain transient lifecycle status.
 
 **REQ-CORE-111** (D)
 Completed assistant response blocks in every GUI conversation renderer shall

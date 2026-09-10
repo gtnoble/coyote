@@ -1734,6 +1734,17 @@ package body Coyote_App.Frontend.GUI is
          when Set_Status =>
             F.Status_Bar.Set_Text (To_String (U.Text));
 
+         when Set_Context_Progress =>
+            if U.Context_Window = 0 then
+               F.Context_Progress.Set_Fraction (0.0);
+            elsif U.Context_Tokens >= U.Context_Window then
+               F.Context_Progress.Set_Fraction (1.0);
+            else
+               F.Context_Progress.Set_Fraction
+                 (Gdouble (U.Context_Tokens)
+                  / Gdouble (U.Context_Window));
+            end if;
+
          when Set_Mode =>
             if Is_Local_Agent (F, To_String (U.Runtime_Agent_Id)) then
                F.Current_Mode :=
@@ -3867,6 +3878,7 @@ package body Coyote_App.Frontend.GUI is
       Prompt_Box              : Gtk.Box.Gtk_Box;
       Bottom_Box              : Gtk.Box.Gtk_Box;
       Status_Box              : Gtk.Box.Gtk_Box;
+      Status_Content_Box      : Gtk.Box.Gtk_Box;
       Conversation_Prompt_Sep : Gtk.Separator.Gtk_Separator;
       Prompt_Status_Sep       : Gtk.Separator.Gtk_Separator;
 
@@ -4482,6 +4494,13 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Box.Gtk_New_Vbox (Status_Box, Homogeneous => False, Spacing => 0);
       Status_Box.Set_Border_Width (4);
       F.Status_Box := Status_Box;
+      Gtk.Box.Gtk_New_Hbox
+        (Status_Content_Box, Homogeneous => False, Spacing => 4);
+      F.Status_Content_Box := Status_Content_Box;
+      Gtk.Progress_Bar.Gtk_New (F.Context_Progress);
+      F.Context_Progress.Set_Show_Text (False);
+      F.Context_Progress.Set_Fraction (0.0);
+      F.Context_Progress.Set_Size_Request (180, -1);
       Gtk.Label.Gtk_New (F.Status_Bar, "");
       F.Status_Bar.Set_Name ("coyote-help-status");
       F.Status_Bar.Set_Events (Gdk.Event.Button_Press_Mask);
@@ -4503,8 +4522,12 @@ package body Coyote_App.Frontend.GUI is
          Pango.Font.Free (Font_Desc);
       end;
 
+      Status_Content_Box.Pack_Start
+        (F.Status_Bar, Expand => True, Fill => True, Padding => 0);
+      Status_Content_Box.Pack_Start
+        (F.Context_Progress, Expand => False, Fill => True, Padding => 0);
       Status_Box.Pack_Start
-        (F.Status_Bar, Expand => False, Fill => True, Padding => 0);
+        (Status_Content_Box, Expand => False, Fill => True, Padding => 0);
       F.Outer_Box.Pack_Start
         (Status_Box, Expand => False, Fill => True, Padding => 0);
 
@@ -4528,6 +4551,19 @@ package body Coyote_App.Frontend.GUI is
       U.Text := To_Unbounded_String (Text);
       Enqueue_Update (F, U);
    end Set_Status;
+
+   overriding procedure Set_Context_Progress
+     (F              : in out Instance;
+      Context_Tokens :        Natural;
+      Context_Window :        Natural)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind           := Coyote_GUI.Set_Context_Progress;
+      U.Context_Tokens := Context_Tokens;
+      U.Context_Window := Context_Window;
+      Enqueue_Update (F, U);
+   end Set_Context_Progress;
 
    procedure Set_Mode (F : in out Instance; Mode : Run_Mode) is
       U : Coyote_GUI.Update;

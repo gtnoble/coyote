@@ -1917,10 +1917,14 @@ startup and is the sole GTK conversation presentation (see §5.15).
 - The main window uses one vertical `Gtk.Box` with the expanding conversation
   scroller first, followed by a horizontal `Gtk.Separator`, a padded prompt
   control area, a second horizontal `Gtk.Separator`, and a padded status area.
-  This makes the work area, control area, and status area explicit without
-  adding nested scrolling regions or changing the conversation's expansion
-  policy. The arrangement follows the IRIX guidance for a work area above a
-  control area and a status area along the bottom.
+  The status area contains an inner horizontal box with the lifecycle label
+  and a fixed-width context-window progress indicator.  Context updates are
+  typed `Coyote_GUI.Update` values applied only by the GTK main-task drain;
+  the conversation footer remains independent.  This makes the work area,
+  control area, and status area explicit without adding nested scrolling
+  regions or changing the conversation's expansion policy. The arrangement
+  follows the IRIX guidance for a work area above a control area and a status
+  area along the bottom.
 - The agents panel is a modeless `coyote : Agents` independent top-level
   companion window associated with the main coyote window, but not transient
   for it. It contains a narrow, resizable tree view whose root row

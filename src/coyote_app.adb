@@ -565,7 +565,9 @@ package body Coyote_App is
                        (LLM.Events.Agent_Event with Provider => Provider,
                         Model_Id                             => Model_Id,
                         Context_Window                       =>
-                          LLM.Agent.Context_Window (Agent_Session));
+                          LLM.Agent.Context_Window (Agent_Session),
+                        Context_Tokens                       =>
+                          LLM.Agent.Context_Tokens (Agent_Session));
                   begin
                      Dispatch_Event (Event);
                   end;
@@ -626,6 +628,7 @@ package body Coyote_App is
                   State.Set_Turn_Tokens (0, 0);
                   State.Set_Turn_Cost (0);
                   State.Set_Session_Stats (0, 0, 0, 0, 0, 0);
+                  My_Frontend.Set_Context_Progress (0, 0);
                   State.Reset_Turn_Count;
                end Reset_Session_State;
 

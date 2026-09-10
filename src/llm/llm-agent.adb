@@ -1117,10 +1117,11 @@ package body LLM.Agent is
          Input       => Totals.Input,
          Output      => Totals.Output,
          Cache_Read  => Totals.Cache_Read,
-         Cache_Write => Totals.Cache_Write,
-         Total       =>
+         Cache_Write    => Totals.Cache_Write,
+         Total          =>
            Totals.Input + Totals.Output + Totals.Cache_Read
-           + Totals.Cache_Write);
+           + Totals.Cache_Write,
+         Context_Tokens => S.Last_Context_Tokens);
    end Session_Stats;
 
    procedure Set_Model_Internal (S : in out Session; Spec : String) is
@@ -1953,7 +1954,8 @@ package body LLM.Agent is
          Model_Event : constant LLM.Events.Model_Select_Event :=
            (LLM.Events.Agent_Event with Provider => S.Model_Info.Provider,
             Model_Id                             => S.Model_Info.Model_Id,
-            Context_Window => S.Model_Info.Context_Window);
+            Context_Window => S.Model_Info.Context_Window,
+            Context_Tokens => S.Last_Context_Tokens);
          Start_Event : constant LLM.Events.Agent_Start_Event  :=
            (LLM.Events.Agent_Event with null record);
       begin
@@ -2635,6 +2637,11 @@ package body LLM.Agent is
    begin
       return S.Model_Info.Context_Window;
    end Context_Window;
+
+   function Context_Tokens (S : Session) return Natural is
+   begin
+      return S.Last_Context_Tokens;
+   end Context_Tokens;
 
    function Is_Streaming (S : Session) return Boolean is
    begin
