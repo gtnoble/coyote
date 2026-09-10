@@ -71,11 +71,40 @@ package body Coyote_GUI_Mnemonics_Tests is
       Reserve (Sandbox_File, "Cance_l", "Sandbox File menu");
       Reserve (Sandbox_File, "_Close", "Sandbox File menu");
       Reserve (Preferences_Context, "_Save", "Preferences");
+      Reserve (Preferences_Context, "_Cancel", "Preferences");
       Reserve (Preferences_Context, "_Default model:", "Preferences");
       Reserve (Preferences_Context, "Default subagent _model:", "Preferences");
+      Reserve (Preferences_Context, "_Thinking level:", "Preferences");
       Reserve (Preferences_Context, "Default sandbo_x:", "Preferences");
+      Reserve (Preferences_Context, "_Price display:", "Preferences");
+      Reserve
+        (Preferences_Context,
+         "Maximum subagent _recursion depth:",
+         "Preferences");
+      Reserve
+        (Preferences_Context,
+         "Shutdown _grace period (seconds):",
+         "Preferences");
+      Reserve
+        (Preferences_Context,
+         "Additional ski_ll directories:",
+         "Preferences");
+      Reserve (Preferences_Context, "_Add Directory...", "Preferences");
       Reserve (Preferences_Context, "Remo_ve Selected", "Preferences");
+      Reserve (Preferences_Context, "Move _Up", "Preferences");
       Reserve (Preferences_Context, "Move dow_n", "Preferences");
+      Reserve
+        (Preferences_Context,
+         "Desktop noti_fications when agent completes",
+         "Preferences");
+      Reserve
+        (Preferences_Context,
+         "_Enable automatic context compaction",
+         "Preferences");
+      Reserve
+        (Preferences_Context,
+         "Compaction t_hreshold (percent):",
+         "Preferences");
       Assert
         (Key ("Sess_ion Stats") = 'i',
          "Session Stats uses a unique Agent-menu key");

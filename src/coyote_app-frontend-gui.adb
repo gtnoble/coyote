@@ -49,6 +49,7 @@ with Pango.Language;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
+with Ada.Text_IO;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
@@ -104,6 +105,36 @@ package body Coyote_App.Frontend.GUI is
 
    --  Global access for signal callbacks (single window per process).
    Current_Frontend : access Instance := null;
+
+   procedure Report_GUI_Exception
+     (Context : String; Occurrence : Ada.Exceptions.Exception_Occurrence)
+   is
+      Message : constant String := Ada.Exceptions.Exception_Message (Occurrence);
+   begin
+      Ada.Text_IO.Put_Line
+        (Ada.Text_IO.Standard_Error,
+         "[!] " & Context & ": "
+         & Ada.Exceptions.Exception_Information (Occurrence));
+      if Current_Frontend /= null then
+         begin
+            Current_Frontend.Append_Notice
+              (Coyote_App.Frontend.Error,
+               Context & (if Message'Length > 0 then ": " & Message else ""));
+         exception
+            when Report_Error : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "[!] " & Context & " could not be displayed: "
+                  & Ada.Exceptions.Exception_Message (Report_Error));
+         end;
+      end if;
+   exception
+      when Report_Error : others =>
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] " & Context & " reporting failed: "
+            & Ada.Exceptions.Exception_Message (Report_Error));
+   end Report_GUI_Exception;
 
    procedure Register_Icon_Search_Path is
       Base : constant String := LLM.Skills.Install_Base;
@@ -3018,7 +3049,7 @@ package body Coyote_App.Frontend.GUI is
         LLM.Model_Registry.Available_Models;
       Profiles : constant LLM.Tools.Sandbox.String_Vectors.Vector      :=
         LLM.Tools.Sandbox.Available_Profiles;
-      Dialog                : Gtk.Dialog.Gtk_Dialog;
+      Dialog                : Gtk.Dialog.Gtk_Dialog := null;
       Content               : Gtk.Box.Gtk_Box;
       Form                  : Gtk.Box.Gtk_Box;
       Thinking_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
@@ -3087,11 +3118,11 @@ package body Coyote_App.Frontend.GUI is
          "Preferences");
       Coyote_GUI.Mnemonics.Reserve
         (Mnemonic_Context,
-         "Enable _automatic context compaction",
+         "_Enable automatic context compaction",
          "Preferences");
       Coyote_GUI.Mnemonics.Reserve
         (Mnemonic_Context,
-         "Compaction threshold (_percent):",
+         "Compaction t_hreshold (percent):",
          "Preferences");
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Preferences");
@@ -3315,7 +3346,7 @@ package body Coyote_App.Frontend.GUI is
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Check_Button.Gtk_New_With_Mnemonic
-           (Auto_Compaction_C, "Enable _automatic context compaction");
+           (Auto_Compaction_C, "_Enable automatic context compaction");
          Auto_Compaction_C.Set_Active (Settings_Value.Auto_Compaction);
          Row.Pack_Start (Auto_Compaction_C, True, True, 0);
          Form.Pack_Start (Row, False, False, 0);
@@ -3327,7 +3358,7 @@ package body Coyote_App.Frontend.GUI is
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Label.Gtk_New_With_Mnemonic
-           (Label, "Compaction threshold (_percent):");
+           (Label, "Compaction t_hreshold (percent):");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Spin_Button.Gtk_New (Compaction_Threshold_C, 1.0, 100.0, 1.0);
          Label.Set_Mnemonic_Widget (Compaction_Threshold_C);
@@ -3413,12 +3444,28 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Destroy;
       Preferences_Models := (others => <>);
    exception
-      when others =>
-         if Dialog /= null then
-            Dialog.Destroy;
-         end if;
-         Preferences_Models := (others => <>);
-         null;
+      when Occurrence : others =>
+         begin
+            if Dialog /= null then
+               Dialog.Destroy;
+            end if;
+         exception
+            when Cleanup_Error : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "[!] Preferences dialog cleanup failed: "
+                  & Ada.Exceptions.Exception_Information (Cleanup_Error));
+         end;
+         begin
+            Preferences_Models := (others => <>);
+         exception
+            when Cleanup_Error : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "[!] Preferences state cleanup failed: "
+                  & Ada.Exceptions.Exception_Information (Cleanup_Error));
+         end;
+         Report_GUI_Exception ("Preferences dialog failed", Occurrence);
    end On_Preferences_Activate;
 
    --  ── Markdown rendering toggle ─────────────────────────────────────────
