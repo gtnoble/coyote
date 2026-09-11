@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.23
-**Date:** 2026-09-06
+**Version:** 1.24
+**Date:** 2026-09-07
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -292,6 +292,42 @@ the agent to retry a request.
 **REQ-CORE-046** (D)
 The agent shall display compaction events (start and end, with summary or
 error) to the active frontend when context compaction occurs.
+
+---
+
+**REQ-CORE-047** (D/T/I)
+When the environment variable `COYOTE_INCREMENTAL_MARKUP` is set to `1`, the
+GUI frontend shall opt into the accepted incremental-markup presentation path.
+When the variable is absent or set to `0`, the existing Markdown presentation
+path shall remain the default. The variable shall affect live GUI assistant
+rendering only; Plain output and existing Markdown history replay shall retain
+their current semantics. Session replay shall use the persisted format of each
+assistant message; missing or unknown format metadata shall mean Markdown.
+
+**REQ-CORE-048** (D/T/I)
+In incremental-markup mode, coyote shall select and record the response format
+application-side before the first assistant text delta. The model shall not be
+relied upon to author authoritative message metadata. Missing format metadata
+in older session records shall mean Markdown. Markdown shall remain a supported
+input and persistence format. When `Format_Coyote_Stream` is selected, the
+system prompt shall instruct the model to use only coyote's restricted CSM
+syntax and shall prohibit arbitrary HTML/XML and Markdown `$$` display-math
+delimiters. Markdown and Plain mode shall retain the existing Markdown prompt
+guidance.
+
+**REQ-CORE-049** (D/T/I)
+In incremental-markup mode, each provider text delta shall be consumed by the
+incremental parser and applied to the active GUI component immediately, without
+intentional timer-based batching or coalescing. The implementation shall update
+stable active components rather than create a widget per token. Structures that
+require completion, including tables, display math, and literal code blocks, may remain
+provisional until their complete boundary is received and shall then be
+realized as native or selectable components. Self-closing horizontal rules
+shall emit and realize as native separators immediately. Complete `<h1>` through
+`<h6>` blocks shall become selectable native heading labels at their closing
+boundaries. Complete `<blockquote>...</blockquote>` blocks shall become framed,
+selectable native text components at their closing boundaries. Invalid markup
+shall fall back to visible escaped or plain source.
 
 ---
 
@@ -676,9 +712,11 @@ shall preserve the source as visible escaped or plain text. Copying rendered
 text shall not expose Pango markup.
 
 The native component-stack renderer shall apply the same content contract
-to assistant response blocks. The native GTK widget hierarchy is the sole
-supported GTK conversation presentation; no alternate conversation renderer
-or runtime renderer-selection flag is provided.
+to assistant response blocks. The native GTK widget hierarchy remains the sole
+supported GTK conversation presentation. When `COYOTE_INCREMENTAL_MARKUP=1` is
+set, the GUI may use the accepted incremental-markup path for live assistant
+responses; when the variable is absent or `0`, the existing Markdown path is
+used. This flag does not change Plain output or the Markdown replay contract.
 
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
@@ -1176,7 +1214,9 @@ troff/nroff man(7) format, installed as `coyote.1` in the appropriate
 man directory.  The man page shall document all command-line arguments,
 environment variables used by coyote (`COYOTE_SESSION_ID`,
 `COYOTE_PARENT_SESSION`, `COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_NO_SESSION`,
-`COYOTE_FRONTEND`, `COYOTE_RECURSION_DEPTH`), frontend selection behaviour,
+`COYOTE_FRONTEND`, `COYOTE_RECURSION_DEPTH`,
+`COYOTE_INCREMENTAL_MARKUP`), frontend selection and incremental-markup
+behaviour,
 configuration files,
 and basic usage
 examples.  It shall include the standard man-page sections: NAME,
@@ -1671,7 +1711,7 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline
-is 762 registered tests. Native GUI qualification is complete for the
+is 862 registered tests. Native GUI qualification is complete for the
 Conversation_Stack presentation. The table below is the original qualification
 matrix and retains historical `TC-*` identifiers; current mappings are in
 `plan/test-plan.md` §6.
@@ -1710,6 +1750,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-040 | Streaming assistant text | D | TC-040 |
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
+| REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |
 | REQ-CORE-045 | Auto-retry events displayed | D | TC-045 |
@@ -1812,7 +1853,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
 | Multi-frontend support (GTK3 and Plain) | REQ-CORE-001–004, REQ-CORE-110–139 |
-| Streaming output | REQ-CORE-040–046, REQ-CORE-700, REQ-CORE-138 |
+| Streaming output | REQ-CORE-040–049, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–057 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |

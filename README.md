@@ -12,6 +12,14 @@ shared between coyote and pi.
 
 - **GTK frontend** — graphical conversation view with Markdown, tool cards,
   session management, status, preferences, keyboard navigation, and Help
+- **Incremental GUI markup (opt-in)** — set
+  `COYOTE_INCREMENTAL_MARKUP=1` to process Coyote Stream Markup deltas
+  immediately; text streams live, while complete table, display-math, and
+  literal code blocks become native or selectable GTK components; self-closing
+  horizontal rules become native separators immediately, and complete h1–h6
+  blocks become selectable native heading labels at their closing boundaries;
+  complete blockquotes become framed, selectable native text at their closing
+  boundaries. Markdown remains the default and Plain output is unchanged.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and
@@ -161,6 +169,19 @@ Configuration files live under `~/.coyote/`. The main settings file is
   "skillPaths": ["/opt/company/skills", "/home/user/project-skills"]
 }
 ```
+
+`COYOTE_INCREMENTAL_MARKUP=1` opts live GUI assistant responses into the
+restricted Coyote Stream Markup path. The parser processes each provider delta
+immediately and realizes complete CSM table, display-math, and literal code
+blocks as native or selectable components; self-closing horizontal rules are
+realized as native separators immediately, and complete h1–h6 blocks become
+selectable native heading labels at their closing boundaries. Unset or `0`
+preserves Markdown behavior; Plain output and Markdown session replay are
+unchanged. In enabled GUI mode, the same application-selected format also adds
+restricted CSM generation guidance to the system prompt; the model does not
+set authoritative format metadata. The restricted CSM grammar currently covers
+text, paragraphs, line breaks, tables, MathML, literal code blocks, horizontal
+rules, headings, and blockquotes.
 
 ## Architecture
 

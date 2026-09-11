@@ -19,6 +19,7 @@ package body LLM_Session_Store_Tests is
    use type Ada.Containers.Count_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
+   use type LLM.Types.Message_Format;
    use type LLM.Types.Role;
    use type LLM.Types.Stop_Reason;
    use type LLM.Types.Tool_Result_Status;
@@ -241,6 +242,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.Compaction_Summary,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -257,6 +259,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -273,6 +276,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (Input       => 11,
@@ -298,6 +302,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage => Usage,
          Stop      => Stop,
@@ -315,6 +320,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (Input       => 20,
@@ -341,6 +347,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (Input       => 6,
@@ -365,6 +372,7 @@ package body LLM_Session_Store_Tests is
 
       return
         (Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -969,6 +977,80 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Assistant_Usage_And_Stop_Reason_Persist;
 
+   procedure Test_Assistant_Format_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Content : LLM.Types.Content_Block_Vectors.Vector;
+      Message : LLM.Types.Message;
+      Loaded : LLM.Types.Message_Vectors.Vector;
+   begin
+      Prepare_Test_Home;
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("CSM")));
+      Message :=
+        (Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Coyote_Stream,
+         Content   => Content,
+         Tok_Usage => (others => 0),
+         Stop      => LLM.Types.Stop,
+         Timestamp => Null_Unbounded_String);
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+      begin
+         LLM.Session_Store.Append_Message (Session_Id, Message);
+         Loaded := LLM.Session_Store.Load_Messages (Session_Id);
+      end;
+      Assert (Loaded.Element (0).Format = LLM.Types.Format_Coyote_Stream,
+              "Coyote Stream format should round-trip");
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Assistant_Format_Round_Trip;
+
+   procedure Test_Legacy_Assistant_Format_Defaults (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded : LLM.Types.Message_Vectors.Vector;
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Path : constant String :=
+           LLM.Session_Store.Session_File_Path (Session_Id);
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Open (File, Ada.Text_IO.Append_File, Path);
+         Ada.Text_IO.Put_Line
+           (File,
+            "{""role"":""assistant"",""content"":[]"
+            & ",""usage"":{},""stopReason"":""stop""}");
+         Ada.Text_IO.Close (File);
+         Loaded := LLM.Session_Store.Load_Messages (Session_Id);
+         Assert (Loaded.Element (0).Format = LLM.Types.Format_Markdown,
+                 "legacy assistant without format should load as Markdown");
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Legacy_Assistant_Format_Defaults;
+
    procedure Test_Append_Compaction_Writes_Entry (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -1372,6 +1454,7 @@ package body LLM_Session_Store_Tests is
       declare
          Msg : constant LLM.Types.Message :=
            (Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
             Content   => Content,
             Tok_Usage =>
               (others => 0),
@@ -1439,6 +1522,7 @@ package body LLM_Session_Store_Tests is
 
          Msg :=
            (Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
             Content   => Content,
             Tok_Usage =>
               (others => 0),

@@ -8,7 +8,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
-
+with LLM.Types;
 package Coyote_App.Frontend is
 
    type Instance is abstract tagged limited null record;
@@ -64,6 +64,13 @@ package Coyote_App.Frontend is
      (F    : in out Instance;
       Text :        String;
       Kind :        Request_Kind := Prompt) is null;
+
+   --  Select the source format for the next replayed assistant text block.
+   --  Concrete GUI frontends apply this asynchronously; non-GUI frontends
+   --  retain their existing line-oriented output semantics.
+   procedure Set_Response_Format
+     (F      : in out Instance;
+      Format : LLM.Types.Message_Format) is null;
 
    --  Stream assistant text. A complete block ends at End_Text_Block.
    procedure Append_Text (F : in out Instance; Text : String) is abstract;

@@ -355,9 +355,10 @@ package body Coyote_App.Headless is
         (S          => Agent_Session,
          Model_Spec => To_String (Opts.Model),
          Agent      => To_String (Opts.Agent),
-         No_Tools   => Opts.No_Tools,
-         Session_Id => To_String (Opts.Session_Id),
-         Subagent   => Opts.Subagent);
+         No_Tools       => Opts.No_Tools,
+         Session_Id     => To_String (Opts.Session_Id),
+         Subagent       => Opts.Subagent,
+         Response_Format => LLM.Types.Format_Markdown);
       Agent_Ready := True;
       State.Set_Agent_Ready (True);
       State.Set_Sandbox (LLM.Agent.Current_Sandbox (Agent_Session));

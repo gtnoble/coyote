@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.26
-**Date:** 2026-09-06
+**Version:** 1.27
+**Date:** 2026-09-07
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -103,6 +103,18 @@ This model has two key properties:
 - **The frontend is a pure sink.** No LLM-specific logic appears in any
   frontend implementation. `LLM.Agent` emits typed events; `Dispatch_Event`
   translates them to frontend primitives; each frontend renders them.
+- **Incremental markup is opt-in.** When `COYOTE_INCREMENTAL_MARKUP=1`,
+  coyote selects the implemented restricted Coyote Stream Markup (CSM) path
+  for live GUI assistant responses. The application owns the selected format
+  and records it; the model does not author authoritative message metadata.
+  When the variable is absent or `0`, the existing Markdown path remains
+  active. CSM table blocks contain GFM table source inside `<table>`, CSM math
+  blocks contain one complete `<math>` document, and CSM code blocks contain
+  literal source inside `<code>`. Complete `<h1>` through `<h6>` blocks are
+  buffered until their closing boundary and realized as selectable native
+  heading labels. The other blocks are buffered only until their closing
+  boundary, then realized as native grid, Lasem-backed MathML, or selectable
+  monospace components.
 
 ### 3.2 Error and Exception Handling
 
@@ -170,11 +182,28 @@ windows, `Coyote_App.Frontend.GUI.Create` registers the executable-relative
 tracked `coyote` SVG available to both the main window and in-process dialogs
 without requiring an externally configured `XDG_DATA_DIRS`.
 
-**Markdown rendering:** The GUI frontend renders completed assistant text blocks
-using libcmark-gfm (via the `Coyote_Cmark` Ada binding and the `coyote_cmark_c.c`
-C shim). Enum constants are resolved once at package elaboration time via the
-C shim's getter functions. Raw streamed tokens are inserted as plain text and
-replaced with Pango markup when the block completes (`End_Text_Block`).
+**Markdown rendering:** The default GUI path renders completed assistant text
+blocks using libcmark-gfm (via the `Coyote_Cmark` Ada binding and the
+`coyote_cmark_c.c` C shim). Enum constants are resolved once at package
+elaboration time via the C shim's getter functions. Raw streamed tokens are
+inserted as plain text and replaced with Pango markup when the block completes
+(`End_Text_Block`).
+
+**Incremental markup rendering:** When `COYOTE_INCREMENTAL_MARKUP=1`, the
+application selects the restricted Coyote Stream Markup (CSM) parser before
+the first assistant text delta. The implemented parser emits synchronous
+semantic events for text, paragraph boundaries, and line breaks directly to
+the active GUI text component. Each provider delta is processed and rendered
+immediately, with no intentional timer batching or coalescing. Partial tags
+remain parser state across deltas; unknown or incomplete tags remain visible
+source. CSM table blocks contain GFM table source inside `<table>`, CSM math
+blocks contain one complete `<math>` document, and CSM code blocks contain
+literal source inside `<code>`. Complete `<blockquote>...</blockquote>` blocks
+remain buffered only until closing boundaries and reuse framed, selectable
+native text components. The other blocks remain buffered only until closing
+boundaries, then reuse the existing native GTK grid, Lasem-backed MathML, and
+selectable monospace text components. Markdown remains the default path and the
+model does not set format metadata.
 
 ### 3.5 Output Media and Formats
 
@@ -305,10 +334,13 @@ not wait for the complete user turn.
 | `LLM.Memory` | Memory taxonomy and MEMORY.md discovery | `src/llm/llm-memory.ads/.adb` |
 | `LLM.Session_Store` | JSONL session persistence | `src/llm/llm-session_store.ads/.adb` |
 | `LLM.Agent` | Native agentic loop | `src/llm/llm-agent.ads/.adb` |
+| `Coyote_App.Frontend` | Abstract frontend streaming contract | `src/coyote_app-frontend.ads` |
+| `Coyote_App.History` | Persisted session replay and format selection | `src/coyote_app-history.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
+| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary for text, tables, MathML, literal code blocks, horizontal rules, headings, and blockquotes | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
@@ -567,7 +599,7 @@ physical windows before frontend and session initialization.
 variables `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 `COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`,
 `COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_THINKING_LEVEL`,
-`COYOTE_RECURSION_DEPTH`.
+`COYOTE_RECURSION_DEPTH`, `COYOTE_INCREMENTAL_MARKUP`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Coyote_App.Plain.Run` or
 `Coyote_App.Run_GUI`. Ordinary explicitly separate GUI windows may propagate
@@ -1781,12 +1813,14 @@ coordinator guidance, and subagent delegation (REQ-CORE-170..174,
 REQ-CORE-180..183, REQ-CORE-190..192).
 
 **`Build (Cwd, No_Tools, Has_Editing_Tools, Agent, Context_Sections,
-Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode) → String`:**
+Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode,
+Response_Format) → String`:**
 Concatenates:
 
 1. **Static resource** — role description, communication style, math guidance,
-   tool guidance, delegation, coordinator, and editing-discipline prose loaded
-   from `share/coyote/system-prompt.md`.
+   tool guidance, delegation, coordinator, editing-discipline, and
+   format-specific CSM/Markdown response guidance loaded from
+   `share/coyote/system-prompt.md`.
 2. **Capability rendering** — tool descriptor, tool policy variant, coordinator
    variant, and shell-quoted subagent command are rendered into the resource.
 3. **Dynamic session sections** — agent text, settings, memory, project
@@ -2523,6 +2557,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
+| REQ-CORE-047–049 | `Coyote_App.History`, `Coyote_App.Frontend`, `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `LLM.Session_Store` |
 | REQ-CORE-050–055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
 | REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
 | REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |

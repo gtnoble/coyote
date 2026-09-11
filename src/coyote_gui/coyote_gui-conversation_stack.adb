@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Containers;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -10,6 +11,7 @@ with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_Renderer.Incremental;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
@@ -49,8 +51,15 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
+   use type Ada.Containers.Count_Type;
+   use type Coyote_Renderer.Incremental.Event_Kind;
 
    type Instance_Access is access all Instance;
+
+   Active_Incremental_Stack : Instance_Access := null;
+
+   procedure Handle_Incremental_Event
+     (Value : Coyote_Renderer.Incremental.Event);
 
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
@@ -160,12 +169,222 @@ package body Coyote_GUI.Conversation_Stack is
       Text           :        String;
       Buffer         :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
       View           :    out Gtk.Text_View.Gtk_Text_View;
-      Response_Block :        Boolean := False);
+      Response_Block    :        Boolean := False;
+      Incremental_Order :        Boolean := False);
 
-   procedure Add_Response_Table
+   procedure Add_Response_Text
+     (C                 : in out Instance;
+      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Text              :        String;
+      Incremental_Order :        Boolean := False);
+
+   procedure Add_Response_Code
      (C      : in out Instance;
       Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  :        Coyote_Renderer.Tables.Table_Block);
+      Source :        String);
+
+   procedure Add_Response_Heading
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String;
+      Level  : Natural);
+
+   procedure Add_Response_Blockquote
+     (C      : in out Instance;
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source :        String);
+
+   procedure Configure_Text_View
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class);
+
+   procedure Pack_Incremental_Response
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class);
+
+   procedure Add_Response_Rule
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class);
+
+   procedure Add_Response_Table
+     (C                 : in out Instance;
+      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table             :        Coyote_Renderer.Tables.Table_Block;
+      Incremental_Order :        Boolean := False);
+
+   procedure Pack_Incremental_Response
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+   begin
+      Parent.Pack_Start
+        (Child,
+         Expand  => False,
+         Fill    => True,
+         Padding => Response_Block_Padding);
+      Parent.Reorder_Child (Child, -1);
+   end Pack_Incremental_Response;
+
+   procedure Add_Response_Rule
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class)
+   is
+      Rule : Gtk.Separator.Gtk_Separator;
+   begin
+      Gtk.Separator.Gtk_New_Hseparator (Rule);
+      Pack_Incremental_Response (Parent, Rule);
+   end Add_Response_Rule;
+
+   procedure Replace_Incremental_Component
+     (C     : in out Instance;
+      Value : Coyote_Renderer.Incremental.Event)
+   is
+      Raw_View : constant Gtk.Text_View.Gtk_Text_View := C.Active_View;
+   begin
+      if C.Response_Section = null then
+         return;
+      end if;
+      if C.Active_Text /= null and then Raw_View /= null
+        and then C.Active_Text.Get_Char_Count = 0
+      then
+         C.Response_Section.Remove (Raw_View);
+         declare
+            Old_Index : constant Text_View_Vectors.Extended_Index :=
+              C.Text_Views.Find_Index (Raw_View);
+         begin
+            if Old_Index /= Text_View_Vectors.No_Index then
+               C.Text_Views.Delete (Old_Index);
+            end if;
+         end;
+      end if;
+      C.Active_Text := null;
+      C.Active_View := null;
+      C.Stream_Mark := null;
+
+      if Value.Kind = Coyote_Renderer.Incremental.Table_Event then
+         declare
+            Source : constant String := To_String (Value.Text);
+            Table_Source : constant String :=
+              (if Source'Length > 15
+               then Source (Source'First + 7 .. Source'Last - 8)
+               else "");
+            Extraction : constant Coyote_Renderer.Tables.Extraction_Result :=
+              Coyote_Renderer.Tables.Extract_Tables (Table_Source);
+         begin
+            if Extraction.Blocks.Length = 1 then
+               Add_Response_Table
+                 (C, C.Step_Box,
+                  Extraction.Blocks (Extraction.Blocks.First_Index),
+                  Incremental_Order => True);
+            else
+               Add_Response_Text
+                 (C, C.Step_Box, To_String (Value.Text),
+                  Incremental_Order => True);
+            end if;
+         end;
+      elsif Value.Kind = Coyote_Renderer.Incremental.Code_Event then
+         Add_Response_Code (C, C.Step_Box, To_String (Value.Text));
+      elsif Value.Kind = Coyote_Renderer.Incremental.Horizontal_Rule_Event then
+         Add_Response_Rule (C.Step_Box);
+      elsif Value.Kind = Coyote_Renderer.Incremental.Heading_Event then
+         Add_Response_Heading
+           (C.Step_Box, To_String (Value.Text), Value.Level);
+      elsif Value.Kind = Coyote_Renderer.Incremental.Blockquote_Event then
+         Add_Response_Blockquote
+           (C, C.Step_Box, To_String (Value.Text));
+      else
+         declare
+            Source : constant String := To_String (Value.Text);
+            Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+              Coyote_GUI.Math_Element.New_Element
+                (Source, Source, C.Math_Scale);
+         begin
+            if Element = null then
+               Add_Response_Text
+                 (C, C.Step_Box, Source, Incremental_Order => True);
+            else
+               Pack_Incremental_Response
+                 (C.Step_Box, Coyote_GUI.Math_Element.Widget (Element.all));
+               C.Math_Elements.Append (Element);
+            end if;
+         end;
+      end if;
+   end Replace_Incremental_Component;
+
+   procedure Apply_Incremental_Event
+     (C     : in out Instance;
+      Value : Coyote_Renderer.Incremental.Event)
+   is
+      Text : constant String := To_String (Value.Text);
+   begin
+      if C.Active_Text = null
+        and then Value.Kind in
+          Coyote_Renderer.Incremental.Text_Event |
+          Coyote_Renderer.Incremental.Invalid_Event
+      then
+         Add_Text_Element
+           (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View,
+            Incremental_Order => True);
+         C.Text_Views.Append (C.Active_View);
+         declare
+            Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+         begin
+            C.Active_Text.Get_End_Iter (Iter);
+            C.Stream_Mark := C.Active_Text.Create_Mark
+              ("", Iter, Left_Gravity => True);
+         end;
+      end if;
+      if C.Active_Text = null
+        and then Value.Kind in
+          Coyote_Renderer.Incremental.Table_Event |
+          Coyote_Renderer.Incremental.Math_Event |
+          Coyote_Renderer.Incremental.Code_Event |
+          Coyote_Renderer.Incremental.Horizontal_Rule_Event |
+          Coyote_Renderer.Incremental.Heading_Event |
+          Coyote_Renderer.Incremental.Blockquote_Event
+      then
+         Replace_Incremental_Component (C, Value);
+         return;
+      end if;
+      if C.Active_Text = null then
+         return;
+      end if;
+      case Value.Kind is
+         when Coyote_Renderer.Incremental.Text_Event |
+              Coyote_Renderer.Incremental.Invalid_Event =>
+            Append_Buffer (C.Active_Text, Text);
+         when Coyote_Renderer.Incremental.Paragraph_Begin_Event =>
+            null;
+         when Coyote_Renderer.Incremental.Paragraph_End_Event |
+              Coyote_Renderer.Incremental.Line_Break_Event =>
+            Append_Buffer (C.Active_Text, ASCII.LF & "");
+         when Coyote_Renderer.Incremental.Table_Event |
+              Coyote_Renderer.Incremental.Math_Event |
+              Coyote_Renderer.Incremental.Code_Event |
+              Coyote_Renderer.Incremental.Horizontal_Rule_Event |
+              Coyote_Renderer.Incremental.Heading_Event |
+              Coyote_Renderer.Incremental.Blockquote_Event =>
+            Replace_Incremental_Component (C, Value);
+      end case;
+   end Apply_Incremental_Event;
+
+   procedure Handle_Incremental_Event
+     (Value : Coyote_Renderer.Incremental.Event)
+   is
+   begin
+      if Active_Incremental_Stack /= null then
+         Apply_Incremental_Event (Active_Incremental_Stack.all, Value);
+      end if;
+   end Handle_Incremental_Event;
+
+   procedure Consume_Incremental
+     (C    : in out Instance;
+      Text : String)
+   is
+   begin
+      Active_Incremental_Stack := C'Unchecked_Access;
+      Coyote_Renderer.Incremental.Feed
+        (Parser  => C.Incremental_Parser,
+         Data    => Text,
+         Handler => Handle_Incremental_Event'Access);
+      Active_Incremental_Stack := null;
+   end Consume_Incremental;
 
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -189,10 +408,91 @@ package body Coyote_GUI.Conversation_Stack is
          Guint (Priority_Application));
    end Apply_Response_Style;
 
-   procedure Add_Response_Text
+   procedure Add_Response_Heading
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String;
+      Level  : Natural)
+   is
+      Label : Gtk.Label.Gtk_Label;
+      Raw   : constant String :=
+        (if Source'Length > 9
+         then Source (Source'First + 4 .. Source'Last - 5)
+         else "");
+      Size  : constant String :=
+        (if Level <= 2 then "larger"
+         elsif Level <= 4 then "medium"
+         else "normal");
+   begin
+      Gtk.Label.Gtk_New (Label);
+      Label.Set_Markup
+        ("<span weight=""bold"" size=""" & Size & """>"
+         & Coyote_Renderer.Markup.Xml_Escape (Raw)
+         & "</span>");
+      Label.Set_Xalign (0.0);
+      Label.Set_Selectable (True);
+      Pack_Incremental_Response (Parent, Label);
+   end Add_Response_Heading;
+
+   procedure Add_Response_Blockquote
      (C      : in out Instance;
-      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Text   :        String)
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String)
+   is
+      Frame  : Gtk.Frame.Gtk_Frame;
+      Box    : Gtk.Box.Gtk_Box;
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View   : Gtk.Text_View.Gtk_Text_View;
+      Quote  : constant String :=
+        (if Source'Length > 25
+         then Source (Source'First + 12 .. Source'Last - 13)
+         else "");
+   begin
+      Gtk.Frame.Gtk_New (Frame);
+      Frame.Set_Shadow_Type (Gtk.Enums.Shadow_In);
+      Gtk.Box.Gtk_New_Vbox (Box, Homogeneous => False, Spacing => 0);
+      Box.Set_Border_Width (4);
+      Gtk.Text_Buffer.Gtk_New (Buffer);
+      Gtk.Text_View.Gtk_New (View, Buffer);
+      Configure_Text_View (View);
+      Buffer.Set_Text (Quote);
+      Apply_Response_Style (View);
+      Box.Pack_Start (View, Expand => False, Fill => True, Padding => 0);
+      Frame.Add (Box);
+      Pack_Incremental_Response (Parent, Frame);
+      C.Text_Views.Append (View);
+   end Add_Response_Blockquote;
+
+   procedure Add_Response_Code
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String)
+   is
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View   : Gtk.Text_View.Gtk_Text_View;
+      Code   : constant String :=
+        (if Source'Length > 13
+         then Source (Source'First + 6 .. Source'Last - 7)
+         else "");
+      Font_Description : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("Monospace");
+   begin
+      Add_Text_Element
+        (C, Parent, "", Code, Buffer, View,
+         Response_Block => True,
+         Incremental_Order => True);
+      View.Modify_Font (Font_Description);
+      Pango.Font.Free (Font_Description);
+      View.Set_Wrap_Mode (Gtk.Enums.Wrap_None);
+      View.Set_Accepts_Tab (True);
+      Apply_Response_Style (View);
+      C.Text_Views.Append (View);
+   end Add_Response_Code;
+
+   procedure Add_Response_Text
+     (C                 : in out Instance;
+      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Text              :        String;
+      Incremental_Order :        Boolean := False)
    is
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
       View   : Gtk.Text_View.Gtk_Text_View;
@@ -204,7 +504,9 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       Add_Text_Element
-        (C, Parent, "", Text, Buffer, View, Response_Block => True);
+        (C, Parent, "", Text, Buffer, View,
+         Response_Block => True,
+         Incremental_Order => Incremental_Order);
       Apply_Response_Style (View);
       if C.Render_Markdown then
          Buffer.Set_Text ("");
@@ -217,9 +519,10 @@ package body Coyote_GUI.Conversation_Stack is
    end Add_Response_Text;
 
    procedure Add_Response_Table
-     (C      : in out Instance;
-      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  :        Coyote_Renderer.Tables.Table_Block)
+     (C                 : in out Instance;
+      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table             :        Coyote_Renderer.Tables.Table_Block;
+      Incremental_Order :        Boolean := False)
    is
       Grid : Gtk.Grid.Gtk_Grid;
    begin
@@ -283,7 +586,11 @@ package body Coyote_GUI.Conversation_Stack is
             end;
          end loop;
       end if;
-      Pack_Response_Block (Parent, Grid);
+      if Incremental_Order then
+         Pack_Incremental_Response (Parent, Grid);
+      else
+         Pack_Response_Block (Parent, Grid);
+      end if;
       C.Table_Grids.Append (Grid);
    end Add_Response_Table;
 
@@ -592,9 +899,10 @@ package body Coyote_GUI.Conversation_Stack is
       Parent         :        not null access Gtk.Box.Gtk_Box_Record'Class;
       Caption        :        String;
       Text           :        String;
-      Buffer         :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View           :    out Gtk.Text_View.Gtk_Text_View;
-      Response_Block :        Boolean := False)
+      Buffer            :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View              :    out Gtk.Text_View.Gtk_Text_View;
+      Response_Block    :        Boolean := False;
+      Incremental_Order :        Boolean := False)
    is
       Section : Gtk.Box.Gtk_Box;
       Label   : Gtk.Label.Gtk_Label;
@@ -614,7 +922,9 @@ package body Coyote_GUI.Conversation_Stack is
          Buffer.Set_Text (Text);
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
-      if Response_Block then
+      if Incremental_Order then
+         Pack_Incremental_Response (Parent, Section);
+      elsif Response_Block then
          Pack_Response_Block (Parent, Section);
       else
          Parent.Pack_Start
@@ -806,6 +1116,7 @@ package body Coyote_GUI.Conversation_Stack is
            (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
          C.Text_Open  := True;
          C.Stream_Buf := Null_Unbounded_String;
+         Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
@@ -815,7 +1126,11 @@ package body Coyote_GUI.Conversation_Stack is
          end;
       end if;
       Append (C.Stream_Buf, Text);
-      Append_Buffer (C.Active_Text, Text);
+      if C.Incremental_Markup then
+         Consume_Incremental (C, Text);
+      else
+         Append_Buffer (C.Active_Text, Text);
+      end if;
    end Append_Text;
 
    procedure End_Text_Block (C : in out Instance) is
@@ -824,7 +1139,14 @@ package body Coyote_GUI.Conversation_Stack is
       Has_Native_Blocks : Boolean         := False;
    begin
       if C.Text_Open then
-         if C.Render_Markdown then
+         if C.Incremental_Markup then
+            Active_Incremental_Stack := C'Unchecked_Access;
+            Coyote_Renderer.Incremental.Flush
+              (Parser  => C.Incremental_Parser,
+               Handler => Handle_Incremental_Event'Access);
+            Active_Incremental_Stack := null;
+         end if;
+         if C.Render_Markdown and then not C.Incremental_Markup then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
             Has_Native_Blocks :=
               Has_Display_Math
@@ -832,9 +1154,11 @@ package body Coyote_GUI.Conversation_Stack is
                 .Blocks
                 .Is_Empty;
          end if;
-         Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
-         if C.Stream_Mark /= null then
-            C.Active_Text.Delete_Mark (C.Stream_Mark);
+         if C.Active_Text /= null then
+            Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
+            if C.Stream_Mark /= null then
+               C.Active_Text.Delete_Mark (C.Stream_Mark);
+            end if;
          end if;
          C.Stream_Mark := null;
          C.Stream_Buf  := Null_Unbounded_String;
@@ -1432,6 +1756,20 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       return C.Render_Markdown;
    end Get_Render_Markdown;
+
+   procedure Set_Incremental_Markup
+     (C       : in out Instance;
+      Enabled : Boolean)
+   is
+   begin
+      C.Incremental_Markup := Enabled;
+      Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
+   end Set_Incremental_Markup;
+
+   function Get_Incremental_Markup (C : Instance) return Boolean is
+   begin
+      return C.Incremental_Markup;
+   end Get_Incremental_Markup;
 
    procedure Set_Font
      (C          : in out Instance;

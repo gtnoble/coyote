@@ -447,6 +447,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Say hello")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -668,6 +669,7 @@ package body LLM_OpenAI_Completions_Tests is
          Text  => To_Unbounded_String ("Use a tool")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -681,6 +683,7 @@ package body LLM_OpenAI_Completions_Tests is
           Arguments_Json => To_Unbounded_String ("{""path"":""a.adb""}")));
       Messages.Append
         ((Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Assistant_Blocks,
           Tok_Usage =>
             (others => 0),
@@ -696,6 +699,7 @@ package body LLM_OpenAI_Completions_Tests is
           Status      => LLM.Types.Result_Success));
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Tool_Content,
           Tok_Usage =>
             (others => 0),
@@ -913,6 +917,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Use two tools")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1016,6 +1021,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Think first")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1113,6 +1119,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Checkpoint summary text")));
       Messages.Append
         ((Role      => LLM.Types.Compaction_Summary,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Summary_Content,
           Tok_Usage =>
             (others => 0),
@@ -1196,6 +1203,7 @@ package body LLM_OpenAI_Completions_Tests is
          Text  => To_Unbounded_String ("Say hello without SSE")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1316,6 +1324,7 @@ package body LLM_OpenAI_Completions_Tests is
          Text  => To_Unbounded_String ("Use a tool without SSE")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1410,6 +1419,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Trigger an HTTP error")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1517,6 +1527,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("stream error")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1588,6 +1599,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Handle EOF gracefully")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1679,6 +1691,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Hello")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -1775,6 +1788,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Use a tool")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -1894,6 +1908,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Test cached tokens")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -1974,6 +1989,7 @@ package body LLM_OpenAI_Completions_Tests is
           Text => To_Unbounded_String ("Take a screenshot")));
       Messages.Append
         ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1989,6 +2005,7 @@ package body LLM_OpenAI_Completions_Tests is
               ("{""command"":""screenshot"",""media_type"":""image/png""}")));
       Messages.Append
         ((Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Asst_Content,
           Tok_Usage =>
             (others => 0),
@@ -2004,6 +2021,7 @@ package body LLM_OpenAI_Completions_Tests is
           Status      => LLM.Types.Result_Success));
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
           Content   => Result_Content,
           Tok_Usage =>
             (others => 0),

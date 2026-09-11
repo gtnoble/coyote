@@ -11,6 +11,7 @@ with GNATCOLL.JSON;
 with Coyote_App.Agent_RPC;
 with Coyote_App.Agent_RPC.Transport;
 with Coyote_App.Utils;
+with LLM.Types;
 
 package body Coyote_App.Frontend.RPC is
 
@@ -18,6 +19,7 @@ package body Coyote_App.Frontend.RPC is
    use GNATCOLL.JSON;
    use Coyote_App.Agent_RPC;
    use Coyote_App.Agent_RPC.Transport;
+   use type LLM.Types.Message_Format;
 
    procedure Emit (F : in out Instance; Name : Event_Kind; Data : JSON_Value)
    is
@@ -104,6 +106,18 @@ package body Coyote_App.Frontend.RPC is
       Data.Set_Field ("text", Text);
       Emit (F, Text_Delta, Data);
    end Append_Text;
+
+   overriding procedure Set_Response_Format
+     (F      : in out Instance;
+      Format : LLM.Types.Message_Format)
+   is
+      Data : constant JSON_Value := Object;
+   begin
+      Data.Set_Field
+        ("format", (if Format = LLM.Types.Format_Coyote_Stream
+                    then "coyote-stream" else "markdown"));
+      Emit (F, Response_Format, Data);
+   end Set_Response_Format;
 
    overriding procedure End_Text_Block (F : in out Instance) is
       Data : constant JSON_Value := Object;

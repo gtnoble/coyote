@@ -33,6 +33,80 @@ components.
 
 ## Design Rationale
 
+### Accepted incremental-markup decisions (2026-09-06)
+
+`COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag for incremental markup.
+When the flag is unset or set to `0`, the existing Markdown behavior is
+preserved. `coyote`, not the model, owns format selection and the associated
+metadata. When enabled, provider deltas are processed and rendered
+immediately; this mode does not use timer batching.
+
+The PCR-097 implementation wires the synchronous restricted CSM parser into
+`Coyote_GUI.Conversation_Stack` when `COYOTE_INCREMENTAL_MARKUP=1`. Each
+provider delta is parsed immediately; text, paragraph, and line events update
+selectable GTK text components, while complete `<table>`, `<math>`, and
+`<code>` blocks are realized at their closing boundaries as native grid,
+Lasem-backed MathML, and selectable monospace components; self-closing `<hr/>`
+and `<hr />` elements become native horizontal separators immediately; complete
+h1-h6 blocks become selectable native heading labels at their closing
+boundaries; complete blockquotes become framed, selectable native text at their
+closing boundaries. Partial or malformed fragments remain visible source.
+Markdown remains the default path. The selected response format also controls
+model-facing prompt guidance: CSM mode receives restricted CSM syntax
+instructions, while Markdown and Plain mode retain the existing prompt.
+Parser and display-backed GUI component tests pass; the CSM grammar remains
+intentionally restricted.
+
+### PCR-097 focused incremental-markup implementation verification (2026-09-06)
+
+The PCR-097 implementation is covered by focused parser, message-format,
+persistence, legacy-fallback, environment-flag, and incremental
+native-component lifecycle tests. The code-block test verifies literal
+characters, delimiter removal, and prefix/code/suffix order; parser coverage
+also verifies empty complete table, MathML, and code blocks. The complete
+development suite passes 854/854 with zero failed assertions and zero
+unexpected errors; the display-backed conversation-stack suite passes 26/26.
+README documents the opt-in flag and restricted CSM scope.
+
+### PCR-097 horizontal-rule extension verification (2026-09-07)
+
+The display-backed suite now verifies split-boundary `<hr/>` and `<hr />`
+recognition, native `GtkHSeparator` realization, and ordered
+text-rule-text-rule-text components. The complete development suite had passed
+856/856 with zero failed assertions and zero unexpected errors; the focused
+parser suite had passed 14/14 and the display-backed conversation-stack suite
+had passed 27/27 before the heading slice. Existing Markdown/default-off
+behavior remains unchanged.
+
+### PCR-097 heading extension verification (2026-09-07)
+
+The display-backed suite verifies split h1/h4 headings, native selectable
+heading labels, literal heading text, and text-heading-text-heading-text order.
+The complete development suite passes 858/858 with zero failed assertions and
+zero unexpected errors; the focused parser suite passes 15/15 and the
+display-backed conversation-stack suite passes 28/28. Existing Markdown and
+COYOTE_INCREMENTAL_MARKUP default-off behavior are unchanged.
+
+### PCR-097 blockquote extension verification (2026-09-07)
+
+The display-backed suite verifies split-boundary blockquote recognition, framed
+selectable native text, literal-character preservation, and ordered
+text-blockquote-text components. The complete development suite passes 862/862
+with zero failed assertions and zero unexpected errors; the focused parser suite
+passes 16/16 and the display-backed conversation-stack suite passes 29/29.
+Existing Markdown and COYOTE_INCREMENTAL_MARKUP default-off behavior are
+unchanged.
+
+### PCR-097 replay-format compatibility verification (2026-09-07)
+
+The GUI frontend now receives a per-assistant replay-format update through the
+protected update queue. Persisted Coyote Stream messages use the incremental
+stack, while legacy or missing-format messages use Markdown; the configured
+live mode is restored after replay. The coordinator RPC frontend emits a
+versioned `responseFormat` event so selected child-agent history retains the
+same semantics. Focused replay and RPC codec tests pass; display-backed GUI
+qualification remains subject to the available display.
+
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 
 GUI fixture packages now expose leaf AUnit `Suite` functions and are composed

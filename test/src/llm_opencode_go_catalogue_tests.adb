@@ -161,6 +161,7 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
          Text  => To_Unbounded_String ("Say OK")));
       Messages.Append
         ((Role      => LLM.Types.User,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -323,6 +324,7 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
          Text  => To_Unbounded_String ("Say OK")));
       Messages.Append
         ((Role      => LLM.Types.User,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),

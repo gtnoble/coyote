@@ -47,6 +47,24 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Response_Text_Has_Style
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
+   function Active_Step_Child_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
+   function Active_Step_Child_Name
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String;
+
+   function Active_Step_Child_Text
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String;
+
+   function Text_View_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
+   function Text_View_Text
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String;
+
    function Table_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 

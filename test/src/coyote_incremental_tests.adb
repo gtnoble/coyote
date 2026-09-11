@@ -1,0 +1,349 @@
+--  Coyote_Incremental_Tests body.
+--
+--  Project: coyote
+
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with AUnit.Assertions;
+with AUnit.Test_Caller;
+with Coyote_Renderer.Incremental;
+
+package body Coyote_Incremental_Tests is
+
+   use AUnit.Assertions;
+   use Coyote_Renderer.Incremental;
+
+   type Event_Log is record
+      Text          : Unbounded_String;
+      Count         : Natural := 0;
+      Invalid_Count : Natural := 0;
+   end record;
+
+   type Event_Log_Access is access all Event_Log;
+   Test_Log : aliased Event_Log;
+   Active_Log : Event_Log_Access := Test_Log'Access;
+
+   procedure Reset_Log is
+   begin
+      Test_Log := (others => <>);
+      Active_Log := Test_Log'Access;
+   end Reset_Log;
+
+   procedure Collect (Value : Event) is
+   begin
+      if Active_Log = null then
+         return;
+      end if;
+      Active_Log.Count := Active_Log.Count + 1;
+      if Value.Kind = Invalid_Event then
+         Active_Log.Invalid_Count := Active_Log.Invalid_Count + 1;
+      end if;
+      if Length (Active_Log.Text) > 0 then
+         Append (Active_Log.Text, "|");
+      end if;
+      Append (Active_Log.Text, To_String (Value.Text));
+   end Collect;
+
+   procedure Test_Text_Is_Emitted_Immediately (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "hello", Collect'Access);
+      Assert (Test_Log.Count = 1, "plain text should emit one event immediately");
+      Assert (To_String (Test_Log.Text) = "hello", "text event should preserve text");
+   end Test_Text_Is_Emitted_Immediately;
+
+   procedure Test_Tag_Split_Across_Deltas (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "left<", Collect'Access);
+      Assert (To_String (Test_Log.Text) = "left", "text before partial tag emits");
+      Feed (Parser, "p>right</p>", Collect'Access);
+      Assert (To_String (Test_Log.Text) = "left||right|",
+              "split tag is reassembled");
+      Assert (Test_Log.Invalid_Count = 0, "recognised split tags are valid");
+   end Test_Tag_Split_Across_Deltas;
+
+   procedure Test_Unknown_Tag_Is_Visible (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "a<unknown>b", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1, "unknown tag should be invalid");
+      Assert (To_String (Test_Log.Text) = "a|<unknown>|b",
+              "unknown tag source should remain visible");
+   end Test_Unknown_Tag_Is_Visible;
+
+   procedure Test_Flush_Emits_Incomplete_Tag (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "tail<", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1, "flush should expose incomplete tag");
+      Assert (To_String (Test_Log.Text) = "tail|<", "flush should preserve source");
+   end Test_Flush_Emits_Incomplete_Tag;
+
+   procedure Test_Table_Event_Survives_Split (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<table>| H |" & ASCII.LF, Collect'Access);
+      Feed (Parser, "| --- |" & ASCII.LF
+            & "| cell |</table>after", Collect'Access);
+      Assert (Test_Log.Count = 3, "table emits text, table, and trailing text");
+      Assert (Test_Log.Invalid_Count = 0, "complete table is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<table>| H |" & ASCII.LF
+                & "| --- |" & ASCII.LF & "| cell |</table>|after",
+              "table event preserves complete source and trailing text: "
+              & To_String (Test_Log.Text));
+   end Test_Table_Event_Survives_Split;
+
+   procedure Test_Math_Event_Survives_Split (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "<math xmlns=""urn:test"">", Collect'Access);
+      Assert (Test_Log.Count = 0, "incomplete math emits no event");
+      Feed (Parser, "<mi>x</mi></math>", Collect'Access);
+      Assert (Test_Log.Count = 1, "complete math emits one event");
+      Assert (Test_Log.Invalid_Count = 0, "complete math is valid");
+      Assert (To_String (Test_Log.Text) =
+                "<math xmlns=""urn:test""><mi>x</mi></math>",
+              "math event preserves complete source");
+   end Test_Math_Event_Survives_Split;
+
+   procedure Test_Block_Trailing_Text_Emits (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "<table>x</table>tail", Collect'Access);
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Test_Log.Text), "tail") > 0,
+              "text after native block emits in the same delta");
+   end Test_Block_Trailing_Text_Emits;
+
+   procedure Test_Adjacent_Blocks_Preserve_Order (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "<table>a</table><math>x</math>", Collect'Access);
+      Assert (Test_Log.Count = 2,
+              "adjacent native blocks emit two events");
+      Assert (To_String (Test_Log.Text) =
+                "<table>a</table>|<math>x</math>",
+              "adjacent native blocks preserve source order");
+   end Test_Adjacent_Blocks_Preserve_Order;
+
+   procedure Test_Malformed_Math_Opening_Is_Visible (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<mathx>body</mathx>after", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 2,
+              "malformed math-prefixed tags remain invalid source");
+      Assert (To_String (Test_Log.Text) =
+                "before|<mathx>|body|</mathx>|after",
+              "malformed math-prefixed source remains visible");
+   end Test_Malformed_Math_Opening_Is_Visible;
+
+   procedure Test_Code_Event_Survives_Split (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<code>a<>&", Collect'Access);
+      Assert (Test_Log.Count = 1,
+              "code opening and prefix text remain provisional");
+      Feed (Parser, "b</code>after", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "split code emits text, code, and trailing text");
+      Assert (Test_Log.Invalid_Count = 0,
+              "complete split code is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<code>a<>&b</code>|after",
+              "code event preserves literal source and order");
+   end Test_Code_Event_Survives_Split;
+
+   procedure Test_Incomplete_Code_Flushes (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "head<code>literal", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "flush exposes incomplete code source");
+      Assert (To_String (Test_Log.Text) = "head|<code>literal",
+              "incomplete code remains visible source");
+   end Test_Incomplete_Code_Flushes;
+
+   procedure Test_Empty_Blocks_Are_Valid (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed
+        (Parser,
+         "<table></table><math></math><code></code><h3></h3>",
+         Collect'Access);
+      Assert (Test_Log.Count = 4,
+              "empty table, math, code, and heading blocks emit events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "empty complete blocks are valid events");
+      Assert (To_String (Test_Log.Text) =
+                "<table></table>|<math></math>|<code></code>|<h3></h3>",
+              "empty complete blocks preserve source order");
+   end Test_Empty_Blocks_Are_Valid;
+
+   procedure Test_Horizontal_Rule_Events (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<hr", Collect'Access);
+      Feed (Parser, "/>after<hr />tail", Collect'Access);
+      Assert (Test_Log.Count = 5,
+              "horizontal rules emit around prefix and suffix text");
+      Assert (Test_Log.Invalid_Count = 0,
+              "recognized horizontal rules are valid events");
+      Assert (To_String (Test_Log.Text) =
+                "before||after||tail",
+              "horizontal rules preserve source event order");
+      Reset_Log;
+      Feed (Parser, "bad<hr>tail", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "non-self-closing horizontal rule remains visible source");
+      Assert (To_String (Test_Log.Text) = "bad|<hr>|tail",
+              "malformed horizontal rule remains visible source");
+   end Test_Horizontal_Rule_Events;
+
+   procedure Test_Heading_Events (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<h", Collect'Access);
+      Feed (Parser, "2>Title <&</h2>after", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "split heading emits prefix, heading, and suffix events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "recognized heading is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<h2>Title <&</h2>|after",
+              "heading preserves complete source order");
+      Reset_Log;
+      Feed (Parser, "<h1>one</h1><h6>six</h6>", Collect'Access);
+      Assert (Test_Log.Count = 2,
+              "multiple heading levels emit separate events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "multiple heading levels are valid");
+      Reset_Log;
+      Feed (Parser, "<h2>bad</h3>", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "mismatched heading closing tag remains visible");
+      Assert (To_String (Test_Log.Text) = "<h2>bad</h3>",
+              "mismatched heading source remains visible");
+   end Test_Heading_Events;
+
+   procedure Test_Blockquote_Events (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<block", Collect'Access);
+      Feed (Parser, "quote>quoted <&</blockquote>after", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "split blockquote emits prefix, quote, and suffix events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "recognized blockquote is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<blockquote>quoted <&</blockquote>|after",
+              "blockquote preserves complete source order");
+      Reset_Log;
+      Feed (Parser, "<blockquote></blockquote>", Collect'Access);
+      Assert (Test_Log.Count = 1,
+              "empty blockquote emits one event");
+      Assert (Test_Log.Invalid_Count = 0,
+              "empty blockquote is valid");
+      Reset_Log;
+      Feed (Parser, "bad<blockquote>incomplete", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "incomplete blockquote remains visible on flush");
+      Assert (To_String (Test_Log.Text) =
+                "bad|<blockquote>incomplete",
+              "incomplete blockquote preserves source");
+      Reset_Log;
+      Feed (Parser, "bad<blockquote >tail", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "non-exact blockquote opening remains visible");
+   end Test_Blockquote_Events;
+
+   package Caller is new AUnit.Test_Caller (Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Caller.Create
+        ("Incremental text emits immediately",
+         Test_Text_Is_Emitted_Immediately'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental tags survive delta boundaries",
+         Test_Tag_Split_Across_Deltas'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental unknown tags remain visible",
+         Test_Unknown_Tag_Is_Visible'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental flush exposes incomplete tags",
+         Test_Flush_Emits_Incomplete_Tag'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental table event survives delta boundaries",
+         Test_Table_Event_Survives_Split'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental math event survives delta boundaries",
+         Test_Math_Event_Survives_Split'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental block trailing text emits immediately",
+         Test_Block_Trailing_Text_Emits'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental adjacent blocks preserve order",
+         Test_Adjacent_Blocks_Preserve_Order'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental malformed math opening remains visible",
+         Test_Malformed_Math_Opening_Is_Visible'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental code event survives delta boundaries",
+         Test_Code_Event_Survives_Split'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental incomplete code flushes visibly",
+         Test_Incomplete_Code_Flushes'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental empty blocks are valid",
+         Test_Empty_Blocks_Are_Valid'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental horizontal rules preserve order",
+         Test_Horizontal_Rule_Events'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental headings preserve levels and order",
+         Test_Heading_Events'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental blockquotes preserve boundaries and order",
+         Test_Blockquote_Events'Access));
+      return Result;
+   end Suite;
+
+end Coyote_Incremental_Tests;

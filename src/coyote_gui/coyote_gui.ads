@@ -109,6 +109,9 @@ package Coyote_GUI is
      (Completed,
       Aborted,
       Failed);
+   type Response_Format is
+     (Markdown_Response,
+      Coyote_Stream_Response);
 
    --  ── Notice severity ───────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Notice_Kind.
@@ -129,6 +132,7 @@ package Coyote_GUI is
    --    Begin_Request      Text = submitted prompt; R_Kind = request kind
    --    Complete_Request   C_Status = terminal exchange state
    --    Append_Text        Text = chunk text
+   --    Set_Response_Format Format = replay source format
    --    End_Text_Block     (no extra fields)
    --    Begin_Thinking     (no extra fields)
    --    Append_Thinking    Text = chunk text
@@ -185,6 +189,7 @@ package Coyote_GUI is
      (Begin_Request,
       Complete_Request,
       Append_Text,
+      Set_Response_Format,
       End_Text_Block,
       Begin_Thinking,
       Append_Thinking,
@@ -228,6 +233,7 @@ package Coyote_GUI is
       Mode             : Run_Mode          := Idle;
       N_Kind           : Notice_Kind       := Info;
       R_Kind           : Request_Kind      := Prompt;
+      Format           : Response_Format   := Markdown_Response;
       F_Kind           : Footer_Kind       := Final_Footer;
       C_Status         : Completion_Status := Completed;
       Enabled          : Boolean           := False;

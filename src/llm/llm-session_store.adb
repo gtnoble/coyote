@@ -211,6 +211,29 @@ package body LLM.Session_Store is
       end case;
    end Stop_Reason_Image;
 
+   function Message_Format_Image
+     (Format : LLM.Types.Message_Format) return String
+   is
+   begin
+      case Format is
+         when LLM.Types.Format_Coyote_Stream =>
+            return "coyote-stream";
+         when others =>
+            return "markdown";
+      end case;
+   end Message_Format_Image;
+
+   function Message_Format_Value
+     (Text : String) return LLM.Types.Message_Format
+   is
+   begin
+      if Text = "coyote-stream" then
+         return LLM.Types.Format_Coyote_Stream;
+      else
+         return LLM.Types.Format_Markdown;
+      end if;
+   end Message_Format_Value;
+
    function Hex_Digit (Value : Natural) return Character is
       Hex_Table : constant String := "0123456789abcdef";
    begin
@@ -321,6 +344,7 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.Compaction_Summary,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -578,6 +602,7 @@ package body LLM.Session_Store is
             Usage.Set_Field ("thinking", Integer (Msg.Tok_Usage.Thinking));
 
             Result.Set_Field ("role", "assistant");
+            Result.Set_Field ("format", Message_Format_Image (Msg.Format));
             Result.Set_Field ("content", Content_To_Array (Msg));
             declare
                Provider : Unbounded_String;
@@ -629,6 +654,7 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -660,6 +686,8 @@ package body LLM.Session_Store is
          then
            Get_String_Field (Msg, "model")
          else Default_Model);
+      Format : constant LLM.Types.Message_Format :=
+        Message_Format_Value (Get_String_Field (Msg, "format"));
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
@@ -725,6 +753,7 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.Assistant,
+         Format    => Format,
          Content   => Content,
          Tok_Usage =>
            (Input       => Get_Natural_Field (Usage, "input"),
@@ -780,6 +809,7 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -1153,6 +1183,7 @@ package body LLM.Session_Store is
                                  then
                                    Parse_Tool_Result_Message (Envelope, Msg)
                                  else (Role   => LLM.Types.User,
+                                    Format   => LLM.Types.Format_Unspecified,
                                     Content   =>
                                       LLM.Types.Content_Block_Vectors
                                         .Empty_Vector,

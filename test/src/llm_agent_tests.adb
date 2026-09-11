@@ -519,6 +519,7 @@ package body LLM_Agent_Tests is
       LLM.Session_Store.Append_Message
         (Session_Id,
         (Role       => Role,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -1224,6 +1225,7 @@ package body LLM_Agent_Tests is
       LLM.Session_Store.Append_Message
         (To_String (Existing_Id),
          (Role      => LLM.Types.User,
+           Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1236,6 +1238,7 @@ package body LLM_Agent_Tests is
       LLM.Session_Store.Append_Message
         (To_String (Existing_Id),
          (Role      => LLM.Types.Assistant,
+           Format    => LLM.Types.Format_Unspecified,
           Content   => Reply_Content,
           Tok_Usage =>
             (Input       => 3,
@@ -2526,6 +2529,10 @@ package body LLM_Agent_Tests is
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
       Old_Url          : constant String   :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+      Ovr_Was_Set      : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_SUBAGENT_MODEL");
+      Old_Ovr          : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_SUBAGENT_MODEL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
       begin
@@ -2569,6 +2576,7 @@ package body LLM_Agent_Tests is
       Ada.Environment_Variables.Set
         ("COYOTE_OPENROUTER_BASE_URL",
          "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+      Ada.Environment_Variables.Clear ("COYOTE_SUBAGENT_MODEL");
 
       LLM.Agent.Create
         (S => Agent_Session, Model_Spec => "", No_Tools => True);
@@ -2633,6 +2641,7 @@ package body LLM_Agent_Tests is
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Restore_Env ("COYOTE_SUBAGENT_MODEL", Ovr_Was_Set, Old_Ovr);
       Cleanup_Test_Home (Home);
    exception
       when others =>
@@ -2647,6 +2656,7 @@ package body LLM_Agent_Tests is
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Restore_Env ("COYOTE_SUBAGENT_MODEL", Ovr_Was_Set, Old_Ovr);
          Cleanup_Test_Home (Home);
          raise;
    end Test_Create_Without_Model_Spec_Uses_Settings_Default;
@@ -3494,6 +3504,7 @@ package body LLM_Agent_Tests is
           Text => To_Unbounded_String ("question")));
       History.Append
         ((Role      => LLM.Types.User,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -3511,6 +3522,7 @@ package body LLM_Agent_Tests is
          Text  => To_Unbounded_String ("grok answer")));
       History.Append
         ((Role      => LLM.Types.Assistant,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => Grok_Content,
           Tok_Usage =>
             (others => 0),
@@ -3528,6 +3540,7 @@ package body LLM_Agent_Tests is
          Text  => To_Unbounded_String ("luna answer")));
       History.Append
         ((Role      => LLM.Types.Assistant,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => Luna_Content,
           Tok_Usage =>
             (others => 0),
@@ -3542,6 +3555,7 @@ package body LLM_Agent_Tests is
           Origin_Model    => Null_Unbounded_String));
       History.Append
         ((Role      => LLM.Types.Assistant,
+          Format    => LLM.Types.Format_Unspecified,
           Content   => Unknown_Content,
           Tok_Usage =>
             (others => 0),

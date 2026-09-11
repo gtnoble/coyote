@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
 **Version:** 1.28
-**Date:** 2026-09-06
+**Date:** 2026-09-07
 **Status:** Active
 
 ---
@@ -926,11 +926,11 @@ execution and active steering semantics.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.27 (2026-08-31) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.28 (2026-09-07) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.23 (2026-09-06) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.26 (2026-09-06) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.24 (2026-09-07) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.27 (2026-09-07) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.27 (2026-09-06) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.28 (2026-09-07) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

@@ -1,5 +1,6 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
+with Ada.Environment_Variables;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Characters.Latin_1;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
@@ -161,6 +162,39 @@ package body Coyote_App_Tests is
       Assert (Nth_Field ("a b  ", 3) = "", "Trailing spaces, field 3 absent");
       Assert (Nth_Field ("x", 1) = "x", "Single char");
    end Test_Nth_Field_Edges;
+
+   procedure Test_Incremental_Markup_Flag (T : in out Test) is
+      pragma Unreferenced (T);
+      Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_INCREMENTAL_MARKUP");
+      Old_Value : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_INCREMENTAL_MARKUP", "");
+   begin
+      Ada.Environment_Variables.Clear ("COYOTE_INCREMENTAL_MARKUP");
+      Assert (not Incremental_Markup_Enabled,
+              "unset incremental markup flag should be disabled");
+      Ada.Environment_Variables.Set ("COYOTE_INCREMENTAL_MARKUP", "0");
+      Assert (not Incremental_Markup_Enabled,
+              "zero incremental markup flag should be disabled");
+      Ada.Environment_Variables.Set ("COYOTE_INCREMENTAL_MARKUP", "1");
+      Assert (Incremental_Markup_Enabled,
+              "one incremental markup flag should be enabled");
+      if Was_Set then
+         Ada.Environment_Variables.Set
+           ("COYOTE_INCREMENTAL_MARKUP", Old_Value);
+      else
+         Ada.Environment_Variables.Clear ("COYOTE_INCREMENTAL_MARKUP");
+      end if;
+   exception
+      when others =>
+         if Was_Set then
+            Ada.Environment_Variables.Set
+              ("COYOTE_INCREMENTAL_MARKUP", Old_Value);
+         else
+            Ada.Environment_Variables.Clear ("COYOTE_INCREMENTAL_MARKUP");
+         end if;
+         raise;
+   end Test_Incremental_Markup_Flag;
 
    --  ── Format_Turn_Footer_Display step-level separator ───────────────────
 

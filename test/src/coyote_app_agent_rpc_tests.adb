@@ -67,6 +67,23 @@ package body Coyote_App_Agent_RPC_Tests is
          "event payload must round-trip");
    end Test_Event_Round_Trip;
 
+   procedure Test_Response_Format_Event_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Input  : constant Frame :=
+        Make_Event
+          (Agent_Id     => "worker-7",
+           Sequence     => 13,
+           Event_Name   => Response_Format,
+           Payload_Json => "{""format"":""coyote-stream""}");
+      Output : constant Frame := Decode (Encode (Input));
+   begin
+      Assert (Output.Event_Name = Response_Format,
+              "response-format event name must round-trip");
+      Assert (To_String (Output.Payload_Json) =
+                "{""format"":""coyote-stream""}",
+              "response-format payload must round-trip");
+   end Test_Response_Format_Event_Round_Trip;
+
    procedure Test_Command_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
       Input  : constant Frame :=

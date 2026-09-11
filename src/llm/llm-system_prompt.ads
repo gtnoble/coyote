@@ -7,8 +7,9 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-package LLM.System_Prompt is
+with LLM.Types;
 
+package LLM.System_Prompt is
    --  Raised when the installed static prompt resource is missing or empty.
    System_Prompt_Error : exception;
 
@@ -38,6 +39,10 @@ package LLM.System_Prompt is
    --  Coordinator_Mode : when True and No_Tools is False, the prompt
    --                     includes coordinator subagent-orchestration
    --                     guidance (REQ-CORE-190..192).
+   --  Response_Format  : application-selected assistant format.  Coyote
+   --                     Stream mode adds restricted CSM generation
+   --                     guidance; all other values retain Markdown
+   --                     guidance.
    --
    --  The static prompt prose is loaded from the installed
    --  share/coyote/system-prompt.md resource.  The executable-relative
@@ -54,7 +59,9 @@ package LLM.System_Prompt is
       Skills_Section    : String  := "";
       Memory_Block      : String  := "";
       Executable_Path   : String  := "";
-      Coordinator_Mode  : Boolean := False)
+      Coordinator_Mode  : Boolean := False;
+      Response_Format   : LLM.Types.Message_Format :=
+        LLM.Types.Format_Markdown)
       return String;
 
    --  Return per-turn reminder instructions for appending to each user
