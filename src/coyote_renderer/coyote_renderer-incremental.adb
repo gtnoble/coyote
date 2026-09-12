@@ -7,7 +7,6 @@
 --  Project: coyote
 
 with Ada.Characters.Latin_1;
-with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Renderer.Semantics;
 
@@ -305,7 +304,8 @@ package body Coyote_Renderer.Incremental is
                   Entity : constant String := Source (I + 1 .. Semi - 1);
                   Value   : Natural := 0;
                   Base    : Natural := 10;
-                  Entity_Digits : String := Entity;
+                  Entity_Digits : Unbounded_String :=
+                    To_Unbounded_String (Entity);
                   Valid   : Boolean := True;
                begin
                   if Entity = "amp" then
@@ -328,19 +328,21 @@ package body Coyote_Renderer.Incremental is
                            if Entity'Length = 2 then
                               Valid := False;
                            else
-                              Entity_Digits := Entity
-                                (Entity'First + 2 .. Entity'Last);
+                              Entity_Digits :=
+                                To_Unbounded_String
+                                  (Entity (Entity'First + 2 .. Entity'Last));
                            end if;
                         else
                            if Entity'Length = 1 then
                               Valid := False;
                            else
-                              Entity_Digits := Entity
-                                (Entity'First + 1 .. Entity'Last);
+                              Entity_Digits :=
+                                To_Unbounded_String
+                                  (Entity (Entity'First + 1 .. Entity'Last));
                            end if;
                         end if;
                         if Valid then
-                           for C of Entity_Digits loop
+                           for C of To_String (Entity_Digits) loop
                               declare
                                  N : Natural := 0;
                               begin
@@ -555,7 +557,7 @@ package body Coyote_Renderer.Incremental is
               To_String (Parser.Stack (Parser.Open).Name);
          begin
             if Parent_Name = "table" or else Parent_Name = "row" then
-               for Character_Value of Raw loop
+               for Character_Value of To_String (Decoded) loop
                   if not Is_Space (Character_Value) then
                      Emit_Invalid (Parser, Handler, Raw);
                      return;
@@ -893,10 +895,80 @@ package body Coyote_Renderer.Incremental is
       return 0;
    end Find_Tag_End;
 
+   function Find_Closing_Tag
+     (Source : String; Name : String; Start : Natural;
+      Close_Start : out Natural; Close_End : out Natural) return Boolean is
+      I    : Natural := Start;
+      Info : Tag_Info;
+   begin
+      Close_Start := 0;
+      Close_End := 0;
+      while I <= Source'Last loop
+         if Source (I) = '<' then
+            Close_End := Find_Tag_End (Source, I);
+            if Close_End /= 0
+              and then Parse_Tag (Source (I .. Close_End), Info)
+              and then Info.Closing
+              and then To_String (Info.Name) = Name
+              and then Info.Count = 0
+            then
+               Close_Start := I;
+               return True;
+            end if;
+         end if;
+         I := I + 1;
+      end loop;
+      return False;
+   end Find_Closing_Tag;
+
+   function Find_Closing_Tag_Prefix
+     (Source : String; Name : String; Start : Natural;
+      Prefix_Start : out Natural) return Boolean is
+      I         : Natural := Start;
+      Candidate : Natural;
+      J         : Natural;
+      Expected  : constant String := "</" & Name;
+      Matched   : Boolean;
+      K         : Natural;
+   begin
+      Prefix_Start := 0;
+      while I <= Source'Last loop
+         if Source (I) = '<' then
+            Candidate := I;
+            J := Candidate;
+            Matched := True;
+            K := Expected'First;
+            while Matched and then K <= Expected'Last loop
+               if J > Source'Last then
+                  Prefix_Start := Candidate;
+                  return True;
+               elsif Source (J) /= Expected (K) then
+                  Matched := False;
+               else
+                  J := J + 1;
+                  K := K + 1;
+               end if;
+            end loop;
+            if Matched then
+               while J <= Source'Last and then Is_Space (Source (J)) loop
+                  J := J + 1;
+               end loop;
+               if J > Source'Last then
+                  Prefix_Start := Candidate;
+                  return True;
+               end if;
+            end if;
+         end if;
+         I := I + 1;
+      end loop;
+      return False;
+   end Find_Closing_Tag_Prefix;
+
    function Find_Math_Close
      (Source             : String;
       Content_First      : Natural;
       Close_Start        : out Natural;
+      Close_End          : out Natural;
       Nested_Math_Count  : out Natural;
       Nested_Math_Start  : out Natural;
       Nested_Math_End    : out Natural) return Boolean
@@ -907,6 +979,7 @@ package body Coyote_Renderer.Incremental is
       I     : Natural := Content_First;
    begin
       Close_Start       := 0;
+      Close_End         := 0;
       Nested_Math_Count := 0;
       Nested_Math_Start := 0;
       Nested_Math_End   := 0;
@@ -932,6 +1005,7 @@ package body Coyote_Renderer.Incremental is
                      return False;
                   elsif Depth = 1 then
                      Close_Start := I;
+                     Close_End   := Tag_End;
                      return True;
                   else
                      Depth := Depth - 1;
@@ -986,10 +1060,12 @@ package body Coyote_Renderer.Incremental is
    function Math_Source_Valid (Source : String) return Boolean is
       Outer_End        : Natural;
       Outer_Close      : Natural;
+      Outer_Close_End  : Natural;
       Nested_Count     : Natural;
       Nested_Start     : Natural;
       Nested_End       : Natural;
       Inner_Close      : Natural;
+      Inner_Close_End  : Natural;
       Inner_Nested     : Natural;
       Inner_Start      : Natural;
       Inner_End        : Natural;
@@ -1008,13 +1084,13 @@ package body Coyote_Renderer.Incremental is
          return False;
       end if;
       if not Find_Math_Close
-        (Source, Outer_End + 1, Outer_Close, Nested_Count,
-         Nested_Start, Nested_End)
+        (Source, Outer_End + 1, Outer_Close, Outer_Close_End,
+         Nested_Count, Nested_Start, Nested_End)
       then
          return False;
       end if;
       if not Is_Whitespace_Range
-        (Source, Outer_Close + 7, Source'Last)
+        (Source, Outer_Close_End + 1, Source'Last)
       then
          return False;
       end if;
@@ -1038,25 +1114,27 @@ package body Coyote_Renderer.Incremental is
          return False;
       end if;
       if not Find_Math_Close
-        (Source, Nested_End + 1, Inner_Close, Inner_Nested,
-         Inner_Start, Inner_End)
+        (Source, Nested_End + 1, Inner_Close, Inner_Close_End,
+         Inner_Nested, Inner_Start, Inner_End)
         or else Inner_Nested /= 0
         or else Inner_Close >= Outer_Close
       then
          return False;
       end if;
       return Is_Whitespace_Range
-        (Source, Inner_Close + 7, Outer_Close - 1);
+        (Source, Inner_Close_End + 1, Outer_Close - 1);
    end Math_Source_Valid;
 
    function Normalize_Math_Source (Source : String) return String is
-      Outer_End      : Natural;
-      Outer_Close    : Natural;
-      Nested_Count   : Natural;
+      Outer_End       : Natural;
+      Outer_Close     : Natural;
+      Outer_Close_End : Natural;
+      Nested_Count    : Natural;
       Nested_Start   : Natural;
       Nested_End     : Natural;
-      Inner_Close    : Natural;
-      Inner_Nested   : Natural;
+      Inner_Close     : Natural;
+      Inner_Close_End : Natural;
+      Inner_Nested    : Natural;
       Inner_Start    : Natural;
       Inner_End      : Natural;
       Outer_Info     : Tag_Info;
@@ -1072,8 +1150,8 @@ package body Coyote_Renderer.Incremental is
          return Source;
       end if;
       if not Find_Math_Close
-        (Source, Outer_End + 1, Outer_Close, Nested_Count,
-         Nested_Start, Nested_End)
+        (Source, Outer_End + 1, Outer_Close, Outer_Close_End,
+         Nested_Count, Nested_Start, Nested_End)
       then
          return Source;
       end if;
@@ -1086,10 +1164,10 @@ package body Coyote_Renderer.Incremental is
          end loop;
          if First_Nonspace = Nested_Start
            and then Find_Math_Close
-             (Source, Nested_End + 1, Inner_Close, Inner_Nested,
-              Inner_Start, Inner_End)
+             (Source, Nested_End + 1, Inner_Close, Inner_Close_End,
+              Inner_Nested, Inner_Start, Inner_End)
          then
-            return Source (Nested_Start .. Inner_Close + 6);
+            return Source (Nested_Start .. Inner_Close_End);
          end if;
       end if;
       return "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
@@ -1097,7 +1175,8 @@ package body Coyote_Renderer.Incremental is
    end Normalize_Math_Source;
 
    procedure Complete_Top
-     (Parser : in out Instance; Handler : Event_Handler; Last : Natural) is
+     (Parser : in out Instance; Handler : Event_Handler; Last : Natural;
+      Closing_Start : Natural) is
       Top_Entry : constant Stack_Entry := Parser.Stack (Parser.Open);
       Name  : constant String := To_String (Top_Entry.Name);
       Raw   : constant String := To_String (Parser.Source)
@@ -1112,7 +1191,7 @@ package body Coyote_Renderer.Incremental is
             All_Source : constant String := To_String (Parser.Source);
             Payload_First : constant Natural :=
               Top_Entry.Source_Start + Top_Entry.Opening_Length;
-            Payload_Last : constant Natural := Last - 7;
+            Payload_Last : constant Natural := Closing_Start - 1;
             Literal : constant String :=
               (if Payload_First <= Payload_Last then
                   All_Source (Payload_First .. Payload_Last)
@@ -1442,11 +1521,11 @@ package body Coyote_Renderer.Incremental is
             if not Table_Is_Valid (Parser, Table) then
                Emit_Invalid (Parser, Handler, Raw_Table);
             else
-               Complete_Top (Parser, Handler, Last);
+               Complete_Top (Parser, Handler, Last, 0);
             end if;
          end;
       else
-         Complete_Top (Parser, Handler, Last);
+         Complete_Top (Parser, Handler, Last, 0);
       end if;
    end Close_Tag;
 
@@ -1500,8 +1579,8 @@ package body Coyote_Renderer.Incremental is
      (Parser : in out Instance; Handler : Event_Handler;
       Close : out Natural) is
       Name : constant String := To_String (Parser.Stack (Parser.Open).Name);
-      End_Tag : constant String := "</" & Name & ">";
       Source : constant String := To_String (Parser.Source);
+      Close_End : Natural;
       Payload_First : constant Natural :=
         Parser.Stack (Parser.Open).Source_Start
         + Parser.Stack (Parser.Open).Opening_Length;
@@ -1515,34 +1594,30 @@ package body Coyote_Renderer.Incremental is
             Nested_End   : Natural;
          begin
             if not Find_Math_Close
-              (Source, Parser.Cursor + 1, Close, Nested_Count,
-               Nested_Start, Nested_End)
+              (Source, Parser.Cursor + 1, Close, Close_End,
+               Nested_Count, Nested_Start, Nested_End)
             then
                Close := 0;
             end if;
          end;
       else
-         Close := Ada.Strings.Fixed.Index
-           (Source, End_Tag, Parser.Cursor + 1);
+         if not Find_Closing_Tag
+           (Source, Name, Parser.Cursor + 1, Close, Close_End)
+         then
+            Close := 0;
+         end if;
       end if;
       if Close = 0 then
-         for Length in reverse 1 .. End_Tag'Length loop
-            declare
-               Prefix : constant String :=
-                 End_Tag (End_Tag'First .. End_Tag'First + Length - 1);
-               Position : constant Natural :=
-                 Ada.Strings.Fixed.Index (Source, Prefix);
-            begin
-               if Position /= 0
-                 and then Position + Length = Source'Last + 1
-                 and then Position >=
-                   Parser.Stack (Parser.Open).Opaque_Emitted
-               then
-                  Held := Length;
-                  exit;
-               end if;
-            end;
-         end loop;
+         declare
+            Prefix_Start : Natural;
+         begin
+            if Find_Closing_Tag_Prefix
+              (Source, Name, Parser.Stack (Parser.Open).Opaque_Emitted,
+               Prefix_Start)
+            then
+               Held := Source'Last - Prefix_Start + 1;
+            end if;
+         end;
          if Source'Last >= Parser.Stack (Parser.Open).Opaque_Emitted + Held then
             Emit_Last := Safe_UTF8_End
               (Source, Parser.Stack (Parser.Open).Opaque_Emitted,
@@ -1581,17 +1656,16 @@ package body Coyote_Renderer.Incremental is
             end if;
             Ignore (Coyote_Renderer.Semantics.Set_Inline_Source
               (Parser.Document, Parser.Stack (Parser.Open).Inline,
-               Source (Parser.Stack (Parser.Open).Source_Start ..
-                      Close + End_Tag'Length - 1)));
+               Source (Parser.Stack (Parser.Open).Source_Start .. Close_End)));
             Parser.Open := Parser.Open - 1;
             Emit_Live (Parser, Live_Code_Inline_End_Event, "", "", 0,
                Parser.Stack (Parser.Open + 1).Source_Start,
-               Close + End_Tag'Length - 1, Context, Complete => True);
-            Parser.Cursor := Close + End_Tag'Length - 1;
+               Close_End, Context, Complete => True);
+            Parser.Cursor := Close_End;
          end;
       else
          declare
-            Last : constant Natural := Close + End_Tag'Length - 1;
+            Last : constant Natural := Close_End;
          begin
             if not Math_Source_Valid
               (Source (Parser.Stack (Parser.Open).Source_Start .. Last))
@@ -1603,7 +1677,7 @@ package body Coyote_Renderer.Incremental is
                Parser.Open := Parser.Open - 1;
                return;
             end if;
-            Complete_Top (Parser, Handler, Last);
+            Complete_Top (Parser, Handler, Last, Close);
             Parser.Cursor := Last;
          end;
       end if;
@@ -1659,7 +1733,7 @@ package body Coyote_Renderer.Incremental is
                   Parser.Cursor := Raw_End;
                end;
             else
-               Close := Ada.Strings.Fixed.Index (Source, ">", First);
+               Close := Find_Tag_End (Source, First);
                exit when Close = 0;
                declare
                   Tag : constant String := Source (First .. Close);

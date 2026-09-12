@@ -123,11 +123,13 @@ GFM pipe-table rules, and Markdown display-math delimiters have no CSM-2
 meaning. CSM-2 remains selected only by `COYOTE_INCREMENTAL_MARKUP=1`; Plain
 and default-off Markdown behavior remain unchanged.
 
-The parser validates case-sensitive tags and controlled attributes, preserves
-raw source separately from decoded text and URLs, handles UTF-8 split
-boundaries, and uses explicit `<table><row><cell>` structure and ignores whitespace-only
-text between table/row structural tags while retaining meaningful structural
-text as malformed. It retains malformed and incomplete source visibly, performs exact end-of-stream `Flush`,
+The parser validates case-sensitive tags and controlled attributes, accepts
+XML-style whitespace in tag syntax—including whitespace before closing `>`—and
+preserves raw source separately from decoded text and URLs. It handles UTF-8
+split boundaries and uses explicit `<table><row><cell>` structure. Whitespace-only
+text between table/row structural tags, including character-entity whitespace,
+is ignored while retaining meaningful structural text as malformed. It retains
+malformed and incomplete source visibly, performs exact end-of-stream `Flush`,
 and does not route CSM-2 through cmark, the GFM table extractor, or the
 Markdown MathML extractor. `<code>` and `<code-inline>` are opaque literal
 regions. `<math>` is a terminal boundary containing one complete Presentation

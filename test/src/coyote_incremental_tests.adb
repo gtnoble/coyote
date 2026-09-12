@@ -444,6 +444,65 @@ package body Coyote_Incremental_Tests is
                 "&lt;strong&gt;", "code-inline is not recursively parsed");
    end Test_Math_And_Code_Are_Opaque;
 
+   procedure Test_Whitespace_Robustness (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+      Code   : Block_Id;
+      Para   : Block_Id;
+      Math   : Block_Id;
+      Table        : Block_Id;
+      Split_Parser : Instance;
+      Split_Result : aliased Log := (others => <>);
+      Source       : constant String :=
+        "<p><link url=""https://e.test/?a=1>0"">x</link></p>"
+        & "<code lang=""ada"">line</code   >"
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & ASCII.LF & "  <mrow><mi>x</mi></mrow>" & ASCII.LF
+        & "</math   >"
+        & "<table>" & "&#x20;" & ASCII.LF
+        & "<row><cell>v</cell></row></table>";
+   begin
+      Parse (Source, D, Result);
+      Assert (Result.Invalid = 0, "formatted CSM whitespace is valid");
+      Assert (Block_Count (D) = 4, "formatted source retains block order");
+      Para := Block_At (D, 1);
+      Code := Block_At (D, 2);
+      Math := Block_At (D, 3);
+      Table := Block_At (D, 4);
+      Assert (Inline_URL (D, Block_Inline_At (D, Para, 1)) =
+                "https://e.test/?a=1>0",
+              "quoted greater-than remains inside the attribute");
+      Assert (Code_Literal (D, Code) = "line",
+              "spaced code closer excludes its syntax from payload");
+      Assert (Block_Source (D, Code) =
+                "<code lang=""ada"">line</code   >",
+              "spaced code closer is preserved in source");
+      Assert (MathML_Value (D, Math) =
+                "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+                & ASCII.LF & "  <mrow><mi>x</mi></mrow>" & ASCII.LF
+                & "</math   >",
+              "spaced MathML closer preserves source value");
+      Assert (Normalize_Math_Source (MathML_Value (D, Math)) =
+                "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+                & ASCII.LF & "  <mrow><mi>x</mi></mrow>" & ASCII.LF
+                & "</math>",
+              "spaced MathML closer normalizes for rendering");
+      Assert (Table_Row_Count (D, Table) = 1,
+              "decoded structural whitespace is ignored");
+      Active_Log := Split_Result'Unchecked_Access;
+      Feed (Split_Parser, "<code>part</co", Collect'Access);
+      Feed (Split_Parser, "de ", Collect'Access);
+      Feed (Split_Parser, ">", Collect'Access);
+      Snapshot (Split_Parser, D);
+      Active_Log := null;
+      Assert (Split_Result.Invalid = 0,
+              "split whitespace-formatted closer is valid");
+      Assert (Block_Count (D) = 1 and then
+                Code_Literal (D, Block_At (D, 1)) = "part",
+              "split whitespace-formatted closer preserves payload");
+   end Test_Whitespace_Robustness;
+
    procedure Test_Redundant_Math_Wrapper (T : in out Test) is
       pragma Unreferenced (T);
       Less_Equal : constant String :=
@@ -839,6 +898,8 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 opaque code and MathML",
          Test_Math_And_Code_Are_Opaque'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 whitespace robustness", Test_Whitespace_Robustness'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 redundant MathML wrapper",
          Test_Redundant_Math_Wrapper'Access));

@@ -1,5 +1,18 @@
 # Component Development Log — Core Agent
 
+## 2026-09-12 — CSM-2 whitespace-robust parser boundaries
+
+`Coyote_Renderer.Incremental` now uses quote-aware tag boundaries throughout
+normal and terminal parsing, accepts XML-style whitespace before closing-tag
+`>`, preserves raw source and opaque payload boundaries, and handles split
+whitespace-formatted closers across provider deltas. Table structural
+whitespace is checked after entity decoding, so character-entity whitespace
+is treated consistently with literal whitespace. Numeric entity decoding was
+also corrected for variable-length digit slices.
+
+**Verification:** Production and test development builds succeeded. The
+focused CSM-2 qualification passed 36/36 and the complete AUnit suite passed
+940/940 with zero failed assertions or unexpected errors.
 ## 2026-09-12 — CSM-2 Live_Event protocol and opaque chunking
 
 `Coyote_Renderer.Incremental` now exposes the live-handler `Feed` overload used

@@ -45,7 +45,10 @@ below; do not emit arbitrary HTML or XML.
   `<br>`.
 - Tags are case-sensitive and must use exactly these lowercase names. All
   non-empty tags except `<br>` and `<hr>` require matching closing tags. Use
-  `<br/>` or `<br />` and `<hr/>` or `<hr />` for the two empty tags.
+  `<br/>` or `<br />` and `<hr/>` or `<hr />` for the two empty tags. XML-style
+  whitespace is accepted around tag names, attributes, `=`, `/`, and `>`;
+  closing tags may use whitespace before `>`. Preserve whitespace in visible
+  text and opaque payloads.
 - Tables require explicit `<table><row><cell>...</cell></row></table>`
   structure. Whitespace-only text between table/row structural tags is
   ignored; meaningful text there is malformed.

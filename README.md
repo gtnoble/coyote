@@ -182,7 +182,9 @@ inline tags `<strong>`, `<em>`, `<del>`, `<link>`, `<code-inline>`, and `<br>`.
 Tables use explicit row and cell elements, not GFM or Markdown pipe-table
 syntax. `<math>` contains one complete Presentation MathML `<math>` document
 with the standard namespace and no `$$` delimiters; `<code>` and
-`<code-inline>` are opaque literal regions. Tags and attributes are case-sensitive. The legal attributes are list `kind` with
+`<code-inline>` are opaque literal regions. Tags and attributes are case-sensitive,
+with XML-style whitespace accepted in tag syntax and whitespace preserved in
+visible text and opaque payloads. The legal attributes are list `kind` with
 `ordered` or `unordered`, list `start` with a positive decimal integer for an
 ordered list, link `url`, code `lang`, row `kind` with `header` or `body`, cell
 `align` with `left`, `center`, `right`, or `none`, and math `xmlns` with the

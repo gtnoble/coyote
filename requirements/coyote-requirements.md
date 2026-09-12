@@ -354,6 +354,9 @@ complete-suite evidence recorded in the Test Plan.
 CSM-2 defines only the explicit inline tags `<strong>`, `<em>`, `<del>`,
 `<link>`, `<code-inline>`, and `<br>`. Their semantic styles are distinct from
 literal source text; attributes are restricted to the controlled prompt grammar.
+Tag syntax accepts XML-style whitespace between names, attributes, `=`, and
+`>`; closing tags may contain whitespace before `>`. This lexical tolerance
+never trims or normalizes visible text or opaque payloads.
 The live GUI may apply these inline styles and literal code incrementally before
 `End_Text_Block`. Verified by the parser, live-renderer, semantic, prompt, GUI
 parity, and complete-suite tests.
@@ -362,8 +365,9 @@ parity, and complete-suite tests.
 CSM-2 defines the explicit block tags `<p>`, `<h1>` through `<h6>`,
 `<blockquote>`, `<list>`, `<item>`, `<code>`, `<table>`, `<row>`, `<cell>`,
 `<math>`, and `<hr>`. Tables require explicit non-empty `<row>` and `<cell>`
-structure; whitespace-only text between table/row structural tags is ignored,
-while meaningful structural text remains malformed. GFM table syntax, pipe-table
+structure; whitespace-only text between table/row structural tags, including
+whitespace represented by character entities, is ignored, while meaningful
+structural text remains malformed. GFM table syntax, pipe-table
 rules, and Markdown table semantics
 have no CSM-2 meaning. Text, headings, blockquotes, lists, code, `br`, and
 `hr` may be presented incrementally; native tables and terminal MathML are
