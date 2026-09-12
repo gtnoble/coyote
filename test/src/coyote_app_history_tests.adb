@@ -16,7 +16,7 @@ package body Coyote_App_History_Tests is
 
    use type LLM.Types.Message_Format;
 
-   type Format_Array is array (Positive range 1 .. 4)
+   type Format_Array is array (Positive range 1 .. 6)
      of LLM.Types.Message_Format;
 
    type Recorder is new Coyote_App.Frontend.Instance with record
@@ -232,7 +232,8 @@ package body Coyote_App_History_Tests is
 
    function Assistant_JSON
      (Text   : String;
-      Format : String := "") return String
+      Format : String := "";
+      Version : String := "") return String
    is
    begin
       return "{""role"":""assistant"",""content"":[{""type"":""text"",""text"":"""
@@ -240,6 +241,9 @@ package body Coyote_App_History_Tests is
         & """}],""usage"":{},""stopReason"":""stop"""
         & (if Format'Length > 0
            then ",""format"":""" & Format & """"
+           else "")
+        & (if Version'Length > 0
+           then ",""formatVersion"":" & Version
            else "")
         & "}";
    end Assistant_JSON;
@@ -279,10 +283,16 @@ package body Coyote_App_History_Tests is
       Ada.Text_IO.Put_Line
         (File, "{""role"":""user"",""content"":[]}");
       Ada.Text_IO.Put_Line
-        (File, Assistant_JSON ("CSM", "coyote-stream"));
+        (File, Assistant_JSON ("CSM-1", "coyote-stream"));
+      Ada.Text_IO.Put_Line
+        (File, Assistant_JSON ("CSM-2", "coyote-stream", "2"));
       Ada.Text_IO.Put_Line
         (File, "{""role"":""user"",""content"":[]}");
       Ada.Text_IO.Put_Line (File, Assistant_JSON ("legacy"));
+      Ada.Text_IO.Put_Line
+        (File, Assistant_JSON ("unknown-format", "future"));
+      Ada.Text_IO.Put_Line
+        (File, Assistant_JSON ("unknown-version", "coyote-stream", "99"));
       Ada.Text_IO.Close (File);
 
       Coyote_App.History.Render_Session_History
@@ -290,14 +300,20 @@ package body Coyote_App_History_Tests is
          Frontend => Frontend,
          State    => State);
 
-      Assert (Frontend.Format_Count = 3,
-              "replay should select formats and restore live mode");
+      Assert (Frontend.Format_Count = 6,
+              "replay should select mixed formats and restore live mode");
       Assert (Frontend.Formats (1) = LLM.Types.Format_Coyote_Stream,
-              "persisted Coyote Stream format should be selected");
-      Assert (Frontend.Formats (2) = LLM.Types.Format_Markdown,
+              "old coyote-stream should remain CSM-1");
+      Assert (Frontend.Formats (2) = LLM.Types.Format_Coyote_Stream_2,
+              "versioned coyote-stream should select CSM-2");
+      Assert (Frontend.Formats (3) = LLM.Types.Format_Markdown,
               "missing persisted format should select Markdown");
-      Assert (Frontend.Formats (3) = LLM.Types.Format_Coyote_Stream,
-              "configured incremental mode should be restored after replay");
+      Assert (Frontend.Formats (4) = LLM.Types.Format_Markdown,
+              "unknown format should fall back to Markdown");
+      Assert (Frontend.Formats (5) = LLM.Types.Format_Markdown,
+              "unknown version should fall back to Markdown");
+      Assert (Frontend.Formats (6) = LLM.Types.Format_Coyote_Stream_2,
+              "configured CSM-2 mode should be restored after replay");
 
       if Ada.Text_IO.Is_Open (File) then
          Ada.Text_IO.Close (File);

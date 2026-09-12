@@ -19,7 +19,7 @@
 Provider and agent test callers now live in package-scoped leaf suites under
 `Test_LLM_Suite`, rather than in one flat root registration body. The LLM
 domain preserves 295 registrations and remains the dominant measured local
-group at approximately 28–29 seconds; the full 822-test suite completes in
+group at approximately 28–29 seconds; the current full 919-test suite completes in
 34.3 seconds with local fixtures and guarded external tests disabled.
 
 ### OpenAI Responses sibling adapter (2026-08-15, PCR-059)
@@ -484,7 +484,7 @@ sourced from the pi (`packages/ai` OpenAI Codex) and opencode
   new `Account_Id` component
 
 **Result:** 3,507 insertions across 30 files.  861/861 tests pass
-(baseline 822 + 39 new/extended).  Build clean, no warnings in new code.
+(historical baseline 822 + 39 new/extended).  Build clean, no warnings in new code.
 
 ### Login bring-up fixes (2026-09-07, post-merge verification)
 

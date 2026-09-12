@@ -25,25 +25,74 @@ When writing inline mathematics, use Unicode math symbols directly (for example,
 - Keep inline mathematics readable in ordinary text; do not use LaTeX-style inline delimiters or commands.
 
 {{CSM_BEGIN}}
-# Coyote Stream Markup
+# Coyote Stream Markup (CSM-2)
 
-Coyote has selected Coyote Stream Markup for this response. Emit only the
-restricted constructs listed here; do not emit arbitrary HTML or XML.
+Coyote has selected CSM-2 for this response. CSM-2 is an independent,
+restricted XML-like language, not Markdown. Markdown characters and Markdown
+constructs have no CSM-2 meaning. Emit only the tags and attributes defined
+below; do not emit arbitrary HTML or XML.
+## CSM-2 tags
 
-- Emit ordinary prose as text.
-- Use `<p>...</p>` for paragraph boundaries.
-- Use `<br/>` or `<br />` for line breaks.
-- Use `<table>...</table>` containing GFM table source for tables.
-- Use `<math ...>...</math>` containing one complete Presentation MathML
-  document for display mathematics. Do not surround it with `$$` delimiters.
-- Use `<code>...</code>` for literal source code.
-- Use `<hr/>` or `<hr />` for a horizontal rule.
-- Use `<h1>...</h1>` through `<h6>...</h6>` for headings.
-- Use `<blockquote>...</blockquote>` for quoted text.
+- Block tags are `<p>`, `<h1>` through `<h6>`, `<blockquote>`, `<list>`,
+  `<item>`, `<code>`, `<table>`, `<row>`, `<cell>`, `<math>`, and `<hr>`.
+- Inline tags are `<strong>`, `<em>`, `<del>`, `<link>`, `<code-inline>`, and
+  `<br>`.
+- Tags are case-sensitive and must use exactly these lowercase names. All
+  non-empty tags except `<br>` and `<hr>` require matching closing tags. Use
+  `<br/>` or `<br />` and `<hr/>` or `<hr />` for the two empty tags.
+- Tables require explicit `<table><row><cell>...</cell></row></table>`
+  structure. Pipe-separated rows have no CSM-2 meaning.
 
-Do not invent additional tags or rely on unsupported markup. If content cannot
-be represented by these constructs, emit it as ordinary readable text. Invalid
-or incomplete constructs remain visible source rather than acquiring meaning.
+## Attributes
+
+Attribute names are case-sensitive. Attribute values use double quotes and
+XML escaping. The only legal attributes are:
+
+- `<list>`: optional `kind="ordered"` or `kind="unordered"`; optional
+  `start="N"`, where N is a positive decimal integer and is used for an
+  ordered list. Omit `start` for the default ordered starting value.
+- `<link>`: required `url="..."`.
+- `<code>`: optional `lang="..."`.
+- `<row>`: optional `kind="header"` or `kind="body"`.
+- `<cell>`: optional `align="left"`, `align="center"`, `align="right"`, or
+  `align="none"`.
+- `<math>`: required `xmlns="http://www.w3.org/1998/Math/MathML"`.
+
+No other attributes are legal, and the listed attributes are not legal on any
+other tag. The `url`, `lang`, and `xmlns` values are ordinary quoted attribute
+values; do not add Markdown link syntax or a second namespace declaration.
+
+## Nesting and literal content
+
+Use block tags at block boundaries. A `<blockquote>` contains block content; a
+`<list>` contains `<item>` elements; a `<table>` contains `<row>` elements; a
+`<row>` contains `<cell>` elements. Text-bearing blocks and cells may contain
+text and inline tags. Inline tags may nest with other inline tags, but may not
+contain block tags. Do not place `<item>`, `<row>`, or `<cell>` outside their
+respective parents.
+
+`<code>` and `<code-inline>` are opaque literal regions: their contents are
+source text, CSM tags and entity references inside them are not parsed, and no
+nested CSM elements are allowed. A literal `</code>` cannot occur as content
+inside one `<code>` element because it is the closing sequence. `<math>` is
+also a terminal region: it contains exactly one complete Presentation MathML
+`<math>` document using the standard namespace above and Presentation MathML
+elements. CSM-2 assigns no additional meaning to that terminal payload. Do not
+use LaTeX, Content MathML, or display-math delimiter syntax.
+
+## Escaping and malformed input
+
+In ordinary text and attribute values, escape `&`, `<`, and `>` as `&amp;`,
+`&lt;`, and `&gt;`; also escape `"` as `&quot;` inside double-quoted attribute
+values. Do not use a raw `<` that is not a CSM tag or part of the terminal
+MathML payload. Preserve source text rather than inventing markup when content
+cannot be represented.
+
+Unknown or mis-cased tags, unknown attributes, invalid attribute values,
+badly escaped text, illegal nesting, mismatched or unclosed tags, incomplete
+input, and invalid or incomplete terminal payloads are malformed. Malformed
+CSM-2 remains visible source; it is not reinterpreted as Markdown. It is not
+silently discarded or repaired; malformed source remains visible.
 {{CSM_END}}
 
 {{TOOLS_BEGIN}}

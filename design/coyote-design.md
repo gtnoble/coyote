@@ -1,10 +1,10 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.27
-**Date:** 2026-09-07
+**Version:** 1.28
+**Date:** 2026-09-12
 
-**Status:** Reviewed — project control (M3 complete 2026-06-02)
+**Status:** Verified — PCR-101 closed
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -104,17 +104,65 @@ This model has two key properties:
   frontend implementation. `LLM.Agent` emits typed events; `Dispatch_Event`
   translates them to frontend primitives; each frontend renders them.
 - **Incremental markup is opt-in.** When `COYOTE_INCREMENTAL_MARKUP=1`,
-  coyote selects the implemented restricted Coyote Stream Markup (CSM) path
-  for live GUI assistant responses. The application owns the selected format
-  and records it; the model does not author authoritative message metadata.
-  When the variable is absent or `0`, the existing Markdown path remains
-  active. CSM table blocks contain GFM table source inside `<table>`, CSM math
-  blocks contain one complete `<math>` document, and CSM code blocks contain
-  literal source inside `<code>`. Complete `<h1>` through `<h6>` blocks are
-  buffered until their closing boundary and realized as selectable native
-  heading labels. The other blocks are buffered only until their closing
-  boundary, then realized as native grid, Lasem-backed MathML, or selectable
-  monospace components.
+  coyote selects the implemented CSM-2 independent semantic-language path for
+  live GUI assistant responses. The application owns the selected format and
+  records it; the model does not author authoritative message metadata. When
+  the variable is absent or `0`, the existing Markdown path remains active.
+  CSM-2 uses explicit XML-like tags, typed semantic snapshots, and the shared
+  response renderer; its table, MathML, code, heading, list, quote, and inline
+  boundaries are defined in the verified CSM-2 design below. Versionless
+  CSM-1/current records remain a compatibility format for replay and are shown
+  as visible raw source because the CSM-1 parser is retired.
+
+### 3.1a CSM-2 verified implementation design (PCR-101 Phase 12)
+
+CSM-2 is an independent XML-like semantic language, not Markdown. The
+implemented bounded parser and renderer-neutral semantic model accept only the
+controlled inline and block vocabulary in REQ-CORE-047a–047g. Markdown syntax,
+GFM pipe-table rules, and Markdown display-math delimiters have no CSM-2
+meaning. CSM-2 remains selected only by `COYOTE_INCREMENTAL_MARKUP=1`; Plain
+and default-off Markdown behavior remain unchanged.
+
+The parser validates case-sensitive tags and controlled attributes, preserves
+raw source separately from decoded text and URLs, handles UTF-8 split
+boundaries, and uses explicit `<table><row><cell>` structure. It retains
+malformed and incomplete source visibly, performs exact end-of-stream `Flush`,
+and does not route CSM-2 through cmark, the GFM table extractor, or the
+Markdown MathML extractor. `<code>` and `<code-inline>` are opaque literal
+regions. `<math>` is a terminal boundary containing one complete Presentation
+MathML document in the standard namespace; its payload receives no CSM
+semantics.
+
+`Coyote_Renderer.Semantics` is the renderer-neutral typed document model for
+ordered blocks/inlines, list attributes, table ownership/width/rows/cells,
+source/value order, and terminal code/math data. The shared
+`Coyote_GUI.Response_Renderer` presents both completed Markdown semantics and
+CSM-2 snapshots. Native table grids and native MathML remain deliberate native
+exceptions; selectable text, shared spacing/style policy, source order,
+selection/copy, and authoritative stale-widget/malformed reconciliation are
+qualified against the Markdown reference. Pixel identity and clipboard
+retrieval are outside the contract.
+
+Versioned persistence writes `format: "coyote-stream"` plus `formatVersion: 2`
+for CSM-2 assistant messages. Versionless CSM-1/current records remain
+readable and are displayed as selectable raw source because the CSM-1 parser is
+retired; they are not migrated, passed to the CSM-2 parser, or reinterpreted as
+Markdown. Missing or unknown format metadata falls back to Markdown. Replay
+selects format per assistant message and restores the configured live CSM-2
+mode after mixed-format history; RPC response-format events carry the same
+version.
+
+**Qualification:** Production and test development builds succeeded; the
+complete AUnit suite passed 919/919 with zero failed assertions and zero
+unexpected errors. Focused parser, semantic, prompt, persistence/replay, RPC,
+cmark/renderer, prompt-queue, default-off, native Conversation_Stack, and
+headless CSM-2 qualification passed. Display-backed CSM-2 GUI qualification
+passed 3/3 on `DISPLAY=:0.0` (X11; no Wayland display), including paired
+Markdown parity, native table/MathML behavior, selection/copy, document order,
+spacing, child-count/split reconciliation, and malformed fallback. GTK theme
+color-parser warnings were environmental and did not affect assertions.
+The qualification does not claim pixel identity, clipboard retrieval, or
+unsupported CSM-1 rendering.
 
 ### 3.2 Error and Exception Handling
 
@@ -190,19 +238,16 @@ inserted as plain text and replaced with Pango markup when the block completes
 (`End_Text_Block`).
 
 **Incremental markup rendering:** When `COYOTE_INCREMENTAL_MARKUP=1`, the
-application selects the restricted Coyote Stream Markup (CSM) parser before
-the first assistant text delta. The implemented parser emits synchronous
-semantic events for text, paragraph boundaries, and line breaks directly to
-the active GUI text component. Each provider delta is processed and rendered
-immediately, with no intentional timer batching or coalescing. Partial tags
-remain parser state across deltas; unknown or incomplete tags remain visible
-source. CSM table blocks contain GFM table source inside `<table>`, CSM math
-blocks contain one complete `<math>` document, and CSM code blocks contain
-literal source inside `<code>`. Complete `<blockquote>...</blockquote>` blocks
-remain buffered only until closing boundaries and reuse framed, selectable
-native text components. The other blocks remain buffered only until closing
-boundaries, then reuse the existing native GTK grid, Lasem-backed MathML, and
-selectable monospace text components. Markdown remains the default path and the
+application selects the independent CSM-2 parser before the first assistant
+text delta. The parser emits typed semantic snapshots through the shared
+response renderer; each provider delta is processed immediately, with no
+intentional timer batching or coalescing. Partial tags remain parser state
+across deltas and unknown or incomplete input remains visible source. CSM-2
+tables use explicit typed rows/cells, `<math>` is a terminal Presentation
+MathML boundary, and `<code>` is opaque literal source. Completed semantic
+boundaries reconcile into native GTK grids, Lasem-backed MathML, or selectable
+text components. Markdown remains the default path and the Plain frontend is
+unchanged.
 model does not set format metadata.
 
 ### 3.5 Output Media and Formats
@@ -287,7 +332,9 @@ not wait for the complete user turn.
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
-| `Coyote_GUI.Conversation_Stack` | Native GTK exchange and per-step frame host/update router | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI.Conversation_Stack` | Native GTK exchange, per-step frame host/update router, and CSM snapshot presentation lifecycle; delegates semantic widget realization | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI_CSM2_Qualification_Tests` | Display-gated paired CSM-2/Markdown GUI parity, native geometry, selection/copy, and malformed reconciliation qualification | `test/src/coyote_gui_csm2_qualification_tests.ads/.adb` |
+| `Coyote_GUI.Response_Renderer` | Shared semantic-to-GTK/Pango response presentation, native table/MathML realization, response style/layout, and selection/zoom ownership hooks | `src/coyote_gui/coyote_gui-response_renderer.ads/.adb` |
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
@@ -303,7 +350,7 @@ not wait for the complete user turn.
 | `Coyote_GUI.Mnemonics` | Context-local GTK mnemonic extraction and duplicate-key validation | `src/coyote_gui/coyote_gui-mnemonics.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping, active executable resolution, and POSIX shell quoting | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
-| `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
+| `LLM.Types` | Message, content block, usage, and versioned response-format types | `src/llm/llm-types.ads/.adb` |
 | `LLM.Events` | Agent event hierarchy | `src/llm/llm-events.ads` |
 | `LLM.SSE` | Server-sent event parser | `src/llm/llm-sse.ads/.adb` |
 | `LLM.Settings` | Configuration file loading | `src/llm/llm-settings.ads/.adb` |
@@ -332,23 +379,27 @@ not wait for the complete user turn.
 | `LLM.System_Prompt` | System prompt construction and resource rendering | `src/llm/llm-system_prompt.ads/.adb`, `share/coyote/system-prompt.md` |
 | `LLM.Compaction` | Context compaction helpers | `src/llm/llm-compaction.ads/.adb` |
 | `LLM.Memory` | Memory taxonomy and MEMORY.md discovery | `src/llm/llm-memory.ads/.adb` |
-| `LLM.Session_Store` | JSONL session persistence | `src/llm/llm-session_store.ads/.adb` |
+| `LLM.Session_Store` | JSONL session persistence with CSM-1/CSM-2 compatibility metadata | `src/llm/llm-session_store.ads/.adb` |
 | `LLM.Agent` | Native agentic loop | `src/llm/llm-agent.ads/.adb` |
 | `Coyote_App.Frontend` | Abstract frontend streaming contract | `src/coyote_app-frontend.ads` |
-| `Coyote_App.History` | Persisted session replay and format selection | `src/coyote_app-history.ads/.adb` |
+| `Coyote_App.History` | Persisted session replay and version-aware response-format selection | `src/coyote_app-history.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
-| `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
-| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary for text, tables, MathML, literal code blocks, horizontal rules, headings, and blockquotes | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
+| `Coyote_Renderer.Markup` | GFM Markdown semantic adapter and Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
+| `Coyote_Renderer.Incremental` | Independent bounded CSM-2 lexer/parser with typed semantic snapshot and synchronous compatibility events | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
+| `Coyote_Renderer.Semantics` | Renderer-neutral ordered block/inline semantic document model | `src/coyote_renderer/coyote_renderer-semantics.ads/.adb` |
+| `Coyote_CSM2_Qualification_Tests` | Consolidated headless CSM-2 grammar, typed-snapshot boundary, Flush, and Markdown/Pango reference qualification | `test/src/coyote_csm2_qualification_tests.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
 | `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
 | `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
 | `Test_Suites` | Root AUnit suite composer | `test/src/test_suites.ads/.adb` |
 | `Test_Core_Suite` | Core test-domain suite composer | `test/src/test_core_suite.ads/.adb` |
+| `Coyote_Semantics_Tests` | Renderer-neutral semantic model AUnit tests | `test/src/coyote_semantics_tests.ads/.adb` |
+| `Coyote_Incremental_Tests` | Independent CSM-2 lexer/parser conformance AUnit tests | `test/src/coyote_incremental_tests.ads/.adb` |
 | `Test_LLM_Suite` | LLM/provider test-domain suite composer | `test/src/test_llm_suite.ads/.adb` |
 | `Test_SQC_Suite` | SQC test-domain suite composer | `test/src/test_sqc_suite.ads/.adb` |
 | `Test_GUI_Suite` | GUI test-domain suite composer | `test/src/test_gui_suite.ads/.adb` |
@@ -411,9 +462,14 @@ three layers:
   LLM.SSE  (pure parser, no external dependencies)
   Coyote_Cmark ──► coyote_cmark_c.c (C shim for libcmark-gfm)
   Coyote_Renderer.Tables ──► Coyote_Cmark
-  Coyote_GUI.Conversation_Stack ──► Coyote_Renderer.Tables,
+  Coyote_GUI.Response_Renderer ──► Coyote_Renderer.Semantics,
+                                    Coyote_Renderer.Markup,
+                                    Coyote_Renderer.MathML,
+                                    Coyote_GUI.Math_Element
+  Coyote_GUI.Conversation_Stack ──► Coyote_GUI.Response_Renderer,
                                       Coyote_Renderer.Markup,
-                                      Coyote_Renderer.MathML
+                                      Coyote_Renderer.Semantics,
+                                      Coyote_Renderer.Incremental
   Coyote_Notify ──► libnotify, GLib, GDK-Pixbuf
 ```
 
@@ -1254,6 +1310,15 @@ and Fork buttons are focusable and operate on the GTK main task. Live updates
 and session replay use the same lifecycle operations and hierarchy. SQC session
 replay retains the shared Pango/text fallback.
 
+**CSM-2 presentation qualification (PCR-101 Phase 12):** The explicit CSM-2
+inline and block vocabulary is qualified against completed native GUI Markdown
+for equivalent visible content, semantic styles, document order, spacing policy,
+selection/copy behavior, and fallback behavior. Native tables and native
+Presentation MathML remain the reference's native exceptions. Automated
+qualification passed 3/3 on `DISPLAY=:0.0`; pixel identity and clipboard
+retrieval are not claimed. The qualification does not provide unsupported
+CSM-1 rendering.
+
 **Lifecycle and reset:** `Begin_Request` starts an exchange, intermediate
 footers close visible step frames, and `Complete_Request` closes the exchange.
 Clear removes exchange widgets, retained tool payloads, and callback state
@@ -1262,8 +1327,8 @@ updates cross `Coyote_GUI.Updates`.
 
 **Qualification:** Native Markdown, MathML, selection, zoom, tool-card flow,
 replay, reset, and large-history behavior have been qualified under DEM-042
-through DEM-048. The 17 native stack tests remain the automated regression
-coverage for the presentation package.
+through DEM-048. The native stack and CSM-2 qualification suites remain the automated regression
+coverage for the presentation package; the complete development suite is qualified at 919/919.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
@@ -2558,6 +2623,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
 | REQ-CORE-047–049 | `Coyote_App.History`, `Coyote_App.Frontend`, `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `LLM.Session_Store` |
+| REQ-CORE-047a–047g | `Coyote_Renderer.Incremental`, `Coyote_Renderer.Semantics`, `Coyote_GUI.Response_Renderer`, `Coyote_GUI.Conversation_Stack`, `Coyote_App.History`, `LLM.Session_Store`, `LLM.System_Prompt`, and RPC response-format path; verified by PCR-101 Phase 12 evidence |
 | REQ-CORE-050–055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
 | REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
 | REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |

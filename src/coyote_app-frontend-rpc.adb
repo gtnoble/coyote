@@ -114,8 +114,14 @@ package body Coyote_App.Frontend.RPC is
       Data : constant JSON_Value := Object;
    begin
       Data.Set_Field
-        ("format", (if Format = LLM.Types.Format_Coyote_Stream
-                    then "coyote-stream" else "markdown"));
+        ("format",
+         (if Format = LLM.Types.Format_Coyote_Stream
+              or else Format = LLM.Types.Format_Coyote_Stream_2
+          then "coyote-stream"
+          else "markdown"));
+      if Format = LLM.Types.Format_Coyote_Stream_2 then
+         Data.Set_Field ("formatVersion", Integer (2));
+      end if;
       Emit (F, Response_Format, Data);
    end Set_Response_Format;
 

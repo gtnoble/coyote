@@ -31,6 +31,124 @@ existing `LLM.Providers.Codex` body-shape tests.
 
 ## Design Rationale
 
+### CSM-2 Phase 10 consolidated qualification (2026-09-12)
+
+The Phase 10 qualification package consolidates the approved CSM-2 grammar/parity
+contract into five headless AUnit tests. It checks the positive/negative grammar
+matrix, legal attributes and case sensitivity, escaping/entities, opaque code and
+code-inline, terminal Presentation MathML, explicit table rows/cells/alignment/
+header/width, malformed/crossing/unclosed visible-source recovery, typed semantic
+snapshot invariance at every byte boundary including UTF-8 splits, exact
+end-of-stream `Flush`, and representative Markdown-to-semantics-to-Pango
+reference output. Replay qualification now also covers missing and unknown format
+metadata through the existing history fixture.
+
+**Verification:** The consolidated headless qualification passes 5/5; the
+existing CSM-2 parser suite passes 17/17, semantic tests pass 5/5, and the
+history replay compatibility test passes 1/1. The GUI qualification is recorded
+in `sdfs/frontends.md`. Display-backed tests are explicitly skipped only when no
+GTK display is available.
+
+### CSM-2 Phase 9 version-aware persistence/replay compatibility (2026-09-12)
+
+`LLM.Types.Message_Format` adds `Format_Coyote_Stream_2`; the existing
+`Format_Coyote_Stream` remains the persisted CSM-1/current representation.
+`LLM.Session_Store` writes `formatVersion: 2` only for CSM-2 assistant messages,
+while preserving the old `format: "coyote-stream"` field and versionless CSM-1
+records. Missing or unrecognized format/version metadata loads as Markdown.
+
+`Coyote_App.History` selects replay format per assistant message: CSM-1 for
+versionless coyote-stream, CSM-2 for exact version 2, and Markdown otherwise.
+CSM-1 replay is deliberately routed to visible raw source because the old parser
+is unavailable; GFM table bodies are not fed to the CSM-2 parser. Live CSM
+selection and post-replay restoration use CSM-2. RPC response-format events
+carry the same integer version field.
+
+**Verification:** Focused session-store, history, and RPC compatibility tests
+pass; production and test development builds pass.
+
+### CSM-2 Phase 8 shared semantic GUI presentation (2026-09-12)
+
+The CSM-2 parser remains independent of Markdown and cmark at the parser layer.
+Its typed `Snapshot` is now presented by `Coyote_GUI.Response_Renderer`, the
+same backend used by completed Markdown. Complete root boundaries trigger
+semantic reconciliation during synchronous delta processing; a single
+selectable provisional source view exposes incomplete suffixes. Final text
+completion flushes and snapshots authoritatively, retaining malformed source
+and removing stale provisional/native widgets. Explicit CSM table rows/cells
+are realized directly as native grid cells, and terminal MathML is wrapped as
+a complete Presentation MathML document for Lasem while retaining original
+source for fallback/copy.
+
+**Verification:** Production and test development builds pass. Focused parser,
+semantics, CSM/Markdown GUI parity, malformed reconciliation, cmark/renderer,
+Conversation_Stack, selection, and zoom coverage pass.
+
+### CSM-2 Phase 5 independent table grammar and semantic backend (2026-09-12)
+
+`Coyote_Renderer.Incremental` now completes the independent CSM-2 table grammar:
+`<table>` accepts only explicit non-empty `<row>` children, rows accept only
+non-empty `<cell>` children, and cells accept text plus nested inline CSM content.
+Header rows are optional but limited to one first row; all rows have a consistent
+column count. Cell `align` accepts `none`, `left`, `center`, and `right`, with
+omitted/`none` alignment represented as `Unspecified`. Table, row, and cell
+structural tags cannot be empty or self-closing. Malformed or incomplete tables
+remain visible source without Markdown, cmark, or renderer-table reparsing.
+
+`Coyote_Renderer.Semantics` now stores table width independently of alignment,
+row ownership/source, and cell source/value/inline order. `Snapshot` preserves
+private handle validity for table rows and their parent tables.
+
+**Verification:** Focused CSM-2 table tests cover explicit tables, all alignments,
+header/body ordering, empty and uneven rows, literal pipe text, inline styles,
+links and code-inline cells, illegal nesting, structural split boundaries,
+incomplete flush, and malformed recovery. Production and test development
+builds and the complete development suite are run for this phase.
+
+### CSM-2 Phase 2 independent parser implementation (2026-09-12)
+
+`Coyote_Renderer.Incremental` now lexes and parses the approved CSM-2 XML-like
+vocabulary without Markdown, cmark, GTK, the GFM table extractor, or the
+Markdown MathML extractor. It builds bounded-stack typed semantics through
+`Coyote_Renderer.Semantics`, preserves raw source separately from decoded text,
+URLs, and attributes, treats code/code-inline and Presentation MathML as
+opaque/terminal regions, and exposes `Snapshot` while retaining the synchronous
+`Feed`/`Flush`/`Event` compatibility facade. The focused CSM-2 suite covers
+valid nesting, attributes, explicit tables, escaping/entities, malformed and
+incomplete source, opaque terminals, delta boundaries, UTF-8 splits, limits,
+and Markdown non-semantics.
+
+**Verification:** Production and test development builds succeed; focused CSM-2
+parser tests pass 11/11; the complete registered development suite passes
+895/895; `git diff --check` is clean. CSM-1 GUI realization tests remain
+unchanged and pass through the compatibility event facade; migration of
+persisted CSM-1 records remains outside this parser phase.
+
+### CSM-2 Phase 12 closure evidence (PCR-101, 2026-09-12)
+
+PCR-101 is closed after controlled requirements/design review and qualification
+of the independent CSM-2 grammar, renderer-neutral semantic model, synchronous
+parser boundary handling, shared Markdown-reference presentation, native GUI
+reconciliation, and versioned persistence/replay compatibility. The complete
+AUnit suite passed 919/919 with zero failed assertions and zero unexpected
+errors; production and test development builds passed. Focused evidence passed:
+headless CSM-2 5/5, parser 17/17, semantics 5/5, system prompt 34/34,
+session store 27/27, history 1/1, RPC 28/28, cmark 14/14, GFM tables 4/4,
+Markdown MathML 3/3, shared response renderer 3/3, prompt queue 5/5,
+default-off flag 1/1, native `Conversation_Stack` 24/24, and display-backed
+CSM-2 GUI parity/reconciliation 3/3 on `DISPLAY=:0.0` (X11; no Wayland
+display). GTK theme color-parser warnings were environmental and did not affect
+assertions.
+
+The compatibility disposition is explicit: CSM-2 assistant records retain
+`format: "coyote-stream"` and add `formatVersion: 2`; versionless CSM-1/current
+records remain readable and are shown as visible selectable raw source because
+the CSM-1 parser is retired, never passed to the CSM-2 parser or reinterpreted
+as Markdown. Missing or unknown metadata falls back to Markdown. Plain and
+default-off Markdown behavior remain unchanged. Pixel identity, clipboard
+retrieval, and unsupported CSM-1 rendering are not claimed. Manual demonstrations
+assigned to other historical procedures remain pending as separately recorded.
+
 ## 2026-09-06 — Accepted incremental-markup design
 
 `COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag. If the flag is unset or set
@@ -38,7 +156,7 @@ to `0`, Markdown behavior is preserved. `coyote`, not the model, owns format
 selection and metadata. In enabled mode, provider deltas are processed and
 rendered immediately; timer batching is not used.
 
-The PCR-097 implementation now includes application-owned `Message_Format`
+The historical CSM-1 implementation includes application-owned `Message_Format`
 metadata, JSONL persistence with Markdown fallback for legacy records, the
 `COYOTE_INCREMENTAL_MARKUP=1` selection helper, and synchronous CSM events for
 text, paragraphs, line breaks, complete `<table>` blocks, complete `<math>`
@@ -51,7 +169,7 @@ format is now also passed into `LLM.System_Prompt.Build_System_Prompt`, which
 adds CSM-only generation guidance and suppresses the Markdown `$$` display-math
 wrapper. Markdown and Plain sessions retain their existing prompt behavior.
 
-## 2026-09-07 — PCR-097 code-block extension verification
+## Historical — CSM-1 code-block extension verification (2026-09-07)
 
 The additive CSM code-block slice adds split-boundary and incomplete-flush parser
 coverage plus display-backed literal-character, delimiter-removal, and
@@ -63,7 +181,7 @@ display-backed conversation-stack suite passes 26/26. README, requirements,
 design, test plan, frontend SDF, and manual records document the restricted
 text/table/math/code scope.
 
-## 2026-09-07 — PCR-097 horizontal-rule extension verification
+## Historical — CSM-1 horizontal-rule extension verification (2026-09-07)
 
 The additive CSM rule slice adds split-boundary and malformed-tag parser coverage
 plus display-backed native separator and text-rule-text-rule-text ordering
@@ -72,7 +190,7 @@ assertions and zero unexpected errors; the focused parser suite had passed
 14/14 and the display-backed conversation-stack suite had passed 27/27 before
 the heading slice. Existing Markdown/default-off behavior remains unchanged.
 
-## 2026-09-07 — PCR-097 heading extension verification
+## Historical — CSM-1 heading extension verification (2026-09-07)
 
 The additive CSM heading slice adds split-boundary, h1/h6-level, empty-heading,
 and mismatched-closing-tag parser coverage plus display-backed native heading
@@ -82,7 +200,7 @@ errors; the focused parser suite passes 15/15 and the display-backed
 conversation-stack suite passes 28/28. Existing Markdown/default-off behavior is
 unchanged.
 
-## 2026-09-07 — PCR-097 replay-format compatibility verification
+## Historical — CSM-1 replay-format compatibility verification (2026-09-07)
 
 Session replay now selects each persisted assistant message format before its
 text is emitted, treats missing or unknown metadata as Markdown, restores the
@@ -91,7 +209,7 @@ versioned coordinator RPC event path. The focused history replay and RPC codec
 regressions pass with zero failed assertions; production and test development
 builds succeed.
 
-## 2026-09-07 — PCR-097 blockquote extension verification
+## Historical — CSM-1 blockquote extension verification (2026-09-07)
 
 The additive CSM blockquote slice adds split-boundary, empty-block, incomplete
 flush, and non-exact-opening parser coverage plus display-backed framed,

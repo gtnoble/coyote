@@ -111,8 +111,9 @@ package Coyote_GUI is
       Failed);
    type Response_Format is
      (Markdown_Response,
-      Coyote_Stream_Response);
-
+      Coyote_Stream_Response,
+      Legacy_Coyote_Stream_Response,
+      Coyote_Stream_2_Response);
    --  ── Notice severity ───────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Notice_Kind.
 

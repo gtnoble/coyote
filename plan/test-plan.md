@@ -1,9 +1,9 @@
-# Test Plan â coyote (STP)
+# Test Plan — coyote (STP)
 
-**Version:** 1.28
-**Date:** 2026-09-07
+**Version:** 1.29
+**Date:** 2026-09-12
 
-**Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
+**Status:** Reviewed and acknowledged — M4 complete; PCR-101 Phase 12 qualification complete
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -24,9 +24,9 @@
 ## 1. Scope
 
 This Test Plan covers acceptance testing for the coyote core agent component
-(SRS-CORE). It applies to both component-level acceptance testing (Â§5.9) and,
+(SRS-CORE). It applies to both component-level acceptance testing (§5.9) and,
 since the system is software-only with no separate system stratum, serves also
-as the system acceptance test plan (Â§5.11).
+as the system acceptance test plan (§5.11).
 
 The plan covers the AUnit automated test suite and identifies which requirements
 are verified by demonstration or inspection rather than automated tests.
@@ -67,13 +67,13 @@ owner) is invited to independently review test results before accepting them.
 
 | Dependency | Required by | Version constraint |
 |---|---|---|
-| GTK3 runtime + dev headers | GUI frontend, coyote_sqc | â¥ 3.0 |
+| GTK3 runtime + dev headers | GUI frontend, coyote_sqc | ≥ 3.0 |
 | libcurl + dev headers | All providers (LLM.HTTP) | Any current |
 | libcmark-gfm + dev headers | GUI frontend markdown rendering | Any current |
 | Lasem 0.6 + shared library | GUI display-math rendering | 0.6.0 |
 | libnotify4 + notification daemon | GTK completion notifications | 0.8.3-compatible |
 | Computer Modern math fonts | Lasem glyph coverage | cmr10/cmmi10/cmex10/cmsy10 |
-| GNATCOLL | JSON processing | â¥ 25.0.0 (via Alire) |
+| GNATCOLL | JSON processing | ≥ 25.0.0 (via Alire) |
 
 ### 3.3 Test Infrastructure
 
@@ -130,11 +130,11 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** All 670+ AUnit tests must pass before any
+**Progression criterion:** The complete current AUnit suite (919 registered tests) must pass before any
 demonstration-verified requirements are reviewed. Demonstration tests are
 performed after the automated suite is green.
 
-### 4.2 Planned Tests â Automated (AUnit)
+### 4.2 Planned Tests — Automated (AUnit)
 
 The following test modules exist in `test/src/`. Each maps to one or more
 SRS-CORE requirement groups.
@@ -142,31 +142,31 @@ SRS-CORE requirement groups.
 | Test module | Requirements covered | Test count (approx.) |
 |---|---|---|
 | `llm_sse_tests.adb` | REQ-CORE-200 (SSE parsing) | ~30 |
-| `llm_session_store_tests.adb` | REQ-CORE-080â089, 217, 240â241 | ~47 |
-| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 075, 085â089, 217, 219 | ~88 |
-| `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
+| `llm_session_store_tests.adb` | REQ-CORE-080–089, 217, 240–241 | ~47 |
+| `llm_agent_tests.adb` | REQ-CORE-040–046, 060–064, 075, 085–089, 217, 219 | ~88 |
+| `coyote_app_tests.adb` | REQ-CORE-085–089 (frontend/agent synchronization) | ~10 |
 
-| `llm_skills_tests.adb` | REQ-CORE-090, 090a, 091â094 | ~22; configured roots, malformed entries, and shadowing |
-| `llm_settings_tests.adb` | REQ-CORE-025, 090a, 230â234, 070â073; skillPaths loading and Save_Preferences persistence | ~29 |
+| `llm_skills_tests.adb` | REQ-CORE-090, 090a, 091–094 | ~22; configured roots, malformed entries, and shadowing |
+| `llm_settings_tests.adb` | REQ-CORE-025, 090a, 230–234, 070–073; skillPaths loading and Save_Preferences persistence | ~29 |
 | `subagent_integration_tests.adb` | REQ-CORE-025, 019–020; subprocess startup, one-shot, and steering behavior | 4 |
 | Coordinator/RPC implementation tests | REQ-CORE-020a–020c, 115, 115a; registry hierarchy/selection, runtime identity transport, versioned codec, Unix transport, service command/disconnect routing | Focused tests pass; DEM-050..053 remain for GUI/display and real-provider end-to-end qualification |
-| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference, compaction, and skill-path payload, acceptance, and overflow transport | 3 |
+| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116–119; typed preference, compaction, and skill-path payload, acceptance, and overflow transport | 3 |
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
-| `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30; percentage threshold boundaries and validation |
-| `llm_tools_tests.adb` | REQ-CORE-050â053, 057 | ~27; timeout TERM/grace/KILL escalation |
-| `llm_system_prompt_tests.adb` | REQ-CORE-090â092, REQ-CORE-173 (display and inline math guidance) | ~11 |
-| `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
+| `llm_compaction_tests.adb` | REQ-CORE-060–064 | ~30; percentage threshold boundaries and validation |
+| `llm_tools_tests.adb` | REQ-CORE-050–053, 057 | ~27; timeout TERM/grace/KILL escalation |
+| `llm_system_prompt_tests.adb` | REQ-CORE-090–092, REQ-CORE-173 (display and inline math guidance) | ~11 |
+| `llm_types_tests.adb` | REQ-CORE-400–402 | ~20 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 
 | `sandbox_tests.adb` | Sandbox profile subsystem, including timeout and abort process-group termination | 24 |
 | `llm_context_tests.adb` | REQ-CORE-060 (percentage compaction threshold and step-wise trigger) | ~15 |
-| `coyote_app_tests.adb` | REQ-CORE-010â023 (CLI parsing) | ~30 |
-| `coyote_app_history_tests.adb` | REQ-CORE-047â049; persisted assistant-format replay and legacy Markdown fallback | 1 |
-| `coyote_app_agent_rpc_tests.adb` | REQ-CORE-047â049; response-format event codec | 1 |
+| `coyote_app_tests.adb` | REQ-CORE-010–023 (CLI parsing) | ~30 |
+| `coyote_app_history_tests.adb` | REQ-CORE-047–049; persisted assistant-format replay and legacy Markdown fallback | 1 |
+| `coyote_app_agent_rpc_tests.adb` | REQ-CORE-047–049; response-format event codec | 1 |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
 | `collapse_utils_tests.adb` | REQ-CORE-023 (thinking collapse) | 5 |
-| `llm_model_registry_tests.adb` | REQ-CORE-070â071 | ~15 |
+| `llm_model_registry_tests.adb` | REQ-CORE-070–071 | ~15 |
 | `llm_catalogue_tests.adb` | REQ-CORE-072 | ~10 |
 | `llm_http_tests.adb` | REQ-CORE-200 (HTTP streaming) | ~20 |
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
@@ -181,23 +181,25 @@ SRS-CORE requirement groups.
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, responsive per-step tool-card flow, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 13 |
+| `coyote_csm2_qualification_tests.adb` | REQ-CORE-047a..047g; consolidated headless grammar/recovery matrix, typed semantic snapshots at every byte boundary including UTF-8, exact Flush, and Markdown/Pango reference invariance | 5 |
+| `coyote_gui_csm2_qualification_tests.adb` | REQ-CORE-047a..047g; display-gated paired CSM-2/Markdown parity, native table/MathML geometry and source, selection/copy, child-count reconciliation, and malformed stale-widget recovery | 3 (display-gated) |
 | `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
-| `coyote_sqc_parser_tests.adb` | REQ-CORE-240â241 | ~25 |
+| `coyote_sqc_parser_tests.adb` | REQ-CORE-240–241 | ~25 |
 | `coyote_sqc_statistics_tests.adb` | SRS-SQC statistics | ~40 |
 | `coyote_sqc_workspace_tests.adb` | SRS-SQC workspace | ~20 |
 | `coyote_sqc_integrity_tests.adb` | SRS-SQC integrity | ~15 |
 | `coyote_sqc_jsd_tests.adb` | SRS-SQC JSD metrics | ~20 |
 | `coyote_sqc_mi_tests.adb` | SRS-SQC MI metrics | ~11 |
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
-| `coyote_sqc_bootstrap_tests.adb` | SRS-SQC Â§5.17 bootstrap CI, Â§10.3 two-set histogram bins | ~7 |
+| `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **862**
+**Total automated tests (current):** **919**
 
-### 4.3 Planned Tests â Demonstration
+### 4.3 Planned Tests — Demonstration
 
 Requirements verified by demonstration (method D) are listed below. Each
 is performed manually by running the application and observing the stated
@@ -210,21 +212,27 @@ behaviour. Results are recorded in a Test Report.
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
 | DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` retains one-shot behavior, accepts steering while active, and exits after its final response; without a coordinator channel it uses Plain |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
-| DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming; GFM tables become native grids with selectable cells, bold headers, and column alignment; local selection exposes plain text; the Render Markdown toggle preserves source text when disabled; and zoom changes native response font size. Native-table execution remains pending virtual-display qualification. |
+| Historical DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming; GFM tables become native grids with selectable cells, bold headers, and column alignment; local selection exposes plain text; the Render Markdown toggle preserves source text when disabled; and zoom changes native response font size. Native-table automated qualification is complete; remaining manual visual checks are tracked separately. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
 | DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, zoom, visual, and local-selection acceptance is complete. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room, the persistent status area contains the lifecycle label and context progress indicator, the indicator updates and remains bounded between empty and full, and the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI layout and shutdown lifecycle`; visual sizing and theme contrast remain manual checks under the active theme. |
-| DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
-| DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
-| DEM-058 | REQ-CORE-048 | Build prompts for Markdown and `Format_Coyote_Stream`; verify only CSM mode contains restricted CSM generation guidance, CSM mode omits Markdown `$$` display-math instructions, no template markers remain, and Plain/default callers retain Markdown guidance. |
-| DEM-056 | REQ-CORE-048 | In enabled mode, inspect the request/message lifecycle and session record; verify coyote selects and records the format before the first text delta, does not trust model-authored metadata, and treats missing legacy format metadata as Markdown. |
-| DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and CSM tables, MathML, literal code, h1-h6, and blockquote blocks commit as native or selectable components only at complete boundaries; self-closing horizontal rules emit immediately as native separators. Covered by parser boundary tests and display-backed incremental table/MathML/code/rule/heading/blockquote stack tests, including literal-character preservation, malformed-rule, mismatched-heading, non-exact-opening, and incomplete-blockquote fallback, prefix/native/suffix order, repeated native blocks, empty blockquotes, and empty provisional-view cleanup.
+| DEM-006 | REQ-CORE-040–044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
+| Historical DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
+| Historical DEM-058 | REQ-CORE-048 | Build prompts for Markdown and `Format_Coyote_Stream`; verify only CSM mode contains restricted CSM generation guidance, CSM mode omits Markdown `$$` display-math instructions, no template markers remain, and Plain/default callers retain Markdown guidance. |
+| Historical DEM-056 | REQ-CORE-048 | In enabled mode, inspect the request/message lifecycle and session record; verify coyote selects and records the format before the first text delta, does not trust model-authored metadata, and treats missing legacy format metadata as Markdown. |
+| Historical DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM-1/current responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and existing CSM-1/current tables, MathML, literal code, h1-h6, blockquote blocks, and horizontal rules commit as native or selectable components only at complete boundaries. |
+| DEM-059 | REQ-CORE-047a–047g | **Completed 2026-09-12.** Independent CSM-2 grammar, typed semantics, explicit tables, terminal Presentation MathML, malformed/incomplete visible-source fallback, opt-in/default-off behavior, versioned persistence/replay, and native GUI parity are covered by the Phase 12 matrix below. Automated headless qualification passed 5/5; display-backed GUI qualification passed 3/3 on `DISPLAY=:0.0` (X11). The GUI fixture verified normalized visible content, representative block order, semantic styles, shared spacing, native table cells/alignment, native MathML validity/source, selection/copy, child-count and split-delta reconciliation, and malformed stale-widget removal. Pixel identity and clipboard retrieval were not claimed. |
+
+**PCR-101 Phase 12 controlled qualification record (2026-09-12):** Production `alr build` and `cd test && alr build` succeeded in the development profile. The complete AUnit suite passed 919/919 with zero failed assertions and zero unexpected errors. Focused qualification passed: CSM-2 headless 5/5; independent parser 17/17; semantic model 5/5; system prompt 34/34; session store 27/27; history replay 1/1; RPC 28/28; libcmark 14/14; GFM table renderer 4/4; Markdown MathML renderer 3/3; shared response renderer/malformed reconciliation 3/3; prompt queue 5/5; default-off flag 1/1; native `Conversation_Stack` 24/24; and CSM-2 GUI 3/3. GUI tests ran directly against `DISPLAY=:0.0` on X11; `WAYLAND_DISPLAY` was unset. GTK theme color-parser warnings were environmental and did not affect assertions. The qualification establishes CSM-2 behavior only; versionless CSM-1 replay remains visible raw source because the CSM-1 parser is retired. Manual demonstrations outside this automated fixture remain pending only where separately assigned by historical DEM-014, DEM-033, DEM-041, DEM-043, and DEM-044 procedures.
+
+**Phase 12 automated qualification note:** The consolidated headless fixture contributes 5 passing tests with no display dependency. The consolidated GUI fixture contributes 3 passing display-backed tests on `DISPLAY=:0.0` (X11). If no `DISPLAY` or `WAYLAND_DISPLAY` is available, the fixture emits `[SKIP display unavailable] CSM-2 GUI qualification fixture` and returns without assertions. The checks use normalized content, semantic/block order, native table cells/alignment, terminal MathML validity/source, shared spacing/style, selection/copy, deterministic child counts, split-delta reconciliation, and malformed fallback; they do not claim pixel identity or clipboard retrieval.
+
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
 | DEM-009 | REQ-CORE-061 | Trigger manual compact in the GUI (`:compact` command or menu); verify the compaction summary appears |
 | DEM-010 | REQ-CORE-070 | Set defaultModel in settings.json; start coyote without --model; verify correct model used |
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
-| DEM-014 | REQ-CORE-110â115, 125, 132 | In a display-backed GUI, verify Markdown/tool presentation, conversation vi navigation only when a conversation text view has focus (`j`, `k`, `g`, `G`/Shift+`g`, Ctrl+D, Ctrl+U), native wheel scrolling, prompt Return/Ctrl+Return/Shift+Return behavior, focused Edit actions, visible primary accelerators, menu mnemonics, and Ctrl+wheel zoom. Record that current automated navigation tests cover only clamped movement arithmetic; GTK event routing remains manual. |
+| DEM-014 | REQ-CORE-110–115, 125, 132 | In a display-backed GUI, verify Markdown/tool presentation, conversation vi navigation only when a conversation text view has focus (`j`, `k`, `g`, `G`/Shift+`g`, Ctrl+D, Ctrl+U), native wheel scrolling, prompt Return/Ctrl+Return/Shift+Return behavior, focused Edit actions, visible primary accelerators, menu mnemonics, and Ctrl+wheel zoom. Record that current automated navigation tests cover only clamped movement arithmetic; GTK event routing remains manual. |
 | DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, verify Default model initial focus, Save as the default response, Escape cancellation, label mnemonics, ordinary and subagent model/thinking/sandbox defaults, automatic compaction enablement, compaction threshold percentage (including 1 and 100 boundary values), recursion depth, termination grace, notifications, price display, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, saved compaction fields persist as `autoCompaction` and `compactionThresholdPercent`, the active session is unchanged, and new sessions inherit the settings. |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113c | Exercise the GUI menu bar and support windows: verify top-level order `File`, `Edit`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles for in-process support windows, the prominent coyote application icon above the Product Information name/version/license text, Yelp ownership for Overview/Keys topics, an in-process Product Information dialog, dialog button order, and lifecycle status in the status area rather than the title |
@@ -257,11 +265,20 @@ behaviour. Results are recorded in a Test Report.
 | DEM-031 | REQ-CORE-088 | Set a sandbox profile, spawn a child coyote process, and verify the child receives the profile and applies it to a shell command |
 | DEM-032 | REQ-CORE-089 | Exercise startup, profile change, resume, and switch in the GUI; verify displayed, agent, and propagated profile values remain identical |
 
-### 4.4 Planned Tests â Inspection
+**PCR-101 Phase 12 closure control:** DEM-059 and its associated focused,
+display-backed, persistence/replay, prompt, build, and complete-suite evidence
+are complete and recorded above. DEM-055, DEM-056, DEM-057, and DEM-058 remain
+historical CSM-1/current evidence and are not relabeled as CSM-2 evidence.
+Versionless CSM-1 replay remains visible raw source because the CSM-1 parser is
+retired; no CSM-1 rendering claim is made. Pixel identity and clipboard
+retrieval remain outside the CSM-2 contract. Manual demonstrations assigned to
+other historical DEM procedures remain pending as separately recorded.
+
+### 4.4 Planned Tests — Inspection
 
 Requirements verified by inspection (method I) are reviewed against source
 code and build artefacts during the design review and at code review. No
-separate execution is required. All REQ-CORE-{5xx, 8xx, 300â302, 400â402}
+separate execution is required. All REQ-CORE-{5xx, 8xx, 300–302, 400–402}
 requirements fall into this class.
 
 ### 4.5 Coverage Gaps
@@ -269,10 +286,10 @@ requirements fall into this class.
 The following SRS-CORE requirements currently have no automated test case
 and must be demonstrated or inspected:
 
-- REQ-CORE-011, 012 â CWD restoration on session resume (requires filesystem)
-- REQ-CORE-022 â prompt-filter (requires shell subprocess)
-- REQ-CORE-074 â Copilot token auto-refresh (requires live Copilot credential)
-- REQ-CORE-142 â SIGTERM handling (requires OS signal; manual test)
+- REQ-CORE-011, 012 — CWD restoration on session resume (requires filesystem)
+- REQ-CORE-022 — prompt-filter (requires shell subprocess)
+- REQ-CORE-074 — Copilot token auto-refresh (requires live Copilot credential)
+- REQ-CORE-142 — SIGTERM handling (requires OS signal; manual test)
 
 The native Markdown, MathML, live/replay, local-selection, responsive-flow,
 and large-history qualification gates were accepted on 2026-08-31. Remaining
@@ -285,7 +302,7 @@ and preferences demonstrations listed above.
 
 | Activity | Milestone | Status |
 |---|---|---|
-| AUnit suite baseline recorded | M2 complete | Done â 660 tests, all pass |
+| AUnit suite baseline recorded | M2 complete | Done — 660 tests, all pass |
 | Test Plan reviewed and acknowledged | M4 | Pending |
 | Demonstration tests performed | After M4 | Pending |
 | Test Report produced | M6 | Pending |
@@ -297,42 +314,43 @@ and preferences demonstrations listed above.
 
 | Requirement | Verification method | Test reference |
 |---|---|---|
-| REQ-CORE-001â004 | D | DEM-001 to DEM-003 |
+| REQ-CORE-001–004 | D | DEM-001 to DEM-003 |
 | REQ-CORE-005 | I | Code inspection |
-| REQ-CORE-010â018 | T | `coyote_app_tests.adb` |
-| REQ-CORE-019â020 | D | DEM-004, DEM-005 |
+| REQ-CORE-010–018 | T | `coyote_app_tests.adb` |
+| REQ-CORE-019–020 | D | DEM-004, DEM-005 |
 | REQ-CORE-025 | T/D | `subagent_integration_tests.adb`, `llm_settings_tests.adb`, DEM-045 |
 | REQ-CORE-020a..020c, 115, 115a | D/T/I | Registry, codec, transport, and service focused tests; DEM-050..053 for GUI/display and real-provider end-to-end qualification; source inspection |
 | REQ-CORE-021 | D | GUI window title label demonstration |
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |
 | REQ-CORE-024 | D | TC-024 (DEM-019) |
-| REQ-CORE-030â032 | T/I | `coyote_app_tests.adb`, code inspection |
+| REQ-CORE-030–032 | T/I | `coyote_app_tests.adb`, code inspection |
 | REQ-CORE-219 | T/I | `llm_agent_tests.adb`, code inspection |
-| REQ-CORE-040â046 | T/D | `llm_agent_tests.adb`, DEM-006 |
-| REQ-CORE-047..049 | D/T/I | `coyote_incremental_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, `coyote_app_tests.adb`, `coyote_gui_conversation_stack_tests.adb`; DEM-055..057 for GUI/default-off and display-backed qualification |
-| REQ-CORE-050â053 | T | `llm_tools_tests.adb` |
+| REQ-CORE-040–046 | T/D | `llm_agent_tests.adb`, DEM-006 |
+| Historical REQ-CORE-047..049 | D/T/I | `coyote_incremental_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, `coyote_app_tests.adb`, `coyote_gui_conversation_stack_tests.adb`; Historical DEM-055..058 retain CSM-1/current scope |
+| REQ-CORE-047a..047g | A/I/T | `coyote_csm2_qualification_tests.adb`, `coyote_gui_csm2_qualification_tests.adb`, `coyote_app_history_tests.adb`, `coyote_app_agent_rpc_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, and `Coyote_GUI.Response_Renderer` qualification; DEM-059 completed by the PCR-101 Phase 12 controlled qualification record |
+| REQ-CORE-050–053 | T | `llm_tools_tests.adb` |
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
 | REQ-CORE-055 | D | DEM-007 |
 | REQ-CORE-056 | T | `llm_parallel_tools_tests.adb` |
 | REQ-CORE-057 | T | `llm_tools_tests.adb` (TERM-aware and escalation regressions) |
-| REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009; percentage threshold boundaries and step-wise trigger timing |
-| REQ-CORE-065â068 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-020..022, code inspection |
-| REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
+| REQ-CORE-060–064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008–009; percentage threshold boundaries and step-wise trigger timing |
+| REQ-CORE-065–068 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-020..022, code inspection |
+| REQ-CORE-070–073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
 | REQ-CORE-070a | T | `llm_agent_tests.adb` |
 | REQ-CORE-074 | D | DEM-011 |
-| REQ-CORE-075â076 | Historical | Retired Acme/plumber controls; see PCR-090 |
-| REQ-CORE-080â083 | T | `llm_session_store_tests.adb` |
+| REQ-CORE-075–076 | Historical | Retired Acme/plumber controls; see PCR-090 |
+| REQ-CORE-080–083 | T | `llm_session_store_tests.adb` |
 | REQ-CORE-084 | T/D | `session_lister_tests.adb`, DEM-018 |
 | REQ-CORE-085 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-029 |
 | REQ-CORE-086..087 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-030 |
 | REQ-CORE-088 | T | `llm_agent_tests.adb`, `coyote_app_tests.adb`, DEM-031 |
 | REQ-CORE-089 | T | `coyote_app_tests.adb`, DEM-032 |
 
-| REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
-| REQ-CORE-100â109 | Historical | Retired Acme/plumber controls; see PCR-090 |
-| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
-| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047; native table qualification pending |
+| REQ-CORE-090–093 | T | `llm_skills_tests.adb` |
+| REQ-CORE-100–109 | Historical | Retired Acme/plumber controls; see PCR-090 |
+| REQ-CORE-110–115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
+| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047; automated native-table qualification complete; remaining manual demonstrations are tracked under DEM-014 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
 | REQ-CORE-113e | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |
@@ -348,29 +366,29 @@ and preferences demonstrations listed above.
 | Shared model-picker result contract | T | `coyote_gui_model_picker_tests.adb`; DEM-033 |
 | REQ-CORE-230 | T | `llm_settings_tests.adb` |
 | REQ-CORE-119 | D | DEM-033 |
-| REQ-CORE-120â121 | D | DEM-001 (plain output) |
-| REQ-CORE-130â131 | T/D | `Coyote_App.History`, DEM-015 |
-| REQ-CORE-140â141 | D | DEM-016 |
+| REQ-CORE-120–121 | D | DEM-001 (plain output) |
+| REQ-CORE-130–131 | T/D | `Coyote_App.History`, DEM-015 |
+| REQ-CORE-140–141 | D | DEM-016 |
 | REQ-CORE-142 | D | DEM-017 |
-| REQ-CORE-170â173 | T/D | `llm_system_prompt_tests.adb`, `llm_skills_tests.adb`, DEM-023..024, code inspection |
-| REQ-CORE-180â183 | T/D | `llm_system_prompt_tests.adb`, DEM-025..026, code inspection |
-| REQ-CORE-190â192 | T/D | `llm_system_prompt_tests.adb`, DEM-027..028, code inspection |
-| REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
-| REQ-CORE-205â208, 215â217 | T/I | `llm_openai_responses_tests.adb`, `llm_agent_tests.adb`, `llm_session_store_tests.adb`, code inspection |
-| REQ-CORE-210â212 | Historical | Retired 9P interface; see PCR-090 |
-| REQ-CORE-220â221 | I | Code inspection (GTK call sites) |
-| REQ-CORE-025, 230â234 | T | `llm_settings_tests.adb`, `subagent_integration_tests.adb`, `llm_auth_tests.adb`, DEM-034, DEM-045 |
-| REQ-CORE-240â241 | T | `llm_session_store_tests.adb`, `coyote_sqc_parser_tests.adb` |
-| REQ-CORE-300â302 | I | Code inspection |
-| REQ-CORE-400â402 | T/I | `llm_types_tests.adb`, code inspection |
-| REQ-CORE-500â505 | I | Build artefact inspection |
-| REQ-CORE-600â601 | A | Design analysis |
+| REQ-CORE-170–173 | T/D | `llm_system_prompt_tests.adb`, `llm_skills_tests.adb`, DEM-023..024, code inspection |
+| REQ-CORE-180–183 | T/D | `llm_system_prompt_tests.adb`, DEM-025..026, code inspection |
+| REQ-CORE-190–192 | T/D | `llm_system_prompt_tests.adb`, DEM-027..028, code inspection |
+| REQ-CORE-200–203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
+| REQ-CORE-205–208, 215–217 | T/I | `llm_openai_responses_tests.adb`, `llm_agent_tests.adb`, `llm_session_store_tests.adb`, code inspection |
+| REQ-CORE-210–212 | Historical | Retired 9P interface; see PCR-090 |
+| REQ-CORE-220–221 | I | Code inspection (GTK call sites) |
+| REQ-CORE-025, 230–234 | T | `llm_settings_tests.adb`, `subagent_integration_tests.adb`, `llm_auth_tests.adb`, DEM-034, DEM-045 |
+| REQ-CORE-240–241 | T | `llm_session_store_tests.adb`, `coyote_sqc_parser_tests.adb` |
+| REQ-CORE-300–302 | I | Code inspection |
+| REQ-CORE-400–402 | T/I | `llm_types_tests.adb`, code inspection |
+| REQ-CORE-500–505 | I | Build artefact inspection |
+| REQ-CORE-600–601 | A | Design analysis |
 | REQ-CORE-700 | D | DEM-006 (streaming latency) |
 | REQ-CORE-701 | T | `llm_session_store_tests.adb` |
 | REQ-CORE-702 | D | DEM-016 |
 | REQ-CORE-703 | I | Code inspection (task exception handlers) |
 | REQ-CORE-704 | I | Code inspection (provider package structure) |
-| REQ-CORE-800â805 | I | Build artefact inspection, code inspection |
+| REQ-CORE-800–805 | I | Build artefact inspection, code inspection |
 | REQ-CORE-160 | I | Code inspection (man page content) |
 
 ---
@@ -642,12 +660,12 @@ recompute path (two-stage bootstrap with caching) added to
 `Recompute_Chart`; OOC propagation from Quantile CC charts to all other
 chart kinds added in `Recompute_Charts`; `Is_OOC_From_Quantile` field
 added to `Chart_Point`.  13 quantile unit tests and 7 rendering tests
-are specified in SDD-SQC Â§14.6âÂ§14.7 and are pending implementation.
+are specified in SDD-SQC §14.6–§14.7 and are pending implementation.
 
-**Baseline as of 2026-06-13 (Sort optimization â introsort + validity suppression):**
+**Baseline as of 2026-06-13 (Sort optimization — introsort + validity suppression):**
 687 tests, 0 failures, 0 unexpected errors.  Replaced GNAT's
 `Ada.Containers.Generic_Array_Sort` (heapsort) with a custom introsort
-(quicksort with median-of-three pivot, insertion sort for partitions â¤ 16
+(quicksort with median-of-three pivot, insertion sort for partitions ≤ 16
 elements, heapsort fallback for worst-case guarantee) with validity checks
 suppressed via `pragma Suppress (Validity_Check)`.  4 new sort-correctness
 tests added (reverse input, all-equal values, two-element descending, and
@@ -660,8 +678,8 @@ component values and limits; setup, Set A, and Set B diagram halos
 skip non-positive components in Log Y mode; rubber-band selection
 skips non-positive components in Log Y mode.  No new test cases added;
 existing test infrastructure sufficient to cover the rendering path.
-Requirements updated in SRS-SQC Â§5.18 (new Log Y-Axis Scaling
-subsection), Â§7.3.2a (Log Y mode rendering), and Â§15.6 (two new test
+Requirements updated in SRS-SQC §5.18 (new Log Y-Axis Scaling
+subsection), §7.3.2a (Log Y mode rendering), and §15.6 (two new test
 requirements).  No regressions.
 
 **Baseline as of 2026-06-14 (Quantile CC interpolation):**
@@ -677,11 +695,11 @@ n=1 fallback).  Added `Interpolate_Quantile_Limits` boolean to workspace data
 model, serialization, and workspace settings dialog.  Requirements and design
 documents updated.
 
-**Coverage gap PCR:** The gaps identified in Â§4.5 are logged in
+**Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current
 build with the rationale that the uncovered requirements are either low-risk
 (SIGTERM handling) or require live external services (Copilot).
-**Baseline as of 2026-06-06:** 660 tests, 0 failures, 0 unexpected errors.  7 new test cases required by SRS-SQC Â§15.6 (Â§5.17 bootstrap CI, Â§10.3 two-set histogram) are pending implementation; they are not yet included in the suite.
+**Baseline as of 2026-06-06:** 660 tests, 0 failures, 0 unexpected errors.  7 new test cases required by SRS-SQC §15.6 (§5.17 bootstrap CI, §10.3 two-set histogram) are pending implementation; they are not yet included in the suite.
 
 **Baseline as of 2026-06-14 (PCR-024 OpenAI Cache Parity):** 688 tests, 0 failures,
 0 unexpected errors.
@@ -689,13 +707,13 @@ build with the rationale that the uncovered requirements are either low-risk
 **Baseline as of 2026-06-18 (Token Cost Charts):** 713 tests, 0 failures,
 0 unexpected errors.  30 new chart kinds added for token cost charts (18
 session-level I/MR/EWMA and 12 turn-level Xbar/s), bringing total chart count
-from 61 to 91.  10 cost-specific test requirements added to SRS-SQC Â§15.6
+from 61 to 91.  10 cost-specific test requirements added to SRS-SQC §15.6
 covering cost computation accuracy, per-turn cost vectors, I/MR/Xbar limit
 computation, zero-value exclusion, unpriced model exclusion, per-turn cache
 cost fallback, pricing data source resolution, and workspace round-trip.
 Requirements and design documents updated.  Implementation complete
 (see PCR-039 in `plan/problems.md`); all 722 existing tests pass with
-0 regressions.  Dedicated cost-unit tests deferred â cost chart formulas
+0 regressions.  Dedicated cost-unit tests deferred — cost chart formulas
 are identical to their token-count counterparts and the pricing data path
 is transparent to the statistical layer.
 
@@ -929,7 +947,7 @@ wall time after the test executable is built. AUnit global and per-case timing
 are enabled. The recursion-depth subprocess test is opt-in with
 `COYOTE_TEST_SUBAGENT=1`; live-provider tests remain separately guarded.
 
-**Baseline after PCR-097 replay-format qualification (2026-09-07):**
+**Historical baseline after CSM-1 replay-format qualification (2026-09-07):**
 The replay path now selects each persisted assistant message format before
 rendering its text and restores the configured live GUI mode afterward. Missing
 or unknown format metadata remains Markdown. The production and test

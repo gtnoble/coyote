@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Coyote_GUI.Math_Element.Testing;
+with Coyote_GUI.Response_Renderer;
 with Glib;
 with Gtk.Container;
 with Gtk.Style_Context;
@@ -15,7 +16,29 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Widget.Gtk_Widget;
+   use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Widget.Widget_List.Glist;
+
+   function Uses_Shared_Renderer
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Response_Format = Coyote_GUI.Coyote_Stream_2_Response;
+   end Uses_Shared_Renderer;
+
+   function Math_Element_At
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
+      return Coyote_GUI.Math_Element.Instance_Access
+   is
+   begin
+      if Uses_Shared_Renderer (C) then
+         return Coyote_GUI.Response_Renderer.Math_Element_At
+           (C.Response_Renderer, Index);
+      elsif Index <= Natural (C.Math_Elements.Length) then
+         return C.Math_Elements (Index);
+      end if;
+      return null;
+   end Math_Element_At;
 
    function Has_Exchange
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
@@ -124,15 +147,16 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       if C.Step_Box = null then
          return 0;
       end if;
-      return Natural
-        (Gtk.Widget.Widget_List.Length
-           (Gtk.Container.Get_Children
-              (Gtk.Container.Gtk_Container (C.Step_Box))));
+      return
+        Natural
+          (Gtk.Widget.Widget_List.Length
+             (Gtk.Container.Get_Children
+                (Gtk.Container.Gtk_Container (C.Step_Box))));
    end Active_Step_Child_Count;
 
    function Active_Step_Child_Name
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return String
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
+      return String
    is
       Children : Gtk.Widget.Widget_List.Glist;
       Child    : Gtk.Widget.Gtk_Widget;
@@ -140,8 +164,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       if C.Step_Box = null then
          return "";
       end if;
-      Children := Gtk.Container.Get_Children
-        (Gtk.Container.Gtk_Container (C.Step_Box));
+      Children :=
+        Gtk.Container.Get_Children (Gtk.Container.Gtk_Container (C.Step_Box));
       Children := Gtk.Widget.Widget_List.First (Children);
       for Position in 1 .. Index loop
          exit when Children = Gtk.Widget.Widget_List.Null_List;
@@ -155,8 +179,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Active_Step_Child_Name;
 
    function Active_Step_Child_Text
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return String
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
+      return String
    is
       Children : Gtk.Widget.Widget_List.Glist;
       Child    : Gtk.Widget.Gtk_Widget;
@@ -164,9 +188,10 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       if C.Step_Box = null then
          return "";
       end if;
-      Children := Gtk.Widget.Widget_List.First
-        (Gtk.Container.Get_Children
-           (Gtk.Container.Gtk_Container (C.Step_Box)));
+      Children :=
+        Gtk.Widget.Widget_List.First
+          (Gtk.Container.Get_Children
+             (Gtk.Container.Gtk_Container (C.Step_Box)));
       for Position in 1 .. Index loop
          exit when Children = Gtk.Widget.Widget_List.Null_List;
          Child := Gtk.Widget.Widget_List.Get_Data (Children);
@@ -185,57 +210,68 @@ package body Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
    begin
+      if Uses_Shared_Renderer (C) then
+         return Coyote_GUI.Response_Renderer.Text_View_Count
+           (C.Response_Renderer);
+      end if;
       return Natural (C.Text_Views.Length);
    end Text_View_Count;
 
    function Text_View_Text
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive) return String
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
+      return String
    is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+      View       : Gtk.Text_View.Gtk_Text_View;
+      Buffer     : Gtk.Text_Buffer.Gtk_Text_Buffer;
    begin
-      if Index > Natural (C.Text_Views.Length) then
+      if Index <= Natural (C.Text_Views.Length) then
+         View := C.Text_Views (Index);
+      else
+         View :=
+           Coyote_GUI.Response_Renderer.Text_View_At
+             (C.Response_Renderer, Index - Natural (C.Text_Views.Length));
+      end if;
+      if View = null then
          return "";
       end if;
-      declare
-         Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
-           C.Text_Views (Index).Get_Buffer;
-      begin
-         if Buffer = null then
-            return "";
-         end if;
-         Buffer.Get_Start_Iter (Start_Iter);
-         Buffer.Get_End_Iter (End_Iter);
-         return Buffer.Get_Text (Start_Iter, End_Iter);
-      end;
+      Buffer := View.Get_Buffer;
+      if Buffer = null then
+         return "";
+      end if;
+      Buffer.Get_Start_Iter (Start_Iter);
+      Buffer.Get_End_Iter (End_Iter);
+      return Buffer.Get_Text (Start_Iter, End_Iter);
    end Text_View_Text;
 
    function Table_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
    begin
+      if Uses_Shared_Renderer (C) then
+         return Coyote_GUI.Response_Renderer.Table_Count (C.Response_Renderer);
+      end if;
       return Natural (C.Table_Grids.Length);
    end Table_Count;
 
    function Table_Grid
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Gtk.Grid.Gtk_Grid
    is
    begin
-      if Index <= Natural (C.Table_Grids.Length) then
+      if Uses_Shared_Renderer (C) then
+         return Coyote_GUI.Response_Renderer.Table_Grid_At
+           (C.Response_Renderer, Index);
+      elsif Index <= Natural (C.Table_Grids.Length) then
          return C.Table_Grids (Index);
       end if;
       return null;
    end Table_Grid;
 
    function Table_Cell
-     (C      : Coyote_GUI.Conversation_Stack.Instance;
-      Table  : Positive;
-      Row    : Positive;
-      Column : Positive)
-      return Gtk.Label.Gtk_Label
+     (C   : Coyote_GUI.Conversation_Stack.Instance; Table : Positive;
+      Row : Positive; Column : Positive) return Gtk.Label.Gtk_Label
    is
       Grid  : constant Gtk.Grid.Gtk_Grid := Table_Grid (C, Table);
       Child : Gtk.Widget.Gtk_Widget;
@@ -251,106 +287,116 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Table_Cell;
 
    function Math_Area_Visible
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Boolean
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
       return
-        Index <= Natural (C.Math_Elements.Length)
-        and then Coyote_GUI.Math_Element.Testing.Area_Visible
-          (C.Math_Elements (Index).all);
+        Element /= null
+        and then Coyote_GUI.Math_Element.Testing.Area_Visible (Element.all);
    end Math_Area_Visible;
 
    function Math_Fallback_Visible
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Boolean
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
       return
-        Index <= Natural (C.Math_Elements.Length)
+        Element /= null
         and then Coyote_GUI.Math_Element.Testing.Fallback_Visible
-          (C.Math_Elements (Index).all);
+          (Element.all);
    end Math_Fallback_Visible;
 
    function Math_Has_Response_Style
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Boolean
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
       return
-        Index <= Natural (C.Math_Elements.Length)
+        Element /= null
         and then Coyote_GUI.Math_Element.Testing.Has_Response_Style
-          (C.Math_Elements (Index).all);
+          (Element.all);
    end Math_Has_Response_Style;
 
    function Math_Element_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
    begin
+      if Uses_Shared_Renderer (C) then
+         return Coyote_GUI.Response_Renderer.Math_Element_Count
+           (C.Response_Renderer);
+      end if;
       return Natural (C.Math_Elements.Length);
    end Math_Element_Count;
 
    function Math_Source
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return String
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
-      if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Source (C.Math_Elements (Index).all);
+      if Element = null then
+         return "";
       end if;
-      return "";
+      return Coyote_GUI.Math_Element.Source (Element.all);
    end Math_Source;
 
    function Math_Is_Valid
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Boolean
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
       return
-        Index <= Natural (C.Math_Elements.Length)
-        and then Coyote_GUI.Math_Element.Is_Valid
-          (C.Math_Elements (Index).all);
+        Element /= null
+        and then Coyote_GUI.Math_Element.Is_Valid (Element.all);
    end Math_Is_Valid;
 
    function Math_Width
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Natural
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
-      if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Width (C.Math_Elements (Index).all);
+      if Element = null then
+         return 0;
       end if;
-      return 0;
+      return Coyote_GUI.Math_Element.Width (Element.all);
    end Math_Width;
 
    function Math_Height
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Natural
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
-      if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Height (C.Math_Elements (Index).all);
+      if Element = null then
+         return 0;
       end if;
-      return 0;
+      return Coyote_GUI.Math_Element.Height (Element.all);
    end Math_Height;
 
    function Math_Scale
-     (C     : Coyote_GUI.Conversation_Stack.Instance;
-      Index : Positive)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Long_Float
    is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
    begin
-      if Index <= Natural (C.Math_Elements.Length) then
-         return Coyote_GUI.Math_Element.Scale (C.Math_Elements (Index).all);
+      if Element = null then
+         return 0.0;
       end if;
-      return 0.0;
+      return Coyote_GUI.Math_Element.Scale (Element.all);
    end Math_Scale;
 
    function Step_Frame_Count
@@ -376,8 +422,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Tool_Flow;
 
    function Tool_Summary
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return String
    is
    begin
@@ -385,8 +430,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Tool_Summary;
 
    function Tool_Detail
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return Coyote_GUI.Tool_Info
    is
    begin
@@ -394,8 +438,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Tool_Detail;
 
    function Details_Label
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return String
    is
    begin
@@ -406,8 +449,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Details_Label;
 
    function Details_Enabled
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return Boolean
    is
    begin
@@ -418,8 +460,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Details_Enabled;
 
    function Abort_Enabled
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return Boolean
    is
    begin
@@ -430,8 +471,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Abort_Enabled;
 
    function Abort_Message_Enabled
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return Boolean
    is
    begin
@@ -442,8 +482,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    end Abort_Message_Enabled;
 
    function Tool_Action_Box
-     (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String)
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return Gtk.Box.Gtk_Box
    is
    begin

@@ -13,13 +13,14 @@ shared between coyote and pi.
 - **GTK frontend** — graphical conversation view with Markdown, tool cards,
   session management, status, preferences, keyboard navigation, and Help
 - **Incremental GUI markup (opt-in)** — set
-  `COYOTE_INCREMENTAL_MARKUP=1` to process Coyote Stream Markup deltas
-  immediately; text streams live, while complete table, display-math, and
-  literal code blocks become native or selectable GTK components; self-closing
-  horizontal rules become native separators immediately, and complete h1–h6
-  blocks become selectable native heading labels at their closing boundaries;
-  complete blockquotes become framed, selectable native text at their closing
-  boundaries. Markdown remains the default and Plain output is unchanged.
+  `COYOTE_INCREMENTAL_MARKUP=1` to select independent CSM-2 and process its
+  deltas immediately through the shared semantic/native renderer; text streams
+  live, while complete explicit table rows/cells, terminal Presentation MathML,
+  and opaque literal code blocks become native or selectable GTK components.
+  CSM-2 is not Markdown: tables use explicit tags rather than Markdown pipes,
+  and malformed or incomplete CSM-2 remains visible source. Versionless CSM-1
+  replay is limited to visible raw source because the CSM-1 parser is retired.
+  Markdown remains the default and Plain output is unchanged.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and
@@ -171,17 +172,27 @@ Configuration files live under `~/.coyote/`. The main settings file is
 ```
 
 `COYOTE_INCREMENTAL_MARKUP=1` opts live GUI assistant responses into the
-restricted Coyote Stream Markup path. The parser processes each provider delta
-immediately and realizes complete CSM table, display-math, and literal code
-blocks as native or selectable components; self-closing horizontal rules are
-realized as native separators immediately, and complete h1–h6 blocks become
-selectable native heading labels at their closing boundaries. Unset or `0`
-preserves Markdown behavior; Plain output and Markdown session replay are
-unchanged. In enabled GUI mode, the same application-selected format also adds
-restricted CSM generation guidance to the system prompt; the model does not
-set authoritative format metadata. The restricted CSM grammar currently covers
-text, paragraphs, line breaks, tables, MathML, literal code blocks, horizontal
-rules, headings, and blockquotes.
+restricted Coyote Stream Markup path. In CSM-2, the independent XML-like
+language has explicit block tags `<p>`, `<h1>`–`<h6>`, `<blockquote>`, `<list>`,
+`<item>`, `<code>`, `<table>`, `<row>`, `<cell>`, `<math>`, and `<hr>`, plus
+inline tags `<strong>`, `<em>`, `<del>`, `<link>`, `<code-inline>`, and `<br>`.
+Tables use explicit row and cell elements, not GFM or Markdown pipe-table
+syntax. `<math>` contains one complete Presentation MathML `<math>` document
+with the standard namespace and no `$$` delimiters; `<code>` and
+`<code-inline>` are opaque literal regions. Tags and attributes are case-sensitive. The legal attributes are list `kind` with
+`ordered` or `unordered`, list `start` with a positive decimal integer for an
+ordered list, link `url`, code `lang`, row `kind` with `header` or `body`, cell
+`align` with `left`, `center`, `right`, or `none`, and math `xmlns` with the
+standard MathML namespace. Attributes are valid only on their specified tags.
+Malformed or incomplete source remains visible and is not reinterpreted as
+Markdown. Unset or `0` preserves Markdown behavior; Plain output and Markdown
+session replay are unchanged. In enabled GUI mode, the same application-selected
+format adds restricted CSM-2 generation guidance to the system prompt; the model
+does not set authoritative format metadata.
+
+CSM replay is format-aware: versionless CSM-1 records are displayed as visible
+raw source, records with exact `formatVersion: 2` use CSM-2, and missing or
+unknown format/version metadata uses Markdown.
 
 ## Architecture
 
@@ -194,7 +205,10 @@ Coyote has two supported execution paths:
 
 Both paths share `LLM.Agent`, session persistence, provider adapters, and
 `Coyote_App.Dispatch.Dispatch_Event`. The frontend contract carries structured
-streaming events rather than provider-specific wire data.
+streaming events rather than provider-specific wire data. `Coyote_Renderer.Semantics`
+provides the shared semantic document model, and `Coyote_GUI.Response_Renderer`
+presents completed Markdown and CSM-2 through the shared native GTK policy,
+including native tables and terminal Presentation MathML.
 
 ## Testing
 
@@ -206,7 +220,7 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 864 registered tests and passes 864/864 in
+The current hierarchy contains 919 registered tests and passes 919/919 in
 approximately 34 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.

@@ -786,7 +786,7 @@ package body Coyote_App is
                   Subagent   => Opts.Subagent,
                   Response_Format =>
                     (if Incremental_Markup_Enabled
-                     then LLM.Types.Format_Coyote_Stream
+                     then LLM.Types.Format_Coyote_Stream_2
                      else LLM.Types.Format_Markdown));
                State.Set_Agent_Ready (True);
                Synchronize_Sandbox;
@@ -974,7 +974,7 @@ package body Coyote_App is
                                     No_Tools => Opts.No_Tools,
                                     Response_Format =>
                                       (if Incremental_Markup_Enabled
-                                       then LLM.Types.Format_Coyote_Stream
+                                       then LLM.Types.Format_Coyote_Stream_2
                                        else LLM.Types.Format_Markdown));
                                  Current_Thinking :=
                                    Settings_Value.Default_Thinking;

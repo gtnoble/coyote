@@ -15,13 +15,13 @@ The SQC test callers are now package-scoped leaf suites composed by
 `Test_SQC_Suite`. Moving the Quantile CC and MI caller instantiations out of
 the root suite function fixed a dangling-dispatch lifetime defect that was
 only exposed when AUnit global or per-case timing was enabled. The SQC domain
-contains 208 registrations and passes as part of the verified 822-test suite.
+contains 208 registrations and passes as part of the verified 919-test suite.
 
 ### Why coyote_sqc is a separate executable
 
 coyote_sqc reads coyote session JSONL files but does not interact with the
 LLM agent runtime at all. Separating it as a standalone executable means:
-- It can be run without plan9port or an acme instance.
+- It can be run without the main coyote agent runtime or external integration services.
 - It cannot accidentally write to session files (the session store is not
   linked into the sqc binary).
 - The GTK event loop in coyote_sqc is simpler than in the main coyote GUI:
@@ -58,6 +58,64 @@ Anscombe, arcsinh, Freeman-Tukey, Box-Cox). Box-Cox λ can be estimated via
 MLE from the setup interval data or fixed manually. The transform is applied
 to the data before computing control limits; the chart Y-axis shows
 back-transformed values so the scale is interpretable.
+
+### Markdown semantic adapter (2026-09-12)
+
+`Coyote_Renderer.Markup.Parse_Markdown` now parses libcmark-GFM into the
+renderer-neutral `Coyote_Renderer.Semantics` document using document-local
+handles. It copies block/inline order, nested blocks and lists, heading/list
+attributes, link URLs, fenced-code data, line breaks, thematic rules, and GFM
+table rows/cells/alignment before releasing the transient cmark tree.
+`To_Pango_Markup` serializes that semantic document, preserving the existing
+Pango markup contract. The native GUI table and display-math masking/extraction
+path remains separate and unchanged; the adapter can optionally represent
+standalone display math using the existing MathML extractor.
+
+The adapter intentionally does not retain cmark ownership or expose recursive
+AST access. Images and raw HTML are currently ignored in semantic construction,
+matching the previous shared serializer's lack of a dedicated realization;
+unsupported block kinds are omitted rather than invented. Native table and
+MathML realization therefore remains the reference behavior for the main GUI.
+Focused tests cover semantic construction, display-math model construction,
+and a representative exact Pango golden output.
+
+### CSM-2 Phase 8 shared CSM GUI presentation (2026-09-12)
+
+`Coyote_GUI.Response_Renderer` now presents both completed Markdown semantics and
+CSM-2 snapshots. The CSM path uses typed table rows/cells and shared Pango,
+spacing, native grid, Math_Element, font, zoom, and selection policy. Deltas are
+processed synchronously without per-token widgets; complete root boundaries
+commit, one provisional view exposes incomplete source, and final flush/snapshot
+reconciles malformed input authoritatively. CSM terminal MathML is normalized to
+a complete document for Lasem while its original source remains available.
+
+**Verification:** Production/test builds and focused GUI/parser/semantics/cmark/
+renderer/selection tests pass; GTK theme warnings are environmental.
+
+### Historical — CSM-2 Phase 7 shared GUI response presentation (2026-09-12; superseded by Phase 8)
+
+Added `Coyote_GUI.Response_Renderer` as the shared semantic-to-GTK/Pango
+presentation layer for completed Markdown responses. It consumes
+`Coyote_Renderer.Semantics`, centralizes the established inline/block Pango
+policy, response CSS/layout packing, source-order placement, native Gtk.Grid
+tables, Lasem-backed MathML, selectable text views, and font/MathML scale
+hooks. `Conversation_Stack` retains exchange, step, stream, and CSM lifecycle
+state; its completed Markdown path parses once into semantics and delegates
+realization to the extracted package. At this Phase 7 checkpoint, CSM-2
+incremental event rendering remained on the compatibility path; Phase 8
+subsequently migrated CSM-2 presentation to `Coyote_GUI.Response_Renderer`.
+
+The renderer owns its heap-stable `Math_Element` instances and detaches/frees
+them during explicit stack clear; GTK widget registries are non-owning and are
+used for selection, test inspection, and zoom propagation. A presentation-only
+MathML boundary fallback preserves the prior Markdown behavior for display
+math adjacent to prose without changing the semantic adapter or CSM parser.
+
+Focused verification covers the existing Markdown Pango golden/list behavior,
+semantic response table realization, valid/invalid/native MathML, code-block
+protection, source order, selection/style hooks, and zoom. Production and test
+development builds pass; the focused GUI, Cmark, MathML, and semantics suites
+pass with no failures.
 
 ### Shared `Coyote_Renderer` library
 
@@ -252,8 +310,9 @@ defeat the purpose of the overlap.
   four Quantile CC chart kinds (`null; -- Quantile CC uses bootstrap` and
   `Parameters.Parameters_Valid := False;`)
 
-**Build status:** Clean build with no errors.  All 670 existing AUnit tests
-pass (zero regressions).
+**Historical build status (2026-06-13):** Clean build with no errors.  All 670
+AUnit tests in that dated baseline passed (zero regressions).  The current
+registered suite baseline is recorded in the active qualification entry above.
 
 ### Quantile Control Chart — Implementation complete (2026-06-13)
 
@@ -852,3 +911,17 @@ necessary; only the `Has_Comment` boolean on existing chart points changes.
 point construction, benefiting from the O(1) speedup there too.
 
 **Build:** Clean.  **Tests:** 722/722 pass (0 regressions).
+
+### Renderer-neutral semantic model (2026-09-12)
+
+Added `Coyote_Renderer.Semantics`, a GTK/cmark/Lasem/JSON-independent document
+model shared by future Markdown and CSM producers.  It stores ordered root and
+nested blocks, inline children, list/code/math attributes, table rows/cells and
+alignment, invalid-source nodes, and separate source/provenance and decoded
+values.  Document-local private handles and Ada containers provide ownership;
+`Clear` resets storage and invalidates prior handles.
+
+Added `Coyote_Semantics_Tests` with focused construction, ordering, nesting,
+attribute, table, source-preservation, and clear/reset coverage.  This phase
+does not change the lexer/parser, Markdown renderer, GUI, persistence, prompt,
+or controlled governance documents.

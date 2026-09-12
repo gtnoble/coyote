@@ -203,6 +203,33 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       end;
    end Test_Native_Markdown_Renders_After_Streaming;
 
+   procedure Test_Native_Response_Renderer_Presents_Semantics
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "before" & ASCII.LF & ASCII.LF
+        & "| Name | Value |" & ASCII.LF & "| --- | --- |" & ASCII.LF
+        & "| alpha | 42 |" & ASCII.LF & ASCII.LF
+        & "after";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Table_Count (T.Stack) = 1,
+              "semantic response renderer realizes one table");
+      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Text = "42",
+              "semantic response renderer retains table cell text");
+      Assert (Text_View_Count (T.Stack) = 2,
+              "semantic response renderer retains text around table");
+      Assert (Index (Text_View_Text (T.Stack, 1), "before") > 0,
+              "semantic response renderer retains prefix text");
+      Assert (Index (Text_View_Text (T.Stack, 2), "after") > 0,
+              "semantic response renderer retains suffix text");
+   end Test_Native_Response_Renderer_Presents_Semantics;
+
    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test)
    is
    begin
@@ -881,201 +908,99 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "fenced code retains dollar delimiters");
    end Test_Native_Display_Math_Protects_Code;
 
-   procedure Test_Incremental_Native_Table (T : in out Test) is
+   procedure Test_CSM2_Shared_Renderer_Parity (T : in out Test) is
+      CSM_Source : constant String :=
+        "<p>before <strong>bold</strong> and <em>em</em></p>"
+        & "<h2>Title</h2><list kind=""ordered"" start=""2""><item>one</item>"
+        & "<item>two</item></list><blockquote><p>quote</p></blockquote>"
+        & "<code lang=""ada"">x &lt; y</code><hr/>"
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+        & "<table><row kind=""header""><cell align=""center"">Name</cell>"
+        & "<cell align=""right"">Value</cell></row><row>"
+        & "<cell>alpha</cell><cell>42</cell></row></table>"
+        & "<p>after</p>";
+      CSM_Text : Unbounded_String;
+      Markdown_Text : Unbounded_String;
+      function Visible_Text return String is
+         Result : Unbounded_String;
+      begin
+         for I in 1 .. Text_View_Count (T.Stack) loop
+            Append (Result, Text_View_Text (T.Stack, I));
+         end loop;
+         return To_String (Result);
+      end Visible_Text;
    begin
       if not T.Display_Available then
          return;
       end if;
       Set_Incremental_Markup (T.Stack, True);
       Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "<table>" & ASCII.LF & "| Name | Value |");
-      Append_Text (T.Stack, ASCII.LF & "| --- | --- |" & ASCII.LF);
-      Append_Text (T.Stack, "| alpha | 42 |</table>");
-      Assert (Table_Count (T.Stack) = 1,
-              "incremental complete table creates one native grid");
-      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Text = "42",
-              "incremental table preserves cell text");
-      Assert (not Response_Stream_Present (T.Stack),
-              "incremental table removes raw stream view");
-      Assert (Text_View_Count (T.Stack) = 0,
-              "table-only stream removes provisional text view tracking");
-   end Test_Incremental_Native_Table;
-
-   procedure Test_Incremental_Native_Code (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "prefix ");
-      Append_Text (T.Stack, "<code>a<>&" & ASCII.LF);
-      Append_Text (T.Stack, "b</code> suffix");
-      Assert (Text_View_Count (T.Stack) = 3,
-              "incremental code keeps prefix, code, and suffix views");
-      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
-              "code response preserves prefix text");
-      Assert (Index (Text_View_Text (T.Stack, 2), "a<>&") > 0,
-              "code response preserves literal characters");
-      Assert (Index (Text_View_Text (T.Stack, 2), "<code>") = 0,
-              "code response removes CSM delimiters");
-      Assert (Index (Text_View_Text (T.Stack, 3), "suffix") > 0,
-              "code response preserves suffix text");
-      Assert (Active_Step_Child_Count (T.Stack) = 3,
-              "code response preserves prefix, code, and suffix order");
-      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 2) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox",
-              "code response uses ordered text-view siblings");
-   end Test_Incremental_Native_Code;
-
-   procedure Test_Incremental_Horizontal_Rule (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "before");
-      Append_Text (T.Stack, "<hr");
-      Append_Text (T.Stack, "/>after<hr />tail");
-      Assert (Active_Step_Child_Count (T.Stack) = 5,
-              "incremental rules preserve five ordered siblings");
-      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 2) = "GtkHSeparator"
-              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 4) = "GtkHSeparator"
-              and then Active_Step_Child_Name (T.Stack, 5) = "GtkVBox",
-              "incremental rules preserve text-rule-text-rule-text order: "
-              & Active_Step_Child_Name (T.Stack, 1) & "|"
-              & Active_Step_Child_Name (T.Stack, 2) & "|"
-              & Active_Step_Child_Name (T.Stack, 3) & "|"
-              & Active_Step_Child_Name (T.Stack, 4) & "|"
-              & Active_Step_Child_Name (T.Stack, 5));
-      Assert (Text_View_Count (T.Stack) = 3,
-              "incremental rules retain all three text views");
-      Assert (Index (Text_View_Text (T.Stack, 1), "before") > 0,
-              "incremental rules preserve prefix text");
-      Assert (Index (Text_View_Text (T.Stack, 2), "after") > 0,
-              "incremental rules preserve middle text");
-      Assert (Index (Text_View_Text (T.Stack, 3), "tail") > 0,
-              "incremental rules preserve suffix text");
-   end Test_Incremental_Horizontal_Rule;
-
-   procedure Test_Incremental_Heading (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "prefix ");
-      Append_Text (T.Stack, "<h1>Title <&</h1>");
-      Append_Text (T.Stack, " middle <h4>Deep</h4> suffix");
-      Assert (Active_Step_Child_Count (T.Stack) = 5,
-              "incremental headings preserve five ordered siblings");
-      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 2) = "GtkLabel"
-              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 4) = "GtkLabel"
-              and then Active_Step_Child_Name (T.Stack, 5) = "GtkVBox",
-              "incremental headings preserve text-heading-text-heading-"
-              & "text order");
-      Assert (Active_Step_Child_Text (T.Stack, 2) = "Title <&",
-              "h1 label preserves literal heading text");
-      Assert (Active_Step_Child_Text (T.Stack, 4) = "Deep",
-              "h4 label preserves heading text");
-      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
-              "heading response preserves prefix text");
-      Assert (Index (Text_View_Text (T.Stack, 2), "middle") > 0,
-              "heading response preserves middle text");
-      Assert (Index (Text_View_Text (T.Stack, 3), "suffix") > 0,
-              "heading response preserves suffix text");
-   end Test_Incremental_Heading;
-
-   procedure Test_Incremental_Blockquote (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "prefix ");
-      Append_Text (T.Stack, "<block");
-      Append_Text (T.Stack, "quote>quoted <&</blockquote>");
-      Append_Text (T.Stack, " suffix");
-      Assert (Active_Step_Child_Count (T.Stack) = 3,
-              "incremental blockquote preserves three ordered siblings");
-      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 2) = "GtkFrame"
-              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox",
-              "incremental blockquote preserves text-quote-text order");
-      Assert (Text_View_Count (T.Stack) = 3,
-              "incremental blockquote retains all text views");
-      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
-              "blockquote response preserves prefix text");
-      Assert (Index (Text_View_Text (T.Stack, 2), "quoted <&") > 0,
-              "blockquote response preserves literal quote text");
-      Assert (Index (Text_View_Text (T.Stack, 3), "suffix") > 0,
-              "blockquote response preserves suffix text");
-   end Test_Incremental_Blockquote;
-
-   procedure Test_Incremental_Mixed_Order (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "prefix ");
-      Append_Text (T.Stack, "<table>| H |" & ASCII.LF
-                   & "| --- |" & ASCII.LF & "| cell |</table>");
-      Append_Text (T.Stack, " suffix");
-      Append_Text (T.Stack, "<table>| H2 |" & ASCII.LF
-                   & "| --- |" & ASCII.LF & "| cell2 |</table>");
-      Assert (Table_Count (T.Stack) = 2,
-              "repeated incremental native blocks remain realizable");
-      Assert (Table_Count (T.Stack) = 2,
-              "mixed incremental response realizes both tables");
-      Assert (Text_View_Count (T.Stack) = 2,
-              "mixed incremental response retains prefix and suffix views");
-      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
-              "prefix text remains visible after native replacement");
-      Assert (Index (Text_View_Text (T.Stack, 2), "suffix") > 0,
-              "suffix text remains visible after native replacement");
-      Assert (Active_Step_Child_Count (T.Stack) = 4,
-              "mixed response preserves four source-order siblings");
-      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 2) = "GtkGrid"
-              and then Active_Step_Child_Name (T.Stack, 3) =
-                "GtkVBox"
-              and then Active_Step_Child_Name (T.Stack, 4) = "GtkGrid",
-              "mixed response preserves source component order: "
-              & Active_Step_Child_Name (T.Stack, 1) & "|"
-              & Active_Step_Child_Name (T.Stack, 2) & "|"
-              & Active_Step_Child_Name (T.Stack, 3));
-   end Test_Incremental_Mixed_Order;
-
-   procedure Test_Incremental_Native_Math (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text
-        (T.Stack, "<math xmlns=""http://www.w3.org/1998/Math/MathML"">");
-      Append_Text
-        (T.Stack, "<mi>x</mi></math>");
+      for I in CSM_Source'Range loop
+         Append_Text (T.Stack, CSM_Source (I .. I));
+      end loop;
+      End_Text_Block (T.Stack);
+      CSM_Text := To_Unbounded_String (Visible_Text);
+      Assert (Table_Count (T.Stack) = 1, "CSM uses shared native table");
       Assert (Math_Element_Count (T.Stack) = 1,
-              "incremental complete math creates one native element");
+              "CSM terminal MathML uses shared native math");
       Assert (Math_Is_Valid (T.Stack, 1),
-              "incremental MathML remains valid");
+              "CSM terminal MathML is valid after normalization");
       Assert (Index (Math_Source (T.Stack, 1), "<math") > 0,
-              "incremental math retains complete source");
-      Assert (not Response_Stream_Present (T.Stack),
-              "incremental math removes raw stream view");
-   end Test_Incremental_Native_Math;
+              "CSM Math_Element retains original source");
+      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Text = "42",
+              "CSM table cells use typed semantic values");
+      Assert (Table_Cell (T.Stack, 1, 1, 1).Get_Xalign = 0.5,
+              "CSM table alignment is retained");
+      Assert (Text_View_Count (T.Stack) > 0,
+              "CSM response retains selectable shared text views");
+      Assert (Index (To_String (CSM_Text), "<p>") = 0,
+              "CSM tags are absent after authoritative completion");
+
+      Clear (T.Stack);
+      Set_Incremental_Markup (T.Stack, False);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text
+        (T.Stack,
+         "before **bold** and *em*" & ASCII.LF & ASCII.LF
+         & "## Title" & ASCII.LF & ASCII.LF
+         & "2. one" & ASCII.LF & "3. two" & ASCII.LF & ASCII.LF
+         & "> quote" & ASCII.LF & ASCII.LF
+         & "```ada" & ASCII.LF & "x &lt; y" & ASCII.LF
+         & "```" & ASCII.LF & ASCII.LF
+         & "---" & ASCII.LF & ASCII.LF
+         & "| Name | Value |" & ASCII.LF
+         & "| :--- | :---: |" & ASCII.LF
+         & "| alpha | 42 |" & ASCII.LF & ASCII.LF & "after");
+      End_Text_Block (T.Stack);
+      Markdown_Text := To_Unbounded_String (Visible_Text);
+      Assert (Index (To_String (Markdown_Text), "before") > 0,
+              "Markdown parity fixture remains visible");
+      Assert (Table_Count (T.Stack) = 1,
+              "Markdown parity fixture uses one native table");
+      Select_All (T.Stack);
+      Assert (Has_Selection (T.Stack),
+              "shared response text retains selection ownership");
+      Clear_Selection (T.Stack);
+   end Test_CSM2_Shared_Renderer_Parity;
+
+   procedure Test_CSM2_Malformed_Final_Reconciliation (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>visible <strong>text</p>");
+      End_Text_Block (T.Stack);
+      Assert (Text_View_Count (T.Stack) > 0,
+              "malformed CSM remains visible after final reconciliation");
+      Assert (Index (Text_View_Text (T.Stack, Text_View_Count (T.Stack)),
+                     "<p>") > 0,
+              "malformed CSM source is retained visibly");
+      Assert (Table_Count (T.Stack) = 0,
+              "malformed CSM does not leave stale native tables");
+   end Test_CSM2_Malformed_Final_Reconciliation;
 
    procedure Test_Native_Display_Math_Zooms (T : in out Test) is
       Source        : constant String                   :=
@@ -1134,6 +1059,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Response_Renderer presents semantics",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Response_Renderer_Presents_Semantics'
+              Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack toggles Markdown rendering",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Markdown_Toggle_Disables_Rendering'
@@ -1162,6 +1093,16 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Response_Mixed_Blocks_Skip_Whitespace'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Response_Renderer renders CSM-2 parity",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_CSM2_Shared_Renderer_Parity'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Response_Renderer reconciles malformed CSM-2",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_CSM2_Malformed_Final_Reconciliation'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack realizes display MathML",

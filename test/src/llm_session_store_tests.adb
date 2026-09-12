@@ -1016,6 +1016,114 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Assistant_Format_Round_Trip;
 
+   procedure Test_Assistant_CSM2_Format_Persists_Version (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+      Content : LLM.Types.Content_Block_Vectors.Vector;
+      Message : LLM.Types.Message;
+      Loaded : LLM.Types.Message_Vectors.Vector;
+   begin
+      Prepare_Test_Home;
+      Content.Append ((Kind => LLM.Types.Text_Block,
+                       Text => To_Unbounded_String ("<table><row>")));
+      Message := (Role => LLM.Types.Assistant,
+                  Format => LLM.Types.Format_Coyote_Stream_2,
+                  Content => Content, Tok_Usage => (others => 0),
+                  Stop => LLM.Types.Stop, Timestamp => Null_Unbounded_String);
+      declare
+         Session_Id : constant String := LLM.Session_Store.Create_Session (Source_Cwd);
+         Path : constant String := LLM.Session_Store.Session_File_Path (Session_Id);
+         File : Ada.Text_IO.File_Type;
+      begin
+         LLM.Session_Store.Append_Message (Session_Id, Message);
+         Loaded := LLM.Session_Store.Load_Messages (Session_Id);
+         Assert (Loaded.Element (0).Format = LLM.Types.Format_Coyote_Stream_2,
+                 "CSM-2 format should round-trip");
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+         declare
+            Header_Line : constant String := Ada.Text_IO.Get_Line (File);
+            pragma Unreferenced (Header_Line);
+         begin
+            null;
+         end;
+         while not Ada.Text_IO.End_Of_File (File) loop
+            declare
+               Line : constant String := Ada.Text_IO.Get_Line (File);
+            begin
+               Assert (Contains (Line, "formatVersion"":2"),
+                       "CSM-2 persistence must include formatVersion 2");
+            end;
+         end loop;
+         Ada.Text_IO.Close (File);
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home); Cleanup_Test_Root;
+   exception
+      when others => Restore_Env ("HOME", Home_Was_Set, Old_Home); Cleanup_Test_Root; raise;
+   end Test_Assistant_CSM2_Format_Persists_Version;
+
+   procedure Test_Assistant_CSM1_Format_Remains_Versionless (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String := LLM.Session_Store.Create_Session (Source_Cwd);
+         Path : constant String := LLM.Session_Store.Session_File_Path (Session_Id);
+         File : Ada.Text_IO.File_Type;
+         Content : LLM.Types.Content_Block_Vectors.Vector;
+         Message : LLM.Types.Message;
+      begin
+         Content.Append ((Kind => LLM.Types.Text_Block, Text => To_Unbounded_String ("| old |")));
+         Message := (Role => LLM.Types.Assistant, Format => LLM.Types.Format_Coyote_Stream,
+                     Content => Content, Tok_Usage => (others => 0), Stop => LLM.Types.Stop,
+                     Timestamp => Null_Unbounded_String);
+         LLM.Session_Store.Append_Message (Session_Id, Message);
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+         while not Ada.Text_IO.End_Of_File (File) loop
+            declare Line : constant String := Ada.Text_IO.Get_Line (File); begin
+               if Contains (Line, "coyote-stream") then
+                  Assert (not Contains (Line, "formatVersion"),
+                          "CSM-1 persistence must not gain CSM-2 metadata");
+               end if;
+            end;
+         end loop;
+         Ada.Text_IO.Close (File);
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home); Cleanup_Test_Root;
+   exception
+      when others => Restore_Env ("HOME", Home_Was_Set, Old_Home); Cleanup_Test_Root; raise;
+   end Test_Assistant_CSM1_Format_Remains_Versionless;
+
+   procedure Test_Unknown_Format_Metadata_Defaults_To_Markdown (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+      Loaded : LLM.Types.Message_Vectors.Vector;
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String := LLM.Session_Store.Create_Session (Source_Cwd);
+         Path : constant String := LLM.Session_Store.Session_File_Path (Session_Id);
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Open (File, Ada.Text_IO.Append_File, Path);
+         Ada.Text_IO.Put_Line (File, "{""role"":""assistant"",""format"":""coyote-stream"",""formatVersion"":99,""content"":[],""usage"":{},""stopReason"":""stop""}");
+         Ada.Text_IO.Put_Line (File, "{""role"":""assistant"",""format"":""future"",""content"":[],""usage"":{},""stopReason"":""stop""}");
+         Ada.Text_IO.Close (File);
+         Loaded := LLM.Session_Store.Load_Messages (Session_Id);
+         Assert (Loaded.Length = 2, "unknown metadata records should remain readable");
+         Assert (Loaded.Element (0).Format = LLM.Types.Format_Markdown,
+                 "unknown CSM version should fall back to Markdown");
+         Assert (Loaded.Element (1).Format = LLM.Types.Format_Markdown,
+                 "unknown format should fall back to Markdown");
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home); Cleanup_Test_Root;
+   exception
+      when others => Restore_Env ("HOME", Home_Was_Set, Old_Home); Cleanup_Test_Root; raise;
+   end Test_Unknown_Format_Metadata_Defaults_To_Markdown;
+
    procedure Test_Legacy_Assistant_Format_Defaults (T : in out Test) is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
@@ -1763,6 +1871,21 @@ package body LLM_Session_Store_Tests is
            ("LLM.Session_Store persists assistant usage and stop reason",
             LLM_Session_Store_Tests
               .Test_Assistant_Usage_And_Stop_Reason_Persist'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store persists CSM-2 format version",
+            LLM_Session_Store_Tests.Test_Assistant_CSM2_Format_Persists_Version'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store preserves versionless CSM-1 format",
+            LLM_Session_Store_Tests.Test_Assistant_CSM1_Format_Remains_Versionless'
+              Access));
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store defaults unknown format metadata to Markdown",
+            LLM_Session_Store_Tests.Test_Unknown_Format_Metadata_Defaults_To_Markdown'
               Access));
       Result.Add_Test
         (LLM_Session_Store_Caller.Create

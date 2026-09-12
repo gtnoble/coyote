@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.24
-**Date:** 2026-09-07
-**Status:** Draft
+**Version:** 1.25
+**Date:** 2026-09-12
+**Status:** Verified — PCR-101 closed
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -295,7 +295,7 @@ error) to the active frontend when context compaction occurs.
 
 ---
 
-**REQ-CORE-047** (D/T/I)
+**Historical — REQ-CORE-047 (CSM-1/current; superseded by REQ-CORE-047a–047g)**
 When the environment variable `COYOTE_INCREMENTAL_MARKUP` is set to `1`, the
 GUI frontend shall opt into the accepted incremental-markup presentation path.
 When the variable is absent or set to `0`, the existing Markdown presentation
@@ -304,7 +304,7 @@ rendering only; Plain output and existing Markdown history replay shall retain
 their current semantics. Session replay shall use the persisted format of each
 assistant message; missing or unknown format metadata shall mean Markdown.
 
-**REQ-CORE-048** (D/T/I)
+**Historical — REQ-CORE-048 (CSM-1/current; superseded by REQ-CORE-047a–047g)**
 In incremental-markup mode, coyote shall select and record the response format
 application-side before the first assistant text delta. The model shall not be
 relied upon to author authoritative message metadata. Missing format metadata
@@ -315,7 +315,7 @@ syntax and shall prohibit arbitrary HTML/XML and Markdown `$$` display-math
 delimiters. Markdown and Plain mode shall retain the existing Markdown prompt
 guidance.
 
-**REQ-CORE-049** (D/T/I)
+**Historical — REQ-CORE-049 (CSM-1/current; superseded by REQ-CORE-047a–047g)**
 In incremental-markup mode, each provider text delta shall be consumed by the
 incremental parser and applied to the active GUI component immediately, without
 intentional timer-based batching or coalescing. The implementation shall update
@@ -330,6 +330,66 @@ selectable native text components at their closing boundaries. Invalid markup
 shall fall back to visible escaped or plain source.
 
 ---
+
+#### 3.1.4a CSM-2 Grammar Contract (Verified, PCR-101 Phase 12)
+
+These controlled requirements define the implemented CSM-2 grammar and
+presentation boundary. The CSM-2 parser, semantic model, prompt path,
+persistence/replay path, and GUI presentation are qualified by PCR-101; the
+historical CSM-1/current implementation and records remain separately governed.
+
+**REQ-CORE-047a** (A/I/T)
+CSM-2 is available only through the existing
+`COYOTE_INCREMENTAL_MARKUP=1` opt-in path. It is a separate XML-like semantic
+language, not Markdown, and Markdown syntax has no CSM-2 meaning. Existing
+format-selection rules, Plain frontend behavior, and default-off Markdown
+behavior remain unchanged. Verified by the default-off flag, prompt, history,
+GUI, and complete-suite evidence recorded in the Test Plan.
+
+**REQ-CORE-047b** (A/I/T)
+CSM-2 defines only the explicit inline tags `<strong>`, `<em>`, `<del>`,
+`<link>`, `<code-inline>`, and `<br>`. Their semantic styles are distinct from
+literal source text; attributes are restricted to the controlled prompt grammar.
+Verified by the parser, semantic, prompt, GUI parity, and complete-suite tests.
+
+**REQ-CORE-047c** (A/I/T)
+CSM-2 defines the explicit block tags `<p>`, `<h1>` through `<h6>`,
+`<blockquote>`, `<list>`, `<item>`, `<code>`, `<table>`, `<row>`, `<cell>`,
+`<math>`, and `<hr>`. Tables require explicit non-empty `<row>` and `<cell>`
+structure; GFM table syntax, pipe-table rules, and Markdown table semantics
+have no CSM-2 meaning. Verified by parser/table, semantic, GUI, cmark/renderer,
+and complete-suite evidence.
+
+**REQ-CORE-047d** (A/I/T)
+`<math>` contains exactly one complete terminal Presentation MathML `<math>`
+document using the standard namespace
+`http://www.w3.org/1998/Math/MathML`. CSM-2 assigns no semantics to that
+payload; LaTeX, Content MathML, and Markdown display-math delimiters are not
+CSM-2 syntax. Verified by parser, GUI native MathML, Markdown MathML reference,
+and complete-suite evidence.
+
+**REQ-CORE-047e** (A/I/T)
+Malformed or incomplete CSM-2 remains visible source. Recovery does not
+silently discard source or reinterpret it as Markdown. Complete root boundaries,
+exact `Flush`, UTF-8 split handling, and authoritative malformed reconciliation
+are verified by the headless parser/qualification and GUI fixtures.
+
+**REQ-CORE-047f** (A/I/T)
+CSM-2 GUI presentation parity is qualified against completed native GUI Markdown
+rendering, with native tables and native Presentation MathML retained as the
+reference's native exceptions. Qualified parity covers equivalent visible
+content, semantic styles, document order, spacing policy, selection/copy
+behavior, child-count/reconciliation, and fallback behavior. Pixel identity is
+not promised by this contract.
+
+**REQ-CORE-047g** (A/I/T)
+CSM-1/current persisted records remain versionless and retain their existing
+`format: "coyote-stream"` metadata. CSM-2 records retain that field and add
+`formatVersion: 2`; exact version 2 selects CSM-2, while missing or unknown
+metadata selects Markdown. Versionless CSM-1 replay is visible selectable raw
+source because the CSM-1 parser is retired; it is not passed to the CSM-2 parser
+or reinterpreted as Markdown. No persisted-record migration is performed.
+Verified by session-store, history, RPC, and complete-suite evidence.
 
 #### 3.1.5 Tool Execution
 
@@ -1711,7 +1771,7 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline
-is 862 registered tests. Native GUI qualification is complete for the
+is 919 registered tests. CSM-2 native GUI qualification is complete for the
 Conversation_Stack presentation. The table below is the original qualification
 matrix and retains historical `TC-*` identifiers; current mappings are in
 `plan/test-plan.md` §6.
@@ -1751,6 +1811,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
+| REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, explicit grammar, terminal Presentation MathML, visible-source fallback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 controlled qualification matrix |
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |
 | REQ-CORE-045 | Auto-retry events displayed | D | TC-045 |
@@ -1852,6 +1913,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Objective | Derived Requirements |
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
+| Controlled CSM-2 grammar and GUI parity boundary | REQ-CORE-047a–047g |
 | Multi-frontend support (GTK3 and Plain) | REQ-CORE-001–004, REQ-CORE-110–139 |
 | Streaming output | REQ-CORE-040–049, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–057 |
@@ -1881,6 +1943,9 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 - CWD: Current Working Directory
 - GFM: GitHub Flavored Markdown
 - UUID: Universally Unique Identifier
+- CSM: Coyote Stream Markup
+- CSM-1/current: the existing incremental-markup implementation and its persisted records
+- CSM-2: the implemented and qualified XML-like semantic-language contract under PCR-101 Phase 12
 
 **Excluded scope:**
 - coyote_sqc requirements are in `requirements/coyote-sqc-requirements.md` (SRS-SQC).

@@ -121,6 +121,15 @@ package Coyote_Cmark is
      (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
      Import, Convention => C, External_Name => "cmark_shim_get_literal";
 
+   --  Return a link destination or fenced-code info string, safely.
+   function Node_Get_URL
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_shim_get_url";
+
+   function Node_Get_Fence_Info
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_shim_get_fence_info";
+
    --  Create an iterator over the subtree rooted at Root.
    --  Caller must free with Iter_Free.
    function Iter_New (Root : Node_Ptr) return Iter_Ptr with

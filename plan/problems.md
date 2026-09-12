@@ -106,7 +106,7 @@ client-controlled work product gets an entry here.
 
 **Category values:** Plans | Requirements | Design | Code | Test | Manuals | Other
 **Priority values:** 1-Critical | 2-Serious | 3-Moderate | 4-Minor | 5-Negligible
-**Status values:** Open | In Progress | Resolved | Deferred
+**Status values:** Open | In Progress | Resolved | Deferred | Closed/Implemented and Verified
 
 ---
 
@@ -3264,6 +3264,7 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 - **Status:** Implemented.
 
 
+
 ## PCR-100 — Codex tool support dropped by catalogue boolean parsing
 
 - **Date reported:** 2026-09-07
@@ -3296,3 +3297,65 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   the field leaves tool support disabled. Production and test development
   builds succeed; the full AUnit suite passes 870/870.
 - **Status:** Implemented.
+
+
+## PCR-101 — CSM-2 independent grammar and native GUI parity implementation
+
+- **Date reported:** 2026-09-12
+- **Category:** Requirements, Design, Code, Test, Plans, Manuals
+- **Classification:** Enhancement/change
+- **Priority:** 2-Serious
+- **Description:** The existing CSM-1/current incremental-markup path is a
+  restricted implementation whose block and inline semantics are not the
+  independent CSM-2 contract established by REQ-CORE-047a–047g. CSM-2 must
+  define and implement its explicit XML-like grammar and provide native GUI
+  presentation parity without assigning Markdown syntax or CSM semantics to
+  terminal Presentation MathML payloads. The change also requires an explicit
+  compatibility disposition for existing CSM-1/current persisted records and
+  coordinated controlled-work-product updates.
+- **Affected work products:** SRS-CORE REQ-CORE-047a–047g, SDD-CORE CSM-2
+  design and traceability, the CSM parser and response-format/prompt paths,
+  native GTK conversation presentation, persistence and replay handling,
+  focused and display-backed AUnit tests, Test Plan and project plans,
+  frontend/core SDFs, README and user manuals/Help, and this change log.
+- **Corrective action required:** Implement CSM-2 independently of
+  CSM-1/current while retaining the existing opt-in boundary and default-off
+  Markdown behavior. Define and realize the explicit inline and block
+  vocabulary, explicit table row/cell structure, terminal Presentation
+  MathML boundary, malformed/incomplete visible-source fallback, and the
+  parity dimensions specified by the controlled requirements and design.
+  Define compatibility and replay behavior before any CSM-2 record can
+  replace or reinterpret a CSM-1/current record. Update affected plans,
+  SDFs, manuals, and traceability as the implementation is qualified.
+- **Actions taken (2026-09-12):** Implemented and qualified the independent
+  CSM-2 grammar, typed semantic model, synchronous parser boundary handling,
+  shared Markdown-reference presentation, native GUI reconciliation, and
+  versioned persistence/replay compatibility. Retained CSM-1/current records
+  as versionless `format: "coyote-stream"` records and did not migrate them.
+- **Verification / closure evidence (2026-09-12):** Controlled requirements
+  and design review completed. Production `alr build` and `cd test && alr
+  build` succeeded in the development profile. The complete AUnit suite passed
+  919/919 with zero failed assertions and zero unexpected errors. Focused
+  evidence passed as follows: consolidated headless CSM-2 qualification 5/5;
+  independent parser 17/17; semantic model 5/5; system-prompt 34/34;
+  session-store 27/27; history replay 1/1; RPC 28/28; libcmark 14/14; GFM
+  table renderer 4/4; Markdown MathML renderer 3/3; shared response renderer
+  and malformed reconciliation 3/3; prompt queue 5/5; default-off flag 1/1;
+  native `Conversation_Stack` 24/24; and display-backed CSM-2 GUI parity,
+  selection/copy, native table/MathML, child-count, split-delta, and malformed
+  stale-widget reconciliation 3/3. The GUI tests ran directly against
+  `DISPLAY=:0.0` on X11; no Wayland display was set. GTK theme color-parser
+  warnings were emitted by the environment and did not affect assertions.
+- **Compatibility disposition:** CSM-2 assistant records retain
+  `format: "coyote-stream"` and add `formatVersion: 2`. Versionless CSM-1
+  records remain readable and are shown as selectable raw source because the
+  CSM-1 parser is retired; they are not passed to the CSM-2 parser and are not
+  reinterpreted as Markdown. Missing or unknown metadata falls back to
+  Markdown. Plain and default-off Markdown behavior remain unchanged.
+- **Residual limitations:** The qualification does not claim pixel identity,
+  clipboard retrieval, or unsupported CSM-1 rendering. Display-backed
+  manual demonstrations outside the automated CSM-2 fixture remain pending
+  where separately assigned by DEM-014, DEM-033, DEM-041, DEM-043, DEM-044,
+  and other historical procedures; those historical records are unchanged.
+- **Status:** Closed/Implemented and Verified
+- **Date closed:** 2026-09-12

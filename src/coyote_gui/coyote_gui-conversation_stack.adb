@@ -61,6 +61,9 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Handle_Incremental_Event
      (Value : Coyote_Renderer.Incremental.Event);
 
+   procedure Ignore_Incremental_Event
+     (Value : Coyote_Renderer.Incremental.Event);
+
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
 
@@ -373,18 +376,13 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
    end Handle_Incremental_Event;
 
-   procedure Consume_Incremental
-     (C    : in out Instance;
-      Text : String)
+   procedure Ignore_Incremental_Event
+     (Value : Coyote_Renderer.Incremental.Event)
    is
+      pragma Unreferenced (Value);
    begin
-      Active_Incremental_Stack := C'Unchecked_Access;
-      Coyote_Renderer.Incremental.Feed
-        (Parser  => C.Incremental_Parser,
-         Data    => Text,
-         Handler => Handle_Incremental_Event'Access);
-      Active_Incremental_Stack := null;
-   end Consume_Incremental;
+      null;
+   end Ignore_Incremental_Event;
 
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -1059,7 +1057,12 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_View      := null;
       C.Response_Section := null;
       C.Response_Box     := null;
-      C.Math_Scale       := 1.0;
+      Coyote_GUI.Response_Renderer.Clear (C.Response_Renderer);
+      C.Response_Format    := Coyote_GUI.Markdown_Response;
+      C.Render_Markdown    := True;
+      C.Incremental_Markup := False;
+      C.Presentation_Ready := False;
+      C.Math_Scale         := 1.0;
       C.Stream_Mark      := null;
       C.Stream_Buf       := Null_Unbounded_String;
       C.Thinking         := null;
@@ -1127,7 +1130,12 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Append (C.Stream_Buf, Text);
       if C.Incremental_Markup then
-         Consume_Incremental (C, Text);
+         Active_Incremental_Stack := C'Unchecked_Access;
+         Coyote_Renderer.Incremental.Feed
+           (Parser  => C.Incremental_Parser,
+            Data    => Text,
+            Handler => Ignore_Incremental_Event'Access);
+         Active_Incremental_Stack := null;
       else
          Append_Buffer (C.Active_Text, Text);
       end if;
@@ -1143,8 +1151,29 @@ package body Coyote_GUI.Conversation_Stack is
             Active_Incremental_Stack := C'Unchecked_Access;
             Coyote_Renderer.Incremental.Flush
               (Parser  => C.Incremental_Parser,
-               Handler => Handle_Incremental_Event'Access);
+               Handler => Ignore_Incremental_Event'Access);
             Active_Incremental_Stack := null;
+            Coyote_Renderer.Incremental.Snapshot
+              (C.Incremental_Parser, C.Incremental_Document);
+            if C.Active_View /= null then
+               C.Response_Section.Remove (C.Active_View);
+            end if;
+            C.Active_Text := null;
+            C.Active_View := null;
+            Coyote_GUI.Response_Renderer.Replace
+              (R            => C.Response_Renderer,
+               Parent       => C.Response_Section,
+               Document     => C.Incremental_Document,
+               Source       => Full_Text,
+               Active_Text  => C.Active_Text,
+               Active_View  => C.Active_View,
+               Math_Scale   => C.Math_Scale,
+               Use_Math_Fallback       => False,
+               Normalize_Terminal_Math => True);
+            C.Response_Box :=
+              Coyote_GUI.Response_Renderer.Response_Box
+                (C.Response_Renderer);
+            C.Presentation_Ready := True;
          end if;
          if C.Render_Markdown and then not C.Incremental_Markup then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
@@ -1154,7 +1183,7 @@ package body Coyote_GUI.Conversation_Stack is
                 .Blocks
                 .Is_Empty;
          end if;
-         if C.Active_Text /= null then
+         if not C.Incremental_Markup and then C.Active_Text /= null then
             Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
             if C.Stream_Mark /= null then
                C.Active_Text.Delete_Mark (C.Stream_Mark);
@@ -1757,13 +1786,36 @@ package body Coyote_GUI.Conversation_Stack is
       return C.Render_Markdown;
    end Get_Render_Markdown;
 
+   procedure Set_Response_Format
+     (C : in out Instance; Format : Coyote_GUI.Response_Format)
+   is
+   begin
+      C.Response_Format := Format;
+      C.Render_Markdown := Format = Coyote_GUI.Markdown_Response;
+      C.Incremental_Markup :=
+        Format = Coyote_GUI.Coyote_Stream_2_Response;
+      Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
+      Coyote_Renderer.Semantics.Clear (C.Incremental_Document);
+      C.Presentation_Ready := False;
+   end Set_Response_Format;
+
+   function Get_Response_Format
+     (C : Instance) return Coyote_GUI.Response_Format
+   is
+   begin
+      return C.Response_Format;
+   end Get_Response_Format;
+
    procedure Set_Incremental_Markup
      (C       : in out Instance;
       Enabled : Boolean)
    is
    begin
-      C.Incremental_Markup := Enabled;
-      Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
+      Set_Response_Format
+        (C,
+         (if Enabled
+          then Coyote_GUI.Coyote_Stream_2_Response
+          else Coyote_GUI.Markdown_Response));
    end Set_Incremental_Markup;
 
    function Get_Incremental_Markup (C : Instance) return Boolean is
@@ -1805,6 +1857,8 @@ package body Coyote_GUI.Conversation_Stack is
               (C.Math_Elements (Math_Index).all, C.Math_Scale);
          end loop;
       end if;
+      Coyote_GUI.Response_Renderer.Set_Font
+        (C.Response_Renderer, Desc, C.Math_Scale);
    end Set_Font;
 
    procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean) is

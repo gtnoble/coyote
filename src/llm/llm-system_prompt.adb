@@ -375,7 +375,7 @@ package body LLM.System_Prompt is
       Replace ("{{SHELL_TOOL}}", Tools_Text);
       Replace ("{{SUBAGENT_COMMAND}}", Subagent_Command);
 
-      if Response_Format = LLM.Types.Format_Coyote_Stream then
+      if Response_Format = LLM.Types.Format_Coyote_Stream_2 then
          Unwrap ("{{CSM_BEGIN}}", "{{CSM_END}}");
          Remove
            ("{{MARKDOWN_DISPLAY_MATH_BEGIN}}",

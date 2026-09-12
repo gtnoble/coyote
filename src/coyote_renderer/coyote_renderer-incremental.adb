@@ -1,276 +1,1368 @@
 --  Coyote_Renderer.Incremental body.
 --
---  CSM deliberately has a small grammar in this implementation. Text outside
---  recognised tags is emitted immediately. Intrinsically incomplete table,
---  math, and code blocks remain buffered until their closing element arrives.
+--  This implementation is deliberately format-independent.  It tokenizes the
+--  closed CSM-2 vocabulary itself and builds the renderer-neutral semantic
+--  document while retaining the legacy synchronous event facade.
 --
 --  Project: coyote
 
+with Ada.Characters.Latin_1;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_Renderer.Semantics;
 
 package body Coyote_Renderer.Incremental is
+
+   use type Coyote_Renderer.Semantics.Block_Id;
+   use type Coyote_Renderer.Semantics.Inline_Id;
+   use type Coyote_Renderer.Semantics.Table_Cell_Id;
+   use type Coyote_Renderer.Semantics.Table_Row_Id;
+   use type Coyote_Renderer.Semantics.List_Kind;
+   use type Coyote_Renderer.Semantics.Table_Alignment;
+
+   procedure Ignore (Value : Boolean) is
+      pragma Unreferenced (Value);
+   begin
+      null;
+   end Ignore;
+
+   type Attribute is record
+      Name  : Unbounded_String;
+      Value : Unbounded_String;
+   end record;
+
+   type Attribute_Array is array (Positive range 1 .. Max_Attributes)
+     of Attribute;
+
+   type Tag_Info is record
+      Valid       : Boolean := False;
+      Closing     : Boolean := False;
+      Self_Closing : Boolean := False;
+      Name        : Unbounded_String;
+      Attributes  : Attribute_Array;
+      Count       : Natural := 0;
+   end record;
+
+   function Is_Space (Value : Character) return Boolean is
+   begin
+      return Value = ' ' or else Value = Ada.Characters.Latin_1.HT
+        or else Value = Ada.Characters.Latin_1.LF
+        or else Value = Ada.Characters.Latin_1.CR;
+   end Is_Space;
+
+   function Is_Name_Character (Value : Character) return Boolean is
+   begin
+      return Value in 'a' .. 'z' or else Value in '0' .. '9'
+        or else Value = '-';
+   end Is_Name_Character;
+
+   function Is_Digit (Value : Character) return Boolean is
+   begin
+      return Value in '0' .. '9';
+   end Is_Digit;
+
+   function Attribute_At
+     (Info : Tag_Info; Name : String; Value : out Unbounded_String)
+      return Boolean
+   is
+   begin
+      for I in 1 .. Info.Count loop
+         if To_String (Info.Attributes (I).Name) = Name then
+            Value := Info.Attributes (I).Value;
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Attribute_At;
+
+   function Has_Attribute (Info : Tag_Info; Name : String) return Boolean is
+      Value : Unbounded_String;
+   begin
+      return Attribute_At (Info, Name, Value);
+   end Has_Attribute;
+
+   function Parse_Tag (Source : String; Info : out Tag_Info) return Boolean is
+      I       : Natural;
+      Last    : constant Natural := Source'Last;
+      Name_Start : Natural;
+   begin
+      Info := (others => <>);
+      if Source'Length < 3 or else Source (Source'First) /= '<'
+        or else Source (Last) /= '>'
+      then
+         return False;
+      end if;
+
+      I := Source'First + 1;
+      if Source (I) = '/' then
+         Info.Closing := True;
+         I := I + 1;
+      end if;
+      if I >= Last or else not Is_Name_Character (Source (I)) then
+         return False;
+      end if;
+      Name_Start := I;
+      while I < Last and then Is_Name_Character (Source (I)) loop
+         I := I + 1;
+      end loop;
+      Info.Name := To_Unbounded_String
+        (Source (Name_Start .. I - 1));
+
+      if Info.Closing then
+         while I < Last and then Is_Space (Source (I)) loop
+            I := I + 1;
+         end loop;
+         if I /= Last then
+            return False;
+         end if;
+         Info.Valid := True;
+         return True;
+      end if;
+
+      while I < Last loop
+         while I < Last and then Is_Space (Source (I)) loop
+            I := I + 1;
+         end loop;
+         exit when I = Last;
+         if Source (I) = '/' then
+            Info.Self_Closing := True;
+            I := I + 1;
+            while I < Last and then Is_Space (Source (I)) loop
+               I := I + 1;
+            end loop;
+            if I /= Last then
+               return False;
+            end if;
+            exit;
+         end if;
+         if Info.Count = Max_Attributes
+           or else not Is_Name_Character (Source (I))
+         then
+            return False;
+         end if;
+         Info.Count := Info.Count + 1;
+         declare
+            A_Start : constant Natural := I;
+         begin
+            while I < Last and then Is_Name_Character (Source (I)) loop
+               I := I + 1;
+            end loop;
+            Info.Attributes (Info.Count).Name :=
+              To_Unbounded_String (Source (A_Start .. I - 1));
+         end;
+         while I < Last and then Is_Space (Source (I)) loop
+            I := I + 1;
+         end loop;
+         if I >= Last or else Source (I) /= '=' then
+            return False;
+         end if;
+         I := I + 1;
+         while I < Last and then Is_Space (Source (I)) loop
+            I := I + 1;
+         end loop;
+         if I >= Last or else Source (I) /= '"' then
+            return False;
+         end if;
+         I := I + 1;
+         declare
+            V_Start : constant Natural := I;
+         begin
+            while I < Last and then Source (I) /= '"' loop
+               if Source (I) = '<' then
+                  return False;
+               end if;
+               I := I + 1;
+            end loop;
+            if I >= Last then
+               return False;
+            end if;
+            Info.Attributes (Info.Count).Value :=
+              To_Unbounded_String (Source (V_Start .. I - 1));
+         end;
+         I := I + 1;
+      end loop;
+      Info.Valid := I = Last;
+      return Info.Valid;
+   end Parse_Tag;
+
+   function Decode_Entities
+     (Source : String; Result : out Unbounded_String) return Boolean
+   is
+      I : Natural := Source'First;
+   begin
+      Result := Null_Unbounded_String;
+      while I <= Source'Last loop
+         if Source (I) /= '&' then
+            Append (Result, Source (I));
+            I := I + 1;
+         else
+            declare
+               Semi : Natural := I + 1;
+            begin
+               while Semi <= Source'Last and then Source (Semi) /= ';' loop
+                  Semi := Semi + 1;
+               end loop;
+               if Semi > Source'Last then
+                  return False;
+               end if;
+               declare
+                  Entity : constant String := Source (I + 1 .. Semi - 1);
+                  Value   : Natural := 0;
+                  Base    : Natural := 10;
+                  Entity_Digits : String := Entity;
+                  Valid   : Boolean := True;
+               begin
+                  if Entity = "amp" then
+                     Append (Result, '&');
+                  elsif Entity = "lt" then
+                     Append (Result, '<');
+                  elsif Entity = "gt" then
+                     Append (Result, '>');
+                  elsif Entity = "quot" then
+                     Append (Result, '"');
+                  elsif Entity = "apos" then
+                     Append (Result, ''');
+                  else
+                     if Entity'Length >= 2 and then Entity (Entity'First) = '#'
+                     then
+                        if Entity (Entity'First + 1) = 'x'
+                          or else Entity (Entity'First + 1) = 'X'
+                        then
+                           Base := 16;
+                           if Entity'Length = 2 then
+                              Valid := False;
+                           else
+                              Entity_Digits := Entity
+                                (Entity'First + 2 .. Entity'Last);
+                           end if;
+                        else
+                           if Entity'Length = 1 then
+                              Valid := False;
+                           else
+                              Entity_Digits := Entity
+                                (Entity'First + 1 .. Entity'Last);
+                           end if;
+                        end if;
+                        if Valid then
+                           for C of Entity_Digits loop
+                              declare
+                                 N : Natural := 0;
+                              begin
+                                 if C in '0' .. '9' then
+                                    N := Character'Pos (C) - Character'Pos ('0');
+                                 elsif Base = 16 and then C in 'a' .. 'f' then
+                                    N := Character'Pos (C) - Character'Pos ('a') + 10;
+                                 elsif Base = 16 and then C in 'A' .. 'F' then
+                                    N := Character'Pos (C) - Character'Pos ('A') + 10;
+                                 else
+                                    Valid := False;
+                                 end if;
+                                 if Valid then
+                                    if Value > (Natural'Last - N) / Base then
+                                       Valid := False;
+                                    else
+                                       Value := Value * Base + N;
+                                    end if;
+                                 end if;
+                              end;
+                           end loop;
+                        end if;
+                        if Valid and then Value <= 16#10FFFF#
+                          and then not (Value in 16#D800# .. 16#DFFF#)
+                        then
+                           if Value <= 16#7F# then
+                              Append (Result, Character'Val (Value));
+                           elsif Value <= 16#7FF# then
+                              Append (Result, Character'Val
+                                (16#C0# + Value / 64));
+                              Append (Result, Character'Val
+                                (16#80# + Value mod 64));
+                           elsif Value <= 16#FFFF# then
+                              Append (Result, Character'Val
+                                (16#E0# + Value / 4096));
+                              Append (Result, Character'Val
+                                (16#80# + (Value / 64) mod 64));
+                              Append (Result, Character'Val
+                                (16#80# + Value mod 64));
+                           else
+                              Append (Result, Character'Val
+                                (16#F0# + Value / 262144));
+                              Append (Result, Character'Val
+                                (16#80# + (Value / 4096) mod 64));
+                              Append (Result, Character'Val
+                                (16#80# + (Value / 64) mod 64));
+                              Append (Result, Character'Val
+                                (16#80# + Value mod 64));
+                           end if;
+                        else
+                           Valid := False;
+                        end if;
+                     else
+                        Valid := False;
+                     end if;
+                     if not Valid then
+                        return False;
+                     end if;
+                  end if;
+               end;
+               I := Semi + 1;
+            end;
+         end if;
+      end loop;
+      return True;
+   end Decode_Entities;
+
+   function Safe_UTF8_End
+     (Source : String; First : Natural; Last : Natural) return Natural is
+      I       : Natural := Last;
+      Lead    : Natural;
+      Needed  : Natural;
+      Byte    : Natural;
+   begin
+      if First > Last then
+         return Last;
+      end if;
+      while I >= First and then Character'Pos (Source (I)) in 16#80# .. 16#BF# loop
+         exit when I = First;
+         I := I - 1;
+      end loop;
+      if I < First then
+         return Last;
+      end if;
+      Lead := Character'Pos (Source (I));
+      if Lead <= 16#7F# then
+         return Last;
+      elsif Lead in 16#C2# .. 16#DF# then
+         Needed := 2;
+      elsif Lead in 16#E0# .. 16#EF# then
+         Needed := 3;
+      elsif Lead in 16#F0# .. 16#F4# then
+         Needed := 4;
+      else
+         return Last;
+      end if;
+      if Last - I + 1 < Needed then
+         return I - 1;
+      end if;
+      for J in I + 1 .. I + Needed - 1 loop
+         Byte := Character'Pos (Source (J));
+         if Byte not in 16#80# .. 16#BF# then
+            return Last;
+         end if;
+      end loop;
+      return Last;
+   end Safe_UTF8_End;
 
    procedure Emit
      (Handler : Event_Handler;
       Kind    : Event_Kind;
       Text    : String := "";
-      Level   : Natural := 0)
-   is
+      Level   : Natural := 0;
+      Ready   : Boolean := False;
+      Source_End : Natural := 0) is
    begin
       Handler.all
-        ((Kind  => Kind,
-          Text  => To_Unbounded_String (Text),
-          Level => Level));
+        ((Kind           => Kind,
+          Text           => To_Unbounded_String (Text),
+          Level          => Level,
+          Semantic_Ready => Ready,
+          Source_End     => Source_End));
    end Emit;
 
-   procedure Emit_Text
-     (Handler : Event_Handler;
-      Text    : String)
-   is
+   procedure Emit_Invalid
+     (Parser : in out Instance; Handler : Event_Handler; Text : String) is
+      Block : constant Coyote_Renderer.Semantics.Block_Id :=
+        Coyote_Renderer.Semantics.New_Block
+          (Parser.Document, Coyote_Renderer.Semantics.Invalid_Source, Text);
    begin
-      if Text'Length > 0 then
-         Emit (Handler, Text_Event, Text);
+      Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
+      Emit (Handler, Invalid_Event, Text, 0, True,
+            Natural (Length (Parser.Source)));
+      Parser.Invalid := True;
+      if Parser.Open > 0 then
+         for I in reverse 1 .. Parser.Open loop
+            if To_String (Parser.Stack (I).Name) = "table" then
+               Parser.Stack (I).Invalid := True;
+               exit;
+            end if;
+         end loop;
       end if;
-   end Emit_Text;
+   end Emit_Invalid;
 
-   function Closing_Tag
-     (Block : Block_Kind;
-      Level : Natural := 0) return String
-   is
+   function Current_Block
+     (Parser : Instance) return Coyote_Renderer.Semantics.Block_Id is
    begin
-      case Block is
-         when Table_Block =>
-            return "</table>";
-         when Math_Block =>
-            return "</math>";
-         when Code_Block =>
-            return "</code>";
-         when Heading_Block =>
-            return "</h" & Ada.Strings.Fixed.Trim
-              (Natural'Image (Level), Ada.Strings.Left) & ">";
-         when Blockquote_Block =>
-            return "</blockquote>";
-         when No_Block =>
-            return "";
-      end case;
-   end Closing_Tag;
+      if Parser.Open > 0 then
+         for I in reverse 1 .. Parser.Open loop
+            if Parser.Stack (I).Block /=
+              Coyote_Renderer.Semantics.No_Block
+            then
+               return Parser.Stack (I).Block;
+            end if;
+         end loop;
+      end if;
+      return Coyote_Renderer.Semantics.No_Block;
+   end Current_Block;
 
-   function Event_For
-     (Block : Block_Kind) return Event_Kind
-   is
+   function Current_Cell
+     (Parser : Instance) return Coyote_Renderer.Semantics.Table_Cell_Id;
+
+   function Attach_Inline
+     (Parser : in out Instance;
+      Child  : Coyote_Renderer.Semantics.Inline_Id) return Boolean is
    begin
-      case Block is
-         when Table_Block =>
-            return Table_Event;
-         when Math_Block =>
-            return Math_Event;
-         when Code_Block =>
-            return Code_Event;
-         when Heading_Block =>
-            return Heading_Event;
-         when Blockquote_Block =>
-            return Blockquote_Event;
-         when No_Block =>
-            return Invalid_Event;
-      end case;
+      if Parser.Open = 0 then
+         return False;
+      elsif Parser.Stack (Parser.Open).Inline /=
+        Coyote_Renderer.Semantics.No_Inline
+      then
+         return Coyote_Renderer.Semantics.Append_Inline
+           (Parser.Document, Parser.Stack (Parser.Open).Inline, Child);
+      elsif Parser.Stack (Parser.Open).Cell /=
+        Coyote_Renderer.Semantics.No_Table_Cell
+      then
+         return Coyote_Renderer.Semantics.Append_Inline
+           (Parser.Document, Parser.Stack (Parser.Open).Cell, Child);
+      elsif Current_Block (Parser) /= Coyote_Renderer.Semantics.No_Block then
+         return Coyote_Renderer.Semantics.Append_Inline
+           (Parser.Document, Current_Block (Parser), Child);
+      end if;
+      return False;
+   end Attach_Inline;
+
+   procedure Add_Text
+     (Parser : in out Instance;
+      Handler : Event_Handler;
+      Raw : String) is
+      Decoded : Unbounded_String;
+      Inline  : Coyote_Renderer.Semantics.Inline_Id;
+   begin
+      if Raw'Length = 0 then
+         return;
+      end if;
+      for C of Raw loop
+         if C = '>' then
+            Emit_Invalid (Parser, Handler, Raw);
+            return;
+         end if;
+      end loop;
+      if not Decode_Entities (Raw, Decoded) then
+         Emit_Invalid (Parser, Handler, Raw);
+         return;
+      end if;
+      if Parser.Open > 0 then
+         declare
+            Parent_Name : constant String :=
+              To_String (Parser.Stack (Parser.Open).Name);
+         begin
+            if Parent_Name = "table" or else Parent_Name = "row" then
+               Emit_Invalid (Parser, Handler, Raw);
+               return;
+            end if;
+         end;
+      end if;
+      Emit (Handler, Text_Event, Raw);
+      if Parser.Open > 0 then
+         declare
+            Cell : constant Coyote_Renderer.Semantics.Table_Cell_Id :=
+              Current_Cell (Parser);
+         begin
+            if Cell /= Coyote_Renderer.Semantics.No_Table_Cell then
+               Ignore
+                 (Coyote_Renderer.Semantics.Set_Table_Cell_Value
+                    (Parser.Document, Cell,
+                     Coyote_Renderer.Semantics.Table_Cell_Value
+                       (Parser.Document, Cell)
+                     & To_String (Decoded)));
+            end if;
+         end;
+         Inline := Coyote_Renderer.Semantics.New_Inline
+           (Parser.Document, Coyote_Renderer.Semantics.Text,
+            To_String (Decoded), Raw);
+         if not Attach_Inline (Parser, Inline) then
+            Emit_Invalid (Parser, Handler, Raw);
+         end if;
+      end if;
+   end Add_Text;
+
+   function Is_Inline (Name : String) return Boolean is
+   begin
+      return Name = "strong" or else Name = "em" or else Name = "del"
+        or else Name = "link" or else Name = "code-inline";
+   end Is_Inline;
+
+   function Is_Block (Name : String) return Boolean is
+   begin
+      return Name = "p" or else Name = "blockquote" or else Name = "list"
+        or else Name = "item" or else Name = "code" or else Name = "table"
+        or else Name = "row" or else Name = "cell" or else Name = "math"
+        or else Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+   end Is_Block;
+
+   function Is_Empty (Name : String) return Boolean is
+   begin
+      return Name = "br" or else Name = "hr";
+   end Is_Empty;
+
+   function Is_Allowed_Attribute
+     (Name : String; Attribute_Name : String) return Boolean is
+   begin
+      if Name = "list" then
+         return Attribute_Name = "kind" or else Attribute_Name = "start";
+      elsif Name = "link" then
+         return Attribute_Name = "url";
+      elsif Name = "code" then
+         return Attribute_Name = "lang";
+      elsif Name = "row" then
+         return Attribute_Name = "kind";
+      elsif Name = "cell" then
+         return Attribute_Name = "align";
+      elsif Name = "math" then
+         return Attribute_Name = "xmlns";
+      end if;
+      return False;
+   end Is_Allowed_Attribute;
+
+   function Positive_Value (Text : String; Value : out Positive) return Boolean is
+      Result : Natural := 0;
+   begin
+      if Text'Length = 0 then
+         return False;
+      end if;
+      for C of Text loop
+         if not Is_Digit (C) then
+            return False;
+         end if;
+         declare
+            N : constant Natural := Character'Pos (C) - Character'Pos ('0');
+         begin
+            if Result > (Natural'Last - N) / 10 then
+               return False;
+            end if;
+            Result := Result * 10 + N;
+         end;
+      end loop;
+      if Result = 0 then
+         return False;
+      end if;
+      Value := Positive (Result);
+      return True;
+   end Positive_Value;
+
+   function Valid_Attributes
+     (Info : Tag_Info; List_Kind : out Coyote_Renderer.Semantics.List_Kind;
+      List_Start : out Positive; Language : out Unbounded_String;
+      Header : out Boolean; Alignment : out Coyote_Renderer.Semantics.Table_Alignment)
+      return Boolean is
+      Name : constant String := To_String (Info.Name);
+      Value : Unbounded_String;
+      Start : Positive := 1;
+   begin
+      List_Kind := Coyote_Renderer.Semantics.Unordered_List;
+      List_Start := 1;
+      Language := Null_Unbounded_String;
+      Header := False;
+      Alignment := Coyote_Renderer.Semantics.Unspecified;
+      for I in 1 .. Info.Count loop
+         for J in I + 1 .. Info.Count loop
+            if To_String (Info.Attributes (I).Name) =
+              To_String (Info.Attributes (J).Name)
+            then
+               return False;
+            end if;
+         end loop;
+      end loop;
+      for I in 1 .. Info.Count loop
+         declare
+            A_Name : constant String :=
+              To_String (Info.Attributes (I).Name);
+            A_Value : constant String :=
+              To_String (Info.Attributes (I).Value);
+         begin
+            if not Is_Allowed_Attribute (Name, A_Name) then
+               return False;
+            end if;
+            if A_Name = "kind" and then Name = "list" then
+               if A_Value = "ordered" then
+                  List_Kind := Coyote_Renderer.Semantics.Ordered_List;
+               elsif A_Value = "unordered" then
+                  List_Kind := Coyote_Renderer.Semantics.Unordered_List;
+               else
+                  return False;
+               end if;
+            elsif A_Name = "start" then
+               if not Positive_Value (A_Value, Start) then
+                  return False;
+               end if;
+               List_Start := Start;
+            elsif A_Name = "url" then
+               null;
+            elsif A_Name = "lang" then
+               if not Decode_Entities (A_Value, Language) then
+                  return False;
+               end if;
+            elsif A_Name = "kind" and then Name = "row" then
+               if A_Value = "header" then
+                  Header := True;
+               elsif A_Value /= "body" then
+                  return False;
+               end if;
+            elsif A_Name = "align" then
+               if A_Value = "left" then
+                  Alignment := Coyote_Renderer.Semantics.Left;
+               elsif A_Value = "center" then
+                  Alignment := Coyote_Renderer.Semantics.Center;
+               elsif A_Value = "right" then
+                  Alignment := Coyote_Renderer.Semantics.Right;
+               elsif A_Value = "none" then
+                  Alignment := Coyote_Renderer.Semantics.Unspecified;
+               else
+                  return False;
+               end if;
+            elsif A_Name = "xmlns" then
+               if A_Value /=
+                 "http://www.w3.org/1998/Math/MathML"
+               then
+                  return False;
+               end if;
+            end if;
+         end;
+      end loop;
+      if Name = "link" then
+         return Attribute_At (Info, "url", Value)
+           and then Decode_Entities (To_String (Value), Language);
+      elsif Name = "math" then
+         return Attribute_At (Info, "xmlns", Value)
+           and then To_String (Value) =
+             "http://www.w3.org/1998/Math/MathML";
+      elsif Name = "list" then
+         return List_Kind = Coyote_Renderer.Semantics.Ordered_List
+           or else not Has_Attribute (Info, "start");
+      end if;
+      return True;
+   end Valid_Attributes;
+
+   function Parent_Allows
+     (Parser : Instance; Name : String) return Boolean is
+      Parent : Unbounded_String;
+   begin
+      if Parser.Open = 0 then
+         return Name /= "item" and then Name /= "row" and then Name /= "cell";
+      end if;
+      Parent := Parser.Stack (Parser.Open).Name;
+      if Parent = "blockquote" then
+         return Is_Block (Name) and then Name /= "item"
+           and then Name /= "row" and then Name /= "cell";
+      elsif Parent = "list" then
+         return Name = "item";
+      elsif Parent = "table" then
+         return Name = "row";
+      elsif Parent = "row" then
+         return Name = "cell";
+      elsif To_String (Parent) = "p"
+        or else To_String (Parent) = "item"
+        or else To_String (Parent) = "cell"
+        or else Is_Inline (To_String (Parent))
+      then
+         return Is_Inline (Name) or else Name = "br";
+      end if;
+      return False;
+   end Parent_Allows;
+
+   function Find_Table
+     (Parser : Instance) return Coyote_Renderer.Semantics.Block_Id is
+   begin
+      if Parser.Open > 0 then
+         for I in reverse 1 .. Parser.Open loop
+            if To_String (Parser.Stack (I).Name) = "table" then
+               return Parser.Stack (I).Block;
+            end if;
+         end loop;
+      end if;
+      return Coyote_Renderer.Semantics.No_Block;
+   end Find_Table;
+
+   function Current_Cell
+     (Parser : Instance) return Coyote_Renderer.Semantics.Table_Cell_Id is
+   begin
+      if Parser.Open > 0 then
+         for I in reverse 1 .. Parser.Open loop
+            if Parser.Stack (I).Cell /=
+              Coyote_Renderer.Semantics.No_Table_Cell
+            then
+               return Parser.Stack (I).Cell;
+            end if;
+         end loop;
+      end if;
+      return Coyote_Renderer.Semantics.No_Table_Cell;
+   end Current_Cell;
+
+   function Row_Is_Valid
+     (Parser : Instance;
+      Table  : Coyote_Renderer.Semantics.Block_Id;
+      Row    : Coyote_Renderer.Semantics.Table_Row_Id) return Boolean is
+      Position : constant Natural :=
+        Coyote_Renderer.Semantics.Table_Row_Count (Parser.Document, Table);
+      Cells : constant Natural :=
+        Coyote_Renderer.Semantics.Table_Cell_Count (Parser.Document, Row);
+   begin
+      if Cells = 0 then
+         return False;
+      elsif Coyote_Renderer.Semantics.Table_Row_Is_Header
+        (Parser.Document, Row)
+        and then Position /= 1
+      then
+         return False;
+      elsif Position > 1
+        and then Cells /=
+          Coyote_Renderer.Semantics.Table_Cell_Count
+            (Parser.Document,
+             Coyote_Renderer.Semantics.Table_Row_At
+               (Parser.Document, Table, 1))
+      then
+         return False;
+      end if;
+      for I in 1 .. Cells loop
+         if Coyote_Renderer.Semantics.Table_Cell_Inline_Count
+           (Parser.Document,
+            Coyote_Renderer.Semantics.Table_Cell_At
+              (Parser.Document, Row, I)) = 0
+         then
+            return False;
+         end if;
+      end loop;
+      return True;
+   end Row_Is_Valid;
+
+   function Table_Is_Valid
+     (Parser : Instance; Table : Coyote_Renderer.Semantics.Block_Id)
+      return Boolean is
+   begin
+      return Coyote_Renderer.Semantics.Table_Row_Count
+        (Parser.Document, Table) > 0
+        and then Coyote_Renderer.Semantics.Table_Column_Count
+          (Parser.Document, Table) > 0
+        and then Parser.Open > 0
+        and then not Parser.Stack (Parser.Open).Invalid;
+   end Table_Is_Valid;
+
+   function Event_For (Name : String) return Event_Kind is
+   begin
+      if Name = "table" then
+         return Table_Event;
+      elsif Name = "math" then
+         return Math_Event;
+      elsif Name = "code" then
+         return Code_Event;
+      elsif Name = "blockquote" then
+         return Blockquote_Event;
+      elsif Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6" then
+         return Heading_Event;
+      end if;
+      return Text_Event;
    end Event_For;
+
+   function Heading_Level (Name : String) return Natural is
+   begin
+      if Name'Length = 2 and then Name (Name'First) = 'h' then
+         return Character'Pos (Name (Name'Last)) - Character'Pos ('0');
+      end if;
+      return 0;
+   end Heading_Level;
+
+   function Math_Source_Valid (Source : String) return Boolean is
+      Names : array (Positive range 1 .. Max_Nesting_Depth)
+        of Unbounded_String;
+      Depth : Natural := 0;
+      I     : Natural := Source'First;
+   begin
+      while I <= Source'Last loop
+         if Source (I) /= '<' then
+            I := I + 1;
+         else
+            declare
+               Close : constant Natural :=
+                 Ada.Strings.Fixed.Index (Source, ">", I);
+               Name_Start : Natural;
+               Closing : Boolean := False;
+               Self : Boolean := False;
+               Name : Unbounded_String;
+            begin
+               if Close = 0 then
+                  return False;
+               end if;
+               if I + 1 < Close and then Source (I + 1) = '/' then
+                  Closing := True;
+                  Name_Start := I + 2;
+               else
+                  Name_Start := I + 1;
+               end if;
+               if Name_Start >= Close then
+                  return False;
+               end if;
+               declare
+                  J : Natural := Name_Start;
+               begin
+                  while J < Close and then Is_Name_Character (Source (J)) loop
+                     J := J + 1;
+                  end loop;
+                  if J = Name_Start then
+                     return False;
+                  end if;
+                  Name := To_Unbounded_String
+                    (Source (Name_Start .. J - 1));
+                  if not Closing then
+                     declare
+                        K : Natural := Close - 1;
+                     begin
+                        while K > I and then Is_Space (Source (K)) loop
+                           K := K - 1;
+                        end loop;
+                        Self := Source (K) = '/';
+                     end;
+                  end if;
+               end;
+               if Closing then
+                  if Depth = 0 or else Names (Depth) /= Name then
+                     return False;
+                  end if;
+                  Depth := Depth - 1;
+               elsif not Self then
+                  if Depth = Max_Nesting_Depth then
+                     return False;
+                  end if;
+                  Depth := Depth + 1;
+                  Names (Depth) := Name;
+               end if;
+               I := Close + 1;
+            end;
+         end if;
+      end loop;
+      return Depth = 0;
+   end Math_Source_Valid;
+
+   procedure Complete_Top
+     (Parser : in out Instance; Handler : Event_Handler; Last : Natural) is
+      Top_Entry : constant Stack_Entry := Parser.Stack (Parser.Open);
+      Name  : constant String := To_String (Top_Entry.Name);
+      Raw   : constant String := To_String (Parser.Source)
+        (Top_Entry.Source_Start .. Last);
+      Level : constant Natural := Heading_Level (Name);
+   begin
+      Ignore
+        (Coyote_Renderer.Semantics.Set_Block_Source
+           (Parser.Document, Top_Entry.Block, Raw));
+      if Name = "code" then
+         declare
+            All_Source : constant String := To_String (Parser.Source);
+            Payload_First : constant Natural :=
+              Top_Entry.Source_Start + Top_Entry.Opening_Length;
+            Payload_Last : constant Natural := Last - 7;
+            Literal : constant String :=
+              (if Payload_First <= Payload_Last then
+                  All_Source (Payload_First .. Payload_Last)
+               else "");
+         begin
+            Ignore
+              (Coyote_Renderer.Semantics.Set_Code_Block_Data
+                 (Parser.Document, Top_Entry.Block, Literal,
+                  Coyote_Renderer.Semantics.Code_Language
+                    (Parser.Document, Top_Entry.Block)));
+         end;
+      elsif Name = "math" then
+         Ignore
+           (Coyote_Renderer.Semantics.Set_Display_Math_Data
+              (Parser.Document, Top_Entry.Block, Raw));
+      end if;
+      Parser.Open := Parser.Open - 1;
+      if Name = "p" then
+         Emit (Handler, Paragraph_End_Event, "", 0,
+           Parser.Open = 0, Last);
+      elsif Name = "table" or else Name = "math" or else Name = "code"
+        or else Name = "blockquote"
+        or else Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+      then
+         Emit (Handler, Event_For (Name), Raw, Level,
+           Parser.Open = 0, Last);
+      end if;
+   end Complete_Top;
+
+   procedure Open_Tag
+     (Parser : in out Instance; Handler : Event_Handler;
+      Info : Tag_Info; Start : Natural; Last : Natural) is
+      Name : constant String := To_String (Info.Name);
+      Kind : Coyote_Renderer.Semantics.Block_Kind;
+      Inline_Kind : Coyote_Renderer.Semantics.Inline_Kind;
+      List_Kind : Coyote_Renderer.Semantics.List_Kind;
+      List_Start : Positive;
+      Language : Unbounded_String;
+      Header : Boolean;
+      Alignment : Coyote_Renderer.Semantics.Table_Alignment;
+      Block : Coyote_Renderer.Semantics.Block_Id;
+      Inline : Coyote_Renderer.Semantics.Inline_Id;
+      Row : Coyote_Renderer.Semantics.Table_Row_Id;
+      Cell : Coyote_Renderer.Semantics.Table_Cell_Id;
+   begin
+      if Parser.Open = Max_Nesting_Depth then
+         Emit_Invalid (Parser, Handler,
+           To_String (Parser.Source) (Start .. Last));
+         return;
+      end if;
+      if Info.Self_Closing then
+         Emit_Invalid (Parser, Handler,
+           To_String (Parser.Source) (Start .. Last));
+         return;
+      end if;
+      if not Valid_Attributes
+        (Info, List_Kind, List_Start, Language, Header, Alignment)
+        or else not Parent_Allows (Parser, Name)
+      then
+         Emit_Invalid (Parser, Handler,
+           To_String (Parser.Source) (Start .. Last));
+         return;
+      end if;
+      if Is_Inline (Name) then
+         if Name = "strong" then
+            Inline_Kind := Coyote_Renderer.Semantics.Strong;
+         elsif Name = "em" then
+            Inline_Kind := Coyote_Renderer.Semantics.Emphasis;
+         elsif Name = "del" then
+            Inline_Kind := Coyote_Renderer.Semantics.Deletion;
+         elsif Name = "link" then
+            Inline_Kind := Coyote_Renderer.Semantics.Link;
+         else
+            Inline_Kind := Coyote_Renderer.Semantics.Inline_Code;
+         end if;
+         Inline := Coyote_Renderer.Semantics.New_Inline
+           (Parser.Document, Inline_Kind, "",
+            To_String (Parser.Source) (Start .. Last));
+         if not Attach_Inline (Parser, Inline) then
+            Emit_Invalid (Parser, Handler,
+              To_String (Parser.Source) (Start .. Last));
+            return;
+         end if;
+         if Name = "link" then
+            declare
+               URL : Unbounded_String;
+            begin
+               Ignore (Attribute_At (Info, "url", URL));
+               declare
+                  Decoded_URL : Unbounded_String;
+               begin
+                  Ignore (Decode_Entities (To_String (URL), Decoded_URL));
+                  Ignore
+                    (Coyote_Renderer.Semantics.Set_Link_URL
+                       (Parser.Document, Inline,
+                        To_String (Decoded_URL)));
+               end;
+            end;
+         end if;
+         Parser.Open := Parser.Open + 1;
+         Parser.Stack (Parser.Open) :=
+           (Name => To_Unbounded_String (Name),
+            Block => Coyote_Renderer.Semantics.No_Block,
+            Inline => Inline,
+            Row => Coyote_Renderer.Semantics.No_Table_Row,
+            Cell => Coyote_Renderer.Semantics.No_Table_Cell,
+            Source_Start => Start, Opening_Length => Last - Start + 1,
+            Raw => Null_Unbounded_String, Opaque => Name = "code-inline",
+            Invalid => False);
+      else
+         if Name = "p" then
+            Kind := Coyote_Renderer.Semantics.Paragraph;
+         elsif Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6" then
+            Kind := Coyote_Renderer.Semantics.Heading;
+         elsif Name = "blockquote" then
+            Kind := Coyote_Renderer.Semantics.Blockquote;
+         elsif Name = "list" then
+            Kind := Coyote_Renderer.Semantics.List;
+         elsif Name = "item" then
+            Kind := Coyote_Renderer.Semantics.List_Item;
+         elsif Name = "code" then
+            Kind := Coyote_Renderer.Semantics.Code_Block;
+         elsif Name = "table" then
+            Kind := Coyote_Renderer.Semantics.Table;
+         elsif Name = "math" then
+            Kind := Coyote_Renderer.Semantics.Display_Math;
+         else
+            Kind := Coyote_Renderer.Semantics.Paragraph;
+         end if;
+         if Name = "row" then
+            Row := Coyote_Renderer.Semantics.New_Table_Row
+              (Parser.Document, Find_Table (Parser), Header);
+            if Row = Coyote_Renderer.Semantics.No_Table_Row then
+               Emit_Invalid (Parser, Handler,
+                 To_String (Parser.Source) (Start .. Last));
+               return;
+            end if;
+            Parser.Open := Parser.Open + 1;
+            Parser.Stack (Parser.Open) :=
+              (Name => To_Unbounded_String (Name),
+               Block => Coyote_Renderer.Semantics.No_Block,
+               Inline => Coyote_Renderer.Semantics.No_Inline,
+               Row => Row, Cell => Coyote_Renderer.Semantics.No_Table_Cell,
+               Source_Start => Start, Opening_Length => Last - Start + 1,
+               Raw => Null_Unbounded_String, Opaque => False,
+               Invalid => False);
+            return;
+         elsif Name = "cell" then
+            Cell := Coyote_Renderer.Semantics.New_Table_Cell
+              (Parser.Document,
+               Parser.Stack (Parser.Open).Row, "",
+               To_String (Parser.Source) (Start .. Last));
+            if Cell = Coyote_Renderer.Semantics.No_Table_Cell then
+               Emit_Invalid (Parser, Handler,
+                 To_String (Parser.Source) (Start .. Last));
+               return;
+            end if;
+            if Alignment /= Coyote_Renderer.Semantics.Unspecified then
+               Ignore
+                 (Coyote_Renderer.Semantics.Set_Table_Alignment
+                    (Parser.Document, Find_Table (Parser),
+                     Positive (Coyote_Renderer.Semantics.Table_Cell_Count
+                       (Parser.Document, Parser.Stack (Parser.Open).Row)),
+                     Alignment));
+            end if;
+            Parser.Open := Parser.Open + 1;
+            Parser.Stack (Parser.Open) :=
+              (Name => To_Unbounded_String (Name),
+               Block => Coyote_Renderer.Semantics.No_Block,
+               Inline => Coyote_Renderer.Semantics.No_Inline,
+               Row => Coyote_Renderer.Semantics.No_Table_Row, Cell => Cell,
+               Source_Start => Start, Opening_Length => Last - Start + 1,
+               Raw => Null_Unbounded_String, Opaque => False,
+               Invalid => False);
+            return;
+         end if;
+         Block := Coyote_Renderer.Semantics.New_Block
+           (Parser.Document, Kind,
+            To_String (Parser.Source) (Start .. Last));
+         if Parser.Open = 0 then
+            Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
+         elsif Name = "item"
+           or else To_String (Parser.Stack (Parser.Open).Name) = "blockquote"
+         then
+            Ignore (Coyote_Renderer.Semantics.Append_Block
+              (Parser.Document, Current_Block (Parser), Block));
+         else
+            Emit_Invalid (Parser, Handler,
+              To_String (Parser.Source) (Start .. Last));
+            return;
+         end if;
+         if Name = "list" then
+            Ignore
+              (Coyote_Renderer.Semantics.Set_List_Attributes
+                 (Parser.Document, Block, List_Kind, List_Start));
+         elsif Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6" then
+            Ignore
+              (Coyote_Renderer.Semantics.Set_Heading_Level
+                 (Parser.Document, Block,
+                  Positive (Heading_Level (Name))));
+         elsif Name = "code" then
+            Ignore
+              (Coyote_Renderer.Semantics.Set_Code_Block_Data
+                 (Parser.Document, Block, "", To_String (Language)));
+         end if;
+         Parser.Open := Parser.Open + 1;
+         Parser.Stack (Parser.Open) :=
+           (Name => To_Unbounded_String (Name), Block => Block,
+            Inline => Coyote_Renderer.Semantics.No_Inline,
+            Row => Coyote_Renderer.Semantics.No_Table_Row,
+            Cell => Coyote_Renderer.Semantics.No_Table_Cell,
+            Source_Start => Start, Opening_Length => Last - Start + 1,
+            Raw => Null_Unbounded_String, Opaque => Name = "code"
+              or else Name = "math", Invalid => False);
+         if Name = "p" then
+            Emit (Handler, Paragraph_Begin_Event);
+         end if;
+      end if;
+   end Open_Tag;
+
+   procedure Close_Tag
+     (Parser : in out Instance; Handler : Event_Handler;
+      Info : Tag_Info; Start : Natural; Last : Natural) is
+      Name : constant String := To_String (Info.Name);
+      Top  : constant String :=
+        (if Parser.Open = 0 then "" else
+           To_String (Parser.Stack (Parser.Open).Name));
+      Raw  : constant String := To_String (Parser.Source) (Start .. Last);
+   begin
+      if Parser.Open = 0 or else Top /= Name then
+         if Parser.Open > 0 then
+            declare
+               Root_Start : constant Natural :=
+                 Parser.Stack (1).Source_Start;
+            begin
+               Emit_Invalid
+                 (Parser, Handler,
+                  To_String (Parser.Source) (Root_Start .. Last));
+               Parser.Open := 0;
+            end;
+         else
+            Emit_Invalid (Parser, Handler, Raw);
+         end if;
+         return;
+      end if;
+      if Parser.Stack (Parser.Open).Inline /=
+        Coyote_Renderer.Semantics.No_Inline
+      then
+         Parser.Open := Parser.Open - 1;
+         return;
+      elsif Parser.Stack (Parser.Open).Cell /=
+        Coyote_Renderer.Semantics.No_Table_Cell
+      then
+         Ignore
+           (Coyote_Renderer.Semantics.Set_Table_Cell_Source
+              (Parser.Document, Parser.Stack (Parser.Open).Cell,
+               To_String (Parser.Source)
+                 (Parser.Stack (Parser.Open).Source_Start .. Last)));
+         Parser.Open := Parser.Open - 1;
+         return;
+      elsif Parser.Stack (Parser.Open).Row /=
+        Coyote_Renderer.Semantics.No_Table_Row
+      then
+         declare
+            Row : constant Coyote_Renderer.Semantics.Table_Row_Id :=
+              Parser.Stack (Parser.Open).Row;
+            Table : constant Coyote_Renderer.Semantics.Block_Id :=
+              Find_Table (Parser);
+            Row_Source : constant String :=
+              To_String (Parser.Source)
+                (Parser.Stack (Parser.Open).Source_Start .. Last);
+         begin
+            Ignore
+              (Coyote_Renderer.Semantics.Set_Table_Row_Source
+                 (Parser.Document, Row, Row_Source));
+            if not Row_Is_Valid (Parser, Table, Row) then
+               Emit_Invalid
+                 (Parser, Handler,
+                  To_String (Parser.Source)
+                    (Parser.Stack (Parser.Open).Source_Start .. Last));
+            end if;
+         end;
+         Parser.Open := Parser.Open - 1;
+         return;
+      elsif Name = "table" then
+         declare
+            Table : constant Coyote_Renderer.Semantics.Block_Id :=
+              Parser.Stack (Parser.Open).Block;
+            Raw_Table : constant String :=
+              To_String (Parser.Source)
+                (Parser.Stack (Parser.Open).Source_Start .. Last);
+         begin
+            if not Table_Is_Valid (Parser, Table) then
+               Emit_Invalid (Parser, Handler, Raw_Table);
+            else
+               Complete_Top (Parser, Handler, Last);
+            end if;
+         end;
+      else
+         Complete_Top (Parser, Handler, Last);
+      end if;
+   end Close_Tag;
+
+   procedure Complete_Empty
+     (Parser : in out Instance; Handler : Event_Handler;
+      Info : Tag_Info; Start : Natural; Last : Natural) is
+      Name : constant String := To_String (Info.Name);
+      Block : Coyote_Renderer.Semantics.Block_Id;
+   begin
+      if Info.Count /= 0 or else not Info.Self_Closing then
+         Emit_Invalid (Parser, Handler,
+           To_String (Parser.Source) (Start .. Last));
+      elsif Name = "br" then
+         if Parser.Open = 0 or else not Parent_Allows (Parser, "br") then
+            Emit_Invalid (Parser, Handler,
+              To_String (Parser.Source) (Start .. Last));
+         else
+            Emit (Handler, Line_Break_Event);
+            declare
+               Inline : constant Coyote_Renderer.Semantics.Inline_Id :=
+                 Coyote_Renderer.Semantics.New_Inline
+                   (Parser.Document,
+                    Coyote_Renderer.Semantics.Hard_Line_Break, "",
+                    To_String (Parser.Source) (Start .. Last));
+            begin
+               Ignore (Attach_Inline (Parser, Inline));
+            end;
+         end if;
+      elsif Name = "hr" then
+         if Parser.Open /= 0 then
+            Emit_Invalid (Parser, Handler,
+              To_String (Parser.Source) (Start .. Last));
+         else
+            Block := Coyote_Renderer.Semantics.New_Block
+              (Parser.Document, Coyote_Renderer.Semantics.Horizontal_Rule,
+               To_String (Parser.Source) (Start .. Last));
+            Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
+            Emit (Handler, Horizontal_Rule_Event, "", 0, True, Last);
+         end if;
+      else
+         Emit_Invalid (Parser, Handler,
+           To_String (Parser.Source) (Start .. Last));
+      end if;
+   end Complete_Empty;
+
+   procedure Process_Opaque
+     (Parser : in out Instance; Handler : Event_Handler;
+      Close : out Natural) is
+      Name : constant String := To_String (Parser.Stack (Parser.Open).Name);
+      End_Tag : constant String := "</" & Name & ">";
+   begin
+      Close := 0;
+      Close := Ada.Strings.Fixed.Index
+        (To_String (Parser.Source), End_Tag, Parser.Cursor + 1);
+      if Close = 0 then
+         return;
+      end if;
+      if Name = "code-inline" then
+         declare
+            Value : constant String :=
+              To_String (Parser.Source)
+                (Parser.Stack (Parser.Open).Source_Start
+                   + Parser.Stack (Parser.Open).Opening_Length .. Close - 1);
+            Cell : constant Coyote_Renderer.Semantics.Table_Cell_Id :=
+              Current_Cell (Parser);
+         begin
+            Ignore
+              (Coyote_Renderer.Semantics.Set_Inline_Value
+                 (Parser.Document, Parser.Stack (Parser.Open).Inline, Value));
+            if Cell /= Coyote_Renderer.Semantics.No_Table_Cell then
+               Ignore
+                 (Coyote_Renderer.Semantics.Set_Table_Cell_Value
+                    (Parser.Document, Cell,
+                     Coyote_Renderer.Semantics.Table_Cell_Value
+                       (Parser.Document, Cell) & Value));
+            end if;
+            Ignore
+              (Coyote_Renderer.Semantics.Set_Inline_Source
+                 (Parser.Document, Parser.Stack (Parser.Open).Inline,
+                  To_String (Parser.Source)
+                    (Parser.Stack (Parser.Open).Source_Start
+                       .. Close + End_Tag'Length - 1)));
+         end;
+         Parser.Open := Parser.Open - 1;
+         Parser.Cursor := Close + End_Tag'Length - 1;
+      else
+         declare
+            Last : constant Natural := Close + End_Tag'Length - 1;
+         begin
+            if not Math_Source_Valid
+              (To_String (Parser.Source)
+                (Parser.Stack (Parser.Open).Source_Start .. Last - 0))
+              and then Name = "math"
+            then
+               Emit_Invalid (Parser, Handler,
+                 To_String (Parser.Source)
+                   (Parser.Stack (Parser.Open).Source_Start .. Last));
+               Parser.Cursor := Last;
+               Parser.Open := Parser.Open - 1;
+               return;
+            end if;
+            Complete_Top (Parser, Handler, Last);
+            Parser.Cursor := Last;
+         end;
+      end if;
+   end Process_Opaque;
 
    procedure Reset (Parser : in out Instance) is
    begin
       Parser.Pending := Null_Unbounded_String;
-      Parser.Block := No_Block;
-      Parser.Level := 0;
-      Parser.Buffer := Null_Unbounded_String;
+      Parser.Source := Null_Unbounded_String;
+      Parser.Cursor := 0;
+      Parser.Open := 0;
+      Parser.Invalid := False;
+      Coyote_Renderer.Semantics.Clear (Parser.Document);
    end Reset;
 
-   procedure Feed_Block
-     (Parser  : in out Instance;
-      Data    :        String;
-      Handler :        Event_Handler)
-   is
-      Source : Unbounded_String := Parser.Buffer;
-      Close  : Natural;
+   procedure Snapshot
+     (Parser : Instance; Target : in out Coyote_Renderer.Semantics.Document) is
    begin
-      Append (Source, Data);
-      Close := Ada.Strings.Fixed.Index
-        (To_String (Source), Closing_Tag (Parser.Block, Parser.Level));
-      if Close = 0 then
-         Parser.Buffer := Source;
-         return;
-      end if;
-
-      declare
-         Raw : constant String := To_String (Source);
-         End_Tag : constant String :=
-           Closing_Tag (Parser.Block, Parser.Level);
-         Open_End : constant Natural :=
-           Ada.Strings.Fixed.Index (Raw, ">", Raw'First);
-         Block_Last : constant Natural := Close + End_Tag'Length - 1;
-         Block_Source : constant String := Raw (Raw'First .. Block_Last);
-      begin
-         if Open_End = 0 or else Close < Open_End + 1 then
-            Emit (Handler, Invalid_Event, Block_Source);
-         else
-            Emit (Handler, Event_For (Parser.Block), Block_Source,
-                 Parser.Level);
-         end if;
-         Parser.Block := No_Block;
-         Parser.Buffer := Null_Unbounded_String;
-         if Close + End_Tag'Length <= Raw'Last then
-            Parser.Pending := To_Unbounded_String
-              (Raw (Close + End_Tag'Length .. Raw'Last));
-         end if;
-         if Length (Parser.Pending) > 0 then
-            declare
-               Trailing : constant String := To_String (Parser.Pending);
-            begin
-               Parser.Pending := Null_Unbounded_String;
-               Feed (Parser, Trailing, Handler);
-            end;
-         end if;
-      end;
-   end Feed_Block;
+      Coyote_Renderer.Semantics.Copy (Parser.Document, Target);
+   end Snapshot;
 
    procedure Feed
-     (Parser  : in out Instance;
-      Data    :        String;
-      Handler :        Event_Handler)
-   is
-      Input  : Unbounded_String := Parser.Pending;
-      Cursor : Natural;
+     (Parser : in out Instance; Data : String; Handler : Event_Handler) is
+      Input : Unbounded_String := Parser.Source;
    begin
-      Parser.Pending := Null_Unbounded_String;
       Append (Input, Data);
-
-      if Parser.Block /= No_Block then
-         Feed_Block (Parser, To_String (Input), Handler);
-         return;
-      end if;
-
-      Cursor := 1;
-      while Cursor <= Length (Input) loop
+      Parser.Source := Input;
+      while Parser.Cursor < Length (Parser.Source) loop
          declare
-            Source : constant String := To_String (Input);
-            Open   : constant Natural :=
-              Ada.Strings.Fixed.Index (Source, "<", Cursor);
+            Source : constant String := To_String (Parser.Source);
+            First  : constant Natural := Parser.Cursor + 1;
+            Close  : Natural;
          begin
-            if Open = 0 then
-               Emit_Text (Handler, Source (Cursor .. Source'Last));
-               exit;
-            end if;
-
-            if Open > Cursor then
-               Emit_Text (Handler, Source (Cursor .. Open - 1));
-            end if;
-
-            if Ada.Strings.Fixed.Index
-                 (Source, "<table>", Open) = Open
-            then
-               Parser.Block := Table_Block;
-               Parser.Buffer := To_Unbounded_String
-                 (Source (Open .. Source'Last));
-               Feed_Block (Parser, "", Handler);
-               exit;
-            elsif Ada.Strings.Fixed.Index
-                    (Source, "<code>", Open) = Open
-            then
-               Parser.Block := Code_Block;
-               Parser.Buffer := To_Unbounded_String
-                 (Source (Open .. Source'Last));
-               Feed_Block (Parser, "", Handler);
-               exit;
-            elsif Ada.Strings.Fixed.Index
-                    (Source, "<blockquote>", Open) = Open
-            then
-               Parser.Block := Blockquote_Block;
-               Parser.Buffer := To_Unbounded_String
-                 (Source (Open .. Source'Last));
-               Feed_Block (Parser, "", Handler);
-               exit;
-            elsif Open + 3 <= Source'Last
-              and then Source (Open .. Open + 3) in
-                    "<h1>" | "<h2>" | "<h3>" |
-                    "<h4>" | "<h5>" | "<h6>"
-            then
-               Parser.Block := Heading_Block;
-               Parser.Level := Natural (Character'Pos (Source (Open + 2))
-                                        - Character'Pos ('0'));
-               Parser.Buffer := To_Unbounded_String
-                 (Source (Open .. Source'Last));
-               Feed_Block (Parser, "", Handler);
-               exit;
-            elsif Ada.Strings.Fixed.Index
-                    (Source, "<math", Open) = Open
-                 and then
-                   (Ada.Strings.Fixed.Index
-                      (Source, ">", Open) > Open
-                  and then
-                   Source (Open + 5) in ' ' | ASCII.HT | '>')
-            then
+            if Parser.Open > 0 and then Parser.Stack (Parser.Open).Opaque then
+               Process_Opaque (Parser, Handler, Close);
+               exit when Close = 0;
+            elsif Source (First) /= '<' then
                declare
-                  Open_End : constant Natural :=
-                    Ada.Strings.Fixed.Index (Source, ">", Open);
+                  Stop : Natural := First;
+                  Raw_End : Natural;
                begin
-                  if Open_End = 0 then
-                     Parser.Pending :=
-                       To_Unbounded_String (Source (Open .. Source'Last));
+                  while Stop <= Source'Last and then Source (Stop) /= '<' loop
+                     Stop := Stop + 1;
+                  end loop;
+                  Raw_End := Safe_UTF8_End (Source, First, Stop - 1);
+                  if Raw_End < First then
                      exit;
                   end if;
-                  Parser.Block := Math_Block;
-                  Parser.Buffer := To_Unbounded_String
-                    (Source (Open .. Source'Last));
-                  Feed_Block (Parser, "", Handler);
-                  exit;
+                  Add_Text (Parser, Handler, Source (First .. Raw_End));
+                  Parser.Cursor := Raw_End;
+               end;
+            else
+               Close := Ada.Strings.Fixed.Index (Source, ">", First);
+               exit when Close = 0;
+               declare
+                  Tag : constant String := Source (First .. Close);
+                  Info : Tag_Info;
+               begin
+                  if Parser.Open > 0
+                    and then To_String (Parser.Stack (Parser.Open).Name) =
+                      "math"
+                  then
+                     Emit_Invalid (Parser, Handler, Tag);
+                  elsif Tag'Length > Max_Tag_Bytes
+                    or else not Parse_Tag (Tag, Info)
+                  then
+                     Emit_Invalid (Parser, Handler, Tag);
+                  elsif Info.Closing then
+                     Close_Tag (Parser, Handler, Info, First, Close);
+                  elsif Is_Empty (To_String (Info.Name)) then
+                     Complete_Empty (Parser, Handler, Info, First, Close);
+                  elsif Is_Block (To_String (Info.Name))
+                    or else Is_Inline (To_String (Info.Name))
+                  then
+                     Open_Tag (Parser, Handler, Info, First, Close);
+                  else
+                     Emit_Invalid (Parser, Handler, Tag);
+                  end if;
+                  Parser.Cursor := Close;
                end;
             end if;
-
-            declare
-               Close : constant Natural :=
-                 Ada.Strings.Fixed.Index (Source, ">", Open);
-            begin
-               if Close = 0 then
-                  Parser.Pending :=
-                    To_Unbounded_String (Source (Open .. Source'Last));
-                  exit;
-               end if;
-
-               declare
-                  Tag : constant String := Source (Open .. Close);
-               begin
-                  if Tag = "<p>" then
-                     Emit (Handler, Paragraph_Begin_Event);
-                  elsif Tag = "</p>" then
-                     Emit (Handler, Paragraph_End_Event);
-                  elsif Tag = "<br/>" or else Tag = "<br />" then
-                     Emit (Handler, Line_Break_Event);
-                  elsif Tag = "<text>" or else Tag = "</text>" then
-                     null;
-                  elsif Tag = "<hr/>" or else Tag = "<hr />" then
-                     Emit (Handler, Horizontal_Rule_Event);
-                  else
-                     Emit (Handler, Invalid_Event, Tag);
-                  end if;
-                  Cursor := Close + 1;
-               end;
-            end;
          end;
       end loop;
    end Feed;
 
-   procedure Flush
-     (Parser  : in out Instance;
-      Handler :        Event_Handler)
-   is
-      Text : Unbounded_String := Parser.Pending;
+   procedure Flush (Parser : in out Instance; Handler : Event_Handler) is
+      Source : constant String := To_String (Parser.Source);
+      First  : Natural := Parser.Cursor + 1;
+      Invalid_Start : Natural := First;
    begin
-      if Parser.Block /= No_Block then
-         Append (Text, Parser.Buffer);
+      if Parser.Open > 0 then
+         Invalid_Start := Parser.Stack (1).Source_Start;
       end if;
-      if Length (Text) > 0 then
-         Emit (Handler, Invalid_Event, To_String (Text));
+      if Parser.Open > 0 and then Source'Length > 0 then
+         Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
+      elsif Source'Length > 0 and then Invalid_Start <= Source'Last then
+         Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
       end if;
-      Reset (Parser);
+      Parser.Pending := Null_Unbounded_String;
+      Parser.Source := Null_Unbounded_String;
+      Parser.Cursor := 0;
+      Parser.Open := 0;
+      Parser.Invalid := False;
    end Flush;
 
 end Coyote_Renderer.Incremental;

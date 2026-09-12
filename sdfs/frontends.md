@@ -2,7 +2,7 @@
 
 ## Current baseline amendment (2026-08-31)
 
-The native GTK conversation cutover is complete. `Coyote_GUI.Conversation_Stack`
+The native GTK conversation cutover is complete. The current suite baseline is 919/919, and CSM-2 presentation qualification is closed through PCR-101. `Coyote_GUI.Conversation_Stack`
 is the sole GTK conversation presentation; the custom `Gtk.Layout`/Cairo/Pango
 renderer, its test accessors, and the `COYOTE_NATIVE_STACK` runtime flag were
 removed after native qualification. The Plain frontend remains supported and
@@ -33,6 +33,102 @@ components.
 
 ## Design Rationale
 
+## CSM-2 Phase 10 consolidated GUI qualification (2026-09-12)
+
+`Coyote_GUI_CSM2_Qualification_Tests` adds three display-gated AUnit tests for
+paired CSM-2 versus semantically equivalent Markdown presentation. The fixture
+checks normalized visible text and representative block order, native table
+cells/geometry/alignment, terminal MathML validity and retained source,
+introspectable response styles, selection/copy, deterministic response child
+counts, split-delta reconciliation, and malformed completion without stale
+native content. It emits an explicit `[SKIP display unavailable]` diagnostic and
+returns only when neither `DISPLAY` nor `WAYLAND_DISPLAY` is available. The
+checks use normalized snapshots and geometry properties, not pixel identity.
+
+**Verification:** With the available display, the consolidated GUI qualification
+passes 3/3. Existing GUI CSM-2 parity/reconciliation tests remain unchanged and
+pass. GTK theme color warnings are environmental and do not affect assertions.
+
+## CSM-2 Phase 9 version-aware persistence and replay compatibility (2026-09-12)
+
+The response-format type now distinguishes the historical `Format_Coyote_Stream`
+(CSM-1/current) value from `Format_Coyote_Stream_2`. New live CSM selection in
+`Coyote_App` uses CSM-2; Markdown and Plain remain unchanged. Assistant JSONL
+records retain the existing `format: "coyote-stream"` spelling for readability,
+and CSM-2 records add integer `formatVersion: 2`. CSM-1 records remain
+versionless, so old JSONL is readable without migration or reinterpretation.
+
+Replay maps versionless `coyote-stream` to CSM-1, maps exactly version 2 to
+CSM-2, and maps missing/unknown format or version metadata to Markdown. Since
+the CSM-1 parser is no longer available, CSM-1 replay selects an isolated raw,
+selectable source path; it is never passed to the CSM-2 parser or Markdown/cmark
+table interpretation. The GUI and headless RPC response-format event carry
+`formatVersion: 2` for CSM-2, while legacy events remain accepted. Replay
+restores the configured live CSM-2 selection after mixed-format history.
+
+**Verification:** Session-store tests cover CSM-2 version persistence,
+versionless CSM-1 persistence, and unknown/missing fallback; history tests cover
+mixed CSM-1/CSM-2/Markdown replay and live restoration; RPC tests cover the
+versioned event payload. Production and test development builds pass.
+
+### CSM-2 Phase 8 shared CSM GUI presentation (2026-09-12)
+
+CSM-2 GUI responses now use `Coyote_Renderer.Incremental.Snapshot` and the
+shared `Coyote_GUI.Response_Renderer` semantic backend. `Conversation_Stack`
+retains exchange, step, stream, tool, and selection lifecycle; it no longer
+constructs CSM-specific heading, quote, code, rule, table, or MathML widgets,
+reparses explicit CSM tables as Markdown, or slices raw tag wrappers. Each
+delta is processed synchronously. One provisional selectable source view is
+kept for incomplete content; complete structural boundaries reconcile through
+the shared renderer, and `End_Text_Block` flushes, snapshots, and authoritatively
+reconciles malformed/incomplete source so no stale widgets remain. CSM table
+rows/cells and alignment are consumed directly from typed semantics. Terminal
+MathML is normalized to a complete `<math>` document for Lasem while original
+CSM source is retained for fallback/copy.
+
+Focused GUI parity, malformed fallback, parser, semantic, cmark, and selection
+coverage pass; GTK theme warnings remain environmental.
+
+### Historical — CSM-2 Phase 7 shared GUI response presentation (2026-09-12; superseded by Phase 8)
+
+`Coyote_GUI.Response_Renderer` now owns shared completed-response semantic
+presentation. It consumes `Coyote_Renderer.Semantics` and centralizes the
+existing Markdown visual policy: Pango inline/block styles, headings, lists,
+quotes, code, rules, response CSS/layout, native table grids, native MathML,
+source-order packing, selectable response text, and font/zoom hooks.
+`Conversation_Stack` remains responsible for exchange/step/tool lifecycle,
+streaming state, selection routing, and the independent CSM parser lifecycle.
+CSM snapshot presentation is migrated to this backend in Phase 8.
+
+The completed Markdown path parses into the existing semantic document before
+rendering. Native table cells and MathML are retained through the renderer's
+non-owning inspection registries; heap-stable MathML elements are detached and
+freed exactly once during stack clear. A presentation-only display-math
+boundary fallback preserves the previous adjacent-prose Markdown behavior.
+
+The focused GUI suite passes 25/25 after adding direct semantic response table
+coverage; existing Cmark, MathML, and semantic Pango/model regressions remain
+passing. Production and test development builds pass and `git diff --check` is
+clean. GTK theme parsing warnings remain an environment/theme limitation.
+
+### CSM-2 Phase 12 GUI closure evidence (PCR-101, 2026-09-12)
+
+The independent CSM-2 GUI presentation is qualified through the shared
+semantic-to-GTK/Pango response renderer and `Conversation_Stack` lifecycle.
+Display-backed qualification passed 3/3 on `DISPLAY=:0.0` (X11; no Wayland
+display), covering paired Markdown parity, normalized visible content and block
+order, semantic styles, shared spacing, native table cells/alignment, terminal
+MathML validity/source, selection/copy, deterministic child counts, split-delta
+reconciliation, and malformed stale-widget recovery. The native
+`Conversation_Stack` suite passed 24/24. GTK theme color-parser warnings were
+environmental and did not affect assertions.
+
+CSM-1/current versionless replay remains visible raw source because the CSM-1
+parser is retired; it is not rendered as CSM-1 and is not reinterpreted as
+Markdown. Pixel identity and clipboard retrieval are outside the contract.
+Manual demonstrations assigned to other historical GUI procedures remain
+pending and are not implied by this automated CSM-2 closure.
+
 ### Accepted incremental-markup decisions (2026-09-06)
 
 `COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag for incremental markup.
@@ -41,25 +137,22 @@ preserved. `coyote`, not the model, owns format selection and the associated
 metadata. When enabled, provider deltas are processed and rendered
 immediately; this mode does not use timer batching.
 
-The PCR-097 implementation wires the synchronous restricted CSM parser into
-`Coyote_GUI.Conversation_Stack` when `COYOTE_INCREMENTAL_MARKUP=1`. Each
-provider delta is parsed immediately; text, paragraph, and line events update
-selectable GTK text components, while complete `<table>`, `<math>`, and
-`<code>` blocks are realized at their closing boundaries as native grid,
-Lasem-backed MathML, and selectable monospace components; self-closing `<hr/>`
-and `<hr />` elements become native horizontal separators immediately; complete
-h1-h6 blocks become selectable native heading labels at their closing
-boundaries; complete blockquotes become framed, selectable native text at their
-closing boundaries. Partial or malformed fragments remain visible source.
-Markdown remains the default path. The selected response format also controls
-model-facing prompt guidance: CSM mode receives restricted CSM syntax
-instructions, while Markdown and Plain mode retain the existing prompt.
-Parser and display-backed GUI component tests pass; the CSM grammar remains
-intentionally restricted.
+The implemented CSM-2 path wires the independent bounded parser and shared
+semantic response renderer into `Coyote_GUI.Conversation_Stack` when
+`COYOTE_INCREMENTAL_MARKUP=1`. Each provider delta is processed synchronously;
+complete semantic boundaries reconcile into native/selectable components,
+while incomplete or malformed fragments remain visible source. CSM-2 tables
+use typed explicit rows/cells, terminal Presentation MathML remains native, and
+selection/copy follows the shared response policy. Markdown remains the default
+path, and Plain remains unchanged. The selected response format also controls
+model-facing prompt guidance: CSM-2 receives its restricted grammar
+instructions, while Markdown and Plain retain the existing prompt. Versionless
+CSM-1 records remain replay compatibility input and are shown as raw source
+because the CSM-1 parser is retired.
 
-### PCR-097 focused incremental-markup implementation verification (2026-09-06)
+### Historical — CSM-1 focused incremental-markup implementation verification (2026-09-06)
 
-The PCR-097 implementation is covered by focused parser, message-format,
+The CSM-1 implementation is covered by focused parser, message-format,
 persistence, legacy-fallback, environment-flag, and incremental
 native-component lifecycle tests. The code-block test verifies literal
 characters, delimiter removal, and prefix/code/suffix order; parser coverage
@@ -68,7 +161,7 @@ development suite passes 854/854 with zero failed assertions and zero
 unexpected errors; the display-backed conversation-stack suite passes 26/26.
 README documents the opt-in flag and restricted CSM scope.
 
-### PCR-097 horizontal-rule extension verification (2026-09-07)
+### Historical — CSM-1 horizontal-rule extension verification (2026-09-07)
 
 The display-backed suite now verifies split-boundary `<hr/>` and `<hr />`
 recognition, native `GtkHSeparator` realization, and ordered
@@ -78,7 +171,7 @@ parser suite had passed 14/14 and the display-backed conversation-stack suite
 had passed 27/27 before the heading slice. Existing Markdown/default-off
 behavior remains unchanged.
 
-### PCR-097 heading extension verification (2026-09-07)
+### Historical — CSM-1 heading extension verification (2026-09-07)
 
 The display-backed suite verifies split h1/h4 headings, native selectable
 heading labels, literal heading text, and text-heading-text-heading-text order.
@@ -87,7 +180,7 @@ zero unexpected errors; the focused parser suite passes 15/15 and the
 display-backed conversation-stack suite passes 28/28. Existing Markdown and
 COYOTE_INCREMENTAL_MARKUP default-off behavior are unchanged.
 
-### PCR-097 blockquote extension verification (2026-09-07)
+### Historical — CSM-1 blockquote extension verification (2026-09-07)
 
 The display-backed suite verifies split-boundary blockquote recognition, framed
 selectable native text, literal-character preservation, and ordered
@@ -97,7 +190,7 @@ passes 16/16 and the display-backed conversation-stack suite passes 29/29.
 Existing Markdown and COYOTE_INCREMENTAL_MARKUP default-off behavior are
 unchanged.
 
-### PCR-097 replay-format compatibility verification (2026-09-07)
+### Historical — CSM-1 replay-format compatibility verification (2026-09-07)
 
 The GUI frontend now receives a per-assistant replay-format update through the
 protected update queue. Persisted Coyote Stream messages use the incremental
@@ -113,7 +206,7 @@ GUI fixture packages now expose leaf AUnit `Suite` functions and are composed
 under `Test_GUI_Suite`, preserving the existing display-name order. The
 product-information fixture explicitly requests frontend shutdown before
  destroying its GTK windows, preventing the RPC service task from surviving
-fixture scope. The complete 822-test development suite passes in 34.3 seconds;
+fixture scope. This dated fixture record is historical; the current 919-test development suite is qualified through PCR-101.
 display-backed GUI tests remain subject to the available display environment.
 
 ### Sandbox Profiles manager (2026-09-05, superseded)
@@ -1259,7 +1352,7 @@ unset. An unrelated unused-`Button` warning in the same procedure was
 silenced with a pragma.
 
 **Verification:** Production and test development builds succeed; the full
-AUnit suite passes 864/864 including all GUI domain tests.
+Historical AUnit suite passes 864/864 including all GUI domain tests; the current suite baseline is 919/919.
 
 ## 2026-09-09 — Auto-compaction Preferences (REQ-CORE-116..119)
 

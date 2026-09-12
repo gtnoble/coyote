@@ -196,7 +196,10 @@ package body LLM_Types_Tests is
               "message format accepts Markdown");
       Value.Format := Format_Coyote_Stream;
       Assert (Value.Format = Format_Coyote_Stream,
-              "message format accepts Coyote Stream");
+              "message format accepts CSM-1");
+      Value.Format := Format_Coyote_Stream_2;
+      Assert (Value.Format = Format_Coyote_Stream_2,
+              "message format accepts CSM-2");
    end Test_Message_Format_Values;
 
    procedure Test_Tool_Result_Block_Media_Type (T : in out Test) is

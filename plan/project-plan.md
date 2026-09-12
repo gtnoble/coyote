@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.28
-**Date:** 2026-09-07
+**Version:** 1.29
+**Date:** 2026-09-12
 **Status:** Active
 
 ---
@@ -921,16 +921,29 @@ execution and active steering semantics.
 | Open problem | PCR-093 In Progress, priority 2-Serious, pending DEM-050..053 completion. |
 | Disposition | Implementation slice complete; focused qualification passed; remaining GUI/display and provider-backed qualification is tracked under DEM-050..053. |
 
+### Review 24 — PCR-101 CSM-2 closure review (2026-09-12)
+
+**Review type:** Joint requirements, design, implementation, qualification, and
+corrective-action closure review
+
+| Indicator | Value |
+|---|---|
+| Scope | Independent CSM-2 grammar, renderer-neutral semantics, shared response presentation, and versioned session replay are implemented and qualified. |
+| Qualification | The complete development suite passes 919/919; DEM-059 is complete, including headless CSM-2 and display-backed GUI qualification. |
+| Corrective action | PCR-101 is closed. CSM-2 records use `formatVersion: 2`; versionless CSM-1 replay remains visible raw source because the CSM-1 parser is retired. |
+| Residual limitations | Markdown remains the default and Plain is unchanged; pixel identity and clipboard retrieval are outside the CSM-2 contract; manual demonstrations separately assigned to historical DEM procedures remain pending. |
+| Disposition | DEM-059 complete; PCR-101 closed. Requirements, design, test plan, and project plan updates are recorded in the current artifact versions below. |
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.28 (2026-09-07) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.29 (2026-09-12) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.24 (2026-09-07) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.27 (2026-09-07) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.25 (2026-09-12) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.28 (2026-09-12) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.28 (2026-09-07) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.29 (2026-09-12) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

@@ -12,7 +12,9 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_GUI.Response_Renderer;
 with Coyote_Renderer.Incremental;
+with Coyote_Renderer.Semantics;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -134,11 +136,16 @@ package Coyote_GUI.Conversation_Stack is
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean);
    function Get_Render_Markdown (C : Instance) return Boolean;
 
-   --  Select the live CSM semantic-event path.  Markdown remains the
-   --  completion-rendered default when this is False.
+   --  Select the response source path. CSM-1 is retained as visible raw
+   --  source because its parser is no longer available; CSM-2 uses the
+   --  independent semantic parser.
+   procedure Set_Response_Format
+     (C : in out Instance; Format : Coyote_GUI.Response_Format);
+   function Get_Response_Format (C : Instance) return Coyote_GUI.Response_Format;
+
+   --  Compatibility helper for existing live-mode callers: True selects CSM-2.
    procedure Set_Incremental_Markup (C : in out Instance; Enabled : Boolean);
    function Get_Incremental_Markup (C : Instance) return Boolean;
-
    procedure Set_Font
      (C          : in out Instance;
       Desc       :        Pango.Font.Pango_Font_Description;
@@ -196,14 +203,21 @@ private
       Active_View         : Gtk.Text_View.Gtk_Text_View;
       Response_Section    : Gtk.Box.Gtk_Box;
       Response_Box        : Gtk.Box.Gtk_Box;
+      Response_Renderer   : Coyote_GUI.Response_Renderer.Instance;
       Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
-      Incremental_Parser  : Coyote_Renderer.Incremental.Instance;
-      Incremental_Markup  : Boolean := False;
-      Text_Views          : Text_View_Vectors.Vector;
-      Math_Elements       : Math_Element_Vectors.Vector;
-      Table_Grids         : Table_Grid_Vectors.Vector;
-      Table_Cells         : Table_Cell_Vectors.Vector;
+      Incremental_Parser    : Coyote_Renderer.Incremental.Instance;
+      Incremental_Document  : Coyote_Renderer.Semantics.Document;
+      Response_Format       : Coyote_GUI.Response_Format :=
+        Coyote_GUI.Markdown_Response;
+      Incremental_Markup    : Boolean := False;
+      Presentation_Ready    : Boolean := False;
+      Committed_Source_End  : Natural := 0;
+      Pending_Source_End    : Natural := 0;
+      Text_Views            : Text_View_Vectors.Vector;
+      Math_Elements         : Math_Element_Vectors.Vector;
+      Table_Grids            : Table_Grid_Vectors.Vector;
+      Table_Cells            : Table_Cell_Vectors.Vector;
       Math_Scale          : Long_Float                   := 1.0;
       Thinking            : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View       : Gtk.Text_View.Gtk_Text_View;

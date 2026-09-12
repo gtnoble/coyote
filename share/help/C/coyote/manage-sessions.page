@@ -6,6 +6,7 @@
   </info>
   <title>Manage Sessions</title>
   <p>Sessions preserve conversation history and configuration so work can continue later.</p>
+  <p>Replay is version-aware. CSM-2 assistant records use <code>formatVersion: 2</code>. Versionless CSM-1 records remain readable but are shown as visible raw source because the CSM-1 parser is retired. Missing or unknown format/version metadata is treated as Markdown.</p>
   <steps>
     <item><p>Choose <gui>File</gui> and then choose <gui>New Session</gui> to replace the current session.</p></item>
     <item><p>Choose <gui>File</gui> and then choose <gui>Open Session...</gui> to select a saved session.</p></item>

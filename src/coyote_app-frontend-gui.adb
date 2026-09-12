@@ -510,11 +510,26 @@ package body Coyote_App.Frontend.GUI is
             Emit   := True;
          when Response_Format =>
             U.Kind := Coyote_GUI.Set_Response_Format;
-            U.Format :=
-              (if Coyote_App.Utils.Get_String (Parsed.Value, "format") =
-                 "coyote-stream"
-               then Coyote_GUI.Coyote_Stream_Response
-               else Coyote_GUI.Markdown_Response);
+            declare
+               Format : constant String :=
+                 Coyote_App.Utils.Get_String (Parsed.Value, "format");
+               Version : constant Natural :=
+                 (if Parsed.Value.Has_Field ("formatVersion")
+                    and then Parsed.Value.Get ("formatVersion").Kind
+                      = GNATCOLL.JSON.JSON_Int_Type
+                  then Coyote_App.Utils.Get_Integer
+                    (Parsed.Value, "formatVersion")
+                  else 0);
+            begin
+               U.Format :=
+                 (if Format /= "coyote-stream"
+                  then Coyote_GUI.Markdown_Response
+                  elsif Version = 2
+                  then Coyote_GUI.Coyote_Stream_2_Response
+                  elsif not Parsed.Value.Has_Field ("formatVersion")
+                  then Coyote_GUI.Legacy_Coyote_Stream_Response
+                  else Coyote_GUI.Markdown_Response);
+            end;
             Emit   := True;
          when Thinking_Start =>
             U.Kind := Coyote_GUI.Begin_Thinking;
@@ -1671,8 +1686,7 @@ package body Coyote_App.Frontend.GUI is
             F.Stack.Append_Text (To_String (U.Text));
 
          when Set_Response_Format =>
-            F.Stack.Set_Incremental_Markup
-              (U.Format = Coyote_GUI.Coyote_Stream_Response);
+            F.Stack.Set_Response_Format (U.Format);
 
          when End_Text_Block =>
             F.Stack.End_Text_Block;
@@ -4620,8 +4634,10 @@ package body Coyote_App.Frontend.GUI is
    begin
       U.Kind := Coyote_GUI.Set_Response_Format;
       U.Format :=
-        (if Format = LLM.Types.Format_Coyote_Stream
-         then Coyote_GUI.Coyote_Stream_Response
+        (if Format = LLM.Types.Format_Coyote_Stream_2
+         then Coyote_GUI.Coyote_Stream_2_Response
+         elsif Format = LLM.Types.Format_Coyote_Stream
+         then Coyote_GUI.Legacy_Coyote_Stream_Response
          else Coyote_GUI.Markdown_Response);
       Enqueue_Update (F, U);
    end Set_Response_Format;

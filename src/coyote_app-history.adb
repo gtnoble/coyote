@@ -17,6 +17,23 @@ with Session_Lister;        use Session_Lister;
 package body Coyote_App.History is
 
    use type LLM.Types.Tool_Result_Status;
+   use type GNATCOLL.JSON.JSON_Value_Type;
+
+   function Replay_Format (Msg : JSON_Value) return LLM.Types.Message_Format is
+      Format : constant String := Get_String (Msg, "format");
+   begin
+      if Format /= "coyote-stream" then
+         return LLM.Types.Format_Markdown;
+      elsif not Msg.Has_Field ("formatVersion") then
+         return LLM.Types.Format_Coyote_Stream;
+      elsif Msg.Get ("formatVersion").Kind = JSON_Int_Type
+        and then Get_Integer (Msg, "formatVersion") = 2
+      then
+         return LLM.Types.Format_Coyote_Stream_2;
+      else
+         return LLM.Types.Format_Markdown;
+      end if;
+   end Replay_Format;
 
    --  ── Session history replay types ──────────────────────────────────────
    --
@@ -456,9 +473,7 @@ package body Coyote_App.History is
                            --  source format. Missing or unknown metadata is
                            --  treated as Markdown by the session contract.
                            Frontend.Set_Response_Format
-                             (if Get_String (Msg, "format") = "coyote-stream"
-                              then LLM.Types.Format_Coyote_Stream
-                              else LLM.Types.Format_Markdown);
+                             (Replay_Format (Msg));
                            --  Render content blocks.
                            if Msg.Has_Field ("content")
                              and then Msg.Get ("content").Kind
@@ -624,7 +639,7 @@ package body Coyote_App.History is
       --  change to the next provider response.
       Frontend.Set_Response_Format
         (if Incremental_Markup_Enabled
-         then LLM.Types.Format_Coyote_Stream
+         then LLM.Types.Format_Coyote_Stream_2
          else LLM.Types.Format_Markdown);
 
       --  Emit footer for the final rendered turn (if any).

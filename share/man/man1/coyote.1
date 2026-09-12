@@ -1,6 +1,6 @@
 ." Man page for coyote — Native Ada LLM coding agent harness
-." Generated 2026-08-30
-.TH COYOTE 1 "2026-08-30" "coyote 0.1.0" "Coyote Manual"
+." Generated 2026-09-12
+.TH COYOTE 1 "2026-09-12" "coyote 0.1.0" "Coyote Manual"
 .SH NAME
 coyote \- native Ada LLM coding agent harness
 .SH SYNOPSIS
@@ -150,6 +150,28 @@ one-shot Plain selection applies.
 .B SHELL
 Shell used for prompt-filter commands. Defaults to
 .BR sh .
+.SH "CSM-2 INCREMENTAL MARKUP"
+The environment variable
+.B COYOTE_INCREMENTAL_MARKUP=1
+opts live GUI assistant responses into independent CSM-2. Markdown remains the default format and is unchanged when the variable is unset or set to
+.BR 0 ;
+Plain output is unchanged.
+.PP
+CSM-2 accepts only its explicit, case-sensitive tag grammar. Tables use
+explicit
+.BR <table><row><cell> ... </cell></row></table>
+rows and cells; Markdown pipe tables have no meaning. A
+.B <math>
+block contains one complete terminal Presentation MathML document in the
+standard namespace, and code regions are opaque literal source. Malformed or
+incomplete source remains visible rather than being repaired or reinterpreted
+as Markdown.
+.PP
+Session replay is versioned: CSM-2 records carry
+.B formatVersion: 2 .
+Versionless CSM-1 records are retained for compatibility and displayed as
+visible raw source because the CSM-1 parser is retired. Missing or unknown
+format/version metadata selects Markdown.
 .SH FILES
 .TP
 .I ~/.coyote/settings.json
