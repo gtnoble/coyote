@@ -13,6 +13,7 @@ with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
 with Coyote_GUI.Response_Renderer;
+with Coyote_GUI.Live_Response_Renderer;
 with Coyote_Renderer.Incremental;
 with Coyote_Renderer.Semantics;
 with Gtk.Box;
@@ -204,6 +205,7 @@ private
       Response_Section    : Gtk.Box.Gtk_Box;
       Response_Box        : Gtk.Box.Gtk_Box;
       Response_Renderer   : Coyote_GUI.Response_Renderer.Instance;
+      Live_Renderer       : Coyote_GUI.Live_Response_Renderer.Instance;
       Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
       Incremental_Parser    : Coyote_Renderer.Incremental.Instance;

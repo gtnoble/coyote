@@ -36,6 +36,80 @@ package body Coyote_Incremental_Tests is
       Append (Active_Log.Text, To_String (Value.Text));
    end Collect;
 
+   type Live_Log is record
+      Kinds             : Unbounded_String;
+      Text              : Unbounded_String;
+      Literals          : Unbounded_String;
+      Invalid           : Natural := 0;
+      Deferred_Begins   : Natural := 0;
+      Complete_Ends     : Natural := 0;
+      Events            : Natural := 0;
+      Bad_Sequence      : Boolean := False;
+      Bad_Range         : Boolean := False;
+      Bad_Context       : Boolean := False;
+      Last_Sequence     : Natural := 0;
+   end record;
+
+   Active_Live : access Live_Log;
+
+   procedure Collect_Live (Value : Live_Event) is
+      Kind_Image : constant String := Live_Event_Kind'Image (Value.Kind);
+   begin
+      if Active_Live = null then
+         return;
+      end if;
+      Active_Live.Events := Active_Live.Events + 1;
+      Append (Active_Live.Kinds, Kind_Image & "|");
+      if Value.Sequence <= Active_Live.Last_Sequence then
+         Active_Live.Bad_Sequence := True;
+      end if;
+      Active_Live.Last_Sequence := Value.Sequence;
+      if Value.Source_Start = 0 or else Value.Source_End < Value.Source_Start then
+         Active_Live.Bad_Range := True;
+      end if;
+      case Value.Kind is
+         when Live_Text_Event =>
+            Append (Active_Live.Text, To_String (Value.Text));
+         when Live_Literal_Event =>
+            Append (Active_Live.Literals, To_String (Value.Text));
+            Append (Active_Live.Kinds, "[" & To_String (Value.Text) & "]");
+         when Live_Invalid_Event =>
+            Active_Live.Invalid := Active_Live.Invalid + 1;
+         when Live_Table_Begin_Event | Live_Math_Begin_Event =>
+            if Value.Deferred then
+               Active_Live.Deferred_Begins :=
+                 Active_Live.Deferred_Begins + 1;
+            end if;
+         when Live_Table_End_Event | Live_Math_End_Event =>
+            if Value.Complete then
+               Active_Live.Complete_Ends :=
+                 Active_Live.Complete_Ends + 1;
+            end if;
+         when Live_Strong_Begin_Event | Live_Strong_End_Event |
+              Live_Em_Begin_Event | Live_Em_End_Event |
+              Live_Del_Begin_Event | Live_Del_End_Event |
+              Live_Link_Begin_Event | Live_Link_End_Event |
+              Live_Code_Inline_Begin_Event | Live_Code_Inline_End_Event |
+              Live_Paragraph_Begin_Event | Live_Paragraph_End_Event |
+              Live_Heading_Begin_Event | Live_Heading_End_Event |
+              Live_Blockquote_Begin_Event | Live_Blockquote_End_Event |
+              Live_List_Begin_Event | Live_List_End_Event |
+              Live_Item_Begin_Event | Live_Item_End_Event |
+              Live_Code_Begin_Event | Live_Code_End_Event =>
+            if Value.Context_Id = 0 then
+               Active_Live.Bad_Context := True;
+            end if;
+         when Live_Hard_Break_Event | Live_Horizontal_Rule_Event =>
+            null;
+      end case;
+   end Collect_Live;
+
+   function Contains
+     (Value : Unbounded_String; Needle : String) return Boolean is
+   begin
+      return Ada.Strings.Fixed.Index (To_String (Value), Needle) > 0;
+   end Contains;
+
    procedure Parse
      (Source : String; D : out Document; Result : out Log) is
       Parser : Instance;
@@ -295,7 +369,10 @@ package body Coyote_Incremental_Tests is
       Parse ("<table><row><cell>x</cell></row></table><table>bad</table>",
              D, Result);
       Assert (Result.Invalid > 0, "malformed table remains visible");
-      Assert (Block_Count (D) >= 2, "malformed recovery keeps visible blocks");
+      Assert (Block_Count (D) = 1,
+              "malformed recovery keeps one authoritative source block");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
+              "malformed recovery source block is authoritative");
    end Test_Table_Incomplete_And_Malformed_Recovery;
 
    procedure Test_Math_And_Code_Are_Opaque (T : in out Test) is
@@ -370,10 +447,15 @@ package body Coyote_Incremental_Tests is
       Assert
         (Ada.Strings.Fixed.Index (To_String (Result.Text), "<p>") > 0,
          "malformed source is visible");
-      Assert (Block_Count (D) > 0, "invalid source has a semantic fallback");
+      Assert (Block_Count (D) = 1,
+              "invalid source has one authoritative semantic fallback");
       Assert
-        (Block_Kind_Of (D, Block_At (D, Block_Count (D))) = Invalid_Source,
+        (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
          "invalid fallback is typed");
+      Assert
+        (Block_Source (D, Block_At (D, 1)) =
+           "<p><strong>x</p></strong><P>bad</P><p a=""x"">z</p>",
+         "invalid fallback preserves the exact complete source");
    end Test_Malformed_Source_Is_Visible;
 
    procedure Test_Incomplete_Flush_Is_Exact (T : in out Test) is
@@ -475,8 +557,175 @@ package body Coyote_Incremental_Tests is
       Assert
         (Block_Kind_Of (D, Block_At (D, 1)) = Horizontal_Rule,
          "horizontal rule is a semantic block");
+      Assert
+        (Block_Kind_Of (D, Block_At (D, 2)) = Paragraph,
+         "paragraph remains the second root block");
+      Assert (Block_Inline_Count (D, Block_At (D, 2)) = 3,
+              "paragraph retains text, hard break, and text order");
+      Assert
+        (Inline_Kind_Of
+           (D, Block_Inline_At (D, Block_At (D, 2), 2)) = Hard_Line_Break,
+         "br is a typed hard-break inline");
       Assert (Result.Events > 0, "legacy events remain synchronous");
    end Test_Empty_Elements_And_Event_Compatibility;
+
+   procedure Test_Live_Transitions_And_Order (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      Result : aliased Live_Log := (others => <>);
+      Source : constant String :=
+        "<p>a <strong>b</strong> <em>e</em> <del>d</del> "
+        & "<link url=""u"">l</link><br/></p>"
+        & "<blockquote><list><item>x</item></list></blockquote>"
+        & "<code>literal</code><hr/>";
+      Kinds : Unbounded_String;
+   begin
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, Source, Collect_Live'Access);
+      Active_Live := null;
+      Kinds := Result.Kinds;
+      Assert (Result.Invalid = 0, "valid live source has no invalid event");
+      Assert (not Result.Bad_Sequence, "live sequence is strictly increasing");
+      Assert (not Result.Bad_Range, "live source ranges are ordered");
+      Assert (not Result.Bad_Context, "live structural events have contexts");
+      Assert (To_String (Result.Text) = "a b e d lx",
+              "live ordinary text is decoded and ordered");
+      Assert (Contains (Kinds, "LIVE_STRONG_BEGIN_EVENT"),
+              "strong begin is emitted");
+      Assert (Contains (Kinds, "LIVE_STRONG_END_EVENT"),
+              "strong end is emitted");
+      Assert (Contains (Kinds, "LIVE_EM_BEGIN_EVENT"),
+              "em begin is emitted");
+      Assert (Contains (Kinds, "LIVE_DEL_BEGIN_EVENT"),
+              "del begin is emitted");
+      Assert (Contains (Kinds, "LIVE_LINK_BEGIN_EVENT"),
+              "link begin is emitted");
+      Assert (Contains (Kinds, "LIVE_HARD_BREAK_EVENT"),
+              "hard break is emitted");
+      Assert (Contains (Kinds, "LIVE_BLOCKQUOTE_BEGIN_EVENT"),
+              "blockquote begin is emitted");
+      Assert (Contains (Kinds, "LIVE_LIST_BEGIN_EVENT"),
+              "list begin is emitted");
+      Assert (Contains (Kinds, "LIVE_ITEM_BEGIN_EVENT"),
+              "item begin is emitted");
+      Assert (Contains (Kinds, "LIVE_CODE_BEGIN_EVENT"),
+              "code begin is emitted");
+      Assert (Contains (Kinds, "LIVE_CODE_END_EVENT"),
+              "code end is emitted");
+      Assert (Contains (Kinds, "LIVE_HORIZONTAL_RULE_EVENT"),
+              "horizontal rule is emitted");
+      Assert (Contains (Kinds, "LIVE_PARAGRAPH_END_EVENT"),
+              "paragraph close is emitted");
+      Assert (Contains (Kinds, "LIVE_BLOCKQUOTE_END_EVENT"),
+              "blockquote close is emitted");
+      Assert (Contains (Kinds, "LIVE_LIST_END_EVENT"),
+              "list close is emitted");
+      Assert (Contains (Kinds, "LIVE_ITEM_END_EVENT"),
+              "item close is emitted");
+   end Test_Live_Transitions_And_Order;
+
+   procedure Test_Live_Opaque_Split_Payloads (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      Result : aliased Live_Log := (others => <>);
+      UTF8   : constant String :=
+        Character'Val (16#C3#) & Character'Val (16#A9#);
+   begin
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, "<code>alpha", Collect_Live'Access);
+      Feed (Parser, "</co", Collect_Live'Access);
+      Feed (Parser, "de>", Collect_Live'Access);
+      Active_Live := null;
+      Assert (To_String (Result.Literals) = "alpha",
+              "split code emits only literal payload");
+      Assert (not Contains (Result.Literals, "</co"),
+              "split code closing prefix is never literal");
+      Assert (Contains (Result.Kinds, "LIVE_CODE_BEGIN_EVENT"),
+              "code begin is immediate");
+      Assert (Contains (Result.Kinds, "LIVE_CODE_END_EVENT"),
+              "code end is complete after closing tag");
+
+      Reset (Parser);
+      Result := (others => <>);
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, "<p><code-inline>caf", Collect_Live'Access);
+      Feed (Parser, UTF8 (UTF8'First .. UTF8'First), Collect_Live'Access);
+      Feed (Parser, UTF8 (UTF8'First + 1 .. UTF8'Last) & "</co",
+            Collect_Live'Access);
+      Feed (Parser, "de-inline></p>", Collect_Live'Access);
+      Active_Live := null;
+      Assert (To_String (Result.Literals) = "caf" & UTF8,
+              "inline opaque UTF-8 payload survives split feeds");
+      Assert (not Contains (Result.Literals, "</co"),
+              "inline closing prefix is never literal");
+      Assert (not Result.Bad_Range, "opaque ranges remain ordered");
+   end Test_Live_Opaque_Split_Payloads;
+
+   procedure Test_Live_Deferred_Completion_And_Flush (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      Result : aliased Live_Log := (others => <>);
+   begin
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, "<table><row><cell>x</cell></row>",
+            Collect_Live'Access);
+      Assert (Result.Deferred_Begins = 1,
+              "table is announced while its closing boundary is pending");
+      Assert (Result.Complete_Ends = 0,
+              "table is not finalized before its closing boundary");
+      Feed (Parser, "</table>" &
+            "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+            & "<mi>x</mi>", Collect_Live'Access);
+      Assert (Result.Deferred_Begins = 2,
+              "math is announced while its closing boundary is pending");
+      Assert (Result.Complete_Ends = 1,
+              "only the closed table is finalized so far");
+      Feed (Parser, "</math>", Collect_Live'Access);
+      Active_Live := null;
+      Assert (Result.Invalid = 0, "complete deferred blocks are valid");
+      Assert (Result.Deferred_Begins = 2,
+              "table and math announce deferred completion");
+      Assert (Result.Complete_Ends = 2,
+              "table and math announce completion in order");
+
+      Reset (Parser);
+      Result := (others => <>);
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, "<p>tail", Collect_Live'Access);
+      Flush (Parser, Collect_Live'Access);
+      Flush (Parser, Collect_Live'Access);
+      Active_Live := null;
+      Assert (Result.Invalid = 1,
+              "live Flush reports one malformed/incomplete suffix");
+      Assert (Contains (Result.Kinds, "LIVE_INVALID_EVENT"),
+              "live Flush uses the live invalid event");
+      Assert (To_String (Result.Text) = "tail",
+              "live Flush preserves already decoded text");
+   end Test_Live_Deferred_Completion_And_Flush;
+
+   procedure Test_Live_Callback_State_Clears_On_Exception (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      Raised : Boolean := False;
+      procedure Raise_Live (Value : Live_Event) is
+         pragma Unreferenced (Value);
+      begin
+         raise Program_Error;
+      end Raise_Live;
+   begin
+      begin
+         Coyote_Renderer.Incremental.Feed
+           (Parser, "<p>callback", Raise_Live'Unrestricted_Access);
+      exception
+         when Program_Error =>
+            Raised := True;
+      end;
+      Assert (Raised, "live callback exception propagates");
+      --  A second call must not invoke the stale callback left by the first.
+      Coyote_Renderer.Incremental.Feed
+        (Parser, " text", Coyote_Renderer.Incremental.Live_Handler'(null));
+      Assert (True, "live callback state is cleared after exception");
+   end Test_Live_Callback_State_Clears_On_Exception;
 
    package Caller is new AUnit.Test_Caller (Test);
 
@@ -530,6 +779,18 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 empty tags and compatibility events",
          Test_Empty_Elements_And_Event_Compatibility'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 live transitions and source order",
+         Test_Live_Transitions_And_Order'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 live opaque split payloads",
+         Test_Live_Opaque_Split_Payloads'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 live deferred completion and Flush",
+         Test_Live_Deferred_Completion_And_Flush'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 live callback state clears on exception",
+         Test_Live_Callback_State_Clears_On_Exception'Access));
       return Result;
    end Suite;
 

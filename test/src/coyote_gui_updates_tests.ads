@@ -19,7 +19,7 @@ package Coyote_GUI_Updates_Tests is
    procedure Test_Runtime_Agent_Id_Round_Trips (T : in out Test);
    procedure Test_Footer_Summary_Round_Trips (T : in out Test);
    procedure Test_Context_Progress_Round_Trips (T : in out Test);
+   procedure Test_CSM2_Update_Order_And_Payload (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
-
 end Coyote_GUI_Updates_Tests;

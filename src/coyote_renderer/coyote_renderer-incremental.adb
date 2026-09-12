@@ -26,6 +26,102 @@ package body Coyote_Renderer.Incremental is
       null;
    end Ignore;
 
+   procedure Ignore_Event (Value : Event) is
+      pragma Unreferenced (Value);
+   begin
+      null;
+   end Ignore_Event;
+
+   procedure Emit_Live
+     (Parser : in out Instance; Kind : Live_Event_Kind;
+      Text : String := ""; Detail : String := ""; Level : Natural := 0;
+      Source_Start : Natural := 0; Source_End : Natural := 0;
+      Context_Id : Natural := 0; Deferred : Boolean := False;
+      Complete : Boolean := False) is
+   begin
+      if Parser.Live /= null then
+         Parser.Next_Sequence := Parser.Next_Sequence + 1;
+         Parser.Live.all
+           ((Kind => Kind, Text => To_Unbounded_String (Text),
+             Detail => To_Unbounded_String (Detail), Level => Level,
+             Source_Start => Source_Start, Source_End => Source_End,
+             Context_Id => Context_Id, Sequence => Parser.Next_Sequence,
+             Deferred => Deferred, Complete => Complete));
+      end if;
+   end Emit_Live;
+
+   function Current_Context (Parser : Instance) return Natural is
+   begin
+      if Parser.Open > 0 then
+         return Parser.Stack (Parser.Open).Context_Id;
+      end if;
+      return 0;
+   end Current_Context;
+
+   function Live_Begin (Name : String) return Live_Event_Kind is
+   begin
+      if Name = "strong" then
+         return Live_Strong_Begin_Event;
+      elsif Name = "em" then
+         return Live_Em_Begin_Event;
+      elsif Name = "del" then
+         return Live_Del_Begin_Event;
+      elsif Name = "link" then
+         return Live_Link_Begin_Event;
+      elsif Name = "code-inline" then
+         return Live_Code_Inline_Begin_Event;
+      elsif Name = "p" then
+         return Live_Paragraph_Begin_Event;
+      elsif Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6" then
+         return Live_Heading_Begin_Event;
+      elsif Name = "blockquote" then
+         return Live_Blockquote_Begin_Event;
+      elsif Name = "list" then
+         return Live_List_Begin_Event;
+      elsif Name = "item" then
+         return Live_Item_Begin_Event;
+      elsif Name = "code" then
+         return Live_Code_Begin_Event;
+      elsif Name = "table" then
+         return Live_Table_Begin_Event;
+      elsif Name = "math" then
+         return Live_Math_Begin_Event;
+      end if;
+      return Live_Invalid_Event;
+   end Live_Begin;
+
+   function Live_End (Name : String) return Live_Event_Kind is
+   begin
+      if Name = "strong" then
+         return Live_Strong_End_Event;
+      elsif Name = "em" then
+         return Live_Em_End_Event;
+      elsif Name = "del" then
+         return Live_Del_End_Event;
+      elsif Name = "link" then
+         return Live_Link_End_Event;
+      elsif Name = "code-inline" then
+         return Live_Code_Inline_End_Event;
+      elsif Name = "p" then
+         return Live_Paragraph_End_Event;
+      elsif Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6" then
+         return Live_Heading_End_Event;
+      elsif Name = "blockquote" then
+         return Live_Blockquote_End_Event;
+      elsif Name = "list" then
+         return Live_List_End_Event;
+      elsif Name = "item" then
+         return Live_Item_End_Event;
+      elsif Name = "code" then
+         return Live_Code_End_Event;
+      elsif Name = "table" then
+         return Live_Table_End_Event;
+      elsif Name = "math" then
+         return Live_Math_End_Event;
+      end if;
+      return Live_Invalid_Event;
+   end Live_End;
+
    type Attribute is record
       Name  : Unbounded_String;
       Value : Unbounded_String;
@@ -369,24 +465,27 @@ package body Coyote_Renderer.Incremental is
           Source_End     => Source_End));
    end Emit;
 
+   procedure Set_Invalid_Document (Parser : in out Instance) is
+      Block : Coyote_Renderer.Semantics.Block_Id;
+   begin
+      Coyote_Renderer.Semantics.Clear (Parser.Document);
+      Block := Coyote_Renderer.Semantics.New_Block
+        (Parser.Document, Coyote_Renderer.Semantics.Invalid_Source,
+         To_String (Parser.Source));
+      Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
+   end Set_Invalid_Document;
+
    procedure Emit_Invalid
      (Parser : in out Instance; Handler : Event_Handler; Text : String) is
-      Block : constant Coyote_Renderer.Semantics.Block_Id :=
-        Coyote_Renderer.Semantics.New_Block
-          (Parser.Document, Coyote_Renderer.Semantics.Invalid_Source, Text);
+      Source : constant String := To_String (Parser.Source);
    begin
-      Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
+      Set_Invalid_Document (Parser);
       Emit (Handler, Invalid_Event, Text, 0, True,
             Natural (Length (Parser.Source)));
+      Emit_Live (Parser, Live_Invalid_Event, Source, "", 0, 1,
+         Natural'Max (1, Source'Length), Current_Context (Parser),
+         Complete => True);
       Parser.Invalid := True;
-      if Parser.Open > 0 then
-         for I in reverse 1 .. Parser.Open loop
-            if To_String (Parser.Stack (I).Name) = "table" then
-               Parser.Stack (I).Invalid := True;
-               exit;
-            end if;
-         end loop;
-      end if;
    end Emit_Invalid;
 
    function Current_Block
@@ -462,6 +561,9 @@ package body Coyote_Renderer.Incremental is
          end;
       end if;
       Emit (Handler, Text_Event, Raw);
+      Emit_Live (Parser, Live_Text_Event, To_String (Decoded), "", 0,
+         Parser.Cursor + 1, Parser.Cursor + Raw'Length,
+         Current_Context (Parser));
       if Parser.Open > 0 then
          declare
             Cell : constant Coyote_Renderer.Semantics.Table_Cell_Id :=
@@ -875,6 +977,9 @@ package body Coyote_Renderer.Incremental is
               (Parser.Document, Top_Entry.Block, Raw));
       end if;
       Parser.Open := Parser.Open - 1;
+      Emit_Live (Parser, Live_End (Name), Raw, "", Level,
+         Top_Entry.Source_Start, Last, Top_Entry.Context_Id,
+         Complete => True);
       if Name = "p" then
          Emit (Handler, Paragraph_End_Event, "", 0,
            Parser.Open = 0, Last);
@@ -957,6 +1062,7 @@ package body Coyote_Renderer.Incremental is
                end;
             end;
          end if;
+         Parser.Next_Context := Parser.Next_Context + 1;
          Parser.Open := Parser.Open + 1;
          Parser.Stack (Parser.Open) :=
            (Name => To_Unbounded_String (Name),
@@ -965,8 +1071,12 @@ package body Coyote_Renderer.Incremental is
             Row => Coyote_Renderer.Semantics.No_Table_Row,
             Cell => Coyote_Renderer.Semantics.No_Table_Cell,
             Source_Start => Start, Opening_Length => Last - Start + 1,
+            Opaque_Emitted => Last + 1, Context_Id => Parser.Next_Context,
             Raw => Null_Unbounded_String, Opaque => Name = "code-inline",
             Invalid => False);
+         Emit_Live (Parser, Live_Begin (Name), "", "", 0,
+            Start, Last, Parser.Next_Context,
+            Deferred => Name = "code-inline");
       else
          if Name = "p" then
             Kind := Coyote_Renderer.Semantics.Paragraph;
@@ -995,6 +1105,7 @@ package body Coyote_Renderer.Incremental is
                  To_String (Parser.Source) (Start .. Last));
                return;
             end if;
+            Parser.Next_Context := Parser.Next_Context + 1;
             Parser.Open := Parser.Open + 1;
             Parser.Stack (Parser.Open) :=
               (Name => To_Unbounded_String (Name),
@@ -1002,8 +1113,10 @@ package body Coyote_Renderer.Incremental is
                Inline => Coyote_Renderer.Semantics.No_Inline,
                Row => Row, Cell => Coyote_Renderer.Semantics.No_Table_Cell,
                Source_Start => Start, Opening_Length => Last - Start + 1,
+               Opaque_Emitted => Last + 1, Context_Id => Parser.Next_Context,
                Raw => Null_Unbounded_String, Opaque => False,
                Invalid => False);
+            Parser.Stack (Parser.Open).Context_Id := Parser.Next_Context;
             return;
          elsif Name = "cell" then
             Cell := Coyote_Renderer.Semantics.New_Table_Cell
@@ -1023,6 +1136,7 @@ package body Coyote_Renderer.Incremental is
                        (Parser.Document, Parser.Stack (Parser.Open).Row)),
                      Alignment));
             end if;
+            Parser.Next_Context := Parser.Next_Context + 1;
             Parser.Open := Parser.Open + 1;
             Parser.Stack (Parser.Open) :=
               (Name => To_Unbounded_String (Name),
@@ -1030,8 +1144,10 @@ package body Coyote_Renderer.Incremental is
                Inline => Coyote_Renderer.Semantics.No_Inline,
                Row => Coyote_Renderer.Semantics.No_Table_Row, Cell => Cell,
                Source_Start => Start, Opening_Length => Last - Start + 1,
+               Opaque_Emitted => Last + 1, Context_Id => Parser.Next_Context,
                Raw => Null_Unbounded_String, Opaque => False,
                Invalid => False);
+            Parser.Stack (Parser.Open).Context_Id := Parser.Next_Context;
             return;
          end if;
          Block := Coyote_Renderer.Semantics.New_Block
@@ -1063,6 +1179,7 @@ package body Coyote_Renderer.Incremental is
               (Coyote_Renderer.Semantics.Set_Code_Block_Data
                  (Parser.Document, Block, "", To_String (Language)));
          end if;
+         Parser.Next_Context := Parser.Next_Context + 1;
          Parser.Open := Parser.Open + 1;
          Parser.Stack (Parser.Open) :=
            (Name => To_Unbounded_String (Name), Block => Block,
@@ -1070,8 +1187,19 @@ package body Coyote_Renderer.Incremental is
             Row => Coyote_Renderer.Semantics.No_Table_Row,
             Cell => Coyote_Renderer.Semantics.No_Table_Cell,
             Source_Start => Start, Opening_Length => Last - Start + 1,
+            Opaque_Emitted => Last + 1, Context_Id => Parser.Next_Context,
             Raw => Null_Unbounded_String, Opaque => Name = "code"
               or else Name = "math", Invalid => False);
+         Emit_Live
+           (Parser, Live_Begin (Name), "",
+            (if Name = "list" then
+                (if List_Kind = Coyote_Renderer.Semantics.Ordered_List then
+                    "ordered:" & Positive'Image (List_Start)
+                 else "unordered:1")
+             else To_String (Language)),
+            Heading_Level (Name), Start, Last, Parser.Next_Context,
+            Deferred => Name = "table" or else Name = "code"
+              or else Name = "math");
          if Name = "p" then
             Emit (Handler, Paragraph_Begin_Event);
          end if;
@@ -1106,7 +1234,15 @@ package body Coyote_Renderer.Incremental is
       if Parser.Stack (Parser.Open).Inline /=
         Coyote_Renderer.Semantics.No_Inline
       then
-         Parser.Open := Parser.Open - 1;
+         declare
+            Context : constant Natural := Parser.Stack (Parser.Open).Context_Id;
+            Source_Start : constant Natural :=
+              Parser.Stack (Parser.Open).Source_Start;
+         begin
+            Parser.Open := Parser.Open - 1;
+            Emit_Live (Parser, Live_End (Name), "", "", 0,
+               Source_Start, Last, Context, Complete => True);
+         end;
          return;
       elsif Parser.Stack (Parser.Open).Cell /=
         Coyote_Renderer.Semantics.No_Table_Cell
@@ -1176,6 +1312,8 @@ package body Coyote_Renderer.Incremental is
               To_String (Parser.Source) (Start .. Last));
          else
             Emit (Handler, Line_Break_Event);
+            Emit_Live (Parser, Live_Hard_Break_Event, "", "", 0,
+               Start, Last, Current_Context (Parser), Complete => True);
             declare
                Inline : constant Coyote_Renderer.Semantics.Inline_Id :=
                  Coyote_Renderer.Semantics.New_Inline
@@ -1196,6 +1334,8 @@ package body Coyote_Renderer.Incremental is
                To_String (Parser.Source) (Start .. Last));
             Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
             Emit (Handler, Horizontal_Rule_Event, "", 0, True, Last);
+            Emit_Live (Parser, Live_Horizontal_Rule_Event, "", "", 0,
+               Start, Last, 0, Complete => True);
          end if;
       else
          Emit_Invalid (Parser, Handler,
@@ -1208,53 +1348,89 @@ package body Coyote_Renderer.Incremental is
       Close : out Natural) is
       Name : constant String := To_String (Parser.Stack (Parser.Open).Name);
       End_Tag : constant String := "</" & Name & ">";
+      Source : constant String := To_String (Parser.Source);
+      Payload_First : constant Natural :=
+        Parser.Stack (Parser.Open).Source_Start
+        + Parser.Stack (Parser.Open).Opening_Length;
+      Emit_Last : Natural;
+      Held : Natural := 0;
    begin
-      Close := 0;
       Close := Ada.Strings.Fixed.Index
-        (To_String (Parser.Source), End_Tag, Parser.Cursor + 1);
+        (Source, End_Tag, Parser.Cursor + 1);
       if Close = 0 then
+         for Length in reverse 1 .. End_Tag'Length loop
+            declare
+               Prefix : constant String :=
+                 End_Tag (End_Tag'First .. End_Tag'First + Length - 1);
+               Position : constant Natural :=
+                 Ada.Strings.Fixed.Index (Source, Prefix);
+            begin
+               if Position /= 0
+                 and then Position + Length = Source'Last + 1
+                 and then Position >=
+                   Parser.Stack (Parser.Open).Opaque_Emitted
+               then
+                  Held := Length;
+                  exit;
+               end if;
+            end;
+         end loop;
+         if Source'Last >= Parser.Stack (Parser.Open).Opaque_Emitted + Held then
+            Emit_Last := Safe_UTF8_End
+              (Source, Parser.Stack (Parser.Open).Opaque_Emitted,
+               Source'Last - Held);
+            if Emit_Last >= Parser.Stack (Parser.Open).Opaque_Emitted then
+               Emit_Live (Parser, Live_Literal_Event,
+                  Source (Parser.Stack (Parser.Open).Opaque_Emitted .. Emit_Last),
+                  "", 0, Parser.Stack (Parser.Open).Opaque_Emitted, Emit_Last,
+                  Parser.Stack (Parser.Open).Context_Id);
+               Parser.Stack (Parser.Open).Opaque_Emitted := Emit_Last + 1;
+            end if;
+         end if;
          return;
+      end if;
+      if Close > Parser.Stack (Parser.Open).Opaque_Emitted then
+         Emit_Live (Parser, Live_Literal_Event,
+            Source (Parser.Stack (Parser.Open).Opaque_Emitted .. Close - 1),
+            "", 0, Parser.Stack (Parser.Open).Opaque_Emitted, Close - 1,
+            Parser.Stack (Parser.Open).Context_Id);
+         Parser.Stack (Parser.Open).Opaque_Emitted := Close;
       end if;
       if Name = "code-inline" then
          declare
-            Value : constant String :=
-              To_String (Parser.Source)
-                (Parser.Stack (Parser.Open).Source_Start
-                   + Parser.Stack (Parser.Open).Opening_Length .. Close - 1);
+            Value : constant String := Source (Payload_First .. Close - 1);
             Cell : constant Coyote_Renderer.Semantics.Table_Cell_Id :=
               Current_Cell (Parser);
+            Context : constant Natural := Parser.Stack (Parser.Open).Context_Id;
          begin
-            Ignore
-              (Coyote_Renderer.Semantics.Set_Inline_Value
-                 (Parser.Document, Parser.Stack (Parser.Open).Inline, Value));
+            Ignore (Coyote_Renderer.Semantics.Set_Inline_Value
+              (Parser.Document, Parser.Stack (Parser.Open).Inline, Value));
             if Cell /= Coyote_Renderer.Semantics.No_Table_Cell then
-               Ignore
-                 (Coyote_Renderer.Semantics.Set_Table_Cell_Value
-                    (Parser.Document, Cell,
-                     Coyote_Renderer.Semantics.Table_Cell_Value
-                       (Parser.Document, Cell) & Value));
+               Ignore (Coyote_Renderer.Semantics.Set_Table_Cell_Value
+                 (Parser.Document, Cell,
+                  Coyote_Renderer.Semantics.Table_Cell_Value
+                    (Parser.Document, Cell) & Value));
             end if;
-            Ignore
-              (Coyote_Renderer.Semantics.Set_Inline_Source
-                 (Parser.Document, Parser.Stack (Parser.Open).Inline,
-                  To_String (Parser.Source)
-                    (Parser.Stack (Parser.Open).Source_Start
-                       .. Close + End_Tag'Length - 1)));
+            Ignore (Coyote_Renderer.Semantics.Set_Inline_Source
+              (Parser.Document, Parser.Stack (Parser.Open).Inline,
+               Source (Parser.Stack (Parser.Open).Source_Start ..
+                      Close + End_Tag'Length - 1)));
+            Parser.Open := Parser.Open - 1;
+            Emit_Live (Parser, Live_Code_Inline_End_Event, "", "", 0,
+               Parser.Stack (Parser.Open + 1).Source_Start,
+               Close + End_Tag'Length - 1, Context, Complete => True);
+            Parser.Cursor := Close + End_Tag'Length - 1;
          end;
-         Parser.Open := Parser.Open - 1;
-         Parser.Cursor := Close + End_Tag'Length - 1;
       else
          declare
             Last : constant Natural := Close + End_Tag'Length - 1;
          begin
             if not Math_Source_Valid
-              (To_String (Parser.Source)
-                (Parser.Stack (Parser.Open).Source_Start .. Last - 0))
+              (Source (Parser.Stack (Parser.Open).Source_Start .. Last))
               and then Name = "math"
             then
                Emit_Invalid (Parser, Handler,
-                 To_String (Parser.Source)
-                   (Parser.Stack (Parser.Open).Source_Start .. Last));
+                 Source (Parser.Stack (Parser.Open).Source_Start .. Last));
                Parser.Cursor := Last;
                Parser.Open := Parser.Open - 1;
                return;
@@ -1272,6 +1448,9 @@ package body Coyote_Renderer.Incremental is
       Parser.Cursor := 0;
       Parser.Open := 0;
       Parser.Invalid := False;
+      Parser.Next_Context := 0;
+      Parser.Next_Sequence := 0;
+      Parser.Live := null;
       Coyote_Renderer.Semantics.Clear (Parser.Document);
    end Reset;
 
@@ -1281,7 +1460,7 @@ package body Coyote_Renderer.Incremental is
       Coyote_Renderer.Semantics.Copy (Parser.Document, Target);
    end Snapshot;
 
-   procedure Feed
+   procedure Feed_Internal
      (Parser : in out Instance; Data : String; Handler : Event_Handler) is
       Input : Unbounded_String := Parser.Source;
    begin
@@ -1341,28 +1520,77 @@ package body Coyote_Renderer.Incremental is
                   Parser.Cursor := Close;
                end;
             end if;
+            exit when Parser.Invalid;
          end;
       end loop;
+   end Feed_Internal;
+
+   procedure Feed
+     (Parser : in out Instance; Data : String; Handler : Event_Handler) is
+   begin
+      Parser.Live := null;
+      Feed_Internal (Parser, Data, Handler);
+   exception
+      when others =>
+         Parser.Live := null;
+         raise;
    end Feed;
 
-   procedure Flush (Parser : in out Instance; Handler : Event_Handler) is
+   procedure Feed
+     (Parser : in out Instance; Data : String; Handler : Live_Handler) is
+   begin
+      Parser.Live := Handler;
+      Feed_Internal (Parser, Data, Ignore_Event'Access);
+      Parser.Live := null;
+   exception
+      when others =>
+         Parser.Live := null;
+         raise;
+   end Feed;
+
+   procedure Flush_Internal (Parser : in out Instance; Handler : Event_Handler) is
       Source : constant String := To_String (Parser.Source);
       First  : Natural := Parser.Cursor + 1;
       Invalid_Start : Natural := First;
    begin
-      if Parser.Open > 0 then
-         Invalid_Start := Parser.Stack (1).Source_Start;
-      end if;
-      if Parser.Open > 0 and then Source'Length > 0 then
-         Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
-      elsif Source'Length > 0 and then Invalid_Start <= Source'Last then
-         Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
+      if not Parser.Invalid then
+         if Parser.Open > 0 then
+            Invalid_Start := Parser.Stack (1).Source_Start;
+         end if;
+         if Parser.Open > 0 and then Source'Length > 0 then
+            Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
+         elsif Source'Length > 0 and then Invalid_Start <= Source'Last then
+            Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
+         end if;
       end if;
       Parser.Pending := Null_Unbounded_String;
       Parser.Source := Null_Unbounded_String;
       Parser.Cursor := 0;
       Parser.Open := 0;
       Parser.Invalid := False;
+   end Flush_Internal;
+
+   procedure Flush
+     (Parser : in out Instance; Handler : Event_Handler) is
+   begin
+      Parser.Live := null;
+      Flush_Internal (Parser, Handler);
+   exception
+      when others =>
+         Parser.Live := null;
+         raise;
+   end Flush;
+
+   procedure Flush
+     (Parser : in out Instance; Handler : Live_Handler) is
+   begin
+      Parser.Live := Handler;
+      Flush_Internal (Parser, Ignore_Event'Access);
+      Parser.Live := null;
+   exception
+      when others =>
+         Parser.Live := null;
+         raise;
    end Flush;
 
 end Coyote_Renderer.Incremental;

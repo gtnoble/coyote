@@ -39,6 +39,55 @@ package Coyote_Renderer.Incremental is
 
    type Event_Handler is not null access procedure (Value : Event);
 
+   --  Renderer-neutral events are emitted in deterministic source order.
+   type Live_Event_Kind is
+     (Live_Text_Event,
+      Live_Strong_Begin_Event,
+      Live_Strong_End_Event,
+      Live_Em_Begin_Event,
+      Live_Em_End_Event,
+      Live_Del_Begin_Event,
+      Live_Del_End_Event,
+      Live_Link_Begin_Event,
+      Live_Link_End_Event,
+      Live_Code_Inline_Begin_Event,
+      Live_Code_Inline_End_Event,
+      Live_Hard_Break_Event,
+      Live_Horizontal_Rule_Event,
+      Live_Paragraph_Begin_Event,
+      Live_Paragraph_End_Event,
+      Live_Heading_Begin_Event,
+      Live_Heading_End_Event,
+      Live_Blockquote_Begin_Event,
+      Live_Blockquote_End_Event,
+      Live_List_Begin_Event,
+      Live_List_End_Event,
+      Live_Item_Begin_Event,
+      Live_Item_End_Event,
+      Live_Code_Begin_Event,
+      Live_Code_End_Event,
+      Live_Table_Begin_Event,
+      Live_Table_End_Event,
+      Live_Math_Begin_Event,
+      Live_Math_End_Event,
+      Live_Literal_Event,
+      Live_Invalid_Event);
+
+   type Live_Event is record
+      Kind         : Live_Event_Kind := Live_Text_Event;
+      Text         : Ada.Strings.Unbounded.Unbounded_String;
+      Detail       : Ada.Strings.Unbounded.Unbounded_String;
+      Level        : Natural := 0;
+      Source_Start : Natural := 0;
+      Source_End   : Natural := 0;
+      Context_Id   : Natural := 0;
+      Sequence     : Natural := 0;
+      Deferred     : Boolean := False;
+      Complete     : Boolean := False;
+   end record;
+
+   type Live_Handler is access procedure (Value : Live_Event);
+
    type Instance is tagged limited private;
 
    procedure Reset (Parser : in out Instance);
@@ -58,11 +107,24 @@ package Coyote_Renderer.Incremental is
       Data    :        String;
       Handler :        Event_Handler);
 
+   --  Emit renderer-neutral live events.  This overload does not emit the
+   --  compatibility Event stream.
+   procedure Feed
+     (Parser  : in out Instance;
+      Data    :        String;
+      Handler :        Live_Handler);
+
    --  Emit the exact uncompleted suffix as Invalid_Event, notify the semantic
    --  observer, and reset the parser.  A second Flush is a no-op.
    procedure Flush
      (Parser  : in out Instance;
       Handler :        Event_Handler);
+
+   --  Complete a live stream.  Incomplete source is reported as a live
+   --  invalid event; subsequent Flush calls are no-ops.
+   procedure Flush
+     (Parser  : in out Instance;
+      Handler :        Live_Handler);
 
 private
 
@@ -76,11 +138,13 @@ private
         Coyote_Renderer.Semantics.No_Table_Row;
       Cell          : Coyote_Renderer.Semantics.Table_Cell_Id :=
         Coyote_Renderer.Semantics.No_Table_Cell;
-      Source_Start  : Natural := 0;
+      Source_Start   : Natural := 0;
       Opening_Length : Natural := 0;
-      Raw           : Ada.Strings.Unbounded.Unbounded_String;
-      Opaque        : Boolean := False;
-      Invalid       : Boolean := False;
+      Opaque_Emitted : Natural := 0;
+      Context_Id     : Natural := 0;
+      Raw            : Ada.Strings.Unbounded.Unbounded_String;
+      Opaque         : Boolean := False;
+      Invalid        : Boolean := False;
    end record;
 
    type Stack_Array is array (Positive range 1 .. Max_Nesting_Depth)
@@ -91,9 +155,12 @@ private
       Source      : Ada.Strings.Unbounded.Unbounded_String;
       Document    : Coyote_Renderer.Semantics.Document;
       Stack       : Stack_Array;
-      Cursor      : Natural := 0;
-      Open        : Natural := 0;
-      Invalid     : Boolean := False;
+      Cursor        : Natural := 0;
+      Open          : Natural := 0;
+      Invalid       : Boolean := False;
+      Next_Context  : Natural := 0;
+      Next_Sequence : Natural := 0;
+      Live          : Live_Handler := null;
    end record;
 
 end Coyote_Renderer.Incremental;

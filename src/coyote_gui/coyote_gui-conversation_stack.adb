@@ -11,6 +11,7 @@ with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_GUI.Live_Response_Renderer;
 with Coyote_Renderer.Incremental;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
@@ -55,14 +56,6 @@ package body Coyote_GUI.Conversation_Stack is
    use type Coyote_Renderer.Incremental.Event_Kind;
 
    type Instance_Access is access all Instance;
-
-   Active_Incremental_Stack : Instance_Access := null;
-
-   procedure Handle_Incremental_Event
-     (Value : Coyote_Renderer.Incremental.Event);
-
-   procedure Ignore_Incremental_Event
-     (Value : Coyote_Renderer.Incremental.Event);
 
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
@@ -367,22 +360,6 @@ package body Coyote_GUI.Conversation_Stack is
       end case;
    end Apply_Incremental_Event;
 
-   procedure Handle_Incremental_Event
-     (Value : Coyote_Renderer.Incremental.Event)
-   is
-   begin
-      if Active_Incremental_Stack /= null then
-         Apply_Incremental_Event (Active_Incremental_Stack.all, Value);
-      end if;
-   end Handle_Incremental_Event;
-
-   procedure Ignore_Incremental_Event
-     (Value : Coyote_Renderer.Incremental.Event)
-   is
-      pragma Unreferenced (Value);
-   begin
-      null;
-   end Ignore_Incremental_Event;
 
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -1021,6 +998,10 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Clear (C : in out Instance) is
    begin
       C.Selected_Tool := Null_Unbounded_String;
+      if C.Response_Section /= null then
+         Coyote_GUI.Live_Response_Renderer.Detach
+           (C.Live_Renderer, C.Response_Section);
+      end if;
       if not C.Math_Elements.Is_Empty then
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
@@ -1038,6 +1019,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Clear;
       C.Step_Frames.Clear;
       C.Tools.Clear;
+      Coyote_GUI.Live_Response_Renderer.Release (C.Live_Renderer);
       if not C.Math_Elements.Is_Empty then
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
@@ -1057,6 +1039,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_View      := null;
       C.Response_Section := null;
       C.Response_Box     := null;
+      Coyote_GUI.Live_Response_Renderer.Clear (C.Live_Renderer);
       Coyote_GUI.Response_Renderer.Clear (C.Response_Renderer);
       C.Response_Format    := Coyote_GUI.Markdown_Response;
       C.Render_Markdown    := True;
@@ -1089,6 +1072,10 @@ package body Coyote_GUI.Conversation_Stack is
         (if Kind = Coyote_GUI.Steer then "Steer" else "Request");
    begin
       Create (C, C.Main_Window.all'Access);
+      if C.Response_Section /= null then
+         Coyote_GUI.Live_Response_Renderer.Detach
+           (C.Live_Renderer, C.Response_Section);
+      end if;
       Gtk.Box.Gtk_New_Vbox (C.Exchange, Homogeneous => False, Spacing => 3);
       C.Host.Pack_Start
         (C.Exchange, Expand => False, Fill => True, Padding => 4);
@@ -1120,6 +1107,12 @@ package body Coyote_GUI.Conversation_Stack is
          C.Text_Open  := True;
          C.Stream_Buf := Null_Unbounded_String;
          Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
+         if C.Incremental_Markup then
+            Coyote_GUI.Live_Response_Renderer.Create
+              (C.Live_Renderer, C.Response_Section);
+            Coyote_GUI.Live_Response_Renderer.Begin_Response
+              (C.Live_Renderer);
+         end if;
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
@@ -1130,12 +1123,19 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Append (C.Stream_Buf, Text);
       if C.Incremental_Markup then
-         Active_Incremental_Stack := C'Unchecked_Access;
-         Coyote_Renderer.Incremental.Feed
-           (Parser  => C.Incremental_Parser,
-            Data    => Text,
-            Handler => Ignore_Incremental_Event'Access);
-         Active_Incremental_Stack := null;
+         declare
+            procedure Handle
+              (Value : Coyote_Renderer.Incremental.Live_Event) is
+            begin
+               Coyote_GUI.Live_Response_Renderer.Apply
+                 (C.Live_Renderer, Value);
+            end Handle;
+         begin
+            Coyote_Renderer.Incremental.Feed
+              (Parser  => C.Incremental_Parser,
+               Data    => Text,
+               Handler => Handle'Unrestricted_Access);
+         end;
       else
          Append_Buffer (C.Active_Text, Text);
       end if;
@@ -1148,14 +1148,26 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       if C.Text_Open then
          if C.Incremental_Markup then
-            Active_Incremental_Stack := C'Unchecked_Access;
-            Coyote_Renderer.Incremental.Flush
-              (Parser  => C.Incremental_Parser,
-               Handler => Ignore_Incremental_Event'Access);
-            Active_Incremental_Stack := null;
+            declare
+               procedure Handle
+                 (Value : Coyote_Renderer.Incremental.Live_Event) is
+               begin
+                  Coyote_GUI.Live_Response_Renderer.Apply
+                    (C.Live_Renderer, Value);
+               end Handle;
+            begin
+               Coyote_Renderer.Incremental.Flush
+                 (Parser  => C.Incremental_Parser,
+                  Handler => Handle'Unrestricted_Access);
+            end;
+            Coyote_GUI.Live_Response_Renderer.Finalize (C.Live_Renderer);
             Coyote_Renderer.Incremental.Snapshot
               (C.Incremental_Parser, C.Incremental_Document);
-            if C.Active_View /= null then
+            if C.Response_Section /= null then
+               Coyote_GUI.Live_Response_Renderer.Detach
+                 (C.Live_Renderer, C.Response_Section);
+            end if;
+            if C.Active_View /= null and then C.Response_Section /= null then
                C.Response_Section.Remove (C.Active_View);
             end if;
             C.Active_Text := null;
@@ -1789,11 +1801,41 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Set_Response_Format
      (C : in out Instance; Format : Coyote_GUI.Response_Format)
    is
+      Response_Root_Removed : Boolean := False;
+      Old_View              : Gtk.Text_View.Gtk_Text_View := C.Active_View;
    begin
+      if C.Response_Section /= null then
+         Coyote_GUI.Live_Response_Renderer.Detach
+           (C.Live_Renderer, C.Response_Section);
+      end if;
+      --  Release nested native elements while their GTK roots still exist.
+      Coyote_GUI.Response_Renderer.Clear (C.Response_Renderer);
+      if C.Response_Section /= null
+        and then C.Response_Box /= null
+        and then C.Response_Box.Get_Parent =
+          Gtk.Widget.Gtk_Widget (C.Response_Section)
+      then
+         C.Response_Section.Remove (C.Response_Box);
+         Response_Root_Removed := True;
+      end if;
+      --  Removing the response root also destroys any nested active view.
+      --  Never query that handle after the root has been removed.
+      C.Response_Box := null;
+      C.Active_Text  := null;
+      C.Active_View  := null;
+      if not Response_Root_Removed
+        and then C.Response_Section /= null
+        and then Old_View /= null
+        and then Old_View.Get_Parent =
+          Gtk.Widget.Gtk_Widget (C.Response_Section)
+      then
+         C.Response_Section.Remove (Old_View);
+      end if;
       C.Response_Format := Format;
       C.Render_Markdown := Format = Coyote_GUI.Markdown_Response;
       C.Incremental_Markup :=
         Format = Coyote_GUI.Coyote_Stream_2_Response;
+      Coyote_GUI.Live_Response_Renderer.Release (C.Live_Renderer);
       Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
       Coyote_Renderer.Semantics.Clear (C.Incremental_Document);
       C.Presentation_Ready := False;

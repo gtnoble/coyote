@@ -2,7 +2,7 @@
 
 ## Current baseline amendment (2026-08-31)
 
-The native GTK conversation cutover is complete. The current suite baseline is 919/919, and CSM-2 presentation qualification is closed through PCR-101. `Coyote_GUI.Conversation_Stack`
+The native GTK conversation cutover is complete. The current suite baseline is 934/934, and CSM-2 live presentation qualification is current through the Phase 6 entry below. `Coyote_GUI.Conversation_Stack`
 is the sole GTK conversation presentation; the custom `Gtk.Layout`/Cairo/Pango
 renderer, its test accessors, and the `COYOTE_NATIVE_STACK` runtime flag were
 removed after native qualification. The Plain frontend remains supported and
@@ -30,6 +30,33 @@ components.
 `src/coyote_lasem*.ads/.adb`, `src/coyote_lasem_c.c`,
 `src/coyote_renderer/*.ads/.adb`
 ---
+
+## 2026-09-12 — Live CSM-2 event rendering and final reconciliation
+
+`Coyote_Renderer.Incremental` now emits an ordered renderer-neutral
+`Live_Event` protocol across provider-delta boundaries. Sequence numbers,
+source ranges, context IDs, completion/deferred flags, and detail attributes
+allow the GTK sink to consume stateful updates; code and code-inline payloads
+are emitted as opaque literal chunks. `Coyote_GUI.Live_Response_Renderer`
+applies text, inline styles, code, headings, blockquotes, lists, `br`, and `hr`
+immediately in one selectable subtree. Complete table and terminal MathML source
+is retained as deferred state and is not realized natively by that live sink.
+
+At `End_Text_Block`, `Conversation_Stack` calls parser `Flush`, finalizes the
+live renderer, takes the typed `Snapshot`, removes the provisional subtree, and
+replaces it authoritatively through `Coyote_GUI.Response_Renderer`. Native
+tables/math are therefore created only at complete boundaries/final
+reconciliation; malformed source remains visible, and invalid live events roll
+back optimistic content. Clear, repeated finalization, format changes, and
+session reset are idempotent and do not retain stale widgets.
+
+**Verification:** Production and test development builds passed. The complete
+development suite passed 934/934 with zero failed assertions or unexpected
+errors. The CSM-2 parser/live/headless/GUI aggregate filter passed 32/32; the
+CSM-2 GUI qualification passed 7/7, standalone live renderer 4/4,
+`Conversation_Stack` 24/24, and `Coyote.GUI.Updates` 10/10. GUI qualification
+ran on the available X11 display with existing GTK theme warnings only.
+Provider, Plain, and RPC behavior was unchanged.
 
 ## Design Rationale
 
@@ -207,7 +234,8 @@ GUI fixture packages now expose leaf AUnit `Suite` functions and are composed
 under `Test_GUI_Suite`, preserving the existing display-name order. The
 product-information fixture explicitly requests frontend shutdown before
  destroying its GTK windows, preventing the RPC service task from surviving
-fixture scope. This dated fixture record is historical; the current 919-test development suite is qualified through PCR-101.
+fixture scope. This dated fixture record is historical; the 919-test baseline recorded at that
+point was qualified through PCR-101; it is not the current suite baseline.
 display-backed GUI tests remain subject to the available display environment.
 
 ### Sandbox Profiles manager (2026-09-05, superseded)
@@ -1354,7 +1382,7 @@ unset. An unrelated unused-`Button` warning in the same procedure was
 silenced with a pragma.
 
 **Verification:** Production and test development builds succeed; the full
-Historical AUnit suite passes 864/864 including all GUI domain tests; the current suite baseline is 919/919.
+Historical AUnit suite passes 864/864 including all GUI domain tests; the suite baseline recorded at that historical point was 919/919.
 
 ## 2026-09-09 — Auto-compaction Preferences (REQ-CORE-116..119)
 

@@ -13,13 +13,16 @@ shared between coyote and pi.
 - **GTK frontend** — graphical conversation view with Markdown, tool cards,
   session management, status, preferences, keyboard navigation, and Help
 - **Incremental GUI markup (opt-in)** — set
-  `COYOTE_INCREMENTAL_MARKUP=1` to select independent CSM-2 and process its
-  deltas immediately through the shared semantic/native renderer; text streams
-  live, while complete explicit table rows/cells, terminal Presentation MathML,
-  and opaque literal code blocks become native or selectable GTK components.
-  CSM-2 is not Markdown: tables use explicit tags rather than Markdown pipes,
-  and malformed or incomplete CSM-2 remains visible source. Versionless CSM-1
-  replay is limited to visible raw source because the CSM-1 parser is retired.
+  `COYOTE_INCREMENTAL_MARKUP=1` to select independent CSM-2. Provider deltas
+  are emitted as ordered live events and applied immediately by the stateful
+  GTK live renderer for text, inline styles, code/code-inline, headings,
+  blockquotes, lists, `br`, and `hr`; code payloads are opaque literal chunks.
+  Complete table and terminal Presentation MathML source is deferred in the
+  live subtree and realized natively only at complete boundaries/final
+  `Flush`/`Snapshot` reconciliation through the shared renderer. Invalid live
+  input rolls back to authoritative visible source. CSM-2 is not Markdown:
+  tables use explicit tags rather than Markdown pipes. Versionless CSM-1 replay
+  is limited to visible raw source because the CSM-1 parser is retired.
   Markdown remains the default and Plain output is unchanged.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
@@ -220,7 +223,7 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 919 registered tests and passes 919/919 in
+The current hierarchy contains 934 registered tests and passes 934/934 in
 approximately 34 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.

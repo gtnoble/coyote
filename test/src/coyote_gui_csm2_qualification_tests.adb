@@ -13,6 +13,7 @@ with AUnit.Assertions;
 with AUnit.Test_Caller;
 with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
+with Coyote_GUI.Live_Response_Renderer;
 with Gtk.Enums;
 with Gtk.Main;
 
@@ -244,6 +245,187 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "crossing/unclosed source remains visible");
    end Test_Malformed_CSM2_Has_No_Stale_Native_Widgets;
 
+   procedure Test_CSM2_Live_Visibility_And_Styles (T : in out Test) is
+      Source : constant String :=
+        "<p>live <strong>bold</strong> <em>italic</em>"
+        & " <code-inline>code</code-inline><br/>tail</p>"
+        & "<blockquote><p>quote</p></blockquote>"
+        & "<list kind=""ordered"" start=""4""><item>item</item></list>"
+        & "<code lang=""ada"">x &lt; y</code>";
+      Live_Text      : Unbounded_String;
+      Bold_At        : Natural;
+      Italic_At      : Natural;
+      Inline_Code_At : Natural;
+      Quote_At       : Natural;
+      Item_At        : Natural;
+      Literal_At     : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      Live_Text := To_Unbounded_String (Live_Response_Text (T.Stack));
+      Bold_At        := Index (To_String (Live_Text), "bold") - 1;
+      Italic_At      := Index (To_String (Live_Text), "italic") - 1;
+      Inline_Code_At := Index (To_String (Live_Text), "code") - 1;
+      Quote_At       := Index (To_String (Live_Text), "quote") - 1;
+      Item_At        := Index (To_String (Live_Text), "item") - 1;
+      Literal_At     := Index (To_String (Live_Text), "x &lt; y") - 1;
+      Assert (Live_Response_Present (T.Stack),
+              "CSM live renderer is present before End_Text_Block");
+      Assert (Index (To_String (Live_Text), "live bold italic code") > 0,
+              "CSM text and inline code are visible before end");
+      Assert (Index (To_String (Live_Text), "tail") > 0,
+              "CSM br content is visible before end");
+      Assert (Index (To_String (Live_Text), "quote") > 0,
+              "CSM blockquote content is visible before end");
+      Assert (Index (To_String (Live_Text), "4. item") > 0,
+              "CSM list item is visible before end");
+      Assert (Index (To_String (Live_Text), "x &lt; y") > 0,
+              "CSM literal code is visible before end");
+      Assert (Live_Response_Text_Has_Style
+                (T.Stack,
+                 Coyote_GUI.Live_Response_Renderer.Strong_Style,
+                 Bold_At),
+              "CSM strong text is styled before end");
+      Assert (Live_Response_Text_Has_Style
+                (T.Stack,
+                 Coyote_GUI.Live_Response_Renderer.Em_Style,
+                 Italic_At),
+              "CSM emphasis text is styled before end");
+      Assert (Live_Response_Text_Has_Style
+                (T.Stack,
+                 Coyote_GUI.Live_Response_Renderer.Inline_Code_Style,
+                 Inline_Code_At),
+              "CSM inline code is styled before end");
+      Assert (Live_Response_Text_Has_Style
+                (T.Stack,
+                 Coyote_GUI.Live_Response_Renderer.Blockquote_Style,
+                 Quote_At),
+              "CSM blockquote is styled before end");
+      Assert (Live_Response_Text_Has_Style
+                (T.Stack,
+                 Coyote_GUI.Live_Response_Renderer.List_Style,
+                 Item_At),
+              "CSM list item is styled before end");
+      Assert (Live_Response_Text_Has_Style
+                (T.Stack,
+                 Coyote_GUI.Live_Response_Renderer.Code_Block_Style,
+                 Literal_At),
+              "CSM literal code is styled before end");
+      End_Text_Block (T.Stack);
+      Assert (not Live_Response_Present (T.Stack),
+              "live subtree is removed by authoritative final replacement");
+   end Test_CSM2_Live_Visibility_And_Styles;
+
+   procedure Test_CSM2_Deferred_Blocks_Finalize_Only (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text
+        (T.Stack,
+         "<p>before</p><table><row><cell>cell</cell></row></table>"
+         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mi>x</mi></math>");
+      Assert (Table_Count (T.Stack) = 0,
+              "CSM table is deferred before End_Text_Block");
+      Assert (Math_Element_Count (T.Stack) = 0,
+              "CSM math is deferred before End_Text_Block");
+      Assert (Index (Live_Response_Text (T.Stack), "cell") > 0,
+              "deferred table remains visible as live source text");
+      End_Text_Block (T.Stack);
+      Assert (Table_Count (T.Stack) = 1,
+              "CSM table is native after finalization");
+      Assert (Math_Element_Count (T.Stack) = 1,
+              "CSM math is native after finalization");
+   end Test_CSM2_Deferred_Blocks_Finalize_Only;
+
+   procedure Test_CSM2_Reset_And_Duplicate_Finalization (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>first</p>");
+      End_Text_Block (T.Stack);
+      End_Text_Block (T.Stack);
+      Assert (Index (Visible_Text (T.Stack), "first") > 0,
+              "duplicate End_Text_Block preserves one final response");
+      Assert (Text_View_Count (T.Stack) = 1,
+              "duplicate End_Text_Block does not add a second text view");
+      Assert (Table_Count (T.Stack) = 0,
+              "duplicate End_Text_Block does not add a stale table");
+      Clear (T.Stack);
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>second</p>");
+      Assert (Index (Live_Response_Text (T.Stack), "second") > 0,
+              "new request resets live content");
+      End_Text_Block (T.Stack);
+      Assert (Index (Visible_Text (T.Stack), "first") = 0,
+              "new request does not duplicate old response");
+      Assert (Index (Visible_Text (T.Stack), "second") > 0,
+              "new request retains only new response");
+   end Test_CSM2_Reset_And_Duplicate_Finalization;
+
+   procedure Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "<p>optimistic <strong>prefix</p></strong> tail";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      Assert (Index (Live_Response_Text (T.Stack), "optimistic") > 0,
+              "malformed prefix is visible optimistically");
+      End_Text_Block (T.Stack);
+      Assert (not Live_Response_Present (T.Stack),
+              "finalization removes the optimistic subtree");
+      Assert (Index (Visible_Text (T.Stack), Source) > 0,
+              "malformed final response shows exact source fallback");
+      Assert (Table_Count (T.Stack) = 0,
+              "malformed final response has no stale table");
+      Assert (Math_Element_Count (T.Stack) = 0,
+              "malformed final response has no stale math");
+      End_Text_Block (T.Stack);
+      Assert (Index (Visible_Text (T.Stack), Source) > 0,
+              "repeated finalization does not duplicate fallback");
+
+      Clear (T.Stack);
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text
+        (T.Stack,
+         "<code>literal <table><row><cell>x</cell></row></table>");
+      End_Text_Block (T.Stack);
+      Assert (Table_Count (T.Stack) = 0,
+              "incomplete opaque code cannot create a table");
+      Assert (Math_Element_Count (T.Stack) = 0,
+              "incomplete opaque code cannot create math");
+      Assert (Index (Visible_Text (T.Stack), "<code>literal") > 0,
+              "incomplete opaque source remains visible");
+
+      Set_Response_Format (T.Stack, Markdown_Response);
+      Assert (Get_Response_Format (T.Stack) = Markdown_Response,
+              "format change selects Markdown response mode");
+      Assert (not Live_Response_Present (T.Stack),
+              "format change detaches and clears live response state");
+      Clear (T.Stack);
+      Clear (T.Stack);
+      Assert (Text_View_Count (T.Stack) = 0,
+              "repeated clear leaves no stale text widgets");
+   end Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -259,6 +441,18 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI malformed stale-widget reconciliation",
          Test_Malformed_CSM2_Has_No_Stale_Native_Widgets'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI live visibility and styles",
+         Test_CSM2_Live_Visibility_And_Styles'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI deferred blocks finalize only",
+         Test_CSM2_Deferred_Blocks_Finalize_Only'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI reset and duplicate finalization",
+         Test_CSM2_Reset_And_Duplicate_Finalization'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI invalid prefix and lifecycle rollback",
+         Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback'Access));
       return Result;
    end Suite;
 

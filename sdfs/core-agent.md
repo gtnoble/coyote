@@ -1,5 +1,22 @@
 # Component Development Log — Core Agent
 
+## 2026-09-12 — CSM-2 Live_Event protocol and opaque chunking
+
+`Coyote_Renderer.Incremental` now exposes the live-handler `Feed` overload used
+by the GUI path. It emits ordered `Live_Event` records with monotonic sequence
+numbers, source ranges, context IDs, completion/deferred flags, and controlled
+detail attributes while retaining parser state across provider deltas. Code and
+code-inline regions emit opaque literal chunks, preventing tag-like payloads
+from being reinterpreted. `Flush` emits an incomplete suffix exactly once;
+`Snapshot` remains the typed semantic source for final presentation.
+
+**Verification:** Production and test development builds passed. The CSM-2
+parser/live/headless/GUI aggregate filter passed 32/32, including parser
+boundary/UTF-8/opaque-source coverage, standalone live renderer 4/4, and GUI
+CSM-2 qualification 7/7. The complete development suite passed 934/934 with
+zero failed assertions or unexpected errors. The existing Markdown, Plain,
+provider, and RPC paths were not changed by this live-rendering implementation.
+
 ## 2026-09-12 — Default-off CSM prompt isolation
 
 The static system-prompt renderer already removed the CSM-2 grammar for
@@ -10,7 +27,7 @@ response-format guard to `share/coyote/system-prompt.md`; ordinary project
 context remains injectable. Added prompt regression assertions for both
 Markdown and CSM-2 rendering. Production and test development builds succeed;
 the focused system-prompt tests pass 34/34, the dynamic-context injection test
-passes 1/1, and the complete AUnit suite passes 921/921.
+passes 1/1, and the complete AUnit suite passes 934/934.
 
 > **Current-baseline note (2026-08-30):** Entries below that mention Acme,
 > Nine_P, 9P, or plumber describe superseded pre-PCR-090 architecture. They
@@ -798,7 +815,7 @@ passes in 0.49 seconds with all four attempts. With
 the production schedule remains available. The historical full-suite runs
 passed 917/919 assertions in 31.84–32.26 seconds with zero unexpected errors;
 the PCR-073 native-stack fixture-isolation and exchange-reset correction now
-brings the current full suite to 921/921.
+brings the historical full suite at that point to 921/921.
 
 ## 2026-08-29 — GTK subagent recursion-depth preference
 

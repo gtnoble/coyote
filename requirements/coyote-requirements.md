@@ -343,29 +343,40 @@ CSM-2 is available only through the existing
 `COYOTE_INCREMENTAL_MARKUP=1` opt-in path. It is a separate XML-like semantic
 language, not Markdown, and Markdown syntax has no CSM-2 meaning. Existing
 format-selection rules, Plain frontend behavior, and default-off Markdown
-behavior remain unchanged. Verified by the default-off flag, prompt, history,
-GUI, and complete-suite evidence recorded in the Test Plan.
+behavior remain unchanged. When selected, supported text, inline styles,
+code/code-inline, headings, blockquotes, lists, `br`, and `hr` are presented
+incrementally; complete table and terminal math blocks are realized at complete
+boundaries or final reconciliation. Markdown behavior remains unchanged.
+Verified by the default-off flag, prompt, history, live-renderer, GUI, and
+complete-suite evidence recorded in the Test Plan.
 
 **REQ-CORE-047b** (A/I/T)
 CSM-2 defines only the explicit inline tags `<strong>`, `<em>`, `<del>`,
 `<link>`, `<code-inline>`, and `<br>`. Their semantic styles are distinct from
 literal source text; attributes are restricted to the controlled prompt grammar.
-Verified by the parser, semantic, prompt, GUI parity, and complete-suite tests.
+The live GUI may apply these inline styles and literal code incrementally before
+`End_Text_Block`. Verified by the parser, live-renderer, semantic, prompt, GUI
+parity, and complete-suite tests.
 
 **REQ-CORE-047c** (A/I/T)
 CSM-2 defines the explicit block tags `<p>`, `<h1>` through `<h6>`,
 `<blockquote>`, `<list>`, `<item>`, `<code>`, `<table>`, `<row>`, `<cell>`,
 `<math>`, and `<hr>`. Tables require explicit non-empty `<row>` and `<cell>`
 structure; GFM table syntax, pipe-table rules, and Markdown table semantics
-have no CSM-2 meaning. Verified by parser/table, semantic, GUI, cmark/renderer,
-and complete-suite evidence.
+have no CSM-2 meaning. Text, headings, blockquotes, lists, code, `br`, and
+`hr` may be presented incrementally; native tables and terminal MathML are
+realized only at complete boundaries or final reconciliation. Verified by
+parser/table, semantic, live-renderer, GUI, cmark/renderer, and complete-suite
+evidence.
 
 **REQ-CORE-047d** (A/I/T)
 `<math>` contains exactly one complete terminal Presentation MathML `<math>`
 document using the standard namespace
 `http://www.w3.org/1998/Math/MathML`. CSM-2 assigns no semantics to that
 payload; LaTeX, Content MathML, and Markdown display-math delimiters are not
-CSM-2 syntax. Verified by parser, GUI native MathML, Markdown MathML reference,
+CSM-2 syntax. The live renderer retains complete math source as deferred state;
+native MathML is realized at a complete boundary or final reconciliation.
+Verified by parser, live-renderer, GUI native MathML, Markdown MathML reference,
 and complete-suite evidence.
 
 **REQ-CORE-047e** (A/I/T)
@@ -773,7 +784,10 @@ libcmark-gfm. The contract includes headings, bold, italic, inline code,
 fenced code, links, strikethrough, block quotes, bullet and ordered lists,
 nested-list indentation, ordered-list starting values, tables, and thematic
 breaks. A response may be displayed as plain text while it is streaming; the
-completed block shall be converted at block termination. Conversion failure
+completed block shall be converted at block termination. The opt-in CSM-2 path
+may instead present its supported constructs incrementally, while tables and
+terminal math remain deferred until complete boundaries/final reconciliation;
+this does not change Markdown behavior. Conversion failure
 shall preserve the source as visible escaped or plain text. Copying rendered
 text shall not expose Pango markup.
 
@@ -1141,7 +1155,10 @@ displayed.
 **REQ-CORE-138** (D/T/I)
 The GUI component-stack implementation shall preserve incremental streaming:
 text and thinking deltas shall update an existing active component rather
-than create a widget per token. Native tool cards shall update one existing
+than create a widget per token. In opt-in CSM-2 mode, ordered live events update
+one stateful text subtree for immediate constructs; deferred tables and terminal
+math are retained until complete boundaries/final reconciliation. Native tool
+cards shall update one existing
 compact summary component per tool call rather than creating raw argument or
 full-result widgets for streamed or completed content. The implementation
 shall preserve the 200-ms first-token display objective, and shall qualify
@@ -1784,7 +1801,7 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline
-is 919 registered tests. CSM-2 native GUI qualification is complete for the
+is 934 registered tests. CSM-2 live and native GUI qualification is complete for the
 Conversation_Stack presentation. The table below is the original qualification
 matrix and retains historical `TC-*` identifiers; current mappings are in
 `plan/test-plan.md` §6.
@@ -1824,7 +1841,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
-| REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, explicit grammar, terminal Presentation MathML, visible-source fallback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 controlled qualification matrix |
+| REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, ordered live-event presentation, immediate/deferred construct timing, terminal Presentation MathML, visible-source fallback, authoritative final reconciliation/rollback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 controlled qualification matrix |
 | REQ-CORE-047h | Markdown prompt excludes active CSM policy from auto-loaded project instructions while retaining ordinary context | D/I/T | TC-174; focused system-prompt tests |
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |

@@ -130,6 +130,32 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return False;
    end Response_Stream_Present;
 
+   function Live_Response_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return Coyote_GUI.Live_Response_Renderer.Widget (C.Live_Renderer) /= null
+        and then not Coyote_GUI.Live_Response_Renderer.Is_Finalized
+          (C.Live_Renderer);
+   end Live_Response_Present;
+
+   function Live_Response_Text
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String
+   is
+   begin
+      return Coyote_GUI.Live_Response_Renderer.Text (C.Live_Renderer);
+   end Live_Response_Text;
+
+   function Live_Response_Text_Has_Style
+     (C      : Coyote_GUI.Conversation_Stack.Instance;
+      Style  : Coyote_GUI.Live_Response_Renderer.Style_Kind;
+      Offset : Natural) return Boolean
+   is
+   begin
+      return Coyote_GUI.Live_Response_Renderer.Has_Style
+        (C.Live_Renderer, Style, Offset);
+   end Live_Response_Text_Has_Style;
+
    function Response_Text_Has_Style
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is
