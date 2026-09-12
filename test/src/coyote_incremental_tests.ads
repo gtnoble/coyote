@@ -17,8 +17,10 @@ package Coyote_Incremental_Tests is
    procedure Test_Table_Structure_Validation (T : in out Test);
    procedure Test_Table_Inline_Content_And_Source (T : in out Test);
    procedure Test_Table_Delta_Boundaries (T : in out Test);
+   procedure Test_Table_Structural_Whitespace (T : in out Test);
    procedure Test_Table_Incomplete_And_Malformed_Recovery (T : in out Test);
    procedure Test_Math_And_Code_Are_Opaque (T : in out Test);
+   procedure Test_Redundant_Math_Wrapper (T : in out Test);
    procedure Test_Entities_And_Markdown_Are_Literal (T : in out Test);
    procedure Test_Pipe_Text_Is_Not_A_Table (T : in out Test);
    procedure Test_Malformed_Source_Is_Visible (T : in out Test);

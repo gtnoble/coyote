@@ -555,7 +555,12 @@ package body Coyote_Renderer.Incremental is
               To_String (Parser.Stack (Parser.Open).Name);
          begin
             if Parent_Name = "table" or else Parent_Name = "row" then
-               Emit_Invalid (Parser, Handler, Raw);
+               for Character_Value of Raw loop
+                  if not Is_Space (Character_Value) then
+                     Emit_Invalid (Parser, Handler, Raw);
+                     return;
+                  end if;
+               end loop;
                return;
             end if;
          end;
@@ -872,76 +877,224 @@ package body Coyote_Renderer.Incremental is
       return 0;
    end Heading_Level;
 
-   function Math_Source_Valid (Source : String) return Boolean is
+   function Find_Tag_End
+     (Source : String; Start : Natural) return Natural is
+      In_Quote : Boolean := False;
+      I        : Natural := Start + 1;
+   begin
+      while I <= Source'Last loop
+         if Source (I) = '"' then
+            In_Quote := not In_Quote;
+         elsif Source (I) = '>' and then not In_Quote then
+            return I;
+         end if;
+         I := I + 1;
+      end loop;
+      return 0;
+   end Find_Tag_End;
+
+   function Find_Math_Close
+     (Source             : String;
+      Content_First      : Natural;
+      Close_Start        : out Natural;
+      Nested_Math_Count  : out Natural;
+      Nested_Math_Start  : out Natural;
+      Nested_Math_End    : out Natural) return Boolean
+   is
       Names : array (Positive range 1 .. Max_Nesting_Depth)
         of Unbounded_String;
-      Depth : Natural := 0;
-      I     : Natural := Source'First;
+      Depth : Natural := 1;
+      I     : Natural := Content_First;
    begin
+      Close_Start       := 0;
+      Nested_Math_Count := 0;
+      Nested_Math_Start := 0;
+      Nested_Math_End   := 0;
+      Names (1) := To_Unbounded_String ("math");
       while I <= Source'Last loop
          if Source (I) /= '<' then
             I := I + 1;
          else
             declare
-               Close : constant Natural :=
-                 Ada.Strings.Fixed.Index (Source, ">", I);
-               Name_Start : Natural;
-               Closing : Boolean := False;
-               Self : Boolean := False;
-               Name : Unbounded_String;
+               Tag_End : constant Natural := Find_Tag_End (Source, I);
+               Info    : Tag_Info;
             begin
-               if Close = 0 then
+               if Tag_End = 0 or else not Parse_Tag
+                 (Source (I .. Tag_End), Info)
+               then
                   return False;
                end if;
-               if I + 1 < Close and then Source (I + 1) = '/' then
-                  Closing := True;
-                  Name_Start := I + 2;
-               else
-                  Name_Start := I + 1;
-               end if;
-               if Name_Start >= Close then
-                  return False;
-               end if;
-               declare
-                  J : Natural := Name_Start;
-               begin
-                  while J < Close and then Is_Name_Character (Source (J)) loop
-                     J := J + 1;
-                  end loop;
-                  if J = Name_Start then
+               if Info.Closing then
+                  if Depth = 0
+                    or else To_String (Names (Depth)) /=
+                      To_String (Info.Name)
+                  then
                      return False;
+                  elsif Depth = 1 then
+                     Close_Start := I;
+                     return True;
+                  else
+                     Depth := Depth - 1;
                   end if;
-                  Name := To_Unbounded_String
-                    (Source (Name_Start .. J - 1));
-                  if not Closing then
-                     declare
-                        K : Natural := Close - 1;
-                     begin
-                        while K > I and then Is_Space (Source (K)) loop
-                           K := K - 1;
-                        end loop;
-                        Self := Source (K) = '/';
-                     end;
-                  end if;
-               end;
-               if Closing then
-                  if Depth = 0 or else Names (Depth) /= Name then
-                     return False;
-                  end if;
-                  Depth := Depth - 1;
-               elsif not Self then
+               elsif not Info.Self_Closing then
                   if Depth = Max_Nesting_Depth then
                      return False;
                   end if;
+                  if To_String (Info.Name) = "math" then
+                     Nested_Math_Count := Nested_Math_Count + 1;
+                     if Nested_Math_Start = 0 then
+                        Nested_Math_Start := I;
+                        Nested_Math_End   := Tag_End;
+                     end if;
+                  end if;
                   Depth := Depth + 1;
-                  Names (Depth) := Name;
+                  Names (Depth) := Info.Name;
                end if;
-               I := Close + 1;
+               I := Tag_End + 1;
             end;
          end if;
       end loop;
-      return Depth = 0;
+      return False;
+   end Find_Math_Close;
+
+   function Is_Whitespace_Range
+     (Source : String; First : Natural; Last : Natural) return Boolean is
+   begin
+      if First > Last then
+         return True;
+      end if;
+      for I in First .. Last loop
+         if not Is_Space (Source (I)) then
+            return False;
+         end if;
+      end loop;
+      return True;
+   end Is_Whitespace_Range;
+
+   function Math_Tag_Is_Qualified (Info : Tag_Info) return Boolean is
+      Namespace : Unbounded_String;
+   begin
+      return not Info.Closing
+        and then not Info.Self_Closing
+        and then To_String (Info.Name) = "math"
+        and then Info.Count = 1
+        and then Attribute_At (Info, "xmlns", Namespace)
+        and then To_String (Namespace) =
+          "http://www.w3.org/1998/Math/MathML";
+   end Math_Tag_Is_Qualified;
+
+   function Math_Source_Valid (Source : String) return Boolean is
+      Outer_End        : Natural;
+      Outer_Close      : Natural;
+      Nested_Count     : Natural;
+      Nested_Start     : Natural;
+      Nested_End       : Natural;
+      Inner_Close      : Natural;
+      Inner_Nested     : Natural;
+      Inner_Start      : Natural;
+      Inner_End        : Natural;
+      Outer_Info       : Tag_Info;
+      Inner_Info       : Tag_Info;
+      First_Nonspace   : Natural;
+   begin
+      if Source'Length = 0 then
+         return False;
+      end if;
+      Outer_End := Find_Tag_End (Source, Source'First);
+      if Outer_End = 0 or else not Parse_Tag
+        (Source (Source'First .. Outer_End), Outer_Info)
+        or else not Math_Tag_Is_Qualified (Outer_Info)
+      then
+         return False;
+      end if;
+      if not Find_Math_Close
+        (Source, Outer_End + 1, Outer_Close, Nested_Count,
+         Nested_Start, Nested_End)
+      then
+         return False;
+      end if;
+      if not Is_Whitespace_Range
+        (Source, Outer_Close + 7, Source'Last)
+      then
+         return False;
+      end if;
+      if Nested_Count = 0 then
+         return True;
+      elsif Nested_Count /= 1 then
+         return False;
+      end if;
+
+      First_Nonspace := Outer_End + 1;
+      while First_Nonspace < Outer_Close
+        and then Is_Space (Source (First_Nonspace))
+      loop
+         First_Nonspace := First_Nonspace + 1;
+      end loop;
+      if First_Nonspace /= Nested_Start
+        or else not Parse_Tag
+          (Source (Nested_Start .. Nested_End), Inner_Info)
+        or else not Math_Tag_Is_Qualified (Inner_Info)
+      then
+         return False;
+      end if;
+      if not Find_Math_Close
+        (Source, Nested_End + 1, Inner_Close, Inner_Nested,
+         Inner_Start, Inner_End)
+        or else Inner_Nested /= 0
+        or else Inner_Close >= Outer_Close
+      then
+         return False;
+      end if;
+      return Is_Whitespace_Range
+        (Source, Inner_Close + 7, Outer_Close - 1);
    end Math_Source_Valid;
+
+   function Normalize_Math_Source (Source : String) return String is
+      Outer_End      : Natural;
+      Outer_Close    : Natural;
+      Nested_Count   : Natural;
+      Nested_Start   : Natural;
+      Nested_End     : Natural;
+      Inner_Close    : Natural;
+      Inner_Nested   : Natural;
+      Inner_Start    : Natural;
+      Inner_End      : Natural;
+      Outer_Info     : Tag_Info;
+      First_Nonspace : Natural;
+   begin
+      if not Math_Source_Valid (Source) then
+         return Source;
+      end if;
+      Outer_End := Find_Tag_End (Source, Source'First);
+      if not Parse_Tag
+        (Source (Source'First .. Outer_End), Outer_Info)
+      then
+         return Source;
+      end if;
+      if not Find_Math_Close
+        (Source, Outer_End + 1, Outer_Close, Nested_Count,
+         Nested_Start, Nested_End)
+      then
+         return Source;
+      end if;
+      if Nested_Count = 1 then
+         First_Nonspace := Outer_End + 1;
+         while First_Nonspace < Outer_Close
+           and then Is_Space (Source (First_Nonspace))
+         loop
+            First_Nonspace := First_Nonspace + 1;
+         end loop;
+         if First_Nonspace = Nested_Start
+           and then Find_Math_Close
+             (Source, Nested_End + 1, Inner_Close, Inner_Nested,
+              Inner_Start, Inner_End)
+         then
+            return Source (Nested_Start .. Inner_Close + 6);
+         end if;
+      end if;
+      return "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & Source (Outer_End + 1 .. Outer_Close - 1) & "</math>";
+   end Normalize_Math_Source;
 
    procedure Complete_Top
      (Parser : in out Instance; Handler : Event_Handler; Last : Natural) is
@@ -1355,8 +1508,23 @@ package body Coyote_Renderer.Incremental is
       Emit_Last : Natural;
       Held : Natural := 0;
    begin
-      Close := Ada.Strings.Fixed.Index
-        (Source, End_Tag, Parser.Cursor + 1);
+      if Name = "math" then
+         declare
+            Nested_Count : Natural;
+            Nested_Start : Natural;
+            Nested_End   : Natural;
+         begin
+            if not Find_Math_Close
+              (Source, Parser.Cursor + 1, Close, Nested_Count,
+               Nested_Start, Nested_End)
+            then
+               Close := 0;
+            end if;
+         end;
+      else
+         Close := Ada.Strings.Fixed.Index
+           (Source, End_Tag, Parser.Cursor + 1);
+      end if;
       if Close = 0 then
          for Length in reverse 1 .. End_Tag'Length loop
             declare

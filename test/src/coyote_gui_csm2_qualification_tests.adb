@@ -345,6 +345,31 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "CSM math is native after finalization");
    end Test_CSM2_Deferred_Blocks_Finalize_Only;
 
+   procedure Test_CSM2_Redundant_Math_Wrapper (T : in out Test) is
+      Source : constant String :=
+        "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & ASCII.LF
+        & "  <math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mrow><mi>x</mi><mo>&lt;</mo><mn>10</mn></mrow>"
+        & "</math>" & ASCII.LF & "</math>";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Math_Element_Count (T.Stack) = 1,
+              "redundant MathML creates one native element");
+      Assert (Math_Is_Valid (T.Stack, 1),
+              "redundant MathML creates valid native MathML");
+      Assert (Index (Math_Source (T.Stack, 1), Source) > 0,
+              "redundant MathML retains complete CSM source");
+      Assert (Index (Visible_Text (T.Stack), "<math") = 0,
+              "valid redundant MathML hides wrapper source");
+   end Test_CSM2_Redundant_Math_Wrapper;
+
    procedure Test_CSM2_Reset_And_Duplicate_Finalization (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -447,6 +472,9 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI deferred blocks finalize only",
          Test_CSM2_Deferred_Blocks_Finalize_Only'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI redundant MathML wrapper",
+         Test_CSM2_Redundant_Math_Wrapper'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI reset and duplicate finalization",
          Test_CSM2_Reset_And_Duplicate_Finalization'Access));

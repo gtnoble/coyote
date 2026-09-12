@@ -349,6 +349,44 @@ package body Coyote_Incremental_Tests is
               "every structural split preserves row source");
    end Test_Table_Delta_Boundaries;
 
+   procedure Test_Table_Structural_Whitespace (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+      Source : constant String :=
+        "<table>" & ASCII.LF & "  <row>" & ASCII.HT
+        & "<cell>A</cell>" & ASCII.CR & "  <cell>B</cell>" & ASCII.LF
+        & "</row>" & ASCII.LF & " <row><cell>C</cell><cell>D</cell>"
+        & "</row>" & ASCII.LF & "</table>";
+      Table  : Block_Id;
+   begin
+      Parse (Source, D, Result);
+      Assert (Result.Invalid = 0,
+              "structural table whitespace is ignored");
+      Table := Block_At (D, 1);
+      Assert (Table_Row_Count (D, Table) = 2,
+              "whitespace table retains both rows");
+      Assert (Table_Column_Count (D, Table) = 2,
+              "whitespace table retains its width");
+      Assert
+        (Table_Cell_Value
+           (D, Table_Cell_At (D, Table_Row_At (D, Table, 1), 1)) = "A",
+         "whitespace table retains first cell value");
+      Assert
+        (Table_Row_Source (D, Table_Row_At (D, Table, 1)) =
+           "<row>" & ASCII.HT & "<cell>A</cell>" & ASCII.CR
+           & "  <cell>B</cell>" & ASCII.LF & "</row>",
+         "whitespace table preserves exact row source");
+      Parse ("<table> meaningful<row><cell>x</cell></row></table>",
+             D, Result);
+      Assert (Result.Invalid > 0,
+              "meaningful table text remains invalid");
+      Parse ("<table><row> meaningful<cell>x</cell></row></table>",
+             D, Result);
+      Assert (Result.Invalid > 0,
+              "meaningful row text remains invalid");
+   end Test_Table_Structural_Whitespace;
+
    procedure Test_Table_Incomplete_And_Malformed_Recovery (T : in out Test) is
       pragma Unreferenced (T);
       Parser : Instance;
@@ -405,6 +443,47 @@ package body Coyote_Incremental_Tests is
       Assert (Inline_Value (D, Block_Inline_At (D, Para, 1)) =
                 "&lt;strong&gt;", "code-inline is not recursively parsed");
    end Test_Math_And_Code_Are_Opaque;
+
+   procedure Test_Redundant_Math_Wrapper (T : in out Test) is
+      pragma Unreferenced (T);
+      Less_Equal : constant String :=
+        Character'Val (16#E2#) & Character'Val (16#89#)
+        & Character'Val (16#A4#);
+      D      : Document;
+      Result : Log;
+      Source : constant String :=
+        "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & ASCII.LF & "  <math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mrow><mi>x</mi><mo>" & Less_Equal
+        & "</mo><mn>10</mn></mrow>"
+        & "</math>" & ASCII.LF & "</math>";
+      Math : Block_Id;
+      Qualified : constant String :=
+        "<math xmlns=""http://www.w3.org/1998/Math/MathML"">";
+      Normalized : constant String :=
+        Qualified & "<mrow><mi>x</mi><mo>" & Less_Equal
+        & "</mo><mn>10</mn></mrow></math>";
+   begin
+      Parse (Source, D, Result);
+      Assert (Result.Invalid = 0,
+              "qualified redundant MathML wrapper is accepted");
+      Assert (Block_Count (D) = 1,
+              "redundant MathML remains one semantic block");
+      Math := Block_At (D, 1);
+      Assert (Block_Kind_Of (D, Math) = Display_Math,
+              "redundant MathML remains display math");
+      Assert (MathML_Source (D, Math) = Source,
+              "redundant MathML preserves complete source");
+      Assert (Normalize_Math_Source (Source) = Normalized,
+              "normalization unwraps the redundant outer wrapper");
+      Assert
+        (Normalize_Math_Source
+           ("<math xmlns=""http://www.w3.org/1998/Math/MathML""><math>"
+            & "<mi>x</mi></math></math>") =
+           "<math xmlns=""http://www.w3.org/1998/Math/MathML""><math>"
+           & "<mi>x</mi></math></math>",
+         "unqualified nested MathML remains unchanged");
+   end Test_Redundant_Math_Wrapper;
 
    procedure Test_Entities_And_Markdown_Are_Literal (T : in out Test) is
       pragma Unreferenced (T);
@@ -752,11 +831,17 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 table delta boundaries", Test_Table_Delta_Boundaries'Access));
       Result.Add_Test (Caller.Create
+        ("CSM-2 table structural whitespace",
+         Test_Table_Structural_Whitespace'Access));
+      Result.Add_Test (Caller.Create
         ("CSM-2 table incomplete and malformed recovery",
          Test_Table_Incomplete_And_Malformed_Recovery'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 opaque code and MathML",
          Test_Math_And_Code_Are_Opaque'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 redundant MathML wrapper",
+         Test_Redundant_Math_Wrapper'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 entities and Markdown literalness",
          Test_Entities_And_Markdown_Are_Literal'Access));

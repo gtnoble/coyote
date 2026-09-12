@@ -98,6 +98,9 @@ package Coyote_Renderer.Incremental is
      (Parser : Instance;
       Target : in out Coyote_Renderer.Semantics.Document);
 
+   --  Normalize a complete CSM terminal math block for native MathML.
+   --  One redundant namespace-qualified nested math wrapper is unwrapped.
+   function Normalize_Math_Source (Source : String) return String;
    --  Consume UTF-8 data synchronously.  CSM-2 is an explicit, case-sensitive
    --  XML-like language.  Unknown, malformed, crossing, and incomplete input
    --  remains visible source through the compatibility event and

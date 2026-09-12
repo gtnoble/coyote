@@ -153,6 +153,17 @@ parser tests pass 11/11; the complete registered development suite passes
 unchanged and pass through the compatibility event facade; migration of
 persisted CSM-1 records remains outside this parser phase.
 
+### CSM-2 tolerant structural recovery (2026-09-12)
+
+CSM-2 now ignores whitespace-only text between `<table>`/`<row>` structural
+children, while preserving rejection of meaningful structural text. The parser
+also accepts one balanced, namespace-qualified redundant `<math>` wrapper and
+shares its normalization logic with the native GUI MathML renderer; original
+CSM source remains retained for inspection and fallback.
+
+**Verification:** Headless CSM-2 parser and qualification tests pass 34/34;
+GUI CSM-2 qualification includes native redundant-MathML coverage.
+
 ### CSM-2 Phase 12 closure evidence (PCR-101, 2026-09-12)
 
 PCR-101 is closed after controlled requirements/design review and qualification

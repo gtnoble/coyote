@@ -47,10 +47,11 @@ below; do not emit arbitrary HTML or XML.
   non-empty tags except `<br>` and `<hr>` require matching closing tags. Use
   `<br/>` or `<br />` and `<hr/>` or `<hr />` for the two empty tags.
 - Tables require explicit `<table><row><cell>...</cell></row></table>`
-  structure. Pipe-separated rows have no CSM-2 meaning.
+  structure. Whitespace-only text between table/row structural tags is
+  ignored; meaningful text there is malformed.
+  Pipe-separated rows have no CSM-2 meaning.
 
 ## Attributes
-
 Attribute names are case-sensitive. Attribute values use double quotes and
 XML escaping. The only legal attributes are:
 
@@ -81,9 +82,12 @@ respective parents.
 source text, CSM tags and entity references inside them are not parsed, and no
 nested CSM elements are allowed. A literal `</code>` cannot occur as content
 inside one `<code>` element because it is the closing sequence. `<math>` is
-also a terminal region: it contains exactly one complete Presentation MathML
+also a terminal region: it contains one complete Presentation MathML
 `<math>` document using the standard namespace above and Presentation MathML
-elements. CSM-2 assigns no additional meaning to that terminal payload. Do not
+elements. For compatibility, one redundant, namespace-qualified nested
+`<math>` wrapper may surround the expression; only whitespace may occur around
+that wrapper. CSM-2 assigns no additional meaning to that terminal payload. Do
+not
 use LaTeX, Content MathML, or display-math delimiter syntax.
 
 ## Escaping and malformed input

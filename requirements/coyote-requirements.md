@@ -362,7 +362,9 @@ parity, and complete-suite tests.
 CSM-2 defines the explicit block tags `<p>`, `<h1>` through `<h6>`,
 `<blockquote>`, `<list>`, `<item>`, `<code>`, `<table>`, `<row>`, `<cell>`,
 `<math>`, and `<hr>`. Tables require explicit non-empty `<row>` and `<cell>`
-structure; GFM table syntax, pipe-table rules, and Markdown table semantics
+structure; whitespace-only text between table/row structural tags is ignored,
+while meaningful structural text remains malformed. GFM table syntax, pipe-table
+rules, and Markdown table semantics
 have no CSM-2 meaning. Text, headings, blockquotes, lists, code, `br`, and
 `hr` may be presented incrementally; native tables and terminal MathML are
 realized only at complete boundaries or final reconciliation. Verified by
@@ -373,7 +375,9 @@ evidence.
 `<math>` contains exactly one complete terminal Presentation MathML `<math>`
 document using the standard namespace
 `http://www.w3.org/1998/Math/MathML`. CSM-2 assigns no semantics to that
-payload; LaTeX, Content MathML, and Markdown display-math delimiters are not
+payload. One redundant namespace-qualified nested `<math>` wrapper is accepted
+when it is balanced and surrounded only by whitespace; LaTeX, Content MathML,
+and Markdown display-math delimiters are not
 CSM-2 syntax. The live renderer retains complete math source as deferred state;
 native MathML is realized at a complete boundary or final reconciliation.
 Verified by parser, live-renderer, GUI native MathML, Markdown MathML reference,

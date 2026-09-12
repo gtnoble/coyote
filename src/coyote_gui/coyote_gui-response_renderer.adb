@@ -9,6 +9,7 @@ with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_GUI.Math_Element;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.MathML;
+with Coyote_Renderer.Incremental;
 with Coyote_Renderer.Semantics;
 with Glib;                  use Glib;
 with Glib.Error;
@@ -408,20 +409,8 @@ package body Coyote_GUI.Response_Renderer is
    end Add_Table;
 
    function Terminal_MathML (Source : String) return String is
-      Open_End : constant Natural :=
-        Ada.Strings.Fixed.Index (Source, ">", Source'First);
-      Close_Start : constant Natural :=
-        (if Source'Length > 0 then
-           Ada.Strings.Fixed.Index (Source, "</math>", Source'First)
-         else 0);
    begin
-      if Open_End = 0 or else Close_Start = 0
-        or else Close_Start <= Open_End
-      then
-         return Source;
-      end if;
-      return "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & Source (Open_End + 1 .. Close_Start - 1) & "</math>";
+      return Coyote_Renderer.Incremental.Normalize_Math_Source (Source);
    end Terminal_MathML;
 
    procedure Add_Math

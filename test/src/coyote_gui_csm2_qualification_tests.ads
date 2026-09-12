@@ -29,6 +29,7 @@ package Coyote_GUI_CSM2_Qualification_Tests is
      (T : in out Test);
    procedure Test_CSM2_Live_Visibility_And_Styles (T : in out Test);
    procedure Test_CSM2_Deferred_Blocks_Finalize_Only (T : in out Test);
+   procedure Test_CSM2_Redundant_Math_Wrapper (T : in out Test);
    procedure Test_CSM2_Reset_And_Duplicate_Finalization (T : in out Test);
    procedure Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback
      (T : in out Test);
