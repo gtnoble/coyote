@@ -814,6 +814,28 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (not Is_Completed (T.Stack), "clear removes terminal state");
    end Test_Clear_Removes_Exchange_State;
 
+   procedure Test_Clear_Preserves_CSM_Mode (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Clear (T.Stack);
+      Assert (Get_Incremental_Markup (T.Stack),
+              "clear preserves CSM mode");
+      Assert
+        (Get_Response_Format (T.Stack) = Coyote_Stream_2_Response,
+         "clear preserves CSM-2 response format");
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>after clear <strong>CSM</strong></p>");
+      Assert (Live_Response_Present (T.Stack),
+              "CSM live renderer is active after clear");
+      End_Text_Block (T.Stack);
+      Assert (Index (Text_View_Text (T.Stack, Text_View_Count (T.Stack)),
+                     "after clear CSM") > 0,
+              "CSM response renders after clear");
+   end Test_Clear_Preserves_CSM_Mode;
+
    procedure Test_Native_Display_Math_Realizes_Element (T : in out Test) is
       Source : constant String :=
         "before" & ASCII.LF & "$$" & ASCII.LF
@@ -1198,6 +1220,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Clear_Removes_Exchange_State'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack preserves CSM after clear",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Clear_Preserves_CSM_Mode'Access));
 
       return Result;
    end Suite;

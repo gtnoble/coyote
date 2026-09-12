@@ -1041,9 +1041,8 @@ package body Coyote_GUI.Conversation_Stack is
       C.Response_Box     := null;
       Coyote_GUI.Live_Response_Renderer.Clear (C.Live_Renderer);
       Coyote_GUI.Response_Renderer.Clear (C.Response_Renderer);
-      C.Response_Format    := Coyote_GUI.Markdown_Response;
-      C.Render_Markdown    := True;
-      C.Incremental_Markup := False;
+      --  Clear presentation state without changing the selected response
+      --  format; the next live turn must use the same configured renderer.
       C.Presentation_Ready := False;
       C.Math_Scale         := 1.0;
       C.Stream_Mark      := null;
