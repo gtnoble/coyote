@@ -39,10 +39,10 @@ package LLM.System_Prompt is
    --  Coordinator_Mode : when True and No_Tools is False, the prompt
    --                     includes coordinator subagent-orchestration
    --                     guidance (REQ-CORE-190..192).
-   --  Response_Format  : application-selected assistant format.  Coyote
-   --                     Stream mode adds restricted CSM generation
-   --                     guidance; all other values retain Markdown
-   --                     guidance.
+   --  Response_Format  : application-selected assistant format.  CSM-2 adds
+   --                     restricted CSM generation guidance; all other values
+   --                     retain Markdown guidance and explicitly select
+   --                     Markdown response syntax.
    --
    --  The static prompt prose is loaded from the installed
    --  share/coyote/system-prompt.md resource.  The executable-relative

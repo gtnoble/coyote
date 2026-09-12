@@ -106,11 +106,6 @@ replays requested history, dispatches native events through the same dispatcher,
 and reads additional prompts from standard input. It does not initialize GTK,
 open desktop windows, or use external integration services.
 
-**Active CSM-2 behavior:** `COYOTE_INCREMENTAL_MARKUP=1` selects the independent
-CSM-2 path for live GUI assistant responses. Versionless CSM-1 replay is shown as
-visible raw source because the CSM-1 parser is retired; CSM-2 records use
-`formatVersion: 2`. Markdown remains the default and Plain behavior is unchanged.
-
 Session headers persist sandbox profiles, thinking levels, and parent lineage.
 Child processes inherit the relevant `COYOTE_*` values. Tool subprocesses are
 tracked by `Coyote_Process_Control`; process-wide SIGTERM uses the configured

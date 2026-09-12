@@ -146,9 +146,10 @@ use typed explicit rows/cells, terminal Presentation MathML remains native, and
 selection/copy follows the shared response policy. Markdown remains the default
 path, and Plain remains unchanged. The selected response format also controls
 model-facing prompt guidance: CSM-2 receives its restricted grammar
-instructions, while Markdown and Plain retain the existing prompt. Versionless
-CSM-1 records remain replay compatibility input and are shown as raw source
-because the CSM-1 parser is retired.
+instructions, while Markdown and Plain retain the Markdown-only response
+contract and do not receive the active CSM policy from auto-loaded repository
+instructions. Versionless CSM-1 records remain replay compatibility input and
+are shown as raw source because the CSM-1 parser is retired.
 
 ### Historical — CSM-1 focused incremental-markup implementation verification (2026-09-06)
 

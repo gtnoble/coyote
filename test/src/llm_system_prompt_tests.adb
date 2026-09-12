@@ -159,8 +159,12 @@ package body LLM_System_Prompt_Tests is
         LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
    begin
       Assert
-        (Ada.Strings.Fixed.Index (P, "Coyote Stream Markup") = 0,
-         "Markdown prompt should exclude CSM guidance");
+        (Ada.Strings.Fixed.Index (P, "# Coyote Stream Markup (CSM-2)") = 0,
+         "Markdown prompt should exclude CSM grammar guidance");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "The selected response format is Markdown.") > 0,
+         "Markdown prompt should identify its response format");
       Assert
         (Ada.Strings.Fixed.Index (P, "$$") > 0,
          "Markdown prompt should retain display-math delimiters");
@@ -183,6 +187,10 @@ package body LLM_System_Prompt_Tests is
       Assert
         (Ada.Strings.Fixed.Index (P, "Coyote Stream Markup (CSM-2)") > 0,
          "CSM prompt should identify CSM-2 guidance");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "The selected response format is Markdown.") = 0,
+         "CSM prompt should exclude the Markdown response guard");
       Assert
         (Ada.Strings.Fixed.Index
            (P, "independent,") > 0

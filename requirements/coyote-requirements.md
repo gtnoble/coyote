@@ -391,6 +391,12 @@ source because the CSM-1 parser is retired; it is not passed to the CSM-2 parser
 or reinterpreted as Markdown. No persisted-record migration is performed.
 Verified by session-store, history, RPC, and complete-suite evidence.
 
+**REQ-CORE-047h** (D/I/T)
+When Markdown is selected, the system prompt shall not inject active CSM
+response-generation policy through automatically loaded repository agent
+instructions. Ordinary project-specific instructions shall remain available.
+Verified by the system-prompt regression and the dynamic-context test.
+
 #### 3.1.5 Tool Execution
 
 **REQ-CORE-050** (T)
@@ -1819,6 +1825,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
 | REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, explicit grammar, terminal Presentation MathML, visible-source fallback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 controlled qualification matrix |
+| REQ-CORE-047h | Markdown prompt excludes active CSM policy from auto-loaded project instructions while retaining ordinary context | D/I/T | TC-174; focused system-prompt tests |
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |
 | REQ-CORE-045 | Auto-retry events displayed | D | TC-045 |

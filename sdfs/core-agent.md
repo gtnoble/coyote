@@ -1,5 +1,17 @@
 # Component Development Log — Core Agent
 
+## 2026-09-12 — Default-off CSM prompt isolation
+
+The static system-prompt renderer already removed the CSM-2 grammar for
+Markdown responses, but the repository `AGENTS.md` was automatically appended
+as project context and contained active CSM runtime policy. Removed that
+runtime policy from the live agent-instruction file and added a Markdown-only
+response-format guard to `share/coyote/system-prompt.md`; ordinary project
+context remains injectable. Added prompt regression assertions for both
+Markdown and CSM-2 rendering. Production and test development builds succeed;
+the focused system-prompt tests pass 34/34, the dynamic-context injection test
+passes 1/1, and the complete AUnit suite passes 921/921.
+
 > **Current-baseline note (2026-08-30):** Entries below that mention Acme,
 > Nine_P, 9P, or plumber describe superseded pre-PCR-090 architecture. They
 > are retained as historical development records and are not current design

@@ -3,6 +3,31 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-102 — Default-off CSM policy in project context (2026-09-12)
+
+- **Date reported:** 2026-09-12
+- **Category:** Requirements, Design, Code, Test, Plans, Manuals
+- **Priority:** 3-Moderate
+- **Description:** Markdown mode removed the static CSM-2 prompt block, but the
+  repository `AGENTS.md` was automatically loaded as project context and still
+  contained active CSM runtime instructions. This caused CSM-related policy to
+  remain in the final system prompt when CSM was disabled.
+- **Root cause:** Static format rendering was response-format-aware, while
+  automatically loaded repository instructions were appended independently of
+  `Response_Format`.
+- **Affected work products:** `AGENTS.md`, the static system-prompt resource,
+  `LLM.System_Prompt`, CSM requirements/design/SDF records, and prompt tests.
+- **Corrective action:** Removed active CSM runtime policy from the live
+  `AGENTS.md`; added an explicit Markdown-only response contract to the static
+  prompt; retained ordinary project-context injection; and added format-specific
+  regression assertions and traceability updates.
+- **Verification:** Production `alr build` and `cd test && alr build` succeeded
+  in the development profile. Focused system-prompt tests passed 34/34;
+  dynamic-context injection passed 1/1; and the complete AUnit suite passed
+  921/921 with zero failed assertions and zero unexpected errors.
+- **Status:** Closed/Implemented and Verified
+- **Date closed:** 2026-09-12
+
 ## PCR-097 — Agents companion window floated by tiling window managers (2026-09-06)
 
 - **Date reported:** 2026-09-06

@@ -24,6 +24,12 @@ When writing standalone display mathematics intended for the coyote GUI, output 
 When writing inline mathematics, use Unicode math symbols directly (for example, Unicode comparison, multiplication, root, arrow, and Greek-letter symbols) rather than LaTeX notation or backslash commands.
 - Keep inline mathematics readable in ordinary text; do not use LaTeX-style inline delimiters or commands.
 
+{{MARKDOWN_RESPONSE_BEGIN}}
+# Response Format
+The selected response format is Markdown. Use Markdown syntax for assistant
+responses; do not emit stream-specific tags or XML-like response markup.
+{{MARKDOWN_RESPONSE_END}}
+
 {{CSM_BEGIN}}
 # Coyote Stream Markup (CSM-2)
 

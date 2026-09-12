@@ -380,11 +380,17 @@ package body LLM.System_Prompt is
          Remove
            ("{{MARKDOWN_DISPLAY_MATH_BEGIN}}",
             "{{MARKDOWN_DISPLAY_MATH_END}}");
+         Remove
+           ("{{MARKDOWN_RESPONSE_BEGIN}}",
+            "{{MARKDOWN_RESPONSE_END}}");
       else
          Remove ("{{CSM_BEGIN}}", "{{CSM_END}}");
          Unwrap
            ("{{MARKDOWN_DISPLAY_MATH_BEGIN}}",
             "{{MARKDOWN_DISPLAY_MATH_END}}");
+         Unwrap
+           ("{{MARKDOWN_RESPONSE_BEGIN}}",
+            "{{MARKDOWN_RESPONSE_END}}");
       end if;
 
       if No_Tools then

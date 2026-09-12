@@ -1893,7 +1893,10 @@ Concatenates:
    variant, and shell-quoted subagent command are rendered into the resource.
 3. **Dynamic session sections** — agent text, settings, memory, project
    context, skills, current date, working directory, and shell are appended by
-   Ada in their existing order.
+   Ada in their existing order. The selected response format controls the
+   static response contract; Markdown mode does not reintroduce the active CSM
+   policy through the repository's automatically loaded `AGENTS.md`, while
+   ordinary project instructions remain available.
 4. **Personality definition** — terse, direct, pragmatic; no cheerleading or
    conversational interjections; guidance on final answers and intermediary
    updates (REQ-CORE-170).
