@@ -985,6 +985,13 @@ whether the GTK model picker displays SI-prefixed or dB prices. The threshold
 percentage shall be an integer from 1 through 100 and shall default to 80.
 
 **REQ-CORE-117** (D)
+The GUI Preferences dialog shall also provide an HTTP low-speed timeout from 0
+through 300 seconds, defaulting to 30; zero disables the timeout. It shall be
+persisted as `httpLowSpeedTimeSeconds` in `~/.coyote/settings.json` and apply to
+subsequently created sessions. Provider requests shall use a fixed one-byte per
+second low-speed limit; curl operation timeouts shall be retried by the normal
+agent retry policy, while user cancellation shall remain non-retryable.
+
 When the user saves GUI preferences, the frontend shall persist the default
 model as `defaultProvider` and `defaultModel`, the thinking level as
 `defaultThinkingLevel`, the sandbox profile as `defaultSandboxProfile`, and the

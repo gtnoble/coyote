@@ -19,6 +19,11 @@ package LLM.Settings is
    Default_Termination_Grace_Seconds : constant Natural := 2;
    Max_Termination_Grace_Seconds     : constant Natural := 30;
 
+   --  Time below the HTTP low-speed limit before libcurl aborts a request.
+   --  Zero disables this protection; values above the maximum are clamped.
+   Default_Low_Speed_Time_Seconds : constant Natural := 30;
+   Max_Low_Speed_Time_Seconds     : constant Natural := 300;
+
    --  Price units shown in the GTK model picker.
    type Price_Display_Mode is
      (SI_Prefixes,
@@ -45,6 +50,9 @@ package LLM.Settings is
       --  Grace period after process shutdown sends SIGTERM to shell groups.
       Shell_Termination_Grace_Seconds : Natural            :=
         Default_Termination_Grace_Seconds;
+      --  Seconds below the low-speed limit before libcurl aborts a request.
+      Low_Speed_Time_Seconds          : Natural            :=
+        Default_Low_Speed_Time_Seconds;
       Append_System_Prompt            : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command line through which interactive prompts are filtered
       --  before being sent to the agent.  The raw prompt is written to stdin
@@ -111,7 +119,9 @@ package LLM.Settings is
         LLM.Compaction.Default_Threshold_Percent;
       Skill_Paths : String_Vectors.Vector := String_Vectors.Empty_Vector;
       Termination_Grace_Seconds : Natural               :=
-        Default_Termination_Grace_Seconds);
+        Default_Termination_Grace_Seconds;
+      Low_Speed_Time_Seconds : Natural                  :=
+        Default_Low_Speed_Time_Seconds);
 
    --  Update the persistent sandbox default only when it names Old_Name.
    procedure Rename_Default_Sandbox (Old_Name : String; New_Name : String);

@@ -232,6 +232,7 @@ package body Test_HTTP_Server is
             Put (To_String (HP.Name) & ": " & To_String (HP.Value) & CRLF);
          end loop;
          Put (CRLF);
+         delay Res.Body_Delay;
          Put (Body_Str);
       end;
 

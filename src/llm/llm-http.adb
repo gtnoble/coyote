@@ -10,6 +10,30 @@ with System;
 
 package body LLM.HTTP is
 
+   protected Configuration is
+      procedure Set_Low_Speed_Time (Value : Natural);
+      function Low_Speed_Time return Natural;
+   private
+      Low_Speed_Time_Seconds : Natural := 0;
+   end Configuration;
+
+   protected body Configuration is
+      procedure Set_Low_Speed_Time (Value : Natural) is
+      begin
+         Low_Speed_Time_Seconds := Value;
+      end Set_Low_Speed_Time;
+
+      function Low_Speed_Time return Natural is
+      begin
+         return Low_Speed_Time_Seconds;
+      end Low_Speed_Time;
+   end Configuration;
+
+   procedure Configure (Low_Speed_Time_Seconds : Natural) is
+   begin
+      Configuration.Set_Low_Speed_Time (Low_Speed_Time_Seconds);
+   end Configure;
+
    use type Curl_Binding.Code;
    use type Curl_Binding.Handle;
    use type Curl_Binding.Slist;
@@ -31,7 +55,9 @@ package body LLM.HTTP is
    procedure Check (Result : Curl_Binding.Code; What : String) is
    begin
       if Result /= Curl_Binding.CURLE_OK then
-         raise Curl_Error with What & ": " & Curl_Message (Result);
+         raise Curl_Error with
+           What & " (curl code" & Curl_Binding.Code'Image (Result) & "): "
+           & Curl_Message (Result);
       end if;
    end Check;
 
@@ -115,6 +141,7 @@ package body LLM.HTTP is
          Exception_Occurred => False,
          Exception_Message  => Ada.Strings.Unbounded.Null_Unbounded_String);
       Response  : aliased Interfaces.C.long      := 0;
+      Low_Speed_Time : constant Natural := Configuration.Low_Speed_Time;
    begin
       if H = Curl_Binding.NULL_HANDLE then
          raise Curl_Error with "curl_easy_init failed";
@@ -126,6 +153,14 @@ package body LLM.HTTP is
       Check
         (Curl_Binding.Set_No_Signal (H, 1),
          "curl_easy_setopt(CURLOPT_NOSIGNAL)");
+      Check
+        (Curl_Binding.Set_Low_Speed_Limit
+           (H, Interfaces.C.long (Low_Speed_Limit_Bytes_Per_Second)),
+         "curl_easy_setopt(CURLOPT_LOW_SPEED_LIMIT)");
+      Check
+        (Curl_Binding.Set_Low_Speed_Time
+           (H, Interfaces.C.long (Low_Speed_Time)),
+         "curl_easy_setopt(CURLOPT_LOW_SPEED_TIME)");
       Check (Curl_Binding.Set_URL (H, URL_C), "curl_easy_setopt(CURLOPT_URL)");
 
       if Header_S /= Curl_Binding.NULL_SLIST then

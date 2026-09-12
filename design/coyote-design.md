@@ -1444,6 +1444,9 @@ made by the GUI Preferences dialog. Plain execution does not persist settings th
   non-integer, or out-of-range values default to 1.
 - `Shell_Termination_Grace_Seconds` — `shellTerminationGraceSeconds`, an
   integer second count clamped to 0 through 30, default 2.
+- `Low_Speed_Time_Seconds` — `httpLowSpeedTimeSeconds`, an integer from 0
+  through 300 seconds, default 30; zero disables libcurl's low-speed timeout.
+  New HTTP requests use a fixed low-speed limit of one byte per second.
 - `Skill_Paths` — ordered additional absolute skill roots from the optional
   `skillPaths` JSON array; malformed or non-string entries are ignored.
 - Raw provider model entries and API-key configuration are read from

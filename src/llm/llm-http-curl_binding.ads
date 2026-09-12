@@ -20,8 +20,10 @@ package LLM.HTTP.Curl_Binding is
 
    NULL_HANDLE         : constant Handle := Handle (System.Null_Address);
    NULL_SLIST          : constant Slist := Slist (System.Null_Address);
-   CURLE_OK            : constant Code              := 0;
-   CURL_GLOBAL_DEFAULT : constant Interfaces.C.long := 3;
+   CURLE_OK                    : constant Code              := 0;
+   CURLE_OPERATION_TIMEDOUT   : constant Code              := 28;
+   CURLE_ABORTED_BY_CALLBACK  : constant Code              := 42;
+   CURL_GLOBAL_DEFAULT        : constant Interfaces.C.long := 3;
 
    --  C-convention write callback type.
    type Write_Func is
@@ -87,6 +89,14 @@ package LLM.HTTP.Curl_Binding is
 
    function Set_No_Signal (H : Handle; V : Interfaces.C.long) return Code with
      Import, Convention => C, External_Name => "curl_set_nosignal";
+
+   function Set_Low_Speed_Limit
+     (H : Handle; V : Interfaces.C.long) return Code with
+     Import, Convention => C, External_Name => "curl_set_low_speed_limit";
+
+   function Set_Low_Speed_Time
+     (H : Handle; V : Interfaces.C.long) return Code with
+     Import, Convention => C, External_Name => "curl_set_low_speed_time";
 
    function Set_No_Progress
      (H : Handle; V : Interfaces.C.long) return Code with

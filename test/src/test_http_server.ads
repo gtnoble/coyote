@@ -70,9 +70,10 @@ package Test_HTTP_Server is
    --  Content-Length is computed automatically from Body_Data; callers
    --  do not need to add it to Headers.
    type Response is record
-      Status    : Natural := 200;
-      Headers   : Header_List;
-      Body_Data : Unbounded_String;
+      Status       : Natural := 200;
+      Headers      : Header_List;
+      Body_Data    : Unbounded_String;
+      Body_Delay   : Duration := 0.0;
    end record;
 
    --  ── Handler callback ──────────────────────────────────────────────────

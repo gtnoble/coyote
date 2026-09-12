@@ -13,6 +13,15 @@ with System;
 
 package LLM.HTTP is
 
+   --  A low-speed limit of one byte per second detects a stalled streaming
+   --  connection without imposing a total request duration.
+   Low_Speed_Limit_Bytes_Per_Second : constant Natural := 1;
+
+   --  Configure the low-speed timeout used by subsequently started requests.
+   --  Zero disables the low-speed timeout.  The setting is process-scoped and
+   --  is safe to update while another request is in progress.
+   procedure Configure (Low_Speed_Time_Seconds : Natural);
+
    type Header_List is limited private;
 
    --  Append a request header in "Name: Value" form.

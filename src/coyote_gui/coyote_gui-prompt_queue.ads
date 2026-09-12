@@ -26,6 +26,8 @@ package Coyote_GUI.Prompt_Queue is
       Subagent_Model            : Ada.Strings.Unbounded.Unbounded_String;
       Max_Recursion_Depth       : Natural                         := 1;
       Termination_Grace_Seconds : Natural                         := 2;
+      Low_Speed_Time_Seconds    : Natural                         :=
+        LLM.Settings.Default_Low_Speed_Time_Seconds;
       Completion_Notifications  : Boolean                         := True;
       Auto_Compaction           : Boolean                         := True;
       Compaction_Threshold_Percent : LLM.Compaction.Threshold_Percent_Range :=

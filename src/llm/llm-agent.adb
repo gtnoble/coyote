@@ -865,7 +865,10 @@ package body LLM.Agent is
       end if;
    end Retryable_Status_Code;
 
-   --  curl_easy_strerror message fragments for transient transport-level
+   --  Numeric curl code 28 is the low-speed timeout configured by the
+   --  HTTP layer.  The text fallbacks retain compatibility with errors
+   --  produced before numeric curl codes were included in Curl_Error.
+   --  Other curl_easy_strerror message fragments for transient transport-level
    --  curl codes: CURLE_HTTP2_STREAM (92), CURLE_HTTP2 (16),
    --  CURLE_RECV_ERROR (56), CURLE_SEND_ERROR (55), CURLE_GOT_NOTHING
    --  (52), and CURLE_PARTIAL_FILE (18).  These can occur sporadically
@@ -877,7 +880,11 @@ package body LLM.Agent is
    function Is_Transport_Error_Message (Message : String) return Boolean is
    begin
       return
-        Ada.Strings.Fixed.Index
+        Ada.Strings.Fixed.Index (Message, "curl code 28") > 0
+        or else Ada.Strings.Fixed.Index (Message, "Timeout was reached") > 0
+        or else Ada.Strings.Fixed.Index (Message, "Operation timed out") > 0
+        or else
+          Ada.Strings.Fixed.Index
           (Message, "Stream error in the HTTP/2 framing layer")
         > 0
         or else

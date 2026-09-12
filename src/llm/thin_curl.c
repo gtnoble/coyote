@@ -54,6 +54,16 @@ CURLcode curl_set_nosignal (CURL *h, long v)
   return curl_easy_setopt (h, CURLOPT_NOSIGNAL, v);
 }
 
+CURLcode curl_set_low_speed_limit (CURL *h, long v)
+{
+  return curl_easy_setopt (h, CURLOPT_LOW_SPEED_LIMIT, v);
+}
+
+CURLcode curl_set_low_speed_time (CURL *h, long v)
+{
+  return curl_easy_setopt (h, CURLOPT_LOW_SPEED_TIME, v);
+}
+
 CURLcode curl_set_noprogress (CURL *h, long v)
 {
   return curl_easy_setopt (h, CURLOPT_NOPROGRESS, v);

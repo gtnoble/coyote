@@ -446,8 +446,9 @@ agent session.
 The GTK Preferences dialog is implemented as an `Options → Preferences...`
 workflow. It edits persistent model, thinking-level, sandbox, optional
 subagent-model, recursion-depth, termination-grace, completion-notification,
-price-display, and ordered skill-directory defaults on the GTK main task, then
-sends a typed `Set_Preferences` payload through the protected prompt queue to
+price-display, HTTP low-speed timeout, and ordered skill-directory defaults on
+the GTK main task, then sends a typed `Set_Preferences` payload through the
+protected prompt queue to
 the agent task. The agent task owns settings-file persistence and reports write
 success or failure through the frontend. Saving defaults does not change the
 active session; the existing Agent menu controls remain the runtime override

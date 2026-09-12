@@ -1,6 +1,8 @@
 with AUnit.Assertions;
 with Ada.Real_Time;
 with Ada.Exceptions;
+with Ada.Strings;
+with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -210,6 +212,114 @@ package body LLM_HTTP_Tests is
          "POST non-200 responses should deliver the response body");
    end Test_HTTP_Non_200_Returns_Status_And_Body;
 
+   procedure Test_HTTP_Low_Speed_Timeout_Preserves_Code (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Port           : constant Positive := 18_769;
+      Headers        : LLM.HTTP.Header_List;
+      Server_Stopped : Boolean := False;
+
+      protected Runner_State is
+         procedure Note_Error (Text : String);
+         function Error_Text return String;
+      private
+         Error_Message : Unbounded_String := Null_Unbounded_String;
+      end Runner_State;
+
+      protected body Runner_State is
+         procedure Note_Error (Text : String) is
+         begin
+            Error_Message := To_Unbounded_String (Text);
+         end Note_Error;
+
+         function Error_Text return String is
+         begin
+            return To_String (Error_Message);
+         end Error_Text;
+      end Runner_State;
+
+      procedure Collect (Data : String) is
+         pragma Unreferenced (Data);
+      begin
+         null;
+      end Collect;
+
+      procedure Stalled_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, "late response");
+         Res.Body_Delay := 2.0;
+      end Stalled_Handler;
+
+      Server : Test_HTTP_Server.Server
+        (Handler => Stalled_Handler'Unrestricted_Access);
+   begin
+      Server.Bind (Port);
+      LLM.HTTP.Configure (1);
+
+      declare
+         task Runner;
+
+         task body Runner is
+            Runner_Status : Natural := 0;
+         begin
+            LLM.HTTP.Get
+              (URL         => "http://127.0.0.1:18769/",
+               Headers     => Headers,
+               On_Chunk    => Collect'Access,
+               Status      => Runner_Status);
+            Runner_State.Note_Error ("request unexpectedly succeeded");
+         exception
+            when E : LLM.HTTP.Curl_Error =>
+               Runner_State.Note_Error
+                 (Ada.Exceptions.Exception_Message (E));
+            when E : others =>
+               Runner_State.Note_Error
+                 ("unexpected exception: "
+                  & Ada.Exceptions.Exception_Message (E));
+         end Runner;
+      begin
+         declare
+            use Ada.Real_Time;
+            Deadline : constant Time := Clock + Milliseconds (4_000);
+         begin
+            loop
+               exit when Runner'Terminated;
+               exit when Clock >= Deadline;
+               delay 0.01;
+            end loop;
+         end;
+
+         Assert
+           (Runner'Terminated,
+            "low-speed timeout should terminate the HTTP request");
+         Assert
+           (Ada.Strings.Fixed.Index
+              (Runner_State.Error_Text, "curl code 28") > 0,
+            "low-speed timeout should preserve curl code 28");
+      end;
+
+      LLM.HTTP.Configure (0);
+      Server.Stop;
+      Server_Stopped := True;
+   exception
+      when others =>
+         LLM.HTTP.Configure (0);
+         if not Server_Stopped then
+            begin
+               Server.Stop;
+            exception
+               when others =>
+                  null;
+            end;
+         end if;
+         raise;
+   end Test_HTTP_Low_Speed_Timeout_Preserves_Code;
+
    procedure Test_HTTP_Abort_During_Stalled_Response (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -337,6 +447,10 @@ package body LLM_HTTP_Tests is
         (LLM_HTTP_Caller.Create
            ("LLM.HTTP POST non-200 returns status and body",
             LLM_HTTP_Tests.Test_HTTP_Non_200_Returns_Status_And_Body'Access));
+      Result.Add_Test
+        (LLM_HTTP_Caller.Create
+           ("LLM.HTTP low-speed timeout preserves curl code",
+            LLM_HTTP_Tests.Test_HTTP_Low_Speed_Timeout_Preserves_Code'Access));
       Result.Add_Test
         (LLM_HTTP_Caller.Create
            ("LLM.HTTP aborts a stalled response promptly",

@@ -320,6 +320,13 @@ package body LLM.Settings is
                 (Root,
                  "shellTerminationGraceSeconds",
                  Default_Termination_Grace_Seconds)),
+         Low_Speed_Time_Seconds          =>
+           Natural'Min
+             (Max_Low_Speed_Time_Seconds,
+              Get_Natural_Field
+                (Root,
+                 "httpLowSpeedTimeSeconds",
+                 Default_Low_Speed_Time_Seconds)),
          Append_System_Prompt            =>
            To_Unbounded_String (Get_String_Field (Root, "appendSystemPrompt")),
          Prompt_Filter                   =>
@@ -422,7 +429,8 @@ package body LLM.Settings is
       Compaction_Threshold_Percent : LLM.Compaction.Threshold_Percent_Range :=
         LLM.Compaction.Default_Threshold_Percent;
       Skill_Paths : String_Vectors.Vector := String_Vectors.Empty_Vector;
-      Termination_Grace_Seconds : Natural := Default_Termination_Grace_Seconds)
+      Termination_Grace_Seconds : Natural := Default_Termination_Grace_Seconds;
+      Low_Speed_Time_Seconds : Natural := Default_Low_Speed_Time_Seconds)
    is
       Path     : constant String                   := Settings_Path;
       Existing : constant GNATCOLL.JSON.JSON_Value := Load_Json_File (Path);
@@ -477,6 +485,11 @@ package body LLM.Settings is
          Long_Integer
            (Natural'Min
               (Max_Termination_Grace_Seconds, Termination_Grace_Seconds)));
+      Root.Set_Field
+        ("httpLowSpeedTimeSeconds",
+         Long_Integer
+           (Natural'Min
+              (Max_Low_Speed_Time_Seconds, Low_Speed_Time_Seconds)));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
       Root.Set_Field ("autoCompaction", Auto_Compaction);
       Root.Set_Field

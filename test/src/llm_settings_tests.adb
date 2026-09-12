@@ -612,6 +612,61 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Termination_Grace_Load_And_Clamp;
 
+   procedure Test_Low_Speed_Time_Load_And_Clamp (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_low_speed";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      Write_File (Home & "/.coyote/settings.json", "{}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Low_Speed_Time_Seconds
+         = LLM.Settings.Default_Low_Speed_Time_Seconds,
+         "absent low-speed timeout should use the default");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""httpLowSpeedTimeSeconds"":0}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Low_Speed_Time_Seconds = 0,
+         "zero low-speed timeout should disable the timeout");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""httpLowSpeedTimeSeconds"":999}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Low_Speed_Time_Seconds
+         = LLM.Settings.Max_Low_Speed_Time_Seconds,
+         "low-speed timeout should clamp to the configured maximum");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""httpLowSpeedTimeSeconds"":-1}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Low_Speed_Time_Seconds
+         = LLM.Settings.Default_Low_Speed_Time_Seconds,
+         "negative low-speed timeout should use the default");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Low_Speed_Time_Load_And_Clamp;
+
    procedure Test_Completion_Notifications_Default_Enabled (T : in out Test) is
       pragma Unreferenced (T);
       Home         : constant String  := "/tmp/coyote_llm_settings_test_12";
@@ -933,6 +988,10 @@ package body LLM_Settings_Tests is
         (LLM_Settings_Caller.Create
            ("LLM.Settings loads and clamps termination grace",
             LLM_Settings_Tests.Test_Termination_Grace_Load_And_Clamp'Access));
+      Result.Add_Test
+        (LLM_Settings_Caller.Create
+           ("LLM.Settings loads and clamps HTTP low-speed timeout",
+            LLM_Settings_Tests.Test_Low_Speed_Time_Load_And_Clamp'Access));
       Result.Add_Test
         (LLM_Settings_Caller.Create
            ("LLM.Settings loads and validates max recursion depth",

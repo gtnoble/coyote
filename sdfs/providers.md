@@ -159,10 +159,14 @@ null.
 The libcurl binding does not set a per-request timeout (`CURLOPT_TIMEOUT_MS`)
 on streaming SSE calls. Provider responses for complex tasks can take many
 minutes (long tool chains). A fixed timeout would abort legitimate long-running
-sessions. The `CURLOPT_LOW_SPEED_LIMIT` / `CURLOPT_LOW_SPEED_TIME` options
-are used instead: if the transfer rate drops below a threshold for more than
-N seconds, libcurl aborts with `CURLE_OPERATION_TIMEDOUT`. This catches truly
-stalled connections without aborting slow-but-active streams.
+sessions. The `CURLOPT_LOW_SPEED_LIMIT` / `CURLOPT_LOW_SPEED_TIME` options are set for
+all subsequently started requests. The low-speed limit is fixed at one byte
+per second; `httpLowSpeedTimeSeconds` is loaded from the GUI Preferences
+settings, defaults to 30 seconds, and zero disables the low-speed protection.
+If the transfer rate remains below the limit for the configured duration,
+libcurl returns `CURLE_OPERATION_TIMEDOUT` (curl code 28). The agent classifies
+that code, and the compatible timeout strings, as transient and retries with
+normal backoff. User cancellation remains non-retryable.
 
 ### GitHub Copilot token refresh
 

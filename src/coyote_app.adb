@@ -1155,7 +1155,9 @@ package body Coyote_App is
                                  Price_Display => It.Preferences.Price_Display,
                                  Skill_Paths => It.Preferences.Skill_Paths,
                                  Termination_Grace_Seconds =>
-                                   It.Preferences.Termination_Grace_Seconds);
+                                   It.Preferences.Termination_Grace_Seconds,
+                                 Low_Speed_Time_Seconds =>
+                                   It.Preferences.Low_Speed_Time_Seconds);
                               Coyote_Process_Control.Set_Grace_Seconds
                                 (It.Preferences.Termination_Grace_Seconds);
                               My_Frontend.Set_Completion_Notifications

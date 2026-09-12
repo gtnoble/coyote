@@ -30,6 +30,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Subagent_Model => To_Unbounded_String ("test/fast-model"),
              Max_Recursion_Depth       => 3,
              Termination_Grace_Seconds => 7,
+             Low_Speed_Time_Seconds    => 45,
              Completion_Notifications  => False,
              Auto_Compaction           => False,
              Compaction_Threshold_Percent => 65,
@@ -65,6 +66,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
         (Got.Preferences.Termination_Grace_Seconds = 7,
          "termination grace should survive queue transport");
       Assert
+        (Got.Preferences.Low_Speed_Time_Seconds = 45,
+         "low-speed timeout should survive queue transport");
+      Assert
         (not Got.Preferences.Completion_Notifications,
          "disabled completion preference should survive queue transport");
       Assert
@@ -90,6 +94,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
                 Subagent_Model            => Null_Unbounded_String,
                 Max_Recursion_Depth       => 1,
                 Termination_Grace_Seconds => 2,
+                Low_Speed_Time_Seconds    => 30,
                 Completion_Notifications  => True,
                 Auto_Compaction           => True,
                 Compaction_Threshold_Percent => 80,
@@ -119,6 +124,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Subagent_Model            => Null_Unbounded_String,
              Max_Recursion_Depth       => 0,
              Termination_Grace_Seconds => 0,
+             Low_Speed_Time_Seconds    => 0,
              Completion_Notifications  => True,
              Auto_Compaction           => True,
              Compaction_Threshold_Percent => 80,

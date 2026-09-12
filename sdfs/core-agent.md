@@ -1091,6 +1091,26 @@ response on the first request (CURLE_RECV_ERROR path) and asserts the
 Auto_Retry_Start event fires and the second attempt streams normally;
 full suite passes 870/870.
 
+## 2026-09-12 — GUI-configurable libcurl low-speed timeout and retry
+
+The GUI Preferences dialog now exposes `httpLowSpeedTimeSeconds`, persisted in
+`~/.coyote/settings.json` with a default of 30 seconds, a 0–300 second bound,
+and zero disabling the low-speed protection. `LLM.Agent.Create` applies the
+setting before catalogue refresh; `LLM.HTTP` configures a one-byte-per-second
+low-speed limit and the selected low-speed duration on each request. Curl
+failures now preserve their numeric result code in `Curl_Error` messages, and
+curl code 28 (`CURLE_OPERATION_TIMEDOUT`) plus compatible timeout strings are
+classified as retryable while user cancellation remains non-retryable.
+
+Verification: production and test development builds succeed. Settings
+load/clamp/save coverage passes 17/17; HTTP low-speed timeout and numeric-code
+coverage passes 5/5; typed Preferences queue coverage passes 5/5; mnemonic
+coverage passes 5/5; existing agent retry coverage passes 44/44. The
+provider-level timeout-retry mock was not retained because its full SSE fixture
+completes instead of producing a low-speed timeout; the deterministic HTTP
+regression covers the curl code path and existing agent transport regression
+covers the retry loop.
+
 ## 2026-09-07 — Codex catalogue tool-support parsing fix (PCR-100)
 
 **Requirement:** Codex models discovered by the live catalogue shall

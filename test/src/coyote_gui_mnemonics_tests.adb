@@ -87,6 +87,10 @@ package body Coyote_GUI_Mnemonics_Tests is
          "Preferences");
       Reserve
         (Preferences_Context,
+         "HTTP low-speed time_o ut (seconds):",
+         "Preferences");
+      Reserve
+        (Preferences_Context,
          "Additional ski_ll directories:",
          "Preferences");
       Reserve (Preferences_Context, "_Add Directory...", "Preferences");
