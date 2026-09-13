@@ -130,7 +130,7 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** The complete current AUnit suite (934 registered tests) must pass before any
+**Progression criterion:** The complete current AUnit suite (955 registered tests) must pass before any
 demonstration-verified requirements are reviewed. Demonstration tests are
 performed after the automated suite is green.
 
@@ -181,9 +181,9 @@ SRS-CORE requirement groups.
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, responsive per-step tool-card flow, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 13 |
-| `coyote_csm2_qualification_tests.adb` | REQ-CORE-047a..047g; consolidated headless grammar/recovery matrix, typed semantic snapshots at every byte boundary including UTF-8, exact Flush, and Markdown/Pango reference invariance | 5 |
-| `coyote_gui_csm2_qualification_tests.adb` | REQ-CORE-047a..047g; display-gated paired CSM-2/Markdown parity, live visibility/styles, deferred table/math finalization, rollback, lifecycle reset, native table/MathML geometry and source, selection/copy, child-count reconciliation, and malformed stale-widget recovery | 7 (display-gated) |
-| `coyote_gui_live_response_renderer_tests.adb` | REQ-CORE-047a..047g; standalone stateful Live_Event sink, immediate styles/blocks, opaque code, deferred table/math state, rollback, finalization, and clean reuse | 4 (display-gated) |
+| `coyote_csm2_qualification_tests.adb` | REQ-CORE-047a..047g; consolidated CSM-2 grammar/recovery matrix, atomic roots, typed snapshots at byte/UTF-8 boundaries, exact idempotent Flush, inline Raw_Markup salvage, and Markdown/Pango reference invariance | 5 |
+| `coyote_gui_csm2_qualification_tests.adb` | REQ-CORE-047a..047g; display-gated paired CSM-2/Markdown parity, root-scoped live rollback, Raw_Markup escaping/style suppression, deferred table/math finalization, lifecycle reset, native table/MathML geometry and source, selection/copy, child-count reconciliation, and stale-widget removal | 10 (display-gated) |
+| `coyote_gui_live_response_renderer_tests.adb` | REQ-CORE-047a..047g; standalone Live_Event sink with Root_Id/root checkpoints, immediate styles/blocks, opaque code, deferred table/math state, localized rollback, finalization, and clean reuse | 6 (display-gated) |
 | `coyote_gui_updates_tests.adb` | REQ-CORE-116..119, 128; protected GTK update queue payload and lifecycle coverage | 10 |
 | `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
 
@@ -199,7 +199,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **934**
+**Total automated tests (current):** **955**
 
 ### 4.3 Planned Tests — Demonstration
 
@@ -223,11 +223,26 @@ behaviour. Results are recorded in a Test Report.
 | Historical DEM-058 | REQ-CORE-048 | Build prompts for Markdown and `Format_Coyote_Stream`; verify only CSM mode contains restricted CSM generation guidance, CSM mode omits Markdown `$$` display-math instructions, no template markers remain, and Plain/default callers retain Markdown guidance. |
 | Historical DEM-056 | REQ-CORE-048 | In enabled mode, inspect the request/message lifecycle and session record; verify coyote selects and records the format before the first text delta, does not trust model-authored metadata, and treats missing legacy format metadata as Markdown. |
 | Historical DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM-1/current responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and existing CSM-1/current tables, MathML, literal code, h1-h6, blockquote blocks, and horizontal rules commit as native or selectable components only at complete boundaries. |
-| DEM-059 | REQ-CORE-047a–047g | **Completed 2026-09-12.** Independent CSM-2 grammar, typed semantics, explicit tables, terminal Presentation MathML, malformed/incomplete visible-source fallback, opt-in/default-off behavior, versioned persistence/replay, and native GUI parity are covered by the Phase 12 matrix below. Automated headless qualification passed 5/5; display-backed GUI qualification passed 3/3 on `DISPLAY=:0.0` (X11). The GUI fixture verified normalized visible content, representative block order, semantic styles, shared spacing, native table cells/alignment, native MathML validity/source, selection/copy, child-count and split-delta reconciliation, and malformed stale-widget removal. Pixel identity and clipboard retrieval were not claimed. |
-
+| DEM-059 | REQ-CORE-047a–047g | **Historical — completed 2026-09-12.** Independent CSM-2 grammar, typed semantics, explicit tables, terminal Presentation MathML, malformed/incomplete visible-source fallback, opt-in/default-off behavior, versioned persistence/replay, and native GUI parity were covered by the PCR-101 Phase 12 matrix below. The historical headless qualification passed 5/5 and display-backed GUI qualification passed 3/3 on `DISPLAY=:0.0` (X11). The current localized-recovery enhancement is recorded separately below and does not rewrite this closure evidence. |
 **PCR-101 Phase 12 controlled qualification record (2026-09-12; historical baseline):** Production `alr build` and `cd test && alr build` succeeded in the development profile. The complete AUnit suite passed 919/919 with zero failed assertions and zero unexpected errors. Focused qualification passed: CSM-2 headless 5/5; independent parser 17/17; semantic model 5/5; system prompt 34/34; session store 27/27; history replay 1/1; RPC 28/28; libcmark 14/14; GFM table renderer 4/4; Markdown MathML renderer 3/3; shared response renderer/malformed reconciliation 3/3; prompt queue 5/5; default-off flag 1/1; native `Conversation_Stack` 24/24; and CSM-2 GUI 3/3. GUI tests ran directly against `DISPLAY=:0.0` on X11; `WAYLAND_DISPLAY` was unset. GTK theme color-parser warnings were environmental and did not affect assertions. The qualification establishes CSM-2 behavior only; versionless CSM-1 replay remains visible raw source because the CSM-1 parser is retired. Manual demonstrations outside this automated fixture remain pending only where separately assigned by historical DEM-014, DEM-033, DEM-041, DEM-043, and DEM-044 procedures.
 
 **Phase 12 automated qualification note:** The consolidated headless fixture contributes 5 passing tests with no display dependency. The consolidated GUI fixture contributes 3 passing display-backed tests on `DISPLAY=:0.0` (X11). If no `DISPLAY` or `WAYLAND_DISPLAY` is available, the fixture emits `[SKIP display unavailable] CSM-2 GUI qualification fixture` and returns without assertions. The checks use normalized content, semantic/block order, native table cells/alignment, terminal MathML validity/source, shared spacing/style, selection/copy, deterministic child counts, split-delta reconciliation, and malformed fallback; they do not claim pixel identity or clipboard retrieval.
+
+**CSM-2 localized-recovery enhancement qualification (2026-09-13; current):**
+The implementation extends the PCR-101 contract without rewriting its historical
+919/919 closure record. The recovery matrix is:
+
+| Stage | Evidence and expected policy | Current result |
+|---|---|---|
+| 1 — root-scoped parser recovery | Valid committed roots before and after malformed ordinary/table/code/math/structural roots remain typed; each malformed root is one exact `Invalid_Source` region; tables, code, MathML, and structural containers remain atomic; no Markdown reinterpretation; valid prefixes and exact idempotent `Flush` are preserved. | Verified in focused CSM-2 qualification |
+| 2 — localized live recovery | `Live_Event` carries `Root_Id`, `Root_Begin`, and `Root_End`; GTK checkpoints/marks roll back only the affected root; later valid roots continue; final `Flush`/`Snapshot`/`Response_Renderer.Replace` removes stale native widgets authoritatively. | Verified in focused GUI/live qualification |
+| 3 — inline recovery | `Raw_Markup` is escaped and unstyled; malformed inline attributes, unknown inline tags, and invalid entities preserve the valid paragraph/heading prefix and make only the corrupted suffix raw through the root close; crossing inline tags remain root-atomic; split deltas defer incomplete constructs. | Verified in focused parser, semantics, and GUI qualification |
+
+**Current verification:** Production and test development builds succeeded. The
+complete AUnit suite passed 955/955 with zero failed assertions or unexpected
+errors. CSM-2 focused qualification passed 49/49, and semantic qualification
+passed 5/5. These are the current results; the PCR-101 Phase 12 919/919
+closure evidence above remains historical.
 
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
@@ -330,7 +345,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-219 | T/I | `llm_agent_tests.adb`, code inspection |
 | REQ-CORE-040–046 | T/D | `llm_agent_tests.adb`, DEM-006 |
 | Historical REQ-CORE-047..049 | D/T/I | `coyote_incremental_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, `coyote_app_tests.adb`, `coyote_gui_conversation_stack_tests.adb`; Historical DEM-055..058 retain CSM-1/current scope |
-| REQ-CORE-047a..047g | A/I/T | `coyote_csm2_qualification_tests.adb`, `coyote_gui_csm2_qualification_tests.adb`, `coyote_gui_live_response_renderer_tests.adb`, `coyote_app_history_tests.adb`, `coyote_app_agent_rpc_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, and `Coyote_GUI.Response_Renderer` qualification; DEM-059 and the Phase 6 live qualification record cover ordered Live_Event delivery, immediate/deferred rendering, final reconciliation, rollback, and lifecycle idempotence. |
+| REQ-CORE-047a..047g | A/I/T | `coyote_csm2_qualification_tests.adb`, `coyote_gui_csm2_qualification_tests.adb`, `coyote_gui_live_response_renderer_tests.adb`, `coyote_semantics_tests.adb`, `coyote_app_history_tests.adb`, `coyote_app_agent_rpc_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, and `Coyote_GUI.Response_Renderer` qualification; DEM-059 remains historical PCR-101 evidence, while the 2026-09-13 recovery matrix covers atomic roots, Root_Id checkpoints and localized rollback, Raw_Markup, exact Flush, split-delta deferral, final reconciliation, and lifecycle idempotence. |
 | REQ-CORE-050–053 | T | `llm_tools_tests.adb` |
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
 | REQ-CORE-055 | D | DEM-007 |

@@ -19,8 +19,9 @@
 Provider and agent test callers now live in package-scoped leaf suites under
 `Test_LLM_Suite`, rather than in one flat root registration body. The LLM
 domain preserves 295 registrations and remains the dominant measured local
-group at approximately 28–29 seconds; the current full 919-test suite completes in
-34.3 seconds with local fixtures and guarded external tests disabled.
+group at approximately 28–29 seconds; a historical full 919-test checkpoint
+completed in 34.3 seconds with local fixtures and guarded external tests disabled.
+The current full-suite baseline is recorded in the active qualification entry.
 
 ### OpenAI Responses sibling adapter (2026-08-15, PCR-059)
 

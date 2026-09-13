@@ -18,6 +18,7 @@ package body Coyote_Renderer.Incremental is
    use type Coyote_Renderer.Semantics.Table_Row_Id;
    use type Coyote_Renderer.Semantics.List_Kind;
    use type Coyote_Renderer.Semantics.Table_Alignment;
+   use type Coyote_Renderer.Semantics.Block_Kind;
 
    procedure Ignore (Value : Boolean) is
       pragma Unreferenced (Value);
@@ -36,16 +37,25 @@ package body Coyote_Renderer.Incremental is
       Text : String := ""; Detail : String := ""; Level : Natural := 0;
       Source_Start : Natural := 0; Source_End : Natural := 0;
       Context_Id : Natural := 0; Deferred : Boolean := False;
-      Complete : Boolean := False) is
+      Complete : Boolean := False; Root_Id : Natural := 0;
+      Root_Begin : Boolean := False; Root_End : Boolean := False) is
+      Effective_Root : Natural := Root_Id;
    begin
       if Parser.Live /= null then
+         if Effective_Root = 0 and then Parser.Recovering then
+            Effective_Root := Parser.Recovery_Root_Id;
+         elsif Effective_Root = 0 and then Parser.Open > 0 then
+            Effective_Root := Parser.Stack (1).Context_Id;
+         end if;
          Parser.Next_Sequence := Parser.Next_Sequence + 1;
          Parser.Live.all
            ((Kind => Kind, Text => To_Unbounded_String (Text),
              Detail => To_Unbounded_String (Detail), Level => Level,
              Source_Start => Source_Start, Source_End => Source_End,
-             Context_Id => Context_Id, Sequence => Parser.Next_Sequence,
-             Deferred => Deferred, Complete => Complete));
+             Context_Id => Context_Id, Root_Id => Effective_Root,
+             Sequence => Parser.Next_Sequence, Deferred => Deferred,
+             Complete => Complete, Root_Begin => Root_Begin,
+             Root_End => Root_End));
       end if;
    end Emit_Live;
 
@@ -467,28 +477,319 @@ package body Coyote_Renderer.Incremental is
           Source_End     => Source_End));
    end Emit;
 
-   procedure Set_Invalid_Document (Parser : in out Instance) is
-      Block : Coyote_Renderer.Semantics.Block_Id;
+   function Find_Tag_End
+     (Source : String; Start : Natural) return Natural;
+
+   function Find_Closing_Tag
+     (Source : String; Name : String; Start : Natural;
+      Close_Start : out Natural; Close_End : out Natural) return Boolean;
+
+   function Find_Math_Close
+     (Source             : String;
+      Content_First      : Natural;
+      Close_Start        : out Natural;
+      Close_End          : out Natural;
+      Nested_Math_Count  : out Natural;
+      Nested_Math_Start  : out Natural;
+      Nested_Math_End    : out Natural) return Boolean;
+
+   function Is_Block (Name : String) return Boolean;
+
+   procedure Begin_Recovery
+     (Parser : in out Instance; Error_Source : String) is
+      Root_Name  : Unbounded_String := Null_Unbounded_String;
+      Root_Block : Coyote_Renderer.Semantics.Block_Id :=
+        Coyote_Renderer.Semantics.No_Block;
    begin
-      Coyote_Renderer.Semantics.Clear (Parser.Document);
-      Block := Coyote_Renderer.Semantics.New_Block
-        (Parser.Document, Coyote_Renderer.Semantics.Invalid_Source,
-         To_String (Parser.Source));
-      Ignore (Coyote_Renderer.Semantics.Append_Block (Parser.Document, Block));
-   end Set_Invalid_Document;
+      if Parser.Recovering then
+         return;
+      end if;
+      Parser.Recovering := True;
+      Parser.Recovery_End := 0;
+      Parser.Recovery_Reported := False;
+      Parser.Live_Reported := False;
+      Parser.Recovery_Start := Parser.Cursor + 1;
+      if Parser.Open > 0 then
+         Root_Name := Parser.Stack (1).Name;
+         Root_Block := Parser.Stack (1).Block;
+         Parser.Recovery_Start := Parser.Stack (1).Source_Start;
+         if To_String (Root_Name) = "table" then
+            Parser.Recovery_Mode := Table_Recovery;
+         elsif To_String (Root_Name) = "code" then
+            Parser.Recovery_Mode := Code_Recovery;
+         elsif To_String (Root_Name) = "math" then
+            Parser.Recovery_Mode := Math_Recovery;
+         else
+            Parser.Recovery_Mode := Ordinary_Recovery;
+         end if;
+      else
+         Parser.Recovery_Mode := Unknown_Recovery;
+         if Error_Source'Length >= 2
+           and then Error_Source (Error_Source'First) = '<'
+         then
+            declare
+               Name_Start : Natural := Error_Source'First + 1;
+               Name_End   : Natural := Name_Start;
+            begin
+               if Name_Start <= Error_Source'Last
+                 and then Error_Source (Name_Start) = '/'
+               then
+                  Name_Start := Name_Start + 1;
+               end if;
+               Name_End := Name_Start;
+               while Name_End <= Error_Source'Last
+                 and then (Is_Name_Character (Error_Source (Name_End))
+                          or else Error_Source (Name_End) in 'A' .. 'Z')
+               loop
+                  Name_End := Name_End + 1;
+               end loop;
+               if Name_End > Name_Start then
+                  Root_Name := To_Unbounded_String
+                    (Error_Source (Name_Start .. Name_End - 1));
+               end if;
+            end;
+         end if;
+      end if;
+      Parser.Recovery_Name := Root_Name;
+      if Root_Block = Coyote_Renderer.Semantics.No_Block then
+         Parser.Next_Context := Parser.Next_Context + 1;
+      end if;
+      Parser.Recovery_Root_Id :=
+        (if Root_Block /= Coyote_Renderer.Semantics.No_Block then
+            Parser.Stack (1).Context_Id
+         else
+            Parser.Next_Context);
+      Parser.Recovery_Had_Provisional := Root_Block /=
+        Coyote_Renderer.Semantics.No_Block;
+      Parser.Recovery_Block := Root_Block;
+      if Root_Block /= Coyote_Renderer.Semantics.No_Block then
+         Ignore
+           (Coyote_Renderer.Semantics.Set_Block_Kind
+              (Parser.Document, Root_Block,
+               Coyote_Renderer.Semantics.Invalid_Source));
+      else
+         Parser.Recovery_Block := Coyote_Renderer.Semantics.New_Block
+           (Parser.Document, Coyote_Renderer.Semantics.Invalid_Source,
+            Error_Source);
+         Ignore
+           (Coyote_Renderer.Semantics.Append_Block
+              (Parser.Document, Parser.Recovery_Block));
+      end if;
+   end Begin_Recovery;
 
    procedure Emit_Invalid
      (Parser : in out Instance; Handler : Event_Handler; Text : String) is
-      Source : constant String := To_String (Parser.Source);
    begin
-      Set_Invalid_Document (Parser);
-      Emit (Handler, Invalid_Event, Text, 0, True,
-            Natural (Length (Parser.Source)));
-      Emit_Live (Parser, Live_Invalid_Event, Source, "", 0, 1,
-         Natural'Max (1, Source'Length), Current_Context (Parser),
-         Complete => True);
-      Parser.Invalid := True;
+      Begin_Recovery (Parser, Text);
+      --  The compatibility semantic stream reports failure immediately.  The
+      --  live stream waits for recovery completion so it can carry the exact
+      --  affected root rather than the current parser suffix.
+      if not Parser.Recovery_Reported then
+         Emit (Handler, Invalid_Event, Text, 0, True,
+               Natural (Length (Parser.Source)));
+         Parser.Recovery_Reported := True;
+      end if;
    end Emit_Invalid;
+
+   function Valid_Attributes
+     (Info : Tag_Info; List_Kind : out Coyote_Renderer.Semantics.List_Kind;
+      List_Start : out Positive; Language : out Unbounded_String;
+      Header : out Boolean;
+      Alignment : out Coyote_Renderer.Semantics.Table_Alignment)
+      return Boolean;
+
+   function Find_Recovery_End
+     (Parser : Instance; Source : String; Start : Natural)
+      return Natural is
+      Name : constant String := To_String (Parser.Recovery_Name);
+      Close : Natural;
+      Close_End : Natural;
+      Nested : Natural;
+      Nested_Start : Natural;
+      Nested_End : Natural;
+   begin
+      if Parser.Recovery_Mode = Code_Recovery
+        or else Parser.Recovery_Mode = Math_Recovery
+      then
+         if Parser.Recovery_Mode = Math_Recovery then
+            declare
+               Outer_End : constant Natural := Find_Tag_End (Source, Start);
+            begin
+               if Outer_End /= 0
+                 and then Find_Math_Close
+                   (Source, Outer_End + 1, Close, Close_End,
+                    Nested, Nested_Start, Nested_End)
+               then
+                  return Close_End;
+               end if;
+            end;
+         elsif Find_Closing_Tag (Source, Name, Start, Close, Close_End) then
+            return Close_End;
+         end if;
+         return 0;
+      elsif Parser.Recovery_Mode = Unknown_Recovery then
+         declare
+            I       : Natural := Start;
+            Info    : Tag_Info;
+            Tag_End : Natural;
+            Raw_Name_Position : Natural;
+            Candidate_List_Kind : Coyote_Renderer.Semantics.List_Kind;
+            Candidate_List_Start : Positive;
+            Candidate_Language : Unbounded_String;
+            Candidate_Header : Boolean;
+            Candidate_Alignment : Coyote_Renderer.Semantics.Table_Alignment;
+         begin
+            while I <= Source'Last loop
+               if Source (I) = '<' then
+                  Tag_End := Find_Tag_End (Source, I);
+                  exit when Tag_End = 0;
+                  --  Parse_Tag rejects mis-cased names by design.  Match
+                  --  the malformed root's exact closing spelling here, but
+                  --  before the next valid known block boundary is returned.
+                  if Name'Length > 0
+                    and then I + Name'Length + 2 <= Tag_End
+                    and then Source (I .. I + 1) = "</"
+                    and then Source (I + 2 .. I + 1 + Name'Length) = Name
+                  then
+                     Raw_Name_Position := I + 2 + Name'Length;
+                     while Raw_Name_Position < Tag_End
+                       and then Is_Space (Source (Raw_Name_Position))
+                     loop
+                        Raw_Name_Position := Raw_Name_Position + 1;
+                     end loop;
+                     if Raw_Name_Position = Tag_End then
+                        return Tag_End;
+                     end if;
+                  end if;
+                  if Parse_Tag (Source (I .. Tag_End), Info) then
+                     if Info.Closing
+                       and then Length (Parser.Recovery_Name) > 0
+                       and then To_String (Info.Name) =
+                         To_String (Parser.Recovery_Name)
+                     then
+                        return Tag_End;
+                     elsif not Info.Closing
+                       and then I > Start
+                       and then Is_Block (To_String (Info.Name))
+                       and then To_String (Info.Name) /= "item"
+                       and then To_String (Info.Name) /= "row"
+                       and then To_String (Info.Name) /= "cell"
+                       and then Valid_Attributes
+                         (Info, Candidate_List_Kind, Candidate_List_Start,
+                          Candidate_Language, Candidate_Header,
+                          Candidate_Alignment)
+                     then
+                        --  Stop immediately before every complete, valid
+                        --  known block opening.  The normal parser owns
+                        --  opaque code/MathML payloads and protects them.
+                        return I - 1;
+                     end if;
+                  end if;
+                  I := Tag_End + 1;
+               else
+                  I := I + 1;
+               end if;
+            end loop;
+         end;
+         return 0;
+      else
+         declare
+            Names       : array (Positive range 1 .. Max_Nesting_Depth)
+              of Unbounded_String;
+            I           : Natural := Start;
+            Depth       : Natural := 0;
+            Tag_End     : Natural;
+            Info        : Tag_Info;
+            Root_Closed : Boolean := False;
+         begin
+            while I <= Source'Last loop
+               if Source (I) = '<' then
+                  Tag_End := Find_Tag_End (Source, I);
+                  if Tag_End = 0 then
+                     return 0;
+                  end if;
+                  if Root_Closed and then Source (I + 1) /= '/' then
+                     return I - 1;
+                  end if;
+                  if Parse_Tag (Source (I .. Tag_End), Info) then
+                     if Info.Closing then
+                        if Depth > 0
+                          and then To_String (Names (Depth)) =
+                            To_String (Info.Name)
+                        then
+                           Depth := Depth - 1;
+                           if Depth = 0 then
+                              return Tag_End;
+                           end if;
+                        elsif To_String (Info.Name) = Name then
+                           Root_Closed := True;
+                        end if;
+                     elsif Root_Closed
+                       and then Source (I + 1) /= '/'
+                     then
+                        return I - 1;
+                     elsif not Info.Self_Closing
+                       and then Depth < Max_Nesting_Depth
+                     then
+                        Depth := Depth + 1;
+                        Names (Depth) := Info.Name;
+                     end if;
+                  end if;
+                  I := Tag_End + 1;
+               else
+                  I := I + 1;
+               end if;
+            end loop;
+            return 0;
+         end;
+      end if;
+   end Find_Recovery_End;
+
+   procedure Finish_Recovery
+     (Parser : in out Instance; Handler : Event_Handler; Last : Natural) is
+      Source : constant String := To_String (Parser.Source);
+      Block  : Coyote_Renderer.Semantics.Block_Id := Parser.Recovery_Block;
+      Start  : constant Natural := Parser.Recovery_Start;
+   begin
+      if Last < Start then
+         return;
+      end if;
+      if Block = Coyote_Renderer.Semantics.No_Block then
+         Block := Coyote_Renderer.Semantics.New_Block
+           (Parser.Document, Coyote_Renderer.Semantics.Invalid_Source,
+            Source (Start .. Last));
+         Ignore (Coyote_Renderer.Semantics.Append_Block
+           (Parser.Document, Block));
+      else
+         Ignore (Coyote_Renderer.Semantics.Set_Block_Kind
+           (Parser.Document, Block,
+            Coyote_Renderer.Semantics.Invalid_Source));
+         Ignore (Coyote_Renderer.Semantics.Set_Block_Source
+           (Parser.Document, Block, Source (Start .. Last)));
+      end if;
+      if not Parser.Recovery_Reported then
+         Emit (Handler, Invalid_Event, Source (Start .. Last), 0, True, Last);
+         Parser.Recovery_Reported := True;
+      end if;
+      if not Parser.Live_Reported then
+         Emit_Live
+           (Parser, Live_Invalid_Event, Source (Start .. Last), "", 0,
+            Start, Last, Parser.Recovery_Root_Id,
+            Complete => True, Root_Id => Parser.Recovery_Root_Id,
+            Root_Begin => not Parser.Recovery_Had_Provisional,
+            Root_End => True);
+         Parser.Live_Reported := True;
+      end if;
+      Parser.Recovery_End := Last;
+      Parser.Cursor := Last;
+      Parser.Open := 0;
+      Parser.Recovering := False;
+      Parser.Recovery_Mode := No_Recovery;
+      Parser.Recovery_Block := Coyote_Renderer.Semantics.No_Block;
+      Parser.Recovery_Name := Null_Unbounded_String;
+      Parser.Recovery_Reported := False;
+      Parser.Live_Reported := False;
+   end Finish_Recovery;
 
    function Current_Block
      (Parser : Instance) return Coyote_Renderer.Semantics.Block_Id is
@@ -507,6 +808,109 @@ package body Coyote_Renderer.Incremental is
 
    function Current_Cell
      (Parser : Instance) return Coyote_Renderer.Semantics.Table_Cell_Id;
+
+   function Attach_Inline
+     (Parser : in out Instance;
+      Child  : Coyote_Renderer.Semantics.Inline_Id) return Boolean;
+
+   function Is_Localized_Root (Parser : Instance) return Boolean is
+      Name : constant String :=
+        (if Parser.Open = 0 then "" else
+           To_String (Parser.Stack (1).Name));
+   begin
+      return Parser.Open > 0
+        and then (Name = "p"
+                  or else Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6");
+   end Is_Localized_Root;
+
+   function Begin_Localized_Recovery
+     (Parser : in out Instance; Start : Natural) return Boolean is
+   begin
+      if not Is_Localized_Root (Parser) then
+         return False;
+      end if;
+      Parser.Localized_Recovery := True;
+      Parser.Localized_Start := Start;
+      while Parser.Open > 1
+        and then Parser.Stack (Parser.Open).Block =
+          Coyote_Renderer.Semantics.No_Block
+      loop
+         Parser.Open := Parser.Open - 1;
+      end loop;
+      return True;
+   end Begin_Localized_Recovery;
+
+   function Find_Text_Error
+     (Source : String; First : Natural; Last : Natural;
+      Error_Start : out Natural; Incomplete : out Boolean) return Boolean
+   is
+      I : Natural := First;
+   begin
+      Error_Start := 0;
+      Incomplete := False;
+      while I <= Last loop
+         if Source (I) = '>' then
+            Error_Start := I;
+            return True;
+         elsif Source (I) = '&' then
+            declare
+               Semi    : Natural := I + 1;
+               Decoded : Unbounded_String;
+            begin
+               while Semi <= Last and then Source (Semi) /= ';' loop
+                  Semi := Semi + 1;
+               end loop;
+               if Semi > Last then
+                  Error_Start := I;
+                  Incomplete := True;
+                  return True;
+               elsif not Decode_Entities
+                 (Source (I .. Semi), Decoded)
+               then
+                  Error_Start := I;
+                  return True;
+               end if;
+               I := Semi + 1;
+            end;
+         else
+            I := I + 1;
+         end if;
+      end loop;
+      return False;
+   end Find_Text_Error;
+
+   function Finish_Localized_Recovery
+     (Parser : in out Instance; Handler : Event_Handler;
+      Close_Start : Natural) return Boolean is
+      Source  : constant String := To_String (Parser.Source);
+      Last    : constant Natural := Close_Start - 1;
+      Root_Id : constant Natural := Parser.Stack (1).Context_Id;
+      Raw     : Coyote_Renderer.Semantics.Inline_Id;
+   begin
+      if not Parser.Localized_Recovery
+        or else Parser.Localized_Start > Last
+      then
+         return False;
+      end if;
+      Raw := Coyote_Renderer.Semantics.New_Inline
+        (Parser.Document, Coyote_Renderer.Semantics.Raw_Markup,
+         Source (Parser.Localized_Start .. Last),
+         Source (Parser.Localized_Start .. Last));
+      Ignore (Attach_Inline (Parser, Raw));
+      Emit (Handler, Invalid_Event,
+         Source (Parser.Localized_Start .. Last), 0, True, Last);
+      Emit_Live
+        (Parser, Live_Invalid_Event,
+         Source (Parser.Localized_Start .. Last), "", 0,
+         Parser.Localized_Start, Last, Root_Id,
+         Complete => True, Root_Id => Root_Id,
+         Root_Begin => True, Root_End => True);
+      Parser.Cursor := Last;
+      Parser.Localized_Recovery := False;
+      Parser.Localized_Start := 0;
+      Parser.Open := 1;
+      return True;
+   end Finish_Localized_Recovery;
 
    function Attach_Inline
      (Parser : in out Instance;
@@ -541,6 +945,31 @@ package body Coyote_Renderer.Incremental is
       if Raw'Length = 0 then
          return;
       end if;
+      if Is_Localized_Root (Parser) then
+         declare
+            Error_Start : Natural;
+            Incomplete  : Boolean;
+         begin
+            if Find_Text_Error
+              (Raw, Raw'First, Raw'Last, Error_Start, Incomplete)
+            then
+               if Error_Start > Raw'First then
+                  Add_Text
+                    (Parser, Handler, Raw (Raw'First .. Error_Start - 1));
+               end if;
+               if Incomplete then
+                  Parser.Deferred_Text := True;
+                  Parser.Deferred_Text_Start := Error_Start;
+               else
+                  Parser.Deferred_Text := False;
+                  Ignore (Begin_Localized_Recovery
+                    (Parser, Error_Start));
+               end if;
+               return;
+            end if;
+         end;
+      end if;
+      Parser.Deferred_Text := False;
       for C of Raw loop
          if C = '>' then
             Emit_Invalid (Parser, Handler, Raw);
@@ -607,6 +1036,30 @@ package body Coyote_Renderer.Incremental is
         or else Name = "row" or else Name = "cell" or else Name = "math"
         or else Name in "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
    end Is_Block;
+
+   function Tag_Name (Source : String) return String is
+      First : Natural;
+      Last  : Natural;
+   begin
+      if Source'Length < 2 or else Source (Source'First) /= '<' then
+         return "";
+      end if;
+      First := Source'First + 1;
+      if First <= Source'Last and then Source (First) = '/' then
+         First := First + 1;
+      end if;
+      Last := First;
+      while Last <= Source'Last
+        and then (Is_Name_Character (Source (Last))
+                  or else Source (Last) in 'A' .. 'Z')
+      loop
+         Last := Last + 1;
+      end loop;
+      if Last = First then
+         return "";
+      end if;
+      return Source (First .. Last - 1);
+   end Tag_Name;
 
    function Is_Empty (Name : String) return Boolean is
    begin
@@ -1211,7 +1664,8 @@ package body Coyote_Renderer.Incremental is
       Parser.Open := Parser.Open - 1;
       Emit_Live (Parser, Live_End (Name), Raw, "", Level,
          Top_Entry.Source_Start, Last, Top_Entry.Context_Id,
-         Complete => True);
+         Complete => True, Root_Id => Top_Entry.Context_Id,
+         Root_End => Parser.Open = 0);
       if Name = "p" then
          Emit (Handler, Paragraph_End_Event, "", 0,
            Parser.Open = 0, Last);
@@ -1252,8 +1706,17 @@ package body Coyote_Renderer.Incremental is
       end if;
       if not Valid_Attributes
         (Info, List_Kind, List_Start, Language, Header, Alignment)
-        or else not Parent_Allows (Parser, Name)
       then
+         if Is_Inline (Name)
+           and then Begin_Localized_Recovery (Parser, Start)
+         then
+            return;
+         else
+            Emit_Invalid (Parser, Handler,
+              To_String (Parser.Source) (Start .. Last));
+            return;
+         end if;
+      elsif not Parent_Allows (Parser, Name) then
          Emit_Invalid (Parser, Handler,
            To_String (Parser.Source) (Start .. Last));
          return;
@@ -1306,9 +1769,11 @@ package body Coyote_Renderer.Incremental is
             Opaque_Emitted => Last + 1, Context_Id => Parser.Next_Context,
             Raw => Null_Unbounded_String, Opaque => Name = "code-inline",
             Invalid => False);
-         Emit_Live (Parser, Live_Begin (Name), "", "", 0,
+         Emit_Live
+           (Parser, Live_Begin (Name), "", "", 0,
             Start, Last, Parser.Next_Context,
-            Deferred => Name = "code-inline");
+            Deferred => Name = "code-inline",
+            Root_Id => Parser.Next_Context, Root_Begin => Parser.Open = 1);
       else
          if Name = "p" then
             Kind := Coyote_Renderer.Semantics.Paragraph;
@@ -1431,7 +1896,8 @@ package body Coyote_Renderer.Incremental is
              else To_String (Language)),
             Heading_Level (Name), Start, Last, Parser.Next_Context,
             Deferred => Name = "table" or else Name = "code"
-              or else Name = "math");
+              or else Name = "math",
+            Root_Id => Parser.Next_Context, Root_Begin => Parser.Open = 1);
          if Name = "p" then
             Emit (Handler, Paragraph_Begin_Event);
          end if;
@@ -1447,6 +1913,16 @@ package body Coyote_Renderer.Incremental is
            To_String (Parser.Stack (Parser.Open).Name));
       Raw  : constant String := To_String (Parser.Source) (Start .. Last);
    begin
+      if Parser.Localized_Recovery
+        and then Parser.Open > 0
+        and then Top = To_String (Parser.Stack (1).Name)
+      then
+         if Finish_Localized_Recovery (Parser, Handler, Start) then
+            Parser.Open := 1;
+            Complete_Top (Parser, Handler, Last, Start);
+         end if;
+         return;
+      end if;
       if Parser.Open = 0 or else Top /= Name then
          if Parser.Open > 0 then
             declare
@@ -1689,7 +2165,23 @@ package body Coyote_Renderer.Incremental is
       Parser.Source := Null_Unbounded_String;
       Parser.Cursor := 0;
       Parser.Open := 0;
-      Parser.Invalid := False;
+      Parser.Recovering := False;
+      Parser.Flushed := False;
+      Parser.Recovery_Mode := No_Recovery;
+      Parser.Recovery_Start := 0;
+      Parser.Recovery_End := 0;
+      Parser.Recovery_Name := Null_Unbounded_String;
+      Parser.Recovery_Root_Id := 0;
+      Parser.Recovery_Had_Provisional := False;
+      Parser.Recovery_Block := Coyote_Renderer.Semantics.No_Block;
+      Parser.Localized_Recovery := False;
+      Parser.Localized_Start := 0;
+      Parser.Deferred_Text := False;
+      Parser.Deferred_Text_Start := 0;
+      Parser.Deferred_Tag := False;
+      Parser.Deferred_Tag_Start := 0;
+      Parser.Recovery_Reported := False;
+      Parser.Live_Reported := False;
       Parser.Next_Context := 0;
       Parser.Next_Sequence := 0;
       Parser.Live := null;
@@ -1714,7 +2206,36 @@ package body Coyote_Renderer.Incremental is
             First  : constant Natural := Parser.Cursor + 1;
             Close  : Natural;
          begin
-            if Parser.Open > 0 and then Parser.Stack (Parser.Open).Opaque then
+            if Parser.Localized_Recovery then
+               declare
+                  Root_Name : constant String :=
+                    To_String (Parser.Stack (1).Name);
+                  Close_Start : Natural;
+                  Close_End   : Natural;
+               begin
+                  if Find_Closing_Tag
+                    (Source, Root_Name, Parser.Localized_Start,
+                     Close_Start, Close_End)
+                  then
+                     Ignore (Finish_Localized_Recovery
+                       (Parser, Handler, Close_Start));
+                     Parser.Cursor := Close_Start - 1;
+                  else
+                     exit;
+                  end if;
+               end;
+            elsif Parser.Recovering then
+               declare
+                  Recovery_End : constant Natural :=
+                    Find_Recovery_End (Parser, Source, Parser.Recovery_Start);
+               begin
+                  if Recovery_End /= 0 then
+                     Finish_Recovery (Parser, Handler, Recovery_End);
+                  else
+                     exit;
+                  end if;
+               end;
+            elsif Parser.Open > 0 and then Parser.Stack (Parser.Open).Opaque then
                Process_Opaque (Parser, Handler, Close);
                exit when Close = 0;
             elsif Source (First) /= '<' then
@@ -1730,11 +2251,33 @@ package body Coyote_Renderer.Incremental is
                      exit;
                   end if;
                   Add_Text (Parser, Handler, Source (First .. Raw_End));
-                  Parser.Cursor := Raw_End;
+                  if Parser.Deferred_Text then
+                     if Stop <= Source'Last
+                       and then Source (Stop) = '<'
+                     then
+                        Ignore (Begin_Localized_Recovery
+                          (Parser, Parser.Deferred_Text_Start));
+                        Parser.Cursor := Stop - 1;
+                     else
+                        Parser.Cursor := Parser.Deferred_Text_Start - 1;
+                        exit;
+                     end if;
+                  else
+                     Parser.Cursor := Raw_End;
+                  end if;
                end;
             else
                Close := Find_Tag_End (Source, First);
-               exit when Close = 0;
+               if Close = 0 then
+                  if Is_Localized_Root (Parser)
+                    and then Tag_Name (Source (First .. Source'Last))'Length > 0
+                  then
+                     Parser.Deferred_Tag := True;
+                     Parser.Deferred_Tag_Start := First;
+                  end if;
+                  exit;
+               end if;
+               Parser.Deferred_Tag := False;
                declare
                   Tag : constant String := Source (First .. Close);
                   Info : Tag_Info;
@@ -1747,7 +2290,14 @@ package body Coyote_Renderer.Incremental is
                   elsif Tag'Length > Max_Tag_Bytes
                     or else not Parse_Tag (Tag, Info)
                   then
-                     Emit_Invalid (Parser, Handler, Tag);
+                     if Is_Localized_Root (Parser)
+                       and then Tag_Name (Tag)'Length > 0
+                       and then not Is_Block (Tag_Name (Tag))
+                     then
+                        Ignore (Begin_Localized_Recovery (Parser, First));
+                     else
+                        Emit_Invalid (Parser, Handler, Tag);
+                     end if;
                   elsif Info.Closing then
                      Close_Tag (Parser, Handler, Info, First, Close);
                   elsif Is_Empty (To_String (Info.Name)) then
@@ -1756,13 +2306,29 @@ package body Coyote_Renderer.Incremental is
                     or else Is_Inline (To_String (Info.Name))
                   then
                      Open_Tag (Parser, Handler, Info, First, Close);
+                  elsif Is_Localized_Root (Parser)
+                    and then Tag_Name (Tag)'Length > 0
+                    and then not Is_Block (Tag_Name (Tag))
+                  then
+                     Ignore (Begin_Localized_Recovery (Parser, First));
                   else
                      Emit_Invalid (Parser, Handler, Tag);
                   end if;
                   Parser.Cursor := Close;
                end;
             end if;
-            exit when Parser.Invalid;
+            if Parser.Recovering then
+               declare
+                  Recovery_End : constant Natural :=
+                    Find_Recovery_End (Parser, Source, Parser.Recovery_Start);
+               begin
+                  if Recovery_End /= 0 then
+                     Finish_Recovery (Parser, Handler, Recovery_End);
+                  else
+                     exit;
+                  end if;
+               end;
+            end if;
          end;
       end loop;
    end Feed_Internal;
@@ -1792,24 +2358,73 @@ package body Coyote_Renderer.Incremental is
 
    procedure Flush_Internal (Parser : in out Instance; Handler : Event_Handler) is
       Source : constant String := To_String (Parser.Source);
-      First  : Natural := Parser.Cursor + 1;
-      Invalid_Start : Natural := First;
+      Start  : Natural := Parser.Cursor + 1;
+      Raw    : Coyote_Renderer.Semantics.Inline_Id;
    begin
-      if not Parser.Invalid then
-         if Parser.Open > 0 then
-            Invalid_Start := Parser.Stack (1).Source_Start;
+      if Parser.Flushed then
+         return;
+      end if;
+      if Parser.Localized_Recovery or else Parser.Deferred_Text
+        or else Parser.Deferred_Tag
+      then
+         if Parser.Deferred_Text then
+            Parser.Localized_Recovery := True;
+            Parser.Localized_Start := Parser.Deferred_Text_Start;
+            Parser.Deferred_Text := False;
+         elsif Parser.Deferred_Tag then
+            Parser.Localized_Recovery := True;
+            Parser.Localized_Start := Parser.Deferred_Tag_Start;
+            Parser.Deferred_Tag := False;
          end if;
-         if Parser.Open > 0 and then Source'Length > 0 then
-            Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
-         elsif Source'Length > 0 and then Invalid_Start <= Source'Last then
-            Emit_Invalid (Parser, Handler, Source (Invalid_Start .. Source'Last));
+         if Source'Length > 0 and then Parser.Localized_Start <= Source'Last then
+            if Parser.Open > 0
+              and then Parser.Stack (1).Block /=
+                Coyote_Renderer.Semantics.No_Block
+            then
+               Ignore (Coyote_Renderer.Semantics.Set_Block_Kind
+                 (Parser.Document, Parser.Stack (1).Block,
+                  (if To_String (Parser.Stack (1).Name) = "p"
+                   then Coyote_Renderer.Semantics.Paragraph
+                   else Coyote_Renderer.Semantics.Heading)));
+            end if;
+            Raw := Coyote_Renderer.Semantics.New_Inline
+              (Parser.Document, Coyote_Renderer.Semantics.Raw_Markup,
+               Source (Parser.Localized_Start .. Source'Last),
+               Source (Parser.Localized_Start .. Source'Last));
+            Ignore (Attach_Inline (Parser, Raw));
+            Emit (Handler, Invalid_Event,
+               Source (Parser.Localized_Start .. Source'Last), 0, True,
+               Source'Last);
+            Emit_Live
+              (Parser, Live_Invalid_Event,
+               Source (Parser.Localized_Start .. Source'Last), "", 0,
+               Parser.Localized_Start, Source'Last,
+               (if Parser.Open > 0 then Parser.Stack (1).Context_Id else 0),
+               Complete => True, Root_Begin => True,
+               Root_Id =>
+                 (if Parser.Open > 0 then Parser.Stack (1).Context_Id else 0),
+               Root_End => True);
          end if;
+         Parser.Localized_Recovery := False;
+         Parser.Localized_Start := 0;
+      elsif Parser.Recovering then
+         Finish_Recovery (Parser, Handler, Source'Last);
+      elsif Parser.Open > 0 and then Source'Length > 0 then
+         Parser.Recovery_Start := Parser.Stack (1).Source_Start;
+         Parser.Recovery_Block := Parser.Stack (1).Block;
+         Parser.Recovering := True;
+         Finish_Recovery (Parser, Handler, Source'Last);
+      elsif Source'Length > 0 and then Start <= Source'Last then
+         Parser.Recovery_Start := Start;
+         Parser.Recovery_Block := Coyote_Renderer.Semantics.No_Block;
+         Parser.Recovering := True;
+         Finish_Recovery (Parser, Handler, Source'Last);
       end if;
       Parser.Pending := Null_Unbounded_String;
       Parser.Source := Null_Unbounded_String;
       Parser.Cursor := 0;
       Parser.Open := 0;
-      Parser.Invalid := False;
+      Parser.Flushed := True;
    end Flush_Internal;
 
    procedure Flush

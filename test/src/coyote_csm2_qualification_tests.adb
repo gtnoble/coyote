@@ -55,7 +55,9 @@ package body Coyote_CSM2_Qualification_Tests is
    procedure Append_Inline_Snapshot
      (D : S.Document; Id : S.Inline_Id; Out_Text : in out Unbounded_String) is
    begin
-      if S.Inline_Kind_Of (D, Id) = S.Text then
+      if S.Inline_Kind_Of (D, Id) = S.Text
+        or else S.Inline_Kind_Of (D, Id) = S.Raw_Markup
+      then
          Append (Out_Text, S.Inline_Value (D, Id));
       else
          Append (Out_Text, "I:" & S.Inline_Kind'Image
@@ -228,7 +230,27 @@ package body Coyote_CSM2_Qualification_Tests is
       Invalid ("<P>x</P>");
       Invalid ("<p a=""x"">x</p>");
       Invalid ("<p><strong>x</p></strong>");
-      Invalid ("<p><unknown>x</unknown></p>");
+      declare
+         Local_D : S.Document;
+         Local_L : Event_Log;
+      begin
+         Parse ("<p><strong>ok</strong><unknown>x</unknown>tail</p>"
+                & "<h2>after</h2>", Local_D, Local_L);
+         Assert (Local_L.Invalid = 1,
+                 "unknown inline reports localized invalid source");
+         Assert (S.Block_Kind_Of (Local_D, S.Block_At (Local_D, 1)) = S.Paragraph,
+                 "unknown inline keeps ordinary root typed");
+         Assert (S.Inline_Kind_Of
+                   (Local_D, S.Block_Inline_At (Local_D, S.Block_At (Local_D, 1), 1)) =
+                   S.Strong,
+                 "valid styled prefix survives unknown inline");
+         Assert (S.Inline_Kind_Of
+                   (Local_D, S.Block_Inline_At (Local_D, S.Block_At (Local_D, 1), 2)) =
+                   S.Raw_Markup,
+                 "unknown inline suffix is raw");
+         Assert (S.Block_Kind_Of (Local_D, S.Block_At (Local_D, 2)) = S.Heading,
+                 "later root remains typed after unknown inline");
+      end;
       Invalid ("<table><row><cell>a</cell></row><row><cell>b</cell>"
                & "<cell>c</cell></row></table>");
       Invalid ("<table><row kind=""header""><cell>x</cell></row>"

@@ -48,6 +48,12 @@ package body Coyote_Incremental_Tests is
       Bad_Range         : Boolean := False;
       Bad_Context       : Boolean := False;
       Last_Sequence     : Natural := 0;
+      Invalid_Text      : Unbounded_String;
+      Invalid_Start     : Natural := 0;
+      Invalid_End       : Natural := 0;
+      Invalid_Root      : Natural := 0;
+      Invalid_Begin     : Boolean := False;
+      Invalid_End_Mark  : Boolean := False;
    end record;
 
    Active_Live : access Live_Log;
@@ -75,6 +81,12 @@ package body Coyote_Incremental_Tests is
             Append (Active_Live.Kinds, "[" & To_String (Value.Text) & "]");
          when Live_Invalid_Event =>
             Active_Live.Invalid := Active_Live.Invalid + 1;
+            Active_Live.Invalid_Text := Value.Text;
+            Active_Live.Invalid_Start := Value.Source_Start;
+            Active_Live.Invalid_End := Value.Source_End;
+            Active_Live.Invalid_Root := Value.Root_Id;
+            Active_Live.Invalid_Begin := Value.Root_Begin;
+            Active_Live.Invalid_End_Mark := Value.Root_End;
          when Live_Table_Begin_Event | Live_Math_Begin_Event =>
             if Value.Deferred then
                Active_Live.Deferred_Begins :=
@@ -109,6 +121,37 @@ package body Coyote_Incremental_Tests is
    begin
       return Ada.Strings.Fixed.Index (To_String (Value), Needle) > 0;
    end Contains;
+
+   function Snapshot_Text (D : Document) return String is
+      Result : Unbounded_String;
+   begin
+      for Position in 1 .. Block_Count (D) loop
+         declare
+            Block : constant Block_Id := Block_At (D, Position);
+            Previous_Text : Boolean := False;
+         begin
+            Append (Result, Block_Kind'Image (Block_Kind_Of (D, Block)));
+            Append (Result, ":" & Block_Source (D, Block));
+            for Inline_Position in 1 .. Block_Inline_Count (D, Block) loop
+               declare
+                  Inline : constant Inline_Id :=
+                    Block_Inline_At (D, Block, Inline_Position);
+               begin
+                  if Inline_Kind_Of (D, Inline) = Text
+                    and then Previous_Text
+                  then
+                     Append (Result, Inline_Source (D, Inline));
+                  else
+                     Append (Result, "|" & Inline_Kind'Image
+                       (Inline_Kind_Of (D, Inline)) & ":" & Inline_Source (D, Inline));
+                  end if;
+                  Previous_Text := Inline_Kind_Of (D, Inline) = Text;
+               end;
+            end loop;
+         end;
+      end loop;
+      return To_String (Result);
+   end Snapshot_Text;
 
    procedure Parse
      (Source : String; D : out Document; Result : out Log) is
@@ -407,10 +450,15 @@ package body Coyote_Incremental_Tests is
       Parse ("<table><row><cell>x</cell></row></table><table>bad</table>",
              D, Result);
       Assert (Result.Invalid > 0, "malformed table remains visible");
-      Assert (Block_Count (D) = 1,
-              "malformed recovery keeps one authoritative source block");
-      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
-              "malformed recovery source block is authoritative");
+      Assert (Block_Count (D) = 2,
+              "malformed recovery preserves the valid table root");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Table,
+              "valid table remains typed before malformed table");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Invalid_Source,
+              "malformed table is one isolated invalid root");
+      Assert
+        (Block_Source (D, Block_At (D, 2)) = "<table>bad</table>",
+         "malformed table source is preserved exactly");
    end Test_Table_Incomplete_And_Malformed_Recovery;
 
    procedure Test_Math_And_Code_Are_Opaque (T : in out Test) is
@@ -585,30 +633,196 @@ package body Coyote_Incremental_Tests is
       Assert
         (Ada.Strings.Fixed.Index (To_String (Result.Text), "<p>") > 0,
          "malformed source is visible");
-      Assert (Block_Count (D) = 1,
-              "invalid source has one authoritative semantic fallback");
+      Assert (Block_Count (D) = 3,
+              "each malformed top-level root has its own fallback");
       Assert
         (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
-         "invalid fallback is typed");
+         "crossing fallback is typed");
       Assert
-        (Block_Source (D, Block_At (D, 1)) =
-           "<p><strong>x</p></strong><P>bad</P><p a=""x"">z</p>",
-         "invalid fallback preserves the exact complete source");
+        (Block_Kind_Of (D, Block_At (D, 2)) = Invalid_Source,
+         "mis-cased fallback is typed");
+      Assert
+        (Block_Kind_Of (D, Block_At (D, 3)) = Invalid_Source,
+         "attribute fallback is typed");
+      Assert
+        (Block_Source (D, Block_At (D, 1)) = "<p><strong>x</p></strong>",
+         "crossing fallback preserves exact source");
+      Assert
+        (Block_Source (D, Block_At (D, 2)) = "<P>bad</P>",
+         "mis-cased fallback preserves exact source");
+      Assert
+        (Block_Source (D, Block_At (D, 3)) = "<p a=""x"">z</p>",
+         "attribute fallback preserves exact source");
+      Parse ("<unknown>bad<p>later</p>", D, Result);
+      Assert (Result.Invalid = 1,
+              "unclosed unknown root is reported once");
+      Assert (Block_Count (D) = 2,
+              "paragraph after unclosed unknown root is recovered");
+      Assert (Block_Source (D, Block_At (D, 1)) = "<unknown>bad",
+              "unclosed unknown source ends at the safe paragraph boundary");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Paragraph,
+              "paragraph after unclosed unknown root remains typed");
+      Parse ("<unknown>bad<h2>later</h2>", D, Result);
+      Assert (Block_Count (D) = 2 and then
+              Block_Kind_Of (D, Block_At (D, 2)) = Heading,
+              "heading after unclosed unknown root remains typed");
+      Parse ("<unknown>bad<table><row><cell>x</cell></row></table>", D,
+             Result);
+      Assert (Block_Count (D) = 2 and then
+              Block_Source (D, Block_At (D, 1)) = "<unknown>bad" and then
+              Block_Kind_Of (D, Block_At (D, 2)) = Table,
+              "table after unclosed unknown root remains typed");
+      declare
+         Split_Parser : Instance;
+         Split_Result : aliased Log := (others => <>);
+         Split_D      : Document;
+      begin
+         Active_Log := Split_Result'Unchecked_Access;
+         Feed (Split_Parser, "<unknown>bad<p>lat", Collect'Access);
+         Feed (Split_Parser, "er</p>", Collect'Access);
+         Snapshot (Split_Parser, Split_D);
+         Active_Log := null;
+         Assert (Split_Result.Invalid = 1,
+                 "split unclosed unknown recovery reports once");
+         Assert (Block_Count (Split_D) = 2 and then
+                 Block_Source (Split_D, Block_At (Split_D, 1)) =
+                   "<unknown>bad" and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 2)) = Paragraph,
+                 "split recovery resumes at the paragraph boundary");
+         Reset (Split_Parser);
+         Split_Result := (others => <>);
+         Active_Log := Split_Result'Unchecked_Access;
+         Feed (Split_Parser, "<unknown>bad<h2>la", Collect'Access);
+         Feed (Split_Parser, "ter</h2>", Collect'Access);
+         Snapshot (Split_Parser, Split_D);
+         Assert (Split_Result.Invalid = 1 and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 2)) = Heading,
+                 "split recovery resumes at the heading boundary");
+         Reset (Split_Parser);
+         Split_Result := (others => <>);
+         Active_Log := Split_Result'Unchecked_Access;
+         Feed (Split_Parser,
+               "<unknown>bad<table><row><cell>x</cell></row></ta",
+               Collect'Access);
+         Feed (Split_Parser, "ble>", Collect'Access);
+         Snapshot (Split_Parser, Split_D);
+         Active_Log := null;
+         Assert (Split_Result.Invalid = 1 and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 2)) = Table,
+                 "split recovery resumes at the table boundary");
+      end;
    end Test_Malformed_Source_Is_Visible;
+
+   procedure Test_Unknown_Recovery_Before_Opaque_Roots (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+   begin
+      Parse ("<unknown>bad<code><p>literal</p></code><p>later</p>", D,
+             Result);
+      Assert (Result.Invalid = 1,
+              "unknown prefix is one invalid source region before code");
+      Assert (Block_Count (D) = 3,
+              "code and later paragraph remain separate roots");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
+              "unknown prefix is typed Invalid_Source");
+      Assert (Block_Source (D, Block_At (D, 1)) = "<unknown>bad",
+              "invalid prefix ends immediately before code");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Code_Block,
+              "code opening is owned by the normal parser");
+      Assert (Code_Literal (D, Block_At (D, 2)) = "<p>literal</p>",
+              "code payload remains opaque and literal");
+      Assert (Block_Kind_Of (D, Block_At (D, 3)) = Paragraph,
+              "paragraph after code remains typed");
+      Assert (Block_Source (D, Block_At (D, 3)) = "<p>later</p>",
+              "later paragraph source remains exact");
+
+      Parse ("<unknown>bad<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+             & "<mi>x</mi></math><p>later</p>", D, Result);
+      Assert (Result.Invalid = 1,
+              "unknown prefix is one invalid source region before MathML");
+      Assert (Block_Count (D) = 3,
+              "MathML and later paragraph remain separate roots");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
+              "MathML case has a typed invalid prefix");
+      Assert (Block_Source (D, Block_At (D, 1)) = "<unknown>bad",
+              "MathML invalid prefix ends before the qualified root");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Display_Math,
+              "qualified MathML opening is owned by the normal parser");
+      Assert
+        (MathML_Value (D, Block_At (D, 2)) =
+           "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+           & "<mi>x</mi></math>",
+         "qualified MathML payload remains opaque");
+      Assert (Block_Kind_Of (D, Block_At (D, 3)) = Paragraph,
+              "paragraph after MathML remains typed");
+
+      declare
+         Split_Parser : Instance;
+         Split_Result : aliased Log := (others => <>);
+         Split_D      : Document;
+      begin
+         Active_Log := Split_Result'Unchecked_Access;
+         Feed (Split_Parser, "<unknown>bad<code><p>lit", Collect'Access);
+         Feed (Split_Parser, "eral</p></code><p>later</p>",
+               Collect'Access);
+         Snapshot (Split_Parser, Split_D);
+         Assert (Split_Result.Invalid = 1 and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 1)) =
+                   Invalid_Source and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 2)) = Code_Block
+                 and then Code_Literal (Split_D, Block_At (Split_D, 2)) =
+                   "<p>literal</p>" and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 3)) = Paragraph,
+                 "split code recovery preserves typed opaque and later roots");
+         Reset (Split_Parser);
+         Split_Result := (others => <>);
+         Feed (Split_Parser,
+               "<unknown>bad<math xmlns="""
+               & "http://www.w3.org/1998/Math/MathML"">"
+               & "<mi>x</mi></ma", Collect'Access);
+         Feed (Split_Parser, "th><p>later</p>", Collect'Access);
+         Snapshot (Split_Parser, Split_D);
+         Active_Log := null;
+         Assert (Split_Result.Invalid = 1 and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 1)) =
+                   Invalid_Source and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 2)) =
+                   Display_Math and then
+                 Block_Kind_Of (Split_D, Block_At (Split_D, 3)) = Paragraph,
+                 "split MathML recovery preserves typed opaque and later"
+                 & " roots");
+      end;
+   end Test_Unknown_Recovery_Before_Opaque_Roots;
 
    procedure Test_Incomplete_Flush_Is_Exact (T : in out Test) is
       pragma Unreferenced (T);
       Parser : Instance;
       Result : aliased Log := (others => <>);
+      D      : Document;
    begin
       Active_Log := Result'Unchecked_Access;
-      Feed (Parser, "prefix <p>tail", Collect'Access);
+      Feed (Parser, "<h1>valid</h1><p>tail", Collect'Access);
+      Snapshot (Parser, D);
+      Assert (Block_Count (D) = 2,
+              "valid prefix and incomplete root are retained provisionally");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Heading,
+              "valid prefix remains typed before Flush");
       Flush (Parser, Collect'Access);
+      Snapshot (Parser, D);
       Active_Log := null;
       Assert (Result.Invalid = 1, "flush emits exactly one invalid suffix");
       Assert
         (Ada.Strings.Fixed.Index (To_String (Result.Text), "<p>tail") > 0,
          "flush preserves exact incomplete source");
+      Assert (Block_Count (D) = 2,
+              "Flush retains the valid prefix and invalid suffix roots");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Heading,
+              "Flush does not invalidate the valid prefix root");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Invalid_Source,
+              "Flush quarantines only the incomplete root");
+      Assert (Block_Source (D, Block_At (D, 2)) = "<p>tail",
+              "Flush invalid source is exactly the incomplete suffix");
       Flush (Parser, Collect'Access);
       Assert (Result.Invalid = 1, "second flush is deterministic no-op");
    end Test_Incomplete_Flush_Is_Exact;
@@ -637,6 +851,247 @@ package body Coyote_Incremental_Tests is
                 Block_Source (D2, Block_At (D2, 1)),
               "split and whole source agree");
    end Test_Delta_Boundary_Invariance;
+
+   procedure Test_Localized_Root_Recovery (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+      Source : constant String :=
+        "<p>before</p><p><strong>broken</p></strong>"
+        & "<h2>after</h2>";
+      Split_Parser : Instance;
+      Split_Result : aliased Log := (others => <>);
+      Split_D      : Document;
+   begin
+      Parse (Source, D, Result);
+      Assert (Result.Invalid = 1, "one invalid ordinary root is reported");
+      Assert (Block_Count (D) = 3, "roots before, invalid, and after remain");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Paragraph,
+              "valid prefix root remains typed");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Invalid_Source,
+              "crossing root is quarantined as one block");
+      Assert (Block_Kind_Of (D, Block_At (D, 3)) = Heading,
+              "parser resumes at later safe root boundary");
+      Assert (Block_Source (D, Block_At (D, 2)) =
+                "<p><strong>broken</p></strong>",
+              "invalid ordinary root preserves exact source");
+      Active_Log := Split_Result'Unchecked_Access;
+      for I in Source'Range loop
+         Feed (Split_Parser, Source (I .. I), Collect'Access);
+      end loop;
+      Snapshot (Split_Parser, Split_D);
+      Active_Log := null;
+      Assert (Split_Result.Invalid = Result.Invalid,
+              "split recovery reports the same invalid count");
+      Assert (Block_Count (Split_D) = Block_Count (D),
+              "split recovery preserves root count");
+      for Position in 1 .. Block_Count (D) loop
+         Assert (Block_Kind_Of (Split_D, Block_At (Split_D, Position)) =
+                   Block_Kind_Of (D, Block_At (D, Position)),
+                 "split recovery preserves root kind");
+         Assert (Block_Source (Split_D, Block_At (Split_D, Position)) =
+                   Block_Source (D, Block_At (D, Position)),
+                 "split recovery preserves exact root source");
+      end loop;
+   end Test_Localized_Root_Recovery;
+
+   procedure Test_Localized_Inline_Salvage (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+      Para   : Block_Id;
+   begin
+      Parse ("<p>prefix <strong>typed</strong><link bad>broken</link>tail</p>"
+             & "<h2>later</h2>", D, Result);
+      Assert (Result.Invalid = 1, "malformed inline is reported once");
+      Assert (Block_Count (D) = 2, "later root survives inline salvage");
+      Para := Block_At (D, 1);
+      Assert (Block_Kind_Of (D, Para) = Paragraph,
+              "ordinary root remains typed after inline corruption");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 1)) = Text,
+              "valid text prefix remains typed");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 2)) = Strong,
+              "valid styled prefix remains typed");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 3)) = Raw_Markup,
+              "only corrupted suffix becomes raw markup");
+      Assert (Inline_Source (D, Block_Inline_At (D, Para, 3)) =
+                "<link bad>broken</link>tail",
+              "raw inline source is exact through root close boundary");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Heading,
+              "valid later heading remains typed");
+   end Test_Localized_Inline_Salvage;
+
+   procedure Test_Localized_Entity_Salvage (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+      Para   : Block_Id;
+   begin
+      Parse ("<p>good <strong>bold</strong> bad &bogus; after</p>"
+             & "<p>later</p>", D, Result);
+      Para := Block_At (D, 1);
+      Assert (Result.Invalid = 1, "invalid entity is reported once");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 2)) = Strong,
+              "styled prefix survives invalid entity");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 4)) = Raw_Markup,
+              "invalid entity suffix is raw");
+      Assert (Inline_Value (D, Block_Inline_At (D, Para, 3)) = " bad ",
+              "valid text before invalid entity remains typed");
+      Assert (Inline_Value (D, Block_Inline_At (D, Para, 4)) =
+                "&bogus; after",
+              "invalid entity source is retained exactly");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Paragraph,
+              "later paragraph survives invalid entity");
+   end Test_Localized_Entity_Salvage;
+
+   procedure Test_Localized_Entity_Flush (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      D      : Document;
+      Result : aliased Log := (others => <>);
+   begin
+      Active_Log := Result'Unchecked_Access;
+      Feed (Parser, "<p>prefix &broken", Collect'Access);
+      Snapshot (Parser, D);
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Paragraph,
+              "incomplete entity is provisionally paragraph typed");
+      Flush (Parser, Collect'Access);
+      Snapshot (Parser, D);
+      Active_Log := null;
+      Assert (Result.Invalid = 1, "incomplete entity is reported on Flush");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Paragraph,
+              "incomplete entity keeps paragraph typed count="
+              & Natural'Image (Block_Count (D))
+              & " kind=" & Block_Kind'Image
+                (Block_Kind_Of (D, Block_At (D, 1)))
+              & " source=" & Block_Source (D, Block_At (D, 1))
+              & " inlines=" & Natural'Image
+                (Block_Inline_Count (D, Block_At (D, 1))));
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Block_At (D, 1), 2)) =
+                Raw_Markup,
+              "incomplete entity is raw after Flush");
+      Assert (Inline_Value (D, Block_Inline_At (D, Block_At (D, 1), 2)) =
+                "&broken",
+              "Flush retains incomplete entity source");
+   end Test_Localized_Entity_Flush;
+
+   procedure Test_Localized_Tag_Flush (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      D      : Document;
+      Result : aliased Log := (others => <>);
+   begin
+      Active_Log := Result'Unchecked_Access;
+      Feed (Parser, "<p>prefix <unk", Collect'Access);
+      Feed (Parser, "nown>x</unknown>", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Snapshot (Parser, D);
+      Active_Log := null;
+      Assert (Result.Invalid = 1, "split malformed inline tag is reported once");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Paragraph,
+              "split malformed inline tag keeps paragraph typed");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Block_At (D, 1), 2)) =
+                Raw_Markup,
+              "split malformed inline tag is raw");
+      Assert (Inline_Value (D, Block_Inline_At (D, Block_At (D, 1), 2)) =
+                "<unknown>x</unknown>",
+              "split malformed inline tag retains exact source");
+   end Test_Localized_Tag_Flush;
+
+   procedure Test_Localized_Split_Invariance (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String :=
+        "<p>good <strong>x</strong> bad &bogus; tail</p><h3>later</h3>";
+      Whole  : Instance;
+      Split  : Instance;
+      A      : aliased Log := (others => <>);
+      B      : aliased Log := (others => <>);
+      D1     : Document;
+      D2     : Document;
+   begin
+      Active_Log := A'Unchecked_Access;
+      Feed (Whole, Source, Collect'Access);
+      Snapshot (Whole, D1);
+      Active_Log := B'Unchecked_Access;
+      for Boundary in Source'Range loop
+         Reset (Split);
+         B := (others => <>);
+         Feed (Split, Source (Source'First .. Boundary), Collect'Access);
+         if Boundary < Source'Last then
+            Feed (Split, Source (Boundary + 1 .. Source'Last), Collect'Access);
+         end if;
+         Snapshot (Split, D2);
+         Assert (Snapshot_Text (D1) = Snapshot_Text (D2),
+                 "inline salvage is invariant at byte boundary "
+                 & Natural'Image (Boundary)
+                 & " whole=" & Snapshot_Text (D1)
+                 & " split=" & Snapshot_Text (D2));
+         Assert (A.Invalid = B.Invalid,
+                 "inline salvage invalid count is invariant at byte boundary "
+                 & Natural'Image (Boundary));
+      end loop;
+      Active_Log := null;
+   end Test_Localized_Split_Invariance;
+
+   procedure Test_Crossing_Inline_Remains_Atomic (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+   begin
+      Parse ("<p>prefix <strong>cross</p></strong><p>later</p>", D, Result);
+      Assert (Result.Invalid = 1, "crossing inline is reported once");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
+              "crossing inline remains root-atomic");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Paragraph,
+              "later root survives crossing recovery");
+   end Test_Crossing_Inline_Remains_Atomic;
+
+   procedure Test_Opaque_Root_Recovery (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+   begin
+      Parse ("<p>before</p><code><bad><p>x</p></code><p>after</p>", D,
+             Result);
+      Assert (Result.Invalid = 0,
+              "opaque code payload remains atomic invalid="
+              & Natural'Image (Result.Invalid)
+              & " blocks=" & Natural'Image (Block_Count (D)));
+      Assert (Block_Count (D) = 3, "opaque code preserves surrounding roots");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Paragraph,
+              "prefix paragraph remains typed around code");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Code_Block,
+              "opaque code payload remains a typed code root");
+      Assert (Block_Kind_Of (D, Block_At (D, 3)) = Paragraph,
+              "post-code paragraph is parsed normally");
+      Parse ("<p>before</p><math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+             & "<math><mi>x</mi></math></math><p>after</p>", D, Result);
+      Assert (Result.Invalid = 1, "malformed MathML is reported once");
+      Assert (Block_Count (D) = 3, "MathML remains atomic during recovery");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Invalid_Source,
+              "MathML root is one invalid source block");
+      Assert (Block_Kind_Of (D, Block_At (D, 3)) = Paragraph,
+              "parser resumes only after MathML close");
+   end Test_Opaque_Root_Recovery;
+
+   procedure Test_Multiple_Malformed_Roots (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Result : Log;
+   begin
+      Parse ("<p>a</p><p><em>x</p></em><table><p>bad</p></table>"
+             & "<h3>z</h3>", D, Result);
+      Assert (Result.Invalid = 2, "multiple malformed roots report separately");
+      Assert (Block_Count (D) = 4, "valid roots survive multiple regions");
+      Assert (Block_Kind_Of (D, Block_At (D, 1)) = Paragraph,
+              "first valid root is retained");
+      Assert (Block_Kind_Of (D, Block_At (D, 2)) = Invalid_Source,
+              "first malformed root is isolated");
+      Assert (Block_Kind_Of (D, Block_At (D, 3)) = Invalid_Source,
+              "second malformed root is isolated");
+      Assert (Block_Kind_Of (D, Block_At (D, 4)) = Heading,
+              "later valid root survives multiple regions");
+   end Test_Multiple_Malformed_Roots;
 
    procedure Test_UTF8_Splits (T : in out Test) is
       pragma Unreferenced (T);
@@ -841,6 +1296,44 @@ package body Coyote_Incremental_Tests is
               "live Flush preserves already decoded text");
    end Test_Live_Deferred_Completion_And_Flush;
 
+   procedure Test_Live_Localized_Invalid_Protocol (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      Result : aliased Live_Log := (others => <>);
+      Source : constant String :=
+        "<p>before <link bad>attribute</link> tail</p>"
+        & "<p>entity &bogus; tail</p>"
+        & "<p><unknown>tag</unknown> tail</p><h2>after</h2>";
+   begin
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, Source, Collect_Live'Access);
+      Active_Live := null;
+      Assert (Result.Invalid = 3,
+              "live protocol reports each localized inline malformed root");
+      Assert (To_String (Result.Invalid_Text) =
+                "<unknown>tag</unknown> tail",
+              "live invalid payload remains exact for the last inline root");
+      Assert (Result.Invalid_Root /= 0,
+              "localized live invalid events have root transaction IDs");
+      Assert (Result.Invalid_Begin and then Result.Invalid_End_Mark,
+              "localized invalid events delimit salvage checkpoints");
+      Assert (Contains (Result.Kinds, "LIVE_HEADING_BEGIN_EVENT"),
+              "live parser continues with the later valid root");
+      Reset (Parser);
+      Result := (others => <>);
+      Active_Live := Result'Unchecked_Access;
+      Feed (Parser, "<p>prefix &broken", Collect_Live'Access);
+      Flush (Parser, Collect_Live'Access);
+      Active_Live := null;
+      Assert (Result.Invalid = 1,
+              "live inline Flush reports one invalid event before finalization");
+      Assert (To_String (Result.Invalid_Text) = "&broken",
+              "live inline Flush payload excludes already decoded prefix");
+      Assert (Result.Invalid_Start > 0 and then Result.Invalid_End >=
+                Result.Invalid_Start,
+              "live inline Flush carries the exact source range");
+   end Test_Live_Localized_Invalid_Protocol;
+
    procedure Test_Live_Callback_State_Clears_On_Exception (T : in out Test) is
       pragma Unreferenced (T);
       Parser : Instance;
@@ -913,11 +1406,41 @@ package body Coyote_Incremental_Tests is
         ("CSM-2 malformed source recovery",
          Test_Malformed_Source_Is_Visible'Access));
       Result.Add_Test (Caller.Create
+        ("CSM-2 unknown recovery before opaque roots",
+         Test_Unknown_Recovery_Before_Opaque_Roots'Access));
+      Result.Add_Test (Caller.Create
         ("CSM-2 exact incomplete flush",
          Test_Incomplete_Flush_Is_Exact'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 delta boundary invariance",
          Test_Delta_Boundary_Invariance'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 localized root recovery",
+         Test_Localized_Root_Recovery'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 localized inline salvage",
+         Test_Localized_Inline_Salvage'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 localized entity salvage",
+         Test_Localized_Entity_Salvage'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 localized entity Flush",
+         Test_Localized_Entity_Flush'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 localized tag Flush",
+         Test_Localized_Tag_Flush'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 localized split invariance",
+         Test_Localized_Split_Invariance'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 crossing inline remains atomic",
+         Test_Crossing_Inline_Remains_Atomic'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 opaque root recovery",
+         Test_Opaque_Root_Recovery'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 multiple malformed roots",
+         Test_Multiple_Malformed_Roots'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 UTF-8 split safety", Test_UTF8_Splits'Access));
       Result.Add_Test (Caller.Create
@@ -934,6 +1457,9 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 live deferred completion and Flush",
          Test_Live_Deferred_Completion_And_Flush'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 live localized invalid protocol",
+         Test_Live_Localized_Invalid_Protocol'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 live callback state clears on exception",
          Test_Live_Callback_State_Clears_On_Exception'Access));

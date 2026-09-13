@@ -1,9 +1,12 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.25
-**Date:** 2026-09-12
-**Status:** Verified — PCR-101 closed
+**Version:** 1.26
+**Date:** 2026-09-13
+**Status:** Verified — PCR-101 localized-recovery enhancement implemented
+
+The PCR-101 closure text below remains historical. This revision records the
+implemented localized CSM-2 recovery enhancement verified after that closure.
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -346,9 +349,11 @@ format-selection rules, Plain frontend behavior, and default-off Markdown
 behavior remain unchanged. When selected, supported text, inline styles,
 code/code-inline, headings, blockquotes, lists, `br`, and `hr` are presented
 incrementally; complete table and terminal math blocks are realized at complete
-boundaries or final reconciliation. Markdown behavior remains unchanged.
-Verified by the default-off flag, prompt, history, live-renderer, GUI, and
-complete-suite evidence recorded in the Test Plan.
+root boundaries or final reconciliation. Recovery is regional: a malformed
+root does not discard or reinterpret valid committed roots before or after it.
+Markdown behavior remains unchanged. Verified by the default-off flag, prompt,
+history, parser/live-renderer, GUI, and complete-suite evidence recorded in the
+Test Plan.
 
 **REQ-CORE-047b** (A/I/T)
 CSM-2 defines only the explicit inline tags `<strong>`, `<em>`, `<del>`,
@@ -388,17 +393,35 @@ Verified by parser, live-renderer, GUI native MathML, Markdown MathML reference,
 and complete-suite evidence.
 
 **REQ-CORE-047e** (A/I/T)
-Malformed or incomplete CSM-2 remains visible source. Recovery does not
-silently discard source or reinterpret it as Markdown. Complete root boundaries,
-exact `Flush`, UTF-8 split handling, and authoritative malformed reconciliation
-are verified by the headless parser/qualification and GUI fixtures.
+CSM-2 recovery is localized at root boundaries and never reinterprets source as
+Markdown. Stage 1 parser recovery preserves every valid committed root before
+and after a malformed root. A malformed ordinary, table, code, math, or other
+structural root becomes one exact `Invalid_Source` region; tables, code, terminal
+MathML, and structural containers are atomic and are not partially typed. The
+parser preserves valid prefixes, defers incomplete constructs split across
+provider deltas, and `Flush` emits the exact remaining incomplete suffix once;
+repeated `Flush` is idempotent. Stage 3 inline recovery preserves the valid
+prefix of a paragraph or heading and represents only the corrupted suffix
+through the root close as escaped, unstyled semantic `Raw_Markup`. Malformed
+inline attributes, unknown inline tags, and invalid entities use this rule;
+crossing inline tags remain root-atomic. No recovery silently discards source or
+reinterprets it as Markdown.
+
+Stage 2 live recovery carries `Root_Id`, `Root_Begin`, and `Root_End` on
+`Live_Event`. The GTK live renderer checkpoints each root and rolls back only
+the affected root, so later valid roots continue. Final `Flush`/`Snapshot` and
+`Coyote_GUI.Response_Renderer.Replace` remain authoritative: they reconcile the
+complete semantic document, preserve valid content, and remove stale native or
+provisional widgets. These behaviours are verified by the CSM-2 focused and GUI
+fixtures recorded in the Test Plan.
 
 **REQ-CORE-047f** (A/I/T)
 CSM-2 GUI presentation parity is qualified against completed native GUI Markdown
 rendering, with native tables and native Presentation MathML retained as the
 reference's native exceptions. Qualified parity covers equivalent visible
 content, semantic styles, document order, spacing policy, selection/copy
-behavior, child-count/reconciliation, and fallback behavior. Pixel identity is
+behavior, child-count/reconciliation, root-scoped live rollback, escaped and
+unstyled `Raw_Markup`, and authoritative final replacement. Pixel identity is
 not promised by this contract.
 
 **REQ-CORE-047g** (A/I/T)
@@ -1808,12 +1831,11 @@ qualification requirements are identified.
 ## 4. Qualification Provisions
 
 Traceability from requirements to test cases. Current test procedures and
-status are maintained in `plan/test-plan.md`; the current automated baseline
-is 934 registered tests. CSM-2 live and native GUI qualification is complete for the
-Conversation_Stack presentation. The table below is the original qualification
-matrix and retains historical `TC-*` identifiers; current mappings are in
-`plan/test-plan.md` §6.
-
+status are maintained in `plan/test-plan.md`; the current automated baseline is 954 registered tests. CSM-2 live and native
+GUI qualification is current for the `Conversation_Stack` presentation. The
+PCR-101 closure matrix remains historical; current localized-recovery mappings
+and evidence are recorded in `plan/test-plan.md` §6. The table below retains
+historical `TC-*` identifiers.
 | Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |

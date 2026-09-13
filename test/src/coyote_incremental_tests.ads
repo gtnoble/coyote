@@ -25,14 +25,25 @@ package Coyote_Incremental_Tests is
    procedure Test_Entities_And_Markdown_Are_Literal (T : in out Test);
    procedure Test_Pipe_Text_Is_Not_A_Table (T : in out Test);
    procedure Test_Malformed_Source_Is_Visible (T : in out Test);
+   procedure Test_Unknown_Recovery_Before_Opaque_Roots (T : in out Test);
    procedure Test_Incomplete_Flush_Is_Exact (T : in out Test);
    procedure Test_Delta_Boundary_Invariance (T : in out Test);
+   procedure Test_Localized_Root_Recovery (T : in out Test);
+   procedure Test_Localized_Inline_Salvage (T : in out Test);
+   procedure Test_Localized_Entity_Salvage (T : in out Test);
+   procedure Test_Localized_Entity_Flush (T : in out Test);
+   procedure Test_Localized_Tag_Flush (T : in out Test);
+   procedure Test_Localized_Split_Invariance (T : in out Test);
+   procedure Test_Crossing_Inline_Remains_Atomic (T : in out Test);
+   procedure Test_Opaque_Root_Recovery (T : in out Test);
+   procedure Test_Multiple_Malformed_Roots (T : in out Test);
    procedure Test_UTF8_Splits (T : in out Test);
    procedure Test_Nesting_And_Tag_Limits (T : in out Test);
    procedure Test_Empty_Elements_And_Event_Compatibility (T : in out Test);
    procedure Test_Live_Transitions_And_Order (T : in out Test);
    procedure Test_Live_Opaque_Split_Payloads (T : in out Test);
    procedure Test_Live_Deferred_Completion_And_Flush (T : in out Test);
+   procedure Test_Live_Localized_Invalid_Protocol (T : in out Test);
    procedure Test_Live_Callback_State_Clears_On_Exception (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;

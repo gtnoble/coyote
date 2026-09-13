@@ -1,5 +1,26 @@
 # Component Development Log — Core Agent
 
+## 2026-09-13 — CSM-2 localized recovery enhancement (PCR-101 follow-on)
+
+Implemented the three-stage localized CSM-2 recovery contract. Stage 1 keeps
+valid committed roots typed on both sides of malformed ordinary, table, code,
+math, and structural roots; each malformed root is one exact `Invalid_Source`
+region, with atomic table/code/MathML/structural handling, no Markdown
+reinterpretation, preserved valid prefixes, and idempotent exact `Flush`. Stage
+2 extends `Live_Event` with `Root_Id`, `Root_Begin`, and `Root_End`; the GTK live
+sink uses root checkpoints/marks to roll back only the affected root, allowing
+later valid roots to continue. Stage 3 adds escaped, unstyled semantic
+`Raw_Markup` for only the corrupted inline suffix through the root close;
+valid paragraph/heading prefixes survive, crossing inline tags remain atomic,
+and split deltas defer incomplete constructs. Final `Flush`/`Snapshot`/
+`Response_Renderer.Replace` remains authoritative and removes stale native
+widgets.
+
+**Verification:** Production and test development builds succeeded. The
+complete AUnit suite passed 955/955; CSM-2 focused qualification passed 49/49;
+semantic qualification passed 5/5. Historical PCR-101 closure evidence,
+including 919/919, is preserved unchanged in the records below.
+
 ## 2026-09-12 — CSM-2 whitespace-robust parser boundaries
 
 `Coyote_Renderer.Incremental` now uses quote-aware tag boundaries throughout
@@ -23,12 +44,13 @@ code-inline regions emit opaque literal chunks, preventing tag-like payloads
 from being reinterpreted. `Flush` emits an incomplete suffix exactly once;
 `Snapshot` remains the typed semantic source for final presentation.
 
-**Verification:** Production and test development builds passed. The CSM-2
-parser/live/headless/GUI aggregate filter passed 32/32, including parser
-boundary/UTF-8/opaque-source coverage, standalone live renderer 4/4, and GUI
-CSM-2 qualification 7/7. The complete development suite passed 934/934 with
-zero failed assertions or unexpected errors. The existing Markdown, Plain,
-provider, and RPC paths were not changed by this live-rendering implementation.
+**Historical verification:** Production and test development builds passed at
+this dated phase. The CSM-2 parser/live/headless/GUI aggregate filter passed
+32/32, including parser boundary/UTF-8/opaque-source coverage, standalone live
+renderer 4/4, and GUI CSM-2 qualification 7/7. The complete development suite
+passed 934/934 with zero failed assertions or unexpected errors. The existing
+Markdown, Plain, provider, and RPC paths were not changed by this live-rendering
+implementation.
 
 ## 2026-09-12 — Default-off CSM prompt isolation
 
@@ -38,9 +60,10 @@ as project context and contained active CSM runtime policy. Removed that
 runtime policy from the live agent-instruction file and added a Markdown-only
 response-format guard to `share/coyote/system-prompt.md`; ordinary project
 context remains injectable. Added prompt regression assertions for both
-Markdown and CSM-2 rendering. Production and test development builds succeed;
-the focused system-prompt tests pass 34/34, the dynamic-context injection test
-passes 1/1, and the complete AUnit suite passes 934/934.
+Markdown and CSM-2 rendering. **Historical verification:** Production and test
+development builds succeeded at this dated phase; the focused system-prompt
+tests passed 34/34, the dynamic-context injection test passed 1/1, and the
+complete AUnit suite passed 934/934.
 
 > **Current-baseline note (2026-08-30):** Entries below that mention Acme,
 > Nine_P, 9P, or plumber describe superseded pre-PCR-090 architecture. They

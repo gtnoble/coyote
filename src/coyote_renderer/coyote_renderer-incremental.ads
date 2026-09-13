@@ -73,6 +73,9 @@ package Coyote_Renderer.Incremental is
       Live_Literal_Event,
       Live_Invalid_Event);
 
+   --  Root_Id identifies the top-level transaction that produced the event.
+   --  Root_Begin and Root_End delimit its provisional live output.  Invalid
+   --  events carry only the affected root's exact source range.
    type Live_Event is record
       Kind         : Live_Event_Kind := Live_Text_Event;
       Text         : Ada.Strings.Unbounded.Unbounded_String;
@@ -81,9 +84,12 @@ package Coyote_Renderer.Incremental is
       Source_Start : Natural := 0;
       Source_End   : Natural := 0;
       Context_Id   : Natural := 0;
+      Root_Id      : Natural := 0;
       Sequence     : Natural := 0;
       Deferred     : Boolean := False;
       Complete     : Boolean := False;
+      Root_Begin   : Boolean := False;
+      Root_End     : Boolean := False;
    end record;
 
    type Live_Handler is access procedure (Value : Live_Event);
@@ -153,17 +159,42 @@ private
    type Stack_Array is array (Positive range 1 .. Max_Nesting_Depth)
      of Stack_Entry;
 
+   type Recovery_Kind is
+     (No_Recovery,
+      Ordinary_Recovery,
+      Table_Recovery,
+      Code_Recovery,
+      Math_Recovery,
+      Unknown_Recovery);
+
    type Instance is tagged limited record
-      Pending     : Ada.Strings.Unbounded.Unbounded_String;
-      Source      : Ada.Strings.Unbounded.Unbounded_String;
-      Document    : Coyote_Renderer.Semantics.Document;
-      Stack       : Stack_Array;
-      Cursor        : Natural := 0;
-      Open          : Natural := 0;
-      Invalid       : Boolean := False;
-      Next_Context  : Natural := 0;
-      Next_Sequence : Natural := 0;
-      Live          : Live_Handler := null;
+      Pending        : Ada.Strings.Unbounded.Unbounded_String;
+      Source         : Ada.Strings.Unbounded.Unbounded_String;
+      Document       : Coyote_Renderer.Semantics.Document;
+      Stack          : Stack_Array;
+      Cursor         : Natural := 0;
+      Open           : Natural := 0;
+      Recovering     : Boolean := False;
+      Flushed        : Boolean := False;
+      Recovery_Mode  : Recovery_Kind := No_Recovery;
+      Recovery_Start : Natural := 0;
+      Recovery_End    : Natural := 0;
+      Recovery_Name   : Ada.Strings.Unbounded.Unbounded_String;
+      Recovery_Root_Id : Natural := 0;
+      Recovery_Had_Provisional : Boolean := False;
+      Recovery_Reported : Boolean := False;
+      Live_Reported : Boolean := False;
+      Recovery_Block : Coyote_Renderer.Semantics.Block_Id :=
+        Coyote_Renderer.Semantics.No_Block;
+      Localized_Recovery : Boolean := False;
+      Localized_Start    : Natural := 0;
+      Deferred_Text      : Boolean := False;
+      Deferred_Text_Start : Natural := 0;
+      Deferred_Tag        : Boolean := False;
+      Deferred_Tag_Start   : Natural := 0;
+      Next_Context   : Natural := 0;
+      Next_Sequence  : Natural := 0;
+      Live           : Live_Handler := null;
    end record;
 
 end Coyote_Renderer.Incremental;

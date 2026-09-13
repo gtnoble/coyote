@@ -19,11 +19,13 @@ shared between coyote and pi.
   blockquotes, lists, `br`, and `hr`; code payloads are opaque literal chunks.
   Complete table and terminal Presentation MathML source is deferred in the
   live subtree and realized natively only at complete boundaries/final
-  `Flush`/`Snapshot` reconciliation through the shared renderer. Invalid live
-  input rolls back to authoritative visible source. CSM-2 is not Markdown:
-  tables use explicit tags rather than Markdown pipes. Versionless CSM-1 replay
-  is limited to visible raw source because the CSM-1 parser is retired.
-  Markdown remains the default and Plain output is unchanged.
+  `Flush`/`Snapshot` reconciliation through the shared renderer. Malformed
+  roots remain exact visible source without Markdown reinterpretation; live
+  rollback is scoped to the affected root, so later valid roots continue.
+  CSM-2 is not Markdown: tables use explicit tags rather than Markdown pipes.
+  Versionless CSM-1 replay is limited to visible raw source because the CSM-1
+  parser is retired. Markdown remains the default and Plain output is
+  unchanged.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and
@@ -225,7 +227,7 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 934 registered tests and passes 934/934 in
+The current hierarchy contains 955 registered tests and passes 955/955 in
 approximately 34 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.

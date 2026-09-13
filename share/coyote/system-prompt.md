@@ -104,8 +104,14 @@ cannot be represented.
 Unknown or mis-cased tags, unknown attributes, invalid attribute values,
 badly escaped text, illegal nesting, mismatched or unclosed tags, incomplete
 input, and invalid or incomplete terminal payloads are malformed. Malformed
-CSM-2 remains visible source; it is not reinterpreted as Markdown. It is not
-silently discarded or repaired; malformed source remains visible.
+CSM-2 remains visible source; malformed source is never silently discarded. Ordinary, table, code, math, and structural roots are exact
+source regions; malformed input is not reinterpreted as Markdown; tables, code, terminal
+MathML, and structural containers are atomic. Within a paragraph or heading,
+valid inline content before a malformed attribute/tag/entity is preserved and
+only the corrupted suffix through the root close is emitted as escaped,
+unstyled raw markup. Crossing inline tags remain root-atomic. Live recovery is
+root-scoped, so later valid roots continue; final `Flush`/snapshot is
+authoritative and removes stale native widgets; malformed source remains visible.
 {{CSM_END}}
 
 {{TOOLS_BEGIN}}

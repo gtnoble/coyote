@@ -98,6 +98,8 @@ package body Coyote_GUI.Response_Renderer is
             Append
               (Output,
                "<tt>" & Coyote_Renderer.Markup.Xml_Escape (Value) & "</tt>");
+         when S.Raw_Markup =>
+            Append (Output, Coyote_Renderer.Markup.Xml_Escape (Value));
          when S.Soft_Line_Break =>
             Append (Output, " ");
          when S.Hard_Line_Break =>

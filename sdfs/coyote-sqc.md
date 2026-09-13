@@ -15,7 +15,8 @@ The SQC test callers are now package-scoped leaf suites composed by
 `Test_SQC_Suite`. Moving the Quantile CC and MI caller instantiations out of
 the root suite function fixed a dangling-dispatch lifetime defect that was
 only exposed when AUnit global or per-case timing was enabled. The SQC domain
-contains 208 registrations and passes as part of the verified 919-test suite.
+contains 208 registrations and passed as part of the historical 919-test
+suite; the current full-suite baseline is recorded in the active qualification entry.
 
 ### Why coyote_sqc is a separate executable
 

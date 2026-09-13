@@ -146,6 +146,14 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return Coyote_GUI.Live_Response_Renderer.Text (C.Live_Renderer);
    end Live_Response_Text;
 
+   function Live_Response_Invalid_Event_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      return Coyote_GUI.Live_Response_Renderer.Invalid_Event_Count
+        (C.Live_Renderer);
+   end Live_Response_Invalid_Event_Count;
+
    function Live_Response_Text_Has_Style
      (C      : Coyote_GUI.Conversation_Stack.Instance;
       Style  : Coyote_GUI.Live_Response_Renderer.Style_Kind;

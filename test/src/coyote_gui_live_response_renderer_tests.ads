@@ -28,6 +28,7 @@ package Coyote_GUI_Live_Response_Renderer_Tests is
    procedure Test_Live_Code_Quote_And_Lists (T : in out Test);
    procedure Test_Deferred_Blocks_And_Clear (T : in out Test);
    procedure Test_Invalid_Rolls_Back_Optimistic_Content (T : in out Test);
+   procedure Test_Invalid_Preserves_Deferred_Roots (T : in out Test);
    procedure Test_Detach_And_Reattach (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;

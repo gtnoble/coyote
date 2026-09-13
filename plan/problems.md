@@ -3384,3 +3384,28 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   and other historical procedures; those historical records are unchanged.
 - **Status:** Closed/Implemented and Verified
 - **Date closed:** 2026-09-12
+
+## PCR-103 — CSM-2 localized malformed-source recovery enhancement (PCR-101 follow-on)
+
+- **Date reported:** 2026-09-13
+- **Category:** Requirements, Design, Test, Plans, Manuals
+- **Classification:** Enhancement/change
+- **Priority:** 3-Moderate
+- **Description:** The PCR-101 CSM-2 contract retained malformed source visibly but
+  did not document the implemented regional recovery boundary: valid roots must
+  survive malformed roots, live rollback must be root-scoped, and inline
+  corruption must preserve valid prefixes while making only the damaged suffix
+  raw and unstyled.
+- **Affected work products:** SRS-CORE REQ-CORE-047a, 047e, and 047f; SDD-CORE
+  CSM-2 parser/live/Conversation_Stack design and traceability; Test Plan; core
+  and frontend SDFs; README; system prompt; and Help documentation.
+- **Corrective action:** Documented the three recovery stages, atomic boundaries,
+  `Invalid_Source`, `Raw_Markup`, `Root_Id`/root checkpoints, split-delta
+  deferral, exact idempotent `Flush`, and authoritative final
+  `Flush`/`Snapshot`/`Response_Renderer.Replace` reconciliation. Preserved the
+  historical PCR-101 closure text and added current recovery-matrix evidence.
+- **Verification:** Production and test development builds succeeded. The
+  complete AUnit suite passed 955/955; CSM-2 focused qualification passed
+  49/49; semantic qualification passed 5/5.
+- **Status:** Closed/Implemented and Verified
+- **Date closed:** 2026-09-13

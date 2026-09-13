@@ -1,8 +1,25 @@
 # Component Development Log — Frontends
 
+## 2026-09-13 — CSM-2 localized live recovery enhancement (PCR-101 follow-on)
+
+The GTK live path now consumes root-delimited CSM-2 events. `Root_Id`,
+`Root_Begin`, and `Root_End` let `Coyote_GUI.Live_Response_Renderer` capture a
+GTK text mark and renderer-state checkpoint for each root, restore only the
+affected malformed root, append its exact unstyled source, and continue with
+later valid roots. Final `Flush`/`Snapshot`/`Coyote_GUI.Response_Renderer.Replace`
+remains authoritative, so stale provisional and native widgets are removed.
+The shared semantic path presents inline corruption as escaped, unstyled
+`Raw_Markup`; tables, code, terminal MathML, and structural containers remain
+atomic.
+
+**Verification:** Production and test development builds succeeded. The
+complete AUnit suite passed 955/955; CSM-2 focused qualification passed 49/49;
+semantic qualification passed 5/5. Historical PCR-101 closure evidence and its
+919/919 baseline remain unchanged below.
+
 ## Current baseline amendment (2026-08-31)
 
-The native GTK conversation cutover is complete. The current suite baseline is 934/934, and CSM-2 live presentation qualification is current through the Phase 6 entry below. `Coyote_GUI.Conversation_Stack`
+The native GTK conversation cutover is complete. The historical Phase 6 checkpoint was 934/934; the current suite baseline is 955/955, and CSM-2 live presentation qualification is current through the recovery-enhancement entry above. `Coyote_GUI.Conversation_Stack`
 is the sole GTK conversation presentation; the custom `Gtk.Layout`/Cairo/Pango
 renderer, its test accessors, and the `COYOTE_NATIVE_STACK` runtime flag were
 removed after native qualification. The Plain frontend remains supported and
@@ -51,8 +68,8 @@ back optimistic content. Clear, repeated finalization, format changes, and
 session reset are idempotent and do not retain stale widgets.
 
 **Verification:** Production and test development builds passed. The complete
-development suite passed 934/934 with zero failed assertions or unexpected
-errors. The CSM-2 parser/live/headless/GUI aggregate filter passed 32/32; the
+historical development-suite checkpoint passed 934/934 with zero failed
+assertions or unexpected errors. The CSM-2 parser/live/headless/GUI aggregate filter passed 32/32; the
 CSM-2 GUI qualification passed 7/7, standalone live renderer 4/4,
 `Conversation_Stack` 24/24, and `Coyote.GUI.Updates` 10/10. GUI qualification
 ran on the available X11 display with existing GTK theme warnings only.

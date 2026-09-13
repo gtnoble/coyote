@@ -237,6 +237,28 @@ package body Coyote_Semantics_Tests is
                 (MathML_Value (D, Math), "<math><mi>x</mi></math>") > 0,
               "display math stores inner MathML");
    end Test_Markdown_Adapter_Constructs_Display_Math;
+   procedure Test_Raw_Markup_Inline (T : in out Test) is
+      pragma Unreferenced (T);
+      D      : Document;
+      Para   : constant Block_Id := New_Block (D, Paragraph, "<p>raw</p>");
+      Raw    : constant Inline_Id :=
+        New_Inline (D, Raw_Markup, "<strong>x & y</strong>",
+                    "<strong>x & y</strong>");
+   begin
+      Assert (Append_Block (D, Para), "raw inline paragraph is attached");
+      Assert (Append_Inline (D, Para, Raw), "raw inline is attached");
+      Assert (Inline_Kind_Of (D, Raw) = Raw_Markup,
+              "raw inline kind is retained");
+      Assert (Inline_Source (D, Raw) = "<strong>x & y</strong>",
+              "raw inline source is exact");
+      Assert (Coyote_Renderer.Markup.Xml_Escape
+                (Inline_Value (D, Raw)) = "&lt;strong&gt;x &amp; y&lt;/strong&gt;",
+              "raw inline value is XML escaped");
+      Assert (Coyote_Renderer.Markup.To_Pango_Markup
+                ("plain **bold**")'Length > 0,
+              "shared serializer remains available for Markdown");
+   end Test_Raw_Markup_Inline;
+
    procedure Test_Semantic_Pango_Golden (T : in out Test) is
       pragma Unreferenced (T);
       Input : constant String :=
@@ -277,6 +299,9 @@ package body Coyote_Semantics_Tests is
       Result.Add_Test (Caller.Create
         ("Markdown adapter constructs display math",
          Test_Markdown_Adapter_Constructs_Display_Math'Access));
+      Result.Add_Test (Caller.Create
+        ("Semantic Raw_Markup inline",
+         Test_Raw_Markup_Inline'Access));
       Result.Add_Test (Caller.Create
         ("Semantic Pango serializer golden output",
          Test_Semantic_Pango_Golden'Access));

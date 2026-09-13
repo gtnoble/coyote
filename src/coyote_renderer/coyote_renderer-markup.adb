@@ -567,6 +567,8 @@ package body Coyote_Renderer.Markup is
             else
                Append (Output, "<tt>" & Xml_Escape (Value) & "</tt>");
             end if;
+         when S.Raw_Markup =>
+            Append (Output, Xml_Escape (Value));
          when S.Soft_Line_Break =>
             Append (Output, " ");
          when S.Hard_Line_Break =>

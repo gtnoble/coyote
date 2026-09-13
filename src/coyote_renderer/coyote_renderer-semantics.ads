@@ -47,8 +47,10 @@ package Coyote_Renderer.Semantics is
       Deletion,
       Link,
       Inline_Code,
+      Raw_Markup,
       Soft_Line_Break,
       Hard_Line_Break);
+
    type List_Kind is
      (Unordered_List,
       Ordered_List);
@@ -86,6 +88,10 @@ package Coyote_Renderer.Semantics is
 
    function Set_Block_Source
      (D : in out Document; Block : Block_Id; Source : String)
+     return Boolean;
+
+   function Set_Block_Kind
+     (D : in out Document; Block : Block_Id; Kind : Block_Kind)
      return Boolean;
 
    function Set_Inline_Source

@@ -114,7 +114,7 @@ This model has two key properties:
   CSM-1/current records remain a compatibility format for replay and are shown
   as visible raw source because the CSM-1 parser is retired.
 
-### 3.1a CSM-2 verified implementation design (PCR-101 Phase 12)
+### 3.1a CSM-2 verified implementation design (PCR-101 Phase 12; current recovery enhancement 2026-09-13)
 
 CSM-2 is an independent XML-like semantic language, not Markdown. The
 implemented bounded parser and renderer-neutral semantic model accept only the
@@ -137,33 +137,48 @@ MathML document in the standard namespace; one redundant namespace-qualified
 nested `<math>` wrapper is accepted around that document when surrounded only
 by whitespace. Its payload receives no CSM semantics.
 
+**Localized parser recovery:** Stage 1 commits valid roots independently. A
+malformed ordinary, table, code, math, or structural root is retained as one
+exact `Invalid_Source` region; tables, code, terminal MathML, and structural
+containers are atomic and are not partially typed. Valid committed roots before
+and after the malformed root remain typed, with no Markdown reinterpretation.
+Stage 3 inline recovery preserves a valid paragraph/heading prefix and makes
+only the corrupted suffix through the root close semantic `Raw_Markup`; the
+shared renderer escapes it and applies no style. Malformed inline attributes,
+unknown inline tags, and invalid entities use this rule. Crossing inline tags
+remain root-atomic. Incomplete constructs split across provider deltas remain
+parser state, and `Flush` emits the exact remaining suffix once; repeated
+`Flush` is idempotent.
+
 `Coyote_Renderer.Semantics` is the renderer-neutral typed document model for
 ordered blocks/inlines, list attributes, table ownership/width/rows/cells,
-source/value order, and terminal code/math data. The shared
-`Coyote_GUI.Response_Renderer` presents both completed Markdown semantics and
-CSM-2 snapshots. Native table grids and native MathML remain deliberate native
-exceptions; selectable text, shared spacing/style policy, source order,
-selection/copy, and authoritative stale-widget/malformed reconciliation are
-qualified against the Markdown reference. Pixel identity and clipboard
-retrieval are outside the contract.
+source/value order, terminal code/math data, and escaped/un-styled `Raw_Markup`.
+The shared `Coyote_GUI.Response_Renderer` presents both completed Markdown
+semantics and CSM-2 snapshots. Native table grids and native MathML remain
+deliberate native exceptions; selectable text, shared spacing/style policy,
+source order, selection/copy, and authoritative stale-widget/malformed
+reconciliation are qualified against the Markdown reference. Pixel identity and
+clipboard retrieval are outside the contract.
 
 **Live event protocol:** `Coyote_Renderer.Incremental.Feed` has a live-handler
 overload that emits renderer-neutral `Live_Event` records synchronously in
 source order. Each event carries a monotonically increasing `Sequence`, source
 range, context identifier, decoded text or opaque literal text, completion and
 deferred flags, and a detail string for controlled attributes such as list
-kind/start. The protocol emits begin/end events for paragraphs, headings,
-blockquotes, lists/items, code, inline styles, and links; text/literal events;
-and immediate `<br/>`/`<hr/>` events. Code and code-inline payloads are emitted
-as opaque literal chunks, so tag-like text inside them is never reinterpreted.
-The parser retains state across provider deltas and emits the exact incomplete
-suffix once through `Flush`; repeated `Flush` is a no-op.
+kind/start. `Root_Id`, `Root_Begin`, and `Root_End` identify each top-level root
+and delimit its provisional output. The protocol emits begin/end events for
+paragraphs, headings, blockquotes, lists/items, code, inline styles, and links;
+text/literal events; and immediate `<br/>`/`<hr/>` events. Code and code-inline
+payloads are emitted as opaque literal chunks, so tag-like text inside them is
+never reinterpreted. The parser retains state across provider deltas and emits
+the exact incomplete suffix once through `Flush`; repeated `Flush` is a no-op.
 
 `Coyote_GUI.Live_Response_Renderer` is the GTK-main-thread-only stateful live
 sink. It applies immediate constructs incrementally to one renderer-owned,
-selectable text subtree: text, inline strong/emphasis/deletion/link styles,
-code and code-inline, headings, blockquotes, lists, hard breaks, and horizontal
-rules. Tables and terminal MathML are intentionally deferred: their complete
+selectable text subtree. For each root it records a GTK text mark and renderer
+state checkpoint. An invalid event restores only that root's checkpoint, emits
+its exact source as unstyled visible text, and permits later valid roots to
+continue. Tables and terminal MathML are intentionally deferred: their complete
 source is retained as ordered deferred state and no native table/math widget is
 created by the live sink. `Conversation_Stack` feeds every provider delta to
 this sink without timer batching or coalescing.
@@ -172,14 +187,13 @@ At `End_Text_Block`, `Conversation_Stack` performs the authoritative final
 lifecycle: it calls parser `Flush`, finalizes the live sink, obtains the typed
 `Snapshot`, detaches/removes the provisional live subtree, and replaces it with
 one `Response_Renderer` presentation using the complete document and original
-source. This final `Flush`/`Snapshot`/`Response_Renderer` replacement is the
-authority for native table and MathML realization and for malformed or
-incomplete source fallback; it removes any stale provisional/native widgets.
-Invalid live events roll back optimistic live content to their supplied source
-and suppress subsequent events for that response. `Clear`, `Begin_Response`,
-`Detach`, `Release`, repeated `Finalize`, repeated `End_Text_Block`, and
-format/session reset are safe lifecycle operations: they do not duplicate
-content, retain stale widgets, or prevent clean reuse.
+source. This final `Flush`/`Snapshot`/`Response_Renderer.Replace` replacement is
+the authority for native table and MathML realization and for malformed or
+incomplete source fallback; it preserves valid regions and removes any stale
+provisional/native widgets. `Clear`, `Begin_Response`, `Detach`, `Release`,
+repeated `Finalize`, repeated `End_Text_Block`, and format/session reset are
+safe lifecycle operations: they do not duplicate content, retain stale widgets,
+or prevent clean reuse.
 Versioned persistence writes `format: "coyote-stream"` plus `formatVersion: 2`
 for CSM-2 assistant messages. Versionless CSM-1/current records remain
 readable and are displayed as selectable raw source because the CSM-1 parser is
@@ -190,14 +204,16 @@ mode after mixed-format history; RPC response-format events carry the same
 version.
 
 **Qualification:** Production and test development builds succeeded; the
-complete development suite passed 934/934 with zero failed assertions and zero
-unexpected errors. The CSM-2 parser/live/headless/GUI aggregate filter passed
-32/32. Focused qualification passed CSM-2 GUI 7/7, the standalone live renderer
-4/4, `Conversation_Stack` 24/24, and `Coyote.GUI.Updates` 10/10. GUI
-qualification ran on the available X11 display and emitted only existing GTK
-theme warnings. Provider, Plain, and RPC behavior was unchanged. The
-qualification does not claim pixel identity, clipboard retrieval, or
-unsupported CSM-1 rendering.
+complete development suite passed 954/954 with zero failed assertions and zero
+unexpected errors. The CSM-2 focused qualification passed 48/48, including
+stage-1 root recovery, atomic table/code/math/structural handling, exact and
+idempotent `Flush`, stage-2 `Live_Event` root checkpoints and localized GTK
+rollback, stage-3 inline `Raw_Markup` salvage, split-delta deferral, and final
+stale-widget reconciliation. The renderer-neutral semantic qualification
+passed 5/5. GUI-focused evidence is included in the 48/48 CSM-2 qualification;
+GUI tests ran on the available display with only existing GTK theme warnings.
+Provider, Plain, and RPC behavior was unchanged. The qualification does not
+claim pixel identity, clipboard retrieval, or unsupported CSM-1 rendering.
 
 ### 3.2 Error and Exception Handling
 
@@ -1345,10 +1361,11 @@ reconciliation. At `End_Text_Block`, `Flush` and `Snapshot` are authoritative:
 the provisional live subtree is detached and the shared
 `Coyote_GUI.Response_Renderer` replaces it from typed semantics, realizing
 native tables/MathML or visible-source fallback and removing stale widgets.
-Invalid events roll back optimistic content to supplied source. Clear, format
-switch, duplicate finalization, and session reset are idempotent and permit
-clean reuse. Markdown uses the existing completed-block path. Selection and
-PRIMARY publication are local to one semantic text component. With prompt focus,
+Invalid events roll back only the affected root to its exact supplied source;
+later valid roots continue without stale styles. Clear, format switch, duplicate
+finalization, and session reset are idempotent and permit clean reuse. Markdown
+uses the existing completed-block path. Selection and PRIMARY publication are
+local to one semantic text component. With prompt focus,
 Edit commands target the prompt; otherwise conversation commands resolve the
 focused conversation text view, then a retained conversation selection, then
  the active response view. Native Details and Fork buttons are focusable and
@@ -1374,7 +1391,7 @@ updates cross `Coyote_GUI.Updates`.
 **Qualification:** Native Markdown, MathML, selection, zoom, tool-card flow,
 replay, reset, and large-history behavior have been qualified under DEM-042
 through DEM-048. The native stack and CSM-2 qualification suites remain the automated regression
-coverage for the presentation package; the complete development suite is qualified at 934/934.
+coverage for the presentation package; the complete development suite is qualified at 954/954.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 

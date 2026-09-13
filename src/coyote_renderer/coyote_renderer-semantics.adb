@@ -114,6 +114,17 @@ package body Coyote_Renderer.Semantics is
       return True;
    end Set_Block_Source;
 
+   function Set_Block_Kind
+     (D : in out Document; Block : Block_Id; Kind : Block_Kind)
+     return Boolean is
+   begin
+      if not Is_Valid (D, Block) then
+         return False;
+      end if;
+      D.Blocks.Reference (Block.Index).Kind := Kind;
+      return True;
+   end Set_Block_Kind;
+
    function Set_Inline_Source
      (D : in out Document; Inline : Inline_Id; Source : String)
      return Boolean is

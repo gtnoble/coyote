@@ -12,6 +12,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Glib;                  use Glib;
 with Gtk.Text_Buffer;
+with Gtk.Text_Mark;
 with Gtk.Widget;
 with Gtk.Container;
 with Glib.Object;
@@ -28,6 +29,7 @@ package body Coyote_GUI.Live_Response_Renderer is
    use type Gtk.Widget.Gtk_Widget;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Coyote_Renderer.Incremental.Live_Event_Kind;
 
    Indent_Pixels : constant Glib.Gint := 20;
@@ -224,6 +226,85 @@ package body Coyote_GUI.Live_Response_Renderer is
       end if;
    end Set_Counter;
 
+   procedure Capture_Checkpoint
+     (R : in out Instance; Root_Id : Natural) is
+      Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if R.Text_Buffer = null or else R.Checkpoint_Active then
+         return;
+      end if;
+      R.Text_Buffer.Get_End_Iter (Iter);
+      R.Checkpoint.Mark := R.Text_Buffer.Create_Mark
+        ("live-root", Iter, Left_Gravity => True);
+      R.Checkpoint.Root_Id := Root_Id;
+      R.Checkpoint.List_Frames := R.List_Frames;
+      R.Checkpoint.List_Depth := R.List_Depth;
+      R.Checkpoint.Strong_Depth := R.Strong_Depth;
+      R.Checkpoint.Em_Depth := R.Em_Depth;
+      R.Checkpoint.Del_Depth := R.Del_Depth;
+      R.Checkpoint.Link_Depth := R.Link_Depth;
+      R.Checkpoint.Inline_Code_Depth := R.Inline_Code_Depth;
+      R.Checkpoint.Code_Block_Depth := R.Code_Block_Depth;
+      R.Checkpoint.Blockquote_Depth := R.Blockquote_Depth;
+      R.Checkpoint.Heading_Depth := R.Heading_Depth;
+      R.Checkpoint.Deferred_Depth := R.Deferred_Depth;
+      R.Checkpoint.Deferred_Count := R.Deferred_Count;
+      R.Checkpoint.Deferred_Blocks := R.Deferred_Blocks;
+      R.Checkpoint.Active_Deferred_Kind := R.Active_Deferred_Kind;
+      R.Checkpoint.Deferred_Payload := R.Deferred_Payload;
+      R.Checkpoint_Active := True;
+   end Capture_Checkpoint;
+
+   procedure Restore_Checkpoint
+     (R : in out Instance) is
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if not R.Checkpoint_Active then
+         return;
+      end if;
+      R.Text_Buffer.Get_Iter_At_Mark (Start_Iter, R.Checkpoint.Mark);
+      R.Text_Buffer.Get_End_Iter (End_Iter);
+      R.Text_Buffer.Delete (Start_Iter, End_Iter);
+      R.List_Frames := R.Checkpoint.List_Frames;
+      R.List_Depth := R.Checkpoint.List_Depth;
+      R.Strong_Depth := R.Checkpoint.Strong_Depth;
+      R.Em_Depth := R.Checkpoint.Em_Depth;
+      R.Del_Depth := R.Checkpoint.Del_Depth;
+      R.Link_Depth := R.Checkpoint.Link_Depth;
+      R.Inline_Code_Depth := R.Checkpoint.Inline_Code_Depth;
+      R.Code_Block_Depth := R.Checkpoint.Code_Block_Depth;
+      R.Blockquote_Depth := R.Checkpoint.Blockquote_Depth;
+      R.Heading_Depth := R.Checkpoint.Heading_Depth;
+      R.Deferred_Depth := R.Checkpoint.Deferred_Depth;
+      R.Deferred_Count := R.Checkpoint.Deferred_Count;
+      R.Deferred_Blocks := R.Checkpoint.Deferred_Blocks;
+      R.Active_Deferred_Kind := R.Checkpoint.Active_Deferred_Kind;
+      R.Deferred_Payload := R.Checkpoint.Deferred_Payload;
+   end Restore_Checkpoint;
+
+   procedure Drop_Checkpoint (R : in out Instance) is
+   begin
+      if R.Checkpoint_Active and then R.Text_Buffer /= null
+        and then R.Checkpoint.Mark /= null
+      then
+         R.Text_Buffer.Delete_Mark (R.Checkpoint.Mark);
+      end if;
+      R.Checkpoint.Mark := null;
+      R.Checkpoint_Active := False;
+   end Drop_Checkpoint;
+
+   procedure Apply_Invalid
+     (R : in out Instance; Text_Value : String) is
+   begin
+      R.Invalid_Count := R.Invalid_Count + 1;
+      Restore_Checkpoint (R);
+      Drop_Checkpoint (R);
+      --  Invalid source is deliberately appended without active tags.
+      Append_Plain (R, Text_Value);
+      R.Invalid_State := False;
+   end Apply_Invalid;
+
    procedure Apply
      (R     : in out Instance;
       Value :        Coyote_Renderer.Incremental.Live_Event)
@@ -233,12 +314,35 @@ package body Coyote_GUI.Live_Response_Renderer is
       Text_Value : constant String := To_String (Value.Text);
    begin
       if not R.Started or else R.Finalized
-        or else R.Invalid_State
         or else Value.Sequence <= R.Last_Sequence
       then
          return;
       end if;
       R.Last_Sequence := Value.Sequence;
+      if Value.Root_Begin then
+         if Kind = I.Live_Invalid_Event
+           and then R.Checkpoint_Active
+           and then R.Checkpoint.Root_Id = Value.Root_Id
+         then
+            --  A localized invalid event starts at the current output end;
+            --  replace the enclosing root checkpoint so its valid prefix is
+            --  retained while only the affected suffix is rolled back.
+            Drop_Checkpoint (R);
+         end if;
+         Capture_Checkpoint (R, Value.Root_Id);
+      end if;
+      if Kind = I.Live_Invalid_Event then
+         if R.Checkpoint_Active
+           and then (Value.Root_Id = 0
+                    or else R.Checkpoint.Root_Id = Value.Root_Id)
+         then
+            Apply_Invalid (R, Text_Value);
+         else
+            R.Invalid_Count := R.Invalid_Count + 1;
+            Append_Plain (R, Text_Value);
+         end if;
+         return;
+      end if;
       case Kind is
          when I.Live_Text_Event | I.Live_Literal_Event =>
             if Kind = I.Live_Literal_Event then
@@ -331,33 +435,13 @@ package body Coyote_GUI.Live_Response_Renderer is
             Append (R.Deferred_Payload, Text_Value);
             Set_Counter (R.Deferred_Depth, False);
          when I.Live_Invalid_Event =>
-            R.Invalid_Count := R.Invalid_Count + 1;
-            R.Invalid_State := True;
-            declare
-               Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
-               End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-            begin
-               if R.Text_Buffer /= null then
-                  R.Text_Buffer.Get_Start_Iter (Start_Iter);
-                  R.Text_Buffer.Get_End_Iter (End_Iter);
-                  R.Text_Buffer.Delete (Start_Iter, End_Iter);
-               end if;
-               R.Strong_Depth      := 0;
-               R.Em_Depth          := 0;
-               R.Del_Depth         := 0;
-               R.Link_Depth        := 0;
-               R.Inline_Code_Depth := 0;
-               R.Code_Block_Depth  := 0;
-               R.Blockquote_Depth  := 0;
-               R.List_Depth        := 0;
-               R.Heading_Depth     := 0;
-               R.Deferred_Depth    := 0;
-               R.Deferred_Count    := 0;
-               R.Deferred_Payload  := Null_Unbounded_String;
-               R.Active_Deferred_Kind := Deferred_Table;
-               Append_Plain (R, Text_Value);
-            end;
+            null;
       end case;
+      if Value.Root_End and then R.Checkpoint_Active
+        and then R.Checkpoint.Root_Id = Value.Root_Id
+      then
+         Drop_Checkpoint (R);
+      end if;
    end Apply;
 
    procedure Create
@@ -454,6 +538,7 @@ package body Coyote_GUI.Live_Response_Renderer is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
+      Drop_Checkpoint (R);
       if R.Text_Buffer /= null then
          R.Text_Buffer.Get_Start_Iter (Start_Iter);
          R.Text_Buffer.Get_End_Iter (End_Iter);

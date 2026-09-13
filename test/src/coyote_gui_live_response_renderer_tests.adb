@@ -222,7 +222,9 @@ package body Coyote_GUI_Live_Response_Renderer_Tests is
 
    procedure Test_Invalid_Rolls_Back_Optimistic_Content (T : in out Test) is
       Parser : I.Instance;
-      Source : constant String := "<p>good <strong>prefix</p></strong> tail";
+      Source : constant String :=
+        "<p>good</p><p><strong>broken</p></strong>"
+        & "<p><em>second</p></em><h2>later</h2>";
       procedure Apply_Event (Value : I.Live_Event) is
       begin
          T.Renderer.Apply (Value);
@@ -233,13 +235,61 @@ package body Coyote_GUI_Live_Response_Renderer_Tests is
       end if;
       T.Renderer.Begin_Response;
       I.Feed (Parser, Source, Apply_Event'Unrestricted_Access);
+      Assert (T.Renderer.Invalid_Event_Count = 2,
+              "multiple crossing roots produce independent invalid rollbacks");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text, "good") > 0,
+              "valid content before invalid root remains visible");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text,
+                                       "<p><strong>broken</p></strong>") > 0,
+              "first invalid root remains exact source");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text,
+                                       "<p><em>second</p></em>") > 0,
+              "second invalid root remains exact source");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text, "later") > 0,
+              "later valid root remains visible after rollback");
+      Assert
+        (T.Renderer.Has_Style
+           (R.Heading_Style,
+            Ada.Strings.Fixed.Index (T.Renderer.Text, "later")),
+         "later valid root retains its style after rollback");
+      Assert
+        (not T.Renderer.Has_Style
+           (R.Strong_Style,
+            Ada.Strings.Fixed.Index (T.Renderer.Text, "<p><strong>broken")),
+         "invalid source is not styled by stale active tags");
+      T.Renderer.Clear;
+      T.Renderer.Begin_Response;
+      I.Reset (Parser);
+      I.Feed
+        (Parser,
+         "<p>prefix <link bad>attribute</link> tail</p>"
+         & "<p>entity &bogus; tail</p>"
+         & "<p><unknown>tag</unknown> tail</p><h2>later</h2>",
+         Apply_Event'Unrestricted_Access);
+      Assert (T.Renderer.Invalid_Event_Count = 3,
+              "localized inline invalid events reach the live renderer");
+      Assert (Ada.Strings.Fixed.Index
+                (T.Renderer.Text, "<link bad>attribute</link> tail") > 0,
+              "malformed inline attribute is visible live before End");
+      Assert (Ada.Strings.Fixed.Index
+                (T.Renderer.Text, "entity &bogus; tail") > 0,
+              "malformed entity is visible live before End");
+      Assert (Ada.Strings.Fixed.Index
+                (T.Renderer.Text, "<unknown>tag</unknown> tail") > 0,
+              "unknown inline tag is visible live before End");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text, "later") > 0,
+              "later root continues after localized live rollback");
+      T.Renderer.Clear;
+      T.Renderer.Begin_Response;
+      I.Reset (Parser);
+      I.Feed (Parser, "<p>prefix &broken", Apply_Event'Unrestricted_Access);
+      I.Flush (Parser, Apply_Event'Unrestricted_Access);
       Assert (T.Renderer.Invalid_Event_Count = 1,
-              "crossing live tags produce one invalid rollback");
-      Assert (T.Renderer.Text = Source,
-              "invalid live input leaves exact full source visible");
-      I.Feed (Parser, " ignored", Apply_Event'Unrestricted_Access);
-      Assert (T.Renderer.Text = Source,
-              "events after invalid rollback do not duplicate source");
+              "inline Flush reaches the live renderer before End");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text, "prefix") > 0
+              and then Ada.Strings.Fixed.Index
+                (T.Renderer.Text, "&broken") > 0,
+              "inline Flush leaves decoded text and exact raw suffix live");
       T.Renderer.Finalize;
       T.Renderer.Finalize;
       Assert (T.Renderer.Is_Finalized,
@@ -253,6 +303,38 @@ package body Coyote_GUI_Live_Response_Renderer_Tests is
       Assert (T.Renderer.Text = "new" & ASCII.LF & ASCII.LF,
               "begin response permits clean reuse after rollback");
    end Test_Invalid_Rolls_Back_Optimistic_Content;
+
+   procedure Test_Invalid_Preserves_Deferred_Roots (T : in out Test) is
+      Parser : I.Instance;
+      procedure Apply_Event (Value : I.Live_Event) is
+      begin
+         T.Renderer.Apply (Value);
+      end Apply_Event;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      T.Renderer.Begin_Response;
+      I.Feed
+        (Parser,
+         "<table><row><cell>before</cell></row></table>"
+         & "<p><strong>bad</p></strong>"
+         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mi>after</mi></math>",
+         Apply_Event'Unrestricted_Access);
+      Assert (T.Renderer.Invalid_Event_Count = 1,
+              "deferred malformed stream reports one invalid root");
+      Assert (T.Renderer.Deferred_Block_Count = 2,
+              "valid deferred roots survive malformed-root rollback");
+      Assert
+        (T.Renderer.Deferred_Block_Kind_At (1) = R.Deferred_Table
+         and then T.Renderer.Deferred_Block_Kind_At (2) = R.Deferred_Math,
+         "deferred roots retain source order around invalid root");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text, "<p><strong>bad</p></strong>") > 0,
+              "malformed deferred-neighbor root remains exact source");
+      Assert (Ada.Strings.Fixed.Index (T.Renderer.Text, "after") > 0,
+              "content after malformed root remains visible");
+   end Test_Invalid_Preserves_Deferred_Roots;
 
    procedure Test_Detach_And_Reattach (T : in out Test) is
    begin
@@ -299,6 +381,10 @@ package body Coyote_GUI_Live_Response_Renderer_Tests is
         (Caller.Create
            ("live renderer invalid rollback and reuse",
             Test_Invalid_Rolls_Back_Optimistic_Content'Access));
+      Result.Add_Test
+        (Caller.Create
+           ("live renderer invalid preserves deferred roots",
+            Test_Invalid_Preserves_Deferred_Roots'Access));
       Result.Add_Test
         (Caller.Create
            ("live renderer detach and reattach",

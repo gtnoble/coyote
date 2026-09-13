@@ -451,6 +451,74 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "repeated clear leaves no stale text widgets");
    end Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback;
 
+   procedure Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "<p>typed <strong>bold</strong><unknown>x &lt;y&gt;</unknown>tail</p>";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Index (Visible_Text (T.Stack), "<unknown>x &lt;y&gt;</unknown>") > 0,
+              "raw inline source is escaped and visible as literal text");
+      Assert (Index (Visible_Text (T.Stack), "<b>") = 0,
+              "raw inline has no strong style markup");
+      Assert (Index (Visible_Text (T.Stack), "<tt>") = 0,
+              "raw inline has no code style markup");
+      Assert (Text_View_Count (T.Stack) > 0,
+              "raw inline remains in a selectable text view");
+   end Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled;
+
+   procedure Test_CSM2_Localized_Recovery_Preserves_Native_Blocks
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "<table><row><cell>before</cell></row></table>"
+        & "<p><strong>broken</p></strong>"
+        & "<p>attribute <link bad>x</link> tail</p>"
+        & "<p>entity &bogus; tail</p>"
+        & "<p><unknown>tag</unknown> tail</p>"
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mi>after</mi></math><p>later</p>";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      Assert (Index (Live_Response_Text (T.Stack), "<p><strong>broken") > 0,
+              "malformed root is visible during live rendering");
+      Assert (Live_Response_Invalid_Event_Count (T.Stack) = 4,
+              "localized inline invalid events arrive before End_Text_Block");
+      Assert (Index (Live_Response_Text (T.Stack), "<link bad>x</link> tail") > 0,
+              "malformed inline attributes are visible before End_Text_Block");
+      Assert (Index (Live_Response_Text (T.Stack), "&bogus; tail") > 0,
+              "malformed entities are visible before End_Text_Block");
+      Assert (Index (Live_Response_Text (T.Stack), "<unknown>tag</unknown> tail") > 0,
+              "unknown inline tags are visible before End_Text_Block");
+      End_Text_Block (T.Stack);
+      Assert (Table_Count (T.Stack) = 1,
+              "valid table before malformed root survives final replacement");
+      Assert (Table_Cell (T.Stack, 1, 1, 1).Get_Text = "before",
+              "pre-error native table content is retained");
+      Assert (Math_Element_Count (T.Stack) = 1,
+              "valid MathML after malformed root is realized natively");
+      Assert (Math_Is_Valid (T.Stack, 1),
+              "post-error MathML remains valid");
+      Assert (Index (Visible_Text (T.Stack), "broken") > 0,
+              "malformed root remains visible after authoritative replacement");
+      Assert (Index (Visible_Text (T.Stack), "later") > 0,
+              "later valid content remains visible after replacement");
+      Assert (not Live_Response_Present (T.Stack),
+              "final replacement removes the live renderer widget");
+   end Test_CSM2_Localized_Recovery_Preserves_Native_Blocks;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -481,6 +549,12 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI invalid prefix and lifecycle rollback",
          Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI raw inline is escaped and unstyled",
+         Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI localized recovery preserves native blocks",
+         Test_CSM2_Localized_Recovery_Preserves_Native_Blocks'Access));
       return Result;
    end Suite;
 

@@ -14,6 +14,7 @@ with Ada.Strings.Unbounded;
 with Coyote_Renderer.Incremental;
 with Gtk.Box;
 with Gtk.Text_Buffer;
+with Gtk.Text_Mark;
 with Gtk.Text_Tag;
 with Gtk.Text_View;
 
@@ -56,8 +57,9 @@ package Coyote_GUI.Live_Response_Renderer is
    procedure Release (R : in out Instance);
 
    --  Apply one renderer-neutral CSM-2 event.  Events must arrive on the GTK
-   --  main thread in increasing Sequence order.  An invalid event rolls back
-   --  all optimistic content and leaves its supplied source visible.
+   --  main thread in increasing Sequence order.  Root markers delimit the
+   --  output checkpoint used for localized invalid-root rollback; invalid
+   --  source is left visible without active styles.
    procedure Apply
      (R     : in out Instance;
       Value :        Coyote_Renderer.Incremental.Live_Event);
@@ -123,6 +125,26 @@ private
       Heading     : Gtk.Text_Tag.Gtk_Text_Tag;
    end record;
 
+   type Root_Checkpoint is record
+      Mark                 : Gtk.Text_Mark.Gtk_Text_Mark;
+      Root_Id              : Natural := 0;
+      List_Frames          : List_Frame_Array;
+      List_Depth           : Natural := 0;
+      Strong_Depth         : Natural := 0;
+      Em_Depth             : Natural := 0;
+      Del_Depth            : Natural := 0;
+      Link_Depth           : Natural := 0;
+      Inline_Code_Depth    : Natural := 0;
+      Code_Block_Depth     : Natural := 0;
+      Blockquote_Depth     : Natural := 0;
+      Heading_Depth        : Natural := 0;
+      Deferred_Depth       : Natural := 0;
+      Deferred_Count       : Natural := 0;
+      Deferred_Blocks      : Deferred_Block_Array;
+      Active_Deferred_Kind : Deferred_Kind := Deferred_Table;
+      Deferred_Payload     : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
    type Instance is tagged limited record
       Root              : Gtk.Box.Gtk_Box;
       Text_Buffer       : Gtk.Text_Buffer.Gtk_Text_Buffer;
@@ -150,6 +172,8 @@ private
       Attached          : Boolean := False;
       Detached_Reference : Boolean := False;
       Deferred_Payload  : Ada.Strings.Unbounded.Unbounded_String;
+      Checkpoint        : Root_Checkpoint;
+      Checkpoint_Active : Boolean := False;
    end record;
 
 end Coyote_GUI.Live_Response_Renderer;

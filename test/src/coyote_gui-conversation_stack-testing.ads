@@ -48,6 +48,9 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Live_Response_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
+   function Live_Response_Invalid_Event_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
    function Live_Response_Text_Has_Style
      (C      : Coyote_GUI.Conversation_Stack.Instance;
       Style  : Coyote_GUI.Live_Response_Renderer.Style_Kind;
