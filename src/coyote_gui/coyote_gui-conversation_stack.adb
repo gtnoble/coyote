@@ -5,6 +5,7 @@
 with Ada.Containers;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Unchecked_Deallocation;
 with Ada.Text_IO;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_GUI;
@@ -57,8 +58,35 @@ package body Coyote_GUI.Conversation_Stack is
 
    type Instance_Access is access all Instance;
 
+   procedure Free_Response_Owner is
+     new Ada.Unchecked_Deallocation
+       (Object => Response_Owner,
+        Name   => Response_Owner_Access);
+
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
+
+   procedure Clear_Response_Owner
+     (Owner : in out Response_Owner_Access)
+   is
+      Root    : Gtk.Box.Gtk_Box;
+      Section : Gtk.Box.Gtk_Box;
+   begin
+      if Owner = null then
+         return;
+      end if;
+      Root    := Coyote_GUI.Response_Renderer.Response_Box
+        (Owner.Renderer);
+      Section := Owner.Section;
+      Coyote_GUI.Response_Renderer.Clear (Owner.Renderer);
+      if Root /= null
+        and then Section /= null
+        and then Root.Get_Parent = Gtk.Widget.Gtk_Widget (Section)
+      then
+         Section.Remove (Root);
+      end if;
+      Free_Response_Owner (Owner);
+   end Clear_Response_Owner;
 
    procedure Pack_Response_Block
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
@@ -1009,6 +1037,15 @@ package body Coyote_GUI.Conversation_Stack is
             Coyote_GUI.Math_Element.Detach (C.Math_Elements (Math_Index).all);
          end loop;
       end if;
+      if not C.Responses.Is_Empty then
+         for Response_Index in
+           C.Responses.First_Index .. C.Responses.Last_Index
+         loop
+            Clear_Response_Owner (C.Responses (Response_Index));
+         end loop;
+      end if;
+      C.Responses.Clear;
+      C.Active_Response := null;
       if not C.Exchanges.Is_Empty then
          for Exchange_Index in reverse
            C.Exchanges.First_Index .. C.Exchanges.Last_Index
@@ -1040,7 +1077,6 @@ package body Coyote_GUI.Conversation_Stack is
       C.Response_Section := null;
       C.Response_Box     := null;
       Coyote_GUI.Live_Response_Renderer.Clear (C.Live_Renderer);
-      Coyote_GUI.Response_Renderer.Clear (C.Response_Renderer);
       --  Clear presentation state without changing the selected response
       --  format; the next live turn must use the same configured renderer.
       C.Presentation_Ready := False;
@@ -1081,6 +1117,8 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Append (C.Exchange);
       C.Step_Frames.Clear;
       C.Tools.Clear;
+      C.Active_Response := null;
+      C.Response_Box := null;
       Add_Text_Element
         (C, C.Exchange, Caption, Text, C.Active_Text, C.Active_View);
       C.Has_Exchange   := True;
@@ -1107,6 +1145,11 @@ package body Coyote_GUI.Conversation_Stack is
          C.Stream_Buf := Null_Unbounded_String;
          Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
          if C.Incremental_Markup then
+            C.Active_Response :=
+              new Response_Owner'
+                (Section  => C.Response_Section,
+                 Renderer => <>);
+            C.Responses.Append (C.Active_Response);
             Coyote_GUI.Live_Response_Renderer.Create
               (C.Live_Renderer, C.Response_Section);
             Coyote_GUI.Live_Response_Renderer.Begin_Response
@@ -1171,19 +1214,21 @@ package body Coyote_GUI.Conversation_Stack is
             end if;
             C.Active_Text := null;
             C.Active_View := null;
-            Coyote_GUI.Response_Renderer.Replace
-              (R            => C.Response_Renderer,
-               Parent       => C.Response_Section,
-               Document     => C.Incremental_Document,
-               Source       => Full_Text,
-               Active_Text  => C.Active_Text,
-               Active_View  => C.Active_View,
-               Math_Scale   => C.Math_Scale,
-               Use_Math_Fallback       => False,
-               Normalize_Terminal_Math => True);
-            C.Response_Box :=
-              Coyote_GUI.Response_Renderer.Response_Box
-                (C.Response_Renderer);
+            if C.Active_Response /= null then
+               Coyote_GUI.Response_Renderer.Replace
+                 (R            => C.Active_Response.Renderer,
+                  Parent       => C.Active_Response.Section,
+                  Document     => C.Incremental_Document,
+                  Source       => Full_Text,
+                  Active_Text  => C.Active_Text,
+                  Active_View  => C.Active_View,
+                  Math_Scale   => C.Math_Scale,
+                  Use_Math_Fallback       => False,
+                  Normalize_Terminal_Math => True);
+               C.Response_Box :=
+                 Coyote_GUI.Response_Renderer.Response_Box
+                   (C.Active_Response.Renderer);
+            end if;
             C.Presentation_Ready := True;
          end if;
          if C.Render_Markdown and then not C.Incremental_Markup then
@@ -1800,35 +1845,47 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Set_Response_Format
      (C : in out Instance; Format : Coyote_GUI.Response_Format)
    is
-      Response_Root_Removed : Boolean := False;
-      Old_View              : Gtk.Text_View.Gtk_Text_View := C.Active_View;
+      Old_View : Gtk.Text_View.Gtk_Text_View := C.Active_View;
    begin
-      if C.Response_Section /= null then
-         Coyote_GUI.Live_Response_Renderer.Detach
-           (C.Live_Renderer, C.Response_Section);
-      end if;
-      --  Release nested native elements while their GTK roots still exist.
-      Coyote_GUI.Response_Renderer.Clear (C.Response_Renderer);
-      if C.Response_Section /= null
-        and then C.Response_Box /= null
-        and then C.Response_Box.Get_Parent =
-          Gtk.Widget.Gtk_Widget (C.Response_Section)
-      then
-         C.Response_Section.Remove (C.Response_Box);
-         Response_Root_Removed := True;
-      end if;
-      --  Removing the response root also destroys any nested active view.
-      --  Never query that handle after the root has been removed.
-      C.Response_Box := null;
-      C.Active_Text  := null;
-      C.Active_View  := null;
-      if not Response_Root_Removed
-        and then C.Response_Section /= null
-        and then Old_View /= null
-        and then Old_View.Get_Parent =
-          Gtk.Widget.Gtk_Widget (C.Response_Section)
-      then
-         C.Response_Section.Remove (Old_View);
+      if C.Text_Open and then C.Active_Response /= null then
+         if C.Response_Section /= null then
+            Coyote_GUI.Live_Response_Renderer.Detach
+              (C.Live_Renderer, C.Response_Section);
+         end if;
+         Coyote_GUI.Response_Renderer.Clear
+           (C.Active_Response.Renderer);
+         if C.Active_Response.Section /= null
+           and then C.Response_Box /= null
+           and then C.Response_Box.Get_Parent =
+             Gtk.Widget.Gtk_Widget (C.Active_Response.Section)
+         then
+            C.Active_Response.Section.Remove (C.Response_Box);
+         end if;
+         Free_Response_Owner (C.Active_Response);
+         C.Responses.Delete (C.Responses.Last_Index);
+         C.Active_Response := null;
+         C.Response_Box := null;
+         C.Active_Text := null;
+         C.Active_View := null;
+         C.Text_Open := False;
+         if Old_View /= null
+           and then C.Response_Section /= null
+           and then Old_View.Get_Parent =
+             Gtk.Widget.Gtk_Widget (C.Response_Section)
+         then
+            C.Response_Section.Remove (Old_View);
+         end if;
+      elsif C.Text_Open then
+         if Old_View /= null
+           and then C.Response_Section /= null
+           and then Old_View.Get_Parent =
+             Gtk.Widget.Gtk_Widget (C.Response_Section)
+         then
+            C.Response_Section.Remove (Old_View);
+         end if;
+         C.Active_Text := null;
+         C.Active_View := null;
+         C.Text_Open := False;
       end if;
       C.Response_Format := Format;
       C.Render_Markdown := Format = Coyote_GUI.Markdown_Response;
@@ -1898,8 +1955,16 @@ package body Coyote_GUI.Conversation_Stack is
               (C.Math_Elements (Math_Index).all, C.Math_Scale);
          end loop;
       end if;
-      Coyote_GUI.Response_Renderer.Set_Font
-        (C.Response_Renderer, Desc, C.Math_Scale);
+      if not C.Responses.Is_Empty then
+         for Response_Index in
+           C.Responses.First_Index .. C.Responses.Last_Index
+         loop
+            Coyote_GUI.Response_Renderer.Set_Font
+              (C.Responses (Response_Index).Renderer,
+               Desc,
+               C.Math_Scale);
+         end loop;
+      end if;
    end Set_Font;
 
    procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean) is

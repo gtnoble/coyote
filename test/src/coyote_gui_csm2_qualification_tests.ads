@@ -33,6 +33,12 @@ package Coyote_GUI_CSM2_Qualification_Tests is
    procedure Test_CSM2_Reset_And_Duplicate_Finalization (T : in out Test);
    procedure Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback
      (T : in out Test);
+   procedure Test_CSM2_Retains_Completed_Response_Roots
+     (T : in out Test);
+   procedure Test_CSM2_Format_Change_Preserves_Completed_Response
+     (T : in out Test);
+   procedure Test_Format_Change_Closes_Active_Raw_Response
+     (T : in out Test);
    procedure Test_CSM2_Localized_Recovery_Preserves_Native_Blocks
      (T : in out Test);
    procedure Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled

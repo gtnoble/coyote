@@ -33,6 +33,7 @@ package body Coyote_GUI.Response_Renderer is
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Coyote_Renderer.Semantics.Block_Id;
    use type Coyote_Renderer.Semantics.Inline_Id;
@@ -683,7 +684,9 @@ package body Coyote_GUI.Response_Renderer is
       Normalize_Terminal_Math :        Boolean := False)
    is
    begin
-      if R.Response /= null then
+      if R.Response /= null
+        and then R.Response.Get_Parent = Gtk.Widget.Gtk_Widget (Parent)
+      then
          Parent.Remove (R.Response);
       end if;
       Clear (R);

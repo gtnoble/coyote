@@ -13,30 +13,34 @@ with Gtk.Widget;
 
 package body Coyote_GUI.Conversation_Stack.Testing is
 
-   use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Widget.Gtk_Widget;
-   use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Widget.Widget_List.Glist;
-
-   function Uses_Shared_Renderer
-     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
-   is
-   begin
-      return C.Response_Format = Coyote_GUI.Coyote_Stream_2_Response;
-   end Uses_Shared_Renderer;
 
    function Math_Element_At
      (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Coyote_GUI.Math_Element.Instance_Access
    is
    begin
-      if Uses_Shared_Renderer (C) then
-         return Coyote_GUI.Response_Renderer.Math_Element_At
-           (C.Response_Renderer, Index);
-      elsif Index <= Natural (C.Math_Elements.Length) then
+      if Index <= Natural (C.Math_Elements.Length) then
          return C.Math_Elements (Index);
       end if;
+      declare
+         Remaining : Natural := Index - Natural (C.Math_Elements.Length);
+         Count     : Natural;
+      begin
+         for Owner of C.Responses loop
+            if Owner /= null then
+               Count := Coyote_GUI.Response_Renderer.Math_Element_Count
+                 (Owner.Renderer);
+               if Remaining <= Count then
+                  return Coyote_GUI.Response_Renderer.Math_Element_At
+                    (Owner.Renderer, Remaining);
+               end if;
+               Remaining := Remaining - Count;
+            end if;
+         end loop;
+      end;
       return null;
    end Math_Element_At;
 
@@ -243,12 +247,18 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    function Text_View_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
+      Result : Natural := Natural (C.Text_Views.Length);
    begin
-      if Uses_Shared_Renderer (C) then
-         return Coyote_GUI.Response_Renderer.Text_View_Count
-           (C.Response_Renderer);
+      if not C.Responses.Is_Empty then
+         for Owner of C.Responses loop
+            if Owner /= null then
+               Result := Result
+                 + Coyote_GUI.Response_Renderer.Text_View_Count
+                   (Owner.Renderer);
+            end if;
+         end loop;
       end if;
-      return Natural (C.Text_Views.Length);
+      return Result;
    end Text_View_Count;
 
    function Text_View_Text
@@ -259,13 +269,25 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
       View       : Gtk.Text_View.Gtk_Text_View;
       Buffer     : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Remaining  : Natural := Index;
+      Count      : Natural;
    begin
-      if Index <= Natural (C.Text_Views.Length) then
-         View := C.Text_Views (Index);
+      if Remaining <= Natural (C.Text_Views.Length) then
+         View := C.Text_Views (Remaining);
       else
-         View :=
-           Coyote_GUI.Response_Renderer.Text_View_At
-             (C.Response_Renderer, Index - Natural (C.Text_Views.Length));
+         Remaining := Remaining - Natural (C.Text_Views.Length);
+         for Owner of C.Responses loop
+            if Owner /= null then
+               Count := Coyote_GUI.Response_Renderer.Text_View_Count
+                 (Owner.Renderer);
+               if Remaining <= Count then
+                  View := Coyote_GUI.Response_Renderer.Text_View_At
+                    (Owner.Renderer, Remaining);
+                  exit;
+               end if;
+               Remaining := Remaining - Count;
+            end if;
+         end loop;
       end if;
       if View = null then
          return "";
@@ -282,24 +304,40 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    function Table_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
+      Result : Natural := Natural (C.Table_Grids.Length);
    begin
-      if Uses_Shared_Renderer (C) then
-         return Coyote_GUI.Response_Renderer.Table_Count (C.Response_Renderer);
+      if not C.Responses.Is_Empty then
+         for Owner of C.Responses loop
+            if Owner /= null then
+               Result := Result
+                 + Coyote_GUI.Response_Renderer.Table_Count (Owner.Renderer);
+            end if;
+         end loop;
       end if;
-      return Natural (C.Table_Grids.Length);
+      return Result;
    end Table_Count;
 
    function Table_Grid
      (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Gtk.Grid.Gtk_Grid
    is
+      Remaining : Natural := Index;
+      Count     : Natural;
    begin
-      if Uses_Shared_Renderer (C) then
-         return Coyote_GUI.Response_Renderer.Table_Grid_At
-           (C.Response_Renderer, Index);
-      elsif Index <= Natural (C.Table_Grids.Length) then
-         return C.Table_Grids (Index);
+      if Remaining <= Natural (C.Table_Grids.Length) then
+         return C.Table_Grids (Remaining);
       end if;
+      Remaining := Remaining - Natural (C.Table_Grids.Length);
+      for Owner of C.Responses loop
+         if Owner /= null then
+            Count := Coyote_GUI.Response_Renderer.Table_Count (Owner.Renderer);
+            if Remaining <= Count then
+               return Coyote_GUI.Response_Renderer.Table_Grid_At
+                 (Owner.Renderer, Remaining);
+            end if;
+            Remaining := Remaining - Count;
+         end if;
+      end loop;
       return null;
    end Table_Grid;
 
@@ -361,12 +399,18 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    function Math_Element_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
+      Result : Natural := Natural (C.Math_Elements.Length);
    begin
-      if Uses_Shared_Renderer (C) then
-         return Coyote_GUI.Response_Renderer.Math_Element_Count
-           (C.Response_Renderer);
+      if not C.Responses.Is_Empty then
+         for Owner of C.Responses loop
+            if Owner /= null then
+               Result := Result
+                 + Coyote_GUI.Response_Renderer.Math_Element_Count
+                   (Owner.Renderer);
+            end if;
+         end loop;
       end if;
-      return Natural (C.Math_Elements.Length);
+      return Result;
    end Math_Element_Count;
 
    function Math_Source

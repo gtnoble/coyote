@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Glib;
+with Gtk.Box;
 with Gtk.Container;
 with Gtk.Widget;
 with Ada.Environment_Variables;
@@ -20,6 +21,8 @@ with Gtk.Main;
 package body Coyote_GUI_CSM2_Qualification_Tests is
    use type Glib.Gfloat;
    use type Glib.Gint;
+   use type Gtk.Box.Gtk_Box;
+   use type Gtk.Widget.Gtk_Widget;
 
    use AUnit.Assertions;
    use Coyote_GUI;
@@ -451,6 +454,90 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "repeated clear leaves no stale text widgets");
    end Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback;
 
+   procedure Test_CSM2_Retains_Completed_Response_Roots
+     (T : in out Test)
+   is
+      First_Root   : Gtk.Box.Gtk_Box;
+      First_Parent : Gtk.Widget.Gtk_Widget;
+      Second_Root  : Gtk.Box.Gtk_Box;
+      Second_Parent : Gtk.Widget.Gtk_Widget;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "first request", Prompt);
+      Append_Text (T.Stack, "<p>first completed response</p>");
+      End_Text_Block (T.Stack);
+      Complete_Request (T.Stack, Completed);
+      First_Root := Response_Box (T.Stack);
+      Assert (First_Root /= null, "first response has a rendered root");
+      First_Parent := First_Root.Get_Parent;
+      Assert (First_Parent /= null, "first root has a GTK parent");
+
+      Begin_Request (T.Stack, "second request", Prompt);
+      Append_Text (T.Stack, "<p>second completed response</p>");
+      End_Text_Block (T.Stack);
+      Complete_Request (T.Stack, Completed);
+      Second_Root := Response_Box (T.Stack);
+      Assert (Second_Root /= null, "second response has a rendered root");
+      Second_Parent := Second_Root.Get_Parent;
+      Assert (First_Root /= Second_Root,
+              "second response uses a distinct rendered root");
+      Assert (First_Root.Get_Parent = First_Parent,
+              "first root remains attached to its original parent");
+      Assert (Second_Parent /= null, "second root has a GTK parent");
+      Assert (Second_Parent /= First_Parent,
+              "second response uses its own response parent");
+      Assert (Index (Visible_Text (T.Stack), "first completed response") > 0,
+              "first response remains visible");
+      Assert (Index (Visible_Text (T.Stack), "second completed response") > 0,
+              "second response remains visible");
+   end Test_CSM2_Retains_Completed_Response_Roots;
+
+   procedure Test_CSM2_Format_Change_Preserves_Completed_Response
+     (T : in out Test)
+   is
+      Root : Gtk.Box.Gtk_Box;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>survives format change</p>");
+      End_Text_Block (T.Stack);
+      Complete_Request (T.Stack, Completed);
+      Root := Response_Box (T.Stack);
+      Set_Response_Format (T.Stack, Markdown_Response);
+      Assert (Root /= null, "completed response root remains available");
+      Assert (Root.Get_Parent /= null,
+              "completed response root remains attached after format change");
+      Assert (Index (Visible_Text (T.Stack), "survives format change") > 0,
+              "completed response content survives format change");
+      Assert (Get_Response_Format (T.Stack) = Markdown_Response,
+              "format change selects Markdown for the next response");
+   end Test_CSM2_Format_Change_Preserves_Completed_Response;
+
+   procedure Test_Format_Change_Closes_Active_Raw_Response
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, False);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "active raw response");
+      Assert (Response_Stream_Present (T.Stack),
+              "raw response view is present while streaming");
+      Set_Response_Format (T.Stack, Coyote_Stream_2_Response);
+      Assert (not Response_Stream_Present (T.Stack),
+              "format change removes the active raw response view");
+      Assert (not Live_Response_Present (T.Stack),
+              "format change leaves no stale live response");
+   end Test_Format_Change_Closes_Active_Raw_Response;
+
    procedure Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled
      (T : in out Test)
    is
@@ -549,6 +636,15 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI invalid prefix and lifecycle rollback",
          Test_CSM2_Invalid_Prefix_And_Lifecycle_Rollback'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI retains completed response roots",
+         Test_CSM2_Retains_Completed_Response_Roots'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 GUI format change preserves completed response",
+         Test_CSM2_Format_Change_Preserves_Completed_Response'Access));
+      Result.Add_Test (Caller.Create
+        ("GUI format change closes active raw response",
+         Test_Format_Change_Closes_Active_Raw_Response'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI raw inline is escaped and unstyled",
          Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled'Access));

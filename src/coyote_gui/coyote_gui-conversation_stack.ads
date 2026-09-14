@@ -190,12 +190,26 @@ private
    package Table_Cell_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Gtk.Label.Gtk_Label);
 
+   type Response_Owner;
+   type Response_Owner_Access is access all Response_Owner;
+
+   package Response_Owner_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Response_Owner_Access);
+
+   type Response_Owner is limited record
+      Section  : Gtk.Box.Gtk_Box;
+      Renderer : Coyote_GUI.Response_Renderer.Instance;
+   end record;
+
    type Instance is tagged limited record
       Scroll              : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Main_Window         : Gtk.Window.Gtk_Window;
       Host                : Gtk.Box.Gtk_Box;
       Exchange            : Gtk.Box.Gtk_Box;
       Exchanges           : Exchange_Vectors.Vector;
+      Responses           : Response_Owner_Vectors.Vector;
+      Active_Response     : Response_Owner_Access;
       Step_Frame          : Gtk.Frame.Gtk_Frame;
       Step_Box            : Gtk.Box.Gtk_Box;
       Tool_Flow           : Gtk.Flow_Box.Gtk_Flow_Box;
@@ -204,7 +218,6 @@ private
       Active_View         : Gtk.Text_View.Gtk_Text_View;
       Response_Section    : Gtk.Box.Gtk_Box;
       Response_Box        : Gtk.Box.Gtk_Box;
-      Response_Renderer   : Coyote_GUI.Response_Renderer.Instance;
       Live_Renderer       : Coyote_GUI.Live_Response_Renderer.Instance;
       Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
@@ -218,8 +231,8 @@ private
       Pending_Source_End    : Natural := 0;
       Text_Views            : Text_View_Vectors.Vector;
       Math_Elements         : Math_Element_Vectors.Vector;
-      Table_Grids            : Table_Grid_Vectors.Vector;
-      Table_Cells            : Table_Cell_Vectors.Vector;
+      Table_Grids           : Table_Grid_Vectors.Vector;
+      Table_Cells           : Table_Cell_Vectors.Vector;
       Math_Scale          : Long_Float                   := 1.0;
       Thinking            : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View       : Gtk.Text_View.Gtk_Text_View;
