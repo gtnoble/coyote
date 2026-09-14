@@ -88,6 +88,88 @@ package body Coyote_GUI.Conversation_Stack is
       Free_Response_Owner (Owner);
    end Clear_Response_Owner;
 
+   procedure Delete_Stream_Mark (C : in out Instance) is
+   begin
+      if C.Stream_Mark /= null then
+         if C.Active_Text /= null then
+            C.Active_Text.Delete_Mark (C.Stream_Mark);
+         end if;
+         C.Stream_Mark := null;
+      end if;
+   end Delete_Stream_Mark;
+
+   function Find_Response_Owner
+     (C     : Instance;
+      Owner : Response_Owner_Access)
+      return Response_Owner_Vectors.Extended_Index
+   is
+   begin
+      if Owner /= null and then not C.Responses.Is_Empty then
+         for Index in C.Responses.First_Index .. C.Responses.Last_Index loop
+            if C.Responses (Index) = Owner then
+               return Index;
+            end if;
+         end loop;
+      end if;
+      return Response_Owner_Vectors.No_Index;
+   end Find_Response_Owner;
+
+   procedure Discard_Active_Response (C : in out Instance) is
+      Owner       : Response_Owner_Access := C.Active_Response;
+      Owner_Index : Response_Owner_Vectors.Extended_Index;
+      Section     : constant Gtk.Box.Gtk_Box := C.Response_Section;
+      View        : constant Gtk.Text_View.Gtk_Text_View := C.Active_View;
+   begin
+      if not C.Text_Open
+        and then Owner = null
+        and then C.Stream_Mark = null
+      then
+         return;
+      end if;
+
+      Delete_Stream_Mark (C);
+      if Section /= null then
+         Coyote_GUI.Live_Response_Renderer.Detach
+           (C.Live_Renderer, Section);
+         Coyote_GUI.Live_Response_Renderer.Clear (C.Live_Renderer);
+      end if;
+
+      if View /= null
+        and then Section /= null
+        and then View.Get_Parent = Gtk.Widget.Gtk_Widget (Section)
+      then
+         Section.Remove (View);
+      end if;
+
+      if Owner /= null then
+         Owner_Index := Find_Response_Owner (C, Owner);
+         if Owner_Index /= Response_Owner_Vectors.No_Index then
+            Clear_Response_Owner (C.Responses (Owner_Index));
+            C.Responses.Delete (Owner_Index);
+         else
+            Clear_Response_Owner (Owner);
+         end if;
+      end if;
+
+      if Section /= null
+        and then C.Step_Box /= null
+        and then Section.Get_Parent = Gtk.Widget.Gtk_Widget (C.Step_Box)
+      then
+         C.Step_Box.Remove (Section);
+      end if;
+
+      C.Active_Response    := null;
+      C.Response_Box      := null;
+      C.Active_Text       := null;
+      C.Active_View       := null;
+      C.Response_Section  := null;
+      C.Stream_Buf        := Null_Unbounded_String;
+      C.Text_Open         := False;
+      C.Presentation_Ready := False;
+      Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
+      Coyote_Renderer.Semantics.Clear (C.Incremental_Document);
+   end Discard_Active_Response;
+
    procedure Pack_Response_Block
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -264,6 +346,7 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Response_Section = null then
          return;
       end if;
+      Delete_Stream_Mark (C);
       if C.Active_Text /= null and then Raw_View /= null
         and then C.Active_Text.Get_Char_Count = 0
       then
@@ -279,7 +362,6 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       C.Active_Text := null;
       C.Active_View := null;
-      C.Stream_Mark := null;
 
       if Value.Kind = Coyote_Renderer.Incremental.Table_Event then
          declare
@@ -871,7 +953,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Tool_Flow      := null;
       C.Step_Open      := False;
       C.Footer_Pending := False;
-      C.Text_Open      := False;
+      pragma Assert (not C.Text_Open);
       C.Thinking_Open  := False;
    end Finalize_Active_Step;
 
@@ -1026,10 +1108,7 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Clear (C : in out Instance) is
    begin
       C.Selected_Tool := Null_Unbounded_String;
-      if C.Response_Section /= null then
-         Coyote_GUI.Live_Response_Renderer.Detach
-           (C.Live_Renderer, C.Response_Section);
-      end if;
+      Discard_Active_Response (C);
       if not C.Math_Elements.Is_Empty then
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
@@ -1107,9 +1186,8 @@ package body Coyote_GUI.Conversation_Stack is
         (if Kind = Coyote_GUI.Steer then "Steer" else "Request");
    begin
       Create (C, C.Main_Window.all'Access);
-      if C.Response_Section /= null then
-         Coyote_GUI.Live_Response_Renderer.Detach
-           (C.Live_Renderer, C.Response_Section);
+      if C.Text_Open then
+         End_Text_Block (C);
       end if;
       Gtk.Box.Gtk_New_Vbox (C.Exchange, Homogeneous => False, Spacing => 3);
       C.Host.Pack_Start
@@ -1117,7 +1195,6 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Append (C.Exchange);
       C.Step_Frames.Clear;
       C.Tools.Clear;
-      C.Active_Response := null;
       C.Response_Box := null;
       Add_Text_Element
         (C, C.Exchange, Caption, Text, C.Active_Text, C.Active_View);
@@ -1209,6 +1286,7 @@ package body Coyote_GUI.Conversation_Stack is
                Coyote_GUI.Live_Response_Renderer.Detach
                  (C.Live_Renderer, C.Response_Section);
             end if;
+            Delete_Stream_Mark (C);
             if C.Active_View /= null and then C.Response_Section /= null then
                C.Response_Section.Remove (C.Active_View);
             end if;
@@ -1228,6 +1306,7 @@ package body Coyote_GUI.Conversation_Stack is
                C.Response_Box :=
                  Coyote_GUI.Response_Renderer.Response_Box
                    (C.Active_Response.Renderer);
+               C.Active_Response := null;
             end if;
             C.Presentation_Ready := True;
          end if;
@@ -1693,7 +1772,10 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       C.Last_Status := Status;
-      C.Completed   := True;
+      if C.Text_Open then
+         End_Text_Block (C);
+      end if;
+      C.Completed := True;
       Finalize_Active_Step (C);
    end Complete_Request;
 
@@ -1845,47 +1927,11 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Set_Response_Format
      (C : in out Instance; Format : Coyote_GUI.Response_Format)
    is
-      Old_View : Gtk.Text_View.Gtk_Text_View := C.Active_View;
    begin
-      if C.Text_Open and then C.Active_Response /= null then
-         if C.Response_Section /= null then
-            Coyote_GUI.Live_Response_Renderer.Detach
-              (C.Live_Renderer, C.Response_Section);
-         end if;
-         Coyote_GUI.Response_Renderer.Clear
-           (C.Active_Response.Renderer);
-         if C.Active_Response.Section /= null
-           and then C.Response_Box /= null
-           and then C.Response_Box.Get_Parent =
-             Gtk.Widget.Gtk_Widget (C.Active_Response.Section)
-         then
-            C.Active_Response.Section.Remove (C.Response_Box);
-         end if;
-         Free_Response_Owner (C.Active_Response);
-         C.Responses.Delete (C.Responses.Last_Index);
-         C.Active_Response := null;
-         C.Response_Box := null;
-         C.Active_Text := null;
-         C.Active_View := null;
-         C.Text_Open := False;
-         if Old_View /= null
-           and then C.Response_Section /= null
-           and then Old_View.Get_Parent =
-             Gtk.Widget.Gtk_Widget (C.Response_Section)
-         then
-            C.Response_Section.Remove (Old_View);
-         end if;
-      elsif C.Text_Open then
-         if Old_View /= null
-           and then C.Response_Section /= null
-           and then Old_View.Get_Parent =
-             Gtk.Widget.Gtk_Widget (C.Response_Section)
-         then
-            C.Response_Section.Remove (Old_View);
-         end if;
-         C.Active_Text := null;
-         C.Active_View := null;
-         C.Text_Open := False;
+      if C.Text_Open then
+         Discard_Active_Response (C);
+      else
+         pragma Assert (C.Active_Response = null);
       end if;
       C.Response_Format := Format;
       C.Render_Markdown := Format = Coyote_GUI.Markdown_Response;

@@ -39,6 +39,12 @@ package Coyote_GUI_CSM2_Qualification_Tests is
      (T : in out Test);
    procedure Test_Format_Change_Closes_Active_Raw_Response
      (T : in out Test);
+   procedure Test_CSM2_Completed_Owner_Survives_Raw_Format_Change
+     (T : in out Test);
+   procedure Test_CSM2_Interrupted_Response_Is_Finalized
+     (T : in out Test);
+   procedure Test_CSM2_Response_Tool_Response_Lifecycle
+     (T : in out Test);
    procedure Test_CSM2_Localized_Recovery_Preserves_Native_Blocks
      (T : in out Test);
    procedure Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled

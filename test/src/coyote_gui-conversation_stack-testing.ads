@@ -45,6 +45,18 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Live_Response_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
+   function Response_Owner_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
+   function Active_Response_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Stream_Mark_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Text_Block_Open
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
    function Live_Response_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 

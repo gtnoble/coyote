@@ -16,12 +16,16 @@ with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Coyote_GUI.Live_Response_Renderer;
 with Gtk.Enums;
+with Gtk.Flow_Box;
+with Gtk.Flow_Box_Child;
 with Gtk.Main;
 
 package body Coyote_GUI_CSM2_Qualification_Tests is
    use type Glib.Gfloat;
    use type Glib.Gint;
    use type Gtk.Box.Gtk_Box;
+   use type Gtk.Flow_Box.Gtk_Flow_Box;
+   use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
    use type Gtk.Widget.Gtk_Widget;
 
    use AUnit.Assertions;
@@ -538,6 +542,118 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "format change leaves no stale live response");
    end Test_Format_Change_Closes_Active_Raw_Response;
 
+   procedure Test_CSM2_Completed_Owner_Survives_Raw_Format_Change
+     (T : in out Test)
+   is
+      Root : Gtk.Box.Gtk_Box;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>completed CSM response</p>");
+      End_Text_Block (T.Stack);
+      Root := Response_Box (T.Stack);
+      Assert (Root /= null, "completed CSM response has a root");
+      Assert (Response_Owner_Count (T.Stack) = 1,
+              "completed response has one retained owner");
+      Assert (not Active_Response_Present (T.Stack),
+              "completed response is no longer active");
+
+      Set_Response_Format (T.Stack, Markdown_Response);
+      Append_Text (T.Stack, "raw response");
+      Assert (Stream_Mark_Present (T.Stack),
+              "raw response owns a stream mark while open");
+      Set_Response_Format (T.Stack, Coyote_Stream_2_Response);
+      Assert (Root.Get_Parent /= null,
+              "completed CSM response remains attached after raw discard");
+      Assert
+        (Index (Visible_Text (T.Stack), "completed CSM response") > 0,
+         "completed CSM response remains visible after raw discard");
+      Assert (Response_Owner_Count (T.Stack) = 1,
+              "raw format change preserves the completed owner");
+      Assert (not Stream_Mark_Present (T.Stack),
+              "raw format change deletes the stream mark");
+      Assert (not Text_Block_Open (T.Stack),
+              "raw format change closes the active block");
+   end Test_CSM2_Completed_Owner_Survives_Raw_Format_Change;
+
+   procedure Test_CSM2_Interrupted_Response_Is_Finalized
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "first request", Prompt);
+      Append_Text (T.Stack, "<p>unfinished response</p>");
+      Assert (Active_Response_Present (T.Stack),
+              "streaming response has an active owner");
+      Begin_Request (T.Stack, "second request", Prompt);
+      Assert (not Text_Block_Open (T.Stack),
+              "new request closes the interrupted response");
+      Assert (not Active_Response_Present (T.Stack),
+              "interrupted response owner becomes completed");
+      Assert (Response_Owner_Count (T.Stack) = 1,
+              "interrupted response remains retained");
+      Assert (not Stream_Mark_Present (T.Stack),
+              "new request deletes the interrupted stream mark");
+      Assert
+        (Index (Visible_Text (T.Stack), "unfinished response") > 0,
+         "partial interrupted response remains visible");
+      Append_Text (T.Stack, "<p>second response</p>");
+      End_Text_Block (T.Stack);
+      Assert (Index (Visible_Text (T.Stack), "second response") > 0,
+              "second request renders after interruption");
+   end Test_CSM2_Interrupted_Response_Is_Finalized;
+
+   procedure Test_CSM2_Response_Tool_Response_Lifecycle
+     (T : in out Test)
+   is
+      First_Root   : Gtk.Box.Gtk_Box;
+      First_Parent : Gtk.Widget.Gtk_Widget;
+      Flow         : Gtk.Flow_Box.Gtk_Flow_Box;
+      Second_Root  : Gtk.Box.Gtk_Box;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<p>before tool</p>");
+      End_Text_Block (T.Stack);
+      First_Root := Response_Box (T.Stack);
+      First_Parent := First_Root.Get_Parent;
+      Begin_Tool
+        (C          => T.Stack,
+         Name       => "shell",
+         Args       => "{""command"":""true""}",
+         Session_Id => "session",
+         Tool_Id    => "lifecycle-tool");
+      Flow := Tool_Flow (T.Stack);
+      Assert (Flow /= null, "tool lifecycle creates a tool flow");
+      End_Tool (T.Stack, "lifecycle-tool", Success, "ok");
+      Append_Turn_Footer (T.Stack, "step complete", Step_Footer);
+      Append_Fork_Action (T.Stack, "fork", "session", 1, 1);
+      Append_Text (T.Stack, "<p>after tool</p>");
+      End_Text_Block (T.Stack);
+      Second_Root := Response_Box (T.Stack);
+      Assert (Flow.Get_Child_At_Index (0) /= null,
+              "tool card remains in the completed step");
+      Assert (First_Root.Get_Parent = First_Parent,
+              "response before tool remains attached");
+      Assert (Second_Root /= First_Root,
+              "response after tool has a distinct root");
+      Assert
+        (Index (Visible_Text (T.Stack), "before tool") > 0,
+         "response before tool remains visible");
+      Assert
+        (Index (Visible_Text (T.Stack), "after tool") > 0,
+         "response after tool remains visible");
+   end Test_CSM2_Response_Tool_Response_Lifecycle;
+
    procedure Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled
      (T : in out Test)
    is
@@ -551,8 +667,9 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
       Begin_Request (T.Stack, "request", Prompt);
       Append_Text (T.Stack, Source);
       End_Text_Block (T.Stack);
-      Assert (Index (Visible_Text (T.Stack), "<unknown>x &lt;y&gt;</unknown>") > 0,
-              "raw inline source is escaped and visible as literal text");
+      Assert
+        (Index (Visible_Text (T.Stack), "<unknown>x &lt;y&gt;</unknown>") > 0,
+         "raw inline source is escaped and visible as literal text");
       Assert (Index (Visible_Text (T.Stack), "<b>") = 0,
               "raw inline has no strong style markup");
       Assert (Index (Visible_Text (T.Stack), "<tt>") = 0,
@@ -583,12 +700,15 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "malformed root is visible during live rendering");
       Assert (Live_Response_Invalid_Event_Count (T.Stack) = 4,
               "localized inline invalid events arrive before End_Text_Block");
-      Assert (Index (Live_Response_Text (T.Stack), "<link bad>x</link> tail") > 0,
-              "malformed inline attributes are visible before End_Text_Block");
+      Assert
+        (Index (Live_Response_Text (T.Stack), "<link bad>x</link> tail") > 0,
+         "malformed inline attributes are visible before End_Text_Block");
       Assert (Index (Live_Response_Text (T.Stack), "&bogus; tail") > 0,
               "malformed entities are visible before End_Text_Block");
-      Assert (Index (Live_Response_Text (T.Stack), "<unknown>tag</unknown> tail") > 0,
-              "unknown inline tags are visible before End_Text_Block");
+      Assert
+        (Index (Live_Response_Text (T.Stack),
+                "<unknown>tag</unknown> tail") > 0,
+         "unknown inline tags are visible before End_Text_Block");
       End_Text_Block (T.Stack);
       Assert (Table_Count (T.Stack) = 1,
               "valid table before malformed root survives final replacement");
@@ -598,8 +718,9 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
               "valid MathML after malformed root is realized natively");
       Assert (Math_Is_Valid (T.Stack, 1),
               "post-error MathML remains valid");
-      Assert (Index (Visible_Text (T.Stack), "broken") > 0,
-              "malformed root remains visible after authoritative replacement");
+      Assert
+        (Index (Visible_Text (T.Stack), "broken") > 0,
+         "malformed root remains visible after authoritative replacement");
       Assert (Index (Visible_Text (T.Stack), "later") > 0,
               "later valid content remains visible after replacement");
       Assert (not Live_Response_Present (T.Stack),
@@ -645,6 +766,15 @@ package body Coyote_GUI_CSM2_Qualification_Tests is
       Result.Add_Test (Caller.Create
         ("GUI format change closes active raw response",
          Test_Format_Change_Closes_Active_Raw_Response'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 completed owner survives raw format change",
+         Test_CSM2_Completed_Owner_Survives_Raw_Format_Change'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 interrupted response is finalized",
+         Test_CSM2_Interrupted_Response_Is_Finalized'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 response tool response lifecycle",
+         Test_CSM2_Response_Tool_Response_Lifecycle'Access));
       Result.Add_Test (Caller.Create
         ("CSM-2 GUI raw inline is escaped and unstyled",
          Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled'Access));

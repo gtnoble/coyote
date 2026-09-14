@@ -9,11 +9,13 @@ with Gtk.Container;
 with Gtk.Style_Context;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
+with Gtk.Text_Mark;
 with Gtk.Widget;
 
 package body Coyote_GUI.Conversation_Stack.Testing is
 
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
+   use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Gtk.Widget.Gtk_Widget;
    use type Gtk.Widget.Widget_List.Glist;
 
@@ -142,6 +144,34 @@ package body Coyote_GUI.Conversation_Stack.Testing is
         and then not Coyote_GUI.Live_Response_Renderer.Is_Finalized
           (C.Live_Renderer);
    end Live_Response_Present;
+
+   function Response_Owner_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      return Natural (C.Responses.Length);
+   end Response_Owner_Count;
+
+   function Active_Response_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Active_Response /= null;
+   end Active_Response_Present;
+
+   function Stream_Mark_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Stream_Mark /= null;
+   end Stream_Mark_Present;
+
+   function Text_Block_Open
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Text_Open;
+   end Text_Block_Open;
 
    function Live_Response_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String
