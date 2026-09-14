@@ -46,6 +46,22 @@ package body Coyote_GUI.Response_Renderer is
    type Counter_Array is array (Natural range <>) of Integer;
    type Bullet_Array is array (Natural range <>) of Boolean;
 
+   function Ends_With_Line_Feed (Output : Unbounded_String) return Boolean is
+   begin
+      return Length (Output) > 0
+        and then Element (Output, Length (Output)) =
+          Ada.Characters.Latin_1.LF;
+   end Ends_With_Line_Feed;
+
+   function Needs_Leading_Line_Feed
+     (Kind : Coyote_Renderer.Semantics.Block_Kind) return Boolean
+   is
+      package S renames Coyote_Renderer.Semantics;
+   begin
+      return Kind in S.Paragraph | S.List | S.Table
+        | S.Horizontal_Rule | S.Invalid_Source;
+   end Needs_Leading_Line_Feed;
+
    procedure Render_Inline
      (D      :        Coyote_Renderer.Semantics.Document;
       Item   :        Coyote_Renderer.Semantics.Inline_Id;
@@ -277,7 +293,9 @@ package body Coyote_GUI.Response_Renderer is
             if Depth > 0 then
                Depth := Depth - 1;
             end if;
-            Append (Output, Ada.Characters.Latin_1.LF);
+            if not Ends_With_Line_Feed (Output) then
+               Append (Output, Ada.Characters.Latin_1.LF);
+            end if;
          when S.List_Item =>
             if Depth > 0 then
                if Depth > 1 then
@@ -296,10 +314,23 @@ package body Coyote_GUI.Response_Renderer is
             end if;
             Render_Inline_Block (D, Block, Output);
             for Position in 1 .. S.Block_Child_Count (D, Block) loop
-               Render_Block
-                 (D, S.Block_Child_At (D, Block, Position), Output, Depth,
-                  Counters, Bullets);
+               declare
+                  Child : constant S.Block_Id :=
+                    S.Block_Child_At (D, Block, Position);
+               begin
+                  if Needs_Leading_Line_Feed
+                    (S.Block_Kind_Of (D, Child))
+                    and then not Ends_With_Line_Feed (Output)
+                  then
+                     Append (Output, Ada.Characters.Latin_1.LF);
+                  end if;
+                  Render_Block
+                    (D, Child, Output, Depth, Counters, Bullets);
+               end;
             end loop;
+            if not Ends_With_Line_Feed (Output) then
+               Append (Output, Ada.Characters.Latin_1.LF);
+            end if;
          when S.Code_Block =>
             Append
               (Output,

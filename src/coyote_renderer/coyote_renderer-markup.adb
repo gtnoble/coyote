@@ -586,8 +586,23 @@ package body Coyote_Renderer.Markup is
       begin
          return Natural'Min (Depth, 7);
       end Stack_Index;
-      procedure Render_Block (Block : S.Block_Id);
 
+      function Ends_With_Line_Feed return Boolean is
+      begin
+         return Length (Output) > 0
+           and then Element (Output, Length (Output)) =
+             Ada.Characters.Latin_1.LF;
+      end Ends_With_Line_Feed;
+
+      function Needs_Leading_Line_Feed
+        (Kind : S.Block_Kind) return Boolean
+      is
+      begin
+         return Kind in S.Paragraph | S.List | S.Table
+           | S.Horizontal_Rule | S.Invalid_Source;
+      end Needs_Leading_Line_Feed;
+
+      procedure Render_Block (Block : S.Block_Id);
       procedure Render_Table (Block : S.Block_Id) is
          Columns : constant Natural := Natural'Min
            (16, S.Table_Column_Count (D, Block));
@@ -722,7 +737,9 @@ package body Coyote_Renderer.Markup is
                if Depth > 0 then
                   Depth := Depth - 1;
                end if;
-               Append (Output, Ada.Characters.Latin_1.LF);
+               if not Ends_With_Line_Feed then
+                  Append (Output, Ada.Characters.Latin_1.LF);
+               end if;
             when S.List_Item =>
                if Depth > 0 then
                   declare
@@ -747,8 +764,22 @@ package body Coyote_Renderer.Markup is
                end if;
                Render_Inlines (Block);
                for Position in 1 .. S.Block_Child_Count (D, Block) loop
-                  Render_Block (S.Block_Child_At (D, Block, Position));
+                  declare
+                     Child : constant S.Block_Id :=
+                       S.Block_Child_At (D, Block, Position);
+                  begin
+                     if Needs_Leading_Line_Feed
+                       (S.Block_Kind_Of (D, Child))
+                       and then not Ends_With_Line_Feed
+                     then
+                        Append (Output, Ada.Characters.Latin_1.LF);
+                     end if;
+                     Render_Block (Child);
+                  end;
                end loop;
+               if not Ends_With_Line_Feed then
+                  Append (Output, Ada.Characters.Latin_1.LF);
+               end if;
             when S.Code_Block =>
                Append (Output, Ada.Characters.Latin_1.LF
                  & "<span background=""#f4f4f4""><tt>"

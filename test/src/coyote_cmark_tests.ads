@@ -67,6 +67,9 @@ package Coyote_Cmark_Tests is
    --  level.
    procedure Test_Pango_Markup_Nested_List_Indentation (T : in out Test);
 
+   --  Shared Pango markup places list items on separate logical lines.
+   procedure Test_Pango_Markup_List_Line_Boundaries (T : in out Test);
+
    --  Display-math extraction must preserve Markdown code blocks.
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test);
 

@@ -423,6 +423,35 @@ package body Coyote_Cmark_Tests is
       end;
    end Test_Pango_Markup_Nested_List_Indentation;
 
+   procedure Test_Pango_Markup_List_Line_Boundaries (T : in out Test) is
+      pragma Unreferenced (T);
+      LF     : constant String := Ada.Characters.Latin_1.LF & "";
+      Bullet : constant String := Coyote_App.Utils.UC_BULLET;
+      Flat   : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup
+          ("- one" & LF & "- two");
+      Nested : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup
+          ("- outer" & LF & "  - inner" & LF & "- sibling");
+      Ordered : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup
+          ("3. first" & LF & "4. second");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Flat, Bullet & " one" & LF & Bullet & " two") > 0,
+         "unordered list items must occupy separate lines");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Nested, Bullet & " outer" & LF & "  " & Bullet & " inner"
+            & LF & Bullet & " sibling") > 0,
+         "nested list items must occupy separate indented lines");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Ordered, "3. first" & LF & "4. second") > 0,
+         "ordered list items must preserve line boundaries and ordinals");
+   end Test_Pango_Markup_List_Line_Boundaries;
+
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test) is
       pragma Unreferenced (T);
       Fenced          : constant String                                   :=
@@ -684,6 +713,10 @@ package body Coyote_Cmark_Tests is
            ("Coyote_Renderer.Markup nested list indentation",
             Coyote_Cmark_Tests.Test_Pango_Markup_Nested_List_Indentation'
               Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup list line boundaries",
+            Coyote_Cmark_Tests.Test_Pango_Markup_List_Line_Boundaries'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
            ("Coyote.Renderer.MathML protects Markdown code blocks",
