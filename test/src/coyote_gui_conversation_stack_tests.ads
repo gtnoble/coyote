@@ -12,10 +12,12 @@ with Gtk.Window;
 
 package Coyote_GUI_Conversation_Stack_Tests is
 
+   type Stack_Access is access all Coyote_GUI.Conversation_Stack.Instance;
+
    type Test is new AUnit.Test_Fixtures.Test_Fixture with record
       Display_Available : Boolean := False;
       Parent            : Gtk.Window.Gtk_Window;
-      Stack             : Coyote_GUI.Conversation_Stack.Instance;
+      Stack             : Stack_Access;
    end record;
 
    procedure Test_Native_Footer_Uses_Status_Row_And_Fork_Button

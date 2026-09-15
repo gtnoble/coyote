@@ -174,6 +174,32 @@ package body Coyote_Semantics_Tests is
               "stale block cannot be reattached");
    end Test_Clear_Invalidates_Handles;
 
+   procedure Test_Documents_Isolate_Handles (T : in out Test) is
+      pragma Unreferenced (T);
+      Documents : array (Positive range 1 .. 8) of Document;
+      Handles   : array (Positive range 1 .. 8) of Block_Id;
+   begin
+      for Index in Documents'Range loop
+         Handles (Index) :=
+           New_Block (Documents (Index), Paragraph, "document");
+         Assert (Is_Valid (Documents (Index), Handles (Index)),
+                 "each document accepts its own block");
+      end loop;
+
+      for Left in Documents'Range loop
+         for Right in Documents'Range loop
+            if Left /= Right then
+               Assert
+                 (not Is_Valid (Documents (Right), Handles (Left)),
+                  "distinct documents reject foreign block handles");
+            end if;
+         end loop;
+      end loop;
+
+      Assert (not Append_Block (Documents (2), Handles (1)),
+              "cross-document block cannot be appended");
+   end Test_Documents_Isolate_Handles;
+
    procedure Test_Markdown_Adapter_Constructs_Model (T : in out Test) is
       pragma Unreferenced (T);
       D : Document;
@@ -293,6 +319,9 @@ package body Coyote_Semantics_Tests is
       Result.Add_Test (Caller.Create
         ("Semantics clear invalidates handles",
          Test_Clear_Invalidates_Handles'Access));
+      Result.Add_Test (Caller.Create
+        ("Semantics documents isolate handles",
+         Test_Documents_Isolate_Handles'Access));
       Result.Add_Test (Caller.Create
         ("Markdown adapter constructs semantic model",
          Test_Markdown_Adapter_Constructs_Model'Access));

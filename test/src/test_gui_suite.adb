@@ -9,7 +9,8 @@ with Coyote_App_Frontend_GUI_Tests;
 with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Conversation_Stack_Tests;
 with Coyote_GUI_CSM2_Qualification_Tests;
-with Coyote_GUI_Live_Response_Renderer_Tests;
+with Coyote_GUI_Streaming_Response_Tests;
+with Coyote_GUI_Semantic_Response_Presenter_Tests;
 with Coyote_GUI_Sandbox_Profile_Window_Tests;
 with Coyote_GUI_Model_Picker_Tests;
 
@@ -30,7 +31,8 @@ package body Test_GUI_Suite is
       Result.Add_Test (Coyote_GUI_Zoom_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Tests.Suite);
       Result.Add_Test (Coyote_GUI_CSM2_Qualification_Tests.Suite);
-      Result.Add_Test (Coyote_GUI_Live_Response_Renderer_Tests.Suite);
+      Result.Add_Test (Coyote_GUI_Streaming_Response_Tests.Suite);
+      Result.Add_Test (Coyote_GUI_Semantic_Response_Presenter_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Sandbox_Profile_Window_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Model_Picker_Tests.Suite);
 

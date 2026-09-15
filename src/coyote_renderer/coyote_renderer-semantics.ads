@@ -94,6 +94,21 @@ package Coyote_Renderer.Semantics is
      (D : in out Document; Block : Block_Id; Kind : Block_Kind)
      return Boolean;
 
+   --  Replace a block with one atomic invalid-source node.  Attached
+   --  children, inlines, rows, and presentation data are discarded.
+   function Set_Block_Invalid_Source
+     (D : in out Document; Block : Block_Id; Source : String)
+     return Boolean;
+
+   --  Stable identity for a parser root.  This value is preserved by Copy
+   --  and is independent of document-local semantic handles.
+   function Set_Block_Semantic_Root_Id
+     (D : in out Document; Block : Block_Id; Root_Id : Natural)
+     return Boolean;
+
+   function Block_Semantic_Root_Id
+     (D : Document; Block : Block_Id) return Natural;
+
    function Set_Inline_Source
      (D : in out Document; Inline : Inline_Id; Source : String)
      return Boolean;
@@ -131,6 +146,26 @@ package Coyote_Renderer.Semantics is
      (D      : in out Document;
       Parent : Table_Cell_Id;
       Child  : Inline_Id) return Boolean;
+
+   --  Append decoded plain text to a parent, coalescing only with its
+   --  immediately preceding Text inline.  Source and value remain exact.
+   function Append_Text
+     (D      : in out Document;
+      Parent : Block_Id;
+      Value  : String;
+      Source : String) return Boolean;
+
+   function Append_Text
+     (D      : in out Document;
+      Parent : Inline_Id;
+      Value  : String;
+      Source : String) return Boolean;
+
+   function Append_Text
+     (D      : in out Document;
+      Parent : Table_Cell_Id;
+      Value  : String;
+      Source : String) return Boolean;
 
    function Set_Heading_Level
      (D     : in out Document;
@@ -237,23 +272,27 @@ package Coyote_Renderer.Semantics is
 private
 
    type Block_Id is record
-      Index      : Natural := 0;
-      Generation : Natural := 0;
+      Index             : Natural := 0;
+      Generation        : Natural := 0;
+      Document_Identity : Natural := 0;
    end record;
 
    type Inline_Id is record
-      Index      : Natural := 0;
-      Generation : Natural := 0;
+      Index             : Natural := 0;
+      Generation        : Natural := 0;
+      Document_Identity : Natural := 0;
    end record;
 
    type Table_Row_Id is record
-      Index      : Natural := 0;
-      Generation : Natural := 0;
+      Index             : Natural := 0;
+      Generation        : Natural := 0;
+      Document_Identity : Natural := 0;
    end record;
 
    type Table_Cell_Id is record
-      Index      : Natural := 0;
-      Generation : Natural := 0;
+      Index             : Natural := 0;
+      Generation        : Natural := 0;
+      Document_Identity : Natural := 0;
    end record;
 
    package Block_Id_Vectors is new Ada.Containers.Vectors
@@ -268,9 +307,10 @@ private
      (Positive, Table_Alignment);
 
    type Block_Record is record
-      Kind          : Block_Kind;
-      Source        : Ada.Strings.Unbounded.Unbounded_String;
-      Heading_Level : Natural := 0;
+      Kind             : Block_Kind;
+      Source           : Ada.Strings.Unbounded.Unbounded_String;
+      Semantic_Root_Id : Natural := 0;
+      Heading_Level    : Natural := 0;
       List_Kind     : Coyote_Renderer.Semantics.List_Kind := Unordered_List;
       List_Start    : Positive := 1;
       Code_Literal  : Ada.Strings.Unbounded.Unbounded_String;
@@ -316,6 +356,7 @@ private
      (Positive, Table_Cell_Record);
 
    type Document is tagged limited record
+      Identity    : Natural := 0;
       Generation  : Natural := 1;
       Blocks      : Block_Vectors.Vector;
       Root_Blocks : Block_Id_Vectors.Vector;
@@ -324,9 +365,13 @@ private
       Cells       : Table_Cell_Vectors.Vector;
    end record;
 
-   No_Block      : constant Block_Id := (Index => 0, Generation => 0);
-   No_Inline     : constant Inline_Id := (Index => 0, Generation => 0);
-   No_Table_Row  : constant Table_Row_Id := (Index => 0, Generation => 0);
-   No_Table_Cell : constant Table_Cell_Id := (Index => 0, Generation => 0);
+   No_Block      : constant Block_Id :=
+     (Index => 0, Generation => 0, Document_Identity => 0);
+   No_Inline     : constant Inline_Id :=
+     (Index => 0, Generation => 0, Document_Identity => 0);
+   No_Table_Row  : constant Table_Row_Id :=
+     (Index => 0, Generation => 0, Document_Identity => 0);
+   No_Table_Cell : constant Table_Cell_Id :=
+     (Index => 0, Generation => 0, Document_Identity => 0);
 
 end Coyote_Renderer.Semantics;

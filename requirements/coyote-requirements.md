@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.26
-**Date:** 2026-09-13
-**Status:** Verified — PCR-101 localized-recovery enhancement implemented
+**Version:** 1.27
+**Date:** 2026-09-14
+**Status:** Verified — PCR-104 Stage 9 audit closed
 
 The PCR-101 closure text below remains historical. This revision records the
 implemented localized CSM-2 recovery enhancement verified after that closure.
@@ -336,7 +336,7 @@ shall fall back to visible escaped or plain source.
 
 #### 3.1.4a CSM-2 Grammar Contract (Verified, PCR-101 Phase 12)
 
-These controlled requirements define the implemented CSM-2 grammar and
+These normative requirements define the implemented CSM-2 grammar and
 presentation boundary. The CSM-2 parser, semantic model, prompt path,
 persistence/replay path, and GUI presentation are qualified by PCR-101; the
 historical CSM-1/current implementation and records remain separately governed.
@@ -358,7 +358,7 @@ Test Plan.
 **REQ-CORE-047b** (A/I/T)
 CSM-2 defines only the explicit inline tags `<strong>`, `<em>`, `<del>`,
 `<link>`, `<code-inline>`, and `<br>`. Their semantic styles are distinct from
-literal source text; attributes are restricted to the controlled prompt grammar.
+literal source text; attributes are restricted to the specified prompt grammar.
 Tag syntax accepts XML-style whitespace between names, attributes, `=`, and
 `>`; closing tags may contain whitespace before `>`. This lexical tolerance
 never trims or normalizes visible text or opaque payloads.
@@ -407,22 +407,30 @@ inline attributes, unknown inline tags, and invalid entities use this rule;
 crossing inline tags remain root-atomic. No recovery silently discards source or
 reinterprets it as Markdown.
 
-Stage 2 live recovery carries `Root_Id`, `Root_Begin`, and `Root_End` on
-`Live_Event`. The GTK live renderer checkpoints each root and rolls back only
-the affected root, so later valid roots continue. Final `Flush`/`Snapshot` and
-`Coyote_GUI.Response_Renderer.Replace` remain authoritative: they reconcile the
-complete semantic document, preserve valid content, and remove stale native or
-provisional widgets. These behaviours are verified by the CSM-2 focused and GUI
-fixtures recorded in the Test Plan.
+Semantic recovery mutations carry stable `Root_Id` and inclusive source ranges;
+provider-delta boundaries do not change their meaning or ordering. The parser's
+canonical semantic document is the authority for GTK presentation. A persistent
+`Coyote_GUI.Semantic_Response_Presenter` reconciles snapshots into root-stable
+text/native components, marks only affected roots dirty, and removes stale
+provisional widgets during reconciliation. `Coyote_GUI.Streaming_Response` owns
+one parser, document, presenter, and response subtree for the response lifecycle;
+normal completion calls `Flush` and reconciliation directly and does not call
+`Coyote_GUI.Response_Renderer.Replace`. Valid roots, malformed-source
+conservation, focus/selection/scroll/font/zoom state, and provider-delta
+invariance are verified by the focused semantic, Stage 6, presenter, streaming,
+and GUI fixtures recorded in the Test Plan.
 
 **REQ-CORE-047f** (A/I/T)
 CSM-2 GUI presentation parity is qualified against completed native GUI Markdown
 rendering, with native tables and native Presentation MathML retained as the
 reference's native exceptions. Qualified parity covers equivalent visible
 content, semantic styles, document order, spacing policy, selection/copy
-behavior, child-count/reconciliation, root-scoped live rollback, escaped and
-unstyled `Raw_Markup`, and authoritative final replacement. Pixel identity is
-not promised by this contract.
+behavior, persistent root identity, provider-delta invariance, malformed-source
+conservation, child-count and dirty-root reconciliation, and
+focus/selection/scroll/font/zoom preservation. Pixel identity is not promised
+by this contract. Scaling qualification covers long streams and repeated
+reset/reuse under the existing REQ-CORE-138 history, widget-count, memory,
+resize, zoom, replay, and reset objectives.
 
 **REQ-CORE-047g** (A/I/T)
 CSM-1/current persisted records remain versionless and retain their existing
@@ -1194,7 +1202,11 @@ compact summary component per tool call rather than creating raw argument or
 full-result widgets for streamed or completed content. The implementation
 shall preserve the 200-ms first-token display objective, and shall qualify
 widget count, memory, resize, zoom, replay, and repeated session-reset
-behaviour for histories of at least 100, 500, and 2,000 exchanges.
+behaviour for histories of at least 100, 500, and 2,000 exchanges. CSM-2
+qualification shall additionally establish provider-delta boundary invariance,
+persistent root identity and local reconciliation, malformed-source
+conservation, lifecycle ownership, and preservation of focus, selection, scroll,
+font, and zoom state under the same history and scaling objectives.
 
 **REQ-CORE-139** (D/T/I)
 The GUI presentation interface shall identify the start of a submitted
@@ -1831,8 +1843,7 @@ qualification requirements are identified.
 ## 4. Qualification Provisions
 
 Traceability from requirements to test cases. Current test procedures and
-status are maintained in `plan/test-plan.md`; the current automated baseline is 954 registered tests. CSM-2 live and native
-GUI qualification is current for the `Conversation_Stack` presentation. The
+status are maintained in `plan/test-plan.md`; the current automated baseline is 990 registered tests. CSM-2 semantic streaming and native GUI qualification is current for the `Conversation_Stack` presentation. The
 PCR-101 closure matrix remains historical; current localized-recovery mappings
 and evidence are recorded in `plan/test-plan.md` §6. The table below retains
 historical `TC-*` identifiers.
@@ -1871,7 +1882,7 @@ historical `TC-*` identifiers.
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
-| REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, ordered live-event presentation, immediate/deferred construct timing, terminal Presentation MathML, visible-source fallback, authoritative final reconciliation/rollback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 controlled qualification matrix |
+| REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, ordered live-event presentation, immediate/deferred construct timing, terminal Presentation MathML, visible-source fallback, authoritative final reconciliation/rollback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 qualification matrix |
 | REQ-CORE-047h | Markdown prompt excludes active CSM policy from auto-loaded project instructions while retaining ordinary context | D/I/T | TC-174; focused system-prompt tests |
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |
@@ -1974,7 +1985,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Objective | Derived Requirements |
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
-| Controlled CSM-2 grammar and GUI parity boundary | REQ-CORE-047a–047g |
+| CSM-2 grammar and GUI parity boundary | REQ-CORE-047a–047g |
 | Multi-frontend support (GTK3 and Plain) | REQ-CORE-001–004, REQ-CORE-110–139 |
 | Streaming output | REQ-CORE-040–049, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–057 |

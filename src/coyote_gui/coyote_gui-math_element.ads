@@ -9,7 +9,9 @@
 with Ada.Strings.Unbounded;
 with Gtk.Box;
 with Gtk.Drawing_Area;
+with Gtk.Handlers;
 with Gtk.Label;
+with Pango.Font;
 
 package Coyote_GUI.Math_Element is
 
@@ -39,6 +41,10 @@ package Coyote_GUI.Math_Element is
    --  Remeasure and redraw at the requested positive scale.
    procedure Set_Scale (Element : in out Instance; Scale : Long_Float);
 
+   procedure Set_Font
+     (Element : in out Instance;
+      Desc    : Pango.Font.Pango_Font_Description);
+
    --  Mark GTK callbacks inactive before the owning component is removed.
    procedure Detach (Element : in out Instance);
 
@@ -67,6 +73,7 @@ private
       Math_Baseline : Natural    := 0;
       Valid         : Boolean    := False;
       Detached      : Boolean    := False;
+      Draw_Handler  : Gtk.Handlers.Handler_Id;
    end record;
 
 end Coyote_GUI.Math_Element;

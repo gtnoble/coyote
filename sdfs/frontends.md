@@ -1,13 +1,45 @@
 # Component Development Log — Frontends
 
+## 2026-09-14 — Final CSM-2 renderer migration audit and closure (PCR-104 Stage 9)
+
+The staged migration is complete. Production CSM-2 presentation now consists of
+`Coyote_Renderer.Incremental` semantic mutations and canonical
+`Coyote_Renderer.Semantics`, owned per response by the
+`Coyote_GUI.Streaming_Response` transaction and reconciled by the persistent
+`Coyote_GUI.Semantic_Response_Presenter`. `Conversation_Stack` no longer owns a
+live renderer or provisional-subtree replacement path. Normal finish performs
+`Flush` and snapshot reconciliation directly; `Response_Renderer.Replace` is
+not called by the streaming path.
+
+Architecture decisions: semantic document state is authoritative; provider
+delta boundaries are observational only; root identity is stable across
+snapshots and local reconciliation; malformed source is conserved visibly;
+native table/MathML promotion occurs at committed boundaries; GTK cleanup
+runs on the GTK main task with presenter widgets cleared before the response
+section is detached. The parser `Event`/`Event_Handler` facade is retained as
+deprecated test-only compatibility because bounded parser qualification still
+uses it and removing it would add parser-regression risk. `Live_Event` and
+`Coyote_GUI.Live_Response_Renderer` are retired and absent from production.
+
+Defects fixed during final audit: semantic handles now include document
+identity (including copied nested references), response cleanup preserves GTK
+ownership order, and response-section detachment prevents stale roots during
+reuse. New tests cover cross-document handle rejection, semantic mutations,
+root/range/lifecycle invariance, presenter reconciliation, response-owner
+handles, identity, scaling, and reset stress.
+
+**Verification:** Production/test development builds passed. The complete
+registered suite passed 990/990 twice. Focused suites passed: semantic mutation 6/6; Semantics model 6/6; Stage 6 5/5;
+presenter 4/4; streaming owner 18/18; CSM-2 GUI 16/16;
+Conversation_Stack 25/25; Response_Renderer 3/3; and Zoom 12/12. Display tests
+ran on X11 and emitted only existing GTK theme color-parser warnings.
+
 ## 2026-09-13 — CSM-2 localized live recovery enhancement (PCR-101 follow-on)
 
-The GTK live path now consumes root-delimited CSM-2 events. `Root_Id`,
-`Root_Begin`, and `Root_End` let `Coyote_GUI.Live_Response_Renderer` capture a
-GTK text mark and renderer-state checkpoint for each root, restore only the
-affected malformed root, append its exact unstyled source, and continue with
-later valid roots. Final `Flush`/`Snapshot`/`Coyote_GUI.Response_Renderer.Replace`
-remains authoritative, so stale provisional and native widgets are removed.
+This historical entry records the superseded live-renderer implementation.
+The completed implementation is documented in the PCR-104 Stage 9 closure entry above;
+current production uses semantic mutations, `Streaming_Response`, and the
+persistent `Semantic_Response_Presenter`.
 The shared semantic path presents inline corruption as escaped, unstyled
 `Raw_Markup`; tables, code, terminal MathML, and structural containers remain
 atomic.
@@ -19,7 +51,7 @@ semantic qualification passed 5/5. Historical PCR-101 closure evidence and its
 
 ## Current baseline amendment (2026-08-31)
 
-The native GTK conversation cutover is complete. The historical Phase 6 checkpoint was 934/934; the current suite baseline is 955/955, and CSM-2 live presentation qualification is current through the recovery-enhancement entry above. `Coyote_GUI.Conversation_Stack`
+The native GTK conversation cutover is complete. The historical Phase 6 checkpoint was 934/934; the superseded pre-Stage-9 baseline was 955/955. The PCR-104 Stage 9 closure entry above is the current suite baseline and CSM-2 presentation record. `Coyote_GUI.Conversation_Stack`
 is the sole GTK conversation presentation; the custom `Gtk.Layout`/Cairo/Pango
 renderer, its test accessors, and the `COYOTE_NATIVE_STACK` runtime flag were
 removed after native qualification. The Plain frontend remains supported and
@@ -50,14 +82,10 @@ components.
 
 ## 2026-09-12 — Live CSM-2 event rendering and final reconciliation
 
-`Coyote_Renderer.Incremental` now emits an ordered renderer-neutral
-`Live_Event` protocol across provider-delta boundaries. Sequence numbers,
-source ranges, context IDs, completion/deferred flags, and detail attributes
-allow the GTK sink to consume stateful updates; code and code-inline payloads
-are emitted as opaque literal chunks. `Coyote_GUI.Live_Response_Renderer`
-applies text, inline styles, code, headings, blockquotes, lists, `br`, and `hr`
-immediately in one selectable subtree. Complete table and terminal MathML source
-is retained as deferred state and is not realized natively by that live sink.
+This historical implementation note describes the superseded `Live_Event`/
+`Live_Response_Renderer` path. It is retained for chronology only; current
+production uses semantic mutations, `Streaming_Response`, and the persistent
+`Semantic_Response_Presenter` as recorded in the PCR-104 Stage 9 closure entry.
 
 At `End_Text_Block`, `Conversation_Stack` calls parser `Flush`, finalizes the
 live renderer, takes the typed `Snapshot`, removes the provisional subtree, and

@@ -6,6 +6,7 @@ with AUnit.Test_Caller;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Ada.Unchecked_Deallocation;
 with AUnit.Assertions;
 with Glib;
 with Gtk.Box;
@@ -41,6 +42,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Window.Gtk_Window;
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Button.Gtk_Button;
    use Ada.Strings.Fixed;
@@ -79,21 +81,27 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if Display_Available then
          Gtk.Main.Init;
          T.Display_Available := True;
-         if Widget (T.Stack) = null then
-            Gtk.Window.Gtk_New (T.Parent, Gtk.Enums.Window_Toplevel);
-            Create (T.Stack, T.Parent.all'Access);
-         else
-            Clear (T.Stack);
-         end if;
-         Set_Render_Markdown (T.Stack, True);
-         Set_Incremental_Markup (T.Stack, False);
+         Gtk.Window.Gtk_New (T.Parent, Gtk.Enums.Window_Toplevel);
+         T.Stack := new Coyote_GUI.Conversation_Stack.Instance;
+         Create (T.Stack.all, T.Parent.all'Access);
+         T.Parent.Add (Widget (T.Stack.all));
+         Set_Render_Markdown (T.Stack.all, True);
+         Set_Incremental_Markup (T.Stack.all, False);
       end if;
    end Set_Up;
 
    overriding procedure Tear_Down (T : in out Test) is
    begin
       if T.Display_Available then
-         Clear (T.Stack);
+         Clear (T.Stack.all);
+         T.Parent.Destroy;
+         T.Parent := null;
+         Free_Stack : declare
+            procedure Free is new Ada.Unchecked_Deallocation
+              (Coyote_GUI.Conversation_Stack.Instance, Stack_Access);
+         begin
+            Free (T.Stack);
+         end Free_Stack;
       end if;
    end Tear_Down;
 
@@ -109,43 +117,43 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Fork_UUID   := Null_Unbounded_String;
       Fork_Turn   := 1;
       Fork_Step   := 0;
-      Set_Fork_Handler (T.Stack, Capture_Fork'Access);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "response");
-      End_Text_Block (T.Stack);
+      Set_Fork_Handler (T.Stack.all, Capture_Fork'Access);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "response");
+      End_Text_Block (T.Stack.all);
       Append_Turn_Footer
-        (C       => T.Stack,
+        (C       => T.Stack.all,
          Text    => "formatted footer" & ASCII.LF & Coyote_App.Utils.UC_HORIZ,
          Kind    => Final_Footer,
          Summary => Summary);
-      Append_Fork_Action (T.Stack, "legacy label", "session-42", 3, 2);
+      Append_Fork_Action (T.Stack.all, "legacy label", "session-42", 3, 2);
 
       Assert
-        (Footer_Separator (T.Stack) /= null,
+        (Footer_Separator (T.Stack.all) /= null,
          "footer uses a native GTK separator widget");
       Assert
-        (Footer_Heading (T.Stack) = "Turn summary",
+        (Footer_Heading (T.Stack.all) = "Turn summary",
          "final footer uses a semantic summary heading");
       Assert
-        (Footer_Summary (T.Stack) = Summary,
+        (Footer_Summary (T.Stack.all) = Summary,
          "footer summary is rendered as a native label");
       Assert
-        (not Footer_Summary_Selectable (T.Stack),
+        (not Footer_Summary_Selectable (T.Stack.all),
          "footer status label is not a selectable text control");
       Assert
-        (Index (Footer_Summary (T.Stack), Coyote_App.Utils.UC_HORIZ) = 0,
+        (Index (Footer_Summary (T.Stack.all), Coyote_App.Utils.UC_HORIZ) = 0,
          "footer summary does not contain a terminal separator");
       Assert
-        (Fork_Button (T.Stack) /= null,
+        (Fork_Button (T.Stack.all) /= null,
          "footer provides a native Fork button");
       Assert
-        (Fork_Button (T.Stack).Get_Label = "Fork",
+        (Fork_Button (T.Stack.all).Get_Label = "Fork",
          "fork action uses a stable active-verb label");
       Assert
-        (Fork_Button (T.Stack).Get_Can_Focus,
+        (Fork_Button (T.Stack.all).Get_Can_Focus,
          "fork action is keyboard focusable");
 
-      Fork_Button (T.Stack).Clicked;
+      Fork_Button (T.Stack.all).Clicked;
       Assert (Fork_Called, "Fork button invokes the registered callback");
       Assert
         (To_String (Fork_UUID) = "session-42",
@@ -161,7 +169,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          return;
       end if;
       Assert
-        (Host_Widget (T.Stack) /= null,
+        (Host_Widget (T.Stack.all) /= null,
          "stack creates one outer scrolled window");
    end Test_Creates_Single_Outer_Host;
 
@@ -170,14 +178,14 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "first");
-      Append_Text (T.Stack, " second");
-      End_Text_Block (T.Stack);
-      Assert (Has_Exchange (T.Stack), "request creates an exchange");
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "first");
+      Append_Text (T.Stack.all, " second");
+      End_Text_Block (T.Stack.all);
+      Assert (Has_Exchange (T.Stack.all), "request creates an exchange");
       Assert
-        (Active_Text_View (T.Stack) /= null
-         and then Active_Text_View (T.Stack).Get_Visible,
+        (Active_Text_View (T.Stack.all) /= null
+         and then Active_Text_View (T.Stack.all).Get_Visible,
          "dynamically-created native text is visible");
    end Test_Request_And_Streaming_Are_Incremental;
 
@@ -186,11 +194,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "**bold** and `code`");
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "**bold** and `code`");
+      End_Text_Block (T.Stack.all);
       declare
-         Text : constant String := Active_Text (T.Stack);
+         Text : constant String := Active_Text (T.Stack.all);
       begin
          Assert
            (Index (Text, "bold and code") > 0,
@@ -215,18 +223,18 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
-      Assert (Table_Count (T.Stack) = 1,
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Assert (Table_Count (T.Stack.all) = 1,
               "semantic response renderer realizes one table");
-      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Text = "42",
+      Assert (Table_Cell (T.Stack.all, 1, 2, 2).Get_Text = "42",
               "semantic response renderer retains table cell text");
-      Assert (Text_View_Count (T.Stack) = 2,
+      Assert (Text_View_Count (T.Stack.all) = 2,
               "semantic response renderer retains text around table");
-      Assert (Index (Text_View_Text (T.Stack, 1), "before") > 0,
+      Assert (Index (Text_View_Text (T.Stack.all, 1), "before") > 0,
               "semantic response renderer retains prefix text");
-      Assert (Index (Text_View_Text (T.Stack, 2), "after") > 0,
+      Assert (Index (Text_View_Text (T.Stack.all, 2), "after") > 0,
               "semantic response renderer retains suffix text");
    end Test_Native_Response_Renderer_Presents_Semantics;
 
@@ -236,15 +244,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Set_Render_Markdown (T.Stack, False);
+      Set_Render_Markdown (T.Stack.all, False);
       Assert
-        (not Get_Render_Markdown (T.Stack),
+        (not Get_Render_Markdown (T.Stack.all),
          "native Markdown rendering can be disabled");
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "**bold**");
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "**bold**");
+      End_Text_Block (T.Stack.all);
       declare
-         Text : constant String := Active_Text (T.Stack);
+         Text : constant String := Active_Text (T.Stack.all);
       begin
          Assert
            (Index (Text, "**bold**") > 0,
@@ -260,41 +268,41 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Assert
-        (Table_Count (T.Stack) = 1,
+        (Table_Count (T.Stack.all) = 1,
          "completed table should create one native grid");
       Assert
-        (Table_Grid (T.Stack, 1) /= null,
+        (Table_Grid (T.Stack.all, 1) /= null,
          "native table grid should be retained");
       Assert
-        (Table_Cell (T.Stack, 1, 1, 1) /= null,
+        (Table_Cell (T.Stack.all, 1, 1, 1) /= null,
          "native table header cell should exist");
       Assert
-        (Table_Cell (T.Stack, 1, 2, 3) /= null,
+        (Table_Cell (T.Stack.all, 1, 2, 3) /= null,
          "native table body cell should exist");
       Assert
-        (Table_Cell (T.Stack, 1, 2, 3).Get_Text = "0.5",
+        (Table_Cell (T.Stack.all, 1, 2, 3).Get_Text = "0.5",
          "native table cell should retain copied text");
       Assert
-        (Table_Cell (T.Stack, 1, 1, 1).Get_Use_Markup,
+        (Table_Cell (T.Stack.all, 1, 1, 1).Get_Use_Markup,
          "native table header should use Pango markup");
       Assert
-        (Table_Cell (T.Stack, 1, 1, 1).Get_Text = "Name",
+        (Table_Cell (T.Stack.all, 1, 1, 1).Get_Text = "Name",
          "native table header should retain visible text");
       Assert
-        (Table_Cell (T.Stack, 1, 2, 1).Get_Xalign = 0.0,
+        (Table_Cell (T.Stack.all, 1, 2, 1).Get_Xalign = 0.0,
          "left-aligned table column should use left alignment");
       Assert
-        (Table_Cell (T.Stack, 1, 2, 2).Get_Xalign = 0.5,
+        (Table_Cell (T.Stack.all, 1, 2, 2).Get_Xalign = 0.5,
          "center-aligned table column should use center alignment");
       Assert
-        (Table_Cell (T.Stack, 1, 2, 3).Get_Xalign = 1.0,
+        (Table_Cell (T.Stack.all, 1, 2, 3).Get_Xalign = 1.0,
          "right-aligned table column should use right alignment");
       Assert
-        (not Response_Stream_Present (T.Stack),
+        (not Response_Stream_Present (T.Stack.all),
          "native table replacement removes the raw stream view");
    end Test_Native_Table_Realizes_Grid;
 
@@ -306,15 +314,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Set_Render_Markdown (T.Stack, False);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Set_Render_Markdown (T.Stack.all, False);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Assert
-        (Table_Count (T.Stack) = 0,
+        (Table_Count (T.Stack.all) = 0,
          "disabled Markdown should not create a native table");
       Assert
-        (Index (Active_Text (T.Stack), "| Name | Value |") > 0,
+        (Index (Active_Text (T.Stack.all), "| Name | Value |") > 0,
          "disabled Markdown should preserve table source");
    end Test_Native_Table_Toggle_Disables_Rendering;
 
@@ -329,12 +337,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Children :=
         Gtk.Container.Get_Children
-          (Gtk.Container.Gtk_Container (Response_Box (T.Stack)));
+          (Gtk.Container.Gtk_Container (Response_Box (T.Stack.all)));
       Assert
         (Gtk.Widget.Widget_List.Length (Children) = 1,
          "table-only response should not create whitespace text blocks");
@@ -352,12 +360,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Children :=
         Gtk.Container.Get_Children
-          (Gtk.Container.Gtk_Container (Response_Box (T.Stack)));
+          (Gtk.Container.Gtk_Container (Response_Box (T.Stack.all)));
       Assert
         (Gtk.Widget.Widget_List.Length (Children) = 3,
          "mixed response should contain only text-table-text blocks");
@@ -369,18 +377,18 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Begin_Thinking (T.Stack);
-      Append_Thinking (T.Stack, "thinking");
-      End_Thinking (T.Stack);
-      Append_Text (T.Stack, "response");
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Begin_Thinking (T.Stack.all);
+      Append_Thinking (T.Stack.all, "thinking");
+      End_Thinking (T.Stack.all);
+      Append_Text (T.Stack.all, "response");
+      End_Text_Block (T.Stack.all);
       Assert
-        (Step_Frame_Count (T.Stack) = 1,
+        (Step_Frame_Count (T.Stack.all) = 1,
          "assistant content creates one step frame");
       Assert
-        (Active_Step_Frame (T.Stack) /= null
-         and then Active_Step_Frame (T.Stack).Get_Visible,
+        (Active_Step_Frame (T.Stack.all) /= null
+         and then Active_Step_Frame (T.Stack.all).Get_Visible,
          "step frame is visible while streaming");
    end Test_Assistant_Content_Uses_Visible_Step_Frame;
 
@@ -389,30 +397,30 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "first response");
-      End_Text_Block (T.Stack);
-      Append_Turn_Footer (T.Stack, "step", Step_Footer);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "first response");
+      End_Text_Block (T.Stack.all);
+      Append_Turn_Footer (T.Stack.all, "step", Step_Footer);
       Assert
-        (Footer_Heading (T.Stack) = "Step 1 summary",
+        (Footer_Heading (T.Stack.all) = "Step 1 summary",
          "step footer uses a numbered semantic summary heading");
-      Append_Fork_Action (T.Stack, "fork step", "session", 1, 1);
+      Append_Fork_Action (T.Stack.all, "fork step", "session", 1, 1);
       Assert
-        (Step_Frame_Count (T.Stack) = 1,
+        (Step_Frame_Count (T.Stack.all) = 1,
          "step footer and fork remain in the first frame");
       Assert
-        (Active_Step_Frame (T.Stack) = null,
+        (Active_Step_Frame (T.Stack.all) = null,
          "completed step is no longer the active target");
-      Append_Text (T.Stack, "final response");
-      End_Text_Block (T.Stack);
+      Append_Text (T.Stack.all, "final response");
+      End_Text_Block (T.Stack.all);
       Assert
-        (Step_Frame_Count (T.Stack) = 2,
+        (Step_Frame_Count (T.Stack.all) = 2,
          "next assistant response creates a second step frame");
-      Append_Turn_Footer (T.Stack, "final", Final_Footer);
-      Append_Fork_Action (T.Stack, "fork turn", "session", 1, 0);
-      Complete_Request (T.Stack, Completed);
+      Append_Turn_Footer (T.Stack.all, "final", Final_Footer);
+      Append_Fork_Action (T.Stack.all, "fork turn", "session", 1, 0);
+      Complete_Request (T.Stack.all, Completed);
       Assert
-        (Is_Completed (T.Stack),
+        (Is_Completed (T.Stack.all),
          "final completion closes the exchange after its step");
    end Test_Footer_Closes_Step_Before_Next_Step;
 
@@ -421,21 +429,21 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "first request", Prompt);
-      Append_Text (T.Stack, "first response");
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "first request", Prompt);
+      Append_Text (T.Stack.all, "first response");
+      End_Text_Block (T.Stack.all);
       Assert
-        (Step_Frame_Count (T.Stack) = 1,
+        (Step_Frame_Count (T.Stack.all) = 1,
          "first request creates one step frame");
 
-      Begin_Request (T.Stack, "second request", Prompt);
+      Begin_Request (T.Stack.all, "second request", Prompt);
       Assert
-        (Step_Frame_Count (T.Stack) = 0,
+        (Step_Frame_Count (T.Stack.all) = 0,
          "new request clears prior step-frame bookkeeping");
-      Append_Text (T.Stack, "second response");
-      End_Text_Block (T.Stack);
+      Append_Text (T.Stack.all, "second response");
+      End_Text_Block (T.Stack.all);
       Assert
-        (Step_Frame_Count (T.Stack) = 1,
+        (Step_Frame_Count (T.Stack.all) = 1,
          "second request creates a fresh step frame");
    end Test_New_Request_Resets_Step_Frames;
 
@@ -444,26 +452,26 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Begin_Tool
-        (C          => T.Stack,
+        (C          => T.Stack.all,
          Name       => "shell",
          Args       => "{""command"":""true""}",
          Session_Id => "session",
          Tool_Id    => "tool-1");
       Begin_Tool
-        (C          => T.Stack,
+        (C          => T.Stack.all,
          Name       => "shell",
          Args       => "{}",
          Session_Id => "session",
          Tool_Id    => "tool-2");
-      End_Tool (T.Stack, "tool-1", Success, "one");
+      End_Tool (T.Stack.all, "tool-1", Success, "one");
       Assert
-        (Tool_Count (T.Stack) = 2,
+        (Tool_Count (T.Stack.all) = 2,
          "tool starts are retained by stable tool ID");
-      End_Tool (T.Stack, "tool-2", Error, "two");
+      End_Tool (T.Stack.all, "tool-2", Error, "two");
       Assert
-        (Tool_Count (T.Stack) = 2,
+        (Tool_Count (T.Stack.all) = 2,
          "tool completion updates existing card by ID");
    end Test_Tool_Updates_By_Stable_Id;
 
@@ -475,9 +483,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Begin_Tool
-        (C              => T.Stack,
+        (C              => T.Stack.all,
          Name           => "shell",
          Args           => "{""command"":""sleep 2""}",
          Session_Id     => "session",
@@ -485,51 +493,51 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Initial_Status => Queued);
       Info :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
-          (T.Stack, "tool-status");
+          (T.Stack.all, "tool-status");
       Assert
         (Info.Result_Status = Queued and then not Info.Completed,
          "new card retains queued status");
       Summary_Length                :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
-          (T.Stack, "tool-status")'
+          (T.Stack.all, "tool-status")'
           Length;
       Summary (1 .. Summary_Length) :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
-          (T.Stack, "tool-status");
+          (T.Stack.all, "tool-status");
       Assert
         (Index (Summary (1 .. Summary_Length), "Status: Queued") > 0,
          "queued status is visible in the compact card");
 
-      Set_Tool_Status (T.Stack, "tool-status", Running);
+      Set_Tool_Status (T.Stack.all, "tool-status", Running);
       Info :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
-          (T.Stack, "tool-status");
+          (T.Stack.all, "tool-status");
       Assert
         (Info.Result_Status = Running and then not Info.Completed,
          "running transition retains an active card");
       Assert
         (Index
            (Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
-              (T.Stack, "tool-status"),
+              (T.Stack.all, "tool-status"),
             "Status: Running")
          > 0,
          "running status is visible in the compact card");
 
       End_Tool
-        (C       => T.Stack,
+        (C       => T.Stack.all,
          Tool_Id => "tool-status",
          Status  => Timed_Out,
          Result  => "[command timed out after 2 seconds]");
       Info :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
-          (T.Stack, "tool-status");
+          (T.Stack.all, "tool-status");
       Assert
         (Info.Result_Status = Timed_Out and then Info.Completed,
          "timed-out transition closes the card");
       Assert
         (Index
            (Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
-              (T.Stack, "tool-status"),
+              (T.Stack.all, "tool-status"),
             "Status: Timed out")
          > 0,
          "timed-out status is visible in the compact card");
@@ -540,37 +548,37 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Begin_Tool
-        (C              => T.Stack,
+        (C              => T.Stack.all,
          Name           => "shell",
          Args           => "{""command"":""sleep 10""}",
          Session_Id     => "session",
          Tool_Id        => "abort-controls",
          Initial_Status => Queued);
       Assert
-        (Abort_Enabled (T.Stack, "abort-controls"),
+        (Abort_Enabled (T.Stack.all, "abort-controls"),
          "Abort is enabled for queued tools");
       Assert
-        (Abort_Message_Enabled (T.Stack, "abort-controls"),
+        (Abort_Message_Enabled (T.Stack.all, "abort-controls"),
          "Abort With Message is enabled for queued tools");
-      Set_Tool_Status (T.Stack, "abort-controls", Running);
+      Set_Tool_Status (T.Stack.all, "abort-controls", Running);
       Assert
-        (Abort_Enabled (T.Stack, "abort-controls"),
+        (Abort_Enabled (T.Stack.all, "abort-controls"),
          "Abort remains enabled while running");
       End_Tool
-        (C       => T.Stack,
+        (C       => T.Stack.all,
          Tool_Id => "abort-controls",
          Status  => Cancelled,
          Result  => "cancelled by test");
       Assert
-        (not Abort_Enabled (T.Stack, "abort-controls"),
+        (not Abort_Enabled (T.Stack.all, "abort-controls"),
          "Abort is disabled after cancellation");
       Assert
-        (not Abort_Message_Enabled (T.Stack, "abort-controls"),
+        (not Abort_Message_Enabled (T.Stack.all, "abort-controls"),
          "Abort With Message is disabled after cancellation");
       Assert
-        (Details_Enabled (T.Stack, "abort-controls"),
+        (Details_Enabled (T.Stack.all, "abort-controls"),
          "View Details remains enabled after cancellation");
    end Test_Tool_Abort_Controls_Follow_Status;
 
@@ -580,15 +588,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Begin_Tool
-        (C          => T.Stack,
+        (C          => T.Stack.all,
          Name       => "shell",
          Args       => "{""command"":""true""}",
          Session_Id => "session",
          Tool_Id    => "action-row");
 
-      Action_Box := Tool_Action_Box (T.Stack, "action-row");
+      Action_Box := Tool_Action_Box (T.Stack.all, "action-row");
       Assert (Action_Box /= null, "tool card creates an action row");
       Assert
         (Action_Box.Get_Orientation = Gtk.Enums.Orientation_Horizontal,
@@ -619,21 +627,21 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Begin_Tool
-        (C          => T.Stack,
+        (C          => T.Stack.all,
          Name       => "shell",
          Args       => "{""command"":""one""}",
          Session_Id => "session",
          Tool_Id    => "tool-flow-1");
       Begin_Tool
-        (C          => T.Stack,
+        (C          => T.Stack.all,
          Name       => "shell",
          Args       => "{""command"":""two""}",
          Session_Id => "session",
          Tool_Id    => "tool-flow-2");
 
-      Flow := Tool_Flow (T.Stack);
+      Flow := Tool_Flow (T.Stack.all);
       Assert (Flow /= null, "tool cards create a native flow host");
       Assert
         (not Flow.Get_Homogeneous, "tool flow preserves natural card widths");
@@ -664,9 +672,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Begin_Tool
-        (C                => T.Stack,
+        (C                => T.Stack.all,
          Name             => "shell",
          Args             => Tool_Args,
          Session_Id       => "session-1",
@@ -677,14 +685,14 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Turn_Index       => 3,
          Call_In_Turn     => 2);
       Assert
-        (Details_Enabled (T.Stack, "tool-summary"),
+        (Details_Enabled (T.Stack.all, "tool-summary"),
          "View Details is enabled while the tool is running");
       Assert
-        (Details_Label (T.Stack, "tool-summary") = "View Details",
+        (Details_Label (T.Stack.all, "tool-summary") = "View Details",
          "tool action uses an active verb");
       Info :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
-          (T.Stack, "tool-summary");
+          (T.Stack.all, "tool-summary");
       Assert
         (not Info.Completed, "active retained details are marked incomplete");
       Assert
@@ -696,7 +704,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       declare
          Summary_Text : constant String :=
            Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
-             (T.Stack, "tool-summary");
+             (T.Stack.all, "tool-summary");
       begin
          Summary_Length                := Summary_Text'Length;
          Summary (1 .. Summary_Length) := Summary_Text;
@@ -739,17 +747,17 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "summary does not use bottom box-drawing decoration");
 
       End_Tool
-        (C          => T.Stack,
+        (C          => T.Stack.all,
          Tool_Id    => "tool-summary",
          Status     => Success,
          Result     => "full-result-sentinel",
          Media_Type => "image/png");
       Assert
-        (Details_Enabled (T.Stack, "tool-summary"),
+        (Details_Enabled (T.Stack.all, "tool-summary"),
          "Details remains enabled after tool completion");
       Info :=
         Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
-          (T.Stack, "tool-summary");
+          (T.Stack.all, "tool-summary");
       Assert
         (Info.Completed, "completed retained details are marked complete");
       Assert
@@ -789,15 +797,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Turn_Footer (T.Stack, "step", Step_Footer);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Turn_Footer (T.Stack.all, "step", Step_Footer);
       Assert
-        (not Is_Completed (T.Stack), "step footer does not complete exchange");
-      Append_Turn_Footer (T.Stack, "final", Final_Footer);
-      Complete_Request (T.Stack, Failed);
-      Assert (Is_Completed (T.Stack), "explicit completion closes exchange");
+        (not Is_Completed (T.Stack.all), "step footer does not complete exchange");
+      Append_Turn_Footer (T.Stack.all, "final", Final_Footer);
+      Complete_Request (T.Stack.all, Failed);
+      Assert (Is_Completed (T.Stack.all), "explicit completion closes exchange");
       Assert
-        (Last_Status (T.Stack) = Failed,
+        (Last_Status (T.Stack.all) = Failed,
          "completion status is retained structurally");
    end Test_Footer_Kind_And_Completion_Are_Explicit;
 
@@ -806,12 +814,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "content");
-      Complete_Request (T.Stack, Aborted);
-      Clear (T.Stack);
-      Assert (not Has_Exchange (T.Stack), "clear removes exchange state");
-      Assert (not Is_Completed (T.Stack), "clear removes terminal state");
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "content");
+      Complete_Request (T.Stack.all, Aborted);
+      Clear (T.Stack.all);
+      Assert (not Has_Exchange (T.Stack.all), "clear removes exchange state");
+      Assert (not Is_Completed (T.Stack.all), "clear removes terminal state");
    end Test_Clear_Removes_Exchange_State;
 
    procedure Test_Clear_Preserves_CSM_Mode (T : in out Test) is
@@ -819,19 +827,19 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Clear (T.Stack);
-      Assert (Get_Incremental_Markup (T.Stack),
+      Set_Incremental_Markup (T.Stack.all, True);
+      Clear (T.Stack.all);
+      Assert (Get_Incremental_Markup (T.Stack.all),
               "clear preserves CSM mode");
       Assert
-        (Get_Response_Format (T.Stack) = Coyote_Stream_2_Response,
+        (Get_Response_Format (T.Stack.all) = Coyote_Stream_2_Response,
          "clear preserves CSM-2 response format");
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "<p>after clear <strong>CSM</strong></p>");
-      Assert (Live_Response_Present (T.Stack),
-              "CSM live renderer is active after clear");
-      End_Text_Block (T.Stack);
-      Assert (Index (Text_View_Text (T.Stack, Text_View_Count (T.Stack)),
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "<p>after clear <strong>CSM</strong></p>");
+      Assert (Active_Text_View (T.Stack.all) /= null,
+              "CSM semantic presenter is active after clear");
+      End_Text_Block (T.Stack.all);
+      Assert (Index (Text_View_Text (T.Stack.all, Text_View_Count (T.Stack.all)),
                      "after clear CSM") > 0,
               "CSM response renders after clear");
    end Test_Clear_Preserves_CSM_Mode;
@@ -846,42 +854,42 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Assert
-        (Math_Element_Count (T.Stack) = 1,
+        (Math_Element_Count (T.Stack.all) = 1,
          "valid display math creates one native element");
       Assert
-        (Math_Is_Valid (T.Stack, 1),
+        (Math_Is_Valid (T.Stack.all, 1),
          "valid display math is measured successfully");
       Assert
-        (Math_Width (T.Stack, 1) > 0 and then Math_Height (T.Stack, 1) > 0,
+        (Math_Width (T.Stack.all, 1) > 0 and then Math_Height (T.Stack.all, 1) > 0,
          "native math element has non-zero dimensions");
       Assert
-        (Index (Math_Source (T.Stack, 1), "$$") > 0,
+        (Index (Math_Source (T.Stack.all, 1), "$$") > 0,
          "native math element retains delimiter-wrapped source");
       Assert
-        (not Response_Stream_Present (T.Stack),
+        (not Response_Stream_Present (T.Stack.all),
          "native MathML replacement removes the raw stream view");
       Assert
-        (Active_Text_View (T.Stack) /= null,
+        (Active_Text_View (T.Stack.all) /= null,
          "rendered response text remains the active text component");
       Assert
-        (Response_Text_Has_Style (T.Stack),
+        (Response_Text_Has_Style (T.Stack.all),
          "rendered response text uses the response style");
       Assert
-        (Math_Area_Visible (T.Stack, 1),
+        (Math_Area_Visible (T.Stack.all, 1),
          "valid MathML shows the rendered area");
       Assert
-        (not Math_Fallback_Visible (T.Stack, 1),
+        (not Math_Fallback_Visible (T.Stack.all, 1),
          "valid MathML hides the source fallback");
       Assert
-        (Math_Has_Response_Style (T.Stack, 1),
+        (Math_Has_Response_Style (T.Stack.all, 1),
          "rendered MathML uses the response style");
-      Host_Widget (T.Stack).Show_All;
+      Host_Widget (T.Stack.all).Show_All;
       Assert
-        (not Math_Fallback_Visible (T.Stack, 1),
+        (not Math_Fallback_Visible (T.Stack.all, 1),
          "parent Show_All does not reveal valid MathML source");
    end Test_Native_Display_Math_Realizes_Element;
 
@@ -891,23 +899,23 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Assert
-        (Math_Element_Count (T.Stack) = 1,
+        (Math_Element_Count (T.Stack.all) = 1,
          "invalid display math retains a native fallback element");
       Assert
-        (not Math_Is_Valid (T.Stack, 1),
+        (not Math_Is_Valid (T.Stack.all, 1),
          "invalid display math is marked invalid");
       Assert
-        (Index (Math_Source (T.Stack, 1), "<") > 0,
+        (Index (Math_Source (T.Stack.all, 1), "<") > 0,
          "invalid display math retains readable source");
       Assert
-        (not Math_Area_Visible (T.Stack, 1),
+        (not Math_Area_Visible (T.Stack.all, 1),
          "invalid MathML hides the rendered area");
       Assert
-        (Math_Fallback_Visible (T.Stack, 1),
+        (Math_Fallback_Visible (T.Stack.all, 1),
          "invalid MathML shows the source fallback");
    end Test_Native_Display_Math_Invalid_Falls_Back;
 
@@ -919,14 +927,14 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
       Assert
-        (Math_Element_Count (T.Stack) = 0,
+        (Math_Element_Count (T.Stack.all) = 0,
          "display math inside fenced code is not realized");
       Assert
-        (Index (Active_Text (T.Stack), "$$") > 0,
+        (Index (Active_Text (T.Stack.all), "$$") > 0,
          "fenced code retains dollar delimiters");
    end Test_Native_Display_Math_Protects_Code;
 
@@ -947,8 +955,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       function Visible_Text return String is
          Result : Unbounded_String;
       begin
-         for I in 1 .. Text_View_Count (T.Stack) loop
-            Append (Result, Text_View_Text (T.Stack, I));
+         for I in 1 .. Text_View_Count (T.Stack.all) loop
+            Append (Result, Text_View_Text (T.Stack.all, I));
          end loop;
          return To_String (Result);
       end Visible_Text;
@@ -956,34 +964,34 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
+      Set_Incremental_Markup (T.Stack.all, True);
+      Begin_Request (T.Stack.all, "request", Prompt);
       for I in CSM_Source'Range loop
-         Append_Text (T.Stack, CSM_Source (I .. I));
+         Append_Text (T.Stack.all, CSM_Source (I .. I));
       end loop;
-      End_Text_Block (T.Stack);
+      End_Text_Block (T.Stack.all);
       CSM_Text := To_Unbounded_String (Visible_Text);
-      Assert (Table_Count (T.Stack) = 1, "CSM uses shared native table");
-      Assert (Math_Element_Count (T.Stack) = 1,
+      Assert (Table_Count (T.Stack.all) = 1, "CSM uses shared native table");
+      Assert (Math_Element_Count (T.Stack.all) = 1,
               "CSM terminal MathML uses shared native math");
-      Assert (Math_Is_Valid (T.Stack, 1),
+      Assert (Math_Is_Valid (T.Stack.all, 1),
               "CSM terminal MathML is valid after normalization");
-      Assert (Index (Math_Source (T.Stack, 1), "<math") > 0,
+      Assert (Index (Math_Source (T.Stack.all, 1), "<math") > 0,
               "CSM Math_Element retains original source");
-      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Text = "42",
+      Assert (Table_Cell (T.Stack.all, 1, 2, 2).Get_Text = "42",
               "CSM table cells use typed semantic values");
-      Assert (Table_Cell (T.Stack, 1, 1, 1).Get_Xalign = 0.5,
+      Assert (Table_Cell (T.Stack.all, 1, 1, 1).Get_Xalign = 0.5,
               "CSM table alignment is retained");
-      Assert (Text_View_Count (T.Stack) > 0,
+      Assert (Text_View_Count (T.Stack.all) > 0,
               "CSM response retains selectable shared text views");
       Assert (Index (To_String (CSM_Text), "<p>") = 0,
               "CSM tags are absent after authoritative completion");
 
-      Clear (T.Stack);
-      Set_Incremental_Markup (T.Stack, False);
-      Begin_Request (T.Stack, "request", Prompt);
+      Clear (T.Stack.all);
+      Set_Incremental_Markup (T.Stack.all, False);
+      Begin_Request (T.Stack.all, "request", Prompt);
       Append_Text
-        (T.Stack,
+        (T.Stack.all,
          "before **bold** and *em*" & ASCII.LF & ASCII.LF
          & "## Title" & ASCII.LF & ASCII.LF
          & "2. one" & ASCII.LF & "3. two" & ASCII.LF & ASCII.LF
@@ -994,16 +1002,16 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          & "| Name | Value |" & ASCII.LF
          & "| :--- | :---: |" & ASCII.LF
          & "| alpha | 42 |" & ASCII.LF & ASCII.LF & "after");
-      End_Text_Block (T.Stack);
+      End_Text_Block (T.Stack.all);
       Markdown_Text := To_Unbounded_String (Visible_Text);
       Assert (Index (To_String (Markdown_Text), "before") > 0,
               "Markdown parity fixture remains visible");
-      Assert (Table_Count (T.Stack) = 1,
+      Assert (Table_Count (T.Stack.all) = 1,
               "Markdown parity fixture uses one native table");
-      Select_All (T.Stack);
-      Assert (Has_Selection (T.Stack),
+      Select_All (T.Stack.all);
+      Assert (Has_Selection (T.Stack.all),
               "shared response text retains selection ownership");
-      Clear_Selection (T.Stack);
+      Clear_Selection (T.Stack.all);
    end Test_CSM2_Shared_Renderer_Parity;
 
    procedure Test_CSM2_Malformed_Final_Reconciliation (T : in out Test) is
@@ -1011,16 +1019,16 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if not T.Display_Available then
          return;
       end if;
-      Set_Incremental_Markup (T.Stack, True);
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, "<p>visible <strong>text</p>");
-      End_Text_Block (T.Stack);
-      Assert (Text_View_Count (T.Stack) > 0,
+      Set_Incremental_Markup (T.Stack.all, True);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "<p>visible <strong>text</p>");
+      End_Text_Block (T.Stack.all);
+      Assert (Text_View_Count (T.Stack.all) > 0,
               "malformed CSM remains visible after final reconciliation");
-      Assert (Index (Text_View_Text (T.Stack, Text_View_Count (T.Stack)),
+      Assert (Index (Text_View_Text (T.Stack.all, Text_View_Count (T.Stack.all)),
                      "<p>") > 0,
               "malformed CSM source is retained visibly");
-      Assert (Table_Count (T.Stack) = 0,
+      Assert (Table_Count (T.Stack.all) = 0,
               "malformed CSM does not leave stale native tables");
    end Test_CSM2_Malformed_Final_Reconciliation;
 
@@ -1039,17 +1047,17 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Pango.Font.Free (Large_Font);
          return;
       end if;
-      Begin_Request (T.Stack, "request", Prompt);
-      Append_Text (T.Stack, Source);
-      End_Text_Block (T.Stack);
-      Initial_Scale := Math_Scale (T.Stack, 1);
-      Set_Font (T.Stack, Small_Font, Math_Scale => 1.0);
-      Set_Font (T.Stack, Large_Font, Math_Scale => 2.0);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Initial_Scale := Math_Scale (T.Stack.all, 1);
+      Set_Font (T.Stack.all, Small_Font, Math_Scale => 1.0);
+      Set_Font (T.Stack.all, Large_Font, Math_Scale => 2.0);
       Assert
-        (Math_Scale (T.Stack, 1) > Initial_Scale,
+        (Math_Scale (T.Stack.all, 1) > Initial_Scale,
          "native MathML scale changes during zoom");
       Assert
-        (Math_Height (T.Stack, 1) > 0,
+        (Math_Height (T.Stack.all, 1) > 0,
          "native MathML remains measured after zoom");
       Pango.Font.Free (Small_Font);
       Pango.Font.Free (Large_Font);

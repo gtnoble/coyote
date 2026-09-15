@@ -12,6 +12,7 @@ with Coyote_Cmark_Tests;
 with Coyote_Incremental_Tests;
 with Coyote_Semantics_Tests;
 with Coyote_CSM2_Qualification_Tests;
+with Coyote_CSM2_Stage6_Tests;
 with Sandbox_Tests;
 with Coyote_Help_Tests;
 with Coyote_Lasem_Tests;
@@ -36,6 +37,7 @@ package body Test_Core_Suite is
       Result.Add_Test (Coyote_Incremental_Tests.Suite);
       Result.Add_Test (Coyote_Semantics_Tests.Suite);
       Result.Add_Test (Coyote_CSM2_Qualification_Tests.Suite);
+      Result.Add_Test (Coyote_CSM2_Stage6_Tests.Suite);
       Result.Add_Test (Sandbox_Tests.Suite);
       Result.Add_Test (Coyote_Help_Tests.Suite);
       Result.Add_Test (Coyote_Lasem_Tests.Suite);

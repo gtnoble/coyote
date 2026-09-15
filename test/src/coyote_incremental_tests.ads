@@ -40,11 +40,13 @@ package Coyote_Incremental_Tests is
    procedure Test_UTF8_Splits (T : in out Test);
    procedure Test_Nesting_And_Tag_Limits (T : in out Test);
    procedure Test_Empty_Elements_And_Event_Compatibility (T : in out Test);
-   procedure Test_Live_Transitions_And_Order (T : in out Test);
-   procedure Test_Live_Opaque_Split_Payloads (T : in out Test);
-   procedure Test_Live_Deferred_Completion_And_Flush (T : in out Test);
-   procedure Test_Live_Localized_Invalid_Protocol (T : in out Test);
-   procedure Test_Live_Callback_State_Clears_On_Exception (T : in out Test);
+   procedure Test_Semantic_Protocol (T : in out Test);
+   procedure Test_Semantic_Root_Identity (T : in out Test);
+   procedure Test_Semantic_Ranges_And_Lifecycle (T : in out Test);
+   procedure Test_Semantic_Split_Journal (T : in out Test);
+   procedure Test_Semantic_Flush_And_Callback_Recovery (T : in out Test);
+   procedure Test_Semantic_Text_Coalescing_Boundaries
+     (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

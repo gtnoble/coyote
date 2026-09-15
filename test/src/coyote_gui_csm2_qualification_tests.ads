@@ -13,10 +13,12 @@ with Gtk.Window;
 
 package Coyote_GUI_CSM2_Qualification_Tests is
 
+   type Stack_Access is access all Coyote_GUI.Conversation_Stack.Instance;
+
    type Test is new AUnit.Test_Fixtures.Test_Fixture with record
       Display_Available : Boolean := False;
       Parent            : Gtk.Window.Gtk_Window;
-      Stack             : Coyote_GUI.Conversation_Stack.Instance;
+      Stack             : Stack_Access;
    end record;
 
    overriding procedure Set_Up (T : in out Test);
@@ -50,6 +52,14 @@ package Coyote_GUI_CSM2_Qualification_Tests is
    procedure Test_CSM2_Raw_Inline_Is_Escaped_And_Unstyled
      (T : in out Test);
 
-   function Suite return AUnit.Test_Suites.Access_Test_Suite;
+   procedure Test_CSM2_Raw_Source_Is_Retained_Around_Root
+     (T : in out Test);
+   procedure Test_CSM2_Live_View_Owns_Selection_And_Focus
+     (T : in out Test);
+   procedure Test_CSM2_Set_Font_Updates_Live_View
+     (T : in out Test);
+   procedure Test_CSM2_Live_And_Final_Content_Parity
+     (T : in out Test);
 
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 end Coyote_GUI_CSM2_Qualification_Tests;

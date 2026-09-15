@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.29
-**Date:** 2026-09-12
+**Version:** 1.30
+**Date:** 2026-09-14
 **Status:** Active
 
 ---
@@ -155,7 +155,7 @@ opt-in via environment variable guards; see `plan/integration-test-guide.md`.
 **Project library:** The git repository at the project root. All source,
 documentation, and intermediate work products are version-controlled here.
 Commit policy: at minimum at the end of each build; whenever a work product
-advances to project-level or client control.
+advances to project or client control.
 
 **Component development logs:** One file per logical component group in
 `sdfs/`. Each records design rationale, constraints, unit test notes, and
@@ -259,10 +259,10 @@ commit at which they were last substantively changed.
 | Level | Entities | Change procedure |
 |---|---|---|
 | Author control | Working drafts, uncommitted files | Developer changes freely |
-| Project-level control | Committed, versioned artifacts | Developer changes with a PCR entry in `plan/problems.md` |
+| Project control | Committed, versioned artifacts | Developer changes with a PCR entry in `plan/problems.md` |
 | Client control | User-reviewed and acknowledged artifacts | Developer changes only after user agreement; PCR entry required |
 
-**Change procedure:** Any change to a project-level or client-controlled
+**Change procedure:** Any change to a project-controlled or client-controlled
 artifact is preceded by a PCR entry describing the change and its rationale.
 The git commit message references the PCR ID.
 
@@ -308,7 +308,7 @@ each joint review. User is invited to audit independently.
 ### 4.11 Corrective Action
 
 **Problem tracking system:** `plan/problems.md`. Every detected problem in a
-project-level or client-controlled work product gets a PCR entry. Each entry
+project-control or client-control work product gets a PCR entry. Each entry
 carries a unique ID, date, category, priority, description, affected products,
 corrective action, actions taken, and status.
 
@@ -934,16 +934,28 @@ corrective-action closure review
 | Residual limitations | Markdown remains the default and Plain is unchanged; pixel identity and clipboard retrieval are outside the CSM-2 contract; manual demonstrations separately assigned to historical DEM procedures remain pending. |
 | Disposition | DEM-059 complete; PCR-101 closed. Requirements, design, test plan, and project plan updates are recorded in the current artifact versions below. |
 
+### Review 25 — PCR-104 Stage 9 renderer migration audit (2026-09-14)
+
+**Review type:** Joint design, implementation, qualification, and corrective-action closure review
+
+| Indicator | Value |
+|---|---|
+| Scope | Final CSM-2 semantic renderer migration, persistent presenter/lifecycle ownership, copied-handle identity safety, and GTK cleanup ordering were audited and corrected. |
+| Qualification | Production and test development builds passed; the complete registered suite passed 990/990 twice. Focused semantic mutation 6/6; Semantics model 6/6; Stage 6 5/5; presenter 4/4; streaming owner 18/18; CSM-2 GUI 16/16; `Conversation_Stack` 25/25; `Response_Renderer` 3/3; and Zoom 12/12. |
+| Configuration status | PCR-104 is closed/implemented and verified. Current governed artifacts are revised in the artifact table below; historical PCR-101/PCR-103 evidence remains identified as historical. |
+| Independence limitation | The developer evaluated the work. Independent user review remains invited before acceptance of the revised work products. |
+| Disposition | PCR-104 closed; current Stage 9 evidence is linked to PCR-104 in the SRS, SDD, Test Plan, and frontend SDF. |
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.29 (2026-09-12) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.30 (2026-09-14) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.25 (2026-09-12) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.28 (2026-09-12) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.27 (2026-09-14) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.29 (2026-09-14) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.29 (2026-09-12) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.30 (2026-09-14) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

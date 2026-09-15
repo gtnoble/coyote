@@ -1850,6 +1850,8 @@ package body Coyote_App.Frontend.GUI is
             Apply_RPC_Frame (F, U);
 
          when Shutdown =>
+            --  Finalize response handles while their GTK parent is alive.
+            F.Stack.Clear;
             F.PQ.Shutdown;
             Gtk.Main.Main_Quit;
       end case;
@@ -1929,6 +1931,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self, Event);
    begin
       if Current_Frontend /= null then
+         Current_Frontend.Stack.Clear;
          Current_Frontend.Request_Shutdown;
       end if;
       Gtk.Main.Main_Quit;
@@ -2057,6 +2060,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
+         Current_Frontend.Stack.Clear;
          Current_Frontend.Request_Shutdown;
       end if;
       Gtk.Main.Main_Quit;

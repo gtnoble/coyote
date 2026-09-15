@@ -33,66 +33,48 @@ package Coyote_Renderer.Incremental is
       Kind          : Event_Kind := Text_Event;
       Text          : Ada.Strings.Unbounded.Unbounded_String;
       Level          : Natural := 0;
-      Semantic_Ready : Boolean := False;
       Source_End     : Natural := 0;
    end record;
 
+   --  Deprecated compatibility events retained only for parser qualification;
+   --  no production consumer remains.  Semantic_Event is the sole
+   --  incremental protocol for production.
    type Event_Handler is not null access procedure (Value : Event);
 
-   --  Renderer-neutral events are emitted in deterministic source order.
-   type Live_Event_Kind is
-     (Live_Text_Event,
-      Live_Strong_Begin_Event,
-      Live_Strong_End_Event,
-      Live_Em_Begin_Event,
-      Live_Em_End_Event,
-      Live_Del_Begin_Event,
-      Live_Del_End_Event,
-      Live_Link_Begin_Event,
-      Live_Link_End_Event,
-      Live_Code_Inline_Begin_Event,
-      Live_Code_Inline_End_Event,
-      Live_Hard_Break_Event,
-      Live_Horizontal_Rule_Event,
-      Live_Paragraph_Begin_Event,
-      Live_Paragraph_End_Event,
-      Live_Heading_Begin_Event,
-      Live_Heading_End_Event,
-      Live_Blockquote_Begin_Event,
-      Live_Blockquote_End_Event,
-      Live_List_Begin_Event,
-      Live_List_End_Event,
-      Live_Item_Begin_Event,
-      Live_Item_End_Event,
-      Live_Code_Begin_Event,
-      Live_Code_End_Event,
-      Live_Table_Begin_Event,
-      Live_Table_End_Event,
-      Live_Math_Begin_Event,
-      Live_Math_End_Event,
-      Live_Literal_Event,
-      Live_Invalid_Event);
+   --  Semantic mutations describe changes to the canonical Document.  They
+   --  never expose presentation state and are emitted in parser order.  Source
+   --  ranges are one-based and inclusive; a mutation's range denotes the
+   --  exact source slice that caused it.  Document_Finish may use 0/0.  Feed
+   --  call boundaries are not semantic boundaries: adjacent provisional
+   --  payload changes with the same root and kind may be coalesced when
+   --  comparing journals from different provider-delta splits.
+   type Semantic_Event_Kind is
+     (Semantic_Root_Begin_Event,
+      Semantic_Text_Change_Event,
+      Semantic_Inline_Change_Event,
+      Semantic_Root_Change_Event,
+      Semantic_Root_Commit_Event,
+      Semantic_Root_Replace_Invalid_Event,
+      Semantic_Localized_Recovery_Event,
+      Semantic_Document_Finish_Event);
 
-   --  Root_Id identifies the top-level transaction that produced the event.
-   --  Root_Begin and Root_End delimit its provisional live output.  Invalid
-   --  events carry only the affected root's exact source range.
-   type Live_Event is record
-      Kind         : Live_Event_Kind := Live_Text_Event;
-      Text         : Ada.Strings.Unbounded.Unbounded_String;
-      Detail       : Ada.Strings.Unbounded.Unbounded_String;
-      Level        : Natural := 0;
+   type Semantic_Event is record
+      Kind         : Semantic_Event_Kind := Semantic_Root_Change_Event;
+      Root_Id      : Natural := 0;
       Source_Start : Natural := 0;
       Source_End   : Natural := 0;
-      Context_Id   : Natural := 0;
-      Root_Id      : Natural := 0;
       Sequence     : Natural := 0;
-      Deferred     : Boolean := False;
+      Block_Kind   : Coyote_Renderer.Semantics.Block_Kind :=
+        Coyote_Renderer.Semantics.Invalid_Source;
+      Inline_Kind  : Coyote_Renderer.Semantics.Inline_Kind :=
+        Coyote_Renderer.Semantics.Text;
+      Text         : Ada.Strings.Unbounded.Unbounded_String;
+      Provisional  : Boolean := False;
       Complete     : Boolean := False;
-      Root_Begin   : Boolean := False;
-      Root_End     : Boolean := False;
+      Localized    : Boolean := False;
    end record;
 
-   type Live_Handler is access procedure (Value : Live_Event);
+   type Semantic_Handler is access procedure (Value : Semantic_Event);
 
    type Instance is tagged limited private;
 
@@ -116,12 +98,13 @@ package Coyote_Renderer.Incremental is
       Data    :        String;
       Handler :        Event_Handler);
 
-   --  Emit renderer-neutral live events.  This overload does not emit the
-   --  compatibility Event stream.
+
+   --  Emit semantic mutations against the canonical Document.  This overload
+   --  does not emit either compatibility or live presentation events.
    procedure Feed
      (Parser  : in out Instance;
       Data    :        String;
-      Handler :        Live_Handler);
+      Handler :        Semantic_Handler);
 
    --  Emit the exact uncompleted suffix as Invalid_Event, notify the semantic
    --  observer, and reset the parser.  A second Flush is a no-op.
@@ -129,11 +112,13 @@ package Coyote_Renderer.Incremental is
      (Parser  : in out Instance;
       Handler :        Event_Handler);
 
-   --  Complete a live stream.  Incomplete source is reported as a live
-   --  invalid event; subsequent Flush calls are no-ops.
+
+
+   --  Complete a semantic stream.  The final mutation and document-finished
+   --  events are emitted once; repeated Flush calls are no-ops.
    procedure Flush
      (Parser  : in out Instance;
-      Handler :        Live_Handler);
+      Handler :        Semantic_Handler);
 
 private
 
@@ -183,7 +168,6 @@ private
       Recovery_Root_Id : Natural := 0;
       Recovery_Had_Provisional : Boolean := False;
       Recovery_Reported : Boolean := False;
-      Live_Reported : Boolean := False;
       Recovery_Block : Coyote_Renderer.Semantics.Block_Id :=
         Coyote_Renderer.Semantics.No_Block;
       Localized_Recovery : Boolean := False;
@@ -192,9 +176,9 @@ private
       Deferred_Text_Start : Natural := 0;
       Deferred_Tag        : Boolean := False;
       Deferred_Tag_Start   : Natural := 0;
-      Next_Context   : Natural := 0;
-      Next_Sequence  : Natural := 0;
-      Live           : Live_Handler := null;
+      Next_Context      : Natural := 0;
+      Semantic_Sequence : Natural := 0;
+      Semantic          : Semantic_Handler := null;
    end record;
 
 end Coyote_Renderer.Incremental;

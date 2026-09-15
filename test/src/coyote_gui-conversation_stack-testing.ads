@@ -11,7 +11,6 @@ with Gtk.Label;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_View;
-with Coyote_GUI.Live_Response_Renderer;
 
 package Coyote_GUI.Conversation_Stack.Testing is
 
@@ -36,13 +35,19 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Text_View.Gtk_Text_View;
 
+   function Streaming_Response_View
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Text_View.Gtk_Text_View;
    function Active_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
    function Response_Stream_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
-   function Live_Response_Present
+   function Response_Caption
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
+
+   function Streaming_Response_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
    function Response_Owner_Count
@@ -57,16 +62,12 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Text_Block_Open
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
-   function Live_Response_Text
+   function Streaming_Response_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
-   function Live_Response_Invalid_Event_Count
+   function Streaming_Response_Invalid_Event_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 
-   function Live_Response_Text_Has_Style
-     (C      : Coyote_GUI.Conversation_Stack.Instance;
-      Style  : Coyote_GUI.Live_Response_Renderer.Style_Kind;
-      Offset : Natural) return Boolean;
 
    function Response_Box
      (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Box.Gtk_Box;

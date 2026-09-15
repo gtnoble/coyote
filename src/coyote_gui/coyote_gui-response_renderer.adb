@@ -14,6 +14,7 @@ with Coyote_Renderer.Semantics;
 with Glib;                  use Glib;
 with Glib.Error;
 with Gtk.Box;
+with Gtk.Container;
 with Gtk.Css_Provider;
 with Gtk.Enums;
 with Gtk.Grid;
@@ -34,6 +35,7 @@ package body Coyote_GUI.Response_Renderer is
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Widget.Gtk_Widget;
+   use type Gtk.Widget.Widget_List.Glist;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Coyote_Renderer.Semantics.Block_Id;
    use type Coyote_Renderer.Semantics.Inline_Id;
@@ -490,8 +492,42 @@ package body Coyote_GUI.Response_Renderer is
       end if;
    end Add_Math_Source;
 
-   procedure Apply_Response_Style
-     (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+   function Block_Markup
+     (Document : Coyote_Renderer.Semantics.Document;
+      Block    : Coyote_Renderer.Semantics.Block_Id) return String
+   is
+      Depth    : Natural := 0;
+      Counters : Counter_Array (0 .. 7) := (others => 0);
+      Bullets  : Bullet_Array (0 .. 7) := (others => True);
+      Output   : Unbounded_String;
+   begin
+      Render_Block (Document, Block, Output, Depth, Counters, Bullets);
+      return To_String (Output);
+   end Block_Markup;
+
+   procedure Render_Native_Block
+     (R                       : in out Instance;
+      Parent                  :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Document                :        Coyote_Renderer.Semantics.Document;
+      Block                   :        Coyote_Renderer.Semantics.Block_Id;
+      Normalize_Terminal_Math :        Boolean := False;
+      Math_Scale              :        Long_Float := 1.0)
+   is
+      package S renames Coyote_Renderer.Semantics;
+   begin
+      R.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
+      case S.Block_Kind_Of (Document, Block) is
+         when S.Table =>
+            Add_Table (R, Parent, Document, Block);
+         when S.Display_Math =>
+            Add_Math
+              (R, Parent, Document, Block, Normalize_Terminal_Math);
+         when others =>
+            null;
+      end case;
+   end Render_Native_Block;
+
+   procedure Apply_Response_Style     (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
    is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
@@ -616,6 +652,9 @@ package body Coyote_GUI.Response_Renderer is
    begin
       Active_Text  := null;
       Active_View  := null;
+      if R.Response /= null then
+         Clear (R);
+      end if;
       if Use_Math_Fallback then
          Extraction := Coyote_Renderer.MathML.Extract_Display_Math (Source);
       end if;
@@ -702,6 +741,32 @@ package body Coyote_GUI.Response_Renderer is
          Normalize_Terminal_Math => Normalize_Terminal_Math);
    end Replace;
 
+   procedure Release_Math_Element
+     (R       : in out Instance;
+      Element : in out Coyote_GUI.Math_Element.Instance_Access)
+   is
+      Position : Math_Element_Vectors.Extended_Index;
+      Widget   : Gtk.Box.Gtk_Box;
+      Parent   : Gtk.Widget.Gtk_Widget;
+   begin
+      if Element = null then
+         return;
+      end if;
+      Position := R.Math_Elements.Find_Index (Element);
+      if Position /= Math_Element_Vectors.No_Index then
+         R.Math_Elements.Delete (Position);
+      end if;
+      Widget := Coyote_GUI.Math_Element.Widget (Element.all);
+      if Widget /= null then
+         Parent := Widget.Get_Parent;
+         if Parent /= null then
+            Gtk.Container.Gtk_Container (Parent).Remove (Widget);
+         end if;
+      end if;
+      Coyote_GUI.Math_Element.Detach (Element.all);
+      Coyote_GUI.Math_Element.Free (Element);
+   end Release_Math_Element;
+
    function Response_Box (R : Instance) return Gtk.Box.Gtk_Box is
    begin
       return R.Response;
@@ -767,6 +832,7 @@ package body Coyote_GUI.Response_Renderer is
       R.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
       for Element of R.Math_Elements loop
          Coyote_GUI.Math_Element.Set_Scale (Element.all, R.Math_Scale);
+         Coyote_GUI.Math_Element.Set_Font (Element.all, Desc);
       end loop;
    end Set_Font;
 
@@ -776,7 +842,23 @@ package body Coyote_GUI.Response_Renderer is
    end Math_Scale;
 
    procedure Clear (R : in out Instance) is
+      Child : Gtk.Widget.Gtk_Widget;
    begin
+      if R.Response /= null then
+         loop
+            declare
+               Children : constant Gtk.Widget.Widget_List.Glist :=
+                 Gtk.Widget.Widget_List.First
+                   (Gtk.Container.Get_Children
+                      (Gtk.Container.Gtk_Container (R.Response)));
+            begin
+               exit when Children = Gtk.Widget.Widget_List.Null_List;
+               Child := Gtk.Widget.Widget_List.Get_Data (Children);
+            end;
+            exit when Child = null;
+            R.Response.Remove (Child);
+         end loop;
+      end if;
       for Element of R.Math_Elements loop
          Coyote_GUI.Math_Element.Detach (Element.all);
       end loop;

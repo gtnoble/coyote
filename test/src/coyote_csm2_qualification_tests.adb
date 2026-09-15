@@ -355,8 +355,8 @@ package body Coyote_CSM2_Qualification_Tests is
       I.Snapshot (Parser, D);
       Assert (L.Invalid = Before_Invalid + 1,
               "Flush emits exactly one incomplete-source event");
-      Assert (To_String (L.Invalid_Text) = Suffix,
-              "Flush preserves the exact end-of-stream source: got="
+      Assert (To_String (L.Invalid_Text) = Before & Suffix,
+              "invalid Event stream preserves exact ordered source: got="
               & To_String (L.Invalid_Text));
       Assert
         (S.Block_Kind_Of (D, S.Block_At (D, S.Block_Count (D))) =
@@ -367,6 +367,35 @@ package body Coyote_CSM2_Qualification_Tests is
               "repeated Flush is an exact no-op");
       Active_Log := null;
    end Test_Exact_End_Of_Stream_Flush;
+
+   procedure Test_Top_Level_Regions_Are_Invalid (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String := "text<hr/><p>x</p>tail";
+      D      : S.Document;
+      L      : Event_Log;
+   begin
+      Parse (Source, D, L);
+      Assert (L.Invalid > 0,
+              "non-whitespace top-level regions emit invalid events");
+      Assert (S.Block_Count (D) = 4,
+              "top-level invalid regions remain ordered with legal roots");
+      Assert
+        (S.Block_Kind_Of (D, S.Block_At (D, 1)) = S.Invalid_Source,
+         "leading top-level region is Invalid_Source");
+      Assert
+        (S.Block_Kind_Of (D, S.Block_At (D, 2)) = S.Horizontal_Rule,
+         "legal horizontal rule remains a typed semantic block");
+      Assert
+        (S.Block_Kind_Of (D, S.Block_At (D, 3)) = S.Paragraph,
+         "legal paragraph remains a typed semantic block");
+      Assert
+        (S.Block_Kind_Of (D, S.Block_At (D, 4)) = S.Invalid_Source,
+         "trailing top-level region is Invalid_Source");
+      Assert (S.Block_Source (D, S.Block_At (D, 1)) = "text",
+              "leading invalid source bytes are retained");
+      Assert (S.Block_Source (D, S.Block_At (D, 4)) = "tail",
+              "trailing invalid source bytes are retained");
+   end Test_Top_Level_Regions_Are_Invalid;
 
    procedure Test_Markdown_Semantics_Pango_Reference (T : in out Test) is
       pragma Unreferenced (T);
@@ -439,6 +468,9 @@ package body Coyote_CSM2_Qualification_Tests is
       Result.Add_Test (Caller.Create
         ("CSM-2 qualification exact end-of-stream Flush",
          Test_Exact_End_Of_Stream_Flush'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 qualification top-level regions are Invalid_Source",
+         Test_Top_Level_Regions_Are_Invalid'Access));
       Result.Add_Test (Caller.Create
         ("Markdown semantic/Pango qualification reference",
          Test_Markdown_Semantics_Pango_Reference'Access));

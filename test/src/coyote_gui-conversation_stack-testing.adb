@@ -3,7 +3,8 @@
 --  Project: coyote
 
 with Coyote_GUI.Math_Element.Testing;
-with Coyote_GUI.Response_Renderer;
+with Coyote_GUI.Streaming_Response;
+with Coyote_GUI.Streaming_Response.Testing;
 with Glib;
 with Gtk.Container;
 with Gtk.Style_Context;
@@ -32,12 +33,12 @@ package body Coyote_GUI.Conversation_Stack.Testing is
          Count     : Natural;
       begin
          for Owner of C.Responses loop
-            if Owner /= null then
-               Count := Coyote_GUI.Response_Renderer.Math_Element_Count
-                 (Owner.Renderer);
+            if not Coyote_GUI.Streaming_Response.Is_Empty (Owner) then
+               Count := Coyote_GUI.Streaming_Response.Testing.Math_Element_Count
+                 (Owner);
                if Remaining <= Count then
-                  return Coyote_GUI.Response_Renderer.Math_Element_At
-                    (Owner.Renderer, Remaining);
+                  return Coyote_GUI.Streaming_Response.Testing.Math_Element_At
+                    (Owner, Remaining);
                end if;
                Remaining := Remaining - Count;
             end if;
@@ -91,6 +92,18 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Active_View;
    end Active_Text_View;
 
+   function Streaming_Response_View
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Text_View.Gtk_Text_View
+   is
+   begin
+      if not Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response) then
+         return Coyote_GUI.Streaming_Response.Testing.Selection_View
+           (C.Active_Response);
+      end if;
+      return null;
+   end Streaming_Response_View;
+
    function Active_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String
    is
@@ -109,7 +122,18 @@ package body Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Box.Gtk_Box
    is
    begin
-      return C.Response_Box;
+      if C.Response_Box /= null then
+         return C.Response_Box;
+      end if;
+      if not Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response) then
+         return Coyote_GUI.Streaming_Response.Response_Box
+           (C.Active_Response);
+      end if;
+      if not C.Responses.Is_Empty then
+         return Coyote_GUI.Streaming_Response.Response_Box
+           (C.Responses (C.Responses.Last_Index));
+      end if;
+      return null;
    end Response_Box;
 
    function Response_Stream_Present
@@ -136,14 +160,38 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return False;
    end Response_Stream_Present;
 
-   function Live_Response_Present
+   function Response_Caption
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Child    : Gtk.Widget.Gtk_Widget;
+   begin
+      if Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response) then
+         return "";
+      end if;
+      Children := Gtk.Widget.Widget_List.First
+        (Gtk.Container.Get_Children
+           (Gtk.Container.Gtk_Container
+              (Coyote_GUI.Streaming_Response.Section
+                 (C.Active_Response))));
+      if Children = Gtk.Widget.Widget_List.Null_List then
+         return "";
+      end if;
+      Child := Gtk.Widget.Widget_List.Get_Data (Children);
+      if Child = null or else Child.Get_Name /= "GtkLabel" then
+         return "";
+      end if;
+      return Gtk.Label.Gtk_Label (Child).Get_Text;
+   end Response_Caption;
+
+   function Streaming_Response_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is
    begin
-      return Coyote_GUI.Live_Response_Renderer.Widget (C.Live_Renderer) /= null
-        and then not Coyote_GUI.Live_Response_Renderer.Is_Finalized
-          (C.Live_Renderer);
-   end Live_Response_Present;
+      return not Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response)
+        and then Coyote_GUI.Streaming_Response.Testing.Presented_Response_Present
+          (C.Active_Response);
+   end Streaming_Response_Present;
 
    function Response_Owner_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
@@ -156,7 +204,9 @@ package body Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is
    begin
-      return C.Active_Response /= null;
+      return not Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response)
+        and then Coyote_GUI.Streaming_Response.Testing.Is_Open
+          (C.Active_Response);
    end Active_Response_Present;
 
    function Stream_Mark_Present
@@ -173,30 +223,28 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Text_Open;
    end Text_Block_Open;
 
-   function Live_Response_Text
+   function Streaming_Response_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String
    is
    begin
-      return Coyote_GUI.Live_Response_Renderer.Text (C.Live_Renderer);
-   end Live_Response_Text;
+      if Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response) then
+         return "";
+      end if;
+      return Coyote_GUI.Streaming_Response.Testing.Presented_Text
+        (C.Active_Response);
+   end Streaming_Response_Text;
 
-   function Live_Response_Invalid_Event_Count
+   function Streaming_Response_Invalid_Event_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is
    begin
-      return Coyote_GUI.Live_Response_Renderer.Invalid_Event_Count
-        (C.Live_Renderer);
-   end Live_Response_Invalid_Event_Count;
+      if Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response) then
+         return 0;
+      end if;
+      return Coyote_GUI.Streaming_Response.Testing.Presented_Invalid_Event_Count
+        (C.Active_Response);
+   end Streaming_Response_Invalid_Event_Count;
 
-   function Live_Response_Text_Has_Style
-     (C      : Coyote_GUI.Conversation_Stack.Instance;
-      Style  : Coyote_GUI.Live_Response_Renderer.Style_Kind;
-      Offset : Natural) return Boolean
-   is
-   begin
-      return Coyote_GUI.Live_Response_Renderer.Has_Style
-        (C.Live_Renderer, Style, Offset);
-   end Live_Response_Text_Has_Style;
 
    function Response_Text_Has_Style
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
@@ -281,10 +329,10 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    begin
       if not C.Responses.Is_Empty then
          for Owner of C.Responses loop
-            if Owner /= null then
+            if not Coyote_GUI.Streaming_Response.Is_Empty (Owner) then
                Result := Result
-                 + Coyote_GUI.Response_Renderer.Text_View_Count
-                   (Owner.Renderer);
+                 + Coyote_GUI.Streaming_Response.Testing.Text_View_Count
+                   (Owner);
             end if;
          end loop;
       end if;
@@ -307,12 +355,12 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       else
          Remaining := Remaining - Natural (C.Text_Views.Length);
          for Owner of C.Responses loop
-            if Owner /= null then
-               Count := Coyote_GUI.Response_Renderer.Text_View_Count
-                 (Owner.Renderer);
+            if not Coyote_GUI.Streaming_Response.Is_Empty (Owner) then
+               Count := Coyote_GUI.Streaming_Response.Testing.Text_View_Count
+                 (Owner);
                if Remaining <= Count then
-                  View := Coyote_GUI.Response_Renderer.Text_View_At
-                    (Owner.Renderer, Remaining);
+                  View := Coyote_GUI.Streaming_Response.Testing.Text_View_At
+                    (Owner, Remaining);
                   exit;
                end if;
                Remaining := Remaining - Count;
@@ -338,9 +386,9 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    begin
       if not C.Responses.Is_Empty then
          for Owner of C.Responses loop
-            if Owner /= null then
+            if not Coyote_GUI.Streaming_Response.Is_Empty (Owner) then
                Result := Result
-                 + Coyote_GUI.Response_Renderer.Table_Count (Owner.Renderer);
+                 + Coyote_GUI.Streaming_Response.Testing.Table_Count (Owner);
             end if;
          end loop;
       end if;
@@ -359,11 +407,11 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       end if;
       Remaining := Remaining - Natural (C.Table_Grids.Length);
       for Owner of C.Responses loop
-         if Owner /= null then
-            Count := Coyote_GUI.Response_Renderer.Table_Count (Owner.Renderer);
+         if not Coyote_GUI.Streaming_Response.Is_Empty (Owner) then
+            Count := Coyote_GUI.Streaming_Response.Testing.Table_Count (Owner);
             if Remaining <= Count then
-               return Coyote_GUI.Response_Renderer.Table_Grid_At
-                 (Owner.Renderer, Remaining);
+               return Coyote_GUI.Streaming_Response.Testing.Table_Grid_At
+                 (Owner, Remaining);
             end if;
             Remaining := Remaining - Count;
          end if;
@@ -433,10 +481,10 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    begin
       if not C.Responses.Is_Empty then
          for Owner of C.Responses loop
-            if Owner /= null then
+            if not Coyote_GUI.Streaming_Response.Is_Empty (Owner) then
                Result := Result
-                 + Coyote_GUI.Response_Renderer.Math_Element_Count
-                   (Owner.Renderer);
+                 + Coyote_GUI.Streaming_Response.Testing.Math_Element_Count
+                   (Owner);
             end if;
          end loop;
       end if;

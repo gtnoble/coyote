@@ -3,6 +3,33 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-104 — Final CSM-2 semantic renderer migration audit (2026-09-14)
+
+- **Date reported:** 2026-09-14
+- **Category:** Design, Code, Test, Plans, Manuals
+- **Classification:** Corrective action
+- **Priority:** 2-Serious
+- **Description:** Stage 9 audit found stale live-renderer documentation, a
+  cross-document semantic-handle alias risk, incomplete copied-handle retagging,
+  and GTK response cleanup ordering that could dereference destroyed presenter
+  children during owner reuse.
+- **Affected work products:** CSM-2 semantic model/parser, streaming response
+  owner, semantic presenter, Conversation_Stack integration, source/test
+  inventories, requirements/design/SDF/Test Plan, and prior PCR-103 wording.
+- **Corrective action:** Added document identity to all semantic handles and
+  retagged root, child, inline, row, and cell references during `Copy`; changed
+  response cleanup to clear presenter-owned widgets before detaching the response
+  section; synchronized controlled inventories and replaced retired live-renderer
+  claims with semantic mutation/presenter architecture. Kept `Event`/
+  `Event_Handler` only as deprecated test-qualification compatibility.
+- **Verification:** Production and test development builds passed; focused
+  semantic mutation 6/6; Semantics model 6/6; Stage 6 5/5; presenter 4/4,
+  streaming owner 18/18, CSM-2 GUI 16/16, Conversation_Stack 25/25,
+  Response_Renderer 3/3, Zoom 12/12; complete registered suite passed 990/990
+  twice. X11 GTK theme color-parser warnings were environmental.
+- **Status:** Closed/Implemented and Verified
+- **Date closed:** 2026-09-14
+
 ## PCR-102 — Default-off CSM policy in project context (2026-09-12)
 
 - **Date reported:** 2026-09-12
@@ -3337,7 +3364,7 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   presentation parity without assigning Markdown syntax or CSM semantics to
   terminal Presentation MathML payloads. The change also requires an explicit
   compatibility disposition for existing CSM-1/current persisted records and
-  coordinated controlled-work-product updates.
+  coordinated governed-work-product updates.
 - **Affected work products:** SRS-CORE REQ-CORE-047a–047g, SDD-CORE CSM-2
   design and traceability, the CSM parser and response-format/prompt paths,
   native GTK conversation presentation, persistence and replay handling,
@@ -3348,7 +3375,7 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   Markdown behavior. Define and realize the explicit inline and block
   vocabulary, explicit table row/cell structure, terminal Presentation
   MathML boundary, malformed/incomplete visible-source fallback, and the
-  parity dimensions specified by the controlled requirements and design.
+  parity dimensions specified by the normative requirements and design.
   Define compatibility and replay behavior before any CSM-2 record can
   replace or reinterpret a CSM-1/current record. Update affected plans,
   SDFs, manuals, and traceability as the implementation is qualified.
@@ -3404,8 +3431,9 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   deferral, exact idempotent `Flush`, and authoritative final
   `Flush`/`Snapshot`/`Response_Renderer.Replace` reconciliation. Preserved the
   historical PCR-101 closure text and added current recovery-matrix evidence.
-- **Verification:** Production and test development builds succeeded. The
-  complete AUnit suite passed 955/955; CSM-2 focused qualification passed
-  49/49; semantic qualification passed 5/5.
+- **Verification:** Historical pre-Stage-9 evidence: production and test
+  development builds succeeded; the complete AUnit suite passed 955/955;
+  CSM-2 focused qualification passed 49/49; semantic qualification passed
+  5/5. Current PCR-104 Stage 9 verification is recorded above.
 - **Status:** Closed/Implemented and Verified
 - **Date closed:** 2026-09-13

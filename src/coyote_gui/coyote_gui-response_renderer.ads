@@ -60,6 +60,25 @@ package Coyote_GUI.Response_Renderer is
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class);
 
+   --  Serialize one semantic block using the response presentation policy.
+   function Block_Markup
+     (Document : Coyote_Renderer.Semantics.Document;
+      Block    : Coyote_Renderer.Semantics.Block_Id) return String;
+
+   --  Realize one native semantic block in Parent.  The caller removes any
+   --  previous payload children and calls Clear before replacing it.
+   procedure Render_Native_Block
+     (R                       : in out Instance;
+      Parent                  :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Document                :        Coyote_Renderer.Semantics.Document;
+      Block                   :        Coyote_Renderer.Semantics.Block_Id;
+      Normalize_Terminal_Math :        Boolean := False;
+      Math_Scale              :        Long_Float := 1.0);
+
+   procedure Release_Math_Element
+     (R       : in out Instance;
+      Element : in out Coyote_GUI.Math_Element.Instance_Access);
+
    function Text_View_Count (R : Instance) return Natural;
    function Text_View_At
      (R : Instance; Index : Positive) return Gtk.Text_View.Gtk_Text_View;

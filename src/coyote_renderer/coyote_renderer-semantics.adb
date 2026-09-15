@@ -11,10 +11,44 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 
 package body Coyote_Renderer.Semantics is
 
+   protected type Document_Identity_Allocator is
+      procedure Allocate (Result : out Natural);
+   private
+      Next : Natural := 0;
+   end Document_Identity_Allocator;
+
+   protected body Document_Identity_Allocator is
+      procedure Allocate (Result : out Natural) is
+      begin
+         if Next = Natural'Last then
+            raise Storage_Error;
+         end if;
+         Next := Next + 1;
+         Result := Next;
+      end Allocate;
+   end Document_Identity_Allocator;
+
+   Identity_Allocator : Document_Identity_Allocator;
+
+   function New_Document_Identity return Natural is
+      Result : Natural;
+   begin
+      Identity_Allocator.Allocate (Result);
+      return Result;
+   end New_Document_Identity;
+
+   procedure Ensure_Identity (D : in out Document) is
+   begin
+      if D.Identity = 0 then
+         D.Identity := New_Document_Identity;
+      end if;
+   end Ensure_Identity;
+
    function Is_Valid
      (D : Document; Id : Block_Id) return Boolean is
    begin
-      return Id.Generation = D.Generation
+      return Id.Document_Identity = D.Identity
+        and then Id.Generation = D.Generation
         and then Id.Index > 0
         and then Id.Index <= Natural (D.Blocks.Length);
    end Is_Valid;
@@ -22,7 +56,8 @@ package body Coyote_Renderer.Semantics is
    function Is_Valid
      (D : Document; Id : Inline_Id) return Boolean is
    begin
-      return Id.Generation = D.Generation
+      return Id.Document_Identity = D.Identity
+        and then Id.Generation = D.Generation
         and then Id.Index > 0
         and then Id.Index <= Natural (D.Inlines.Length);
    end Is_Valid;
@@ -30,7 +65,8 @@ package body Coyote_Renderer.Semantics is
    function Is_Valid
      (D : Document; Id : Table_Row_Id) return Boolean is
    begin
-      return Id.Generation = D.Generation
+      return Id.Document_Identity = D.Identity
+        and then Id.Generation = D.Generation
         and then Id.Index > 0
         and then Id.Index <= Natural (D.Rows.Length);
    end Is_Valid;
@@ -38,7 +74,8 @@ package body Coyote_Renderer.Semantics is
    function Is_Valid
      (D : Document; Id : Table_Cell_Id) return Boolean is
    begin
-      return Id.Generation = D.Generation
+      return Id.Document_Identity = D.Identity
+        and then Id.Generation = D.Generation
         and then Id.Index > 0
         and then Id.Index <= Natural (D.Cells.Length);
    end Is_Valid;
@@ -64,10 +101,12 @@ package body Coyote_Renderer.Semantics is
    is
       Result : Block_Id;
    begin
+      Ensure_Identity (D);
       D.Blocks.Append
-        ((Kind          => Kind,
-          Source        => To_Unbounded_String (Source),
-          Heading_Level => 0,
+        ((Kind             => Kind,
+          Source           => To_Unbounded_String (Source),
+          Semantic_Root_Id => 0,
+          Heading_Level    => 0,
           List_Kind     => Unordered_List,
           List_Start     => 1,
           Code_Literal  => Null_Unbounded_String,
@@ -80,6 +119,7 @@ package body Coyote_Renderer.Semantics is
           Column_Count  => 0));
       Result.Index := Positive (D.Blocks.Length);
       Result.Generation := D.Generation;
+      Result.Document_Identity := D.Identity;
       return Result;
    end New_Block;
 
@@ -91,6 +131,7 @@ package body Coyote_Renderer.Semantics is
    is
       Result : Inline_Id;
    begin
+      Ensure_Identity (D);
       D.Inlines.Append
         ((Kind     => Kind,
           Value    => To_Unbounded_String (Value),
@@ -99,6 +140,7 @@ package body Coyote_Renderer.Semantics is
           Children => Inline_Id_Vectors.Empty_Vector));
       Result.Index := Positive (D.Inlines.Length);
       Result.Generation := D.Generation;
+      Result.Document_Identity := D.Identity;
       return Result;
    end New_Inline;
 
@@ -124,6 +166,53 @@ package body Coyote_Renderer.Semantics is
       D.Blocks.Reference (Block.Index).Kind := Kind;
       return True;
    end Set_Block_Kind;
+
+   function Set_Block_Invalid_Source
+     (D : in out Document; Block : Block_Id; Source : String)
+     return Boolean is
+   begin
+      if not Is_Valid (D, Block) then
+         return False;
+      end if;
+      declare
+         Item : Block_Record renames D.Blocks.Reference (Block.Index);
+      begin
+         Item.Kind := Invalid_Source;
+         Item.Source := To_Unbounded_String (Source);
+         Item.Heading_Level := 0;
+         Item.List_Kind := Unordered_List;
+         Item.List_Start := 1;
+         Item.Code_Literal := Null_Unbounded_String;
+         Item.Code_Language := Null_Unbounded_String;
+         Item.MathML := Null_Unbounded_String;
+         Item.Children.Clear;
+         Item.Inlines.Clear;
+         Item.Rows.Clear;
+         Item.Alignments.Clear;
+         Item.Column_Count := 0;
+      end;
+      return True;
+   end Set_Block_Invalid_Source;
+
+   function Set_Block_Semantic_Root_Id
+     (D : in out Document; Block : Block_Id; Root_Id : Natural)
+     return Boolean is
+   begin
+      if not Is_Valid (D, Block) then
+         return False;
+      end if;
+      D.Blocks.Reference (Block.Index).Semantic_Root_Id := Root_Id;
+      return True;
+   end Set_Block_Semantic_Root_Id;
+
+   function Block_Semantic_Root_Id
+     (D : Document; Block : Block_Id) return Natural is
+   begin
+      if Is_Valid (D, Block) then
+         return D.Blocks.Element (Block.Index).Semantic_Root_Id;
+      end if;
+      return 0;
+   end Block_Semantic_Root_Id;
 
    function Set_Inline_Source
      (D : in out Document; Inline : Inline_Id; Source : String)
@@ -164,6 +253,7 @@ package body Coyote_Renderer.Semantics is
    procedure Copy
      (Source : Document; Target : in out Document) is
    begin
+      Ensure_Identity (Target);
       Clear (Target);
       Target.Blocks := Source.Blocks;
       Target.Root_Blocks := Source.Root_Blocks;
@@ -175,6 +265,8 @@ package body Coyote_Renderer.Semantics is
          for I in Target.Root_Blocks.First_Index ..
            Target.Root_Blocks.Last_Index loop
             Target.Root_Blocks.Reference (I).Generation := Target.Generation;
+            Target.Root_Blocks.Reference (I).Document_Identity :=
+              Target.Identity;
          end loop;
       end if;
       if not Target.Blocks.Is_Empty then
@@ -185,16 +277,22 @@ package body Coyote_Renderer.Semantics is
                if not B.Children.Is_Empty then
                   for J in B.Children.First_Index .. B.Children.Last_Index loop
                      B.Children.Reference (J).Generation := Target.Generation;
+                     B.Children.Reference (J).Document_Identity :=
+                       Target.Identity;
                   end loop;
                end if;
                if not B.Inlines.Is_Empty then
                   for J in B.Inlines.First_Index .. B.Inlines.Last_Index loop
                      B.Inlines.Reference (J).Generation := Target.Generation;
+                     B.Inlines.Reference (J).Document_Identity :=
+                       Target.Identity;
                   end loop;
                end if;
                if not B.Rows.Is_Empty then
                   for J in B.Rows.First_Index .. B.Rows.Last_Index loop
                      B.Rows.Reference (J).Generation := Target.Generation;
+                     B.Rows.Reference (J).Document_Identity :=
+                       Target.Identity;
                   end loop;
                end if;
             end;
@@ -207,6 +305,8 @@ package body Coyote_Renderer.Semantics is
                  Target.Inlines.Reference (I).Children.Last_Index loop
                   Target.Inlines.Reference (I).Children.Reference (J).Generation :=
                     Target.Generation;
+                  Target.Inlines.Reference (I).Children.Reference (J)
+                    .Document_Identity := Target.Identity;
                end loop;
             end if;
          end loop;
@@ -214,11 +314,15 @@ package body Coyote_Renderer.Semantics is
       if not Target.Rows.Is_Empty then
          for I in Target.Rows.First_Index .. Target.Rows.Last_Index loop
             Target.Rows.Reference (I).Table.Generation := Target.Generation;
+            Target.Rows.Reference (I).Table.Document_Identity :=
+              Target.Identity;
             if not Target.Rows.Reference (I).Cells.Is_Empty then
                for J in Target.Rows.Reference (I).Cells.First_Index ..
                  Target.Rows.Reference (I).Cells.Last_Index loop
                   Target.Rows.Reference (I).Cells.Reference (J).Generation :=
                     Target.Generation;
+                  Target.Rows.Reference (I).Cells.Reference (J).Document_Identity :=
+                    Target.Identity;
                end loop;
             end if;
          end loop;
@@ -230,6 +334,8 @@ package body Coyote_Renderer.Semantics is
                  Target.Cells.Reference (I).Inlines.Last_Index loop
                   Target.Cells.Reference (I).Inlines.Reference (J).Generation :=
                     Target.Generation;
+                  Target.Cells.Reference (I).Inlines.Reference (J)
+                    .Document_Identity := Target.Identity;
                end loop;
             end if;
          end loop;
@@ -294,6 +400,78 @@ package body Coyote_Renderer.Semantics is
       D.Cells.Reference (Parent.Index).Inlines.Append (Child);
       return True;
    end Append_Inline;
+
+   function Append_Text
+     (D      : in out Document;
+      Parent : Block_Id;
+      Value  : String;
+      Source : String) return Boolean is
+      Item : Inline_Id;
+   begin
+      if not Is_Valid (D, Parent) then
+         return False;
+      end if;
+      if not D.Blocks.Element (Parent.Index).Inlines.Is_Empty then
+         Item := D.Blocks.Element (Parent.Index).Inlines.Last_Element;
+         if Inline_Kind_Of (D, Item) = Text then
+            D.Inlines.Reference (Item.Index).Value :=
+              D.Inlines.Element (Item.Index).Value & Value;
+            D.Inlines.Reference (Item.Index).Source :=
+              D.Inlines.Element (Item.Index).Source & Source;
+            return True;
+         end if;
+      end if;
+      Item := New_Inline (D, Text, Value, Source);
+      return Append_Inline (D, Parent, Item);
+   end Append_Text;
+
+   function Append_Text
+     (D      : in out Document;
+      Parent : Inline_Id;
+      Value  : String;
+      Source : String) return Boolean is
+      Item : Inline_Id;
+   begin
+      if not Is_Valid (D, Parent) then
+         return False;
+      end if;
+      if not D.Inlines.Element (Parent.Index).Children.Is_Empty then
+         Item := D.Inlines.Element (Parent.Index).Children.Last_Element;
+         if Inline_Kind_Of (D, Item) = Text then
+            D.Inlines.Reference (Item.Index).Value :=
+              D.Inlines.Element (Item.Index).Value & Value;
+            D.Inlines.Reference (Item.Index).Source :=
+              D.Inlines.Element (Item.Index).Source & Source;
+            return True;
+         end if;
+      end if;
+      Item := New_Inline (D, Text, Value, Source);
+      return Append_Inline (D, Parent, Item);
+   end Append_Text;
+
+   function Append_Text
+     (D      : in out Document;
+      Parent : Table_Cell_Id;
+      Value  : String;
+      Source : String) return Boolean is
+      Item : Inline_Id;
+   begin
+      if not Is_Valid (D, Parent) then
+         return False;
+      end if;
+      if not D.Cells.Element (Parent.Index).Inlines.Is_Empty then
+         Item := D.Cells.Element (Parent.Index).Inlines.Last_Element;
+         if Inline_Kind_Of (D, Item) = Text then
+            D.Inlines.Reference (Item.Index).Value :=
+              D.Inlines.Element (Item.Index).Value & Value;
+            D.Inlines.Reference (Item.Index).Source :=
+              D.Inlines.Element (Item.Index).Source & Source;
+            return True;
+         end if;
+      end if;
+      Item := New_Inline (D, Text, Value, Source);
+      return Append_Inline (D, Parent, Item);
+   end Append_Text;
 
    function Set_Heading_Level
      (D     : in out Document;
@@ -368,6 +546,7 @@ package body Coyote_Renderer.Semantics is
       Is_Header : Boolean := False) return Table_Row_Id is
       Result : Table_Row_Id := No_Table_Row;
    begin
+      Ensure_Identity (D);
       if not Is_Valid (D, Table)
         or else D.Blocks.Element (Table.Index).Kind /=
           Coyote_Renderer.Semantics.Table
@@ -381,6 +560,7 @@ package body Coyote_Renderer.Semantics is
           Cells     => Table_Cell_Id_Vectors.Empty_Vector));
       Result.Index := Positive (D.Rows.Length);
       Result.Generation := D.Generation;
+      Result.Document_Identity := D.Identity;
       D.Blocks.Reference (Table.Index).Rows.Append (Result);
       return Result;
    end New_Table_Row;
@@ -392,6 +572,7 @@ package body Coyote_Renderer.Semantics is
       Source : String := "") return Table_Cell_Id is
       Result : Table_Cell_Id := No_Table_Cell;
    begin
+      Ensure_Identity (D);
       if not Is_Valid (D, Row)
         or else not Is_Valid (D, D.Rows.Element (Row.Index).Table)
         or else D.Blocks.Element (D.Rows.Element (Row.Index).Table.Index).Kind /= Table
@@ -404,6 +585,7 @@ package body Coyote_Renderer.Semantics is
           Inlines => Inline_Id_Vectors.Empty_Vector));
       Result.Index := Positive (D.Cells.Length);
       Result.Generation := D.Generation;
+      Result.Document_Identity := D.Identity;
       D.Rows.Reference (Row.Index).Cells.Append (Result);
       declare
          Table : constant Block_Id := D.Rows.Element (Row.Index).Table;

@@ -14,6 +14,7 @@ package Coyote_CSM2_Qualification_Tests is
    procedure Test_All_Delta_Boundaries_Preserve_Semantics (T : in out Test);
    procedure Test_UTF8_Boundaries_Preserve_Semantics (T : in out Test);
    procedure Test_Exact_End_Of_Stream_Flush (T : in out Test);
+   procedure Test_Top_Level_Regions_Are_Invalid (T : in out Test);
    procedure Test_Markdown_Semantics_Pango_Reference (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;

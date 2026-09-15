@@ -217,7 +217,7 @@ package body Coyote_GUI.Math_Element is
          Element.Fallback.Set_Line_Wrap (True);
          Element.Fallback.Set_Selectable (True);
          Element.Area.Set_Halign (Gtk.Widget.Align_Center);
-         Draw_Callback.Connect
+         Element.Draw_Handler := Draw_Callback.Connect
            (Element.Area,
             Gtk.Widget.Signal_Draw,
             Draw_Context_Marshaller.To_Marshaller (On_Draw'Access),
@@ -264,6 +264,15 @@ package body Coyote_GUI.Math_Element is
       Queue_Redraw (Element);
    end Set_Scale;
 
+   procedure Set_Font
+     (Element : in out Instance;
+      Desc    : Pango.Font.Pango_Font_Description) is
+   begin
+      if Element.Fallback /= null then
+         Element.Fallback.Modify_Font (Desc);
+      end if;
+   end Set_Font;
+
    procedure Queue_Redraw (Element : in out Instance) is
    begin
       if Element.Area /= null and then not Element.Detached then
@@ -275,6 +284,11 @@ package body Coyote_GUI.Math_Element is
    begin
       Element.Detached := True;
       if Element.Area /= null then
+         if Element.Draw_Handler.Id /= Gtk.Handlers.Null_Handler_Id then
+            Gtk.Handlers.Disconnect
+              (Element.Area, Element.Draw_Handler);
+            Element.Draw_Handler.Id := Gtk.Handlers.Null_Handler_Id;
+         end if;
          Element.Area.Hide;
       end if;
    end Detach;

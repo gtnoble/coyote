@@ -36,92 +36,6 @@ package body Coyote_Incremental_Tests is
       Append (Active_Log.Text, To_String (Value.Text));
    end Collect;
 
-   type Live_Log is record
-      Kinds             : Unbounded_String;
-      Text              : Unbounded_String;
-      Literals          : Unbounded_String;
-      Invalid           : Natural := 0;
-      Deferred_Begins   : Natural := 0;
-      Complete_Ends     : Natural := 0;
-      Events            : Natural := 0;
-      Bad_Sequence      : Boolean := False;
-      Bad_Range         : Boolean := False;
-      Bad_Context       : Boolean := False;
-      Last_Sequence     : Natural := 0;
-      Invalid_Text      : Unbounded_String;
-      Invalid_Start     : Natural := 0;
-      Invalid_End       : Natural := 0;
-      Invalid_Root      : Natural := 0;
-      Invalid_Begin     : Boolean := False;
-      Invalid_End_Mark  : Boolean := False;
-   end record;
-
-   Active_Live : access Live_Log;
-
-   procedure Collect_Live (Value : Live_Event) is
-      Kind_Image : constant String := Live_Event_Kind'Image (Value.Kind);
-   begin
-      if Active_Live = null then
-         return;
-      end if;
-      Active_Live.Events := Active_Live.Events + 1;
-      Append (Active_Live.Kinds, Kind_Image & "|");
-      if Value.Sequence <= Active_Live.Last_Sequence then
-         Active_Live.Bad_Sequence := True;
-      end if;
-      Active_Live.Last_Sequence := Value.Sequence;
-      if Value.Source_Start = 0 or else Value.Source_End < Value.Source_Start then
-         Active_Live.Bad_Range := True;
-      end if;
-      case Value.Kind is
-         when Live_Text_Event =>
-            Append (Active_Live.Text, To_String (Value.Text));
-         when Live_Literal_Event =>
-            Append (Active_Live.Literals, To_String (Value.Text));
-            Append (Active_Live.Kinds, "[" & To_String (Value.Text) & "]");
-         when Live_Invalid_Event =>
-            Active_Live.Invalid := Active_Live.Invalid + 1;
-            Active_Live.Invalid_Text := Value.Text;
-            Active_Live.Invalid_Start := Value.Source_Start;
-            Active_Live.Invalid_End := Value.Source_End;
-            Active_Live.Invalid_Root := Value.Root_Id;
-            Active_Live.Invalid_Begin := Value.Root_Begin;
-            Active_Live.Invalid_End_Mark := Value.Root_End;
-         when Live_Table_Begin_Event | Live_Math_Begin_Event =>
-            if Value.Deferred then
-               Active_Live.Deferred_Begins :=
-                 Active_Live.Deferred_Begins + 1;
-            end if;
-         when Live_Table_End_Event | Live_Math_End_Event =>
-            if Value.Complete then
-               Active_Live.Complete_Ends :=
-                 Active_Live.Complete_Ends + 1;
-            end if;
-         when Live_Strong_Begin_Event | Live_Strong_End_Event |
-              Live_Em_Begin_Event | Live_Em_End_Event |
-              Live_Del_Begin_Event | Live_Del_End_Event |
-              Live_Link_Begin_Event | Live_Link_End_Event |
-              Live_Code_Inline_Begin_Event | Live_Code_Inline_End_Event |
-              Live_Paragraph_Begin_Event | Live_Paragraph_End_Event |
-              Live_Heading_Begin_Event | Live_Heading_End_Event |
-              Live_Blockquote_Begin_Event | Live_Blockquote_End_Event |
-              Live_List_Begin_Event | Live_List_End_Event |
-              Live_Item_Begin_Event | Live_Item_End_Event |
-              Live_Code_Begin_Event | Live_Code_End_Event =>
-            if Value.Context_Id = 0 then
-               Active_Live.Bad_Context := True;
-            end if;
-         when Live_Hard_Break_Event | Live_Horizontal_Rule_Event =>
-            null;
-      end case;
-   end Collect_Live;
-
-   function Contains
-     (Value : Unbounded_String; Needle : String) return Boolean is
-   begin
-      return Ada.Strings.Fixed.Index (To_String (Value), Needle) > 0;
-   end Contains;
-
    function Snapshot_Text (D : Document) return String is
       Result : Unbounded_String;
    begin
@@ -1109,13 +1023,16 @@ package body Coyote_Incremental_Tests is
       Active_Log := null;
       Assert (Result.Invalid = 0, "UTF-8 split is accepted");
       Assert
-        (Block_Inline_Count (D, Block_At (D, 1)) = 2,
-         "UTF-8 split yields only text fragments");
+        (Block_Inline_Count (D, Block_At (D, 1)) = 1,
+         "UTF-8 split coalesces into one semantic text inline");
       Assert
         (Inline_Source (D, Block_Inline_At (D, Block_At (D, 1), 1))
-         & Inline_Source (D, Block_Inline_At (D, Block_At (D, 1), 2))
          = "caf" & Character'Val (16#C3#) & Character'Val (16#A9#),
          "UTF-8 source bytes are not lost at delta boundary");
+      Assert
+        (Inline_Value (D, Block_Inline_At (D, Block_At (D, 1), 1))
+         = "caf" & Character'Val (16#C3#) & Character'Val (16#A9#),
+         "UTF-8 decoded value is exact at delta boundary");
    end Test_UTF8_Splits;
 
    procedure Test_Nesting_And_Tag_Limits (T : in out Test) is
@@ -1145,218 +1062,529 @@ package body Coyote_Incremental_Tests is
       Feed (Parser, "text<hr/><p>x<br/>y</p>", Collect'Access);
       Snapshot (Parser, D);
       Active_Log := null;
-      Assert (Result.Invalid = 0, "empty tags are valid only in legal form");
-      Assert (Block_Count (D) = 2, "rule and paragraph are typed roots");
+      Assert (Result.Invalid = 1,
+              "only the non-whitespace top-level region is invalid");
+      Assert (Block_Count (D) = 3,
+              "invalid source, rule, and paragraph are ordered roots");
       Assert
-        (Block_Kind_Of (D, Block_At (D, 1)) = Horizontal_Rule,
+        (Block_Kind_Of (D, Block_At (D, 1)) = Invalid_Source,
+         "top-level text is an Invalid_Source root");
+      Assert (Block_Source (D, Block_At (D, 1)) = "text",
+              "top-level invalid source is exact");
+      Assert
+        (Block_Kind_Of (D, Block_At (D, 2)) = Horizontal_Rule,
          "horizontal rule is a semantic block");
       Assert
-        (Block_Kind_Of (D, Block_At (D, 2)) = Paragraph,
-         "paragraph remains the second root block");
-      Assert (Block_Inline_Count (D, Block_At (D, 2)) = 3,
+        (Block_Kind_Of (D, Block_At (D, 3)) = Paragraph,
+         "paragraph remains the third root block");
+      Assert (Block_Inline_Count (D, Block_At (D, 3)) = 3,
               "paragraph retains text, hard break, and text order");
       Assert
         (Inline_Kind_Of
-           (D, Block_Inline_At (D, Block_At (D, 2), 2)) = Hard_Line_Break,
+           (D, Block_Inline_At (D, Block_At (D, 3), 2)) = Hard_Line_Break,
          "br is a typed hard-break inline");
       Assert (Result.Events > 0, "legacy events remain synchronous");
    end Test_Empty_Elements_And_Event_Compatibility;
 
-   procedure Test_Live_Transitions_And_Order (T : in out Test) is
+
+
+
+
+
+   procedure Test_Semantic_Protocol (T : in out Test) is
       pragma Unreferenced (T);
       Parser : Instance;
-      Result : aliased Live_Log := (others => <>);
+      Copy_Parser : Instance;
+      Split_Parser : Instance;
+      D1 : Document;
+      D2 : Document;
       Source : constant String :=
-        "<p>a <strong>b</strong> <em>e</em> <del>d</del> "
-        & "<link url=""u"">l</link><br/></p>"
-        & "<blockquote><list><item>x</item></list></blockquote>"
-        & "<code>literal</code><hr/>";
-      Kinds : Unbounded_String;
-   begin
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, Source, Collect_Live'Access);
-      Active_Live := null;
-      Kinds := Result.Kinds;
-      Assert (Result.Invalid = 0, "valid live source has no invalid event");
-      Assert (not Result.Bad_Sequence, "live sequence is strictly increasing");
-      Assert (not Result.Bad_Range, "live source ranges are ordered");
-      Assert (not Result.Bad_Context, "live structural events have contexts");
-      Assert (To_String (Result.Text) = "a b e d lx",
-              "live ordinary text is decoded and ordered");
-      Assert (Contains (Kinds, "LIVE_STRONG_BEGIN_EVENT"),
-              "strong begin is emitted");
-      Assert (Contains (Kinds, "LIVE_STRONG_END_EVENT"),
-              "strong end is emitted");
-      Assert (Contains (Kinds, "LIVE_EM_BEGIN_EVENT"),
-              "em begin is emitted");
-      Assert (Contains (Kinds, "LIVE_DEL_BEGIN_EVENT"),
-              "del begin is emitted");
-      Assert (Contains (Kinds, "LIVE_LINK_BEGIN_EVENT"),
-              "link begin is emitted");
-      Assert (Contains (Kinds, "LIVE_HARD_BREAK_EVENT"),
-              "hard break is emitted");
-      Assert (Contains (Kinds, "LIVE_BLOCKQUOTE_BEGIN_EVENT"),
-              "blockquote begin is emitted");
-      Assert (Contains (Kinds, "LIVE_LIST_BEGIN_EVENT"),
-              "list begin is emitted");
-      Assert (Contains (Kinds, "LIVE_ITEM_BEGIN_EVENT"),
-              "item begin is emitted");
-      Assert (Contains (Kinds, "LIVE_CODE_BEGIN_EVENT"),
-              "code begin is emitted");
-      Assert (Contains (Kinds, "LIVE_CODE_END_EVENT"),
-              "code end is emitted");
-      Assert (Contains (Kinds, "LIVE_HORIZONTAL_RULE_EVENT"),
-              "horizontal rule is emitted");
-      Assert (Contains (Kinds, "LIVE_PARAGRAPH_END_EVENT"),
-              "paragraph close is emitted");
-      Assert (Contains (Kinds, "LIVE_BLOCKQUOTE_END_EVENT"),
-              "blockquote close is emitted");
-      Assert (Contains (Kinds, "LIVE_LIST_END_EVENT"),
-              "list close is emitted");
-      Assert (Contains (Kinds, "LIVE_ITEM_END_EVENT"),
-              "item close is emitted");
-   end Test_Live_Transitions_And_Order;
-
-   procedure Test_Live_Opaque_Split_Payloads (T : in out Test) is
-      pragma Unreferenced (T);
-      Parser : Instance;
-      Result : aliased Live_Log := (others => <>);
-      UTF8   : constant String :=
-        Character'Val (16#C3#) & Character'Val (16#A9#);
-   begin
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, "<code>alpha", Collect_Live'Access);
-      Feed (Parser, "</co", Collect_Live'Access);
-      Feed (Parser, "de>", Collect_Live'Access);
-      Active_Live := null;
-      Assert (To_String (Result.Literals) = "alpha",
-              "split code emits only literal payload");
-      Assert (not Contains (Result.Literals, "</co"),
-              "split code closing prefix is never literal");
-      Assert (Contains (Result.Kinds, "LIVE_CODE_BEGIN_EVENT"),
-              "code begin is immediate");
-      Assert (Contains (Result.Kinds, "LIVE_CODE_END_EVENT"),
-              "code end is complete after closing tag");
-
-      Reset (Parser);
-      Result := (others => <>);
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, "<p><code-inline>caf", Collect_Live'Access);
-      Feed (Parser, UTF8 (UTF8'First .. UTF8'First), Collect_Live'Access);
-      Feed (Parser, UTF8 (UTF8'First + 1 .. UTF8'Last) & "</co",
-            Collect_Live'Access);
-      Feed (Parser, "de-inline></p>", Collect_Live'Access);
-      Active_Live := null;
-      Assert (To_String (Result.Literals) = "caf" & UTF8,
-              "inline opaque UTF-8 payload survives split feeds");
-      Assert (not Contains (Result.Literals, "</co"),
-              "inline closing prefix is never literal");
-      Assert (not Result.Bad_Range, "opaque ranges remain ordered");
-   end Test_Live_Opaque_Split_Payloads;
-
-   procedure Test_Live_Deferred_Completion_And_Flush (T : in out Test) is
-      pragma Unreferenced (T);
-      Parser : Instance;
-      Result : aliased Live_Log := (others => <>);
-   begin
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, "<table><row><cell>x</cell></row>",
-            Collect_Live'Access);
-      Assert (Result.Deferred_Begins = 1,
-              "table is announced while its closing boundary is pending");
-      Assert (Result.Complete_Ends = 0,
-              "table is not finalized before its closing boundary");
-      Feed (Parser, "</table>" &
-            "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-            & "<mi>x</mi>", Collect_Live'Access);
-      Assert (Result.Deferred_Begins = 2,
-              "math is announced while its closing boundary is pending");
-      Assert (Result.Complete_Ends = 1,
-              "only the closed table is finalized so far");
-      Feed (Parser, "</math>", Collect_Live'Access);
-      Active_Live := null;
-      Assert (Result.Invalid = 0, "complete deferred blocks are valid");
-      Assert (Result.Deferred_Begins = 2,
-              "table and math announce deferred completion");
-      Assert (Result.Complete_Ends = 2,
-              "table and math announce completion in order");
-
-      Reset (Parser);
-      Result := (others => <>);
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, "<p>tail", Collect_Live'Access);
-      Flush (Parser, Collect_Live'Access);
-      Flush (Parser, Collect_Live'Access);
-      Active_Live := null;
-      Assert (Result.Invalid = 1,
-              "live Flush reports one malformed/incomplete suffix");
-      Assert (Contains (Result.Kinds, "LIVE_INVALID_EVENT"),
-              "live Flush uses the live invalid event");
-      Assert (To_String (Result.Text) = "tail",
-              "live Flush preserves already decoded text");
-   end Test_Live_Deferred_Completion_And_Flush;
-
-   procedure Test_Live_Localized_Invalid_Protocol (T : in out Test) is
-      pragma Unreferenced (T);
-      Parser : Instance;
-      Result : aliased Live_Log := (others => <>);
-      Source : constant String :=
-        "<p>before <link bad>attribute</link> tail</p>"
-        & "<p>entity &bogus; tail</p>"
-        & "<p><unknown>tag</unknown> tail</p><h2>after</h2>";
-   begin
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, Source, Collect_Live'Access);
-      Active_Live := null;
-      Assert (Result.Invalid = 3,
-              "live protocol reports each localized inline malformed root");
-      Assert (To_String (Result.Invalid_Text) =
-                "<unknown>tag</unknown> tail",
-              "live invalid payload remains exact for the last inline root");
-      Assert (Result.Invalid_Root /= 0,
-              "localized live invalid events have root transaction IDs");
-      Assert (Result.Invalid_Begin and then Result.Invalid_End_Mark,
-              "localized invalid events delimit salvage checkpoints");
-      Assert (Contains (Result.Kinds, "LIVE_HEADING_BEGIN_EVENT"),
-              "live parser continues with the later valid root");
-      Reset (Parser);
-      Result := (others => <>);
-      Active_Live := Result'Unchecked_Access;
-      Feed (Parser, "<p>prefix &broken", Collect_Live'Access);
-      Flush (Parser, Collect_Live'Access);
-      Active_Live := null;
-      Assert (Result.Invalid = 1,
-              "live inline Flush reports one invalid event before finalization");
-      Assert (To_String (Result.Invalid_Text) = "&broken",
-              "live inline Flush payload excludes already decoded prefix");
-      Assert (Result.Invalid_Start > 0 and then Result.Invalid_End >=
-                Result.Invalid_Start,
-              "live inline Flush carries the exact source range");
-   end Test_Live_Localized_Invalid_Protocol;
-
-   procedure Test_Live_Callback_State_Clears_On_Exception (T : in out Test) is
-      pragma Unreferenced (T);
-      Parser : Instance;
-      Raised : Boolean := False;
-      procedure Raise_Live (Value : Live_Event) is
+        "<p>left <strong>bold</strong></p>"
+        & "<table><row><cell>x</cell></row></table>"
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML""><mi>x</mi></math>"
+        & "<h2>right</h2>";
+      type Semantic_Log is record
+         Count : Natural := 0;
+         Last_Sequence : Natural := 0;
+         Finish_Count : Natural := 0;
+         Begin_Count : Natural := 0;
+         Commit_Count : Natural := 0;
+         Text_Count : Natural := 0;
+         Table_Change_Count : Natural := 0;
+         Math_Change_Count : Natural := 0;
+         Table_Commit_Count : Natural := 0;
+         Math_Commit_Count : Natural := 0;
+         Invalid_Count : Natural := 0;
+         Bad_Sequence : Boolean := False;
+         Bad_Range : Boolean := False;
+         Invalid_Text : Unbounded_String;
+         Invalid_Start : Natural := 0;
+         Invalid_End : Natural := 0;
+      end record;
+      Log : aliased Semantic_Log;
+      Active : access Semantic_Log := Log'Access;
+      procedure Collect_Semantic (Value : Semantic_Event) is
+      begin
+         if Active = null then
+            return;
+         end if;
+         Active.Count := Active.Count + 1;
+         if Value.Sequence <= Active.Last_Sequence then
+            Active.Bad_Sequence := True;
+         end if;
+         Active.Last_Sequence := Value.Sequence;
+         if Value.Source_Start /= 0
+           and then Value.Source_End < Value.Source_Start
+         then
+            Active.Bad_Range := True;
+         end if;
+         case Value.Kind is
+            when Semantic_Root_Begin_Event =>
+               Active.Begin_Count := Active.Begin_Count + 1;
+            when Semantic_Root_Commit_Event =>
+               Active.Commit_Count := Active.Commit_Count + 1;
+               if Value.Block_Kind = Table then
+                  Active.Table_Commit_Count := Active.Table_Commit_Count + 1;
+               elsif Value.Block_Kind = Display_Math then
+                  Active.Math_Commit_Count := Active.Math_Commit_Count + 1;
+               end if;
+            when Semantic_Text_Change_Event =>
+               Active.Text_Count := Active.Text_Count + 1;
+            when Semantic_Root_Change_Event =>
+               if Value.Block_Kind = Table then
+                  Active.Table_Change_Count :=
+                    Active.Table_Change_Count + 1;
+               elsif Value.Block_Kind = Display_Math then
+                  Active.Math_Change_Count :=
+                    Active.Math_Change_Count + 1;
+               end if;
+            when Semantic_Root_Replace_Invalid_Event |
+                 Semantic_Localized_Recovery_Event =>
+               Active.Invalid_Count := Active.Invalid_Count + 1;
+               Active.Invalid_Text := Value.Text;
+               Active.Invalid_Start := Value.Source_Start;
+               Active.Invalid_End := Value.Source_End;
+            when Semantic_Document_Finish_Event =>
+               Active.Finish_Count := Active.Finish_Count + 1;
+            when Semantic_Inline_Change_Event =>
+               null;
+         end case;
+      end Collect_Semantic;
+      procedure Raise_Callback (Value : Semantic_Event) is
          pragma Unreferenced (Value);
       begin
          raise Program_Error;
-      end Raise_Live;
+      end Raise_Callback;
+      First_Root : Natural;
+      Last_Root : Natural;
    begin
+      Feed (Parser, Source, Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Snapshot (Parser, D1);
+      Assert (Log.Count > 0, "semantic protocol emits mutations");
+      Assert (not Log.Bad_Sequence, "semantic sequence is deterministic");
+      Assert (not Log.Bad_Range, "semantic ranges are ordered");
+      Assert (Log.Begin_Count >= 4, "all top-level roots begin semantically");
+      Assert (Log.Commit_Count >= 4, "completed roots commit semantically");
+      Assert (Log.Table_Change_Count > 0,
+              "table reports provisional semantic changes");
+      Assert (Log.Table_Commit_Count = 1,
+              "table commits atomically at its grammar boundary");
+      Assert (Log.Math_Commit_Count = 1,
+              "math commits atomically at its grammar boundary");
+      First_Root := Block_Semantic_Root_Id (D1, Block_At (D1, 1));
+      Last_Root := Block_Semantic_Root_Id
+        (D1, Block_At (D1, Block_Count (D1)));
+      Assert (First_Root /= 0 and then Last_Root > First_Root,
+              "top-level root IDs are ordered and stable");
+      Snapshot (Parser, D2);
+      Assert (Block_Semantic_Root_Id (D2, Block_At (D2, 1)) = First_Root,
+              "root ID survives Snapshot/Copy");
+      Feed (Split_Parser, "<p>left</p><h2>right</h2>",
+           Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Snapshot (Split_Parser, D2);
+      Assert (Block_Semantic_Root_Id (D2, Block_At (D2, 1)) = 1
+                and then Block_Semantic_Root_Id (D2, Block_At (D2, 2)) = 2,
+              "root IDs remain stable across a complete delta");
+      Reset (Copy_Parser);
+      Feed (Copy_Parser, "<p>delta</p>",
+           Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Snapshot (Copy_Parser, D2);
+      Assert (Block_Semantic_Root_Id (D2, Block_At (D2, 1)) = 1,
+              "root identity restarts deterministically after Reset");
+      Log := (others => <>);
+      Active := Log'Access;
+      Feed (Parser, "<p>a", Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Assert (Log.Text_Count > 0, "incremental text change is reported");
+      Flush (Parser, Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Flush (Parser, Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Active := null;
+      Assert (Log.Finish_Count = 1, "document finish is emitted once");
+      Assert (Log.Invalid_Count = 1, "incomplete root is replaced once");
+      Reset (Parser);
+      Log := (others => <>);
+      Active := Log'Access;
+      Feed (Parser, "<p>before <link bad>x</link> after</p>"
+                    & "<h2>after</h2>",
+           Semantic_Handler'(Collect_Semantic'Unrestricted_Access));
+      Active := null;
+      Assert (Log.Invalid_Count = 1,
+              "localized invalid replacement is one event");
+      Assert (To_String (Log.Invalid_Text) = "<link bad>x</link> after",
+              "invalid replacement text is exact");
+      Assert (Log.Invalid_Start > 0 and then
+                Log.Invalid_End - Log.Invalid_Start + 1 =
+                  To_String (Log.Invalid_Text)'Length,
+              "invalid replacement range is exact");
+      Snapshot (Parser, D2);
+      Assert (Block_Count (D2) = 2,
+              "localized recovery preserves neighboring roots");
+      Assert (Block_Semantic_Root_Id (D2, Block_At (D2, 1)) /= 0,
+              "localized recovery keeps preceding root identity");
+      Assert (Block_Semantic_Root_Id (D2, Block_At (D2, 2)) >
+                Block_Semantic_Root_Id (D2, Block_At (D2, 1)),
+              "localized recovery keeps following root identity");
       begin
-         Coyote_Renderer.Incremental.Feed
-           (Parser, "<p>callback", Raise_Live'Unrestricted_Access);
+         Feed (Parser, "<p>callback",
+              Semantic_Handler'(Raise_Callback'Unrestricted_Access));
       exception
          when Program_Error =>
-            Raised := True;
+            null;
       end;
-      Assert (Raised, "live callback exception propagates");
-      --  A second call must not invoke the stale callback left by the first.
-      Coyote_Renderer.Incremental.Feed
-        (Parser, " text", Coyote_Renderer.Incremental.Live_Handler'(null));
-      Assert (True, "live callback state is cleared after exception");
-   end Test_Live_Callback_State_Clears_On_Exception;
+      Feed (Parser, " text", Semantic_Handler'(null));
+      Assert (True, "semantic callback clears after exception");
+   end Test_Semantic_Protocol;
+
+   type Semantic_Record is record
+      Kind : Semantic_Event_Kind := Semantic_Document_Finish_Event;
+      Block : Coyote_Renderer.Semantics.Block_Kind := Invalid_Source;
+      Root : Natural := 0;
+      First : Natural := 0;
+      Last : Natural := 0;
+      Text : Unbounded_String;
+   end record;
+
+   type Semantic_Record_Array is array (Positive range 1 .. 4096)
+     of Semantic_Record;
+
+   type Semantic_Log is record
+      Records : Semantic_Record_Array;
+      Record_Count : Natural := 0;
+      Count : Natural := 0;
+      Last_Sequence : Natural := 0;
+      Bad_Sequence : Boolean := False;
+      Bad_Range : Boolean := False;
+      Begin_Count : Natural := 0;
+      Commit_Count : Natural := 0;
+      Finish_Count : Natural := 0;
+      Invalid_Count : Natural := 0;
+      Last_Invalid : Unbounded_String;
+   end record;
+
+   procedure Collect_Semantic (Value : Semantic_Event; Log : in out Semantic_Log) is
+      Text : constant String := To_String (Value.Text);
+   begin
+      Log.Count := Log.Count + 1;
+      if Value.Sequence <= Log.Last_Sequence then
+         Log.Bad_Sequence := True;
+      end if;
+      Log.Last_Sequence := Value.Sequence;
+      if Value.Kind /= Semantic_Document_Finish_Event
+        and then (Value.Source_Start = 0
+                  or else Value.Source_End < Value.Source_Start)
+      then
+         Log.Bad_Range := True;
+      end if;
+      if Value.Kind = Semantic_Root_Replace_Invalid_Event
+        and then Log.Record_Count > 0
+        and then Log.Records (Log.Record_Count).Kind =
+          Semantic_Root_Begin_Event
+        and then Log.Records (Log.Record_Count).Root = Value.Root_Id
+      then
+         Log.Records (Log.Record_Count).First := Value.Source_Start;
+         Log.Records (Log.Record_Count).Last := Value.Source_End;
+         Log.Records (Log.Record_Count).Text := Value.Text;
+      end if;
+      if Value.Provisional
+        and then Value.Kind in Semantic_Text_Change_Event
+          | Semantic_Inline_Change_Event | Semantic_Root_Change_Event
+        and then Log.Record_Count > 0
+        and then Log.Records (Log.Record_Count).Kind = Value.Kind
+        and then Log.Records (Log.Record_Count).Root = Value.Root_Id
+        and then Log.Records (Log.Record_Count).Last + 1 = Value.Source_Start
+      then
+         Log.Records (Log.Record_Count).Last := Value.Source_End;
+         Log.Records (Log.Record_Count).Text :=
+           Log.Records (Log.Record_Count).Text & Value.Text;
+      else
+         if not (Value.Provisional
+           and then Value.Kind = Semantic_Root_Change_Event
+           and then Value.Block_Kind in Code_Block | Display_Math)
+         then
+            Log.Record_Count := Log.Record_Count + 1;
+            Log.Records (Log.Record_Count) :=
+              (Kind => Value.Kind, Block => Value.Block_Kind,
+               Root => Value.Root_Id, First => Value.Source_Start,
+               Last => Value.Source_End, Text => Value.Text);
+         end if;
+      end if;
+      case Value.Kind is
+         when Semantic_Root_Begin_Event =>
+            Log.Begin_Count := Log.Begin_Count + 1;
+         when Semantic_Root_Commit_Event =>
+            Log.Commit_Count := Log.Commit_Count + 1;
+         when Semantic_Root_Replace_Invalid_Event |
+              Semantic_Localized_Recovery_Event =>
+            Log.Invalid_Count := Log.Invalid_Count + 1;
+            Log.Last_Invalid := Value.Text;
+         when Semantic_Document_Finish_Event =>
+            Log.Finish_Count := Log.Finish_Count + 1;
+         when Semantic_Text_Change_Event | Semantic_Inline_Change_Event |
+              Semantic_Root_Change_Event =>
+            null;
+      end case;
+   end Collect_Semantic;
+
+   Active_Semantic_Log : access Semantic_Log;
+
+   procedure Collect_Semantic_Active (Value : Semantic_Event) is
+   begin
+      if Active_Semantic_Log /= null then
+         Collect_Semantic (Value, Active_Semantic_Log.all);
+      end if;
+   end Collect_Semantic_Active;
+
+   function Normalize_Journal (Log : Semantic_Log) return String is
+      Result : Unbounded_String;
+   begin
+      for Position in 1 .. Log.Record_Count loop
+         Append (Result,
+           Semantic_Event_Kind'Image (Log.Records (Position).Kind) & ":"
+           & Natural'Image (Log.Records (Position).Root) & ":"
+           & Natural'Image (Log.Records (Position).First) & "-"
+           & Natural'Image (Log.Records (Position).Last) & ":"
+           & To_String (Log.Records (Position).Text) & "|");
+      end loop;
+      return To_String (Result);
+   end Normalize_Journal;
+
+   function Semantic_Journal
+     (Source : String; Split : Boolean; Flush_Source : Boolean := False)
+      return String is
+      Parser : Instance;
+      Log : aliased Semantic_Log;
+      Snapshot_Document : Document;
+   begin
+      Active_Semantic_Log := Log'Unrestricted_Access;
+      if Split then
+         for Position in Source'Range loop
+            Feed (Parser, Source (Position .. Position),
+               Semantic_Handler'(Collect_Semantic_Active'Access));
+         end loop;
+      else
+         Feed (Parser, Source,
+            Semantic_Handler'(Collect_Semantic_Active'Access));
+      end if;
+      if Flush_Source then
+         Flush (Parser, Semantic_Handler'(Collect_Semantic_Active'Access));
+      end if;
+      Active_Semantic_Log := null;
+      Snapshot (Parser, Snapshot_Document);
+      return Normalize_Journal (Log) & "#" & Snapshot_Text (Snapshot_Document);
+   end Semantic_Journal;
+
+   procedure Test_Semantic_Root_Identity (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      D : Document;
+      Root : Block_Id;
+      Child : Block_Id;
+      Nested_Table : Block_Id;
+   begin
+      Feed (Parser, "<blockquote><p>x</p><table><row><cell>y</cell></row></table>"
+            & "</blockquote><hr/><p>z</p>",
+         Semantic_Handler'(null));
+      Snapshot (Parser, D);
+      Assert (Block_Count (D) = 3, "all top-level roots are retained");
+      Root := Block_At (D, 1);
+      Child := Block_Child_At (D, Root, 1);
+      Nested_Table := Block_Child_At (D, Root, 2);
+      Assert (Block_Semantic_Root_Id (D, Root) = 1,
+              "first root ID is nonzero");
+      Assert (Block_Semantic_Root_Id (D, Child) = 1,
+              "nested paragraph resolves to top-level root ID");
+      Assert (Block_Semantic_Root_Id (D, Nested_Table) = 1,
+              "nested table resolves to top-level root ID");
+      Assert (Block_Semantic_Root_Id (D, Block_At (D, 2)) >
+                Block_Semantic_Root_Id (D, Root),
+              "horizontal rule receives monotonic root ID");
+      Assert (Block_Semantic_Root_Id (D, Block_At (D, 3)) >
+                Block_Semantic_Root_Id (D, Block_At (D, 2)),
+              "following paragraph receives monotonic root ID");
+   end Test_Semantic_Root_Identity;
+
+   procedure Test_Semantic_Ranges_And_Lifecycle (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String := "<p>a<strong>b</strong></p><h2>c</h2>";
+      Parser : Instance;
+      Log : aliased Semantic_Log;
+      Begin_Seen : Boolean := False;
+      Commit_Seen : Boolean := False;
+      procedure Check (Value : Semantic_Event) is
+      begin
+         Collect_Semantic (Value, Log);
+         if Value.Kind = Semantic_Root_Begin_Event then
+            Begin_Seen := True;
+         elsif Value.Kind = Semantic_Root_Commit_Event then
+            Commit_Seen := True;
+         end if;
+         if Value.Kind in Semantic_Text_Change_Event
+           | Semantic_Inline_Change_Event | Semantic_Root_Change_Event
+           | Semantic_Root_Commit_Event
+         then
+            Assert (Begin_Seen, "root begin precedes root mutations");
+         end if;
+         if Value.Kind = Semantic_Root_Commit_Event then
+            Assert (Value.Root_Id /= 0, "commit root ID is nonzero");
+         end if;
+      end Check;
+   begin
+      Feed (Parser, Source, Semantic_Handler'(Check'Unrestricted_Access));
+      Assert (not Log.Bad_Range, "semantic ranges are inclusive and ordered");
+      Assert (Begin_Seen and then Commit_Seen,
+              "complete root has begin and commit");
+      Assert (Log.Record_Count > 0,
+              "semantic lifecycle journal is nonempty");
+   end Test_Semantic_Ranges_And_Lifecycle;
+
+   procedure Test_Semantic_Split_Journal (T : in out Test) is
+      pragma Unreferenced (T);
+      Sources : constant array (Positive range 1 .. 6) of Unbounded_String :=
+        (To_Unbounded_String ("<p><strong>nested</strong> text</p>"),
+         To_Unbounded_String ("<table><row><cell>x</cell></row></table>"),
+         To_Unbounded_String ("<math xmlns=""http://www.w3.org/1998/Math/MathML""><mi>x</mi></math>"),
+         To_Unbounded_String ("<p>bad &broken</p><p>after</p>"),
+         To_Unbounded_String ("bad<blockquote>x</blockquote>"),
+         To_Unbounded_String ("<p>incomplete"));
+   begin
+      for Position in Sources'Range loop
+         declare
+            Whole : constant String :=
+              Semantic_Journal (To_String (Sources (Position)), False,
+                                Position = Sources'Last);
+            Split : constant String :=
+              Semantic_Journal (To_String (Sources (Position)), True,
+                                Position = Sources'Last);
+         begin
+            Assert (Whole = Split,
+              "normalized semantic journals agree for case"
+              & Positive'Image (Position) & " whole=" & Whole
+              & " split=" & Split);
+         end;
+      end loop;
+   end Test_Semantic_Split_Journal;
+
+   procedure Test_Semantic_Flush_And_Callback_Recovery (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      D : Document;
+      Raised : Boolean := False;
+      procedure Raise_Callback (Value : Semantic_Event) is
+         pragma Unreferenced (Value);
+      begin
+         Raised := True;
+         raise Program_Error;
+      end Raise_Callback;
+   begin
+      Feed (Parser, "<p>before", Semantic_Handler'(null));
+      begin
+         Feed (Parser, " <strong>callback</strong>",
+            Semantic_Handler'(Raise_Callback'Unrestricted_Access));
+      exception
+         when Program_Error =>
+            null;
+      end;
+      Assert (Raised, "semantic callback was invoked");
+      Feed (Parser, " <strong>callback</strong> after</p>",
+         Semantic_Handler'(null));
+      Snapshot (Parser, D);
+      Assert (Block_Count (D) = 1, "callback recovery avoids duplicate roots");
+      Assert (Block_Source (D, Block_At (D, 1)) =
+                "<p>before <strong>callback</strong> after</p>",
+              "callback recovery preserves canonical source after retry");
+      Flush (Parser, Semantic_Handler'(null));
+      Feed (Parser, "<p>ignored</p>", Semantic_Handler'(null));
+      Snapshot (Parser, D);
+      Assert (Block_Count (D) = 1,
+              "feed after document finish is ignored until reset");
+   end Test_Semantic_Flush_And_Callback_Recovery;
+
+   procedure Test_Semantic_Text_Coalescing_Boundaries (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+      D : Document;
+      Source : constant String :=
+        "<p>a&amp;" & Character'Val (16#C3#) & Character'Val (16#A9#)
+        & "<strong>b" & Character'Val (16#C3#) & Character'Val (16#B1#)
+        & "</strong>c<br/>d<unknown>x</unknown>e</p>"
+        & "<table><row><cell>f&amp;g</cell></row></table>"
+        & "<h2>h</h2>";
+      Para : Block_Id;
+      Strong : Inline_Id;
+      First_Text : Inline_Id;
+      Last_Text : Inline_Id;
+      Table : Block_Id;
+      Cell : Table_Cell_Id;
+   begin
+      Feed (Parser, Source, Semantic_Handler'(null));
+      Snapshot (Parser, D);
+      Assert (Block_Count (D) = 3,
+              "coalescing boundary corpus retains three roots");
+      Para := Block_At (D, 1);
+      Assert (Block_Inline_Count (D, Para) = 6,
+              "style, break, and recovery boundaries are preserved");
+      First_Text := Block_Inline_At (D, Para, 1);
+      Assert (Inline_Kind_Of (D, First_Text) = Text,
+              "plain prefix is a Text inline");
+      Assert (Inline_Value (D, First_Text) = "a&" &
+                Character'Val (16#C3#) & Character'Val (16#A9#),
+              "entities and split UTF-8 decode into one exact value");
+      Assert (Inline_Source (D, First_Text) =
+                "a&amp;" & Character'Val (16#C3#) & Character'Val (16#A9#),
+              "coalesced Text retains exact combined source");
+      Strong := Block_Inline_At (D, Para, 2);
+      Assert (Inline_Kind_Of (D, Strong) = Coyote_Renderer.Semantics.Strong,
+              "style boundary starts a Strong inline");
+      Assert (Inline_Child_Count (D, Strong) = 1,
+              "styled text remains nested rather than merged");
+      Assert (Inline_Value (D, Inline_Child_At (D, Strong, 1)) = "b" &
+                Character'Val (16#C3#) & Character'Val (16#B1#),
+              "styled UTF-8 text remains exact");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 3)) = Text
+                and then Inline_Value
+                  (D, Block_Inline_At (D, Para, 3)) = "c",
+              "plain text before hard break remains separate");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 4)) =
+                Hard_Line_Break,
+              "hard break prevents adjacent text coalescing");
+      Assert (Inline_Kind_Of (D, Block_Inline_At (D, Para, 5)) = Text
+                and then Inline_Value
+                  (D, Block_Inline_At (D, Para, 5)) = "d",
+              "text after hard break is a new inline");
+      Last_Text := Block_Inline_At (D, Para, 6);
+      Assert (Inline_Kind_Of (D, Last_Text) = Raw_Markup
+                and then Inline_Source (D, Last_Text) =
+                  "<unknown>x</unknown>e",
+              "raw recovery prevents text coalescing");
+      Table := Block_At (D, 2);
+      Cell := Table_Cell_At (D, Table_Row_At (D, Table, 1), 1);
+      Assert (Table_Cell_Inline_Count (D, Cell) = 1,
+              "cell text coalesces only within the cell parent");
+      Assert (Table_Cell_Value (D, Cell) = "f&g",
+              "cell entity value is decoded exactly");
+      Assert (Block_Semantic_Root_Id (D, Para) /=
+                Block_Semantic_Root_Id (D, Table),
+              "root boundaries keep distinct root IDs");
+   end Test_Semantic_Text_Coalescing_Boundaries;
 
    package Caller is new AUnit.Test_Caller (Test);
 
@@ -1449,20 +1677,23 @@ package body Coyote_Incremental_Tests is
         ("CSM-2 empty tags and compatibility events",
          Test_Empty_Elements_And_Event_Compatibility'Access));
       Result.Add_Test (Caller.Create
-        ("CSM-2 live transitions and source order",
-         Test_Live_Transitions_And_Order'Access));
+        ("CSM-2 semantic mutation protocol",
+         Test_Semantic_Protocol'Access));
       Result.Add_Test (Caller.Create
-        ("CSM-2 live opaque split payloads",
-         Test_Live_Opaque_Split_Payloads'Access));
+        ("CSM-2 semantic root identity",
+         Test_Semantic_Root_Identity'Access));
       Result.Add_Test (Caller.Create
-        ("CSM-2 live deferred completion and Flush",
-         Test_Live_Deferred_Completion_And_Flush'Access));
+        ("CSM-2 semantic ranges and lifecycle",
+         Test_Semantic_Ranges_And_Lifecycle'Access));
       Result.Add_Test (Caller.Create
-        ("CSM-2 live localized invalid protocol",
-         Test_Live_Localized_Invalid_Protocol'Access));
+        ("CSM-2 semantic split journal",
+         Test_Semantic_Split_Journal'Access));
       Result.Add_Test (Caller.Create
-        ("CSM-2 live callback state clears on exception",
-         Test_Live_Callback_State_Clears_On_Exception'Access));
+        ("CSM-2 semantic Flush and callback recovery",
+         Test_Semantic_Flush_And_Callback_Recovery'Access));
+      Result.Add_Test (Caller.Create
+        ("CSM-2 semantic text coalescing boundaries",
+         Test_Semantic_Text_Coalescing_Boundaries'Access));
       return Result;
    end Suite;
 

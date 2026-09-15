@@ -15,6 +15,7 @@ package Coyote_Semantics_Tests is
    procedure Test_Attributes_And_Source (T : in out Test);
    procedure Test_Table_Model (T : in out Test);
    procedure Test_Clear_Invalidates_Handles (T : in out Test);
+   procedure Test_Documents_Isolate_Handles (T : in out Test);
    procedure Test_Markdown_Adapter_Constructs_Model (T : in out Test);
    procedure Test_Markdown_Adapter_Constructs_Display_Math
      (T : in out Test);
