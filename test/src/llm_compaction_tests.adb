@@ -25,7 +25,6 @@ package body LLM_Compaction_Tests is
 
       return
         (Role      => LLM.Types.User,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -47,7 +46,6 @@ package body LLM_Compaction_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage => Usage,
          Stop      => Stop,
@@ -80,7 +78,6 @@ package body LLM_Compaction_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -104,7 +101,6 @@ package body LLM_Compaction_Tests is
 
       return
         (Role      => LLM.Types.Assistant,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -129,7 +125,6 @@ package body LLM_Compaction_Tests is
 
       return
         (Role      => LLM.Types.Tool_Result,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),

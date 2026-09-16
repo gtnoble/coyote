@@ -166,7 +166,6 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.Tree_View.Gtk_Tree_View;
    use type Coyote_GUI.Update_Kind;
    use type GNATCOLL.JSON.JSON_Value_Type;
-   use type LLM.Types.Message_Format;
 
    function Drain_Idle return Boolean;
 
@@ -507,29 +506,6 @@ package body Coyote_App.Frontend.GUI is
             Emit   := True;
          when Text_End =>
             U.Kind := Coyote_GUI.End_Text_Block;
-            Emit   := True;
-         when Response_Format =>
-            U.Kind := Coyote_GUI.Set_Response_Format;
-            declare
-               Format : constant String :=
-                 Coyote_App.Utils.Get_String (Parsed.Value, "format");
-               Version : constant Natural :=
-                 (if Parsed.Value.Has_Field ("formatVersion")
-                    and then Parsed.Value.Get ("formatVersion").Kind
-                      = GNATCOLL.JSON.JSON_Int_Type
-                  then Coyote_App.Utils.Get_Integer
-                    (Parsed.Value, "formatVersion")
-                  else 0);
-            begin
-               U.Format :=
-                 (if Format /= "coyote-stream"
-                  then Coyote_GUI.Markdown_Response
-                  elsif Version = 2
-                  then Coyote_GUI.Coyote_Stream_2_Response
-                  elsif not Parsed.Value.Has_Field ("formatVersion")
-                  then Coyote_GUI.Legacy_Coyote_Stream_Response
-                  else Coyote_GUI.Markdown_Response);
-            end;
             Emit   := True;
          when Thinking_Start =>
             U.Kind := Coyote_GUI.Begin_Thinking;
@@ -1684,9 +1660,6 @@ package body Coyote_App.Frontend.GUI is
 
          when Append_Text =>
             F.Stack.Append_Text (To_String (U.Text));
-
-         when Set_Response_Format =>
-            F.Stack.Set_Response_Format (U.Format);
 
          when End_Text_Block =>
             F.Stack.End_Text_Block;
@@ -4457,8 +4430,6 @@ package body Coyote_App.Frontend.GUI is
             Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", "");
       end;
       Coyote_GUI.Conversation_Stack.Create (F.Stack, F.Win.all'Access);
-      Coyote_GUI.Conversation_Stack.Set_Incremental_Markup
-        (F.Stack, Coyote_App.Utils.Incremental_Markup_Enabled);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
         (F.Stack, On_Native_Fork'Access);
       Coyote_GUI.Conversation_Stack.Set_Tool_Action_Handler
@@ -4651,23 +4622,6 @@ package body Coyote_App.Frontend.GUI is
       U.Text := To_Unbounded_String (Text);
       Enqueue_Update (F, U);
    end Append_Text;
-
-   overriding
-   procedure Set_Response_Format
-     (F      : in out Instance;
-      Format : LLM.Types.Message_Format)
-   is
-      U : Coyote_GUI.Update;
-   begin
-      U.Kind := Coyote_GUI.Set_Response_Format;
-      U.Format :=
-        (if Format = LLM.Types.Format_Coyote_Stream_2
-         then Coyote_GUI.Coyote_Stream_2_Response
-         elsif Format = LLM.Types.Format_Coyote_Stream
-         then Coyote_GUI.Legacy_Coyote_Stream_Response
-         else Coyote_GUI.Markdown_Response);
-      Enqueue_Update (F, U);
-   end Set_Response_Format;
 
    overriding procedure End_Text_Block (F : in out Instance) is
       U : Coyote_GUI.Update;

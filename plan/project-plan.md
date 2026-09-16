@@ -1,8 +1,8 @@
 # Project Plan — coyote
 
-**Version:** 1.30
-**Date:** 2026-09-14
-**Status:** Active
+**Version:** 1.31
+**Date:** 2026-09-15
+**Status:** Active — PCR-105 Markdown-only retirement recorded
 
 ---
 
@@ -921,7 +921,7 @@ execution and active steering semantics.
 | Open problem | PCR-093 In Progress, priority 2-Serious, pending DEM-050..053 completion. |
 | Disposition | Implementation slice complete; focused qualification passed; remaining GUI/display and provider-backed qualification is tracked under DEM-050..053. |
 
-### Review 24 — PCR-101 CSM-2 closure review (2026-09-12)
+### Historical — Review 24 — PCR-101 CSM-2 closure review (2026-09-12; superseded by PCR-105)
 
 **Review type:** Joint requirements, design, implementation, qualification, and
 corrective-action closure review
@@ -930,11 +930,11 @@ corrective-action closure review
 |---|---|
 | Scope | Independent CSM-2 grammar, renderer-neutral semantics, shared response presentation, and versioned session replay are implemented and qualified. |
 | Qualification | The complete development suite passes 919/919; DEM-059 is complete, including headless CSM-2 and display-backed GUI qualification. |
-| Corrective action | PCR-101 is closed. CSM-2 records use `formatVersion: 2`; versionless CSM-1 replay remains visible raw source because the CSM-1 parser is retired. |
+| Corrective action | PCR-101 was closed at that historical checkpoint. CSM-2 records used `formatVersion: 2`; versionless CSM-1 replay was recorded as visible raw source because the CSM-1 parser was retired. |
 | Residual limitations | Markdown remains the default and Plain is unchanged; pixel identity and clipboard retrieval are outside the CSM-2 contract; manual demonstrations separately assigned to historical DEM procedures remain pending. |
 | Disposition | DEM-059 complete; PCR-101 closed. Requirements, design, test plan, and project plan updates are recorded in the current artifact versions below. |
 
-### Review 25 — PCR-104 Stage 9 renderer migration audit (2026-09-14)
+### Historical — Review 25 — PCR-104 Stage 9 renderer migration audit (2026-09-14; superseded by PCR-105)
 
 **Review type:** Joint design, implementation, qualification, and corrective-action closure review
 
@@ -946,16 +946,40 @@ corrective-action closure review
 | Independence limitation | The developer evaluated the work. Independent user review remains invited before acceptance of the revised work products. |
 | Disposition | PCR-104 closed; current Stage 9 evidence is linked to PCR-104 in the SRS, SDD, Test Plan, and frontend SDF. |
 
+### Review 26 — PCR-105 complete CSM retirement review (2026-09-15)
+
+**Review type:** Joint scope, requirements, design, implementation,
+qualification, and corrective-action closure review
+
+**Trigger:** PCR-105 retirement scope and superseding governed records presented
+for review.
+
+| Indicator | Value |
+|---|---|
+| Scope | CSM parser, semantic document, response renderer/presenter/streaming owner, format metadata, environment toggle, prompt branch, persistence metadata writing, replay selection, and RPC response-format event retired from the operational path. |
+| Current design | Assistant output uses direct libcmark-gfm Markdown; native GFM tables and Lasem-backed Presentation MathML display blocks remain. |
+| Qualification | Current full suite 890/890; Markup 6/6, Conversation_Stack 28/28, System_Prompt 32/32, Session_Store 26/26, History 1/1, Agent RPC 27/27, and GUI Updates 9/9. New regression coverage includes safe oversized GFM-table truncation, cmark exception cleanup, visible escaped raw-HTML fallback, image alt-text behavior, configured font inheritance for native table labels, and focus-safe Clear. |
+| Compatibility | New assistant JSONL has no `format` or `formatVersion`; old records containing those fields remain loadable because the fields are ignored and content is handled as Markdown. |
+| Governance disposition | PCR-101 through PCR-104 current-baseline claims are superseded; their dated qualification evidence remains historical. |
+| Residual limitations | No remaining CSM operational path is claimed. Historical CSM references remain only where needed to preserve factual project history. |
+
+**Independence limitation:** The developer evaluated the work. Independent user
+review remains invited before acceptance of the revised work products.
+
+**Disposition:** PCR-105 is closed/implemented and verified. The Markdown-only
+architecture and compatibility behavior are recorded in the current SRS, SDD,
+Test Plan, user documentation, and SDF entries.
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.30 (2026-09-14) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.31 (2026-09-15) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.27 (2026-09-14) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.29 (2026-09-14) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.28 (2026-09-15) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.30 (2026-09-15) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.30 (2026-09-14) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.31 (2026-09-15) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

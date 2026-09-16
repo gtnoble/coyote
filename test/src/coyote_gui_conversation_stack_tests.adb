@@ -6,9 +6,9 @@ with AUnit.Test_Caller;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Glib;
 with Ada.Unchecked_Deallocation;
 with AUnit.Assertions;
-with Glib;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Container;
@@ -26,6 +26,7 @@ with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_View;
+with Pango.Context;
 with Pango.Font;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
@@ -86,7 +87,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Create (T.Stack.all, T.Parent.all'Access);
          T.Parent.Add (Widget (T.Stack.all));
          Set_Render_Markdown (T.Stack.all, True);
-         Set_Incremental_Markup (T.Stack.all, False);
       end if;
    end Set_Up;
 
@@ -104,6 +104,106 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          end Free_Stack;
       end if;
    end Tear_Down;
+
+   procedure Test_Begin_Request_Finalizes_Open_Text_Block
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "partial");
+      Assert (Text_Block_Open (T.Stack.all),
+              "streaming opens the response text block");
+      Assert (Response_Stream_Present (T.Stack.all),
+              "streaming realizes the response text view");
+      Begin_Request (T.Stack.all, "next request", Prompt);
+      Assert (not Text_Block_Open (T.Stack.all),
+              "a new request finalizes the open text block");
+      Assert (Active_Text (T.Stack.all) = "next request",
+              "a new request leaves no active response text");
+   end Test_Begin_Request_Finalizes_Open_Text_Block;
+
+   procedure Test_Clear_Removes_Active_Stream_Mark (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "partial");
+      Assert (Text_Block_Open (T.Stack.all),
+              "streaming opens the response text block");
+      Clear (T.Stack.all);
+      Assert (not Has_Focus (T.Stack.all),
+              "clear removes focus before removing conversation widgets");
+      Assert (not Text_Block_Open (T.Stack.all),
+              "clear closes the active text block");
+      Assert (Active_Text (T.Stack.all) = "",
+              "clear removes the active response text");
+      Begin_Request (T.Stack.all, "after clear", Prompt);
+      Append_Text (T.Stack.all, "partial again");
+      Assert (Text_Block_Open (T.Stack.all),
+              "streaming reopens a text block after clear");
+      End_Text_Block (T.Stack.all);
+      Assert (Index (Active_Text (T.Stack.all), "partial again") > 0,
+              "text after clear streams into a fresh view");
+   end Test_Clear_Removes_Active_Stream_Mark;
+
+   procedure Test_Set_Font_Applies_To_New_Response_Views (T : in out Test) is
+      Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 18");
+   begin
+      if not T.Display_Available then
+         Pango.Font.Free (Font);
+         return;
+      end if;
+      Set_Font (T.Stack.all, Font, Math_Scale => 1.0);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "styled");
+      End_Text_Block (T.Stack.all);
+      Assert (Active_Text_View (T.Stack.all) /= null,
+              "font set before streaming leaves a response view");
+      declare
+         use type Pango.Context.Pango_Context;
+         Context : constant Pango.Context.Pango_Context :=
+           Active_Text_View (T.Stack.all).Get_Pango_Context;
+      begin
+         Assert
+           (Pango.Font.To_String
+              (Pango.Context.Get_Font_Description (Context)) = "sans 18",
+            "new streamed response views inherit the configured font");
+      end;
+      Pango.Font.Free (Font);
+   end Test_Set_Font_Applies_To_New_Response_Views;
+
+   procedure Test_Set_Font_Applies_To_New_Table_Labels (T : in out Test) is
+      Font   : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 18");
+      Source : constant String :=
+        "| Name | Value |" & ASCII.LF & "| --- | --- |" & ASCII.LF
+        & "| alpha | 42 |";
+   begin
+      if not T.Display_Available then
+         Pango.Font.Free (Font);
+         return;
+      end if;
+      Set_Font (T.Stack.all, Font, Math_Scale => 1.0);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      declare
+         use type Pango.Context.Pango_Context;
+         Context : constant Pango.Context.Pango_Context :=
+           Table_Cell (T.Stack.all, 1, 1, 1).Get_Pango_Context;
+      begin
+         Assert
+           (Pango.Font.To_String
+              (Pango.Context.Get_Font_Description (Context)) = "sans 18",
+            "new native table labels inherit the configured font");
+      end;
+      Pango.Font.Free (Font);
+   end Test_Set_Font_Applies_To_New_Table_Labels;
 
    procedure Test_Native_Footer_Uses_Status_Row_And_Fork_Button
      (T : in out Test)
@@ -210,33 +310,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            (Index (Text, "`") = 0, "native Markdown removes code delimiters");
       end;
    end Test_Native_Markdown_Renders_After_Streaming;
-
-   procedure Test_Native_Response_Renderer_Presents_Semantics
-     (T : in out Test)
-   is
-      Source : constant String :=
-        "before" & ASCII.LF & ASCII.LF
-        & "| Name | Value |" & ASCII.LF & "| --- | --- |" & ASCII.LF
-        & "| alpha | 42 |" & ASCII.LF & ASCII.LF
-        & "after";
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Begin_Request (T.Stack.all, "request", Prompt);
-      Append_Text (T.Stack.all, Source);
-      End_Text_Block (T.Stack.all);
-      Assert (Table_Count (T.Stack.all) = 1,
-              "semantic response renderer realizes one table");
-      Assert (Table_Cell (T.Stack.all, 1, 2, 2).Get_Text = "42",
-              "semantic response renderer retains table cell text");
-      Assert (Text_View_Count (T.Stack.all) = 2,
-              "semantic response renderer retains text around table");
-      Assert (Index (Text_View_Text (T.Stack.all, 1), "before") > 0,
-              "semantic response renderer retains prefix text");
-      Assert (Index (Text_View_Text (T.Stack.all, 2), "after") > 0,
-              "semantic response renderer retains suffix text");
-   end Test_Native_Response_Renderer_Presents_Semantics;
 
    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test)
    is
@@ -800,10 +873,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Begin_Request (T.Stack.all, "request", Prompt);
       Append_Turn_Footer (T.Stack.all, "step", Step_Footer);
       Assert
-        (not Is_Completed (T.Stack.all), "step footer does not complete exchange");
+        (not Is_Completed (T.Stack.all),
+         "step footer does not complete exchange");
       Append_Turn_Footer (T.Stack.all, "final", Final_Footer);
       Complete_Request (T.Stack.all, Failed);
-      Assert (Is_Completed (T.Stack.all), "explicit completion closes exchange");
+      Assert
+        (Is_Completed (T.Stack.all),
+         "explicit completion closes exchange");
       Assert
         (Last_Status (T.Stack.all) = Failed,
          "completion status is retained structurally");
@@ -818,31 +894,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Append_Text (T.Stack.all, "content");
       Complete_Request (T.Stack.all, Aborted);
       Clear (T.Stack.all);
-      Assert (not Has_Exchange (T.Stack.all), "clear removes exchange state");
-      Assert (not Is_Completed (T.Stack.all), "clear removes terminal state");
-   end Test_Clear_Removes_Exchange_State;
-
-   procedure Test_Clear_Preserves_CSM_Mode (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack.all, True);
-      Clear (T.Stack.all);
-      Assert (Get_Incremental_Markup (T.Stack.all),
-              "clear preserves CSM mode");
       Assert
-        (Get_Response_Format (T.Stack.all) = Coyote_Stream_2_Response,
-         "clear preserves CSM-2 response format");
-      Begin_Request (T.Stack.all, "request", Prompt);
-      Append_Text (T.Stack.all, "<p>after clear <strong>CSM</strong></p>");
-      Assert (Active_Text_View (T.Stack.all) /= null,
-              "CSM semantic presenter is active after clear");
-      End_Text_Block (T.Stack.all);
-      Assert (Index (Text_View_Text (T.Stack.all, Text_View_Count (T.Stack.all)),
-                     "after clear CSM") > 0,
-              "CSM response renders after clear");
-   end Test_Clear_Preserves_CSM_Mode;
+        (not Has_Exchange (T.Stack.all), "clear removes exchange state");
+      Assert
+        (not Is_Completed (T.Stack.all), "clear removes terminal state");
+   end Test_Clear_Removes_Exchange_State;
 
    procedure Test_Native_Display_Math_Realizes_Element (T : in out Test) is
       Source : constant String :=
@@ -864,7 +920,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (Math_Is_Valid (T.Stack.all, 1),
          "valid display math is measured successfully");
       Assert
-        (Math_Width (T.Stack.all, 1) > 0 and then Math_Height (T.Stack.all, 1) > 0,
+        (Math_Width (T.Stack.all, 1) > 0
+         and then Math_Height (T.Stack.all, 1) > 0,
          "native math element has non-zero dimensions");
       Assert
         (Index (Math_Source (T.Stack.all, 1), "$$") > 0,
@@ -938,100 +995,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "fenced code retains dollar delimiters");
    end Test_Native_Display_Math_Protects_Code;
 
-   procedure Test_CSM2_Shared_Renderer_Parity (T : in out Test) is
-      CSM_Source : constant String :=
-        "<p>before <strong>bold</strong> and <em>em</em></p>"
-        & "<h2>Title</h2><list kind=""ordered"" start=""2""><item>one</item>"
-        & "<item>two</item></list><blockquote><p>quote</p></blockquote>"
-        & "<code lang=""ada"">x &lt; y</code><hr/>"
-        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
-        & "<table><row kind=""header""><cell align=""center"">Name</cell>"
-        & "<cell align=""right"">Value</cell></row><row>"
-        & "<cell>alpha</cell><cell>42</cell></row></table>"
-        & "<p>after</p>";
-      CSM_Text : Unbounded_String;
-      Markdown_Text : Unbounded_String;
-      function Visible_Text return String is
-         Result : Unbounded_String;
-      begin
-         for I in 1 .. Text_View_Count (T.Stack.all) loop
-            Append (Result, Text_View_Text (T.Stack.all, I));
-         end loop;
-         return To_String (Result);
-      end Visible_Text;
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack.all, True);
-      Begin_Request (T.Stack.all, "request", Prompt);
-      for I in CSM_Source'Range loop
-         Append_Text (T.Stack.all, CSM_Source (I .. I));
-      end loop;
-      End_Text_Block (T.Stack.all);
-      CSM_Text := To_Unbounded_String (Visible_Text);
-      Assert (Table_Count (T.Stack.all) = 1, "CSM uses shared native table");
-      Assert (Math_Element_Count (T.Stack.all) = 1,
-              "CSM terminal MathML uses shared native math");
-      Assert (Math_Is_Valid (T.Stack.all, 1),
-              "CSM terminal MathML is valid after normalization");
-      Assert (Index (Math_Source (T.Stack.all, 1), "<math") > 0,
-              "CSM Math_Element retains original source");
-      Assert (Table_Cell (T.Stack.all, 1, 2, 2).Get_Text = "42",
-              "CSM table cells use typed semantic values");
-      Assert (Table_Cell (T.Stack.all, 1, 1, 1).Get_Xalign = 0.5,
-              "CSM table alignment is retained");
-      Assert (Text_View_Count (T.Stack.all) > 0,
-              "CSM response retains selectable shared text views");
-      Assert (Index (To_String (CSM_Text), "<p>") = 0,
-              "CSM tags are absent after authoritative completion");
-
-      Clear (T.Stack.all);
-      Set_Incremental_Markup (T.Stack.all, False);
-      Begin_Request (T.Stack.all, "request", Prompt);
-      Append_Text
-        (T.Stack.all,
-         "before **bold** and *em*" & ASCII.LF & ASCII.LF
-         & "## Title" & ASCII.LF & ASCII.LF
-         & "2. one" & ASCII.LF & "3. two" & ASCII.LF & ASCII.LF
-         & "> quote" & ASCII.LF & ASCII.LF
-         & "```ada" & ASCII.LF & "x &lt; y" & ASCII.LF
-         & "```" & ASCII.LF & ASCII.LF
-         & "---" & ASCII.LF & ASCII.LF
-         & "| Name | Value |" & ASCII.LF
-         & "| :--- | :---: |" & ASCII.LF
-         & "| alpha | 42 |" & ASCII.LF & ASCII.LF & "after");
-      End_Text_Block (T.Stack.all);
-      Markdown_Text := To_Unbounded_String (Visible_Text);
-      Assert (Index (To_String (Markdown_Text), "before") > 0,
-              "Markdown parity fixture remains visible");
-      Assert (Table_Count (T.Stack.all) = 1,
-              "Markdown parity fixture uses one native table");
-      Select_All (T.Stack.all);
-      Assert (Has_Selection (T.Stack.all),
-              "shared response text retains selection ownership");
-      Clear_Selection (T.Stack.all);
-   end Test_CSM2_Shared_Renderer_Parity;
-
-   procedure Test_CSM2_Malformed_Final_Reconciliation (T : in out Test) is
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Set_Incremental_Markup (T.Stack.all, True);
-      Begin_Request (T.Stack.all, "request", Prompt);
-      Append_Text (T.Stack.all, "<p>visible <strong>text</p>");
-      End_Text_Block (T.Stack.all);
-      Assert (Text_View_Count (T.Stack.all) > 0,
-              "malformed CSM remains visible after final reconciliation");
-      Assert (Index (Text_View_Text (T.Stack.all, Text_View_Count (T.Stack.all)),
-                     "<p>") > 0,
-              "malformed CSM source is retained visibly");
-      Assert (Table_Count (T.Stack.all) = 0,
-              "malformed CSM does not leave stale native tables");
-   end Test_CSM2_Malformed_Final_Reconciliation;
-
    procedure Test_Native_Display_Math_Zooms (T : in out Test) is
       Source        : constant String                   :=
         "$$" & ASCII.LF & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
@@ -1083,15 +1046,33 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack finalizes an open text block "
+            & "for a new request",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Begin_Request_Finalizes_Open_Text_Block'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack removes the active stream mark "
+            & "on clear",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Clear_Removes_Active_Stream_Mark'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack applies the configured font "
+            & "to new response views",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Set_Font_Applies_To_New_Response_Views'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack applies the configured font "
+            & "to new table labels",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Set_Font_Applies_To_New_Table_Labels'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack renders Markdown",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Markdown_Renders_After_Streaming'
-              Access));
-      Result.Add_Test
-        (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Response_Renderer presents semantics",
-            Coyote_GUI_Conversation_Stack_Tests
-              .Test_Native_Response_Renderer_Presents_Semantics'
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
@@ -1123,16 +1104,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Response_Mixed_Blocks_Skip_Whitespace'
               Access));
-      Result.Add_Test
-        (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Response_Renderer renders CSM-2 parity",
-            Coyote_GUI_Conversation_Stack_Tests
-              .Test_CSM2_Shared_Renderer_Parity'Access));
-      Result.Add_Test
-        (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Response_Renderer reconciles malformed CSM-2",
-            Coyote_GUI_Conversation_Stack_Tests
-              .Test_CSM2_Malformed_Final_Reconciliation'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack realizes display MathML",
@@ -1228,11 +1199,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Clear_Removes_Exchange_State'
               Access));
-      Result.Add_Test
-        (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack preserves CSM after clear",
-            Coyote_GUI_Conversation_Stack_Tests
-              .Test_Clear_Preserves_CSM_Mode'Access));
 
       return Result;
    end Suite;

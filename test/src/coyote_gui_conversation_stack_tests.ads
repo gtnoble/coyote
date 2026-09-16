@@ -26,11 +26,14 @@ package Coyote_GUI_Conversation_Stack_Tests is
    overriding procedure Set_Up (T : in out Test);
    overriding procedure Tear_Down (T : in out Test);
 
+   procedure Test_Begin_Request_Finalizes_Open_Text_Block
+     (T : in out Test);
+   procedure Test_Clear_Removes_Active_Stream_Mark (T : in out Test);
+   procedure Test_Set_Font_Applies_To_New_Response_Views (T : in out Test);
+   procedure Test_Set_Font_Applies_To_New_Table_Labels (T : in out Test);
    procedure Test_Creates_Single_Outer_Host (T : in out Test);
    procedure Test_Request_And_Streaming_Are_Incremental (T : in out Test);
    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test);
-   procedure Test_Native_Response_Renderer_Presents_Semantics
-     (T : in out Test);
    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test);
    procedure Test_Native_Table_Realizes_Grid (T : in out Test);
    procedure Test_Native_Table_Toggle_Disables_Rendering (T : in out Test);
@@ -53,7 +56,6 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Tool_Card_Uses_Native_Labels (T : in out Test);
    procedure Test_Footer_Kind_And_Completion_Are_Explicit (T : in out Test);
    procedure Test_Clear_Removes_Exchange_State (T : in out Test);
-   procedure Test_Clear_Preserves_CSM_Mode (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

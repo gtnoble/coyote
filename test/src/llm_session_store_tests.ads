@@ -18,9 +18,9 @@ package LLM_Session_Store_Tests is
    procedure Test_Load_Legacy_Pi_Envelope_Lines (T : in out Test);
    procedure Test_Load_Skips_Malformed_Lines (T : in out Test);
    procedure Test_Assistant_Usage_And_Stop_Reason_Persist (T : in out Test);
-   procedure Test_Assistant_CSM2_Format_Persists_Version (T : in out Test);
-   procedure Test_Assistant_CSM1_Format_Remains_Versionless (T : in out Test);
-   procedure Test_Unknown_Format_Metadata_Defaults_To_Markdown (T : in out Test);
+   procedure Test_New_Assistant_JSON_Omits_Legacy_Format_Metadata
+     (T : in out Test);
+   procedure Test_Unknown_Format_Metadata_Ignored (T : in out Test);
    procedure Test_Append_Compaction_Writes_Entry (T : in out Test);
    procedure Test_Compaction_Summary_Not_Persisted (T : in out Test);
    procedure Test_Load_With_Compaction_Entry (T : in out Test);

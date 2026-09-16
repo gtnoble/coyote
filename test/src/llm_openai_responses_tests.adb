@@ -438,7 +438,6 @@ package body LLM_OpenAI_Responses_Tests is
           Text => To_Unbounded_String ("Say hello")));
       Messages.Append
         ((Role      => LLM.Types.User,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -724,7 +723,6 @@ package body LLM_OpenAI_Responses_Tests is
           Text => To_Unbounded_String ("prior conversation summary")));
       Messages.Append
         ((Role      => LLM.Types.Compaction_Summary,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -985,7 +983,6 @@ package body LLM_OpenAI_Responses_Tests is
           Text => To_Unbounded_String ("Take a screenshot")));
       Messages.Append
         ((Role      => LLM.Types.User,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -998,7 +995,6 @@ package body LLM_OpenAI_Responses_Tests is
           Arguments_Json => To_Unbounded_String ("{}")));
       Messages.Append
         ((Role      => LLM.Types.Assistant,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => Asst_Content,
           Tok_Usage =>
             (others => 0),
@@ -1013,7 +1009,6 @@ package body LLM_OpenAI_Responses_Tests is
           Status      => LLM.Types.Result_Success));
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => Result_Content,
           Tok_Usage =>
             (others => 0),
@@ -1108,7 +1103,6 @@ package body LLM_OpenAI_Responses_Tests is
           Text => To_Unbounded_String ("why?")));
       Messages.Append
         ((Role      => LLM.Types.User,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => User_C,
           Tok_Usage =>
             (others => 0),
@@ -1133,7 +1127,6 @@ package body LLM_OpenAI_Responses_Tests is
          Text  => To_Unbounded_String ("answer")));
       Messages.Append
         ((Role      => LLM.Types.Assistant,
-         Format    => LLM.Types.Format_Unspecified,
           Content   => Asst_C,
           Tok_Usage =>
             (others => 0),

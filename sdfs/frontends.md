@@ -1,6 +1,31 @@
 # Component Development Log — Frontends
 
-## 2026-09-14 — Final CSM-2 renderer migration audit and closure (PCR-104 Stage 9)
+## 2026-09-15 — Complete CSM retirement and Markdown-only frontend baseline (PCR-105)
+
+The frontend no longer selects or presents CSM. The environment toggle, prompt
+branch, response-format fields/events, persistence metadata writing, replay
+selection, and deleted parser/semantic/presenter/streaming-owner units have no
+operational path. Assistant output follows direct libcmark-gfm Markdown;
+Conversation_Stack retains native GFM tables and Lasem-backed Presentation
+MathML display blocks. Plain output remains line-oriented.
+
+New assistant JSONL records have no `format` or `formatVersion` fields. Legacy
+records containing those fields remain readable because the fields are ignored
+and content is handled as Markdown. The prior CSM entries below are retained as
+historical records and are superseded wherever they describe the current
+frontend architecture.
+
+**Verification:** Current full suite 890/890. Focused frontend results include
+Conversation_Stack 28/28 and GUI Updates 9/9; the retained Markdown, table,
+MathML, Math_Element, selection, lifecycle, and reset paths are covered. New
+native-stack regressions cover configured font inheritance for response views and
+native table labels, plus focus-safe Clear.
+
+**Historical boundary:** Older CSM implementation and qualification entries
+below are retained for factual chronology and are superseded by PCR-105; they
+do not describe the current frontend baseline.
+
+## Historical — 2026-09-14 — Final CSM-2 renderer migration audit and closure (PCR-104 Stage 9; superseded by PCR-105)
 
 The staged migration is complete. Production CSM-2 presentation now consists of
 `Coyote_Renderer.Incremental` semantic mutations and canonical
@@ -34,12 +59,12 @@ presenter 4/4; streaming owner 18/18; CSM-2 GUI 16/16;
 Conversation_Stack 25/25; Response_Renderer 3/3; and Zoom 12/12. Display tests
 ran on X11 and emitted only existing GTK theme color-parser warnings.
 
-## 2026-09-13 — CSM-2 localized live recovery enhancement (PCR-101 follow-on)
+## Historical — 2026-09-13 — CSM-2 localized live recovery enhancement (PCR-101 follow-on; superseded by PCR-105)
 
 This historical entry records the superseded live-renderer implementation.
 The completed implementation is documented in the PCR-104 Stage 9 closure entry above;
-current production uses semantic mutations, `Streaming_Response`, and the
-persistent `Semantic_Response_Presenter`.
+at that historical checkpoint, the production path used semantic mutations,
+`Streaming_Response`, and the persistent `Semantic_Response_Presenter`.
 The shared semantic path presents inline corruption as escaped, unstyled
 `Raw_Markup`; tables, code, terminal MathML, and structural containers remain
 atomic.
@@ -51,7 +76,7 @@ semantic qualification passed 5/5. Historical PCR-101 closure evidence and its
 
 ## Current baseline amendment (2026-08-31)
 
-The native GTK conversation cutover is complete. The historical Phase 6 checkpoint was 934/934; the superseded pre-Stage-9 baseline was 955/955. The PCR-104 Stage 9 closure entry above is the current suite baseline and CSM-2 presentation record. `Coyote_GUI.Conversation_Stack`
+The native GTK conversation cutover is complete. The historical Phase 6 checkpoint was 934/934; the superseded pre-Stage-9 baseline was 955/955. The PCR-104 Stage 9 closure entry above is historical superseded evidence for the CSM-2 presentation record; it is not the current suite baseline. `Coyote_GUI.Conversation_Stack`
 is the sole GTK conversation presentation; the custom `Gtk.Layout`/Cairo/Pango
 renderer, its test accessors, and the `COYOTE_NATIVE_STACK` runtime flag were
 removed after native qualification. The Plain frontend remains supported and
@@ -80,7 +105,7 @@ components.
 `src/coyote_renderer/*.ads/.adb`
 ---
 
-## 2026-09-12 — Live CSM-2 event rendering and final reconciliation
+## Historical — 2026-09-12 — Live CSM-2 event rendering and final reconciliation (superseded by PCR-105)
 
 This historical implementation note describes the superseded `Live_Event`/
 `Live_Response_Renderer` path. It is retained for chronology only; current
@@ -105,7 +130,7 @@ Provider, Plain, and RPC behavior was unchanged.
 
 ## Design Rationale
 
-## CSM-2 Phase 10 consolidated GUI qualification (2026-09-12)
+### Historical — CSM-2 Phase 10 consolidated GUI qualification (2026-09-12; superseded by PCR-105)
 
 `Coyote_GUI_CSM2_Qualification_Tests` adds three display-gated AUnit tests for
 paired CSM-2 versus semantically equivalent Markdown presentation. The fixture
@@ -121,11 +146,12 @@ checks use normalized snapshots and geometry properties, not pixel identity.
 passes 3/3. Existing GUI CSM-2 parity/reconciliation tests remain unchanged and
 pass. GTK theme color warnings are environmental and do not affect assertions.
 
-## CSM-2 Phase 9 version-aware persistence and replay compatibility (2026-09-12)
+### Historical — CSM-2 Phase 9 version-aware persistence and replay compatibility (2026-09-12; superseded by PCR-105)
 
-The response-format type now distinguishes the historical `Format_Coyote_Stream`
-(CSM-1/current) value from `Format_Coyote_Stream_2`. New live CSM selection in
-`Coyote_App` uses CSM-2; Markdown and Plain remain unchanged. Assistant JSONL
+At this historical checkpoint, the response-format type distinguished
+`Format_Coyote_Stream` (the then-current CSM-1 value) from
+`Format_Coyote_Stream_2`. New live CSM selection in `Coyote_App` used CSM-2;
+Markdown and Plain remained unchanged. Assistant JSONL
 records retain the existing `format: "coyote-stream"` spelling for readability,
 and CSM-2 records add integer `formatVersion: 2`. CSM-1 records remain
 versionless, so old JSONL is readable without migration or reinterpretation.
@@ -143,7 +169,7 @@ versionless CSM-1 persistence, and unknown/missing fallback; history tests cover
 mixed CSM-1/CSM-2/Markdown replay and live restoration; RPC tests cover the
 versioned event payload. Production and test development builds pass.
 
-### CSM-2 Phase 8 shared CSM GUI presentation (2026-09-12)
+### Historical — CSM-2 Phase 8 shared CSM GUI presentation (2026-09-12; superseded by PCR-105)
 
 CSM-2 GUI responses now use `Coyote_Renderer.Incremental.Snapshot` and the
 shared `Coyote_GUI.Response_Renderer` semantic backend. `Conversation_Stack`
@@ -183,7 +209,7 @@ coverage; existing Cmark, MathML, and semantic Pango/model regressions remain
 passing. Production and test development builds pass and `git diff --check` is
 clean. GTK theme parsing warnings remain an environment/theme limitation.
 
-### CSM-2 Phase 12 GUI closure evidence (PCR-101, 2026-09-12)
+### Historical — CSM-2 Phase 12 GUI closure evidence (PCR-101, 2026-09-12; superseded by PCR-105)
 
 The independent CSM-2 GUI presentation is qualified through the shared
 semantic-to-GTK/Pango response renderer and `Conversation_Stack` lifecycle.
@@ -195,13 +221,13 @@ reconciliation, and malformed stale-widget recovery. The native
 `Conversation_Stack` suite passed 24/24. GTK theme color-parser warnings were
 environmental and did not affect assertions.
 
-CSM-1/current versionless replay remains visible raw source because the CSM-1
+At that historical checkpoint, versionless CSM-1 replay was recorded as visible raw source because the CSM-1
 parser is retired; it is not rendered as CSM-1 and is not reinterpreted as
 Markdown. Pixel identity and clipboard retrieval are outside the contract.
 Manual demonstrations assigned to other historical GUI procedures remain
 pending and are not implied by this automated CSM-2 closure.
 
-### Accepted incremental-markup decisions (2026-09-06)
+### Historical — Accepted incremental-markup decisions (2026-09-06; superseded by PCR-105)
 
 `COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag for incremental markup.
 When the flag is unset or set to `0`, the existing Markdown behavior is

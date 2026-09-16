@@ -12,20 +12,14 @@ shared between coyote and pi.
 
 - **GTK frontend** — graphical conversation view with Markdown, tool cards,
   session management, status, preferences, keyboard navigation, and Help
-- **Incremental GUI markup (opt-in)** — set
-  `COYOTE_INCREMENTAL_MARKUP=1` to select independent CSM-2. Provider deltas
-  are emitted as ordered live events and applied immediately by the stateful
-  GTK live renderer for text, inline styles, code/code-inline, headings,
-  blockquotes, lists, `br`, and `hr`; code payloads are opaque literal chunks.
-  Complete table and terminal Presentation MathML source is deferred in the
-  live subtree and realized natively only at complete boundaries/final
-  `Flush`/`Snapshot` reconciliation through the shared renderer. Malformed
-  roots remain exact visible source without Markdown reinterpretation; live
-  rollback is scoped to the affected root, so later valid roots continue.
-  CSM-2 is not Markdown: tables use explicit tags rather than Markdown pipes.
-  Versionless CSM-1 replay is limited to visible raw source because the CSM-1
-  parser is retired. Markdown remains the default and Plain output is
-  unchanged.
+- **Markdown responses** — assistant output is rendered through the legacy
+  direct libcmark-gfm path. GitHub Flavored Markdown tables are realized as
+  native tables, and standalone display-math blocks use Lasem-backed
+  Presentation MathML. Plain output remains line-oriented.
+- **Session compatibility** — newly written assistant JSONL records contain no
+  `format` or `formatVersion` fields. Older records containing those fields
+  remain loadable; the fields are ignored and their content is handled as
+  Markdown during replay.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and
@@ -176,30 +170,11 @@ Configuration files live under `~/.coyote/`. The main settings file is
 }
 ```
 
-`COYOTE_INCREMENTAL_MARKUP=1` opts live GUI assistant responses into the
-restricted Coyote Stream Markup path. In CSM-2, the independent XML-like
-language has explicit block tags `<p>`, `<h1>`–`<h6>`, `<blockquote>`, `<list>`,
-`<item>`, `<code>`, `<table>`, `<row>`, `<cell>`, `<math>`, and `<hr>`, plus
-inline tags `<strong>`, `<em>`, `<del>`, `<link>`, `<code-inline>`, and `<br>`.
-Tables use explicit row and cell elements, not GFM or Markdown pipe-table
-syntax. `<math>` contains one complete Presentation MathML `<math>` document
-with the standard namespace and no `$$` delimiters; `<code>` and
-`<code-inline>` are opaque literal regions. Tags and attributes are case-sensitive,
-with XML-style whitespace accepted in tag syntax and whitespace preserved in
-visible text and opaque payloads. The legal attributes are list `kind` with
-`ordered` or `unordered`, list `start` with a positive decimal integer for an
-ordered list, link `url`, code `lang`, row `kind` with `header` or `body`, cell
-`align` with `left`, `center`, `right`, or `none`, and math `xmlns` with the
-standard MathML namespace. Attributes are valid only on their specified tags.
-Malformed or incomplete source remains visible and is not reinterpreted as
-Markdown. Unset or `0` preserves Markdown behavior; Plain output and Markdown
-session replay are unchanged. In enabled GUI mode, the same application-selected
-format adds restricted CSM-2 generation guidance to the system prompt; the model
-does not set authoritative format metadata.
-
-CSM replay is format-aware: versionless CSM-1 records are displayed as visible
-raw source, records with exact `formatVersion: 2` use CSM-2, and missing or
-unknown format/version metadata uses Markdown.
+Assistant response text uses direct libcmark-gfm Markdown rendering. Native
+GFM tables and Lasem-backed Presentation MathML display blocks are retained in
+the GUI. Newly written assistant JSONL has no `format` or `formatVersion`
+fields; older records containing those fields remain loadable because the
+fields are ignored and their content is handled as Markdown during replay.
 
 ## Architecture
 
@@ -212,10 +187,10 @@ Coyote has two supported execution paths:
 
 Both paths share `LLM.Agent`, session persistence, provider adapters, and
 `Coyote_App.Dispatch.Dispatch_Event`. The frontend contract carries structured
-streaming events rather than provider-specific wire data. `Coyote_Renderer.Semantics`
-provides the shared semantic document model, and `Coyote_GUI.Response_Renderer`
-presents completed Markdown and CSM-2 through the shared native GTK policy,
-including native tables and terminal Presentation MathML.
+streaming events rather than provider-specific wire data. Assistant response
+text uses the direct libcmark-gfm Markdown path; native GFM tables and
+Lasem-backed Presentation MathML display blocks remain in the GTK conversation
+stack.
 
 ## Testing
 
@@ -227,8 +202,8 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 955 registered tests and passes 955/955 in
-approximately 34 seconds on the development host. AUnit reports cumulative
+The current hierarchy contains 890 registered tests and passes 890/890 on the
+development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 

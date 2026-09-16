@@ -7,6 +7,28 @@
 
 ---
 
+## 2026-09-15 — Complete CSM retirement and Markdown-only shared-renderer baseline (PCR-105)
+
+The shared CSM parser, semantic document, response presenter/renderer/streaming
+owner, format metadata, environment toggle, prompt branch, persistence writer,
+replay selector, and RPC response-format event are not current SQC interfaces.
+The deleted CSM units are absent from the current inventory. SQC continues to
+read session JSONL without rewriting it; legacy `format` and `formatVersion`
+fields are ignored by the current content handling, and assistant content is
+handled as Markdown. The retained shared path remains libcmark-gfm Markdown,
+native GFM tables, and Lasem-backed Presentation MathML where applicable.
+
+**Verification:** Current shared/application suite baseline is 890/890. The
+SQC component remains governed by its own SRS/SDD; this entry supersedes only
+historical CSM-current claims and does not remove Lasem or math coverage. The
+current shared Markdown qualification includes safe oversized-table truncation,
+cmark exception cleanup, visible escaped raw-HTML fallback, and image alt-text
+behavior.
+
+**Historical boundary:** Older CSM renderer/model entries in the rationale below
+are retained for factual chronology and are superseded by PCR-105; they do not
+describe current SQC interfaces.
+
 ## Design Rationale
 
 ### AUnit SQC suite hierarchy and timing regression (2026-09-05)
@@ -15,8 +37,8 @@ The SQC test callers are now package-scoped leaf suites composed by
 `Test_SQC_Suite`. Moving the Quantile CC and MI caller instantiations out of
 the root suite function fixed a dangling-dispatch lifetime defect that was
 only exposed when AUnit global or per-case timing was enabled. The SQC domain
-contains 208 registrations and passed as part of the historical 919-test
-suite; the current full-suite baseline is recorded in the active qualification entry.
+contains 208 registrations in this historical record; the current full-suite
+baseline is 890/890 as recorded in the PCR-105 entry above.
 
 ### Why coyote_sqc is a separate executable
 
@@ -60,7 +82,7 @@ MLE from the setup interval data or fixed manually. The transform is applied
 to the data before computing control limits; the chart Y-axis shows
 back-transformed values so the scale is interpretable.
 
-### Markdown semantic adapter (2026-09-12)
+### Historical — Markdown semantic adapter (2026-09-12; superseded by PCR-105)
 
 `Coyote_Renderer.Markup.Parse_Markdown` now parses libcmark-GFM into the
 renderer-neutral `Coyote_Renderer.Semantics` document using document-local
@@ -80,7 +102,7 @@ MathML realization therefore remains the reference behavior for the main GUI.
 Focused tests cover semantic construction, display-math model construction,
 and a representative exact Pango golden output.
 
-### CSM-2 Phase 8 shared CSM GUI presentation (2026-09-12)
+### Historical — CSM-2 Phase 8 shared CSM GUI presentation (2026-09-12; superseded by PCR-105)
 
 `Coyote_GUI.Response_Renderer` now presents both completed Markdown semantics and
 CSM-2 snapshots. The CSM path uses typed table rows/cells and shared Pango,
@@ -110,7 +132,7 @@ The renderer owns its heap-stable `Math_Element` instances and detaches/frees
 them during explicit stack clear; GTK widget registries are non-owning and are
 used for selection, test inspection, and zoom propagation. A presentation-only
 MathML boundary fallback preserves the prior Markdown behavior for display
-math adjacent to prose without changing the semantic adapter or CSM parser.
+math adjacent to prose without changing the then-current semantic adapter or CSM parser.
 
 Focused verification covers the existing Markdown Pango golden/list behavior,
 semantic response table realization, valid/invalid/native MathML, code-block
@@ -120,7 +142,7 @@ pass with no failures.
 
 ### Shared `Coyote_Renderer` library
 
-`Coyote_Renderer.Markup` (Pango markup generation) and
+`Coyote_Renderer.Markup` (historical semantic-adapter/Pango markup generation) and
 `Coyote_Renderer.Session_View` (session replay rendering) are shared between
 the native GTK conversation/replay path and coyote_sqc's detail panel.
 The native stack is the sole supported GTK conversation presentation. Shared
@@ -913,7 +935,7 @@ point construction, benefiting from the O(1) speedup there too.
 
 **Build:** Clean.  **Tests:** 722/722 pass (0 regressions).
 
-### Renderer-neutral semantic model (2026-09-12)
+### Historical — Renderer-neutral semantic model (2026-09-12; superseded by PCR-105)
 
 Added `Coyote_Renderer.Semantics`, a GTK/cmark/Lasem/JSON-independent document
 model shared by future Markdown and CSM producers.  It stores ordered root and

@@ -9,7 +9,6 @@ package body Coyote_GUI_Updates_Tests is
    use AUnit.Assertions;
    use Ada.Strings.Unbounded;
    use type Coyote_GUI.Update_Kind;
-   use type Coyote_GUI.Response_Format;
 
    function Sample_Update return Coyote_GUI.Update is
       U : Coyote_GUI.Update;
@@ -174,47 +173,6 @@ package body Coyote_GUI_Updates_Tests is
          "context progress payload must survive the update queue");
    end Test_Context_Progress_Round_Trips;
 
-   procedure Test_CSM2_Update_Order_And_Payload (T : in out Test) is
-      pragma Unreferenced (T);
-      Queue  : Coyote_GUI.Updates.Queue;
-      Input  : Coyote_GUI.Update;
-      Output : Coyote_GUI.Update;
-      Got    : Boolean;
-      Wake   : Boolean;
-   begin
-      Input.Kind := Coyote_GUI.Set_Response_Format;
-      Input.Format := Coyote_GUI.Coyote_Stream_2_Response;
-      Queue.Enqueue (Input, Wake);
-      Input := (others => <>);
-      Input.Kind := Coyote_GUI.Append_Text;
-      Input.Text := To_Unbounded_String ("<p>split ");
-      Queue.Enqueue (Input, Wake);
-      Input.Text := To_Unbounded_String ("text</p>");
-      Queue.Enqueue (Input, Wake);
-      Input := (others => <>);
-      Input.Kind := Coyote_GUI.End_Text_Block;
-      Queue.Enqueue (Input, Wake);
-
-      Queue.Dequeue (Output, Got);
-      Assert (Got, "CSM-2 format update must be dequeued first");
-      Assert (Output.Kind = Coyote_GUI.Set_Response_Format
-              and then Output.Format = Coyote_GUI.Coyote_Stream_2_Response,
-              "CSM-2 format payload survives queue transport");
-      Queue.Dequeue (Output, Got);
-      Assert (Got and then Output.Kind = Coyote_GUI.Append_Text,
-              "first CSM-2 text update remains second");
-      Assert (To_String (Output.Text) = "<p>split ",
-              "first split CSM-2 payload survives transport");
-      Queue.Dequeue (Output, Got);
-      Assert (Got and then Output.Kind = Coyote_GUI.Append_Text,
-              "second CSM-2 text update remains third");
-      Assert (To_String (Output.Text) = "text</p>",
-              "second split CSM-2 payload survives transport");
-      Queue.Dequeue (Output, Got);
-      Assert (Got and then Output.Kind = Coyote_GUI.End_Text_Block,
-              "CSM-2 end update remains after all text deltas");
-   end Test_CSM2_Update_Order_And_Payload;
-
    package Coyote_GUI_Updates_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Updates_Tests.Test);
 
@@ -267,11 +225,6 @@ package body Coyote_GUI_Updates_Tests is
            ("Coyote.GUI.Updates preserves context progress",
             Coyote_GUI_Updates_Tests
               .Test_Context_Progress_Round_Trips'Access));
-      Result.Add_Test
-        (Coyote_GUI_Updates_Caller.Create
-           ("Coyote.GUI.Updates preserves CSM-2 order and payload",
-            Coyote_GUI_Updates_Tests
-              .Test_CSM2_Update_Order_And_Payload'Access));
       return Result;
    end Suite;
 

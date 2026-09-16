@@ -70,6 +70,15 @@ package Coyote_Cmark_Tests is
    --  Shared Pango markup places list items on separate logical lines.
    procedure Test_Pango_Markup_List_Line_Boundaries (T : in out Test);
 
+   --  Oversized GFM tables are safely truncated to the supported dimensions.
+   procedure Test_Pango_Markup_Wide_Table_Truncates (T : in out Test);
+   procedure Test_Pango_Markup_Tall_Table_Truncates (T : in out Test);
+
+   --  Unsupported nonempty Markdown remains visible after rendering.
+   procedure Test_Pango_Markup_Raw_Html_Falls_Back (T : in out Test);
+
+   --  Direct rendering retains the historical image alt-text policy.
+   procedure Test_Pango_Markup_Image_Retains_Alt_Text (T : in out Test);
    --  Display-math extraction must preserve Markdown code blocks.
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test);
 

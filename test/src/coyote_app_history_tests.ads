@@ -10,7 +10,7 @@ package Coyote_App_History_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
-   procedure Test_Replay_Uses_Persisted_Assistant_Formats
+   procedure Test_Legacy_Format_Metadata_Ignored
      (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;

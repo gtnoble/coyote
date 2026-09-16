@@ -13,9 +13,6 @@ package LLM_System_Prompt_Tests is
    procedure Test_Default_Prompt_Contains_Guidelines (T : in out Test);
    procedure Test_Default_Prompt_Contains_Display_Math_Guidance
      (T : in out Test);
-   procedure Test_Default_Prompt_Excludes_CSM_Guidance (T : in out Test);
-   procedure Test_Coyote_Stream_Prompt_Contains_CSM2_Guidance
-     (T : in out Test);
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test);
    procedure Test_Default_Prompt_Contains_Date (T : in out Test);
    procedure Test_Agent_Appended (T : in out Test);

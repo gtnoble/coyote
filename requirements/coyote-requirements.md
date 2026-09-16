@@ -1,12 +1,13 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.27
-**Date:** 2026-09-14
-**Status:** Verified — PCR-104 Stage 9 audit closed
+**Version:** 1.28
+**Date:** 2026-09-15
+**Status:** Verified — CSM retirement and Markdown-only baseline
 
-The PCR-101 closure text below remains historical. This revision records the
-implemented localized CSM-2 recovery enhancement verified after that closure.
+PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
+revision records the superseding Markdown-only response and persistence
+baseline and the current qualification evidence.
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -298,16 +299,16 @@ error) to the active frontend when context compaction occurs.
 
 ---
 
-**Historical — REQ-CORE-047 (CSM-1/current; superseded by REQ-CORE-047a–047g)**
+**Historical — REQ-CORE-047 (then-current CSM-1 behavior; superseded by REQ-CORE-047a–047g)**
 When the environment variable `COYOTE_INCREMENTAL_MARKUP` is set to `1`, the
 GUI frontend shall opt into the accepted incremental-markup presentation path.
 When the variable is absent or set to `0`, the existing Markdown presentation
 path shall remain the default. The variable shall affect live GUI assistant
 rendering only; Plain output and existing Markdown history replay shall retain
-their current semantics. Session replay shall use the persisted format of each
+their then-current semantics. Session replay shall use the persisted format of each
 assistant message; missing or unknown format metadata shall mean Markdown.
 
-**Historical — REQ-CORE-048 (CSM-1/current; superseded by REQ-CORE-047a–047g)**
+**Historical — REQ-CORE-048 (then-current CSM-1 behavior; superseded by REQ-CORE-047a–047g)**
 In incremental-markup mode, coyote shall select and record the response format
 application-side before the first assistant text delta. The model shall not be
 relied upon to author authoritative message metadata. Missing format metadata
@@ -318,7 +319,7 @@ syntax and shall prohibit arbitrary HTML/XML and Markdown `$$` display-math
 delimiters. Markdown and Plain mode shall retain the existing Markdown prompt
 guidance.
 
-**Historical — REQ-CORE-049 (CSM-1/current; superseded by REQ-CORE-047a–047g)**
+**Historical — REQ-CORE-049 (then-current CSM-1 behavior; superseded by REQ-CORE-047a–047g)**
 In incremental-markup mode, each provider text delta shall be consumed by the
 incremental parser and applied to the active GUI component immediately, without
 intentional timer-based batching or coalescing. The implementation shall update
@@ -334,118 +335,25 @@ shall fall back to visible escaped or plain source.
 
 ---
 
-#### 3.1.4a CSM-2 Grammar Contract (Verified, PCR-101 Phase 12)
+#### 3.1.4a Current Markdown response and persistence baseline
 
-These normative requirements define the implemented CSM-2 grammar and
-presentation boundary. The CSM-2 parser, semantic model, prompt path,
-persistence/replay path, and GUI presentation are qualified by PCR-101; the
-historical CSM-1/current implementation and records remain separately governed.
+The CSM parser, semantic document, response renderer/presenter/streaming owner,
+format enums and fields, environment toggle, prompt branch, persistence metadata
+writing, replay selection, and RPC response-format event are not part of the
+current product baseline. Assistant output uses direct libcmark-gfm Markdown
+rendering, with native GFM tables and Lasem-backed Presentation MathML display
+blocks retained.
 
-**REQ-CORE-047a** (A/I/T)
-CSM-2 is available only through the existing
-`COYOTE_INCREMENTAL_MARKUP=1` opt-in path. It is a separate XML-like semantic
-language, not Markdown, and Markdown syntax has no CSM-2 meaning. Existing
-format-selection rules, Plain frontend behavior, and default-off Markdown
-behavior remain unchanged. When selected, supported text, inline styles,
-code/code-inline, headings, blockquotes, lists, `br`, and `hr` are presented
-incrementally; complete table and terminal math blocks are realized at complete
-root boundaries or final reconciliation. Recovery is regional: a malformed
-root does not discard or reinterpret valid committed roots before or after it.
-Markdown behavior remains unchanged. Verified by the default-off flag, prompt,
-history, parser/live-renderer, GUI, and complete-suite evidence recorded in the
-Test Plan.
+New assistant JSONL records contain no `format` or `formatVersion` fields. Older
+records containing those fields remain loadable because the fields are ignored;
+their content is handled normally as Markdown during replay. These statements
+specify the current implementation baseline and compatibility disposition; they
+do not add a separate user-visible response-format requirement.
 
-**REQ-CORE-047b** (A/I/T)
-CSM-2 defines only the explicit inline tags `<strong>`, `<em>`, `<del>`,
-`<link>`, `<code-inline>`, and `<br>`. Their semantic styles are distinct from
-literal source text; attributes are restricted to the specified prompt grammar.
-Tag syntax accepts XML-style whitespace between names, attributes, `=`, and
-`>`; closing tags may contain whitespace before `>`. This lexical tolerance
-never trims or normalizes visible text or opaque payloads.
-The live GUI may apply these inline styles and literal code incrementally before
-`End_Text_Block`. Verified by the parser, live-renderer, semantic, prompt, GUI
-parity, and complete-suite tests.
-
-**REQ-CORE-047c** (A/I/T)
-CSM-2 defines the explicit block tags `<p>`, `<h1>` through `<h6>`,
-`<blockquote>`, `<list>`, `<item>`, `<code>`, `<table>`, `<row>`, `<cell>`,
-`<math>`, and `<hr>`. Tables require explicit non-empty `<row>` and `<cell>`
-structure; whitespace-only text between table/row structural tags, including
-whitespace represented by character entities, is ignored, while meaningful
-structural text remains malformed. GFM table syntax, pipe-table
-rules, and Markdown table semantics
-have no CSM-2 meaning. Text, headings, blockquotes, lists, code, `br`, and
-`hr` may be presented incrementally; native tables and terminal MathML are
-realized only at complete boundaries or final reconciliation. Verified by
-parser/table, semantic, live-renderer, GUI, cmark/renderer, and complete-suite
-evidence.
-
-**REQ-CORE-047d** (A/I/T)
-`<math>` contains exactly one complete terminal Presentation MathML `<math>`
-document using the standard namespace
-`http://www.w3.org/1998/Math/MathML`. CSM-2 assigns no semantics to that
-payload. One redundant namespace-qualified nested `<math>` wrapper is accepted
-when it is balanced and surrounded only by whitespace; LaTeX, Content MathML,
-and Markdown display-math delimiters are not
-CSM-2 syntax. The live renderer retains complete math source as deferred state;
-native MathML is realized at a complete boundary or final reconciliation.
-Verified by parser, live-renderer, GUI native MathML, Markdown MathML reference,
-and complete-suite evidence.
-
-**REQ-CORE-047e** (A/I/T)
-CSM-2 recovery is localized at root boundaries and never reinterprets source as
-Markdown. Stage 1 parser recovery preserves every valid committed root before
-and after a malformed root. A malformed ordinary, table, code, math, or other
-structural root becomes one exact `Invalid_Source` region; tables, code, terminal
-MathML, and structural containers are atomic and are not partially typed. The
-parser preserves valid prefixes, defers incomplete constructs split across
-provider deltas, and `Flush` emits the exact remaining incomplete suffix once;
-repeated `Flush` is idempotent. Stage 3 inline recovery preserves the valid
-prefix of a paragraph or heading and represents only the corrupted suffix
-through the root close as escaped, unstyled semantic `Raw_Markup`. Malformed
-inline attributes, unknown inline tags, and invalid entities use this rule;
-crossing inline tags remain root-atomic. No recovery silently discards source or
-reinterprets it as Markdown.
-
-Semantic recovery mutations carry stable `Root_Id` and inclusive source ranges;
-provider-delta boundaries do not change their meaning or ordering. The parser's
-canonical semantic document is the authority for GTK presentation. A persistent
-`Coyote_GUI.Semantic_Response_Presenter` reconciles snapshots into root-stable
-text/native components, marks only affected roots dirty, and removes stale
-provisional widgets during reconciliation. `Coyote_GUI.Streaming_Response` owns
-one parser, document, presenter, and response subtree for the response lifecycle;
-normal completion calls `Flush` and reconciliation directly and does not call
-`Coyote_GUI.Response_Renderer.Replace`. Valid roots, malformed-source
-conservation, focus/selection/scroll/font/zoom state, and provider-delta
-invariance are verified by the focused semantic, Stage 6, presenter, streaming,
-and GUI fixtures recorded in the Test Plan.
-
-**REQ-CORE-047f** (A/I/T)
-CSM-2 GUI presentation parity is qualified against completed native GUI Markdown
-rendering, with native tables and native Presentation MathML retained as the
-reference's native exceptions. Qualified parity covers equivalent visible
-content, semantic styles, document order, spacing policy, selection/copy
-behavior, persistent root identity, provider-delta invariance, malformed-source
-conservation, child-count and dirty-root reconciliation, and
-focus/selection/scroll/font/zoom preservation. Pixel identity is not promised
-by this contract. Scaling qualification covers long streams and repeated
-reset/reuse under the existing REQ-CORE-138 history, widget-count, memory,
-resize, zoom, replay, and reset objectives.
-
-**REQ-CORE-047g** (A/I/T)
-CSM-1/current persisted records remain versionless and retain their existing
-`format: "coyote-stream"` metadata. CSM-2 records retain that field and add
-`formatVersion: 2`; exact version 2 selects CSM-2, while missing or unknown
-metadata selects Markdown. Versionless CSM-1 replay is visible selectable raw
-source because the CSM-1 parser is retired; it is not passed to the CSM-2 parser
-or reinterpreted as Markdown. No persisted-record migration is performed.
-Verified by session-store, history, RPC, and complete-suite evidence.
-
-**REQ-CORE-047h** (D/I/T)
-When Markdown is selected, the system prompt shall not inject active CSM
-response-generation policy through automatically loaded repository agent
-instructions. Ordinary project-specific instructions shall remain available.
-Verified by the system-prompt regression and the dynamic-context test.
+Historical REQ-CORE-047a through REQ-CORE-047h grammar, recovery, prompt,
+presentation, and persistence requirements are superseded by this baseline.
+Their original qualification evidence remains in the dated PCR-101/PCR-103
+records in this specification and in the Test Plan.
 
 #### 3.1.5 Tool Execution
 
@@ -817,25 +725,19 @@ application and optional instance label, shall use spaces around the colon
 separator, and shall not contain transient lifecycle status.
 
 **REQ-CORE-111** (D)
-Completed assistant response blocks in every GUI conversation renderer shall
-be rendered with the supported GitHub Flavored Markdown contract using
-libcmark-gfm. The contract includes headings, bold, italic, inline code,
-fenced code, links, strikethrough, block quotes, bullet and ordered lists,
-nested-list indentation, ordered-list starting values, tables, and thematic
-breaks. A response may be displayed as plain text while it is streaming; the
-completed block shall be converted at block termination. The opt-in CSM-2 path
-may instead present its supported constructs incrementally, while tables and
-terminal math remain deferred until complete boundaries/final reconciliation;
-this does not change Markdown behavior. Conversion failure
-shall preserve the source as visible escaped or plain text. Copying rendered
-text shall not expose Pango markup.
+Completed assistant response blocks in the GTK conversation shall be rendered
+as GitHub Flavored Markdown through libcmark-gfm. The contract includes
+headings, emphasis, inline and fenced code, links, strikethrough, block quotes,
+lists, nested-list indentation, ordered-list starting values, tables, and
+thematic breaks. A response may remain plain text while streaming and shall be
+converted when the completed response block is rendered. Conversion failure
+shall preserve visible source text, and copying rendered text shall not expose
+Pango markup. Native GFM tables remain native GTK tables; standalone display-
+math blocks retain Lasem-backed Presentation MathML realization.
 
-The native component-stack renderer shall apply the same content contract
-to assistant response blocks. The native GTK widget hierarchy remains the sole
-supported GTK conversation presentation. When `COYOTE_INCREMENTAL_MARKUP=1` is
-set, the GUI may use the accepted incremental-markup path for live assistant
-responses; when the variable is absent or `0`, the existing Markdown path is
-used. This flag does not change Plain output or the Markdown replay contract.
+The native GTK widget hierarchy is the supported GUI conversation presentation.
+Plain output remains line-oriented. Legacy `format` and `formatVersion` fields
+in old JSONL are ignored during replay, whose content is handled as Markdown.
 
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
@@ -1144,8 +1046,8 @@ footers. Only the final turn footer shall complete the exchange; an
 intermediate step footer shall remain within it.
 
 **REQ-CORE-134** (D/T/I)
-Each exchange container shall present its semantic content as separate
-native GTK graphic elements. At minimum, the design shall provide distinct
+Each exchange container shall present its content as separate native GTK
+graphic elements. At minimum, the design shall provide distinct
 elements for the user request, thinking output, each assistant response
 block, each tool call, step and final footers, and fork actions. Each
 assistant/tool step shall additionally be enclosed by a visible native GTK
@@ -1193,20 +1095,15 @@ displayed.
 
 **REQ-CORE-138** (D/T/I)
 The GUI component-stack implementation shall preserve incremental streaming:
-text and thinking deltas shall update an existing active component rather
-than create a widget per token. In opt-in CSM-2 mode, ordered live events update
-one stateful text subtree for immediate constructs; deferred tables and terminal
-math are retained until complete boundaries/final reconciliation. Native tool
-cards shall update one existing
-compact summary component per tool call rather than creating raw argument or
-full-result widgets for streamed or completed content. The implementation
-shall preserve the 200-ms first-token display objective, and shall qualify
-widget count, memory, resize, zoom, replay, and repeated session-reset
-behaviour for histories of at least 100, 500, and 2,000 exchanges. CSM-2
-qualification shall additionally establish provider-delta boundary invariance,
-persistent root identity and local reconciliation, malformed-source
-conservation, lifecycle ownership, and preservation of focus, selection, scroll,
-font, and zoom state under the same history and scaling objectives.
+text and thinking deltas shall update an existing active component rather than
+create a widget per token. Native tool cards shall update one existing compact
+summary component per tool call rather than creating raw argument or full-result
+widgets for streamed or completed content. The implementation shall preserve
+the 200-ms first-token display objective, and shall qualify widget count,
+memory, resize, zoom, replay, and repeated session-reset behaviour for histories
+of at least 100, 500, and 2,000 exchanges. Qualification shall establish the
+retained native Markdown, GFM table, display-math, lifecycle, selection, and
+reset behavior under the same history and scaling objectives.
 
 **REQ-CORE-139** (D/T/I)
 The GUI presentation interface shall identify the start of a submitted
@@ -1347,11 +1244,9 @@ troff/nroff man(7) format, installed as `coyote.1` in the appropriate
 man directory.  The man page shall document all command-line arguments,
 environment variables used by coyote (`COYOTE_SESSION_ID`,
 `COYOTE_PARENT_SESSION`, `COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_NO_SESSION`,
-`COYOTE_FRONTEND`, `COYOTE_RECURSION_DEPTH`,
-`COYOTE_INCREMENTAL_MARKUP`), frontend selection and incremental-markup
-behaviour,
-configuration files,
-and basic usage
+`COYOTE_FRONTEND`, and `COYOTE_RECURSION_DEPTH`), frontend selection,
+configuration files, Markdown response rendering, session compatibility, and
+basic usage
 examples.  It shall include the standard man-page sections: NAME,
 SYNOPSIS, DESCRIPTION, OPTIONS, ENVIRONMENT, FILES, EXAMPLES, and
 SEE ALSO.
@@ -1843,10 +1738,12 @@ qualification requirements are identified.
 ## 4. Qualification Provisions
 
 Traceability from requirements to test cases. Current test procedures and
-status are maintained in `plan/test-plan.md`; the current automated baseline is 990 registered tests. CSM-2 semantic streaming and native GUI qualification is current for the `Conversation_Stack` presentation. The
-PCR-101 closure matrix remains historical; current localized-recovery mappings
-and evidence are recorded in `plan/test-plan.md` §6. The table below retains
-historical `TC-*` identifiers.
+status are maintained in `plan/test-plan.md`; the current automated baseline is
+890 registered tests. Current verification covers the Markdown rendering path,
+native GFM tables, Lasem-backed Presentation MathML, session compatibility,
+and the native `Conversation_Stack` presentation. PCR-101, PCR-103, and
+PCR-104 qualification matrices remain historical and superseded. The table below
+retains historical `TC-*` identifiers.
 | Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |
@@ -1881,9 +1778,11 @@ historical `TC-*` identifiers.
 | REQ-CORE-040 | Streaming assistant text | D | TC-040 |
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
-| REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
-| REQ-CORE-047a..047g | Verified CSM-2 opt-in boundary, ordered live-event presentation, immediate/deferred construct timing, terminal Presentation MathML, visible-source fallback, authoritative final reconciliation/rollback, GUI parity, and versioned CSM-1/CSM-2 persistence/replay compatibility | A/I/T | PCR-101 Phase 12 qualification matrix |
-| REQ-CORE-047h | Markdown prompt excludes active CSM policy from auto-loaded project instructions while retaining ordinary context | D/I/T | TC-174; focused system-prompt tests |
+| Historical REQ-CORE-047..049 | Superseded incremental markup and format-selection requirements | D/T/I | Dated historical DEM/PCR records |
+| Historical REQ-CORE-047a..047h | Superseded CSM grammar, presentation, prompt, and persistence requirements | A/I/T | Dated PCR-101/PCR-103 qualification matrix |
+| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables and Presentation MathML, and text-component selection | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Math_Element`; current Markdown-only retirement qualification |
+| REQ-CORE-240–241 | Current session JSONL behavior, including ignoring legacy `format`/`formatVersion` fields during Markdown replay | T | `LLM.Session_Store`, `Coyote_App.History`, `llm_session_store_tests.adb`, `coyote_app_history_tests.adb` |
+
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |
 | REQ-CORE-045 | Auto-retry events displayed | D | TC-045 |
@@ -1985,7 +1884,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Objective | Derived Requirements |
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
-| CSM-2 grammar and GUI parity boundary | REQ-CORE-047a–047g |
+| Markdown response rendering and session compatibility | REQ-CORE-111, REQ-CORE-131, REQ-CORE-240–241 |
 | Multi-frontend support (GTK3 and Plain) | REQ-CORE-001–004, REQ-CORE-110–139 |
 | Streaming output | REQ-CORE-040–049, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–057 |
@@ -2015,9 +1914,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 - CWD: Current Working Directory
 - GFM: GitHub Flavored Markdown
 - UUID: Universally Unique Identifier
-- CSM: Coyote Stream Markup
-- CSM-1/current: the existing incremental-markup implementation and its persisted records
-- CSM-2: the implemented and qualified XML-like semantic-language contract under PCR-101 Phase 12
+- CSM: historical Coyote Stream Markup terminology retained only in dated superseded records
 
 **Excluded scope:**
 - coyote_sqc requirements are in `requirements/coyote-sqc-requirements.md` (SRS-SQC).

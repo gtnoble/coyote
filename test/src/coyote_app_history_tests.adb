@@ -8,29 +8,23 @@ with Coyote_App;
 with Coyote_App.Frontend;
 with Coyote_App.History;
 with LLM.Session_Store;
-with LLM.Types;
 
 package body Coyote_App_History_Tests is
 
    use AUnit.Assertions;
 
-   use type LLM.Types.Message_Format;
-
-   type Format_Array is array (Positive range 1 .. 6)
-     of LLM.Types.Message_Format;
+   type Text_Block_Array is
+     array (Positive range 1 .. 8) of Unbounded_String;
 
    type Recorder is new Coyote_App.Frontend.Instance with record
-      Formats      : Format_Array := (others => LLM.Types.Format_Unspecified);
-      Format_Count : Natural := 0;
+      Text_Block_Count : Natural := 0;
+      Text_Block_Texts : Text_Block_Array := (others => Null_Unbounded_String);
    end record;
 
    overriding procedure Set_Status
      (F : in out Recorder; Text : String);
    overriding procedure Set_Mode
      (F : in out Recorder; Mode : Coyote_App.Frontend.Run_Mode);
-   overriding procedure Set_Response_Format
-     (F      : in out Recorder;
-      Format : LLM.Types.Message_Format);
    overriding procedure Append_Text
      (F : in out Recorder; Text : String);
    overriding procedure End_Text_Block (F : in out Recorder);
@@ -98,22 +92,14 @@ package body Coyote_App_History_Tests is
    end Set_Mode;
 
    overriding
-   procedure Set_Response_Format
-     (F      : in out Recorder;
-      Format : LLM.Types.Message_Format)
-   is
-   begin
-      F.Format_Count := F.Format_Count + 1;
-      if F.Format_Count <= F.Formats'Last then
-         F.Formats (F.Format_Count) := Format;
-      end if;
-   end Set_Response_Format;
-
-   overriding
    procedure Append_Text
      (F : in out Recorder; Text : String) is
    begin
-      null;
+      F.Text_Block_Count := F.Text_Block_Count + 1;
+      if F.Text_Block_Count <= F.Text_Block_Texts'Last then
+         F.Text_Block_Texts (F.Text_Block_Count) :=
+           To_Unbounded_String (Text);
+      end if;
    end Append_Text;
 
    overriding
@@ -230,49 +216,35 @@ package body Coyote_App_History_Tests is
       null;
    end Shutdown;
 
-   function Assistant_JSON
-     (Text   : String;
-      Format : String := "";
-      Version : String := "") return String
-   is
+   function Assistant_JSON (Text : String) return String is
    begin
-      return "{""role"":""assistant"",""content"":[{""type"":""text"",""text"":"""
+      return "{""role"":""assistant"",""content"":[{""type"":""text"""
+        & ",""text"":"""
         & Text
         & """}],""usage"":{},""stopReason"":""stop"""
-        & (if Format'Length > 0
-           then ",""format"":""" & Format & """"
-           else "")
-        & (if Version'Length > 0
-           then ",""formatVersion"":" & Version
-           else "")
         & "}";
    end Assistant_JSON;
 
-   procedure Test_Replay_Uses_Persisted_Assistant_Formats
+   procedure Test_Legacy_Format_Metadata_Ignored
      (T : in out Test)
    is
       pragma Unreferenced (T);
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home : constant String :=
+      Old_Home     : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Old_Markup : constant String :=
-        Ada.Environment_Variables.Value ("COYOTE_INCREMENTAL_MARKUP", "");
-      Old_Markup_Set : constant Boolean :=
-        Ada.Environment_Variables.Exists ("COYOTE_INCREMENTAL_MARKUP");
-      Root : constant String := "/tmp/coyote_history_format_test";
-      Session_Id : Unbounded_String;
-      Path       : Unbounded_String;
-      File       : Ada.Text_IO.File_Type;
-      Frontend : Recorder;
-      State : Coyote_App.App_State;
+      Root         : constant String := "/tmp/coyote_history_format_test";
+      Session_Id   : Unbounded_String;
+      Path         : Unbounded_String;
+      File         : Ada.Text_IO.File_Type;
+      Frontend     : Recorder;
+      State        : Coyote_App.App_State;
    begin
       if Ada.Directories.Exists (Root) then
          Ada.Directories.Delete_Tree (Root);
       end if;
       Ada.Directories.Create_Path (Root & "/.coyote");
       Ada.Environment_Variables.Set ("HOME", Root);
-      Ada.Environment_Variables.Set ("COYOTE_INCREMENTAL_MARKUP", "1");
 
       Session_Id := To_Unbounded_String
         (LLM.Session_Store.Create_Session ("/tmp"));
@@ -283,16 +255,19 @@ package body Coyote_App_History_Tests is
       Ada.Text_IO.Put_Line
         (File, "{""role"":""user"",""content"":[]}");
       Ada.Text_IO.Put_Line
-        (File, Assistant_JSON ("CSM-1", "coyote-stream"));
-      Ada.Text_IO.Put_Line
-        (File, Assistant_JSON ("CSM-2", "coyote-stream", "2"));
+        (File,
+         "{""role"":""assistant"",""format"":""coyote-stream"""
+         & ",""formatVersion"":2,""content"":[{""type"":""text"""
+         & ",""text"":""<p>legacy response</p>""}]"
+         & ",""usage"":{},""stopReason"":""stop""}");
       Ada.Text_IO.Put_Line
         (File, "{""role"":""user"",""content"":[]}");
       Ada.Text_IO.Put_Line (File, Assistant_JSON ("legacy"));
       Ada.Text_IO.Put_Line
-        (File, Assistant_JSON ("unknown-format", "future"));
-      Ada.Text_IO.Put_Line
-        (File, Assistant_JSON ("unknown-version", "coyote-stream", "99"));
+        (File,
+         "{""role"":""assistant"",""format"":""future"",""content"""
+         & ":[{""type"":""text"",""text"":""future-format""}]"
+         & ",""usage"":{},""stopReason"":""stop""}");
       Ada.Text_IO.Close (File);
 
       Coyote_App.History.Render_Session_History
@@ -300,20 +275,18 @@ package body Coyote_App_History_Tests is
          Frontend => Frontend,
          State    => State);
 
-      Assert (Frontend.Format_Count = 6,
-              "replay should select mixed formats and restore live mode");
-      Assert (Frontend.Formats (1) = LLM.Types.Format_Coyote_Stream,
-              "old coyote-stream should remain CSM-1");
-      Assert (Frontend.Formats (2) = LLM.Types.Format_Coyote_Stream_2,
-              "versioned coyote-stream should select CSM-2");
-      Assert (Frontend.Formats (3) = LLM.Types.Format_Markdown,
-              "missing persisted format should select Markdown");
-      Assert (Frontend.Formats (4) = LLM.Types.Format_Markdown,
-              "unknown format should fall back to Markdown");
-      Assert (Frontend.Formats (5) = LLM.Types.Format_Markdown,
-              "unknown version should fall back to Markdown");
-      Assert (Frontend.Formats (6) = LLM.Types.Format_Coyote_Stream_2,
-              "configured CSM-2 mode should be restored after replay");
+      Assert (Frontend.Text_Block_Count = 3,
+              "replay should render all three assistant text blocks");
+      Assert
+        (To_String (Frontend.Text_Block_Texts (1)) =
+           "<p>legacy response</p>",
+         "legacy XML-shaped response is delivered as source content");
+      Assert
+        (To_String (Frontend.Text_Block_Texts (2)) = "legacy",
+         "ordinary legacy text remains visible during replay");
+      Assert
+        (To_String (Frontend.Text_Block_Texts (3)) = "future-format",
+         "unknown format metadata does not suppress replay content");
 
       if Ada.Text_IO.Is_Open (File) then
          Ada.Text_IO.Close (File);
@@ -325,12 +298,6 @@ package body Coyote_App_History_Tests is
          Ada.Environment_Variables.Set ("HOME", Old_Home);
       else
          Ada.Environment_Variables.Clear ("HOME");
-      end if;
-      if Old_Markup_Set then
-         Ada.Environment_Variables.Set
-           ("COYOTE_INCREMENTAL_MARKUP", Old_Markup);
-      else
-         Ada.Environment_Variables.Clear ("COYOTE_INCREMENTAL_MARKUP");
       end if;
    exception
       when others =>
@@ -345,14 +312,8 @@ package body Coyote_App_History_Tests is
          else
             Ada.Environment_Variables.Clear ("HOME");
          end if;
-         if Old_Markup_Set then
-            Ada.Environment_Variables.Set
-              ("COYOTE_INCREMENTAL_MARKUP", Old_Markup);
-         else
-            Ada.Environment_Variables.Clear ("COYOTE_INCREMENTAL_MARKUP");
-         end if;
          raise;
-   end Test_Replay_Uses_Persisted_Assistant_Formats;
+   end Test_Legacy_Format_Metadata_Ignored;
 
    package Caller is new AUnit.Test_Caller (Test);
 
@@ -362,8 +323,8 @@ package body Coyote_App_History_Tests is
    begin
       Result.Add_Test
         (Caller.Create
-           ("Coyote_App.History replays persisted assistant formats",
-            Test_Replay_Uses_Persisted_Assistant_Formats'Access));
+           ("Coyote_App.History ignores legacy format metadata",
+            Test_Legacy_Format_Metadata_Ignored'Access));
       return Result;
    end Suite;
 

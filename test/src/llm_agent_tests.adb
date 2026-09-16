@@ -519,7 +519,6 @@ package body LLM_Agent_Tests is
       LLM.Session_Store.Append_Message
         (Session_Id,
         (Role       => Role,
-          Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),
@@ -1225,7 +1224,6 @@ package body LLM_Agent_Tests is
       LLM.Session_Store.Append_Message
         (To_String (Existing_Id),
          (Role      => LLM.Types.User,
-           Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -1238,7 +1236,6 @@ package body LLM_Agent_Tests is
       LLM.Session_Store.Append_Message
         (To_String (Existing_Id),
          (Role      => LLM.Types.Assistant,
-           Format    => LLM.Types.Format_Unspecified,
           Content   => Reply_Content,
           Tok_Usage =>
             (Input       => 3,
@@ -3504,7 +3501,6 @@ package body LLM_Agent_Tests is
           Text => To_Unbounded_String ("question")));
       History.Append
         ((Role      => LLM.Types.User,
-          Format    => LLM.Types.Format_Unspecified,
           Content   => User_Content,
           Tok_Usage =>
             (others => 0),
@@ -3522,7 +3518,6 @@ package body LLM_Agent_Tests is
          Text  => To_Unbounded_String ("grok answer")));
       History.Append
         ((Role      => LLM.Types.Assistant,
-          Format    => LLM.Types.Format_Unspecified,
           Content   => Grok_Content,
           Tok_Usage =>
             (others => 0),
@@ -3540,7 +3535,6 @@ package body LLM_Agent_Tests is
          Text  => To_Unbounded_String ("luna answer")));
       History.Append
         ((Role      => LLM.Types.Assistant,
-          Format    => LLM.Types.Format_Unspecified,
           Content   => Luna_Content,
           Tok_Usage =>
             (others => 0),
@@ -3555,7 +3549,6 @@ package body LLM_Agent_Tests is
           Origin_Model    => Null_Unbounded_String));
       History.Append
         ((Role      => LLM.Types.Assistant,
-          Format    => LLM.Types.Format_Unspecified,
           Content   => Unknown_Content,
           Tok_Usage =>
             (others => 0),

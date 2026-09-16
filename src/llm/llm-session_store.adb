@@ -23,7 +23,6 @@ package body LLM.Session_Store is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
-   use type LLM.Types.Message_Format;
 
    subtype Byte is Interfaces.Unsigned_8;
    use type Byte;
@@ -212,35 +211,6 @@ package body LLM.Session_Store is
       end case;
    end Stop_Reason_Image;
 
-   function Message_Format_Image
-     (Format : LLM.Types.Message_Format) return String
-   is
-   begin
-      case Format is
-         when LLM.Types.Format_Coyote_Stream
-            | LLM.Types.Format_Coyote_Stream_2 =>
-            return "coyote-stream";
-         when others =>
-            return "markdown";
-      end case;
-   end Message_Format_Image;
-
-   function Message_Format_Value
-     (Text : String; Version : String := "")
-      return LLM.Types.Message_Format
-   is
-   begin
-      if Text = "coyote-stream" and then Version = "2" then
-         return LLM.Types.Format_Coyote_Stream_2;
-      elsif Text = "coyote-stream" and then Version'Length = 0 then
-         --  Existing coyote-stream records are CSM-1/current.
-         return LLM.Types.Format_Coyote_Stream;
-      else
-         --  Missing format and unknown metadata retain the Markdown contract.
-         return LLM.Types.Format_Markdown;
-      end if;
-   end Message_Format_Value;
-
    function Hex_Digit (Value : Natural) return Character is
       Hex_Table : constant String := "0123456789abcdef";
    begin
@@ -351,7 +321,6 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.Compaction_Summary,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -609,10 +578,6 @@ package body LLM.Session_Store is
             Usage.Set_Field ("thinking", Integer (Msg.Tok_Usage.Thinking));
 
             Result.Set_Field ("role", "assistant");
-            Result.Set_Field ("format", Message_Format_Image (Msg.Format));
-            if Msg.Format = LLM.Types.Format_Coyote_Stream_2 then
-               Result.Set_Field ("formatVersion", Integer (2));
-            end if;
             Result.Set_Field ("content", Content_To_Array (Msg));
             declare
                Provider : Unbounded_String;
@@ -664,7 +629,6 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.User,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -696,18 +660,6 @@ package body LLM.Session_Store is
          then
            Get_String_Field (Msg, "model")
          else Default_Model);
-      Format_Version : constant String :=
-        (if not Msg.Has_Field ("formatVersion") then
-            ""
-         elsif Msg.Get ("formatVersion").Kind =
-           GNATCOLL.JSON.JSON_Int_Type
-         then
-            Get_Integer_Image (Msg, "formatVersion")
-         else
-            "?");
-      Format : constant LLM.Types.Message_Format :=
-        Message_Format_Value
-          (Get_String_Field (Msg, "format"), Format_Version);
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
@@ -773,7 +725,6 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.Assistant,
-         Format    => Format,
          Content   => Content,
          Tok_Usage =>
            (Input       => Get_Natural_Field (Usage, "input"),
@@ -829,7 +780,6 @@ package body LLM.Session_Store is
 
       return
         (Role      => LLM.Types.Tool_Result,
-         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage =>
            (others => 0),
@@ -1203,7 +1153,6 @@ package body LLM.Session_Store is
                                  then
                                    Parse_Tool_Result_Message (Envelope, Msg)
                                  else (Role   => LLM.Types.User,
-                                    Format   => LLM.Types.Format_Unspecified,
                                     Content   =>
                                       LLM.Types.Content_Block_Vectors
                                         .Empty_Vector,

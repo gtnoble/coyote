@@ -12,7 +12,7 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered test baseline is 990.
+current code or documentation. The current registered test baseline is 890.
 
 Executables:
 
@@ -99,7 +99,9 @@ The GUI path has the GTK main task plus an agent task. The agent task emits
 `LLM.Events.Agent_Event'Class` values synchronously through
 `Coyote_App.Dispatch.Dispatch_Event`; GUI updates cross the GTK boundary via
 `Coyote_GUI.Updates`, and input crosses back via `Coyote_GUI.Prompt_Queue`.
-All GTK widget operations execute on the GTK main task.
+Assistant output uses direct libcmark-gfm Markdown rendering; native GFM tables
+and Lasem-backed Presentation MathML display blocks remain in the GTK
+conversation stack. All GTK widget operations execute on the GTK main task.
 
 The Plain path is synchronous. `Coyote_App.Plain` owns the agent session,
 replays requested history, dispatches native events through the same dispatcher,
@@ -127,12 +129,13 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 990 registered tests and
-passes 990/990 in approximately 38 seconds on the development host. The
-suite is organized as a root AUnit suite with Core, LLM, SQC, GUI,
-Integration, and final Process-Control domain suites. Live provider tests
-remain opt-in, and real subagent subprocess tests require
-`COYOTE_TEST_SUBAGENT=1`.
+The complete development suite currently contains 890 registered tests and
+passes 890/890 on the development host. Focused results include Markup 6/6,
+Conversation_Stack 28/28, System_Prompt 32/32, Session_Store 26/26, History
+1/1, Agent RPC 27/27, and GUI Updates 9/9. The suite is organized as a root
+AUnit suite with Core, LLM, SQC, GUI, Integration, and final Process-Control
+domain suites. Live provider tests remain opt-in, and real subagent subprocess
+tests require `COYOTE_TEST_SUBAGENT=1`.
 
 ```sh
 cd test && alr build

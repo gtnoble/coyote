@@ -17,14 +17,6 @@ with GNATCOLL.OS.Process;
 
 package body Coyote_App.Utils is
 
-   --  ── Rendering format selection ───────────────────────────────────────
-
-   function Incremental_Markup_Enabled return Boolean is
-   begin
-      return Ada.Environment_Variables.Value
-        ("COYOTE_INCREMENTAL_MARKUP", "") = "1";
-   end Incremental_Markup_Enabled;
-
    --  ── String utilities ─────────────────────────────────────────────────
 
    --  ── Sanitize_UTF8 ─────────────────────────────────────────────────────

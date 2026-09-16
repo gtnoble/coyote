@@ -3,7 +3,54 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
-## PCR-104 — Final CSM-2 semantic renderer migration audit (2026-09-14)
+## PCR-105 — Complete CSM retirement and Markdown-only baseline (2026-09-15)
+
+- **Date reported:** 2026-09-15
+- **Category:** Requirements, Design, Code, Test, Plans, Manuals
+- **Classification:** Corrective action / retirement change
+- **Priority:** 2-Serious
+- **Description:** The verified CSM implementation was removed from the product
+  baseline. The CSM parser, semantic document, response renderer/presenter/
+  streaming owner, response-format enums and fields, environment toggle, prompt
+  branch, persistence metadata writing, replay selection, and RPC
+  response-format event no longer have an operational path. The prior PCR-101,
+  PCR-103, and PCR-104 current-baseline claims are superseded by this record;
+  their factual qualification evidence remains historical.
+- **Affected work products:** SRS-CORE, SDD-CORE, Test Plan, Project Plan,
+  README, man page, Mallard Help, `AGENTS.md`, core/frontend/SQC SDFs, session
+  persistence and replay documentation, and the deleted CSM production/test
+  units and suite registrations.
+- **Corrective action required:** Replace active CSM requirements, design,
+  inventories, traceability, user documentation, and qualification claims with
+  the direct Markdown architecture. Retain native GFM tables and
+  Lasem-backed Presentation MathML display blocks. Document that new assistant
+  JSONL records have no `format` or `formatVersion`; old records containing
+  those fields remain loadable because the fields are ignored and content is
+  handled as Markdown. Preserve dated CSM qualification records as historical
+  evidence rather than deleting or relabeling them as current.
+- **Actions taken (2026-09-15):** Updated governed and user-facing documents;
+  removed stale active unit inventory rows and CSM test-suite references;
+  recorded the retained Markup, Tables, MathML, Math_Element, and
+  Conversation_Stack coverage; and added the current 890-test qualification
+  evidence, including four libcmark regressions for oversized-table truncation,
+  cmark exception cleanup, visible escaped raw-HTML fallback, and image alt
+  text, plus native-stack regressions for configured font inheritance and
+  focus-safe Clear.
+- **Verification:** Current full suite passed 890/890. Focused results passed:
+  Markup 6/6, `Conversation_Stack` 28/28, System_Prompt 32/32,
+  Session_Store 26/26, History 1/1, Agent RPC 27/27, and GUI Updates 9/9.
+  Broad documentation residual scans distinguish historical/superseded CSM
+  references from current Markdown claims; `git diff --check` is required for
+  closure.
+- **Compatibility disposition:** New assistant JSONL omits `format` and
+  `formatVersion`. Legacy records containing either field remain readable; the
+  fields are ignored and their content is handled as Markdown during replay.
+- **Status:** Closed/Implemented and Verified; supersedes the current-baseline
+  portions of PCR-101, PCR-102, PCR-103, and PCR-104 without deleting their
+  factual records.
+- **Date closed:** 2026-09-15
+
+## Historical — PCR-104 — Final CSM-2 semantic renderer migration audit (2026-09-14; superseded by PCR-105)
 
 - **Date reported:** 2026-09-14
 - **Category:** Design, Code, Test, Plans, Manuals
@@ -30,7 +77,7 @@ client-controlled work product gets an entry here.
 - **Status:** Closed/Implemented and Verified
 - **Date closed:** 2026-09-14
 
-## PCR-102 — Default-off CSM policy in project context (2026-09-12)
+## Historical — PCR-102 — Default-off CSM policy in project context (2026-09-12; superseded by PCR-105)
 
 - **Date reported:** 2026-09-12
 - **Category:** Requirements, Design, Code, Test, Plans, Manuals
@@ -3351,19 +3398,19 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 - **Status:** Implemented.
 
 
-## PCR-101 — CSM-2 independent grammar and native GUI parity implementation
+## Historical — PCR-101 — CSM-2 independent grammar and native GUI parity implementation (superseded by PCR-105)
 
 - **Date reported:** 2026-09-12
 - **Category:** Requirements, Design, Code, Test, Plans, Manuals
 - **Classification:** Enhancement/change
 - **Priority:** 2-Serious
-- **Description:** The existing CSM-1/current incremental-markup path is a
+- **Description:** The then-current CSM-1 incremental-markup path was a
   restricted implementation whose block and inline semantics are not the
   independent CSM-2 contract established by REQ-CORE-047a–047g. CSM-2 must
   define and implement its explicit XML-like grammar and provide native GUI
   presentation parity without assigning Markdown syntax or CSM semantics to
   terminal Presentation MathML payloads. The change also requires an explicit
-  compatibility disposition for existing CSM-1/current persisted records and
+  compatibility disposition for then-current CSM-1 persisted records and
   coordinated governed-work-product updates.
 - **Affected work products:** SRS-CORE REQ-CORE-047a–047g, SDD-CORE CSM-2
   design and traceability, the CSM parser and response-format/prompt paths,
@@ -3371,18 +3418,18 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   focused and display-backed AUnit tests, Test Plan and project plans,
   frontend/core SDFs, README and user manuals/Help, and this change log.
 - **Corrective action required:** Implement CSM-2 independently of
-  CSM-1/current while retaining the existing opt-in boundary and default-off
+  then-current CSM-1 while retaining the then-existing opt-in boundary and default-off
   Markdown behavior. Define and realize the explicit inline and block
   vocabulary, explicit table row/cell structure, terminal Presentation
   MathML boundary, malformed/incomplete visible-source fallback, and the
   parity dimensions specified by the normative requirements and design.
-  Define compatibility and replay behavior before any CSM-2 record can
-  replace or reinterpret a CSM-1/current record. Update affected plans,
+  At that historical checkpoint, compatibility and replay behavior had to be defined before any CSM-2 record could
+  replace or reinterpret a then-current CSM-1 record. Update affected plans,
   SDFs, manuals, and traceability as the implementation is qualified.
 - **Actions taken (2026-09-12):** Implemented and qualified the independent
   CSM-2 grammar, typed semantic model, synchronous parser boundary handling,
   shared Markdown-reference presentation, native GUI reconciliation, and
-  versioned persistence/replay compatibility. Retained CSM-1/current records
+  versioned persistence/replay compatibility. Retained then-current CSM-1 records
   as versionless `format: "coyote-stream"` records and did not migrate them.
 - **Verification / closure evidence (2026-09-12):** Controlled requirements
   and design review completed. Production `alr build` and `cd test && alr
@@ -3412,7 +3459,7 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 - **Status:** Closed/Implemented and Verified
 - **Date closed:** 2026-09-12
 
-## PCR-103 — CSM-2 localized malformed-source recovery enhancement (PCR-101 follow-on)
+## Historical — PCR-103 — CSM-2 localized malformed-source recovery enhancement (PCR-101 follow-on; superseded by PCR-105)
 
 - **Date reported:** 2026-09-13
 - **Category:** Requirements, Design, Test, Plans, Manuals
@@ -3430,10 +3477,10 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   `Invalid_Source`, `Raw_Markup`, `Root_Id`/root checkpoints, split-delta
   deferral, exact idempotent `Flush`, and authoritative final
   `Flush`/`Snapshot`/`Response_Renderer.Replace` reconciliation. Preserved the
-  historical PCR-101 closure text and added current recovery-matrix evidence.
+  historical PCR-101 closure text and added the then-current recovery-matrix evidence.
 - **Verification:** Historical pre-Stage-9 evidence: production and test
   development builds succeeded; the complete AUnit suite passed 955/955;
   CSM-2 focused qualification passed 49/49; semantic qualification passed
-  5/5. Current PCR-104 Stage 9 verification is recorded above.
+  5/5. Historical PCR-104 Stage 9 verification was recorded above.
 - **Status:** Closed/Implemented and Verified
 - **Date closed:** 2026-09-13

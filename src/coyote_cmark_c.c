@@ -75,17 +75,6 @@ const char *cmark_shim_get_literal(cmark_node *node)
     return (s != NULL) ? s : "";
 }
 
-const char *cmark_shim_get_url(cmark_node *node)
-{
-    const char *s = cmark_node_get_url(node);
-    return (s != NULL) ? s : "";
-}
-
-const char *cmark_shim_get_fence_info(cmark_node *node)
-{
-    const char *s = cmark_node_get_fence_info(node);
-    return (s != NULL) ? s : "";
-}
 /* ── GFM parse with table extension ─────────────────────────────────────── */
 
 /*  Parse buffer with the GFM "table", "strikethrough", and "autolink"

@@ -150,28 +150,18 @@ one-shot Plain selection applies.
 .B SHELL
 Shell used for prompt-filter commands. Defaults to
 .BR sh .
-.SH "CSM-2 INCREMENTAL MARKUP"
-The environment variable
-.B COYOTE_INCREMENTAL_MARKUP=1
-opts live GUI assistant responses into independent CSM-2. Markdown remains the default format and is unchanged when the variable is unset or set to
-.BR 0 ;
-Plain output is unchanged.
+.SH "MARKDOWN RESPONSES AND SESSION COMPATIBILITY"
+Assistant responses use direct libcmark-gfm Markdown rendering. GitHub
+Flavored Markdown tables are retained as native tables, and standalone
+.B display-math
+blocks use Lasem-backed Presentation MathML in the GUI.
 .PP
-CSM-2 accepts only its explicit, case-sensitive tag grammar. Tables use
-explicit
-.BR <table><row><cell> ... </cell></row></table>
-rows and cells; Markdown pipe tables have no meaning. A
-.B <math>
-block contains one complete terminal Presentation MathML document in the
-standard namespace, and code regions are opaque literal source. Malformed or
-incomplete source remains visible rather than being repaired or reinterpreted
-as Markdown.
-.PP
-Session replay is versioned: CSM-2 records carry
-.B formatVersion: 2 .
-Versionless CSM-1 records are retained for compatibility and displayed as
-visible raw source because the CSM-1 parser is retired. Missing or unknown
-format/version metadata selects Markdown.
+Newly written assistant JSONL records contain no
+.B format
+or
+.B formatVersion
+fields. Older records containing those fields remain loadable: the fields are
+ignored and the stored content is handled as Markdown during replay.
 .SH FILES
 .TP
 .I ~/.coyote/settings.json

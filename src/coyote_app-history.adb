@@ -19,22 +19,6 @@ package body Coyote_App.History is
    use type LLM.Types.Tool_Result_Status;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
-   function Replay_Format (Msg : JSON_Value) return LLM.Types.Message_Format is
-      Format : constant String := Get_String (Msg, "format");
-   begin
-      if Format /= "coyote-stream" then
-         return LLM.Types.Format_Markdown;
-      elsif not Msg.Has_Field ("formatVersion") then
-         return LLM.Types.Format_Coyote_Stream;
-      elsif Msg.Get ("formatVersion").Kind = JSON_Int_Type
-        and then Get_Integer (Msg, "formatVersion") = 2
-      then
-         return LLM.Types.Format_Coyote_Stream_2;
-      else
-         return LLM.Types.Format_Markdown;
-      end if;
-   end Replay_Format;
-
    --  ── Session history replay types ──────────────────────────────────────
    --
    --  Used by Render_Session_History to map tool-call IDs to their results
@@ -469,11 +453,6 @@ package body Coyote_App.History is
                            Turn_Stop :=
                              To_Unbounded_String
                                (Get_String (Msg, "stopReason"));
-                           --  Replay each assistant block using its persisted
-                           --  source format. Missing or unknown metadata is
-                           --  treated as Markdown by the session contract.
-                           Frontend.Set_Response_Format
-                             (Replay_Format (Msg));
                            --  Render content blocks.
                            if Msg.Has_Field ("content")
                              and then Msg.Get ("content").Kind
@@ -633,14 +612,6 @@ package body Coyote_App.History is
                & Ada.Exceptions.Exception_Message (Ex));
             return;
       end;
-
-      --  Restore the live GUI selection after replay.  Replay format is a
-      --  property of each persisted assistant message, not a process-wide
-      --  change to the next provider response.
-      Frontend.Set_Response_Format
-        (if Incremental_Markup_Enabled
-         then LLM.Types.Format_Coyote_Stream_2
-         else LLM.Types.Format_Markdown);
 
       --  Emit footer for the final rendered turn (if any).
       if In_Turn and then Saw_Asst_Text

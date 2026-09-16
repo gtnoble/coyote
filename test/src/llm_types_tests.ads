@@ -13,7 +13,6 @@ package LLM_Types_Tests is
    procedure Test_Compaction_Summary_Role (T : in out Test);
    procedure Test_Usage_Addition (T : in out Test);
    procedure Test_Message_Vectors (T : in out Test);
-   procedure Test_Message_Format_Values (T : in out Test);
 
    procedure Test_Tool_Result_Block_Media_Type (T : in out Test);
 

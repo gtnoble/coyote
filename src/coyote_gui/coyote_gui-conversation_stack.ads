@@ -12,7 +12,6 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
-with Coyote_GUI.Streaming_Response;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -35,12 +34,8 @@ package Coyote_GUI.Conversation_Stack is
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Coyote_GUI.Math_Element.Instance_Access;
-   use type Coyote_GUI.Streaming_Response.Handle;
    type Instance is tagged limited private;
 
-   --  Construct the stack using Main_Window as its focus and transient
-   --  window.  The stack borrows Main_Window; the caller must keep that
-   --  GtkWindow alive and valid for every operation on C.
    procedure Create
      (C           : in out Instance;
       Main_Window :        not null access Gtk.Window.Gtk_Window_Record'Class);
@@ -138,15 +133,6 @@ package Coyote_GUI.Conversation_Stack is
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean);
    function Get_Render_Markdown (C : Instance) return Boolean;
 
-   --  Select the response presentation format.  Legacy stream values remain
-   --  visible as raw source; Coyote Stream 2 uses the incremental renderer.
-   procedure Set_Response_Format
-     (C : in out Instance; Format : Coyote_GUI.Response_Format);
-   function Get_Response_Format (C : Instance) return Coyote_GUI.Response_Format;
-
-   --  Compatibility helper for existing live-mode callers: True selects CSM-2.
-   procedure Set_Incremental_Markup (C : in out Instance; Enabled : Boolean);
-   function Get_Incremental_Markup (C : Instance) return Boolean;
    procedure Set_Font
      (C          : in out Instance;
       Desc       :        Pango.Font.Pango_Font_Description;
@@ -190,36 +176,27 @@ private
    package Table_Cell_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Gtk.Label.Gtk_Label);
 
-   package Response_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Positive,
-      Element_Type => Coyote_GUI.Streaming_Response.Handle);
-
    type Instance is tagged limited record
       Scroll              : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Main_Window         : Gtk.Window.Gtk_Window;
       Host                : Gtk.Box.Gtk_Box;
       Exchange            : Gtk.Box.Gtk_Box;
       Exchanges           : Exchange_Vectors.Vector;
-      Responses           : Response_Vectors.Vector;
-      Active_Response     : Coyote_GUI.Streaming_Response.Handle;
       Step_Frame          : Gtk.Frame.Gtk_Frame;
       Step_Box            : Gtk.Box.Gtk_Box;
       Tool_Flow           : Gtk.Flow_Box.Gtk_Flow_Box;
       Step_Frames         : Frame_Vectors.Vector;
       Active_Text         : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Active_View         : Gtk.Text_View.Gtk_Text_View;
-      Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
-      Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
       Response_Section    : Gtk.Box.Gtk_Box;
       Response_Box        : Gtk.Box.Gtk_Box;
-      Response_Format       : Coyote_GUI.Response_Format :=
-        Coyote_GUI.Markdown_Response;
-      Incremental_Markup    : Boolean := False;
-      Response_Font         : Ada.Strings.Unbounded.Unbounded_String;
-      Text_Views            : Text_View_Vectors.Vector;
-      Math_Elements         : Math_Element_Vectors.Vector;
-      Table_Grids           : Table_Grid_Vectors.Vector;
-      Table_Cells           : Table_Cell_Vectors.Vector;
+      Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
+      Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
+      Response_Font       : Ada.Strings.Unbounded.Unbounded_String;
+      Text_Views          : Text_View_Vectors.Vector;
+      Math_Elements       : Math_Element_Vectors.Vector;
+      Table_Grids         : Table_Grid_Vectors.Vector;
+      Table_Cells         : Table_Cell_Vectors.Vector;
       Math_Scale          : Long_Float                   := 1.0;
       Thinking            : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View       : Gtk.Text_View.Gtk_Text_View;

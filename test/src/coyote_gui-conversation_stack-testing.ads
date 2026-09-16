@@ -35,39 +35,14 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Text_View.Gtk_Text_View;
 
-   function Streaming_Response_View
-     (C : Coyote_GUI.Conversation_Stack.Instance)
-      return Gtk.Text_View.Gtk_Text_View;
    function Active_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
    function Response_Stream_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 
-   function Response_Caption
-     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
-
-   function Streaming_Response_Present
-     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
-
-   function Response_Owner_Count
-     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
-
-   function Active_Response_Present
-     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
-
-   function Stream_Mark_Present
-     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
-
    function Text_Block_Open
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
-
-   function Streaming_Response_Text
-     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
-
-   function Streaming_Response_Invalid_Event_Count
-     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
-
 
    function Response_Box
      (C : Coyote_GUI.Conversation_Stack.Instance) return Gtk.Box.Gtk_Box;

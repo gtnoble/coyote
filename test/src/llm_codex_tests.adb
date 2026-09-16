@@ -595,7 +595,6 @@ package body LLM_Codex_Tests is
           Text => To_Unbounded_String ("Say hello")));
       Messages.Append
         ((Role      => LLM.Types.User,
-          Format    => LLM.Types.Format_Unspecified,
           Content   => Content,
           Tok_Usage =>
             (others => 0),

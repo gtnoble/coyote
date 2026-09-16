@@ -452,6 +452,93 @@ package body Coyote_Cmark_Tests is
          "ordered list items must preserve line boundaries and ordinals");
    end Test_Pango_Markup_List_Line_Boundaries;
 
+   procedure Test_Pango_Markup_Wide_Table_Truncates (T : in out Test) is
+      Input  : Unbounded_String;
+      Result : Unbounded_String;
+      Repeat : Unbounded_String;
+   begin
+      Append (Input, "| C1 |");
+      for Column in 2 .. 17 loop
+         Append
+        (Input,
+         " C" & Ada.Strings.Fixed.Trim
+           (Natural'Image (Column), Ada.Strings.Left) & " |");
+      end loop;
+      Append (Input, ASCII.LF & "| --- |");
+      for Column in 2 .. 17 loop
+         Append (Input, " --- |");
+      end loop;
+      Append (Input, ASCII.LF & "| V1 |");
+      for Column in 2 .. 17 loop
+         Append
+        (Input,
+         " V" & Ada.Strings.Fixed.Trim
+           (Natural'Image (Column), Ada.Strings.Left) & " |");
+      end loop;
+      Result := To_Unbounded_String
+        (Coyote_Renderer.Markup.To_Pango_Markup (To_String (Input)));
+      Repeat := To_Unbounded_String
+        (Coyote_Renderer.Markup.To_Pango_Markup (To_String (Input)));
+      Assert (Length (Result) > 0, "wide table must render without exception");
+      Assert (Result = Repeat, "wide table rendering is deterministic");
+      Assert (Ada.Strings.Fixed.Index (To_String (Result), "C16") > 0,
+              "wide table retains the sixteenth supported column");
+      Assert (Ada.Strings.Fixed.Index (To_String (Result), "C17") = 0,
+              "wide table truncation is deterministic after sixteen columns");
+   end Test_Pango_Markup_Wide_Table_Truncates;
+
+   procedure Test_Pango_Markup_Tall_Table_Truncates (T : in out Test) is
+      Input_Head : constant String :=
+        "| Value |" & ASCII.LF & "| --- |" & ASCII.LF;
+      Input  : Unbounded_String := To_Unbounded_String (Input_Head);
+      Result : Unbounded_String;
+      Repeat : Unbounded_String;
+   begin
+      for Row in 1 .. 256 loop
+         Append
+           (Input,
+            "| R" & Ada.Strings.Fixed.Trim
+              (Natural'Image (Row), Ada.Strings.Left) & " |" & ASCII.LF);
+      end loop;
+      Result := To_Unbounded_String
+        (Coyote_Renderer.Markup.To_Pango_Markup (To_String (Input)));
+      Repeat := To_Unbounded_String
+        (Coyote_Renderer.Markup.To_Pango_Markup (To_String (Input)));
+      Assert (Length (Result) > 0, "tall table must render without exception");
+      Assert (Result = Repeat, "tall table rendering is deterministic");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Result), "R255") > 0,
+         "tall table retains the final supported row");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Result), "R256") = 0,
+         "tall table truncation is deterministic after 256 rows");
+   end Test_Pango_Markup_Tall_Table_Truncates;
+
+   procedure Test_Pango_Markup_Raw_Html_Falls_Back (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String := "<p>legacy response</p>";
+      Markup : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup (Source);
+   begin
+      Assert
+        (Markup = "&lt;p&gt;legacy response&lt;/p&gt;",
+         "unsupported raw HTML remains visible as escaped source");
+   end Test_Pango_Markup_Raw_Html_Falls_Back;
+
+   procedure Test_Pango_Markup_Image_Retains_Alt_Text (T : in out Test) is
+      pragma Unreferenced (T);
+      Markup : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup
+          ("![diagram](https://example.invalid/diagram.png)");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, "diagram") > 0,
+         "direct renderer retains image alt text");
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, "https://") = 0,
+         "direct renderer does not expose an image URL");
+   end Test_Pango_Markup_Image_Retains_Alt_Text;
+
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test) is
       pragma Unreferenced (T);
       Fenced          : constant String                                   :=
@@ -717,6 +804,23 @@ package body Coyote_Cmark_Tests is
         (Coyote_Cmark_Caller.Create
            ("Coyote_Renderer.Markup list line boundaries",
             Coyote_Cmark_Tests.Test_Pango_Markup_List_Line_Boundaries'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup truncates wide tables safely",
+            Coyote_Cmark_Tests.Test_Pango_Markup_Wide_Table_Truncates'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup truncates tall tables safely",
+            Coyote_Cmark_Tests.Test_Pango_Markup_Tall_Table_Truncates'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup preserves raw HTML visibly",
+            Coyote_Cmark_Tests.Test_Pango_Markup_Raw_Html_Falls_Back'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup retains image alt text",
+            Coyote_Cmark_Tests
+              .Test_Pango_Markup_Image_Retains_Alt_Text'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
            ("Coyote.Renderer.MathML protects Markdown code blocks",

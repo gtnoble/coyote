@@ -1,6 +1,32 @@
 # Component Development Log — Core Agent
 
-## 2026-09-13 — CSM-2 localized recovery enhancement (PCR-101 follow-on)
+## 2026-09-15 — Complete CSM retirement and Markdown-only core baseline (PCR-105)
+
+The CSM parser, semantic document, response renderer/presenter/streaming owner,
+response-format enums and fields, environment toggle, prompt branch, persistence
+metadata writing, replay selection, and RPC response-format event have been
+removed from the core operational path. Assistant output uses the legacy direct
+libcmark-gfm Markdown path. Native GFM tables and Lasem-backed Presentation
+MathML display blocks remain retained behavior.
+
+New assistant JSONL records contain no `format` or `formatVersion` fields. Older
+records containing those fields remain loadable because the fields are ignored;
+their content is handled as Markdown during replay. The dated CSM-2 parser,
+semantic, persistence, and recovery entries below remain factual history and are
+superseded where they describe a current implementation.
+
+**Verification:** Current full suite 890/890. Focused results: Markup 6/6,
+System_Prompt 32/32, Session_Store 26/26, History 1/1, Agent RPC 27/27, and
+GUI Updates 9/9. New libcmark regressions cover safe 16-column/256-row table
+truncation, cmark exception cleanup, visible escaped fallback for raw HTML and
+legacy XML-shaped source, and documented image alt-text behavior. No CSM
+operational path remains in the current core baseline.
+
+**Historical boundary:** Older CSM implementation and qualification entries
+below are retained for factual chronology and are superseded by PCR-105; they
+do not describe the current core baseline.
+
+## Historical — 2026-09-13 — CSM-2 localized recovery enhancement (PCR-101 follow-on; superseded by PCR-105)
 
 Implemented the three-stage localized CSM-2 recovery contract. Stage 1 keeps
 valid committed roots typed on both sides of malformed ordinary, table, code,
@@ -21,7 +47,7 @@ complete AUnit suite passed 955/955; CSM-2 focused qualification passed 49/49;
 semantic qualification passed 5/5. Historical PCR-101 closure evidence,
 including 919/919, is preserved unchanged in the records below.
 
-## 2026-09-12 — CSM-2 whitespace-robust parser boundaries
+## Historical — 2026-09-12 — CSM-2 whitespace-robust parser boundaries (superseded by PCR-105)
 
 `Coyote_Renderer.Incremental` now uses quote-aware tag boundaries throughout
 normal and terminal parsing, accepts XML-style whitespace before closing-tag
@@ -34,7 +60,7 @@ also corrected for variable-length digit slices.
 **Verification:** Production and test development builds succeeded. The
 focused CSM-2 qualification passed 36/36 and the complete AUnit suite passed
 940/940 with zero failed assertions or unexpected errors.
-## 2026-09-12 — CSM-2 Live_Event protocol and opaque chunking
+## Historical — 2026-09-12 — CSM-2 Live_Event protocol and opaque chunking (superseded by PCR-105)
 
 `Coyote_Renderer.Incremental` now exposes the live-handler `Feed` overload used
 by the GUI path. It emits ordered `Live_Event` records with monotonic sequence
@@ -52,7 +78,7 @@ passed 934/934 with zero failed assertions or unexpected errors. The existing
 Markdown, Plain, provider, and RPC paths were not changed by this live-rendering
 implementation.
 
-## 2026-09-12 — Default-off CSM prompt isolation
+## Historical — 2026-09-12 — Default-off CSM prompt isolation (superseded by PCR-105)
 
 The static system-prompt renderer already removed the CSM-2 grammar for
 Markdown responses, but the repository `AGENTS.md` was automatically appended
@@ -96,7 +122,7 @@ existing `LLM.Providers.Codex` body-shape tests.
 
 ## Design Rationale
 
-### CSM-2 Phase 10 consolidated qualification (2026-09-12)
+### Historical — CSM-2 Phase 10 consolidated qualification (2026-09-12; superseded by PCR-105)
 
 The Phase 10 qualification package consolidates the approved CSM-2 grammar/parity
 contract into five headless AUnit tests. It checks the positive/negative grammar
@@ -114,11 +140,12 @@ history replay compatibility test passes 1/1. The GUI qualification is recorded
 in `sdfs/frontends.md`. Display-backed tests are explicitly skipped only when no
 GTK display is available.
 
-### CSM-2 Phase 9 version-aware persistence/replay compatibility (2026-09-12)
+### Historical — CSM-2 Phase 9 version-aware persistence/replay compatibility (2026-09-12; superseded by PCR-105)
 
 `LLM.Types.Message_Format` adds `Format_Coyote_Stream_2`; the existing
-`Format_Coyote_Stream` remains the persisted CSM-1/current representation.
-`LLM.Session_Store` writes `formatVersion: 2` only for CSM-2 assistant messages,
+At this historical checkpoint, `Format_Coyote_Stream` was the persisted CSM-1
+representation. `LLM.Session_Store` wrote `formatVersion: 2` only for CSM-2
+assistant messages,
 while preserving the old `format: "coyote-stream"` field and versionless CSM-1
 records. Missing or unrecognized format/version metadata loads as Markdown.
 
@@ -132,7 +159,7 @@ carry the same integer version field.
 **Verification:** Focused session-store, history, and RPC compatibility tests
 pass; production and test development builds pass.
 
-### CSM-2 Phase 8 shared semantic GUI presentation (2026-09-12)
+### Historical — CSM-2 Phase 8 shared semantic GUI presentation (2026-09-12; superseded by PCR-105)
 
 The CSM-2 parser remains independent of Markdown and cmark at the parser layer.
 Its typed `Snapshot` is now presented by `Coyote_GUI.Response_Renderer`, the
@@ -149,7 +176,7 @@ source for fallback/copy.
 semantics, CSM/Markdown GUI parity, malformed reconciliation, cmark/renderer,
 Conversation_Stack, selection, and zoom coverage pass.
 
-### CSM-2 Phase 5 independent table grammar and semantic backend (2026-09-12)
+### Historical — CSM-2 Phase 5 independent table grammar and semantic backend (2026-09-12; superseded by PCR-105)
 
 `Coyote_Renderer.Incremental` now completes the independent CSM-2 table grammar:
 `<table>` accepts only explicit non-empty `<row>` children, rows accept only
@@ -170,7 +197,7 @@ links and code-inline cells, illegal nesting, structural split boundaries,
 incomplete flush, and malformed recovery. Production and test development
 builds and the complete development suite are run for this phase.
 
-### CSM-2 Phase 2 independent parser implementation (2026-09-12)
+### Historical — CSM-2 Phase 2 independent parser implementation (2026-09-12; superseded by PCR-105)
 
 `Coyote_Renderer.Incremental` now lexes and parses the approved CSM-2 XML-like
 vocabulary without Markdown, cmark, GTK, the GFM table extractor, or the
@@ -189,7 +216,7 @@ parser tests pass 11/11; the complete registered development suite passes
 unchanged and pass through the compatibility event facade; migration of
 persisted CSM-1 records remains outside this parser phase.
 
-### CSM-2 tolerant structural recovery (2026-09-12)
+### Historical — CSM-2 tolerant structural recovery (2026-09-12; superseded by PCR-105)
 
 CSM-2 now ignores whitespace-only text between `<table>`/`<row>` structural
 children, while preserving rejection of meaningful structural text. The parser
@@ -200,7 +227,7 @@ CSM source remains retained for inspection and fallback.
 **Verification:** Headless CSM-2 parser and qualification tests pass 34/34;
 GUI CSM-2 qualification includes native redundant-MathML coverage.
 
-### CSM-2 Phase 12 closure evidence (PCR-101, 2026-09-12)
+### Historical — CSM-2 Phase 12 closure evidence (PCR-101, 2026-09-12; superseded by PCR-105)
 
 PCR-101 is closed after controlled requirements/design review and qualification
 of the independent CSM-2 grammar, renderer-neutral semantic model, synchronous
@@ -217,7 +244,7 @@ display). GTK theme color-parser warnings were environmental and did not affect
 assertions.
 
 The compatibility disposition is explicit: CSM-2 assistant records retain
-`format: "coyote-stream"` and add `formatVersion: 2`; versionless CSM-1/current
+`format: "coyote-stream"` and add `formatVersion: 2`; at that historical checkpoint, versionless CSM-1
 records remain readable and are shown as visible selectable raw source because
 the CSM-1 parser is retired, never passed to the CSM-2 parser or reinterpreted
 as Markdown. Missing or unknown metadata falls back to Markdown. Plain and
@@ -225,7 +252,7 @@ default-off Markdown behavior remain unchanged. Pixel identity, clipboard
 retrieval, and unsupported CSM-1 rendering are not claimed. Manual demonstrations
 assigned to other historical procedures remain pending as separately recorded.
 
-## 2026-09-06 — Accepted incremental-markup design
+## Historical — 2026-09-06 — Accepted incremental-markup design (superseded by PCR-105)
 
 `COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag. If the flag is unset or set
 to `0`, Markdown behavior is preserved. `coyote`, not the model, owns format

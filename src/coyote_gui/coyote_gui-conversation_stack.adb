@@ -2,7 +2,6 @@
 --
 --  Project: coyote
 
-with Ada.Containers;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -11,7 +10,6 @@ with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
-with Coyote_GUI.Streaming_Response;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
@@ -32,7 +30,6 @@ with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
-with Gtk.Text_Mark;
 with Gtk.Text_View;
 with Gtk.Widget;
 with Gtk.Css_Provider;
@@ -52,60 +49,11 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
-   use type Ada.Containers.Count_Type;
 
    type Instance_Access is access all Instance;
 
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
-
-   procedure Reset_Response_Handle
-     (Response : in out Coyote_GUI.Streaming_Response.Handle) is
-   begin
-      Response.Reset;
-   end Reset_Response_Handle;
-
-   procedure Delete_Stream_Mark (C : in out Instance) is
-   begin
-      if C.Stream_Mark /= null then
-         if C.Active_Text /= null then
-            C.Active_Text.Delete_Mark (C.Stream_Mark);
-         end if;
-         C.Stream_Mark := null;
-      end if;
-   end Delete_Stream_Mark;
-
-   procedure Discard_Active_Response (C : in out Instance) is
-      Owner_Index : Response_Vectors.Extended_Index;
-   begin
-      if not Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response) then
-         Owner_Index := C.Responses.Find_Index (C.Active_Response);
-         if Owner_Index /= Response_Vectors.No_Index then
-            if Owner_Index /= C.Responses.Last_Index then
-               C.Responses.Replace_Element
-                 (Owner_Index, C.Responses (C.Responses.Last_Index));
-            end if;
-            C.Responses.Update_Element
-              (C.Responses.Last_Index, Reset_Response_Handle'Access);
-            C.Responses.Delete (C.Responses.Last_Index);
-         else
-            C.Active_Response.Reset;
-         end if;
-      elsif C.Response_Section /= null and then C.Step_Box /= null
-        and then C.Response_Section.Get_Parent =
-          Gtk.Widget.Gtk_Widget (C.Step_Box)
-      then
-         C.Step_Box.Remove (C.Response_Section);
-      end if;
-      C.Active_Response.Reset;
-      Delete_Stream_Mark (C);
-      C.Active_Text      := null;
-      C.Active_View      := null;
-      C.Response_Section := null;
-      C.Response_Box     := null;
-      C.Stream_Buf       := Null_Unbounded_String;
-      C.Text_Open        := False;
-   end Discard_Active_Response;
 
    procedure Pack_Response_Block
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
@@ -212,40 +160,12 @@ package body Coyote_GUI.Conversation_Stack is
       Text           :        String;
       Buffer         :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
       View           :    out Gtk.Text_View.Gtk_Text_View;
-      Response_Block    :        Boolean := False;
-      Incremental_Order :        Boolean := False);
-
-   procedure Add_Response_Text
-     (C                 : in out Instance;
-      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Text              :        String;
-      Incremental_Order :        Boolean := False);
-
-   procedure Configure_Text_View
-     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class);
-
-   procedure Pack_Incremental_Response
-     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class);
+      Response_Block :        Boolean := False);
 
    procedure Add_Response_Table
-     (C                 : in out Instance;
-      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table             :        Coyote_Renderer.Tables.Table_Block;
-      Incremental_Order :        Boolean := False);
-
-   procedure Pack_Incremental_Response
-     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
-   is
-   begin
-      Parent.Pack_Start
-        (Child,
-         Expand  => False,
-         Fill    => True,
-         Padding => Response_Block_Padding);
-      Parent.Reorder_Child (Child, -1);
-   end Pack_Incremental_Response;
+     (C      : in out Instance;
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  :        Coyote_Renderer.Tables.Table_Block);
 
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -270,10 +190,9 @@ package body Coyote_GUI.Conversation_Stack is
    end Apply_Response_Style;
 
    procedure Add_Response_Text
-     (C                 : in out Instance;
-      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Text              :        String;
-      Incremental_Order :        Boolean := False)
+     (C      : in out Instance;
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Text   :        String)
    is
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
       View   : Gtk.Text_View.Gtk_Text_View;
@@ -285,9 +204,7 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       Add_Text_Element
-        (C, Parent, "", Text, Buffer, View,
-         Response_Block => True,
-         Incremental_Order => Incremental_Order);
+        (C, Parent, "", Text, Buffer, View, Response_Block => True);
       Apply_Response_Style (View);
       if C.Render_Markdown then
          Buffer.Set_Text ("");
@@ -300,10 +217,9 @@ package body Coyote_GUI.Conversation_Stack is
    end Add_Response_Text;
 
    procedure Add_Response_Table
-     (C                 : in out Instance;
-      Parent            :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table             :        Coyote_Renderer.Tables.Table_Block;
-      Incremental_Order :        Boolean := False)
+     (C      : in out Instance;
+      Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  :        Coyote_Renderer.Tables.Table_Block)
    is
       Grid : Gtk.Grid.Gtk_Grid;
    begin
@@ -336,6 +252,17 @@ package body Coyote_GUI.Conversation_Stack is
                            else Coyote_Renderer.Tables.Unspecified);
                      begin
                         Gtk.Label.Gtk_New (Cell);
+                        if Length (C.Response_Font) > 0 then
+                           declare
+                              Font_Description :
+                                Pango.Font.Pango_Font_Description :=
+                                Pango.Font.From_String
+                                  (To_String (C.Response_Font));
+                           begin
+                              Cell.Modify_Font (Font_Description);
+                              Pango.Font.Free (Font_Description);
+                           end;
+                        end if;
                         if Row.Is_Header then
                            Cell.Set_Markup
                              ("<b>" & Coyote_Renderer.Markup.Xml_Escape (Text)
@@ -367,11 +294,7 @@ package body Coyote_GUI.Conversation_Stack is
             end;
          end loop;
       end if;
-      if Incremental_Order then
-         Pack_Incremental_Response (Parent, Grid);
-      else
-         Pack_Response_Block (Parent, Grid);
-      end if;
+      Pack_Response_Block (Parent, Grid);
       C.Table_Grids.Append (Grid);
    end Add_Response_Table;
 
@@ -519,10 +442,10 @@ package body Coyote_GUI.Conversation_Stack is
       Markup :=
         To_Unbounded_String
           (Coyote_Renderer.Markup.To_Pango_Markup (Full_Text));
-      C.Active_Text.Get_Start_Iter (Start_Iter);
+      C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
-      C.Active_Text.Get_Start_Iter (Start_Iter);
+      C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       if Length (Markup) > 0 then
          C.Active_Text.Insert_Markup (Start_Iter, To_String (Markup), -1);
       else
@@ -680,10 +603,9 @@ package body Coyote_GUI.Conversation_Stack is
       Parent         :        not null access Gtk.Box.Gtk_Box_Record'Class;
       Caption        :        String;
       Text           :        String;
-      Buffer            :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View              :    out Gtk.Text_View.Gtk_Text_View;
-      Response_Block    :        Boolean := False;
-      Incremental_Order :        Boolean := False)
+      Buffer         :    out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View           :    out Gtk.Text_View.Gtk_Text_View;
+      Response_Block :        Boolean := False)
    is
       Section : Gtk.Box.Gtk_Box;
       Label   : Gtk.Label.Gtk_Label;
@@ -712,9 +634,7 @@ package body Coyote_GUI.Conversation_Stack is
          Buffer.Set_Text (Text);
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
-      if Incremental_Order then
-         Pack_Incremental_Response (Parent, Section);
-      elsif Response_Block then
+      if Response_Block then
          Pack_Response_Block (Parent, Section);
       else
          Parent.Pack_Start
@@ -732,12 +652,11 @@ package body Coyote_GUI.Conversation_Stack is
       Main_Window :        not null access Gtk.Window.Gtk_Window_Record'Class)
    is
    begin
-      C.Main_Window := Gtk.Window.Gtk_Window (Main_Window);
       if C.Scroll /= null then
          return;
       end if;
+      C.Main_Window := Gtk.Window.Gtk_Window (Main_Window);
       Gtk.Scrolled_Window.Gtk_New (C.Scroll);
-
       C.Scroll.Set_Policy (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
       Gtk.Box.Gtk_New_Vbox (C.Host, Homogeneous => False, Spacing => 6);
       C.Scroll.Add (C.Host);
@@ -811,13 +730,17 @@ package body Coyote_GUI.Conversation_Stack is
       return To_String (C.Selected_Tool);
    end Selected_Tool_Id;
 
+   --  Delete Stream_Mark from Active_Text when both are live and clear its
+   --  reference otherwise.
+   procedure Delete_Stream_Mark (C : in out Instance);
+
    procedure Clear (C : in out Instance) is
    begin
       if C.Main_Window /= null then
          C.Main_Window.Set_Focus (null);
       end if;
       C.Selected_Tool := Null_Unbounded_String;
-      Discard_Active_Response (C);
+      Delete_Stream_Mark (C);
       if not C.Math_Elements.Is_Empty then
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
@@ -825,16 +748,6 @@ package body Coyote_GUI.Conversation_Stack is
             Coyote_GUI.Math_Element.Detach (C.Math_Elements (Math_Index).all);
          end loop;
       end if;
-      if not C.Responses.Is_Empty then
-         for Response_Index in
-           C.Responses.First_Index .. C.Responses.Last_Index
-         loop
-            C.Responses.Update_Element
-              (Response_Index, Reset_Response_Handle'Access);
-         end loop;
-      end if;
-      C.Responses.Clear;
-      C.Active_Response.Reset;
       if not C.Exchanges.Is_Empty then
          for Exchange_Index in reverse
            C.Exchanges.First_Index .. C.Exchanges.Last_Index
@@ -862,9 +775,9 @@ package body Coyote_GUI.Conversation_Stack is
       C.Tool_Flow        := null;
       C.Active_Text      := null;
       C.Active_View      := null;
-      --  Clear presentation state without changing the selected response
-      --  format; the next live turn must use the same configured renderer.
-      C.Math_Scale         := 1.0;
+      C.Response_Section := null;
+      C.Response_Box     := null;
+      C.Math_Scale       := 1.0;
       C.Stream_Buf       := Null_Unbounded_String;
       C.Thinking         := null;
       C.Thinking_View    := null;
@@ -899,6 +812,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Append (C.Exchange);
       C.Step_Frames.Clear;
       C.Tools.Clear;
+      C.Response_Box := null;
       Add_Text_Element
         (C, C.Exchange, Caption, Text, C.Active_Text, C.Active_View);
       C.Has_Exchange   := True;
@@ -913,114 +827,47 @@ package body Coyote_GUI.Conversation_Stack is
    end Begin_Request;
 
    procedure Append_Text (C : in out Instance; Text : String) is
-      Scroll_Adjustment : Gtk.Adjustment.Gtk_Adjustment;
-      Saved_Value       : Gdouble := 0.0;
-      Saved_Upper       : Gdouble := 0.0;
-      Saved_Page_Size   : Gdouble := 0.0;
-      Was_At_Bottom     : Boolean := False;
    begin
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
       end if;
       Ensure_Active_Step (C);
-      if C.Incremental_Markup and then C.Scroll /= null then
-         Scroll_Adjustment := C.Scroll.Get_Vadjustment;
-         if Scroll_Adjustment /= null then
-            Saved_Value := Scroll_Adjustment.Get_Value;
-            Saved_Upper := Scroll_Adjustment.Get_Upper;
-            Saved_Page_Size := Scroll_Adjustment.Get_Page_Size;
-            Was_At_Bottom :=
-              Saved_Value >=
-                Gdouble'Max
-                  (Scroll_Adjustment.Get_Lower,
-                   Saved_Upper - Saved_Page_Size) - 1.0;
-         end if;
-      end if;
       if not C.Text_Open then
+         Add_Text_Element
+           (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
          C.Text_Open  := True;
          C.Stream_Buf := Null_Unbounded_String;
-         if C.Incremental_Markup then
-            C.Active_Response := Coyote_GUI.Streaming_Response.New_Handle;
-            C.Responses.Append (C.Active_Response);
-            Coyote_GUI.Streaming_Response.Begin_Response
-              (C.Active_Response, C.Step_Box.all'Access);
-            C.Active_Text :=
-              Coyote_GUI.Streaming_Response.Active_Buffer
-                (C.Active_Response);
-            C.Active_View :=
-              Coyote_GUI.Streaming_Response.Active_View
-                (C.Active_Response);
-            if Length (C.Response_Font) > 0 then
-               declare
-                  Font_Description : Pango.Font.Pango_Font_Description :=
-                    Pango.Font.From_String (To_String (C.Response_Font));
-               begin
-                  Coyote_GUI.Streaming_Response.Set_Font
-                    (C.Active_Response, Font_Description, C.Math_Scale);
-                  Pango.Font.Free (Font_Description);
-               end;
-            end if;
-            if C.Main_Window /= null then
-               C.Main_Window.Set_Focus (C.Active_View);
-            end if;
-         else
-            Add_Text_Element
-              (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
-            declare
-               Iter : Gtk.Text_Iter.Gtk_Text_Iter;
-            begin
-               C.Active_Text.Get_End_Iter (Iter);
-               C.Stream_Mark :=
-                 C.Active_Text.Create_Mark ("", Iter, Left_Gravity => True);
-            end;
-         end if;
-      end if;
-      if C.Incremental_Markup then
-         Coyote_GUI.Streaming_Response.Append (C.Active_Response, Text);
-         C.Active_Text :=
-           Coyote_GUI.Streaming_Response.Active_Buffer
-             (C.Active_Response);
-         C.Active_View :=
-           Coyote_GUI.Streaming_Response.Active_View
-             (C.Active_Response);
-      else
-         Append (C.Stream_Buf, Text);
-         Append_Buffer (C.Active_Text, Text);
-      end if;
-      if C.Incremental_Markup and then Scroll_Adjustment /= null then
          declare
-            Lower : constant Gdouble := Scroll_Adjustment.Get_Lower;
-            Upper : constant Gdouble := Scroll_Adjustment.Get_Upper;
-            Page_Size : constant Gdouble := Scroll_Adjustment.Get_Page_Size;
-            Maximum : constant Gdouble :=
-              Gdouble'Max (Lower, Upper - Page_Size);
-            Target : constant Gdouble :=
-              (if Was_At_Bottom then Maximum
-               else Gdouble'Min (Gdouble'Max (Saved_Value, Lower), Maximum));
+            Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
-            Scroll_Adjustment.Set_Value (Target);
+            C.Active_Text.Get_End_Iter (Iter);
+            C.Stream_Mark :=
+              C.Active_Text.Create_Mark ("", Iter, Left_Gravity => True);
          end;
       end if;
+      Append (C.Stream_Buf, Text);
+      Append_Buffer (C.Active_Text, Text);
    end Append_Text;
 
+   --  Delete Stream_Mark from Active_Text when both are live and clear its
+   --  reference otherwise.
+   procedure Delete_Stream_Mark (C : in out Instance) is
+   begin
+      if C.Stream_Mark /= null then
+         if C.Active_Text /= null then
+            C.Active_Text.Delete_Mark (C.Stream_Mark);
+         end if;
+         C.Stream_Mark := null;
+      end if;
+   end Delete_Stream_Mark;
+
    procedure End_Text_Block (C : in out Instance) is
-      Full_Text          : constant String :=
-        Sanitize_UTF8 (To_String (C.Stream_Buf));
-      Has_Display_Math   : Boolean := False;
-      Has_Native_Blocks  : Boolean := False;
+      Full_Text : constant String := Sanitize_UTF8 (To_String (C.Stream_Buf));
+      Has_Display_Math  : Boolean         := False;
+      Has_Native_Blocks : Boolean         := False;
    begin
       if C.Text_Open then
-         if C.Incremental_Markup then
-            Coyote_GUI.Streaming_Response.Finish (C.Active_Response);
-            C.Active_Text :=
-              Coyote_GUI.Streaming_Response.Active_Buffer
-                (C.Active_Response);
-            C.Active_View :=
-              Coyote_GUI.Streaming_Response.Active_View
-                (C.Active_Response);
-            C.Active_Response.Reset;
-         end if;
-         if C.Render_Markdown and then not C.Incremental_Markup then
+         if C.Render_Markdown then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
             Has_Native_Blocks :=
               Has_Display_Math
@@ -1028,15 +875,12 @@ package body Coyote_GUI.Conversation_Stack is
                 .Blocks
                 .Is_Empty;
          end if;
-         if not C.Incremental_Markup and then C.Active_Text /= null then
-            Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
-            Delete_Stream_Mark (C);
-         end if;
-         if not C.Incremental_Markup then
-            C.Stream_Buf := Null_Unbounded_String;
-         end if;
+         Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
+         Delete_Stream_Mark (C);
+         C.Stream_Buf  := Null_Unbounded_String;
          C.Text_Open   := False;
          if Has_Native_Blocks and then C.Response_Section /= null then
+            Delete_Stream_Mark (C);
             declare
                Old_View  : constant Gtk.Text_View.Gtk_Text_View :=
                  C.Active_View;
@@ -1050,14 +894,10 @@ package body Coyote_GUI.Conversation_Stack is
                   end if;
                   C.Response_Section.Remove (Old_View);
                end if;
-               Delete_Stream_Mark (C);
                C.Active_Text := null;
                C.Active_View := null;
                Build_Response_Elements (C, Full_Text);
             end;
-         end if;
-         if C.Main_Window /= null and then C.Active_View /= null then
-            C.Main_Window.Set_Focus (C.Active_View);
          end if;
       end if;
    end End_Text_Block;
@@ -1403,6 +1243,9 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Has_Exchange then
          return;
       end if;
+      if C.Text_Open then
+         End_Text_Block (C);
+      end if;
       Ensure_Active_Step (C);
 
       Gtk.Box.Gtk_New_Vbox (Footer_Box, Homogeneous => False, Spacing => 2);
@@ -1520,11 +1363,6 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Main_Window /= null then
          Focus := C.Main_Window.Get_Focus;
          if Focus /= null then
-            if C.Active_View /= null
-              and then Focus = Gtk.Widget.Gtk_Widget (C.Active_View)
-            then
-               return C.Active_View;
-            end if;
             for View of C.Text_Views loop
                if Focus = Gtk.Widget.Gtk_Widget (View) then
                   return View;
@@ -1642,46 +1480,6 @@ package body Coyote_GUI.Conversation_Stack is
       return C.Render_Markdown;
    end Get_Render_Markdown;
 
-   procedure Set_Response_Format
-     (C : in out Instance; Format : Coyote_GUI.Response_Format)
-   is
-   begin
-      if C.Text_Open then
-         Discard_Active_Response (C);
-      else
-         pragma Assert
-           (Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response));
-      end if;
-      C.Response_Format := Format;
-      C.Render_Markdown := Format = Coyote_GUI.Markdown_Response;
-      C.Incremental_Markup :=
-        Format = Coyote_GUI.Coyote_Stream_2_Response;
-   end Set_Response_Format;
-
-   function Get_Response_Format
-     (C : Instance) return Coyote_GUI.Response_Format
-   is
-   begin
-      return C.Response_Format;
-   end Get_Response_Format;
-
-   procedure Set_Incremental_Markup
-     (C       : in out Instance;
-      Enabled : Boolean)
-   is
-   begin
-      Set_Response_Format
-        (C,
-         (if Enabled
-          then Coyote_GUI.Coyote_Stream_2_Response
-          else Coyote_GUI.Markdown_Response));
-   end Set_Incremental_Markup;
-
-   function Get_Incremental_Markup (C : Instance) return Boolean is
-   begin
-      return C.Incremental_Markup;
-   end Get_Incremental_Markup;
-
    procedure Set_Font
      (C          : in out Instance;
       Desc       :        Pango.Font.Pango_Font_Description;
@@ -1689,19 +1487,8 @@ package body Coyote_GUI.Conversation_Stack is
    is
    begin
       C.Response_Font := To_Unbounded_String (Pango.Font.To_String (Desc));
-      if C.Active_View /= null
-        and then not (C.Incremental_Markup
-                      and then not Coyote_GUI.Streaming_Response.Is_Empty
-                        (C.Active_Response))
-      then
+      if C.Active_View /= null then
          C.Active_View.Modify_Font (Desc);
-      end if;
-      if C.Incremental_Markup
-        and then not Coyote_GUI.Streaming_Response.Is_Empty
-          (C.Active_Response)
-      then
-         Coyote_GUI.Streaming_Response.Set_Font
-           (C.Active_Response, Desc, Math_Scale);
       end if;
       if not C.Text_Views.Is_Empty then
          for Text_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
@@ -1726,21 +1513,6 @@ package body Coyote_GUI.Conversation_Stack is
          loop
             Coyote_GUI.Math_Element.Set_Scale
               (C.Math_Elements (Math_Index).all, C.Math_Scale);
-         end loop;
-      end if;
-      if not C.Responses.Is_Empty then
-         for Response_Index in
-           C.Responses.First_Index .. C.Responses.Last_Index
-         loop
-            if not Coyote_GUI.Streaming_Response.Is_Empty
-              (C.Responses (Response_Index))
-              and then
-                (Coyote_GUI.Streaming_Response.Is_Empty (C.Active_Response)
-                 or else C.Responses (Response_Index) /= C.Active_Response)
-            then
-               Coyote_GUI.Streaming_Response.Set_Font
-                 (C.Responses (Response_Index), Desc, C.Math_Scale);
-            end if;
          end loop;
       end if;
    end Set_Font;

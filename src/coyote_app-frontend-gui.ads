@@ -24,7 +24,6 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Glib;                  use Glib;
 with LLM.Agent;
-with LLM.Types;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
@@ -83,11 +82,6 @@ package Coyote_App.Frontend.GUI is
       Kind : Coyote_App.Frontend.Request_Kind := Coyote_App.Frontend.Prompt);
 
    overriding procedure Append_Text (F : in out Instance; Text : String);
-
-   overriding
-   procedure Set_Response_Format
-     (F      : in out Instance;
-      Format : LLM.Types.Message_Format);
 
    overriding procedure End_Text_Block (F : in out Instance);
 

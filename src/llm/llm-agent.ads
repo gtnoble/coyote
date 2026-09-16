@@ -37,17 +37,13 @@ package LLM.Agent is
    --  COYOTE_SUBAGENT_MODEL environment value (the GUI's ephemeral
    --  coordinator override) is selected before the persistent subagent
    --  default from ~/.coyote/settings.json.
-   --  Response_Format is selected by coyote before streaming; providers and
-   --  model-authored content do not override it.
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";
       Agent         :        String  := "";
       No_Tools      :        Boolean := False;
       Session_Id    :        String  := "";
-      Subagent      :        Boolean := False;
-      Response_Format :        LLM.Types.Message_Format :=
-        LLM.Types.Format_Markdown);
+      Subagent      :        Boolean := False);
    --  Send Prompt as a new user turn and run the full agentic loop until
    --  the agent completes, is aborted, or raises an error.
    --
@@ -230,8 +226,6 @@ private
       History                 : LLM.Types.Message_Vectors.Vector;
       Subagent_Mode           : Boolean := False;
       No_Tools                : Boolean := False;
-      Response_Format         : LLM.Types.Message_Format :=
-        LLM.Types.Format_Markdown;
       Thinking : LLM.Providers.Thinking_Level           := LLM.Providers.Off;
       Sandbox_Profile         : aliased Ada.Strings.Unbounded.Unbounded_String;
       Abort_State             : aliased LLM.Tools.Abort_Flag;

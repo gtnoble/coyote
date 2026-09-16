@@ -284,12 +284,6 @@ package Coyote_App.Utils is
       Is_Step           : Boolean := False)
       return String;
 
-   --  ── Rendering format selection ───────────────────────────────────────
-
-   --  Return True only when the opt-in incremental-markup flag is exactly 1.
-   --  Other values, including an absent variable, preserve Markdown.
-   function Incremental_Markup_Enabled return Boolean;
-
    --  ── JSON field helpers ────────────────────────────────────────────────
 
    --  Return True when a tool argument is an implementation default or an

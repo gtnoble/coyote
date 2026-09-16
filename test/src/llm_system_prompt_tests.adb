@@ -4,7 +4,6 @@ with Ada.Calendar.Formatting;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with LLM.System_Prompt;
-with LLM.Types;
 with AUnit.Test_Caller;
 
 package body LLM_System_Prompt_Tests is
@@ -149,137 +148,6 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "Unicode math symbols directly") > 0,
          "inline-math guidance should require Unicode math symbols");
    end Test_Default_Prompt_Contains_Display_Math_Guidance;
-
-   procedure Test_Default_Prompt_Excludes_CSM_Guidance
-     (T : in out Test)
-   is
-      pragma Unreferenced (T);
-
-      P : constant String :=
-        LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
-   begin
-      Assert
-        (Ada.Strings.Fixed.Index (P, "# Coyote Stream Markup (CSM-2)") = 0,
-         "Markdown prompt should exclude CSM grammar guidance");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P, "The selected response format is Markdown.") > 0,
-         "Markdown prompt should identify its response format");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "$$") > 0,
-         "Markdown prompt should retain display-math delimiters");
-   end Test_Default_Prompt_Excludes_CSM_Guidance;
-
-   procedure Test_Coyote_Stream_Prompt_Contains_CSM2_Guidance
-     (T : in out Test)
-   is
-      pragma Unreferenced (T);
-
-      P         : constant String :=
-        LLM.System_Prompt.Build_System_Prompt
-          (Cwd            => Test_Cwd,
-           Response_Format => LLM.Types.Format_Coyote_Stream_2);
-      CSM_Start : constant Natural :=
-        Ada.Strings.Fixed.Index (P, "Coyote Stream Markup (CSM-2)");
-      CSM_End   : constant Natural :=
-        Ada.Strings.Fixed.Index (P, "Available tools:", CSM_Start);
-   begin
-      Assert
-        (Ada.Strings.Fixed.Index (P, "Coyote Stream Markup (CSM-2)") > 0,
-         "CSM prompt should identify CSM-2 guidance");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P, "The selected response format is Markdown.") = 0,
-         "CSM prompt should exclude the Markdown response guard");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P, "independent,") > 0
-         and then Ada.Strings.Fixed.Index (P, "not Markdown") > 0,
-         "CSM prompt should define an independent non-Markdown language");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P, "<p>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<h1>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<h6>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<blockquote>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<list>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<item>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<code>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<table>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<row>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<cell>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<math>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<hr>") > 0,
-         "CSM prompt should list every block tag");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "<strong>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<em>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<del>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<link>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<code-inline>") > 0
-         and then Ada.Strings.Fixed.Index (P, "<br>") > 0,
-         "CSM prompt should list every inline tag");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P, "<table><row><cell>...</cell></row></table>") > 0,
-         "CSM prompt should require explicit table rows and cells");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P, "Pipe-separated rows have no CSM-2 meaning") > 0,
-         "CSM prompt should reject pipe-table syntax");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "kind=""ordered""") > 0
-         and then Ada.Strings.Fixed.Index (P, "start=""N""") > 0
-         and then Ada.Strings.Fixed.Index (P, "url=""...""") > 0
-         and then Ada.Strings.Fixed.Index (P, "lang=""...""") > 0
-         and then Ada.Strings.Fixed.Index (P, "align=""left""") > 0
-         and then Ada.Strings.Fixed.Index
-           (P, "xmlns=""http://www.w3.org/1998/Math/MathML""") > 0,
-         "CSM prompt should define legal attributes");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "Tags are case-sensitive") > 0
-         and then Ada.Strings.Fixed.Index (P, "opaque literal regions") > 0
-         and then Ada.Strings.Fixed.Index
-           (P, "CSM tags and entity references inside them are not parsed")
-           > 0,
-         "CSM prompt should define case and opaque-code rules");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "escape `&`") > 0
-         and then Ada.Strings.Fixed.Index (P, "`&amp;`") > 0
-         and then Ada.Strings.Fixed.Index (P, "`&lt;`") > 0
-         and then Ada.Strings.Fixed.Index (P, "`&gt;`") > 0
-         and then Ada.Strings.Fixed.Index (P, "`&quot;`") > 0,
-         "CSM prompt should define XML escaping");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "remains visible source") > 0,
-         "CSM prompt should require visible malformed source");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "silently discarded") > 0,
-         "CSM prompt should prohibit silently discarding malformed source");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "not reinterpreted as Markdown") > 0,
-         "CSM prompt should prohibit Markdown reinterpretation");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "Presentation MathML") > 0
-         and then Ada.Strings.Fixed.Index
-           (P, "http://www.w3.org/1998/Math/MathML") > 0
-         and then Ada.Strings.Fixed.Index
-           (P, "display-math delimiter syntax") > 0,
-         "CSM prompt should define terminal Presentation MathML");
-      Assert
-        (Ada.Strings.Fixed.Index (P (CSM_Start .. CSM_End - 1), "GFM") = 0,
-         "CSM prompt should exclude GFM guidance");
-      Assert
-        (Ada.Strings.Fixed.Index
-           (P (CSM_Start .. CSM_End - 1), "Markdown table") = 0,
-         "CSM prompt should exclude Markdown-table guidance");
-      Assert
-        (Ada.Strings.Fixed.Index (P (CSM_Start .. CSM_End - 1), "$$") = 0,
-         "CSM prompt should exclude $$ guidance");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "{{") = 0,
-         "CSM prompt should not contain template markers");
-   end Test_Coyote_Stream_Prompt_Contains_CSM2_Guidance;
 
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test) is
       pragma Unreferenced (T);
@@ -556,17 +424,6 @@ package body LLM_System_Prompt_Tests is
            ("LLM.System_Prompt default prompt contains math guidance",
             LLM_System_Prompt_Tests
               .Test_Default_Prompt_Contains_Display_Math_Guidance'
-              Access));
-      Result.Add_Test
-        (LLM_Sys_Prompt_Caller.Create
-           ("LLM.System_Prompt Markdown prompt excludes CSM guidance",
-            LLM_System_Prompt_Tests.Test_Default_Prompt_Excludes_CSM_Guidance'
-              Access));
-      Result.Add_Test
-        (LLM_Sys_Prompt_Caller.Create
-           ("LLM.System_Prompt CSM-2 prompt has independent grammar",
-            LLM_System_Prompt_Tests
-              .Test_Coyote_Stream_Prompt_Contains_CSM2_Guidance'
               Access));
       Result.Add_Test
         (LLM_Sys_Prompt_Caller.Create
