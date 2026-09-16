@@ -1194,6 +1194,25 @@ response on the first request (CURLE_RECV_ERROR path) and asserts the
 Auto_Retry_Start event fires and the second attempt streams normally;
 full suite passes 870/870.
 
+## 2026-09-16 — Per-tool completion events for GUI tool cards
+
+**Problem:** Tool cards remained `Running` until every tool in an agent batch
+finished because `LLM.Agent` emitted all `Tool_Execution_End_Event` values only
+after the batch result barrier released.
+
+**Implementation:** `Results_Store` now records completion indices and exposes
+a protected `Take_Next` entry. Worker tasks publish results there, while the
+agent task consumes them and emits each terminal tool event immediately. The
+agent still persists tool-result messages in original call order, preserves
+run-group barriers, and centralizes cancellation-note/result-text finalization.
+The frontend and conversation stack required no changes.
+
+**Verification:** Production and test development builds succeed. Parallel,
+abort, sequential, and group-order focused tests pass; the parallel regression
+uses a slow first tool and fast second tool and verifies completion events are
+fast-first while persisted results remain call-ordered. The complete suite was
+run with the updated test filter after focused verification.
+
 ## 2026-09-12 — GUI-configurable libcurl low-speed timeout and retry
 
 The GUI Preferences dialog now exposes `httpLowSpeedTimeSeconds`, persisted in

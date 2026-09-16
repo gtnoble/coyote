@@ -188,8 +188,12 @@ package body LLM.Agent is
      array (Positive range <>)
      of Tool_Result_Slot;
 
-     --  Fork-join barrier.  Each worker calls Set once; the main task calls
-     --  Wait_All to block until every slot is filled.
+   type Completion_Order_Array is
+     array (Positive range <>) of Positive;
+
+     --  Workers publish completed slots; the main task consumes them in
+     --  completion order so terminal events are emitted without a batch
+     --  barrier delaying faster tools.
    protected type Results_Store (Count : Positive) is
       procedure Set
         (Index      : Positive;
@@ -197,16 +201,18 @@ package body LLM.Agent is
          Media_Type : Ada.Strings.Unbounded.Unbounded_String;
          Is_Error   : Boolean;
          Status     : LLM.Tools.Shell.Execution_Status);
-      entry Wait_All;
-      function Get (Index : Positive) return Tool_Result_Slot;
+      entry Take_Next
+        (Index  : out Positive;
+         Result : out Tool_Result_Slot);
    private
-      Slots      : Tool_Result_Slot_Array (1 .. Count);
-      Done_Count : Natural := 0;
+      Slots            : Tool_Result_Slot_Array (1 .. Count);
+      Completion_Order : Completion_Order_Array (1 .. Count);
+      Done_Count       : Natural := 0;
+      Taken_Count      : Natural := 0;
    end Results_Store;
    --  Executes one tool call and stores the result in a Results_Store.
    task type Worker_Task
      (Store           : not null access Results_Store;
-      Registry        : not null access Tool_Control_Registry;
       Abort_Flg       : access LLM.Tools.Abort_Flag;
       Context_Window  : Natural;
       Sandbox_Profile : access constant Ada.Strings.Unbounded.Unbounded_String)
@@ -229,18 +235,20 @@ package body LLM.Agent is
             Media_Type  => Media_Type,
             Is_Error    => Is_Error,
             Status      => Status);
-         Done_Count    := Done_Count + 1;
+         Done_Count                    := Done_Count + 1;
+         Completion_Order (Done_Count) := Index;
       end Set;
 
-      entry Wait_All when Done_Count = Count is
+      entry Take_Next
+        (Index  : out Positive;
+         Result : out Tool_Result_Slot)
+        when Taken_Count < Done_Count
+      is
       begin
-         null;
-      end Wait_All;
-
-      function Get (Index : Positive) return Tool_Result_Slot is
-      begin
-         return Slots (Index);
-      end Get;
+         Taken_Count := Taken_Count + 1;
+         Index        := Completion_Order (Taken_Count);
+         Result       := Slots (Index);
+      end Take_Next;
 
    end Results_Store;
 
@@ -251,7 +259,6 @@ package body LLM.Agent is
       Media_Type  : Ada.Strings.Unbounded.Unbounded_String;
       Is_Error    : Boolean                          := False;
       Status      : LLM.Tools.Shell.Execution_Status := LLM.Tools.Shell.Failed;
-      Cancel_Note : Ada.Strings.Unbounded.Unbounded_String;
    begin
       accept Start (Index : Positive; Tool : Pending_Tool) do
          My_Index := Index;
@@ -305,7 +312,6 @@ package body LLM.Agent is
             Status     := LLM.Tools.Shell.Failed;
       end;
 
-      Registry.Complete (To_String (My_Tool.Tool_Call_Id), Cancel_Note);
       Store.Set (My_Index, Result, Media_Type, Is_Error, Status);
    end Worker_Task;
 
@@ -2148,8 +2154,8 @@ package body LLM.Agent is
                   N : constant Positive := Positive (Pending_Tools.Length);
                   type Worker_Access is access all Worker_Task;
 
-                  --  Collect results in a persistent array so Phase 3
-                  --  can read them regardless of execution strategy.
+                  --  Collect results in a persistent array so the persisted
+                  --  tool-result batch can retain original call order.
                   Results : Tool_Result_Slot_Array (1 .. N) :=
                     (others =>
                        (others => <>));
@@ -2158,6 +2164,61 @@ package body LLM.Agent is
                   All_Have_Groups : constant Boolean :=
                     (for all I in 1 .. N =>
                        Pending_Tools.Element (I - 1).Run_Group > 0);
+                  Stats_Footer : constant String :=
+                    Format_Session_Cost_Footer (S, Builder.Tok_Usage);
+                  Results_Text : array (1 .. N) of Unbounded_String :=
+                    (others => Null_Unbounded_String);
+                  Finalized : array (1 .. N) of Boolean :=
+                    (others => False);
+
+                  procedure Complete_Tool
+                    (Index   : Positive;
+                     Slot    : Tool_Result_Slot;
+                     Is_Last : Boolean)
+                  is
+                     Tool_Block : constant Pending_Tool :=
+                       Pending_Tools.Element (Index - 1);
+                     Cancel_Note : Unbounded_String;
+                     Stored_Text : Unbounded_String;
+                  begin
+                     S.Tool_Registry.Complete
+                       (To_String (Tool_Block.Tool_Call_Id), Cancel_Note);
+                     Stored_Text := Slot.Result_Text;
+                     if Slot.Status = LLM.Tools.Shell.Aborted
+                       and then Length (Cancel_Note) > 0
+                     then
+                        Append
+                          (Stored_Text,
+                           ASCII.LF
+                           & "[user message accompanying cancellation]"
+                           & ASCII.LF & To_String (Cancel_Note));
+                     end if;
+                     if Is_Last and then Stats_Footer'Length > 0
+                       and then Length (Slot.Media_Type) = 0
+                     then
+                        Append (Stored_Text, ASCII.LF & Stats_Footer);
+                     end if;
+                     Results_Text (Index) := Stored_Text;
+                     Finalized (Index)    := True;
+
+                     declare
+                        End_Event : LLM.Events.Tool_Execution_End_Event :=
+                          (LLM.Events.Agent_Event with
+                           Tool_Call_Id => Tool_Block.Tool_Call_Id,
+                           Tool_Name    => Tool_Block.Tool_Name,
+                           Result_Text  => Stored_Text,
+                           Media_Type   => Slot.Media_Type,
+                           Is_Error     => Slot.Is_Error,
+                           Is_Timed_Out =>
+                             Slot.Status = LLM.Tools.Shell.Timed_Out,
+                           Is_Cancelled =>
+                             Slot.Status = LLM.Tools.Shell.Aborted);
+                     begin
+                        Emit (On_Event, End_Event);
+                     end;
+                     S.Tool_Registry.Unregister
+                       (To_String (Tool_Block.Tool_Call_Id));
+                  end Complete_Tool;
                begin
                   if not Has_Assistant_Message (Builder) then
                      raise Constraint_Error
@@ -2284,7 +2345,6 @@ package body LLM.Agent is
                                        Workers (W) :=
                                          new Worker_Task
                                            (Store => Store'Unchecked_Access,
-                                            Registry => S.Tool_Registry'Access,
                                             Abort_Flg       =>
                                               S.Tool_Flags (Tool_Index)'
                                                 Unchecked_Access,
@@ -2316,10 +2376,25 @@ package body LLM.Agent is
                                     end;
                                  end loop;
 
-                                 Store.Wait_All;
-
                                  for W in 1 .. Group_Size loop
-                                    Results (Slot_Map (W)) := Store.Get (W);
+                                    declare
+                                       Completed_Index : Positive;
+                                       Slot             : Tool_Result_Slot;
+                                    begin
+                                       Store.Take_Next
+                                         (Index  => Completed_Index,
+                                          Result => Slot);
+                                       declare
+                                          Global_Index : constant Positive :=
+                                            Slot_Map (Completed_Index);
+                                       begin
+                                          Results (Global_Index) := Slot;
+                                          Complete_Tool
+                                            (Index   => Global_Index,
+                                             Slot    => Slot,
+                                             Is_Last => Global_Index = N);
+                                       end;
+                                    end;
                                  end loop;
                               end;
                            end;
@@ -2332,9 +2407,10 @@ package body LLM.Agent is
                         exit when S.Abort_State.Requested;
 
                         declare
-                           Store  : aliased Results_Store (Count => 1);
-                           Worker : Worker_Access;
-                           Tool   : constant Pending_Tool :=
+                           Store           : aliased Results_Store (Count => 1);
+                           Worker          : Worker_Access;
+                           Completed_Index : Positive;
+                           Tool            : constant Pending_Tool :=
                              Pending_Tools.Element (I - 1);
                         begin
                            if S.Tool_Flags (I).Requested then
@@ -2349,7 +2425,6 @@ package body LLM.Agent is
                               Worker :=
                                 new Worker_Task
                                   (Store           => Store'Unchecked_Access,
-                                   Registry        => S.Tool_Registry'Access,
                                    Abort_Flg       =>
                                      S.Tool_Flags (I)'Unchecked_Access,
                                    Context_Window  =>
@@ -2366,95 +2441,50 @@ package body LLM.Agent is
                                  Emit (On_Event, Running_Event);
                               end;
                               Worker.Start (Index => 1, Tool => Tool);
-                              Store.Wait_All;
-                              Results (I) := Store.Get (1);
+                              Store.Take_Next
+                                (Index  => Completed_Index,
+                                 Result => Results (I));
+                              Complete_Tool
+                                (Index   => I,
+                                 Slot    => Results (I),
+                                 Is_Last => I = N);
                            end if;
                         end;
                      end loop;
                   end if;
 
-                  --  Phase 3: emit Tool_Execution_End_Event for every
-                  --  tool in the original call order, then build the
-                  --  Tool_Messages batch.  The stats footer is appended
-                  --  to the persisted result text of the last tool.
-                  declare
-                     Stats_Footer : constant String :=
-                       Format_Session_Cost_Footer (S, Builder.Tok_Usage);
-                  begin
-                     for I in 1 .. N loop
-                        declare
-                           Tool_Block   : constant Pending_Tool :=
-                             Pending_Tools.Element (I - 1);
-                           Slot : constant Tool_Result_Slot := Results (I);
-                           End_Event : LLM.Events.Tool_Execution_End_Event :=
-                             (LLM.Events.Agent_Event with
-                              Tool_Call_Id => Tool_Block.Tool_Call_Id,
-                              Tool_Name    => Tool_Block.Tool_Name,
-                              Result_Text  => Slot.Result_Text,
-                              Media_Type   => Slot.Media_Type,
+                  --  Build the persisted result batch in original call order.
+                  for I in 1 .. N loop
+                     if not Finalized (I) then
+                        Complete_Tool
+                          (Index   => I,
+                           Slot    => Results (I),
+                           Is_Last => I = N);
+                     end if;
+                     declare
+                        Slot : constant Tool_Result_Slot := Results (I);
+                     begin
+                        Tool_Messages.Append
+                          (Tool_Result_Message
+                             (Tool_Call_Id =>
+                                To_String
+                                  (Pending_Tools.Element (I - 1).Tool_Call_Id),
+                              Result_Text  => To_String (Results_Text (I)),
                               Is_Error     => Slot.Is_Error,
-                              Is_Timed_Out =>
-                                Slot.Status = LLM.Tools.Shell.Timed_Out,
-                              Is_Cancelled =>
-                                Slot.Status = LLM.Tools.Shell.Aborted);
-                           Cancel_Note  :
-                             Ada.Strings.Unbounded.Unbounded_String;
-                           Message_Text : constant String :=
-                             (if
-                                Slot.Status = LLM.Tools.Shell.Aborted
-                              then
-                                S.Tool_Registry.Message
-                                  (To_String (Tool_Block.Tool_Call_Id))
-                              else "");
-                           Stored_Text  : constant String :=
-                             Ada.Strings.Unbounded.To_String (Slot.Result_Text)
-                             &
-                             (if Message_Text'Length > 0 then
-                                ASCII.LF
-                                & "[user message accompanying cancellation]"
-                                & ASCII.LF & Message_Text
-                              else "")
-                             &
-                             (if
-                                I = N and then Stats_Footer'Length > 0
-                                and then
-                                  Ada.Strings.Unbounded.Length
-                                    (Slot.Media_Type)
-                                  = 0
-                              then ASCII.LF & Stats_Footer
-                              else "");
-                        begin
-                           S.Tool_Registry.Complete
-                             (To_String (Tool_Block.Tool_Call_Id),
-                              Cancel_Note);
-                           End_Event.Result_Text :=
-                             To_Unbounded_String (Stored_Text);
-                           Emit (On_Event, End_Event);
-                           Tool_Messages.Append
-                             (Tool_Result_Message
-                                (Tool_Call_Id =>
-                                   Ada.Strings.Unbounded.To_String
-                                     (Tool_Block.Tool_Call_Id),
-                                 Result_Text  => Stored_Text,
-                                 Is_Error     => Slot.Is_Error,
-                                 Status       =>
-                                   (case Slot.Status is
-                                      when LLM.Tools.Shell.Completed =>
-                                        LLM.Types.Result_Success,
-                                      when LLM.Tools.Shell.Timed_Out =>
-                                        LLM.Types.Result_Timed_Out,
-                                      when LLM.Tools.Shell.Aborted =>
-                                        LLM.Types.Result_Cancelled,
-                                      when LLM.Tools.Shell.Failed =>
-                                        LLM.Types.Result_Error),
-                                 Media_Type   =>
-                                   Ada.Strings.Unbounded.To_String
-                                     (Slot.Media_Type)));
-                           S.Tool_Registry.Unregister
-                             (To_String (Tool_Block.Tool_Call_Id));
-                        end;
-                     end loop;
-                  end;
+                              Status       =>
+                                (case Slot.Status is
+                                   when LLM.Tools.Shell.Completed =>
+                                     LLM.Types.Result_Success,
+                                   when LLM.Tools.Shell.Timed_Out =>
+                                     LLM.Types.Result_Timed_Out,
+                                   when LLM.Tools.Shell.Aborted =>
+                                     LLM.Types.Result_Cancelled,
+                                   when LLM.Tools.Shell.Failed =>
+                                     LLM.Types.Result_Error),
+                              Media_Type   =>
+                                To_String (Slot.Media_Type)));
+                     end;
+                  end loop;
 
                   Append_Pending_Message (Reply);
                   Append_Pending_Batch (Tool_Messages);

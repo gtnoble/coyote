@@ -345,16 +345,28 @@ package body LLM_Parallel_Tools_Tests is
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
       Old_Key        : constant String   :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set    : constant Boolean  :=
+      Url_Was_Set     : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url        : constant String   :=
+      Old_Url         : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+      First_End_Id    : Unbounded_String := Null_Unbounded_String;
+      Second_End_Id   : Unbounded_String := Null_Unbounded_String;
 
-      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
-         pragma Unreferenced (E);
+      procedure Record_Event (E : LLM.Events.Agent_Event'Class) is
       begin
-         null;
-      end Ignore_Event;
+         if E in LLM.Events.Tool_Execution_End_Event then
+            declare
+               Event : constant LLM.Events.Tool_Execution_End_Event :=
+                 LLM.Events.Tool_Execution_End_Event (E);
+            begin
+               if Length (First_End_Id) = 0 then
+                  First_End_Id := Event.Tool_Call_Id;
+               elsif Length (Second_End_Id) = 0 then
+                  Second_End_Id := Event.Tool_Call_Id;
+               end if;
+            end;
+         end if;
+      end Record_Event;
 
       Two_Tool_SSE : constant String := Tool_Call_SSE_Payload
           ((1 =>
@@ -362,13 +374,13 @@ package body LLM_Parallel_Tools_Tests is
                 (Tool_Call_Id   => "call_1",
                  Tool_Name      => "shell",
                  Arguments_Json =>
-                   "{""command"":""sleep 0.4"",""run_group"":1}"),
+                   "{""command"":""sleep 0.7"",""run_group"":1}"),
             2 =>
               Tool_Call_Def
                 (Tool_Call_Id   => "call_2",
                  Tool_Name      => "shell",
                  Arguments_Json =>
-                   "{""command"":""sleep 0.4"",""run_group"":1}")));
+                   "{""command"":""true"",""run_group"":1}")));
 
       Request_Count : aliased Natural := 0;
 
@@ -403,7 +415,7 @@ package body LLM_Parallel_Tools_Tests is
             Assert
               (Ada.Strings.Fixed.Index
                  (String'(Get (Msgs, 1).Get ("content").Get),
-                  "Run two sleeps in parallel")
+                  "Run a slow and fast tool in parallel")
                = 1,
                "Parallel req 1: wrong prompt");
             Append (Res.Body_Data, Two_Tool_SSE);
@@ -452,8 +464,8 @@ package body LLM_Parallel_Tools_Tests is
       Before := Ada.Calendar.Clock;
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
-         Prompt   => "Run two sleeps in parallel",
-         On_Event => Ignore_Event'Access);
+         Prompt   => "Run a slow and fast tool in parallel",
+         On_Event => Record_Event'Access);
       After := Ada.Calendar.Clock;
 
       Srv.Stop;
@@ -463,8 +475,12 @@ package body LLM_Parallel_Tools_Tests is
         LLM.Session_Store.Load_Messages (LLM.Agent.Session_Id (Agent_Session));
 
       Assert
-        (Ada.Calendar."-" (After, Before) < 0.75,
-         "Two 0.4 s tools should run concurrently (expected < 0.75 s)");
+        (Ada.Calendar."-" (After, Before) < 0.95,
+         "Grouped tools should run concurrently (expected < 0.95 s)");
+      Assert
+        (To_String (First_End_Id) = "call_2"
+         and then To_String (Second_End_Id) = "call_1",
+         "Tool end events should be emitted in completion order");
       Assert
         (Messages.Length = 5,
          "Expected user, assistant tool batch, two results, and reply");
@@ -1028,7 +1044,7 @@ package body LLM_Parallel_Tools_Tests is
    begin
       Result.Add_Test
         (LLM_Parallel_Caller.Create
-           ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
+           ("Parallel batch: fast tool end event precedes slow tool",
             LLM_Parallel_Tools_Tests.Test_Parallel_Tools_Run_Concurrently'
               Access));
       Result.Add_Test

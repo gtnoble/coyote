@@ -15,8 +15,8 @@ package LLM_Parallel_Tools_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
-   --  Two bash "sleep 0.4" tools run in parallel; elapsed wall time must be
-   --  less than 0.75 s and both results must appear in the correct order.
+   --  A slow and fast grouped tool run concurrently; the fast tool's end
+   --  event must be emitted first while persisted results retain call order.
    procedure Test_Parallel_Tools_Run_Concurrently (T : in out Test);
 
    --  Abort is requested while two tools are running; the agent ends with
