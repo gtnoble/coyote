@@ -964,11 +964,13 @@ honour the `cache_control` field (for example GitHub Copilot). Responses
 providers use `prompt_cache_breakpoint` instead.
 
 **`Customize_Request` (non-overriding):** Maps `Thinking_Level` to the
-OpenAI `reasoning.effort` request field (`"low"`, `"medium"`, `"high"`).
-When `Thinking` is `Off` this is a no-op.  This base implementation applies
-to all providers routing through the OpenAI completions wire format —
-GitHub Copilot (OpenAI-wire path) and OpenCode Go (OpenAI-wire path).
-Descendants may override to add provider-specific logic.
+OpenAI Chat Completions `reasoning_effort` request field (`"low"`,
+`"medium"`, `"high"`).  When `Thinking` is `Off` this is a no-op.  This
+base implementation applies to all providers routing through the OpenAI
+Chat Completions wire format — GitHub Copilot (OpenAI-wire path) and
+OpenCode Go (OpenAI-wire path).  The nested `reasoning.effort` object is
+reserved for the separate OpenAI Responses provider.  Descendants may
+override to add provider-specific logic.
 ---
 
 ### 5.6a `LLM.Providers.OpenAI_Responses`

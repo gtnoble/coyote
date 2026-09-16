@@ -42,7 +42,9 @@ package body LLM_OpenAI_Completions_Tests is
       Messages      :        LLM.Types.Message_Vectors.Vector;
       Tools_Json    :        String;
       Max_Tokens    :        Positive;
-      Handler       :        LLM.Providers.Event_Handler)
+      Handler       :        LLM.Providers.Event_Handler;
+      Thinking      :        LLM.Providers.Thinking_Level :=
+        LLM.Providers.Off)
    is
    begin
       Retry_Loop :
@@ -53,7 +55,7 @@ package body LLM_OpenAI_Completions_Tests is
                System_Prompt => System_Prompt,
                Messages      => Messages,
                Tools_Json    => Tools_Json,
-               Thinking      => LLM.Providers.Off,
+               Thinking      => Thinking,
                Max_Tokens    => Max_Tokens,
                Handler       => Handler);
             exit Retry_Loop;
@@ -1001,6 +1003,12 @@ package body LLM_OpenAI_Completions_Tests is
          Body_JS := Parsed.Value;
          Assert
            (Boolean'(Body_JS.Get ("stream").Get), "stream should be true");
+         Assert
+           (Json_String (Body_JS.Get ("reasoning_effort")) = "high",
+            "Chat Completions should use flat reasoning_effort");
+         Assert
+           (not Body_JS.Has_Field ("reasoning"),
+            "Chat Completions must not use nested reasoning");
          Res.Status := 200;
          Append (Res.Body_Data, SSE_Payload);
       end Handle_Request;
@@ -1031,7 +1039,8 @@ package body LLM_OpenAI_Completions_Tests is
          Messages      => Messages,
          Tools_Json    => "[]",
          Max_Tokens    => 64,
-         Handler       => On_Event'Access);
+         Handler       => On_Event'Access,
+         Thinking      => LLM.Providers.High);
 
       Srv.Stop;
       Server_Stopped := True;

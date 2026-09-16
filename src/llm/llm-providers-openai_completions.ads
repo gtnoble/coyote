@@ -47,8 +47,10 @@ package LLM.Providers.OpenAI_Completions is
 
    --  Inject standard reasoning-effort configuration into the request.
    --
-   --  Maps Thinking_Level to the OpenAI reasoning.effort field ("low",
-   --  "medium", "high").  When Thinking is Off this is a no-op.
+   --  Maps Thinking_Level to the OpenAI Chat Completions
+   --  reasoning_effort field ("low", "medium", "high").  When Thinking is
+   --  Off this is a no-op.  The nested reasoning object belongs to the
+   --  separate OpenAI Responses protocol.
    --  Descendants may override to add provider-specific logic.
    procedure Customize_Request
      (P        : in out Provider;

@@ -119,13 +119,7 @@ package body LLM.Providers.OpenAI_Completions is
          return;
       end if;
 
-      declare
-         Reasoning : constant GNATCOLL.JSON.JSON_Value :=
-           GNATCOLL.JSON.Create_Object;
-      begin
-         Reasoning.Set_Field ("effort", Effort);
-         Request.Set_Field ("reasoning", Reasoning);
-      end;
+      Request.Set_Field ("reasoning_effort", Effort);
    end Customize_Request;
 
    function Endpoint_Url (Base_Url : String) return String is

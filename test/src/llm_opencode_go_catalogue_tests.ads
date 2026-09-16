@@ -9,6 +9,9 @@ package LLM_OpenCode_Go_Catalogue_Tests is
    --  Verify that known models get their correct wire format.
    procedure Test_Wire_Format_MiniMax_Anthropic (T : in out Test);
 
+   --  Verify that Qwen models use the documented Anthropic wire format.
+   procedure Test_Wire_Format_Qwen_Anthropic (T : in out Test);
+
    --  Verify that OpenAI-completions models get the correct wire format.
    procedure Test_Wire_Format_DeepSeek_OpenAI (T : in out Test);
 

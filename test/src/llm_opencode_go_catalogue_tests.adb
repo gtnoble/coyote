@@ -31,6 +31,25 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
          "MiniMax-M2.7 (mixed case) should use Anthropic messages wire");
    end Test_Wire_Format_MiniMax_Anthropic;
 
+   procedure Test_Wire_Format_Qwen_Anthropic (T : in out Test) is
+      pragma Unreferenced (T);
+
+      procedure Check (Model_Id : String) is
+      begin
+         Assert
+           (LLM.Providers.OpenCode_Go.Catalogue.Wire_Format_For (Model_Id)
+            = LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire,
+            Model_Id & " should use Anthropic messages wire format");
+      end Check;
+   begin
+      Check ("qwen3.8-max");
+      Check ("qwen3.8-flash");
+      Check ("qwen3.7-max");
+      Check ("qwen3.7-plus");
+      Check ("qwen3.6-plus");
+      Check ("QWEN3.7-PLUS");
+   end Test_Wire_Format_Qwen_Anthropic;
+
    procedure Test_Wire_Format_DeepSeek_OpenAI (T : in out Test) is
       pragma Unreferenced (T);
    begin
@@ -141,6 +160,12 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
             "OpenCode Go should use bearer authentication");
          Assert (Parsed.Success, "OpenCode Go request body should be JSON");
          Captured   := Parsed.Value;
+         Assert
+           (String'(Captured.Get ("reasoning_effort").Get) = "high",
+            "OpenCode Go Chat request should use flat reasoning_effort");
+         Assert
+           (not Captured.Has_Field ("reasoning"),
+            "OpenCode Go Chat request must not use nested reasoning");
          Res.Status := 200;
          Append
            (Res.Body_Data,
@@ -176,7 +201,7 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
            "[{""type"":""function"",""function"":{"
            & """name"":""shell"",""description"":""Run shell"","
            & """parameters"":{""type"":""object""}}}]",
-         Thinking      => LLM.Providers.Off,
+         Thinking      => LLM.Providers.High,
          Max_Tokens    => 16,
          Handler       => null);
 
@@ -415,6 +440,11 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
         (LLM_OpenCode_Go_Catalogue_Caller.Create
            ("LLM.OpenCode_Go.Catalogue MiniMax uses Anthropic wire",
             LLM_OpenCode_Go_Catalogue_Tests.Test_Wire_Format_MiniMax_Anthropic'
+              Access));
+      Result.Add_Test
+        (LLM_OpenCode_Go_Catalogue_Caller.Create
+           ("LLM.OpenCode_Go.Catalogue Qwen models use Anthropic wire",
+            LLM_OpenCode_Go_Catalogue_Tests.Test_Wire_Format_Qwen_Anthropic'
               Access));
       Result.Add_Test
         (LLM_OpenCode_Go_Catalogue_Caller.Create

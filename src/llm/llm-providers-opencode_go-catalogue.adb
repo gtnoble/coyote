@@ -38,9 +38,14 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
          return OpenAI_Responses_Wire;
       end if;
 
-      --  MiniMax models use the Anthropic /v1/messages endpoint.
+      --  MiniMax and Qwen models use the Anthropic /v1/messages endpoint.
       if Lower_Id = "minimax-m2.5" or else Lower_Id = "minimax-m2.7"
         or else Lower_Id = "minimax-m3"
+        or else Lower_Id = "qwen3.8-max"
+        or else Lower_Id = "qwen3.8-flash"
+        or else Lower_Id = "qwen3.7-max"
+        or else Lower_Id = "qwen3.7-plus"
+        or else Lower_Id = "qwen3.6-plus"
       then
          return Anthropic_Messages_Wire;
       end if;

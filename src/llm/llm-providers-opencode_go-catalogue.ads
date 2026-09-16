@@ -49,8 +49,8 @@ package LLM.Providers.OpenCode_Go.Catalogue is
    --  Determine the wire format for a given model identifier.
    --
    --  Models using the Anthropic /v1/messages endpoint are MiniMax M2.5,
-   --  M2.7, and M3; Responses models use /v1/responses; all other models
-   --  use OpenAI /chat/completions.
+   --  M2.7, M3, and Qwen3.6--3.8 models; Responses models use
+   --  /v1/responses; all other models use OpenAI /chat/completions.
    function Wire_Format_For (Model_Id : String) return Wire_Kind;
 
 end LLM.Providers.OpenCode_Go.Catalogue;
