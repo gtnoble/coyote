@@ -141,6 +141,11 @@ package Coyote_GUI.Conversation_Stack.Testing is
       Tool_Id : String)
       return String;
 
+   function Tool_Status_Label
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String)
+      return String;
+
    function Tool_Detail
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String)

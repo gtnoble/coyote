@@ -22,6 +22,8 @@ package Coyote_App_Frontend_GUI_Tests is
 
    procedure Test_Agent_Tree_Expands_New_Subagents (T : in out Test);
 
+   procedure Test_RPC_Tool_Lifecycle_Status (T : in out Test);
+
    procedure Test_Product_Information_Icon (T : in out Test);
 
    procedure Test_Sandbox_Profiles_Menu (T : in out Test);

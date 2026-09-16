@@ -332,6 +332,8 @@ package body Coyote_App.Dispatch is
             if Ev.Is_Cancelled then
                Status := Coyote_App.Frontend.Cancelled;
                State.Set_Tool_Cancelled (True);
+            elsif Ev.Is_Timed_Out then
+               Status := Coyote_App.Frontend.Timed_Out;
             elsif Ev.Is_Error then
                Status := Coyote_App.Frontend.Error;
             else

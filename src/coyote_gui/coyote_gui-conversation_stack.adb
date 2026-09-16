@@ -1028,7 +1028,7 @@ package body Coyote_GUI.Conversation_Stack is
       Gtk.Label.Gtk_New
         (Status,
          "Status: "
-         & Tool_Status_Text (Coyote_GUI.Success, "", Running => True));
+         & Tool_Status_Text (Initial_Status, "", Running => False));
       Status.Set_Xalign (0.0);
       Box.Pack_Start (Status, Expand => False, Fill => False, Padding => 0);
 
@@ -1331,6 +1331,27 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Text_Open then
          End_Text_Block (C);
       end if;
+      loop
+         declare
+            Tool_Id : Unbounded_String;
+            Found   : Boolean := False;
+         begin
+            for Cursor in C.Tools.Iterate loop
+               if not Tool_Maps.Element (Cursor).Info.Completed then
+                  Tool_Id :=
+                    To_Unbounded_String (Tool_Maps.Key (Cursor));
+                  Found := True;
+                  exit;
+               end if;
+            end loop;
+            exit when not Found;
+            End_Tool
+              (C          => C,
+               Tool_Id    => To_String (Tool_Id),
+               Status     => Coyote_GUI.Cancelled,
+               Result     => "[request ended before tool completed]");
+         end;
+      end loop;
       C.Completed := True;
       Finalize_Active_Step (C);
    end Complete_Request;

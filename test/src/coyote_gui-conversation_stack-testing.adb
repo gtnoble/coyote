@@ -405,6 +405,17 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Tool_Summary (Tool_Id);
    end Tool_Summary;
 
+   function Tool_Status_Label
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return String
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Status.Get_Text;
+      end if;
+      return "";
+   end Tool_Status_Label;
+
    function Tool_Detail
      (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return Coyote_GUI.Tool_Info

@@ -5,6 +5,7 @@
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_App.Agent_RPC;
 with Coyote_GUI;
+with Coyote_GUI.Conversation_Stack.Testing;
 
 package body Coyote_App.Frontend.GUI.Testing is
 
@@ -122,6 +123,49 @@ package body Coyote_App.Frontend.GUI.Testing is
                  Label           => Label)));
       Coyote_App.Frontend.GUI.Apply_RPC_Frame (F, Update);
    end Apply_Handshake;
+
+   procedure Apply_Event
+     (F          : in out Coyote_App.Frontend.GUI.Instance;
+      Agent_Id   :        String;
+      Sequence   :        Natural;
+      Event_Name :        Coyote_App.Agent_RPC.Event_Kind;
+      Payload    :        String)
+   is
+      Update : Coyote_GUI.Update;
+   begin
+      Update.Kind := Coyote_GUI.Rpc_Frame;
+      Update.Text :=
+        To_Unbounded_String
+          (Coyote_App.Agent_RPC.Encode
+             (Coyote_App.Agent_RPC.Make_Event
+                (Agent_Id     => Agent_Id,
+                 Sequence     => Sequence,
+                 Event_Name   => Event_Name,
+                 Payload_Json => Payload)));
+      Coyote_App.Frontend.GUI.Apply_RPC_Frame (F, Update);
+   end Apply_Event;
+
+   function Tool_Status_Label
+     (F       : Coyote_App.Frontend.GUI.Instance;
+      Tool_Id : String)
+      return String
+   is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Tool_Status_Label
+          (F.Stack, Tool_Id);
+   end Tool_Status_Label;
+
+   function Tool_Detail
+     (F       : Coyote_App.Frontend.GUI.Instance;
+      Tool_Id : String)
+      return Coyote_GUI.Tool_Info
+   is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+          (F.Stack, Tool_Id);
+   end Tool_Detail;
 
    procedure Build_Product_Information
      (F      :     Coyote_App.Frontend.GUI.Instance;

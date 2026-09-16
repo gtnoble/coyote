@@ -455,6 +455,29 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end Set_Child_Status;
 
+   function Tool_Status_Value
+     (Text    : String;
+      Default : Coyote_GUI.Tool_Status := Coyote_GUI.Success)
+      return Coyote_GUI.Tool_Status
+   is
+   begin
+      if Text = "queued" then
+         return Coyote_GUI.Queued;
+      elsif Text = "running" then
+         return Coyote_GUI.Running;
+      elsif Text = "error" then
+         return Coyote_GUI.Error;
+      elsif Text = "timed_out" then
+         return Coyote_GUI.Timed_Out;
+      elsif Text = "cancelled" then
+         return Coyote_GUI.Cancelled;
+      elsif Text'Length = 0 then
+         return Default;
+      else
+         return Coyote_GUI.Success;
+      end if;
+   end Tool_Status_Value;
+
    procedure Apply_RPC_Event
      (F : in out Instance; Value : Coyote_App.Agent_RPC.Frame)
    is
@@ -545,7 +568,21 @@ package body Coyote_App.Frontend.GUI is
                 (Coyote_App.Utils.Get_String (Parsed.Value, "sessionStart"));
             U.Tool_Turn := Coyote_App.Utils.Get_Integer (Parsed.Value, "turn");
             U.Tool_Call := Coyote_App.Utils.Get_Integer (Parsed.Value, "call");
+            U.T_Status :=
+              Tool_Status_Value
+                (Coyote_App.Utils.Get_String (Parsed.Value, "status"),
+                 Default => Coyote_GUI.Queued);
             Emit        := True;
+         when Coyote_App.Agent_RPC.Tool_Status =>
+            U.Kind := Coyote_GUI.Set_Tool_Status;
+            U.Text :=
+              To_Unbounded_String
+                (Coyote_App.Utils.Get_String (Parsed.Value, "toolId"));
+            U.T_Status :=
+              Tool_Status_Value
+                (Coyote_App.Utils.Get_String (Parsed.Value, "status"),
+                 Default => Coyote_GUI.Queued);
+            Emit := True;
          when Tool_End =>
             U.Kind     := Coyote_GUI.End_Tool;
             U.Text     :=
@@ -558,16 +595,9 @@ package body Coyote_App.Frontend.GUI is
               To_Unbounded_String
                 (Coyote_App.Utils.Get_String (Parsed.Value, "mediaType"));
             U.T_Status :=
-              (if
-                 Coyote_App.Utils.Get_String (Parsed.Value, "status") = "error"
-               then
-                 Coyote_GUI.Error
-               elsif
-                 Coyote_App.Utils.Get_String (Parsed.Value, "status")
-                 = "cancelled"
-               then
-                 Coyote_GUI.Cancelled
-               else Coyote_GUI.Success);
+              Tool_Status_Value
+                (Coyote_App.Utils.Get_String (Parsed.Value, "status"),
+                 Default => Coyote_GUI.Success);
             Emit       := True;
          when Footer =>
             U.Kind   := Coyote_GUI.Append_Turn_Footer;

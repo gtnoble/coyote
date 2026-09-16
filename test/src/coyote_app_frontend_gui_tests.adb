@@ -5,7 +5,9 @@ with AUnit.Test_Caller;
 
 with Ada.Environment_Variables;
 with AUnit.Assertions;
+with Coyote_App.Agent_RPC;
 with Coyote_App.Frontend.GUI.Testing;
+with Coyote_GUI;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_Process_Control;
 with GNAT.OS_Lib;
@@ -48,6 +50,7 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Gtk.Window.Gtk_Window;
    use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Prompt_Queue.Item_Kind;
+   use type Coyote_GUI.Tool_Status;
 
    function Display_Available return Boolean is
    begin
@@ -262,6 +265,50 @@ package body Coyote_App_Frontend_GUI_Tests is
       end if;
    end Test_Agent_Tree_Expands_New_Subagents;
 
+   procedure Test_RPC_Tool_Lifecycle_Status (T : in out Test) is
+      use Coyote_App.Agent_RPC;
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Info     : Coyote_GUI.Tool_Info;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote RPC tool lifecycle test", Pop_Under => True);
+      Apply_Event
+        (Frontend, "root", 1, Coyote_App.Agent_RPC.Request_Start,
+         "{""text"":""request"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "root", 2, Coyote_App.Agent_RPC.Tool_Start,
+         "{""name"":""shell"",""args"":{""command"":""sleep 2""},"
+         & """sessionId"":""session"",""toolId"":""rpc-tool"","
+         & """turn"":1,""call"":1,""status"":""queued""}");
+      Assert
+        (Tool_Status_Label (Frontend, "rpc-tool") = "Status: Queued",
+         "RPC tool start preserves queued status");
+      Apply_Event
+        (Frontend, "root", 3, Coyote_App.Agent_RPC.Tool_Status,
+         "{""toolId"":""rpc-tool"",""status"":""running""}");
+      Assert
+        (Tool_Status_Label (Frontend, "rpc-tool") = "Status: Running",
+         "RPC tool status transitions to running");
+      Apply_Event
+        (Frontend, "root", 4, Coyote_App.Agent_RPC.Tool_End,
+         "{""toolId"":""rpc-tool"",""result"":""timeout"","
+         & """status"":""timed_out""}");
+      Info := Tool_Detail (Frontend, "rpc-tool");
+      Assert
+        (Info.Result_Status = Coyote_GUI.Timed_Out and then Info.Completed,
+         "RPC timed-out tool reaches a terminal state");
+      Assert
+        (Tool_Status_Label (Frontend, "rpc-tool")
+         = "Status: Timed out - timeout",
+         "RPC timed-out status is visible");
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+   end Test_RPC_Tool_Lifecycle_Status;
+
    procedure Test_Product_Information_Icon (T : in out Test) is
       use Coyote_App.Frontend.GUI.Testing;
       Frontend : Coyote_App.Frontend.GUI.Instance;
@@ -388,6 +435,11 @@ package body Coyote_App_Frontend_GUI_Tests is
             Coyote_App_Frontend_GUI_Tests
               .Test_Agent_Tree_Expands_New_Subagents'
               Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI RPC tool lifecycle status",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_RPC_Tool_Lifecycle_Status'Access));
 
       return Result;
    end Suite;

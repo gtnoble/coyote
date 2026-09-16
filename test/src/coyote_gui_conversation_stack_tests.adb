@@ -580,6 +580,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert
         (Index (Summary (1 .. Summary_Length), "Status: Queued") > 0,
          "queued status is visible in the compact card");
+      Assert
+        (Tool_Status_Label (T.Stack.all, "tool-status") = "Status: Queued",
+         "queued status is visible in the native status label");
 
       Set_Tool_Status (T.Stack.all, "tool-status", Running);
       Info :=
@@ -615,6 +618,31 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          > 0,
          "timed-out status is visible in the compact card");
    end Test_Tool_Status_Transitions;
+
+   procedure Test_Request_Completion_Closes_Active_Tools (T : in out Test) is
+      Info : Coyote_GUI.Tool_Info;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Begin_Tool
+        (C              => T.Stack.all,
+         Name           => "shell",
+         Args           => "{""command"":""sleep 2""}",
+         Session_Id     => "session",
+         Tool_Id        => "unfinished",
+         Initial_Status => Running);
+      Complete_Request (T.Stack.all, Failed);
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack.all, "unfinished");
+      Assert
+        (Info.Result_Status = Cancelled and then Info.Completed,
+         "request completion closes an unfinished tool");
+      Assert
+        (Tool_Status_Label (T.Stack.all, "unfinished") = "Status: Cancelled",
+         "request completion updates the unfinished tool label");
+   end Test_Request_Completion_Closes_Active_Tools;
 
    procedure Test_Tool_Abort_Controls_Follow_Status (T : in out Test) is
    begin
@@ -1156,6 +1184,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("Coyote.GUI.Conversation_Stack tracks tool status transitions",
             Coyote_GUI_Conversation_Stack_Tests.Test_Tool_Status_Transitions'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack closes tools at request completion",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Request_Completion_Closes_Active_Tools'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack tracks abort controls by status",

@@ -2,6 +2,8 @@
 --
 --  Project: coyote
 
+with Coyote_App.Agent_RPC;
+with Coyote_GUI;
 with Gtk.Box;
 with Gtk.Dialog;
 with Gtk.Image;
@@ -58,6 +60,23 @@ package Coyote_App.Frontend.GUI.Testing is
       Agent_Id        :        String;
       Parent_Agent_Id :        String;
       Label           :        String);
+
+   procedure Apply_Event
+     (F          : in out Coyote_App.Frontend.GUI.Instance;
+      Agent_Id   :        String;
+      Sequence   :        Natural;
+      Event_Name :        Coyote_App.Agent_RPC.Event_Kind;
+      Payload    :        String);
+
+   function Tool_Status_Label
+     (F       : Coyote_App.Frontend.GUI.Instance;
+      Tool_Id : String)
+      return String;
+
+   function Tool_Detail
+     (F       : Coyote_App.Frontend.GUI.Instance;
+      Tool_Id : String)
+      return Coyote_GUI.Tool_Info;
 
    procedure Build_Product_Information
      (F      :     Coyote_App.Frontend.GUI.Instance;
