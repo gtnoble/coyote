@@ -716,9 +716,13 @@ The GUI frontend shall open a GTK3 application window containing a
 conversation view, a prompt input area, a menu bar, and a status bar.  The
 status bar shall remain persistent at the bottom of the window and shall
 contain lifecycle status text plus a context-window fill indicator.  The
-indicator shall use the active model context window as its denominator, clamp
-its displayed fraction to [0, 1], and display an empty fraction when the
-context window is unavailable.  The main menu bar shall use the top-level
+indicator shall use the active model context window as its denominator and
+canonical prompt-context occupancy as its numerator.  Generated output and
+reasoning tokens shall not contribute to occupancy; provider-reported cache
+components shall not be double-counted.  The indicator shall clamp its
+displayed fraction to [0, 1], display an empty fraction when the context
+window is unavailable, and refresh after completed model messages, tool-result
+batches, compaction, and session replay.  The main menu bar shall use the top-level
 order `File`, `Edit`, `View`, custom agent controls, `Options`, and `Help`;
 `Help` shall be the rightmost menu.  The window title shall identify the
 application and optional instance label, shall use spaces around the colon

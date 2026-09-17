@@ -576,6 +576,9 @@ package body LLM_Anthropic_Messages_Tests is
       Assert
         (Current_Collector.Usage.Output = 7,
          "Output token usage should be parsed from message_delta");
+      Assert
+        (Current_Collector.Usage.Context_Tokens = 11,
+         "Context_Tokens should include Anthropic cache components");
    exception
       when others =>
          if not Server_Stopped then

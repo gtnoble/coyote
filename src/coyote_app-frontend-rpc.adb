@@ -71,6 +71,18 @@ package body Coyote_App.Frontend.RPC is
       Emit (F, Status, Data);
    end Set_Status;
 
+   overriding procedure Set_Context_Progress
+     (F              : in out Instance;
+      Context_Tokens :        Natural;
+      Context_Window :        Natural)
+   is
+      Data : constant JSON_Value := Object;
+   begin
+      Data.Set_Field ("contextTokens", Integer (Context_Tokens));
+      Data.Set_Field ("contextWindow", Integer (Context_Window));
+      Emit (F, Context_Update, Data);
+   end Set_Context_Progress;
+
    overriding procedure Set_Mode
      (F : in out Instance; Mode : Coyote_App.Frontend.Run_Mode)
    is

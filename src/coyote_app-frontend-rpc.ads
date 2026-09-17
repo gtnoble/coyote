@@ -23,6 +23,10 @@ package Coyote_App.Frontend.RPC is
       Label           :        String := "subagent");
 
    overriding procedure Set_Status (F : in out Instance; Text : String);
+   overriding procedure Set_Context_Progress
+     (F              : in out Instance;
+      Context_Tokens :        Natural;
+      Context_Window :        Natural);
    overriding procedure Set_Mode
      (F : in out Instance; Mode : Coyote_App.Frontend.Run_Mode);
    overriding procedure Begin_Request

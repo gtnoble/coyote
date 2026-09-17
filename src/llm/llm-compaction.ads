@@ -194,11 +194,16 @@ package LLM.Compaction is
    --  tool-call argument JSON, and tool-result text.
    function Estimate_Tokens (Msg : LLM.Types.Message) return Natural;
 
+   --  Return the prompt-side token count represented by provider usage.
+   --  Output and reasoning tokens do not occupy the prompt context window.
+   --  A zero result means that the provider supplied no usable count.
+   function Prompt_Context_Tokens (Usage : LLM.Types.Usage) return Natural;
+
    --  Estimate the total context-token usage for a conversation history.
    --
    --  When the most recent assistant message carries non-zero provider
-   --  usage, that exact total is returned. Otherwise the estimate is the
-   --  sum of Estimate_Tokens over the whole history.
+   --  usage, that exact prompt-side count is returned. Otherwise the
+   --  estimate is the sum of Estimate_Tokens over the whole history.
    function Estimate_Context_Tokens
      (History : LLM.Types.Message_Vectors.Vector) return Natural;
 

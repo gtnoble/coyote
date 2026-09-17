@@ -67,6 +67,25 @@ package body Coyote_App_Agent_RPC_Tests is
          "event payload must round-trip");
    end Test_Event_Round_Trip;
 
+   procedure Test_Context_Update_Event_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Input  : constant Frame :=
+        Make_Event
+          (Agent_Id     => "worker-7",
+           Sequence     => 13,
+           Event_Name   => Context_Update,
+           Payload_Json =>
+             "{""contextTokens"":42000,""contextWindow"":200000}");
+      Output : constant Frame := Decode (Encode (Input));
+   begin
+      Assert
+        (Output.Event_Name = Context_Update,
+         "context update event name must round-trip");
+      Assert
+        (To_String (Output.Payload_Json) = To_String (Input.Payload_Json),
+         "context update payload must round-trip");
+   end Test_Context_Update_Event_Round_Trip;
+
    procedure Test_Command_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
       Input  : constant Frame :=
@@ -301,6 +320,11 @@ package body Coyote_App_Agent_RPC_Tests is
         (Agent_RPC_Caller.Create
            ("Agent RPC event round-trips",
             Coyote_App_Agent_RPC_Tests.Test_Event_Round_Trip'Access));
+      Result.Add_Test
+        (Agent_RPC_Caller.Create
+           ("Agent RPC context update event round-trips",
+            Coyote_App_Agent_RPC_Tests
+              .Test_Context_Update_Event_Round_Trip'Access));
       Result.Add_Test
         (Agent_RPC_Caller.Create
            ("Agent RPC command round-trips",

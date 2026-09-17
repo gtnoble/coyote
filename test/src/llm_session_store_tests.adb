@@ -277,9 +277,10 @@ package body LLM_Session_Store_Tests is
          Tok_Usage =>
            (Input       => 11,
             Output      => 7,
-            Cache_Read  => 3,
-            Cache_Write => 2,
-            Thinking    => 0),
+            Cache_Read     => 3,
+            Cache_Write    => 2,
+            Thinking       => 0,
+            Context_Tokens => 16),
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Text;
@@ -319,9 +320,10 @@ package body LLM_Session_Store_Tests is
          Tok_Usage =>
            (Input       => 20,
             Output      => 5,
-            Cache_Read  => 0,
-            Cache_Write => 0,
-            Thinking    => 0),
+            Cache_Read     => 0,
+            Cache_Write    => 0,
+            Thinking       => 0,
+            Context_Tokens => 20),
          Stop      => LLM.Types.Tool_Use,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Tool_Call;
@@ -345,9 +347,10 @@ package body LLM_Session_Store_Tests is
          Tok_Usage =>
            (Input       => 6,
             Output      => 4,
-            Cache_Read  => 1,
-            Cache_Write => 0,
-            Thinking    => 0),
+            Cache_Read     => 1,
+            Cache_Write    => 0,
+            Thinking       => 0,
+            Context_Tokens => 7),
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Thinking_Text;
@@ -942,9 +945,10 @@ package body LLM_Session_Store_Tests is
                Usage =>
                  (Input       => 31,
                   Output      => 17,
-                  Cache_Read  => 5,
-                  Cache_Write => 2,
-                  Thinking    => 0)));
+                  Cache_Read     => 5,
+                  Cache_Write    => 2,
+                  Thinking       => 0,
+                  Context_Tokens => 36)));
 
          Messages := LLM.Session_Store.Load_Messages (Session_Id);
 
@@ -958,6 +962,9 @@ package body LLM_Session_Store_Tests is
          Assert
            (Messages.Element (0).Tok_Usage.Output > 0,
             "Assistant output-token usage should persist");
+         Assert
+           (Messages.Element (0).Tok_Usage.Context_Tokens = 36,
+            "Assistant context-token usage should persist");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);

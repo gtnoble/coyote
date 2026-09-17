@@ -733,6 +733,10 @@ All fields are protected by Ada's monitor semantics. Key fields:
 - `Is_Paused`, `Is_Pause_Armed` — pause/resume handshake
 - `Turn_Count`, `Turn_Cost_Dmil`, `Session_Cost_Dmil` — statistics accumulators
 - `Context_Window` — set by Model_Select_Event; used for compaction threshold
+- `Context_Tokens` — canonical prompt-context occupancy, excluding generated
+  output; refreshed after provider messages, tool batches, compaction, and
+  session replay.  The status text and GUI fill indicator consume this same
+  state.
 
 **`Run_GUI` procedure:** Calls `Gtk.Main.Init`, creates the GUI frontend,
 spawns `Agent_Task`, then calls `Gtk.Main.Main`. GUI creation registers the
@@ -918,6 +922,16 @@ loop:
 end loop
 emit Session_Stats_Event
 ```
+
+Context occupancy is refreshed as a separate `Context_Update_Event` after
+history mutations at provider-message, tool-batch, and compaction boundaries.
+The event carries the active context window and a canonical prompt-side token
+count.  Output and reasoning tokens are excluded.  Anthropic usage combines
+uncached input with its cache-read and cache-write fields; OpenAI usage uses
+its reported prompt/input total without adding cached-token detail fields.
+When provider usage is unavailable, the conservative history estimate is used.
+For legacy session records without `contextTokens`, the same fallback derives
+prompt occupancy from the stored usage fields or message content.
 
 Pending messages are consumed from the persistence queue only after each JSONL
 append succeeds. If a provider or persistence exception escapes, the remaining
@@ -1421,6 +1435,7 @@ by provider adapters and consumed by `Dispatch_Event`.
 | `Agent_End_Event` | `Was_Aborted : Boolean` | Agent turn ending |
 | `Message_Update_Event` | `Kind : Update_Kind`; `Text : String`; `Tool_Id : String` | Streaming token or tool delta |
 | `Message_End_Event` | usage fields | Provider message completed |
+| `Context_Update_Event` | prompt-context tokens, context window | Refreshed canonical context snapshot; drives status and fill indicator; transported as `contextUpdate` for RPC frontends |
 | `Tool_Execution_Start_Event` | tool name, call_id, args JSON | Tool call enters queued state |
 | `Tool_Execution_Running_Event` | call_id | Worker starts; card enters running state |
 | `Tool_Execution_End_Event` | call_id, result text, is_error, timed-out flag, cancellation flag | Tool call reaches a terminal state |

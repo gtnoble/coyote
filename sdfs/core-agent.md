@@ -1288,3 +1288,26 @@ The typed frontend control and versioned RPC codec now support `abortTool` with
 required `toolId` and optional `message` fields. Global Stop remains distinct.
 Focused RPC tests cover round-trip and invalid payloads; existing global and
 parallel abort regressions remain active.
+
+## 2026-09-16 — Canonical context-window indicator synchronization
+
+The persistent status context values and GUI progress bar now consume one
+canonical prompt-context occupancy state.  `LLM.Types.Usage.Context_Tokens`
+records provider-normalized prompt tokens: Anthropic combines input with its
+cache-read and cache-write components, while OpenAI uses the reported
+prompt/input total without adding cached-token detail fields again.  Generated
+output and reasoning tokens are excluded from occupancy; raw usage fields remain
+available for billing and session statistics.
+
+`LLM.Events.Context_Update_Event` is emitted after provider-message history
+updates, tool-result batches, and successful compaction.  The dispatcher stores
+its snapshot in `App_State.Context_Tokens`, updates the GUI fill indicator, and
+formats the status context segment from that same field.  Session history replay
+and session reset also update the shared state and indicator.  Persisted
+assistant usage includes `contextTokens`, with older sessions falling back to
+content estimation.
+
+Verification: development build succeeds; focused compaction, OpenAI
+Completions, OpenAI Responses, and Anthropic provider tests pass.  Added tests
+cover prompt-only context calculation, provider cache handling, protected state
+independence, context event ordering, and persisted context-token round trips.

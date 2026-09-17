@@ -293,7 +293,8 @@ package body LLM.Providers.OpenAI_Completions is
               Get_Natural_Field (Details, "cached_tokens")
             else Get_Natural_Field (Value, "prompt_cache_hit_tokens")),
          Cache_Write => 0,
-         Thinking    => Get_Natural_Field (Comp_Det, "reasoning_tokens"));
+         Thinking       => Get_Natural_Field (Comp_Det, "reasoning_tokens"),
+         Context_Tokens => Get_Natural_Field (Value, "prompt_tokens"));
    end Parse_Usage;
 
    procedure Emit

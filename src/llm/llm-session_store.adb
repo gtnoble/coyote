@@ -576,6 +576,8 @@ package body LLM.Session_Store is
             Usage.Set_Field
               ("cacheWrite", Integer (Msg.Tok_Usage.Cache_Write));
             Usage.Set_Field ("thinking", Integer (Msg.Tok_Usage.Thinking));
+            Usage.Set_Field
+              ("contextTokens", Integer (Msg.Tok_Usage.Context_Tokens));
 
             Result.Set_Field ("role", "assistant");
             Result.Set_Field ("content", Content_To_Array (Msg));
@@ -730,8 +732,9 @@ package body LLM.Session_Store is
            (Input       => Get_Natural_Field (Usage, "input"),
             Output      => Get_Natural_Field (Usage, "output"),
             Cache_Read  => Get_Natural_Field (Usage, "cacheRead"),
-            Cache_Write => Get_Natural_Field (Usage, "cacheWrite"),
-            Thinking    => Get_Natural_Field (Usage, "thinking")),
+            Cache_Write    => Get_Natural_Field (Usage, "cacheWrite"),
+            Thinking       => Get_Natural_Field (Usage, "thinking"),
+            Context_Tokens => Get_Natural_Field (Usage, "contextTokens")),
          Stop      => To_Stop_Reason (Get_String_Field (Msg, "stopReason")),
          Timestamp => Message_Timestamp (Envelope, Msg));
    end Parse_Assistant_Message;

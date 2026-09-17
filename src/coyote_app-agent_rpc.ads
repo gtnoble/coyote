@@ -33,6 +33,7 @@ package Coyote_App.Agent_RPC is
       Tool_End,
       Notice,
       Status,
+      Context_Update,
       Mode,
       Footer,
       Fork_Action,

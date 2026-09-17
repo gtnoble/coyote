@@ -82,6 +82,11 @@ package body Coyote_App_Tests is
       Assert (S.Turn_Output_Tokens = 678, "Output tokens updated");
       S.Set_Context_Window (200_000);
       Assert (S.Context_Window = 200_000, "Context window updated");
+      S.Set_Context_Tokens (42_000);
+      Assert (S.Context_Tokens = 42_000, "Context tokens updated");
+      Assert
+        (S.Turn_Input_Tokens = 12_345,
+         "Context tokens must remain independent of turn input");
    end Test_State_Tokens;
 
    --  ── Shutdown barrier ─────────────────────────────────────────────────
@@ -1152,6 +1157,7 @@ package body Coyote_App_Tests is
       S : App_State;
    begin
       S.Set_Turn_Tokens (1_500, 0);
+      S.Set_Context_Tokens (1_500);
       S.Set_Context_Window (200_000);
       Assert
         (Status_Contains (Format_Status (S), "1.5k/200k"),

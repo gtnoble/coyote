@@ -174,12 +174,17 @@ package body LLM_Compaction_Tests is
             Usage =>
               (Input       => 11,
                Output      => 7,
-               Cache_Read  => 3,
-               Cache_Write => 2,
-               Thinking    => 0)));
+               Cache_Read     => 3,
+               Cache_Write    => 2,
+               Thinking       => 0,
+               Context_Tokens => 16)));
       Assert
-        (LLM.Compaction.Estimate_Context_Tokens (Usage_History) = 23,
-         "non-zero assistant usage should override heuristic estimates");
+        (LLM.Compaction.Prompt_Context_Tokens
+           (Usage_History.Last_Element.Tok_Usage) = 16,
+         "prompt context should exclude generated output tokens");
+      Assert
+        (LLM.Compaction.Estimate_Context_Tokens (Usage_History) = 16,
+         "non-zero assistant prompt usage should override estimates");
 
       Sum_History.Append (Make_User_Message ("abcdefgh"));
       Sum_History.Append (Make_Assistant_Text_Message ("wxyz"));

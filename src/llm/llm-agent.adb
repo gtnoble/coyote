@@ -1137,6 +1137,18 @@ package body LLM.Agent is
          Context_Tokens => S.Last_Context_Tokens);
    end Session_Stats;
 
+   procedure Emit_Context_Update
+     (S        : in out Session;
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class))
+   is
+      Event : constant LLM.Events.Context_Update_Event :=
+        (LLM.Events.Agent_Event with
+         Context_Window => S.Model_Info.Context_Window,
+         Context_Tokens => S.Last_Context_Tokens);
+   begin
+      Emit (On_Event, Event);
+   end Emit_Context_Update;
+
    procedure Set_Model_Internal (S : in out Session; Spec : String) is
    begin
       S.Model_Info := Resolved_Model_Info (Spec);
@@ -1849,6 +1861,7 @@ package body LLM.Agent is
 
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);
+      Emit_Context_Update (S, On_Event);
 
       Succeeded := True;
       Emit_End_Event
@@ -1903,6 +1916,13 @@ package body LLM.Agent is
          end loop;
       end Append_Pending_Batch;
 
+      procedure Refresh_Context is
+      begin
+         S.Last_Context_Tokens :=
+           LLM.Compaction.Estimate_Context_Tokens (S.History);
+         Emit_Context_Update (S, On_Event);
+      end Refresh_Context;
+
       procedure Flush_Pending_Messages is
       begin
          while not Messages_To_Persist.Is_Empty loop
@@ -1930,8 +1950,7 @@ package body LLM.Agent is
 
       procedure Maybe_Auto_Compact (Another_Request : Boolean) is
       begin
-         S.Last_Context_Tokens :=
-           LLM.Compaction.Estimate_Context_Tokens (S.History);
+         Refresh_Context;
 
          if Another_Request
            and then not S.Abort_State.Requested
@@ -1958,6 +1977,8 @@ package body LLM.Agent is
       S.History.Append (Prompt_Msg);
       S.Has_Submitted_Prompts := True;
       Messages_To_Persist.Append (Prompt_Msg);
+      S.Last_Context_Tokens :=
+        LLM.Compaction.Estimate_Context_Tokens (S.History);
       LLM.Session_Store.Append_Model_Change
         (Session_Id => To_String (S.Session_UUID),
          Provider   => To_String (S.Model_Info.Provider),
@@ -2505,6 +2526,7 @@ package body LLM.Agent is
                        Assistant_Message (Builder);
                   begin
                      Append_Pending_Message (Reply);
+                     Refresh_Context;
                      Turn_Completed_Normally :=
                        Reply.Stop = LLM.Types.Stop
                        or else Reply.Stop = LLM.Types.Length;

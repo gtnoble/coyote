@@ -614,6 +614,13 @@ package body Coyote_App.Frontend.GUI is
                  Coyote_GUI.Step_Footer
                else Coyote_GUI.Final_Footer);
             Emit     := True;
+         when Context_Update =>
+            U.Kind           := Coyote_GUI.Set_Context_Progress;
+            U.Context_Tokens :=
+              Coyote_App.Utils.Get_Integer (Parsed.Value, "contextTokens");
+            U.Context_Window :=
+              Coyote_App.Utils.Get_Integer (Parsed.Value, "contextWindow");
+            Emit              := True;
          when Notice =>
             U.Kind   := Coyote_GUI.Append_Notice;
             U.Text   :=

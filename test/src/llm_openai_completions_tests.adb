@@ -1930,6 +1930,9 @@ package body LLM_OpenAI_Completions_Tests is
       Assert
         (Current_Collector.Usage.Cache_Read = 300,
          "Usage.Cache_Read should be 300 from cached_tokens");
+      Assert
+        (Current_Collector.Usage.Context_Tokens = 500,
+         "Context_Tokens should use prompt_tokens without cache double-counting");
    exception
       when others =>
          if not Server_Stopped then

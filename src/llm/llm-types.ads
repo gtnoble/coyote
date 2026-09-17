@@ -62,14 +62,17 @@ package LLM.Types is
    package Content_Block_Vectors is new Ada.Containers.Vectors
      (Index_Type => Natural, Element_Type => Content_Block);
 
-   --  Token-usage counters reported by the provider.
+   --  Token-usage counters reported by the provider.  Context_Tokens is the
+   --  provider-normalised prompt size submitted to the model; it excludes
+   --  generated output and is zero when the provider did not report it.
    type Usage is record
-      Input       : Natural := 0;
-      Output      : Natural := 0;
-      Cache_Read  : Natural := 0;
-      Cache_Write : Natural := 0;
-      Thinking    : Natural :=
+      Input          : Natural := 0;
+      Output         : Natural := 0;
+      Cache_Read     : Natural := 0;
+      Cache_Write    : Natural := 0;
+      Thinking       : Natural :=
         0;  --  Thinking/reasoning tokens (estimated for Anthropic)
+      Context_Tokens : Natural := 0;
    end record;
 
    --  Add two usage values field-by-field.

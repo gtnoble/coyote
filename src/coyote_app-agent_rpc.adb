@@ -122,6 +122,8 @@ package body Coyote_App.Agent_RPC is
             return "notice";
          when Status =>
             return "status";
+         when Context_Update =>
+            return "contextUpdate";
          when Mode =>
             return "mode";
          when Footer =>
@@ -199,6 +201,8 @@ package body Coyote_App.Agent_RPC is
          return Notice;
       elsif Value = "status" then
          return Status;
+      elsif Value = "contextUpdate" then
+         return Context_Update;
       elsif Value = "mode" then
          return Mode;
       elsif Value = "footer" then

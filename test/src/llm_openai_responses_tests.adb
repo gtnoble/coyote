@@ -907,6 +907,9 @@ package body LLM_OpenAI_Responses_Tests is
       Server_Stopped := True;
       Assert (Current_Collector.Usage.Cache_Read = 40, "cached_tokens");
       Assert (Current_Collector.Usage.Cache_Write = 12, "cache_write_tokens");
+      Assert
+        (Current_Collector.Usage.Context_Tokens = 100,
+         "Context_Tokens should use input_tokens without cache double-counting");
    exception
       when others =>
          if not Server_Stopped then

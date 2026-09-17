@@ -683,6 +683,9 @@ package body LLM.Providers.Anthropic_Messages is
       State.Tok_Usage.Cache_Write :=
         Get_Natural_Field
           (Usage, "cache_creation_input_tokens", State.Tok_Usage.Cache_Write);
+      State.Tok_Usage.Context_Tokens :=
+        State.Tok_Usage.Input + State.Tok_Usage.Cache_Read
+        + State.Tok_Usage.Cache_Write;
    end Process_Message_Start;
 
    procedure Process_Content_Block_Start

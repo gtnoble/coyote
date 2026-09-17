@@ -81,6 +81,13 @@ package LLM.Events is
       Context_Tokens  : Natural := 0;
    end record;
 
+   --  A refreshed snapshot of prompt-context occupancy.  Context_Tokens is
+   --  the provider-normalised prompt size and excludes generated output.
+   type Context_Update_Event is new Agent_Event with record
+      Context_Window  : Natural := 0;
+      Context_Tokens  : Natural := 0;
+   end record;
+
    type Auto_Retry_Start_Event is new Agent_Event with record
       Attempt      : Positive := 1;
       Max_Attempts : Positive := 3;

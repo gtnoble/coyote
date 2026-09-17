@@ -41,7 +41,8 @@ package body LLM_Agent_Tests is
       Auto_Retry_Start_Kind,
       Auto_Retry_End_Kind,
       Auto_Compaction_Start_Kind,
-      Auto_Compaction_End_Kind);
+      Auto_Compaction_End_Kind,
+      Context_Update_Kind);
 
    package Recorded_Event_Vectors is new Ada.Containers.Vectors
      (Index_Type => Natural, Element_Type => Recorded_Event_Kind);
@@ -54,6 +55,8 @@ package body LLM_Agent_Tests is
    begin
       if E in LLM.Events.Model_Select_Event then
          return Model_Select_Kind;
+      elsif E in LLM.Events.Context_Update_Event then
+         return Context_Update_Kind;
       elsif E in LLM.Events.Agent_Start_Event then
          return Agent_Start_Kind;
       elsif E in LLM.Events.Message_Start_Event then
@@ -1240,9 +1243,10 @@ package body LLM_Agent_Tests is
           Tok_Usage =>
             (Input       => 3,
              Output      => 2,
-             Cache_Read  => 0,
-             Cache_Write => 0,
-             Thinking    => 0),
+             Cache_Read     => 0,
+             Cache_Write    => 0,
+             Thinking       => 0,
+             Context_Tokens => 3),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
 
@@ -2956,6 +2960,7 @@ package body LLM_Agent_Tests is
       Agent_Start_Pos    : Natural;
       Message_Update_Pos : Natural;
       Message_End_Pos    : Natural;
+      Context_Update_Pos : Natural;
       Agent_End_Pos      : Natural;
       Session_Stats_Pos  : Natural;
       Server_Stopped     : Boolean           := False;
@@ -3035,8 +3040,14 @@ package body LLM_Agent_Tests is
         (Message_End_Pos /= No_Event_Index,
          "Message_End_Event should follow the message updates");
 
+      Context_Update_Pos :=
+        First_Event_Index (Events, Context_Update_Kind, Message_End_Pos + 1);
+      Assert
+        (Context_Update_Pos /= No_Event_Index,
+         "Context_Update_Event should follow Message_End_Event");
+
       Agent_End_Pos :=
-        First_Event_Index (Events, Agent_End_Kind, Message_End_Pos + 1);
+        First_Event_Index (Events, Agent_End_Kind, Context_Update_Pos + 1);
       Assert
         (Agent_End_Pos /= No_Event_Index,
          "Agent_End_Event should be emitted after Message_End_Event");
@@ -3051,8 +3062,11 @@ package body LLM_Agent_Tests is
         (Agent_Start_Pos < Agent_End_Pos,
          "Agent_Start_Event should precede Agent_End_Event");
       Assert
-        (Message_End_Pos < Agent_End_Pos,
-         "Message_End_Event should precede Agent_End_Event");
+        (Message_End_Pos < Context_Update_Pos,
+         "Message_End_Event should precede Context_Update_Event");
+      Assert
+        (Context_Update_Pos < Agent_End_Pos,
+         "Context_Update_Event should precede Agent_End_Event");
       Assert
         (Agent_End_Pos < Session_Stats_Pos,
          "Session_Stats_Event should follow Agent_End_Event");

@@ -275,8 +275,9 @@ package body LLM.Providers.OpenAI_Responses is
         (Input       => Get_Natural_Field (Value, "input_tokens"),
          Output      => Get_Natural_Field (Value, "output_tokens"),
          Cache_Read  => Get_Natural_Field (Input_Det, "cached_tokens"),
-         Cache_Write => Get_Natural_Field (Input_Det, "cache_write_tokens"),
-         Thinking    => Get_Natural_Field (Output_Det, "reasoning_tokens"));
+         Cache_Write    => Get_Natural_Field (Input_Det, "cache_write_tokens"),
+         Thinking       => Get_Natural_Field (Output_Det, "reasoning_tokens"),
+         Context_Tokens => Get_Natural_Field (Value, "input_tokens"));
    end Parse_Usage;
 
    procedure Emit

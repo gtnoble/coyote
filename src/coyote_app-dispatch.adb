@@ -43,7 +43,7 @@ package body Coyote_App.Dispatch is
       Sandbox_Text    : constant String  := State.Current_Sandbox;
       Subagent_Text   : constant String  :=
         Coyote_App.Subagent_Model_Override_State.Current;
-      Input_Tokens    : constant Natural := State.Turn_Input_Tokens;
+      Input_Tokens    : constant Natural := State.Context_Tokens;
       Ctx_Window      : constant Natural := State.Context_Window;
       Tools_Running_N : constant Natural := State.Tools_Running;
       Tools_Done_N    : constant Natural := State.Tools_Done;
@@ -485,6 +485,24 @@ package body Coyote_App.Dispatch is
               (State, (if State.Is_Streaming then "running" else "ready")));
 
          --  ── model_select ──────────────────────────────────────────────────
+      elsif Event in LLM.Events.Context_Update_Event then
+         declare
+            Ev : constant LLM.Events.Context_Update_Event :=
+              LLM.Events.Context_Update_Event (Event);
+         begin
+            State.Set_Context_Tokens (Ev.Context_Tokens);
+            if Ev.Context_Window > 0 then
+               State.Set_Context_Window (Ev.Context_Window);
+            end if;
+            Frontend.Set_Context_Progress
+              (Context_Tokens => Ev.Context_Tokens,
+               Context_Window => State.Context_Window);
+         end;
+         Frontend.Set_Status
+           (Format_Status
+              (State, (if State.Is_Streaming then "running" else "ready")));
+
+         --  ── model_select ──────────────────────────────────────────────────
       elsif Event in LLM.Events.Model_Select_Event then
          declare
             Ev         : constant LLM.Events.Model_Select_Event :=
@@ -499,9 +517,10 @@ package body Coyote_App.Dispatch is
             if Ctx_Window > 0 then
                State.Set_Context_Window (Ctx_Window);
             end if;
+            State.Set_Context_Tokens (Ev.Context_Tokens);
             Frontend.Set_Context_Progress
-              (Context_Tokens => Ev.Context_Tokens,
-               Context_Window => Ctx_Window);
+              (Context_Tokens => State.Context_Tokens,
+               Context_Window => State.Context_Window);
          end;
          Frontend.Set_Status
            (Format_Status
@@ -545,8 +564,9 @@ package body Coyote_App.Dispatch is
                Cache_Read  => Ev.Cache_Read,
                Cache_Write => Ev.Cache_Write,
                Total       => Ev.Total);
+            State.Set_Context_Tokens (Ev.Context_Tokens);
             Frontend.Set_Context_Progress
-              (Context_Tokens => Ev.Context_Tokens,
+              (Context_Tokens => State.Context_Tokens,
                Context_Window => State.Context_Window);
          end;
          if State.Pending_Stats then

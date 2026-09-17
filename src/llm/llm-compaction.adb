@@ -13,10 +13,18 @@ package body LLM.Compaction is
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
 
-   function Usage_Total (Value : LLM.Types.Usage) return Natural is
+   function Prompt_Context_Tokens (Usage : LLM.Types.Usage) return Natural is
    begin
-      return Value.Input + Value.Output + Value.Cache_Read + Value.Cache_Write;
-   end Usage_Total;
+      if Usage.Context_Tokens > 0 then
+         return Usage.Context_Tokens;
+      end if;
+
+      if Usage.Input > 0 then
+         return Usage.Input + Usage.Cache_Read + Usage.Cache_Write;
+      end if;
+
+      return 0;
+   end Prompt_Context_Tokens;
 
    function Ceil_Quarter (Chars : Natural) return Natural is
    begin
@@ -258,22 +266,23 @@ package body LLM.Compaction is
    begin
       if not History.Is_Empty then
          for I in reverse History.First_Index .. History.Last_Index loop
-            declare
-               Msg : constant LLM.Types.Message := History.Element (I);
-            begin
-               if Msg.Role = LLM.Types.Assistant then
-                  declare
-                     Actual_Used : constant Natural :=
-                       Usage_Total (Msg.Tok_Usage);
-                  begin
-                     if Actual_Used > 0 then
-                        return Actual_Used;
+            if History.Element (I).Role = LLM.Types.Assistant then
+               declare
+                  Actual_Used : constant Natural :=
+                    Prompt_Context_Tokens (History.Element (I).Tok_Usage);
+               begin
+                  if Actual_Used > 0 then
+                     Sum := Actual_Used;
+                     if I < History.Last_Index then
+                        for J in I + 1 .. History.Last_Index loop
+                           Sum := Sum + Estimate_Tokens (History.Element (J));
+                        end loop;
                      end if;
-
-                     exit;
-                  end;
-               end if;
-            end;
+                     return Sum;
+                  end if;
+               end;
+               exit;
+            end if;
          end loop;
       end if;
 

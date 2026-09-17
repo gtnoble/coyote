@@ -8,11 +8,12 @@ package body LLM.Types is
    function "+" (Left : Usage; Right : Usage) return Usage is
    begin
       return
-        (Input       => Left.Input + Right.Input,
-         Output      => Left.Output + Right.Output,
-         Cache_Read  => Left.Cache_Read + Right.Cache_Read,
-         Cache_Write => Left.Cache_Write + Right.Cache_Write,
-         Thinking    => Left.Thinking + Right.Thinking);
+        (Input          => Left.Input + Right.Input,
+         Output         => Left.Output + Right.Output,
+         Cache_Read     => Left.Cache_Read + Right.Cache_Read,
+         Cache_Write    => Left.Cache_Write + Right.Cache_Write,
+         Thinking       => Left.Thinking + Right.Thinking,
+         Context_Tokens => Left.Context_Tokens + Right.Context_Tokens);
    end "+";
 
 end LLM.Types;

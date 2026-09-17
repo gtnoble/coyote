@@ -10,6 +10,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with Coyote_App.Utils;      use Coyote_App.Utils;
+with LLM.Compaction;
 with LLM.Session_Store;
 with LLM.Types;
 with Session_Lister;        use Session_Lister;
@@ -641,6 +642,12 @@ package body Coyote_App.History is
       if Last_Input > 0 or else Last_Output > 0 then
          State.Set_Turn_Tokens (Last_Input, Last_Output);
       end if;
+      State.Set_Context_Tokens
+        (LLM.Compaction.Estimate_Context_Tokens
+           (LLM.Session_Store.Load_Messages (UUID)));
+      Frontend.Set_Context_Progress
+        (Context_Tokens => State.Context_Tokens,
+         Context_Window => State.Context_Window);
    end Render_Session_History;
 
 end Coyote_App.History;
