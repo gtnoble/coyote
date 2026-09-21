@@ -75,9 +75,14 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       S : App_State;
    begin
+      Assert (S.Turn_Context_Tokens = 0, "Initial turn context tokens = 0");
       Assert (S.Turn_Input_Tokens = 0, "Initial input tokens = 0");
       Assert (S.Turn_Output_Tokens = 0, "Initial output tokens = 0");
+      S.Set_Turn_Context_Tokens (9_876);
       S.Set_Turn_Tokens (12_345, 678);
+      Assert
+        (S.Turn_Context_Tokens = 9_876,
+         "Turn context tokens updated independently");
       Assert (S.Turn_Input_Tokens = 12_345, "Input tokens updated");
       Assert (S.Turn_Output_Tokens = 678, "Output tokens updated");
       S.Set_Context_Window (200_000);
@@ -85,8 +90,11 @@ package body Coyote_App_Tests is
       S.Set_Context_Tokens (42_000);
       Assert (S.Context_Tokens = 42_000, "Context tokens updated");
       Assert
-        (S.Turn_Input_Tokens = 12_345,
+        (S.Turn_Context_Tokens = 9_876,
          "Context tokens must remain independent of turn input");
+      Assert
+        (S.Turn_Input_Tokens = 12_345,
+         "Raw turn input must remain independent of context tokens");
    end Test_State_Tokens;
 
    --  ── Shutdown barrier ─────────────────────────────────────────────────
@@ -173,7 +181,7 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       Footer : constant String :=
         Format_Turn_Footer_Display
-          (Input_Tokens     => 1_000,
+          (Context_Tokens   => 1_000,
            Output_Tokens    => 200,
            Stop_Reason_Text => "toolUse",
            Is_Step          => True);
@@ -1160,8 +1168,8 @@ package body Coyote_App_Tests is
       S.Set_Context_Tokens (1_500);
       S.Set_Context_Window (200_000);
       Assert
-        (Status_Contains (Format_Status (S), "1.5k/200k"),
-         "Token/context window -> ""1.5k/200k"" in status");
+        (Status_Contains (Format_Status (S), "1.5k/200k (0%)"),
+         "Token/context window -> ""1.5k/200k (0%)"" in status");
    end Test_Format_Status_With_Context;
 
    --  When a thinking level is set, "~level" appears in the status.

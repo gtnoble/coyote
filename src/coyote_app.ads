@@ -69,6 +69,9 @@ package Coyote_App is
       --  Current prompt-context occupancy used by both the status text and
       --  the GUI fill indicator.
       function Context_Tokens return Natural;
+      --  Prompt-context tokens reported for the latest model message.
+      function Turn_Context_Tokens return Natural;
+      --  Raw per-turn input accounting retained for statistics and billing.
       function Turn_Input_Tokens return Natural;
       function Turn_Output_Tokens return Natural;
       function Turn_Count return Natural;
@@ -117,6 +120,7 @@ package Coyote_App is
       procedure Set_Pending_Stats (Value : Boolean);
       procedure Set_Context_Window (N : Natural);
       procedure Set_Context_Tokens (N : Natural);
+      procedure Set_Turn_Context_Tokens (N : Natural);
       procedure Set_Turn_Tokens (Input, Output : Natural);
       --  Per-turn cost from message_end usage.cost.total (units of $0.0001).
       procedure Set_Turn_Cost (Dmil : Natural);
@@ -190,6 +194,7 @@ package Coyote_App is
 
       P_Ctx_Win      : Natural := 0;
       P_Ctx_Tokens   : Natural := 0;
+      P_Turn_Context : Natural := 0;
       P_Turn_In      : Natural := 0;
       P_Turn_Out     : Natural := 0;
       --  Per-turn cost (units of $0.0001); set from message_end.

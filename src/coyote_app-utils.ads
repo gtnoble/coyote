@@ -255,10 +255,16 @@ package Coyote_App.Utils is
 
    --  ── Turn footer builders ─────────────────────────────────────────────
 
+   --  Truncated percentage used by textual context displays.
+   function Context_Percentage
+     (Context_Tokens : Natural;
+      Context_Window : Natural)
+      return Natural;
+
    --  Build the bracketed per-turn summary placed before the fork token.
    --  Returns "" when no summary parts are available.
    function Format_Turn_Summary
-     (Input_Tokens      : Natural;
+     (Context_Tokens    : Natural;
       Output_Tokens     : Natural;
       Ctx_Window        : Natural;
       Model_Text        : String;
@@ -274,7 +280,7 @@ package Coyote_App.Utils is
    --  Is_Step = False (default): full-turn double-line separator.
    --  Is_Step = True : step-level single-line separator.
    function Format_Turn_Footer_Display
-     (Input_Tokens      : Natural := 0;
+     (Context_Tokens    : Natural := 0;
       Output_Tokens     : Natural := 0;
       Ctx_Window        : Natural := 0;
       Model_Text        : String  := "";

@@ -553,8 +553,20 @@ package body Coyote_App.Utils is
          return Raw;
    end Apply_Prompt_Filter;
 
+   function Context_Percentage
+     (Context_Tokens : Natural;
+      Context_Window : Natural)
+      return Natural
+   is
+   begin
+      return
+        (if Context_Tokens > 0 and then Context_Window > 0
+         then Context_Tokens * 100 / Context_Window
+         else 0);
+   end Context_Percentage;
+
    function Format_Turn_Summary
-     (Input_Tokens      : Natural;
+     (Context_Tokens    : Natural;
       Output_Tokens     : Natural;
       Ctx_Window        : Natural;
       Model_Text        : String;
@@ -565,12 +577,13 @@ package body Coyote_App.Utils is
    is
       Parts : Unbounded_String;
    begin
-      if Input_Tokens > 0 and then Ctx_Window > 0 then
+      if Context_Tokens > 0 and then Ctx_Window > 0 then
          Append
            (Parts,
-            "ctx " & Format_SI_Count (Input_Tokens) & "/"
+            "ctx " & Format_SI_Count (Context_Tokens) & "/"
             & Format_SI_Count (Ctx_Window) & " ("
-            & Natural_Image (Input_Tokens * 100 / Ctx_Window) & "%)");
+            & Natural_Image (Context_Percentage
+               (Context_Tokens, Ctx_Window)) & "%)");
       end if;
       if Output_Tokens > 0 then
          if Length (Parts) > 0 then
@@ -607,7 +620,7 @@ package body Coyote_App.Utils is
    end Format_Turn_Summary;
 
    function Format_Turn_Footer_Display
-     (Input_Tokens      : Natural := 0;
+     (Context_Tokens    : Natural := 0;
       Output_Tokens     : Natural := 0;
       Ctx_Window        : Natural := 0;
       Model_Text        : String  := "";
@@ -619,7 +632,7 @@ package body Coyote_App.Utils is
    is
       Summary : constant String :=
         Format_Turn_Summary
-          (Input_Tokens      => Input_Tokens,
+          (Context_Tokens    => Context_Tokens,
            Output_Tokens     => Output_Tokens,
            Ctx_Window        => Ctx_Window,
            Model_Text        => Model_Text,

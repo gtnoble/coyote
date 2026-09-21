@@ -6,6 +6,7 @@
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with LLM.Types;
+with LLM.Compaction;
 with Coyote_App.Frontend;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 
@@ -73,7 +74,8 @@ package body Coyote_App.Dispatch is
          then
            " " & Format_SI_Count (Input_Tokens) & "/"
            & Format_SI_Count (Ctx_Window) & " ("
-           & Natural_Image (Input_Tokens * 100 / Ctx_Window) & "%)"
+           & Natural_Image
+               (Context_Percentage (Input_Tokens, Ctx_Window)) & "%)"
          else "");
       Tool_Part     : constant String :=
         (if
@@ -97,7 +99,7 @@ package body Coyote_App.Dispatch is
      (Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State)
    is
-      Input_Tokens      : constant Natural := State.Turn_Input_Tokens;
+      Context_Tokens    : constant Natural := State.Turn_Context_Tokens;
       Output_Tokens     : constant Natural := State.Turn_Output_Tokens;
       Ctx_Window        : constant Natural := State.Context_Window;
       Model_Text        : constant String  := State.Current_Model;
@@ -106,7 +108,7 @@ package body Coyote_App.Dispatch is
       Stop_Reason_Text  : constant String  := State.Last_Stop_Reason;
       Footer_Summary    : constant String  :=
         Format_Turn_Summary
-          (Input_Tokens      => Input_Tokens,
+          (Context_Tokens    => Context_Tokens,
            Output_Tokens     => Output_Tokens,
            Ctx_Window        => Ctx_Window,
            Model_Text        => Model_Text,
@@ -117,7 +119,7 @@ package body Coyote_App.Dispatch is
       State.Increment_Turn_Count;
       Frontend.Append_Turn_Footer
         (Format_Turn_Footer_Display
-           (Input_Tokens      => Input_Tokens,
+           (Context_Tokens    => Context_Tokens,
             Output_Tokens     => Output_Tokens,
             Ctx_Window        => Ctx_Window,
             Model_Text        => Model_Text,
@@ -135,7 +137,7 @@ package body Coyote_App.Dispatch is
      (Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State)
    is
-      Input_Tokens     : constant Natural := State.Turn_Input_Tokens;
+      Context_Tokens   : constant Natural := State.Turn_Context_Tokens;
       Output_Tokens    : constant Natural := State.Turn_Output_Tokens;
       Ctx_Window       : constant Natural := State.Context_Window;
       Model_Text       : constant String  := State.Current_Model;
@@ -143,7 +145,7 @@ package body Coyote_App.Dispatch is
       Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
       Footer_Summary   : constant String  :=
         Format_Turn_Summary
-          (Input_Tokens     => Input_Tokens,
+          (Context_Tokens   => Context_Tokens,
            Output_Tokens    => Output_Tokens,
            Ctx_Window       => Ctx_Window,
            Model_Text       => Model_Text,
@@ -152,7 +154,7 @@ package body Coyote_App.Dispatch is
    begin
       Frontend.Append_Turn_Footer
         (Format_Turn_Footer_Display
-           (Input_Tokens      => Input_Tokens,
+           (Context_Tokens    => Context_Tokens,
             Output_Tokens     => Output_Tokens,
             Ctx_Window        => Ctx_Window,
             Model_Text        => Model_Text,
@@ -367,10 +369,12 @@ package body Coyote_App.Dispatch is
          declare
             Ev           : constant LLM.Events.Message_End_Event :=
               LLM.Events.Message_End_Event (Event);
-            Input_Count  : constant Natural                      :=
+            Input_Count   : constant Natural :=
               Ev.Tok_Usage.Input + Ev.Tok_Usage.Cache_Read
               + Ev.Tok_Usage.Cache_Write;
-            Output_Count : constant Natural := Ev.Tok_Usage.Output;
+            Context_Count : constant Natural :=
+              LLM.Compaction.Prompt_Context_Tokens (Ev.Tok_Usage);
+            Output_Count  : constant Natural := Ev.Tok_Usage.Output;
          begin
             State.Set_Last_Stop_Reason (Stop_Reason_Image (Ev.Stop));
             if Ev.Stop = LLM.Types.Error_Stop then
@@ -379,6 +383,7 @@ package body Coyote_App.Dispatch is
                State.Set_Last_Error_Message ("");
             end if;
             if Input_Count > 0 or else Output_Count > 0 then
+               State.Set_Turn_Context_Tokens (Context_Count);
                State.Set_Turn_Tokens (Input_Count, Output_Count);
             end if;
             if Ev.Cost_Dmil > 0 then

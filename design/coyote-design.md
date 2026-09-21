@@ -2007,12 +2007,14 @@ points > 255 cannot appear as character literals.
 - `Format_Duration (Seconds : Duration) → String` — humanises durations.
 - `Truncate_Middle (S : String; Max_Len : Natural) → String` — truncates long
   strings with a middle ellipsis.
-- `Format_Turn_Summary (Input_Tokens, Output_Tokens, Ctx_Window, Model_Text,
+- `Format_Turn_Summary (Context_Tokens, Output_Tokens, Ctx_Window, Model_Text,
   Turn_Cost_Dmil, Session_Cost_Dmil, Stop_Reason_Text) → String` — builds the
-  bracketed per-turn summary line (e.g. `[ctx 24k/400k (6%) | ^537 out | stop]`).
+  bracketed summary for one provider message (e.g. `[ctx 24k/400k (6%) | ^537 out | stop]`).
+  Its context value is provider-normalized for that message; it is distinct from
+  the current-history occupancy shown in the status bar.
   The `Stop_Reason_Text` parameter (added v1.7) displays the provider stop reason
   (`stop`, `length`, `toolUse`, `aborted`, `error`, `unknown`) when non-empty.
-- `Format_Turn_Footer_Display (Input_Tokens, Output_Tokens, Ctx_Window,
+- `Format_Turn_Footer_Display (Context_Tokens, Output_Tokens, Ctx_Window,
   Model_Text, Turn_Cost_Dmil, Session_Cost_Dmil, Stop_Reason_Text,
   Is_Step) → String` — builds turn-footer display text: the summary
   line (if any) followed by a separator.  `Is_Step = False` (default)

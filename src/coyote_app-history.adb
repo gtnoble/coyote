@@ -77,8 +77,9 @@ package body Coyote_App.History is
       Path           : constant String  := Find_Session_File (UUID);
       Tool_Results   : TR_Vectors.Vector;
       Last_Input     : Natural          := 0;
-      Last_Output    : Natural          := 0;
-      Turn_Input     : Natural          := 0;
+      Last_Context    : Natural          := 0;
+      Last_Output     : Natural          := 0;
+      Turn_Context    : Natural          := 0;
       Turn_Output    : Natural          := 0;
       Call_In_Turn   : Natural          := 0;
       Turn_Step      : Natural          := 0;
@@ -349,7 +350,7 @@ package body Coyote_App.History is
                               Turns_Rendered := Turns_Rendered + 1;
                               Frontend.Append_Turn_Footer
                                 (Format_Turn_Footer_Display
-                                   (Input_Tokens     => Turn_Input,
+                                   (Context_Tokens   => Turn_Context,
                                     Output_Tokens    => Turn_Output,
                                     Ctx_Window       => State.Context_Window,
                                     Model_Text       => To_String (Cur_Model),
@@ -357,7 +358,7 @@ package body Coyote_App.History is
                                  Kind    => Coyote_App.Frontend.Final_Footer,
                                  Summary =>
                                    Format_Turn_Summary
-                                     (Input_Tokens     => Turn_Input,
+                                     (Context_Tokens   => Turn_Context,
                                       Output_Tokens    => Turn_Output,
                                       Ctx_Window       => State.Context_Window,
                                       Model_Text => To_String (Cur_Model),
@@ -370,8 +371,8 @@ package body Coyote_App.History is
                            end if;
                            In_Turn       := True;
                            Saw_Asst_Text := False;
-                           Turn_Input    := 0;
-                           Turn_Output   := 0;
+                           Turn_Context := 0;
+                           Turn_Output  := 0;
                            Call_In_Turn  := 0;
                            Turn_Step     := 0;
                            Turn_Stop     := Null_Unbounded_String;
@@ -433,19 +434,28 @@ package body Coyote_App.History is
                               --  Capture token usage for context restore.
                               if Usage.Kind /= JSON_Null_Type then
                                  declare
-                                    Input_Count  : constant Natural :=
+                                    Input_Count   : constant Natural :=
                                       Get_Integer (Usage, "input")
-                                      + Get_Integer (Usage, "cacheRead")
-                                      + Get_Integer (Usage, "cacheWrite");
-                                    Output_Count : constant Natural :=
+                                      + (if Provider = "openai" then 0
+                                         else Get_Integer
+                                           (Usage, "cacheRead"))
+                                      + (if Provider = "openai" then 0
+                                         else Get_Integer
+                                           (Usage, "cacheWrite"));
+                                    Context_Count : constant Natural :=
+                                      Get_Integer (Usage, "contextTokens");
+                                    Output_Count  : constant Natural :=
                                       Get_Integer (Usage, "output");
                                  begin
-                                    Turn_Input  := Input_Count;
+                                    Turn_Context :=
+                                      (if Context_Count > 0 then Context_Count
+                                       else Input_Count);
                                     Turn_Output := Output_Count;
                                     if Input_Count > 0 or else Output_Count > 0
                                     then
-                                       Last_Input  := Input_Count;
-                                       Last_Output := Output_Count;
+                                       Last_Context := Turn_Context;
+                                       Last_Input   := Input_Count;
+                                       Last_Output  := Output_Count;
                                     end if;
                                  end;
                               end if;
@@ -570,7 +580,7 @@ package body Coyote_App.History is
                               Turn_Step := Turn_Step + 1;
                               Frontend.Append_Turn_Footer
                                 (Format_Turn_Footer_Display
-                                   (Input_Tokens     => Turn_Input,
+                                   (Context_Tokens   => Turn_Context,
                                     Output_Tokens    => Turn_Output,
                                     Ctx_Window       => State.Context_Window,
                                     Model_Text       => To_String (Cur_Model),
@@ -579,7 +589,7 @@ package body Coyote_App.History is
                                  Kind    => Coyote_App.Frontend.Step_Footer,
                                  Summary =>
                                    Format_Turn_Summary
-                                     (Input_Tokens     => Turn_Input,
+                                     (Context_Tokens   => Turn_Context,
                                       Output_Tokens    => Turn_Output,
                                       Ctx_Window       => State.Context_Window,
                                       Model_Text => To_String (Cur_Model),
@@ -621,14 +631,14 @@ package body Coyote_App.History is
          Turns_Rendered := Turns_Rendered + 1;
          Frontend.Append_Turn_Footer
            (Format_Turn_Footer_Display
-              (Input_Tokens     => Turn_Input,
+              (Context_Tokens   => Turn_Context,
                Output_Tokens    => Turn_Output,
                Ctx_Window       => State.Context_Window,
                Model_Text       => To_String (Cur_Model),
                Stop_Reason_Text => To_String (Turn_Stop)),
             Summary =>
               Format_Turn_Summary
-                (Input_Tokens     => Turn_Input,
+                (Context_Tokens   => Turn_Context,
                  Output_Tokens    => Turn_Output,
                  Ctx_Window       => State.Context_Window,
                  Model_Text       => To_String (Cur_Model),
@@ -640,6 +650,7 @@ package body Coyote_App.History is
       --  Restore turn count so subsequent live turns are numbered correctly.
       State.Set_Turn_Count (Turns_Rendered);
       if Last_Input > 0 or else Last_Output > 0 then
+         State.Set_Turn_Context_Tokens (Last_Context);
          State.Set_Turn_Tokens (Last_Input, Last_Output);
       end if;
       State.Set_Context_Tokens

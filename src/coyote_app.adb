@@ -79,6 +79,7 @@ package body Coyote_App is
       function Pending_Stats return Boolean is (P_Pending_Stats);
       function Context_Window return Natural is (P_Ctx_Win);
       function Context_Tokens return Natural is (P_Ctx_Tokens);
+      function Turn_Context_Tokens return Natural is (P_Turn_Context);
       function Turn_Input_Tokens return Natural is (P_Turn_In);
       function Turn_Output_Tokens return Natural is (P_Turn_Out);
       function Turn_Count return Natural is (P_Turn_Count);
@@ -260,6 +261,11 @@ package body Coyote_App is
       begin
          P_Ctx_Tokens := N;
       end Set_Context_Tokens;
+
+      procedure Set_Turn_Context_Tokens (N : Natural) is
+      begin
+         P_Turn_Context := N;
+      end Set_Turn_Context_Tokens;
 
       procedure Set_Turn_Tokens (Input, Output : Natural) is
       begin
@@ -631,6 +637,7 @@ package body Coyote_App is
                   State.Set_Last_Stop_Reason ("");
                   State.Set_Last_Error_Message ("");
                   State.Set_Pending_Stats (False);
+                  State.Set_Turn_Context_Tokens (0);
                   State.Set_Turn_Tokens (0, 0);
                   State.Set_Turn_Cost (0);
                   State.Set_Session_Stats (0, 0, 0, 0, 0, 0);
