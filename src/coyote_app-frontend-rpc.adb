@@ -1,17 +1,14 @@
 --  Coyote_App.Frontend.RPC body.
 --
---  This first adapter publishes frontend-level events over the tested local
---  transport.  The runner remains short-lived; command execution is added by
---  the coordinator/control-task slice.
+--  The reader task owns inbound socket access.  Prompt and control frames are
+--  separated before either consumer can observe them.
 --
 --  Project: coyote
 
-with Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with Coyote_App.Agent_RPC;
 with Coyote_App.Agent_RPC.Transport;
 with Coyote_App.Utils;
-with LLM.Types;
 
 package body Coyote_App.Frontend.RPC is
 
@@ -19,6 +16,223 @@ package body Coyote_App.Frontend.RPC is
    use GNATCOLL.JSON;
    use Coyote_App.Agent_RPC;
    use Coyote_App.Agent_RPC.Transport;
+
+   protected body Channel_Lock is
+      entry Acquire when not Busy is
+      begin
+         Busy := True;
+      end Acquire;
+
+      procedure Release is
+      begin
+         Busy := False;
+      end Release;
+   end Channel_Lock;
+
+   protected body Prompt_Mailbox is
+      procedure Put (Text : String) is
+         Tail : Natural;
+      begin
+         if not Closed and then Count < Max_Inbound_Depth then
+            Tail := (Head - 1 + Count) mod Max_Inbound_Depth + 1;
+            Items (Tail) := To_Unbounded_String (Text);
+            Count := Count + 1;
+         end if;
+      end Put;
+
+      procedure Try_Get
+        (Text : out Unbounded_String;
+         Got  : out Boolean)
+      is
+      begin
+         Got := Count > 0;
+         if Got then
+            Text := Items (Head);
+            Head := Head mod Max_Inbound_Depth + 1;
+            Count := Count - 1;
+         else
+            Text := Null_Unbounded_String;
+         end if;
+      end Try_Get;
+
+      entry Get (Text : out Unbounded_String)
+        when Count > 0 or else Closed
+      is
+         Got : Boolean;
+      begin
+         Try_Get (Text, Got);
+         if not Got then
+            Text := Null_Unbounded_String;
+         end if;
+      end Get;
+
+      procedure Close is
+      begin
+         Closed := True;
+      end Close;
+
+      function Is_Open return Boolean is (not Closed);
+   end Prompt_Mailbox;
+
+   protected body Control_Mailbox is
+      procedure Put (Command : Coyote_App.Frontend.Control_Command) is
+         Tail : Natural;
+      begin
+         if not Closed and then Count < Max_Inbound_Depth then
+            Tail := (Head - 1 + Count) mod Max_Inbound_Depth + 1;
+            Items (Tail) := Command;
+            Count := Count + 1;
+         end if;
+      end Put;
+
+      procedure Try_Get
+        (Command : out Coyote_App.Frontend.Control_Command;
+         Got     : out Boolean)
+      is
+      begin
+         Got := Count > 0;
+         if Got then
+            Command := Items (Head);
+            Head := Head mod Max_Inbound_Depth + 1;
+            Count := Count - 1;
+         else
+            Command := (others => <>);
+         end if;
+      end Try_Get;
+
+      procedure Close is
+      begin
+         Closed := True;
+      end Close;
+
+      function Is_Open return Boolean is (not Closed);
+   end Control_Mailbox;
+
+   function Parse_Control
+     (Value : Frame; Command : out Coyote_App.Frontend.Control_Command)
+     return Boolean
+   is
+      Parsed : Read_Result;
+   begin
+      Command := (others => <>);
+      case Value.Command_Name is
+         when Stop =>
+            Command.Kind := Coyote_App.Frontend.Control_Stop;
+         when Pause =>
+            Command.Kind := Coyote_App.Frontend.Control_Pause;
+         when Resume =>
+            Command.Kind := Coyote_App.Frontend.Control_Resume;
+         when Abort_Tool =>
+            Parsed := Read (To_String (Value.Payload_Json));
+            if not Parsed.Success
+              or else not Parsed.Value.Has_Field ("toolId")
+              or else Parsed.Value.Get ("toolId").Kind /= JSON_String_Type
+            then
+               return False;
+            end if;
+            Command.Kind := Coyote_App.Frontend.Control_Abort_Tool;
+            Command.Tool_Id :=
+              To_Unbounded_String
+                (Coyote_App.Utils.Get_String (Parsed.Value, "toolId"));
+            if Parsed.Value.Has_Field ("message")
+              and then Parsed.Value.Get ("message").Kind = JSON_String_Type
+            then
+               Command.Abort_Message :=
+                 To_Unbounded_String
+                   (Coyote_App.Utils.Get_String (Parsed.Value, "message"));
+            end if;
+         when Set_Sandbox =>
+            Parsed := Read (To_String (Value.Payload_Json));
+            if not Parsed.Success
+              or else not Parsed.Value.Has_Field ("profile")
+              or else Parsed.Value.Get ("profile").Kind /= JSON_String_Type
+            then
+               return False;
+            end if;
+            Command.Kind := Coyote_App.Frontend.Control_Set_Sandbox;
+            Command.Sandbox_Profile :=
+              To_Unbounded_String
+                (Coyote_App.Utils.Get_String (Parsed.Value, "profile"));
+         when Shutdown =>
+            Command.Kind := Coyote_App.Frontend.Control_Shutdown;
+         when Prompt | Steer =>
+            return False;
+      end case;
+      return True;
+   end Parse_Control;
+
+   procedure Parse_Prompt (Value : Frame; State : Reader_State_Access) is
+      Parsed : constant Read_Result := Read (To_String (Value.Payload_Json));
+   begin
+      if Parsed.Success and then Parsed.Value.Has_Field ("text")
+        and then Parsed.Value.Get ("text").Kind = JSON_String_Type
+      then
+         State.all.Prompts.Put
+           (Coyote_App.Utils.Get_String (Parsed.Value, "text"));
+      end if;
+   end Parse_Prompt;
+
+   task body Reader_Task is
+      Value  : Frame;
+      Status : Receive_Status;
+      Error  : Unbounded_String;
+      Ready  : Boolean;
+      Stop_Now : Boolean := False;
+   begin
+      accept Start;
+      Reader_Loop :
+      loop
+         select
+            accept Stop do
+               Stop_Now := True;
+            end Stop;
+         or
+            delay 0.01;
+            exit Reader_Loop when Stop_Now;
+            State.all.Channel_Guard.Acquire;
+            begin
+               if not Receive_Frame
+                   (State.all.Channel, Value, Status, Error,
+                    Timeout => 0.01, Ready => Ready)
+               then
+                  State.all.Channel_Guard.Release;
+                  exit Reader_Loop when Ready;
+               end if;
+               State.all.Channel_Guard.Release;
+            exception
+               when others =>
+                  State.all.Channel_Guard.Release;
+                  exit Reader_Loop;
+            end;
+            if Value.Kind = Command then
+               if Value.Command_Name = Prompt
+                 or else Value.Command_Name = Steer
+               then
+                  Parse_Prompt (Value, State);
+               else
+                  declare
+                     Command : Coyote_App.Frontend.Control_Command;
+                  begin
+                     if Parse_Control (Value, Command) then
+                        if Command.Kind =
+                          Coyote_App.Frontend.Control_Shutdown
+                        then
+                           State.all.Prompts.Close;
+                        end if;
+                        State.all.Controls.Put (Command);
+                     end if;
+                  end;
+               end if;
+            end if;
+         end select;
+      end loop Reader_Loop;
+      State.all.Prompts.Close;
+      State.all.Controls.Close;
+   exception
+      when others =>
+         State.all.Prompts.Close;
+         State.all.Controls.Close;
+   end Reader_Task;
 
    procedure Emit (F : in out Instance; Name : Event_Kind; Data : JSON_Value)
    is
@@ -29,8 +243,19 @@ package body Coyote_App.Frontend.RPC is
            Event_Name   => Name,
            Payload_Json => Write (Data));
    begin
-      Send_Frame (F.Channel, Value);
-      F.Next_Sequence := F.Next_Sequence + 1;
+      if F.State = null then
+         return;
+      end if;
+      F.State.all.Channel_Guard.Acquire;
+      begin
+         Send_Frame (F.State.all.Channel, Value);
+         F.Next_Sequence := F.Next_Sequence + 1;
+         F.State.all.Channel_Guard.Release;
+      exception
+         when others =>
+            F.State.all.Channel_Guard.Release;
+            raise;
+      end;
    end Emit;
 
    function Object return JSON_Value is
@@ -46,22 +271,28 @@ package body Coyote_App.Frontend.RPC is
       Label           :        String := "subagent")
    is
    begin
-      Connect (F.Channel, Endpoint);
-      F.Agent_Id           := To_Unbounded_String (Agent_Id);
-      F.Next_Sequence      := 1;
-      F.Is_Connected       := True;
-      F.Is_Terminated      := False;
-      F.Terminal_State     := Completed;
-      F.Pending_Prompt     := Null_Unbounded_String;
-      F.Pending_Steer      := False;
-      F.Control_Closed     := False;
-      F.Shutdown_Requested := False;
-      Send_Frame
-        (F.Channel,
-         Make_Handshake
-           (Agent_Id        => Agent_Id,
-            Parent_Agent_Id => Parent_Agent_Id,
-            Label           => Label));
+      F.State := new Reader_State;
+      Connect (F.State.all.Channel, Endpoint);
+      F.Agent_Id := To_Unbounded_String (Agent_Id);
+      F.Next_Sequence := 1;
+      F.Is_Terminated := False;
+      F.Terminal_State := Completed;
+      F.State.all.Channel_Guard.Acquire;
+      begin
+         Send_Frame
+           (F.State.all.Channel,
+            Make_Handshake
+              (Agent_Id => Agent_Id,
+               Parent_Agent_Id => Parent_Agent_Id,
+               Label => Label));
+         F.State.all.Channel_Guard.Release;
+      exception
+         when others =>
+            F.State.all.Channel_Guard.Release;
+            raise;
+      end;
+      F.Reader := new Reader_Task (F.State);
+      F.Reader.Start;
    end Create;
 
    overriding procedure Set_Status (F : in out Instance; Text : String) is
@@ -305,161 +536,61 @@ package body Coyote_App.Frontend.RPC is
 
    overriding function Has_Control_Channel (F : Instance) return Boolean is
    begin
-      return F.Is_Connected and then not F.Control_Closed;
+      return F.State /= null and then F.State.Controls.Is_Open;
    end Has_Control_Channel;
 
    overriding function Read_Control
-     (F       : in out Instance;
-      Command :    out Coyote_App.Frontend.Control_Command)
+     (F : in out Instance;
+      Command : out Coyote_App.Frontend.Control_Command)
       return Boolean
    is
-      Value  : Frame;
-      Status : Receive_Status;
-      Error  : Unbounded_String;
-      Ready  : Boolean;
+      Got : Boolean;
    begin
-      Command.Kind := Coyote_App.Frontend.Control_Stop;
-      if not Has_Control_Channel (F) then
+      Command := (others => <>);
+      if F.State = null then
          return False;
       end if;
-      if not Receive_Frame
-          (F.Channel, Value, Status, Error, Timeout => 0.0, Ready => Ready)
-        or else not Ready
-      then
-         if Status = Peer_Closed then
-            F.Control_Closed := True;
-         end if;
-         return False;
-      end if;
-      if Value.Kind /= Coyote_App.Agent_RPC.Command then
-         return False;
-      end if;
-      case Value.Command_Name is
-         when Prompt
-            | Steer =>
-            declare
-               Parsed : constant Read_Result :=
-                 Read (To_String (Value.Payload_Json));
-            begin
-               if Parsed.Success and then Parsed.Value.Has_Field ("text")
-                 and then Parsed.Value.Get ("text").Kind = JSON_String_Type
-               then
-                  declare
-                     Prompt_Text : constant String :=
-                       String'(Parsed.Value.Get ("text").Get);
-                  begin
-                     F.Pending_Prompt := To_Unbounded_String (Prompt_Text);
-                     F.Pending_Steer  := Value.Command_Name = Steer;
-                  end;
-               end if;
-            end;
-            return False;
-         when Stop =>
-            Command.Kind := Coyote_App.Frontend.Control_Stop;
-         when Pause =>
-            Command.Kind := Coyote_App.Frontend.Control_Pause;
-         when Resume =>
-            Command.Kind := Coyote_App.Frontend.Control_Resume;
-         when Abort_Tool =>
-            declare
-               Parsed : constant Read_Result :=
-                 Read (To_String (Value.Payload_Json));
-            begin
-               if Parsed.Success and then Parsed.Value.Has_Field ("toolId")
-                 and then Parsed.Value.Get ("toolId").Kind = JSON_String_Type
-               then
-                  Command.Kind    := Coyote_App.Frontend.Control_Abort_Tool;
-                  Command.Tool_Id :=
-                    To_Unbounded_String
-                      (Coyote_App.Utils.Get_String (Parsed.Value, "toolId"));
-                  if Parsed.Value.Has_Field ("message")
-                    and then Parsed.Value.Get ("message").Kind
-                      = JSON_String_Type
-                  then
-                     Command.Abort_Message :=
-                       To_Unbounded_String
-                         (Coyote_App.Utils.Get_String
-                            (Parsed.Value, "message"));
-                  end if;
-               else
-                  return False;
-               end if;
-            end;
-         when Set_Sandbox =>
-            declare
-               Parsed : constant Read_Result :=
-                 Read (To_String (Value.Payload_Json));
-            begin
-               if Parsed.Success and then Parsed.Value.Has_Field ("profile")
-                 and then Parsed.Value.Get ("profile").Kind = JSON_String_Type
-               then
-                  Command.Kind := Coyote_App.Frontend.Control_Set_Sandbox;
-                  Command.Sandbox_Profile :=
-                    Ada.Strings.Unbounded.To_Unbounded_String
-                      (Coyote_App.Utils.Get_String (Parsed.Value, "profile"));
-               else
-                  return False;
-               end if;
-            end;
-         when Shutdown =>
-            Command.Kind         := Coyote_App.Frontend.Control_Shutdown;
-            F.Shutdown_Requested := True;
-      end case;
-      return True;
+      F.State.Controls.Try_Get (Command, Got);
+      return Got;
    end Read_Control;
 
    overriding function Read_Prompt (F : in out Instance) return String is
-      Value  : Frame;
-      Status : Receive_Status;
-      Error  : Unbounded_String;
+      Text : Unbounded_String;
    begin
-      if F.Shutdown_Requested then
+      if F.State = null then
          return "";
       end if;
-      if Length (F.Pending_Prompt) > 0 then
-         declare
-            Prompt : constant String := To_String (F.Pending_Prompt);
-         begin
-            F.Pending_Prompt := Null_Unbounded_String;
-            F.Pending_Steer  := False;
-            return Prompt;
-         end;
-      end if;
-      loop
-         if not Receive_Frame (F.Channel, Value, Status, Error) then
-            return "";
-         end if;
-         if Value.Kind = Command
-           and then
-           (Value.Command_Name = Prompt or else Value.Command_Name = Steer)
-         then
-            declare
-               Parsed : constant Read_Result :=
-                 Read (To_String (Value.Payload_Json));
-            begin
-               if Parsed.Success and then Parsed.Value.Has_Field ("text")
-                 and then Parsed.Value.Get ("text").Kind = JSON_String_Type
-               then
-                  return Parsed.Value.Get ("text").Get;
-               end if;
-            end;
-         end if;
-      end loop;
+      F.State.Prompts.Get (Text);
+      return To_String (Text);
    end Read_Prompt;
 
    overriding procedure Shutdown (F : in out Instance) is
    begin
-      if F.Is_Connected and then not F.Is_Terminated then
-         Send_Frame
-           (F.Channel,
-            Make_Terminal
-              (Agent_Id      => To_String (F.Agent_Id),
-               Status        => F.Terminal_State,
-               Last_Sequence => F.Next_Sequence - 1));
-         F.Is_Terminated := True;
+      if F.Reader /= null then
+         F.Reader.Stop;
       end if;
-      Close (F.Channel);
-      F.Is_Connected := False;
+      if F.State /= null then
+         F.State.all.Prompts.Close;
+         F.State.all.Controls.Close;
+         F.State.all.Channel_Guard.Acquire;
+         begin
+            if not F.Is_Terminated then
+               Send_Frame
+                 (F.State.all.Channel,
+                  Make_Terminal
+                    (Agent_Id => To_String (F.Agent_Id),
+                     Status => F.Terminal_State,
+                     Last_Sequence => F.Next_Sequence - 1));
+               F.Is_Terminated := True;
+            end if;
+            Close (F.State.all.Channel);
+            F.State.all.Channel_Guard.Release;
+         exception
+            when others =>
+               Close (F.State.all.Channel);
+               F.State.all.Channel_Guard.Release;
+         end;
+      end if;
    end Shutdown;
 
 end Coyote_App.Frontend.RPC;

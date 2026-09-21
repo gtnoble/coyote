@@ -1468,6 +1468,18 @@ Verification: queue and settings regressions cover typed transport, persistence,
 malformed/out-of-range defaults, and unrelated-field preservation. The complete
 AUnit suite passes 875/875.
 
+## 2026-09-21 — RPC targeted-abort delivery while a tool is running
+
+The RPC frontend now has one reader task that owns inbound socket reads and
+routes prompt/steer frames and control frames into separate protected FIFO
+mailboxes. The headless runner keeps its control monitor active for the entire
+child lifetime, including while `LLM.Agent.Run_Prompt` is blocked in provider or
+tool I/O. `abortTool` therefore reaches `LLM.Agent.Request_Tool_Abort` without
+waiting for another agent event; shutdown closes the prompt mailbox so an idle
+prompt read wakes. A focused frontend regression verifies prompt/control
+demultiplexing over the coordinator service path; existing RPC, agent, and
+shell cancellation tests remain complementary.
+
 ## 2026-09-08 — IRIX-style targeted tool actions (REQ-CORE-055c..055d)
 
 Native tool cards now provide focusable `Abort` and `Abort With Message...`

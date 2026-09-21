@@ -39,11 +39,42 @@ package body Coyote_App.Headless is
       Section          : Coyote_App.Section_Kind := Coyote_App.No_Section;
 
       task Shutdown_Monitor;
+      task Control_Monitor is
+         entry Start;
+         entry Shutdown;
+      end Control_Monitor;
+      Control_Monitor_Started  : Boolean := False;
+      Control_Monitor_Shutdown : Boolean := False;
 
       procedure Stop_Monitor is
       begin
          Coyote_Process_Control.Stop_Monitor;
       end Stop_Monitor;
+
+      procedure Start_Control_Monitor is
+      begin
+         if not Control_Monitor_Started
+           and then not Control_Monitor_Shutdown
+           and then Coyote_App.Frontend.Has_Control_Channel (Frontend)
+         then
+            Control_Monitor.Start;
+            Control_Monitor_Started := True;
+         end if;
+      end Start_Control_Monitor;
+
+      procedure Shutdown_Control_Monitor is
+      begin
+         if not Control_Monitor_Shutdown then
+            begin
+               Control_Monitor.Shutdown;
+            exception
+               when others =>
+                  null;
+            end;
+            Control_Monitor_Shutdown := True;
+            Control_Monitor_Started  := False;
+         end if;
+      end Shutdown_Control_Monitor;
 
       procedure Signal_Shutdown is
       begin
@@ -158,9 +189,33 @@ package body Coyote_App.Headless is
             null;
       end Poll_Control;
 
+      task body Control_Monitor is
+         Should_Terminate : Boolean := False;
+      begin
+         accept Start;
+         Monitor_Loop :
+         loop
+            select
+               accept Shutdown do
+                  Should_Terminate := True;
+               end Shutdown;
+            or
+               delay 0.01;
+               if not Should_Terminate
+                 and then Coyote_App.Frontend.Has_Control_Channel (Frontend)
+               then
+                  Poll_Control;
+               end if;
+            end select;
+            exit Monitor_Loop when Should_Terminate;
+         end loop Monitor_Loop;
+      exception
+         when others =>
+            null;
+      end Control_Monitor;
+
       procedure Dispatch_Agent_Event (Event : LLM.Events.Agent_Event'Class) is
       begin
-         Poll_Control;
          Track_Event (Event);
          Coyote_App.Dispatch.Dispatch_Event
            (Event    => Event,
@@ -360,6 +415,7 @@ package body Coyote_App.Headless is
          Subagent       => Opts.Subagent);
       Agent_Ready := True;
       State.Set_Agent_Ready (True);
+      Start_Control_Monitor;
       State.Set_Sandbox (LLM.Agent.Current_Sandbox (Agent_Session));
       Publish_Environment;
       if Opts.No_Compact then
@@ -402,7 +458,8 @@ package body Coyote_App.Headless is
             Result.Set_Field
               ("error",
                Create
-                 ("one-shot requires --prompt (use --prompt - to read from stdin)"));
+                 ("one-shot requires --prompt (use --prompt - to read from "
+                  & "stdin)"));
             State.Set_One_Shot_Result (Write (Result));
          end;
       end if;
@@ -420,6 +477,7 @@ package body Coyote_App.Headless is
       end if;
 
       Stop_Monitor;
+      Shutdown_Control_Monitor;
       Frontend.Shutdown;
       Signal_Shutdown;
       if not Opts.No_Session and then Length (Opts.Session_Id) = 0
@@ -459,6 +517,7 @@ package body Coyote_App.Headless is
                State.Set_One_Shot_Result (Write (Result));
             end;
          end if;
+         Shutdown_Control_Monitor;
          Frontend.Shutdown;
          Signal_Shutdown;
          Emit_One_Shot_Result;

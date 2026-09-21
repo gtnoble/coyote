@@ -370,7 +370,7 @@ not wait for the complete user turn.
 | `Coyote_App.Frontend` | Abstract frontend interface | `src/coyote_app-frontend.ads` |
 | `Coyote_App.Frontend.GUI` | GTK3 frontend implementation, agents tree, and selected virtual-window presentation | `src/coyote_app-frontend-gui.ads/.adb` |
 | `Coyote_App.Frontend.Plain` | Plain-text frontend implementation | `src/coyote_app-frontend-plain.ads/.adb` |
-| `Coyote_App.Frontend.RPC` | Headless coordinator RPC frontend for short-lived subagents | `src/coyote_app-frontend-rpc.ads/.adb` |
+| `Coyote_App.Frontend.RPC` | Headless coordinator RPC frontend with single-reader prompt/control mailboxes for short-lived subagents | `src/coyote_app-frontend-rpc.ads/.adb` |
 | `Coyote_App.Agent_Registry` | Live agent-node hierarchy, endpoint classification, and selected-agent routing state | `src/coyote_app-agent_registry.ads/.adb` |
 | `Coyote_App.Agent_RPC` | Local bidirectional RPC codec, listener, event routing, and control transport | `src/coyote_app-agent_rpc.ads/.adb` |
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |

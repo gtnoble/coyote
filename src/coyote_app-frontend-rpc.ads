@@ -90,18 +90,77 @@ package Coyote_App.Frontend.RPC is
 
 private
 
+   Max_Inbound_Depth : constant Positive := 64;
+
+   protected type Channel_Lock is
+      entry Acquire;
+      procedure Release;
+   private
+      Busy : Boolean := False;
+   end Channel_Lock;
+
+   type Prompt_Array is
+     array (Positive range 1 .. Max_Inbound_Depth)
+     of Ada.Strings.Unbounded.Unbounded_String;
+
+   protected type Prompt_Mailbox is
+      procedure Put (Text : String);
+      procedure Try_Get
+        (Text : out Ada.Strings.Unbounded.Unbounded_String;
+         Got  : out Boolean);
+      entry Get (Text : out Ada.Strings.Unbounded.Unbounded_String);
+      procedure Close;
+      function Is_Open return Boolean;
+   private
+      Items  : Prompt_Array;
+      Head   : Natural := 1;
+      Count  : Natural := 0;
+      Closed : Boolean := False;
+   end Prompt_Mailbox;
+
+   type Control_Array is
+     array (Positive range 1 .. Max_Inbound_Depth)
+     of Coyote_App.Frontend.Control_Command;
+
+   protected type Control_Mailbox is
+      procedure Put (Command : Coyote_App.Frontend.Control_Command);
+      procedure Try_Get
+        (Command : out Coyote_App.Frontend.Control_Command;
+         Got     : out Boolean);
+      procedure Close;
+      function Is_Open return Boolean;
+   private
+      Items  : Control_Array;
+      Head   : Natural := 1;
+      Count  : Natural := 0;
+      Closed : Boolean := False;
+   end Control_Mailbox;
+
+   type Reader_State;
+   type Reader_State_Access is access all Reader_State;
+
+   task type Reader_Task (State : not null Reader_State_Access) is
+      entry Start;
+      entry Stop;
+   end Reader_Task;
+
+   type Reader_Task_Access is access Reader_Task;
+
+   type Reader_State is limited record
+      Channel       : Coyote_App.Agent_RPC.Transport.Channel;
+      Channel_Guard : Channel_Lock;
+      Prompts       : Prompt_Mailbox;
+      Controls      : Control_Mailbox;
+   end record;
+
    type Instance is new Coyote_App.Frontend.Instance with record
-      Channel            : Coyote_App.Agent_RPC.Transport.Channel;
-      Agent_Id           : Ada.Strings.Unbounded.Unbounded_String;
-      Next_Sequence      : Natural                              := 1;
-      Is_Connected       : Boolean                              := False;
-      Is_Terminated      : Boolean                              := False;
-      Terminal_State     : Coyote_App.Agent_RPC.Terminal_Status :=
+      State          : Reader_State_Access := null;
+      Reader         : Reader_Task_Access := null;
+      Agent_Id       : Ada.Strings.Unbounded.Unbounded_String;
+      Next_Sequence  : Natural                              := 1;
+      Is_Terminated  : Boolean                              := False;
+      Terminal_State : Coyote_App.Agent_RPC.Terminal_Status :=
         Coyote_App.Agent_RPC.Completed;
-      Pending_Prompt     : Ada.Strings.Unbounded.Unbounded_String;
-      Pending_Steer      : Boolean                              := False;
-      Control_Closed     : Boolean                              := False;
-      Shutdown_Requested : Boolean                              := False;
    end record;
 
 end Coyote_App.Frontend.RPC;
