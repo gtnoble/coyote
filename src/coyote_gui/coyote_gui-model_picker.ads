@@ -27,6 +27,15 @@ package Coyote_GUI.Model_Picker is
       end case;
    end record;
 
+   type Refresh_Request_Handler is access procedure;
+   type Models_Updated_Handler is access procedure
+     (Models : LLM.Model_Registry.Model_Info_Vectors.Vector);
+
+   --  Replace the rows in the active picker.  Must be called on the GTK
+   --  main-loop thread.
+   procedure Update_Models
+     (Models : LLM.Model_Registry.Model_Info_Vectors.Vector);
+
    --  Show the common searchable model picker and return its choice.  When
    --  Allow_Default is true, the picker includes an explicit fallback row.
    --  Initial_Spec selects a matching provider/model row when available.
@@ -35,7 +44,9 @@ package Coyote_GUI.Model_Picker is
       Models        : LLM.Model_Registry.Model_Info_Vectors.Vector;
       Price_Display : LLM.Settings.Price_Display_Mode;
       Initial_Spec  : String  := "";
-      Allow_Default : Boolean := False)
+      Allow_Default : Boolean := False;
+      Refresh       : Refresh_Request_Handler := null;
+      Models_Updated : Models_Updated_Handler := null)
       return Selection_Result;
 
 end Coyote_GUI.Model_Picker;

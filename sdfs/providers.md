@@ -226,14 +226,13 @@ promptly after the flag is set. The development suite passes 928/928 tests.
 
 ## Open Questions / Future Work
 
-- OpenRouter and OpenCode Go model catalogues are fetched once at startup
-  and cached to `~/.coyote/*_models_cache.json`. The OpenCode Go catalogue
-  cross-references the OpenRouter catalogue to obtain context window sizes,
-  reasoning support, and pricing metadata, since the Go `/v1/models` endpoint
-  returns only model IDs.  There is no background refresh. Consider a cache
-  TTL check if stale catalogues become an issue.
-  and cached to `~/.coyote/*_models_cache.json`. There is no background
-  refresh. Consider a cache TTL check if stale catalogues become an issue.
+- OpenRouter and OpenCode Go model catalogues use the existing
+  `~/.coyote/*_models_cache.json` files for normal startup loads. The shared
+  GTK model picker provides an explicit `_Refresh` action; its request is
+  serialized through `Agent_Task`, which performs a forced live fetch and
+  returns the resulting snapshot through the GTK update queue. The picker
+  remains responsive while the operation runs. Failed provider operations
+  retain the prior aggregate registry snapshot when an exception is raised.
 - The Anthropic thinking beta header (`anthropic-beta: interleaved-thinking-...`)
   is hardcoded to the 2025-05-14 version. This should be made configurable
   or updated when Anthropic graduates the feature from beta.

@@ -151,6 +151,23 @@ package body Coyote_GUI_Prompt_Queue_Tests is
          "zero recursion depth should survive queue transport");
    end Test_Set_Preferences_Round_Trips;
 
+   procedure Test_Refresh_Models_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue : Coyote_GUI.Prompt_Queue.Queue;
+      Got   : Coyote_GUI.Prompt_Queue.Item;
+   begin
+      Queue.Enqueue
+        ((Kind            => Refresh_Models,
+          Target_Agent_Id => To_Unbounded_String ("root")));
+      Queue.Dequeue (Got);
+      Assert
+        (Got.Kind = Refresh_Models,
+         "model refresh command kind should survive queue transport");
+      Assert
+        (To_String (Got.Target_Agent_Id) = "root",
+         "model refresh target should survive queue transport");
+   end Test_Refresh_Models_Round_Trips;
+
    procedure Test_Enqueue_Reports_Acceptance (T : in out Test) is
       pragma Unreferenced (T);
       Queue    : Coyote_GUI.Prompt_Queue.Queue;
@@ -259,6 +276,11 @@ package body Coyote_GUI_Prompt_Queue_Tests is
         (Coyote_GUI_Prompt_Queue_Caller.Create
            ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
             Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'
+              Access));
+      Result.Add_Test
+        (Coyote_GUI_Prompt_Queue_Caller.Create
+           ("Coyote.GUI.Prompt_Queue refresh models round trips",
+            Coyote_GUI_Prompt_Queue_Tests.Test_Refresh_Models_Round_Trips'
               Access));
       Result.Add_Test
         (Coyote_GUI_Prompt_Queue_Caller.Create

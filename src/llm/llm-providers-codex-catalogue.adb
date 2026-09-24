@@ -466,13 +466,15 @@ package body LLM.Providers.Codex.Catalogue is
    end Load_Cache;
 
    procedure Load_Catalogue
-     (Models : out Catalogue_Vectors.Vector; Max_Age_Hours : Natural := 24)
+     (Models        : out Catalogue_Vectors.Vector;
+      Max_Age_Hours :     Natural := 24;
+      Force_Live    :     Boolean := False)
    is
       Cache_Result : constant Cache_Load_Result := Load_Cache (Max_Age_Hours);
       Live_Models  : Catalogue_Vectors.Vector;
       Live_Data    : GNATCOLL.JSON.JSON_Value;
    begin
-      if Cache_Result.Found and then Cache_Result.Fresh then
+      if Cache_Result.Found and then Cache_Result.Fresh and then not Force_Live then
          Models := Cache_Result.Models;
          return;
       end if;

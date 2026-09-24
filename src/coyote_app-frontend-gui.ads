@@ -24,6 +24,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Glib;                  use Glib;
 with LLM.Agent;
+with LLM.Model_Registry;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
@@ -194,6 +195,14 @@ package Coyote_App.Frontend.GUI is
    --  Update the window-manager identity for the active session.  The
    --  request is queued so the GTK window is changed only on the GTK task.
    procedure Set_Session_Identity (F : in out Instance; Session_Id : String);
+
+   --  Request a forced model catalogue refresh from the Agent_Task.
+   procedure Request_Model_Refresh (F : in out Instance);
+
+   --  Publish a refreshed model snapshot to the GTK update queue.
+   procedure Publish_Model_Registry
+     (F : in out Instance;
+      Models : LLM.Model_Registry.Model_Info_Vectors.Vector);
 
 private
 

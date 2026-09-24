@@ -1856,6 +1856,9 @@ package body Coyote_App.Frontend.GUI is
                "coyote : Detail",
                To_String (U.Text) & ASCII.LF & To_String (U.Text2));
 
+         when Model_Registry_Refreshed =>
+            Coyote_GUI.Model_Picker.Update_Models (U.Models);
+
          when Rpc_Frame =>
             Apply_RPC_Frame (F, U);
 
@@ -1879,7 +1882,10 @@ package body Coyote_App.Frontend.GUI is
          Apply_RPC_Frame (F, U);
       else
          Retain_Update (F, U);
-         if Runtime_Id'Length = 0 or else Runtime_Id = Selected then
+         if Runtime_Id'Length = 0
+           or else Runtime_Id = Selected
+           or else U.Kind = Coyote_GUI.Model_Registry_Refreshed
+         then
             Apply_Update_Visible (F, U);
          end if;
       end if;
@@ -2530,6 +2536,14 @@ package body Coyote_App.Frontend.GUI is
 
    --  ── Change Model dialog ──────────────────────────────────────────────
 
+   procedure On_Model_Refresh_Requested is
+   begin
+      if Current_Frontend /= null then
+         Coyote_App.Frontend.GUI.Request_Model_Refresh
+           (Current_Frontend.all);
+      end if;
+   end On_Model_Refresh_Requested;
+
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
@@ -2548,7 +2562,8 @@ package body Coyote_App.Frontend.GUI is
           (Parent        => Current_Frontend.Win,
            Models        => Models,
            Price_Display => Settings_Value.Price_Display,
-           Initial_Spec  => "");
+           Initial_Spec  => "",
+           Refresh       => On_Model_Refresh_Requested'Access);
       if Result.Status = Coyote_GUI.Model_Picker.Selected then
          Current_Frontend.PQ.Enqueue
            ((Set_Model,
@@ -2578,7 +2593,8 @@ package body Coyote_App.Frontend.GUI is
            Models        => Models,
            Price_Display => Settings_Value.Price_Display,
            Initial_Spec  => Coyote_App.Subagent_Model_Override_State.Current,
-           Allow_Default => True);
+           Allow_Default => True,
+           Refresh       => On_Model_Refresh_Requested'Access);
       case Result.Status is
          when Coyote_GUI.Model_Picker.Selected =>
             Current_Frontend.PQ.Enqueue
@@ -2834,6 +2850,31 @@ package body Coyote_App.Frontend.GUI is
       return To_String (Spec);
    end Model_Button_Text;
 
+   procedure On_Models_Updated
+     (Models : LLM.Model_Registry.Model_Info_Vectors.Vector)
+   is
+   begin
+      Preferences_Models.Models := Models;
+      if not Has_Model (Models, To_String (Preferences_Models.Primary_Spec))
+      then
+         Preferences_Models.Primary_Spec := First_Model_Spec (Models);
+         if Preferences_Models.Primary_Button /= null then
+            Preferences_Models.Primary_Button.Set_Label
+              (Model_Button_Text (Preferences_Models.Primary_Spec));
+         end if;
+      end if;
+      if Length (Preferences_Models.Subagent_Spec) > 0
+        and then not Has_Model
+          (Models, To_String (Preferences_Models.Subagent_Spec))
+      then
+         Preferences_Models.Subagent_Spec := Null_Unbounded_String;
+         if Preferences_Models.Subagent_Button /= null then
+            Preferences_Models.Subagent_Button.Set_Label
+              ("Use default model");
+         end if;
+      end if;
+   end On_Models_Updated;
+
    procedure On_Default_Model_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
@@ -2849,7 +2890,9 @@ package body Coyote_App.Frontend.GUI is
            Price_Display =>
              LLM.Settings.Price_Display_Mode'Val
                (Preferences_Models.Price_Display_Combo.Get_Active),
-           Initial_Spec  => To_String (Preferences_Models.Primary_Spec));
+           Initial_Spec  => To_String (Preferences_Models.Primary_Spec),
+           Refresh       => On_Model_Refresh_Requested'Access,
+           Models_Updated => On_Models_Updated'Access);
       if Result.Status = Coyote_GUI.Model_Picker.Selected then
          Preferences_Models.Primary_Spec := Result.Model_Spec;
          Button.Set_Label
@@ -2873,7 +2916,9 @@ package body Coyote_App.Frontend.GUI is
              LLM.Settings.Price_Display_Mode'Val
                (Preferences_Models.Price_Display_Combo.Get_Active),
            Initial_Spec  => To_String (Preferences_Models.Subagent_Spec),
-           Allow_Default => True);
+           Allow_Default => True,
+           Refresh       => On_Model_Refresh_Requested'Access,
+           Models_Updated => On_Models_Updated'Access);
       case Result.Status is
          when Coyote_GUI.Model_Picker.Selected =>
             Preferences_Models.Subagent_Spec := Result.Model_Spec;
@@ -4870,6 +4915,23 @@ package body Coyote_App.Frontend.GUI is
    begin
       F.Agent_Sess.Set (S);
    end Register_Session;
+
+   procedure Request_Model_Refresh (F : in out Instance) is
+   begin
+      F.PQ.Enqueue
+        ((Refresh_Models, Target_Agent_Id => F.Root_Agent_Id));
+   end Request_Model_Refresh;
+
+   procedure Publish_Model_Registry
+     (F : in out Instance;
+      Models : LLM.Model_Registry.Model_Info_Vectors.Vector)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind   := Coyote_GUI.Model_Registry_Refreshed;
+      U.Models := Models;
+      Enqueue_Update (F, U);
+   end Publish_Model_Registry;
 
    procedure Set_Session_Identity (F : in out Instance; Session_Id : String) is
       U : Coyote_GUI.Update;

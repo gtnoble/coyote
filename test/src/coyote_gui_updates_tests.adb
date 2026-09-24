@@ -112,6 +112,28 @@ package body Coyote_GUI_Updates_Tests is
       Assert (not Got, "stopped queue must not retain a new update");
    end Test_Stopped_Queue_Does_Not_Wake;
 
+   procedure Test_Model_Registry_Refresh_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue  : Coyote_GUI.Updates.Queue;
+      Input  : Coyote_GUI.Update;
+      Output : Coyote_GUI.Update;
+      Got    : Boolean;
+      Wake   : Boolean;
+   begin
+      Input.Kind := Coyote_GUI.Model_Registry_Refreshed;
+      Input.Runtime_Agent_Id :=
+        Ada.Strings.Unbounded.To_Unbounded_String ("root");
+      Queue.Enqueue (Input, Wake);
+      Queue.Dequeue (Output, Got);
+      Assert (Got, "model refresh update must be dequeued");
+      Assert
+        (Output.Kind = Coyote_GUI.Model_Registry_Refreshed,
+         "model refresh update kind should survive transport");
+      Assert
+        (Ada.Strings.Unbounded.To_String (Output.Runtime_Agent_Id) = "root",
+         "model refresh runtime identity should survive transport");
+   end Test_Model_Registry_Refresh_Round_Trips;
+
    procedure Test_Runtime_Agent_Id_Round_Trips (T : in out Test) is
       pragma Unreferenced (T);
       Queue  : Coyote_GUI.Updates.Queue;
@@ -211,6 +233,11 @@ package body Coyote_GUI_Updates_Tests is
         (Coyote_GUI_Updates_Caller.Create
            ("Coyote.GUI.Updates stopped queue does not wake",
             Coyote_GUI_Updates_Tests.Test_Stopped_Queue_Does_Not_Wake'Access));
+      Result.Add_Test
+        (Coyote_GUI_Updates_Caller.Create
+           ("Coyote.GUI.Updates model registry refresh round trips",
+            Coyote_GUI_Updates_Tests
+              .Test_Model_Registry_Refresh_Round_Trips'Access));
       Result.Add_Test
         (Coyote_GUI_Updates_Caller.Create
            ("Coyote.GUI.Updates preserves runtime agent identity",

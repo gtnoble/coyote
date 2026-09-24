@@ -1646,7 +1646,8 @@ optional `On_Progress` callback.  Errors raise `Login_Error`.
 
 ### 5.23 `LLM.Model_Registry`
 
-**Purpose:** In-memory catalogue of known models, built at session start.
+**Purpose:** In-memory catalogue of known models, initialized at session start and
+refreshable at runtime through the serialized agent-task command path.
 
 **`Model_Info` record:** provider, model_id, display_name, context_window,
 wire_format (`"openai-completions"` or `"anthropic-messages"`), supports_thinking.
@@ -2200,7 +2201,11 @@ startup and is the sole GTK conversation presentation (see §5.15).
   persistent `sub provider/model-id` segment while active), or
   `Set_Preferences`.
   Typeahead is disabled; a count label shows `N models` or `N matches`; Escape
-  clears a non-empty query, then cancels the dialog.
+  clears a non-empty query, then cancels the dialog. The search row also contains
+  the IRIX-compliant `_Refresh` pushbutton. It queues `Refresh_Models`, leaving
+  catalogue work on `Agent_Task`; completion is delivered as
+  `Model_Registry_Refreshed` and rebuilds the existing list store on the GTK main
+  task while preserving the query and selected model where possible.
 - **Completion notifications:** `Run_GUI` disables the feature for subagents and
   one-shot executions. For eligible runs, the agent task queues a completion
   update after `Session_Stats_Event`; the GTK idle callback checks

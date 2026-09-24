@@ -516,6 +516,18 @@ subagent model buttons, retaining draft selections until Save. The subagent
 picker adds an explicit `Use default model` row that clears both persisted
 subagent fields.
 
+### GTK model-picker refresh (2026-09-22)
+
+The shared model picker now provides an IRIX-compliant `_Refresh` pushbutton in
+its search row, between the expanding search entry and the model count. The
+button queues a typed `Refresh_Models` command instead of performing catalogue
+work on the GTK task. `Agent_Task` performs a forced catalogue refresh and
+publishes `Model_Registry_Refreshed` through the protected GTK update queue.
+The picker rebuilds its existing list store on the GTK main task, preserving
+its query and selected model where possible; Preferences also receives the
+refreshed snapshot. The update is applied even when a different virtual agent
+is selected.
+
 ### Dedicated subagent model in GTK Preferences (2026-08-08)
 
 The Preferences dialog now provides a separate subagent model selector with a

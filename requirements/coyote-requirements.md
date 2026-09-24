@@ -1024,7 +1024,7 @@ or whitespace-only query shall show all models. The dialog shall display
 the number of visible rows. Escape shall clear a non-empty query; Escape
 on an empty query shall cancel the dialog. The four price columns shall use
 the configured SI-prefixed or dB display mode; zero values shall show `free`,
-negative values shall be blank, and numeric price ordering shall be retained.
+negative values shall be blank, and numeric price ordering shall be retained. The dialog shall provide a `_Refresh` pushbutton in the search control row. Activating it shall request an explicit live catalogue refresh without blocking the GTK main loop. On completion, the dialog shall replace its rows while preserving the search query, sort state, and selected model when available. Refresh failures shall preserve the previous registry snapshot when possible and report through the existing GUI notice/status path.
 
 **REQ-CORE-132** (D)
 The interactive GTK GUI shall provide visible keyboard accelerators for the

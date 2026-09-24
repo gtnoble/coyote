@@ -42,6 +42,7 @@ package LLM.Providers.GitHub_Copilot.Catalogue is
      (Base_Url      :     String;
       Token         :     String;
       Models        : out Catalogue_Vectors.Vector;
-      Max_Age_Hours :     Natural := 24);
+      Max_Age_Hours :     Natural := 24;
+      Force_Live    :     Boolean := False);
 
 end LLM.Providers.GitHub_Copilot.Catalogue;

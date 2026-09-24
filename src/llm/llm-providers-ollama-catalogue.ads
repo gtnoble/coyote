@@ -35,6 +35,7 @@ package LLM.Providers.Ollama.Catalogue is
      (Models        : out Catalogue_Vectors.Vector;
       Base_Url      :     String  := "";
       Api_Key       :     String  := "";
-      Max_Age_Hours :     Natural := 24);
+      Max_Age_Hours :     Natural := 24;
+      Force_Live    :     Boolean := False);
 
 end LLM.Providers.Ollama.Catalogue;

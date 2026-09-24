@@ -50,7 +50,8 @@ package LLM.Model_Registry is
    --  catalogue data is appended. When no Copilot credentials are configured
    --  or the cached token has expired, the Copilot portion of the registry
    --  becomes empty.
-   procedure Refresh_GitHub_Copilot;
+   procedure Refresh_GitHub_Copilot
+     (Force_Live : Boolean := False);
 
    --  Populate the registry from the live OpenRouter catalogue.
    --
@@ -58,7 +59,8 @@ package LLM.Model_Registry is
    --
    --  All existing "openrouter" entries are cleared before the refreshed
    --  catalogue data is appended.
-   procedure Refresh_OpenRouter;
+   procedure Refresh_OpenRouter
+     (Force_Live : Boolean := False);
 
    --  Populate the registry with the direct Anthropic model subset.
    --
@@ -75,9 +77,11 @@ package LLM.Model_Registry is
    --  All existing "opencode-go" entries are cleared before the refreshed
    --  catalogue data is appended. When no OpenCode Go API key is configured,
    --  the OpenCode Go portion of the registry becomes empty.
-   procedure Refresh_OpenCode_Go;
+   procedure Refresh_OpenCode_Go
+     (Force_Live : Boolean := False);
    procedure Refresh_OpenAI;
-   procedure Refresh_Ollama;
+   procedure Refresh_Ollama
+     (Force_Live : Boolean := False);
 
    --  Populate the registry with the curated OpenAI Codex subscription
    --  catalogue.
@@ -85,7 +89,12 @@ package LLM.Model_Registry is
    --  Codex models are included when ~/.coyote/auth.json contains a
    --  "codex" OAuth credential entry. All existing "codex" entries are
    --  cleared before the refreshed catalogue data is appended.
-   procedure Refresh_Codex;
+   procedure Refresh_Codex
+     (Force_Live : Boolean := False);
+
+   --  Refresh every configured provider and republish the registry.
+   --  Force_Live bypasses fresh catalogue caches for explicit user refreshes.
+   procedure Refresh_All (Force_Live : Boolean := False);
 
    --  Look up one model by provider and model identifier.
    --

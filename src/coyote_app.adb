@@ -16,6 +16,7 @@ with LLM.Compaction;
 with LLM.Agent;
 with LLM.Events;
 with LLM.Providers;
+with LLM.Model_Registry;
 with LLM.Session_Store;
 with LLM.Settings;
 with LLM.Types;
@@ -1042,6 +1043,24 @@ package body Coyote_App is
                               when Ex : others =>
                                  Append_Task_Warning
                                    ("model change failed: "
+                                    & Ada.Exceptions.Exception_Message (Ex));
+                           end;
+
+                        when Coyote_GUI.Prompt_Queue.Refresh_Models =>
+                           begin
+                              My_Frontend.Set_Status
+                                ("Refreshing model catalogue...");
+                              LLM.Model_Registry.Refresh_All (Force_Live => True);
+                              My_Frontend.Publish_Model_Registry
+                                (LLM.Model_Registry.Available_Models);
+                              My_Frontend.Set_Status (Format_Status
+                                (State, Status_Label));
+                           exception
+                              when Ex : others =>
+                                 My_Frontend.Publish_Model_Registry
+                                   (LLM.Model_Registry.Available_Models);
+                                 Append_Task_Warning
+                                   ("model catalogue refresh failed: "
                                     & Ada.Exceptions.Exception_Message (Ex));
                            end;
 

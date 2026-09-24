@@ -44,7 +44,9 @@ package LLM.Providers.OpenCode_Go.Catalogue is
    --  When a live fetch fails, stale cached data is used when available;
    --  otherwise Models is returned empty.
    procedure Load_Catalogue
-     (Models : out Catalogue_Vectors.Vector; Max_Age_Hours : Natural := 24);
+     (Models        : out Catalogue_Vectors.Vector;
+      Max_Age_Hours :     Natural := 24;
+      Force_Live    :     Boolean := False);
 
    --  Determine the wire format for a given model identifier.
    --

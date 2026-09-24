@@ -47,6 +47,7 @@ package Coyote_GUI.Prompt_Queue is
       New_Window,        --  spawn a fresh coyote GUI window
       New_Session,       --  replace session with a fresh one
       Set_Model,         --  change the active model
+      Refresh_Models,    --  force a model catalogue refresh
       Set_Subagent_Model, --  runtime-only override for future subagents
       Set_Thinking,      --  change the reasoning level
       Set_Sandbox,       --  change the sandbox profile
@@ -57,7 +58,8 @@ package Coyote_GUI.Prompt_Queue is
    --  ── Payload variant record ────────────────────────────────────────────
    --
    --  Variants without a payload (Stop, Pause, Resume, Compact, New_Window,
-   --  New_Session, Shutdown_Item) use the others branch with no fields.
+   --  New_Session, Refresh_Models, Shutdown_Item) use the others branch with
+   --  no fields.
 
    type Item (Kind : Item_Kind := User_Prompt) is record
       --  Runtime destination; empty is the legacy single-agent value.

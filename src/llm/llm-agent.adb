@@ -1542,14 +1542,7 @@ package body LLM.Agent is
           ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "")
         /= "1"
       then
-         LLM.Model_Registry.Refresh_GitHub_Copilot;
-         LLM.Model_Registry.Refresh_OpenRouter;
-         LLM.Model_Registry.Refresh_Anthropic;
-         LLM.Model_Registry.Refresh_OpenCode_Go;
-         LLM.Model_Registry.Refresh_OpenAI;
-         LLM.Model_Registry.Refresh_Codex;
-
-         LLM.Model_Registry.Refresh_Ollama;
+         LLM.Model_Registry.Refresh_All;
       end if;
       Set_Model_Internal (S, Effective_Spec);
 

@@ -1123,6 +1123,25 @@ network-independent.
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 869/869.
 
+## 2026-09-22 — Runtime model catalogue refresh
+
+**Requirement:** The GTK model picker shall refresh provider catalogues without
+blocking the GTK main loop and shall preserve the prior registry snapshot when
+aggregate refresh fails.
+
+**Implementation:** `LLM.Model_Registry.Refresh_All` now centralizes the
+startup provider sequence and accepts `Force_Live`; catalogue loaders bypass
+fresh caches only for explicit refresh requests. `Coyote_GUI.Prompt_Queue`
+transports `Refresh_Models` from GTK to `Agent_Task`, which publishes
+`Model_Registry_Refreshed` through the protected GTK update queue. The shared
+picker rebuilds its model store on the GTK main task and preserves query and
+selection state.
+
+**Verification:** Production and test development builds succeed. Focused
+Prompt_Queue, Updates, Model_Picker, Model_Registry, and GUI-domain tests pass;
+full-suite execution reached the model-picker tests but did not terminate
+within the command timeout.
+
 ## 2026-09-07 — Codex provider dispatch and catalogue refresh
 
 **Requirement:** The `codex` provider (OpenAI Codex subscription, ChatGPT

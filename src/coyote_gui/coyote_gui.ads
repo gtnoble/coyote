@@ -8,6 +8,7 @@
 --  Project: coyote
 
 with Ada.Strings.Unbounded;
+with LLM.Model_Registry;
 
 package Coyote_GUI is
 
@@ -204,6 +205,7 @@ package Coyote_GUI is
       Set_Completion_Notifications,
       Completion_Notification,
       Show_Detail,
+      Model_Registry_Refreshed,
       Rpc_Frame,
       Shutdown);
 
@@ -223,6 +225,7 @@ package Coyote_GUI is
       Context_Tokens   : Natural           := 0;
       Context_Window   : Natural           := 0;
       Stats            : Session_Stats_Record;
+      Models           : LLM.Model_Registry.Model_Info_Vectors.Vector;
       T_Status         : Tool_Status       := Queued;
       Mode             : Run_Mode          := Idle;
       N_Kind           : Notice_Kind       := Info;

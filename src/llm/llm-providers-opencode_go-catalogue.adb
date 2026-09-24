@@ -422,7 +422,9 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    ------------------------------------------------------------
 
    procedure Load_Catalogue
-     (Models : out Catalogue_Vectors.Vector; Max_Age_Hours : Natural := 24)
+     (Models        : out Catalogue_Vectors.Vector;
+      Max_Age_Hours :     Natural := 24;
+      Force_Live    :     Boolean := False)
    is
       --  Load the OpenRouter catalogue first so its metadata is
       --  available for cross-referencing during cache and live paths.
@@ -432,11 +434,13 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       Live_Data    : GNATCOLL.JSON.JSON_Value;
    begin
       LLM.Providers.OpenRouter.Catalogue.Load_Catalogue
-        (OR_Models, Max_Age_Hours);
+        (Models        => OR_Models,
+         Max_Age_Hours => Max_Age_Hours,
+         Force_Live    => Force_Live);
 
       Cache_Result := Load_Cache (Max_Age_Hours, OR_Models);
 
-      if Cache_Result.Found and then Cache_Result.Fresh then
+      if Cache_Result.Found and then Cache_Result.Fresh and then not Force_Live then
          Models := Cache_Result.Models;
          return;
       end if;

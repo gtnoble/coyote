@@ -331,7 +331,7 @@ package body LLM.Model_Registry is
       end if;
    end Refresh_OpenAI;
 
-   procedure Refresh_Codex is
+   procedure Refresh_Codex (Force_Live : Boolean := False) is
       Models : LLM.Providers.Codex.Catalogue.Catalogue_Vectors.Vector;
    begin
       Remove_Provider_Entries ("codex");
@@ -345,7 +345,9 @@ package body LLM.Model_Registry is
       --  on standard error so a degraded or empty codex registry is
       --  never silent; the agent can still start without codex models.
       begin
-         LLM.Providers.Codex.Catalogue.Load_Catalogue (Models);
+         LLM.Providers.Codex.Catalogue.Load_Catalogue
+           (Models     => Models,
+            Force_Live => Force_Live);
       exception
          when Ex : others =>
             Models.Clear;
@@ -379,7 +381,7 @@ package body LLM.Model_Registry is
       end loop;
    end Refresh_Codex;
 
-   procedure Refresh_Ollama is
+   procedure Refresh_Ollama (Force_Live : Boolean := False) is
       Models : LLM.Providers.Ollama.Catalogue.Catalogue_Vectors.Vector;
    begin
       Remove_Provider_Entries ("ollama");
@@ -428,7 +430,7 @@ package body LLM.Model_Registry is
       end loop;
    end Refresh_Ollama;
 
-   procedure Refresh_GitHub_Copilot is
+   procedure Refresh_GitHub_Copilot (Force_Live : Boolean := False) is
       Creds  : constant LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("github-copilot");
       Models : LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
@@ -461,9 +463,10 @@ package body LLM.Model_Registry is
                 (To_String (Creds.Access_Token));
          begin
             LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue
-              (Base_Url => Base_Url,
-               Token    => To_String (Creds.Access_Token),
-               Models   => Models);
+              (Base_Url   => Base_Url,
+               Token      => To_String (Creds.Access_Token),
+               Models     => Models,
+               Force_Live => Force_Live);
          end;
 
          for Item of Models loop
@@ -475,11 +478,13 @@ package body LLM.Model_Registry is
       end;
    end Refresh_GitHub_Copilot;
 
-   procedure Refresh_OpenRouter is
+   procedure Refresh_OpenRouter (Force_Live : Boolean := False) is
       Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector;
    begin
       Remove_Provider_Entries ("openrouter");
-      LLM.Providers.OpenRouter.Catalogue.Load_Catalogue (Models);
+      LLM.Providers.OpenRouter.Catalogue.Load_Catalogue
+        (Models     => Models,
+         Force_Live => Force_Live);
 
       for Item of Models loop
          Registry.Append (To_Model_Info (Item));
@@ -514,7 +519,7 @@ package body LLM.Model_Registry is
          Reasoning    => True);
    end Refresh_Anthropic;
 
-   procedure Refresh_OpenCode_Go is
+   procedure Refresh_OpenCode_Go (Force_Live : Boolean := False) is
       Models : LLM.Providers.OpenCode_Go.Catalogue.Catalogue_Vectors.Vector;
    begin
       Remove_Provider_Entries ("opencode-go");
@@ -523,12 +528,30 @@ package body LLM.Model_Registry is
          return;
       end if;
 
-      LLM.Providers.OpenCode_Go.Catalogue.Load_Catalogue (Models);
+      LLM.Providers.OpenCode_Go.Catalogue.Load_Catalogue
+        (Models     => Models,
+         Force_Live => Force_Live);
 
       for Item of Models loop
          Registry.Append (To_Model_Info (Item));
       end loop;
    end Refresh_OpenCode_Go;
+
+   procedure Refresh_All (Force_Live : Boolean := False) is
+      Previous : constant Model_Info_Vectors.Vector := Registry;
+   begin
+      Refresh_GitHub_Copilot (Force_Live);
+      Refresh_OpenRouter (Force_Live);
+      Refresh_Anthropic;
+      Refresh_OpenCode_Go (Force_Live);
+      Refresh_OpenAI;
+      Refresh_Codex (Force_Live);
+      Refresh_Ollama (Force_Live);
+   exception
+      when others =>
+         Registry := Previous;
+         raise;
+   end Refresh_All;
 
    function Default_GitHub_Copilot_Model (Model_Id : String) return Model_Info
    is

@@ -12,6 +12,7 @@ with Coyote_App.Utils;
 with Glib;
 with Glib.Values;
 with Gtk.Box;
+with Gtk.Button;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
 with Gtk.Enums;
@@ -30,6 +31,8 @@ with Gtk.Widget;
 package body Coyote_GUI.Model_Picker is
 
    use Coyote_App.Utils;
+   use Gtk.Button;
+   use Gtk.List_Store;
    use type Glib.Gint;
    use type Glib.Guint16;
    use type Gtk.Dialog.Gtk_Dialog;
@@ -44,13 +47,21 @@ package body Coyote_GUI.Model_Picker is
    Default_Spec : constant String := "__coyote_use_default__";
 
    type Picker_State is record
+      Store  : Gtk.List_Store.Gtk_List_Store                := null;
       Filter : Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter := null;
       Sort   : Gtk.Tree_Model_Sort.Gtk_Tree_Model_Sort     := null;
       View   : Gtk.Tree_View.Gtk_Tree_View                 := null;
       Search : Gtk.Search_Entry.Gtk_Search_Entry           := null;
-      Count  : Gtk.Label.Gtk_Label                         := null;
-      Dialog : Gtk.Dialog.Gtk_Dialog                       := null;
-      Query  : Unbounded_String := Null_Unbounded_String;
+      Count         : Gtk.Label.Gtk_Label                         := null;
+      Refresh_Button : Gtk.Button.Gtk_Button                     := null;
+      Dialog        : Gtk.Dialog.Gtk_Dialog                       := null;
+      Models        : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Price_Display : LLM.Settings.Price_Display_Mode :=
+        LLM.Settings.SI_Prefixes;
+      Allow_Default : Boolean := False;
+      Refresh       : Refresh_Request_Handler := null;
+      Models_Updated : Models_Updated_Handler := null;
+      Query         : Unbounded_String := Null_Unbounded_String;
    end record;
 
    State : Picker_State;
@@ -59,6 +70,75 @@ package body Coyote_GUI.Model_Picker is
    begin
       State := (others => <>);
    end Clear_State;
+
+   function Price_Sort (Price : Long_Float) return Glib.Gint;
+
+   function Price_Text
+     (Price         : Long_Float;
+      Price_Display : LLM.Settings.Price_Display_Mode)
+      return String;
+
+   function Initial_Iter
+     (Model : Gtk.Tree_Model.Gtk_Tree_Model;
+      Spec  : String)
+      return Gtk.Tree_Model.Gtk_Tree_Iter;
+
+   procedure Append_Model_Row
+     (Store         : Gtk.List_Store.Gtk_List_Store;
+      Model_Info    : LLM.Model_Registry.Model_Info;
+      Price_Display : LLM.Settings.Price_Display_Mode);
+
+   procedure Append_Default_Row (Store : Gtk.List_Store.Gtk_List_Store);
+
+   procedure Append_Model_Row
+     (Store         : Gtk.List_Store.Gtk_List_Store;
+      Model_Info    : LLM.Model_Registry.Model_Info;
+      Price_Display : LLM.Settings.Price_Display_Mode)
+   is
+      use Gtk.List_Store;
+      Provider : constant String := To_String (Model_Info.Provider);
+      Name     : constant String :=
+        (if Length (Model_Info.Name) > 0 then To_String (Model_Info.Name)
+         else To_String (Model_Info.Model_Id));
+      Context  : constant String :=
+        Format_SI_Count (Model_Info.Context_Window) & " ctx";
+      Input_P  : constant String :=
+        Price_Text (Model_Info.Cost.Input, Price_Display);
+      Output_P : constant String :=
+        Price_Text (Model_Info.Cost.Output, Price_Display);
+      Read_P   : constant String :=
+        Price_Text (Model_Info.Cost.Cache_Read, Price_Display);
+      Write_P  : constant String :=
+        Price_Text (Model_Info.Cost.Cache_Write, Price_Display);
+      Spec     : constant String :=
+        Provider & "/" & To_String (Model_Info.Model_Id);
+      Row      : Gtk.Tree_Model.Gtk_Tree_Iter;
+   begin
+      Store.Append (Row);
+      Store.Set (Row, 0, Provider);
+      Store.Set (Row, 1, Name);
+      Store.Set (Row, 2, Context);
+      Store.Set (Row, 3, Input_P);
+      Store.Set (Row, 4, Output_P);
+      Store.Set (Row, 5, Read_P);
+      Store.Set (Row, 6, Write_P);
+      Store.Set (Row, 7, Spec);
+      Store.Set (Row, 8, Glib.Gint (Model_Info.Context_Window));
+      Store.Set (Row, 9, Price_Sort (Model_Info.Cost.Input));
+      Store.Set (Row, 10, Price_Sort (Model_Info.Cost.Output));
+      Store.Set (Row, 11, Price_Sort (Model_Info.Cost.Cache_Read));
+      Store.Set (Row, 12, Price_Sort (Model_Info.Cost.Cache_Write));
+   end Append_Model_Row;
+
+   procedure Append_Default_Row (Store : Gtk.List_Store.Gtk_List_Store) is
+      use Gtk.List_Store;
+      Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
+   begin
+      Store.Append (Iter);
+      Store.Set (Iter, 0, "(default)");
+      Store.Set (Iter, 1, "Use default model");
+      Store.Set (Iter, 7, Default_Spec);
+   end Append_Default_Row;
 
    function Row_Visible
      (Model : Gtk.Tree_Model.Gtk_Tree_Model;
@@ -137,6 +217,61 @@ package body Coyote_GUI.Model_Picker is
       State.Query := To_Unbounded_String (Self.Get_Text);
       Apply_Filter;
    end On_Search_Changed;
+
+   procedure On_Refresh_Clicked
+     (Self : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if State.Refresh /= null and then State.Refresh_Button /= null then
+         State.Refresh_Button.Set_Sensitive (False);
+         State.Refresh.all;
+      end if;
+   end On_Refresh_Clicked;
+
+   procedure Update_Models
+     (Models : LLM.Model_Registry.Model_Info_Vectors.Vector)
+   is
+      use Gtk.Tree_Model_Sort;
+      Selection : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Model     : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter      : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Value     : Glib.Values.GValue;
+      Selected  : Unbounded_String := Null_Unbounded_String;
+   begin
+      if State.Store = null then
+         return;
+      end if;
+      Selection := State.View.Get_Selection;
+      Selection.Get_Selected (Model, Iter);
+      if Iter /= Gtk.Tree_Model.Null_Iter then
+         Gtk.Tree_Model.Get_Value (Model, Iter, 7, Value);
+         Selected := To_Unbounded_String (Glib.Values.Get_String (Value));
+         Glib.Values.Unset (Value);
+      end if;
+      State.Models := Models;
+      State.Store.Clear;
+      if State.Allow_Default then
+         Append_Default_Row (State.Store);
+      end if;
+      for Model_Info of Models loop
+         Append_Model_Row (State.Store, Model_Info, State.Price_Display);
+      end loop;
+      State.Filter.Refilter;
+      Update_Count;
+      Iter := Initial_Iter (+State.Sort, To_String (Selected));
+      if Iter /= Gtk.Tree_Model.Null_Iter then
+         Selection.Select_Iter (Iter);
+      else
+         Ensure_Selection;
+      end if;
+      if State.Refresh_Button /= null then
+         State.Refresh_Button.Set_Sensitive (True);
+      end if;
+      if State.Models_Updated /= null then
+         State.Models_Updated.all (Models);
+      end if;
+   end Update_Models;
 
    procedure On_Search_Stop
      (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class)
@@ -240,7 +375,9 @@ package body Coyote_GUI.Model_Picker is
       Models        : LLM.Model_Registry.Model_Info_Vectors.Vector;
       Price_Display : LLM.Settings.Price_Display_Mode;
       Initial_Spec  : String  := "";
-      Allow_Default : Boolean := False)
+      Allow_Default : Boolean := False;
+      Refresh       : Refresh_Request_Handler := null;
+      Models_Updated : Models_Updated_Handler := null)
       return Selection_Result
    is
       use Gtk.Dialog;
@@ -282,50 +419,20 @@ package body Coyote_GUI.Model_Picker is
           12 => Glib.GType_Int));
 
       if Allow_Default then
-         Store.Append (Iter);
-         Store.Set (Iter, 0, "(default)");
-         Store.Set (Iter, 1, "Use default model");
-         Store.Set (Iter, 7, Default_Spec);
+         Append_Default_Row (Store);
       end if;
 
       for Model_Info of Models loop
-         declare
-            Provider : constant String := To_String (Model_Info.Provider);
-            Name     : constant String :=
-              (if Length (Model_Info.Name) > 0 then To_String (Model_Info.Name)
-               else To_String (Model_Info.Model_Id));
-            Context  : constant String :=
-              Format_SI_Count (Model_Info.Context_Window) & " ctx";
-            Input_P  : constant String :=
-              Price_Text (Model_Info.Cost.Input, Price_Display);
-            Output_P : constant String :=
-              Price_Text (Model_Info.Cost.Output, Price_Display);
-            Read_P   : constant String :=
-              Price_Text (Model_Info.Cost.Cache_Read, Price_Display);
-            Write_P  : constant String :=
-              Price_Text (Model_Info.Cost.Cache_Write, Price_Display);
-            Spec     : constant String :=
-              Provider & "/" & To_String (Model_Info.Model_Id);
-            Row      : Gtk_Tree_Iter;
-         begin
-            Store.Append (Row);
-            Store.Set (Row, 0, Provider);
-            Store.Set (Row, 1, Name);
-            Store.Set (Row, 2, Context);
-            Store.Set (Row, 3, Input_P);
-            Store.Set (Row, 4, Output_P);
-            Store.Set (Row, 5, Read_P);
-            Store.Set (Row, 6, Write_P);
-            Store.Set (Row, 7, Spec);
-            Store.Set (Row, 8, Glib.Gint (Model_Info.Context_Window));
-            Store.Set (Row, 9, Price_Sort (Model_Info.Cost.Input));
-            Store.Set (Row, 10, Price_Sort (Model_Info.Cost.Output));
-            Store.Set (Row, 11, Price_Sort (Model_Info.Cost.Cache_Read));
-            Store.Set (Row, 12, Price_Sort (Model_Info.Cost.Cache_Write));
-         end;
+         Append_Model_Row (Store, Model_Info, Price_Display);
       end loop;
 
       Clear_State;
+      State.Store         := Store;
+      State.Models        := Models;
+      State.Price_Display := Price_Display;
+      State.Allow_Default := Allow_Default;
+      State.Refresh       := Refresh;
+      State.Models_Updated := Models_Updated;
       Gtk.Tree_Model_Filter.Gtk_New (State.Filter, +Store);
       State.Filter.Set_Visible_Func (Row_Visible'Access);
       Gtk.Tree_Model_Sort.Gtk_New_With_Model (State.Sort, +State.Filter);
@@ -384,9 +491,13 @@ package body Coyote_GUI.Model_Picker is
       Gtk.Label.Gtk_New (State.Count, "");
       State.Count.Set_Xalign (1.0);
       State.Count.Set_Width_Chars (12);
+      Gtk.Button.Gtk_New_With_Mnemonic (State.Refresh_Button, "_Refresh");
+      State.Refresh_Button.On_Clicked (On_Refresh_Clicked'Access);
+      State.Refresh_Button.Set_Sensitive (Refresh /= null);
       Gtk.Box.Gtk_New_Hbox (Search_Row, Homogeneous => False, Spacing => 8);
       Search_Row.Set_Border_Width (4);
       Search_Row.Pack_Start (State.Search, True, True, 0);
+      Search_Row.Pack_Start (State.Refresh_Button, False, False, 0);
       Search_Row.Pack_Start (State.Count, False, False, 0);
 
       State.View   := View;
