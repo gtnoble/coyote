@@ -28,6 +28,7 @@ package Coyote_App.Agent_RPC is
       Thinking_End,
       Text_Delta,
       Text_End,
+      End_Step,
       Tool_Start,
       Tool_Status,
       Tool_End,

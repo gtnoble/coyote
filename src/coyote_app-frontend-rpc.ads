@@ -35,6 +35,7 @@ package Coyote_App.Frontend.RPC is
       Kind : Coyote_App.Frontend.Request_Kind := Coyote_App.Frontend.Prompt);
    overriding procedure Append_Text (F : in out Instance; Text : String);
    overriding procedure End_Text_Block (F : in out Instance);
+   overriding procedure End_Step (F : in out Instance);
    overriding procedure Begin_Thinking (F : in out Instance);
    overriding procedure Append_Thinking (F : in out Instance; Text : String);
    overriding procedure End_Thinking (F : in out Instance);

@@ -357,11 +357,14 @@ package body Coyote_App.Dispatch is
          --  fork footer so the user can branch the session at this
          --  intermediate decision point.
          if State.Tools_Running = 0 and then State.Has_Tool_In_Turn
-           and then not State.Tool_Cancelled
            and then State.Last_Stop_Reason = "toolUse"
          then
-            State.Increment_Turn_Step;
-            Append_Step_Footer (Frontend => Frontend, State => State);
+            if State.Tool_Cancelled then
+               Frontend.End_Step;
+            else
+               State.Increment_Turn_Step;
+               Append_Step_Footer (Frontend => Frontend, State => State);
+            end if;
          end if;
 
          Frontend.Set_Status (Format_Status (State, "running"));

@@ -355,6 +355,12 @@ package body Coyote_App.Frontend.RPC is
       Emit (F, Text_End, Data);
    end End_Text_Block;
 
+   overriding procedure End_Step (F : in out Instance) is
+      Data : constant JSON_Value := Object;
+   begin
+      Emit (F, Coyote_App.Agent_RPC.End_Step, Data);
+   end End_Step;
+
    overriding procedure Begin_Thinking (F : in out Instance) is
       Data : constant JSON_Value := Object;
    begin

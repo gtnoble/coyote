@@ -765,7 +765,7 @@ to any window or dialog.
 | `Message_Update_Event` / `Thinking_Delta` | `Append_Thinking` |
 | `Tool_Execution_Start_Event` | `Begin_Tool`; creates a queued card with a captured detail snapshot |
 | `Tool_Execution_Running_Event` | `Set_Tool_Status (Running)` when the worker actually starts; queued cards remain queued until this event |
-| `Tool_Execution_End_Event` | `End_Tool`; completes the captured detail payload with success, error, timeout, or cancellation; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
+| `Tool_Execution_End_Event` | `End_Tool`; completes the captured detail payload with success, error, timeout, or cancellation; on the last successful tool in a `toolUse` batch: `Append_Turn_Footer` and `Append_Fork_Action`; on a cancelled batch: `End_Step` without footer/action |
 | `Message_End_Event` | record stats in App_State |
 | `Session_Stats_Event` | `Append_Turn_Footer` (full-turn display) then `Append_Fork_Action` (full-turn); GUI: typed `Set_Stats_Summary` snapshot |
 | `Model_Select_Event` | `Append_Notice (Info, ...)` |
@@ -774,10 +774,12 @@ to any window or dialog.
 | `Agent_Paused_Event` | `Set_Mode (Paused)` |
 | `Agent_Resumed_Event` | `Set_Mode (Running)` |
 
-**Step-level turn footers:** After the last `Tool_Execution_End_Event` in a
-batch, the dispatch layer calls `Append_Turn_Footer` and `Append_Fork_Action`.
-The GUI renders the action strip; Plain ignores the action. The step counter is
-maintained in `App_State` alongside `Turn_Count`.
+**Tool-batch boundaries:** After the last tool result in a `toolUse` batch, the
+GUI step is finalized. Successful batches receive `Append_Turn_Footer` and
+`Append_Fork_Action`; cancelled batches receive `End_Step` only, preserving a
+separate frame for subsequent assistant output without implying a normal
+checkpoint. The step counter is maintained in `App_State` alongside
+`Turn_Count`.
 
 ---
 

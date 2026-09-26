@@ -69,6 +69,9 @@ package Coyote_App.Frontend is
 
    procedure End_Text_Block (F : in out Instance) is abstract;
 
+   --  Close the active assistant step without rendering a footer or action.
+   procedure End_Step (F : in out Instance) is null;
+
    --  Stream a thinking block as flowing frontend text.
    procedure Begin_Thinking (F : in out Instance) is abstract;
 

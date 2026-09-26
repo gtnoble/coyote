@@ -497,6 +497,48 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "final completion closes the exchange after its step");
    end Test_Footer_Closes_Step_Before_Next_Step;
 
+   procedure Test_Cancelled_Tool_Closes_Step_Without_Footer
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "tool preamble");
+      End_Text_Block (T.Stack.all);
+      Begin_Tool
+        (C              => T.Stack.all,
+         Name           => "shell",
+         Args           => "{}",
+         Session_Id     => "session",
+         Tool_Id        => "cancelled-step",
+         Initial_Status => Running);
+      End_Tool
+        (C       => T.Stack.all,
+         Tool_Id => "cancelled-step",
+         Status  => Cancelled,
+         Result  => "aborted");
+      End_Step (T.Stack.all);
+      Assert
+        (Step_Frame_Count (T.Stack.all) = 1,
+         "cancelled step boundary does not add a frame or footer");
+      Assert
+        (Active_Step_Frame (T.Stack.all) = null,
+         "cancelled step boundary finalizes the active frame");
+      Assert
+        (not Is_Completed (T.Stack.all),
+         "cancelled step boundary leaves the exchange active");
+      Append_Text (T.Stack.all, "response after cancellation");
+      End_Text_Block (T.Stack.all);
+      Assert
+        (Step_Frame_Count (T.Stack.all) = 2,
+         "assistant output after cancellation gets a new step frame");
+      Assert
+        (Footer_Heading (T.Stack.all) = "",
+         "cancelled tool does not create a summary footer");
+   end Test_Cancelled_Tool_Closes_Step_Without_Footer;
+
    procedure Test_New_Request_Resets_Step_Frames (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -1167,6 +1209,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Footer_Closes_Step_Before_Next_Step'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack separates cancelled steps",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Cancelled_Tool_Closes_Step_Without_Footer'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack resets step frames for new "

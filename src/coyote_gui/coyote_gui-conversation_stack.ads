@@ -61,6 +61,7 @@ package Coyote_GUI.Conversation_Stack is
 
    procedure Append_Text (C : in out Instance; Text : String);
    procedure End_Text_Block (C : in out Instance);
+   procedure End_Step (C : in out Instance);
    procedure Begin_Thinking (C : in out Instance);
    procedure Append_Thinking (C : in out Instance; Text : String);
    procedure End_Thinking (C : in out Instance);

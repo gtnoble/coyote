@@ -1,5 +1,17 @@
 # Component Development Log — Frontends
 
+## 2026-09-26 — Preserve conversation step boundaries after tool cancellation
+
+Cancelled tool batches ending a `toolUse` step now finalize the current GUI
+step without rendering a normal footer or fork action. The following assistant
+response therefore starts in a separate step frame. The boundary is exposed by
+the frontend contract, marshalled through the GTK update queue and coordinator
+RPC protocol, and is a no-op for line-oriented Plain output.
+
+**Regression coverage:** Conversation_Stack verifies cancelled-step
+finalization and continuation into a new frame; Agent_RPC verifies the new
+`endStep` event round trip.
+
 ## 2026-09-15 — Complete CSM retirement and Markdown-only frontend baseline (PCR-105)
 
 The frontend no longer selects or presents CSM. The environment toggle, prompt

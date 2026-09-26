@@ -530,6 +530,9 @@ package body Coyote_App.Frontend.GUI is
          when Text_End =>
             U.Kind := Coyote_GUI.End_Text_Block;
             Emit   := True;
+         when End_Step =>
+            U.Kind := Coyote_GUI.End_Step;
+            Emit   := True;
          when Thinking_Start =>
             U.Kind := Coyote_GUI.Begin_Thinking;
             Emit   := True;
@@ -1700,6 +1703,9 @@ package body Coyote_App.Frontend.GUI is
 
          when End_Text_Block =>
             F.Stack.End_Text_Block;
+
+         when End_Step =>
+            F.Stack.End_Step;
 
          when Begin_Thinking =>
             F.Stack.Begin_Thinking;
@@ -4711,6 +4717,13 @@ package body Coyote_App.Frontend.GUI is
       U.Kind := Coyote_GUI.End_Text_Block;
       Enqueue_Update (F, U);
    end End_Text_Block;
+
+   overriding procedure End_Step (F : in out Instance) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.End_Step;
+      Enqueue_Update (F, U);
+   end End_Step;
 
    overriding procedure Begin_Thinking (F : in out Instance) is
       U : Coyote_GUI.Update;

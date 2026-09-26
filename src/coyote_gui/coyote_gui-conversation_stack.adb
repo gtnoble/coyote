@@ -902,6 +902,14 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
    end End_Text_Block;
 
+   procedure End_Step (C : in out Instance) is
+   begin
+      if C.Text_Open then
+         End_Text_Block (C);
+      end if;
+      Finalize_Active_Step (C);
+   end End_Step;
+
    procedure Begin_Thinking (C : in out Instance) is
    begin
       if not C.Has_Exchange then
