@@ -386,6 +386,21 @@ package body LLM_System_Prompt_Tests is
       Assert
         (Ada.Strings.Fixed.Index (P, "Never delegate understanding") > 0,
          "coordinator section should retain synthesis guidance");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "For coordinator-launched ")
+         > 0,
+         "coordinator section should prohibit delegated-task timeouts");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "calls, omit the shell-tool")
+         > 0,
+         "coordinator section should scope the no-timeout rule to subagents");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "Coyote subagents have no implicit execution timeout")
+         > 0,
+         "coordinator section should explain the no-timeout default");
    end Test_Coordinator_Section_Rendered;
 
    package LLM_Sys_Prompt_Caller is new AUnit.Test_Caller

@@ -86,6 +86,8 @@ Example:
 
 When spawning subagents, act as a coordinator:
 
+- **Subagent timeout:** For coordinator-launched `{{SUBAGENT_COMMAND}} --subagent` calls, omit the shell-tool `timeout` field unless an explicit outer execution deadline is required. Coyote subagents have no implicit execution timeout. Do not confuse RPC polling intervals with a subagent execution limit. Use the coordinator's Stop/abort controls when cancellation is needed.
+
 - **Launch independent subagents in parallel** whenever possible -- do not serialise unrelated tasks.
 - **Never delegate understanding.** Read all worker results and synthesise them before writing follow-up prompts.
 - **Write specific worker prompts** with exact file paths and line numbers rather than vague "based on your findings" directives.
