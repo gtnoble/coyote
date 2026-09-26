@@ -6,6 +6,8 @@ with Ada.Text_IO;
 with Coyote_App.Utils;
 with Coyote_Spawn;
 with Coyote_Utils;
+with Coyote_Temp_Files;
+with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.Process;
 with AUnit.Test_Caller;
@@ -109,6 +111,35 @@ package body Coyote_Utils_Tests is
          Delete_If_Exists (Path);
          raise;
    end Test_Reads_Multiline_File;
+
+   procedure Test_Temp_File_Uses_Tmp_And_Cleans_Up (T : in out Test) is
+      pragma Unreferenced (T);
+
+      FD   : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Path : Ada.Strings.Unbounded.Unbounded_String;
+      use type GNAT.OS_Lib.File_Descriptor;
+   begin
+      Coyote_Temp_Files.Create (FD, Path);
+      Assert (FD /= GNAT.OS_Lib.Invalid_FD, "temp file should open");
+      Assert
+        (Ada.Strings.Unbounded.To_String (Path)'Length > 5
+         and then Ada.Strings.Unbounded.To_String (Path) (1 .. 5) = "/tmp/",
+         "temp file should be created under /tmp");
+      GNAT.OS_Lib.Close (FD);
+      Coyote_Temp_Files.Delete (Ada.Strings.Unbounded.To_String (Path));
+      Assert
+        (not Ada.Directories.Exists
+           (Ada.Strings.Unbounded.To_String (Path)),
+         "temp file should be deleted");
+   exception
+      when others =>
+         if FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (FD);
+         end if;
+         Coyote_Temp_Files.Delete
+           (Ada.Strings.Unbounded.To_String (Path));
+         raise;
+   end Test_Temp_File_Uses_Tmp_And_Cleans_Up;
 
    procedure Test_Strip_Session_Prefix_With_Prefix (T : in out Test) is
       pragma Unreferenced (T);
@@ -383,6 +414,11 @@ package body Coyote_Utils_Tests is
         (Coyote_Utils_Caller.Create
            ("Coyote_Utils reads multiline file",
             Coyote_Utils_Tests.Test_Reads_Multiline_File'Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Temp_Files creates and removes /tmp files",
+            Coyote_Utils_Tests.Test_Temp_File_Uses_Tmp_And_Cleans_Up'
+              Access));
       Result.Add_Test
         (Coyote_Utils_Caller.Create
            ("Coyote_Utils Strip_Session_Prefix removes coyote-session+ prefix",

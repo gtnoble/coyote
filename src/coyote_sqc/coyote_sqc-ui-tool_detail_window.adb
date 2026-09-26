@@ -8,6 +8,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;      use Coyote_App.Utils;
+with Coyote_Temp_Files;
 with Gdk.Pixbuf;
 with Glib;                  use Glib;
 with Glib.Error;
@@ -126,30 +127,25 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
    --  Write Decoded to a new temp file; return the filename on success.
    --  Returns empty string on failure.
    function Write_Temp_Image (Decoded : String) return String is
-      FD      : GNAT.OS_Lib.File_Descriptor;
-      Name    : GNAT.OS_Lib.String_Access;
+      FD      : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Path    : Unbounded_String;
       Written : Integer;
       pragma Unreferenced (Written);
       use type GNAT.OS_Lib.File_Descriptor;
-      use type GNAT.OS_Lib.String_Access;
    begin
-      GNAT.OS_Lib.Create_Temp_File (FD, Name);
-      if FD = GNAT.OS_Lib.Invalid_FD or else Name = null then
+      Coyote_Temp_Files.Create (FD, Path);
+      if FD = GNAT.OS_Lib.Invalid_FD or else Length (Path) = 0 then
          return "";
       end if;
       Written := GNAT.OS_Lib.Write (FD, Decoded'Address, Decoded'Length);
       GNAT.OS_Lib.Close (FD);
-      declare
-         Path : constant String := Name.all;
-      begin
-         GNAT.OS_Lib.Free (Name);
-         return Path;
-      end;
+      return To_String (Path);
    exception
       when E : others =>
-         if Name /= null then
-            GNAT.OS_Lib.Free (Name);
+         if FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (FD);
          end if;
+         Coyote_Temp_Files.Delete (To_String (Path));
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "coyote_sqc: Write_Temp_Image failed: "
@@ -459,7 +455,12 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
                      Scroll.Set_Policy (Policy_Automatic, Policy_Automatic);
                      Scroll.Add (Img);
                      Result_Box.Pack_Start (Scroll, True, True, 0);
+                  exception
+                     when others =>
+                        Coyote_Temp_Files.Delete (Temp_Path);
+                        raise;
                   end;
+                  Coyote_Temp_Files.Delete (Temp_Path);
                else
                   Gtk.Label.Gtk_New (Lbl, "[ Image result - decode failed ]");
                   Result_Box.Pack_Start (Lbl, False, False, 0);

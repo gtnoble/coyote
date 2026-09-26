@@ -391,6 +391,7 @@ not wait for the complete user turn.
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_GUI.Mnemonics` | Context-local GTK mnemonic extraction and duplicate-key validation | `src/coyote_gui/coyote_gui-mnemonics.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping, active executable resolution, and POSIX shell quoting | `src/coyote_utils.ads/.adb` |
+| `Coyote_Temp_Files` | Secure `/tmp` temporary-file creation and best-effort deletion | `src/coyote_temp_files.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, and usage types | `src/llm/llm-types.ads/.adb` |
 | `LLM.Events` | Agent event hierarchy | `src/llm/llm-events.ads` |

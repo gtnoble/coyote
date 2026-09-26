@@ -1330,3 +1330,18 @@ Verification: development build succeeds; focused compaction, OpenAI
 Completions, OpenAI Responses, and Anthropic provider tests pass.  Added tests
 cover prompt-only context calculation, provider cache handling, protected state
 independence, context event ordering, and persisted context-token round trips.
+
+
+## 2026-09-26 — Secure temporary-file location and cleanup
+
+Added `Coyote_Temp_Files`, which creates unique files atomically under `/tmp`
+with POSIX `mkstemp` and provides best-effort deletion. Shell image diagnostics
+now use this allocator and delete the capture file from the execution cleanup
+path; GUI and SQC image rendering use the same allocator, close descriptors on
+writer failures, and remove the image file after loading (including exceptions).
+A focused AUnit regression checks that new files are under `/tmp` and are
+removed. Existing `GNAT-TEMP-*` artifacts are not modified by this change.
+
+Verification: production and test development builds succeed; the focused
+`Coyote_Temp_Files` test passes 1/1 and shell tool suite passes 22/22. The
+existing 224 `test/GNAT-TEMP-*.TMP` artifacts remain unchanged.

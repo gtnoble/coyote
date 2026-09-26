@@ -11,8 +11,7 @@ with Ada.Real_Time;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with GNAT.OS_Lib;
-with GNAT.Strings;
+with Coyote_Temp_Files;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.FS;        use GNATCOLL.OS.FS;
 with LLM.Tools.Sandbox;
@@ -132,31 +131,6 @@ package body LLM.Tools.Shell is
       end if;
       return False;
    end Image_Signature_Matches;
-
-   function New_Temporary_Path return String is
-      FD   : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
-      Name : GNAT.Strings.String_Access  := null;
-      use type GNAT.OS_Lib.File_Descriptor;
-      use type GNAT.Strings.String_Access;
-   begin
-      GNAT.OS_Lib.Create_Temp_File (FD, Name);
-      if FD = GNAT.OS_Lib.Invalid_FD or else Name = null then
-         raise Program_Error with "unable to create image diagnostic file";
-      end if;
-      GNAT.OS_Lib.Close (FD);
-      declare
-         Path : constant String := Name.all;
-      begin
-         GNAT.OS_Lib.Free (Name);
-         return Path;
-      end;
-   exception
-      when others =>
-         if Name /= null then
-            GNAT.OS_Lib.Free (Name);
-         end if;
-         raise;
-   end New_Temporary_Path;
 
    function Read_File_Prefix (Path : String) return String is
       FD        : File_Descriptor := Invalid_FD;
@@ -287,7 +261,8 @@ package body LLM.Tools.Shell is
               & " Never use heredocs or interpreter inline-code flags"
               & " (-e, -E) to pass multi-line content; always use `stdin`"
               & " instead. Set `media_type` to a MIME type string (e.g."
-              & " ""image/png"") when the command produces binary image output;"
+              & " ""image/png"") when the command produces binary image"
+              & " output;"
               & " the bytes will be base64-encoded and returned as an image"
               & " content block."),
          Schema_Json => Schema);
@@ -487,6 +462,13 @@ package body LLM.Tools.Shell is
                   Close (Stdin_W);
                   Stdin_W := Invalid_FD;
                end if;
+
+               if Diagnostic_W /= Invalid_FD then
+                  Close (Diagnostic_W);
+                  Diagnostic_W := Invalid_FD;
+               end if;
+
+               Coyote_Temp_Files.Delete (To_String (Diagnostic_Path));
             end Cleanup;
 
          begin
@@ -546,11 +528,12 @@ package body LLM.Tools.Shell is
             end if;
 
             if Length (Requested_Mime) > 0 then
-               Diagnostic_Path := To_Unbounded_String (New_Temporary_Path);
-               Diagnostic_W := Open (To_String (Diagnostic_Path), Write_Mode);
-               if Diagnostic_W = Invalid_FD then
+               Coyote_Temp_Files.Create (Diagnostic_W, Diagnostic_Path);
+               if Diagnostic_W = Invalid_FD
+                 or else Length (Diagnostic_Path) = 0
+               then
                   raise Program_Error
-                    with "unable to open image diagnostic file";
+                    with "unable to create image diagnostic file";
                end if;
                Set_Close_On_Exec (Diagnostic_W, False);
             end if;

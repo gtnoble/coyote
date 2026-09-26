@@ -9,6 +9,7 @@ with Ada.Directories;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Help;
+with Coyote_Temp_Files;
 with Gdk.Event;
 with Gdk.Pixbuf;
 with Gdk.Types;
@@ -414,31 +415,26 @@ package body Coyote_GUI.Tool_Detail_Window is
    end Decode_Base64;
 
    function Write_Temp_Image (Decoded : String) return String is
-      Descriptor : GNAT.OS_Lib.File_Descriptor;
-      Name       : GNAT.OS_Lib.String_Access;
+      Descriptor : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Path       : Unbounded_String;
       Written    : Integer;
       pragma Unreferenced (Written);
       use type GNAT.OS_Lib.File_Descriptor;
-      use type GNAT.OS_Lib.String_Access;
    begin
-      GNAT.OS_Lib.Create_Temp_File (Descriptor, Name);
-      if Descriptor = GNAT.OS_Lib.Invalid_FD or else Name = null then
+      Coyote_Temp_Files.Create (Descriptor, Path);
+      if Descriptor = GNAT.OS_Lib.Invalid_FD or else Length (Path) = 0 then
          return "";
       end if;
-      Written :=
-        GNAT.OS_Lib.Write (Descriptor, Decoded'Address, Decoded'Length);
+      Written := GNAT.OS_Lib.Write
+        (Descriptor, Decoded'Address, Decoded'Length);
       GNAT.OS_Lib.Close (Descriptor);
-      declare
-         Path : constant String := Name.all;
-      begin
-         GNAT.OS_Lib.Free (Name);
-         return Path;
-      end;
+      return To_String (Path);
    exception
       when others =>
-         if Name /= null then
-            GNAT.OS_Lib.Free (Name);
+         if Descriptor /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (Descriptor);
          end if;
+         Coyote_Temp_Files.Delete (To_String (Path));
          return "";
    end Write_Temp_Image;
 
@@ -463,7 +459,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       end if;
 
       Gdk.Pixbuf.Gdk_New_From_File (Pixbuf, Temp_Path, Error);
-      Ada.Directories.Delete_File (Temp_Path);
+      Coyote_Temp_Files.Delete (Temp_Path);
       if Pixbuf = Gdk.Pixbuf.Null_Pixbuf then
          declare
             Failure : Gtk.Label.Gtk_Label;

@@ -10,6 +10,7 @@ package Coyote_Utils_Tests is
    procedure Test_Returns_Arg_When_Not_A_File (T : in out Test);
    procedure Test_Returns_Empty_For_Empty_Path (T : in out Test);
    procedure Test_Reads_Multiline_File (T : in out Test);
+   procedure Test_Temp_File_Uses_Tmp_And_Cleans_Up (T : in out Test);
 
    procedure Test_Strip_Session_Prefix_With_Prefix (T : in out Test);
    procedure Test_Strip_Session_Prefix_Without_Prefix (T : in out Test);
