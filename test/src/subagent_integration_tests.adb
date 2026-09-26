@@ -150,8 +150,8 @@ package body Subagent_Integration_Tests is
       Got_Result : Boolean         := False;
       Flag       : Done_Flag;
 
-      task Runner;
-      task body Runner is
+      task type Runner_Task;
+      task body Runner_Task is
          use GNATCOLL.OS.FS;
          Stdout_R, Stdout_W : File_Descriptor;
          Null_In            : File_Descriptor;
@@ -209,7 +209,7 @@ package body Subagent_Integration_Tests is
                Ada.Directories.Delete_Tree (Test_Home);
             end if;
             Flag.Signal;
-      end Runner;
+      end Runner_Task;
 
    begin
       if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
@@ -220,31 +220,39 @@ package body Subagent_Integration_Tests is
          return;
       end if;
 
-      select
-         Flag.Wait;
-      or
-         delay 60.0;
-      end select;
-
-      Assert (Got_Result, "One-shot subprocess must complete within 60 s");
       declare
-         Raw : constant String      := First_Line (To_String (Stdout_Out));
-         R   : constant Read_Result := Read (Raw);
+         Runner : Runner_Task;
       begin
-         Assert (R.Success, "stdout must be valid JSON, got: " & Raw);
+         select
+            Flag.Wait;
+         or
+            delay 60.0;
+         end select;
+
+         Assert (Got_Result, "One-shot subprocess must complete within 60 s");
          declare
-            Output_Text : constant String := Json_Str (R.Value, "output");
-            Session_Id  : constant String := Json_Str (R.Value, "session_id");
+            Raw : constant String :=
+              First_Line (To_String (Stdout_Out));
+            R   : constant Read_Result := Read (Raw);
          begin
-            Assert
-              (Output_Text'Length > 0,
-               "JSON must have a non-empty ""output"" field");
-            Assert
-              (Ada.Strings.Fixed.Index (Output_Text, "PONG") > 0,
-               "output should contain ""PONG"", got: " & Output_Text);
-            Assert
-              (Session_Id'Length = 36,
-               "session_id must be a 36-character UUID, got: " & Session_Id);
+            Assert (R.Success, "stdout must be valid JSON, got: " & Raw);
+            declare
+               Output_Text : constant String :=
+                 Json_Str (R.Value, "output");
+               Session_Id  : constant String :=
+                 Json_Str (R.Value, "session_id");
+            begin
+               Assert
+                 (Output_Text'Length > 0,
+                  "JSON must have a non-empty ""output"" field");
+               Assert
+                 (Ada.Strings.Fixed.Index (Output_Text, "PONG") > 0,
+                  "output should contain ""PONG"", got: " & Output_Text);
+               Assert
+                 (Session_Id'Length = 36,
+                  "session_id must be a 36-character UUID, got: "
+                  & Session_Id);
+            end;
          end;
       end;
    end Test_One_Shot_Returns_Json;
@@ -328,8 +336,8 @@ package body Subagent_Integration_Tests is
             raise;
       end Run_One_Shot;
 
-      task Runner;
-      task body Runner is
+      task type Runner_Task;
+      task body Runner_Task is
       begin
          Run_One_Shot (Out_1, Done_1);
          Run_One_Shot (Out_2, Done_2);
@@ -337,7 +345,7 @@ package body Subagent_Integration_Tests is
       exception
          when others =>
             Flag.Signal;
-      end Runner;
+      end Runner_Task;
 
    begin
       if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
@@ -348,41 +356,45 @@ package body Subagent_Integration_Tests is
          return;
       end if;
 
-      select
-         Flag.Wait;
-      or
-         delay 90.0;
-      end select;
-
-      Assert (Done_1, "First one-shot run must complete within 90 s");
-      Assert (Done_2, "Second one-shot run must complete within 90 s");
-
-      --  Extract both session IDs and verify they differ.
       declare
-         --  Parse the session_id from a raw one-shot stdout string.
-         function Extract_Session_Id (Raw : String) return String is
-            Line : constant String      := First_Line (Raw);
-            R    : constant Read_Result := Read (Line);
-         begin
-            if not R.Success then
-               return "";
-            end if;
-            return Json_Str (R.Value, "session_id");
-         end Extract_Session_Id;
-
-         Sess_1 : constant String := Extract_Session_Id (To_String (Out_1));
-         Sess_2 : constant String := Extract_Session_Id (To_String (Out_2));
+         Runner : Runner_Task;
       begin
-         Assert
-           (Sess_1'Length = 36,
-            "First run must return a UUID session_id, got: " & Sess_1);
-         Assert
-           (Sess_2'Length = 36,
-            "Second run must return a UUID session_id, got: " & Sess_2);
-         Assert
-           (Sess_1 /= Sess_2,
-            "Two --one-shot runs must use distinct sessions; "
-            & "both returned: " & Sess_1);
+         select
+            Flag.Wait;
+         or
+            delay 90.0;
+         end select;
+
+         Assert (Done_1, "First one-shot run must complete within 90 s");
+         Assert (Done_2, "Second one-shot run must complete within 90 s");
+
+         --  Extract both session IDs and verify they differ.
+         declare
+            --  Parse the session_id from a raw one-shot stdout string.
+            function Extract_Session_Id (Raw : String) return String is
+               Line : constant String      := First_Line (Raw);
+               R    : constant Read_Result := Read (Line);
+            begin
+               if not R.Success then
+                  return "";
+               end if;
+               return Json_Str (R.Value, "session_id");
+            end Extract_Session_Id;
+
+            Sess_1 : constant String := Extract_Session_Id (To_String (Out_1));
+            Sess_2 : constant String := Extract_Session_Id (To_String (Out_2));
+         begin
+            Assert
+              (Sess_1'Length = 36,
+               "First run must return a UUID session_id, got: " & Sess_1);
+            Assert
+              (Sess_2'Length = 36,
+               "Second run must return a UUID session_id, got: " & Sess_2);
+            Assert
+              (Sess_1 /= Sess_2,
+               "Two --one-shot runs must use distinct sessions; "
+               & "both returned: " & Sess_1);
+         end;
       end;
    end Test_One_Shot_Fresh_Session_Each_Run;
 
@@ -405,8 +417,8 @@ package body Subagent_Integration_Tests is
       Got_Result : Boolean         := False;
       Flag       : Done_Flag;
 
-      task Runner;
-      task body Runner is
+      task type Runner_Task;
+      task body Runner_Task is
          use GNATCOLL.OS.FS;
          Stdout_R, Stdout_W : File_Descriptor;
          Null_In            : File_Descriptor;
@@ -471,7 +483,7 @@ package body Subagent_Integration_Tests is
                Ada.Directories.Delete_Tree (Test_Home);
             end if;
             Flag.Signal;
-      end Runner;
+      end Runner_Task;
 
    begin
       if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
@@ -482,32 +494,40 @@ package body Subagent_Integration_Tests is
          return;
       end if;
 
-      select
-         Flag.Wait;
-      or
-         delay 30.0;
-      end select;
-
-      Assert (Got_Result, "Prompt-failure one-shot must complete within 30 s");
       declare
-         Raw : constant String      := First_Line (To_String (Stdout_Out));
-         R   : constant Read_Result := Read (Raw);
+         Runner : Runner_Task;
       begin
+         select
+            Flag.Wait;
+         or
+            delay 30.0;
+         end select;
+
          Assert
-           (R.Success,
-            "stdout must be valid JSON on prompt failure, got: " & Raw);
+           (Got_Result,
+            "Prompt-failure one-shot must complete within 30 s");
          declare
-            Error_Text : constant String := Json_Str (R.Value, "error");
-            Session_Id : constant String := Json_Str (R.Value, "session_id");
+            Raw : constant String :=
+              First_Line (To_String (Stdout_Out));
+            R   : constant Read_Result := Read (Raw);
          begin
             Assert
-              (Error_Text'Length > 0,
-               "JSON must have a non-empty ""error"" field"
-               & " on prompt failure");
-            Assert
-              (Session_Id'Length = 36,
-               "JSON must have a 36-char ""session_id"""
-               & " even on prompt failure," & " got: " & Session_Id);
+              (R.Success,
+               "stdout must be valid JSON on prompt failure, got: " & Raw);
+            declare
+               Error_Text : constant String := Json_Str (R.Value, "error");
+               Session_Id : constant String :=
+                 Json_Str (R.Value, "session_id");
+            begin
+               Assert
+                 (Error_Text'Length > 0,
+                  "JSON must have a non-empty ""error"" field"
+                  & " on prompt failure");
+               Assert
+                 (Session_Id'Length = 36,
+                  "JSON must have a 36-char ""session_id"""
+                  & " even on prompt failure," & " got: " & Session_Id);
+            end;
          end;
       end;
    end Test_One_Shot_Prompt_Failure_Has_Session_Id;
