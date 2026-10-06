@@ -2658,6 +2658,11 @@ package body LLM.Agent is
       return Ada.Strings.Unbounded.To_String (S.Sandbox_Profile);
    end Current_Sandbox;
 
+   function Current_Working_Directory (S : Session) return String is
+   begin
+      return To_String (S.Cwd);
+   end Current_Working_Directory;
+
    procedure Set_Compact_Settings
      (S : in out Session; Settings : LLM.Compaction.Compact_Settings)
    is

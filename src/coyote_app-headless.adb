@@ -273,6 +273,9 @@ package body Coyote_App.Headless is
             Source_Directory =>
               To_Unbounded_String
                 (LLM.Session_Store.Session_Work_Dir (Session_Id)),
+            Working_Directory =>
+              To_Unbounded_String
+                (LLM.Agent.Current_Working_Directory (Agent_Session)),
             Session_Start    =>
               To_Unbounded_String
                 (LLM.Session_Store.Session_Created_At (Session_Id)));

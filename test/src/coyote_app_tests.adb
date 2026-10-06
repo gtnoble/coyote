@@ -1194,6 +1194,32 @@ package body Coyote_App_Tests is
          "Sandbox profile should appear in the status");
    end Test_Format_Status_With_Sandbox;
 
+   --  A non-empty effective working directory is shown in the status.
+   procedure Test_Format_Status_With_Working_Directory
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Working_Directory ("/home/user/project");
+      Assert
+        (Status_Contains
+           (Format_Status (S), " cwd:/home/user/project"),
+         "Working directory should appear in the status");
+   end Test_Format_Status_With_Working_Directory;
+
+   --  An unset working directory does not add an empty status segment.
+   procedure Test_Format_Status_Without_Working_Directory
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert
+        (Format_Status (S, "ready") = UC_BULLET & " ready",
+         "Empty working directory should not change the status");
+   end Test_Format_Status_Without_Working_Directory;
+
    --  ── Format_Model_Price ───────────────────────────────────────────────
 
    procedure Test_Format_Model_Price_All_Zeros (T : in out Test) is
@@ -1893,6 +1919,14 @@ package body Coyote_App_Tests is
         (App_State_Caller.Create
            ("Format_Status: sandbox profile shown as ""[profile]""",
             Coyote_App_Tests.Test_Format_Status_With_Sandbox'Access));
+      Result.Add_Test
+        (App_State_Caller.Create
+           ("Format_Status: working directory appears when set",
+            Coyote_App_Tests.Test_Format_Status_With_Working_Directory'Access));
+      Result.Add_Test
+        (App_State_Caller.Create
+           ("Format_Status: empty working directory is omitted",
+            Coyote_App_Tests.Test_Format_Status_Without_Working_Directory'Access));
       Result.Add_Test
         (App_State_Caller.Create
            ("Apply_Prompt_Filter: empty filter returns raw unchanged",

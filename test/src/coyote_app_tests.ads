@@ -186,6 +186,8 @@ package Coyote_App_Tests is
    procedure Test_Format_Status_With_Context (T : in out Test);
    procedure Test_Format_Status_With_Thinking (T : in out Test);
    procedure Test_Format_Status_With_Sandbox (T : in out Test);
+   procedure Test_Format_Status_With_Working_Directory (T : in out Test);
+   procedure Test_Format_Status_Without_Working_Directory (T : in out Test);
 
    --  ── Apply_Prompt_Filter ───────────────────────────────────────────────
    --  Apply_Prompt_Filter pipes the raw prompt through $SHELL -c <Filter>.

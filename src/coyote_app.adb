@@ -65,6 +65,8 @@ package body Coyote_App is
       function Current_Sandbox return String is (To_String (P_Sandbox));
       function Source_Directory return String is
         (To_String (P_Source_Directory));
+      function Working_Directory return String is
+        (To_String (P_Working_Directory));
       function Session_Start return String is (To_String (P_Session_Start));
       function Current_Tool_Call return Natural is (P_Tool_Call);
       function Is_Streaming return Boolean is (P_Streaming);
@@ -154,6 +156,11 @@ package body Coyote_App is
       begin
          P_Source_Directory := To_Unbounded_String (Directory);
       end Set_Source_Directory;
+
+      procedure Set_Working_Directory (Directory : String) is
+      begin
+         P_Working_Directory := To_Unbounded_String (Directory);
+      end Set_Working_Directory;
 
       procedure Set_Session_Start (Start : String) is
       begin
@@ -602,6 +609,9 @@ package body Coyote_App is
                      Source_Directory =>
                        To_Unbounded_String
                          (LLM.Session_Store.Session_Work_Dir (Session_Id)),
+                     Working_Directory =>
+                       To_Unbounded_String
+                         (LLM.Agent.Current_Working_Directory (Agent_Session)),
                      Session_Start    =>
                        To_Unbounded_String
                          (LLM.Session_Store.Session_Created_At (Session_Id)));

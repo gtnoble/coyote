@@ -120,6 +120,8 @@ package LLM.Events is
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Source_Directory : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
+      Working_Directory : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
       Session_Start    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;

@@ -42,6 +42,7 @@ package body Coyote_App.Dispatch is
       Session_Text    : constant String  := State.Session_Id;
       Think_Text      : constant String  := State.Current_Thinking;
       Sandbox_Text    : constant String  := State.Current_Sandbox;
+      Working_Dir     : constant String  := State.Working_Directory;
       Subagent_Text   : constant String  :=
         Coyote_App.Subagent_Model_Override_State.Current;
       Input_Tokens    : constant Natural := State.Context_Tokens;
@@ -51,6 +52,8 @@ package body Coyote_App.Dispatch is
 
       Model_Part    : constant String :=
         (if Model_Text'Length > 0 then " [" & Model_Text & "]" else "");
+      Cwd_Part      : constant String :=
+        (if Working_Dir'Length > 0 then " cwd:" & Working_Dir else "");
       Think_Part    : constant String :=
         (if Think_Text'Length > 0 then " ~" & Think_Text else "");
       Sandbox_Part  : constant String :=
@@ -91,7 +94,7 @@ package body Coyote_App.Dispatch is
    begin
       return
         UC_BULLET & " " & Extra & Model_Part & Think_Part & Sandbox_Part
-        & Subagent_Part & Context_Part & Tool_Part & Session_Part;
+        & Cwd_Part & Subagent_Part & Context_Part & Tool_Part & Session_Part;
    end Format_Status;
 
    --  Append a live turn footer and advance the turn counter.
@@ -550,6 +553,7 @@ package body Coyote_App.Dispatch is
             end if;
             State.Set_Model (To_String (Ev.Model));
             State.Set_Source_Directory (To_String (Ev.Source_Directory));
+            State.Set_Working_Directory (To_String (Ev.Working_Directory));
             State.Set_Session_Start (To_String (Ev.Session_Start));
             declare
                Sandbox : constant String := To_String (Ev.Sandbox_Profile);

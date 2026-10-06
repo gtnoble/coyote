@@ -125,6 +125,9 @@ package LLM.Agent is
    --  Return the active sandbox profile name ("" when none).
    function Current_Sandbox (S : Session) return String;
 
+   --  Return the effective working directory for this session.
+   function Current_Working_Directory (S : Session) return String;
+
    --  Override the compaction settings for subsequent prompts.
    --  Pass a value with Enabled => False to disable automatic
    --  context compaction entirely (e.g. for ephemeral one-shot sessions).

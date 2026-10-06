@@ -25,6 +25,7 @@ package Coyote_App is
       function Current_Thinking return String;
       function Current_Sandbox return String;
       function Source_Directory return String;
+      function Working_Directory return String;
       function Session_Start return String;
       function Current_Tool_Call return Natural;
       function Is_Streaming return Boolean;
@@ -101,6 +102,7 @@ package Coyote_App is
       procedure Set_Thinking (Level : String);
       procedure Set_Sandbox (Profile : String);
       procedure Set_Source_Directory (Directory : String);
+      procedure Set_Working_Directory (Directory : String);
       procedure Set_Session_Start (Start : String);
       procedure Set_Streaming (Value : Boolean);
       procedure Set_Compacting (Value : Boolean);
@@ -176,6 +178,7 @@ package Coyote_App is
       P_Thinking           : Ada.Strings.Unbounded.Unbounded_String;
       P_Sandbox            : Ada.Strings.Unbounded.Unbounded_String;
       P_Source_Directory   : Ada.Strings.Unbounded.Unbounded_String;
+      P_Working_Directory  : Ada.Strings.Unbounded.Unbounded_String;
       P_Session_Start      : Ada.Strings.Unbounded.Unbounded_String;
       P_Streaming          : Boolean := False;
       P_Compacting         : Boolean := False;
