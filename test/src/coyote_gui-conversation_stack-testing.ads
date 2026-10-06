@@ -8,6 +8,7 @@ with Gtk.Flow_Box;
 with Gtk.Frame;
 with Gtk.Grid;
 with Gtk.Label;
+with Gtk.Image;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_View;
@@ -150,6 +151,16 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String)
       return Coyote_GUI.Tool_Info;
+
+   function Tool_Thumbnail
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String)
+      return Gtk.Image.Gtk_Image;
+
+   function Tool_Image_Fallback_Visible
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String)
+      return Boolean;
 
    function Details_Label
      (C       : Coyote_GUI.Conversation_Stack.Instance;

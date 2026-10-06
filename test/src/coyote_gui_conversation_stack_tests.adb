@@ -22,6 +22,8 @@ with Gtk.Flow_Box_Child;
 with Gtk.Frame;
 with Gtk.Grid;
 with Gtk.Label;
+with Gtk.Image;
+with Gdk.Pixbuf;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
@@ -35,6 +37,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Glib.Gint;
    use type Glib.Guint;
    use type Gtk.Box.Gtk_Box;
+   use type Gtk.Image.Gtk_Image;
+   use type Gtk.Image.Gtk_Image_Type;
    use type Gtk.Enums.Gtk_Orientation;
    use type Gtk.Flow_Box.Gtk_Flow_Box;
    use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
@@ -935,6 +939,70 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "retained details preserve call position");
    end Test_Tool_Card_Uses_Native_Labels;
 
+   procedure Test_Tool_Image_Thumbnail (T : in out Test) is
+      Image_Data : constant String :=
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4"
+        & "z8DAAMIg4j8QMAAAM94G+lX/f/AAAAAASUVORK5CYII=";
+      Thumbnail : Gtk.Image.Gtk_Image;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Begin_Tool
+        (C => T.Stack.all, Name => "screenshot", Args => "{}",
+         Session_Id => "session", Tool_Id => "image-tool");
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "image-tool", Status => Success,
+         Result => Image_Data, Media_Type => "image/png");
+      Thumbnail := Tool_Thumbnail (T.Stack.all, "image-tool");
+      Assert
+        (Thumbnail /= null, "valid image creates a thumbnail widget");
+      Assert
+        (Gtk.Image.Get_Storage_Type (Thumbnail) = Gtk.Image.Image_Pixbuf,
+         "thumbnail displays a decoded pixbuf");
+      declare
+         Pixbuf : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gtk.Image.Get (Thumbnail);
+      begin
+         Assert
+           (Gdk.Pixbuf.Get_Width (Pixbuf) <= 320
+              and then Gdk.Pixbuf.Get_Height (Pixbuf) <= 320,
+            "thumbnail dimensions stay within the image bound");
+      end;
+      Assert
+        (Index
+           (Tool_Status_Label (T.Stack.all, "image-tool"), Image_Data) = 0,
+         "image base64 is not exposed in the status label");
+      declare
+         Info : constant Coyote_GUI.Tool_Info :=
+           Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+             (T.Stack.all, "image-tool");
+      begin
+         Assert
+           (To_String (Info.Result_Text) = Image_Data,
+            "full base64 payload remains captured for Details");
+      end;
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "screenshot", Args => "{}",
+         Session_Id => "session", Tool_Id => "invalid-image");
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "invalid-image", Status => Success,
+         Result => "not-base64", Media_Type => "image/png");
+      Assert
+        (Tool_Thumbnail (T.Stack.all, "invalid-image") = null,
+         "invalid image data does not add a thumbnail");
+      Assert
+        (Tool_Image_Fallback_Visible (T.Stack.all, "invalid-image"),
+         "invalid image data shows a fallback label");
+      Assert
+        (Index
+           (Tool_Status_Label (T.Stack.all, "invalid-image"),
+            "not-base64") = 0,
+         "invalid image payload is not shown as status text");
+   end Test_Tool_Image_Thumbnail;
+
    procedure Test_Footer_Kind_And_Completion_Are_Explicit (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -1260,6 +1328,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             & "View Details action",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Tool_Card_Uses_Native_Labels'
+              Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack renders tool image thumbnails",
+            Coyote_GUI_Conversation_Stack_Tests.Test_Tool_Image_Thumbnail'
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create

@@ -17,6 +17,7 @@ with Gtk.Frame;
 with Gtk.Flow_Box;
 with Gtk.Button;
 with Gtk.Grid;
+with Gtk.Image;
 with Gtk.Label;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
@@ -149,6 +150,8 @@ private
       Abort_Button         : Gtk.Button.Gtk_Button;
       Abort_Message_Button : Gtk.Button.Gtk_Button;
       Action_Box           : Gtk.Box.Gtk_Box;
+      Card_Box             : Gtk.Box.Gtk_Box;
+      Thumbnail            : Gtk.Image.Gtk_Image;
       Info                 : Coyote_GUI.Tool_Info;
    end record;
 

@@ -5,6 +5,11 @@
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Coyote_Temp_Files;
+with GNAT.OS_Lib;
+with Gdk.Pixbuf;
+with Glib.Object;
+with Gtk.Image;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
@@ -47,6 +52,8 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Widget.Gtk_Widget;
+   use type Gdk.Pixbuf.Gdk_Pixbuf;
+   use type GNAT.OS_Lib.File_Descriptor;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
 
@@ -54,6 +61,140 @@ package body Coyote_GUI.Conversation_Stack is
 
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
+
+   function Decode_Base64 (Input : String) return String is
+      function Value_Of (C : Character) return Integer is
+      begin
+         case C is
+            when 'A' .. 'Z' =>
+               return Character'Pos (C) - Character'Pos ('A');
+            when 'a' .. 'z' =>
+               return 26 + Character'Pos (C) - Character'Pos ('a');
+            when '0' .. '9' =>
+               return 52 + Character'Pos (C) - Character'Pos ('0');
+            when '+' =>
+               return 62;
+            when '/' =>
+               return 63;
+            when others =>
+               return -1;
+         end case;
+      end Value_Of;
+      Max_Length : constant Natural := (Input'Length * 3) / 4 + 4;
+      Output : String (1 .. Max_Length);
+      Count : Natural := 0;
+      Pos : Natural := Input'First;
+      A, B, D, E : Integer;
+   begin
+      if Input'Length > 8_000_000 then
+         return "";
+      end if;
+      while Pos + 3 <= Input'Last loop
+         A := Value_Of (Input (Pos));
+         B := Value_Of (Input (Pos + 1));
+         D := Value_Of (Input (Pos + 2));
+         E := Value_Of (Input (Pos + 3));
+         if A < 0 or else B < 0 then
+            return "";
+         end if;
+         Count := Count + 1;
+         Output (Count) := Character'Val (A * 4 + B / 16);
+         if Input (Pos + 2) /= '=' then
+            if D < 0 then
+               return "";
+            end if;
+            Count := Count + 1;
+            Output (Count) := Character'Val ((B mod 16) * 16 + D / 4);
+         end if;
+         if Input (Pos + 3) /= '=' then
+            if E < 0 or else D < 0 then
+               return "";
+            end if;
+            Count := Count + 1;
+            Output (Count) := Character'Val ((D mod 4) * 64 + E);
+         end if;
+         Pos := Pos + 4;
+      end loop;
+      if Pos <= Input'Last then
+         return "";
+      end if;
+      return Output (1 .. Count);
+   end Decode_Base64;
+
+   procedure Add_Tool_Thumbnail
+     (Card : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Data : String;
+      Thumbnail : out Gtk.Image.Gtk_Image)
+   is
+      use type Glib.Gint;
+      Bytes : constant String := Decode_Base64 (Data);
+      FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Path : Unbounded_String;
+      Written : Integer;
+      pragma Unreferenced (Written);
+      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf;
+      Scaled : Gdk.Pixbuf.Gdk_Pixbuf;
+      Error : Glib.Error.GError;
+      Image : Gtk.Image.Gtk_Image;
+      Fallback : Gtk.Label.Gtk_Label;
+      Max_Size : constant Glib.Gint := 320;
+      procedure Show_Fallback is
+      begin
+         Gtk.Label.Gtk_New (Fallback, "[ image unavailable ]");
+         Fallback.Set_Xalign (0.0);
+         Fallback.Set_Name ("coyote-tool-image-fallback");
+         Card.Pack_Start (Fallback, False, False, 0);
+      end Show_Fallback;
+   begin
+      if Bytes'Length = 0 then
+         Show_Fallback;
+         return;
+      end if;
+      Coyote_Temp_Files.Create (FD, Path);
+      if FD = GNAT.OS_Lib.Invalid_FD or else Length (Path) = 0 then
+         Show_Fallback;
+         return;
+      end if;
+      Written := GNAT.OS_Lib.Write (FD, Bytes'Address, Bytes'Length);
+      GNAT.OS_Lib.Close (FD);
+      FD := GNAT.OS_Lib.Invalid_FD;
+      Gdk.Pixbuf.Gdk_New_From_File (Pixbuf, To_String (Path), Error);
+      Coyote_Temp_Files.Delete (To_String (Path));
+      if Pixbuf = Gdk.Pixbuf.Null_Pixbuf then
+         Show_Fallback;
+         return;
+      end if;
+      declare
+         Width : constant Glib.Gint := Gdk.Pixbuf.Get_Width (Pixbuf);
+         Height : constant Glib.Gint := Gdk.Pixbuf.Get_Height (Pixbuf);
+         Scale : constant Long_Float :=
+           Long_Float'Min (1.0, Long_Float (Max_Size) /
+             Long_Float (Glib.Gint'Max (Width, Height)));
+      begin
+         Scaled := Gdk.Pixbuf.Scale_Simple
+           (Pixbuf,
+            Glib.Gint'Max (1, Glib.Gint (Long_Float (Width) * Scale)),
+            Glib.Gint'Max (1, Glib.Gint (Long_Float (Height) * Scale)),
+            Gdk.Pixbuf.Interp_Bilinear);
+      end;
+      Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
+      if Scaled = Gdk.Pixbuf.Null_Pixbuf then
+         Show_Fallback;
+         return;
+      end if;
+      Gtk.Image.Gtk_New (Image, Scaled);
+      Glib.Object.Unref (Glib.Object.GObject (Scaled));
+      Image.Set_Halign (Gtk.Widget.Align_Start);
+      Card.Pack_Start (Image, False, False, 0);
+      Thumbnail := Image;
+   exception
+      when others =>
+         if FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (FD);
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Path));
+         Show_Fallback;
+   end Add_Tool_Thumbnail;
 
    procedure Pack_Response_Block
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
@@ -1142,6 +1283,8 @@ package body Coyote_GUI.Conversation_Stack is
           Abort_Button         => Abort_Button,
           Abort_Message_Button => Abort_Message_Button,
           Action_Box           => Action_Box,
+          Card_Box             => Box,
+          Thumbnail            => null,
           Info                 => Info));
    end Begin_Tool;
 
@@ -1202,10 +1345,19 @@ package body Coyote_GUI.Conversation_Stack is
              (To_String (Tool_Value.Info.Name),
               To_String (Tool_Value.Info.Args),
               Status,
-              Result,
+              (if Media_Type'Length > 0 then "" else Result),
               Running => False));
       Tool_Value.Status.Set_Text
-        ("Status: " & Tool_Status_Text (Status, Result, Running => False));
+        ("Status: " & Tool_Status_Text
+           (Status, (if Media_Type'Length > 0 then "" else Result),
+            Running => False));
+      if Media_Type'Length >= 6
+        and then Media_Type (Media_Type'First .. Media_Type'First + 5)
+          = "image/"
+      then
+         Add_Tool_Thumbnail
+           (Tool_Value.Card_Box, Result, Tool_Value.Thumbnail);
+      end if;
       Tool_Value.Abort_Button.Set_Sensitive (False);
       Tool_Value.Abort_Message_Button.Set_Sensitive (False);
       Tool_Value.Details.Set_Sensitive (True);

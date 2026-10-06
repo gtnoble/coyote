@@ -1,5 +1,20 @@
 # Component Development Log — Frontends
 
+## 2026-10-06 — Show image tool-result thumbnails in conversation cards
+
+The native conversation stack now decodes image tool results and displays a
+bounded thumbnail in the completed tool card. The thumbnail is scaled to fit
+within 320×320 while preserving aspect ratio; invalid or oversized encoded
+data displays a compact fallback without affecting tool completion. Image
+payloads remain captured for the Details window and are omitted from inline
+status text.
+
+The implementation uses the existing GTK-thread tool completion path and
+secure temporary-file helper. Conversation-stack regression coverage checks
+valid image display, invalid image handling, payload retention, and status
+redaction. Manual visual qualification remains useful for representative
+large and animated images.
+
 ## 2026-09-26 — Preserve conversation step boundaries after tool cancellation
 
 Cancelled tool batches ending a `toolUse` step now finalize the current GUI

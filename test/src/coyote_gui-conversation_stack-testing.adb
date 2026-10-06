@@ -424,6 +424,42 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Tool_Detail (Tool_Id);
    end Tool_Detail;
 
+   function Tool_Thumbnail
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Gtk.Image.Gtk_Image
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Thumbnail;
+      end if;
+      return null;
+   end Tool_Thumbnail;
+
+   function Tool_Image_Fallback_Visible
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Boolean
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Child    : Gtk.Widget.Gtk_Widget;
+   begin
+      if not C.Tools.Contains (Tool_Id) then
+         return False;
+      end if;
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (C.Tools.Element (Tool_Id).Card_Box));
+      Children := Gtk.Widget.Widget_List.First (Children);
+      while Children /= Gtk.Widget.Widget_List.Null_List loop
+         Child := Gtk.Widget.Widget_List.Get_Data (Children);
+         if Child /= null
+           and then Child.Get_Name = "coyote-tool-image-fallback"
+         then
+            return True;
+         end if;
+         Children := Gtk.Widget.Widget_List.Next (Children);
+      end loop;
+      return False;
+   end Tool_Image_Fallback_Visible;
+
    function Details_Label
      (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
       return String
