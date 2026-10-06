@@ -1375,10 +1375,19 @@ Clear removes exchange widgets, retained tool payloads, and callback state
 before new content is inserted. All mutation occurs on the GTK main task after
 updates cross `Coyote_GUI.Updates`.
 
+**Conversation search:** Edit → Find (Ctrl+F) opens an inline search row above
+the prompt. The search entry receives focus; Escape or Close removes the query
+highlight and restores prior focus. Case-insensitive Next/Previous navigation
+wraps across retained request, assistant-response, and thinking text buffers.
+A dedicated GTK text tag provides visible match highlighting without changing
+selection or clipboard semantics. Search index refreshes during streaming and
+when a response is finalized or rerendered. Native table/math widgets and tool
+cards are not included in this text-buffer search scope.
+
 **Current qualification:** Native Markdown, MathML, selection, zoom, tool-card
-flow, replay, reset, and large-history behavior are covered by the retained
-native stack tests. The current registered suite is qualified at 890/890;
-focused results are recorded in the Test Plan.
+flow, replay, reset, search, and large-history behavior are covered by the
+retained native stack tests. The current registered suite is qualified at
+890/890; focused results are recorded in the Test Plan.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
@@ -2264,7 +2273,8 @@ startup and is the sole GTK conversation presentation (see §5.15).
   (Resume), Ctrl+M (Models), Ctrl+1 through Ctrl+6 (Thinking Level: Off
   through X-High), Ctrl+Shift+S (Sandbox Profile), Ctrl+Shift+C (Compact
   Context), Ctrl+Shift+I (Session Stats), Ctrl+Shift+M (Render Markdown),
-  Ctrl+Shift+A (Auto-scroll), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+  Ctrl+Shift+A (Auto-scroll), Ctrl+F (Find conversation text), and
+  Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
   These primary accelerators use `Accel_Visible`; every menu and menu entry
   also has a mnemonic where GTK supports one. Help task entries and other
   informational Help items have mnemonics but no independent accelerators.

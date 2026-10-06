@@ -1164,6 +1164,35 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Pango.Font.Free (Large_Font);
    end Test_Native_Display_Math_Zooms;
 
+   procedure Test_Search_Covers_Request_Thinking_And_Streaming
+     (T : in out Test)
+   is
+      Count : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "Needle in request", Prompt);
+      Begin_Thinking (T.Stack.all);
+      Append_Thinking (T.Stack.all, "needle in reasoning");
+      End_Thinking (T.Stack.all);
+      Append_Text (T.Stack.all, "needle in answer");
+      Count := Set_Search_Query (T.Stack.all, "needle");
+      Assert (Count = 3, "search covers request, thinking, and response");
+      Search_Next (T.Stack.all);
+      Assert (Search_Match_Count (T.Stack.all) = 3,
+              "next navigation retains all matches");
+      Search_Previous (T.Stack.all);
+      Assert (Search_Match_Count (T.Stack.all) = 3,
+              "previous navigation wraps through matches");
+      Append_Text (T.Stack.all, " plus needle");
+      Assert (Search_Match_Count (T.Stack.all) = 4,
+              "search refreshes when streaming text changes");
+      Clear_Search (T.Stack.all);
+      Assert (Search_Match_Count (T.Stack.all) = 0,
+              "clearing search removes the result index");
+   end Test_Search_Covers_Request_Thinking_And_Streaming;
+
    package Coyote_GUI_Conversation_Stack_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Conversation_Stack_Tests.Test);
 
@@ -1352,6 +1381,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Clear_Removes_Exchange_State'
               Access));
+
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack searches request, thinking, and "
+            & "streaming response text",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Search_Covers_Request_Thinking_And_Streaming'Access));
 
       return Result;
    end Suite;

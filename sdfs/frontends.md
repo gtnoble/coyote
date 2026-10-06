@@ -1,5 +1,21 @@
 # Component Development Log — Frontends
 
+## 2026-10-06 — Search conversation text
+
+Added Edit → Find (Ctrl+F) with an inline query row, case-insensitive match
+highlighting, Next/Previous navigation with wraparound, match counts, and
+Escape/Close dismissal with prior-focus restoration. Search covers request
+text, assistant text, and thinking text in native GTK text buffers, including
+active streaming content. Highlighting uses a dedicated buffer tag and does not
+replace the conversation's selection or clipboard state. Native table/math
+widgets and tool-card content are not searched.
+
+Conversation-stack coverage exercises matching across request, thinking, and
+streaming response text, navigation, refresh during streaming, and clearing.
+Focused stack suite passed 32/32. A full-suite run with a 90-second timeout
+reached the pre-existing display-backed GUI window tests and timed out at
+Sandbox Profiles manager coverage; focused search coverage passed independently.
+
 ## 2026-10-06 — Show image tool-result thumbnails in conversation cards
 
 The native conversation stack now decodes image tool results and displays a
@@ -880,7 +896,7 @@ Ctrl+Shift+D (Deselect All), Ctrl+, (Preferences), Ctrl+Return (Send), Ctrl+L
 Ctrl+M (Models), Ctrl+1 through Ctrl+6 (Thinking Level: Off through X-High),
 Ctrl+Shift+S (Sandbox Profile), Ctrl+Shift+C (Compact Context), Ctrl+Shift+I
 (Session Stats), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll),
-and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+Ctrl+F (Find), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
 
 These entries use `Accel_Visible`, so GTK renders their shortcut labels. Every
 menu and menu entry also has a mnemonic where GTK supports one. Informational

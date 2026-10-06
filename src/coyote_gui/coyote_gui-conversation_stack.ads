@@ -12,6 +12,7 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Glib;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -23,6 +24,7 @@ with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_Buffer;
 with Gtk.Text_Mark;
+with Gtk.Text_Tag;
 with Gtk.Text_View;
 with Gtk.Window;
 with Pango.Font;
@@ -34,6 +36,7 @@ package Coyote_GUI.Conversation_Stack is
    use type Gtk.Grid.Gtk_Grid;
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Text_Tag.Gtk_Text_Tag;
    use type Coyote_GUI.Math_Element.Instance_Access;
    type Instance is tagged limited private;
 
@@ -124,6 +127,16 @@ package Coyote_GUI.Conversation_Stack is
    procedure Move_Viewport
      (C : in out Instance; Move : Coyote_GUI.Navigation.Movement);
 
+   --  Search user, assistant, and thinking text.
+   --  Return the current match count.
+   function Set_Search_Query (C : in out Instance; Query : String)
+     return Natural;
+   procedure Search_Next (C : in out Instance);
+   procedure Search_Previous (C : in out Instance);
+   procedure Clear_Search (C : in out Instance);
+   function Search_Match_Count (C : Instance) return Natural;
+   procedure Focus_Search_Result (C : in out Instance);
+
    --  Return whether focus belongs to a conversation text component.
    function Has_Focus (C : Instance) return Boolean;
 
@@ -170,6 +183,18 @@ private
    package Text_View_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Gtk.Text_View.Gtk_Text_View);
 
+   type Search_Match is record
+      View       : Gtk.Text_View.Gtk_Text_View;
+      Start_Char : Glib.Gint := 0;
+      End_Char   : Glib.Gint := 0;
+   end record;
+
+   package Search_Match_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Search_Match);
+
+   package Search_Tag_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Gtk.Text_Tag.Gtk_Text_Tag);
+
    package Math_Element_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Positive,
       Element_Type => Coyote_GUI.Math_Element.Instance_Access);
@@ -198,6 +223,10 @@ private
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
       Response_Font       : Ada.Strings.Unbounded.Unbounded_String;
       Text_Views          : Text_View_Vectors.Vector;
+      Search_Tags         : Search_Tag_Vectors.Vector;
+      Search_Matches      : Search_Match_Vectors.Vector;
+      Search_Query        : Ada.Strings.Unbounded.Unbounded_String;
+      Search_Index        : Natural := 0;
       Math_Elements       : Math_Element_Vectors.Vector;
       Table_Grids         : Table_Grid_Vectors.Vector;
       Table_Cells         : Table_Cell_Vectors.Vector;

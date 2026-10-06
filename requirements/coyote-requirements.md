@@ -1036,8 +1036,12 @@ Ctrl+L (Clear Conversation), Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R
 (Resume), Ctrl+M (Models), Ctrl+1 through Ctrl+6 (Thinking Level: Off through
 X-High), Ctrl+Shift+S (Sandbox Profile), Ctrl+Shift+C (Compact Context),
 Ctrl+Shift+I (Session Stats), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A
-(Auto-scroll), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset). Every menu and
-menu entry shall also provide a mnemonic where GTK supports one. Informational
+(Auto-scroll), Ctrl+F (Find), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+Find shall open an inline search control for case-insensitive text search over
+user requests, assistant responses, and thinking text, with next/previous
+navigation and wraparound. Escape shall dismiss search before invoking Stop.
+Every menu and menu entry shall also provide a mnemonic where GTK supports one.
+Informational
 Help entries have mnemonics but do not require independent accelerators.
 
 

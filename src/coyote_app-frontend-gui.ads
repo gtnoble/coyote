@@ -48,9 +48,11 @@ with Gtk.Progress_Bar;
 with Gtk.Menu_Item;
 with Gtk.Check_Menu_Item;
 with Gtk.Separator;
+with Gtk.Search_Entry;
 with Gtk.Text_Buffer;
 with Gtk.Text_View;
 with Gtk.Window;
+with Gtk.Widget;
 
 package Coyote_App.Frontend.GUI is
 
@@ -273,6 +275,14 @@ private
       Paste_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
       Select_All_Item         : Gtk.Menu_Item.Gtk_Menu_Item;
       Deselect_Item           : Gtk.Menu_Item.Gtk_Menu_Item;
+      Find_Item               : Gtk.Menu_Item.Gtk_Menu_Item;
+      Search_Row              : Gtk.Box.Gtk_Box;
+      Search_Entry            : Gtk.Search_Entry.Gtk_Search_Entry;
+      Search_Count            : Gtk.Label.Gtk_Label;
+      Search_Previous_Button  : Gtk.Button.Gtk_Button;
+      Search_Next_Button      : Gtk.Button.Gtk_Button;
+      Search_Close_Button     : Gtk.Button.Gtk_Button;
+      Search_Previous_Focus   : Gtk.Widget.Gtk_Widget;
       Notification_Check      : Gtk.Check_Button.Gtk_Check_Button;
       Notifications_Allowed   : Boolean                      := False;
       Notifications_Enabled   : Boolean                      := False;

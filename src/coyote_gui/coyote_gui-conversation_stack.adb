@@ -36,8 +36,10 @@ with Gtk.Separator;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
+with Gtk.Text_Tag;
 with Gtk.Widget;
 with Gtk.Css_Provider;
+with Glib.Properties; use Glib.Properties;
 with Gtk.Style_Context;
 with Gtk.Style_Provider;
 with Pango.Font;
@@ -52,6 +54,7 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Widget.Gtk_Widget;
+   use type Ada.Containers.Count_Type;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
    use type GNAT.OS_Lib.File_Descriptor;
    use type Coyote_GUI.Math_Element.Instance_Access;
@@ -266,6 +269,8 @@ package body Coyote_GUI.Conversation_Stack is
    procedure On_Fork_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class; Data : Fork_Context);
 
+   procedure Refresh_Search (C : in out Instance);
+
    procedure On_Fork_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class; Data : Fork_Context)
    is
@@ -352,7 +357,6 @@ package body Coyote_GUI.Conversation_Stack is
          Buffer.Get_End_Iter (Iter);
          Buffer.Insert_Markup (Iter, Markup, -1);
       end if;
-      C.Text_Views.Append (View);
       C.Active_Text := Buffer;
       C.Active_View := View;
    end Add_Response_Text;
@@ -785,6 +789,21 @@ package body Coyote_GUI.Conversation_Stack is
          C.Response_Section := Section;
          Apply_Response_Style (View);
       end if;
+      C.Text_Views.Append (View);
+      declare
+         Search_Tag : constant Gtk.Text_Tag.Gtk_Text_Tag :=
+           Buffer.Create_Tag;
+      begin
+         Set_Property
+           (Search_Tag,
+            Gtk.Text_Tag.Background_Property,
+            "#fff2a8");
+         Set_Property
+           (Search_Tag,
+            Gtk.Text_Tag.Background_Full_Height_Property,
+            True);
+         C.Search_Tags.Append (Search_Tag);
+      end;
       Show_Contents (C);
    end Add_Text_Element;
 
@@ -910,6 +929,10 @@ package body Coyote_GUI.Conversation_Stack is
       C.Table_Grids.Clear;
       C.Table_Cells.Clear;
       C.Text_Views.Clear;
+      C.Search_Tags.Clear;
+      C.Search_Matches.Clear;
+      C.Search_Query     := Null_Unbounded_String;
+      C.Search_Index     := 0;
       C.Exchange         := null;
       C.Step_Frame       := null;
       C.Step_Box         := null;
@@ -988,6 +1011,9 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Append (C.Stream_Buf, Text);
       Append_Buffer (C.Active_Text, Text);
+      if Length (C.Search_Query) > 0 then
+         Refresh_Search (C);
+      end if;
    end Append_Text;
 
    --  Delete Stream_Mark from Active_Text when both are live and clear its
@@ -1032,6 +1058,7 @@ package body Coyote_GUI.Conversation_Stack is
                   Old_Index := C.Text_Views.Find_Index (Old_View);
                   if Old_Index /= Text_View_Vectors.No_Index then
                      C.Text_Views.Delete (Old_Index);
+                     C.Search_Tags.Delete (Old_Index);
                   end if;
                   C.Response_Section.Remove (Old_View);
                end if;
@@ -1039,6 +1066,9 @@ package body Coyote_GUI.Conversation_Stack is
                C.Active_View := null;
                Build_Response_Elements (C, Full_Text);
             end;
+         end if;
+         if Length (C.Search_Query) > 0 then
+            Refresh_Search (C);
          end if;
       end if;
    end End_Text_Block;
@@ -1070,6 +1100,9 @@ package body Coyote_GUI.Conversation_Stack is
          Begin_Thinking (C);
       end if;
       Append_Buffer (C.Thinking, Text);
+      if Length (C.Search_Query) > 0 then
+         Refresh_Search (C);
+      end if;
    end Append_Thinking;
 
    procedure End_Thinking (C : in out Instance) is
@@ -1558,6 +1591,160 @@ package body Coyote_GUI.Conversation_Stack is
       end loop;
       return C.Active_View;
    end Selection_View;
+
+   procedure Clear_Search (C : in out Instance) is
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if C.Search_Tags.Length = C.Text_Views.Length then
+         for View_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
+         loop
+            declare
+               Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+                 C.Text_Views (View_Index).Get_Buffer;
+            begin
+               Buffer.Get_Start_Iter (Start_Iter);
+               Buffer.Get_End_Iter (End_Iter);
+               Buffer.Remove_Tag
+                 (C.Search_Tags (View_Index), Start_Iter, End_Iter);
+            end;
+         end loop;
+      end if;
+      C.Search_Query := Null_Unbounded_String;
+      C.Search_Matches.Clear;
+      C.Search_Index := 0;
+   end Clear_Search;
+
+   function Search_Match_Count (C : Instance) return Natural is
+   begin
+      return Natural (C.Search_Matches.Length);
+   end Search_Match_Count;
+
+   procedure Show_Search_Match
+     (C : in out Instance; Match_Index : Positive)
+   is
+      Match       : constant Search_Match := C.Search_Matches (Match_Index);
+      Buffer      : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+        Match.View.Get_Buffer;
+      Start_Iter  : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter    : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      Buffer.Get_Iter_At_Offset (Start_Iter, Match.Start_Char);
+      Buffer.Get_Iter_At_Offset (End_Iter, Match.End_Char);
+      Buffer.Apply_Tag
+        (C.Search_Tags (C.Text_Views.Find_Index (Match.View)),
+         Start_Iter, End_Iter);
+      declare
+         Scrolled : constant Boolean :=
+           Gtk.Text_View.Scroll_To_Iter
+             (Match.View, Start_Iter, 0.1, False, 0.0, 0.5);
+         pragma Unreferenced (Scrolled);
+      begin
+         null;
+      end;
+   end Show_Search_Match;
+
+   procedure Refresh_Search (C : in out Instance) is
+      Query : constant String := To_String (C.Search_Query);
+   begin
+      if C.Search_Tags.Length = C.Text_Views.Length then
+         for View_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
+         loop
+            declare
+               Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+                 C.Text_Views (View_Index).Get_Buffer;
+               Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+               End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+            begin
+               Buffer.Get_Start_Iter (Start_Iter);
+               Buffer.Get_End_Iter (End_Iter);
+               Buffer.Remove_Tag
+                 (C.Search_Tags (View_Index), Start_Iter, End_Iter);
+            end;
+         end loop;
+      end if;
+      C.Search_Matches.Clear;
+      C.Search_Index := 0;
+      if Query'Length = 0
+        or else C.Text_Views.Is_Empty
+        or else C.Search_Tags.Length /= C.Text_Views.Length
+      then
+         return;
+      end if;
+      for View_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
+      loop
+         declare
+            Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+              C.Text_Views (View_Index).Get_Buffer;
+            Cursor    : Gtk.Text_Iter.Gtk_Text_Iter;
+            First     : Gtk.Text_Iter.Gtk_Text_Iter;
+            Last      : Gtk.Text_Iter.Gtk_Text_Iter;
+            Found     : Boolean;
+         begin
+            Buffer.Get_Start_Iter (Cursor);
+            loop
+               Gtk.Text_Iter.Forward_Search
+                 (Cursor, Query, Gtk.Text_Iter.Case_Insensitive,
+                  First, Last, Result => Found);
+               exit when not Found;
+               C.Search_Matches.Append
+                 ((View       => C.Text_Views (View_Index),
+                   Start_Char => Gtk.Text_Iter.Get_Offset (First),
+                   End_Char   => Gtk.Text_Iter.Get_Offset (Last)));
+               Buffer.Apply_Tag (C.Search_Tags (View_Index), First, Last);
+               Cursor := Last;
+            end loop;
+         end;
+      end loop;
+      if not C.Search_Matches.Is_Empty then
+         C.Search_Index := 1;
+         Show_Search_Match (C, 1);
+      end if;
+   end Refresh_Search;
+
+   function Set_Search_Query
+     (C : in out Instance; Query : String) return Natural
+   is
+   begin
+      if To_String (C.Search_Query) /= Query then
+         C.Search_Query := To_Unbounded_String (Query);
+         Refresh_Search (C);
+      end if;
+      return Search_Match_Count (C);
+   end Set_Search_Query;
+
+   procedure Search_Next (C : in out Instance) is
+   begin
+      if C.Search_Matches.Is_Empty then
+         return;
+      end if;
+      if C.Search_Index >= Natural (C.Search_Matches.Length) then
+         C.Search_Index := 1;
+      else
+         C.Search_Index := C.Search_Index + 1;
+      end if;
+      Show_Search_Match (C, Positive (C.Search_Index));
+   end Search_Next;
+
+   procedure Search_Previous (C : in out Instance) is
+   begin
+      if C.Search_Matches.Is_Empty then
+         return;
+      end if;
+      if C.Search_Index <= 1 then
+         C.Search_Index := Natural (C.Search_Matches.Length);
+      else
+         C.Search_Index := C.Search_Index - 1;
+      end if;
+      Show_Search_Match (C, Positive (C.Search_Index));
+   end Search_Previous;
+
+   procedure Focus_Search_Result (C : in out Instance) is
+   begin
+      if not C.Search_Matches.Is_Empty and then C.Search_Index > 0 then
+         C.Search_Matches (Positive (C.Search_Index)).View.Grab_Focus;
+      end if;
+   end Focus_Search_Result;
 
    procedure Scroll_To_End (C : in out Instance) is
    begin

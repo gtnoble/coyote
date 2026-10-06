@@ -34,6 +34,7 @@ with Gtk.Menu_Shell;
 with Gtk.Check_Menu_Item;
 with Gtk.Settings;
 with Gtk.Scrolled_Window;
+with Gtk.Search_Entry;
 with Gtk.Separator;
 with Gtk.Selection_Data;
 with Gtk.Separator_Menu_Item;
@@ -101,6 +102,9 @@ package body Coyote_App.Frontend.GUI is
    use type Gdk.Types.Gdk_Key_Type;
    use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
    use type Gtk.Window.Gtk_Window;
+   use type Gtk.Search_Entry.Gtk_Search_Entry;
+   use type Gtk.Box.Gtk_Box;
+   use type Gtk.Widget.Gtk_Widget;
    --  ── Package-body state ────────────────────────────────────────────────
 
    --  Global access for signal callbacks (single window per process).
@@ -934,6 +938,25 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
    procedure On_Deselect_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure Show_Search (F : in out Instance);
+   procedure Hide_Search (F : in out Instance);
+   procedure Update_Search (F : in out Instance);
+   procedure On_Find_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Search_Changed
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class);
+   procedure On_Search_Stop
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class);
+   procedure On_Search_Next
+     (Self : access Gtk.Button.Gtk_Button_Record'Class);
+   procedure On_Search_Previous
+     (Self : access Gtk.Button.Gtk_Button_Record'Class);
+   procedure On_Search_Close
+     (Self : access Gtk.Button.Gtk_Button_Record'Class);
+   procedure On_Search_Next_Match
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class);
+   procedure On_Search_Previous_Match
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class);
 
    Active_List_Dialog : Gtk.Dialog.Gtk_Dialog := null;
 
@@ -1280,6 +1303,142 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Edit_Menu_Show;
 
+   procedure Update_Search (F : in out Instance) is
+      Count : Natural;
+   begin
+      if F.Search_Entry = null or else F.Search_Count = null then
+         return;
+      end if;
+      Count := F.Stack.Set_Search_Query (F.Search_Entry.Get_Text);
+      if F.Search_Entry.Get_Text'Length = 0 then
+         F.Search_Count.Set_Text ("");
+      elsif Count = 0 then
+         F.Search_Count.Set_Text ("No matches");
+      else
+         F.Search_Count.Set_Text
+           (Ada.Strings.Fixed.Trim
+              (Natural'Image (Count), Ada.Strings.Both)
+            & (if Count = 1 then " match" else " matches"));
+      end if;
+   end Update_Search;
+
+   procedure Show_Search (F : in out Instance) is
+   begin
+      if F.Search_Row = null then
+         return;
+      end if;
+      if not F.Search_Row.Get_Visible then
+         F.Search_Previous_Focus := F.Win.Get_Focus;
+      end if;
+      F.Search_Row.Set_Visible (True);
+      F.Search_Entry.Grab_Focus;
+      F.Search_Entry.Select_Region (0, -1);
+      Update_Search (F);
+   end Show_Search;
+
+   procedure Hide_Search (F : in out Instance) is
+      Previous_Focus : constant Gtk.Widget.Gtk_Widget :=
+        F.Search_Previous_Focus;
+   begin
+      if F.Search_Row = null or else not F.Search_Row.Get_Visible then
+         return;
+      end if;
+      F.Stack.Clear_Search;
+      F.Search_Entry.Set_Text ("");
+      F.Search_Count.Set_Text ("");
+      F.Search_Row.Set_Visible (False);
+      if Previous_Focus /= null then
+         Previous_Focus.Grab_Focus;
+      elsif F.Prompt_View /= null then
+         F.Prompt_View.Grab_Focus;
+      end if;
+      F.Search_Previous_Focus := null;
+   end Hide_Search;
+
+   procedure On_Find_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Show_Search (Current_Frontend.all);
+      end if;
+   end On_Find_Activate;
+
+   procedure On_Search_Changed
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Update_Search (Current_Frontend.all);
+      end if;
+   end On_Search_Changed;
+
+   procedure On_Search_Stop
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Hide_Search (Current_Frontend.all);
+      end if;
+   end On_Search_Stop;
+
+   procedure On_Search_Next
+     (Self : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Update_Search (Current_Frontend.all);
+         Current_Frontend.Stack.Search_Next;
+      end if;
+   end On_Search_Next;
+
+   procedure On_Search_Previous
+     (Self : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Update_Search (Current_Frontend.all);
+         Current_Frontend.Stack.Search_Previous;
+      end if;
+   end On_Search_Previous;
+
+   procedure On_Search_Close
+     (Self : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Hide_Search (Current_Frontend.all);
+      end if;
+   end On_Search_Close;
+
+   procedure On_Search_Next_Match
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Update_Search (Current_Frontend.all);
+         Current_Frontend.Stack.Search_Next;
+      end if;
+   end On_Search_Next_Match;
+
+   procedure On_Search_Previous_Match
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Update_Search (Current_Frontend.all);
+         Current_Frontend.Stack.Search_Previous;
+      end if;
+   end On_Search_Previous_Match;
+
    procedure On_Cut_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
@@ -1423,7 +1582,11 @@ package body Coyote_App.Frontend.GUI is
    is
       pragma Unreferenced (Self);
    begin
-      if Current_Frontend = null or else not Current_Frontend.Auto_Scroll then
+      if Current_Frontend = null
+        or else not Current_Frontend.Auto_Scroll
+        or else (Current_Frontend.Search_Row /= null
+                 and then Current_Frontend.Search_Row.Get_Visible)
+      then
          return;
       end if;
       declare
@@ -1677,6 +1840,9 @@ package body Coyote_App.Frontend.GUI is
             F.Stack.Begin_Request
               (Text => To_String (U.Text),
                Kind => Coyote_GUI.Request_Kind (U.R_Kind));
+            if F.Search_Row.Get_Visible then
+               Update_Search (F);
+            end if;
 
          when Complete_Request =>
             F.Stack.Complete_Request
@@ -1700,6 +1866,9 @@ package body Coyote_App.Frontend.GUI is
 
          when Append_Text =>
             F.Stack.Append_Text (To_String (U.Text));
+            if F.Search_Row.Get_Visible then
+               Update_Search (F);
+            end if;
 
          when End_Text_Block =>
             F.Stack.End_Text_Block;
@@ -1712,6 +1881,9 @@ package body Coyote_App.Frontend.GUI is
 
          when Append_Thinking =>
             F.Stack.Append_Thinking (To_String (U.Text));
+            if F.Search_Row.Get_Visible then
+               Update_Search (F);
+            end if;
 
          when End_Thinking =>
             F.Stack.End_Thinking;
@@ -3996,6 +4168,7 @@ package body Coyote_App.Frontend.GUI is
       Status_Content_Box      : Gtk.Box.Gtk_Box;
       Conversation_Prompt_Sep : Gtk.Separator.Gtk_Separator;
       Prompt_Status_Sep       : Gtk.Separator.Gtk_Separator;
+      Search_Label            : Gtk.Label.Gtk_Label;
 
       --  File menu
       File_Menu      : Gtk_Menu;
@@ -4122,6 +4295,15 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Edit_Item);
       Edit_Menu.On_Show (On_Edit_Menu_Show'Access);
+      F.Find_Item := Make_Item ("_Find", Edit_Menu, Edit_Mnemonics);
+      F.Find_Item.On_Activate (On_Find_Activate'Access);
+      F.Find_Item.Add_Accelerator
+        ("activate",
+         F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_f,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      Add_Sep (Edit_Menu);
       F.Cut_Item := Make_Item ("Cu_t", Edit_Menu, Edit_Mnemonics);
       F.Cut_Item.On_Activate (On_Cut_Activate'Access);
       F.Cut_Item.Add_Accelerator
@@ -4533,6 +4715,42 @@ package body Coyote_App.Frontend.GUI is
       F.Stack.Widget.On_Scroll_Event (On_Stack_Scroll'Access);
       F.Outer_Box.Pack_Start
         (F.Stack.Widget, Expand => True, Fill => True, Padding => 0);
+
+      Gtk.Box.Gtk_New_Hbox
+        (F.Search_Row, Homogeneous => False, Spacing => 4);
+      F.Search_Row.Set_Border_Width (4);
+      Gtk.Label.Gtk_New (Search_Label, "_Find:");
+      Search_Label.Set_Use_Underline (True);
+      Gtk.Label.Gtk_New (F.Search_Count, "");
+      Gtk.Search_Entry.Gtk_New (F.Search_Entry);
+      Search_Label.Set_Mnemonic_Widget
+        (Gtk.Widget.Gtk_Widget (F.Search_Entry));
+      F.Search_Entry.Set_Placeholder_Text ("Search conversation");
+      F.Search_Entry.Set_Width_Chars (24);
+      F.Search_Entry.On_Search_Changed (On_Search_Changed'Access);
+      F.Search_Entry.On_Stop_Search (On_Search_Stop'Access);
+      F.Search_Entry.On_Next_Match (On_Search_Next_Match'Access);
+      F.Search_Entry.On_Previous_Match (On_Search_Previous_Match'Access);
+      Gtk.Button.Gtk_New (F.Search_Previous_Button, "_Previous");
+      F.Search_Previous_Button.Set_Use_Underline (True);
+      F.Search_Previous_Button.On_Clicked (On_Search_Previous'Access);
+      Gtk.Button.Gtk_New (F.Search_Next_Button, "_Next");
+      F.Search_Next_Button.Set_Use_Underline (True);
+      F.Search_Next_Button.On_Clicked (On_Search_Next'Access);
+      Gtk.Button.Gtk_New (F.Search_Close_Button, "_Close");
+      F.Search_Close_Button.Set_Use_Underline (True);
+      F.Search_Close_Button.On_Clicked (On_Search_Close'Access);
+      F.Search_Row.Pack_Start
+        (Gtk.Widget.Gtk_Widget (Search_Label), False, False, 0);
+      F.Search_Row.Pack_Start (F.Search_Entry, True, True, 0);
+      F.Search_Row.Pack_Start (F.Search_Count, False, False, 0);
+      F.Search_Row.Pack_Start (F.Search_Previous_Button, False, False, 0);
+      F.Search_Row.Pack_Start (F.Search_Next_Button, False, False, 0);
+      F.Search_Row.Pack_Start (F.Search_Close_Button, False, False, 0);
+      F.Search_Row.Set_No_Show_All (True);
+      F.Search_Row.Set_Visible (False);
+      F.Outer_Box.Pack_Start
+        (F.Search_Row, Expand => False, Fill => True, Padding => 0);
 
       --  ── Conversation / prompt boundary ───────────────────────────────
 
@@ -4996,6 +5214,9 @@ package body Coyote_App.Frontend.GUI is
    procedure Clear_Conversation (F : in out Instance) is
       U : Coyote_GUI.Update;
    begin
+      if F.Search_Row /= null and then F.Search_Row.Get_Visible then
+         Hide_Search (F);
+      end if;
       U.Kind := Coyote_GUI.Clear_Conversation;
       Enqueue_Update (F, U);
    end Clear_Conversation;
