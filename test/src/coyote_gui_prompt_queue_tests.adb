@@ -265,6 +265,18 @@ package body Coyote_GUI_Prompt_Queue_Tests is
          "empty override spec should represent an explicit clear");
    end Test_Set_Subagent_Model_Round_Trips;
 
+   procedure Test_Shutdown_Releases_Dequeue (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue : Coyote_GUI.Prompt_Queue.Queue;
+      Got   : Coyote_GUI.Prompt_Queue.Item;
+   begin
+      Queue.Shutdown;
+      Queue.Dequeue (Got);
+      Assert
+        (Got.Kind = Shutdown_Item,
+         "shutdown should release dequeue with the shutdown item");
+   end Test_Shutdown_Releases_Dequeue;
+
    package Coyote_GUI_Prompt_Queue_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Prompt_Queue_Tests.Test);
 
@@ -301,6 +313,11 @@ package body Coyote_GUI_Prompt_Queue_Tests is
         (Coyote_GUI_Prompt_Queue_Caller.Create
            ("Coyote.GUI.Prompt_Queue Set_Subagent_Model round trips",
             Coyote_GUI_Prompt_Queue_Tests.Test_Set_Subagent_Model_Round_Trips'
+              Access));
+      Result.Add_Test
+        (Coyote_GUI_Prompt_Queue_Caller.Create
+           ("Coyote.GUI.Prompt_Queue shutdown releases dequeue",
+            Coyote_GUI_Prompt_Queue_Tests.Test_Shutdown_Releases_Dequeue'
               Access));
 
       return Result;

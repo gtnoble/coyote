@@ -169,16 +169,16 @@ package body Coyote_App_Frontend_GUI_Tests is
          "context progress starts empty");
 
       Assert
-        (Outer.Get_Child (2) = Gtk.Widget.Gtk_Widget (Conv_Prompt),
+        (Outer.Get_Child (3) = Gtk.Widget.Gtk_Widget (Conv_Prompt),
          "conversation is followed by the prompt separator");
       Assert
-        (Outer.Get_Child (3) = Gtk.Widget.Gtk_Widget (Prompt),
+        (Outer.Get_Child (4) = Gtk.Widget.Gtk_Widget (Prompt),
          "prompt area follows the conversation separator");
       Assert
-        (Outer.Get_Child (4) = Gtk.Widget.Gtk_Widget (Prompt_Status),
+        (Outer.Get_Child (5) = Gtk.Widget.Gtk_Widget (Prompt_Status),
          "prompt area is followed by the status separator");
       Assert
-        (Outer.Get_Child (5) = Gtk.Widget.Gtk_Widget (Status),
+        (Outer.Get_Child (6) = Gtk.Widget.Gtk_Widget (Status),
          "status area follows the prompt separator");
 
       declare
