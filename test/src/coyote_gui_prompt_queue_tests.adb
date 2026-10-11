@@ -207,6 +207,36 @@ package body Coyote_GUI_Prompt_Queue_Tests is
          "targeted prompt text must survive queue transport");
    end Test_Target_Agent_Id_Round_Trips;
 
+   procedure Test_Fork_Session_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue : Coyote_GUI.Prompt_Queue.Queue;
+      Got   : Coyote_GUI.Prompt_Queue.Item;
+   begin
+      Queue.Enqueue
+        ((Kind            => Fork_Session,
+          Target_Agent_Id => To_Unbounded_String ("root"),
+          Source_UUID     => To_Unbounded_String ("source-session"),
+          Fork_Turn       => 4,
+          Fork_Step       => 2,
+          Target_Cwd      => To_Unbounded_String ("/work/project")));
+      Queue.Dequeue (Got);
+      Assert
+        (Got.Kind = Fork_Session,
+         "fork command kind should survive queue transport");
+      Assert
+        (To_String (Got.Target_Agent_Id) = "root",
+         "fork target should survive queue transport");
+      Assert
+        (To_String (Got.Source_UUID) = "source-session",
+         "fork source UUID should survive queue transport");
+      Assert
+        (Got.Fork_Turn = 4 and then Got.Fork_Step = 2,
+         "fork cut point should survive queue transport");
+      Assert
+        (To_String (Got.Target_Cwd) = "/work/project",
+         "fork working directory should survive queue transport");
+   end Test_Fork_Session_Round_Trips;
+
    procedure Test_Enqueue_Rejects_Overflow (T : in out Test) is
       pragma Unreferenced (T);
       Queue    : Coyote_GUI.Prompt_Queue.Queue;
@@ -303,6 +333,11 @@ package body Coyote_GUI_Prompt_Queue_Tests is
         (Coyote_GUI_Prompt_Queue_Caller.Create
            ("Coyote.GUI.Prompt_Queue preserves target identity",
             Coyote_GUI_Prompt_Queue_Tests.Test_Target_Agent_Id_Round_Trips'
+              Access));
+      Result.Add_Test
+        (Coyote_GUI_Prompt_Queue_Caller.Create
+           ("Coyote.GUI.Prompt_Queue fork payload round trips",
+            Coyote_GUI_Prompt_Queue_Tests.Test_Fork_Session_Round_Trips'
               Access));
       Result.Add_Test
         (Coyote_GUI_Prompt_Queue_Caller.Create

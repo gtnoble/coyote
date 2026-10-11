@@ -52,6 +52,7 @@ package Coyote_GUI.Prompt_Queue is
       Set_Thinking,      --  change the reasoning level
       Set_Sandbox,       --  change the sandbox profile
       Switch_Session,    --  load a different session by UUID
+      Fork_Session,      --  create a fork and load it in this window
       Set_Preferences,   --  persist all Preferences_Record fields
       Shutdown_Item);    --  queue is closing; agent task should exit
 
@@ -79,6 +80,11 @@ package Coyote_GUI.Prompt_Queue is
             Profile_Name : Ada.Strings.Unbounded.Unbounded_String;
          when Switch_Session =>
             Session_UUID : Ada.Strings.Unbounded.Unbounded_String;
+         when Fork_Session =>
+            Source_UUID : Ada.Strings.Unbounded.Unbounded_String;
+            Fork_Turn   : Positive;
+            Fork_Step   : Natural;
+            Target_Cwd  : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Preferences =>
             Preferences : Preferences_Record;
          when others =>

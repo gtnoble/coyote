@@ -20,6 +20,7 @@ with LLM.Model_Registry;
 with LLM.Session_Store;
 with LLM.Settings;
 with LLM.Types;
+with Session_Lister;
 with Coyote_App.Frontend.GUI;
 with Coyote_Process_Control;
 with Coyote_GUI.Prompt_Queue;
@@ -1132,6 +1133,49 @@ package body Coyote_App is
                               when Ex : others =>
                                  Append_Task_Warning
                                    ("sandbox profile change failed: "
+                                    & Ada.Exceptions.Exception_Message (Ex));
+                           end;
+
+                        when Coyote_GUI.Prompt_Queue.Fork_Session =>
+                           declare
+                              New_UUID : constant String :=
+                                Session_Lister.Fork_Session
+                                  (Source_UUID =>
+                                     Ada.Strings.Unbounded.To_String
+                                       (It.Source_UUID),
+                                   After_Turn  => It.Fork_Turn,
+                                   Target_Cwd  =>
+                                     Ada.Strings.Unbounded.To_String
+                                       (It.Target_Cwd),
+                                   After_Step  => It.Fork_Step);
+                           begin
+                              if New_UUID'Length = 0 then
+                                 Append_Task_Warning
+                                   ("Unable to create the forked session.");
+                              else
+                                 if State.Is_Streaming then
+                                    LLM.Agent.Request_Abort (Agent_Session);
+                                 end if;
+                                 LLM.Agent.Switch_Session
+                                   (S    => Agent_Session,
+                                    UUID => New_UUID);
+                                 Ada.Environment_Variables.Set
+                                   ("COYOTE_SESSION_ID", New_UUID);
+                                 Ada.Environment_Variables.Set
+                                   ("COYOTE_OPENROUTER_SESSION_ID",
+                                    LLM.Agent.OpenRouter_Session_Id
+                                      (Agent_Session));
+                                 Synchronize_Sandbox;
+                                 Reset_Session_State;
+                                 My_Frontend.Clear_Stats;
+                                 My_Frontend.Clear_Conversation;
+                                 Render_Loaded_Session (New_UUID);
+                                 Emit_Bootstrap;
+                              end if;
+                           exception
+                              when Ex : others =>
+                                 Append_Task_Warning
+                                   ("session fork failed: "
                                     & Ada.Exceptions.Exception_Message (Ex));
                            end;
 

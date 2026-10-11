@@ -69,9 +69,6 @@ with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
 with Gtk.Tree_Store;
 with Session_Lister;
-with Coyote_Spawn;
-with Coyote_Utils;
-with GNATCOLL.OS.Process;
 with GNATCOLL.JSON;
 with LLM.Agent;
 with LLM.Providers;
@@ -1739,53 +1736,27 @@ package body Coyote_App.Frontend.GUI is
    procedure On_Native_Fork
      (UUID : String; Turn_N : Positive; Step_N : Natural)
    is
-      New_UUID : constant String :=
-        Session_Lister.Fork_Session
-          (Source_UUID => UUID,
-           After_Turn  => Turn_N,
-           Target_Cwd  => Ada.Directories.Current_Directory,
-           After_Step  => Step_N);
+      Accepted : Boolean;
    begin
-      if New_UUID'Length = 0 then
-         if Current_Frontend /= null then
-            Current_Frontend.Append_Notice
-              (Coyote_App.Frontend.Error,
-               "Unable to create the forked session.");
-         end if;
+      if Current_Frontend = null then
          return;
       end if;
 
-      begin
-         declare
-            use GNATCOLL.OS.Process;
-            Args : Argument_List;
-         begin
-            Args.Append (Coyote_Utils.Active_Executable_Path);
-            Args.Append ("--frontend");
-            Args.Append ("gui");
-            Args.Append ("--physical-window");
-            Args.Append ("--session");
-            Args.Append (New_UUID);
-            Args.Append ("--name");
-            Args.Append
-              ("Fork @ " & Natural_Image (Turn_N)
-               & (if Step_N > 0 then "/" & Natural_Image (Step_N) else ""));
-            if not Coyote_Spawn.Spawn_Detached
-                (Args, Cwd => Ada.Directories.Current_Directory)
-            then
-               raise Program_Error
-                 with "physical Fork window could not be started";
-            end if;
-         end;
-      exception
-         when E : others =>
-            if Current_Frontend /= null then
-               Current_Frontend.Append_Notice
-                 (Coyote_App.Frontend.Error,
-                  "Unable to open the forked session: "
-                  & Ada.Exceptions.Exception_Message (E));
-            end if;
-      end;
+      Current_Frontend.PQ.Enqueue
+        ((Kind            => Fork_Session,
+          Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+          Source_UUID     => To_Unbounded_String (UUID),
+          Fork_Turn       => Turn_N,
+          Fork_Step       => Step_N,
+          Target_Cwd      =>
+            To_Unbounded_String (Ada.Directories.Current_Directory)),
+         Accepted);
+
+      if not Accepted then
+         Current_Frontend.Append_Notice
+           (Coyote_App.Frontend.Error,
+            "Unable to fork session: the agent request queue is full.");
+      end if;
    end On_Native_Fork;
 
    procedure Set_Root_Agent_Status (F : in out Instance; Status : String) is

@@ -17,6 +17,7 @@ package Coyote_GUI_Prompt_Queue_Tests is
    --  queue transport, including the explicit empty-clear form.
    procedure Test_Set_Subagent_Model_Round_Trips (T : in out Test);
    procedure Test_Refresh_Models_Round_Trips (T : in out Test);
+   procedure Test_Fork_Session_Round_Trips (T : in out Test);
    procedure Test_Enqueue_Rejects_Overflow (T : in out Test);
    procedure Test_Shutdown_Releases_Dequeue (T : in out Test);
 
