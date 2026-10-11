@@ -33,12 +33,16 @@ package body Coyote_Renderer.Markup is
       return To_String (R);
    end Xml_Escape;
 
-   function To_Pango_Markup (MD_Text : String) return String is
+   function Render (MD_Text : String) return Render_Result is
       Doc   : Node_Ptr          := System.Null_Address;
       It    : Iter_Ptr          := System.Null_Address;
       Ev    : Event_Type_Int;
       Node  : Node_Ptr;
       Out_S : Unbounded_String;
+      Result : Render_Result;
+      Link_Label : Unbounded_String;
+      Link_Url : Unbounded_String;
+      In_Link : Boolean := False;
 
       procedure Free_Cmark_Resources is
          Saved_It  : constant Iter_Ptr := It;
@@ -196,12 +200,13 @@ package body Coyote_Renderer.Markup is
 
    begin
       if MD_Text'Length = 0 then
-         return "";
+         return Result;
       end if;
 
       Doc := Parse_Document (C_Text, C_Text'Length - 1, OPT_DEFAULT);
       if Doc = System.Null_Address then
-         return Xml_Escape (MD_Text);
+         Result.Markup := To_Unbounded_String (Xml_Escape (MD_Text));
+         return Result;
       end if;
 
       It := Iter_New (Doc);
@@ -318,9 +323,19 @@ package body Coyote_Renderer.Markup is
             elsif NT = NODE_LINK then
                if not In_Cell then
                   if Ev = EVENT_ENTER then
+                     Link_Label := Null_Unbounded_String;
+                     Link_Url := To_Unbounded_String
+                       (Interfaces.C.Strings.Value (Node_Get_Url (Node)));
+                     In_Link := True;
                      Append (Out_S, "<u>");
                   else
                      Append (Out_S, "</u>");
+                     if Length (Link_Label) > 0 then
+                        Result.Links.Append
+                          ((Label => Link_Label,
+                            Destination => Link_Url));
+                     end if;
+                     In_Link := False;
                   end if;
                end if;
 
@@ -332,6 +347,9 @@ package body Coyote_Renderer.Markup is
                      Append (Out_S, "<tt>");
                      Append (Out_S, Xml_Escape (Lit (Node)));
                      Append (Out_S, "</tt>");
+                     if In_Link then
+                        Append (Link_Label, Lit (Node));
+                     end if;
                   end if;
                end if;
 
@@ -402,6 +420,9 @@ package body Coyote_Renderer.Markup is
                      Cell_Append (Lit (Node));
                   else
                      Append (Out_S, Xml_Escape (Lit (Node)));
+                     if In_Link then
+                        Append (Link_Label, Lit (Node));
+                     end if;
                   end if;
                end if;
 
@@ -411,6 +432,9 @@ package body Coyote_Renderer.Markup is
                      Cell_Append (" ");
                   else
                      Append (Out_S, " ");
+                     if In_Link then
+                        Append (Link_Label, " ");
+                     end if;
                   end if;
                end if;
 
@@ -420,6 +444,9 @@ package body Coyote_Renderer.Markup is
                      Cell_Append (" ");
                   else
                      Append (Out_S, "" & ASCII.LF);
+                     if In_Link then
+                        Append (Link_Label, ASCII.LF);
+                     end if;
                   end if;
                end if;
 
@@ -447,13 +474,20 @@ package body Coyote_Renderer.Markup is
 
       Free_Cmark_Resources;
       if Length (Out_S) = 0 then
-         return Xml_Escape (MD_Text);
+         Result.Markup := To_Unbounded_String (Xml_Escape (MD_Text));
+      else
+         Result.Markup := Out_S;
       end if;
-      return To_String (Out_S);
+      return Result;
 
    exception
       when others =>
          Free_Cmark_Resources;
          raise;
+   end Render;
+
+   function To_Pango_Markup (MD_Text : String) return String is
+   begin
+      return To_String (Render (MD_Text).Markup);
    end To_Pango_Markup;
 end Coyote_Renderer.Markup;

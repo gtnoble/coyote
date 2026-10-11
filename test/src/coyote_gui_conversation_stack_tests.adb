@@ -16,6 +16,7 @@ with Gtk.Widget;
 with Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
+with Coyote_GUI.Markdown_Links;
 with Gtk.Enums;
 with Gtk.Flow_Box;
 with Gtk.Flow_Box_Child;
@@ -27,6 +28,9 @@ with Gdk.Pixbuf;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
+with Gtk.Text_Buffer;
+with Gtk.Text_Tag;
+with Gtk.Text_Tag_Table;
 with Gtk.Text_View;
 with Pango.Context;
 with Pango.Font;
@@ -47,6 +51,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Text_Tag.Gtk_Text_Tag;
    use type Gtk.Window.Gtk_Window;
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Button.Gtk_Button;
@@ -293,25 +298,60 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "dynamically-created native text is visible");
    end Test_Request_And_Streaming_Are_Incremental;
 
+   procedure Test_Markdown_Link_Destination_Policy (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_GUI.Markdown_Links.Is_Safe_Destination
+           ("https://example.invalid/path"),
+         "HTTPS destinations are accepted");
+      Assert
+        (Coyote_GUI.Markdown_Links.Is_Safe_Destination ("./README.md"),
+         "relative file paths are accepted");
+      Assert
+        (Coyote_GUI.Markdown_Links.Is_Safe_Destination ("mailto:a@b.test"),
+         "mailto destinations are accepted");
+      Assert
+        (not Coyote_GUI.Markdown_Links.Is_Safe_Destination
+           ("javascript:alert(1)"),
+         "unsupported schemes are rejected");
+      Assert
+        (not Coyote_GUI.Markdown_Links.Is_Safe_Destination
+           ("https://host/" & ASCII.LF & "evil"),
+         "control characters are rejected");
+   end Test_Markdown_Link_Destination_Policy;
+
    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test) is
    begin
       if not T.Display_Available then
          return;
       end if;
       Begin_Request (T.Stack.all, "request", Prompt);
-      Append_Text (T.Stack.all, "**bold** and `code`");
+      Append_Text
+        (T.Stack.all,
+         "**bold** and [link](https://example.invalid/path) and `code`");
       End_Text_Block (T.Stack.all);
       declare
          Text : constant String := Active_Text (T.Stack.all);
       begin
          Assert
-           (Index (Text, "bold and code") > 0,
+           (Index (Text, "bold and link and code") > 0,
             "native Markdown renders visible text after streaming");
          Assert
            (Index (Text, "**") = 0,
             "native Markdown removes strong delimiters");
          Assert
            (Index (Text, "`") = 0, "native Markdown removes code delimiters");
+         declare
+            Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+              Active_Text_View (T.Stack.all).Get_Buffer;
+            Link_Tag : constant Gtk.Text_Tag.Gtk_Text_Tag :=
+              Gtk.Text_Tag_Table.Lookup
+                (Buffer.Get_Tag_Table,
+                 "coyote-link:https://example.invalid/path");
+         begin
+            Assert (Link_Tag /= null, "rendered Markdown creates a link tag");
+         end;
       end;
    end Test_Native_Markdown_Renders_After_Streaming;
 
@@ -1235,6 +1275,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             & "to new table labels",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Set_Font_Applies_To_New_Table_Labels'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack validates Markdown link targets",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Markdown_Link_Destination_Policy'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack renders Markdown",

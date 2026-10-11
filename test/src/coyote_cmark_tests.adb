@@ -525,6 +525,30 @@ package body Coyote_Cmark_Tests is
          "unsupported raw HTML remains visible as escaped source");
    end Test_Pango_Markup_Raw_Html_Falls_Back;
 
+   procedure Test_Pango_Markup_Captures_Link_Destinations
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("before [café](https://example.invalid/path) and [file](./readme)");
+   begin
+      Assert (Result.Links.Length = 2, "both links are captured");
+      Assert
+        (To_String (Result.Links (1).Label) = "café",
+         "UTF-8 link label is retained");
+      Assert
+        (To_String (Result.Links (1).Destination)
+         = "https://example.invalid/path",
+         "first destination is retained");
+      Assert
+        (To_String (Result.Links (2).Label) = "file",
+         "second visible label is retained");
+      Assert
+        (To_String (Result.Links (2).Destination) = "./readme",
+         "relative destination is retained");
+   end Test_Pango_Markup_Captures_Link_Destinations;
+
    procedure Test_Pango_Markup_Image_Retains_Alt_Text (T : in out Test) is
       pragma Unreferenced (T);
       Markup : constant String :=
@@ -816,6 +840,11 @@ package body Coyote_Cmark_Tests is
         (Coyote_Cmark_Caller.Create
            ("Coyote_Renderer.Markup preserves raw HTML visibly",
             Coyote_Cmark_Tests.Test_Pango_Markup_Raw_Html_Falls_Back'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup retains link destinations",
+            Coyote_Cmark_Tests
+              .Test_Pango_Markup_Captures_Link_Destinations'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
            ("Coyote_Renderer.Markup retains image alt text",

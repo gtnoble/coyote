@@ -14,6 +14,7 @@ with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
+with Coyote_GUI.Markdown_Links;
 with Coyote_GUI.Navigation;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
@@ -342,9 +343,8 @@ package body Coyote_GUI.Conversation_Stack is
    is
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
       View   : Gtk.Text_View.Gtk_Text_View;
-      Markup : constant String :=
-        Coyote_Renderer.Markup.To_Pango_Markup (Text);
-      Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+      Rendered : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render (Text);
    begin
       if Text'Length = 0 then
          return;
@@ -353,9 +353,7 @@ package body Coyote_GUI.Conversation_Stack is
         (C, Parent, "", Text, Buffer, View, Response_Block => True);
       Apply_Response_Style (View);
       if C.Render_Markdown then
-         Buffer.Set_Text ("");
-         Buffer.Get_End_Iter (Iter);
-         Buffer.Insert_Markup (Iter, Markup, -1);
+         Coyote_GUI.Markdown_Links.Insert (Buffer, View, Rendered, Clear => True);
       end if;
       C.Active_Text := Buffer;
       C.Active_View := View;
@@ -560,7 +558,7 @@ package body Coyote_GUI.Conversation_Stack is
    is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-      Markup     : Unbounded_String;
+      Rendered   : Coyote_Renderer.Markup.Render_Result;
    begin
       Has_Display_Math := False;
       if C.Active_Text = null or else C.Stream_Mark = null then
@@ -584,18 +582,17 @@ package body Coyote_GUI.Conversation_Stack is
             return;
          end if;
       end;
-      Markup :=
-        To_Unbounded_String
-          (Coyote_Renderer.Markup.To_Pango_Markup (Full_Text));
+      Rendered := Coyote_Renderer.Markup.Render (Full_Text);
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
-      if Length (Markup) > 0 then
-         C.Active_Text.Insert_Markup (Start_Iter, To_String (Markup), -1);
-      else
-         C.Active_Text.Insert (Start_Iter, Full_Text);
-      end if;
+      declare
+         View : constant Gtk.Text_View.Gtk_Text_View := C.Active_View;
+      begin
+         Coyote_GUI.Markdown_Links.Insert
+           (C.Active_Text, View, Rendered, Connect_Events => False);
+      end;
    end Replace_Streamed_Text;
 
    procedure Configure_Text_View

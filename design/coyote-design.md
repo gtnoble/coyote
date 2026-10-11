@@ -435,6 +435,7 @@ not wait for the complete user turn.
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
 | `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
 | `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
+| `Coyote_GUI.Markdown_Links` | Link-tagged GTK text ranges and validated xdg-open activation | `src/coyote_gui/coyote_gui-markdown_links.ads/.adb` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
 | `Test_Suites` | Root AUnit suite composer | `test/src/test_suites.ads/.adb` |
 | `Test_Core_Suite` | Core test-domain suite composer | `test/src/test_core_suite.ads/.adb` |

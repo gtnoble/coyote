@@ -63,15 +63,19 @@ int cmark_shim_event_exit(void)         { return (int)CMARK_EVENT_EXIT;         
 
 int cmark_shim_opt_default(void)        { return (int)CMARK_OPT_DEFAULT;        }
 
-/* ── Safe literal accessor ───────────────────────────────────────────────── */
+/* ── Safe literal and link destination accessors ─────────────────────────── */
 
-/*  cmark_node_get_literal returns NULL for nodes that carry no text.
- *  This wrapper converts NULL to an empty string so the Ada side can
- *  always treat the return value as a valid C string without handling
- *  a null chars_ptr.                                                  */
+/*  cmark_node_get_literal and cmark_node_get_url can return NULL for nodes
+ *  without the respective value.  Keep null handling inside the C boundary. */
 const char *cmark_shim_get_literal(cmark_node *node)
 {
     const char *s = cmark_node_get_literal(node);
+    return (s != NULL) ? s : "";
+}
+
+const char *cmark_shim_get_url(cmark_node *node)
+{
+    const char *s = cmark_node_get_url(node);
     return (s != NULL) ? s : "";
 }
 

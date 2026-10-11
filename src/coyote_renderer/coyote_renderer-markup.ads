@@ -6,7 +6,26 @@
 --
 --  Project: coyote
 
+with Ada.Containers.Vectors;
+with Ada.Strings.Unbounded;
+
 package Coyote_Renderer.Markup is
+
+   type Link_Info is record
+      Label       : Ada.Strings.Unbounded.Unbounded_String;
+      Destination : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
+   package Link_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Link_Info);
+
+   type Render_Result is record
+      Markup : Ada.Strings.Unbounded.Unbounded_String;
+      Links  : Link_Vectors.Vector;
+   end record;
+
+   --  Convert Markdown and retain visible labels and destinations for links.
+   function Render (MD_Text : String) return Render_Result;
 
    --  Convert a Markdown string (GFM extensions: table, strikethrough,
    --  autolink) to a Pango markup string suitable for

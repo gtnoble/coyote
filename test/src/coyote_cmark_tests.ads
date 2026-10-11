@@ -77,6 +77,10 @@ package Coyote_Cmark_Tests is
    --  Unsupported nonempty Markdown remains visible after rendering.
    procedure Test_Pango_Markup_Raw_Html_Falls_Back (T : in out Test);
 
+   --  Markdown rendering captures link labels and destinations.
+   procedure Test_Pango_Markup_Captures_Link_Destinations
+     (T : in out Test);
+
    --  Direct rendering retains the historical image alt-text policy.
    procedure Test_Pango_Markup_Image_Retains_Alt_Text (T : in out Test);
    --  Display-math extraction must preserve Markdown code blocks.

@@ -121,6 +121,11 @@ package Coyote_Cmark is
      (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
      Import, Convention => C, External_Name => "cmark_shim_get_literal";
 
+   --  Return the URL for a NODE_LINK node, or "" when no URL is set.
+   function Node_Get_Url
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_shim_get_url";
+
    --  Create an iterator over the subtree rooted at Root.
    --  Caller must free with Iter_Free.
    function Iter_New (Root : Node_Ptr) return Iter_Ptr with

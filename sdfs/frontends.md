@@ -1546,3 +1546,13 @@ transient `coyote : Prompt` dialog with a multiline field and specific Abort,
 Cancel, and Help responses. Local actions call the protected session bridge;
 virtual-agent actions send the typed `abortTool` RPC command. Focused GUI tests
 cover active/terminal sensitivity and terminal detail availability.
+
+## 2026-10-11 — Open rendered Markdown links
+
+Rendered Markdown link labels now retain their cmark destinations and receive
+GTK text tags in live responses and session replay. A left-button release on a
+tagged range launches `xdg-open` with the destination as a separate argv item;
+control characters and unsupported URI schemes are rejected. Allowed targets
+are HTTP(S), mailto, and relative/local paths. Renderer tests cover Unicode
+labels and destination capture; the destination policy is covered by the GUI
+stack suite. Native table-cell links remain out of scope.

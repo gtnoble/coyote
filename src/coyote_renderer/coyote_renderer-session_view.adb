@@ -11,6 +11,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Renderer.Markup;
+with Coyote_GUI.Markdown_Links;
 with Coyote_SQC.Session_Parser;
 with Glib;                  use Glib;
 with Glib.Object;
@@ -21,7 +22,6 @@ with Gtk.Button;
 with Gtk.Text_Child_Anchor;
 with Gtk.Text_Iter;
 with Gtk.Text_Tag;
-with Pango.Enums;
 with System;
 with System.Storage_Elements;
 
@@ -74,16 +74,6 @@ package body Coyote_Renderer.Session_View is
       Buffer.Get_End_Iter (Iter);
       Buffer.Insert (Iter, Text);
    end Append_Text;
-
-   procedure Append_Markup
-     (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Markup : String)
-   is
-      Iter : Gtk.Text_Iter.Gtk_Text_Iter;
-   begin
-      Buffer.Get_End_Iter (Iter);
-      Buffer.Insert_Markup (Iter, Markup, -1);
-   end Append_Markup;
 
    --  ── Setup text tags ───────────────────────────────────────────────────
 
@@ -418,10 +408,18 @@ package body Coyote_Renderer.Session_View is
                   elsif Kind = "text" and then B.Has_Field ("text") then
                      declare
                         MD   : constant String := Get_Str (B, "text");
-                        Mark : constant String :=
-                          Coyote_Renderer.Markup.To_Pango_Markup (MD);
+                        Mark : constant Coyote_Renderer.Markup.Render_Result :=
+                          Coyote_Renderer.Markup.Render (MD);
                      begin
-                        Append_Markup (Buffer, Mark & ASCII.LF);
+                        declare
+                           View_Before : constant Gtk.Text_View.Gtk_Text_View :=
+                             Gtk.Text_View.Gtk_Text_View (View);
+                        begin
+                           Coyote_GUI.Markdown_Links.Insert
+                             (Buffer, View_Before, Mark,
+                              Connect_Events => False);
+                           Append_Text (Buffer, ASCII.LF & "");
+                        end;
                      end;
 
                   elsif Kind = "toolCall" then
@@ -665,6 +663,9 @@ package body Coyote_Renderer.Session_View is
       Button_Map.Clear;
 
       Buffer.Set_Text ("");
+      Coyote_GUI.Markdown_Links.Insert
+        (Buffer, View, (Markup => Null_Unbounded_String, Links => <>),
+         Connect_Events => True);
 
       if Path = "" then
          Buffer.Set_Text ("[ Session file not found ]");

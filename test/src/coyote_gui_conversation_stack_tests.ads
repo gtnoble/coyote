@@ -33,6 +33,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Set_Font_Applies_To_New_Table_Labels (T : in out Test);
    procedure Test_Creates_Single_Outer_Host (T : in out Test);
    procedure Test_Request_And_Streaming_Are_Incremental (T : in out Test);
+   procedure Test_Markdown_Link_Destination_Policy (T : in out Test);
    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test);
    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test);
    procedure Test_Native_Table_Realizes_Grid (T : in out Test);
