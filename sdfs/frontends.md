@@ -1556,3 +1556,14 @@ control characters and unsupported URI schemes are rejected. Allowed targets
 are HTTP(S), mailto, and relative/local paths. Renderer tests cover Unicode
 labels and destination capture; the destination policy is covered by the GUI
 stack suite. Native table-cell links remain out of scope.
+
+
+### Follow-up — Connect streamed Markdown link activation
+
+A live-response regression left links tagged but did not connect the release
+handler: streaming rerenders deliberately skip signal setup, and no handler was
+installed when the response view was created. Signal registration now occurs
+once during text-view creation (and once for session replay), independently of
+markup insertion. Pointer hit-testing also resolves the event's actual text-view
+window before converting coordinates. Focused Conversation_Stack tests pass
+33/33, including verification that rendered link ranges receive a target tag.

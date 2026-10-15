@@ -21,6 +21,7 @@ with Gtk.Widget;
 package body Coyote_GUI.Markdown_Links is
 
    use type Glib.Guint;
+   use type Gtk.Enums.Gtk_Text_Window_Type;
    use type Glib.Gint;
    use type Gtk.Text_Tag.Text_Tag_List.GSlist;
    use type Gtk.Text_Tag.Gtk_Text_Tag;
@@ -71,6 +72,7 @@ package body Coyote_GUI.Markdown_Links is
    is
       View : constant Gtk.Text_View.Gtk_Text_View :=
         Gtk.Text_View.Gtk_Text_View (Self);
+      Window_Type : Gtk.Enums.Gtk_Text_Window_Type;
       Buffer_X : Glib.Gint;
       Buffer_Y : Glib.Gint;
       Iter : aliased Gtk.Text_Iter.Gtk_Text_Iter;
@@ -81,9 +83,13 @@ package body Coyote_GUI.Markdown_Links is
       if Event.Button /= 1 then
          return False;
       end if;
+      Window_Type := View.Get_Window_Type (Event.Window);
+      if Window_Type /= Gtk.Enums.Text_Window_Widget then
+         return False;
+      end if;
       View.Window_To_Buffer_Coords
-        (Gtk.Enums.Text_Window_Widget,
-         Glib.Gint (Event.X), Glib.Gint (Event.Y), Buffer_X, Buffer_Y);
+        (Window_Type, Glib.Gint (Event.X), Glib.Gint (Event.Y),
+         Buffer_X, Buffer_Y);
       Found := View.Get_Iter_At_Position
         (Iter'Access, Trailing'Access, Buffer_X, Buffer_Y);
       if not Found then
@@ -115,12 +121,19 @@ package body Coyote_GUI.Markdown_Links is
       return False;
    end On_Button_Release;
 
+   procedure Connect
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class)
+   is
+   begin
+      View.Add_Events (Gdk.Event.Button_Release_Mask);
+      Gtk.Widget.On_Button_Release_Event
+        (Gtk.Widget.Gtk_Widget (View), On_Button_Release'Access);
+   end Connect;
+
    procedure Insert
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      View   : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
       Result : Coyote_Renderer.Markup.Render_Result;
-      Clear  : Boolean := False;
-      Connect_Events : Boolean := True)
+      Clear  : Boolean := False)
    is
       Insert_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       Match_Start : Gtk.Text_Iter.Gtk_Text_Iter;
@@ -166,11 +179,6 @@ package body Coyote_GUI.Markdown_Links is
             end if;
          end;
       end loop;
-      if Connect_Events then
-         View.Add_Events (Gdk.Event.Button_Release_Mask);
-         Gtk.Widget.On_Button_Release_Event
-           (Gtk.Widget.Gtk_Widget (View), On_Button_Release'Access);
-      end if;
    end Insert;
 
 end Coyote_GUI.Markdown_Links;

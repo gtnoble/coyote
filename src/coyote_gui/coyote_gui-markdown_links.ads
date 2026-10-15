@@ -8,13 +8,15 @@ with Gtk.Text_View;
 
 package Coyote_GUI.Markdown_Links is
 
-   --  Insert rendered markup, tag link text ranges, and enable click opening.
+   --  Connect click handling to a text view that may contain link tags.
+   procedure Connect
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class);
+
+   --  Insert rendered markup and tag each link's visible text range.
    procedure Insert
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      View   : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
       Result : Coyote_Renderer.Markup.Render_Result;
-      Clear  : Boolean := False;
-      Connect_Events : Boolean := True);
+      Clear  : Boolean := False);
 
    --  Resolve whether a link destination is safe for xdg-open.
    function Is_Safe_Destination (Destination : String) return Boolean;

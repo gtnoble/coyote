@@ -412,12 +412,8 @@ package body Coyote_Renderer.Session_View is
                           Coyote_Renderer.Markup.Render (MD);
                      begin
                         declare
-                           View_Before : constant Gtk.Text_View.Gtk_Text_View :=
-                             Gtk.Text_View.Gtk_Text_View (View);
                         begin
-                           Coyote_GUI.Markdown_Links.Insert
-                             (Buffer, View_Before, Mark,
-                              Connect_Events => False);
+                           Coyote_GUI.Markdown_Links.Insert (Buffer, Mark);
                            Append_Text (Buffer, ASCII.LF & "");
                         end;
                      end;
@@ -663,9 +659,7 @@ package body Coyote_Renderer.Session_View is
       Button_Map.Clear;
 
       Buffer.Set_Text ("");
-      Coyote_GUI.Markdown_Links.Insert
-        (Buffer, View, (Markup => Null_Unbounded_String, Links => <>),
-         Connect_Events => True);
+      Coyote_GUI.Markdown_Links.Connect (View);
 
       if Path = "" then
          Buffer.Set_Text ("[ Session file not found ]");

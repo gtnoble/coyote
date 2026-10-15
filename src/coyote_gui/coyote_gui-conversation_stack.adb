@@ -353,7 +353,7 @@ package body Coyote_GUI.Conversation_Stack is
         (C, Parent, "", Text, Buffer, View, Response_Block => True);
       Apply_Response_Style (View);
       if C.Render_Markdown then
-         Coyote_GUI.Markdown_Links.Insert (Buffer, View, Rendered, Clear => True);
+         Coyote_GUI.Markdown_Links.Insert (Buffer, Rendered, Clear => True);
       end if;
       C.Active_Text := Buffer;
       C.Active_View := View;
@@ -587,12 +587,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
-      declare
-         View : constant Gtk.Text_View.Gtk_Text_View := C.Active_View;
-      begin
-         Coyote_GUI.Markdown_Links.Insert
-           (C.Active_Text, View, Rendered, Connect_Events => False);
-      end;
+      Coyote_GUI.Markdown_Links.Insert (C.Active_Text, Rendered);
    end Replace_Streamed_Text;
 
    procedure Configure_Text_View
@@ -760,6 +755,7 @@ package body Coyote_GUI.Conversation_Stack is
       Gtk.Text_Buffer.Gtk_New (Buffer);
       Gtk.Text_View.Gtk_New (View, Buffer);
       Configure_Text_View (View);
+      Coyote_GUI.Markdown_Links.Connect (View);
       if Length (C.Response_Font) > 0 then
          declare
             Font_Description : Pango.Font.Pango_Font_Description :=
