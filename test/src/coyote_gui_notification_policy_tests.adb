@@ -46,6 +46,28 @@ package body Coyote_GUI_Notification_Policy_Tests is
          "noninteractive mode should suppress notification");
    end Test_Suppress_When_Not_Allowed;
 
+   procedure Test_Completion_Notification_Is_Global (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_GUI.Notification_Policy.Should_Apply_Update
+           (Runtime_Agent_Id  => "root",
+            Selected_Agent_Id => "child",
+            Is_Global         => True),
+         "root completion notification should pass for a selected child");
+   end Test_Completion_Notification_Is_Global;
+
+   procedure Test_Agent_Update_Requires_Selection (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (not Coyote_GUI.Notification_Policy.Should_Apply_Update
+           (Runtime_Agent_Id  => "root",
+            Selected_Agent_Id => "child",
+            Is_Global         => False),
+         "root updates stay hidden while a child is selected");
+   end Test_Agent_Update_Requires_Selection;
+
    package Coyote_GUI_Notification_Policy_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Notification_Policy_Tests.Test);
 
@@ -76,6 +98,16 @@ package body Coyote_GUI_Notification_Policy_Tests is
             Coyote_GUI_Notification_Policy_Tests
               .Test_Suppress_When_Not_Allowed'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Notification_Policy_Caller.Create
+           ("Coyote.GUI.Notification_Policy notification is global",
+            Coyote_GUI_Notification_Policy_Tests
+              .Test_Completion_Notification_Is_Global'Access));
+      Result.Add_Test
+        (Coyote_GUI_Notification_Policy_Caller.Create
+           ("Coyote.GUI.Notification_Policy agent update selection",
+            Coyote_GUI_Notification_Policy_Tests
+              .Test_Agent_Update_Requires_Selection'Access));
 
       return Result;
    end Suite;

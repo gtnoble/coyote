@@ -525,8 +525,11 @@ package body Coyote_App is
                         if Length (Agent_End.Error_Msg) > 0 then
                            Final_Error := Agent_End.Error_Msg;
                         end if;
+                        --  Only the interactive root owns the user-facing
+                        --  signal that input may be needed.
                         Completion_Pending :=
-                          not Agent_End.Was_Aborted and then not Opts.One_Shot
+                          not Agent_End.Was_Aborted
+                          and then not Opts.One_Shot
                           and then not Opts.Subagent;
                      end;
                   elsif E in LLM.Events.Session_Stats_Event then

@@ -588,11 +588,14 @@ atomically and applies the successful change to the current GUI through the
 agent-to-GTK update queue. Subagents and one-shot executions remain disabled by
 an independent mode gate.
 
-A non-aborted interactive GUI turn queues a completion update after the final
-`Session_Stats_Event`. The GTK idle callback checks `Gtk.Window.Is_Active` and
-calls the native `Coyote_Notify` libnotify binding only when the window is
-inactive. Notification-daemon absence or delivery failure does not affect the
-agent session.
+A non-aborted interactive root-agent turn queues a completion update after
+the final `Session_Stats_Event`. The GTK idle callback checks
+`Gtk.Window.Is_Active` and calls the native `Coyote_Notify` libnotify binding
+only when the window is inactive. This notification is global rather than
+scoped to the selected virtual agent, so selecting a child does not hide the
+signal that the root agent may need user input. Child request completion only
+updates its virtual conversation. Notification-daemon absence or delivery
+failure does not affect the agent session.
 
 ### Why GUI and Plain share one `Dispatch_Event` function
 

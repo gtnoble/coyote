@@ -2031,9 +2031,12 @@ package body Coyote_App.Frontend.GUI is
          Apply_RPC_Frame (F, U);
       else
          Retain_Update (F, U);
-         if Runtime_Id'Length = 0
-           or else Runtime_Id = Selected
-           or else U.Kind = Coyote_GUI.Model_Registry_Refreshed
+         if Coyote_GUI.Notification_Policy.Should_Apply_Update
+              (Runtime_Agent_Id  => Runtime_Id,
+               Selected_Agent_Id => Selected,
+               Is_Global         =>
+                 U.Kind = Coyote_GUI.Model_Registry_Refreshed
+                 or else U.Kind = Coyote_GUI.Completion_Notification)
          then
             Apply_Update_Visible (F, U);
          end if;
