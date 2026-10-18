@@ -101,6 +101,7 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.Window.Gtk_Window;
    use type Gtk.Search_Entry.Gtk_Search_Entry;
    use type Gtk.Box.Gtk_Box;
+   use type Gtk.Label.Gtk_Label;
    use type Gtk.Widget.Gtk_Widget;
    --  ── Package-body state ────────────────────────────────────────────────
 
@@ -231,6 +232,81 @@ package body Coyote_App.Frontend.GUI is
       when others =>
          F.Replaying := False;
    end Replay_Selected_History;
+
+   function Agent_Status_Index
+     (F : Instance; Runtime_Id : String)
+      return Agent_Status_Vectors.Extended_Index
+   is
+   begin
+      for Position in F.Agent_Statuses.First_Index
+        .. F.Agent_Statuses.Last_Index
+      loop
+         if To_String
+           (F.Agent_Statuses.Element (Position).Runtime_Id) = Runtime_Id
+         then
+            return Position;
+         end if;
+      end loop;
+      return Agent_Status_Vectors.No_Index;
+   end Agent_Status_Index;
+
+   procedure Set_Agent_Status
+     (F          : in out Instance;
+      Runtime_Id :        String;
+      Text       :        String)
+   is
+      Position : Agent_Status_Vectors.Extended_Index;
+   begin
+      if Runtime_Id'Length = 0 then
+         return;
+      end if;
+      Position := Agent_Status_Index (F, Runtime_Id);
+      if Position = Agent_Status_Vectors.No_Index then
+         F.Agent_Statuses.Append
+           ((Runtime_Id => To_Unbounded_String (Runtime_Id),
+             Text       => To_Unbounded_String (Text)));
+      else
+         F.Agent_Statuses.Replace_Element
+           (Position,
+            (Runtime_Id => To_Unbounded_String (Runtime_Id),
+             Text       => To_Unbounded_String (Text)));
+      end if;
+      if Runtime_Id = To_String (F.Selected_Agent_Id)
+        and then F.Status_Bar /= null
+      then
+         F.Status_Bar.Set_Text (Text);
+      end if;
+   end Set_Agent_Status;
+
+   procedure Show_Selected_Agent_Status (F : in out Instance) is
+      Runtime_Id : constant String := To_String (F.Selected_Agent_Id);
+      Position   : constant Agent_Status_Vectors.Extended_Index :=
+        Agent_Status_Index (F, Runtime_Id);
+      Lifecycle  : constant Coyote_App.Agent_Registry.Agent_Record :=
+        Coyote_App.Agent_Registry.Get_Agent
+          (F.Agent_Registry,
+           Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id));
+      Fallback   : constant String :=
+        (case Lifecycle.Status is
+            when Coyote_App.Agent_Registry.Starting => "starting",
+            when Coyote_App.Agent_Registry.Ready => "ready",
+            when Coyote_App.Agent_Registry.Running => "running",
+            when Coyote_App.Agent_Registry.Paused => "paused",
+            when Coyote_App.Agent_Registry.Completed => "completed",
+            when Coyote_App.Agent_Registry.Aborted => "aborted",
+            when Coyote_App.Agent_Registry.Failed => "failed",
+            when Coyote_App.Agent_Registry.Disconnected => "disconnected");
+   begin
+      if F.Status_Bar = null then
+         return;
+      end if;
+      if Position = Agent_Status_Vectors.No_Index then
+         F.Status_Bar.Set_Text (Fallback);
+      else
+         F.Status_Bar.Set_Text
+           (To_String (F.Agent_Statuses.Element (Position).Text));
+      end if;
+   end Show_Selected_Agent_Status;
 
    procedure Stop_RPC_Service (F : in out Instance) is
    begin
@@ -366,6 +442,7 @@ package body Coyote_App.Frontend.GUI is
             Current_Frontend.Selected_Agent_Id :=
               To_Unbounded_String (Runtime_Id);
             Replay_Selected_History (Current_Frontend.all);
+            Show_Selected_Agent_Status (Current_Frontend.all);
             Apply_Agent_Menu_Sensitivity (Current_Frontend.all);
          end if;
       end;
@@ -453,6 +530,11 @@ package body Coyote_App.Frontend.GUI is
          return;
       end if;
       if Runtime_Id = To_String (F.Selected_Agent_Id) then
+         if Agent_Status_Index (F, Runtime_Id)
+           = Agent_Status_Vectors.No_Index
+         then
+            Show_Selected_Agent_Status (F);
+         end if;
          Apply_Agent_Menu_Sensitivity (F);
       end if;
    end Set_Child_Status;
@@ -775,7 +857,22 @@ package body Coyote_App.Frontend.GUI is
                      end if;
                   end;
                when Status =>
-                  null;
+                  declare
+                     Parsed : constant GNATCOLL.JSON.Read_Result :=
+                       GNATCOLL.JSON.Read
+                         (To_String (Value.Payload_Json));
+                  begin
+                     if Parsed.Success
+                       and then Parsed.Value.Kind
+                         = GNATCOLL.JSON.JSON_Object_Type
+                     then
+                        Set_Agent_Status
+                          (F,
+                           Runtime_Id,
+                           Coyote_App.Utils.Get_String
+                             (Parsed.Value, "text"));
+                     end if;
+                  end;
                when others =>
                   null;
             end case;
@@ -1946,7 +2043,8 @@ package body Coyote_App.Frontend.GUI is
             end;
 
          when Set_Status =>
-            F.Status_Bar.Set_Text (To_String (U.Text));
+            Set_Agent_Status
+              (F, To_String (U.Runtime_Agent_Id), To_String (U.Text));
 
          when Set_Context_Progress =>
             if U.Context_Window = 0 then
@@ -2003,6 +2101,7 @@ package body Coyote_App.Frontend.GUI is
                F.RPC_Generation := U.RPC_Generation;
                F.Replaying := False;
                F.Histories.Clear;
+               F.Agent_Statuses.Clear;
                F.Selected_Agent_Id := F.Root_Agent_Id;
                F.Current_Mode := Coyote_App.Frontend.Idle;
                F.Stack.Clear;
@@ -4921,6 +5020,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       U.Kind := Coyote_GUI.Set_Status;
       U.Text := To_Unbounded_String (Text);
+      U.Runtime_Agent_Id := F.Root_Agent_Id;
       Enqueue_Update (F, U);
    end Set_Status;
 

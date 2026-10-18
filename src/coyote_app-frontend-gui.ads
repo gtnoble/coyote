@@ -245,7 +245,19 @@ private
    package History_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => History_Entry);
 
+   type Agent_Status_Entry is record
+      Runtime_Id : Unbounded_String;
+      Text       : Unbounded_String;
+   end record;
+
+   package Agent_Status_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Agent_Status_Entry);
+
    type Instance is new Coyote_App.Frontend.Instance with record
+      Histories               : History_Vectors.Vector;
+      Replaying               : Boolean                      := False;
+      --  Latest status text is independent of replayable conversation history.
+      Agent_Statuses          : Agent_Status_Vectors.Vector;
       --  Update queue: agent task → GTK idle drain.
       Updates                 : aliased Coyote_GUI.Updates.Queue;
       --  Prompt queue: GTK callbacks → agent task.
@@ -263,8 +275,6 @@ private
       RPC_Generation          : Natural := 0;
       Selected_Agent_Id : Unbounded_String := To_Unbounded_String ("root");
       RPC_Request_Sequence    : Natural                      := 0;
-      Histories               : History_Vectors.Vector;
-      Replaying               : Boolean                      := False;
       --  GTK widgets.
       Win                     : Gtk.Window.Gtk_Window;
       Agents_Window           : Gtk.Window.Gtk_Window;

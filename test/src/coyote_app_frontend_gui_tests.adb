@@ -320,6 +320,45 @@ package body Coyote_App_Frontend_GUI_Tests is
       Main_Window (Frontend).Destroy;
    end Test_RPC_Tool_Lifecycle_Status;
 
+   procedure Test_Selected_Agent_Status (T : in out Test) is
+      use Coyote_App.Agent_RPC;
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote selected agent status test", Pop_Under => True);
+      Apply_Event
+        (Frontend, "root", 1, Status, "{""text"":""root status""}");
+      Apply_Handshake (Frontend, "worker", "root", "worker");
+      Apply_Event
+        (Frontend, "worker", 1, Status, "{""text"":""worker status""}");
+      Assert (Status_Text (Frontend) = "root status",
+              "background worker status does not replace selected root");
+
+      Select_Agent (Frontend, "worker");
+      Assert (Status_Text (Frontend) = "worker status",
+              "selecting worker displays its latest status");
+      Apply_Event
+        (Frontend, "root", 2, Status, "{""text"":""updated root""}");
+      Assert (Status_Text (Frontend) = "worker status",
+              "background root status does not replace selected worker");
+
+      Select_Agent (Frontend, "root");
+      Assert (Status_Text (Frontend) = "updated root",
+              "selecting root restores its latest status");
+      Reset_Agents_From_Task (Frontend);
+      Drain_Events;
+      Assert (Status_Text (Frontend) = "ready",
+              "reset clears cached status and shows root lifecycle fallback");
+
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+   end Test_Selected_Agent_Status;
+
    procedure Test_Reset_Agents_Rejects_Old_Generation
      (T : in out Test)
    is
@@ -795,6 +834,11 @@ package body Coyote_App_Frontend_GUI_Tests is
            ("Coyote.GUI RPC tool lifecycle status",
             Coyote_App_Frontend_GUI_Tests
               .Test_RPC_Tool_Lifecycle_Status'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI selected agent status",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_Selected_Agent_Status'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI agent reset rejects old RPC generation",

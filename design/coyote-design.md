@@ -2150,8 +2150,11 @@ startup and is the sole GTK conversation presentation (see §5.15).
   The window is visible by default and can be hidden or reopened through
   `View → Agents Window`; closing it hides only the support window. Selecting a
   row switches the shared conversation view to that agent's retained
-  conversation state and makes the selected live agent the target of typed
-  prompts and applicable agent controls. Completed, aborted, failed, and
+  conversation state, restores its latest cached status in the status bar, and
+  makes the selected live agent the target of typed prompts and applicable
+  agent controls. Status updates from unselected agents are cached without
+  replacing the visible status; lifecycle state is shown until that agent
+  reports status. Completed, aborted, failed, and
   disconnected rows remain selectable for review only while their originating
   session remains active, but cannot receive new prompts after their process
   has ended. A successful New Session, session Switch, or in-place Fork

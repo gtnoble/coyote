@@ -424,6 +424,16 @@ The production and test development builds pass. The full suite reached the
 registered tests but timed out with unrelated environment/fixture failures in
 recursion-limit, authentication, and SQC session/workspace tests.
 
+### Selected-agent status bar (2026-10-18)
+
+The GUI status bar now follows the selected virtual agent. Local root status
+updates and RPC child `Status` events are cached independently by runtime agent
+ID; only the selected agent's updates change the visible label. Selecting a row
+restores its latest status, with lifecycle state used until an agent reports
+status. A session reset clears the cache and returns the selected root to its
+Ready state. A GTK regression test covers background-update isolation,
+selection changes, and reset behavior.
+
 ### Selected virtual-agent controls (2026-09-01)
 
 ### Accepted virtual-agent-window amendment (2026-08-31)

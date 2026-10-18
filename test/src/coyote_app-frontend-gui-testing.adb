@@ -18,6 +18,13 @@ package body Coyote_App.Frontend.GUI.Testing is
    use type Coyote_App.Agent_Registry.Lifecycle_Status;
    use type Gtk.Tree_Model.Gtk_Tree_Iter;
 
+   function Status_Text
+     (F : Coyote_App.Frontend.GUI.Instance) return String
+   is
+   begin
+      return F.Status_Bar.Get_Text;
+   end Status_Text;
+
    function Main_Window
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window
    is

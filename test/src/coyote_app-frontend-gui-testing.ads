@@ -15,6 +15,9 @@ with Gtk.Window;
 
 package Coyote_App.Frontend.GUI.Testing is
 
+   function Status_Text
+     (F : Coyote_App.Frontend.GUI.Instance) return String;
+
    function Main_Window
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window;
 
