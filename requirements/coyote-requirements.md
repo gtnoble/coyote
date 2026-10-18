@@ -739,6 +739,12 @@ shall preserve visible source text, and copying rendered text shall not expose
 Pango markup. Native GFM tables remain native GTK tables; standalone display-
 math blocks retain Lasem-backed Presentation MathML realization.
 
+Actionable rendered links in GTK text views shall show a pointing-hand cursor
+on hover and expose their destination as a plain-text tooltip. Ordinary text
+and leaving a link shall restore the normal text cursor; hovering shall not
+activate a link. Scrolling beneath a stationary pointer shall refresh this
+feedback.
+
 The native GTK widget hierarchy is the supported GUI conversation presentation.
 Plain output remains line-oriented. Legacy `format` and `formatVersion` fields
 in old JSONL are ignored during replay, whose content is handled as Markdown.

@@ -3,10 +3,26 @@ with AUnit.Test_Caller;
 --
 --  Project: coyote
 
+with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Text_IO;
+with Interfaces.C;
+with Interfaces.C.Strings;
+with System;
+with Coyote_Temp_Files;
+with Gdk.Event;
+with Gdk.Device;
+with Gdk.Display;
+with Gdk.Seat;
+with Gdk.Rectangle;
+with Gdk.Window;
+with Gdk.Cursor;
+with Gtk.Text_Iter;
+with GNAT.OS_Lib;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Glib;
+with Glib.Object;
 with Ada.Unchecked_Deallocation;
 with AUnit.Assertions;
 with Gtk.Box;
@@ -29,6 +45,7 @@ with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_Buffer;
+with Gtk.Tooltip;
 with Gtk.Text_Tag;
 with Gtk.Text_Tag_Table;
 with Gtk.Text_View;
@@ -38,8 +55,12 @@ with Pango.Font;
 package body Coyote_GUI_Conversation_Stack_Tests is
 
    use type Glib.Gfloat;
+   use type Ada.Directories.File_Size;
+   use type GNAT.OS_Lib.File_Descriptor;
    use type Glib.Gint;
    use type Glib.Guint;
+   use type Interfaces.C.int;
+   use type Gdk.Cursor.Gdk_Cursor_Type;
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Image.Gtk_Image;
    use type Gtk.Image.Gtk_Image_Type;
@@ -320,6 +341,398 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("https://host/" & ASCII.LF & "evil"),
          "control characters are rejected");
    end Test_Markdown_Link_Destination_Policy;
+
+   procedure Test_Native_Markdown_Link_Click_Dispatches
+     (T : in out Test)
+   is
+      Destination : constant String :=
+        "https://example.invalid/path?query=one#section-2";
+      Capture_FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Script_FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Capture_Path : Unbounded_String;
+      Script_Path : Unbounded_String;
+      Directory_Path : Unbounded_String;
+      Old_Path : constant String :=
+        Ada.Environment_Variables.Value ("PATH", "");
+      Path_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("PATH");
+      View : Gtk.Text_View.Gtk_Text_View;
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+
+      procedure Restore_Path is
+      begin
+         if Path_Was_Set then
+            Ada.Environment_Variables.Set ("PATH", Old_Path);
+         else
+            Ada.Environment_Variables.Clear ("PATH");
+         end if;
+      end Restore_Path;
+
+      procedure Cleanup is
+      begin
+         Restore_Path;
+         if Capture_FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (Capture_FD);
+            Capture_FD := GNAT.OS_Lib.Invalid_FD;
+         end if;
+         if Script_FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (Script_FD);
+            Script_FD := GNAT.OS_Lib.Invalid_FD;
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Capture_Path));
+         Coyote_Temp_Files.Delete (To_String (Script_Path));
+         if To_String (Directory_Path)'Length > 0
+           and then Ada.Directories.Exists (To_String (Directory_Path))
+         then
+            Ada.Directories.Delete_Directory
+              (To_String (Directory_Path));
+         end if;
+      end Cleanup;
+
+      procedure Dispatch_Motion (Offset : Glib.Gint) is
+         Iter     : Gtk.Text_Iter.Gtk_Text_Iter;
+         Location : Gdk.Rectangle.Gdk_Rectangle;
+         Window_X : Glib.Gint;
+         Window_Y : Glib.Gint;
+         Event    : Gdk.Event.Gdk_Event;
+         Pointer  : constant Gdk.Device.Gdk_Device :=
+           Gdk.Seat.Get_Pointer
+             (Gdk.Seat.Convert
+                (Glib.Object.Convert
+                   (Gdk.Display.Get_Default_Seat (Gdk.Display.Get_Default))));
+      begin
+         Buffer.Get_Iter_At_Offset (Iter, Offset);
+         View.Get_Iter_Location (Iter, Location);
+         View.Buffer_To_Window_Coords
+           (Gtk.Enums.Text_Window_Text,
+            Location.X + Location.Width / 2,
+            Location.Y + Location.Height / 2,
+            Window_X, Window_Y);
+         Event := Gdk.Event.Gdk_Event_New (Gdk.Event.Motion_Notify);
+         Event.Motion.Window := View.Get_Window (Gtk.Enums.Text_Window_Text);
+         Gdk.Window.Ref (Event.Motion.Window);
+         Event.Motion.Send_Event := 1;
+         Event.Motion.Time := 1;
+         Event.Motion.X := Glib.Gdouble (Window_X);
+         Event.Motion.Y := Glib.Gdouble (Window_Y);
+         Event.Motion.X_Root := Glib.Gdouble (Window_X);
+         Event.Motion.Y_Root := Glib.Gdouble (Window_Y);
+         Gdk.Device.Set_Device (Event, Pointer);
+         Gtk.Main.Main_Do_Event (Event);
+         Gdk.Event.Free (Event);
+      end Dispatch_Motion;
+
+      procedure Dispatch_Button
+        (Button : Glib.Guint; Offset : Glib.Gint)
+      is
+         Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+         Location : Gdk.Rectangle.Gdk_Rectangle;
+         Window_X : Glib.Gint;
+         Window_Y : Glib.Gint;
+         Press_Event : Gdk.Event.Gdk_Event;
+         Release_Event : Gdk.Event.Gdk_Event;
+         Pointer_Device : constant Gdk.Device.Gdk_Device :=
+           Gdk.Seat.Get_Pointer
+             (Gdk.Seat.Convert
+                (Glib.Object.Convert
+                   (Gdk.Display.Get_Default_Seat (Gdk.Display.Get_Default))));
+      begin
+         Buffer.Get_Iter_At_Offset (Iter, Offset);
+         View.Get_Iter_Location (Iter, Location);
+         View.Buffer_To_Window_Coords
+           (Gtk.Enums.Text_Window_Text,
+            Location.X + Location.Width / 2,
+            Location.Y + Location.Height / 2,
+            Window_X, Window_Y);
+         Press_Event :=
+           Gdk.Event.Gdk_Event_New (Gdk.Event.Button_Press);
+         Press_Event.Button.Window :=
+           View.Get_Window (Gtk.Enums.Text_Window_Text);
+         Gdk.Window.Ref (Press_Event.Button.Window);
+         Press_Event.Button.Send_Event := 1;
+         Press_Event.Button.Time := 1;
+         Press_Event.Button.X := Glib.Gdouble (Window_X);
+         Press_Event.Button.Y := Glib.Gdouble (Window_Y);
+         Press_Event.Button.Button := Button;
+         Press_Event.Button.X_Root := Glib.Gdouble (Window_X);
+         Press_Event.Button.Y_Root := Glib.Gdouble (Window_Y);
+         Release_Event :=
+           Gdk.Event.Gdk_Event_New (Gdk.Event.Button_Release);
+         Release_Event.Button := Press_Event.Button;
+         Gdk.Window.Ref (Release_Event.Button.Window);
+         Release_Event.Button.The_Type := Gdk.Event.Button_Release;
+         Gdk.Device.Set_Device (Press_Event, Pointer_Device);
+         Gdk.Device.Set_Device (Release_Event, Pointer_Device);
+         Gtk.Main.Main_Do_Event (Press_Event);
+         Gtk.Main.Main_Do_Event (Release_Event);
+         Gdk.Event.Free (Press_Event);
+         Gdk.Event.Free (Release_Event);
+         while Gtk.Main.Events_Pending loop
+            declare
+               Continue : constant Boolean := Gtk.Main.Main_Iteration;
+               pragma Unreferenced (Continue);
+            begin
+               null;
+            end;
+         end loop;
+      end Dispatch_Button;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Coyote_Temp_Files.Create (Capture_FD, Capture_Path);
+      GNAT.OS_Lib.Close (Capture_FD);
+      Capture_FD := GNAT.OS_Lib.Invalid_FD;
+      Coyote_Temp_Files.Create (Script_FD, Script_Path);
+      GNAT.OS_Lib.Close (Script_FD);
+      Script_FD := GNAT.OS_Lib.Invalid_FD;
+      Coyote_Temp_Files.Delete (To_String (Script_Path));
+      Directory_Path := Script_Path;
+      Ada.Directories.Create_Directory (To_String (Directory_Path));
+      Script_Path := Directory_Path & "/xdg-open";
+      declare
+         Path_Name : constant String := To_String (Script_Path);
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path_Name);
+         Ada.Text_IO.Put_Line (File, "#!/bin/sh");
+         Ada.Text_IO.Put_Line
+           (File, "printf '%s\n' ""$@"" >> '" &
+            To_String (Capture_Path) & "'");
+         Ada.Text_IO.Close (File);
+         GNAT.OS_Lib.Set_Executable (Path_Name);
+      end;
+      Ada.Environment_Variables.Set
+        ("PATH", To_String (Directory_Path) & ":" & Old_Path);
+
+      T.Parent.Set_Default_Size (640, 220);
+      T.Parent.Show_All;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text
+        (T.Stack.all,
+         "outside [open link](" & Destination & ") after");
+      End_Text_Block (T.Stack.all);
+      while Gtk.Main.Events_Pending loop
+         declare
+            Continue : constant Boolean := Gtk.Main.Main_Iteration;
+            pragma Unreferenced (Continue);
+         begin
+            null;
+         end;
+      end loop;
+      View := Active_Text_View (T.Stack.all);
+      Buffer := View.Get_Buffer;
+      Dispatch_Motion (9);
+      Assert
+        (Ada.Directories.Size (To_String (Capture_Path)) = 0,
+         "hovering a rendered link must not launch a destination");
+      Dispatch_Button (2, 10);
+      Assert
+        (Ada.Directories.Size (To_String (Capture_Path)) = 0,
+         "non-left clicks must not launch a destination");
+      Dispatch_Button (1, 0);
+      Assert
+        (Ada.Directories.Size (To_String (Capture_Path)) = 0,
+         "left clicks on untagged text must not launch a destination");
+      Dispatch_Button (1, 9);
+      for Attempt in 1 .. 100 loop
+         exit when Ada.Directories.Size (To_String (Capture_Path)) > 0;
+         delay 0.01;
+      end loop;
+      Assert
+        (Ada.Directories.Size (To_String (Capture_Path)) > 0,
+         "left-click on a rendered link launches xdg-open");
+      declare
+         File : Ada.Text_IO.File_Type;
+         Command : String (1 .. 1_024);
+         Last : Natural;
+      begin
+         Ada.Text_IO.Open
+           (File, Ada.Text_IO.In_File, To_String (Capture_Path));
+         Ada.Text_IO.Get_Line (File, Command, Last);
+         Assert
+           (Command (1 .. Last) = Destination,
+            "left-click launches exact destination including query/fragment");
+         Assert
+           (Ada.Text_IO.End_Of_File (File),
+            "fake xdg-open receives only one destination argument");
+         Ada.Text_IO.Close (File);
+      exception
+         when others =>
+            if Ada.Text_IO.Is_Open (File) then
+               Ada.Text_IO.Close (File);
+            end if;
+            raise;
+      end;
+      Cleanup;
+   exception
+      when others =>
+         Cleanup;
+         raise;
+   end Test_Native_Markdown_Link_Click_Dispatches;
+
+   procedure Test_Native_Markdown_Link_Hover_Cursor (T : in out Test) is
+      Destination : constant String := "https://example.invalid/path";
+      View        : Gtk.Text_View.Gtk_Text_View;
+      Buffer      : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Tooltip     : constant Gtk.Tooltip.Gtk_Tooltip :=
+        new Gtk.Tooltip.Gtk_Tooltip_Record;
+
+      procedure Emit_Query_Tooltip
+        (Instance      : System.Address;
+         Signal_Name   : Interfaces.C.Strings.chars_ptr;
+         X, Y          : Interfaces.C.int;
+         Keyboard_Mode : Interfaces.C.int;
+         Tooltip_Obj   : System.Address;
+         Return_Value  : System.Address);
+      pragma Import (C, Emit_Query_Tooltip, "g_signal_emit_by_name");
+
+      function Query_Tooltip
+        (Offset        : Glib.Gint;
+         Keyboard_Mode : Boolean) return Boolean
+      is
+         Iter        : Gtk.Text_Iter.Gtk_Text_Iter;
+         Location    : Gdk.Rectangle.Gdk_Rectangle;
+         Widget_X    : Glib.Gint;
+         Widget_Y    : Glib.Gint;
+         Handled     : aliased Interfaces.C.int := 0;
+         Mode        : constant Interfaces.C.int :=
+           (if Keyboard_Mode then 1 else 0);
+         Signal_Name : Interfaces.C.Strings.chars_ptr :=
+           Interfaces.C.Strings.New_String ("query-tooltip");
+      begin
+         Buffer.Get_Iter_At_Offset (Iter, Offset);
+         View.Get_Iter_Location (Iter, Location);
+         View.Buffer_To_Window_Coords
+           (Gtk.Enums.Text_Window_Widget,
+            Location.X + Location.Width / 2,
+            Location.Y + Location.Height / 2,
+            Widget_X, Widget_Y);
+         Emit_Query_Tooltip
+           (Glib.Object.Get_Object (Gtk.Widget.Gtk_Widget (View)),
+            Signal_Name,
+            Interfaces.C.int (Widget_X), Interfaces.C.int (Widget_Y), Mode,
+            Glib.Object.Get_Object (Tooltip), Handled'Address);
+         Interfaces.C.Strings.Free (Signal_Name);
+         return Handled /= 0;
+      exception
+         when others =>
+            Interfaces.C.Strings.Free (Signal_Name);
+            raise;
+      end Query_Tooltip;
+
+      procedure Dispatch_Motion (Offset : Glib.Gint) is
+         Iter     : Gtk.Text_Iter.Gtk_Text_Iter;
+         Location : Gdk.Rectangle.Gdk_Rectangle;
+         Window_X : Glib.Gint;
+         Window_Y : Glib.Gint;
+         Event    : Gdk.Event.Gdk_Event;
+         Pointer  : constant Gdk.Device.Gdk_Device :=
+           Gdk.Seat.Get_Pointer
+             (Gdk.Seat.Convert
+                (Glib.Object.Convert
+                   (Gdk.Display.Get_Default_Seat (Gdk.Display.Get_Default))));
+      begin
+         Buffer.Get_Iter_At_Offset (Iter, Offset);
+         View.Get_Iter_Location (Iter, Location);
+         View.Buffer_To_Window_Coords
+           (Gtk.Enums.Text_Window_Text,
+            Location.X + Location.Width / 2,
+            Location.Y + Location.Height / 2,
+            Window_X, Window_Y);
+         Event := Gdk.Event.Gdk_Event_New (Gdk.Event.Motion_Notify);
+         Event.Motion.Window := View.Get_Window (Gtk.Enums.Text_Window_Text);
+         Gdk.Window.Ref (Event.Motion.Window);
+         Event.Motion.Send_Event := 1;
+         Event.Motion.Time := 1;
+         Event.Motion.X := Glib.Gdouble (Window_X);
+         Event.Motion.Y := Glib.Gdouble (Window_Y);
+         Event.Motion.X_Root := Glib.Gdouble (Window_X);
+         Event.Motion.Y_Root := Glib.Gdouble (Window_Y);
+         Gdk.Device.Set_Device (Event, Pointer);
+         Gtk.Main.Main_Do_Event (Event);
+         Gdk.Event.Free (Event);
+      end Dispatch_Motion;
+
+      function Cursor_Type return Gdk.Cursor.Gdk_Cursor_Type is
+         Cursor : constant Gdk.Gdk_Cursor :=
+           Gdk.Window.Get_Cursor
+             (View.Get_Window (Gtk.Enums.Text_Window_Text));
+      begin
+         return Gdk.Cursor.Get_Cursor_Type (Cursor);
+      end Cursor_Type;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      T.Parent.Set_Default_Size (640, 220);
+      T.Parent.Show_All;
+      Glib.Object.G_New (Tooltip, Gtk.Tooltip.Get_Type);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text
+        (T.Stack.all,
+         "outside [open link](" & Destination
+         & ") and [unsafe](javascript:alert(1)) after");
+      End_Text_Block (T.Stack.all);
+      while Gtk.Main.Events_Pending loop
+         declare
+            Continue : constant Boolean := Gtk.Main.Main_Iteration;
+            pragma Unreferenced (Continue);
+         begin
+            null;
+         end;
+      end loop;
+      View := Active_Text_View (T.Stack.all);
+      Buffer := View.Get_Buffer;
+
+      Dispatch_Motion (9);
+      Assert
+        (Cursor_Type = Gdk.Cursor.Hand2,
+         "motion over a Markdown link uses the hand cursor");
+      Assert
+        (Query_Tooltip (9, Keyboard_Mode => False),
+         "query-tooltip handles a safe rendered link");
+      Assert
+        (not Query_Tooltip (0, Keyboard_Mode => False),
+         "query-tooltip declines ordinary text");
+      Assert
+        (not Query_Tooltip (22, Keyboard_Mode => False),
+         "query-tooltip declines an unsafe rendered link");
+      Assert
+        (not Query_Tooltip (9, Keyboard_Mode => True),
+         "query-tooltip declines keyboard-mode queries");
+      Dispatch_Motion (22);
+      Assert
+        (Cursor_Type = Gdk.Cursor.Xterm,
+         "unsafe rendered links do not advertise activation");
+      Dispatch_Motion (0);
+      Assert
+        (Cursor_Type = Gdk.Cursor.Xterm,
+         "motion over ordinary text restores the text cursor");
+
+      Dispatch_Motion (9);
+      declare
+         Event   : Gdk.Event.Gdk_Event;
+         Pointer : constant Gdk.Device.Gdk_Device :=
+           Gdk.Seat.Get_Pointer
+             (Gdk.Seat.Convert
+                (Glib.Object.Convert
+                   (Gdk.Display.Get_Default_Seat (Gdk.Display.Get_Default))));
+      begin
+         Event := Gdk.Event.Gdk_Event_New (Gdk.Event.Leave_Notify);
+         Event.Crossing.Window := View.Get_Window (Gtk.Enums.Text_Window_Text);
+         Gdk.Window.Ref (Event.Crossing.Window);
+         Event.Crossing.Send_Event := 1;
+         Event.Crossing.Time := 1;
+         Gdk.Device.Set_Device (Event, Pointer);
+         Gtk.Main.Main_Do_Event (Event);
+         Gdk.Event.Free (Event);
+      end;
+      Assert
+        (Cursor_Type = Gdk.Cursor.Xterm,
+         "leaving the text view restores the text cursor");
+      Tooltip.Unref;
+   end Test_Native_Markdown_Link_Hover_Cursor;
 
    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test) is
    begin
@@ -1280,6 +1693,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("Coyote.GUI.Conversation_Stack validates Markdown link targets",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Markdown_Link_Destination_Policy'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack launches Markdown link clicks",
+            Test_Native_Markdown_Link_Click_Dispatches'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack updates Markdown link cursor",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Markdown_Link_Hover_Cursor'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack renders Markdown",

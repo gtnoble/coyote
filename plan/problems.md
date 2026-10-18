@@ -3364,6 +3364,7 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 
 
 
+
 ## PCR-100 — Codex tool support dropped by catalogue boolean parsing
 
 - **Date reported:** 2026-09-07
@@ -3484,3 +3485,66 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   5/5. Historical PCR-104 Stage 9 verification was recorded above.
 - **Status:** Closed/Implemented and Verified
 - **Date closed:** 2026-09-13
+
+
+## PCR-106 — Native Markdown link clicks ignored
+
+- **Date reported:** 2026-10-18
+- **Category:** Code, Test
+- **Priority:** 3-Moderate
+- **Description:** Tagged Markdown links in native conversation text did not
+  activate on click. `Coyote_GUI.Markdown_Links.On_Button_Release` filtered
+  `Get_Window_Type` to `Text_Window_Widget`, rejecting normal
+  `Text_Window_Text` events.
+- **Affected work products:** `Coyote_GUI.Markdown_Links`, native conversation
+  stack regression tests, frontend SDF, and design description §5.15.
+- **Corrective action:** Accept text and text-widget window events, ignore
+  border events, map coordinates against the shared Markdown text subwindow,
+  and preserve the tag-list head for freeing. Exercise streamed Markdown link
+  clicks through GTK event dispatch, checking exact destination preservation
+  (including query and fragment) and rejection of non-left and untagged clicks.
+- **Actions taken:** Added `Test_Native_Markdown_Link_Click_Dispatches`, which
+  realizes a streamed response and dispatches press/release via
+  `Gtk.Main.Main_Do_Event` on the text window; a fake `xdg-open` captures the
+  destination. The regression fails before the production correction.
+- **Verification:** Development application and test builds passed. Under
+  Xvfb, the corrected click regression fails with the old window filter and
+  passes with the fix; Conversation_Stack passes 34/34. The full registered
+  suite, run from `test/`, passes 911/911. An initial full-suite invocation
+  from the repository root failed because tests require the `test/` working
+  directory. `git diff --check` passes. This is developer self-evaluation;
+  independent desktop/browser acceptance remains with the user.
+- **Status:** Closed/Implemented and Verified.
+- **Date closed:** 2026-10-18
+
+
+## PCR-107 — Rendered links lack hover affordances
+
+- **Date reported:** 2026-10-18
+- **Category:** Requirements, Design, Code, Test
+- **Priority:** 4-Minor
+- **Description:** The user confirmed link activation works in the current
+  instance, but the absence of a pointing-hand cursor made links appear inert.
+- **Affected work products:** REQ-CORE-111; design §5.15;
+  `Coyote_GUI.Markdown_Links`; conversation-stack tests; frontend SDF.
+- **Corrective action:** Show a hand cursor over actionable tagged links and a
+  plain-text destination tooltip; restore the text cursor on ordinary text and
+  leave, and refresh after scrolling beneath a stationary pointer. Hovering
+  must never launch a destination.
+- **Actions taken:** Shared safe-destination hit testing across activation,
+  pointer motion, tooltip queries, and view-owned post-draw refresh. Preserved
+  the existing click correction. View-bound scroll-adjustment slot callbacks
+  queue redraws even when GTK would reuse viewport pixels; target changes
+  requery tooltips to dismiss stale destinations. Registration is idempotent.
+- **Verification:** Explicit development application and test builds passed,
+  including the application dependency in the test build. Conversation_Stack
+  passes 35/35; the complete suite passes 912/912 (39.64 s wall). A real X11
+  pointer probe under Xvfb verified hand/text transitions, the literal tooltip
+  `https://host.invalid/p?a=1&b=<x>&c=>`, dismissal on stationary scrolling away,
+  and restoration on scrolling back after the queued redraw. Hovering did not
+  invoke a fake opener. A test-owned tooltip lifetime error and redraw-only
+  scroll-return gap were found and corrected before final qualification.
+  `git diff --check` passes. This is developer self-evaluation; the user retains
+  independent desktop acceptance.
+- **Status:** Closed/Implemented and Verified.
+- **Date closed:** 2026-10-18

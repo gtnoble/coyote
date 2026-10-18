@@ -1570,3 +1570,45 @@ once during text-view creation (and once for session replay), independently of
 markup insertion. Pointer hit-testing also resolves the event's actual text-view
 window before converting coordinates. Focused Conversation_Stack tests pass
 33/33, including verification that rendered link ranges receive a target tag.
+
+
+## 2026-10-18 — Correct native Markdown link click dispatch (PCR-106)
+
+GTK releases normally arrive on `Text_Window_Text`; filtering only for
+`Text_Window_Widget` rejected them. The handler now accepts both text windows,
+ignores border events, and maps coordinates using the shared Markdown text
+subwindow. The tag-list head remains available for freeing. The streamed
+response regression dispatches press/release through GTK and checks the exact
+`xdg-open` destination, including query and fragment, as well as non-left and
+untagged clicks. The corrected regression fails with the old filter and passes
+with the fix. Development application and test builds passed; Xvfb-backed
+Conversation_Stack passes 34/34 and the full suite passes 911/911 when run from
+`test/`. An initial full-suite run from the repository root failed due to the
+working-directory requirement. This is developer self-evaluation; independent
+confirmation in the user's desktop remains an acceptance check.
+
+
+## 2026-10-18 — Markdown link hover feedback (PCR-107)
+
+The user confirmed that activation works in the new GUI instance; absent cursor
+feedback, rather than an inactive opener, explained the perceived failure.
+Shared Markdown text views now use the same safe-destination hit test for
+clicks, pointer motion, and tooltip queries. Actionable links show the desktop
+hand cursor and plain-text destination tooltips; ordinary text and leave events
+restore the text cursor. A post-draw callback refreshes the physical pointer
+after scrolling or rerendering. Ancestor scroll adjustments queue redraws through
+view-bound slot connections that disconnect on view finalization; there is no
+polling timer. Target changes requery GTK tooltips so stale URLs disappear on
+scrolling away. Registration is idempotent and cursor creation references are
+released after assignment. Native table cells remain outside this text-view
+link path.
+
+Explicit development application and test builds (including the application
+as a development dependency) pass. Conversation_Stack passes 35/35 and the full
+suite passes 912/912, 39.64 s wall. Real X11 pointer qualification under Xvfb
+confirmed hand/text transitions, plain tooltip text containing ampersands and
+angle brackets, dismissal on scrolling away, and restoration on scrolling back
+beneath a stationary pointer after redraw; hovering did not invoke the fake
+opener. Qualification found and corrected a test-tooltip ownership fault and a
+scroll-return gap where GTK reused pixels without redrawing the text child.
+This is developer self-evaluation; independent user desktop acceptance remains.

@@ -1358,7 +1358,23 @@ commands target the prompt; otherwise conversation commands resolve the focused
 conversation text view, then a retained conversation selection. Native Details
 and Fork buttons are focusable and operate on the GTK main task. Live updates
 and session replay use the same lifecycle operations and hierarchy. SQC session
-replay retains the shared Pango/text fallback.
+replay retains the shared Pango/text fallback. `Coyote_GUI.Markdown_Links`
+handles tagged-link activation for the shared response text view: release events
+from either `Text_Window_Text` or `Text_Window_Widget` are mapped against that
+view's text subwindow; border events are ignored. Streaming response rerenders
+retain the signal handler, and tag traversal preserves its list head so the
+allocated tags can be freed. A shared destination hit test drives activation,
+pointer-motion hand cursors, and plain-text destination tooltips. Leave events
+restore the text cursor; a view-owned post-draw callback rechecks the physical
+pointer after scrolling or rerendering. Ancestor scroll adjustments queue the
+redraw through view-bound slot connections, which disconnect when the view is
+finalized; there is no polling timer or raw view pointer in callback data.
+The last hover target is managed as view-owned data, and target changes requery
+GTK tooltips to dismiss stale destinations. Registration is idempotent.
+Cursor objects use the view display and release their creation reference after
+assignment. Unsafe destinations receive no hover affordance. Native table-cell
+links remain outside this text-view path.
+
 
 **Historical CSM-2 presentation qualification (PCR-101 Phase 12):** The
 explicit CSM-2 inline and block vocabulary was qualified against completed

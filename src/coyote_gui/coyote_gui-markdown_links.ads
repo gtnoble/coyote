@@ -8,7 +8,8 @@ with Gtk.Text_View;
 
 package Coyote_GUI.Markdown_Links is
 
-   --  Connect click handling to a text view that may contain link tags.
+   --  Connect activation, hand-cursor hover, and plain destination tooltips.
+   --  Call on the GTK main task for each text view that may contain link tags.
    procedure Connect
      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class);
 
