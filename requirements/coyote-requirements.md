@@ -904,9 +904,10 @@ the shared conversation view shall display that agent's conversation state,
 typed prompts shall be sent to that live agent, and Stop, Pause, and Resume
 shall target that live agent. Selection shall not create or map a top-level
 desktop window for that agent. Completed, aborted, failed, or disconnected
-agents shall remain selectable for review, but controls that require a live
-process shall be disabled. Ordinary `File → New Window` behavior, when
-requested explicitly, remains a separate physical-window operation.
+agents shall remain selectable for review within the current session, but
+controls that require a live process shall be disabled. Ordinary
+`File → New Window` behavior, when requested explicitly, remains a separate
+physical-window operation.
 
 **REQ-CORE-115a** (D/T/I)
 When a coordinator launches a `--subagent`, the child shall use a headless
@@ -929,6 +930,21 @@ virtual-agent tree. `File → New Window` shall use the same independent
 physical-window launch mode without a session argument. Physical-window
 launches shall clear inherited coordinator and session-lineage environment
 variables before startup.
+
+**REQ-CORE-115c** (D/T/I)
+After a successful GUI New Session, session Switch, or in-place Fork that
+replaces the active coordinator session, the coordinator shall discard all
+prior virtual-agent worker rows, nested worker records, and in-memory agent
+conversation histories, then reselect the root agent in the Ready state.
+Completed agents shall remain available for review only within the same active
+session. Session reset shall not modify saved JSONL files; ordinary conversation
+Clear shall retain its existing behavior. Root-session bootstrap and history
+replay shall follow the unfiltered GTK conversation reset. A GUI Fork launched
+in a separate physical window shall not clear or otherwise alter the original
+window's agent tree or histories. If binding the replacement RPC endpoint fails
+after the durable session is loaded, the GUI shall detach the old service, commit
+the agent reset with a warning that RPC is disabled, and leave the service able
+to recover on a later rotation; it shall not force-kill worker processes.
 
 **REQ-CORE-125** (D)
 The GUI frontend shall support zooming the conversation view, prompt area,
@@ -1849,7 +1865,7 @@ retains historical `TC-*` identifiers.
 | REQ-CORE-108..108b | Retired Acme fork-token interface (historical) | D | TC-108..108b |
 | REQ-CORE-109 | Retired Acme SetDefault command (historical) | D | TC-109 |
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests including `Coyote.GUI layout and shutdown lifecycle`; DEM-033, DEM-042..044 |
-| REQ-CORE-115, 115a | Virtual-agent tree, selected-agent input routing, headless subagent presentation, and coordinator RPC | D/T/I | DEM-050..053; source inspection |
+| REQ-CORE-115, 115a, 115c | Virtual-agent tree, selected-agent routing, headless subagent RPC, and session-scoped reset/review semantics | D/T/I | DEM-050..053; frontend GUI and RPC service/transport reset tests; source inspection |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
@@ -1907,7 +1923,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–219 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery, configurable roots, and system prompt construction | REQ-CORE-090, 090a–094 |
-| Subagent spawning with session lineage and virtual-window organization | REQ-CORE-019–020c, REQ-CORE-030–032, REQ-CORE-115, 115a |
+| Subagent spawning with session lineage and virtual-window organization | REQ-CORE-019–020c, REQ-CORE-030–032, REQ-CORE-115, 115a, 115c |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-139, REQ-CORE-702–703 |
 | Enhanced system prompt with personality, resource loading, and task constraints | REQ-CORE-170–174 |
 | Structured memory system (four-type taxonomy) | REQ-CORE-180–183 |

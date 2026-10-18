@@ -1612,3 +1612,37 @@ beneath a stationary pointer after redraw; hovering did not invoke the fake
 opener. Qualification found and corrected a test-tooltip ownership fault and a
 scroll-return gap where GTK reused pixels without redrawing the text child.
 This is developer self-evaluation; independent user desktop acceptance remains.
+
+
+## 2026-10-18 — Session-scoped Agents window reset (PCR-108)
+
+Accepted New Session, session Switch, and in-place Fork transitions now queue
+an unfiltered GTK reset before bootstrap/replay. The reset removes worker rows
+and descendants, clears the runtime registry and every retained in-memory
+conversation (including root), recreates/selects the main root in Ready, and
+refreshes agent controls. Ordinary conversation Clear and independent physical
+Fork windows keep their existing behavior. Saved JSONL files are unchanged.
+Switch refreshes COYOTE_SESSION_ID so later workers inherit current lineage.
+
+The RPC service prepares a unique replacement listener before retiring the old
+one. Nonblocking best-effort Shutdown commands precede channel closure. Service
+callbacks tag frames with their generation and enqueue the reset marker before
+polling fresh connections, so delayed old frames cannot restore histories or
+rows. Old descendants inherit a retired endpoint. Listener preparation failure
+falls back to graceful Detach, clears endpoint inheritance, and displays a
+warning while allowing the loaded root session to bootstrap; the still-live
+service task can recover on the next transition. Retired listener/channel
+allocations are reclaimed. Reset does not force-kill worker processes or wait
+for their exit.
+
+Explicit development application and test builds pass (including the coyote
+dependency in the test build). Focused RPC is 34/34, display-backed GUI 94/94,
+and the final complete suite is 920/920 under Xvfb, 39.66 s wall. New tests cover
+selected-worker/nested reset, stale handshake/event/terminal rejection, root
+history isolation, ordinary Clear preservation, failed-listener detach/recovery,
+shutdown/marker ordering, old-endpoint refusal, and a saturated unread peer.
+Existing live-provider and subprocess guards remain opt-in. git diff --check
+passes. Verification is developer self-evaluation; the user retains independent
+desktop acceptance. One optional hardening subagent invocation was aborted
+without edits after the user reported it appeared hung; that check was completed
+locally and is included in the final verified suite.

@@ -3548,3 +3548,40 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   independent desktop acceptance.
 - **Status:** Closed/Implemented and Verified.
 - **Date closed:** 2026-10-18
+
+
+## PCR-108 — Agents window retains previous-session workers
+
+- **Date reported:** 2026-10-18
+- **Category:** Requirements, Design, Code, Test
+- **Priority:** 3-Moderate
+- **Description:** New Session replaces the root session but retains worker
+  rows, selection, and replay histories. Switching sessions has the same gap;
+  delayed worker traffic can repopulate a naively cleared tree. Restarting the
+  application is the existing workaround.
+- **Affected work products:** REQ-CORE-115; frontend and RPC service;
+  GUI session-transition handlers; frontend/service tests; design and SDF.
+- **Approved resolution:** Reset on successful New, Switch, and in-place Fork,
+  not ordinary Clear. Keep/select only the main agent, discard old in-memory
+  histories without deleting saved sessions, request graceful worker shutdown,
+  detach old channels, and fence delayed handshakes/events by session generation.
+- **Actions taken:** Added an ordered generation marker, unique endpoint
+  rotation, unfiltered GTK presentation reset, and regression coverage. Listener
+  preparation failure preserves the service until explicit graceful detach
+  commits a safe presentation reset; the new session still bootstraps with a
+  warning and RPC disabled when a replacement endpoint is unavailable.
+  Shutdown sends are nonblocking, and retired channel/listener allocations are
+  reclaimed. Switch also refreshes COYOTE_SESSION_ID for subsequent workers.
+- **Verification:** Explicit development application and test builds pass,
+  with the application dependency also built in development. RPC passes 34/34;
+  display-backed GUI passes 94/94; the complete Xvfb-backed suite passes 920/920
+  in 39.66 s wall. Added eight registered regressions over the 912 baseline:
+  three GUI reset/Clear/recovery cases, four service rotation/detach cases,
+  and one unread-peer transport case. Existing provider/subprocess opt-in
+  guards remain unchanged. Source inspection confirms reset is called only
+  after successful new/switch/in-place-fork session loading and before replay
+  or bootstrap; saved JSONL is not touched by reset. git diff --check passes.
+  This is developer self-evaluation; independent desktop acceptance remains
+  with the user.
+- **Status:** Closed/Implemented and Verified.
+- **Date closed:** 2026-10-18

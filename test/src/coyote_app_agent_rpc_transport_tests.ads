@@ -11,6 +11,7 @@ package Coyote_App_Agent_RPC_Transport_Tests is
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
    procedure Test_Pair_Round_Trip (T : in out Test);
+   procedure Test_Nonblocking_Send_Closes_Full_Peer (T : in out Test);
    procedure Test_Handshake_Ordering (T : in out Test);
    procedure Test_Event_Sequence_Must_Increase (T : in out Test);
    procedure Test_Terminal_Closes_Send_Side (T : in out Test);

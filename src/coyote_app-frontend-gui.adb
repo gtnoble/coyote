@@ -171,10 +171,11 @@ package body Coyote_App.Frontend.GUI is
    function Drain_Idle return Boolean;
 
    procedure Apply_Update_Visible (F : in out Instance; U : Coyote_GUI.Update);
-   procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update);
    procedure Apply_Agent_Menu_Sensitivity (F : in out Instance);
 
-   procedure On_RPC_Frame (Value : Coyote_App.Agent_RPC.Frame);
+   procedure On_RPC_Frame
+     (Value      : Coyote_App.Agent_RPC.Frame;
+      Generation : Coyote_App.Agent_RPC.Service.Generation_Id);
 
    function History_Index
      (F : Instance; Runtime_Id : String) return History_Vectors.Extended_Index
@@ -656,6 +657,9 @@ package body Coyote_App.Frontend.GUI is
       Value      : constant Frame  := Decode (To_String (U.Text));
       Runtime_Id : constant String := To_String (Value.Agent_Id);
    begin
+      if U.RPC_Generation /= F.RPC_Generation then
+         return;
+      end if;
       case Value.Kind is
          when Handshake =>
             declare
@@ -796,7 +800,10 @@ package body Coyote_App.Frontend.GUI is
          null;
    end Apply_RPC_Frame;
 
-   procedure On_RPC_Frame (Value : Coyote_App.Agent_RPC.Frame) is
+   procedure On_RPC_Frame
+     (Value      : Coyote_App.Agent_RPC.Frame;
+      Generation : Coyote_App.Agent_RPC.Service.Generation_Id)
+   is
       Wake_Needed : Boolean;
       Idle_Id     : Glib.Main.G_Source_Id;
       pragma Unreferenced (Idle_Id);
@@ -807,6 +814,7 @@ package body Coyote_App.Frontend.GUI is
       end if;
       U.Kind             := Coyote_GUI.Rpc_Frame;
       U.Runtime_Agent_Id := Value.Agent_Id;
+      U.RPC_Generation := Natural (Generation);
       U.Text := To_Unbounded_String (Coyote_App.Agent_RPC.Encode (Value));
       Current_Frontend.Updates.Enqueue (U, Wake_Needed);
       if Wake_Needed then
@@ -816,6 +824,26 @@ package body Coyote_App.Frontend.GUI is
       when others =>
          null;
    end On_RPC_Frame;
+
+   procedure On_RPC_Rotate
+     (Generation : Coyote_App.Agent_RPC.Service.Generation_Id)
+   is
+      Wake_Needed : Boolean;
+      Idle_Id     : Glib.Main.G_Source_Id;
+      pragma Unreferenced (Idle_Id);
+      U : Coyote_GUI.Update;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      --  The service serializes this marker between old and new frames.
+      U.Kind := Coyote_GUI.Reset_Agents;
+      U.RPC_Generation := Natural (Generation);
+      Current_Frontend.Updates.Enqueue (U, Wake_Needed);
+      if Wake_Needed then
+         Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
+      end if;
+   end On_RPC_Rotate;
 
    protected body Session_Reference is
       procedure Set (Value : access LLM.Agent.Session) is
@@ -1967,6 +1995,37 @@ package body Coyote_App.Frontend.GUI is
             F.Stack.Clear;
             Apply_Agent_Menu_Sensitivity (F);
 
+         when Reset_Agents =>
+            declare
+               Registered : Boolean;
+               pragma Unreferenced (Registered);
+            begin
+               F.RPC_Generation := U.RPC_Generation;
+               F.Replaying := False;
+               F.Histories.Clear;
+               F.Selected_Agent_Id := F.Root_Agent_Id;
+               F.Current_Mode := Coyote_App.Frontend.Idle;
+               F.Stack.Clear;
+               Coyote_App.Agent_Registry.Clear (F.Agent_Registry);
+               --  Clear invalidates every iter, including the cached root.
+               F.Agent_Root_Iter := Gtk.Tree_Model.Null_Iter;
+               F.Agents_Store.Clear;
+               Registered := Coyote_App.Agent_Registry.Register_Root
+                 (R => F.Agent_Registry,
+                  Runtime_Id => Coyote_App.Agent_Registry.Create_Agent_Id
+                    (To_String (F.Root_Agent_Id)),
+                  Label => "main",
+                  Status => Coyote_App.Agent_Registry.Ready);
+               F.Agents_Store.Append
+                 (F.Agent_Root_Iter, Gtk.Tree_Model.Null_Iter);
+               F.Agents_Store.Set (F.Agent_Root_Iter, 0, "main");
+               F.Agents_Store.Set (F.Agent_Root_Iter, 1, "ready");
+               F.Agents_Store.Set
+                 (F.Agent_Root_Iter, 2, To_String (F.Root_Agent_Id));
+               F.Agents_View.Get_Selection.Select_Iter (F.Agent_Root_Iter);
+               Apply_Agent_Menu_Sensitivity (F);
+            end;
+
          when Set_Session_Identity =>
             F.Win.Set_Role ("coyote-session-" & To_String (U.Text));
             declare
@@ -2029,6 +2088,10 @@ package body Coyote_App.Frontend.GUI is
    begin
       if U.Kind = Coyote_GUI.Rpc_Frame then
          Apply_RPC_Frame (F, U);
+      elsif U.Kind = Coyote_GUI.Reset_Agents then
+         --  Session boundaries must not depend on the selected worker or be
+         --  replayed as part of any agent's retained conversation.
+         Apply_Update_Visible (F, U);
       else
          Retain_Update (F, U);
          if Coyote_GUI.Notification_Policy.Should_Apply_Update
@@ -4664,6 +4727,8 @@ package body Coyote_App.Frontend.GUI is
          Coyote_App.Agent_RPC.Service.Start
            (S => F.RPC_Service, Path => Path, Handler => On_RPC_Frame'Access);
          F.RPC_Endpoint := To_Unbounded_String (Path);
+         F.RPC_Generation := Natural
+           (Coyote_App.Agent_RPC.Service.Generation (F.RPC_Service));
          Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", Path);
          Ada.Environment_Variables.Set ("COYOTE_RUNTIME_AGENT_ID", "root");
          Ada.Environment_Variables.Set ("COYOTE_PARENT_RUNTIME_AGENT_ID", "");
@@ -5184,6 +5249,42 @@ package body Coyote_App.Frontend.GUI is
       Coyote_GUI.Subscription_Window.Refresh (F.Subscription_Window);
       Coyote_GUI.Subscription_Window.Show (F.Subscription_Window);
    end Show_Subscriptions;
+
+   procedure Reset_Agents (F : in out Instance) is
+      use Coyote_App.Agent_RPC.Service;
+      U : Coyote_GUI.Update;
+   begin
+      if Is_Running (F.RPC_Service) then
+         declare
+            --  Never reuse an endpoint inherited by an earlier worker.
+            Path : constant String := "/tmp/coyote-agent-"
+              & Ada.Strings.Fixed.Trim
+                  (GNAT.OS_Lib.Pid_To_Integer
+                     (GNAT.OS_Lib.Current_Process_Id)'Image,
+                   Ada.Strings.Both)
+              & "-" & Natural_Image
+                  (Natural (Generation (F.RPC_Service)) + 1) & ".sock";
+         begin
+            Rotate (F.RPC_Service, Path, On_RPC_Rotate'Access);
+            F.RPC_Endpoint := To_Unbounded_String (Path);
+            Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", Path);
+         exception
+            when Ex : Service_Error =>
+               --  The durable session is already loaded. Fail closed rather
+               --  than leaving its old workers and presentation attached.
+               Detach (F.RPC_Service, On_RPC_Rotate'Access);
+               F.RPC_Endpoint := Null_Unbounded_String;
+               Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", "");
+               F.Append_Notice
+                 (Warning, "Worker RPC disabled for this session: "
+                  & Ada.Exceptions.Exception_Message (Ex));
+         end;
+      else
+         --  Even when RPC startup was unavailable, discard session history.
+         U.Kind := Coyote_GUI.Reset_Agents;
+         Enqueue_Update (F, U);
+      end if;
+   end Reset_Agents;
 
    procedure Clear_Conversation (F : in out Instance) is
       U : Coyote_GUI.Update;

@@ -13,6 +13,10 @@ package Coyote_App_Agent_RPC_Service_Tests is
    procedure Test_Listener_Registers_Child (T : in out Test);
    procedure Test_Command_Routes_To_Child (T : in out Test);
    procedure Test_Disconnect_Is_Reported (T : in out Test);
+   procedure Test_Rotate_Closes_Old_Connection_And_Admits_Fresh
+     (T : in out Test);
+   procedure Test_Failed_Rotate_Retains_Service (T : in out Test);
+   procedure Test_Detach_And_Rotate_Recovers (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

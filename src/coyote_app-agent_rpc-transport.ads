@@ -49,6 +49,12 @@ package Coyote_App.Agent_RPC.Transport is
    procedure Send_Frame
      (C : in out Channel; Value : Coyote_App.Agent_RPC.Frame);
 
+   --  Best-effort nonblocking delivery for teardown. On any failure (including
+   --  a full peer buffer or partial frame) close C and return False; never retry
+   --  on that stream. Successful delivery restores normal blocking mode.
+   function Try_Send_Frame
+     (C : in out Channel; Value : Coyote_App.Agent_RPC.Frame) return Boolean;
+
    --  Receive one complete newline-delimited frame.  False means the peer
    --  closed or supplied an invalid frame; Status and Error identify why.
    function Receive_Frame

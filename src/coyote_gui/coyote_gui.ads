@@ -159,6 +159,7 @@ package Coyote_GUI is
    --    Set_Stats          Stats = typed session statistics snapshot
    --    Clear_Stats        (no extra fields)
    --    Clear_Conversation (no extra fields)
+   --    Reset_Agents       RPC_Generation = new coordinator generation
 
    --  Session statistics transported from the agent task to the GTK task.
    --  Strings identify the active session; counters are cumulative unless
@@ -202,6 +203,7 @@ package Coyote_GUI is
       Set_Stats,
       Clear_Stats,
       Clear_Conversation,
+      Reset_Agents,
       Set_Session_Identity,
       Set_Completion_Notifications,
       Completion_Notification,
@@ -214,6 +216,8 @@ package Coyote_GUI is
       Kind             : Update_Kind       := Append_Text;
       --  Originating runtime agent; empty is the legacy single-agent value.
       Runtime_Agent_Id : Ada.Strings.Unbounded.Unbounded_String;
+      --  RPC frames and session-reset markers share service ordering.
+      RPC_Generation   : Natural := 0;
       Text             : Ada.Strings.Unbounded.Unbounded_String;
       Text2            : Ada.Strings.Unbounded.Unbounded_String;
       Text3            : Ada.Strings.Unbounded.Unbounded_String;

@@ -600,6 +600,26 @@ three layers:
   → Coyote_Notify calls libnotify only when the window is inactive
 ```
 
+**Coordinator endpoint rotation and reset ordering:** `Service.Rotate` prepares
+an endpoint unique to the replacement session. For each connected old worker it
+requests best-effort `Shutdown` with nonblocking writes; it does not wait for
+a non-reading peer or force-kill worker processes. It
+then closes the old listener and connections, advances the service generation,
+and starts accepting on the new endpoint. The rotation callback enqueues a
+`Reset_Agents` marker before polling newly accepted connections. The GTK event
+drain applies that marker by clearing prior rows, nested records, and retained
+agent histories and selecting the root in Ready. Frames already queued from an
+old generation are fenced and discarded; children inheriting the old endpoint
+cannot connect to the fresh session.
+
+If binding the replacement endpoint fails after the new durable session has
+been loaded, the GUI calls `Detach`: it requests best-effort shutdown from
+connected workers, closes the old listener and connections, and commits the
+agent reset with a warning that RPC is disabled. The service task remains alive
+so a later `Rotate` can recover by binding a fresh endpoint. Neither `Rotate`
+nor `Detach` performs a process-wide kill. Session files remain untouched by
+agent reset.
+
 **Implemented virtual-agent-window flow:**
 
 ```
@@ -610,7 +630,17 @@ three layers:
   → receive the child's structured events through bidirectional RPC
   → update that agent's retained conversation state and tree-row status
   → when the user selects a live node, route prompts and agent controls to it
-  → retain completed, aborted, failed, or disconnected nodes for review
+  → retain completed, aborted, failed, or disconnected nodes for review only
+    while their originating session remains the active coordinator session
+
+[successful GUI New Session, session Switch, or in-place Fork replacement]
+  → rotate the coordinator RPC endpoint and enqueue Reset_Agents before
+    polling connections on the new listener
+  → apply the unfiltered GTK conversation reset marker
+  → discard prior worker rows, nested records, and all in-memory agent histories
+  → reselect the root agent in Ready state
+  → bootstrap/replay the root session into the cleared conversation view
+  → retain the already-saved JSONL files unchanged
 
 [headless subagent]
   → use the RPC frontend when coordinator channel context is supplied
@@ -1388,9 +1418,15 @@ not provide unsupported CSM-1 rendering.
 
 **Lifecycle and reset:** `Begin_Request` starts an exchange, intermediate
 footers close visible step frames, and `Complete_Request` closes the exchange.
-Clear removes exchange widgets, retained tool payloads, and callback state
-before new content is inserted. All mutation occurs on the GTK main task after
-updates cross `Coyote_GUI.Updates`.
+Ordinary conversation Clear removes the active conversation's exchange widgets,
+retained tool payloads, and callback state without changing agent-tree state or
+session statistics. On successful New Session, session Switch, or in-place
+Fork replacement, the GUI performs an unfiltered conversation reset before
+root-session bootstrap or history replay; replayed root content is therefore
+not filtered by the previously selected worker. The agent reset also discards
+all prior worker rows, nested records, and in-memory conversation histories and
+reselects the root in Ready. Session reset changes no saved JSONL file. All GTK
+mutation occurs on the GTK main task after updates cross `Coyote_GUI.Updates`.
 
 **Conversation search:** Edit → Find (Ctrl+F) opens an inline search row above
 the prompt. The search entry receives focus; Escape or Close removes the query
@@ -2116,8 +2152,13 @@ startup and is the sole GTK conversation presentation (see §5.15).
   row switches the shared conversation view to that agent's retained
   conversation state and makes the selected live agent the target of typed
   prompts and applicable agent controls. Completed, aborted, failed, and
-  disconnected rows remain selectable for review, but cannot receive new
-  prompts after their process has ended.
+  disconnected rows remain selectable for review only while their originating
+  session remains active, but cannot receive new prompts after their process
+  has ended. A successful New Session, session Switch, or in-place Fork
+  replacement resets the entire tree and its retained in-memory histories and
+  selects the root in Ready; ordinary conversation Clear does not reset the
+  tree. A GUI Fork opened as an independent physical window uses its own
+  session and does not clear or alter the original window's tree or histories.
 - The agents panel is a virtual window manager for organization only. It does
   not merge agent conversations, make subagents persistent, or map a separate
   desktop window for each coordinator-launched subagent. The child process
@@ -2705,7 +2746,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 |---|---|
 | REQ-CORE-001–005 | `Coyote` (entry point) |
 | REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
-| REQ-CORE-020a–020c, 115, 115a | `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel presentation |
+| REQ-CORE-020a–020c, 115, 115a, 115c | `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel and reset presentation |
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |

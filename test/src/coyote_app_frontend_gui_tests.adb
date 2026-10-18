@@ -4,8 +4,10 @@ with AUnit.Test_Caller;
 --  Project: coyote
 
 with Ada.Environment_Variables;
+with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
+with Coyote_App.Agent_RPC.Transport;
 with Coyote_App.Frontend.GUI.Testing;
 with Coyote_GUI;
 with Coyote_GUI.Prompt_Queue;
@@ -51,6 +53,15 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Prompt_Queue.Item_Kind;
    use type Coyote_GUI.Tool_Status;
+
+   procedure Drain_Events is
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      while Gtk.Main.Events_Pending loop
+         Quit := Gtk.Main.Main_Iteration;
+      end loop;
+   end Drain_Events;
 
    function Display_Available return Boolean is
    begin
@@ -309,6 +320,350 @@ package body Coyote_App_Frontend_GUI_Tests is
       Main_Window (Frontend).Destroy;
    end Test_RPC_Tool_Lifecycle_Status;
 
+   procedure Test_Reset_Agents_Rejects_Old_Generation
+     (T : in out Test)
+   is
+      use Coyote_App.Agent_RPC;
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Model    : Gtk.Tree_Model.Gtk_Tree_Model;
+      Old_Generation : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote agent reset test", Pop_Under => True);
+      Old_Generation := RPC_Generation (Frontend);
+      Apply_Handshake (Frontend, "worker", "root", "worker");
+      Apply_Handshake (Frontend, "nested", "worker", "nested");
+      Apply_Event
+        (Frontend, "root", 1, Request_Start,
+         "{""text"":""before reset"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "root", 2, Text_Delta,
+         "{""text"":""old root response""}");
+      Apply_Event
+        (Frontend, "worker", 1, Request_Start,
+         "{""text"":""worker request"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "worker", 2, Text_Delta,
+         "{""text"":""old worker response""}");
+      Assert (Registry_Count (Frontend) = 3,
+              "root and nested workers register before reset");
+      Assert (History_Entry_Count (Frontend) > 0,
+              "RPC activity retains history before reset");
+      Model := Gtk.Tree_View.Get_Model (Agents_View (Frontend));
+      Assert
+        (Gtk.Tree_Model.N_Children (Model,
+           Gtk.Tree_Model.Get_Iter_From_String (Model, "0")) = 1,
+         "nested worker is visible before reset");
+      Select_Agent (Frontend, "worker");
+      Assert (GTK_Selected_Agent (Frontend) = "worker"
+              and then Selected_Agent (Frontend) = "worker",
+              "test selects worker through GTK tree before reset");
+
+      Reset_Agents_From_Task (Frontend);
+      Drain_Events;
+
+      Assert (RPC_Generation (Frontend) /= Old_Generation,
+              "reset advances the RPC generation");
+      Assert (Gtk.Tree_Model.N_Children (Model) = 1,
+              "reset removes nested rows and recreates only the root");
+      Assert (Registry_Count (Frontend) = 1,
+              "reset keeps only the root in the registry");
+      Assert (Selected_Agent (Frontend) = "root"
+              and then GTK_Selected_Agent (Frontend) = "root",
+              "reset selects the recreated root in registry and GTK tree");
+      Assert (Root_Ready (Frontend), "reset returns root lifecycle to Ready");
+      Assert (History_Entry_Count (Frontend) = 0
+              and then History_Update_Count (Frontend) = 0,
+              "reset clears every agent history, including root");
+      Assert (not Conversation_Has_Exchange (Frontend)
+              and then Conversation_Active_Text (Frontend)'Length = 0,
+              "reset clears the visible root conversation");
+
+      Apply_Handshake
+        (F               => Frontend,
+         RPC_Generation  => Old_Generation,
+         Agent_Id        => "stale-worker",
+         Parent_Agent_Id => "root",
+         Label           => "stale");
+      Apply_Event
+        (F              => Frontend,
+         RPC_Generation => Old_Generation,
+         Agent_Id       => "root",
+         Sequence       => 3,
+         Event_Name     => Text_Delta,
+         Payload        => "{""text"":""stale response""}");
+      Apply_Terminal
+        (F              => Frontend,
+         RPC_Generation => Old_Generation,
+         Agent_Id       => "root",
+         Status         => Failed);
+      Assert (Registry_Count (Frontend) = 1,
+              "old-generation handshake cannot register an agent");
+      Assert (History_Entry_Count (Frontend) = 0,
+              "reset update and stale frames are absent from history");
+      Assert (Root_Ready (Frontend),
+              "old-generation terminal cannot change root lifecycle");
+      Assert (not Conversation_Has_Exchange (Frontend),
+              "old-generation root events cannot restore the old exchange");
+
+      Apply_Event
+        (Frontend, "root", 1, Request_Start,
+         "{""text"":""new session"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "root", 2, Text_Delta,
+         "{""text"":""fresh root response""}");
+      Assert (Conversation_Active_Text (Frontend) = "fresh root response",
+              "new root output is visible after reset");
+      Apply_Handshake (Frontend, "fresh-worker", "root", "fresh worker");
+      Apply_Event
+        (Frontend, "fresh-worker", 1, Request_Start,
+         "{""text"":""fresh request"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "fresh-worker", 2, Text_Delta,
+         "{""text"":""fresh response""}");
+      Assert (Registry_Count (Frontend) = 2,
+              "fresh worker registers after reset");
+      Assert (Gtk.Tree_Model.N_Children
+                (Model,
+                 Gtk.Tree_Model.Get_Iter_From_String (Model, "0")) = 1,
+              "fresh worker is visible below the recreated root");
+      Assert (History_Entry_Count (Frontend) = 2,
+              "fresh root and worker activity each create fresh history");
+      Assert (Conversation_Has_Exchange (Frontend)
+              and then Conversation_Active_Text (Frontend)
+                = "fresh root response",
+              "fresh worker traffic leaves visible root exchange unchanged");
+
+      Apply_Event
+        (Frontend, "root", 1, Request_Start,
+         "{""text"":""next session"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "root", 2, Text_Delta,
+         "{""text"":""next-session response""}");
+      Reset_Agents_From_Task (Frontend);
+      Drain_Events;
+      Assert (Gtk.Tree_Model.N_Children (Model) = 1
+              and then Registry_Count (Frontend) = 1,
+              "a second reset removes the fresh worker tree row");
+      Assert (History_Entry_Count (Frontend) = 0
+              and then History_Update_Count (Frontend) = 0,
+              "a second reset discards intervening root and worker history");
+
+      Coyote_App.Frontend.GUI.Request_Shutdown (Frontend);
+      Main_Window (Frontend).Destroy;
+   end Test_Reset_Agents_Rejects_Old_Generation;
+
+   procedure Test_Reset_Agents_Rotation_Failure_Recovers
+     (T : in out Test)
+   is
+      use Coyote_App.Agent_RPC;
+      use Coyote_App.Agent_RPC.Transport;
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend             : Coyote_App.Frontend.GUI.Instance;
+      Occupant             : Listener;
+      Fresh_Worker         : Channel;
+      Old_Probe            : Channel;
+      Model                : Gtk.Tree_Model.Gtk_Tree_Model;
+      Old_Endpoint_Refused : Boolean := False;
+      Old_Endpoint         : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
+      First_Generation     : Natural := 0;
+      Second_Generation    : Natural := 0;
+      Created              : Boolean := False;
+      Connected            : Boolean := False;
+      Occupant_Created     : Boolean := False;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      begin
+         Coyote_App.Frontend.GUI.Create
+           (Frontend, "coyote agent reset recovery test",
+            Pop_Under => True);
+         Created := True;
+         Old_Endpoint := Ada.Strings.Unbounded.To_Unbounded_String
+           (Ada.Environment_Variables.Value ("COYOTE_RPC_ENDPOINT", ""));
+         Model := Gtk.Tree_View.Get_Model (Agents_View (Frontend));
+         Apply_Handshake (Frontend, "worker", "root", "worker");
+         Apply_Event
+           (Frontend, "worker", 1, Request_Start,
+            "{""text"":""worker request"",""kind"":""prompt""}");
+         Apply_Event
+           (Frontend, "worker", 2, Text_Delta,
+            "{""text"":""worker response""}");
+         Select_Agent (Frontend, "worker");
+         Assert (Registry_Count (Frontend) = 2,
+                 "worker registers before failed rotation");
+         Assert (Non_Root_History_Count (Frontend) > 0,
+                 "worker history exists before failed rotation");
+
+         First_Generation := RPC_Generation (Frontend);
+         Create_Listener (Occupant, Next_RPC_Endpoint (Frontend));
+         Occupant_Created := True;
+         Reset_Agents_From_Task (Frontend);
+         Drain_Events;
+
+         Assert (Registry_Count (Frontend) = 1,
+                 "failed rotation leaves only the root registered");
+         Assert (Gtk.Tree_Model.N_Children (Model) = 1,
+                 "failed rotation leaves only the root tree row");
+         Assert (Selected_Agent (Frontend) = "root"
+                   and then GTK_Selected_Agent (Frontend) = "root",
+                 "failed rotation selects the root in registry and tree");
+         Assert (RPC_Generation (Frontend) > First_Generation,
+                 "failed rotation advances the applied generation");
+         Assert (Non_Root_History_Count (Frontend) = 0,
+                 "failed rotation clears every worker history");
+         Assert
+           (Ada.Environment_Variables.Value ("COYOTE_RPC_ENDPOINT", "") = "",
+            "failed rotation clears the inherited RPC endpoint");
+         Assert
+           (RPC_Service_Running (Frontend),
+            "failed rotation leaves the detached RPC service running");
+         Assert
+           (RPC_Service_Endpoint (Frontend) = "",
+            "failed rotation detaches the listener endpoint");
+
+         Close (Occupant);
+         Occupant_Created := False;
+         Reset_Agents_From_Task (Frontend);
+         Drain_Events;
+         Second_Generation := RPC_Generation (Frontend);
+         Assert (Second_Generation > First_Generation,
+                 "retry advances generation after detachment");
+         Assert
+           (Ada.Environment_Variables.Value
+              ("COYOTE_RPC_ENDPOINT", "")'Length > 0,
+            "successful retry republishes the RPC endpoint");
+         Assert
+           (RPC_Service_Running (Frontend),
+            "successful retry keeps the service running");
+         Assert
+           (RPC_Service_Endpoint (Frontend)
+              = Ada.Environment_Variables.Value
+                  ("COYOTE_RPC_ENDPOINT", ""),
+            "successful retry endpoint matches service listener");
+
+         Connect
+           (Fresh_Worker,
+            Ada.Environment_Variables.Value ("COYOTE_RPC_ENDPOINT", ""));
+         Connected := True;
+         Send_Frame
+           (Fresh_Worker, Make_Handshake (Agent_Id => "fresh-worker"));
+         for Attempt in 1 .. 100 loop
+            exit when Registry_Count (Frontend) = 2;
+            delay 0.01;
+            Drain_Events;
+         end loop;
+         Assert (Registry_Count (Frontend) = 2,
+                 "fresh endpoint handshake registers a worker");
+         Assert
+           (Gtk.Tree_Model.N_Children
+              (Model, Gtk.Tree_Model.Get_Iter_From_String (Model, "0")) = 1,
+            "fresh endpoint handshake appears beneath the root");
+
+         if Ada.Strings.Unbounded.Length (Old_Endpoint) > 0 then
+            begin
+               Connect
+                 (Old_Probe,
+                  Ada.Strings.Unbounded.To_String (Old_Endpoint));
+               Close (Old_Probe);
+            exception
+               when Transport_Error =>
+                  Old_Endpoint_Refused := True;
+            end;
+            Assert (Old_Endpoint_Refused,
+                    "the original worker endpoint is no longer available");
+         end if;
+
+         Coyote_App.Frontend.GUI.Set_Session_Identity
+           (Frontend, "recovery-session");
+         Drain_Events;
+         Assert
+           (Root_Session_Identity (Frontend) = "recovery-session",
+            "session identity updates the reset root after recovery");
+      exception
+         when others =>
+            if Connected then
+               Close (Fresh_Worker);
+            end if;
+            if Occupant_Created then
+               Close (Occupant);
+            end if;
+            if Created then
+               Coyote_App.Frontend.GUI.Request_Shutdown (Frontend);
+               if Main_Window (Frontend) /= null then
+                  Main_Window (Frontend).Destroy;
+               end if;
+            end if;
+            raise;
+      end;
+
+      if Connected then
+         Close (Fresh_Worker);
+      end if;
+      if Occupant_Created then
+         Close (Occupant);
+      end if;
+      if Created then
+         Coyote_App.Frontend.GUI.Request_Shutdown (Frontend);
+         if Main_Window (Frontend) /= null then
+            Main_Window (Frontend).Destroy;
+         end if;
+      end if;
+   end Test_Reset_Agents_Rotation_Failure_Recovers;
+
+   procedure Test_Clear_Conversation_Preserves_Agents
+     (T : in out Test)
+   is
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Model    : Gtk.Tree_Model.Gtk_Tree_Model;
+      Root     : Gtk.Tree_Model.Gtk_Tree_Iter;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote clear conversation test", Pop_Under => True);
+      Apply_Handshake (Frontend, "worker", "root", "worker");
+      Apply_Event
+        (Frontend, "root", 1, Coyote_App.Agent_RPC.Request_Start,
+         "{""text"":""root request"",""kind"":""prompt""}");
+      Apply_Event
+        (Frontend, "root", 2, Coyote_App.Agent_RPC.Text_Delta,
+         "{""text"":""response to clear""}");
+      Model := Gtk.Tree_View.Get_Model (Agents_View (Frontend));
+      Root  := Gtk.Tree_Model.Get_Iter_From_String (Model, "0");
+      Assert (Gtk.Tree_Model.N_Children (Model, Root) = 1,
+              "worker row exists before ordinary conversation clear");
+      Assert (History_Entry_Count (Frontend) > 0,
+              "root history exists before ordinary conversation clear");
+
+      Coyote_App.Frontend.GUI.Clear_Conversation (Frontend);
+      Drain_Events;
+
+      Assert (Gtk.Tree_Model.N_Children (Model) = 1
+              and then Gtk.Tree_Model.N_Children (Model, Root) = 1,
+              "ordinary clear preserves root and worker tree rows");
+      Assert (Registry_Count (Frontend) = 2,
+              "ordinary clear preserves runtime agent registrations");
+      Assert (History_Entry_Count (Frontend) > 0,
+              "ordinary clear is not a session reset and keeps histories");
+      Assert (not Conversation_Has_Exchange (Frontend),
+              "ordinary clear still clears the visible conversation");
+
+      Coyote_App.Frontend.GUI.Request_Shutdown (Frontend);
+      Main_Window (Frontend).Destroy;
+   end Test_Clear_Conversation_Preserves_Agents;
+
    procedure Test_Product_Information_Icon (T : in out Test) is
       use Coyote_App.Frontend.GUI.Testing;
       Frontend : Coyote_App.Frontend.GUI.Instance;
@@ -440,6 +795,21 @@ package body Coyote_App_Frontend_GUI_Tests is
            ("Coyote.GUI RPC tool lifecycle status",
             Coyote_App_Frontend_GUI_Tests
               .Test_RPC_Tool_Lifecycle_Status'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI agent reset rejects old RPC generation",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_Reset_Agents_Rejects_Old_Generation'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI reset rotation failure recovers",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_Reset_Agents_Rotation_Failure_Recovers'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI clear conversation preserves agents",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_Clear_Conversation_Preserves_Agents'Access));
 
       return Result;
    end Suite;

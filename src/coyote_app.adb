@@ -1031,9 +1031,9 @@ package body Coyote_App is
                                 ("COYOTE_OPENROUTER_SESSION_ID",
                                  LLM.Agent.OpenRouter_Session_Id
                                    (Agent_Session));
+                              My_Frontend.Reset_Agents;
                               Reset_Session_State;
                               My_Frontend.Clear_Stats;
-                              My_Frontend.Clear_Conversation;
                               Emit_Bootstrap;
                               My_Frontend.Append_Notice
                                 (Coyote_App.Frontend.Info,
@@ -1169,9 +1169,9 @@ package body Coyote_App is
                                     LLM.Agent.OpenRouter_Session_Id
                                       (Agent_Session));
                                  Synchronize_Sandbox;
+                                 My_Frontend.Reset_Agents;
                                  Reset_Session_State;
                                  My_Frontend.Clear_Stats;
-                                 My_Frontend.Clear_Conversation;
                                  Render_Loaded_Session (New_UUID);
                                  Emit_Bootstrap;
                               end if;
@@ -1193,13 +1193,16 @@ package body Coyote_App is
                                    Ada.Strings.Unbounded.To_String
                                      (It.Session_UUID));
                               Ada.Environment_Variables.Set
+                                ("COYOTE_SESSION_ID",
+                                 LLM.Agent.Session_Id (Agent_Session));
+                              Ada.Environment_Variables.Set
                                 ("COYOTE_OPENROUTER_SESSION_ID",
                                  LLM.Agent.OpenRouter_Session_Id
                                    (Agent_Session));
                               Synchronize_Sandbox;
+                              My_Frontend.Reset_Agents;
                               Reset_Session_State;
                               My_Frontend.Clear_Stats;
-                              My_Frontend.Clear_Conversation;
                               Render_Loaded_Session
                                 (Ada.Strings.Unbounded.To_String
                                    (It.Session_UUID));

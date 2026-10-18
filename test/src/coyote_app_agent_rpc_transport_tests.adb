@@ -61,6 +61,45 @@ package body Coyote_App_Agent_RPC_Transport_Tests is
       Close (Right);
    end Test_Pair_Round_Trip;
 
+   procedure Test_Nonblocking_Send_Closes_Full_Peer (T : in out Test) is
+      pragma Unreferenced (T);
+      Left, Right : Channel;
+      Value       : Frame;
+      Status      : Receive_Status;
+      Error       : Unbounded_String;
+      Sent        : Boolean := True;
+      Started     : Ada.Calendar.Time;
+      Payload     : constant String :=
+        "{""text"":""" & String'(1 .. 4_096 => 'x') & """}";
+   begin
+      Create_Pair (Left, Right);
+      Assert
+        (Try_Send_Frame (Left, Make_Handshake (Agent_Id => "worker")),
+         "nonblocking send must deliver to a reading peer");
+      Assert (Receive_Frame (Right, Value, Status, Error),
+              "peer must receive nonblocking handshake");
+      Started := Ada.Calendar.Clock;
+      --  No reader drains Right: the finite socket buffer must fill.
+      for Attempt in 1 .. 10_000 loop
+         Sent := Try_Send_Frame
+           (Left, Make_Command
+              (Agent_Id => "worker", Request_Id => "fill",
+               Command_Name => Prompt, Payload_Json => Payload));
+         exit when not Sent;
+      end loop;
+      Assert (not Sent and then not Is_Open (Left),
+              "a full peer buffer must close rather than block the sender");
+      Assert (Ada.Calendar.Clock - Started < 2.0,
+              "non-reading peer must not stall best-effort teardown sends");
+      Close (Left);
+      Close (Right);
+   exception
+      when others =>
+         Close (Left);
+         Close (Right);
+         raise;
+   end Test_Nonblocking_Send_Closes_Full_Peer;
+
    procedure Test_Handshake_Ordering (T : in out Test) is
       pragma Unreferenced (T);
       Left, Right : Channel;
@@ -320,6 +359,10 @@ package body Coyote_App_Agent_RPC_Transport_Tests is
               .Test_Unix_Listener_Accepts_Client'
               Access));
 
+      Result.Add_Test
+        (Agent_RPC_Transport_Caller.Create
+           ("Agent RPC transport teardown send never waits for unread peer",
+            Test_Nonblocking_Send_Closes_Full_Peer'Access));
       return Result;
    end Suite;
 

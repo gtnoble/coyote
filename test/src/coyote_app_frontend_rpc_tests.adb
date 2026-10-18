@@ -15,8 +15,10 @@ package body Coyote_App_Frontend_RPC_Tests is
    use Coyote_App.Agent_RPC;
    use type Coyote_App.Frontend.Control_Command_Kind;
 
-   procedure On_Frame (Value : Frame) is
-      pragma Unreferenced (Value);
+   procedure On_Frame
+     (Value : Frame; Generation : Coyote_App.Agent_RPC.Service.Generation_Id)
+   is
+      pragma Unreferenced (Value, Generation);
    begin
       null;
    end On_Frame;

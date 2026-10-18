@@ -249,6 +249,25 @@ package body Coyote_App.Agent_RPC.Transport is
          raise Transport_Error with Ada.Exceptions.Exception_Message (E);
    end Send_Frame;
 
+   function Try_Send_Frame
+     (C : in out Channel; Value : Coyote_App.Agent_RPC.Frame) return Boolean
+   is
+      Request : Request_Type :=
+        (Name => Non_Blocking_IO, Enabled => True);
+   begin
+      Require_Open (C);
+      Control_Socket (C.Socket, Request);
+      Send_Frame (C, Value);
+      Request.Enabled := False;
+      Control_Socket (C.Socket, Request);
+      return True;
+   exception
+      when others =>
+         --  A partial JSON line cannot be retried safely on the same stream.
+         Close (C);
+         return False;
+   end Try_Send_Frame;
+
    function Receive_Frame
      (C      : in out Channel;
       Value  :    out Coyote_App.Agent_RPC.Frame;

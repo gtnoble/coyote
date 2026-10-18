@@ -183,7 +183,13 @@ package Coyote_App.Frontend.GUI is
    --  the GTK main loop.
    procedure Request_Shutdown (F : in out Instance);
 
-   --  Called when replacing the active session with a new one.
+   --  Rotate the worker endpoint and queue a session-wide presentation reset.
+   --  Call from Agent_Task after a successful new/switch/fork, before replay
+   --  or bootstrap. Never call on GTK: service callbacks may need queue space.
+   --  Old workers receive best-effort shutdown; inherited endpoints retire.
+   procedure Reset_Agents (F : in out Instance);
+
+   --  Clear only the conversation view, without discarding agent records.
    procedure Clear_Conversation (F : in out Instance);
 
    --  Enable or disable conversation debug logging to stderr.
@@ -218,6 +224,7 @@ private
       Image  : out Gtk.Image.Gtk_Image);
 
    procedure Apply_RPC_Frame (F : in out Instance; U : Coyote_GUI.Update);
+   procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update);
 
    protected type Session_Reference is
       procedure Set (Value : access LLM.Agent.Session);
@@ -252,6 +259,8 @@ private
       --  opaque frames; GTK state is applied by Drain_Idle.
       RPC_Service             : Coyote_App.Agent_RPC.Service.Service;
       RPC_Endpoint            : Unbounded_String;
+      --  GTK-owned applied generation; callbacks carry immutable tags.
+      RPC_Generation          : Natural := 0;
       Selected_Agent_Id : Unbounded_String := To_Unbounded_String ("root");
       RPC_Request_Sequence    : Natural                      := 0;
       Histories               : History_Vectors.Vector;
