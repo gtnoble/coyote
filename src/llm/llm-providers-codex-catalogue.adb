@@ -340,13 +340,34 @@ package body LLM.Providers.Codex.Catalogue is
       Data   : out GNATCOLL.JSON.JSON_Value)
       return Boolean
    is
-      Creds         : constant LLM.Auth.Provider_Credentials :=
+      Creds         : LLM.Auth.Provider_Credentials :=
         LLM.Auth.Load_Credentials ("codex");
-      Headers       : LLM.HTTP.Header_List;
-      Status        : Natural                                := 0;
+      Status        : Natural := 0;
       Response_Body : Unbounded_String;
       Parsed        : GNATCOLL.JSON.Read_Result;
       Root          : GNATCOLL.JSON.JSON_Value;
+
+      procedure On_Chunk (Chunk : String);
+
+      procedure Get_Catalogue is
+         Headers : LLM.HTTP.Header_List;
+      begin
+         LLM.HTTP.Add_Header
+           (Headers, "Authorization",
+            "Bearer " & To_String (Creds.Access_Token));
+         LLM.HTTP.Add_Header
+           (Headers, "chatgpt-account-id", To_String (Creds.Account_Id));
+         LLM.HTTP.Add_Header (Headers, "originator", "coyote");
+         LLM.HTTP.Add_Header (Headers, "User-Agent", "coyote/0.1.0-dev");
+         LLM.HTTP.Add_Header (Headers, "Accept", "application/json");
+         Status := 0;
+         Response_Body := Null_Unbounded_String;
+         LLM.HTTP.Get
+           (URL      => Endpoint_Url & "?client_version=" & Client_Version,
+            Headers  => Headers,
+            On_Chunk => On_Chunk'Access,
+            Status   => Status);
+      end Get_Catalogue;
 
       procedure On_Chunk (Chunk : String) is
       begin
@@ -356,28 +377,20 @@ package body LLM.Providers.Codex.Catalogue is
       Models.Clear;
       Data := GNATCOLL.JSON.JSON_Null;
 
-      --  Only attempt a live fetch with a cached, non-expired access
-      --  token; token refresh stays in LLM.Auth.Codex.Ensure_Valid so
-      --  startup refresh remains synchronous and side-effect free.
       if Length (Creds.Access_Token) = 0
-        or else LLM.Auth.Codex.Token_Expired (Creds)
+        and then Length (Creds.Refresh_Token) = 0
       then
          return False;
       end if;
 
-      LLM.HTTP.Add_Header
-        (Headers, "Authorization", "Bearer " & To_String (Creds.Access_Token));
-      LLM.HTTP.Add_Header
-        (Headers, "chatgpt-account-id", To_String (Creds.Account_Id));
-      LLM.HTTP.Add_Header (Headers, "originator", "coyote");
-      LLM.HTTP.Add_Header (Headers, "User-Agent", "coyote/0.1.0-dev");
-      LLM.HTTP.Add_Header (Headers, "Accept", "application/json");
+      LLM.Auth.Codex.Ensure_Valid (Creds);
+      Get_Catalogue;
 
-      LLM.HTTP.Get
-        (URL      => Endpoint_Url & "?client_version=" & Client_Version,
-         Headers  => Headers,
-         On_Chunk => On_Chunk'Access,
-         Status   => Status);
+      if Status = 401 then
+         LLM.Auth.Codex.Recover_Rejected_Token
+           (Creds, To_String (Creds.Access_Token));
+         Get_Catalogue;
+      end if;
 
       if Status /= 200 then
          return False;
@@ -474,7 +487,9 @@ package body LLM.Providers.Codex.Catalogue is
       Live_Models  : Catalogue_Vectors.Vector;
       Live_Data    : GNATCOLL.JSON.JSON_Value;
    begin
-      if Cache_Result.Found and then Cache_Result.Fresh and then not Force_Live then
+      if Cache_Result.Found and then Cache_Result.Fresh
+        and then not Force_Live
+      then
          Models := Cache_Result.Models;
          return;
       end if;

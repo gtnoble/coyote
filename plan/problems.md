@@ -3619,3 +3619,50 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   user. Live provider calls and opt-in subprocess tests were not enabled.
 - **Status:** Closed/Implemented and Verified.
 - **Date closed:** 2026-10-19
+
+
+## PCR-110 — Codex proactive refresh and guarded 401 recovery (2026-10-19)
+
+- **Date reported:** 2026-10-19
+- **Category:** Requirements, Design, Code, Test
+- **Classification:** Approved behavior change / corrective action
+- **Priority:** 2-Serious
+- **Description:** Codex credential handling must use refreshed credentials
+  for provider requests and catalogue fetches, recover a single unauthorized
+  response safely, and avoid exposing rejected SSE bodies or reporting an
+  intermediate failed assistant message. The prior policy prohibiting refresh
+  during catalogue loading is superseded.
+- **Affected work products:** REQ-CORE-144–148; SDD-CORE Codex provider,
+  HTTP/Responses, authentication, and catalogue design; core-agent SDF;
+  implementation and qualification tests.
+- **Approved resolution:** Proactively refresh Codex tokens before use and
+  update sent bearer/account headers. On HTTP 401, check cancellation, reload
+  credentials and refresh under a process-local guard, check cancellation
+  again, then replay the identical request once. Do not parse or emit the
+  rejected response body. A final 401 or refresh/replay failure is terminal.
+  Native providers opt out of the optional recovery hook by default. Serve a
+  fresh catalogue cache without network; for live fetches, ensure valid
+  credentials and apply the same guarded recovery and one replay before stale
+  cache fallback. Retain the prior refresh token if a refresh response omits
+  its replacement; initial authorization-code login still requires one. The
+  guard is process-local; no cross-process lock is claimed.
+- **Design recorded:** `LLM.HTTP.Post_With_Status` returns response status
+  and accepts a chunk callback with per-request curl context. OpenAI Responses
+  gains optional `Recover_Auth` and `Set_Header`; only opted-in Codex requests
+  recover and replay while preserving the request body and non-auth headers.
+- **Actions taken:** Implemented guarded recovery in the auth layer,
+  status-aware HTTP callbacks, bounded Responses recovery, refreshed delegate
+  credentials, catalogue refresh/replay, and optional refresh-token rotation.
+  Added 17 mock-server regressions and updated requirements/design/SDF
+  traceability. Existing non-opted-in Responses callers retain no 401 replay.
+- **Verification:** Explicit development application/test builds passed;
+  Codex auth 11/11, provider 10/10, catalogue 8/8, and Responses 20/20 passed.
+  Complete suite passed 952/952, zero failed assertions and unexpected errors.
+  Tests use mock HTTP endpoints; live providers and real opt-in subagent
+  subprocesses were not enabled. See core-agent SDF for commands and review.
+- **Limitations:** Refresh guard is process-local. Cancellation prevents
+  recovery/replay at boundaries, but cannot interrupt an already-blocked
+  refresh HTTP request; existing transport timeouts remain in effect.
+- **Status:** Closed/Implemented and Verified; independent acceptance review
+  remains with the user.
+- **Date closed:** 2026-10-19

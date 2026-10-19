@@ -413,7 +413,8 @@ package body LLM.Auth.Codex is
         To_Unbounded_String (Get_String_Field (Root, "refresh_token"));
       Expires_In  := Get_Long_Long_Field (Root, "expires_in");
 
-      if Length (Access_Str) = 0 or else Length (Refresh_Str) = 0
+      if Length (Access_Str) = 0
+        or else (What = "exchange" and then Length (Refresh_Str) = 0)
         or else Expires_In <= 0
       then
          raise Auth_Error
@@ -427,6 +428,7 @@ package body LLM.Auth.Codex is
          Expires_Ms      => Current_Unix_Ms + Expires_In * 1_000,
          Account_Id      =>
            To_Unbounded_String (Account_Id_From_Jwt (To_String (Access_Str))));
+
    exception
       when Auth_Error =>
          raise;
@@ -561,9 +563,11 @@ package body LLM.Auth.Codex is
          if Length (Fresh.Account_Id) > 0 then
             Creds.Account_Id := Fresh.Account_Id;
          end if;
-         Creds.Access_Token  := Fresh.Access_Token;
-         Creds.Expires_Ms    := Fresh.Expires_Ms;
-         Creds.Refresh_Token := Fresh.Refresh_Token;
+         Creds.Access_Token := Fresh.Access_Token;
+         Creds.Expires_Ms   := Fresh.Expires_Ms;
+         if Length (Fresh.Refresh_Token) > 0 then
+            Creds.Refresh_Token := Fresh.Refresh_Token;
+         end if;
       end;
 
       LLM.Auth.Save_Credentials ("codex", Creds);
@@ -616,5 +620,38 @@ package body LLM.Auth.Codex is
             raise;
       end;
    end Ensure_Valid;
+
+   procedure Recover_Rejected_Token
+     (Creds          : in out LLM.Auth.Provider_Credentials;
+      Rejected_Token :     String)
+   is
+   begin
+      Guard.Acquire;
+
+      begin
+         declare
+            Latest : constant LLM.Auth.Provider_Credentials :=
+              LLM.Auth.Load_Credentials ("codex");
+         begin
+            if Length (Latest.Access_Token) > 0
+              and then To_String (Latest.Access_Token) /= Rejected_Token
+              and then not Token_Expired (Latest)
+            then
+               Creds := Latest;
+            else
+               if Length (Latest.Refresh_Token) > 0 then
+                  Creds := Latest;
+               end if;
+               Refresh_Token (Creds);
+            end if;
+         end;
+
+         Guard.Release;
+      exception
+         when others =>
+            Guard.Release;
+            raise;
+      end;
+   end Recover_Rejected_Token;
 
 end LLM.Auth.Codex;

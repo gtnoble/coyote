@@ -72,6 +72,13 @@ package LLM.Auth.Codex is
    function Token_Expired
      (Creds : LLM.Auth.Provider_Credentials) return Boolean;
 
+   --  Recover a rejected bearer token after reloading persisted credentials.
+   --  Reuses a different, non-expired stored token or forces a refresh.
+   --  Serialised with ordinary refreshes.
+   procedure Recover_Rejected_Token
+     (Creds          : in out LLM.Auth.Provider_Credentials;
+      Rejected_Token : String);
+
    --  Ensure the credential carries a non-expired access token,
    --  refreshing (and re-extracting the account id) when needed.
    --  Serialised across tasks.

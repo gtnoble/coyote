@@ -123,26 +123,33 @@ package body LLM.HTTP is
    end Cleanup;
 
    procedure Perform_Request
-     (URL         :     String;
-      Headers     :     Header_List;
-      Use_Post    :     Boolean;
-      Payload     :     String;
-      On_Chunk    :     not null access procedure (Data : String);
-      Status      : out Natural;
-      Abort_Check :     LLM.Tools.Abort_Flag_Access)
+     (URL                  : String;
+      Headers              : Header_List;
+      Use_Post             : Boolean;
+      Payload              : String;
+      On_Chunk             : access procedure (Data : String);
+      On_Chunk_With_Status : access procedure
+        (Data : String; Status : Natural);
+      Status               : out Natural;
+      Abort_Check          : LLM.Tools.Abort_Flag_Access)
    is
       H         : Curl_Binding.Handle            := Curl_Binding.Easy_Init;
       Header_S  : Curl_Binding.Slist             := Curl_Binding.NULL_SLIST;
       URL_C : Interfaces.C.Strings.chars_ptr := Interfaces.C.Strings.Null_Ptr;
       Payload_C : Interfaces.C.Strings.chars_ptr :=
         Interfaces.C.Strings.Null_Ptr;
-      Ctx       : aliased Write_Context          :=
-        (On_Chunk_Address   => On_Chunk'Address,
-         Exception_Occurred => False,
-         Exception_Message  => Ada.Strings.Unbounded.Null_Unbounded_String);
+      Ctx       : aliased Write_Context;
       Response  : aliased Interfaces.C.long      := 0;
       Low_Speed_Time : constant Natural := Configuration.Low_Speed_Time;
    begin
+      if On_Chunk /= null then
+         Ctx.On_Chunk_Address := On_Chunk'Address;
+      end if;
+      if On_Chunk_With_Status /= null then
+         Ctx.On_Chunk_Status_Address := On_Chunk_With_Status'Address;
+      end if;
+      Ctx.Handle_Address := H'Address;
+
       if H = Curl_Binding.NULL_HANDLE then
          raise Curl_Error with "curl_easy_init failed";
       end if;
@@ -248,14 +255,36 @@ package body LLM.HTTP is
    is
    begin
       Perform_Request
-        (URL         => URL,
-         Headers     => Headers,
-         Use_Post    => True,
-         Payload     => Payload,
-         On_Chunk    => On_Chunk,
-         Status      => Status,
-         Abort_Check => Abort_Check);
+        (URL                  => URL,
+         Headers              => Headers,
+         Use_Post             => True,
+         Payload              => Payload,
+         On_Chunk             => On_Chunk,
+         On_Chunk_With_Status => null,
+         Status               => Status,
+         Abort_Check          => Abort_Check);
    end Post;
+
+   procedure Post_With_Status
+     (URL         :     String;
+      Headers     :     Header_List;
+      Payload     :     String;
+      On_Chunk    :     not null access procedure
+        (Data : String; Status : Natural);
+      Status      : out Natural;
+      Abort_Check :     LLM.Tools.Abort_Flag_Access := null)
+   is
+   begin
+      Perform_Request
+        (URL                  => URL,
+         Headers              => Headers,
+         Use_Post             => True,
+         Payload              => Payload,
+         On_Chunk             => null,
+         On_Chunk_With_Status => On_Chunk,
+         Status               => Status,
+         Abort_Check          => Abort_Check);
+   end Post_With_Status;
 
    procedure Get
      (URL         :     String;
@@ -266,13 +295,14 @@ package body LLM.HTTP is
    is
    begin
       Perform_Request
-        (URL         => URL,
-         Headers     => Headers,
-         Use_Post    => False,
-         Payload     => "",
-         On_Chunk    => On_Chunk,
-         Status      => Status,
-         Abort_Check => Abort_Check);
+        (URL                  => URL,
+         Headers              => Headers,
+         Use_Post             => False,
+         Payload              => "",
+         On_Chunk             => On_Chunk,
+         On_Chunk_With_Status => null,
+         Status               => Status,
+         Abort_Check          => Abort_Check);
    end Get;
 
 begin

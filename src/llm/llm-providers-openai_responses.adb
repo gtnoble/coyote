@@ -3,16 +3,20 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Characters.Handling;
+with Ada.Exceptions;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Events;
 with LLM.HTTP;
 with LLM.SSE;
+with LLM.Tools;
 
 package body LLM.Providers.OpenAI_Responses is
 
    use type Ada.Containers.Count_Type;
+   use type LLM.Tools.Abort_Flag_Access;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Stop_Reason;
@@ -111,6 +115,19 @@ package body LLM.Providers.OpenAI_Responses is
         ((Name  => To_Unbounded_String (Name),
           Value => To_Unbounded_String (Value)));
    end Add_Header;
+
+   procedure Set_Header (P : in out Provider; Name : String; Value : String) is
+   begin
+      for Header of P.Extra_Headers loop
+         if Ada.Characters.Handling.To_Lower (To_String (Header.Name))
+           = Ada.Characters.Handling.To_Lower (Name)
+         then
+            Header.Value := To_Unbounded_String (Value);
+            return;
+         end if;
+      end loop;
+      Add_Header (P, Name, Value);
+   end Set_Header;
 
    function Reasoning_Effort
      (Thinking : LLM.Providers.Thinking_Level) return String
@@ -1278,9 +1295,9 @@ package body LLM.Providers.OpenAI_Responses is
       Thinking      :        LLM.Providers.Thinking_Level;
       Max_Tokens    :        Positive;
       Handler       :        LLM.Providers.Event_Handler;
-      Abort_Check   :        LLM.Providers.Abort_Callback := null)
+      Abort_Check   :        LLM.Providers.Abort_Callback := null;
+      Recover_Auth  : access procedure (P : in out Provider'Class) := null)
    is
-      Headers        : LLM.HTTP.Header_List;
       Status         : Natural         := 0;
       State          : Response_State;
       End_Event_Sent : Boolean         := False;
@@ -1294,34 +1311,70 @@ package body LLM.Providers.OpenAI_Responses is
            Thinking      => Thinking,
            Max_Tokens    => Max_Tokens);
 
-      procedure On_Chunk (Data : String) is
+      procedure On_Chunk (Data : String; Status : Natural) is
       begin
          Append (State.Raw_Response_Body, Data);
 
-         if P.Use_Streaming then
+         if Status = 200 and then P.Use_Streaming then
             Process_Stream_Data (Data, State, Handler);
          end if;
       end On_Chunk;
+
+      procedure Check_Cancelled is
+      begin
+         if Abort_Check /= null and then Abort_Check.Requested then
+            raise LLM.HTTP.Curl_Error
+              with "OpenAI Responses request cancelled";
+         end if;
+      end Check_Cancelled;
    begin
       Emit_Agent_Start (Handler);
       Emit_Message_Start (Handler);
 
-      LLM.HTTP.Add_Header (Headers, "Content-Type", "application/json");
-      LLM.HTTP.Add_Header
-        (Headers, "Authorization", "Bearer " & To_String (P.Api_Key));
+      Auth_Attempts :
+      for Attempt in 1 .. 2 loop
+         Check_Cancelled;
+         declare
+            Headers : LLM.HTTP.Header_List;
+         begin
+            LLM.HTTP.Add_Header (Headers, "Content-Type", "application/json");
+            LLM.HTTP.Add_Header
+              (Headers, "Authorization", "Bearer " & To_String (P.Api_Key));
 
-      for Header of P.Extra_Headers loop
-         LLM.HTTP.Add_Header
-           (Headers, To_String (Header.Name), To_String (Header.Value));
-      end loop;
+            for Header of P.Extra_Headers loop
+               LLM.HTTP.Add_Header
+                 (Headers, To_String (Header.Name), To_String (Header.Value));
+            end loop;
 
-      LLM.HTTP.Post
-        (URL         => Endpoint_Url (To_String (P.Base_Url)),
-         Headers     => Headers,
-         Payload     => Request_Body,
-         On_Chunk    => On_Chunk'Access,
-         Status      => Status,
-         Abort_Check => Abort_Check);
+            LLM.HTTP.Post_With_Status
+              (URL         => Endpoint_Url (To_String (P.Base_Url)),
+               Headers     => Headers,
+               Payload     => Request_Body,
+               On_Chunk    => On_Chunk'Access,
+               Status      => Status,
+               Abort_Check => Abort_Check);
+         end;
+         exit Auth_Attempts when Status /= 401 or else Recover_Auth = null
+           or else Attempt = 2;
+
+         --  No rejected response data has reached the stream parser.
+         Check_Cancelled;
+         begin
+            Recover_Auth (P);
+         exception
+            when E : others =>
+               Emit_Message_End
+                 (Handler   => Handler,
+                  Stop      => LLM.Types.Error_Stop,
+                  Tok_Usage => State.Tok_Usage,
+                  Err_Msg   => Ada.Exceptions.Exception_Message (E));
+               raise;
+         end;
+         Check_Cancelled;
+         State.Raw_Response_Body := Null_Unbounded_String;
+         LLM.SSE.Reset (State.Parser);
+         Status := 0;
+      end loop Auth_Attempts;
 
       if Status /= 200 then
          declare

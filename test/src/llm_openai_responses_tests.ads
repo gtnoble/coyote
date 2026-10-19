@@ -12,6 +12,12 @@ package LLM_OpenAI_Responses_Tests is
    procedure Test_Compaction_Summary_Encodes_As_User (T : in out Test);
    procedure Test_Non_Streaming_Response (T : in out Test);
    procedure Test_HTTP_Error_Propagates (T : in out Test);
+   procedure Test_401_Default_Does_Not_Retry (T : in out Test);
+   procedure Test_401_Recovery_Does_Not_Publish_Rejected_SSE
+     (T : in out Test);
+   procedure Test_401_Cancellation_Prevents_Replay (T : in out Test);
+   procedure Test_401_Recovery_Exception_Propagates (T : in out Test);
+   procedure Test_Non_401_Does_Not_Recover (T : in out Test);
    procedure Test_Usage_Includes_Cache_Write (T : in out Test);
    procedure Test_Tool_Result_Image_Serialised (T : in out Test);
    procedure Test_Reasoning_Item_Replayed (T : in out Test);

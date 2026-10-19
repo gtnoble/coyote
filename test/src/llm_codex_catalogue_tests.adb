@@ -60,6 +60,8 @@ package body LLM_Codex_Catalogue_Tests is
    begin
       Delete_If_Exists (Agent_Dir & "/codex_models_cache.json");
       Delete_If_Exists (Agent_Dir & "/codex_models_cache.json.tmp");
+      Delete_If_Exists (Agent_Dir & "/auth.json");
+      Delete_If_Exists (Agent_Dir & "/auth.json.tmp");
 
       if Ada.Directories.Exists (Agent_Dir) then
          Ada.Directories.Delete_Directory (Agent_Dir);
@@ -202,9 +204,14 @@ package body LLM_Codex_Catalogue_Tests is
         (Home       => Home,
          Fetched_At => Current_Unix_S,
          Data_Array => Fixture_Data_Array);
+      Write_File
+        (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":""r"","
+         & """access"":""expired"",""expires"":0}}");
 
       Ada.Environment_Variables.Set ("HOME", Home);
-      Ada.Environment_Variables.Clear ("COYOTE_CODEX_BASE_URL");
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_BASE_URL", "http://127.0.0.1:9");
 
       Load_Catalogue (Models);
 
@@ -289,12 +296,7 @@ package body LLM_Codex_Catalogue_Tests is
       Ada.Environment_Variables.Set
         ("COYOTE_CODEX_BASE_URL", "http://127.0.0.1:18779");
 
-      Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, "[dbg] before load");
       Load_Catalogue (Models);
-      Ada.Text_IO.Put_Line
-        (Ada.Text_IO.Standard_Error,
-         "[dbg] after load, count="
-         & Ada.Containers.Count_Type'Image (Models.Length));
 
       Srv.Stop;
 
@@ -324,6 +326,313 @@ package body LLM_Codex_Catalogue_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Cache_Missing_Triggers_Live_Fetch;
+
+   procedure Test_Expired_Token_Refreshes_Before_Fetch (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_codex_catalogue_refresh";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Base_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_BASE_URL");
+      Old_Base      : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_BASE_URL", "");
+      Token_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Token     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Models        : Catalogue_Vectors.Vector;
+      Token_Count   : Natural := 0;
+      procedure Token_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Token_Count := Token_Count + 1;
+         Res.Status := 200;
+         Append (Res.Body_Data,
+            "{""access_token"":""fresh-token"",""expires_in"":3600}");
+      end Token_Handler;
+      procedure Catalogue_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+            = "Bearer fresh-token",
+            "GET must use proactively refreshed token");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "chatgpt-account-id")
+            = "acc-catalogue",
+            "GET should retain the account id after token refresh");
+         Res.Status := 200;
+         Append (Res.Body_Data, Catalogue_Payload);
+      end Catalogue_Handler;
+      Token_Server : Test_HTTP_Server.Server
+        (Handler => Token_Handler'Unrestricted_Access);
+      Server : Test_HTTP_Server.Server
+        (Handler => Catalogue_Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":""r"","
+         & """access"":""old-token"",""expires"":0,"
+         & """accountId"":""acc-catalogue""}}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_BASE_URL", "http://127.0.0.1:18780");
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL", "http://127.0.0.1:18781/oauth/token");
+      Token_Server.Bind (18_781);
+      Server.Bind (18_780);
+      Load_Catalogue (Models);
+      Token_Server.Stop;
+      Server.Stop;
+      Assert (Token_Count = 1, "Expired token should refresh once");
+      Assert
+        (Find_Model (Models, "gpt-5.4-mini") > 0,
+         "Refreshed token should fetch catalogue");
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+      Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Token_Server.Stop;
+         Server.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+         Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Expired_Token_Refreshes_Before_Fetch;
+
+   procedure Test_401_Recovers_And_Replays_Once (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_codex_catalogue_401";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Base_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_BASE_URL");
+      Old_Base      : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_BASE_URL", "");
+      Token_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Token     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Models        : Catalogue_Vectors.Vector;
+      Get_Count     : Natural := 0;
+      Refresh_Count : Natural := 0;
+      procedure Token_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Refresh_Count := Refresh_Count + 1;
+         Res.Status := 200;
+         Append (Res.Body_Data,
+            "{""access_token"":""recovered-token"",""expires_in"":3600}");
+      end Token_Handler;
+      procedure Catalogue_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Get_Count := Get_Count + 1;
+         if Get_Count = 1 then
+            Res.Status := 401;
+         else
+            Assert
+              (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+               = "Bearer recovered-token",
+               "Retry should rebuild headers");
+            Res.Status := 200;
+            Append (Res.Body_Data, Catalogue_Payload);
+         end if;
+      end Catalogue_Handler;
+      Token_Server : Test_HTTP_Server.Server
+        (Handler => Token_Handler'Unrestricted_Access);
+      Server : Test_HTTP_Server.Server
+        (Handler => Catalogue_Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":""r"","
+         & """access"":""old-token"",""expires"":9999999999000}}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_BASE_URL", "http://127.0.0.1:18782");
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL", "http://127.0.0.1:18783/oauth/token");
+      Token_Server.Bind (18_783);
+      Server.Bind (18_782);
+      Load_Catalogue (Models);
+      Token_Server.Stop;
+      Server.Stop;
+      Assert (Get_Count = 2, "401 should cause exactly one retry");
+      Assert (Refresh_Count = 1, "401 recovery should refresh exactly once");
+      Assert
+        (Find_Model (Models, "gpt-5.4-mini") > 0,
+         "Recovery retry should load live models");
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+      Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Token_Server.Stop;
+         Server.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+         Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_401_Recovers_And_Replays_Once;
+
+   procedure Test_401_Recovery_Failure_Uses_Stale_Cache
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_codex_catalogue_stale";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Base_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_BASE_URL");
+      Old_Base      : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_BASE_URL", "");
+      Token_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Token     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Models        : Catalogue_Vectors.Vector;
+      Get_Count     : Natural := 0;
+      Refresh_Count : Natural := 0;
+      procedure Token_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Refresh_Count := Refresh_Count + 1;
+         Res.Status := 200;
+         Append
+           (Res.Body_Data,
+            "{""access_token"":""still-rejected"",""expires_in"":3600}");
+      end Token_Handler;
+      procedure Catalogue_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Get_Count := Get_Count + 1;
+         Res.Status := 401;
+      end Catalogue_Handler;
+      Token_Server : Test_HTTP_Server.Server
+        (Handler => Token_Handler'Unrestricted_Access);
+      Server : Test_HTTP_Server.Server
+        (Handler => Catalogue_Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Credentials (Home);
+      Write_Cache (Home, Current_Unix_S - 172_800, Fixture_Data_Array);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_BASE_URL", "http://127.0.0.1:18784");
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL", "http://127.0.0.1:18785/oauth/token");
+      Token_Server.Bind (18_785);
+      Server.Bind (18_784);
+      Load_Catalogue (Models);
+      Token_Server.Stop;
+      Server.Stop;
+      Assert (Get_Count = 2, "Repeated 401 must have one replay only");
+      Assert (Refresh_Count = 1, "Persistent 401 should refresh once");
+      Assert
+        (Find_Model (Models, "gpt-6-astra") > 0,
+         "Persistent 401 should fall back to stale cache");
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+      Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Token_Server.Stop;
+         Server.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+         Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_401_Recovery_Failure_Uses_Stale_Cache;
+
+   procedure Test_Refresh_Failure_Uses_Stale_Cache (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String :=
+        "/tmp/coyote_codex_catalogue_refresh_fail";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Base_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_BASE_URL");
+      Old_Base     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_BASE_URL", "");
+      Token_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Token     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Models      : Catalogue_Vectors.Vector;
+      Token_Count : Natural := 0;
+      procedure Token_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Token_Count := Token_Count + 1;
+         Res.Status := 401;
+         Append (Res.Body_Data, "{}");
+      end Token_Handler;
+      Token_Server : Test_HTTP_Server.Server
+        (Handler => Token_Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":""r"","
+         & """access"":""old-token"",""expires"":0}}");
+      Write_Cache (Home, Current_Unix_S - 172_800, Fixture_Data_Array);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_BASE_URL", "http://127.0.0.1:9");
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL", "http://127.0.0.1:18786/oauth/token");
+      Token_Server.Bind (18_786);
+      Load_Catalogue (Models);
+      Token_Server.Stop;
+      Assert
+        (Token_Count = 1, "Expired credential should attempt one refresh");
+      Assert
+        (Find_Model (Models, "gpt-6-astra") > 0,
+         "Failed proactive refresh should use stale cache");
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+      Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Token_Server.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+         Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Refresh_Failure_Uses_Stale_Cache;
 
    procedure Test_Fetch_Failure_No_Cache_Yields_Empty (T : in out Test) is
       pragma Unreferenced (T);
@@ -418,6 +727,26 @@ package body LLM_Codex_Catalogue_Tests is
            ("LLM.Codex.Catalogue fetches live when the cache is missing",
             LLM_Codex_Catalogue_Tests.Test_Cache_Missing_Triggers_Live_Fetch'
               Access));
+      Result.Add_Test
+        (LLM_Codex_Catalogue_Caller.Create
+           ("LLM.Codex.Catalogue refreshes expired credentials before fetch",
+            LLM_Codex_Catalogue_Tests
+              .Test_Expired_Token_Refreshes_Before_Fetch'Access));
+      Result.Add_Test
+        (LLM_Codex_Catalogue_Caller.Create
+           ("LLM.Codex.Catalogue recovers and retries a 401 once",
+            LLM_Codex_Catalogue_Tests.Test_401_Recovers_And_Replays_Once'
+              Access));
+      Result.Add_Test
+        (LLM_Codex_Catalogue_Caller.Create
+           ("LLM.Codex.Catalogue bounds 401 recovery and uses stale cache",
+            LLM_Codex_Catalogue_Tests
+              .Test_401_Recovery_Failure_Uses_Stale_Cache'Access));
+      Result.Add_Test
+        (LLM_Codex_Catalogue_Caller.Create
+           ("LLM.Codex.Catalogue uses stale cache when token refresh fails",
+            LLM_Codex_Catalogue_Tests
+              .Test_Refresh_Failure_Uses_Stale_Cache'Access));
       Result.Add_Test
         (LLM_Codex_Catalogue_Caller.Create
            ("LLM.Codex.Catalogue yields empty on fetch failure without cache",

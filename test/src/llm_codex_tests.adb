@@ -20,6 +20,7 @@ with LLM.Model_Registry;
 with LLM.Providers;
 with LLM.Providers.Codex;
 with LLM.Types;
+with LLM.Tools;
 with Test_HTTP_Server;
 
 package body LLM_Codex_Tests is
@@ -169,6 +170,8 @@ package body LLM_Codex_Tests is
 
       return "header." & To_String (Encoded) & ".signature";
    end Sample_Jwt;
+
+   procedure Write_Credentials (Home : String; Account_Id : String);
 
    procedure Test_Make_Pkce (T : in out Test) is
       pragma Unreferenced (T);
@@ -381,6 +384,75 @@ package body LLM_Codex_Tests is
          raise;
    end Test_Refresh_Token;
 
+   procedure Test_Refresh_Token_Omitted_Rotation (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port         : constant Positive := 18_812;
+      Home         : constant String := "/tmp/coyote_codex_auth_test_omitted";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Url_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Url      : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Creds        : LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token   => To_Unbounded_String ("keep-this-refresh"),
+         Access_Token    => To_Unbounded_String ("old-access"),
+         Expires_Ms      => 0,
+         Account_Id      => To_Unbounded_String ("acc-old"));
+      Saved        : LLM.Auth.Provider_Credentials;
+
+      procedure Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append
+           (Res.Body_Data,
+            "{""access_token"":""" & Sample_Jwt ("acc-fresh")
+            & """,""expires_in"":3600}");
+      end Handler;
+
+      Srv : Test_HTTP_Server.Server (Handler => Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port) & "/oauth/token");
+      Srv.Bind (Port);
+
+      LLM.Auth.Codex.Refresh_Token (Creds);
+      Saved := LLM.Auth.Load_Credentials ("codex");
+      Srv.Stop;
+
+      Assert
+        (To_String (Creds.Refresh_Token) = "keep-this-refresh",
+         "Omitted refresh_token must preserve the old refresh token");
+      Assert
+        (To_String (Saved.Refresh_Token) = "keep-this-refresh",
+         "Preserved refresh token must be persisted");
+      Assert
+        (To_String (Creds.Account_Id) = "acc-fresh",
+         "Refresh must still update the access-token account claim");
+
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Srv.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Refresh_Token_Omitted_Rotation;
+
    --  Run a refresh against a mock server and assert the raised error
    --  message contains Expected_Part.
    procedure Run_Refresh_Failure_Test
@@ -464,6 +536,120 @@ package body LLM_Codex_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Run_Refresh_Failure_Test;
+
+   procedure Test_Recover_Rejected_Token_Refreshes_Valid
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Port         : constant Positive := 18_813;
+      Home         : constant String := "/tmp/coyote_codex_recover_refresh";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Url_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Url      : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Creds        : LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token   => To_Unbounded_String ("refresh-recovery"),
+         Access_Token    => To_Unbounded_String ("rejected-access"),
+         Expires_Ms      => Current_Unix_Ms + 3_600_000,
+         Account_Id      => To_Unbounded_String ("acc-old"));
+      Refresh_Count : Natural := 0;
+
+      procedure Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Refresh_Count := Refresh_Count + 1;
+         Res.Status := 200;
+         Append
+           (Res.Body_Data,
+            "{""access_token"":""" & Sample_Jwt ("acc-recovered")
+            & """,""expires_in"":3600}");
+      end Handler;
+
+      Srv : Test_HTTP_Server.Server (Handler => Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":"
+         & """refresh-recovery"",""access"":"
+         & """rejected-access"",""expires"":"
+         & Long_Long_Integer'Image (Creds.Expires_Ms) & "}}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port) & "/oauth/token");
+      Srv.Bind (Port);
+
+      LLM.Auth.Codex.Recover_Rejected_Token
+        (Creds, To_String (Creds.Access_Token));
+      Srv.Stop;
+
+      Assert (Refresh_Count = 1, "Valid rejected token must force refresh");
+      Assert
+        (LLM.Auth.Codex.Account_Id_From_Jwt (To_String (Creds.Access_Token))
+         = "acc-recovered",
+         "Recovery should replace the rejected token");
+
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Srv.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Recover_Rejected_Token_Refreshes_Valid;
+
+   procedure Test_Recover_Rejected_Token_Reuses_Latest (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_codex_recover_latest";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Creds        : LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token   => To_Unbounded_String ("old-refresh"),
+         Access_Token    => To_Unbounded_String ("rejected-access"),
+         Expires_Ms      => Current_Unix_Ms + 3_600_000,
+         Account_Id      => To_Unbounded_String ("acc-old"));
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Credentials (Home, "acc-latest");
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      LLM.Auth.Codex.Recover_Rejected_Token
+        (Creds, To_String (Creds.Access_Token));
+
+      Assert
+        (To_String (Creds.Access_Token) =
+           Sample_Jwt ("acc-latest"),
+         "Recovery should reuse a newer valid stored token");
+      Assert
+        (To_String (Creds.Refresh_Token) = "codex-refresh",
+         "Recovery should update all credentials from storage");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Recover_Rejected_Token_Reuses_Latest;
 
    procedure Test_Refresh_Token_Non_200_Raises (T : in out Test) is
       pragma Unreferenced (T);
@@ -863,6 +1049,246 @@ package body LLM_Codex_Tests is
          raise;
    end Test_Send_Requires_Account_Claim;
 
+   type Recovery_Scenario is
+     (Proactive_Refresh, Recover_Once, Reject_Twice, Failed_Refresh,
+      Cancel_Recovery);
+
+   procedure Run_Provider_Recovery_Test (Scenario : Recovery_Scenario) is
+      Home          : constant String := "/tmp/coyote_codex_recovery_"
+        & Recovery_Scenario'Image (Scenario);
+      Port          : constant Positive :=
+        19_210 + Recovery_Scenario'Pos (Scenario) * 2;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Base_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_BASE_URL");
+      Old_Base      : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_BASE_URL", "");
+      Token_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Old_Token     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Provider      : LLM.Providers.Codex.Provider :=
+        LLM.Providers.Codex.Create (Session_Id => "recover-session");
+      Messages      : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Request_Count : Natural := 0;
+      Refresh_Count : Natural := 0;
+      Start_Count   : Natural := 0;
+      End_Count     : Natural := 0;
+      First_Payload : Unbounded_String;
+      Second_Payload : Unbounded_String;
+      Raised        : Boolean := False;
+      Abort_Flag    : aliased LLM.Tools.Abort_Flag;
+      Server_Stopped : Boolean := False;
+
+      procedure Token_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Refresh_Count := Refresh_Count + 1;
+         if Scenario = Failed_Refresh then
+            Res.Status := 401;
+            Append (Res.Body_Data, "{}");
+         else
+            Res.Status := 200;
+            Append
+              (Res.Body_Data,
+               "{""access_token"":""" & Sample_Jwt ("acc-new")
+               & """,""refresh_token"":""rotated"",""expires_in"":3600}");
+         end if;
+      end Token_Handler;
+
+      procedure Response_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         Authorization : constant String :=
+           Test_HTTP_Server.Get_Header (Req.Headers, "Authorization");
+         Account : constant String :=
+           Test_HTTP_Server.Get_Header (Req.Headers, "chatgpt-account-id");
+      begin
+         Request_Count := Request_Count + 1;
+         Assert
+           (To_String (Req.Path) = "/codex/responses",
+            "Codex response endpoint expected");
+         if Request_Count = 1 then
+            First_Payload := Req.Body_Data;
+         else
+            Second_Payload := Req.Body_Data;
+         end if;
+         if Scenario = Proactive_Refresh or else Request_Count > 1 then
+            Assert
+              (Authorization = "Bearer " & Sample_Jwt ("acc-new"),
+               "Request should use refreshed bearer token");
+            Assert (Account = "acc-new", "Request should use new account");
+         else
+            Assert
+              (Authorization = "Bearer " & Sample_Jwt ("acc-old"),
+               "First request should use original bearer token");
+            Assert
+              (Account = "acc-old", "First request should use old account");
+         end if;
+         if Scenario = Proactive_Refresh or else
+           (Request_Count = 2 and then Scenario = Recover_Once)
+         then
+            Res.Status := 200;
+            Append (Res.Body_Data, Build_Text_SSE ("recovered"));
+         else
+            Res.Status := 401;
+            Append
+              (Res.Body_Data,
+               "{""error"":{""code"":""token_expired""}}");
+            if Scenario = Cancel_Recovery then
+               Abort_Flag.Set;
+            end if;
+         end if;
+      end Response_Handler;
+
+      Token_Server : Test_HTTP_Server.Server
+        (Handler => Token_Handler'Unrestricted_Access);
+      Response_Server : Test_HTTP_Server.Server
+        (Handler => Response_Handler'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      if Scenario = Proactive_Refresh then
+         Write_File
+           (Home & "/.coyote/auth.json",
+            "{""codex"":{""type"":""oauth"",""refresh"":""r"","
+            & """access"":""" & Sample_Jwt ("acc-old")
+            & """,""expires"":0,""accountId"":""acc-old""}}");
+      else
+         Write_File
+           (Home & "/.coyote/auth.json",
+            "{""codex"":{""type"":""oauth"",""refresh"":""r"","
+            & """access"":""" & Sample_Jwt ("acc-old")
+            & """,""expires"":9999999999000,""accountId"":""acc-old""}}");
+      end if;
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_BASE_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port));
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port + 1) & "/oauth/token");
+      Token_Server.Bind (Port + 1);
+      Response_Server.Bind (Port);
+      begin
+         if Scenario = Cancel_Recovery then
+            Provider.Send
+              (Model_Id      => "gpt-5.5",
+               System_Prompt => "Be helpful.",
+               Messages      => Messages,
+               Tools_Json    => "[]",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => 64,
+               Handler       => On_Event'Access,
+               Abort_Check   => Abort_Flag'Unchecked_Access);
+         else
+            Send_With_Retry
+              (P => Provider, Model_Id => "gpt-5.5", Messages => Messages);
+         end if;
+      exception
+         when others =>
+            Raised := True;
+      end;
+      Token_Server.Stop;
+      Response_Server.Stop;
+      Server_Stopped := True;
+      for Event of Current_Collector.Sequence loop
+         if Event = "message_start" then
+            Start_Count := Start_Count + 1;
+         elsif Event = "message_end" then
+            End_Count := End_Count + 1;
+         end if;
+      end loop;
+      Assert
+        (Refresh_Count = (if Scenario = Cancel_Recovery then 0 else 1),
+         "Unexpected refresh count");
+      case Scenario is
+         when Proactive_Refresh =>
+            Assert (not Raised, "Proactive refresh should succeed");
+            Assert (Request_Count = 1, "Proactive refresh sends once");
+         when Recover_Once =>
+            Assert (not Raised, "Recovered request should succeed");
+            Assert (Request_Count = 2, "401 permits one replay");
+            Assert
+              (To_String (First_Payload) = To_String (Second_Payload),
+               "Replay must preserve the original payload");
+            Assert (Start_Count = 1, "One message_start expected");
+            Assert (End_Count = 1, "One message_end expected");
+            Assert
+              (Current_Collector.Last_Stop = LLM.Types.Stop,
+               "Successful replay should not emit an error");
+         when Reject_Twice =>
+            Assert (Raised, "Second 401 should fail");
+            Assert (Request_Count = 2, "Persistent 401 permits one replay");
+            Assert
+              (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+               "Second 401 should emit Error_Stop");
+         when Failed_Refresh =>
+            Assert (Raised, "Failed refresh should fail send");
+            Assert (Request_Count = 1, "Failed refresh must not replay");
+            Assert
+              (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+               "Refresh failure should emit Error_Stop");
+         when Cancel_Recovery =>
+            Assert (Raised, "Cancellation should abort recovery");
+            Assert (Request_Count = 1, "Cancellation prevents replay");
+            Assert (Refresh_Count = 0, "Cancellation precedes refresh");
+      end case;
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+      Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            Token_Server.Stop;
+            Response_Server.Stop;
+         end if;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Token_Was_Set, Old_Token);
+         Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Run_Provider_Recovery_Test;
+
+   procedure Test_Send_Refreshes_Expired_Credentials (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Provider_Recovery_Test (Proactive_Refresh);
+   end Test_Send_Refreshes_Expired_Credentials;
+
+   procedure Test_Send_Recovers_401_And_Replays (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Provider_Recovery_Test (Recover_Once);
+   end Test_Send_Recovers_401_And_Replays;
+
+   procedure Test_Send_Stops_After_Second_401 (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Provider_Recovery_Test (Reject_Twice);
+   end Test_Send_Stops_After_Second_401;
+
+   procedure Test_Send_Does_Not_Replay_When_Refresh_Fails
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Provider_Recovery_Test (Failed_Refresh);
+   end Test_Send_Does_Not_Replay_When_Refresh_Fails;
+
+   procedure Test_Send_Cancellation_Prevents_Recovery (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Provider_Recovery_Test (Cancel_Recovery);
+   end Test_Send_Cancellation_Prevents_Recovery;
+
    procedure Test_Stream_Text_Response (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -1226,6 +1652,20 @@ package body LLM_Codex_Tests is
             LLM_Codex_Tests.Test_Refresh_Token'Access));
       Result.Add_Test
         (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex keeps refresh token when rotation is omitted",
+            LLM_Codex_Tests.Test_Refresh_Token_Omitted_Rotation'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex refreshes a locally valid rejected token",
+            LLM_Codex_Tests.Test_Recover_Rejected_Token_Refreshes_Valid
+              'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex reuses an updated stored token after rejection",
+            LLM_Codex_Tests.Test_Recover_Rejected_Token_Reuses_Latest
+              'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
            ("LLM.Auth.Codex raises on non-200 refresh responses",
             LLM_Codex_Tests.Test_Refresh_Token_Non_200_Raises'Access));
       Result.Add_Test
@@ -1244,6 +1684,27 @@ package body LLM_Codex_Tests is
         (LLM_Codex_Caller.Create
            ("LLM.Providers.Codex rejects sends without the account claim",
             LLM_Codex_Tests.Test_Send_Requires_Account_Claim'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex proactively refreshes expired credentials",
+            LLM_Codex_Tests.Test_Send_Refreshes_Expired_Credentials'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex recovers a 401 and replays once",
+            LLM_Codex_Tests.Test_Send_Recovers_401_And_Replays'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex stops after a second 401",
+            LLM_Codex_Tests.Test_Send_Stops_After_Second_401'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex does not replay when refresh fails",
+            LLM_Codex_Tests.Test_Send_Does_Not_Replay_When_Refresh_Fails
+              'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Providers.Codex cancellation prevents 401 recovery",
+            LLM_Codex_Tests.Test_Send_Cancellation_Prevents_Recovery'Access));
       Result.Add_Test
         (LLM_Codex_Caller.Create
            ("LLM.Providers.Codex streams Responses text and body shape",

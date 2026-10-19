@@ -519,6 +519,38 @@ in `models.json`, (3) the provider-standard environment variable name.
 GitHub Copilot tokens that are expired or near expiry shall be automatically
 refreshed using the stored refresh token before the request is sent.
 
+**REQ-CORE-144** (D/T)
+The Codex provider shall proactively refresh an expired or near-expiry OAuth
+access token before sending a request, and shall use the resulting access token
+and account identifier in that request's bearer and account headers.
+
+**REQ-CORE-145** (D/T)
+For Codex requests, an HTTP 401 response shall trigger a guarded credential
+reload and refresh, followed by one replay of the identical request at most.
+The provider shall check cancellation before recovery and before replay. If
+recovery or replay fails, or the replay also returns HTTP 401, the request
+shall terminate without another recovery attempt. A rejected response body
+shall not be emitted as SSE content or as an intermediate failed assistant
+message.
+
+**REQ-CORE-146** (D/T)
+The shared Responses request helper shall not perform authentication recovery
+on HTTP 401 by default; a provider shall explicitly enable its recovery hook
+to reload, refresh, and replay a request. Independent provider recovery paths,
+such as GitHub Copilot's, remain unchanged.
+
+**REQ-CORE-147** (D/T)
+A fresh Codex catalogue cache shall be returned without a network request. A
+live catalogue fetch shall first ensure valid credentials; if the fetch returns
+HTTP 401, it shall perform guarded credential recovery and one identical fetch
+replay at most before applying stale-cache fallback. The existing policy that
+prohibited refresh during catalogue loading is superseded.
+
+**REQ-CORE-148** (D/T)
+A successful Codex refresh response may omit `refresh_token`; in that case the
+previous refresh token shall be retained. Initial authorization-code login
+shall continue to require a non-empty `refresh_token`.
+
 **REQ-CORE-075** (D)
 In the retired Acme frontend, the model could be switched at runtime by sending a
 `coyote-model+PID/PROVIDER/ID` token via the `/coyote-model` plumb port.
@@ -1840,6 +1872,7 @@ retains historical `TC-*` identifiers.
 | REQ-CORE-072 | All seven providers supported | D | TC-072 |
 | REQ-CORE-073 | API key resolution order | T | TC-073 |
 | REQ-CORE-074 | Copilot token auto-refresh | D | TC-074 |
+| REQ-CORE-144–148 | Codex proactive refresh, guarded 401 recovery/replay, fresh-cache behavior, refresh-token retention | D/T | PCR-110; Codex auth/provider/catalogue and Responses mock-server tests (49/49); full suite 952/952 |
 | REQ-CORE-075 | Retired Acme/plumber model switch (historical) | D | TC-075 |
 | REQ-CORE-076 | Retired Acme/plumber thinking switch (historical) | D | TC-076 |
 | REQ-CORE-077 | Provider graceful startup | D | TC-077 |

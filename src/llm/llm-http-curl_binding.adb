@@ -4,10 +4,13 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Exceptions;
+with Interfaces.C;
 
 package body LLM.HTTP.Curl_Binding is
 
    use type System.Address;
+   use type Interfaces.C.long;
+   use type Code;
 
    function Ada_Write_Callback
      (Buffer    : System.Address;
@@ -34,16 +37,51 @@ package body LLM.HTTP.Curl_Binding is
       begin
          if Bytes > 0 then
             declare
-               Handler : access procedure (Data : String);
-               for Handler'Address use Ctx.On_Chunk_Address;
-               pragma Import (Ada, Handler);
-
                Data : String (1 .. Natural (Bytes));
                for Data'Address use Buffer;
                pragma Import (Ada, Data);
             begin
-               if Handler /= null then
-                  Handler.all (Data);
+               if Ctx.On_Chunk_Status_Address /= System.Null_Address then
+                  declare
+                     Easy_Handle : Handle;
+                     for Easy_Handle'Address use Ctx.Handle_Address;
+                     pragma Import (Ada, Easy_Handle);
+
+                     Response : aliased Interfaces.C.long := 0;
+                     Result   : constant Code :=
+                       Get_Response_Code (Easy_Handle, Response'Access);
+                  begin
+                     if Result /= 0 then
+                        raise LLM.HTTP.Curl_Error with
+                          "curl_easy_getinfo(CURLINFO_RESPONSE_CODE) failed"
+                          & Code'Image (Result);
+                     end if;
+
+                     declare
+                        Handler : access procedure
+                          (Data : String; Status : Natural);
+                        for Handler'Address use
+                          Ctx.On_Chunk_Status_Address;
+                        pragma Import (Ada, Handler);
+
+                        Status : constant Natural :=
+                          (if Response < 0 then 0 else Natural (Response));
+                     begin
+                        if Handler /= null then
+                           Handler.all (Data, Status);
+                        end if;
+                     end;
+                  end;
+               else
+                  declare
+                     Handler : access procedure (Data : String);
+                     for Handler'Address use Ctx.On_Chunk_Address;
+                     pragma Import (Ada, Handler);
+                  begin
+                     if Handler /= null then
+                        Handler.all (Data);
+                     end if;
+                  end;
                end if;
             end;
          end if;

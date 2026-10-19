@@ -403,7 +403,7 @@ not wait for the complete user turn.
 | `LLM.Auth.Codex.Login` | Browser OAuth login flow with local callback listener | `src/llm/llm-auth-codex-login.ads/.adb` |
 | `LLM.Model_Registry` | In-memory model catalogue | `src/llm/llm-model_registry.ads/.adb` |
 | `LLM.Providers` | Abstract provider interface | `src/llm/llm-providers.ads` |
-| `LLM.HTTP` | libcurl-backed streaming HTTP client | `src/llm/llm-http.ads/.adb` |
+| `LLM.HTTP` | libcurl-backed streaming HTTP client; status-aware chunk callback and per-request curl context | `src/llm/llm-http.ads/.adb` |
 | `LLM.HTTP.Curl_Binding` | Thin libcurl binding | `src/llm/llm-http-curl_binding.ads/.adb` |
 | `LLM.Providers.OpenAI_Completions` | OpenAI Chat Completions wire | `src/llm/llm-providers-openai_completions.ads/.adb` |
 | `LLM.Providers.OpenAI_Responses` | OpenAI Responses wire | `src/llm/llm-providers-openai_responses.ads/.adb` |
@@ -1027,6 +1027,15 @@ override to add provider-specific logic.
 `OpenAI_Completions`, not a replacement. Used by native OpenAI and by
 OpenRouter.
 
+**Authentication recovery interface:** `Send_Request` has an optional
+`Recover_Auth` hook, disabled by default. An opted-in provider may replace
+request headers through `Set_Header`. The request uses
+`LLM.HTTP.Post_With_Status` with a request-local chunk callback, so HTTP status
+is known before bytes are sent to the SSE parser. On 401 the hook runs only
+after a cancellation check; after it succeeds, cancellation is checked again
+before one replay with the same body, URL, and non-authentication headers.
+Without the hook, providers retain the ordinary response/error path.
+
 **`Send` procedure flow:**
 1. Build `input` JSON array from `History`. Role mapping:
    - user / compaction-summary → `{type:"message", role:"user", content:[{type:"input_text", text}]}`
@@ -1151,17 +1160,13 @@ forking the parser.
 
 **Purpose:** HTTPS client with streaming SSE support via libcurl.
 
-**`Post_Stream` procedure:**
-1. Initialise a `CURL` handle via `curl_easy_init`.
-2. Set URL, headers, body, write callback, and timeout options.
-3. Call `curl_easy_perform` (blocks until stream is complete or aborted).
-4. The write callback is called for each chunk; it feeds bytes to the SSE
-   parser, which calls the provider's event callback synchronously.
-5. When an abort flag is supplied, `CURLOPT_XFERINFOFUNCTION` is enabled and
-   receives the flag's atomic C mirror as userdata. The native callback returns
-   nonzero when the flag is set, causing libcurl to terminate a blocked
-   transfer without waiting for response data. The provider callback still
-   checks the protected flag before dispatching each event.
+**HTTP request procedures:** `Post`, `Get`, and `Post_With_Status` create a
+per-request curl context rather than using shared global callback state.
+`Post_With_Status` queries the live curl handle's response code before each
+chunk callback, allowing callers to distinguish SSE data from rejected or
+error bodies before parsing or dispatch. Callback/getinfo exceptions are
+captured at the C boundary and re-raised as `Curl_Error` after the transfer.
+An abort flag is polled by the transfer callback when supplied.
 
 ---
 
@@ -1688,17 +1693,20 @@ redirect URI, client id, and verifier to the token endpoint.  Requires
 token.  The caller owns persistence.
 
 **`Refresh_Token`:** POSTs `grant_type=refresh_token` with the stored
-refresh token and client id.  On success, updates access token, expiry,
-and (when rotated) the refresh token; re-extracts the account id from the
-new access token, retaining the previous value when the fresh token omits
-the claim.  Persists the result under the `"codex"` key of
-`~/.coyote/auth.json`.
+refresh token and client id. On success, updates access token, expiry,
+and (when rotated) the refresh token; if the response omits
+`refresh_token`, retains the previous refresh token. Re-extracts the account
+id from the new access token, retaining the previous value when the fresh
+token omits the claim. Persists the result under the `"codex"` key of
+`~/.coyote/auth.json`. Initial `Exchange_Code` login continues to require
+`access_token`, `refresh_token`, and positive `expires_in`.
 
 **`Token_Expired` / `Ensure_Valid`:** The token is expired when
 `Expires_Ms` is within five minutes of the current epoch-millisecond
-time.  `Ensure_Valid` serialises refresh across tasks with a protected
+time. `Ensure_Valid` serialises refresh across tasks with a protected
 mutex, re-reads `auth.json` under the lock (double-checked locking), and
-refreshes only when the latest stored credential is still expired.
+refreshes only when the latest stored credential is still expired. This
+process-local guard does not claim cross-process locking.
 
 ---
 
@@ -1763,12 +1771,12 @@ a non-empty `supported_reasoning_levels`, tool support from
 `input_modalities`.  `Max_Tokens` is 0 — the Codex backend rejects
 `max_output_tokens` and the provider already omits that field — and cost
 is zero (subscription billing).  The catalogue is cached for 24 hours in
-`~/.coyote/codex_models_cache.json`; a stale cache is used when the live
-fetch fails, and an empty registry results when no cache exists.  Token
-refresh is deliberately not performed during the refresh: only a cached,
-non-expired access token is used, keeping the startup refresh synchronous
-and side-effect free.  Without credentials the Codex portion of the
-registry stays empty.
+`~/.coyote/codex_models_cache.json`; a stale cache is used only after the
+live fetch and its guarded one-time HTTP 401 recovery fail, and an empty
+registry results when no cache exists. A fresh cache is returned without a
+network request. Live fetches first call `LLM.Auth.Codex.Ensure_Valid`; this
+supersedes the previous no-refresh-during-catalogue policy. Without
+credentials the Codex portion of the registry stays empty.
 
 **`Lookup` for `"codex"`:** Unknown Codex model IDs raise `Not_Found`
 rather than returning a fabricated default.  The live catalogue is the
@@ -1881,9 +1889,12 @@ provider record.  `LLM.Agent` passes the stable `Session.Session_UUID`.
 
 **`Send` procedure:**
 1. Load Codex credentials from `~/.coyote/auth.json` (key `"codex"`) and
-   call `LLM.Auth.Codex.Ensure_Valid` to refresh an expired access token
-   (5-minute expiry window) before dispatch; no refresh happens at
-   startup.
+   call `LLM.Auth.Codex.Ensure_Valid` to refresh an expired or near-expiry
+   access token before dispatch when a Codex request is made. Catalogue
+   loading may also refresh credentials when a live fetch is needed. The
+   resulting access token and account ID populate the bearer and
+   `chatgpt-account-id` headers
+   sent on the request.
 2. Reject the request when no credential exists ("log in via
    Options > Subscriptions") or when the access token does not carry the
    `chatgpt_account_id` claim.
@@ -1911,6 +1922,20 @@ requests that omit the field (HTTP 400 "Store must be set to false").
 The shared Responses provider still omits `store` by default so the
 native OpenAI wire format is unchanged.
 
+**401 recovery:** The Codex delegate explicitly enables the optional
+`Recover_Auth` hook. Native provider delegates leave it disabled by default.
+On HTTP 401, the Responses path checks cancellation, reloads credentials under
+the process-local refresh guard, reuses a different valid stored access token
+or forces refresh regardless of local expiry, updates bearer and account
+headers, checks cancellation again, then
+replays the identical request once. A second 401 or refresh/replay failure is
+terminal. The rejected response body is withheld from SSE parsing and event
+dispatch, preventing an intermediate failed assistant message. The guard
+coordinates tasks in this process only; no cross-process lock is claimed.
+Cancellation prevents recovery/replay at the request boundaries, but cannot
+interrupt an already-blocked token refresh HTTP request, which retains the
+existing transport timeout behavior.
+
 ---
 ### 5.27b `LLM.Providers.Codex.Catalogue`
 
@@ -1918,23 +1943,25 @@ native OpenAI wire format is unchanged.
 it on disk, mirroring the OpenRouter and Ollama catalogue units.
 
 **Load flow:**
-1. Require a codex credential in `~/.coyote/auth.json`; return an empty
-   catalogue without a network request when absent or when the cached
-   access token is expired (no token refresh — that stays in
-   `LLM.Auth.Codex.Ensure_Valid` so startup refresh stays synchronous).
-2. Serve from `~/.coyote/codex_models_cache.json` when the cache is
-   younger than 24 hours.
-3. Otherwise GET `{base}/codex/models?client_version=99.0.0` with the
-   bearer token, `chatgpt-account-id`, and coyote originator headers.
+1. Serve `~/.coyote/codex_models_cache.json` without a network request when
+   the cache is younger than 24 hours. Otherwise load credentials and call
+   `LLM.Auth.Codex.Ensure_Valid` before a live catalogue fetch.
+2. GET `{base}/codex/models?client_version=99.0.0` with the current bearer
+   token, `chatgpt-account-id`, and coyote originator headers. On HTTP 401,
+   reload credentials and perform guarded refresh as needed, update both
+   authentication headers, and replay the identical GET once. Only after a
+   failed final fetch apply stale-cache fallback, or return an empty catalogue
+   when no cache exists. This supersedes the previous no-refresh-during-load
+   policy.
    The future `client_version` selects the fullest version-gated
    listing.  `COYOTE_CODEX_BASE_URL` overrides the base for tests.
-4. Filter to entries with `visibility` = `"list"` and a non-empty
+3. Filter to entries with `visibility` = `"list"` and a non-empty
    `slug`; parse `display_name`, `description`, `context_window`,
    `max_context_window`, reasoning capability
    (`supported_reasoning_levels` non-empty), tool support
    (`supports_parallel_tool_calls`), and image support
    (`image` in `input_modalities`).
-5. Cache the raw `models` array with a `fetched_at` timestamp; on fetch
+4. Cache the raw `models` array with a `fetched_at` timestamp; on fetch
    failure fall back to stale cache, or an empty catalogue when no cache
    exists.  Both degradation paths are reported on standard error
    (PCR-100): a failed fetch with cache logs the stale fallback, a failed
@@ -2798,7 +2825,7 @@ session-header rules synchronously.
 | REQ-CORE-170–174 | `LLM.System_Prompt`, `LLM.Agent`, `share/coyote/system-prompt.md` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
-| REQ-CORE-200–208, REQ-CORE-215–219 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
+| REQ-CORE-144–148, REQ-CORE-200–208, REQ-CORE-215–219 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Auth.Codex`, `LLM.Model_Registry` |
 | REQ-CORE-210–212 | Historical retired Acme 9P VFS requirements; see PCR-090 |
 | REQ-CORE-220–221, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.*` |
 | REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |

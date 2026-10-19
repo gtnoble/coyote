@@ -1,5 +1,44 @@
 # Component Development Log — Core Agent
 
+## 2026-10-19 — Codex proactive credential refresh and guarded 401 recovery (PCR-110)
+
+**Approved behavior:** Codex credentials are proactively refreshed before use;
+the resulting access token and account ID are used in bearer/account headers.
+A Codex HTTP 401 triggers cancellation checks, process-local guarded
+credential reload/refresh, and at most one replay of the identical request.
+Rejected response bodies are not parsed or emitted as intermediate SSE or
+assistant failures. A final 401 or refresh/replay failure is terminal. Native
+providers leave the optional Responses recovery hook disabled by default.
+Catalogue loading serves a fresh cache without network access; live fetch first
+ensures valid credentials and applies the same guarded single-replay recovery
+before stale-cache fallback. A refresh response may omit `refresh_token`, in
+which case the existing refresh token is retained; initial login still
+requires one. The guard coordinates only within this process; no cross-process
+lock is claimed.
+
+**Design recorded:** HTTP adds status-aware `Post_With_Status` and a chunk
+callback using per-request curl context. Responses supports an optional
+`Recover_Auth` hook and `Set_Header` so an opted-in provider can refresh
+credentials and replace request authentication headers without changing the
+request payload. No source-unit inventory additions are made by this
+documentation update.
+
+**Verification:** Application `alr build --development` and tests
+`cd test && alr build --development --profiles=coyote=development` passed.
+Both generated Coyote build profiles select development. Focused tests passed:
+Codex auth 11/11, provider 10/10, catalogue 8/8, Responses 20/20 (49/49).
+The complete suite passed 952/952 with no failed assertions or unexpected
+errors; 17 regression tests were added for this change. The repeated explicit
+development run took 44.86 seconds wall time. Mock HTTP endpoints were used;
+no live provider calls or opt-in real subagent tests were enabled.
+
+**Review:** Self-evaluation and a separate read-only worker review found no
+remaining blocker to the approved behavior. Cancellation is checked before
+recovery and replay, but does not interrupt an already-blocked token refresh;
+the existing transport timeout applies. The guard remains process-local.
+The developer is evaluating their own work; independent user review remains
+the acceptance authority.
+
 ## 2026-09-15 — Complete CSM retirement and Markdown-only core baseline (PCR-105)
 
 The CSM parser, semantic document, response renderer/presenter/streaming owner,

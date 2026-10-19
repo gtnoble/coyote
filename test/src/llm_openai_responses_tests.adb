@@ -14,6 +14,7 @@ with LLM.Providers;
 with LLM.Providers.OpenAI_Responses;
 with LLM.Providers.OpenAI_Responses.Testing;
 with LLM.Types;
+with LLM.Tools;
 with Test_HTTP_Server;
 
 package body LLM_OpenAI_Responses_Tests is
@@ -871,6 +872,187 @@ package body LLM_OpenAI_Responses_Tests is
          raise;
    end Test_HTTP_Error_Propagates;
 
+   type Auth_Test_Scenario is
+     (Default_401, Recover_401, Cancel_401, Raise_401, Ignore_500);
+
+   procedure Run_Auth_Test (Scenario : Auth_Test_Scenario) is
+      Port          : constant Positive :=
+        19_130 + Auth_Test_Scenario'Pos (Scenario);
+      Provider      : LLM.Providers.OpenAI_Responses.Provider :=
+        LLM.Providers.OpenAI_Responses.Create
+          (Base_Url =>
+             "http://127.0.0.1:" & Ada.Strings.Fixed.Trim
+               (Positive'Image (Port), Ada.Strings.Left),
+           Api_Key  => "test-key");
+      Messages      : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Abort_Flag    : aliased LLM.Tools.Abort_Flag;
+      Request_Count : Natural := 0;
+      Hook_Count    : Natural := 0;
+      Raised        : Boolean := False;
+      Callback_Exception_Propagated : Boolean := False;
+      Server_Stopped : Boolean := False;
+
+      procedure Handle_Request
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         if Scenario = Ignore_500 then
+            Res.Status := 500;
+            Ada.Strings.Unbounded.Append
+              (Res.Body_Data, "server error");
+         elsif Request_Count = 1 then
+            Res.Status := 401;
+            Ada.Strings.Unbounded.Append
+              (Res.Body_Data,
+               SSE_Event
+                 ("error",
+                  "{""type"":""error"",""error"":{""message"":"
+                  & """rejected response must not be published""}}"));
+         else
+            Res.Status := 200;
+            Ada.Strings.Unbounded.Append
+              (Res.Body_Data, Build_Text_SSE ("recovered", 1, 1));
+         end if;
+      end Handle_Request;
+
+      procedure Recover_Auth
+        (P : in out LLM.Providers.OpenAI_Responses.Provider'Class)
+      is
+         pragma Unreferenced (P);
+      begin
+         Hook_Count := Hook_Count + 1;
+         if Scenario = Cancel_401 then
+            Abort_Flag.Set;
+         elsif Scenario = Raise_401 then
+            raise Program_Error with "auth callback failed";
+         end if;
+      end Recover_Auth;
+
+      Srv : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Srv.Bind (Port);
+      begin
+         LLM.Providers.OpenAI_Responses.Send_Request
+           (P             => Provider,
+            Model_Id      => "test-model",
+            System_Prompt => "",
+            Messages      => Messages,
+            Tools_Json    => "[]",
+            Thinking      => LLM.Providers.Off,
+            Max_Tokens    => 16,
+            Handler       => On_Event'Access,
+            Abort_Check   =>
+              (if Scenario = Cancel_401 then Abort_Flag'Unchecked_Access
+               else null),
+            Recover_Auth  =>
+              (if Scenario = Default_401 then null
+               else Recover_Auth'Access));
+      exception
+         when LLM.HTTP.Curl_Error =>
+            Raised := True;
+         when Constraint_Error =>
+            Raised := True;
+         when Program_Error =>
+            Raised := True;
+            Callback_Exception_Propagated := True;
+      end;
+      Srv.Stop;
+      Server_Stopped := True;
+
+      case Scenario is
+         when Default_401 =>
+            Assert (Raised, "Default 401 should fail");
+            Assert (Request_Count = 1, "Default 401 must not retry");
+            Assert (Hook_Count = 0, "Default 401 has no recovery hook");
+            Assert
+              (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+               "Default 401 emits Error_Stop");
+         when Recover_401 =>
+            Assert (not Raised, "Recovered 401 should succeed");
+            Assert (Request_Count = 2, "401 recovery replays once");
+            Assert (Hook_Count = 1, "401 invokes recovery once");
+            Assert
+              (Count_Event
+                 ("text_delta:recovered") = 1,
+               "Replay output should be published");
+            Assert
+              (Count_Event
+                 ("text_delta:rejected response must not be published") = 0,
+               "Rejected SSE body must not be published");
+            Assert
+              (Current_Collector.Last_Stop = LLM.Types.Stop,
+               "Successful replay emits normal stop");
+         when Cancel_401 =>
+            Assert (Raised, "Cancellation in recovery should propagate");
+            Assert (Request_Count = 1, "Cancellation prevents second HTTP");
+            Assert (Hook_Count = 1, "Cancellation follows recovery hook");
+         when Raise_401 =>
+            Assert (Raised, "Recovery callback exception should propagate");
+            Assert
+              (Callback_Exception_Propagated,
+               "Recovery callback Program_Error should propagate");
+            Assert (Request_Count = 1, "Callback failure must not replay");
+            Assert (Hook_Count = 1, "Recovery callback invoked once");
+            Assert
+              (Count_Event ("message_end") = 1,
+               "Callback failure emits exactly one Message_End");
+            Assert
+              (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+               "Callback failure emits Error_Stop");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (To_String (Current_Collector.Last_Error),
+                  "auth callback failed") > 0,
+               "Callback error text should propagate to event");
+         when Ignore_500 =>
+            Assert (Raised, "Non-401 HTTP status should fail");
+            Assert (Request_Count = 1, "Non-401 status must not retry");
+            Assert (Hook_Count = 0, "Non-401 status must not recover");
+      end case;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Run_Auth_Test;
+
+   procedure Test_401_Default_Does_Not_Retry (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Auth_Test (Default_401);
+   end Test_401_Default_Does_Not_Retry;
+
+   procedure Test_401_Recovery_Does_Not_Publish_Rejected_SSE
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Auth_Test (Recover_401);
+   end Test_401_Recovery_Does_Not_Publish_Rejected_SSE;
+
+   procedure Test_401_Cancellation_Prevents_Replay (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Auth_Test (Cancel_401);
+   end Test_401_Cancellation_Prevents_Replay;
+
+   procedure Test_401_Recovery_Exception_Propagates (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Auth_Test (Raise_401);
+   end Test_401_Recovery_Exception_Propagates;
+
+   procedure Test_Non_401_Does_Not_Recover (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Auth_Test (Ignore_500);
+   end Test_Non_401_Does_Not_Recover;
+
    procedure Test_Usage_Includes_Cache_Write (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -1521,6 +1703,30 @@ package body LLM_OpenAI_Responses_Tests is
         (LLM_OpenAI_Responses_Caller.Create
            ("LLM.OpenAI_Responses propagates HTTP errors",
             LLM_OpenAI_Responses_Tests.Test_HTTP_Error_Propagates'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses does not retry default 401",
+            LLM_OpenAI_Responses_Tests.Test_401_Default_Does_Not_Retry'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses suppresses rejected 401 SSE on recovery",
+            LLM_OpenAI_Responses_Tests
+              .Test_401_Recovery_Does_Not_Publish_Rejected_SSE'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses cancellation stops 401 replay",
+            LLM_OpenAI_Responses_Tests.Test_401_Cancellation_Prevents_Replay'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses propagates recovery callback exception",
+            LLM_OpenAI_Responses_Tests.Test_401_Recovery_Exception_Propagates'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses does not recover non-401 status",
+            LLM_OpenAI_Responses_Tests.Test_Non_401_Does_Not_Recover'Access));
       Result.Add_Test
         (LLM_OpenAI_Responses_Caller.Create
            ("LLM.OpenAI_Responses parses cache_write_tokens",

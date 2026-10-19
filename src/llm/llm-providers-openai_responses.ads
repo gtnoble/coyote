@@ -60,6 +60,9 @@ package LLM.Providers.OpenAI_Responses is
    --  metadata headers.
    procedure Add_Header (P : in out Provider; Name : String; Value : String);
 
+   --  Replace an extra header, or add it if absent (case-insensitive name).
+   procedure Set_Header (P : in out Provider; Name : String; Value : String);
+
    --  Inject reasoning-effort configuration into the request.
    --
    --  Maps Thinking_Level to the Responses reasoning.effort field
@@ -77,6 +80,10 @@ package LLM.Providers.OpenAI_Responses is
    --  preserved when P is a descendant object. Raises
    --  Transient_Provider_Error after HTTP callbacks finish for an overload
    --  code or service-unavailable error type, with concise error text.
+   --  Recover_Auth, when supplied, replaces rejected credentials after HTTP
+   --  401. The request is replayed once before publishing a terminal error.
+   --  Rejected bodies are not parsed as streamed content. Cancellation is
+   --  checked before recovery and replay; callback failures propagate.
    procedure Send_Request
      (P             : in out Provider'Class;
       Model_Id      :        String;
@@ -86,7 +93,8 @@ package LLM.Providers.OpenAI_Responses is
       Thinking      :        LLM.Providers.Thinking_Level;
       Max_Tokens    :        Positive;
       Handler       :        LLM.Providers.Event_Handler;
-      Abort_Check   :        LLM.Providers.Abort_Callback := null);
+      Abort_Check   :        LLM.Providers.Abort_Callback := null;
+      Recover_Auth  : access procedure (P : in out Provider'Class) := null);
 
    overriding procedure Send
      (P             : in out Provider;

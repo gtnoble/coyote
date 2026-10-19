@@ -65,10 +65,12 @@ package body LLM.Providers.Codex is
       Delegate   : LLM.Providers.OpenAI_Responses.Provider :=
         LLM.Providers.OpenAI_Responses.Create
           (Base_Url => Base_Url & "/codex",
-           Api_Key  => To_String (Creds.Access_Token));
+           Api_Key  => "");
 
       procedure Configure_Delegate is
       begin
+         LLM.Providers.OpenAI_Responses.Set_Api_Key
+           (Delegate, To_String (Creds.Access_Token));
          --  Authorization and Content-Type headers are added by
          --  Send_Request itself; everything here is Codex-specific.
          LLM.Providers.OpenAI_Responses.Add_Header
@@ -104,6 +106,23 @@ package body LLM.Providers.Codex is
               (Delegate, Clamped_Session_Key (Session_Id));
          end if;
       end Configure_Delegate;
+
+      procedure Recover_Auth
+        (Rejected : in out LLM.Providers.OpenAI_Responses.Provider'Class)
+      is
+         Rejected_Token : constant String :=
+           LLM.Providers.OpenAI_Responses.Get_Api_Key (Rejected);
+      begin
+         LLM.Auth.Codex.Recover_Rejected_Token (Creds, Rejected_Token);
+         if Length (Creds.Account_Id) = 0 then
+            raise LLM.Auth.Codex.Auth_Error
+              with "OpenAI Codex account id missing after token refresh";
+         end if;
+         LLM.Providers.OpenAI_Responses.Set_Api_Key
+           (Rejected, To_String (Creds.Access_Token));
+         LLM.Providers.OpenAI_Responses.Set_Header
+           (Rejected, "chatgpt-account-id", To_String (Creds.Account_Id));
+      end Recover_Auth;
    begin
       if Length (Creds.Refresh_Token) = 0
         and then Length (Creds.Access_Token) = 0
@@ -133,7 +152,8 @@ package body LLM.Providers.Codex is
          Thinking      => Thinking,
          Max_Tokens    => Max_Tokens,
          Handler       => Handler,
-         Abort_Check   => Abort_Check);
+         Abort_Check   => Abort_Check,
+         Recover_Auth  => Recover_Auth'Access);
    exception
       when E : LLM.Auth.Codex.Auth_Error =>
          --  Surface authentication failures as provider errors instead of

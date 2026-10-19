@@ -8,6 +8,10 @@ package LLM_Codex_Catalogue_Tests is
 
    procedure Test_Load_From_Fresh_Cache (T : in out Test);
    procedure Test_Cache_Missing_Triggers_Live_Fetch (T : in out Test);
+   procedure Test_Expired_Token_Refreshes_Before_Fetch (T : in out Test);
+   procedure Test_401_Recovers_And_Replays_Once (T : in out Test);
+   procedure Test_401_Recovery_Failure_Uses_Stale_Cache (T : in out Test);
+   procedure Test_Refresh_Failure_Uses_Stale_Cache (T : in out Test);
    procedure Test_Fetch_Failure_No_Cache_Yields_Empty (T : in out Test);
    procedure Test_No_Credentials_Yields_Empty (T : in out Test);
 
