@@ -3585,3 +3585,37 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   with the user.
 - **Status:** Closed/Implemented and Verified.
 - **Date closed:** 2026-10-18
+
+
+## PCR-109 — Responses overload events bypass automatic retry
+
+- **Date reported:** 2026-10-19
+- **Category:** Design, Code, Test
+- **Classification:** Corrective action
+- **Priority:** 2-Serious
+- **Description:** An HTTP-200 Responses stream carrying `response.failed`
+  with `server_is_overloaded` / `service_unavailable_error` returned normally,
+  bypassing exception-based retry. The warning serialized the entire event,
+  including echoed instructions and tools. Failed attempt state could also
+  survive retries, and permanent failures could authorize pending tools.
+- **Affected work products:** Shared provider interface, Responses provider,
+  agent retry loop, provider and agent tests, design, and core-agent SDF.
+- **Actions taken:** Added typed transient service errors raised after HTTP
+  callbacks return; decoded a narrow overload/service-unavailable allowlist
+  with concise diagnostics for streaming and non-streaming responses; retained
+  existing retry limits/backoff and permanent-error behavior. Cleared failed
+  attempt state before retries and on intersecting cancellation, and suppressed
+  pending tool execution on terminal errors. Added provider and agent regression
+  coverage for recovery, exhaustion, cancellation, malformed errors, permanent
+  failures, and partial output/tool safety.
+- **Verification:** Explicit development application and test builds pass,
+  including the application dependency in the test build. The full Xvfb-backed
+  suite passes 935/935 (42.31 s wall), with Agent 54/54 and Responses 15/15.
+  Fourteen new registered cases cover recovery, exhaustion, cancellation at
+  failure and backoff, retry into permanent failure, malformed/null errors,
+  concise diagnostics, non-streaming parity, and failed tool/text isolation.
+  Both generated build profiles select development. `git diff --check` passes.
+  This is developer self-evaluation; independent acceptance remains with the
+  user. Live provider calls and opt-in subprocess tests were not enabled.
+- **Status:** Closed/Implemented and Verified.
+- **Date closed:** 2026-10-19

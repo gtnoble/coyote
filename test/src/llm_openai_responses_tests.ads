@@ -16,6 +16,10 @@ package LLM_OpenAI_Responses_Tests is
    procedure Test_Tool_Result_Image_Serialised (T : in out Test);
    procedure Test_Reasoning_Item_Replayed (T : in out Test);
    procedure Test_Omits_Store_And_Previous_Response (T : in out Test);
+   procedure Test_Stream_Transient_Failure (T : in out Test);
+   procedure Test_Non_Streaming_Transient_Failure (T : in out Test);
+   procedure Test_Permanent_And_Malformed_Failures (T : in out Test);
+   procedure Test_Top_Level_Stream_Error (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

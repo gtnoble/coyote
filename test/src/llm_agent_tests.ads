@@ -33,6 +33,25 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Auto_Retry_On_HTTP_500_Then_Success (T : in out Test);
    procedure Test_Auto_Retry_On_Transport_Error_Then_Success (T : in out Test);
+   procedure Test_Retry_Responses_Overload_Then_Success (T : in out Test);
+   procedure Test_Retry_Responses_Overload_Then_Permanent
+     (T : in out Test);
+   procedure Test_Retry_Responses_Overload_Exhaustion_Rolls_Back
+     (T : in out Test);
+   procedure Test_Retry_Responses_Overload_Can_Be_Cancelled
+     (T : in out Test);
+   procedure Test_Responses_Permanent_Failure_Not_Retried
+     (T : in out Test);
+   procedure Test_Responses_Retry_Discards_Partial_Output_And_Tools
+     (T : in out Test);
+   procedure Test_Responses_Permanent_Partial_Failure_Cancelled_On_End
+     (T : in out Test);
+   procedure Test_Responses_Partial_Failure_Cancelled_On_End
+     (T : in out Test);
+   procedure Test_Responses_Partial_Failure_Cancelled_In_Backoff
+     (T : in out Test);
+   procedure Test_Responses_Permanent_Failure_Discards_Tool
+     (T : in out Test);
    procedure Test_Compatible_History_Filters_Foreign_Thinking
      (T : in out Test);
    procedure Test_Non_Retryable_Error_Rolls_Back_Prompt (T : in out Test);

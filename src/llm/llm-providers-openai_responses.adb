@@ -52,6 +52,7 @@ package body LLM.Providers.OpenAI_Responses is
       Saw_Stream_Event        : Boolean               := False;
       Raw_Response_Body       : Unbounded_String;
       Error_Message           : Unbounded_String;
+      Transient_Failure       : Boolean               := False;
       Thinking_Item_Id        : Unbounded_String;
       Encrypted_Content       : Unbounded_String;
    end record;
@@ -897,6 +898,43 @@ package body LLM.Providers.OpenAI_Responses is
       end;
    end Note_Function_Arguments_Delta;
 
+   procedure Apply_Error
+     (State : in out Response_State; Root : GNATCOLL.JSON.JSON_Value)
+   is
+      Response_Obj : GNATCOLL.JSON.JSON_Value :=
+        Get_Object_Field (Root, "response");
+      Error_Obj    : GNATCOLL.JSON.JSON_Value;
+   begin
+      if Response_Obj.Kind /= GNATCOLL.JSON.JSON_Object_Type then
+         Response_Obj := Root;
+      end if;
+      Error_Obj := Get_Object_Field (Response_Obj, "error");
+      if Error_Obj.Kind /= GNATCOLL.JSON.JSON_Object_Type then
+         --  Responses error events may put code/message on the event itself.
+         Error_Obj := Response_Obj;
+      end if;
+
+      declare
+         Code       : constant String := Get_String_Field (Error_Obj, "code");
+         Error_Type : constant String := Get_String_Field (Error_Obj, "type");
+         Message    : constant String :=
+           Get_String_Field (Error_Obj, "message", "Response failed");
+      begin
+         State.Error_Message :=
+           To_Unbounded_String ("OpenAI Responses: " & Message);
+         if Code'Length > 0 or else Error_Type'Length > 0 then
+            Append (State.Error_Message, " [" & Code);
+            if Code'Length > 0 and then Error_Type'Length > 0 then
+               Append (State.Error_Message, "; ");
+            end if;
+            Append (State.Error_Message, Error_Type & "]");
+         end if;
+         State.Transient_Failure :=
+           Code = "server_is_overloaded"
+           or else Error_Type = "service_unavailable_error";
+      end;
+   end Apply_Error;
+
    procedure Apply_Usage_And_Status
      (State : in out Response_State; Root : GNATCOLL.JSON.JSON_Value)
    is
@@ -930,6 +968,7 @@ package body LLM.Providers.OpenAI_Responses is
 
       if To_String (Status) = "failed" then
          State.Stop := LLM.Types.Error_Stop;
+         Apply_Error (State, Root);
       elsif To_String (Status) = "incomplete" then
          if To_String (Reason) = "max_output_tokens" then
             State.Stop := LLM.Types.Length;
@@ -1147,8 +1186,17 @@ package body LLM.Providers.OpenAI_Responses is
         or else Event_Typ = "response.failed"
       then
          Apply_Usage_And_Status (State, Root);
-         if State.Stop = LLM.Types.Error_Stop then
-            State.Error_Message := GNATCOLL.JSON.Write (Root);
+         if Event_Typ = "response.failed" then
+            --  The terminal event is authoritative even if status is absent.
+            State.Stop := LLM.Types.Error_Stop;
+            Apply_Error (State, Root);
+         elsif State.Stop = LLM.Types.Error_Stop then
+            State.Error_Message := To_Unbounded_String
+              ("OpenAI Responses: Response incomplete: "
+               & Get_String_Field
+                 (Get_Object_Field
+                   (Get_Object_Field (Root, "response"),
+                    "incomplete_details"), "reason", "unknown reason"));
          end if;
          declare
             Response_Obj : constant GNATCOLL.JSON.JSON_Value :=
@@ -1171,8 +1219,8 @@ package body LLM.Providers.OpenAI_Responses is
          end;
          Finalize_Message (State, Handler);
       elsif Event_Typ = "error" then
-         State.Stop          := LLM.Types.Error_Stop;
-         State.Error_Message := GNATCOLL.JSON.Write (Root);
+         State.Stop := LLM.Types.Error_Stop;
+         Apply_Error (State, Root);
          Finalize_Message (State, Handler);
       elsif Event_Typ = "response.refusal.delta" then
          State.Stop := LLM.Types.Error_Stop;
@@ -1313,6 +1361,14 @@ package body LLM.Providers.OpenAI_Responses is
          if not State.Done then
             Finalize_Message (State, Handler);
          end if;
+      end if;
+
+      --  Raising inside On_Chunk would be translated into a curl write
+      --  error (also used for cancellation). Preserve the service identity
+      --  only after the HTTP operation and all callbacks have returned.
+      if State.Transient_Failure then
+         raise LLM.Providers.Transient_Provider_Error
+           with To_String (State.Error_Message);
       end if;
 
       Emit_Agent_End (Handler);

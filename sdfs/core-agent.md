@@ -1345,3 +1345,32 @@ removed. Existing `GNAT-TEMP-*` artifacts are not modified by this change.
 Verification: production and test development builds succeed; the focused
 `Coyote_Temp_Files` test passes 1/1 and shell tool suite passes 22/22. The
 existing 224 `test/GNAT-TEMP-*.TMP` artifacts remain unchanged.
+
+## 2026-10-19 — Retry Responses service overloads (PCR-109)
+
+Responses failures inside HTTP-200 streams previously emitted `Error_Stop`
+without raising, so the exception-based retry loop treated the provider call as
+successful. Added the shared `LLM.Providers.Transient_Provider_Error` contract
+and an explicit Responses allowlist: `server_is_overloaded` code or
+`service_unavailable_error` type. Streaming failed/error events and non-streaming
+failed responses extract concise message/code/type diagnostics without echoed
+instructions or tools. The provider raises only after HTTP callbacks return,
+preserving the service exception identity rather than a curl write error.
+
+The agent retains its three cancellable retries with 2/4/8-second backoff.
+Attempt builders and pending tools are cleared before retry/backoff; failed
+response state is also discarded when cancellation intersects failure handling.
+Ordinary streaming cancellation retains its existing partial-output behavior.
+Permanent failures are not retried and cannot execute pending tools. A permanent
+failure after a transient attempt now ends retry reporting with `Success=False`
+and the concise terminal error, rather than falsely reporting successful retry.
+
+Verification: explicit development application and test builds pass, with the
+application dependency also in development. The full Xvfb-backed AUnit suite
+passes 935/935 in 42.31 s wall; Agent passes 54/54 and Responses passes 15/15.
+Fourteen added registered cases cover overload recovery/exhaustion, permanent
+errors, malformed/null error fields, non-streaming parity, cancellation at
+message end and backoff, failed text/tool isolation, retry completion reporting,
+and diagnostic redaction. `git diff --check` passes. This is developer
+self-evaluation; independent acceptance remains with the user. Live providers
+and guarded real subagent subprocess tests were not enabled.

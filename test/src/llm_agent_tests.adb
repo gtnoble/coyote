@@ -15,6 +15,7 @@ with LLM.Agent;
 with LLM.Agent.Testing;
 with LLM.Events;
 with LLM.Session_Store;
+with LLM.System_Prompt;
 with LLM.Types;
 
 package body LLM_Agent_Tests is
@@ -3483,6 +3484,403 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Retry_On_Transport_Error_Then_Success;
 
+   type Responses_Retry_Case is
+     (Overload_Succeeds,
+      Overload_Exhausts,
+      Overload_Cancelled,
+      Overload_Then_Permanent,
+      Permanent_Failure,
+      Partial_Output_Rollback,
+      Partial_Output_Cancelled_On_End,
+      Permanent_Partial_Output_Cancelled_On_End,
+      Partial_Output_Cancelled_Backoff,
+      Permanent_Failure_With_Tool);
+
+   function Has_Partial_Output
+     (Kind : Responses_Retry_Case) return Boolean
+   is
+   begin
+      return Kind in Partial_Output_Rollback
+        | Partial_Output_Cancelled_On_End
+        | Permanent_Partial_Output_Cancelled_On_End
+        | Partial_Output_Cancelled_Backoff
+        | Permanent_Failure_With_Tool;
+   end Has_Partial_Output;
+
+   function Has_Streamed_Tool
+     (Kind : Responses_Retry_Case) return Boolean
+   is
+   begin
+      return Kind in Partial_Output_Rollback | Permanent_Failure_With_Tool;
+   end Has_Streamed_Tool;
+
+   procedure Run_Responses_Retry_Case
+     (Kind : Responses_Retry_Case)
+   is
+      Home           : constant String :=
+        "/tmp/coyote_agent_responses_retry_" &
+        Natural_Image (Responses_Retry_Case'Pos (Kind));
+      Port           : constant Positive :=
+        18_850 + Responses_Retry_Case'Pos (Kind);
+      Agent_Session  : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Raised         : Boolean := False;
+      Request_Count  : Natural := 0;
+      Retry_Seen         : Boolean := False;
+      Retry_End_Seen     : Boolean := False;
+      Retry_Succeeded    : Boolean := True;
+      Retry_Final_Error  : Unbounded_String := Null_Unbounded_String;
+      Tool_Started       : Boolean := False;
+      Last_Stop          : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      Home_Was_Set       : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+      Fast_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_TEST_FAST_RETRY");
+      Old_Fast       : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_TEST_FAST_RETRY", "");
+
+      function Failed_Response return String is
+         Prefix : constant String :=
+           (if Has_Partial_Output (Kind) then
+              "event: response.output_text.delta" & ASCII.LF
+              & "data: {""type"":""response.output_text.delta"","
+              & """item_id"":""partial"",""delta"":""leaked text""}"
+              & (if Has_Streamed_Tool (Kind) then
+                   ASCII.LF & ASCII.LF
+                   & "event: response.output_item.added" & ASCII.LF
+                   & "data: {""type"":""response.output_item.added"","
+                   & """output_index"":0,""item"":{""id"":""item_failed"","
+                   & """type"":""function_call"",""call_id"":""failed_call"","
+                   & """name"":""shell"",""arguments"":""""}}"
+                   & ASCII.LF & ASCII.LF
+                   & "event: response.function_call_arguments.delta" & ASCII.LF
+                   & "data: {""type"":"
+                   & """response.function_call_arguments.delta"","
+                   & """item_id"":""item_failed"",""delta"":"
+                   & GNATCOLL.JSON.Write
+                     (GNATCOLL.JSON.Create
+                        ("{""command"":""echo must-not-run""}"))
+                   & "}" & ASCII.LF & ASCII.LF
+                   & "event: response.function_call_arguments.done" & ASCII.LF
+                   & "data: {""type"":"
+                   & """response.function_call_arguments.done"","
+                   & """item_id"":""item_failed"",""arguments"":"
+                   & GNATCOLL.JSON.Write
+                     (GNATCOLL.JSON.Create
+                        ("{""command"":""echo must-not-run""}"))
+                   & "}" & ASCII.LF & ASCII.LF
+                 else ASCII.LF & ASCII.LF)
+            else "");
+      begin
+         return Prefix
+           & "event: response.failed" & ASCII.LF
+           & "data: {""type"":""response.failed"",""response"":{"
+           & """status"":""failed"",""error"":{"
+           & (if Kind in Permanent_Failure | Permanent_Failure_With_Tool
+                   | Permanent_Partial_Output_Cancelled_On_End
+                   or else (Kind = Overload_Then_Permanent
+                            and then Request_Count > 1)
+              then
+                """code"":""invalid_request_error"","
+                & """type"":""invalid_request_error"","
+                & """message"":""Invalid request""}}}"
+              else
+                """code"":""server_is_overloaded"","
+                & """type"":null,""message"":""Busy""}}}")
+           & ASCII.LF & ASCII.LF;
+      end Failed_Response;
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Auto_Retry_Start_Event then
+            Retry_Seen := True;
+            if Kind in Overload_Cancelled | Partial_Output_Cancelled_Backoff
+            then
+               LLM.Agent.Request_Abort (Agent_Session);
+            end if;
+         elsif E in LLM.Events.Auto_Retry_End_Event then
+            declare
+               Event : constant LLM.Events.Auto_Retry_End_Event :=
+                 LLM.Events.Auto_Retry_End_Event (E);
+            begin
+               Retry_End_Seen := True;
+               Retry_Succeeded := Event.Success;
+               Retry_Final_Error := Event.Final_Error;
+            end;
+         elsif E in LLM.Events.Tool_Execution_Start_Event then
+            Tool_Started := True;
+         elsif E in LLM.Events.Message_End_Event then
+            Last_Stop := LLM.Events.Message_End_Event (E).Stop;
+            if Kind in Partial_Output_Cancelled_On_End
+              | Permanent_Partial_Output_Cancelled_On_End
+            then
+               LLM.Agent.Request_Abort (Agent_Session);
+            end if;
+         end if;
+      end On_Event;
+
+      procedure Handle_Request
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         if Request_Count = 1 or else Kind = Overload_Exhausts
+           or else Kind = Partial_Output_Cancelled_On_End
+           or else Kind = Permanent_Partial_Output_Cancelled_On_End
+           or else Kind = Partial_Output_Cancelled_Backoff
+         then
+            Append (Res.Body_Data, Failed_Response);
+         elsif Kind in Permanent_Failure | Permanent_Failure_With_Tool
+           | Overload_Then_Permanent
+         then
+            Append (Res.Body_Data, Failed_Response);
+         else
+            if Kind = Partial_Output_Rollback then
+               declare
+                  use GNATCOLL.JSON;
+                  Parsed : constant Read_Result :=
+                    Read (To_String (Req.Body_Data));
+                  Input  : constant JSON_Array :=
+                    Parsed.Value.Get ("input").Get;
+                  Req_Text : constant String := To_String (Req.Body_Data);
+               begin
+                  Assert (Length (Input) = 1,
+                    "retry request should contain only the original prompt");
+                  Assert
+                    (Ada.Strings.Fixed.Index (Req_Text, "leaked text") = 0,
+                    "failed-attempt text must not enter retry history");
+                  Assert
+                    (Ada.Strings.Fixed.Index (Req_Text, "failed_call") = 0,
+                    "failed-attempt tool call must not enter retry history");
+               end;
+            end if;
+            Append (Res.Body_Data, Text_SSE_Payload ("clean reply"));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+      Ada.Environment_Variables.Set ("COYOTE_TEST_FAST_RETRY", "1");
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => not Has_Streamed_Tool (Kind));
+      Srv.Bind (Port);
+      begin
+         LLM.Agent.Run_Prompt
+           (S        => Agent_Session,
+            Prompt   => "retry responses request",
+            On_Event => On_Event'Access);
+      exception
+         when others =>
+            Raised := True;
+      end;
+      Srv.Stop;
+      Server_Stopped := True;
+      if Kind = Overload_Succeeds then
+         Assert (not Raised and then Request_Count = 2 and then Retry_Seen,
+           "overload should retry once then succeed");
+      elsif Kind = Overload_Then_Permanent then
+         Assert
+           (not Raised and then Request_Count = 2 and then Retry_Seen
+            and then Retry_End_Seen and then not Retry_Succeeded,
+            "permanent second attempt should end retry as unsuccessful");
+         Assert
+           (To_String (Retry_Final_Error)
+            = "OpenAI Responses: Invalid request "
+              & "[invalid_request_error; invalid_request_error]",
+            "retry end should report the concise permanent error");
+         Assert (not Tool_Started,
+           "permanent second attempt must not execute tools");
+         Assert
+           (LLM.Session_Store.Load_Messages
+              (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+            "permanent retry failure must not persist prompt or response");
+      elsif Kind = Overload_Exhausts then
+         Assert (Raised and then Request_Count = 4,
+           "overload exhaustion should make four attempts");
+         Assert (LLM.Agent.Testing.History_Length (Agent_Session) = 0,
+           "exhausted request must roll back in-memory prompt/history");
+         Assert (LLM.Session_Store.Load_Messages
+           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+           "exhausted request must not persist messages");
+      elsif Kind in Overload_Cancelled | Partial_Output_Cancelled_Backoff then
+         Assert (not Raised and then Request_Count = 1 and then Retry_Seen,
+           "abort during retry backoff must prevent next attempt");
+         if Kind = Partial_Output_Cancelled_Backoff then
+            Assert (LLM.Agent.Testing.History_Length (Agent_Session) = 1,
+              "cancelled failure must retain only the original prompt");
+            Assert (LLM.Session_Store.Load_Messages
+              (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+              "cancelled partial failure must not persist failed text");
+         end if;
+      elsif Kind in Partial_Output_Cancelled_On_End
+        | Permanent_Partial_Output_Cancelled_On_End
+      then
+         Assert (not Raised and then Request_Count = 1
+           and then Last_Stop = LLM.Types.Error_Stop,
+           "abort at Error_Stop Message_End should stop the turn");
+         Assert (LLM.Agent.Testing.History_Length (Agent_Session) = 1,
+           "cancelled failure must retain only the original prompt");
+         Assert (LLM.Session_Store.Load_Messages
+           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+           "cancelled partial failure must not persist failed text");
+         Assert
+           (Assistant_Text
+              (LLM.Agent.Testing.History_Element (Agent_Session, 0))
+            = "retry responses request" & ASCII.LF & ASCII.LF
+              & LLM.System_Prompt.Build_Reminder_Instructions
+                (Has_Tools => False),
+            "in-memory history must retain only the original prompt");
+      elsif Kind = Permanent_Failure_With_Tool then
+         Assert
+           (not Raised and then Request_Count = 1 and then not Retry_Seen
+            and then Last_Stop = LLM.Types.Error_Stop
+            and then not Tool_Started,
+            "permanent failure must discard streamed tool calls");
+         Assert (LLM.Session_Store.Load_Messages
+           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+           "permanent failed response must not persist text or tools");
+      elsif Kind = Permanent_Failure then
+         Assert
+           (not Raised and then Request_Count = 1 and then not Retry_Seen
+            and then Last_Stop = LLM.Types.Error_Stop,
+            "permanent failure should stop with Error_Stop, not retry");
+      else
+         declare
+            Messages : constant LLM.Types.Message_Vectors.Vector :=
+              LLM.Session_Store.Load_Messages
+                (LLM.Agent.Session_Id (Agent_Session));
+         begin
+            Assert (not Raised and then Request_Count = 2
+              and then not Tool_Started,
+              "failed-attempt tool must not execute");
+            Assert (Messages.Length = 2,
+              "only the user prompt and successful reply should persist");
+            Assert (Assistant_Text (Messages.Element (1)) = "clean reply",
+              "failed-attempt partial output must not leak into reply");
+         end;
+      end if;
+      Restore_Env ("COYOTE_TEST_FAST_RETRY", Fast_Was_Set, Old_Fast);
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_TEST_FAST_RETRY", Fast_Was_Set, Old_Fast);
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Run_Responses_Retry_Case;
+
+   procedure Test_Retry_Responses_Overload_Then_Success (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Overload_Succeeds);
+   end Test_Retry_Responses_Overload_Then_Success;
+
+   procedure Test_Retry_Responses_Overload_Then_Permanent
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Overload_Then_Permanent);
+   end Test_Retry_Responses_Overload_Then_Permanent;
+
+   procedure Test_Responses_Permanent_Partial_Failure_Cancelled_On_End
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case
+        (Permanent_Partial_Output_Cancelled_On_End);
+   end Test_Responses_Permanent_Partial_Failure_Cancelled_On_End;
+
+   procedure Test_Retry_Responses_Overload_Exhaustion_Rolls_Back
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Overload_Exhausts);
+   end Test_Retry_Responses_Overload_Exhaustion_Rolls_Back;
+
+   procedure Test_Retry_Responses_Overload_Can_Be_Cancelled
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Overload_Cancelled);
+   end Test_Retry_Responses_Overload_Can_Be_Cancelled;
+
+   procedure Test_Responses_Permanent_Failure_Not_Retried
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Permanent_Failure);
+   end Test_Responses_Permanent_Failure_Not_Retried;
+
+   procedure Test_Responses_Retry_Discards_Partial_Output_And_Tools
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Partial_Output_Rollback);
+   end Test_Responses_Retry_Discards_Partial_Output_And_Tools;
+
+   procedure Test_Responses_Partial_Failure_Cancelled_On_End
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Partial_Output_Cancelled_On_End);
+   end Test_Responses_Partial_Failure_Cancelled_On_End;
+
+   procedure Test_Responses_Partial_Failure_Cancelled_In_Backoff
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Partial_Output_Cancelled_Backoff);
+   end Test_Responses_Partial_Failure_Cancelled_In_Backoff;
+
+   procedure Test_Responses_Permanent_Failure_Discards_Tool
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Responses_Retry_Case (Permanent_Failure_With_Tool);
+   end Test_Responses_Permanent_Failure_Discards_Tool;
+
    procedure Test_Compatible_History_Filters_Foreign_Thinking (T : in out Test)
    is
       pragma Unreferenced (T);
@@ -6554,6 +6952,46 @@ package body LLM_Agent_Tests is
            ("LLM.Agent retries curl transport errors and succeeds on retry",
             LLM_Agent_Tests.Test_Auto_Retry_On_Transport_Error_Then_Success'
               Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent retries Responses overload then succeeds",
+            Test_Retry_Responses_Overload_Then_Success'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent reports permanent failure after Responses overload",
+            Test_Retry_Responses_Overload_Then_Permanent'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent rolls back partial text on permanent Responses failure",
+            Test_Responses_Permanent_Partial_Failure_Cancelled_On_End'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent rolls back after Responses overload exhaustion",
+            Test_Retry_Responses_Overload_Exhaustion_Rolls_Back'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent cancels during Responses retry backoff",
+            Test_Retry_Responses_Overload_Can_Be_Cancelled'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent does not retry permanent Responses failures",
+            Test_Responses_Permanent_Failure_Not_Retried'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent discards failed Responses output and tool calls",
+            Test_Responses_Retry_Discards_Partial_Output_And_Tools'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent cancels partial Responses failure at message end",
+            Test_Responses_Partial_Failure_Cancelled_On_End'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent cancels partial Responses failure in backoff",
+            Test_Responses_Partial_Failure_Cancelled_In_Backoff'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent discards tool calls on permanent Responses failure",
+            Test_Responses_Permanent_Failure_Discards_Tool'Access));
       Result.Add_Test
         (LLM_Agent_Caller.Create
            ("LLM.Agent filters encrypted thinking across model switches",

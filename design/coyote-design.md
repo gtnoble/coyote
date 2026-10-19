@@ -1059,7 +1059,19 @@ OpenRouter.
    - `response.completed` → `Message_End` + usage
    - `response.incomplete` → `Message_End` (`Length` or `Error_Stop` from
      `incomplete_details.reason`)
-   - `response.failed` / `error` → `Error_Stop`
+   - `response.failed` / `error` → `Error_Stop` with concise error
+     message, code, and type; do not echo the response/request envelope.
+     A `server_is_overloaded` code or `service_unavailable_error` type
+     records a transient failure, also for non-streaming failed responses.
+     After HTTP callbacks return, raise the shared
+     `LLM.Providers.Transient_Provider_Error`; raising inside the curl
+     callback would obscure the service failure as a write error.
+     The agent classifies this exception by identity and applies the existing
+     three retries with 2/4/8-second cancellable backoff. Attempt state and
+     pending tools are discarded before retry/backoff and when cancellation
+     intersects a failed response; ordinary streaming abort still preserves
+     partial output. Terminal error responses never authorize pending tools.
+
    There is no `[DONE]` sentinel. Unused event types (web search, MCP, code
    interpreter, image gen, shell, apply_patch) are ignored.
 8. Infer `Stop_Reason`: any `function_call` in `output` → `Tool_Use`;

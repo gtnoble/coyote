@@ -13,6 +13,11 @@ with LLM.Types;
 
 package LLM.Providers is
 
+   --  An explicitly classified transient service failure. Providers raise
+   --  this after transport callbacks have returned, with concise error text.
+   --  The agent applies its bounded retry/backoff and cancellation policy.
+   Transient_Provider_Error : exception;
+
    --  Callback invoked for each streamed provider event.
    type Event_Handler is access procedure (E : LLM.Events.Agent_Event'Class);
 
@@ -40,6 +45,8 @@ package LLM.Providers is
    --  Thinking selects the requested extended-reasoning level.
    --  Model_Id is the provider-specific model identifier.
    --  Max_Tokens limits output tokens for the response.
+   --  May raise Transient_Provider_Error for a retryable service failure;
+   --  any partial content/tool calls from that attempt must be discarded.
    procedure Send
      (P             : in out Provider;
       Model_Id      :        String;

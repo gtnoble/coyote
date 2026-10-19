@@ -32,6 +32,7 @@ with LLM.Tools.Temp_File;
 package body LLM.Agent is
 
    use type Ada.Containers.Count_Type;
+   use type Ada.Exceptions.Exception_Id;
    use type LLM.Events.Message_Update_Kind;
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
@@ -911,7 +912,9 @@ package body LLM.Agent is
       Status  : constant Natural := Retryable_Status_Code (Message);
    begin
       return
-        Status = 429 or else Status = 529
+        Ada.Exceptions.Exception_Identity (Occurrence)
+          = LLM.Providers.Transient_Provider_Error'Identity
+        or else Status = 429 or else Status = 529
         or else (Status >= 500 and then Status <= 599)
         or else Is_Transport_Error_Message (Message);
    end Is_Retryable_Error;
@@ -1319,6 +1322,9 @@ package body LLM.Agent is
             Provider_Call_Loop :
             while Retry_Same_Attempt loop
                Retry_Same_Attempt := False;
+               --  A failed stream may have emitted text and complete tool
+               --  calls. Neither may survive into the next attempt.
+               Reset_Attempt_State;
 
                begin
                   Provider.Send
@@ -1335,22 +1341,40 @@ package body LLM.Agent is
                      Handler => Provider_Event_Handler'Unrestricted_Access,
                      Abort_Check   => S.Abort_State'Unchecked_Access);
 
+                  Succeeded := Builder.Stop /= LLM.Types.Error_Stop;
+                  --  A terminal failure cannot authorize tool execution,
+                  --  even when the provider returns normally.
+                  if not Succeeded then
+                     Pending_Tools.Clear;
+                  end if;
+
                   if Retry_Used then
                      declare
                         Event : constant LLM.Events.Auto_Retry_End_Event :=
-                          (LLM.Events.Agent_Event with Success => True,
+                          (LLM.Events.Agent_Event with Success => Succeeded,
                            Attempt                             => Attempt,
-                           Final_Error => Null_Unbounded_String);
+                           Final_Error =>
+                             (if Succeeded then Null_Unbounded_String
+                              else Builder.Error_Text));
                      begin
                         Emit (On_Event, Event);
                      end;
                   end if;
 
-                  Succeeded := True;
+                  if not Succeeded and then S.Abort_State.Requested then
+                     Reset_Attempt_State;
+                  end if;
                   exit Attempt_Loop;
                exception
                   when Occurrence : others =>
                      if S.Abort_State.Requested then
+                        if Builder.Stop = LLM.Types.Error_Stop
+                          or else Ada.Exceptions.Exception_Identity
+                            (Occurrence)
+                              = LLM.Providers.Transient_Provider_Error'Identity
+                        then
+                           Reset_Attempt_State;
+                        end if;
                         exit Attempt_Loop;
                      elsif Is_Context_Overflow_Error (Error_Text (Occurrence))
                      then
@@ -1414,6 +1438,9 @@ package body LLM.Agent is
                            Was_Aborted : Boolean;
                         begin
                            Emit (On_Event, Event);
+                           --  Cancellation during backoff must not persist
+                           --  content from the rejected response either.
+                           Reset_Attempt_State;
                            Delay_With_Abort (S, Delay_Ms, Was_Aborted);
                            if Was_Aborted then
                               exit Attempt_Loop;

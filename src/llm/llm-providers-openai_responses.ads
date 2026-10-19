@@ -74,7 +74,9 @@ package LLM.Providers.OpenAI_Responses is
 
    --  Internal helper used by derived providers after they resolve any
    --  provider-specific configuration. Dispatching on Customize_Request is
-   --  preserved when P is a descendant object.
+   --  preserved when P is a descendant object. Raises
+   --  Transient_Provider_Error after HTTP callbacks finish for an overload
+   --  code or service-unavailable error type, with concise error text.
    procedure Send_Request
      (P             : in out Provider'Class;
       Model_Id      :        String;

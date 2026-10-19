@@ -1,5 +1,7 @@
 with AUnit.Assertions;
+with Ada.Exceptions;
 with Ada.Containers;
+with Ada.Strings;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
@@ -18,6 +20,7 @@ package body LLM_OpenAI_Responses_Tests is
 
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
+   use type Ada.Exceptions.Exception_Id;
    use type Ada.Tags.Tag;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Stop_Reason;
@@ -1212,6 +1215,223 @@ package body LLM_OpenAI_Responses_Tests is
          raise;
    end Test_Omits_Store_And_Previous_Response;
 
+   procedure Run_Failure_Case
+     (Port             : Positive;
+      Payload          : String;
+      Streaming        : Boolean;
+      Expect_Transient : Boolean;
+      Expected_Text    : String := "")
+   is
+      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+        LLM.Providers.OpenAI_Responses.Create
+          (Base_Url => "http://127.0.0.1:"
+           & Ada.Strings.Fixed.Trim
+               (Positive'Image (Port), Ada.Strings.Both),
+           Api_Key  => "test-key");
+      Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Raised   : Boolean := False;
+      Error_Text : Unbounded_String;
+
+      procedure Handle_Request
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Ada.Strings.Unbounded.Append (Res.Body_Data, Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      LLM.Providers.OpenAI_Responses.Testing.Set_Streaming
+        (Provider, Streaming);
+      Srv.Bind (Port);
+      begin
+         Send_With_Retry
+           (P             => Provider,
+            Model_Id      => "test-model",
+            System_Prompt => "secret instructions",
+            Messages      => Messages,
+            Tools_Json    => "[{""name"":""secret_tool""}]",
+            Max_Tokens    => 32,
+            Handler       => On_Event'Access);
+      exception
+         when Error : others =>
+            Raised := True;
+            Error_Text := To_Unbounded_String
+              (Ada.Exceptions.Exception_Message (Error));
+            if Expect_Transient then
+               Assert
+                 (Ada.Exceptions.Exception_Identity (Error)
+                  = LLM.Providers.Transient_Provider_Error'Identity,
+                  "Expected typed transient exception, got "
+                  & Ada.Exceptions.Exception_Name (Error));
+            else
+               Assert
+                 (False,
+                  "Permanent failure unexpectedly raised "
+                  & Ada.Exceptions.Exception_Name (Error));
+            end if;
+      end;
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert
+        (Raised = Expect_Transient,
+         "Unexpected raised status; message=" & To_String (Error_Text));
+      Assert
+        (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+         "Failure should emit Error_Stop: " & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Length = 4,
+         "Failure should emit message_end before agent_end: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Element (3) = "message_end",
+         "message_end should be emitted before the exception");
+      Assert
+        (Current_Collector.Sequence.Element (4) = "agent_end",
+         "agent_end should follow the failure");
+      if Expected_Text'Length > 0 then
+         Assert
+           (To_String (Current_Collector.Last_Error) = Expected_Text,
+            "Unexpected concise error event text: "
+            & To_String (Current_Collector.Last_Error));
+         Assert
+           (Ada.Strings.Fixed.Index
+              (To_String (Error_Text), Expected_Text) > 0,
+            "Typed exception should carry the concise error text");
+         Assert
+           (Ada.Strings.Fixed.Index
+              (To_String (Current_Collector.Last_Error),
+               "secret instructions") = 0
+            and then Ada.Strings.Fixed.Index
+              (To_String (Current_Collector.Last_Error), "secret_tool") = 0
+            and then Ada.Strings.Fixed.Index
+              (To_String (Error_Text), "secret instructions") = 0
+            and then Ada.Strings.Fixed.Index
+              (To_String (Error_Text), "secret_tool") = 0,
+            "Error text must not include echoed request data");
+      elsif not Expect_Transient then
+         Assert
+           (Length (Current_Collector.Last_Error) > 0,
+            "Permanent failures should provide an error event message");
+      end if;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Run_Failure_Case;
+
+   procedure Test_Stream_Transient_Failure (T : in out Test) is
+      pragma Unreferenced (T);
+      Payload : constant String :=
+        SSE_Event
+          ("response.failed",
+           "{""type"":""response.failed"",""response"":{"
+           & """status"":""failed"",""instructions"":"
+           & """secret instructions"",""tools"":[{"
+           & """name"":""secret_tool""}],""error"":{"
+           & """code"":""server_is_overloaded"",""type"":null,"
+           & """message"":""Capacity exhausted""}}}");
+   begin
+      Run_Failure_Case
+        (Port             => 19_112,
+         Payload          => Payload,
+         Streaming        => True,
+         Expect_Transient => True,
+         Expected_Text    =>
+           "OpenAI Responses: Capacity exhausted "
+           & "[server_is_overloaded]");
+   end Test_Stream_Transient_Failure;
+
+   procedure Test_Non_Streaming_Transient_Failure (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Failure_Case
+        (Port             => 19_113,
+         Payload          =>
+           "{""id"":""resp_failed"",""status"":""failed"","
+           & """instructions"":""secret instructions"","
+           & """tools"":[{""name"":""secret_tool""}],"
+           & """error"":{""type"":""service_unavailable_error"","
+           & """code"":""other_code"","
+           & """message"":""Try later""}}",
+         Streaming        => False,
+         Expect_Transient => True,
+         Expected_Text    =>
+           "OpenAI Responses: Try later "
+           & "[other_code; service_unavailable_error]");
+   end Test_Non_Streaming_Transient_Failure;
+
+   procedure Test_Permanent_And_Malformed_Failures (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Failure_Case
+        (Port             => 19_114,
+         Payload          =>
+           SSE_Event
+             ("response.failed",
+              "{""type"":""response.failed"",""response"":{"
+              & """status"":""failed"",""error"":{"
+              & """type"":""invalid_request_error"","
+              & """code"":""bad_request"","
+              & """message"":""Invalid input""}}}"),
+         Streaming        => True,
+         Expect_Transient => False);
+      Run_Failure_Case
+        (Port             => 19_115,
+         Payload          =>
+           SSE_Event
+             ("response.failed",
+              "{""type"":""response.failed"",""response"":{"
+              & """status"":""failed"",""error"":null}}"),
+         Streaming        => True,
+         Expect_Transient => False);
+      Run_Failure_Case
+        (Port             => 19_116,
+         Payload          =>
+           SSE_Event
+             ("response.failed",
+              "{""type"":""response.failed"",""response"":{"
+              & """status"":""failed""}}"),
+         Streaming        => True,
+         Expect_Transient => False);
+      Run_Failure_Case
+        (Port             => 19_118,
+         Payload          =>
+           SSE_Event
+             ("response.failed",
+              "{""type"":""response.failed"",""response"":{"
+              & """status"":""failed"",""error"":""invalid""}}"),
+         Streaming        => True,
+         Expect_Transient => False);
+   end Test_Permanent_And_Malformed_Failures;
+
+   procedure Test_Top_Level_Stream_Error (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Failure_Case
+        (Port             => 19_117,
+         Payload          =>
+           SSE_Event
+             ("error",
+              "{""type"":""error"",""error"":{"
+              & """type"":""server_error"","
+              & """code"":""server_is_overloaded"","
+              & """message"":""Temporary failure""}}"),
+         Streaming        => True,
+         Expect_Transient => True,
+         Expected_Text    =>
+           "OpenAI Responses: Temporary failure "
+           & "[server_is_overloaded; server_error]");
+   end Test_Top_Level_Stream_Error;
+
    procedure Test_Store_Disabled_Sends_False (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -1325,6 +1545,24 @@ package body LLM_OpenAI_Responses_Tests is
            ("LLM.OpenAI_Responses sends store false when disabled",
             LLM_OpenAI_Responses_Tests.Test_Store_Disabled_Sends_False'
               Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses classifies streamed overload failure",
+            LLM_OpenAI_Responses_Tests.Test_Stream_Transient_Failure'Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses classifies non-streaming failure",
+            LLM_OpenAI_Responses_Tests.Test_Non_Streaming_Transient_Failure'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses returns permanent and malformed failures",
+            LLM_OpenAI_Responses_Tests.Test_Permanent_And_Malformed_Failures'
+              Access));
+      Result.Add_Test
+        (LLM_OpenAI_Responses_Caller.Create
+           ("LLM.OpenAI_Responses classifies top-level stream errors",
+            LLM_OpenAI_Responses_Tests.Test_Top_Level_Stream_Error'Access));
 
       return Result;
    end Suite;
