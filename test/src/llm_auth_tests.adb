@@ -3,13 +3,17 @@ with Ada.Calendar;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
+with Ada.IO_Exceptions;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with GNATCOLL.OS.Process;
+with Interfaces.C;
 with Test_HTTP_Server;
 with LLM.Auth;
 with LLM.Auth.GitHub_Copilot;
+with LLM.Credential_Locks;
 
 package body LLM_Auth_Tests is
 
@@ -114,6 +118,8 @@ package body LLM_Auth_Tests is
    begin
       Delete_If_Exists (Agent_Dir & "/auth.json");
       Delete_If_Exists (Agent_Dir & "/auth.json.tmp");
+      Delete_If_Exists (Agent_Dir & "/auth-store.lock");
+      Delete_If_Exists (Agent_Dir & "/codex-refresh.lock");
 
       if Ada.Directories.Exists (Agent_Dir) then
          Ada.Directories.Delete_Directory (Agent_Dir);
@@ -371,8 +377,225 @@ package body LLM_Auth_Tests is
          raise;
    end Test_Save_Credentials;
 
-   procedure Test_Token_Expired (T : in out Test) is
+   procedure File_Mode_Is_0600 (Path : String) is
+      use GNATCOLL.OS.Process;
+
+      Args   : Argument_List;
+      Status : Integer;
+      Output : Unbounded_String;
+   begin
+      Args.Append ("/usr/bin/stat");
+      Args.Append ("-c");
+      Args.Append ("%a");
+      Args.Append (Path);
+      Output := Run (Args, Status => Status, Strip => True);
+      Assert (Status = 0, "stat should read file permissions");
+      Assert
+        (To_String (Output) = "600",
+         "credential file and lock must have owner-only 0600 permissions");
+   end File_Mode_Is_0600;
+
+   function Set_Umask
+     (Mask : Interfaces.C.unsigned) return Interfaces.C.unsigned;
+   pragma Import (C, Set_Umask, "umask");
+
+   procedure Test_Save_Malformed_Auth_Raises (T : in out Test) is
       pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_auth_test_bad_json";
+      Path         : constant String := Home & "/.coyote/auth.json";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Creds        : constant LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token   => To_Unbounded_String ("new-refresh"),
+         Access_Token    => To_Unbounded_String ("new-access"),
+         Expires_Ms      => 123,
+         Account_Id      => Null_Unbounded_String);
+      Malformed    : constant String := "{ not json }" & ASCII.LF;
+      Non_Object   : constant String := "[]" & ASCII.LF;
+      Raised       : Boolean;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      for Invalid_Index in 1 .. 2 loop
+         declare
+            Invalid_Content : constant String :=
+              (if Invalid_Index = 1 then Malformed else Non_Object);
+         begin
+            Write_File (Path, Invalid_Content);
+            Raised := False;
+            begin
+               LLM.Auth.Save_Credentials ("github-copilot", Creds);
+            exception
+               when Ada.IO_Exceptions.Use_Error =>
+                  Raised := True;
+            end;
+            Assert (Raised, "malformed existing auth must raise Use_Error");
+            Assert
+              (Read_File (Path) = Invalid_Content,
+               "failed save must preserve existing auth bytes");
+         end;
+      end loop;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Save_Malformed_Auth_Raises;
+
+   procedure Test_Save_Permissions_And_Canonical_Provider
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_auth_test_modes";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Old_Umask    : Interfaces.C.unsigned;
+      Saved        : constant LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token   => To_Unbounded_String ("mode-refresh"),
+         Access_Token    => To_Unbounded_String ("mode-access"),
+         Expires_Ms      => 456,
+         Account_Id      => Null_Unbounded_String);
+      Loaded       : LLM.Auth.Provider_Credentials;
+      Raw_Auth     : Unbounded_String;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File (Home & "/.coyote/auth.json", "{}" & ASCII.LF);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Old_Umask := Set_Umask (0);
+      begin
+         LLM.Auth.Save_Credentials ("GitHub-Copilot", Saved);
+      exception
+         when others =>
+            declare
+               Ignored : constant Interfaces.C.unsigned :=
+                 Set_Umask (Old_Umask);
+               pragma Unreferenced (Ignored);
+            begin
+               null;
+            end;
+            raise;
+      end;
+      declare
+         Ignored : constant Interfaces.C.unsigned := Set_Umask (Old_Umask);
+         pragma Unreferenced (Ignored);
+      begin
+         null;
+      end;
+
+      File_Mode_Is_0600 (Home & "/.coyote/auth.json");
+      File_Mode_Is_0600 (Home & "/.coyote/auth-store.lock");
+      Loaded := LLM.Auth.Load_Credentials ("GITHUB-COPILOT");
+      Raw_Auth := To_Unbounded_String
+        (Read_File (Home & "/.coyote/auth.json"));
+      Assert
+        (To_String (Loaded.Refresh_Token) = "mode-refresh",
+         "provider names should load canonically regardless of case");
+      Assert
+        (Contains (To_String (Raw_Auth), """github-copilot"""),
+         "provider save should use the canonical lowercase name");
+      Assert
+        (not Contains (To_String (Raw_Auth), """GitHub-Copilot"""),
+         "provider save should not persist a mixed-case name");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Save_Permissions_And_Canonical_Provider;
+
+   procedure Test_Codex_Save_Load_Canonical_Provider (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_auth_test_codex";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Saved        : constant LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token   => To_Unbounded_String ("codex-refresh"),
+         Access_Token    => To_Unbounded_String ("codex-access"),
+         Expires_Ms      => 789,
+         Account_Id      => Null_Unbounded_String);
+      Loaded       : LLM.Auth.Provider_Credentials;
+      Raw_Auth     : Unbounded_String;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File (Home & "/.coyote/auth.json", "{}" & ASCII.LF);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      LLM.Auth.Save_Credentials ("Codex", Saved);
+      File_Mode_Is_0600 (Home & "/.coyote/auth.json");
+      File_Mode_Is_0600 (Home & "/.coyote/auth-store.lock");
+      File_Mode_Is_0600 (Home & "/.coyote/codex-refresh.lock");
+      Loaded := LLM.Auth.Load_Credentials ("CODEX");
+      Raw_Auth := To_Unbounded_String
+        (Read_File (Home & "/.coyote/auth.json"));
+      Assert
+        (To_String (Loaded.Refresh_Token) = "codex-refresh",
+         "Codex credentials should load from canonical provider key");
+      Assert
+        (Contains (To_String (Raw_Auth), """codex"""),
+         "Codex save should use the canonical lowercase provider key");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Codex_Save_Load_Canonical_Provider;
+
+   procedure Test_Credential_Lock_Timeout (T : in out Test) is
+      pragma Unreferenced (T);
+      Home       : constant String := "/tmp/coyote_llm_auth_test_lock";
+      Lock_Path  : constant String := Home & "/.coyote/auth-store.lock";
+      Held       : LLM.Credential_Locks.Lock;
+      Timed_Out  : LLM.Credential_Locks.Lock;
+      Reacquired : LLM.Credential_Locks.Lock;
+      Raised     : Boolean := False;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      LLM.Credential_Locks.Acquire (Held, Lock_Path);
+      File_Mode_Is_0600 (Lock_Path);
+      begin
+         LLM.Credential_Locks.Acquire
+           (Timed_Out, Lock_Path, Timeout_Seconds => 1);
+      exception
+         when LLM.Credential_Locks.Lock_Error =>
+            Raised := True;
+      end;
+      Assert (Raised, "contended credential lock should time out");
+      LLM.Credential_Locks.Release (Held);
+      LLM.Credential_Locks.Acquire
+        (Reacquired, Lock_Path, Timeout_Seconds => 1);
+      LLM.Credential_Locks.Release (Reacquired);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         LLM.Credential_Locks.Release (Held);
+         LLM.Credential_Locks.Release (Reacquired);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Credential_Lock_Timeout;
+
+   procedure Test_Token_Expired (T : in out Test) is
 
       Now                : constant Long_Long_Integer := Current_Unix_Ms;
       Expired_Creds      : constant LLM.Auth.Provider_Credentials :=
@@ -580,8 +803,26 @@ package body LLM_Auth_Tests is
             LLM_Auth_Tests.Test_Load_Credentials'Access));
       Result.Add_Test
         (LLM_Auth_Caller.Create
-           ("LLM.Auth saves credentials atomically and preserves other providers",
+           ("LLM.Auth saves credentials atomically and preserves "
+            & "other providers",
             LLM_Auth_Tests.Test_Save_Credentials'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth refuses malformed auth overwrite",
+            LLM_Auth_Tests.Test_Save_Malformed_Auth_Raises'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth canonical provider and owner-only file modes",
+            LLM_Auth_Tests.Test_Save_Permissions_And_Canonical_Provider'
+              Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth lock timeout allows subsequent reacquisition",
+            LLM_Auth_Tests.Test_Credential_Lock_Timeout'Access));
+      Result.Add_Test
+        (LLM_Auth_Caller.Create
+           ("LLM.Auth canonicalizes Codex save and load",
+            LLM_Auth_Tests.Test_Codex_Save_Load_Canonical_Provider'Access));
       Result.Add_Test
         (LLM_Auth_Caller.Create
            ("LLM.Auth.GitHub_Copilot detects expired and valid tokens",

@@ -113,7 +113,8 @@ package body LLM.Providers.Codex is
          Rejected_Token : constant String :=
            LLM.Providers.OpenAI_Responses.Get_Api_Key (Rejected);
       begin
-         LLM.Auth.Codex.Recover_Rejected_Token (Creds, Rejected_Token);
+         LLM.Auth.Codex.Recover_Rejected_Token
+           (Creds, Rejected_Token, Abort_Check);
          if Length (Creds.Account_Id) = 0 then
             raise LLM.Auth.Codex.Auth_Error
               with "OpenAI Codex account id missing after token refresh";
@@ -132,7 +133,7 @@ package body LLM.Providers.Codex is
            & "log in via Options > Subscriptions";
       end if;
 
-      LLM.Auth.Codex.Ensure_Valid (Creds);
+      LLM.Auth.Codex.Ensure_Valid (Creds, Abort_Check);
 
       if Length (Creds.Account_Id) = 0 then
          raise LLM.Auth.Codex.Auth_Error

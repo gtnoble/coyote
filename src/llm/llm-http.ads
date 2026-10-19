@@ -34,14 +34,18 @@ package LLM.HTTP is
    --  the request is blocked. When it is set, the request terminates with
    --  Curl_Error.
    --  Status receives the HTTP response code.
-   --  Raises Curl_Error on transport, TLS, or cancellation failures.
+   --  Positive timeout values bound connection setup and total request time;
+   --  zero leaves those durations unbounded. Both default to zero.
+   --  Raises Curl_Error on transport, TLS, timeout, or cancellation failures.
    procedure Post
-     (URL         :     String;
-      Headers     :     Header_List;
-      Payload     :     String;
-      On_Chunk    :     not null access procedure (Data : String);
-      Status      : out Natural;
-      Abort_Check :     LLM.Tools.Abort_Flag_Access := null);
+     (URL                     :     String;
+      Headers                 :     Header_List;
+      Payload                 :     String;
+      On_Chunk                :     not null access procedure (Data : String);
+      Status                  : out Natural;
+      Abort_Check             :     LLM.Tools.Abort_Flag_Access := null;
+      Connect_Timeout_Seconds :     Natural := 0;
+      Total_Timeout_Seconds   :     Natural := 0);
 
    --  POST URL with a streaming callback that also receives the HTTP status.
    --  The response status is queried before each chunk is delivered.

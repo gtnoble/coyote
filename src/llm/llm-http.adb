@@ -123,15 +123,17 @@ package body LLM.HTTP is
    end Cleanup;
 
    procedure Perform_Request
-     (URL                  : String;
-      Headers              : Header_List;
-      Use_Post             : Boolean;
-      Payload              : String;
-      On_Chunk             : access procedure (Data : String);
-      On_Chunk_With_Status : access procedure
+     (URL                     : String;
+      Headers                 : Header_List;
+      Use_Post                : Boolean;
+      Payload                 : String;
+      On_Chunk                : access procedure (Data : String);
+      On_Chunk_With_Status    : access procedure
         (Data : String; Status : Natural);
-      Status               : out Natural;
-      Abort_Check          : LLM.Tools.Abort_Flag_Access)
+      Status                  : out Natural;
+      Abort_Check             : LLM.Tools.Abort_Flag_Access;
+      Connect_Timeout_Seconds : Natural;
+      Total_Timeout_Seconds   : Natural)
    is
       H         : Curl_Binding.Handle            := Curl_Binding.Easy_Init;
       Header_S  : Curl_Binding.Slist             := Curl_Binding.NULL_SLIST;
@@ -168,6 +170,25 @@ package body LLM.HTTP is
         (Curl_Binding.Set_Low_Speed_Time
            (H, Interfaces.C.long (Low_Speed_Time)),
          "curl_easy_setopt(CURLOPT_LOW_SPEED_TIME)");
+
+      if Connect_Timeout_Seconds > 0 then
+         Check
+           (Curl_Binding.Set_Timeout_Option
+              (H,
+               Curl_Binding.CURLOPT_CONNECTTIMEOUT,
+               Interfaces.C.long (Connect_Timeout_Seconds)),
+            "curl_easy_setopt(CURLOPT_CONNECTTIMEOUT)");
+      end if;
+
+      if Total_Timeout_Seconds > 0 then
+         Check
+           (Curl_Binding.Set_Timeout_Option
+              (H,
+               Curl_Binding.CURLOPT_TIMEOUT,
+               Interfaces.C.long (Total_Timeout_Seconds)),
+            "curl_easy_setopt(CURLOPT_TIMEOUT)");
+      end if;
+
       Check (Curl_Binding.Set_URL (H, URL_C), "curl_easy_setopt(CURLOPT_URL)");
 
       if Header_S /= Curl_Binding.NULL_SLIST then
@@ -246,23 +267,27 @@ package body LLM.HTTP is
    end Add_Header;
 
    procedure Post
-     (URL         :     String;
-      Headers     :     Header_List;
-      Payload     :     String;
-      On_Chunk    :     not null access procedure (Data : String);
-      Status      : out Natural;
-      Abort_Check :     LLM.Tools.Abort_Flag_Access := null)
+     (URL                     :     String;
+      Headers                 :     Header_List;
+      Payload                 :     String;
+      On_Chunk                :     not null access procedure (Data : String);
+      Status                  : out Natural;
+      Abort_Check             :     LLM.Tools.Abort_Flag_Access := null;
+      Connect_Timeout_Seconds :     Natural := 0;
+      Total_Timeout_Seconds   :     Natural := 0)
    is
    begin
       Perform_Request
-        (URL                  => URL,
-         Headers              => Headers,
-         Use_Post             => True,
-         Payload              => Payload,
-         On_Chunk             => On_Chunk,
-         On_Chunk_With_Status => null,
-         Status               => Status,
-         Abort_Check          => Abort_Check);
+        (URL                    => URL,
+         Headers                => Headers,
+         Use_Post               => True,
+         Payload                => Payload,
+         On_Chunk               => On_Chunk,
+         On_Chunk_With_Status   => null,
+         Status                 => Status,
+         Abort_Check            => Abort_Check,
+         Connect_Timeout_Seconds => Connect_Timeout_Seconds,
+         Total_Timeout_Seconds   => Total_Timeout_Seconds);
    end Post;
 
    procedure Post_With_Status
@@ -282,8 +307,10 @@ package body LLM.HTTP is
          Payload              => Payload,
          On_Chunk             => null,
          On_Chunk_With_Status => On_Chunk,
-         Status               => Status,
-         Abort_Check          => Abort_Check);
+         Status                  => Status,
+         Abort_Check             => Abort_Check,
+         Connect_Timeout_Seconds => 0,
+         Total_Timeout_Seconds   => 0);
    end Post_With_Status;
 
    procedure Get
@@ -300,9 +327,11 @@ package body LLM.HTTP is
          Use_Post             => False,
          Payload              => "",
          On_Chunk             => On_Chunk,
-         On_Chunk_With_Status => null,
-         Status               => Status,
-         Abort_Check          => Abort_Check);
+         On_Chunk_With_Status   => null,
+         Status                 => Status,
+         Abort_Check            => Abort_Check,
+         Connect_Timeout_Seconds => 0,
+         Total_Timeout_Seconds   => 0);
    end Get;
 
 begin

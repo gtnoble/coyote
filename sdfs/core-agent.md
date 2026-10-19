@@ -1,5 +1,56 @@
 # Component Development Log — Core Agent
 
+## 2026-10-19 — Cross-process Codex credential coordination (PCR-111)
+
+**Approved follow-up hardening:** Replaces PCR-110's process-local-only
+refresh guard and noninterruptible in-progress refresh limitation. Linux
+`LLM.Credential_Locks` provides stable `flock` locks backed by files opened
+`O_CLOEXEC | O_NOFOLLOW` with mode 0600; normal operation does not unlink lock
+files, and kernel ownership releases on process exit/crash. Lock acquisition
+uses monotonic bounded waits (maximum 60 seconds), polls every 50 ms, and
+supports cancellation. Its platform-specific implementation targets
+Linux/glibc.
+
+**Locking and persistence design:** Codex Ensure/Recover acquire the refresh
+lock before the short auth-store lock, reload `auth.json` after acquiring the
+refresh lock, and treat the latest stored state—including an empty logout—as
+authoritative. All public Codex saves (login/logout included) share the
+refresh lock; private child saves take only the auth-store lock. Store updates
+merge provider entries under that lock, refuse to overwrite malformed JSON,
+and write through a unique mode-0600 temporary file followed by atomic rename.
+A successful refresh is persisted before the late cancellation check and
+replay; cancellation propagates as `Curl_Error`. Codex token POSTs use 10-second
+connect and 30-second total timeouts, with other HTTP request defaults
+unchanged.
+
+**Inventory:** Added `LLM.Credential_Locks` to the SDD source-unit inventory,
+`LLM_Auth_Concurrency_Tests` to the test-fixture inventory, and
+`Auth_Test_Worker` to the test-tools inventory. The concurrency fixture covers
+concurrent Ensure/Recover, login/logout exclusion, store merges, crash release,
+and close-on-exec behavior.
+
+**Verification:** Explicit development builds passed:
+`alr build --development` and
+`cd test && alr build --development --profiles=coyote=development`.
+Both generated Coyote profiles select development. Focused suites passed:
+auth 37/37 (including 7 real-process concurrency cases and 16 Codex auth
+cases), HTTP 6/6, Codex provider 10/10, and catalogue 8/8. The full suite
+passed 969/969 twice, with zero failed assertions or unexpected errors;
+final wall time was 57.44 seconds. This change adds 17 tests. Concurrent
+Ensure and rejected-token recovery cases also passed independent repeats.
+`git diff --check` passed. Live provider smoke testing was not performed;
+all token HTTP uses mock endpoints and isolated credentials.
+
+**Evaluation and limitations:** Self-evaluation plus read-only worker review
+found no concrete production blocker. The user remains the independent
+acceptance authority. The implementation targets Linux/glibc and assumes a
+trusted credential directory and cooperating writers. Cancellation interrupts
+refresh-lock waits and token HTTP; after a successful token response,
+persistence deliberately completes under its bounded store lock before the
+provider observes cancellation. Kernel crash-release is tested; recovery from
+loss of a rotated token if the process dies between server rotation and local
+persistence is not guaranteed.
+
 ## 2026-10-19 — Codex proactive credential refresh and guarded 401 recovery (PCR-110)
 
 **Approved behavior:** Codex credentials are proactively refreshed before use;

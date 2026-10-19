@@ -13,6 +13,7 @@ with Test_HTTP_Server;
 package body LLM_HTTP_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Real_Time.Time;
 
    procedure Post_With_Retry
      (URL      :     String;
@@ -320,6 +321,94 @@ package body LLM_HTTP_Tests is
          raise;
    end Test_HTTP_Low_Speed_Timeout_Preserves_Code;
 
+   procedure Test_HTTP_Total_Timeout_Is_Bounded (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port           : constant Positive := 18_770;
+      Headers        : LLM.HTTP.Header_List;
+      Server_Stopped : Boolean := False;
+
+      procedure Collect (Data : String) is
+         pragma Unreferenced (Data);
+      begin
+         null;
+      end Collect;
+
+      procedure Delayed_Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, "delayed response");
+         Res.Body_Delay := 2.0;
+      end Delayed_Handler;
+
+      Server : Test_HTTP_Server.Server
+        (Handler => Delayed_Handler'Unrestricted_Access);
+   begin
+      Server.Bind (Port);
+
+      declare
+         Start_Time : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+         Status     : Natural := 0;
+      begin
+         begin
+            LLM.HTTP.Post
+              (URL                    => "http://127.0.0.1:18770/",
+               Headers                => Headers,
+               Payload                => "ping",
+               On_Chunk               => Collect'Access,
+               Status                 => Status,
+               Total_Timeout_Seconds   => 1);
+            Assert (False, "one-second total timeout should fail");
+         exception
+            when E : LLM.HTTP.Curl_Error =>
+               Assert
+                 (Ada.Strings.Fixed.Index
+                    (Ada.Exceptions.Exception_Message (E), "curl code 28") > 0,
+                  "total timeout should preserve curl timeout code 28");
+         end;
+
+         Assert
+           (Ada.Real_Time.To_Duration
+              (Ada.Real_Time.Clock - Start_Time) < 1.8,
+            "total timeout should bound the delayed response");
+      end;
+
+      declare
+         Start_Time : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+         Status     : Natural := 0;
+      begin
+         LLM.HTTP.Post
+           (URL      => "http://127.0.0.1:18770/",
+            Headers  => Headers,
+            Payload  => "ping",
+            On_Chunk => Collect'Access,
+            Status   => Status);
+
+         Assert (Status = 200, "ordinary POST should complete successfully");
+         Assert
+           (Ada.Real_Time.To_Duration
+              (Ada.Real_Time.Clock - Start_Time) >= 1.8,
+            "ordinary POST should not inherit a total timeout");
+      end;
+
+      Server.Stop;
+      Server_Stopped := True;
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Server.Stop;
+            exception
+               when others =>
+                  null;
+            end;
+         end if;
+         raise;
+   end Test_HTTP_Total_Timeout_Is_Bounded;
+
    procedure Test_HTTP_Abort_During_Stalled_Response (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -451,6 +540,10 @@ package body LLM_HTTP_Tests is
         (LLM_HTTP_Caller.Create
            ("LLM.HTTP low-speed timeout preserves curl code",
             LLM_HTTP_Tests.Test_HTTP_Low_Speed_Timeout_Preserves_Code'Access));
+      Result.Add_Test
+        (LLM_HTTP_Caller.Create
+           ("LLM.HTTP total timeout bounds a delayed response",
+            LLM_HTTP_Tests.Test_HTTP_Total_Timeout_Is_Bounded'Access));
       Result.Add_Test
         (LLM_HTTP_Caller.Create
            ("LLM.HTTP aborts a stalled response promptly",

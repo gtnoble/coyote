@@ -8,6 +8,11 @@ package LLM_Auth_Tests is
 
    procedure Test_Load_Credentials (T : in out Test);
    procedure Test_Save_Credentials (T : in out Test);
+   procedure Test_Save_Malformed_Auth_Raises (T : in out Test);
+   procedure Test_Save_Permissions_And_Canonical_Provider
+     (T : in out Test);
+   procedure Test_Codex_Save_Load_Canonical_Provider (T : in out Test);
+   procedure Test_Credential_Lock_Timeout (T : in out Test);
    procedure Test_Token_Expired (T : in out Test);
    procedure Test_Get_Base_Url (T : in out Test);
    procedure Test_Get_Base_Url_Fallback (T : in out Test);

@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.28
-**Date:** 2026-09-15
-**Status:** Verified — CSM retirement and Markdown-only baseline
+**Version:** 1.29
+**Date:** 2026-10-19
+**Status:** PCR-111 approved behavior documented; implementation verification pending
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
 revision records the superseding Markdown-only response and persistence
@@ -550,6 +550,23 @@ prohibited refresh during catalogue loading is superseded.
 A successful Codex refresh response may omit `refresh_token`; in that case the
 previous refresh token shall be retained. Initial authorization-code login
 shall continue to require a non-empty `refresh_token`.
+
+**REQ-CORE-149** (D/T/I)
+Codex refresh and recovery shall coordinate across coyote processes using a
+stable Linux credential-lock facility. Lock acquisition shall be cancellable,
+use a monotonic timeout bounded to 60 seconds, and poll every 50 ms. Ensure
+and recovery shall reload `auth.json` after acquiring the refresh lock and
+treat the latest stored credential as authoritative, including an empty or
+missing Codex credential after logout. A successful refresh shall be persisted
+before a late cancellation check and request replay. Credential updates shall
+preserve unrelated provider credentials, and malformed existing JSON shall
+not be overwritten. Public Codex saves, including login and logout, shall
+share the refresh lock; private child persistence shall use only the short
+auth-store lock. Lock files shall use mode 0600, close-on-exec, and no-follow
+semantics, shall not be unlinked during normal operation, and shall rely on
+kernel lock release after process exit or crash. Codex token POSTs shall use
+10-second connect and 30-second total timeouts; other HTTP request timeout
+defaults shall remain unchanged.
 
 **REQ-CORE-075** (D)
 In the retired Acme frontend, the model could be switched at runtime by sending a
@@ -1873,6 +1890,7 @@ retains historical `TC-*` identifiers.
 | REQ-CORE-073 | API key resolution order | T | TC-073 |
 | REQ-CORE-074 | Copilot token auto-refresh | D | TC-074 |
 | REQ-CORE-144–148 | Codex proactive refresh, guarded 401 recovery/replay, fresh-cache behavior, refresh-token retention | D/T | PCR-110; Codex auth/provider/catalogue and Responses mock-server tests (49/49); full suite 952/952 |
+| REQ-CORE-149 | Linux cross-process Codex refresh/recovery locking, cancellable bounded waits, and safe credential-store updates | D/T/I | PCR-111; auth 37/37, HTTP 6/6, Codex provider 10/10, catalogue 8/8; full suite 969/969 |
 | REQ-CORE-075 | Retired Acme/plumber model switch (historical) | D | TC-075 |
 | REQ-CORE-076 | Retired Acme/plumber thinking switch (historical) | D | TC-076 |
 | REQ-CORE-077 | Provider graceful startup | D | TC-077 |

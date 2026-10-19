@@ -6,6 +6,7 @@
 with Ada.Calendar;
 with Ada.Characters.Handling;
 with Ada.Environment_Variables;
+with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Numerics.Discrete_Random;
 with Ada.Streams;
@@ -15,39 +16,40 @@ with GNATCOLL.JSON;
 with Interfaces;
 use type Interfaces.Unsigned_32;
 with LLM.HTTP;
+with LLM.Credential_Locks;
+with LLM.Settings;
+with LLM.Tools;
+
 with SHA2;
 
 package body LLM.Auth.Codex is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
+   use type LLM.Tools.Abort_Flag_Access;
 
    --  Byte value used for random PKCE and state material.
    type Random_Byte_Type is mod 256;
 
    package Byte_Random is new Ada.Numerics.Discrete_Random (Random_Byte_Type);
 
-   protected type Refresh_Mutex is
-      entry Acquire;
-      procedure Release;
-   private
-      Busy : Boolean := False;
-   end Refresh_Mutex;
+   procedure Check_Abort
+     (Abort_Check : LLM.Tools.Abort_Flag_Access)
+   is
+   begin
+      if Abort_Check /= null and then Abort_Check.Requested then
+         raise LLM.HTTP.Curl_Error with "Codex token operation aborted";
+      end if;
+   end Check_Abort;
 
-   protected body Refresh_Mutex is
-
-      entry Acquire when not Busy is
-      begin
-         Busy := True;
-      end Acquire;
-
-      procedure Release is
-      begin
-         Busy := False;
-      end Release;
-
-   end Refresh_Mutex;
-
-   Guard : Refresh_Mutex;
+   function Refresh_Lock_Path return String is
+      Directory : constant String := LLM.Settings.Agent_Dir;
+   begin
+      if Directory'Length = 0 then
+         raise Auth_Error
+           with "HOME is not set; cannot access Codex credentials";
+      end if;
+      return Directory & "/codex-refresh.lock";
+   end Refresh_Lock_Path;
 
    function Random_Byte return Ada.Streams.Stream_Element is
       Generator : Byte_Random.Generator;
@@ -470,9 +472,11 @@ package body LLM.Auth.Codex is
       LLM.HTTP.Post
         (URL      => Token_Endpoint,
          Headers  => Headers,
-         Payload  => To_String (Form),
-         On_Chunk => On_Chunk'Access,
-         Status   => Status);
+         Payload                 => To_String (Form),
+         On_Chunk                => On_Chunk'Access,
+         Status                  => Status,
+         Connect_Timeout_Seconds => 10,
+         Total_Timeout_Seconds   => 30);
 
       if Status /= 200 then
          --  Diagnostics: log the failing request geometry (never token
@@ -506,7 +510,10 @@ package body LLM.Auth.Codex is
          raise Auth_Error with Ada.Exceptions.Exception_Message (E);
    end Exchange_Code;
 
-   procedure Refresh_Token (Creds : in out LLM.Auth.Provider_Credentials) is
+   procedure Exchange_Refresh_Unlocked
+     (Creds       : in out LLM.Auth.Provider_Credentials;
+      Abort_Check : LLM.Tools.Abort_Flag_Access)
+   is
       Headers       : LLM.HTTP.Header_List;
       Status        : Natural := 0;
       Response_Body : Unbounded_String;
@@ -517,6 +524,7 @@ package body LLM.Auth.Codex is
          Append (Response_Body, Data);
       end On_Chunk;
    begin
+      Check_Abort (Abort_Check);
       if Length (Creds.Refresh_Token) = 0 then
          raise Auth_Error with "OpenAI Codex refresh token is missing";
       end if;
@@ -532,15 +540,16 @@ package body LLM.Auth.Codex is
       LLM.HTTP.Add_Header (Headers, "User-Agent", User_Agent_Value);
 
       LLM.HTTP.Post
-        (URL      => Token_Endpoint,
-         Headers  => Headers,
-         Payload  => To_String (Form),
-         On_Chunk => On_Chunk'Access,
-         Status   => Status);
+        (URL                    => Token_Endpoint,
+         Headers                => Headers,
+         Payload                => To_String (Form),
+         On_Chunk               => On_Chunk'Access,
+         Status                 => Status,
+         Abort_Check            => Abort_Check,
+         Connect_Timeout_Seconds => 10,
+         Total_Timeout_Seconds   => 30);
 
       if Status /= 200 then
-         --  Log the complete response: the 200-character exception
-         --  message cap would truncate it (see Exchange_Code).
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "[!] OpenAI Codex token refresh response (HTTP"
@@ -554,12 +563,6 @@ package body LLM.Auth.Codex is
          Fresh : LLM.Auth.Provider_Credentials;
       begin
          Parse_Token_Response (To_String (Response_Body), "refresh", Fresh);
-
-         --  The refresh endpoint may omit refresh_token (rotation is
-         --  optional); keep the previous refresh token in that case.
-         --  The account id is re-extracted from the new access token and
-         --  may rotate; when the fresh token does not carry the claim,
-         --  retain the previously stored account id.
          if Length (Fresh.Account_Id) > 0 then
             Creds.Account_Id := Fresh.Account_Id;
          end if;
@@ -570,8 +573,34 @@ package body LLM.Auth.Codex is
          end if;
       end;
 
-      LLM.Auth.Save_Credentials ("codex", Creds);
+      LLM.Auth.Save_Credentials_Unlocked ("codex", Creds);
+   end Exchange_Refresh_Unlocked;
+
+   procedure Refresh_Token
+     (Creds       : in out LLM.Auth.Provider_Credentials;
+      Abort_Check : LLM.Tools.Abort_Flag_Access := null)
+   is
+      Guard : LLM.Credential_Locks.Lock;
+   begin
+      LLM.Credential_Locks.Acquire
+        (Guard, Refresh_Lock_Path, Abort_Check);
+      Check_Abort (Abort_Check);
+      declare
+         Latest : constant LLM.Auth.Provider_Credentials :=
+           LLM.Auth.Load_Credentials ("codex");
+      begin
+         if Length (Latest.Refresh_Token) > 0 then
+            Creds := Latest;
+         elsif Ada.Directories.Exists
+           (LLM.Settings.Agent_Dir & "/auth.json")
+         then
+            raise Auth_Error with "OpenAI Codex refresh token is missing";
+         end if;
+      end;
+      Exchange_Refresh_Unlocked (Creds, Abort_Check);
    exception
+      when LLM.HTTP.Curl_Error =>
+         raise;
       when E : others =>
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
@@ -587,70 +616,63 @@ package body LLM.Auth.Codex is
       return Creds.Expires_Ms <= Current_Unix_Ms + 300_000;
    end Token_Expired;
 
-   procedure Ensure_Valid (Creds : in out LLM.Auth.Provider_Credentials) is
+   procedure Ensure_Valid
+     (Creds       : in out LLM.Auth.Provider_Credentials;
+      Abort_Check : LLM.Tools.Abort_Flag_Access := null)
+   is
+      Guard : LLM.Credential_Locks.Lock;
    begin
-      if not Token_Expired (Creds) then
-         return;
-      end if;
-
-      Guard.Acquire;
-
+      LLM.Credential_Locks.Acquire
+        (Guard, Refresh_Lock_Path, Abort_Check);
+      Check_Abort (Abort_Check);
+      declare
+         Latest : constant LLM.Auth.Provider_Credentials :=
+           LLM.Auth.Load_Credentials ("codex");
       begin
-         if Token_Expired (Creds) then
-            declare
-               Latest : constant LLM.Auth.Provider_Credentials :=
-                 LLM.Auth.Load_Credentials ("codex");
-            begin
-               if Length (Latest.Refresh_Token) > 0
-                 or else Length (Latest.Access_Token) > 0
-               then
-                  Creds := Latest;
-               end if;
-            end;
-
-            if Token_Expired (Creds) then
-               Refresh_Token (Creds);
-            end if;
+         if Length (Latest.Access_Token) = 0
+           and then Length (Latest.Refresh_Token) = 0
+         then
+            raise Auth_Error
+              with "OpenAI Codex subscription is not configured; "
+              & "log in via Options > Subscriptions";
          end if;
-
-         Guard.Release;
-      exception
-         when others =>
-            Guard.Release;
-            raise;
+         Creds := Latest;
       end;
+      if Token_Expired (Creds) then
+         Exchange_Refresh_Unlocked (Creds, Abort_Check);
+      end if;
    end Ensure_Valid;
 
    procedure Recover_Rejected_Token
      (Creds          : in out LLM.Auth.Provider_Credentials;
-      Rejected_Token :     String)
+      Rejected_Token :     String;
+      Abort_Check    : LLM.Tools.Abort_Flag_Access := null)
    is
+      Guard : LLM.Credential_Locks.Lock;
    begin
-      Guard.Acquire;
-
+      LLM.Credential_Locks.Acquire
+        (Guard, Refresh_Lock_Path, Abort_Check);
+      Check_Abort (Abort_Check);
+      declare
+         Latest : constant LLM.Auth.Provider_Credentials :=
+           LLM.Auth.Load_Credentials ("codex");
       begin
-         declare
-            Latest : constant LLM.Auth.Provider_Credentials :=
-              LLM.Auth.Load_Credentials ("codex");
-         begin
-            if Length (Latest.Access_Token) > 0
-              and then To_String (Latest.Access_Token) /= Rejected_Token
-              and then not Token_Expired (Latest)
-            then
-               Creds := Latest;
-            else
-               if Length (Latest.Refresh_Token) > 0 then
-                  Creds := Latest;
-               end if;
-               Refresh_Token (Creds);
-            end if;
-         end;
-
-         Guard.Release;
-      exception
-         when others =>
-            Guard.Release;
-            raise;
+         if Length (Latest.Access_Token) = 0
+           and then Length (Latest.Refresh_Token) = 0
+         then
+            raise Auth_Error
+              with "OpenAI Codex subscription is not configured; "
+              & "log in via Options > Subscriptions";
+         end if;
+         if Length (Latest.Access_Token) > 0
+           and then To_String (Latest.Access_Token) /= Rejected_Token
+           and then not Token_Expired (Latest)
+         then
+            Creds := Latest;
+         else
+            Creds := Latest;
+            Exchange_Refresh_Unlocked (Creds, Abort_Check);
+         end if;
       end;
    end Recover_Rejected_Token;
 

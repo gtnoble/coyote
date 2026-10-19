@@ -398,6 +398,7 @@ not wait for the complete user turn.
 | `LLM.SSE` | Server-sent event parser | `src/llm/llm-sse.ads/.adb` |
 | `LLM.Settings` | Configuration file loading | `src/llm/llm-settings.ads/.adb` |
 | `LLM.Auth` | Auth token loading and saving | `src/llm/llm-auth.ads/.adb` |
+| `LLM.Credential_Locks` | Stable Linux cross-process credential locking with cancellable bounded acquisition | `src/llm/llm-credential_locks.ads/.adb` |
 | `LLM.Auth.GitHub_Copilot` | Copilot token refresh | `src/llm/llm-auth-github_copilot.ads/.adb` |
 | `LLM.Auth.Codex` | OpenAI Codex OAuth credentials, PKCE, JWT account extraction | `src/llm/llm-auth-codex.ads/.adb` |
 | `LLM.Auth.Codex.Login` | Browser OAuth login flow with local callback listener | `src/llm/llm-auth-codex-login.ads/.adb` |
@@ -444,6 +445,8 @@ not wait for the complete user turn.
 | `Test_GUI_Suite` | GUI test-domain suite composer | `test/src/test_gui_suite.ads/.adb` |
 | `Test_Integration_Suite` | Optional subprocess integration suite composer | `test/src/test_integration_suite.ads/.adb` |
 | `Test_Process_Control_Suite` | Final process-control test-domain suite | `test/src/test_process_control_suite.ads/.adb` |
+| `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
+| `Auth_Test_Worker` | Subprocess helper for credential-lock and auth concurrency tests | `test/tools/auth_test_worker.adb` |
 | `*_Tests.Suite` | Leaf AUnit fixture suite functions (current retained fixtures) | `test/src/*_tests.ads/.adb` |
 
 ### 4.2 Static Relationships
@@ -1626,16 +1629,21 @@ headers are never rewritten.
 
 ### 5.21 `LLM.Auth`
 
-**Purpose:** Loads and caches provider authentication tokens.
+**Purpose:** Reads and updates provider credentials in `~/.coyote/auth.json`.
 
-**`Auth_Store` record:** Maps provider name to token string. Populated by
-`Load` from `~/.coyote/auth.json`.
+**`Provider_Credentials`:** Contains credential type, access/refresh tokens,
+expiry in epoch milliseconds, and the optional ChatGPT account identifier.
+`Load_Credentials` reads a lowercase provider entry from a complete snapshot;
+missing or malformed JSON yields empty credentials.
 
-**`Load` procedure:** Reads `~/.coyote/auth.json`; populates the store.
-Missing file is a no-op (not an error; provider may use API-key auth).
-
-**`Save` procedure:** Writes the current store back to `~/.coyote/auth.json`.
-Called after token refresh to persist the new token.
+**`Save_Credentials`:** Acquires the stable `auth-store.lock` before loading
+and merging the latest JSON. Codex saves first acquire `codex-refresh.lock`,
+so login/logout cannot be overwritten by an older in-flight refresh. Child
+Codex refresh code already holding that lock uses private
+`Save_Credentials_Unlocked`, which still takes the store lock. Writes refuse
+malformed existing JSON and use unique owner-only temporary files followed
+by atomic rename. Persistence after successful token rotation deliberately
+ignores cancellation until the new credential is saved.
 
 ---
 
@@ -1701,12 +1709,38 @@ token omits the claim. Persists the result under the `"codex"` key of
 `~/.coyote/auth.json`. Initial `Exchange_Code` login continues to require
 `access_token`, `refresh_token`, and positive `expires_in`.
 
-**`Token_Expired` / `Ensure_Valid`:** The token is expired when
-`Expires_Ms` is within five minutes of the current epoch-millisecond
-time. `Ensure_Valid` serialises refresh across tasks with a protected
-mutex, re-reads `auth.json` under the lock (double-checked locking), and
-refreshes only when the latest stored credential is still expired. This
-process-local guard does not claim cross-process locking.
+**`Token_Expired` / `Ensure_Valid` and recovery:** The token is expired when
+`Expires_Ms` is within five minutes of the current epoch-millisecond time.
+`Ensure_Valid` and rejected-token recovery acquire the stable
+`LLM.Credential_Locks` Codex refresh lock, then the short-lived auth-store lock
+when needed; this is the required lock order. After acquiring the refresh
+lock, both operations reload `auth.json` and treat the stored Codex credential
+as authoritative, including a missing or empty value after logout. Refreshes
+are therefore coordinated across tasks and processes, and a concurrent waiter
+uses credentials written by the lock holder instead of refreshing needlessly.
+The refresh lock is released on process exit or crash by the kernel.
+
+**Credential lock facility:** `LLM.Credential_Locks` uses stable lock files
+with Linux `flock`, opened with `O_CLOEXEC | O_NOFOLLOW` and mode 0600. Lock
+files are not unlinked during normal operation, avoiding inode-splitting races.
+Acquisition polls every 50 ms against a monotonic deadline no more than 60
+seconds away and accepts cancellation; cancellation propagates as
+`LLM.HTTP.Curl_Error` from optional Codex Ensure/recovery cancellation inputs.
+The facility is platform-specific to Linux/glibc. If refresh succeeds, its
+credential update is persisted before a late cancellation check and any
+request replay.
+
+**Credential persistence and public saves:** The auth store uses an exclusive
+short-lived store lock to read/merge/write. Updates preserve other providers;
+malformed existing JSON causes a refusal to overwrite. A unique mode-0600
+same-directory temporary file is atomically renamed over `auth.json`. All
+public Codex saves, including login and logout, acquire the refresh lock before
+the store lock. Private child persistence takes only the store lock, avoiding
+lock-order inversion.
+
+**Token HTTP timeout:** Codex token POSTs use a 10-second connection timeout
+and a 30-second total timeout. Defaults for all other HTTP requests remain
+unchanged.
 
 ---
 
@@ -1925,16 +1959,14 @@ native OpenAI wire format is unchanged.
 **401 recovery:** The Codex delegate explicitly enables the optional
 `Recover_Auth` hook. Native provider delegates leave it disabled by default.
 On HTTP 401, the Responses path checks cancellation, reloads credentials under
-the process-local refresh guard, reuses a different valid stored access token
+the cross-process refresh lock, reuses a different valid stored access token
 or forces refresh regardless of local expiry, updates bearer and account
 headers, checks cancellation again, then
 replays the identical request once. A second 401 or refresh/replay failure is
 terminal. The rejected response body is withheld from SSE parsing and event
-dispatch, preventing an intermediate failed assistant message. The guard
-coordinates tasks in this process only; no cross-process lock is claimed.
-Cancellation prevents recovery/replay at the request boundaries, but cannot
-interrupt an already-blocked token refresh HTTP request, which retains the
-existing transport timeout behavior.
+dispatch, preventing an intermediate failed assistant message. Lock acquisition
+is cancellable and bounded by a monotonic deadline of at most 60 seconds; a
+successful refresh is persisted before the late cancellation check and replay.
 
 ---
 ### 5.27b `LLM.Providers.Codex.Catalogue`
@@ -2826,6 +2858,7 @@ session-header rules synchronously.
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
 | REQ-CORE-144–148, REQ-CORE-200–208, REQ-CORE-215–219 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Auth.Codex`, `LLM.Model_Registry` |
+| REQ-CORE-149 | `LLM.Credential_Locks`, `LLM.Auth`, `LLM.Auth.Codex`, `LLM.Auth.Codex.Login` |
 | REQ-CORE-210–212 | Historical retired Acme 9P VFS requirements; see PCR-090 |
 | REQ-CORE-220–221, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.*` |
 | REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |

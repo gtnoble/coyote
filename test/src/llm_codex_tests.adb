@@ -14,6 +14,7 @@ with AUnit.Test_Caller;
 with GNATCOLL.JSON;
 with Interfaces;
 with LLM.Auth.Codex;
+with LLM.Credential_Locks;
 with LLM.Events;
 with LLM.HTTP;
 with LLM.Model_Registry;
@@ -81,6 +82,8 @@ package body LLM_Codex_Tests is
    begin
       Delete_If_Exists (Agent_Dir & "/auth.json");
       Delete_If_Exists (Agent_Dir & "/auth.json.tmp");
+      Delete_If_Exists (Agent_Dir & "/codex-refresh.lock");
+      Delete_If_Exists (Agent_Dir & "/auth-store.lock");
 
       if Ada.Directories.Exists (Agent_Dir) then
          Ada.Directories.Delete_Directory (Agent_Dir);
@@ -172,6 +175,8 @@ package body LLM_Codex_Tests is
    end Sample_Jwt;
 
    procedure Write_Credentials (Home : String; Account_Id : String);
+   procedure On_Event (E : LLM.Events.Agent_Event'Class);
+   function User_Hello return LLM.Types.Message_Vectors.Vector;
 
    procedure Test_Make_Pkce (T : in out Test) is
       pragma Unreferenced (T);
@@ -521,6 +526,14 @@ package body LLM_Codex_Tests is
         (Contains (To_String (Error_Message), Expected_Part),
          "Error message should mention the failure; got: "
          & To_String (Error_Message));
+      declare
+         Guard : LLM.Credential_Locks.Lock;
+      begin
+         LLM.Credential_Locks.Acquire
+           (Guard, Home & "/.coyote/codex-refresh.lock",
+            Timeout_Seconds => 1);
+         LLM.Credential_Locks.Release (Guard);
+      end;
       Assert
         (not Ada.Directories.Exists (Home & "/.coyote/auth.json"),
          "A failed refresh should not create auth.json");
@@ -672,6 +685,350 @@ package body LLM_Codex_Tests is
          Response_Body => "{""access_token"":""x""}",
          Expected_Part => "missing fields");
    end Test_Refresh_Token_Missing_Fields_Raises;
+
+   procedure Test_Refresh_Lock_Cancellation (T : in out Test) is
+      pragma Unreferenced (T);
+      Home : constant String := "/tmp/coyote_codex_lock_cancel";
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Had_Home : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Flag : aliased LLM.Tools.Abort_Flag;
+      Guard : LLM.Credential_Locks.Lock;
+      Raised : Boolean := False;
+      pragma Atomic (Raised);
+      Creds : LLM.Auth.Provider_Credentials :=
+        (Refresh_Token => To_Unbounded_String ("must-not-send"),
+         Expires_Ms => 0, others => <>);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Credentials (Home, "acc-existing");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      LLM.Credential_Locks.Acquire
+        (Guard, Home & "/.coyote/codex-refresh.lock");
+      declare
+         task Runner;
+         task body Runner is
+         begin
+            LLM.Auth.Codex.Ensure_Valid
+              (Creds, Flag'Unchecked_Access);
+         exception
+            when LLM.HTTP.Curl_Error =>
+               Raised := True;
+         end Runner;
+      begin
+         delay 0.15;
+         Flag.Set;
+      end;
+      LLM.Credential_Locks.Release (Guard);
+      Assert (Raised, "lock wait cancellation should raise Curl_Error");
+      Restore_Env ("HOME", Had_Home, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         LLM.Credential_Locks.Release (Guard);
+         Restore_Env ("HOME", Had_Home, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Refresh_Lock_Cancellation;
+
+   procedure Test_Refresh_HTTP_Cancellation (T : in out Test) is
+      pragma Unreferenced (T);
+      Port : constant Positive := 18_813;
+      Home : constant String := "/tmp/coyote_codex_http_cancel";
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Had_Home : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Url : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Had_Url : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Flag : aliased LLM.Tools.Abort_Flag;
+      Arrived : Boolean := False;
+      pragma Atomic (Arrived);
+      Raised : Boolean := False;
+      pragma Atomic (Raised);
+      Creds : LLM.Auth.Provider_Credentials :=
+        (Refresh_Token => To_Unbounded_String ("refresh-http"),
+         Expires_Ms => 0, others => <>);
+      procedure Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Arrived := True;
+         Res.Status := 200;
+         Append (Res.Body_Data, "{""access_token"":""late""}");
+         Res.Body_Delay := 3.0;
+      end Handler;
+      Srv : Test_HTTP_Server.Server (Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":""refresh-http"","
+         & """access"":""old"",""expires"":0}}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port) & "/oauth/token");
+      Srv.Bind (Port);
+      declare
+         task Runner;
+         task body Runner is
+         begin
+            LLM.Auth.Codex.Refresh_Token
+              (Creds, Flag'Unchecked_Access);
+         exception
+            when LLM.HTTP.Curl_Error =>
+               Raised := True;
+         end Runner;
+      begin
+         Wait_Loop :
+         for Attempt in 1 .. 200 loop
+            exit Wait_Loop when Arrived;
+            delay 0.01;
+         end loop Wait_Loop;
+         Assert (Arrived, "token handler should receive request");
+         Flag.Set;
+      end;
+      Assert (Raised, "stalled token response should cancel with Curl_Error");
+      Srv.Stop;
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Had_Url, Old_Url);
+      Restore_Env ("HOME", Had_Home, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Srv.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Had_Url, Old_Url);
+         Restore_Env ("HOME", Had_Home, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Refresh_HTTP_Cancellation;
+
+   procedure Test_Ensure_And_Recover_Reject_Logged_Out
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Home : constant String := "/tmp/coyote_codex_logout";
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Had_Home : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Creds : LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token => To_Unbounded_String ("stale-refresh"),
+         Access_Token => To_Unbounded_String ("stale-access"),
+         Expires_Ms => 0,
+         Account_Id => To_Unbounded_String ("acc-stale"));
+      Raised_Ensure : Boolean := False;
+      Raised_Recover : Boolean := False;
+      Guard : LLM.Credential_Locks.Lock;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Write_Credentials (Home, "acc-to-clear");
+      LLM.Auth.Save_Credentials ("codex", (others => <>));
+      begin
+         LLM.Auth.Codex.Ensure_Valid (Creds);
+      exception
+         when LLM.Auth.Codex.Auth_Error =>
+            Raised_Ensure := True;
+         when LLM.HTTP.Curl_Error =>
+            raise Program_Error with "unexpected token HTTP request";
+      end;
+      Assert
+        (Raised_Ensure,
+         "Ensure_Valid must reject absent stored credentials");
+      Creds :=
+        (Refresh_Token => To_Unbounded_String ("stale-refresh"),
+         Access_Token => To_Unbounded_String ("stale-access"), others => <>);
+      begin
+         LLM.Auth.Codex.Recover_Rejected_Token (Creds, "stale-access");
+      exception
+         when LLM.Auth.Codex.Auth_Error =>
+            Raised_Recover := True;
+         when LLM.HTTP.Curl_Error =>
+            raise Program_Error with "unexpected token HTTP request";
+      end;
+      Assert
+        (Raised_Recover,
+         "recovery must reject absent stored credentials");
+      LLM.Credential_Locks.Acquire
+        (Guard, Home & "/.coyote/codex-refresh.lock", Timeout_Seconds => 1);
+      LLM.Credential_Locks.Release (Guard);
+      Assert
+        (Length (LLM.Auth.Load_Credentials ("codex").Access_Token) = 0
+         and then Length
+           (LLM.Auth.Load_Credentials ("codex").Refresh_Token) = 0,
+         "logout must remain authoritative after rejected refresh attempts");
+      Restore_Env ("HOME", Had_Home, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Had_Home, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Ensure_And_Recover_Reject_Logged_Out;
+
+   procedure Test_Refresh_Persists_Before_Late_Cancellation
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Port : constant Positive := 18_814;
+      Home : constant String := "/tmp/coyote_codex_late_cancel";
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Had_Home : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Url : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Had_Url : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Flag : aliased LLM.Tools.Abort_Flag;
+      Store_Guard : LLM.Credential_Locks.Lock;
+      Arrived : Boolean := False;
+      pragma Atomic (Arrived);
+      Raised : Boolean := False;
+      pragma Atomic (Raised);
+      Saved : LLM.Auth.Provider_Credentials;
+      Provider : LLM.Providers.Codex.Provider :=
+        LLM.Providers.Codex.Create (Session_Id => "late-cancel");
+      procedure Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Arrived := True;
+         Res.Status := 200;
+         Append
+           (Res.Body_Data,
+            "{""access_token"":""" & Sample_Jwt ("acc-rotated")
+            & """,""refresh_token"":""rotated-refresh"","
+            & """expires_in"":3600}");
+         Res.Body_Delay := 0.15;
+      end Handler;
+      Srv : Test_HTTP_Server.Server (Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Credentials (Home, "acc-old");
+      Write_File
+        (Home & "/.coyote/auth.json",
+         "{""codex"":{""type"":""oauth"",""refresh"":""old-refresh"","
+         & """access"":""old-access"",""expires"":0}}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port) & "/oauth/token");
+      LLM.Credential_Locks.Acquire
+        (Store_Guard, Home & "/.coyote/auth-store.lock");
+      Srv.Bind (Port);
+      declare
+         task Runner;
+         task body Runner is
+         begin
+            Provider.Send
+              (Model_Id      => "gpt-5.5",
+               System_Prompt => "Be helpful.",
+               Messages      => User_Hello,
+               Tools_Json    => "[]",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => 32,
+               Handler       => On_Event'Access,
+               Abort_Check   => Flag'Unchecked_Access);
+         exception
+            when LLM.HTTP.Curl_Error =>
+               Raised := True;
+         end Runner;
+      begin
+         Wait_Loop :
+         for Attempt in 1 .. 200 loop
+            exit Wait_Loop when Arrived;
+            delay 0.01;
+         end loop Wait_Loop;
+         Assert (Arrived, "token rotation request should arrive");
+         delay 0.35;
+         Flag.Set;
+         LLM.Credential_Locks.Release (Store_Guard);
+      end;
+      Srv.Stop;
+      Saved := LLM.Auth.Load_Credentials ("codex");
+      Assert (Raised, "late provider cancellation should be observable");
+      Assert
+        (To_String (Saved.Refresh_Token) = "rotated-refresh"
+         and then To_String (Saved.Account_Id) = "acc-rotated",
+         "successful rotation must persist despite late cancellation");
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Had_Url, Old_Url);
+      Restore_Env ("HOME", Had_Home, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         LLM.Credential_Locks.Release (Store_Guard);
+         Srv.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Had_Url, Old_Url);
+         Restore_Env ("HOME", Had_Home, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Refresh_Persists_Before_Late_Cancellation;
+
+   procedure Test_Refresh_Uses_Supplied_Fallback (T : in out Test) is
+      pragma Unreferenced (T);
+      Port : constant Positive := 18_815;
+      Home : constant String := "/tmp/coyote_codex_fallback";
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Had_Home : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Url : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_CODEX_TOKEN_URL", "");
+      Had_Url : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_CODEX_TOKEN_URL");
+      Creds : LLM.Auth.Provider_Credentials :=
+        (Credential_Type => To_Unbounded_String ("oauth"),
+         Refresh_Token => To_Unbounded_String ("fallback-refresh"),
+         Access_Token => To_Unbounded_String ("old-access"),
+         Expires_Ms => 0, others => <>);
+      Saw_Fallback : Boolean := False;
+      procedure Handler
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Saw_Fallback := Contains
+           (To_String (Req.Body_Data), "refresh_token=fallback-refresh");
+         Res.Status := 200;
+         Append
+           (Res.Body_Data,
+            "{""access_token"":""" & Sample_Jwt ("acc-fallback")
+            & """,""expires_in"":3600}");
+      end Handler;
+      Srv : Test_HTTP_Server.Server (Handler'Unrestricted_Access);
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_CODEX_TOKEN_URL",
+         "http://127.0.0.1:" & Trimmed_Image (Port) & "/oauth/token");
+      Srv.Bind (Port);
+      LLM.Auth.Codex.Refresh_Token (Creds);
+      Srv.Stop;
+      Assert
+        (Saw_Fallback, "direct refresh should use supplied fallback token");
+      Assert
+        (To_String (LLM.Auth.Load_Credentials ("codex").Account_Id)
+         = "acc-fallback",
+         "fallback refresh result should persist");
+      Restore_Env ("COYOTE_CODEX_TOKEN_URL", Had_Url, Old_Url);
+      Restore_Env ("HOME", Had_Home, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Srv.Stop;
+         Restore_Env ("COYOTE_CODEX_TOKEN_URL", Had_Url, Old_Url);
+         Restore_Env ("HOME", Had_Home, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Refresh_Uses_Supplied_Fallback;
 
    --  Event sequence collector shared by the streaming Send tests.
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
@@ -1672,6 +2029,27 @@ package body LLM_Codex_Tests is
         (LLM_Codex_Caller.Create
            ("LLM.Auth.Codex raises when refresh response misses fields",
             LLM_Codex_Tests.Test_Refresh_Token_Missing_Fields_Raises'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex cancellation while waiting for refresh lock",
+            LLM_Codex_Tests.Test_Refresh_Lock_Cancellation'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex cancellation interrupts token HTTP request",
+            LLM_Codex_Tests.Test_Refresh_HTTP_Cancellation'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex rejects stale credentials after logout",
+            LLM_Codex_Tests.Test_Ensure_And_Recover_Reject_Logged_Out'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex persists rotation before late cancellation",
+            LLM_Codex_Tests.Test_Refresh_Persists_Before_Late_Cancellation
+              'Access));
+      Result.Add_Test
+        (LLM_Codex_Caller.Create
+           ("LLM.Auth.Codex accepts direct refresh fallback credentials",
+            LLM_Codex_Tests.Test_Refresh_Uses_Supplied_Fallback'Access));
       Result.Add_Test
         (LLM_Codex_Caller.Create
            ("LLM.Providers.Codex sends the Codex headers and endpoint",

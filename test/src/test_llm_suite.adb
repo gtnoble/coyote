@@ -11,6 +11,7 @@ with LLM_Tools_Tests;
 with LLM_OpenAI_Completions_Tests;
 with LLM_OpenAI_Responses_Tests;
 with LLM_Auth_Tests;
+with LLM_Auth_Concurrency_Tests;
 with LLM_Catalogue_Tests;
 with LLM_OpenRouter_Tests;
 with LLM_OpenRouter_Catalogue_Tests;
@@ -42,6 +43,7 @@ package body Test_LLM_Suite is
       Result.Add_Test (LLM_OpenAI_Completions_Tests.Suite);
       Result.Add_Test (LLM_OpenAI_Responses_Tests.Suite);
       Result.Add_Test (LLM_Auth_Tests.Suite);
+      Result.Add_Test (LLM_Auth_Concurrency_Tests.Suite);
       Result.Add_Test (LLM_Catalogue_Tests.Suite);
       Result.Add_Test (LLM_OpenRouter_Tests.Suite);
       Result.Add_Test (LLM_OpenRouter_Catalogue_Tests.Suite);

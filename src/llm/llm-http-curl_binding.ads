@@ -98,6 +98,18 @@ package LLM.HTTP.Curl_Binding is
      (H : Handle; V : Interfaces.C.long) return Code with
      Import, Convention => C, External_Name => "curl_set_low_speed_time";
 
+   --  libcurl option IDs for CURLOPT_TIMEOUT and CURLOPT_CONNECTTIMEOUT.
+   CURLOPT_TIMEOUT         : constant Interfaces.C.int := 13;
+   CURLOPT_CONNECTTIMEOUT  : constant Interfaces.C.int := 78;
+
+   --  These options take a C long, so this fixed-signature import matches
+   --  the libcurl variadic API's ABI for the selected options.
+   function Set_Timeout_Option
+     (H      : Handle;
+      Option : Interfaces.C.int;
+      Value  : Interfaces.C.long) return Code with
+     Import, Convention => C, External_Name => "curl_easy_setopt";
+
    function Set_No_Progress
      (H : Handle; V : Interfaces.C.long) return Code with
      Import, Convention => C, External_Name => "curl_set_noprogress";

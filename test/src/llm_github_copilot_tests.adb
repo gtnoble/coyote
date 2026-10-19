@@ -89,6 +89,8 @@ package body LLM_GitHub_Copilot_Tests is
    begin
       Delete_If_Exists (Agent_Dir & "/auth.json");
       Delete_If_Exists (Agent_Dir & "/auth.json.tmp");
+      Delete_If_Exists (Agent_Dir & "/auth-store.lock");
+      Delete_If_Exists (Agent_Dir & "/codex-refresh.lock");
       Delete_If_Exists (Agent_Dir & "/github_copilot_models_cache.json");
       Delete_If_Exists (Agent_Dir & "/github_copilot_models_cache.json.tmp");
 

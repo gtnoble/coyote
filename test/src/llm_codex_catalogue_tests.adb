@@ -62,6 +62,8 @@ package body LLM_Codex_Catalogue_Tests is
       Delete_If_Exists (Agent_Dir & "/codex_models_cache.json.tmp");
       Delete_If_Exists (Agent_Dir & "/auth.json");
       Delete_If_Exists (Agent_Dir & "/auth.json.tmp");
+      Delete_If_Exists (Agent_Dir & "/auth-store.lock");
+      Delete_If_Exists (Agent_Dir & "/codex-refresh.lock");
 
       if Ada.Directories.Exists (Agent_Dir) then
          Ada.Directories.Delete_Directory (Agent_Dir);

@@ -9,6 +9,7 @@
 --  For revision history, see the project version-control log.
 
 with LLM.Auth;
+with LLM.Tools;
 
 package LLM.Auth.Codex is
 
@@ -62,10 +63,13 @@ package LLM.Auth.Codex is
       Redirect_Uri_Override :     String := "";
       Creds                 : out LLM.Auth.Provider_Credentials);
 
-   --  Refresh an existing credential.  Updates Creds in place and
-   --  persists the result to ~/.coyote/auth.json.  Raises Auth_Error on
-   --  transport, parse, or missing-field failures.
-   procedure Refresh_Token (Creds : in out LLM.Auth.Provider_Credentials);
+   --  Refresh an existing credential under the Codex refresh file lock.
+   --  Updates Creds in place and persists the result to auth.json.
+   --  Abort_Check cancels lock waits and the token request; cancellation
+   --  raises LLM.HTTP.Curl_Error.
+   procedure Refresh_Token
+     (Creds       : in out LLM.Auth.Provider_Credentials;
+      Abort_Check : LLM.Tools.Abort_Flag_Access := null);
 
    --  Return True when the access token is missing or expires within
    --  five minutes.
@@ -74,14 +78,17 @@ package LLM.Auth.Codex is
 
    --  Recover a rejected bearer token after reloading persisted credentials.
    --  Reuses a different, non-expired stored token or forces a refresh.
-   --  Serialised with ordinary refreshes.
+   --  Uses the Codex refresh file lock and supports cancellation.
    procedure Recover_Rejected_Token
      (Creds          : in out LLM.Auth.Provider_Credentials;
-      Rejected_Token : String);
+      Rejected_Token : String;
+      Abort_Check    : LLM.Tools.Abort_Flag_Access := null);
 
    --  Ensure the credential carries a non-expired access token,
    --  refreshing (and re-extracting the account id) when needed.
-   --  Serialised across tasks.
-   procedure Ensure_Valid (Creds : in out LLM.Auth.Provider_Credentials);
+   --  Uses the Codex refresh file lock and supports cancellation.
+   procedure Ensure_Valid
+     (Creds       : in out LLM.Auth.Provider_Credentials;
+      Abort_Check : LLM.Tools.Abort_Flag_Access := null);
 
 end LLM.Auth.Codex;

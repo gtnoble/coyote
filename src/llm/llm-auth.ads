@@ -1,10 +1,9 @@
---  LLM.Auth -- provider credential storage helpers.
+--  LLM.Auth reads and updates provider credentials in auth.json.
 --
---  Reads and writes `~/.coyote/auth.json` for providers that store
---  refreshable credentials, including GitHub Copilot.
---
---  Project: coyote
---  For revision history, see the project version-control log.
+--  Public saves serialize provider-specific updates with a store lock.
+--  Codex refresh code that already owns its provider lock may call the
+--  private unlocked save operation; it still acquires the store lock.
+--  Invalid existing JSON is never overwritten. File operations are atomic.
 
 with Ada.Strings.Unbounded;
 
@@ -17,25 +16,29 @@ package LLM.Auth is
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Access_Token    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
-      Expires_Ms      : Long_Long_Integer                      := 0;
-      --  ChatGPT account identifier carried by OAuth subscription
-      --  providers such as OpenAI Codex.  Empty for providers that do
-      --  not use one.
+      Expires_Ms      : Long_Long_Integer := 0;
       Account_Id      : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
 
-   --  Read credentials for Provider from ~/.coyote/auth.json.
-   --
-   --  Returns an all-empty record when the auth file is missing, the file
-   --  cannot be parsed, or the named provider entry is absent.
+   --  Read the lowercase provider entry. Missing/malformed JSON or an absent
+   --  provider returns empty credentials. Atomic replacement allows readers
+   --  to observe a complete old or new snapshot without acquiring a lock.
    function Load_Credentials (Provider : String) return Provider_Credentials;
 
-   --  Write credentials for Provider to ~/.coyote/auth.json.
-   --
-   --  The file is updated atomically by writing a temporary file in the same
-   --  directory and renaming it over the original path.
+   --  Merge a lowercase provider entry under the auth-store file lock.
+   --  Codex additionally takes its refresh lock first (login/logout order).
+   --  Refuses malformed existing JSON; writes mode-0600 unique staging files
+   --  followed by atomic rename. Lock waits are bounded to 60 seconds.
    procedure Save_Credentials
+     (Provider : String; Creds : Provider_Credentials);
+
+private
+
+   --  Caller owns the Codex refresh lock when writing Codex credentials.
+   --  Acquires only the short store lock. Deliberately not cancellable:
+   --  successful refresh-token rotation must be persisted before aborting.
+   procedure Save_Credentials_Unlocked
      (Provider : String; Creds : Provider_Credentials);
 
 end LLM.Auth;

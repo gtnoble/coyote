@@ -3660,9 +3660,62 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   Complete suite passed 952/952, zero failed assertions and unexpected errors.
   Tests use mock HTTP endpoints; live providers and real opt-in subagent
   subprocesses were not enabled. See core-agent SDF for commands and review.
-- **Limitations:** Refresh guard is process-local. Cancellation prevents
-  recovery/replay at boundaries, but cannot interrupt an already-blocked
-  refresh HTTP request; existing transport timeouts remain in effect.
+- **Limitations (superseded by PCR-111):** At PCR-110 closure, the refresh
+  guard was process-local and cancellation could not interrupt a blocked token
+  refresh request. PCR-111 replaces both limitations with cross-process Linux
+  locks and cancellable bounded lock acquisition; see the follow-up record.
 - **Status:** Closed/Implemented and Verified; independent acceptance review
   remains with the user.
+- **Date closed:** 2026-10-19
+
+
+## PCR-111 — Cross-process Codex credential coordination and cancellable locking (2026-10-19)
+
+- **Date reported:** 2026-10-19
+- **Category:** Requirements, Design, Code, Test
+- **Classification:** Approved behavior change / corrective action
+- **Priority:** 2-Serious
+- **Description:** Follow-up hardening to PCR-110 replaces its process-local
+  refresh guard and noninterruptible in-progress refresh limitation. Codex
+  refresh/recovery, public credential saves, and auth-store updates require
+  stable cross-process coordination, bounded cancellation-aware lock waits,
+  and safe persistence under concurrency.
+- **Affected work products:** REQ-CORE-149; SDD-CORE Codex auth and credential
+  lock design, implementing-unit and test inventories; core-agent SDF; auth,
+  HTTP, provider, login, subprocess-helper, and concurrency-test source.
+- **Approved resolution:** Use stable Linux `flock` lock files opened with
+  `O_CLOEXEC | O_NOFOLLOW` and mode 0600. Do not unlink lock files in normal
+  operation; rely on kernel lock release after process exit/crash. Poll at
+  50-ms intervals against a monotonic deadline bounded to 60 seconds and
+  propagate cancellation as `Curl_Error`. Codex Ensure/Recover acquire the
+  refresh lock, then the short auth-store lock, reload `auth.json` after
+  acquiring refresh ownership, and treat the latest stored credential as
+  authoritative, including an empty logout. All public Codex saves, including
+  login/logout, use the refresh lock; private child saves use only the store
+  lock. Merge provider entries while holding the store lock, refuse malformed
+  existing JSON, and persist through a unique mode-0600 temporary file and
+  atomic rename. Persist a successful refresh before late cancellation checks
+  and request replay. Apply 10-second connect and 30-second total timeouts to
+  Codex token POSTs only; leave other HTTP defaults unchanged. The locking
+  implementation is platform-specific to Linux/glibc.
+- **Actions taken:** Implemented the kernel lock facility, coordinated
+  provider/store persistence, cancellable Codex refresh and lock acquisition,
+  token HTTP deadlines, and logout-authoritative credential reloads. Added
+  17 tests, including real subprocess Ensure/Recover races, login/logout
+  exclusion, crash release, close-on-exec, file modes, malformed-store
+  preservation, lock timeout/cancellation, HTTP cancellation/deadline, and
+  successful rotation persistence despite late cancellation. Updated source
+  and test inventories, requirements, design, and SDF traceability.
+- **Verification:** Explicit development application/test builds passed.
+  Auth 37/37, HTTP 6/6, Codex provider 10/10, catalogue 8/8; full suite
+  969/969 twice with zero failed assertions or unexpected errors. The two
+  process refresh races also passed independent repeats. Final full-suite
+  wall time: 57.44 seconds. Live provider smoke testing was not performed.
+- **Evaluation:** Developer self-evaluation and separate read-only worker
+  review found no concrete blocker; independent user acceptance remains.
+- **Remaining constraints:** Linux/glibc implementation; trusted credential
+  directory and cooperating writers. Successful rotation persistence is not
+  cancelled mid-write. A process crash after server rotation but before local
+  persistence can still lose the replacement token.
+- **Status:** Closed/Implemented and Verified.
 - **Date closed:** 2026-10-19

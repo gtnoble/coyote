@@ -17,6 +17,11 @@ package LLM_Codex_Tests is
    procedure Test_Recover_Rejected_Token_Reuses_Latest (T : in out Test);
    procedure Test_Refresh_Token_Non_200_Raises (T : in out Test);
    procedure Test_Refresh_Token_Missing_Fields_Raises (T : in out Test);
+   procedure Test_Refresh_Lock_Cancellation (T : in out Test);
+   procedure Test_Refresh_HTTP_Cancellation (T : in out Test);
+   procedure Test_Ensure_And_Recover_Reject_Logged_Out (T : in out Test);
+   procedure Test_Refresh_Persists_Before_Late_Cancellation (T : in out Test);
+   procedure Test_Refresh_Uses_Supplied_Fallback (T : in out Test);
    procedure Test_Send_Adds_Codex_Headers (T : in out Test);
    procedure Test_Send_Requires_Credentials (T : in out Test);
    procedure Test_Send_Requires_Account_Claim (T : in out Test);
