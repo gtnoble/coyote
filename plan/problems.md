@@ -3719,3 +3719,43 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   persistence can still lose the replacement token.
 - **Status:** Closed/Implemented and Verified.
 - **Date closed:** 2026-10-19
+
+
+## PCR-112 — Help regression coverage and traceability (2026-10-19)
+
+- **Date reported:** 2026-10-19
+- **Category:** Test, Plans, Design
+- **Classification:** Corrective action / test hardening
+- **Priority:** 3-Moderate
+- **Description:** Five helper tests did not exercise area mapping or the real
+  Help launcher. Test inventory overstated mapping coverage; graphical Help
+  activation and viewer-failure behavior remained manual. PCR-081's bundled
+  documentation discovery regression was protected only by path-string checks.
+- **Affected work products:** Help AUnit fixture, GUI suite, test worker/build
+  and shell workflow, Test Plan, SDD unit inventory, frontend SDF, AGENTS.md.
+- **Corrective action:** Add deterministic mappings and isolated fake-viewer
+  launch tests; check real GUI menu/Product Information widgets without Yelp;
+  provide repeatable Mallard and CLI checks and accurate remaining-gap records.
+- **Actions taken:** Expanded Help from five to twelve tests, replacing the
+  host-dependent installed-Yelp assertion with controlled absence. Added a
+  subprocess worker copied into a temporary bin/share prefix (including spaces)
+  and six launch probes covering argv, data discovery, existing/empty/unset XDG
+  state restoration, absent data, and missing Yelp. Added one GUI widget test
+  and `test/check-help.sh` for focused AUnit, Mallard, and CLI checks. No
+  production Help behavior or public API changed.
+- **Verification:** Explicit development application/test builds pass; Help
+  12/12 and GUI Help widgets 1/1 under Xvfb. All 12 current Mallard pages pass
+  validation/link checks; both CLI aliases produce identical usage with no
+  stderr and exit 0. Full suite from `test/`: 977/977, no failed assertions or
+  unexpected errors, 58.39 s wall on the final repeat. Initial root invocation
+  exposed existing cwd-dependent fixture failures; the documented test cwd
+  resolves them. Existing GTK theme CSS warnings remain unrelated.
+- **Evaluation:** Developer self-evaluation plus a separate read-only test
+  review. Remaining manual checks are explicitly retained, not counted as
+  passed: menu/keyboard activation, contextual event routing/non-activation,
+  question cursor, Escape reset, rendered failure notice, actual Yelp navigation
+  and native installation. OS spawn failure/exception injection is also absent.
+  GUI callback probes stalled during exploration and were removed, not
+  accepted as automated coverage. Independent user desktop acceptance remains.
+- **Status:** Automated hardening implemented and verified; full graphical
+  qualification remains open under DEM-036..039.

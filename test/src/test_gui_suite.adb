@@ -6,6 +6,7 @@ with Coyote_GUI_Mode_Tests;
 with Coyote_GUI_Mnemonics_Tests;
 with Coyote_GUI_Session_Stats_Window_Tests;
 with Coyote_App_Frontend_GUI_Tests;
+with Coyote_App.Frontend.GUI.Help_Tests;
 with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Conversation_Stack_Tests;
 with Coyote_GUI_Sandbox_Profile_Window_Tests;
@@ -25,6 +26,7 @@ package body Test_GUI_Suite is
       Result.Add_Test (Coyote_GUI_Mnemonics_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Session_Stats_Window_Tests.Suite);
       Result.Add_Test (Coyote_App_Frontend_GUI_Tests.Suite);
+      Result.Add_Test (Coyote_App.Frontend.GUI.Help_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Zoom_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Sandbox_Profile_Window_Tests.Suite);

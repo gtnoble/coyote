@@ -1656,3 +1656,44 @@ passes. Verification is developer self-evaluation; the user retains independent
 desktop acceptance. One optional hardening subagent invocation was aborted
 without edits after the user reported it appeared hung; that check was completed
 locally and is included in the final verified suite.
+
+
+## 2026-10-19 — Help regression coverage (PCR-112)
+
+`Coyote_Help_Tests` now registers 12 cases (previously five). New coverage checks
+all area topics and unknown/empty fallback, detached root/topic arguments,
+executable-relative share discovery from a prefix containing spaces,
+existing/empty/unset XDG child values and exact parent restoration, missing
+bundled data, and missing Yelp. Availability no longer requires a desktop Yelp
+installation. `Help_Test_Worker` is a test-build main copied into an isolated
+bin/share prefix by `test/tools/check-help-launch.sh`; the fake Yelp writes argv,
+its environment and completion marker. Polling and subprocess deadlines bound
+failures. This exercises production `Open` without test hooks or API changes.
+
+`Coyote_App.Frontend.GUI.Help_Tests` adds one display-backed fixture checking
+real top-level and Help submenu order, labels and GTK mnemonic keyvals. With
+Yelp unavailable it builds Product Information and verifies title, transient
+parent, visible icon and application/version/license text. Lists and widgets
+are cleaned up; PATH is restored on success or assertion failure. It follows
+the existing no-display fixture convention, so use the dedicated workflow for
+qualification rather than interpreting a headless suite pass as GUI evidence.
+
+`test/check-help.sh` combines the 12 core and one GTK test with `yelp-check`
+validation/links and CLI `-h`/`--help` stdout/stderr/exit assertions. Run
+`xvfb-run -a sh test/check-help.sh` after both development builds. Source/test
+inventories and coverage claims are updated. Eight net new registrations bring
+the current total from 969 to 977; older baseline totals are historical.
+
+Development builds and focused workflow pass. Full suite from `test/` under
+Xvfb passes 977/977, no failures or unexpected errors, 58.39 s wall. An initial
+root-cwd full run failed existing fixture lookup assumptions; no production
+fix was needed. Existing GTK theme CSS warnings appeared. Live providers were
+not enabled. Review found no implementation blocker after prerequisite and
+cleanup refinements; this is developer self-evaluation, not independent user
+acceptance.
+
+F1/Shift+F1 activation, contextual-click routing and non-activation, cursor state,
+Escape, visible launch errors, real Yelp rendering/navigation and installation
+remain DEM-036..039 manual checks. Attempts at callback-level GTK probes stalled
+and were removed. Fork/spawn failure and exceptional restoration are not injected.
+These are explicit remaining coverage gaps, not completed qualification.

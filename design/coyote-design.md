@@ -447,6 +447,9 @@ not wait for the complete user turn.
 | `Test_Process_Control_Suite` | Final process-control test-domain suite | `test/src/test_process_control_suite.ads/.adb` |
 | `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
 | `Auth_Test_Worker` | Subprocess helper for credential-lock and auth concurrency tests | `test/tools/auth_test_worker.adb` |
+| `Help_Test_Worker` | Isolated real Help launcher and parent-environment assertions | `test/tools/help_test_worker.adb` |
+| `Coyote_App.Frontend.GUI.Help_Tests` | Display-backed Help menu and viewer-independent Product Information widget checks | `test/src/coyote_app-frontend-gui-help_tests.ads/.adb` |
+| Help qualification scripts | Bounded fake-Yelp launch matrix and repeatable AUnit/Mallard/CLI workflow | `test/tools/check-help-launch.sh`, `test/check-help.sh` |
 | `*_Tests.Suite` | Leaf AUnit fixture suite functions (current retained fixtures) | `test/src/*_tests.ads/.adb` |
 
 ### 4.2 Static Relationships

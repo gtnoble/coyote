@@ -130,7 +130,7 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** The complete current AUnit suite (890 registered tests) must pass before any
+**Progression criterion:** The complete current AUnit suite (977 registered tests) must pass before any
 demonstration-verified requirements are reviewed. Demonstration tests are
 performed after the automated suite is green.
 
@@ -185,7 +185,8 @@ SRS-CORE requirement groups.
 | `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
-| `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
+| `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; root/topic URIs, all area mappings and fallback, controlled Yelp absence, Help data path, Product Information text, detached fake-Yelp launch arguments, executable-relative data discovery, and child/parent XDG environment behavior | 12 |
+| `coyote_app-frontend-gui-help_tests.adb` | REQ-CORE-113a; real menu labels/order/mnemonics and Product Information title, transient parent, icon, and text with Yelp unavailable; requires a display | 1 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
 | `coyote_sqc_parser_tests.adb` | REQ-CORE-240–241 | ~25 |
 | `coyote_sqc_statistics_tests.adb` | SRS-SQC statistics | ~40 |
@@ -196,7 +197,39 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **890**
+**Total automated tests (current):** **977**
+
+### Help regression qualification — 2026-10-19 (PCR-112)
+
+Development application and test builds pass. Focused Help passes 12/12;
+real GTK Help widgets pass 1/1 under Xvfb. Mallard validation and link checks
+pass for all 12 current pages; `--help` and `-h` emit identical usage to stdout,
+no stderr, and exit successfully. The complete suite passes 977/977 from
+`test/` under Xvfb, with zero failures or unexpected errors (58.39 s wall, final repeat).
+This supersedes older registered-test totals; dated baselines remain history.
+
+Repeat the Help checks after `alr build --development` and
+`cd test && alr build --development` using
+`xvfb-run -a sh test/check-help.sh` from the repository root. The script resolves
+its own location and requires `yelp-check`, `timeout`, and a working display.
+The AUnit launcher matrix uses a temporary prefix containing spaces and a fake
+Yelp executable, never the desktop viewer. It verifies root/topic argv,
+executable-relative share discovery, existing/empty/unset XDG restoration,
+missing-data behavior, and missing-viewer failure. Child completion is polled
+with a deadline and each worker probe has a 10-second outer deadline.
+
+The GUI test checks real menu order, labels, mnemonics, and Product Information
+construction/content/transience with Yelp hidden. Like existing GUI fixtures,
+it does not execute widget assertions without a display; the dedicated workflow
+rejects headless invocation rather than reporting that as qualification.
+F1/Shift+F1 activation, contextual-click routing and suppression, cursor state,
+Escape cancellation, visible launch-error notices, actual Yelp rendering and
+navigation, and native installation remain manual DEM-036..039 qualification.
+Fork/spawn failure and exceptional environment-restoration paths are not injected.
+No completion of those manual demonstrations is claimed. The GUI-mode fixture
+covers Agent control availability, not Help activation. Evaluation is developer
+self-evaluation with a separate read-only test review; independent desktop
+acceptance remains with the user.
 
 ### 4.3 Planned Tests — Demonstration
 
@@ -235,7 +268,7 @@ New JSONL assistant records have no `format` or `formatVersion`; legacy records
 containing those fields remain loadable because the fields are ignored and
 content is handled as Markdown.
 
-**Current verification:** The complete registered AUnit suite passed 890/890.
+**Historical verification (2026-09-15):** The then-registered suite passed 890/890.
 Focused results passed: Markup 6/6, `Conversation_Stack` 28/28,
 System_Prompt 32/32, Session_Store 26/26, History 1/1, Agent RPC 27/27, and
 GUI Updates 9/9. New regression coverage includes safe 16-column/256-row
@@ -372,7 +405,8 @@ and preferences demonstrations listed above.
 | REQ-CORE-100–109 | Historical | Retired Acme/plumber controls; see PCR-090 |
 | REQ-CORE-110–115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
 | REQ-CORE-111 | T/D | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `Coyote_GUI.Math_Element`, DEM-014, DEM-046..047; current Markdown/table/MathML qualification is recorded above |
-| REQ-CORE-113a..113c | D/T/I | `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
+| REQ-CORE-113a | D/T/I | `coyote_help_tests.adb`, `coyote_app-frontend-gui-help_tests.adb`, `test/check-help.sh`; widget/launcher coverage only; remaining activation/navigation DEM-036..039 |
+| REQ-CORE-113b..113c | D/T/I | `coyote_app_frontend_gui_tests.adb`, `coyote_gui_mode_tests.adb` (Agent run-mode availability only), DEM-036..039, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
 | REQ-CORE-113e | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |
 | REQ-CORE-133..139 | D/T/I/A | `coyote_gui_conversation_stack_tests.adb`, DEM-042..044, source inspection, performance analysis |
