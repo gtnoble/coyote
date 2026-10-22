@@ -1416,6 +1416,13 @@ raise a visible prompt-resource error rather than silently producing an
 incomplete system prompt. The existing test executable layout may resolve the
 resource from the parent checkout share tree.
 
+The static response-format guidance shall describe clickable Markdown links
+and the local PNG/JPEG inline-image capability of REQ-CORE-111, including syntax
+examples, session-source-relative resolution, retained alt text, local-file
+restrictions, and remote/unsupported-format fallback. This guidance shall
+remain present when tool-specific sections are omitted. It shall not promise
+source-line navigation for ordinary desktop-opened links.
+
 #### 3.1.18 Structured Memory System
 
 **REQ-CORE-180** (D)

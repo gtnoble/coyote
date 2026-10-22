@@ -3,6 +3,26 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-115 — Advertise Markdown links and images in system prompt (2026-10-22)
+
+- **Category:** Requirements, Design, Code, Test
+- **Classification:** Authorized capability-guidance update
+- **Priority:** 4-Minor
+- **Description:** Agents lack default prompt guidance for clickable Markdown
+  links and the local inline-image capability implemented by PCR-114.
+- **Actions:** Extend the installed static prompt resource with syntax examples,
+  supported link schemes, desktop activation semantics, local PNG/JPEG source
+  resolution and resource limits, retained captions, and unsupported-image
+  fallbacks. Keep guidance outside tool-dependent sections. Extend existing
+  system-prompt regressions for default and no-tools rendering.
+- **Verification:** Application and test development builds pass. Focused
+  `LLM.System_Prompt` passes 32/32; full Xvfb suite passes 990/990 (65.98 s wall,
+  exit 0). Help core 12/12 and GUI 1/1, Mallard validation/links, CLI checks,
+  and `git diff --check` pass. Existing test registrations were extended;
+  the registered baseline remains 990. Developer self-evaluation and targeted
+  read-only review were performed; independent user acceptance remains.
+- **Status:** Implemented and automated verification complete.
+
 ## PCR-114 — Add session-contained local assistant Markdown images (2026-10-22)
 
 - **Date reported:** 2026-10-22

@@ -26,6 +26,36 @@ When writing inline mathematics, use Unicode math symbols directly (for example,
 Use Markdown syntax for assistant responses; do not emit stream-specific tags
 or XML-like response markup.
 
+## Markdown Links
+
+- Use `[label](https://example.com)` for clickable web references. Local-file
+  links are also supported; prefer absolute `file:` URIs for unambiguous local
+  targets, for example `[report](file:///absolute/path/report.txt)`.
+- The GUI opens links with the desktop's default application. Supported schemes
+  are `http`, `https`, `mailto`, and `file`; do not invent editor-specific URIs
+  or assume `#L42` or `:42` navigates to a source line.
+
+## Inline Images
+
+- Embed an existing local PNG or JPEG with `![descriptive alt text](images/plot.png)`.
+  An optional title is supported: `![plot](images/plot.png "Plot title")`.
+  Write the Markdown directly, not inside a code span or fenced block, when
+  the user should see the image. Use Markdown rather than HTML `<img>` tags.
+- Relative image paths resolve against the session source directory, not a
+  tool subprocess's changed working directory. Absolute paths and local
+  `file:` URIs must also stay beneath that source directory. Use regular files
+  without symlink components; percent-encode spaces in image destinations.
+- Verify the file exists before referencing it. Keep generated images inside
+  the session source directory and retain them while the response needs them.
+  Include useful alt text: it stays visible, selectable, and searchable beside
+  the image and remains readable when loading fails.
+- Remote URLs, `data:` images, SVG, GIF, and WebP are not embedded. Images in
+  table cells remain alt text; Plain and SQC presentations do not embed images.
+  Image display occurs when the response block completes, not while streaming.
+- Keep images within 8 MiB, 8192 pixels per side, and 16 megapixels; use at most
+  16 images per response block. The GUI displays bounded thumbnails, not a
+  full-size image viewer. For a remote image, use an ordinary Markdown link.
+
 {{TOOLS_BEGIN}}
 Available tools:
 

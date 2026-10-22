@@ -45,6 +45,37 @@ package body LLM_System_Prompt_Tests is
       return Count;
    end Count_Substring;
 
+   procedure Assert_Markdown_Media_Guidance (Prompt : String) is
+      procedure Require (Text : String) is
+      begin
+         Assert
+           (Ada.Strings.Fixed.Index (Prompt, Text) > 0,
+            "response guidance must include: " & Text);
+      end Require;
+   begin
+      Require ("## Markdown Links");
+      Require ("[label](https://example.com)");
+      Require ("[report](file:///absolute/path/report.txt)");
+      Require ("`http`, `https`, `mailto`, and `file`");
+      Require ("assume `#L42` or `:42` navigates");
+      Require ("## Inline Images");
+      Require ("![descriptive alt text](images/plot.png)");
+      Require ("![plot](images/plot.png ""Plot title"")");
+      Require ("local PNG or JPEG");
+      Require ("session source directory");
+      Require ("without symlink components");
+      Require ("percent-encode spaces");
+      Require ("Verify the file exists");
+      Require ("not inside a code span or fenced block");
+      Require ("visible, selectable, and searchable");
+      Require ("Remote URLs, `data:` images, SVG, GIF, and WebP");
+      Require ("Plain and SQC presentations do not embed images");
+      Require ("when the response block completes");
+      Require ("8 MiB, 8192 pixels per side");
+      Require ("16 images per response block");
+      Require ("For a remote image, use an ordinary Markdown link");
+   end Assert_Markdown_Media_Guidance;
+
    procedure Test_Default_Prompt_Contains_Preamble (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -110,6 +141,7 @@ package body LLM_System_Prompt_Tests is
       Assert
         (Ada.Strings.Fixed.Index (P, "aged, sed, or perl") > 0,
          "default prompt should include the editing guideline");
+      Assert_Markdown_Media_Guidance (P);
    end Test_Default_Prompt_Contains_Guidelines;
 
    procedure Test_Default_Prompt_Contains_Display_Math_Guidance
@@ -345,6 +377,7 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "# Coordinator Subagent Orchestration")
          = 0,
          "No_Tools should remove the coordinator section");
+      Assert_Markdown_Media_Guidance (P);
    end Test_No_Tools_Removes_Template_Sections;
 
    procedure Test_Terminal_Tool_Policy_Rendered (T : in out Test) is

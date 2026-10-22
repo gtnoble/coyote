@@ -1,5 +1,19 @@
 # Component Development Log — Core Agent
 
+## 2026-10-22 — Markdown link/image prompt guidance (PCR-115)
+
+The installed `share/coyote/system-prompt.md` now describes clickable Markdown
+links and inline local PNG/JPEG syntax, optional titles, session-source-relative
+paths, retained alt captions, local-file restrictions, resource limits, and
+fallbacks. It distinguishes desktop link activation from editor line navigation
+and remote-image links from embedded local images. The section is independent
+of tool availability. Existing default and no-tools prompt tests now assert the
+guidance, without adding suite registrations. Application and test development
+builds pass; focused System_Prompt passes 32/32 and the full Xvfb suite passes
+990/990 (65.98 s wall, exit 0). Help core 12/12 and GUI 1/1 plus Mallard/CLI
+checks pass; `git diff --check` passes. This is developer self-evaluation with
+a targeted read-only implementation review, not independent user acceptance.
+
 ## 2026-10-19 — Cross-process Codex credential coordination (PCR-111)
 
 **Approved follow-up hardening:** Replaces PCR-110's process-local-only

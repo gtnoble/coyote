@@ -2119,7 +2119,11 @@ parent checkout prefix. Missing or empty resources raise
 incomplete prompt. This covers personality definition, conditional tool-use
 instructions, Presentation MathML display-math guidance, memory taxonomy,
 coordinator guidance, and subagent delegation (REQ-CORE-170..174,
-REQ-CORE-180..183, REQ-CORE-190..192).
+REQ-CORE-180..183, REQ-CORE-190..192). Response-format prose also advertises
+Markdown links and session-contained PNG/JPEG image syntax, retained captions,
+path/format/resource limits, and text-only fallbacks (REQ-CORE-111). It remains
+outside conditional tool sections, including in no-tools prompts. Link guidance
+explains desktop activation without claiming editor-specific line navigation.
 
 **`Build (Cwd, No_Tools, Has_Editing_Tools, Agent, Context_Sections,
 Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode) → String`:**
