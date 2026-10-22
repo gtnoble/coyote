@@ -10,8 +10,6 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Cmark;          use Coyote_Cmark;
 with Interfaces.C;          use Interfaces.C;
-with Interfaces.C.Strings;
-with System;                use System;
 
 package body Coyote_Renderer.Markup is
 
@@ -34,40 +32,16 @@ package body Coyote_Renderer.Markup is
    end Xml_Escape;
 
    function Render (MD_Text : String) return Render_Result is
-      Doc   : Node_Ptr          := System.Null_Address;
-      It    : Iter_Ptr          := System.Null_Address;
-      Ev    : Event_Type_Int;
-      Node  : Node_Ptr;
-      Out_S : Unbounded_String;
-      Result : Render_Result;
+      Doc        : Document;
+      It         : Iterator;
+      Ev         : Event_Type_Int;
+      Node       : Node_Ptr;
+      Out_S      : Unbounded_String;
+      Result     : Render_Result;
       Link_Label : Unbounded_String;
-      Link_Url : Unbounded_String;
+      Link_Url   : Unbounded_String;
       In_Link     : Boolean := False;
       Image_Depth : Natural := 0;
-
-      procedure Free_Cmark_Resources is
-         Saved_It  : constant Iter_Ptr := It;
-         Saved_Doc : constant Node_Ptr := Doc;
-      begin
-         It   := System.Null_Address;
-         Doc  := System.Null_Address;
-         if Saved_It /= System.Null_Address then
-            begin
-               Iter_Free (Saved_It);
-            exception
-               when others =>
-                  null;
-            end;
-         end if;
-         if Saved_Doc /= System.Null_Address then
-            begin
-               Node_Free (Saved_Doc);
-            exception
-               when others =>
-                  null;
-            end;
-         end if;
-      end Free_Cmark_Resources;
 
       --  Ordered list counter stack (up to 8 levels)
       type Level_T is range 0 .. 7;
@@ -106,13 +80,12 @@ package body Coyote_Renderer.Markup is
 
       function Cstr (N : Node_Ptr) return String is
       begin
-         return
-           Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Type_String (N));
+         return Coyote_Cmark.Type_String (N);
       end Cstr;
 
       function Lit (N : Node_Ptr) return String is
       begin
-         return Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Literal (N));
+         return Coyote_Cmark.Literal (N);
       end Lit;
 
       function Visible_Length (Markup : String) return Natural is
@@ -147,7 +120,7 @@ package body Coyote_Renderer.Markup is
          Value : Unbounded_String;
          Child : Node_Ptr := Node_First_Child (Image);
       begin
-         while Child /= System.Null_Address loop
+         while Child /= Coyote_Cmark.Null_Node loop
             declare
                Child_Type : constant Node_Type_Int := Node_Get_Type (Child);
             begin
@@ -161,7 +134,7 @@ package body Coyote_Renderer.Markup is
                   Append (Value, Image_Alt (Child));
                elsif Child_Type /= NODE_HTML_INLINE
                  and then Child_Type /= NODE_HTML_BLOCK
-                 and then Node_First_Child (Child) /= System.Null_Address
+                 and then Node_First_Child (Child) /= Coyote_Cmark.Null_Node
                then
                   Append (Value, Image_Alt (Child));
                end if;
@@ -260,17 +233,21 @@ package body Coyote_Renderer.Markup is
          return Result;
       end if;
 
-      Doc := Parse_Document (C_Text, C_Text'Length - 1, OPT_DEFAULT);
-      if Doc = System.Null_Address then
+      Parse (Doc, C_Text, C_Text'Length - 1, OPT_DEFAULT);
+      if Is_Null (Root (Doc)) then
          Result.Markup := To_Unbounded_String (Xml_Escape (MD_Text));
          return Result;
       end if;
 
-      It := Iter_New (Doc);
+      Start (It, Root (Doc));
+      if Is_Null (Handle (It)) then
+         Result.Markup := To_Unbounded_String (Xml_Escape (MD_Text));
+         return Result;
+      end if;
       loop
-         Ev := Iter_Next (It);
+         Ev := Iter_Next (Handle (It));
          exit when Ev = EVENT_DONE;
-         Node := Iter_Get_Node (It);
+         Node := Iter_Get_Node (Handle (It));
 
          declare
             NT : constant Node_Type_Int := Node_Get_Type (Node);
@@ -306,10 +283,9 @@ package body Coyote_Renderer.Markup is
                      Result.Images.Append
                        ((Alt_Text => To_Unbounded_String (Alt),
                          Destination => To_Unbounded_String
-                           (Interfaces.C.Strings.Value (Node_Get_Url (Node))),
+                           (Coyote_Cmark.Url (Node)),
                          Title => To_Unbounded_String
-                           (Interfaces.C.Strings.Value
-                              (Node_Get_Title (Node))),
+                           (Coyote_Cmark.Title (Node)),
                          Link_Destination => Link_Target,
                          Start_Char => Start_Offset,
                          End_Char => Start_Offset + Shown_Length));
@@ -423,7 +399,7 @@ package body Coyote_Renderer.Markup is
                   if Ev = EVENT_ENTER then
                      Link_Label := Null_Unbounded_String;
                      Link_Url := To_Unbounded_String
-                       (Interfaces.C.Strings.Value (Node_Get_Url (Node)));
+                       (Coyote_Cmark.Url (Node));
                      In_Link := True;
                      Append (Out_S, "<u>");
                   else
@@ -570,7 +546,6 @@ package body Coyote_Renderer.Markup is
          end;
       end loop;
 
-      Free_Cmark_Resources;
       if Length (Out_S) = 0 then
          Result.Markup := To_Unbounded_String (Xml_Escape (MD_Text));
       else
@@ -578,10 +553,6 @@ package body Coyote_Renderer.Markup is
       end if;
       return Result;
 
-   exception
-      when others =>
-         Free_Cmark_Resources;
-         raise;
    end Render;
 
    function To_Pango_Markup (MD_Text : String) return String is

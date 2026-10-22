@@ -1,5 +1,40 @@
 # Component Development Log — Core Agent
 
+## 2026-10-22 — Scope libcmark ownership and copied-string boundary (PCR-118)
+
+Production cmark consumers now use scope-owned `Coyote_Cmark.Document` and
+`Coyote_Cmark.Iterator` values, with finalization for early returns and
+exception unwinding. Accessor strings are copied into Ada `String` values;
+null accessors become empty strings. Raw manual allocation/free entry points
+remain public for binding qualification tests only and are not access-restricted.
+Production paths have migrated to scoped owners. A node and iterator borrow the
+document tree, and iterators must be finalized before their document; do not
+replace a parsed document while an iterator still borrows its root. Ada does not
+statically enforce these constraints. PCR-117's dated cmark-owner deferral is
+superseded for the current baseline.
+
+Verification: Root `alr build --development` and test
+`cd test && alr build --development --profiles=coyote=development` passed, both
+with `Build_Profile=development`. The full suite passed 1014/1014, zero failed
+assertions/errors, in 78.70 seconds wall (exit 0). Cmark passed 17/17 (including
+three added tests), renderer passed 10/10, and the standalone native lifecycle
+probe passed 27 assertions. No general Ada/native allocator-failure injection,
+live-provider qualification, or end-user visual acceptance was performed.
+Developer self-evaluation and read-only review are not independent user
+acceptance.
+
+## 2026-10-22 — Report detached launch status at exec boundary (PCR-119)
+
+Detached-spawn callers receive Boolean status after setup and status-pipe
+completion. An errno payload reports setup/exec errors; EOF with the
+intermediate child reaped means no error was reported and normally indicates
+successful exec, but unexpected grandchild death before exec is
+indistinguishable. The API does not report eventual application exit status.
+Linux `pipe2(O_CLOEXEC)` and C/POSIX-only post-fork operations remain; no Ada
+runtime calls occur after fork. The implementation retains a Linux/glibc `execvp` assumption and is not claimed portable or async-signal-safe.
+Both final normal and ASan/UBSan logs each report 28 dynamically counted checks
+passed. The intermediate unused-counter strict-build failure was corrected
+before both passing runs.
 ## 2026-10-22 — Move process-tree and curl boundary policy into Ada (PCR-117)
 
 This approved behavior-preserving refactor adds `Coyote_Process_Trees` as the

@@ -1,6 +1,10 @@
-/*  coyote_detach_spawn.h — detached double-fork spawn for fire-and-forget
- *  child processes.  See coyote_detach_spawn.c for implementation details.
- *  Project: coyote */
+/*  Detached double-fork spawn interface.
+ *  Returns 0 when the intermediate child exits successfully and the status
+ *  pipe closes without a reported setup/exec error.  Normally close-on-exec
+ *  EOF indicates successful exec; unexpected grandchild death before exec
+ *  is indistinguishable from that EOF.  The detached application's eventual
+ *  exit status is not awaited or reported.
+ */
 #ifndef COYOTE_DETACH_SPAWN_H
 #define COYOTE_DETACH_SPAWN_H
 

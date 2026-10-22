@@ -1,9 +1,9 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.33
+**Version:** 1.34
 **Date:** 2026-10-22
 
-**Status:** PCR-114 C-loader qualification retained as historical evidence; PCR-116 and PCR-117 automated qualification recorded; DEM-060 desktop qualification pending
+**Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -130,7 +130,7 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** The complete current AUnit suite (1005 registered
+**Progression criterion:** The complete current AUnit suite (1014 registered
 tests) must pass before any demonstration-verified requirements are reviewed.
 Demonstration tests are performed after the automated suite is green.
 
@@ -144,6 +144,26 @@ CLI checks, and `git diff --check` passed. Existing theme CSS warnings appeared
 in the GUI Help run. The final run includes all parser assertions and
 live-process readiness changes.
 Developer self-evaluation/read-only review is not human acceptance.
+
+**Current PCR-118/119 qualification (2026-10-22):** Root
+`alr build --development` and test
+`cd test && alr build --development --profiles=coyote=development` passed;
+both generated profiles select `development`. Full Xvfb suite passed
+1014/1014, zero failed assertions/errors, 78.70 seconds wall, exit 0
+(`/tmp/coyote-ownership-full-tests.log`). Focused cmark passed 17/17 (three
+added PCR-118 tests), renderer 10/10, standalone native ownership probe 27
+assertions; Help core 12/12 and display-backed GUI 1/1, Mallard validation/links
+and CLI checks pass, with existing theme CSS warnings. PCR-119 Ada cases ran in
+the full suite; both native runs passed 28 dynamically counted checks. The
+intermediate strict-build unused-counter failure was corrected before the
+passing runs. See `/tmp/coyote-ownership-native-spawn-final.log` and
+`/tmp/coyote-ownership-native-spawn-asan-final.log`. `/bin/true` exec coverage
+isolates exec success from later exit status. EOF with the intermediate child
+reaped means no setup/exec error was reported and normally indicates exec
+success, but unexpected pre-exec grandchild death cannot be distinguished.
+No end-user visual acceptance or live-provider qualification was performed.
+Developer self-evaluation and read-only review are not independent user
+acceptance.
 ### 4.2 Planned Tests — Automated (AUnit)
 
 The following test modules exist in `test/src/`. Each maps to one or more
@@ -175,6 +195,8 @@ SRS-CORE requirement groups.
 | `coyote_app_history_tests.adb` | Markdown replay and legacy `format`/`formatVersion` fields ignored | 1 |
 | `coyote_app_agent_rpc_tests.adb` | Agent RPC lifecycle and event handling | 16 direct registrations (27 in the combined Agent RPC focused family) |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
+| `coyote_utils_tests.adb` | PCR-119 Ada detached-spawn status/validation | Empty argv, embedded NULs, invalid cwd, success independent of eventual exit, and missing executable; included in full suite. |
+| `test/tools/check-detach-spawn.sh` + `test/native/detach_spawn_test.c` | PCR-119 native detached-launch protocol | Matrix covers successful `/bin/true` exec, later nonzero exit, missing executable, invalid cwd/file, cwd with spaces, redirection, early return, closed descriptors, and intermediate-child reaping. Final normal and ASan/UBSan logs each report 28 dynamically counted checks passed; the intermediate unused-counter build failure was corrected before those runs. |
 | `collapse_utils_tests.adb` | REQ-CORE-023 (thinking collapse) | 5 |
 | `llm_model_registry_tests.adb` | REQ-CORE-070–071 | ~15 |
 | `llm_catalogue_tests.adb` | REQ-CORE-072 | ~10 |
@@ -182,7 +204,8 @@ SRS-CORE requirement groups.
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
 | `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
-| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering and image metadata), safe oversized GFM-table truncation, cmark exception cleanup, escaped raw-HTML fallback, table metadata/masking, parser-safe display-math protection | 27 direct registrations (Markup focused family: 10/10; includes 3 PCR-114 renderer additions) |
+| `coyote_cmark_tests.adb` | REQ-CORE-111 Markdown and PCR-118 scoped-owner/copied-string regressions | 34 direct registrations; focused cmark 17/17 (three added PCR-118 tests); renderer focused family 10/10 |
+| `coyote_cmark_tests.adb`; `test/tools/check-cmark-ownership.sh`; `test/native/cmark_ownership.gpr`; `test/tools/cmark_ownership_worker.adb`; `test/native/cmark_ownership_probe.c` | PCR-117 accessor and PCR-118 owner/string boundary | Four AUnit ownership/string cases included in cmark 17/17. Standalone instrumented probe passes 27 assertions for release/order on normal, early, exception, replacement/null, and injected parser/iterator allocation-failure paths. |
 | `coyote_image_loader_tests.adb` | REQ-CORE-111 Ada loader: URI/root containment, traversal and encoded limits, PNG/JPEG signatures/dimensions/scaling | Focused loader tests pass 8/8 |
 | `coyote_image_jobs_tests.adb` | REQ-CORE-111 Ada image-job scheduling behavior | Focused jobs tests pass 3/3 |
 | `test/tools/check-image-loader.sh` + `test/native/image_io_test.c` | Thin POSIX C I/O shim and native shim checks only; 15/15 checks pass in normal and ASan/UBSan modes |
@@ -193,7 +216,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy and native lifecycle) | 7 direct registrations; includes `Coyote.Notify isolated lifecycle smoke test`, invoking `test/tools/notify_test_worker.adb` under a 10-second timeout and unavailable D-Bus address |
 | `coyote_process_control_tests.adb` | PCR-117 process-tree parser/snapshot and live signalling regressions | `Coyote process stat parser handles proc records`; `Coyote process snapshot handles cycles and large trees` (breadth-first order, missing root, cycles, root PID 1 rejection, 9,000 records); existing registered `Coyote process signalling reaches nested setsid descendants` exercises live nested-group signalling |
-| `coyote_cmark_tests.adb` | PCR-117 cmark accessor boundary regression | Focused suite passes 14/14; includes `Coyote_Cmark shim returns empty string for null literal` (Ada null-to-empty contract; existing registered case name) |
+
 | `llm_http_tests.adb` | PCR-117 fixed-signature curl timeout wrapper coverage | Focused HTTP suite passes 6/6, including `LLM.HTTP total timeout bounds a delayed response` and `LLM.HTTP aborts a stalled response promptly`. The latter exercises stalled-transfer cancellation, not a separate connect-timeout timing test; connect-timeout configuration is confirmed by source inspection. |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
@@ -213,7 +236,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **1005**
+**Total automated tests (current):** **1014**
 
 **Historical baseline:** PCR-116 passed 1001/1001 in 70.87 seconds (exit 0); that dated result remains historical and is not the current PCR-117 baseline.
 

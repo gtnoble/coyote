@@ -7,6 +7,7 @@
 package body Coyote_Cmark is
 
    use type Interfaces.C.Strings.chars_ptr;
+   use type System.Address;
 
    Empty_String : aliased Interfaces.C.char_array :=
      Interfaces.C.To_C ("");
@@ -61,6 +62,103 @@ package body Coyote_Cmark is
       return (if Result = Interfaces.C.Strings.Null_Ptr
               then Empty_String_Ptr else Result);
    end Node_Get_Type_String;
+
+   function Copy_String
+     (Value : Interfaces.C.Strings.chars_ptr) return String is
+   begin
+      if Value = Interfaces.C.Strings.Null_Ptr then
+         return "";
+      end if;
+      return Interfaces.C.Strings.Value (Value);
+   end Copy_String;
+
+   function Literal (Node : Node_Ptr) return String is
+   begin
+      return Copy_String (Raw_Literal (Node));
+   end Literal;
+
+   function Url (Node : Node_Ptr) return String is
+   begin
+      return Copy_String (Raw_Url (Node));
+   end Url;
+
+   function Title (Node : Node_Ptr) return String is
+   begin
+      return Copy_String (Raw_Title (Node));
+   end Title;
+
+   function Type_String (Node : Node_Ptr) return String is
+   begin
+      return Copy_String (Raw_Type_String (Node));
+   end Type_String;
+
+   overriding function "=" (Left, Right : Node_Ptr) return Boolean is
+   begin
+      return System.Address (Left) = System.Address (Right);
+   end "=";
+
+   overriding function "=" (Left, Right : Iter_Ptr) return Boolean is
+   begin
+      return System.Address (Left) = System.Address (Right);
+   end "=";
+
+   function Is_Null (Node : Node_Ptr) return Boolean is
+   begin
+      return Node = Null_Node;
+   end Is_Null;
+
+   function Is_Null (Iter : Iter_Ptr) return Boolean is
+   begin
+      return Iter = Null_Iter;
+   end Is_Null;
+
+   procedure Parse
+     (Owner   : in out Document;
+      Buffer  : Interfaces.C.char_array;
+      Len     : Interfaces.C.size_t;
+      Options : Interfaces.C.int) is
+   begin
+      Finalize (Owner);
+      Owner.Value := Parse_Document (Buffer, Len, Options);
+   end Parse;
+
+   function Root (Owner : Document) return Node_Ptr is
+   begin
+      return Owner.Value;
+   end Root;
+
+   procedure Start
+     (Owner : in out Iterator;
+      Root  : Node_Ptr) is
+   begin
+      Finalize (Owner);
+      if not Is_Null (Root) then
+         Owner.Value := Iter_New (Root);
+      end if;
+   end Start;
+
+   function Handle (Owner : Iterator) return Iter_Ptr is
+   begin
+      return Owner.Value;
+   end Handle;
+
+   overriding procedure Finalize (Owner : in out Iterator) is
+      Value : constant Iter_Ptr := Owner.Value;
+   begin
+      Owner.Value := Null_Iter;
+      if not Is_Null (Value) then
+         Iter_Free (Value);
+      end if;
+   end Finalize;
+
+   overriding procedure Finalize (Owner : in out Document) is
+      Value : constant Node_Ptr := Owner.Value;
+   begin
+      Owner.Value := Null_Node;
+      if not Is_Null (Value) then
+         Node_Free (Value);
+      end if;
+   end Finalize;
 
    --  ── C shim getter imports ──────────────────────────────────────────
    --

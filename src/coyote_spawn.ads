@@ -19,7 +19,11 @@ with GNATCOLL.OS.Process;
 
 package Coyote_Spawn is
 
-   --  Return True when the detached intermediate process was created.
+   --  Return True when the intermediate child exits successfully and the
+   --  status pipe closes without reporting a setup/exec error.  Normally
+   --  close-on-exec EOF indicates successful execvp; unexpected grandchild
+   --  death before execvp cannot be distinguished from that EOF.  The
+   --  eventual application exit status is not awaited or reported.
    function Spawn_Detached
      (Args : GNATCOLL.OS.Process.Argument_List;
       Cwd  : String := "")

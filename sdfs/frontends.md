@@ -1,5 +1,38 @@
 # Component Development Log — Frontends
 
+## 2026-10-22 — Scope libcmark ownership and string boundary (PCR-118)
+
+Production Markdown consumers now use scope-owned `Coyote_Cmark.Document` and
+`Coyote_Cmark.Iterator` values. Finalization handles normal scope exit,
+early-return, and exception paths; accessors return copied Ada strings, with
+null values normalized to empty strings. Legacy low-level manual entry points
+remain public for binding tests and are not access-restricted; production
+renderer paths use scoped owners. Borrowed nodes and iterators depend on the
+document lifetime: finalize iterators first and do not `Parse` a replacement
+while an iterator still borrows the document. Ada does not statically enforce
+this relationship. PCR-117's dated cmark deferral is superseded for the
+current baseline.
+
+Verification: The root and test development builds passed with both generated
+profiles set to development. The full suite passed 1014/1014, zero errors, in
+78.70 seconds wall. Focused cmark passed 17/17 (three added PCR-118 tests),
+renderer passed 10/10, and native ownership instrumentation passed 27
+assertions. No general Ada/native allocation-failure injection, live-provider
+qualification, or end-user visual acceptance was performed. Developer
+self-evaluation/read-only review is not independent user acceptance.
+
+## 2026-10-22 — Synchronous detached exec-status contract (PCR-119)
+
+The Ada Boolean status reflects setup and status-pipe completion, not eventual
+application exit. An errno payload reports setup/exec errors. EOF with the
+intermediate child reaped means no error was reported and normally indicates
+successful exec, but unexpected pre-exec grandchild death is indistinguishable.
+Linux `pipe2(O_CLOEXEC)` and C/POSIX-only post-fork mechanics remain; no Ada
+runtime calls occur after fork. The post-fork `execvp` behavior retains a
+Linux/glibc assumption and is not claimed portable or async-signal-safe.
+Both final normal and ASan/UBSan logs report 28 dynamically counted native
+detached-spawn checks passed. The intermediate unused-counter strict-build
+failure was corrected before both runs.
 ## 2026-10-22 — Move selected frontend native-boundary policy into Ada (PCR-117)
 
 This approved behavior-preserving refactor moves libnotify initialization,

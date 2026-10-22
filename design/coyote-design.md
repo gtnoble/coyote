@@ -1,10 +1,10 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.32
+**Version:** 1.34
 **Date:** 2026-10-22
 
-**Status:** PCR-114 former-C evidence retained; PCR-116 automated qualification complete; PCR-117 automated results recorded; DEM-060 desktop qualification pending
+**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -433,7 +433,8 @@ not wait for the complete user turn.
 | `LLM.Agent` | Native agentic loop | `src/llm/llm-agent.ads/.adb` |
 | `Coyote_App.Frontend` | Abstract frontend streaming contract | `src/coyote_app-frontend.ads` |
 | `Coyote_App.History` | Persisted session replay with Markdown content handling | `src/coyote_app-history.ads/.adb` |
-| `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
+| `Coyote_Cmark` | Ada binding with scope-owned documents/iterators and copied string accessors | `src/coyote_cmark.ads/.adb` |
+| `Coyote_Spawn` | Detached double-fork launch and synchronous exec-status boundary | `src/coyote_spawn.ads/.adb`, `src/coyote_detach_spawn.h`, `src/coyote_detach_spawn.c` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | Direct GFM Markdown-to-Pango converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
@@ -1546,18 +1547,28 @@ selection or clipboard semantics. Search index refreshes during streaming and
 when a response is finalized or rerendered. Native table/math widgets and tool
 cards are not included in this text-buffer search scope.
 
-**Current qualification:** The complete registered suite passed 1005/1005
-under Xvfb with zero failed assertions/errors in 74.98 seconds wall (exit 0).
-PCR-117 focused results include process control 6/6, notification lifecycle
-1/1, cmark 14/14, and HTTP 6/6. PCR-116 focused results include loader 8/8,
-jobs 3/3, `Conversation_Stack` 38/38, and native image-I/O shim 15/15 in
-normal and ASan/UBSan modes; focused Help passes 12/12 core and 1/1
-display-backed widget test, with Mallard/CLI checks passing. PCR-114's 990/990
-and 20/20 loader results remain historical for the former C implementation.
-The final run includes all parser assertions and live-process readiness
-changes. DEM-060 physical desktop qualification remains pending; PCR-117
-physical GUI qualification is also pending. Developer self-evaluation and
-read-only review are not human acceptance.
+**PCR-117 qualification snapshot (historical; retained):** The full registered
+suite passed 1005/1005 under Xvfb, zero errors, 74.98 seconds wall (exit 0).
+Focused process control passed 6/6, notification lifecycle 1/1, cmark 14/14,
+and HTTP 6/6. Help passed 12/12 core and 1/1 display-backed GUI; Mallard/CLI
+checks passed with existing GTK theme warnings. Its broader cmark ownership
+deferral is superseded by PCR-118; the dated evidence is not rewritten.
+
+**Current qualification — PCR-118/119 (2026-10-22):** Root
+`alr build --development` and test
+`cd test && alr build --development --profiles=coyote=development` passed;
+both generated profiles select `development`. Full Xvfb suite passed
+1014/1014, zero failed assertions/errors, 78.70 seconds wall, exit 0
+(`/tmp/coyote-ownership-full-tests.log`). Focused cmark passed 17/17 (three
+added), renderer 10/10, and standalone native ownership probe passed 27
+assertions. Help passed 12/12 core and 1/1 display-backed GUI; Mallard
+validation/links and CLI checks passed with existing theme CSS warnings.
+PCR-119 Ada tests ran in the full suite. Both final native runs passed 28
+dynamically counted checks; the intermediate strict-build unused-counter
+failure was corrected before the passing runs. See `/tmp/coyote-ownership-native-spawn-final.log`
+and `/tmp/coyote-ownership-native-spawn-asan-final.log`. No end-user visual
+acceptance or live-provider qualification was performed; developer self-evaluation
+and read-only review are not independent user acceptance.
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
 **Purpose:** Ada binding to libcmark-gfm. The C shim provides enum constant
@@ -1570,12 +1581,17 @@ package elaboration time and stores their values for comparisons. The C shim
 also constructs the parser with the GFM extensions and exposes scalar table
 metadata, keeping extension-owned alignment arrays inside C.
 
-**String accessors (PCR-117):** `Coyote_Cmark` imports libcmark getters
-for literal, URL, and title directly. Ada normalizes null results to an empty
-C string; non-null results remain borrowed pointers valid only while the owning
-node/document lives. The C shim retains enum constants, parser construction,
-and table metadata. This targeted boundary change does not implement the
-broader controlled redesign of cmark ownership, which remains deferred.
+**Resource and string ownership (PCR-118; supersedes the PCR-117 deferral):**
+Production callers use limited `Document` and `Iterator` owners with
+finalization on scope exit, early return, and exception unwinding. Borrowed
+nodes/iterators are valid only while their owning document lives; finalize
+iterators before documents and never replace a parsed document while an
+iterator borrows its root. Ada does not statically enforce this relationship.
+Renderer-facing string accessors return copied Ada `String` values, with null
+normalized to empty. Legacy borrowed C-string accessors remain for binding
+tests only. Raw low-level allocation/free interfacesremain public for binding tests and are not access-restricted; production
+renderer paths use scoped owners. The C shim retains enum constants, GFM
+parser construction, and scalar table metadata.
 
 **GFM extensions enabled:** `table`, `strikethrough`, `autolink`. The GFM
 parser attaches all three before parsing. `Coyote_Renderer.Tables` obtains
@@ -1584,6 +1600,23 @@ scalar C shims; the extension-owned alignment array never crosses into Ada.
 The shared Pango serializer remains the text fallback for SQC replay.
 
 ---
+
+### 5.16a `Coyote_Spawn` and `coyote_detach_spawn.c`
+
+**Purpose:** Launch detached applications and synchronously report setup/exec
+status without waiting for application completion.
+
+**Status contract (PCR-119):** An errno payload on the close-on-exec status pipe
+reports setup/exec errors. EOF with the intermediate child reaped means no
+error was reported and normally indicates successful `execvp`, but unexpected
+grandchild death before exec is indistinguishable. The API does not report the
+launched application's eventual exit status. Ada argv conversion is
+exception-safe and rejects embedded NULs.
+
+**Native boundary:** Linux `pipe2(O_CLOEXEC)` and C/POSIX-only post-fork
+operations remain; no Ada runtime calls occur after fork. Post-fork `execvp`
+retains a Linux/glibc assumption and is not claimed portable or
+async-signal-safe.
 
 ### 5.17 `LLM.Types`
 

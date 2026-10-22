@@ -127,28 +127,37 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 1005 registered tests and
-passes 1005/1005 under Xvfb from `test/` (zero failed assertions, zero
-unexpected errors, 74.98 seconds wall, exit 0). PCR-117 focused checks pass
-process control 6/6 including live nested-`setsid` signalling, isolated
-notification lifecycle 1/1, cmark 14/14, and HTTP 6/6 including total timeout
-and stalled-transfer cancellation. The final run includes all parser
-assertions and live-process readiness changes. Focused image qualification
-passes loader 8/8, jobs 3/3, and`Conversation_Stack` 38/38; the thin native image-I/O shim script passes
-15/15 checks in normal and ASan/UBSan modes. Help coverage passes 12/12 core
-tests and 1/1 display-backed widget test. The standalone headless
-`bin/coyote --help` exits 0 in under 10 seconds without leaving a worker
-running. The dated PCR-114 record in `sdfs/frontends.md` documents its earlier
-990/990, renderer 10/10, native loader 20/20 results; those are not current
-implementation qualification. After development builds, run
-`xvfb-run -a sh test/check-help.sh` from the repository root for focused Help,
-Mallard validation/links, and CLI checks. GUI activation and actual Yelp
-navigation remain manual qualification; see PCR-112. Earlier focused results
-include Markup 6/6, `Conversation_Stack` 28/28, System_Prompt 32/32,
-Session_Store 26/26, History 1/1, Agent RPC 27/27, and GUI Updates 9/9. The
-suite is organized as a root AUnit suite with Core, LLM, SQC, GUI, Integration,
-and final Process-Control domain suites. Live provider tests remain opt-in,
-and real subagent subprocess tests require `COYOTE_TEST_SUBAGENT=1`.
+The complete development suite currently contains 1014 registered tests and
+passes 1014/1014 under Xvfb from `test/` (zero failed assertions, zero
+unexpected errors, 78.70 seconds wall, exit 0; `/tmp/coyote-ownership-full-tests.log`).
+Root `alr build --development` and test
+`cd test && alr build --development --profiles=coyote=development` passed;
+both generated profiles select `development`. PCR-117's 1005/1005 result
+below is historical. PCR-118 focused cmark passes 17/17 (three added tests),
+renderer 10/10, and the standalone native ownership probe passes 27
+assertions. PCR-119 Ada cases ran in the full suite; native detached-spawn checks passed 28 dynamically counted checks in both normal and ASan/UBSan logs.
+See `/tmp/coyote-ownership-native-spawn-final.log` and `/tmp/coyote-ownership-native-spawn-asan-final.log`.
+Help coverage passes 12/12
+core and 1/1 display-backed widget tests; Mallard validation/links and CLI
+checks pass, with existing GTK theme CSS warnings. No end-user visual
+acceptance or live-provider qualification was performed. The cmark raw pointer
+APIs remain public for binding tests; borrowed lifetime rules are documented,
+not enforced, and no general native/Ada allocator-failure injection exists.
+Spawn status-pipe EOF with the intermediate child reaped means no setup/exec
+error was reported and normally indicates successful exec, but unexpected
+pre-exec grandchild death is indistinguishable. Post-fork `execvp` retains a
+Linux/glibc assumption and is not claimed portable or async-signal-safe; Ada
+runtime calls do not occur after fork. Developer self-evaluation and
+read-only review are not independent user acceptance.
+
+Qualified commands: `alr build --development` and `cd test && alr build --development --profiles=coyote=development`; after builds, `xvfb-run -a sh test/check-help.sh` from the
+repository root for focused Help, Mallard validation/links, and CLI checks. GUI
+activation and actual Yelp navigation remain manual qualification; see PCR-112.
+The standalone headless `bin/coyote --help` should exit 0 without leaving a
+worker running. The suite uses root AUnit domain suites for Core, LLM, SQC, GUI,
+Integration, and Process-Control; live-provider tests remain opt-in and actual
+subagent subprocess tests require `COYOTE_TEST_SUBAGENT=1`. PCR-117's dated
+1005/1005 result remains historical, as do PCR-114's former-C results.
 
 ```sh
 cd test && alr build

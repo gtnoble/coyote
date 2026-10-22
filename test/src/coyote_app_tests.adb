@@ -1505,42 +1505,37 @@ package body Coyote_App_Tests is
    procedure Test_Cmark_GFM_Table_Parsed (T : in out Test) is
       pragma Unreferenced (T);
       use Interfaces.C;
-      use Interfaces.C.Strings;
-      use System;
 
       Table_MD : constant String :=
         "| Name  | Value |" & ASCII.LF & "|-------|-------|" & ASCII.LF
         & "| foo   | 42    |" & ASCII.LF;
 
       C_Text      : constant char_array := To_C (Table_MD, Append_Nul => True);
-      Doc         : Coyote_Cmark.Node_Ptr;
-      Iter        : Coyote_Cmark.Iter_Ptr;
+      Doc         : Coyote_Cmark.Document;
+      Iter        : Coyote_Cmark.Iterator;
       Ev          : Coyote_Cmark.Event_Type_Int;
       Node        : Coyote_Cmark.Node_Ptr;
       Found_Table : Boolean             := False;
-      TS_Ptr      : chars_ptr;
+      TS_Value    : Unbounded_String;
    begin
-      Doc :=
-        Coyote_Cmark.Parse_Document
-          (C_Text, size_t (Table_MD'Length), Coyote_Cmark.OPT_DEFAULT);
+      Coyote_Cmark.Parse
+        (Doc, C_Text, size_t (Table_MD'Length), Coyote_Cmark.OPT_DEFAULT);
       Assert
-        (Doc /= System.Null_Address,
+        (not Coyote_Cmark.Is_Null (Coyote_Cmark.Root (Doc)),
          "Parse_Document must return a non-null document node");
 
-      Iter := Coyote_Cmark.Iter_New (Doc);
+      Coyote_Cmark.Start (Iter, Coyote_Cmark.Root (Doc));
       loop
-         Ev := Coyote_Cmark.Iter_Next (Iter);
+         Ev := Coyote_Cmark.Iter_Next (Coyote_Cmark.Handle (Iter));
          exit when Ev = Coyote_Cmark.EVENT_DONE;
          if Ev = Coyote_Cmark.EVENT_ENTER then
-            Node   := Coyote_Cmark.Iter_Get_Node (Iter);
-            TS_Ptr := Coyote_Cmark.Node_Get_Type_String (Node);
-            if String'(Value (TS_Ptr)) = "table" then
+            Node   := Coyote_Cmark.Iter_Get_Node (Coyote_Cmark.Handle (Iter));
+            TS_Value := To_Unbounded_String (Coyote_Cmark.Type_String (Node));
+            if To_String (TS_Value) = "table" then
                Found_Table := True;
             end if;
          end if;
       end loop;
-      Coyote_Cmark.Iter_Free (Iter);
-      Coyote_Cmark.Node_Free (Doc);
 
       Assert
         (Found_Table,
@@ -1552,39 +1547,34 @@ package body Coyote_App_Tests is
    procedure Test_Cmark_Paragraph_Type_String (T : in out Test) is
       pragma Unreferenced (T);
       use Interfaces.C;
-      use Interfaces.C.Strings;
-      use System;
 
       Para_MD    : constant String     := "Hello, world." & ASCII.LF;
       C_Text     : constant char_array := To_C (Para_MD, Append_Nul => True);
-      Doc        : Coyote_Cmark.Node_Ptr;
-      Iter       : Coyote_Cmark.Iter_Ptr;
+      Doc        : Coyote_Cmark.Document;
+      Iter       : Coyote_Cmark.Iterator;
       Ev         : Coyote_Cmark.Event_Type_Int;
       Node       : Coyote_Cmark.Node_Ptr;
       Found_Para : Boolean             := False;
-      TS_Ptr     : chars_ptr;
+      TS_Value   : Unbounded_String;
    begin
-      Doc :=
-        Coyote_Cmark.Parse_Document
-          (C_Text, size_t (Para_MD'Length), Coyote_Cmark.OPT_DEFAULT);
+      Coyote_Cmark.Parse
+        (Doc, C_Text, size_t (Para_MD'Length), Coyote_Cmark.OPT_DEFAULT);
       Assert
-        (Doc /= System.Null_Address,
+        (not Coyote_Cmark.Is_Null (Coyote_Cmark.Root (Doc)),
          "Parse_Document must return a non-null document node");
 
-      Iter := Coyote_Cmark.Iter_New (Doc);
+      Coyote_Cmark.Start (Iter, Coyote_Cmark.Root (Doc));
       loop
-         Ev := Coyote_Cmark.Iter_Next (Iter);
+         Ev := Coyote_Cmark.Iter_Next (Coyote_Cmark.Handle (Iter));
          exit when Ev = Coyote_Cmark.EVENT_DONE;
          if Ev = Coyote_Cmark.EVENT_ENTER then
-            Node   := Coyote_Cmark.Iter_Get_Node (Iter);
-            TS_Ptr := Coyote_Cmark.Node_Get_Type_String (Node);
-            if String'(Value (TS_Ptr)) = "paragraph" then
+            Node   := Coyote_Cmark.Iter_Get_Node (Coyote_Cmark.Handle (Iter));
+            TS_Value := To_Unbounded_String (Coyote_Cmark.Type_String (Node));
+            if To_String (TS_Value) = "paragraph" then
                Found_Para := True;
             end if;
          end if;
       end loop;
-      Coyote_Cmark.Iter_Free (Iter);
-      Coyote_Cmark.Node_Free (Doc);
 
       Assert
         (Found_Para,

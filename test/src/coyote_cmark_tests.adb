@@ -16,13 +16,11 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Interfaces.C;
 with Interfaces.C.Strings;
-with System;
 
 package body Coyote_Cmark_Tests is
 
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
-   use type System.Address;
    use type Coyote_Renderer.Tables.Table_Alignment;
    use Interfaces.C;
    use Interfaces.C.Strings;
@@ -37,6 +35,63 @@ package body Coyote_Cmark_Tests is
    end Parse;
 
    ---------------------------------------------------------------------------
+
+   procedure Test_Owned_Document_Early_Return (T : in out Test) is
+      pragma Unreferenced (T);
+      Owner : Coyote_Cmark.Document;
+      C_Text : constant char_array := To_C ("early", Append_Nul => True);
+   begin
+      Coyote_Cmark.Parse
+        (Owner, C_Text, size_t (5), Coyote_Cmark.OPT_DEFAULT);
+      Assert
+        (not Coyote_Cmark.Is_Null (Coyote_Cmark.Root (Owner)),
+         "owned parse should produce a document");
+      return;
+   end Test_Owned_Document_Early_Return;
+
+   procedure Test_Owned_Iterator_Exception (T : in out Test) is
+      pragma Unreferenced (T);
+      C_Text : constant char_array := To_C ("exception", Append_Nul => True);
+      Raised : Boolean := False;
+
+      procedure Raise_With_Owners is
+         Local_Doc : Coyote_Cmark.Document;
+         Local_It  : Coyote_Cmark.Iterator;
+      begin
+         Coyote_Cmark.Parse
+           (Local_Doc, C_Text, size_t (9), Coyote_Cmark.OPT_DEFAULT);
+         Coyote_Cmark.Start
+           (Local_It, Coyote_Cmark.Root (Local_Doc));
+         raise Constraint_Error;
+      end Raise_With_Owners;
+   begin
+      begin
+         Raise_With_Owners;
+      exception
+         when Constraint_Error =>
+            Raised := True;
+      end;
+      Assert (Raised, "exception path was exercised");
+   end Test_Owned_Iterator_Exception;
+
+   procedure Test_Owned_Strings_Are_Copied (T : in out Test) is
+      pragma Unreferenced (T);
+      Value : Unbounded_String;
+      C_Text : constant char_array := To_C ("owned text", Append_Nul => True);
+      Node  : Coyote_Cmark.Node_Ptr;
+   begin
+      declare
+         Doc : Coyote_Cmark.Document;
+      begin
+         Coyote_Cmark.Parse
+           (Doc, C_Text, size_t (10), Coyote_Cmark.OPT_DEFAULT);
+         Node := Coyote_Cmark.Node_First_Child
+           (Coyote_Cmark.Node_First_Child (Coyote_Cmark.Root (Doc)));
+         Value := To_Unbounded_String (Coyote_Cmark.Literal (Node));
+      end;
+      Assert (To_String (Value) = "owned text",
+              "copied literal remains valid after owner finalization");
+   end Test_Owned_Strings_Are_Copied;
 
    procedure Test_Constants_Are_Non_Negative (T : in out Test) is
       pragma Unreferenced (T);
@@ -65,7 +120,7 @@ package body Coyote_Cmark_Tests is
       pragma Unreferenced (T);
       Doc : constant Coyote_Cmark.Node_Ptr := Parse ("hello");
    begin
-      Assert (Doc /= System.Null_Address, "Parse_Document returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse_Document returned null");
       Coyote_Cmark.Node_Free (Doc);
    end Test_Parse_Returns_Non_Null;
 
@@ -76,7 +131,7 @@ package body Coyote_Cmark_Tests is
       Doc   : constant Coyote_Cmark.Node_Ptr := Parse ("hello");
       NType : Coyote_Cmark.Node_Type_Int;
    begin
-      Assert (Doc /= System.Null_Address, "Parse_Document returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse_Document returned null");
       NType := Coyote_Cmark.Node_Get_Type (Doc);
       Assert
         (NType = Coyote_Cmark.NODE_DOCUMENT,
@@ -94,7 +149,7 @@ package body Coyote_Cmark_Tests is
       Node       : Coyote_Cmark.Node_Ptr;
       Found_Text : Boolean                        := False;
    begin
-      Assert (Doc /= System.Null_Address, "Parse_Document returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse_Document returned null");
       Iter := Coyote_Cmark.Iter_New (Doc);
 
       loop
@@ -126,7 +181,7 @@ package body Coyote_Cmark_Tests is
       Node  : Coyote_Cmark.Node_Ptr;
       Found : Boolean                        := False;
    begin
-      Assert (Doc /= System.Null_Address, "Parse_Document returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse_Document returned null");
       Iter := Coyote_Cmark.Iter_New (Doc);
 
       loop
@@ -164,7 +219,7 @@ package body Coyote_Cmark_Tests is
       Iter : Coyote_Cmark.Iter_Ptr;
       Ev   : Coyote_Cmark.Event_Type_Int;
    begin
-      Assert (Doc /= System.Null_Address, "Parse_Document returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse_Document returned null");
       Iter := Coyote_Cmark.Iter_New (Doc);
 
       --  Drain the iterator fully before freeing.
@@ -190,7 +245,7 @@ package body Coyote_Cmark_Tests is
       Iter   : constant Coyote_Cmark.Iter_Ptr := Coyote_Cmark.Iter_New (Doc);
       Ev     : Coyote_Cmark.Event_Type_Int;
       Node   : Coyote_Cmark.Node_Ptr;
-      Result : Coyote_Cmark.Node_Ptr          := System.Null_Address;
+      Result : Coyote_Cmark.Node_Ptr          := Coyote_Cmark.Null_Node;
    begin
       loop
          Ev := Coyote_Cmark.Iter_Next (Iter);
@@ -216,19 +271,21 @@ package body Coyote_Cmark_Tests is
       H1   : Coyote_Cmark.Node_Ptr;
       H3   : Coyote_Cmark.Node_Ptr;
    begin
-      Assert (Doc1 /= System.Null_Address, "Parse h1 returned null");
-      Assert (Doc3 /= System.Null_Address, "Parse h3 returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc1), "Parse h1 returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc3), "Parse h3 returned null");
 
       H1 := Find_Node (Doc1, Coyote_Cmark.NODE_HEADING);
       Assert
-        (H1 /= System.Null_Address, "NODE_HEADING not found in '# Heading'");
+        (not Coyote_Cmark.Is_Null (H1),
+         "NODE_HEADING not found in '# Heading'");
       Assert
         (Integer (Coyote_Cmark.Node_Get_Heading_Level (H1)) = 1,
          "heading level should be 1 for '# Heading'");
 
       H3 := Find_Node (Doc3, Coyote_Cmark.NODE_HEADING);
       Assert
-        (H3 /= System.Null_Address, "NODE_HEADING not found in '### Deep'");
+        (not Coyote_Cmark.Is_Null (H3),
+         "NODE_HEADING not found in '### Deep'");
       Assert
         (Integer (Coyote_Cmark.Node_Get_Heading_Level (H3)) = 3,
          "heading level should be 3 for '### Deep'");
@@ -244,9 +301,11 @@ package body Coyote_Cmark_Tests is
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("- item");
       List : Coyote_Cmark.Node_Ptr;
    begin
-      Assert (Doc /= System.Null_Address, "Parse returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse returned null");
       List := Find_Node (Doc, Coyote_Cmark.NODE_LIST);
-      Assert (List /= System.Null_Address, "NODE_LIST not found in '- item'");
+      Assert
+        (not Coyote_Cmark.Is_Null (List),
+         "NODE_LIST not found in '- item'");
       Assert
         (Coyote_Cmark.Node_Get_List_Type (List) = Coyote_Cmark.LIST_BULLET,
          "list type should be LIST_BULLET for '- item'");
@@ -260,9 +319,11 @@ package body Coyote_Cmark_Tests is
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("1. item");
       List : Coyote_Cmark.Node_Ptr;
    begin
-      Assert (Doc /= System.Null_Address, "Parse returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse returned null");
       List := Find_Node (Doc, Coyote_Cmark.NODE_LIST);
-      Assert (List /= System.Null_Address, "NODE_LIST not found in '1. item'");
+      Assert
+        (not Coyote_Cmark.Is_Null (List),
+         "NODE_LIST not found in '1. item'");
       Assert
         (Coyote_Cmark.Node_Get_List_Type (List) = Coyote_Cmark.LIST_ORDERED,
          "list type should be LIST_ORDERED for '1. item'");
@@ -276,9 +337,11 @@ package body Coyote_Cmark_Tests is
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("3. item");
       List : Coyote_Cmark.Node_Ptr;
    begin
-      Assert (Doc /= System.Null_Address, "Parse returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse returned null");
       List := Find_Node (Doc, Coyote_Cmark.NODE_LIST);
-      Assert (List /= System.Null_Address, "NODE_LIST not found in '3. item'");
+      Assert
+        (not Coyote_Cmark.Is_Null (List),
+         "NODE_LIST not found in '3. item'");
       Assert
         (Integer (Coyote_Cmark.Node_Get_List_Start (List)) = 3,
          "list start ordinal should be 3 for '3. item'");
@@ -297,10 +360,10 @@ package body Coyote_Cmark_Tests is
       CB  : Coyote_Cmark.Node_Ptr;
       Ptr : Interfaces.C.Strings.chars_ptr;
    begin
-      Assert (Doc /= System.Null_Address, "Parse returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse returned null");
       CB := Find_Node (Doc, Coyote_Cmark.NODE_CODE_BLOCK);
       Assert
-        (CB /= System.Null_Address,
+        (not Coyote_Cmark.Is_Null (CB),
          "NODE_CODE_BLOCK not found in fenced code input");
       Ptr := Coyote_Cmark.Node_Get_Literal (CB);
       Assert
@@ -327,10 +390,11 @@ package body Coyote_Cmark_Tests is
       Para : Coyote_Cmark.Node_Ptr;
       Ptr  : Interfaces.C.Strings.chars_ptr;
    begin
-      Assert (Doc /= System.Null_Address, "Parse returned null");
+      Assert (not Coyote_Cmark.Is_Null (Doc), "Parse returned null");
       Para := Find_Node (Doc, Coyote_Cmark.NODE_PARAGRAPH);
       Assert
-        (Para /= System.Null_Address, "NODE_PARAGRAPH not found in 'hello'");
+        (not Coyote_Cmark.Is_Null (Para),
+         "NODE_PARAGRAPH not found in 'hello'");
       Ptr := Coyote_Cmark.Node_Get_Literal (Para);
       Assert
         (Ptr /= Interfaces.C.Strings.Null_Ptr
@@ -879,6 +943,18 @@ package body Coyote_Cmark_Tests is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark owned document releases on early return",
+            Coyote_Cmark_Tests.Test_Owned_Document_Early_Return'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark owner scope handles exception unwinding",
+            Coyote_Cmark_Tests.Test_Owned_Iterator_Exception'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Cmark copied literal accessor",
+            Coyote_Cmark_Tests.Test_Owned_Strings_Are_Copied'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
            ("Coyote_Cmark enum constants are non-negative after elaboration",

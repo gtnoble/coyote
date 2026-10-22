@@ -10,34 +10,20 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Cmark;
 with Interfaces.C;
-with Interfaces.C.Strings;
-with System;
 
 package body Coyote_Renderer.Tables is
 
    use type Interfaces.C.int;
-   use type System.Address;
-
-   function Parse_Source (Markdown : String) return Coyote_Cmark.Node_Ptr is
-      C_Text : constant Interfaces.C.char_array :=
-        Interfaces.C.To_C (Markdown, Append_Nul => True);
-   begin
-      return
-        Coyote_Cmark.Parse_Document
-          (C_Text,
-           Interfaces.C.size_t (Markdown'Length),
-           Coyote_Cmark.OPT_DEFAULT);
-   end Parse_Source;
+   use type Coyote_Cmark.Node_Ptr;
 
    function Type_Name (Node : Coyote_Cmark.Node_Ptr) return String is
    begin
-      return
-        Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Type_String (Node));
+      return Coyote_Cmark.Type_String (Node);
    end Type_Name;
 
    function Literal (Node : Coyote_Cmark.Node_Ptr) return String is
    begin
-      return Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Literal (Node));
+      return Coyote_Cmark.Literal (Node);
    end Literal;
 
    procedure Append_Inline_Text
@@ -53,7 +39,7 @@ package body Coyote_Renderer.Tables is
       end if;
 
       Child := Coyote_Cmark.Node_First_Child (Node);
-      while Child /= System.Null_Address loop
+      while Child /= Coyote_Cmark.Null_Node loop
          Append_Inline_Text (Child, Result);
          Child := Coyote_Cmark.Node_Next (Child);
       end loop;
@@ -64,7 +50,7 @@ package body Coyote_Renderer.Tables is
       Child  : Coyote_Cmark.Node_Ptr;
    begin
       Child := Coyote_Cmark.Node_First_Child (Node);
-      while Child /= System.Null_Address loop
+      while Child /= Coyote_Cmark.Null_Node loop
          Append_Inline_Text (Child, Result.Text);
          Child := Coyote_Cmark.Node_Next (Child);
       end loop;
@@ -79,7 +65,7 @@ package body Coyote_Renderer.Tables is
         Type_Name (Node) = "table_header"
         or else Coyote_Cmark.Table_Row_Is_Header (Node) /= 0;
       Child            := Coyote_Cmark.Node_First_Child (Node);
-      while Child /= System.Null_Address loop
+      while Child /= Coyote_Cmark.Null_Node loop
          if Type_Name (Child) = "table_cell" then
             Result.Cells.Append (Read_Cell (Child));
          end if;
@@ -133,7 +119,7 @@ package body Coyote_Renderer.Tables is
            & "__");
 
       Child := Coyote_Cmark.Node_First_Child (Node);
-      while Child /= System.Null_Address loop
+      while Child /= Coyote_Cmark.Null_Node loop
          declare
             Name : constant String := Type_Name (Child);
          begin
@@ -202,25 +188,34 @@ package body Coyote_Renderer.Tables is
 
    function Extract_Tables (Markdown : String) return Extraction_Result is
       Result : Extraction_Result;
-      Doc    : constant Coyote_Cmark.Node_Ptr := Parse_Source (Markdown);
-      It     : Coyote_Cmark.Iter_Ptr;
+      Doc    : Coyote_Cmark.Document;
+      It     : Coyote_Cmark.Iterator;
+      C_Text : constant Interfaces.C.char_array :=
+        Interfaces.C.To_C (Markdown, Append_Nul => True);
       Event  : Coyote_Cmark.Event_Type_Int;
       Node   : Coyote_Cmark.Node_Ptr;
    begin
       if Markdown'Length = 0 then
          return Result;
       end if;
-      if Doc = System.Null_Address then
+      Coyote_Cmark.Parse
+        (Doc, C_Text, Interfaces.C.size_t (Markdown'Length),
+         Coyote_Cmark.OPT_DEFAULT);
+      if Coyote_Cmark.Is_Null (Coyote_Cmark.Root (Doc)) then
          Result.Masked_Text := To_Unbounded_String (Markdown);
          return Result;
       end if;
 
-      It := Coyote_Cmark.Iter_New (Doc);
+      Coyote_Cmark.Start (It, Coyote_Cmark.Root (Doc));
+      if Coyote_Cmark.Is_Null (Coyote_Cmark.Handle (It)) then
+         Result.Masked_Text := To_Unbounded_String (Markdown);
+         return Result;
+      end if;
       loop
-         Event := Coyote_Cmark.Iter_Next (It);
+         Event := Coyote_Cmark.Iter_Next (Coyote_Cmark.Handle (It));
          exit when Event = Coyote_Cmark.EVENT_DONE;
          if Event = Coyote_Cmark.EVENT_ENTER then
-            Node := Coyote_Cmark.Iter_Get_Node (It);
+            Node := Coyote_Cmark.Iter_Get_Node (Coyote_Cmark.Handle (It));
             if Type_Name (Node) = "table" then
                Result.Blocks.Append
                  (Read_Table
@@ -228,9 +223,6 @@ package body Coyote_Renderer.Tables is
             end if;
          end if;
       end loop;
-      Coyote_Cmark.Iter_Free (It);
-      Coyote_Cmark.Node_Free (Doc);
-
       Result.Masked_Text := Mask_Source (Markdown, Result.Blocks);
       return Result;
    end Extract_Tables;

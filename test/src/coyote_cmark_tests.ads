@@ -21,6 +21,15 @@ package Coyote_Cmark_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
+   --  Controlled ownership release is exercised on early return.
+   procedure Test_Owned_Document_Early_Return (T : in out Test);
+
+   --  Controlled iterator and document owners survive exception unwinding.
+   procedure Test_Owned_Iterator_Exception (T : in out Test);
+
+   --  Owned string accessor returns a copied Ada value.
+   procedure Test_Owned_Strings_Are_Copied (T : in out Test);
+
    --  Enum constants are non-negative after elaboration.
    procedure Test_Constants_Are_Non_Negative (T : in out Test);
 

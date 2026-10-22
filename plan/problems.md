@@ -3,6 +3,82 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-118 — Scope libcmark resource ownership and copied-string boundary
+
+- **Date reported:** 2026-10-22
+- **Category:** Design, Code, Test
+- **Classification:** Approved lifecycle/ownership correction
+- **Priority:** 3-Moderate
+- **Description:** Replace production manual libcmark allocation/free sequencing
+  with scope owners, and ensure accessor strings copied into Ada storage do
+  not escape as borrowed C strings. The borrowed node/iterator relationship
+  remains a documented caller contract, not a statically enforced lifetime.
+- **Affected work products:** `design/coyote-design.md`, `plan/test-plan.md`,
+  `plan/problems.md`, `sdfs/core-agent.md`, `sdfs/frontends.md`,
+  `Coyote_Cmark`, production renderer callers, and cmark tests.
+- **Corrective action:** Add limited `Document` and `Iterator` owners with
+  finalization; document iterator-before-document and borrowed-node lifetime
+  requirements; copy string accessors into Ada `String` values. Keep the
+  existing low-level manual API only for compatibility/binding qualification
+  tests; production callers use the owners.
+- **Verification:** Root `alr build --development` and test
+  `cd test && alr build --development --profiles=coyote=development` passed;
+  both generated profiles select `development`. The complete Xvfb suite passed
+  1014/1014, zero failed assertions and zero unexpected errors, 78.70 seconds
+  wall, exit 0 (`/tmp/coyote-ownership-full-tests.log`). The cmark focused
+  family passed 17/17, including the three PCR-118 additions; renderer passed
+  10/10. The standalone `test/tools/check-cmark-ownership.sh` probe passed 27
+  assertions using `test/native/cmark_ownership.gpr`,
+  `test/tools/cmark_ownership_worker.adb`, and
+  `test/native/cmark_ownership_probe.c`.
+- **Limitations:** Ada does not statically enforce that borrowed nodes and
+  iterators stay within document lifetime. The low-level raw pointer interfaces
+  remain public for binding tests, by documentation rather than access control;
+  production renderer paths have migrated to scoped owners. The probe injects
+  parser and iterator allocation failures, not general Ada/native allocator
+  failures. No end-user visual acceptance or live-provider qualification was
+  performed; developer self-evaluation and read-only review are not independent
+  user acceptance.
+- **Status:** Implemented and verified as stated; limitations remain.
+## PCR-119 — Report detached spawn setup/exec status
+
+- **Date reported:** 2026-10-22
+- **Category:** Code, Design, Test
+- **Classification:** Approved spawn-status correctness correction
+- **Priority:** 3-Moderate
+- **Description:** Detached launch callers could receive false success when
+  fork/setup/exec failed after the parent had detached. Report explicit
+  setup/exec errors without waiting for application exit. A clean status-pipe
+  close is the usual exec indication, subject to the pre-exec death ambiguity
+  documented below.- **Affected work products:** `design/coyote-design.md`, `plan/test-plan.md`,
+  `plan/problems.md`, `sdfs/core-agent.md`, `sdfs/frontends.md`,
+  `Coyote_Spawn`, native detached-spawn C adapter, callers, and tests.
+- **Corrective action:** Use a close-on-exec status pipe to report setup/exec
+  errors synchronously. The API returns Boolean status; it does not await or
+  report eventual application exit. Retain Linux `pipe2(O_CLOEXEC)` and
+  post-fork C/POSIX-only mechanics. Convert argv exception-safely and reject
+  embedded NULs before crossing the boundary.
+- **Verification:** Root `alr build --development` and test
+  `cd test && alr build --development --profiles=coyote=development` passed;
+  both generated profiles select `development`. The full suite passed
+  1014/1014 with zero failed assertions and zero unexpected errors in 78.70
+  seconds wall, exit 0 (`/tmp/coyote-ownership-full-tests.log`); Ada spawn
+  validation/status tests are included. The native detached-spawn harness passed
+  28 dynamically counted checks in both normal and ASan/UBSan runs
+  (`/tmp/coyote-ownership-native-spawn-final.log`;
+  `/tmp/coyote-ownership-native-spawn-asan-final.log`). Coverage includes
+  `/bin/true` exec, setup failures, descriptor handling, redirection, early
+  return, and intermediate-child reaping. An intermediate strict harness build
+  failed on an unused counter; correcting it preceded the passing final runs.
+  EOF with the intermediate child reaped means no setup/exec error was reported
+  and normally indicates successful exec, but unexpected pre-exec grandchild
+  death remains indistinguishable.
+
+- **Limitations:** The native post-fork `execvp` path retains its Linux/glibc
+  assumption and is not claimed portable or async-signal-safe; no Ada runtime is
+  called after fork. The API does not report eventual application exit status.
+  Native normal and sanitizer qualification passed.
+- **Status:** Implemented and verified; documented protocol limits remain.
 ## PCR-117 — Move selected native-boundary policy into Ada (2026-10-22)
 
 - **Date reported:** 2026-10-22

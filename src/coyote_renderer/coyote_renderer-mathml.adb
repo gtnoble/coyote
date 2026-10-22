@@ -10,12 +10,10 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Cmark;
 with Interfaces.C;
-with System;
 
 package body Coyote_Renderer.MathML is
 
    use type Interfaces.C.int;
-   use type System.Address;
 
    type Source_Range is record
       First : Positive;
@@ -25,35 +23,32 @@ package body Coyote_Renderer.MathML is
    package Source_Range_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Source_Range);
 
-   function Parse_Source (Markdown : String) return Coyote_Cmark.Node_Ptr is
-      C_Text : constant Interfaces.C.char_array :=
-        Interfaces.C.To_C (Markdown, Append_Nul => True);
-   begin
-      return
-        Coyote_Cmark.Parse_Document
-          (C_Text,
-           Interfaces.C.size_t (Markdown'Length),
-           Coyote_Cmark.OPT_DEFAULT);
-   end Parse_Source;
-
    function Code_Ranges (Markdown : String) return Source_Range_Vectors.Vector
    is
       Result : Source_Range_Vectors.Vector;
-      Doc    : constant Coyote_Cmark.Node_Ptr := Parse_Source (Markdown);
-      It     : Coyote_Cmark.Iter_Ptr;
+      Doc    : Coyote_Cmark.Document;
+      It     : Coyote_Cmark.Iterator;
+      C_Text : constant Interfaces.C.char_array :=
+        Interfaces.C.To_C (Markdown, Append_Nul => True);
       Ev     : Coyote_Cmark.Event_Type_Int;
       Node   : Coyote_Cmark.Node_Ptr;
    begin
-      if Doc = System.Null_Address then
+      Coyote_Cmark.Parse
+        (Doc, C_Text, Interfaces.C.size_t (Markdown'Length),
+         Coyote_Cmark.OPT_DEFAULT);
+      if Coyote_Cmark.Is_Null (Coyote_Cmark.Root (Doc)) then
          return Result;
       end if;
 
-      It := Coyote_Cmark.Iter_New (Doc);
+      Coyote_Cmark.Start (It, Coyote_Cmark.Root (Doc));
+      if Coyote_Cmark.Is_Null (Coyote_Cmark.Handle (It)) then
+         return Result;
+      end if;
       loop
-         Ev := Coyote_Cmark.Iter_Next (It);
+         Ev := Coyote_Cmark.Iter_Next (Coyote_Cmark.Handle (It));
          exit when Ev = Coyote_Cmark.EVENT_DONE;
          if Ev = Coyote_Cmark.EVENT_ENTER then
-            Node := Coyote_Cmark.Iter_Get_Node (It);
+            Node := Coyote_Cmark.Iter_Get_Node (Coyote_Cmark.Handle (It));
             if Coyote_Cmark.Node_Get_Type (Node) = Coyote_Cmark.NODE_CODE_BLOCK
             then
                declare
@@ -71,8 +66,6 @@ package body Coyote_Renderer.MathML is
             end if;
          end if;
       end loop;
-      Coyote_Cmark.Iter_Free (It);
-      Coyote_Cmark.Node_Free (Doc);
       return Result;
    end Code_Ranges;
 

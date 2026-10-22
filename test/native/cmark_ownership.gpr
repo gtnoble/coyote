@@ -1,0 +1,24 @@
+project Cmark_Ownership is
+   for Languages use ("Ada", "C");
+   for Source_Dirs use ("../../src", "../tools", ".");
+   for Source_Files use
+     ("coyote_cmark.ads", "coyote_cmark.adb", "coyote_cmark_c.c",
+      "cmark_ownership_worker.adb", "cmark_ownership_probe.c");
+   for Object_Dir use External ("CMARK_TEST_ROOT") & "/obj";
+   for Exec_Dir use External ("CMARK_TEST_ROOT") & "/bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("cmark_ownership_worker.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnatwa");
+      for Default_Switches ("C") use
+        ("-std=c11", "-Wall", "-Wextra", "-Wpedantic", "-Werror");
+   end Compiler;
+
+   package Linker is
+      for Switches ("Ada") use
+        ("-lcmark-gfm", "-lcmark-gfm-extensions",
+         "-Wl,--wrap=cmark_node_free", "-Wl,--wrap=cmark_iter_free",
+         "-Wl,--wrap=cmark_parser_new", "-Wl,--wrap=cmark_iter_new");
+   end Linker;
+end Cmark_Ownership;

@@ -189,6 +189,77 @@ package body Coyote_Utils_Tests is
          "detached spawn should reject an empty argument list");
    end Test_Spawn_Detached_Rejects_Empty_Args;
 
+   procedure Test_Spawn_Detached_Rejects_Empty_Arg0 (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("");
+      Assert
+        (not Coyote_Spawn.Spawn_Detached (Args),
+         "detached spawn should reject an empty argv[0]");
+   end Test_Spawn_Detached_Rejects_Empty_Arg0;
+
+   procedure Test_Spawn_Detached_Rejects_Embedded_NUL (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("/bin/true" & Character'Val (0) & "ignored");
+      Assert
+        (not Coyote_Spawn.Spawn_Detached (Args),
+         "detached spawn should reject an embedded NUL argument");
+   end Test_Spawn_Detached_Rejects_Embedded_NUL;
+
+   procedure Test_Spawn_Detached_Rejects_Invalid_Cwd (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("/bin/true");
+      Assert
+        (not Coyote_Spawn.Spawn_Detached
+           (Args, "/no/such/coyote-working-directory"),
+         "detached spawn should reject an invalid cwd");
+   end Test_Spawn_Detached_Rejects_Invalid_Cwd;
+
+   procedure Test_Spawn_Detached_Rejects_Embedded_NUL_Cwd
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("/bin/true");
+      Assert
+        (not Coyote_Spawn.Spawn_Detached
+           (Args, "/tmp" & Character'Val (0) & "/ignored"),
+         "detached spawn should reject an embedded NUL cwd");
+   end Test_Spawn_Detached_Rejects_Embedded_NUL_Cwd;
+
+   procedure Test_Spawn_Detached_Reports_Exec_Success (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("/bin/sh");
+      Args.Append ("-c");
+      Args.Append ("exit 37");
+      Assert
+        (Coyote_Spawn.Spawn_Detached (Args),
+         "exec success must not depend on the eventual exit status");
+   end Test_Spawn_Detached_Reports_Exec_Success;
+
+   procedure Test_Spawn_Detached_Reports_Exec_Failure (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("/definitely/missing/coyote-executable");
+      Assert
+        (not Coyote_Spawn.Spawn_Detached (Args),
+         "missing executable must fail synchronous spawn setup");
+   end Test_Spawn_Detached_Reports_Exec_Failure;
    procedure Test_Shell_Quote_Preserves_Spaces (T : in out Test) is
       pragma Unreferenced (T);
    begin
@@ -441,7 +512,38 @@ package body Coyote_Utils_Tests is
       Result.Add_Test
         (Coyote_Utils_Caller.Create
            ("Coyote_Spawn rejects empty argument lists",
-            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Args'Access));
+            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Args'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn rejects empty argv[0]",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Arg0'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn rejects embedded NUL arguments",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Embedded_NUL'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn rejects invalid working directory",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Invalid_Cwd'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn rejects embedded NUL working directory",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Embedded_NUL_Cwd'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn reports successful exec independent of exit status",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Reports_Exec_Success'
+              Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Spawn reports missing executable",
+            Coyote_Utils_Tests.Test_Spawn_Detached_Reports_Exec_Failure'
+              Access));
       Result.Add_Test
         (Coyote_Utils_Caller.Create
            ("Coyote_Utils shell-quotes paths containing spaces",

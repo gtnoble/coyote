@@ -80,6 +80,8 @@ cmark_node *cmark_shim_parse_document_gfm(const char *buffer,
     cmark_gfm_core_extensions_ensure_registered();
 
     parser = cmark_parser_new(options);
+    if (parser == NULL)
+        return NULL;
     for (name = ext_names; *name != NULL; ++name) {
         ext = cmark_find_syntax_extension(*name);
         if (ext != NULL)
