@@ -173,19 +173,15 @@ package body LLM.HTTP is
 
       if Connect_Timeout_Seconds > 0 then
          Check
-           (Curl_Binding.Set_Timeout_Option
-              (H,
-               Curl_Binding.CURLOPT_CONNECTTIMEOUT,
-               Interfaces.C.long (Connect_Timeout_Seconds)),
+           (Curl_Binding.Set_Connect_Timeout
+              (H, Interfaces.C.long (Connect_Timeout_Seconds)),
             "curl_easy_setopt(CURLOPT_CONNECTTIMEOUT)");
       end if;
 
       if Total_Timeout_Seconds > 0 then
          Check
-           (Curl_Binding.Set_Timeout_Option
-              (H,
-               Curl_Binding.CURLOPT_TIMEOUT,
-               Interfaces.C.long (Total_Timeout_Seconds)),
+           (Curl_Binding.Set_Timeout
+              (H, Interfaces.C.long (Total_Timeout_Seconds)),
             "curl_easy_setopt(CURLOPT_TIMEOUT)");
       end if;
 

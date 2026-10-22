@@ -12,6 +12,9 @@ package Coyote_Process_Control_Tests is
    procedure Test_Grace_Clamps (T : in out Test);
    procedure Test_Launches_Reject_After_Shutdown (T : in out Test);
    procedure Test_Persistence_Freezes (T : in out Test);
+   procedure Test_Process_Stat_Parser (T : in out Test);
+   procedure Test_Process_Snapshot (T : in out Test);
+   procedure Test_Signal_Group_Tree (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

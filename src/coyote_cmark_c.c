@@ -6,9 +6,6 @@
  *  values always agree with the installed <cmark-gfm.h> regardless of the
  *  library version.
  *
- *  cmark_shim_get_literal wraps cmark_node_get_literal so the Ada side
- *  receives a valid (possibly empty) C string rather than a null pointer.
- *
  *  cmark_shim_parse_document_gfm creates a parser with the GFM "table",
  *  "strikethrough", and "autolink" extensions attached, parses the supplied
  *  buffer, and returns the document root node.  The caller must free the
@@ -63,27 +60,6 @@ int cmark_shim_event_exit(void)         { return (int)CMARK_EVENT_EXIT;         
 
 int cmark_shim_opt_default(void)        { return (int)CMARK_OPT_DEFAULT;        }
 
-/* ── Safe literal and link destination accessors ─────────────────────────── */
-
-/*  cmark_node_get_literal and cmark_node_get_url can return NULL for nodes
- *  without the respective value.  Keep null handling inside the C boundary. */
-const char *cmark_shim_get_literal(cmark_node *node)
-{
-    const char *s = cmark_node_get_literal(node);
-    return (s != NULL) ? s : "";
-}
-
-const char *cmark_shim_get_url(cmark_node *node)
-{
-    const char *s = cmark_node_get_url(node);
-    return (s != NULL) ? s : "";
-}
-
-const char *cmark_shim_get_title(cmark_node *node)
-{
-    const char *s = cmark_node_get_title(node);
-    return (s != NULL) ? s : "";
-}
 /* ── GFM parse with table extension ─────────────────────────────────────── */
 
 /*  Parse buffer with the GFM "table", "strikethrough", and "autolink"
@@ -114,18 +90,6 @@ cmark_node *cmark_shim_parse_document_gfm(const char *buffer,
     doc = cmark_parser_finish(parser);
     cmark_parser_free(parser);
     return doc;
-}
-
-/* ── Node type string ────────────────────────────────────────────────────── */
-
-/*  Returns the type-name string for a node (e.g. "table", "table_row",
- *  "table_cell", "paragraph", …).  Extension nodes carry dynamic integer
- *  type ids; the string is the only portable way to identify them.
- *  Never returns NULL.                                                   */
-const char *cmark_shim_node_get_type_string(cmark_node *node)
-{
-    const char *s = cmark_node_get_type_string(node);
-    return (s != NULL) ? s : "";
 }
 
 /* ── Table metadata ───────────────────────────────────────────────────────── */

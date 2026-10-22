@@ -2,6 +2,7 @@
 --  Project: coyote
 
 with Ada.Real_Time;
+with Coyote_Process_Trees;
 with Interfaces.C;
 
 package body Coyote_Process_Control is
@@ -15,12 +16,6 @@ package body Coyote_Process_Control is
 
    function C_Signal_Read return Interfaces.C.int with
      Import, Convention => C, External_Name => "coyote_signal_read";
-
-   function C_Signal_Group_Tree
-     (Pid    : Interfaces.C.int;
-      Signal : Interfaces.C.int)
-      return Interfaces.C.int with
-     Import, Convention => C, External_Name => "coyote_signal_group_tree";
 
    MAX_GROUPS : constant Positive := 128;
    subtype Group_Index is Positive range 1 .. MAX_GROUPS;
@@ -290,25 +285,16 @@ package body Coyote_Process_Control is
       end if;
       for I in Group_Index'First .. Group_Index (Count) loop
          if Values (I) > 0 then
-            declare
-               Ignored : Interfaces.C.int;
-            begin
-               Ignored :=
-                 C_Signal_Group_Tree
-                   (Interfaces.C.int (Values (I)), Interfaces.C.int (Signal));
-               pragma Unreferenced (Ignored);
-            end;
+            Coyote_Process_Trees.Signal_Group_Tree
+              (Root_Pid => Values (I), Signal => Signal);
          end if;
       end loop;
    end Signal_All;
 
    procedure Signal_Group (Pid : Integer; Signal : Integer) is
-      Ignored : Interfaces.C.int;
    begin
-      Ignored :=
-        C_Signal_Group_Tree
-          (Interfaces.C.int (Pid), Interfaces.C.int (Signal));
-      pragma Unreferenced (Ignored);
+      Coyote_Process_Trees.Signal_Group_Tree
+        (Root_Pid => Pid, Signal => Signal);
    end Signal_Group;
 
    procedure Unregister (Pid : Integer) is

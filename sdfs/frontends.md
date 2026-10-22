@@ -1,5 +1,33 @@
 # Component Development Log — Frontends
 
+## 2026-10-22 — Move selected frontend native-boundary policy into Ada (PCR-117)
+
+This approved behavior-preserving refactor moves libnotify initialization,
+notification creation/show/error cleanup, object release, and finalization into
+`Coyote_Notify` using private Ada imports. The obsolete
+`src/coyote_notify_c.c` implementation is removed. The isolated worker
+`test/tools/notify_test_worker.adb` exercises repeated show/finalize calls; its
+registered lifecycle smoke test runs it with a timeout and an unavailable
+D-Bus address. The isolated lifecycle test passed 1/1; this verifies lifecycle
+cleanup under an unavailable bus, not successful daemon delivery.
+
+`Coyote_Cmark` now calls libcmark string accessors directly and normalizes null
+results to an Ada-owned empty C string. Non-null accessor values remain borrowed
+libcmark pointers, not copies; their lifetime is bounded by the owning node or
+document. `coyote_cmark_c.c` retains enum constants, GFM parser construction,
+and scalar table metadata only. The focused cmark suite passed 14/14,
+including the existing null-string regression (whose registered name says
+"shim" although it exercises the Ada accessor contract).
+
+Root `alr build --development` and test `cd test && alr build --development
+--profiles=coyote=development` passed, each with `Build_Profile=development`.
+The full Xvfb suite passed 1005/1005 with zero errors in 74.98 seconds wall
+(exit 0). Help passed 12/12 core and 1/1 display-backed GUI; Mallard validation,
+link, and CLI checks passed. Existing GTK theme CSS warnings appeared in the
+GUI check. `git diff --check` passed. The source reduction is seven to six C
+files and 761 to 575 physical lines (186 fewer, approximately 24%). The final run includes all parser assertions and live-process
+readiness changes. Physical GUI qualification remains pending; developer
+self-evaluation/read-only review is not human acceptance.
 ## 2026-10-22 — Refactor local image loading into Ada (PCR-116)
 
 PCR-116 implementation and automated verification are complete; image behavior

@@ -3,6 +3,10 @@ with AUnit.Test_Caller;
 --
 --  Project: coyote
 
+with Ada.Directories;
+with Ada.Strings.Unbounded;
+with Coyote_Utils;
+with GNATCOLL.OS.Process;
 with AUnit.Assertions;
 with Coyote_GUI.Notification_Policy;
 
@@ -68,6 +72,31 @@ package body Coyote_GUI_Notification_Policy_Tests is
          "root updates stay hidden while a child is selected");
    end Test_Agent_Update_Requires_Selection;
 
+   procedure Test_Notify_Lifecycle_In_Isolated_Process (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Bin : constant String := Ada.Directories.Containing_Directory
+        (Coyote_Utils.Active_Executable_Path);
+      Args : Argument_List;
+      Status : Integer;
+   begin
+      Args.Append ("timeout");
+      Args.Append ("10");
+      Args.Append ("/usr/bin/env");
+      Args.Append
+        ("DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent-coyote-bus");
+      Args.Append (Bin & "/notify_test_worker");
+      declare
+         Output : constant Ada.Strings.Unbounded.Unbounded_String :=
+           Run (Args, Status => Status, Strip => False);
+      begin
+         Assert
+           (Status = 0,
+            "isolated notification lifecycle worker failed: "
+            & Ada.Strings.Unbounded.To_String (Output));
+      end;
+   end Test_Notify_Lifecycle_In_Isolated_Process;
+
    package Coyote_GUI_Notification_Policy_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Notification_Policy_Tests.Test);
 
@@ -108,7 +137,11 @@ package body Coyote_GUI_Notification_Policy_Tests is
            ("Coyote.GUI.Notification_Policy agent update selection",
             Coyote_GUI_Notification_Policy_Tests
               .Test_Agent_Update_Requires_Selection'Access));
-
+      Result.Add_Test
+        (Coyote_GUI_Notification_Policy_Caller.Create
+           ("Coyote.Notify isolated lifecycle smoke test",
+            Coyote_GUI_Notification_Policy_Tests
+              .Test_Notify_Lifecycle_In_Isolated_Process'Access));
       return Result;
    end Suite;
 

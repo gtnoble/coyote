@@ -6,6 +6,62 @@
 
 package body Coyote_Cmark is
 
+   use type Interfaces.C.Strings.chars_ptr;
+
+   Empty_String : aliased Interfaces.C.char_array :=
+     Interfaces.C.To_C ("");
+   Empty_String_Ptr : constant Interfaces.C.Strings.chars_ptr :=
+     Interfaces.C.Strings.To_Chars_Ptr (Empty_String'Access);
+
+   function Raw_Literal
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_node_get_literal";
+
+   function Raw_Url
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_node_get_url";
+
+   function Raw_Title
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_node_get_title";
+
+   function Raw_Type_String
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
+     Import, Convention => C, External_Name => "cmark_node_get_type_string";
+
+   function Node_Get_Literal
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr is
+      Result : constant Interfaces.C.Strings.chars_ptr := Raw_Literal (Node);
+   begin
+      return (if Result = Interfaces.C.Strings.Null_Ptr
+              then Empty_String_Ptr else Result);
+   end Node_Get_Literal;
+
+   function Node_Get_Url
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr is
+      Result : constant Interfaces.C.Strings.chars_ptr := Raw_Url (Node);
+   begin
+      return (if Result = Interfaces.C.Strings.Null_Ptr
+              then Empty_String_Ptr else Result);
+   end Node_Get_Url;
+
+   function Node_Get_Title
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr is
+      Result : constant Interfaces.C.Strings.chars_ptr := Raw_Title (Node);
+   begin
+      return (if Result = Interfaces.C.Strings.Null_Ptr
+              then Empty_String_Ptr else Result);
+   end Node_Get_Title;
+
+   function Node_Get_Type_String
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr is
+      Result : constant Interfaces.C.Strings.chars_ptr :=
+        Raw_Type_String (Node);
+   begin
+      return (if Result = Interfaces.C.Strings.Null_Ptr
+              then Empty_String_Ptr else Result);
+   end Node_Get_Type_String;
+
    --  ── C shim getter imports ──────────────────────────────────────────
    --
    --  These are implementation details; only the initialised variables

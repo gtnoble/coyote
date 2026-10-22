@@ -1,23 +1,13 @@
-/*  coyote_process_control.c — async-signal-safe shutdown bridge. */
+/*  coyote_signal_bridge.c — async-signal-safe shutdown bridge. */
 #define _GNU_SOURCE
 #include "coyote_signal_bridge.h"
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#define MAX_PROCESSES 8192
-
-typedef struct {
-    pid_t pid;
-    pid_t parent;
-} process_record;
 
 static int signal_pipe[2] = {-1, -1};
 static volatile sig_atomic_t signal_count = 0;
@@ -104,109 +94,12 @@ int coyote_signal_requested(void)
     return signal_count > 0 ? 1 : 0;
 }
 
-static int read_process_record(const char *name, process_record *record)
+int coyote_process_kill(int pid, int signal_number)
 {
-    char path[64];
-    char line[4096];
-    char *close_name;
-    char state;
-    long parent;
-    FILE *file;
-
-    if (name == NULL || record == NULL)
-        return 0;
-    record->pid = (pid_t)strtol(name, NULL, 10);
-    if (record->pid <= 0)
-        return 0;
-
-    (void)snprintf(path, sizeof path, "/proc/%ld/stat", (long)record->pid);
-    file = fopen(path, "r");
-    if (file == NULL)
-        return 0;
-    if (fgets(line, sizeof line, file) == NULL) {
-        fclose(file);
-        return 0;
-    }
-    fclose(file);
-
-    close_name = strrchr(line, ')');
-    if (close_name == NULL
-        || sscanf(close_name + 2, "%c %ld", &state, &parent) != 2)
-        return 0;
-
-    record->parent = (pid_t)parent;
-    return 1;
+    return kill((pid_t)pid, signal_number);
 }
 
-static size_t collect_processes(process_record *records)
+int coyote_process_getpgid(int pid)
 {
-    DIR *directory;
-    struct dirent *entry;
-    size_t count = 0;
-    process_record record;
-
-    directory = opendir("/proc");
-    if (directory == NULL)
-        return 0;
-
-    while ((entry = readdir(directory)) != NULL && count < MAX_PROCESSES) {
-        if (read_process_record(entry->d_name, &record))
-            records[count++] = record;
-    }
-    closedir(directory);
-    return count;
-}
-
-static int is_descendant(pid_t pid, pid_t root,
-                         const process_record *records, size_t count)
-{
-    size_t i;
-    size_t depth;
-    pid_t current = pid;
-
-    for (depth = 0; depth < MAX_PROCESSES && current > 1; depth++) {
-        if (current == root)
-            return 1;
-        for (i = 0; i < count; i++) {
-            if (records[i].pid == current) {
-                current = records[i].parent;
-                break;
-            }
-        }
-        if (i == count)
-            break;
-    }
-    return current == root;
-}
-
-int coyote_signal_group_tree(int root_pid, int signal_number)
-{
-    process_record *records;
-    size_t count;
-    size_t i;
-
-    if (root_pid <= 0)
-        return -1;
-
-    records = calloc(MAX_PROCESSES, sizeof *records);
-    if (records == NULL)
-        return -1;
-    count = collect_processes(records);
-
-    /* The root is a setsid-created process-group leader. */
-    (void)kill((pid_t)-root_pid, signal_number);
-
-    /* Nested coyote processes may have created their own setsid groups. */
-    for (i = 0; i < count; i++) {
-        if (records[i].pid == (pid_t)root_pid
-            || !is_descendant(records[i].pid, (pid_t)root_pid,
-                              records, count))
-            continue;
-        (void)kill(records[i].pid, signal_number);
-        if (getpgid(records[i].pid) == records[i].pid)
-            (void)kill((pid_t)-records[i].pid, signal_number);
-    }
-
-    free(records);
-    return 0;
+    return (int)getpgid((pid_t)pid);
 }

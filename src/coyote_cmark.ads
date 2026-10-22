@@ -6,11 +6,11 @@
 --  so the values always agree with the installed <cmark.h> regardless
 --  of library version.
 --
---  Opaque C pointer types use System.Address.  The cmark_shim_get_literal
---  wrapper guarantees Node_Get_Literal never returns a null chars_ptr.
+--  Opaque C pointer types use System.Address.  String accessors preserve
+--  a non-null chars_ptr contract for absent C strings.
 --
 --  Thread safety: libcmark parse and iteration are not thread-safe.
---  All calls must originate from the same task (the GTK idle callback in the GUI path).
+--  All calls originate from one task (the GTK idle callback in the GUI).
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
@@ -116,20 +116,16 @@ package Coyote_Cmark is
      Import, Convention => C, External_Name => "cmark_node_get_list_start";
 
    --  Return the node's literal text, or "" if the node carries none.
-   --  Uses cmark_shim_get_literal which converts NULL → "".
    function Node_Get_Literal
-     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
-     Import, Convention => C, External_Name => "cmark_shim_get_literal";
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr;
 
    --  Return the URL for a link or image node, or "" when unset.
    function Node_Get_Url
-     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
-     Import, Convention => C, External_Name => "cmark_shim_get_url";
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr;
 
    --  Return the title for a link or image node, or "" when unset.
    function Node_Get_Title
-     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
-     Import, Convention => C, External_Name => "cmark_shim_get_title";
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr;
    --  Create an iterator over the subtree rooted at Root.
    --  Caller must free with Iter_Free.
    function Iter_New (Root : Node_Ptr) return Iter_Ptr with
@@ -150,12 +146,8 @@ package Coyote_Cmark is
    --  Return the type-name string for Node (e.g. "paragraph", "table",
    --  "table_row", "table_cell", "strikethrough").  Extension nodes carry
    --  dynamic integer type-ids; this string is the only portable identifier.
-   --  Never returns Null_Ptr.
    function Node_Get_Type_String
-     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr with
-     Import,
-     Convention    => C,
-     External_Name => "cmark_shim_node_get_type_string";
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr;
 
    --  Return the number of columns in a GFM table node.
    function Table_Column_Count (Node : Node_Ptr) return Interfaces.C.int with

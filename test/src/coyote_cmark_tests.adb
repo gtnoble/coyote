@@ -322,7 +322,7 @@ package body Coyote_Cmark_Tests is
    procedure Test_Get_Literal_Null_Safety (T : in out Test) is
       pragma Unreferenced (T);
       --  NODE_PARAGRAPH has no literal; cmark_node_get_literal returns NULL.
-      --  The shim (cmark_shim_get_literal) must convert that to "".
+      --  The Ada wrapper must convert absent C strings to "".
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("hello");
       Para : Coyote_Cmark.Node_Ptr;
       Ptr  : Interfaces.C.Strings.chars_ptr;
@@ -333,15 +333,19 @@ package body Coyote_Cmark_Tests is
         (Para /= System.Null_Address, "NODE_PARAGRAPH not found in 'hello'");
       Ptr := Coyote_Cmark.Node_Get_Literal (Para);
       Assert
-        (Ptr /= Interfaces.C.Strings.Null_Ptr,
-         "shim should return non-null for NODE_PARAGRAPH (null-safety)");
-      declare
-         Lit_Str : constant String := Interfaces.C.Strings.Value (Ptr);
-      begin
-         Assert
-           (Lit_Str = "",
-            "shim should return empty string for NODE_PARAGRAPH");
-      end;
+        (Ptr /= Interfaces.C.Strings.Null_Ptr
+         and then String'(Interfaces.C.Strings.Value (Ptr)) = "",
+         "Node_Get_Literal should be non-null and empty");
+      Ptr := Coyote_Cmark.Node_Get_Url (Para);
+      Assert
+        (Ptr /= Interfaces.C.Strings.Null_Ptr
+         and then String'(Interfaces.C.Strings.Value (Ptr)) = "",
+         "Node_Get_Url should be non-null and empty");
+      Ptr := Coyote_Cmark.Node_Get_Title (Para);
+      Assert
+        (Ptr /= Interfaces.C.Strings.Null_Ptr
+         and then String'(Interfaces.C.Strings.Value (Ptr)) = "",
+         "Node_Get_Title should be non-null and empty");
       Coyote_Cmark.Node_Free (Doc);
    end Test_Get_Literal_Null_Safety;
 

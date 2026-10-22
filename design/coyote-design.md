@@ -1,10 +1,10 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.31
+**Version:** 1.32
 **Date:** 2026-10-22
 
-**Status:** PCR-114 behavior verified in the former C implementation; PCR-116 Ada refactor automated qualification complete; DEM-060 desktop qualification pending
+**Status:** PCR-114 former-C evidence retained; PCR-116 automated qualification complete; PCR-117 automated results recorded; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -423,6 +423,7 @@ not wait for the complete user turn.
 | `LLM.Tools.Shell` | Built-in shell tool and tracked process-group execution | `src/llm/llm-tools-shell.ads/.adb` |
 | `LLM.Tools.Sandbox` | Sandbox profile discovery and bwrap arg construction | `src/llm/llm-tools-sandbox.ads/.adb` |
 | `Coyote_Process_Control` | SIGTERM bridge, shell process-group registry, persistence freeze, and escalation | `src/coyote_process_control.ads/.adb`, `src/coyote_signal_bridge.c/.h` |
+| `Coyote_Process_Trees` | `/proc` stat parsing, process snapshots, breadth-first descendant traversal, and process-group tree signalling | `src/coyote_process_trees.ads/.adb`, `src/coyote_signal_bridge.c/.h` (native `pid_t` kill/getpgid adapters) |
 | `LLM.Tools.Temp_File` | Tool-result size cap and spill | `src/llm/llm-tools-temp_file.ads/.adb` |
 | `LLM.Skills` | Skill discovery and system prompt formatting | `src/llm/llm-skills.ads/.adb` |
 | `LLM.System_Prompt` | System prompt construction and resource rendering | `src/llm/llm-system_prompt.ads/.adb`, `share/coyote/system-prompt.md` |
@@ -439,7 +440,7 @@ not wait for the complete user turn.
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
-| `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
+| `Coyote_Notify` | Ada binding to libnotify desktop notifications; private Ada imports own notification lifecycle and resource policy | `src/coyote_notify.ads/.adb` |
 | `Coyote_GUI.Notification_Policy` | Completion-notification eligibility and update-routing policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
 | `Coyote_GUI.Markdown_Links` | Link-tagged GTK text ranges and validated xdg-open activation | `src/coyote_gui/coyote_gui-markdown_links.ads/.adb` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
@@ -507,7 +508,7 @@ three layers:
 [Infrastructure layer]
   LLM.HTTP ──► LLM.HTTP.Curl_Binding (libcurl C binding)
   LLM.SSE  (pure parser, no external dependencies)
-  Coyote_Cmark ──► coyote_cmark_c.c (C shim for libcmark-gfm)
+  Coyote_Cmark ──► libcmark-gfm and coyote_cmark_c.c (constants, GFM parsing, and table metadata only; Ada normalizes null string results and preserves borrowed pointers)
   Coyote_Renderer.Tables ──► Coyote_Cmark
   Coyote_Renderer.MathML ──► Coyote_Cmark
   Coyote_GUI.Math_Element ──► Coyote_Lasem
@@ -517,7 +518,9 @@ three layers:
                                       Coyote_GUI.Math_Element,
                                       Coyote_GUI.Updates,
                                       Coyote_GUI.Prompt_Queue
-  Coyote_Notify ──► libnotify, GLib, GDK-Pixbuf
+  Coyote_Notify ──► libnotify (private Ada imports; lifecycle/resource policy in Ada)
+  Coyote_Process_Control ──► Coyote_Process_Trees (Ada process snapshot/parser/BFS/signalling; native pid_t kill/getpgid adapters)
+  LLM.HTTP ──► LLM.HTTP.Curl_Binding ──► fixed-signature timeout wrappers in thin_curl.c
 ```
 
 ### 4.3 Historical Acme Path Concept of Execution (retired)
@@ -1180,6 +1183,14 @@ error bodies before parsing or dispatch. Callback/getinfo exceptions are
 captured at the C boundary and re-raised as `Curl_Error` after the transfer.
 An abort flag is polled by the transfer callback when supplied.
 
+**Fixed-signature timeout wrappers (PCR-117):** `LLM.HTTP.Curl_Binding` imports
+`curl_set_timeout` and `curl_set_connect_timeout` from
+`thin_curl.c`. The C wrappers call `curl_easy_setopt` with `CURLOPT_TIMEOUT`
+and `CURLOPT_CONNECTTIMEOUT` from installed libcurl headers, avoiding variadic
+calls and Ada numeric option identifiers. `LLM.HTTP` invokes each wrapper when
+its corresponding positive timeout is configured. Total timeout is tested with
+a delayed response; connect-timeout has no separate timing-specific AUnit test.
+
 ---
 
 ### 5.10 `LLM.Tools.Shell`
@@ -1220,8 +1231,22 @@ registered groups and nested shell-launched coyote groups, waits the configured
 SIGTERM skips the grace period. Only JSONL records whose writes completed before
 persistence freeze are retained.
 
+**PCR-117 verification snapshot:** Root `alr build --development` and test
+`cd test && alr build --development --profiles=coyote=development` passed, both
+with `Build_Profile=development`. The full Xvfb suite passed 1005/1005 with zero
+errors in 74.98 seconds wall (exit 0). Focused process control passed 6/6,
+including live nested-`setsid` signalling; isolated notification lifecycle
+passed 1/1 under unavailable D-Bus; cmark passed 14/14; HTTP passed 6/6,
+including total timeout and stalled cancellation. Help passed 12/12 core and
+1/1 display-backed GUI; Mallard validation/link and CLI checks and
+`git diff --check` passed. Existing theme CSS warnings appeared during the GUI
+Help check. The full log is `/tmp/coyote-ffi-full-tests-final.log`. The final run includes all parser assertions
+and live-process readiness changes. Successful daemon delivery,
+separate connect-timeout timing, SIGTERM-handler and OS-spawn-fault injection,
+the broader controlled cmark-owner redesign, and physical GUI qualification
+remain unverified or deferred. Developer self-evaluation/read-only review is
+not human acceptance.
 ---
-
 ### 5.10a `LLM.Tools.Sandbox`
 
 **Purpose:** Discovers sandbox profiles from `~/.coyote/sandbox/*.json`,
@@ -1521,30 +1546,39 @@ selection or clipboard semantics. Search index refreshes during streaming and
 when a response is finalized or rerendered. Native table/math widgets and tool
 cards are not included in this text-buffer search scope.
 
-**Current qualification:** The complete registered suite passes 1001/1001
-under Xvfb with zero errors. PCR-116 focused results include loader 8/8, jobs
-3/3, and `Conversation_Stack` 38/38; the native image-I/O shim passes 15/15
-checks in normal and ASan/UBSan modes. Focused Help passes 12/12 core tests and
-1/1 display-backed widget test; Mallard/CLI checks pass. PCR-114's 990/990 and
-20/20 loader results are historical evidence for the former C implementation.
-DEM-060 desktop qualification remains pending.
-
+**Current qualification:** The complete registered suite passed 1005/1005
+under Xvfb with zero failed assertions/errors in 74.98 seconds wall (exit 0).
+PCR-117 focused results include process control 6/6, notification lifecycle
+1/1, cmark 14/14, and HTTP 6/6. PCR-116 focused results include loader 8/8,
+jobs 3/3, `Conversation_Stack` 38/38, and native image-I/O shim 15/15 in
+normal and ASan/UBSan modes; focused Help passes 12/12 core and 1/1
+display-backed widget test, with Mallard/CLI checks passing. PCR-114's 990/990
+and 20/20 loader results remain historical for the former C implementation.
+The final run includes all parser assertions and live-process readiness
+changes. DEM-060 physical desktop qualification remains pending; PCR-117
+physical GUI qualification is also pending. Developer self-evaluation and
+read-only review are not human acceptance.
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
-**Purpose:** Ada binding to libcmark-gfm with a C shim for enum resolution and local-image node inspection.
+**Purpose:** Ada binding to libcmark-gfm. The C shim provides enum constant
+resolution, GFM parser construction, and table metadata access.
 
 **C shim pattern:** libcmark-gfm exposes node-type and event-type constants
 as C `enum` values whose numeric values may differ across library versions.
-`coyote_cmark_c.c` exports one getter function per constant (e.g.
-`cmark_shim_node_paragraph()` returns `CMARK_NODE_PARAGRAPH`). The Ada package
-`Coyote_Cmark` calls these getters at package elaboration time and stores the
-results in integer variables. All subsequent comparisons use these variables,
-never hard-coded integer literals. *Rationale: Ensures correctness regardless
-of the installed library version.*
+`coyote_cmark_c.c` exports getters for those constants; Ada resolves them at
+package elaboration time and stores their values for comparisons. The C shim
+also constructs the parser with the GFM extensions and exposes scalar table
+metadata, keeping extension-owned alignment arrays inside C.
 
-**GFM extensions enabled:** `table`, `strikethrough`, `autolink`.
-Enabled by `cmark_shim_parse_document_gfm`, which creates a parser with all
-three extensions attached before parsing. `Coyote_Renderer.Tables` obtains
+**String accessors (PCR-117):** `Coyote_Cmark` imports libcmark getters
+for literal, URL, and title directly. Ada normalizes null results to an empty
+C string; non-null results remain borrowed pointers valid only while the owning
+node/document lives. The C shim retains enum constants, parser construction,
+and table metadata. This targeted boundary change does not implement the
+broader controlled redesign of cmark ownership, which remains deferred.
+
+**GFM extensions enabled:** `table`, `strikethrough`, `autolink`. The GFM
+parser attaches all three before parsing. `Coyote_Renderer.Tables` obtains
 column counts, alignment bytes, header-row state, and copied cell text through
 scalar C shims; the extension-owned alignment array never crosses into Ada.
 The shared Pango serializer remains the text fallback for SQC replay.
@@ -2982,6 +3016,18 @@ A second SIGTERM bypasses the grace interval. GUI Stop requests direct agent
 cancellation. GUI window-close and File → Exit use the frontend shutdown
 operation, which requests direct cancellation, stops the monitor, wakes the
 prompt queue, and stops update producers. The callbacks then quit GTK.
+
+**Process-tree implementation boundary (PCR-117):** `Coyote_Process_Trees`
+in Ada parses `/proc/<pid>/stat`, constructs snapshots, traverses descendants
+breadth-first and coordinates process-group/descendant signalling. Native C
+retains only `pid_t` conversion and `kill`/`getpgid` adapters; the SIGTERM
+handler and self-pipe bridge remain C. Roots at or below PID 1 are rejected.
+Discovery is best effort: if snapshot traversal or signalling raises, the root
+process group is still signalled so the caller's SIGKILL escalation is not
+skipped. If the requested root is absent from the snapshot, traversal still
+starts from that PID and selects discovered children; root-group signalling is
+not dependent on a root record. Existing `/proc` newline-in-`comm` parsing and
+PID-reuse limitations remain unchanged.
 
 The GTK Preferences dialog persists `shellTerminationGraceSeconds` as an
 integer number of seconds. The active process applies a saved value immediately;

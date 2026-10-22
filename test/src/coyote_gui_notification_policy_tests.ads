@@ -16,6 +16,7 @@ package Coyote_GUI_Notification_Policy_Tests is
    procedure Test_Suppress_When_Not_Allowed (T : in out Test);
    procedure Test_Completion_Notification_Is_Global (T : in out Test);
    procedure Test_Agent_Update_Requires_Selection (T : in out Test);
+   procedure Test_Notify_Lifecycle_In_Isolated_Process (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

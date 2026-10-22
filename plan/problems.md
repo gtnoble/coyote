@@ -3,6 +3,56 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-117 — Move selected native-boundary policy into Ada (2026-10-22)
+
+- **Date reported:** 2026-10-22
+- **Category:** Design, Code, Test
+- **Classification:** Approved behavior-preserving architecture refactor
+- **Priority:** 5-Negligible
+- **Description:** Move process-tree snapshot parsing/traversal and notification
+  lifecycle/error/ownership policy into Ada; make libcmark string accessors
+  preserve non-null results in Ada while retaining borrowed C pointers; and
+  replace variadic libcurl timeout option calls with fixed-signature wrappers
+  whose C definitions derive option identifiers from installed headers. The
+  intentional safety behavior is to reject unsafe process roots at or below 1.
+- **Affected work products:** `design/coyote-design.md`, `plan/test-plan.md`,
+  `plan/problems.md`, `sdfs/frontends.md`, `sdfs/core-agent.md`, process-control,
+  cmark, notification, and curl binding implementations and tests.
+- **Approved architecture:** `Coyote_Process_Trees` owns `/proc` snapshot
+  parsing, breadth-first descendant discovery and signal sequencing. The small
+  C process adapters retain native `pid_t` conversion, `kill` and `getpgid`; the
+  signal handler/self-pipe bridge remains C. Discovery is best effort: if
+  snapshot traversal or signalling raises, the root process group is still
+  signalled so SIGTERM escalation is not skipped. `Coyote_Notify` imports
+  libnotify privately and owns initialization, notification/error/object
+  cleanup and finalization policy. Cmark C code retains constants, GFM parsing
+  and table metadata access; Ada normalizes null accessor results to an empty
+  string and returns existing borrowed libcmark pointers without copying or
+  freeing them. Fixed-signature curl wrappers set total and connect timeouts
+  using constants from the installed headers.
+- **Verification:** Root `alr build --development` passed with
+  `Build_Profile=development`; `cd test && alr build --development
+  --profiles=coyote=development` passed with the test configuration also
+  reporting `Build_Profile=development`. The full Xvfb AUnit suite passed
+  1005/1005, zero failed assertions/errors, 74.98 seconds wall, exit 0
+  (`/tmp/coyote-ffi-full-tests-final.log`). Focused checks passed: process control
+  6/6 (including live nested-`setsid` signalling), isolated notification
+  lifecycle 1/1 (unavailable D-Bus), cmark 14/14, and HTTP 6/6 (including
+  total-timeout and stalled-transfer cancellation). Help passed 12/12 core
+  and 1/1 display-backed GUI; Mallard validation/link and CLI checks passed.
+  Existing GTK theme CSS warnings appeared during the GUI Help check.
+  `git diff --check` passed. Developer self-evaluation and read-only review
+  were performed; this is not human acceptance.
+- **Limitations:** No successful daemon notification delivery was tested;
+  connect-timeout has no separate timing-specific test. SIGTERM-handler and OS
+  spawn-fault injection are unchanged/not covered. The broader controlled
+  cmark-owner redesign is deferred, not completed. Existing `/proc` newline in
+  `comm` and PID-reuse limitations remain unchanged. Physical GUI qualification
+  remains pending. The final run includes all parser assertions and
+  live-process readiness changes.
+- **Status:** Implementation and stated automated verification complete;
+  remaining limitations and qualifications are explicit.
+
 ## PCR-116 — Refactor local image loading into Ada (2026-10-22)
 
 - **Date reported:** 2026-10-22
@@ -43,9 +93,10 @@ client-controlled work product gets an entry here.
   current PCR-116 qualification. DEM-060 remains pending; automated checks do
   not constitute desktop visual/interaction acceptance.
 - **Status:** Implementation and automated verification complete; DEM-060
-  desktop qualification pending.
+desktop qualification pending.
 
 ## PCR-115 — Advertise Markdown links and images in system prompt (2026-10-22)
+
 - **Category:** Requirements, Design, Code, Test
 - **Classification:** Authorized capability-guidance update
 - **Priority:** 4-Minor

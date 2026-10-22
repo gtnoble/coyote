@@ -1,9 +1,9 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.32
+**Version:** 1.33
 **Date:** 2026-10-22
 
-**Status:** PCR-114 C-loader qualification retained as historical evidence; PCR-116 automated qualification complete; DEM-060 desktop qualification pending
+**Status:** PCR-114 C-loader qualification retained as historical evidence; PCR-116 and PCR-117 automated qualification recorded; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -130,10 +130,20 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** The complete current AUnit suite (1001 registered
+**Progression criterion:** The complete current AUnit suite (1005 registered
 tests) must pass before any demonstration-verified requirements are reviewed.
 Demonstration tests are performed after the automated suite is green.
 
+**PCR-117 verification (2026-10-22):** Root `alr build --development` and
+`cd test && alr build --development --profiles=coyote=development` passed;
+both report `Build_Profile=development`. The full suite passed 1005/1005 with
+zero failed assertions/errors in 74.98 seconds wall (exit 0). Focused process
+control passed 6/6, notification lifecycle 1/1, cmark 14/14, and HTTP 6/6.
+Help passed 12/12 core and 1/1 display-backed GUI; Mallard validation/links,
+CLI checks, and `git diff --check` passed. Existing theme CSS warnings appeared
+in the GUI Help run. The final run includes all parser assertions and
+live-process readiness changes.
+Developer self-evaluation/read-only review is not human acceptance.
 ### 4.2 Planned Tests — Automated (AUnit)
 
 The following test modules exist in `test/src/`. Each maps to one or more
@@ -181,13 +191,15 @@ SRS-CORE requirement groups.
 
 
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
-| `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
+| `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy and native lifecycle) | 7 direct registrations; includes `Coyote.Notify isolated lifecycle smoke test`, invoking `test/tools/notify_test_worker.adb` under a 10-second timeout and unavailable D-Bus address |
+| `coyote_process_control_tests.adb` | PCR-117 process-tree parser/snapshot and live signalling regressions | `Coyote process stat parser handles proc records`; `Coyote process snapshot handles cycles and large trees` (breadth-first order, missing root, cycles, root PID 1 rejection, 9,000 records); existing registered `Coyote process signalling reaches nested setsid descendants` exercises live nested-group signalling |
+| `coyote_cmark_tests.adb` | PCR-117 cmark accessor boundary regression | Focused suite passes 14/14; includes `Coyote_Cmark shim returns empty string for null literal` (Ada null-to-empty contract; existing registered case name) |
+| `llm_http_tests.adb` | PCR-117 fixed-signature curl timeout wrapper coverage | Focused HTTP suite passes 6/6, including `LLM.HTTP total timeout bounds a delayed response` and `LLM.HTTP aborts a stalled response promptly`. The latter exercises stalled-transfer cancellation, not a separate connect-timeout timing test; connect-timeout configuration is confirmed by source inspection. |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, Markdown/images, tables, MathML, tool-card flow, lifecycle, reset, configured font inheritance for response views and native table labels, and focus-safe Clear | 31 direct registrations |
 | `coyote_gui_updates_tests.adb` | REQ-CORE-116..119, 128; protected GTK update queue payload and lifecycle coverage | 9 direct registrations |
 | `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
-
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; root/topic URIs, all area mappings and fallback, controlled Yelp absence, Help data path, Product Information text, detached fake-Yelp launch arguments, executable-relative data discovery, and child/parent XDG environment behavior | 12 |
 | `coyote_app-frontend-gui-help_tests.adb` | REQ-CORE-113a; real menu labels/order/mnemonics and Product Information title, transient parent, icon, and text with Yelp unavailable; requires a display | 1 |
@@ -201,10 +213,11 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **1001**
+**Total automated tests (current):** **1005**
+
+**Historical baseline:** PCR-116 passed 1001/1001 in 70.87 seconds (exit 0); that dated result remains historical and is not the current PCR-117 baseline.
 
 ### Help regression qualification — 2026-10-19 (PCR-112)
-
 Development application and test builds pass. Focused Help passes 12/12;
 real GTK Help widgets pass 1/1 under Xvfb. Mallard validation and link checks
 pass for all 12 current pages; `--help` and `-h` emit identical usage to stdout,
@@ -222,7 +235,6 @@ Yelp executable, never the desktop viewer. It verifies root/topic argv,
 executable-relative share discovery, existing/empty/unset XDG restoration,
 missing-data behavior, and missing-viewer failure. Child completion is polled
 with a deadline and each worker probe has a 10-second outer deadline.
-
 The GUI test checks real menu order, labels, mnemonics, and Product Information
 construction/content/transience with Yelp hidden. Like existing GUI fixtures,
 it does not execute widget assertions without a display; the dedicated workflow

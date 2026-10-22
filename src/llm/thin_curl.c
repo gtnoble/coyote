@@ -64,6 +64,16 @@ CURLcode curl_set_low_speed_time (CURL *h, long v)
   return curl_easy_setopt (h, CURLOPT_LOW_SPEED_TIME, v);
 }
 
+CURLcode curl_set_timeout (CURL *h, long v)
+{
+  return curl_easy_setopt (h, CURLOPT_TIMEOUT, v);
+}
+
+CURLcode curl_set_connect_timeout (CURL *h, long v)
+{
+  return curl_easy_setopt (h, CURLOPT_CONNECTTIMEOUT, v);
+}
+
 CURLcode curl_set_noprogress (CURL *h, long v)
 {
   return curl_easy_setopt (h, CURLOPT_NOPROGRESS, v);

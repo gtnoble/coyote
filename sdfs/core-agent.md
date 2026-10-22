@@ -1,5 +1,33 @@
 # Component Development Log — Core Agent
 
+## 2026-10-22 — Move process-tree and curl boundary policy into Ada (PCR-117)
+
+This approved behavior-preserving refactor adds `Coyote_Process_Trees` as the
+Ada owner of `/proc/<pid>/stat` parsing, process snapshots, breadth-first
+descendant discovery, and process-group tree signal sequencing. C retains only
+native `pid_t` adapters for `kill` and `getpgid`; the signal handler and
+self-pipe bridge remain native C. Process roots at or below PID 1 are rejected
+as an intentional safety behavior. Snapshot failure remains best effort: the
+root process group is signalled even if descendant discovery or tree signalling
+raises, preserving the caller's escalation path.
+
+`LLM.HTTP` now configures total and connect timeouts through fixed-signature
+wrappers in `thin_curl.c`; the wrappers use `CURLOPT_TIMEOUT` and
+`CURLOPT_CONNECTTIMEOUT` from the installed libcurl headers rather than Ada
+numeric option identifiers or variadic calls. The root application build passed
+`alr build --development` with `Build_Profile=development`; the test build
+passed `cd test && alr build --development --profiles=coyote=development`, also
+with `Build_Profile=development`. Full AUnit passed 1005/1005, zero errors,
+74.98 seconds wall, exit 0. Focused process-control passed 6/6 including live
+nested-`setsid` signalling; HTTP passed 6/6 including total timeout and stalled
+cancellation. `git diff --check` passed. The final run includes all parser
+assertions and live-process readiness changes.
+
+No separate connect-timeout timing test or SIGTERM-handler/OS spawn-fault
+injection was run. Existing `/proc` newline-in-`comm` and PID-reuse limitations
+remain unchanged. The broader controlled cmark-owner redesign is deferred.
+Developer self-evaluation and read-only review are not human acceptance.
+
 ## 2026-10-22 — Markdown link/image prompt guidance (PCR-115)
 
 The installed `share/coyote/system-prompt.md` now describes clickable Markdown

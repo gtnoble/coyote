@@ -12,7 +12,7 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered test baseline is 1001.
+current code or documentation. The current registered test baseline is 1005.
 
 Executables:
 
@@ -127,10 +127,14 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 1001 registered tests and
-passes 1001/1001 under Xvfb from `test/` (zero errors, 70.87 seconds, exit 0).
-Focused image qualification passes loader 8/8, jobs 3/3, and
-`Conversation_Stack` 38/38; the thin native image-I/O shim script passes
+The complete development suite currently contains 1005 registered tests and
+passes 1005/1005 under Xvfb from `test/` (zero failed assertions, zero
+unexpected errors, 74.98 seconds wall, exit 0). PCR-117 focused checks pass
+process control 6/6 including live nested-`setsid` signalling, isolated
+notification lifecycle 1/1, cmark 14/14, and HTTP 6/6 including total timeout
+and stalled-transfer cancellation. The final run includes all parser
+assertions and live-process readiness changes. Focused image qualification
+passes loader 8/8, jobs 3/3, and`Conversation_Stack` 38/38; the thin native image-I/O shim script passes
 15/15 checks in normal and ASan/UBSan modes. Help coverage passes 12/12 core
 tests and 1/1 display-backed widget test. The standalone headless
 `bin/coyote --help` exits 0 in under 10 seconds without leaving a worker
@@ -140,12 +144,11 @@ implementation qualification. After development builds, run
 `xvfb-run -a sh test/check-help.sh` from the repository root for focused Help,
 Mallard validation/links, and CLI checks. GUI activation and actual Yelp
 navigation remain manual qualification; see PCR-112. Earlier focused results
-include Markup 6/6,
-Conversation_Stack 28/28, System_Prompt 32/32, Session_Store 26/26, History
-1/1, Agent RPC 27/27, and GUI Updates 9/9. The suite is organized as a root
-AUnit suite with Core, LLM, SQC, GUI, Integration, and final Process-Control
-domain suites. Live provider tests remain opt-in, and real subagent subprocess
-tests require `COYOTE_TEST_SUBAGENT=1`.
+include Markup 6/6, `Conversation_Stack` 28/28, System_Prompt 32/32,
+Session_Store 26/26, History 1/1, Agent RPC 27/27, and GUI Updates 9/9. The
+suite is organized as a root AUnit suite with Core, LLM, SQC, GUI, Integration,
+and final Process-Control domain suites. Live provider tests remain opt-in,
+and real subagent subprocess tests require `COYOTE_TEST_SUBAGENT=1`.
 
 ```sh
 cd test && alr build
