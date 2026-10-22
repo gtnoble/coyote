@@ -3,8 +3,49 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
-## PCR-115 — Advertise Markdown links and images in system prompt (2026-10-22)
+## PCR-116 — Refactor local image loading into Ada (2026-10-22)
 
+- **Date reported:** 2026-10-22
+- **Category:** Design, Code, Test
+- **Classification:** Authorized architecture correction; behavior preserved
+- **Priority:** 3-Moderate
+- **Description:** Replace the C-owned local image loader/scheduler with Ada
+  ownership while preserving the existing session-contained PNG/JPEG behavior,
+  limits, and visible alt-text fallback. C remains only a thin POSIX/Gtk
+  interoperability shim.
+- **Affected work products:** `design/coyote-design.md`,
+  `requirements/coyote-requirements.md`, `plan/problems.md`,
+  `plan/test-plan.md`, `sdfs/frontends.md`, `AGENTS.md`, Ada image loader,
+  decoder, I/O and jobs packages, rich-text consumer, and focused test assets.
+- **Approved architecture:** `Coyote_Image_Loader` is synchronous Ada and owns
+  URI parsing, source-root containment, secure traversal, encoded input limits,
+  PNG/JPEG signature validation, dimension checks, and scaling. Typed private
+  decoder handles bind opaque Gdk worker results to main-task adoption.
+  `Coyote_Image_IO` provides typed POSIX operations; only the thin C shim owns
+  platform macros/stat, EINTR handling, signal hookup, and GError access, with
+  no loader policy or scheduler. `Coyote_Image_Jobs` uses 32 fixed protected
+  slots, two Ada workers, lazy submission, termination, and a 10 ms GLib
+  main-loop pump. GUI `Rich_Text` consumes typed interfaces without raw C
+  callbacks; workers do not access widgets.
+- **Actions:** Preserve PNG/JPEG-only support and visible alt-text fallback;
+  SVG, remote fetching, Plain/SQC image widgets, and table-cell image widgets
+  remain unsupported. The obsolete C-owned loader test was replaced by thin
+  shim checks in `test/native/image_io_test.c` and
+  `test/tools/check-image-loader.sh`.
+- **Verification:** Development build passed. The full Xvfb suite passed
+  1001/1001 with zero errors in 70.87 seconds (exit 0). Focused loader tests
+  passed 8/8, jobs 3/3, and GUI `Conversation_Stack` 38/38. Native shim checks
+  passed 15/15 in normal and ASan/UBSan modes. Help passed 12/12 plus 1/1
+  display-backed GUI; Mallard/CLI checks passed. Headless `bin/coyote --help`
+  exited 0 in under 10 seconds with no worker hang.
+- **Historical evidence:** PCR-114's original 20/20 native-loader result and
+  990/990 suite result remain factual for the earlier C implementation, not
+  current PCR-116 qualification. DEM-060 remains pending; automated checks do
+  not constitute desktop visual/interaction acceptance.
+- **Status:** Implementation and automated verification complete; DEM-060
+  desktop qualification pending.
+
+## PCR-115 — Advertise Markdown links and images in system prompt (2026-10-22)
 - **Category:** Requirements, Design, Code, Test
 - **Classification:** Authorized capability-guidance update
 - **Priority:** 4-Minor
@@ -115,7 +156,7 @@ client-controlled work product gets an entry here.
   890/890 at that checkpoint. Focused results passed: Markup 6/6,
   `Conversation_Stack` 28/28, System_Prompt 32/32, Session_Store 26/26,
   History 1/1, Agent RPC 27/27, and GUI Updates 9/9. This historical result is
-  superseded by the current PCR-114 990/990 qualification recorded above.
+  superseded by the historical PCR-114 990/990 qualification recorded above.
   Broad documentation residual scans distinguish historical/superseded CSM
   references from current Markdown claims; `git diff --check` is required for
   closure.

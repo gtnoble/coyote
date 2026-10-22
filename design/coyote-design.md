@@ -4,7 +4,7 @@
 **Version:** 1.31
 **Date:** 2026-10-22
 
-**Status:** Verified — PCR-114 scoped GTK local-image implementation and automated qualification; DEM-060 desktop qualification pending
+**Status:** PCR-114 behavior verified in the former C implementation; PCR-116 Ada refactor automated qualification complete; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -378,7 +378,10 @@ not wait for the complete user turn.
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Conversation_Stack` | Native GTK exchange and step-frame host, update routing, Markdown response lifecycle, local-image request context, tool cards, and reset handling | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
 | `Coyote_GUI.Rich_Text` | Markdown text/image realization with selectable alt-text companion for inline image anchors | `src/coyote_gui/coyote_gui-rich_text.ads/.adb` |
-| `Coyote_Image_Loader` | Bounded asynchronous local-image validation, decode, and thumbnail preparation | `src/coyote_gui/coyote_image_loader.c` (1 C unit) |
+| `Coyote_Image_Loader` | Synchronous local-image URI parsing, root containment, secure traversal, input limits, signature validation, and PNG/JPEG dimension/scaling policy | `src/coyote_image_loader.ads/.adb` |
+| `Coyote_Image_Decoder` | Typed private image handles; binds Gdk opaque worker decode results to GTK-main-task adoption | `src/coyote_image_decoder.ads/.adb` |
+| `Coyote_Image_IO` | Typed POSIX image-file operations over a minimal C interoperability shim | `src/coyote_image_io.ads/.adb`, `src/coyote_image_io_c.c` |
+| `Coyote_Image_Jobs` | Fixed 32-slot job table and two Ada workers; GLib main-loop pump, lazy submit, and termination | `src/coyote_image_jobs.ads/.adb` |
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
@@ -734,7 +737,7 @@ variables `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 **Outputs:** `Coyote_App.Options` record passed to `Coyote_App.Plain.Run` or
 `Coyote_App.Run_GUI`. Ordinary explicitly separate GUI windows may propagate
 `COYOTE_FRONTEND=gui`; coordinator-launched `--subagent` processes use the
-planned headless RPC frontend instead.
+headless RPC frontend instead.
 
 **Control flow:**
 1. Parse arguments sequentially. Each recognised flag sets the corresponding
@@ -1422,7 +1425,7 @@ it synchronously, avoiding GTK selection clamping to the shortened layout.
 The single outer scroller avoids nested scrolling regions for ordinary
 conversation content.
 
-**Assistant local images (PCR-114; implemented and verified):**
+**Assistant local images (PCR-114 behavior; original C implementation verification is historical):**
 Completed assistant Markdown responses in the GTK conversation resolve local
 relative image destinations (including percent-escaped components) and valid
 local `file:` URIs only when the active source directory is non-empty. That
@@ -1444,15 +1447,22 @@ outside the root, unsupported destinations, and decode errors retain visible
 alt-text fallback. No network fetch or asset persistence is performed. The
 loader supports PNG and JPEG only; GIF, WebP, and SVG are rejected.
 
-The sole loader implementation is the C unit
-`src/coyote_gui/coyote_image_loader.c`. It uses two workers and a maximum of 32
-outstanding jobs, with an 8 MiB source-file limit, 8192-pixel per-dimension and
-16-million-pixel limits, and a 640×600 no-upscale thumbnail bound. No more than
-16 images are inserted per response. Worker results are delivered to the GTK
-main context; all widget operations remain on the GTK main task. There is no
-full-size viewer or resize reflow. The adjacent visible caption is intentional,
-rather than replacing it with an image widget, to preserve text interaction.
+`Coyote_Image_Loader` is synchronous Ada code that owns URI parsing, active
+source-root containment, secure traversal, input limits, PNG/JPEG signature and
+dimension validation, and thumbnail scaling policy. `Coyote_Image_IO` exposes
+typed POSIX operations through Ada; `src/coyote_image_io_c.c` is only an
+interoperability shim for platform macros/stat, EINTR handling, signal hookup,
+and GError access. It contains no loader policy or scheduler.
 
+`Coyote_Image_Decoder` provides typed private image handles around Gdk's opaque
+decode representation: workers produce opaque decode results and the GTK main
+task adopts them. `Coyote_Image_Jobs` owns a fixed 32-slot protected job table
+and two Ada workers. Workers never access widgets; a 10 ms GLib main-loop pump
+performs lazy submission, collects results, and terminates jobs on the main
+task. `Coyote_GUI.Rich_Text` consumes typed interfaces and has no raw C callback.
+At most 16 images are inserted per response; decoded thumbnails fit within
+640×600 without upscaling. There is no full-size viewer or resize reflow. The
+adjacent visible caption is intentional, preserving text interaction.
 **Content and interaction:** Streaming Markdown text is held in native text
 views and completed blocks are replaced with direct libcmark-gfm output.
 Native GFM tables and standalone display-math blocks are realized through the
@@ -1511,12 +1521,13 @@ selection or clipboard semantics. Search index refreshes during streaming and
 when a response is finalized or rerendered. Native table/math widgets and tool
 cards are not included in this text-buffer search scope.
 
-**Current qualification:** Native Markdown, MathML, selection, zoom, tool-card
-flow, replay, reset, search, and large-history behavior are covered by the
-retained native stack tests. The current registered suite is qualified at
-990/990; focused results are recorded in the Test Plan. PCR-114 image-specific
-renderer, GTK stack, and loader results are recorded there; DEM-060 desktop
-qualification remains pending.
+**Current qualification:** The complete registered suite passes 1001/1001
+under Xvfb with zero errors. PCR-116 focused results include loader 8/8, jobs
+3/3, and `Conversation_Stack` 38/38; the native image-I/O shim passes 15/15
+checks in normal and ASan/UBSan modes. Focused Help passes 12/12 core tests and
+1/1 display-backed widget test; Mallard/CLI checks pass. PCR-114's 990/990 and
+20/20 loader results are historical evidence for the former C implementation.
+DEM-060 desktop qualification remains pending.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 

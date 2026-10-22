@@ -6,6 +6,8 @@
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Unchecked_Deallocation;
 with Coyote_GUI.Markdown_Links;
+with Coyote_Image_Jobs;
+with Gdk.Pixbuf;
 with Glib;
 with Glib.Object;
 with Gtk.Image;
@@ -15,30 +17,29 @@ with Gtk.Text_Buffer;
 with Gtk.Text_Child_Anchor;
 with Gtk.Text_Iter;
 with Gtk.Handlers;
-with Interfaces.C;
-with Interfaces.C.Strings;
-with System;
 
 package body Coyote_GUI.Rich_Text is
 
    use type Gtk.Image.Gtk_Image;
    use type Glib.Gint;
-   use type Interfaces.C.Strings.chars_ptr;
-   use type System.Address;
 
    Max_Images : constant := 16;
    Max_Width  : constant := 640;
 
    type Job;
    type Job_Access is access all Job;
-   pragma Convention (C, Job_Access);
 
-   type Job is record
+   type Job is new Coyote_Image_Jobs.Consumer with record
       Image   : Gtk.Image.Gtk_Image;
       Tooltip : Unbounded_String;
       Alive   : Boolean := True;
       Pending : Boolean := True;
    end record;
+
+   overriding procedure Completed
+     (Target : in out Job;
+      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf;
+      Error  : String);
 
    procedure Free is new Ada.Unchecked_Deallocation (Job, Job_Access);
 
@@ -54,33 +55,6 @@ package body Coyote_GUI.Rich_Text is
    procedure On_Destroy
      (Image : access Gtk.Image.Gtk_Image_Record'Class;
       Data  : Job_Access);
-
-   procedure On_Loaded
-     (Pixbuf : System.Address;
-      Error  : Interfaces.C.Strings.chars_ptr;
-      Data   : Job_Access)
-      with Convention => C;
-
-   type Done_Callback is access procedure
-     (Pixbuf : System.Address;
-      Error  : Interfaces.C.Strings.chars_ptr;
-      Data   : Job_Access)
-      with Convention => C;
-
-   procedure Coyote_Image_Load
-     (Root        : Interfaces.C.Strings.chars_ptr;
-      Destination : Interfaces.C.Strings.chars_ptr;
-      Width       : Interfaces.C.int;
-      Done        : Done_Callback;
-      Data        : Job_Access)
-      with Import, Convention => C,
-        External_Name => "coyote_image_load";
-
-   procedure Gtk_Image_Set_From_Pixbuf
-     (Image  : System.Address;
-      Pixbuf : System.Address)
-      with Import, Convention => C,
-        External_Name => "gtk_image_set_from_pixbuf";
 
    function Is_Local (Destination : String) return Boolean is
       Colon : Natural;
@@ -140,30 +114,25 @@ package body Coyote_GUI.Rich_Text is
          null;
    end On_Destroy;
 
-   procedure On_Loaded
-     (Pixbuf : System.Address;
-      Error  : Interfaces.C.Strings.chars_ptr;
-      Data   : Job_Access)
+   overriding procedure Completed
+     (Target : in out Job;
+      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf;
+      Error  : String)
    is
-      Message : constant String :=
-        (if Error = Interfaces.C.Strings.Null_Ptr then ""
-         else Interfaces.C.Strings.Value (Error));
+      Data : constant Job_Access := Target'Unchecked_Access;
+      use type Gdk.Pixbuf.Gdk_Pixbuf;
    begin
-      if Data = null then
-         return;
-      end if;
       Data.Pending := False;
       if Data.Alive and then Data.Image /= null then
-         if Pixbuf /= System.Null_Address then
-            Gtk_Image_Set_From_Pixbuf
-              (Glib.Object.Get_Object (Data.Image), Pixbuf);
+         if Pixbuf /= null then
+            Gtk.Image.Set (Data.Image, Pixbuf);
          else
             Data.Image.Set_From_Icon_Name
               ("image-missing", Gtk.Enums.Icon_Size_Button);
          end if;
-         if Message'Length > 0 then
+         if Error'Length > 0 then
             Data.Image.Set_Tooltip_Text
-              (To_String (Data.Tooltip) & ASCII.LF & Message);
+              (To_String (Data.Tooltip) & ASCII.LF & Error);
          end if;
       end if;
       if not Data.Alive then
@@ -171,13 +140,11 @@ package body Coyote_GUI.Rich_Text is
       end if;
    exception
       when others =>
-         if Data /= null then
-            Data.Pending := False;
-            if not Data.Alive then
-               Release (Data);
-            end if;
+         Data.Pending := False;
+         if not Data.Alive then
+            Release (Data);
          end if;
-   end On_Loaded;
+   end Completed;
 
    procedure Add_Image
      (View       : not null access
@@ -193,10 +160,6 @@ package body Coyote_GUI.Rich_Text is
       Anchor : Gtk.Text_Child_Anchor.Gtk_Text_Child_Anchor;
       Image  : Gtk.Image.Gtk_Image := null;
       Job_Data : Job_Access := null;
-      Root_C  : Interfaces.C.Strings.chars_ptr :=
-        Interfaces.C.Strings.New_String (Root);
-      Dest_C  : Interfaces.C.Strings.chars_ptr :=
-        Interfaces.C.Strings.New_String (To_String (Info.Destination));
       Width   : Glib.Gint := View.Get_Allocated_Width;
       Submitted : Boolean := False;
    begin
@@ -205,8 +168,6 @@ package body Coyote_GUI.Rich_Text is
         or else Info.End_Char >
           Natural (Buffer.Get_Char_Count) - Base_Chars
       then
-         Interfaces.C.Strings.Free (Root_C);
-         Interfaces.C.Strings.Free (Dest_C);
          return;
       end if;
       Offset := Base_Chars + Info.Start_Char;
@@ -231,21 +192,13 @@ package body Coyote_GUI.Rich_Text is
          Width := Glib.Gint'Min (Width, Max_Width);
       end if;
       Width := Glib.Gint'Max (1, Width - 8);
-      Coyote_Image_Load
-        (Root_C, Dest_C, Interfaces.C.int (Width), On_Loaded'Access,
-         Job_Data);
+      Coyote_Image_Jobs.Submit
+        (Root, To_String (Info.Destination), Positive (Width),
+         Coyote_Image_Jobs.Consumer_Access (Job_Data));
       Submitted := True;
       Image.Set_Size_Request (-1, -1);
-      Interfaces.C.Strings.Free (Root_C);
-      Interfaces.C.Strings.Free (Dest_C);
    exception
       when others =>
-         if Root_C /= Interfaces.C.Strings.Null_Ptr then
-            Interfaces.C.Strings.Free (Root_C);
-         end if;
-         if Dest_C /= Interfaces.C.Strings.Null_Ptr then
-            Interfaces.C.Strings.Free (Dest_C);
-         end if;
          if not Submitted then
             if Job_Data /= null then
                Job_Data.Pending := False;

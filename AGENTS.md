@@ -12,7 +12,7 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered test baseline is 990.
+current code or documentation. The current registered test baseline is 1001.
 
 Executables:
 
@@ -85,13 +85,11 @@ The current executable selects the frontend in this order:
 3. `COYOTE_FRONTEND=gui`, `$DISPLAY`, or `$WAYLAND_DISPLAY` → GUI.
 4. Otherwise → Plain.
 
-The accepted virtual-agent-window amendment changes the planned coordinator
-path: a coordinator-launched `--subagent` will use a headless RPC presentation
+Coordinator-launched `--subagent` processes use a headless RPC presentation
 channel instead of opening a GUI window. Ordinary child processes intended to
 open their own physical GUI window may still inherit `COYOTE_FRONTEND=gui`.
 Plain one-shot presentation goes to standard error so the final JSON result is
-the only standard-output record. There is no Acme frontend context. The
-amendment is not yet implemented.
+the only standard-output record. There is no Acme frontend context.
 
 ## Architecture
 
@@ -129,11 +127,16 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 990 registered tests and
-passes 990/990 under Xvfb from `test/`. Focused Markdown image coverage passes
-renderer 10/10 and `Conversation_Stack` 38/38; the native loader script passes
-20/20 checks in normal and ASan/UBSan modes. Help coverage passes 12/12 core
-tests and 1/1 display-backed widget test. After development builds, run
+The complete development suite currently contains 1001 registered tests and
+passes 1001/1001 under Xvfb from `test/` (zero errors, 70.87 seconds, exit 0).
+Focused image qualification passes loader 8/8, jobs 3/3, and
+`Conversation_Stack` 38/38; the thin native image-I/O shim script passes
+15/15 checks in normal and ASan/UBSan modes. Help coverage passes 12/12 core
+tests and 1/1 display-backed widget test. The standalone headless
+`bin/coyote --help` exits 0 in under 10 seconds without leaving a worker
+running. The dated PCR-114 record in `sdfs/frontends.md` documents its earlier
+990/990, renderer 10/10, native loader 20/20 results; those are not current
+implementation qualification. After development builds, run
 `xvfb-run -a sh test/check-help.sh` from the repository root for focused Help,
 Mallard validation/links, and CLI checks. GUI activation and actual Yelp
 navigation remain manual qualification; see PCR-112. Earlier focused results

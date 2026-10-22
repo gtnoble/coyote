@@ -1,6 +1,28 @@
 # Component Development Log — Frontends
 
-## 2026-10-22 — Implement session-contained assistant Markdown images (PCR-114)
+## 2026-10-22 — Refactor local image loading into Ada (PCR-116)
+
+PCR-116 implementation and automated verification are complete; image behavior
+is preserved. The synchronous Ada `Coyote_Image_Loader` owns URI parsing, root
+containment, secure traversal, encoded limits, PNG/JPEG signature and dimension
+checks, and thumbnail scaling. Typed private decoder handles bind opaque Gdk
+worker results to GTK-main-task adoption. Typed Ada POSIX I/O is isolated from
+the minimal 74-line C interoperability shim (macros/stat, EINTR, signal hookup,
+and GError access only; no loader policy or scheduler).
+
+`Coyote_Image_Jobs` uses 32 fixed protected slots and two Ada workers. A GLib
+main-loop pump performs lazy submission and termination; no worker accesses
+widgets. `Coyote_GUI.Rich_Text` consumes typed interfaces and has no raw C
+callback. PNG/JPEG-only support and visible alt-text fallback are preserved;
+SVG, remote fetching, Plain/SQC image widgets, and table-cell image widgets
+remain unsupported. The former 460-line C loader was removed. Loader tests
+pass 8/8, jobs tests 3/3, and native shim checks pass 15/15 in normal and
+ASan/UBSan modes. The complete suite passes 1001/1001 under Xvfb with zero
+errors in 70.87 seconds (exit 0); Help, CLI/Mallard, and headless help checks
+also pass. DEM-060 desktop visual and interaction qualification remains
+pending.
+
+## 2026-10-22 — Implement session-contained assistant Markdown images (PCR-114; historical C implementation)
 
 Completed assistant Markdown blocks in GTK now resolve local raster images
 against the active session source directory. The persisted session header's

@@ -3,11 +3,11 @@
 **Component:** coyote (core agent executable and shared libraries)
 **Version:** 1.30
 **Date:** 2026-10-22
-**Status:** PCR-114 implemented and automated verification complete; DEM-060 desktop qualification pending
+**Status:** Session-contained local PNG/JPEG behavior is implemented and PCR-116 automated qualification is complete; DEM-060 desktop qualification remains pending
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
 revision updates REQ-CORE-111 with the scoped local-image contract and records
-PCR-114 automated qualification; DEM-060 desktop qualification remains pending.
+PCR-116 automated qualification; DEM-060 desktop qualification remains pending.
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -46,13 +46,13 @@ withdrawn from the supported product. The current executable supports GTK3
 and Plain frontends. Historical Acme requirements below are retained for
 traceability and are superseded by this amendment.
 
-**Accepted virtual-agent-window amendment (2026-08-31):** The planned
-coordinator UI shall organize short-lived subagent processes as selectable
-virtual windows in an agents tree rather than opening one top-level GUI
-window per subagent. This amendment changes the planned GUI presentation and
-inter-process interface; it does not make subagents persistent. The existing
-one-shot completion, final-response exit, and steering-while-active semantics
-remain in force until the process exits.
+**Accepted virtual-agent-window amendment (2026-08-31):** The coordinator UI
+organizes short-lived subagent processes as selectable virtual windows in an
+agents tree rather than opening one top-level GUI window per subagent. This
+amendment changes the GUI presentation and inter-process interface; it does not
+make subagents persistent. The existing one-shot completion, final-response
+exit, and steering-while-active semantics remain in force until the process
+exits.
 **Component identifier:** coyote
 
 **System context:** coyote is a self-contained LLM coding agent. It manages
@@ -792,16 +792,19 @@ For completed assistant Markdown blocks in the GTK conversation, local image
 destinations may resolve only when the active session source directory is
 non-empty. Relative paths (including percent-escaped components) and valid
 local `file:` URIs are resolved only to files beneath that source directory;
-all symlink components are rejected. The loader supports PNG and JPEG only.
-This is a scoped
-local-image capability, not a general Markdown guarantee: remote images are
-not fetched, and Plain output and SQC replay retain text fallback; native table
-cells expose image alt text only. The GUI preserves each image's alt caption
-visibly beside its inline image for selection, copying, and search; linked
-captions remain clickable. Image loading uses no more than two workers and
-allows at most 32 outstanding jobs. Source files are limited to 8 MiB, each
-dimension to 8192 pixels, and total pixels to 16 million. Displayed images fit
-within 640×600 without upscaling, with at most 16 insertions per response.
+all symlink components are rejected. PNG and JPEG images shall be decoded and
+scaled for inline GTK display within the stated resource limits. Loader policy
+and scheduling shall be owned by Ada; any C interoperability code shall remain
+a thin POSIX/Gtk shim without loader policy or scheduling.
+
+This is a scoped local-image capability, not a general Markdown guarantee:
+remote images are not fetched, and Plain output and SQC replay retain text
+fallback; native table cells expose image alt text only. The GUI preserves each
+image's alt caption visibly beside its inline image for selection, copying, and
+search; linked captions remain clickable. Image loading uses at most two
+workers and 32 outstanding jobs. Source files are limited to 8 MiB,
+each dimension to 8192 pixels, and total pixels to 16 million. Displayed images
+fit within 640×600 without upscaling, with at most 16 insertions per response.
 Missing source context, remote or unsupported destinations, missing files,
 paths outside the session directory, symlink components, and decode failures
 retain visible alt-text fallback. No remote assets are fetched or persisted,
@@ -1861,10 +1864,10 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline is
-990 registered tests. Current verification covers Markdown rendering,
-session-contained local PNG/JPEG images in GTK, native GFM tables, Lasem-backed
-Presentation MathML, session compatibility, and the native `Conversation_Stack`
-presentation. PCR-101, PCR-103, and PCR-104 qualification matrices remain
+1001 registered tests. PCR-116 verification covers Ada loader and job tests,
+native thin-shim checks, and GTK presentation regressions; focused and full
+suite results are recorded in the Test Plan. DEM-060 desktop qualification
+remains pending. PCR-101, PCR-103, and PCR-104 qualification matrices remain
 historical and superseded. The table below retains historical `TC-*`
 identifiers.
 | Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
@@ -1903,7 +1906,7 @@ identifiers.
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | Historical REQ-CORE-047..049 | Superseded incremental markup and format-selection requirements | D/T/I | Dated historical DEM/PCR records |
 | Historical REQ-CORE-047a..047h | Superseded CSM grammar, presentation, prompt, and persistence requirements | A/I/T | Dated PCR-101/PCR-103 qualification matrix |
-| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables, Presentation MathML, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `src/coyote_gui/coyote_image_loader.c`, `Coyote_GUI.Math_Element`; AUnit/native C tests and DEM-060; automated verification complete, DEM-060 pending |
+| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables, Presentation MathML, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `Coyote_GUI.Math_Element`; focused and full automated verification complete; DEM-060 pending |
 | REQ-CORE-240–241 | Current session JSONL behavior, including ignoring legacy `format`/`formatVersion` fields during Markdown replay | T | `LLM.Session_Store`, `Coyote_App.History`, `llm_session_store_tests.adb`, `coyote_app_history_tests.adb` |
 
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
