@@ -83,6 +83,16 @@ package Coyote_Cmark_Tests is
 
    --  Direct rendering retains the historical image alt-text policy.
    procedure Test_Pango_Markup_Image_Retains_Alt_Text (T : in out Test);
+
+   --  Image metadata uses emitted-text Unicode offsets, including UTF-8.
+   procedure Test_Image_Metadata_Offsets (T : in out Test);
+
+   --  Image metadata captures destinations, title, and linked images.
+   procedure Test_Image_Metadata_Destinations (T : in out Test);
+
+   --  Image alt text includes nested formatted/link content and preserves
+   --  escaped-entity and Unicode visible positions.
+   procedure Test_Image_Metadata_Alt_Fallbacks (T : in out Test);
    --  Display-math extraction must preserve Markdown code blocks.
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test);
 

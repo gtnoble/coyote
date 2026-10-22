@@ -34,10 +34,13 @@ package Coyote_App.Frontend is
 
    type Instance_Access is access all Instance'Class;
 
+   --  Update the source directory used to resolve relative Markdown images.
+   procedure Set_Source_Directory
+     (F : in out Instance; Directory : String) is null;
+
    --  Update the persistent one-line status display in the GUI.  Text is
    --  already formatted by Coyote_App.Dispatch.Format_Status.
    procedure Set_Status (F : in out Instance; Text : String) is abstract;
-
    --  Update the context-window fill indicator.  Headless frontends do not
    --  need to render this optional GUI-only value.
    procedure Set_Context_Progress

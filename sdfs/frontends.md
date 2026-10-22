@@ -1,5 +1,38 @@
 # Component Development Log — Frontends
 
+## 2026-10-22 — Implement session-contained assistant Markdown images (PCR-114)
+
+Completed assistant Markdown blocks in GTK now resolve local raster images
+against the active session source directory. The persisted session header's
+`workDir` is read through `LLM.Session_Store.Session_Work_Dir`; live dispatch,
+history replay, and coordinator RPC carry that source context. Ordinary Clear
+clears conversation widgets but preserves the source root; session replay sets
+the root from its session header (including an empty value when absent), and
+`Reset_Agents` remains the distinct accepted-session reset operation.
+
+The sole loader implementation is `src/coyote_gui/coyote_image_loader.c`.
+It uses two workers, a 32-job cap, an 8 MiB file limit, 8192-pixel dimension
+limits, a 16-million-pixel limit, 640×600 no-upscale thumbnails, and at most
+16 inserted images per response. PNG and JPEG are supported; GIF, WebP, SVG,
+remote images, table-cell image widgets, and image loading without a source root
+are not supported. Alt captions remain visible/selectable/searchable beside the
+inline anchored image; when linked, the caption remains clickable. There is no
+full-size viewer or resize reflow. No remote assets are fetched or persisted.
+
+Verification: production and test development builds pass; the full Xvfb suite
+passes 990/990 on the final repeat (66.37 s wall, exit 0). Focused renderer
+tests pass 10/10 and `Conversation_Stack` 38/38. Additional assertions verify
+UTF-8 anchor positions, images around native tables/math, a shared 16-image
+budget across split text segments, and source-root preservation after Clear. Renderer, GUI, and RPC additions contribute eight AUnit tests (three,
+three, and two respectively); history coverage was extended. The native C
+loader check, `test/tools/check-image-loader.sh`, passes all 20 checks in both
+normal and AddressSanitizer/UndefinedBehaviorSanitizer modes with zero failures.
+Help coverage passes 12/12 core and 1/1 display-backed widget tests; Mallard
+validation/link and CLI checks pass. DEM-060 remains pending for human desktop
+qualification of allocation, fonts, scrolling, links, and clipboard behavior.
+Developer self-review and a separate read-only worker review are not independent
+acceptance.
+
 ## 2026-10-06 — Search conversation text
 
 Added Edit → Find (Ctrl+F) with an inline query row, case-insensitive match
@@ -58,11 +91,13 @@ and content is handled as Markdown. The prior CSM entries below are retained as
 historical records and are superseded wherever they describe the current
 frontend architecture.
 
-**Verification:** Current full suite 890/890. Focused frontend results include
+**Historical verification (PCR-105, 2026-09-15):** The full suite passed
+890/890 at that checkpoint. Focused frontend results included
 Conversation_Stack 28/28 and GUI Updates 9/9; the retained Markdown, table,
-MathML, Math_Element, selection, lifecycle, and reset paths are covered. New
-native-stack regressions cover configured font inheritance for response views and
-native table labels, plus focus-safe Clear.
+MathML, Math_Element, selection, lifecycle, and reset paths were covered. New
+native-stack regressions covered configured font inheritance for response views
+and native table labels, plus focus-safe Clear. This historical count is
+superseded by the current PCR-114 990/990 verification recorded above.
 
 **Historical boundary:** Older CSM implementation and qualification entries
 below are retained for factual chronology and are superseded by PCR-105; they
@@ -1028,11 +1063,12 @@ let the user explicitly control the behaviour.
   read-only monospace result view or image presentation. Hidden-argument
   filtering, image fallback, status meaning, keyboard behavior, and snapshot/no
   session-reread behavior are preserved. Five dedicated display-backed tests
-  pass under Xvfb for structure/default/minimum sizing, independent scrolling,
+  passed under Xvfb for structure/default/minimum sizing, independent scrolling,
   remapping and resizing, full metadata clipboard selection, independent and
   running snapshots, argument formatting/filtering, image rendering/fallback.
-  Full suite: 982/982. DEM-041 desktop/theme/font and physical keyboard
-  qualification remains manual.
+  **Historical verification (2026-10-21):** Full suite: 982/982. This count is
+  superseded by the current 990/990 PCR-114 baseline above. DEM-041 desktop,
+  theme/font, and physical keyboard qualification remains manual.
 - `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
   measurement, zoom scaling, relation entities, and invalid MathML error
   handling.  `Coyote_Renderer.MathML` adds headless extraction tests protecting

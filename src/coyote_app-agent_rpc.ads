@@ -10,7 +10,7 @@ with Ada.Strings.Unbounded;
 
 package Coyote_App.Agent_RPC is
 
-   Current_Version : constant Positive := 1;
+   Current_Version : constant Positive := 2;
    Protocol_Name   : constant String   := "coyote-agent-rpc";
 
    type Frame_Kind is
@@ -39,7 +39,8 @@ package Coyote_App.Agent_RPC is
       Footer,
       Fork_Action,
       Statistics,
-      Session_Info);
+      Session_Info,
+      Source_Directory);
 
    type Command_Kind is
      (Prompt,

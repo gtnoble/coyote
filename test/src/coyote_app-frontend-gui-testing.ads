@@ -135,6 +135,9 @@ package Coyote_App.Frontend.GUI.Testing is
    function Root_Ready
      (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
 
+   function Image_Source_Directory
+     (F : Coyote_App.Frontend.GUI.Instance) return String;
+
    function Conversation_Has_Exchange
      (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
 

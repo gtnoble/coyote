@@ -154,6 +154,10 @@ package Coyote_GUI.Conversation_Stack is
       Math_Scale :        Long_Float := 1.0);
    procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean);
 
+   --  Resolve local assistant images beneath this session's source directory.
+   --  Empty disables image loading. Clear preserves this explicit context.
+   procedure Set_Source_Directory (C : in out Instance; Directory : String);
+
 private
 
    type Tool_Entry is record
@@ -222,6 +226,8 @@ private
       Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
       Response_Font       : Ada.Strings.Unbounded.Unbounded_String;
+      Source_Directory    : Ada.Strings.Unbounded.Unbounded_String;
+      Images_Remaining    : Natural := 16;
       Text_Views          : Text_View_Vectors.Vector;
       Search_Tags         : Search_Tag_Vectors.Vector;
       Search_Matches      : Search_Match_Vectors.Vector;

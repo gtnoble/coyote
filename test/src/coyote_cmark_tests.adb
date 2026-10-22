@@ -563,6 +563,118 @@ package body Coyote_Cmark_Tests is
          "direct renderer does not expose an image URL");
    end Test_Pango_Markup_Image_Retains_Alt_Text;
 
+   procedure Test_Image_Metadata_Offsets (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          (Coyote_App.Utils.UC_MICRO & "![" & Coyote_App.Utils.UC_CHECK
+           & "](x) then ![" & Coyote_App.Utils.UC_CHECK & "](y)");
+   begin
+      Assert (Result.Images.Length = 2, "both images are captured");
+      Assert
+        (Result.Images (1).Start_Char = 1
+         and then Result.Images (1).End_Char = 2,
+         "UTF-8 prefix and alt use Unicode character offsets");
+      Assert
+        (Result.Images (2).Start_Char = 8
+         and then Result.Images (2).End_Char = 9,
+         "repeated alt text receives its emitted position");
+   end Test_Image_Metadata_Offsets;
+
+   procedure Test_Image_Metadata_Destinations (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("[![inline](img.png ""tip"")](outer) and ![ref][pic]"
+           & ASCII.LF & ASCII.LF & "[pic]: ref.png ""reference""");
+      Markup : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup ("![](empty.png)");
+   begin
+      Assert
+        (Result.Images.Length = 2, "inline and reference images captured");
+      Assert
+        (To_String (Result.Images (1).Alt_Text) = "inline"
+         and then To_String (Result.Images (1).Destination) = "img.png"
+         and then To_String (Result.Images (1).Title) = "tip",
+         "inline image metadata includes title and destination");
+      Assert
+        (To_String (Result.Images (1).Link_Destination) = "outer",
+         "linked image retains its enclosing link destination");
+      Assert
+        (To_String (Result.Images (2).Destination) = "ref.png"
+         and then To_String (Result.Images (2).Title) = "reference",
+         "reference image metadata is resolved");
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, "[image]") > 0,
+         "empty alt text emits the fallback label");
+      declare
+         Empty : constant Coyote_Renderer.Markup.Render_Result :=
+           Coyote_Renderer.Markup.Render ("![](empty.png)");
+      begin
+         Assert
+           (Empty.Images (1).Alt_Text = Null_Unbounded_String
+            and then Empty.Images (1).End_Char
+              - Empty.Images (1).Start_Char = 7,
+            "empty alt has no metadata text but visible placeholder range");
+      end;
+   end Test_Image_Metadata_Destinations;
+
+   procedure Test_Image_Metadata_Alt_Fallbacks (T : in out Test) is
+      pragma Unreferenced (T);
+      Formatted : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render ("![*bold* **strong** `code`](x)");
+      Nested    : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("![outer ![**inner**](i) *tail*](o)");
+      Linked    : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render ("[![**bold**](i)](outer)");
+      Entities  : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("&amp; ![a &amp; b](x) ![" & Coyote_App.Utils.UC_MICRO & "](y)");
+      Code      : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render ("`![code](x)`");
+      Table     : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("| h |" & ASCII.LF & "| --- |" & ASCII.LF
+           & "| ![cell](x) |");
+   begin
+      Assert (Formatted.Images.Length = 1, "formatted alt image is captured");
+      Assert
+        (Nested.Images.Length = 1
+         and then To_String (Nested.Images (1).Alt_Text) = "outer inner tail"
+         and then To_String (Nested.Images (1).Destination) = "o",
+         "nested alt is flattened under outer metadata only");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Nested.Markup), "<b>") = 0
+         and then Ada.Strings.Fixed.Index
+           (To_String (Nested.Markup), "<i>") = 0
+         and then Ada.Strings.Fixed.Index
+           (To_String (Nested.Markup), "outer inner tail") > 0,
+         "nested formatted alt has no stray Pango tags");
+      Assert
+        (Linked.Images.Length = 1
+         and then To_String (Linked.Images (1).Alt_Text) = "bold"
+         and then To_String (Linked.Images (1).Link_Destination) = "outer",
+         "linked formatted alt preserves only outer image metadata");
+      Assert
+        (Entities.Images.Length = 2
+         and then Entities.Images (1).Start_Char = 2
+         and then Entities.Images (1).End_Char = 7
+         and then Entities.Images (2).Start_Char = 8,
+         "entities and UTF-8 use visible offsets");
+      Assert
+        (To_String (Formatted.Images (1).Alt_Text) = "bold strong code",
+         "formatted alt text is flattened to plain text");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Formatted.Markup), "<i>") = 0
+         and then Ada.Strings.Fixed.Index
+           (To_String (Formatted.Markup), "<b>") = 0,
+         "image alt does not produce Pango formatting");
+      Assert (Code.Images.Is_Empty, "code-span image syntax is excluded");
+      Assert (Table.Images.Is_Empty, "table-cell images use table fallback");
+   end Test_Image_Metadata_Alt_Fallbacks;
+
    procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test) is
       pragma Unreferenced (T);
       Fenced          : constant String                                   :=
@@ -850,6 +962,18 @@ package body Coyote_Cmark_Tests is
            ("Coyote_Renderer.Markup retains image alt text",
             Coyote_Cmark_Tests
               .Test_Pango_Markup_Image_Retains_Alt_Text'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup image metadata offsets",
+            Coyote_Cmark_Tests.Test_Image_Metadata_Offsets'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup image metadata destinations",
+            Coyote_Cmark_Tests.Test_Image_Metadata_Destinations'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote_Renderer.Markup image alt fallbacks",
+            Coyote_Cmark_Tests.Test_Image_Metadata_Alt_Fallbacks'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
            ("Coyote.Renderer.MathML protects Markdown code blocks",

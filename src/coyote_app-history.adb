@@ -125,6 +125,10 @@ package body Coyote_App.History is
       end Message_Object;
 
    begin
+      --  Clear any preceding agent context before replaying this session.
+      Frontend.Set_Source_Directory
+        (LLM.Session_Store.Session_Work_Dir (UUID));
+
       if Path'Length = 0 then
          Frontend.Append_Notice
            (Coyote_App.Frontend.Error, "session file not found for " & UUID);

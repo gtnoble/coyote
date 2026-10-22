@@ -197,6 +197,7 @@ package Coyote_GUI is
       Append_Notice,
       Append_Turn_Footer,
       Append_Action_Strip,
+      Set_Source_Directory,
       Set_Status,
       Set_Context_Progress,
       Set_Mode,

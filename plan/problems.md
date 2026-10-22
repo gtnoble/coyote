@@ -3,6 +3,61 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-114 — Add session-contained local assistant Markdown images (2026-10-22)
+
+- **Date reported:** 2026-10-22
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Classification:** Authorized incremental capability change
+- **Priority:** 3-Moderate
+- **Description:** Add scoped asynchronous display of local raster images in
+  completed GTK assistant Markdown responses, rooted in the active session's
+  source directory. Preserve visible alt captions beside inline images for
+  text selection, copying, and search; do not make this a remote-image feature.
+- **Affected work products:** REQ-CORE-111 and traceability; SDD rendering and
+  unit inventory; frontend SDF; session source-context propagation and replay;
+  native C loader; test plan and automated test assets.
+- **Corrective action:** Implement bounded loading, secure root containment,
+  missing/unsupported/error alt-text fallback, and completion/context handling.
+  Exclude remote fetching, persisted assets, full-size viewing, resize reflow,
+  Plain/SQC image rendering, and native table-cell image widgets.
+- **Actions taken (2026-10-22):** Implemented local PNG/JPEG loading through
+  `src/coyote_gui/coyote_image_loader.c`, with two workers, up to 32 outstanding
+  jobs, 8 MiB file cap, 8192-pixel dimension cap, 16-million-pixel cap,
+  640×600 no-upscale display, and 16 insertions per response. The source root
+  comes from `LLM.Session_Store.Session_Work_Dir` (`workDir` in the session
+  header), and is propagated through live dispatch, history replay, and RPC.
+  Ordinary Clear preserves the active source root; session replay resets it
+  from the target header, including clearing to empty. `Reset_Agents` remains
+  the distinct accepted New Session/Switch/in-place Fork reset. The caption
+  remains alongside the image and linked captions remain clickable.
+- **Documentation corrections:** Removed nonexistent Ada loader spec/body
+  inventory entries; identified the sole C loader file and actual native C
+  check harness. Corrected unsupported format claims to PNG/JPEG only (GIF,
+  WebP, and SVG rejected). Clarified that alt captions are explicitly retained,
+  clickable when linked, and not a promise of full-size viewing or resize
+  reflow. Remote assets, Plain/SQC image rendering, and table-cell image
+  widgets remain out of scope.
+- **Verification:** Production and test development builds pass; the complete
+  Xvfb suite passes 990/990 (final repeat 66.37 s wall, exit 0). Eight new
+  AUnit tests cover renderer (3), GUI (3),
+  and RPC (2); history source-root coverage was extended. Renderer focused
+  tests pass 10/10 and `Conversation_Stack` 38/38. The native loader script
+  `test/tools/check-image-loader.sh` passes 20/20 checks under normal and
+  ASan/UBSan builds, with zero failures. Help passes 12/12 core and 1/1
+  display-backed widget tests; Mallard validation/links and CLI checks pass.
+  DEM-060 remains pending for desktop allocation, fonts, scrolling, linked
+  captions, and clipboard qualification.
+- **Review and limitations:** Source-root persistence/reset facts and actual
+  paths, formats, and verification artifacts were reconciled against source
+  and tests. Review corrections covered correct `GError` ownership/clearing,
+  root-directory-fd-based path resolution, nested-image fallback, UTF-8 paths
+  and character offsets, and asynchronous widget lifetime. Developer
+  self-review and a separate read-only worker review are not independent
+  acceptance. No manual desktop demonstration or independent user acceptance
+  is claimed.
+- **Status:** Implemented; automated verification complete; DEM-060 desktop
+  qualification pending
+
 ## PCR-105 — Complete CSM retirement and Markdown-only baseline (2026-09-15)
 
 - **Date reported:** 2026-09-15
@@ -36,9 +91,11 @@ client-controlled work product gets an entry here.
   cmark exception cleanup, visible escaped raw-HTML fallback, and image alt
   text, plus native-stack regressions for configured font inheritance and
   focus-safe Clear.
-- **Verification:** Current full suite passed 890/890. Focused results passed:
-  Markup 6/6, `Conversation_Stack` 28/28, System_Prompt 32/32,
-  Session_Store 26/26, History 1/1, Agent RPC 27/27, and GUI Updates 9/9.
+- **Historical verification (PCR-105, 2026-09-15):** Full suite passed
+  890/890 at that checkpoint. Focused results passed: Markup 6/6,
+  `Conversation_Stack` 28/28, System_Prompt 32/32, Session_Store 26/26,
+  History 1/1, Agent RPC 27/27, and GUI Updates 9/9. This historical result is
+  superseded by the current PCR-114 990/990 qualification recorded above.
   Broad documentation residual scans distinguish historical/superseded CSM
   references from current Markdown claims; `git diff --check` is required for
   closure.

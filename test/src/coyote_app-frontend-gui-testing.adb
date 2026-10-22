@@ -403,6 +403,14 @@ package body Coyote_App.Frontend.GUI.Testing is
         = Coyote_App.Agent_Registry.Ready;
    end Root_Ready;
 
+   function Image_Source_Directory
+     (F : Coyote_App.Frontend.GUI.Instance) return String
+   is
+   begin
+      return Coyote_GUI.Conversation_Stack.Testing.Image_Source_Directory
+        (F.Stack);
+   end Image_Source_Directory;
+
    function Conversation_Has_Exchange
      (F : Coyote_App.Frontend.GUI.Instance) return Boolean is
    begin

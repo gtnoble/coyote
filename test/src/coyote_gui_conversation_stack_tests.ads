@@ -7,6 +7,7 @@
 with AUnit;
 with AUnit.Test_Fixtures;
 with AUnit.Test_Suites;
+with Ada.Strings.Unbounded;
 with Coyote_GUI.Conversation_Stack;
 with Gtk.Window;
 
@@ -18,6 +19,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
       Display_Available : Boolean := False;
       Parent            : Gtk.Window.Gtk_Window;
       Stack             : Stack_Access;
+      Image_Root        : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    procedure Test_Native_Footer_Uses_Status_Row_And_Fork_Button
@@ -62,6 +64,9 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Clear_Removes_Exchange_State (T : in out Test);
    procedure Test_Search_Covers_Request_Thinking_And_Streaming
      (T : in out Test);
+   procedure Test_Inline_Markdown_Images_And_Search (T : in out Test);
+   procedure Test_Inline_Markdown_Image_Policy (T : in out Test);
+   procedure Test_Clear_With_Queued_Inline_Image (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

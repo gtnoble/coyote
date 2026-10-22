@@ -22,6 +22,8 @@ package Coyote_App.Frontend.RPC is
       Parent_Agent_Id :        String := "";
       Label           :        String := "subagent");
 
+   overriding procedure Set_Source_Directory
+     (F : in out Instance; Directory : String);
    overriding procedure Set_Status (F : in out Instance; Text : String);
    overriding procedure Set_Context_Progress
      (F              : in out Instance;

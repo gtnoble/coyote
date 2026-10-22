@@ -69,8 +69,10 @@ package Coyote_App.Frontend.GUI is
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
-   overriding procedure Set_Status (F : in out Instance; Text : String);
+   overriding procedure Set_Source_Directory
+     (F : in out Instance; Directory : String);
 
+   overriding procedure Set_Status (F : in out Instance; Text : String);
    overriding procedure Set_Context_Progress
      (F              : in out Instance;
       Context_Tokens :        Natural;

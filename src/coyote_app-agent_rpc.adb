@@ -136,9 +136,10 @@ package body Coyote_App.Agent_RPC is
             return "statistics";
          when Session_Info =>
             return "sessionInfo";
+         when Source_Directory =>
+            return "sourceDirectory";
       end case;
    end Event_Image;
-
    function Command_Image (Value : Command_Kind) return String is
    begin
       case Value is
@@ -217,6 +218,8 @@ package body Coyote_App.Agent_RPC is
          return Statistics;
       elsif Value = "sessionInfo" then
          return Session_Info;
+      elsif Value = "sourceDirectory" then
+         return Source_Directory;
       else
          raise RPC_Error with "unknown RPC event: " & Value;
       end if;

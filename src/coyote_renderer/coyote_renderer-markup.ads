@@ -19,11 +19,24 @@ package Coyote_Renderer.Markup is
    package Link_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Link_Info);
 
+   --  Character positions count rendered Unicode code points, not bytes.
+   type Image_Info is record
+      Alt_Text         : Ada.Strings.Unbounded.Unbounded_String;
+      Destination      : Ada.Strings.Unbounded.Unbounded_String;
+      Title            : Ada.Strings.Unbounded.Unbounded_String;
+      Link_Destination : Ada.Strings.Unbounded.Unbounded_String;
+      Start_Char       : Natural;
+      End_Char         : Natural;
+   end record;
+
+   package Image_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Image_Info);
+
    type Render_Result is record
       Markup : Ada.Strings.Unbounded.Unbounded_String;
       Links  : Link_Vectors.Vector;
+      Images : Image_Vectors.Vector;
    end record;
-
    --  Convert Markdown and retain visible labels and destinations for links.
    function Render (MD_Text : String) return Render_Result;
 

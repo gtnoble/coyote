@@ -295,6 +295,15 @@ package body Coyote_App.Frontend.RPC is
       F.Reader.Start;
    end Create;
 
+   overriding procedure Set_Source_Directory
+     (F : in out Instance; Directory : String)
+   is
+      Data : constant JSON_Value := Object;
+   begin
+      Data.Set_Field ("directory", Directory);
+      Emit (F, Source_Directory, Data);
+   end Set_Source_Directory;
+
    overriding procedure Set_Status (F : in out Instance; Text : String) is
       Data : constant JSON_Value := Object;
    begin

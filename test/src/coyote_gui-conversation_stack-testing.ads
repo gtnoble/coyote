@@ -15,6 +15,9 @@ with Gtk.Text_View;
 
 package Coyote_GUI.Conversation_Stack.Testing is
 
+   function Image_Source_Directory
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
+
    function Has_Exchange
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
 

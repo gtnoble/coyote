@@ -553,6 +553,8 @@ package body Coyote_App.Dispatch is
             end if;
             State.Set_Model (To_String (Ev.Model));
             State.Set_Source_Directory (To_String (Ev.Source_Directory));
+            Frontend.Set_Source_Directory
+              (To_String (Ev.Source_Directory));
             State.Set_Working_Directory (To_String (Ev.Working_Directory));
             State.Set_Session_Start (To_String (Ev.Session_Start));
             declare

@@ -218,12 +218,12 @@ package body Coyote_App.Frontend.GUI is
       Position   : constant History_Vectors.Extended_Index :=
         History_Index (F, Runtime_Id);
    begin
+      F.Stack.Clear;
+      F.Stack.Set_Source_Directory ("");
       if Position = History_Vectors.No_Index then
-         F.Stack.Clear;
          return;
       end if;
       F.Replaying := True;
-      F.Stack.Clear;
       for U of F.Histories.Element (Position).Updates loop
          Apply_Update_Visible (F, U);
       end loop;
@@ -701,6 +701,11 @@ package body Coyote_App.Frontend.GUI is
                  Coyote_GUI.Step_Footer
                else Coyote_GUI.Final_Footer);
             Emit     := True;
+         when Source_Directory =>
+            U.Kind := Coyote_GUI.Set_Source_Directory;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "directory"));
+            Emit := True;
          when Context_Update =>
             U.Kind           := Coyote_GUI.Set_Context_Progress;
             U.Context_Tokens :=
@@ -2042,6 +2047,9 @@ package body Coyote_App.Frontend.GUI is
                end if;
             end;
 
+         when Set_Source_Directory =>
+            F.Stack.Set_Source_Directory (To_String (U.Text));
+
          when Set_Status =>
             Set_Agent_Status
               (F, To_String (U.Runtime_Agent_Id), To_String (U.Text));
@@ -2105,6 +2113,7 @@ package body Coyote_App.Frontend.GUI is
                F.Selected_Agent_Id := F.Root_Agent_Id;
                F.Current_Mode := Coyote_App.Frontend.Idle;
                F.Stack.Clear;
+               F.Stack.Set_Source_Directory ("");
                Coyote_App.Agent_Registry.Clear (F.Agent_Registry);
                --  Clear invalidates every iter, including the cached root.
                F.Agent_Root_Iter := Gtk.Tree_Model.Null_Iter;
@@ -5014,6 +5023,17 @@ package body Coyote_App.Frontend.GUI is
    end Create;
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
+
+   overriding procedure Set_Source_Directory
+     (F : in out Instance; Directory : String)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Set_Source_Directory;
+      U.Text := To_Unbounded_String (Directory);
+      U.Runtime_Agent_Id := F.Root_Agent_Id;
+      Enqueue_Update (F, U);
+   end Set_Source_Directory;
 
    overriding procedure Set_Status (F : in out Instance; Text : String) is
       U : Coyote_GUI.Update;

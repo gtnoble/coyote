@@ -42,7 +42,8 @@ package body Coyote_Renderer.Markup is
       Result : Render_Result;
       Link_Label : Unbounded_String;
       Link_Url : Unbounded_String;
-      In_Link : Boolean := False;
+      In_Link     : Boolean := False;
+      Image_Depth : Natural := 0;
 
       procedure Free_Cmark_Resources is
          Saved_It  : constant Iter_Ptr := It;
@@ -113,6 +114,62 @@ package body Coyote_Renderer.Markup is
       begin
          return Interfaces.C.Strings.Value (Coyote_Cmark.Node_Get_Literal (N));
       end Lit;
+
+      function Visible_Length (Markup : String) return Natural is
+         Count : Natural := 0;
+         Index : Integer := Markup'First;
+      begin
+         while Index <= Markup'Last loop
+            if Markup (Index) = '<' then
+               while Index <= Markup'Last and then Markup (Index) /= '>' loop
+                  Index := Index + 1;
+               end loop;
+               Index := Index + 1;
+            elsif Markup (Index) = '&' then
+               while Index <= Markup'Last and then Markup (Index) /= ';' loop
+                  Index := Index + 1;
+               end loop;
+               Count := Count + 1;
+               Index := Index + 1;
+            else
+               if Character'Pos (Markup (Index)) < 16#80#
+                 or else Character'Pos (Markup (Index)) >= 16#C0#
+               then
+                  Count := Count + 1;
+               end if;
+               Index := Index + 1;
+            end if;
+         end loop;
+         return Count;
+      end Visible_Length;
+
+      function Image_Alt (Image : Node_Ptr) return String is
+         Value : Unbounded_String;
+         Child : Node_Ptr := Node_First_Child (Image);
+      begin
+         while Child /= System.Null_Address loop
+            declare
+               Child_Type : constant Node_Type_Int := Node_Get_Type (Child);
+            begin
+               if Child_Type = NODE_TEXT or else Child_Type = NODE_CODE then
+                  Append (Value, Lit (Child));
+               elsif Child_Type = NODE_SOFTBREAK then
+                  Append (Value, " ");
+               elsif Child_Type = NODE_LINEBREAK then
+                  Append (Value, ASCII.LF);
+               elsif Child_Type = NODE_IMAGE then
+                  Append (Value, Image_Alt (Child));
+               elsif Child_Type /= NODE_HTML_INLINE
+                 and then Child_Type /= NODE_HTML_BLOCK
+                 and then Node_First_Child (Child) /= System.Null_Address
+               then
+                  Append (Value, Image_Alt (Child));
+               end if;
+            end;
+            Child := Node_Next (Child);
+         end loop;
+         return To_String (Value);
+      end Image_Alt;
 
       procedure Cell_Append (S : String) is
       begin
@@ -219,7 +276,48 @@ package body Coyote_Renderer.Markup is
             NT : constant Node_Type_Int := Node_Get_Type (Node);
             TS : constant String        := Cstr (Node);
          begin
-            if TS = "table" then
+            if Image_Depth > 0 then
+               if NT = NODE_IMAGE then
+                  if Ev = EVENT_ENTER then
+                     Image_Depth := Image_Depth + 1;
+                  else
+                     Image_Depth := Image_Depth - 1;
+                  end if;
+               end if;
+
+            elsif NT = NODE_IMAGE then
+               if Ev = EVENT_ENTER and then not In_Cell then
+                  declare
+                     Alt : constant String := Image_Alt (Node);
+                     Shown : constant String :=
+                       (if Alt'Length = 0 then "[image]" else Alt);
+                     Start_Offset : constant Natural :=
+                       Visible_Length (To_String (Out_S));
+                     Link_Target : constant Unbounded_String :=
+                       (if In_Link then Link_Url
+                        else Null_Unbounded_String);
+                     Shown_Length : constant Natural :=
+                       Visible_Length (Xml_Escape (Shown));
+                  begin
+                     Append (Out_S, Xml_Escape (Shown));
+                     if In_Link then
+                        Append (Link_Label, Shown);
+                     end if;
+                     Result.Images.Append
+                       ((Alt_Text => To_Unbounded_String (Alt),
+                         Destination => To_Unbounded_String
+                           (Interfaces.C.Strings.Value (Node_Get_Url (Node))),
+                         Title => To_Unbounded_String
+                           (Interfaces.C.Strings.Value
+                              (Node_Get_Title (Node))),
+                         Link_Destination => Link_Target,
+                         Start_Char => Start_Offset,
+                         End_Char => Start_Offset + Shown_Length));
+                     Image_Depth := 1;
+                  end;
+               end if;
+
+            elsif TS = "table" then
                if Ev = EVENT_ENTER then
                   Cur_Row    := 0;
                   Cur_Col    := 0;

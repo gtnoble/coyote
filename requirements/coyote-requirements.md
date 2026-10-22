@@ -1,13 +1,13 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.29
-**Date:** 2026-10-19
-**Status:** PCR-111 approved behavior documented; implementation verification pending
+**Version:** 1.30
+**Date:** 2026-10-22
+**Status:** PCR-114 implemented and automated verification complete; DEM-060 desktop qualification pending
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
-revision records the superseding Markdown-only response and persistence
-baseline and the current qualification evidence.
+revision updates REQ-CORE-111 with the scoped local-image contract and records
+PCR-114 automated qualification; DEM-060 desktop qualification remains pending.
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -781,12 +781,31 @@ separator, and shall not contain transient lifecycle status.
 Completed assistant response blocks in the GTK conversation shall be rendered
 as GitHub Flavored Markdown through libcmark-gfm. The contract includes
 headings, emphasis, inline and fenced code, links, strikethrough, block quotes,
-lists, nested-list indentation, ordered-list starting values, tables, and
-thematic breaks. A response may remain plain text while streaming and shall be
-converted when the completed response block is rendered. Conversion failure
-shall preserve visible source text, and copying rendered text shall not expose
-Pango markup. Native GFM tables remain native GTK tables; standalone display-
-math blocks retain Lasem-backed Presentation MathML realization.
+lists, nested-list indentation, ordered-list starting values, tables, images,
+and thematic breaks. A response may remain plain text while streaming and
+shall be converted when the completed response block is rendered. Conversion
+failure shall preserve visible source text, and copying rendered text shall
+not expose Pango markup. Native GFM tables remain native GTK tables; standalone
+display-math blocks retain Lasem-backed Presentation MathML realization.
+
+For completed assistant Markdown blocks in the GTK conversation, local image
+destinations may resolve only when the active session source directory is
+non-empty. Relative paths (including percent-escaped components) and valid
+local `file:` URIs are resolved only to files beneath that source directory;
+all symlink components are rejected. The loader supports PNG and JPEG only.
+This is a scoped
+local-image capability, not a general Markdown guarantee: remote images are
+not fetched, and Plain output and SQC replay retain text fallback; native table
+cells expose image alt text only. The GUI preserves each image's alt caption
+visibly beside its inline image for selection, copying, and search; linked
+captions remain clickable. Image loading uses no more than two workers and
+allows at most 32 outstanding jobs. Source files are limited to 8 MiB, each
+dimension to 8192 pixels, and total pixels to 16 million. Displayed images fit
+within 640×600 without upscaling, with at most 16 insertions per response.
+Missing source context, remote or unsupported destinations, missing files,
+paths outside the session directory, symlink components, and decode failures
+retain visible alt-text fallback. No remote assets are fetched or persisted,
+and no full-size viewer or resize reflow is provided.
 
 Actionable rendered links in GTK text views shall show a pointing-hand cursor
 on hover and expose their destination as a plain-text tooltip. Ordinary text
@@ -795,8 +814,8 @@ activate a link. Scrolling beneath a stationary pointer shall refresh this
 feedback.
 
 The native GTK widget hierarchy is the supported GUI conversation presentation.
-Plain output remains line-oriented. Legacy `format` and `formatVersion` fields
-in old JSONL are ignored during replay, whose content is handled as Markdown.
+Legacy `format` and `formatVersion` fields in old JSONL are ignored during replay,
+whose content is handled as Markdown.
 
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
@@ -1835,11 +1854,12 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline is
-890 registered tests. Current verification covers the Markdown rendering path,
-native GFM tables, Lasem-backed Presentation MathML, session compatibility,
-and the native `Conversation_Stack` presentation. PCR-101, PCR-103, and
-PCR-104 qualification matrices remain historical and superseded. The table below
-retains historical `TC-*` identifiers.
+990 registered tests. Current verification covers Markdown rendering,
+session-contained local PNG/JPEG images in GTK, native GFM tables, Lasem-backed
+Presentation MathML, session compatibility, and the native `Conversation_Stack`
+presentation. PCR-101, PCR-103, and PCR-104 qualification matrices remain
+historical and superseded. The table below retains historical `TC-*`
+identifiers.
 | Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |
@@ -1876,7 +1896,7 @@ retains historical `TC-*` identifiers.
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | Historical REQ-CORE-047..049 | Superseded incremental markup and format-selection requirements | D/T/I | Dated historical DEM/PCR records |
 | Historical REQ-CORE-047a..047h | Superseded CSM grammar, presentation, prompt, and persistence requirements | A/I/T | Dated PCR-101/PCR-103 qualification matrix |
-| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables and Presentation MathML, and text-component selection | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Math_Element`; current Markdown-only retirement qualification |
+| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables, Presentation MathML, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `src/coyote_gui/coyote_image_loader.c`, `Coyote_GUI.Math_Element`; AUnit/native C tests and DEM-060; automated verification complete, DEM-060 pending |
 | REQ-CORE-240–241 | Current session JSONL behavior, including ignoring legacy `format`/`formatVersion` fields during Markdown replay | T | `LLM.Session_Store`, `Coyote_App.History`, `llm_session_store_tests.adb`, `coyote_app_history_tests.adb` |
 
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
@@ -1982,7 +2002,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Objective | Derived Requirements |
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
-| Markdown response rendering and session compatibility | REQ-CORE-111, REQ-CORE-131, REQ-CORE-240–241 |
+| Markdown response rendering and session compatibility | REQ-CORE-111 (including scoped GTK local images), REQ-CORE-131, REQ-CORE-240–241 |
 | Multi-frontend support (GTK3 and Plain) | REQ-CORE-001–004, REQ-CORE-110–139 |
 | Streaming output | REQ-CORE-040–049, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–057 |

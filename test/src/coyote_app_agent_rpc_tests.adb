@@ -86,6 +86,24 @@ package body Coyote_App_Agent_RPC_Tests is
          "context update payload must round-trip");
    end Test_Context_Update_Event_Round_Trip;
 
+   procedure Test_Source_Directory_Event_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Input  : constant Frame :=
+        Make_Event
+          (Agent_Id     => "worker-7",
+           Sequence     => 13,
+           Event_Name   => Source_Directory,
+           Payload_Json => "{""directory"":""/tmp/project""}");
+      Output : constant Frame := Decode (Encode (Input));
+   begin
+      Assert
+        (Output.Event_Name = Source_Directory,
+         "source directory event name must round-trip");
+      Assert
+        (To_String (Output.Payload_Json) = To_String (Input.Payload_Json),
+         "source directory payload must round-trip");
+   end Test_Source_Directory_Event_Round_Trip;
+
    procedure Test_End_Step_Event_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
       Input  : constant Frame :=
@@ -171,10 +189,10 @@ package body Coyote_App_Agent_RPC_Tests is
       pragma Unreferenced (T);
    begin
       Expect_RPC_Error
-        ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""command"",""agentId"":""worker"",""requestId"":""abort"",""command"":""abortTool"",""payload"":{}}",
+        ("{""protocol"":""coyote-agent-rpc"",""version"":2,""type"":""command"",""agentId"":""worker"",""requestId"":""abort"",""command"":""abortTool"",""payload"":{}}",
          "Abort_Tool must reject a missing tool ID");
       Expect_RPC_Error
-        ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""command"",""agentId"":""worker"",""requestId"":""abort"",""command"":""abortTool"",""payload"":{""toolId"":""call"",""message"":3}}",
+        ("{""protocol"":""coyote-agent-rpc"",""version"":2,""type"":""command"",""agentId"":""worker"",""requestId"":""abort"",""command"":""abortTool"",""payload"":{""toolId"":""call"",""message"":3}}",
          "Abort_Tool must reject a non-string message");
    end Test_Abort_Tool_Command_Rejects_Invalid_Payload;
 
@@ -264,7 +282,7 @@ package body Coyote_App_Agent_RPC_Tests is
       pragma Unreferenced (T);
    begin
       Expect_RPC_Error
-        ("{""protocol"":""other"",""version"":1,""type"":""handshake"",""agentId"":""worker"",""label"":""w""}",
+        ("{""protocol"":""other"",""version"":2,""type"":""handshake"",""agentId"":""worker"",""label"":""w""}",
          "wrong RPC protocol must be rejected");
    end Test_Wrong_Protocol;
 
@@ -276,7 +294,7 @@ package body Coyote_App_Agent_RPC_Tests is
    begin
       Assert
         (not Try_Decode
-           ("{""protocol"":""coyote-agent-rpc"",""version"":2,""type"":""handshake"",""agentId"":""worker"",""label"":""w""}",
+           ("{""protocol"":""coyote-agent-rpc"",""version"":3,""type"":""handshake"",""agentId"":""worker"",""label"":""w""}",
             Value,
             Status,
             Error),
@@ -290,7 +308,7 @@ package body Coyote_App_Agent_RPC_Tests is
       pragma Unreferenced (T);
    begin
       Expect_RPC_Error
-        ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""handshake"",""label"":""w""}",
+        ("{""protocol"":""coyote-agent-rpc"",""version"":2,""type"":""handshake"",""label"":""w""}",
          "missing agent identity must be rejected");
    end Test_Missing_Required_Field;
 
@@ -298,7 +316,7 @@ package body Coyote_App_Agent_RPC_Tests is
       pragma Unreferenced (T);
    begin
       Expect_RPC_Error
-        ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""event"",""agentId"":""worker"",""sequence"":1,""event"":""textDelta"",""payload"":[]}",
+        ("{""protocol"":""coyote-agent-rpc"",""version"":2,""type"":""event"",""agentId"":""worker"",""sequence"":1,""event"":""textDelta"",""payload"":[]}",
          "non-object event payload must be rejected");
    end Test_Invalid_Payload;
 
@@ -346,6 +364,11 @@ package body Coyote_App_Agent_RPC_Tests is
         (Agent_RPC_Caller.Create
            ("Agent RPC End_Step event round-trips",
             Coyote_App_Agent_RPC_Tests.Test_End_Step_Event_Round_Trip'Access));
+      Result.Add_Test
+        (Agent_RPC_Caller.Create
+           ("Agent RPC source directory event round-trips",
+            Coyote_App_Agent_RPC_Tests
+              .Test_Source_Directory_Event_Round_Trip'Access));
       Result.Add_Test
         (Agent_RPC_Caller.Create
            ("Agent RPC command round-trips",

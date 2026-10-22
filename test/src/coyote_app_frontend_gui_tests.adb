@@ -672,6 +672,8 @@ package body Coyote_App_Frontend_GUI_Tests is
 
       Coyote_App.Frontend.GUI.Create
         (Frontend, "coyote clear conversation test", Pop_Under => True);
+      Coyote_App.Frontend.GUI.Set_Source_Directory (Frontend, "/tmp/images");
+      Drain_Events;
       Apply_Handshake (Frontend, "worker", "root", "worker");
       Apply_Event
         (Frontend, "root", 1, Coyote_App.Agent_RPC.Request_Start,
@@ -698,6 +700,8 @@ package body Coyote_App_Frontend_GUI_Tests is
               "ordinary clear is not a session reset and keeps histories");
       Assert (not Conversation_Has_Exchange (Frontend),
               "ordinary clear still clears the visible conversation");
+      Assert (Image_Source_Directory (Frontend) = "/tmp/images",
+              "ordinary clear preserves the active image source directory");
 
       Coyote_App.Frontend.GUI.Request_Shutdown (Frontend);
       Main_Window (Frontend).Destroy;

@@ -1,9 +1,9 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.31
-**Date:** 2026-09-15
+**Version:** 1.32
+**Date:** 2026-10-22
 
-**Status:** Reviewed and acknowledged — Markdown-only retirement qualification recorded
+**Status:** PCR-114 automated qualification recorded; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -130,9 +130,9 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** The complete current AUnit suite (977 registered tests) must pass before any
-demonstration-verified requirements are reviewed. Demonstration tests are
-performed after the automated suite is green.
+**Progression criterion:** The complete current AUnit suite (990 registered
+tests) must pass before any demonstration-verified requirements are reviewed.
+Demonstration tests are performed after the automated suite is green.
 
 ### 4.2 Planned Tests — Automated (AUnit)
 
@@ -172,7 +172,9 @@ SRS-CORE requirement groups.
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
 | `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
-| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering), safe oversized GFM-table truncation, cmark exception cleanup, visible escaped fallback for raw HTML/legacy XML-shaped source, documented image alt-text behavior, table metadata/masking, parser-safe display-math code-block protection | 27 direct registrations (Markup focused family: 6/6) |
+| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering and image metadata), safe oversized GFM-table truncation, cmark exception cleanup, escaped raw-HTML fallback, table metadata/masking, parser-safe display-math protection | 27 direct registrations (Markup focused family: 10/10; includes 3 PCR-114 renderer additions) |
+| `test/tools/check-image-loader.sh` + `test/native/image_loader_test.c` | REQ-CORE-111 native C loader: UTF-8/percent paths, local file URIs, remote/outside/missing/symlink/FIFO rejection, PNG/JPEG success, GIF/WebP/SVG/corrupt rejection, byte/dimension limits, callback thread and 32-job queue | 20 checks; normal and ASan/UBSan pass |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111 image context, caption, image policy, and clear/lifetime behavior; history source-root restoration and RPC source-context forwarding are also covered | Three added GUI tests; focused `Conversation_Stack` family 38/38; history coverage extended; RPC family includes two added tests |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
 
 
@@ -180,7 +182,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
-| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, Markdown, tables, MathML, tool-card flow, lifecycle, reset, configured font inheritance for response views and native table labels, and focus-safe Clear | 28 direct registrations |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, Markdown/images, tables, MathML, tool-card flow, lifecycle, reset, configured font inheritance for response views and native table labels, and focus-safe Clear | 31 direct registrations |
 | `coyote_gui_updates_tests.adb` | REQ-CORE-116..119, 128; protected GTK update queue payload and lifecycle coverage | 9 direct registrations |
 | `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
 
@@ -197,16 +199,16 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **977**
+**Total automated tests (current):** **990**
 
 ### Help regression qualification — 2026-10-19 (PCR-112)
 
 Development application and test builds pass. Focused Help passes 12/12;
 real GTK Help widgets pass 1/1 under Xvfb. Mallard validation and link checks
 pass for all 12 current pages; `--help` and `-h` emit identical usage to stdout,
-no stderr, and exit successfully. The complete suite passes 977/977 from
-`test/` under Xvfb, with zero failures or unexpected errors (58.39 s wall, final repeat).
-This supersedes older registered-test totals; dated baselines remain history.
+no stderr, and exit successfully. The complete suite passed 977/977 at the
+2026-10-19 PCR-112 checkpoint. This dated result is superseded by the current
+PCR-114 990/990 qualification record below; historical totals remain history.
 
 Repeat the Help checks after `alr build --development` and
 `cd test && alr build --development` using
@@ -245,6 +247,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` retains one-shot behavior, accepts steering while active, and exits after its final response; without a coordinator channel it uses Plain |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
 | Historical DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming; GFM tables become native grids with selectable cells, bold headers, and column alignment; local selection exposes plain text; the Render Markdown toggle preserves source text when disabled; and zoom changes native response font size. Native-table automated qualification is complete; remaining manual visual checks are tracked separately. |
+| DEM-060 | REQ-CORE-111 | In the display-backed GTK GUI with session-local fixtures, verify an inline PNG/JPEG image and visible selectable alt caption, including clickable linked-caption behavior. Exercise representative allocation, enlarged fonts, scrolling, and clipboard interaction; verify missing/remote/out-of-root/symlink/corrupt fallbacks and confirm Plain/SQC remain text-only. Automated implementation verification is complete; desktop visual/interaction qualification remains pending. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
 | DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, zoom, visual, and local-selection acceptance is complete. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room, the persistent status area contains the lifecycle label and context progress indicator, the indicator updates and remains bounded between empty and full, and the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI layout and shutdown lifecycle`; visual sizing and theme contrast remain manual checks under the active theme. |
@@ -404,7 +407,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-090–093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100–109 | Historical | Retired Acme/plumber controls; see PCR-090 |
 | REQ-CORE-110–115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
-| REQ-CORE-111 | T/D | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `Coyote_GUI.Math_Element`, DEM-014, DEM-046..047; current Markdown/table/MathML qualification is recorded above |
+| REQ-CORE-111 | T/D | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Rich_Text`, `src/coyote_gui/coyote_image_loader.c`, `coyote_cmark_tests.adb`, `test/tools/check-image-loader.sh`, `test/native/image_loader_test.c`, `coyote_gui_conversation_stack_tests.adb`, `coyote_app_history_tests.adb`, `coyote_app_agent_rpc_tests.adb`, `Coyote_GUI.Math_Element`, DEM-014, DEM-046..047, DEM-060; automated verification complete, desktop DEM-060 pending |
 | REQ-CORE-113a | D/T/I | `coyote_help_tests.adb`, `coyote_app-frontend-gui-help_tests.adb`, `test/check-help.sh`; widget/launcher coverage only; remaining activation/navigation DEM-036..039 |
 | REQ-CORE-113b..113c | D/T/I | `coyote_app_frontend_gui_tests.adb`, `coyote_gui_mode_tests.adb` (Agent run-mode availability only), DEM-036..039, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
@@ -1026,6 +1029,18 @@ picker tests pass. An isolated pre-existing malformed string literal in
 `test/src/llm_model_registry_tests.adb:832-833` was repaired. Display-backed
 interaction remains under DEM-033.
 
+
+**Baseline after PCR-114 local assistant Markdown images (2026-10-22):**
+Production and test development builds pass. The complete registered suite
+passes 990/990 under Xvfb, with zero failures. Focused results: Markdown
+renderer 10/10; `Conversation_Stack` 38/38; native loader script
+`test/tools/check-image-loader.sh` 20/20 checks in both normal and
+ASan/UBSan modes; Help 12/12 core and 1/1 display-backed widget checks; Mallard
+validation/links and CLI checks pass. The 8 added AUnit tests are three
+renderer, three GUI, and two RPC tests; existing history coverage was extended.
+DEM-060 desktop allocation, fonts, scrolling, linked-caption, and clipboard
+qualification remains pending. Developer self-review and a separate read-only
+worker review do not constitute independent acceptance.
 
 **Baseline after PCR-113 tool-detail inspection redesign (2026-10-21):**
 982 registered tests. Production and test development builds pass. Five new

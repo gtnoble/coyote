@@ -27,6 +27,13 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return null;
    end Math_Element_At;
 
+   function Image_Source_Directory
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String
+   is
+   begin
+      return Ada.Strings.Unbounded.To_String (C.Source_Directory);
+   end Image_Source_Directory;
+
    function Has_Exchange
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is

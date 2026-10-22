@@ -17,10 +17,15 @@ package body Coyote_App_History_Tests is
      array (Positive range 1 .. 8) of Unbounded_String;
 
    type Recorder is new Coyote_App.Frontend.Instance with record
+      Source_Directory      : Unbounded_String;
+      Tool_Source_Directory : Unbounded_String;
+      Source_Set_Before_Text : Boolean := False;
       Text_Block_Count : Natural := 0;
       Text_Block_Texts : Text_Block_Array := (others => Null_Unbounded_String);
    end record;
 
+   overriding procedure Set_Source_Directory
+     (F : in out Recorder; Directory : String);
    overriding procedure Set_Status
      (F : in out Recorder; Text : String);
    overriding procedure Set_Mode
@@ -78,6 +83,13 @@ package body Coyote_App_History_Tests is
    overriding procedure Shutdown (F : in out Recorder);
 
    overriding
+   procedure Set_Source_Directory
+     (F : in out Recorder; Directory : String) is
+   begin
+      F.Source_Directory := To_Unbounded_String (Directory);
+   end Set_Source_Directory;
+
+   overriding
    procedure Set_Status
      (F : in out Recorder; Text : String) is
    begin
@@ -95,6 +107,7 @@ package body Coyote_App_History_Tests is
    procedure Append_Text
      (F : in out Recorder; Text : String) is
    begin
+      F.Source_Set_Before_Text := Length (F.Source_Directory) > 0;
       F.Text_Block_Count := F.Text_Block_Count + 1;
       if F.Text_Block_Count <= F.Text_Block_Texts'Last then
          F.Text_Block_Texts (F.Text_Block_Count) :=
@@ -142,7 +155,7 @@ package body Coyote_App_History_Tests is
       Initial_Status  : Coyote_App.Frontend.Tool_Status :=
         Coyote_App.Frontend.Running) is
    begin
-      null;
+      F.Tool_Source_Directory := To_Unbounded_String (Source_Directory);
    end Begin_Tool;
 
    overriding
@@ -277,6 +290,12 @@ package body Coyote_App_History_Tests is
 
       Assert (Frontend.Text_Block_Count = 3,
               "replay should render all three assistant text blocks");
+      Assert
+        (To_String (Frontend.Source_Directory) = "/tmp",
+         "replay should set the session source directory");
+      Assert
+        (Frontend.Source_Set_Before_Text,
+         "replay should set the source directory before rendering text");
       Assert
         (To_String (Frontend.Text_Block_Texts (1)) =
            "<p>legacy response</p>",

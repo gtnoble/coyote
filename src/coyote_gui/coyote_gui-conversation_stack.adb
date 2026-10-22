@@ -15,6 +15,7 @@ with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Markdown_Links;
+with Coyote_GUI.Rich_Text;
 with Coyote_GUI.Navigation;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
@@ -353,7 +354,9 @@ package body Coyote_GUI.Conversation_Stack is
         (C, Parent, "", Text, Buffer, View, Response_Block => True);
       Apply_Response_Style (View);
       if C.Render_Markdown then
-         Coyote_GUI.Markdown_Links.Insert (Buffer, Rendered, Clear => True);
+         Coyote_GUI.Rich_Text.Insert
+           (View, Rendered, To_String (C.Source_Directory),
+            C.Images_Remaining, Clear => True);
       end if;
       C.Active_Text := Buffer;
       C.Active_View := View;
@@ -587,7 +590,9 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
-      Coyote_GUI.Markdown_Links.Insert (C.Active_Text, Rendered);
+      Coyote_GUI.Rich_Text.Insert
+        (C.Active_View, Rendered, To_String (C.Source_Directory),
+         C.Images_Remaining);
    end Replace_Streamed_Text;
 
    procedure Configure_Text_View
@@ -901,6 +906,12 @@ package body Coyote_GUI.Conversation_Stack is
             Coyote_GUI.Math_Element.Detach (C.Math_Elements (Math_Index).all);
          end loop;
       end if;
+      if not C.Text_Views.Is_Empty then
+         for View_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
+         loop
+            C.Text_Views.Element (View_Index).Destroy;
+         end loop;
+      end if;
       if not C.Exchanges.Is_Empty then
          for Exchange_Index in reverse
            C.Exchanges.First_Index .. C.Exchanges.Last_Index
@@ -1027,6 +1038,7 @@ package body Coyote_GUI.Conversation_Stack is
       Has_Native_Blocks : Boolean         := False;
    begin
       if C.Text_Open then
+         C.Images_Remaining := 16;
          if C.Render_Markdown then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
             Has_Native_Blocks :=
@@ -1830,6 +1842,11 @@ package body Coyote_GUI.Conversation_Stack is
         (Insert_Iter, View.Get_Buffer.Get_Insert);
       View.Get_Buffer.Place_Cursor (Insert_Iter);
    end Clear_Selection;
+
+   procedure Set_Source_Directory (C : in out Instance; Directory : String) is
+   begin
+      C.Source_Directory := To_Unbounded_String (Directory);
+   end Set_Source_Directory;
 
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean) is
    begin

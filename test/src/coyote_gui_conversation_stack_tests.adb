@@ -3,8 +3,11 @@ with AUnit.Test_Caller;
 --
 --  Project: coyote
 
+with Ada.Calendar;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Streams;
+with Ada.Streams.Stream_IO;
 with Ada.Text_IO;
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -18,6 +21,7 @@ with Gdk.Rectangle;
 with Gdk.Window;
 with Gdk.Cursor;
 with Gtk.Text_Iter;
+with Gtk.Text_Child_Anchor;
 with GNAT.OS_Lib;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
@@ -55,6 +59,9 @@ with Pango.Font;
 package body Coyote_GUI_Conversation_Stack_Tests is
 
    use type Glib.Gfloat;
+   use type System.Address;
+   use type Ada.Calendar.Time;
+   use type Gdk.Pixbuf.Gdk_Pixbuf;
    use type Ada.Directories.File_Size;
    use type GNAT.OS_Lib.File_Descriptor;
    use type Glib.Gint;
@@ -78,6 +85,19 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Button.Gtk_Button;
    use Ada.Strings.Fixed;
    use Ada.Strings.Unbounded;
+   use type Gtk.Widget.Widget_List.Glist;
+   use type Gtk.Widget.Gtk_Widget;
+   use type Gtk.Image.Gtk_Image;
+
+   Inline_View_Destroyed : Boolean := False;
+
+   procedure On_Inline_View_Destroy
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+      pragma Unreferenced (Widget);
+   begin
+      Inline_View_Destroyed := True;
+   end On_Inline_View_Destroy;
 
    Fork_Called : Boolean  := False;
    Fork_UUID   : Unbounded_String;
@@ -97,6 +117,166 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use Coyote_GUI.Conversation_Stack;
    use Coyote_GUI.Conversation_Stack.Testing;
 
+   Image_Data : constant String :=
+     "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4"
+     & "z8DAAMIg4j8QMAAAM94G+lX/f/AAAAAASUVORK5CYII=";
+
+   function Decode_PNG return String is
+      function Value_Of (C : Character) return Integer is
+      begin
+         case C is
+            when 'A' .. 'Z' =>
+               return Character'Pos (C) - Character'Pos ('A');
+            when 'a' .. 'z' =>
+               return 26 + Character'Pos (C) - Character'Pos ('a');
+            when '0' .. '9' =>
+               return 52 + Character'Pos (C) - Character'Pos ('0');
+            when '+' =>
+               return 62;
+            when '/' =>
+               return 63;
+            when others =>
+               return -1;
+         end case;
+      end Value_Of;
+      Output : String (1 .. (Image_Data'Length * 3) / 4);
+      Count  : Natural := 0;
+      Pos    : Natural := Image_Data'First;
+      A      : Integer;
+      B      : Integer;
+      C      : Integer;
+      D      : Integer;
+   begin
+      while Pos + 3 <= Image_Data'Last loop
+         A := Value_Of (Image_Data (Pos));
+         B := Value_Of (Image_Data (Pos + 1));
+         C := Value_Of (Image_Data (Pos + 2));
+         D := Value_Of (Image_Data (Pos + 3));
+         Count := Count + 1;
+         Output (Count) := Character'Val (A * 4 + B / 16);
+         if Image_Data (Pos + 2) /= '=' then
+            Count := Count + 1;
+            Output (Count) := Character'Val ((B mod 16) * 16 + C / 4);
+         end if;
+         if Image_Data (Pos + 3) /= '=' then
+            Count := Count + 1;
+            Output (Count) := Character'Val ((C mod 4) * 64 + D);
+         end if;
+         Pos := Pos + 4;
+      end loop;
+      return Output (1 .. Count);
+   end Decode_PNG;
+
+   procedure Write_PNG (Path : String) is
+      use Ada.Streams;
+      use Ada.Streams.Stream_IO;
+      File : File_Type;
+      Bytes : constant String := Decode_PNG;
+      Data : Stream_Element_Array (1 .. Stream_Element_Offset (Bytes'Length));
+   begin
+      for Index in Bytes'Range loop
+         Data (Stream_Element_Offset (Index)) :=
+           Stream_Element (Character'Pos (Bytes (Index)));
+      end loop;
+      Create (File, Out_File, Path);
+      Write (File, Data);
+      Close (File);
+   end Write_PNG;
+
+   function Find_Image_Count
+     (Root : Gtk.Widget.Gtk_Widget) return Natural
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Node     : Gtk.Widget.Widget_List.Glist;
+      Count    : Natural := 0;
+      Child    : Gtk.Widget.Gtk_Widget;
+   begin
+      if Root = null then
+         return 0;
+      end if;
+      if Root.Get_Name = "coyote-response-image"
+        and then Root.all in Gtk.Image.Gtk_Image_Record'Class
+      then
+         declare
+            Image : constant Gtk.Image.Gtk_Image :=
+              Gtk.Image.Gtk_Image (Root);
+         begin
+            if Gtk.Image.Get_Storage_Type (Image) = Gtk.Image.Image_Pixbuf then
+               declare
+                  Pixbuf : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+                    Gtk.Image.Get (Image);
+               begin
+                  if Pixbuf /= null then
+                     Count := 1;
+                  end if;
+               end;
+            end if;
+         end;
+      end if;
+      if Root.all not in Gtk.Container.Gtk_Container_Record'Class then
+         return Count;
+      end if;
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Root));
+      Node := Gtk.Widget.Widget_List.First (Children);
+      while Node /= Gtk.Widget.Widget_List.Null_List loop
+         Child := Gtk.Widget.Widget_List.Get_Data (Node);
+         Count := Count + Find_Image_Count (Child);
+         Node := Gtk.Widget.Widget_List.Next (Node);
+      end loop;
+      Gtk.Widget.Widget_List.Free (Children);
+      return Count;
+   end Find_Image_Count;
+
+   procedure Pump_Until_Images (T : Test; Expected : Natural) is
+      Deadline : constant Ada.Calendar.Time := Ada.Calendar.Clock + 3.0;
+      Quit     : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      while Ada.Calendar.Clock < Deadline
+        and then Find_Image_Count
+          (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) < Expected
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+   end Pump_Until_Images;
+
+   function Child_Anchor_At
+     (Iter : System.Address) return System.Address;
+   pragma Import
+     (C, Child_Anchor_At, "gtk_text_iter_get_child_anchor");
+
+   procedure Assert_Image_Anchor_At
+     (T : Test; Offset : Glib.Gint; Message : String)
+   is
+      View   : constant Gtk.Text_View.Gtk_Text_View :=
+        Active_Text_View (T.Stack.all);
+      Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+        Gtk.Text_View.Get_Buffer (View);
+      Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      Gtk.Text_Buffer.Get_Iter_At_Offset (Buffer, Iter, Offset);
+      Assert
+        (Child_Anchor_At (Iter'Address) /= System.Null_Address, Message);
+   end Assert_Image_Anchor_At;
+
+   procedure Drain_Gtk_Events is
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      for Attempt in 1 .. 300 loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+   end Drain_Gtk_Events;
+
    function Display_Available return Boolean is
    begin
       return
@@ -108,8 +288,17 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    end Display_Available;
 
    overriding procedure Set_Up (T : in out Test) is
+      FD   : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Path : Unbounded_String;
    begin
       if Display_Available then
+         Coyote_Temp_Files.Create (FD, Path);
+         Assert (FD /= GNAT.OS_Lib.Invalid_FD,
+                 "temporary image root is created");
+         GNAT.OS_Lib.Close (FD);
+         Ada.Directories.Delete_File (To_String (Path));
+         Ada.Directories.Create_Directory (To_String (Path));
+         T.Image_Root := Path;
          Gtk.Main.Init;
          T.Display_Available := True;
          Gtk.Window.Gtk_New (T.Parent, Gtk.Enums.Window_Toplevel);
@@ -132,6 +321,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          begin
             Free (T.Stack);
          end Free_Stack;
+      end if;
+      if Length (T.Image_Root) > 0 then
+         begin
+            Ada.Directories.Delete_Tree (To_String (T.Image_Root));
+         exception
+            when others =>
+               null;
+         end;
+         T.Image_Root := Null_Unbounded_String;
       end if;
    end Tear_Down;
 
@@ -1646,6 +1844,177 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "clearing search removes the result index");
    end Test_Search_Covers_Request_Thinking_And_Streaming;
 
+   procedure Test_Inline_Markdown_Images_And_Search (T : in out Test) is
+      Snow : constant String := Coyote_App.Utils.UC_CHECK;
+      Source : constant String :=
+        Coyote_App.Utils.UC_MICRO & " before !["
+        & Snow & "](images/valid.png) after !["
+        & Snow & "](images/valid.png) ";
+      Expected_Visible : constant String :=
+        Coyote_App.Utils.UC_MICRO & " before " & Snow & " after " & Snow
+        & ASCII.LF & ASCII.LF & ASCII.LF & ASCII.LF;
+      Root : constant String := To_String (T.Image_Root);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Ada.Directories.Create_Directory (Root & "/images");
+      Write_PNG (Root & "/images/valid.png");
+      Set_Source_Directory (T.Stack.all, Root);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Pump_Until_Images (T, 2);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Active_Text_View (T.Stack.all))) = 2,
+         "each valid inline image creates its anchored image widget");
+      Assert_Image_Anchor_At
+        (T, 9,
+         "first image anchor follows the multibyte UTF-8 prefix");
+      Assert_Image_Anchor_At
+        (T, 18,
+         "second image anchor follows its preceding UTF-8 text");
+      Assert
+        (Active_Text (T.Stack.all) = Expected_Visible,
+         "image alt text remains visible in original UTF-8 order: actual="
+         & Active_Text (T.Stack.all) & " length="
+         & Natural'Image (Active_Text (T.Stack.all)'Length)
+         & " expected=" & Natural'Image (Expected_Visible'Length));
+      Assert
+        (Set_Search_Query (T.Stack.all, Snow) = 2,
+         "search matches each image description");
+      Assert
+        (Active_Text (T.Stack.all) = Expected_Visible,
+         "searching image descriptions does not alter visible text");
+   end Test_Inline_Markdown_Images_And_Search;
+
+   procedure Test_Inline_Markdown_Image_Policy (T : in out Test) is
+      Root : constant String := To_String (T.Image_Root);
+      Source : constant String :=
+        "![local](ok.png) ![remote](https://example.invalid/a.png) "
+        & "![outside](../outside.png) ![invalid](bad.png)";
+      Math_Source : constant String :=
+        "before ![first](ok.png)" & ASCII.LF & ASCII.LF
+        & "$$" & ASCII.LF
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mn>1</mn></math>" & ASCII.LF & "$$" & ASCII.LF & ASCII.LF
+        & "| A | B |" & ASCII.LF & "| --- | --- |" & ASCII.LF
+        & "| x | y |" & ASCII.LF & ASCII.LF & "after ![last](ok.png)";
+      Image_Run : constant String := "![cap](ok.png) ";
+      Native_Split : constant String :=
+        ASCII.LF & "$$" & ASCII.LF
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mn>1</mn></math>" & ASCII.LF & "$$" & ASCII.LF & ASCII.LF
+        & "| A | B |" & ASCII.LF & "| --- | --- |" & ASCII.LF
+        & "| x | y |" & ASCII.LF & ASCII.LF;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Write_PNG (Root & "/ok.png");
+      Set_Source_Directory (T.Stack.all, Root);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Pump_Until_Images (T, 1);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 1,
+         "only the in-root valid image loads successfully");
+      Assert
+        (Index (Active_Text (T.Stack.all), "local") > 0
+         and then Index (Active_Text (T.Stack.all), "remote") > 0
+         and then Index (Active_Text (T.Stack.all), "outside") > 0
+         and then Index (Active_Text (T.Stack.all), "invalid") > 0,
+         "all accepted and rejected descriptions remain readable");
+      Drain_Gtk_Events;
+      Clear (T.Stack.all);
+      Begin_Request (T.Stack.all, "mixed request", Prompt);
+      Append_Text (T.Stack.all, Math_Source);
+      End_Text_Block (T.Stack.all);
+      Pump_Until_Images (T, 2);
+      Assert
+        (Math_Element_Count (T.Stack.all) = 1
+         and then Table_Count (T.Stack.all) = 1,
+         "image anchors survive display-math and native-table splits");
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 2,
+         "images on both sides of native segments are retained");
+      Assert
+        (Set_Search_Query (T.Stack.all, "first") = 1
+         and then Set_Search_Query (T.Stack.all, "last") = 1,
+         "image alt text remains searchable across native splits");
+      Clear (T.Stack.all);
+      for Image_Index in 1 .. 17 loop
+         if Image_Index = 1 then
+            Begin_Request (T.Stack.all, "image cap", Prompt);
+         end if;
+         if Image_Index = 9 then
+            Append_Text (T.Stack.all, Native_Split);
+         end if;
+         Append_Text (T.Stack.all, Image_Run);
+      end loop;
+      End_Text_Block (T.Stack.all);
+      Pump_Until_Images (T, 16);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 16,
+         "one response is capped at 16 images across native segments");
+      Clear (T.Stack.all);
+      Set_Render_Markdown (T.Stack.all, False);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "![disabled](ok.png)");
+      End_Text_Block (T.Stack.all);
+      Pump_Until_Images (T, 1);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 0,
+         "disabled Markdown rendering creates no inline image widget");
+      Assert
+        (Index (Active_Text (T.Stack.all), "![disabled](ok.png)") > 0,
+         "disabled Markdown rendering retains the source description");
+   end Test_Inline_Markdown_Image_Policy;
+
+   procedure Test_Clear_With_Queued_Inline_Image (T : in out Test) is
+      View : Gtk.Text_View.Gtk_Text_View;
+      Root : constant String := To_String (T.Image_Root);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Write_PNG (Root & "/queued.png");
+      Set_Source_Directory (T.Stack.all, Root);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "![queued](queued.png)");
+      End_Text_Block (T.Stack.all);
+      View := Active_Text_View (T.Stack.all);
+      Inline_View_Destroyed := False;
+      View.On_Destroy (On_Inline_View_Destroy'Access);
+      Clear (T.Stack.all);
+      Assert (Inline_View_Destroyed,
+              "clear explicitly destroys the image-owning text view");
+      Drain_Gtk_Events;
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Active_Text_View (T.Stack.all))) = 0,
+         "late image completions do not restore widgets after clear");
+      Assert (Active_Text (T.Stack.all) = "",
+              "clearing queued image work leaves no stale response text");
+      Begin_Request (T.Stack.all, "after clear", Prompt);
+      Append_Text (T.Stack.all, "![retained](queued.png)");
+      End_Text_Block (T.Stack.all);
+      Pump_Until_Images (T, 1);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Active_Text_View (T.Stack.all))) = 1,
+         "clear preserves the configured root for later local images");
+      Assert
+        (Index (Active_Text (T.Stack.all), "retained") > 0,
+         "post-clear image alt text remains searchable");
+   end Test_Clear_With_Queued_Inline_Image;
+
    package Coyote_GUI_Conversation_Stack_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Conversation_Stack_Tests.Test);
 
@@ -1855,6 +2224,21 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             & "streaming response text",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Search_Covers_Request_Thinking_And_Streaming'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack preserves and searches image alt text",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Inline_Markdown_Images_And_Search'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack applies inline image policy",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Inline_Markdown_Image_Policy'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack clears queued image work",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Clear_With_Queued_Inline_Image'Access));
 
       return Result;
    end Suite;

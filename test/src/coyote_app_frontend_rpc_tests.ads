@@ -12,6 +12,7 @@ package Coyote_App_Frontend_RPC_Tests is
 
    procedure Test_Reader_Demultiplexes_Prompts_And_Controls
      (T : in out Test);
+   procedure Test_Source_Directory_Is_Forwarded (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

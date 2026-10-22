@@ -1,10 +1,10 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.30
-**Date:** 2026-09-15
+**Version:** 1.31
+**Date:** 2026-10-22
 
-**Status:** Verified — CSM retirement and Markdown-only baseline
+**Status:** Verified — PCR-114 scoped GTK local-image implementation and automated qualification; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -376,7 +376,9 @@ not wait for the complete user turn.
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
-| `Coyote_GUI.Conversation_Stack` | Native GTK exchange and step-frame host, update routing, Markdown response lifecycle, tool cards, and reset handling | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI.Conversation_Stack` | Native GTK exchange and step-frame host, update routing, Markdown response lifecycle, local-image request context, tool cards, and reset handling | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI.Rich_Text` | Markdown text/image realization with selectable alt-text companion for inline image anchors | `src/coyote_gui/coyote_gui-rich_text.ads/.adb` |
+| `Coyote_Image_Loader` | Bounded asynchronous local-image validation, decode, and thumbnail preparation | `src/coyote_gui/coyote_image_loader.c` (1 C unit) |
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
@@ -1420,6 +1422,37 @@ it synchronously, avoiding GTK selection clamping to the shortened layout.
 The single outer scroller avoids nested scrolling regions for ordinary
 conversation content.
 
+**Assistant local images (PCR-114; implemented and verified):**
+Completed assistant Markdown responses in the GTK conversation resolve local
+relative image destinations (including percent-escaped components) and valid
+local `file:` URIs only when the active source directory is non-empty. That
+source root comes from the persisted session header's `workDir` through
+`LLM.Session_Store.Session_Work_Dir`. Live dispatch and coordinator RPC carry
+the context; history replay sets it from the replayed session header. Ordinary
+Clear clears conversation widgets but preserves the source root. Session replay
+sets the root from the target session, including clearing it when the header
+has no work directory; accepted New Session, Switch, and in-place Fork
+replacement use the distinct `Reset_Agents` path. Plain and SQC remain
+text-only, and native table cells retain alt text rather than image widgets.
+
+`Coyote_GUI.Rich_Text` owns completed-response realization. Each image's alt
+caption remains visible, selectable, searchable, and explicitly retained beside
+the inline GTK child-anchor image; linked captions remain clickable. Resolution
+is confined beneath the canonical session root and rejects symlinks in all path
+components. Remote destinations, absent source context, missing files, paths
+outside the root, unsupported destinations, and decode errors retain visible
+alt-text fallback. No network fetch or asset persistence is performed. The
+loader supports PNG and JPEG only; GIF, WebP, and SVG are rejected.
+
+The sole loader implementation is the C unit
+`src/coyote_gui/coyote_image_loader.c`. It uses two workers and a maximum of 32
+outstanding jobs, with an 8 MiB source-file limit, 8192-pixel per-dimension and
+16-million-pixel limits, and a 640×600 no-upscale thumbnail bound. No more than
+16 images are inserted per response. Worker results are delivered to the GTK
+main context; all widget operations remain on the GTK main task. There is no
+full-size viewer or resize reflow. The adjacent visible caption is intentional,
+rather than replacing it with an image widget, to preserve text interaction.
+
 **Content and interaction:** Streaming Markdown text is held in native text
 views and completed blocks are replaced with direct libcmark-gfm output.
 Native GFM tables and standalone display-math blocks are realized through the
@@ -1481,11 +1514,13 @@ cards are not included in this text-buffer search scope.
 **Current qualification:** Native Markdown, MathML, selection, zoom, tool-card
 flow, replay, reset, search, and large-history behavior are covered by the
 retained native stack tests. The current registered suite is qualified at
-890/890; focused results are recorded in the Test Plan.
+990/990; focused results are recorded in the Test Plan. PCR-114 image-specific
+renderer, GTK stack, and loader results are recorded there; DEM-060 desktop
+qualification remains pending.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
-**Purpose:** Ada binding to libcmark-gfm with a C shim for enum resolution.
+**Purpose:** Ada binding to libcmark-gfm with a C shim for enum resolution and local-image node inspection.
 
 **C shim pattern:** libcmark-gfm exposes node-type and event-type constants
 as C `enum` values whose numeric values may differ across library versions.
