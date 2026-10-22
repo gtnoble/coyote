@@ -3759,3 +3759,42 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   accepted as automated coverage. Independent user desktop acceptance remains.
 - **Status:** Automated hardening implemented and verified; full graphical
   qualification remains open under DEM-036..039.
+
+
+## PCR-113 — Tool-detail nested scrolling obscures related information (2026-10-21)
+
+- **Date reported:** 2026-10-21
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 4-Minor
+- **Description:** The required outer tool-detail scroller moves metadata and
+  section headings out of view and nests argument/result scrollers. Multiple
+  arguments displace results, making comparison awkward. PCR-058 height caps
+  reduced wasted space but did not correct the structure.
+- **Authorization:** User accepted the two-pane inspection-window proposal on
+  2026-10-21. Main Coyote GUI only; the separate SQC inspector is unchanged.
+- **Corrective action:** Replace the support-window model with a modeless
+  co-primary inspector: File/Edit/Help menus, compact fixed selectable metadata,
+  stationary actions, one vertical splitter, one arguments text scroller and
+  one result text/image scroller. Preserve independent captured snapshots,
+  argument filtering, image fallback, and status meaning without color.
+- **Rationale:** IRIX 007-2167-005 pp. 123/125 associate scrolling with work
+  areas and allow resizable primary panes; pp. 127/131 discourage multiple
+  panes in support windows. Use a co-primary rather than misclassifying a
+  split-pane viewer as a simple support window.
+- **Affected work products:** REQ-CORE-113e, SDD-CORE, Tool_Detail_Window,
+  display-backed tests, DEM-041, frontend SDF, Mallard Help.
+- **Actions taken:** Implemented the approved layout and menus; added focused
+  display-backed tests and updated governed/user documentation.
+- **Verification:** Production/test `alr build --development` pass. Inspector
+  tests pass 5/5 under Xvfb. Complete registered suite passes 982/982 with zero
+  failed assertions/unexpected errors (60.36 s wall). Help core 12/12, GUI 1/1,
+  Mallard validation/links and CLI checks pass. `git diff --check` passes.
+  Focused GUI runs show existing environment theme CSS warnings.
+- **Evaluation:** Developer self-evaluation and separate read-only review;
+  not independent human acceptance. Tests exercise allocations, scroller
+  structure/adjustments, remap/resize, actual clipboard contents (including
+  full ellipsized metadata), snapshots, arguments, valid images and fallback.
+  Physical wheel/touchpad/keyboard/menu behavior, enlarged fonts, desktop
+  window-manager behavior, light/dark themes and Yelp remain manual DEM-041.
+- **Status:** Implemented and automated verification complete; manual DEM-041
+  qualification remains open.

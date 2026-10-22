@@ -11,6 +11,7 @@ with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Conversation_Stack_Tests;
 with Coyote_GUI_Sandbox_Profile_Window_Tests;
 with Coyote_GUI_Model_Picker_Tests;
+with Coyote_GUI_Tool_Detail_Window_Tests;
 
 package body Test_GUI_Suite is
 
@@ -31,6 +32,7 @@ package body Test_GUI_Suite is
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Sandbox_Profile_Window_Tests.Suite);
       Result.Add_Test (Coyote_GUI_Model_Picker_Tests.Suite);
+      Result.Add_Test (Coyote_GUI_Tool_Detail_Window_Tests.Suite);
 
       return Result;
    end Suite;

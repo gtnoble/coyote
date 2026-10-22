@@ -55,6 +55,6 @@
     <title>Dialogs and support windows</title>
     <p>Open Session and Sandbox Profile select their first available row and accept the selected row with Enter, keypad Enter, Space, or row activation. Change Model selects the first visible model; its search field receives initial focus, and Escape clears a non-empty query before cancelling an empty-query dialog.</p>
     <p>Preferences gives initial focus to Default model and uses Save as the default response. Its labels expose mnemonics for the editable controls; Escape cancels.</p>
-    <p>Session Stats, Tool Call Details, and other transient support windows can be closed with Escape or Ctrl+W. Their visible Close actions remain available through normal Tab traversal and mnemonics.</p>
+    <p>Open Tool Call Details from a tool card's View Details action. It is a modeless window for inspecting that call's captured arguments and result. File → Close or Ctrl+W closes the inspector; Escape also closes it. Ctrl+W closes other support windows; Escape closes or hides them. Visible Close and Help actions remain available in the Tool Call Details window, and its menus provide Close, Copy, Select All, and Help.</p>
   </section>
 </page>

@@ -1,12 +1,13 @@
 --  Coyote_GUI.Tool_Detail_Window body.
 --
---  The detail window is a modeless support window.  All values are captured
---  before construction so opening it never re-reads session files.
+--  The modeless co-primary inspector uses independent argument/result panes.
+--  All values are captured; opening it never re-reads session files.
 --
 --  Project: coyote
 
 with Ada.Directories;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_Help;
 with Coyote_Temp_Files;
@@ -14,20 +15,28 @@ with Gdk.Event;
 with Gdk.Pixbuf;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
+with Gdk.Window;
 with Glib;                  use Glib;
 with Glib.Error;
 with Glib.Object;
 with Glib.Properties;
 with GNATCOLL.JSON;
 with GNAT.OS_Lib;
+with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Css_Provider;
 with Gtk.Enums;
 with Gtk.Frame;
 with Gtk.Grid;
+with Gtk.Handlers;
 with Gtk.Image;
 with Gtk.Label;
+with Gtk.Menu;
+with Gtk.Menu_Bar;
+with Gtk.Menu_Item;
+with Gtk.Menu_Shell;
+with Gtk.Paned;
 with Gtk.Scrolled_Window;
 with Gtk.Settings;
 with Gtk.Style_Context;
@@ -36,9 +45,9 @@ with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
 with Gtk.Widget;
-with Gtk.Window;
 with Pango.Enums;
 with Pango.Font;
+with Pango.Layout;
 
 package body Coyote_GUI.Tool_Detail_Window is
 
@@ -48,7 +57,7 @@ package body Coyote_GUI.Tool_Detail_Window is
    use Pango.Enums;
    use Pango.Font;
 
-   --  Close the support window containing Button.  Looking up the toplevel
+   --  Close the inspection window containing Button.  Looking up the toplevel
    --  keeps this callback independent, so multiple detail windows coexist.
    procedure On_Close_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
@@ -154,69 +163,32 @@ package body Coyote_GUI.Tool_Detail_Window is
       Free (Font_Description);
    end Set_Monospace;
 
-   function Text_View_Height
-     (Value          : String;
-      Minimum_Height : Glib.Gint;
-      Maximum_Height : Glib.Gint)
-      return Glib.Gint
-   is
-      Characters_Per_Line : constant Positive := 72;
-      Line_Height         : constant Positive := 18;
-      Vertical_Padding    : constant Positive := 12;
-      Lines               : Natural           := 1;
-      Column              : Natural           := 0;
-      Height              : Glib.Gint;
-   begin
-      for Character_Value of Value loop
-         if Character_Value = ASCII.LF then
-            Lines  := Lines + 1;
-            Column := 0;
-         else
-            if Column >= Characters_Per_Line then
-               Lines  := Lines + 1;
-               Column := 0;
-            end if;
-            Column := Column + 1;
-         end if;
-      end loop;
-
-      Height := Glib.Gint (Lines * Line_Height + Vertical_Padding);
-      if Height < Minimum_Height then
-         return Minimum_Height;
-      elsif Height > Maximum_Height then
-         return Maximum_Height;
-      else
-         return Height;
-      end if;
-   end Text_View_Height;
-
    procedure Add_Text_View
-     (Container      : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Value          : String;
-      Minimum_Height : Glib.Gint;
-      Expand         : Boolean)
+     (Container : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Value     : String;
+      Name      : String)
    is
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       View   : Gtk.Text_View.Gtk_Text_View;
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
       Gtk.Text_Buffer.Gtk_New (Buffer);
+      Buffer.Set_Text (Value);
       Gtk.Text_View.Gtk_New (View, Buffer);
+      View.Set_Name (Name);
       View.Set_Editable (False);
       View.Set_Wrap_Mode (Gtk.Enums.Wrap_Word_Char);
       View.Set_Left_Margin (8);
       View.Set_Right_Margin (8);
       Set_Monospace (View);
-      Buffer.Get_End_Iter (Iter);
-      Buffer.Insert (Iter, Value);
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy
         (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
-      Scroll.Set_Size_Request (-1, Minimum_Height);
+      --  Keep both panes usable even when the user moves the divider.
+      Scroll.Set_Size_Request (-1, 36);
       Scroll.Add (View);
-      Container.Pack_Start (Scroll, Expand, True, 0);
+      Container.Pack_Start (Scroll, True, True, 0);
    end Add_Text_View;
 
    function Status_Text (Info : Coyote_GUI.Tool_Info) return String is
@@ -286,83 +258,48 @@ package body Coyote_GUI.Tool_Detail_Window is
 
       Gtk.Label.Gtk_New (Value_Label, Value);
       Value_Label.Set_Xalign (0.0);
-      Value_Label.Set_Line_Wrap (True);
+      Value_Label.Set_Name ("tool-detail-" & Name);
+      Value_Label.Set_Single_Line_Mode (True);
+      Value_Label.Set_Ellipsize (Pango.Layout.Ellipsize_End);
+      Value_Label.Set_Width_Chars (1);
+      Value_Label.Set_Hexpand (True);
+      Value_Label.Set_Tooltip_Text (Value);
       Value_Label.Set_Selectable (True);
       Grid.Attach (Value_Label, 1, Row, 1, 1);
    end Add_Header_Row;
 
-   procedure Add_Argument_Field
-     (Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Name      : String;
-      Value     : String)
-   is
-      Header : Gtk.Label.Gtk_Label;
-   begin
-      Gtk.Label.Gtk_New (Header);
-      Header.Set_Markup ("<b>" & Escape_Markup (Name) & "</b>");
-      Header.Set_Xalign (0.0);
-      Container.Pack_Start (Header, False, False, 3);
-      Add_Text_View
-        (Container, Value, Text_View_Height (Value, 30, 120), False);
-   end Add_Argument_Field;
-
-   procedure Build_Arguments
-     (Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Arguments : String)
-   is
+   function Format_Arguments (Arguments : String) return String is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Arguments);
+      Text   : Unbounded_String;
+
+      procedure Add_Field
+        (Field_Name  : GNATCOLL.JSON.UTF8_String;
+         Field_Value : GNATCOLL.JSON.JSON_Value)
+      is
+         Value : constant String :=
+           (if Field_Value.Kind = GNATCOLL.JSON.JSON_String_Type
+            then Field_Value.Get
+            else Field_Value.Write);
+      begin
+         if not Is_Hidden_Tool_Argument (Field_Name, Field_Value) then
+            Append (Text, Field_Name & ":" & ASCII.LF & Value
+                    & ASCII.LF & ASCII.LF);
+         end if;
+      end Add_Field;
    begin
       if Arguments'Length = 0 then
-         declare
-            Empty : Gtk.Label.Gtk_Label;
-         begin
-            Gtk.Label.Gtk_New (Empty, "(no arguments)");
-            Empty.Set_Xalign (0.0);
-            Container.Pack_Start (Empty, False, False, 0);
-         end;
+         return "(no arguments)";
       elsif Parsed.Success
         and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
       then
-         declare
-            Visible_Count : Natural := 0;
-
-            procedure Add_Field
-              (Field_Name  : GNATCOLL.JSON.UTF8_String;
-               Field_Value : GNATCOLL.JSON.JSON_Value)
-            is
-               Value : constant String :=
-                 (if
-                    Field_Value.Kind = GNATCOLL.JSON.JSON_String_Type
-                  then
-                    Field_Value.Get
-                  else Field_Value.Write);
-            begin
-               if not Is_Hidden_Tool_Argument (Field_Name, Field_Value) then
-                  Add_Argument_Field (Container, Field_Name, Value);
-                  Visible_Count := Visible_Count + 1;
-               end if;
-            end Add_Field;
-         begin
-            Parsed.Value.Map_JSON_Object (Add_Field'Access);
-            if Visible_Count = 0 then
-               declare
-                  Empty : Gtk.Label.Gtk_Label;
-               begin
-                  Gtk.Label.Gtk_New (Empty, "(no arguments)");
-                  Empty.Set_Xalign (0.0);
-                  Container.Pack_Start (Empty, False, False, 0);
-               end;
-            end if;
-         end;
+         Parsed.Value.Map_JSON_Object (Add_Field'Access);
+         return (if Length (Text) = 0 then "(no arguments)"
+                 else To_String (Text));
       else
-         Add_Text_View
-           (Container,
-            Arguments,
-            Text_View_Height (Arguments, 30, 120),
-            False);
+         return Arguments;
       end if;
-   end Build_Arguments;
+   end Format_Arguments;
 
    function Decode_Base64 (Input : String) return String is
       function Value_Of (Character_Value : Character) return Integer is
@@ -448,31 +385,23 @@ package body Coyote_GUI.Tool_Detail_Window is
       Error     : Glib.Error.GError;
    begin
       if Temp_Path'Length = 0 then
-         declare
-            Failure : Gtk.Label.Gtk_Label;
-         begin
-            Gtk.Label.Gtk_New (Failure, "[ image result unavailable ]");
-            Failure.Set_Xalign (0.0);
-            Container.Pack_Start (Failure, False, False, 0);
-         end;
+         Add_Text_View
+           (Container, "[ image result unavailable ]",
+            "tool-detail-result");
          return;
       end if;
 
       Gdk.Pixbuf.Gdk_New_From_File (Pixbuf, Temp_Path, Error);
       Coyote_Temp_Files.Delete (Temp_Path);
       if Pixbuf = Gdk.Pixbuf.Null_Pixbuf then
-         declare
-            Failure : Gtk.Label.Gtk_Label;
-         begin
-            Gtk.Label.Gtk_New
-              (Failure, "[ image result could not be decoded ]");
-            Failure.Set_Xalign (0.0);
-            Container.Pack_Start (Failure, False, False, 0);
-         end;
+         Add_Text_View
+           (Container, "[ image result could not be decoded ]",
+            "tool-detail-result");
          return;
       end if;
 
       Gtk.Image.Gtk_New (Image, Pixbuf);
+      Image.Set_Name ("tool-detail-result-image");
       Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
       declare
          Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
@@ -489,15 +418,148 @@ package body Coyote_GUI.Tool_Detail_Window is
          then
             Ada.Directories.Delete_File (Temp_Path);
          end if;
-         declare
-            Failure : Gtk.Label.Gtk_Label;
-         begin
-            Gtk.Label.Gtk_New
-              (Failure, "[ image result could not be displayed ]");
-            Failure.Set_Xalign (0.0);
-            Container.Pack_Start (Failure, False, False, 0);
-         end;
+         Add_Text_View
+           (Container, "[ image result could not be displayed ]",
+            "tool-detail-result");
    end Add_Image_Result;
+
+   package Widget_Actions is new Gtk.Handlers.Callback
+     (Gtk.Widget.Gtk_Widget_Record);
+
+   procedure On_Menu_Close
+     (Self : access Glib.Object.GObject_Record'Class)
+   is
+   begin
+      Gtk.Window.Gtk_Window (Self).Destroy;
+   end On_Menu_Close;
+
+   procedure On_Menu_Help
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      On_Help_Clicked (null);
+   end On_Menu_Help;
+
+   procedure On_Menu_Copy
+     (Self : access Glib.Object.GObject_Record'Class)
+   is
+      Focus : constant Gtk.Widget.Gtk_Widget :=
+        Gtk.Window.Gtk_Window (Self).Get_Focus;
+      use type Gtk.Widget.Gtk_Widget;
+   begin
+      if Focus /= null
+        and then (Focus.all in Gtk.Text_View.Gtk_Text_View_Record'Class
+                  or else Focus.all in Gtk.Label.Gtk_Label_Record'Class)
+      then
+         Widget_Actions.Emit_By_Name (Focus, "copy-clipboard");
+      end if;
+   end On_Menu_Copy;
+
+   procedure On_Menu_Select_All
+     (Self : access Glib.Object.GObject_Record'Class)
+   is
+      Focus : constant Gtk.Widget.Gtk_Widget :=
+        Gtk.Window.Gtk_Window (Self).Get_Focus;
+      First : Gtk.Text_Iter.Gtk_Text_Iter;
+      Last  : Gtk.Text_Iter.Gtk_Text_Iter;
+      use type Gtk.Widget.Gtk_Widget;
+   begin
+      if Focus = null then
+         return;
+      elsif Focus.all in Gtk.Text_View.Gtk_Text_View_Record'Class then
+         declare
+            Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+              Gtk.Text_View.Gtk_Text_View (Focus).Get_Buffer;
+         begin
+            Buffer.Get_Bounds (First, Last);
+            Buffer.Select_Range (First, Last);
+         end;
+      elsif Focus.all in Gtk.Label.Gtk_Label_Record'Class then
+         declare
+            Label : constant Gtk.Label.Gtk_Label :=
+              Gtk.Label.Gtk_Label (Focus);
+            Text : constant Wide_Wide_String :=
+              Ada.Strings.UTF_Encoding.Wide_Wide_Strings.Decode
+                (Label.Get_Text);
+         begin
+            --  GTK clamps selection to the ellipsized layout's length.
+            --  Select against the full layout, then restore compact display.
+            Label.Set_Ellipsize (Pango.Layout.Ellipsize_None);
+            Label.Select_Region (0, Glib.Gint (Text'Length));
+            Label.Set_Ellipsize (Pango.Layout.Ellipsize_End);
+         end;
+      end if;
+   end On_Menu_Select_All;
+
+   procedure Create_Menus
+     (Window : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Root   : not null access Gtk.Box.Gtk_Box_Record'Class)
+   is
+      Bar        : Gtk.Menu_Bar.Gtk_Menu_Bar;
+      Accels     : Gtk.Accel_Group.Gtk_Accel_Group;
+      Menu       : Gtk.Menu.Gtk_Menu;
+      Item       : Gtk.Menu_Item.Gtk_Menu_Item;
+      Entry_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+
+      procedure Add_Menu (Label : String) is
+      begin
+         Gtk.Menu.Gtk_New (Menu);
+         Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, Label);
+         Item.Set_Submenu (Menu);
+         Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), Item);
+      end Add_Menu;
+
+      procedure Add_Action
+        (Label : String;
+         Key   : Gdk.Types.Gdk_Key_Type;
+         Call  : Gtk.Menu_Item.Cb_GObject_Void)
+      is
+      begin
+         Gtk.Menu_Item.Gtk_New_With_Mnemonic (Entry_Item, Label);
+         Entry_Item.On_Activate (Call, Window);
+         Entry_Item.Add_Accelerator
+           ("activate", Accels, Key, Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
+         Gtk.Menu_Shell.Append
+           (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Entry_Item);
+      end Add_Action;
+   begin
+      Gtk.Accel_Group.Gtk_New (Accels);
+      Window.Add_Accel_Group (Accels);
+      Gtk.Menu_Bar.Gtk_New (Bar);
+      Bar.Set_Name ("tool-detail-menu");
+      Add_Menu ("_File");
+      Add_Action ("_Close", Gdk.Types.Keysyms.GDK_LC_w,
+                  On_Menu_Close'Access);
+      Add_Menu ("_Edit");
+      Add_Action ("_Copy", Gdk.Types.Keysyms.GDK_LC_c,
+                  On_Menu_Copy'Access);
+      Add_Action ("Select _All", Gdk.Types.Keysyms.GDK_LC_a,
+                  On_Menu_Select_All'Access);
+      Add_Menu ("_Help");
+      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Entry_Item, "_Overview");
+      Entry_Item.On_Activate (On_Menu_Help'Access);
+      Entry_Item.Add_Accelerator
+        ("activate", Accels, Gdk.Types.Keysyms.GDK_F1,
+         0, Gtk.Accel_Group.Accel_Visible);
+      Gtk.Menu_Shell.Append
+        (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Entry_Item);
+      Root.Pack_Start (Bar, False, False, 0);
+   end Create_Menus;
+
+   procedure Initialize_Divider
+     (Self : access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+      Paned : constant Gtk.Paned.Gtk_Paned := Gtk.Paned.Gtk_Paned (Self);
+   begin
+      --  Mapping has a real allocation. Never reset a user-adjusted sash.
+      if not Glib.Properties.Get_Property
+        (Paned, Gtk.Paned.Position_Set_Property)
+      then
+         Paned.Set_Position (Paned.Get_Allocated_Height * 2 / 5);
+      end if;
+   end Initialize_Divider;
 
    procedure Show
      (Info        : Coyote_GUI.Tool_Info;
@@ -507,12 +569,11 @@ package body Coyote_GUI.Tool_Detail_Window is
       use Gtk.Frame;
       use Gtk.Grid;
       use Gtk.Label;
-      use Gtk.Scrolled_Window;
 
       Window          : Gtk.Window.Gtk_Window;
       Root            : Gtk_Box;
-      Content_Scroll  : Gtk_Scrolled_Window;
       Content         : Gtk_Box;
+      Panes           : Gtk.Paned.Gtk_Vpaned;
       Header          : Gtk_Grid;
       Arguments_Frame : Gtk_Frame;
       Arguments_Box   : Gtk_Box;
@@ -542,26 +603,25 @@ package body Coyote_GUI.Tool_Detail_Window is
    begin
       Gtk.Window.Gtk_New (Window, Gtk.Enums.Window_Toplevel);
       Window.Set_Title ("coyote : Tool Call Details");
+      Window.Set_Name ("tool-detail-window");
+      Window.Set_Type_Hint (Gdk.Window.Window_Type_Hint_Normal);
       Window.Set_Transient_For (Main_Window);
       Window.Set_Default_Size (760, 600);
       Window.Set_Size_Request (600, 400);
       Window.On_Key_Press_Event (On_Detail_Key_Press'Access);
 
-      Gtk_New_Vbox (Root, Homogeneous => False, Spacing => 8);
-      Root.Set_Border_Width (10);
+      Gtk_New_Vbox (Root, Homogeneous => False, Spacing => 0);
       Window.Add (Root);
+      Create_Menus (Window, Root);
 
-      Gtk.Scrolled_Window.Gtk_New (Content_Scroll);
-      Content_Scroll.Set_Policy
-        (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
-      Gtk_New_Vbox (Content, Homogeneous => False, Spacing => 8);
-      Content.Set_Border_Width (4);
-      Content_Scroll.Add (Content);
-      Root.Pack_Start (Content_Scroll, True, True, 0);
+      Gtk_New_Vbox (Content, Homogeneous => False, Spacing => 6);
+      Content.Set_Border_Width (8);
+      Root.Pack_Start (Content, True, True, 0);
 
       Gtk.Grid.Gtk_New (Header);
       Header.Set_Column_Spacing (16);
-      Header.Set_Row_Spacing (6);
+      Header.Set_Row_Spacing (2);
+      Header.Set_Name ("tool-detail-header");
       Add_Header_Row (Header, 0, "Tool", Name);
       Add_Header_Row (Header, 1, "Status", Status_Text (Info));
       Add_Header_Row (Header, 2, "Datetime", Session_Start);
@@ -570,12 +630,19 @@ package body Coyote_GUI.Tool_Detail_Window is
       Add_Header_Row (Header, 5, "Position", Turn_Text);
       Content.Pack_Start (Header, False, False, 0);
 
+      Gtk.Paned.Gtk_New_Vpaned (Panes);
+      Panes.Set_Name ("tool-detail-panes");
+      Panes.On_Map (Initialize_Divider'Access);
+      Content.Pack_Start (Panes, True, True, 0);
+
       Gtk.Frame.Gtk_New (Arguments_Frame, "Arguments");
       Gtk_New_Vbox (Arguments_Box, Homogeneous => False, Spacing => 5);
       Arguments_Box.Set_Border_Width (8);
-      Build_Arguments (Arguments_Box, Arguments);
+      Add_Text_View
+        (Arguments_Box, Format_Arguments (Arguments),
+         "tool-detail-arguments");
       Arguments_Frame.Add (Arguments_Box);
-      Content.Pack_Start (Arguments_Frame, False, False, 0);
+      Panes.Pack1 (Arguments_Frame, Resize => True, Shrink => False);
 
       Gtk.Frame.Gtk_New (Result_Frame, "Result");
       Gtk_New_Vbox (Result_Box, Homogeneous => False, Spacing => 6);
@@ -590,27 +657,28 @@ package body Coyote_GUI.Tool_Detail_Window is
          Add_Text_View
            (Result_Box,
             "No result is available while the tool is running.",
-            170,
-            True);
+            "tool-detail-result");
       elsif Length (Info.Media_Type) > 0 then
          Add_Image_Result (Result_Box, Result);
       else
-         Add_Text_View (Result_Box, Result, 170, True);
+         Add_Text_View (Result_Box, Result, "tool-detail-result");
       end if;
       Result_Frame.Add (Result_Box);
-      Content.Pack_Start (Result_Frame, True, True, 0);
+      Panes.Pack2 (Result_Frame, Resize => True, Shrink => False);
 
       Gtk_New_Hbox (Button_Box, Homogeneous => False, Spacing => 6);
+      Button_Box.Set_Name ("tool-detail-actions");
       Gtk.Button.Gtk_New_With_Mnemonic (Help_Button, "_Help");
       Help_Button.On_Clicked (On_Help_Clicked'Access);
       Button_Box.Pack_End (Help_Button, False, False, 0);
       Gtk.Button.Gtk_New_With_Mnemonic (Close_Button, "_Close");
       Close_Button.On_Clicked (On_Close_Clicked'Access);
       Button_Box.Pack_End (Close_Button, False, False, 0);
-      Root.Pack_End (Button_Box, False, False, 0);
+      Content.Pack_End (Button_Box, False, False, 0);
 
       Window.Show_All;
-      Content_Scroll.Grab_Focus;
+      Gtk.Scrolled_Window.Gtk_Scrolled_Window
+        (Arguments_Box.Get_Child (0)).Get_Child.Grab_Focus;
    end Show;
 
 end Coyote_GUI.Tool_Detail_Window;

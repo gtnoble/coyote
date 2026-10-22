@@ -877,22 +877,39 @@ shall clear the previous session's statistics.
 
 **REQ-CORE-113e** (D/T/I)
 Each GUI tool card shall provide a `View Details` action that opens an
-independent, non-modal transient support window titled `coyote : Tool Call
-Details`. The conversation card shall display only the compact tool summary
-and status; it shall not display raw arguments, full results, or image result
-content. For an active call, the snapshot shall display the tool name, `Queued` or
-`Running` status, session timestamp, model, source directory, turn number,
-call position, and the captured arguments, followed by an explicit
-no-result-yet message. For
-a completed call, the window shall additionally display the full result in a
-read-only selectable view, or decode an image result into a GTK image. The
-window shall provide outer vertical scrolling, a visible Close action, Help
-action, and
-Ctrl+W closure. The view shall capture all detail data at render time and
-shall not re-read the session file when opened. Missing result records shall
-be shown as cancelled. Status shall remain understandable without color. The
-active snapshot is not live-updating; users may reopen the card after
-completion to inspect the terminal result.
+independent, non-modal, modeless co-primary inspection window titled
+`coyote : Tool Call Details`, transient for its parent conversation window.
+The default size shall be 760 × 600 pixels and the minimum size 600 × 400
+pixels. Multiple activations shall create independent windows, each retaining
+its own captured snapshot. The conversation card shall display only the compact
+tool summary and status; it shall not display raw arguments, full results, or
+image result content.
+
+The detail window shall present compact, fixed metadata fields that are
+selectable. Long metadata values shall remain on one line and be ellipsized;
+the complete value shall remain selectable and copyable and shall be available
+as a tooltip. The window shall provide File → Close, Edit → Copy and Select
+All, and Help menus, plus the existing stationary visible Close and Help
+actions. It shall not place the content in an outer scroller. Its work area
+shall use a vertical `Gtk.Paned` with one sash initially positioned at
+approximately 40% of the work-area height for arguments and 60% for result.
+Pane headings and status shall remain fixed as content scrolls.
+
+The arguments pane shall contain exactly one scrollable, read-only monospace
+text view containing all labelled decoded arguments. Individual arguments
+shall not have separate scrollers. The result pane shall contain exactly one
+scrollable read-only monospace text view for textual results, or one scrollable
+image presentation for image results. For an active call, the snapshot shall
+show tool name, `Queued` or `Running` status, session timestamp, model, source
+directory, turn number, call position, captured arguments, and an explicit
+no-result-yet message. For a completed call, it shall show the full captured
+result or decode an image result into a GTK image. Existing hidden-argument
+filtering, image fallback, result status, and status-color-independent meaning
+shall be preserved. The window shall capture all detail data at render time and
+shall not re-read the session file when opened. Missing result records shall be
+shown as cancelled. The active snapshot is not live-updating; users may reopen
+the card after completion to inspect the terminal result. The window shall
+retain keyboard operation and Ctrl+W closure.
 
 **REQ-CORE-113f** (D/T/I)
 The interactive GTK frontend shall provide `Options → Sandbox Profiles...` as

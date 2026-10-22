@@ -1018,16 +1018,21 @@ let the user explicitly control the behaviour.
 ## Unit Test Coverage Notes
 
 - `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI.
-  The modeless transient support window now uses the IRIX functional title,
-  selectable render-time metadata, a vertically scrollable content area,
-  visible Close and Help actions, deterministic focus, theme-neutral status
-  emphasis, and image-result decoding with an explicit fallback.  Live and
-  replayed tool cards carry model, source directory, session timestamp,
-  turn/call position, result media type, and cancelled-on-missing-result
-  semantics.  The abstract frontend uses defaulted metadata parameters so
-  Plain output remains line-oriented. Focused and full automated tests
-  pass; display-backed visual, keyboard, theme, and image qualification remain
-  manual DEM-041.
+  Implemented redesign: independent render-time snapshots in a modeless co-primary
+  transient `coyote : Tool Call Details` window. The accepted contract specifies
+  compact fixed selectable metadata, one-line ellipsized long values with
+  complete selectable/copyable values and tooltips, File/Edit/Help menus, stationary
+  Close and Help actions, and a vertical `Gtk.Paned` without an outer scroller.
+  The arguments pane contains one scrollable read-only monospace view for all
+  labelled decoded arguments; the result pane contains one scrollable
+  read-only monospace result view or image presentation. Hidden-argument
+  filtering, image fallback, status meaning, keyboard behavior, and snapshot/no
+  session-reread behavior are preserved. Five dedicated display-backed tests
+  pass under Xvfb for structure/default/minimum sizing, independent scrolling,
+  remapping and resizing, full metadata clipboard selection, independent and
+  running snapshots, argument formatting/filtering, image rendering/fallback.
+  Full suite: 982/982. DEM-041 desktop/theme/font and physical keyboard
+  qualification remains manual.
 - `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
   measurement, zoom scaling, relation entities, and invalid MathML error
   handling.  `Coyote_Renderer.MathML` adds headless extraction tests protecting
@@ -1697,3 +1702,31 @@ Escape, visible launch errors, real Yelp rendering/navigation and installation
 remain DEM-036..039 manual checks. Attempts at callback-level GTK probes stalled
 and were removed. Fork/spawn failure and exceptional restoration are not injected.
 These are explicit remaining coverage gaps, not completed qualification.
+
+## 2026-10-21 — Accepted Tool Call Details redesign
+
+The accepted main Coyote GUI redesign makes Tool Call Details a modeless
+co-primary inspection window, still transient for its parent, with independent
+captured snapshots. Requirements and design specify fixed selectable metadata,
+ellipsized single-line long values with complete selectable/copyable values
+and full-value tooltips, File/Edit/Help menus, stationary Close and Help actions,
+no outer scroller, and a two-pane arguments/result work area.
+
+Production and test builds explicitly use `alr build --development`. The five
+new inspector tests pass under Xvfb. They verify 760 × 600 default and
+600 × 400 minimum allocation with long metadata, approximately 40/60 initial
+split, exactly two independent scrollers, sash usability/remap preservation,
+full argument and metadata clipboard selection, independent snapshots,
+running/no-result snapshots, argument decoding/filtering/empty/raw fallback,
+and valid/invalid image results. GTK ellipsized-label selection clamps to its
+shortened layout; Select All temporarily selects against the full layout and
+restores ellipsization synchronously, preserving compact geometry and copying
+the full value. Snapshot/file APIs and the separate SQC inspector are unchanged.
+
+Full registered suite: 982/982, zero failed assertions or unexpected errors,
+60.36 s wall from `test/` under Xvfb. Help checks pass 12/12 core and 1/1 GUI,
+plus Mallard validation/links and CLI aliases. Existing theme CSS warnings occur
+on focused GUI runs. Developer self-evaluation and a separate read-only review
+were performed; these are not independent human acceptance. DEM-041 desktop,
+light/dark theme, enlarged fonts, wheel/touchpad and physical keyboard/menu
+interaction, and actual Yelp navigation remain manual qualification.

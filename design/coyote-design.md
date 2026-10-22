@@ -382,7 +382,7 @@ not wait for the complete user turn.
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Math_Element` | Native Lasem-backed display-math widget with selectable fallback source | `src/coyote_gui/coyote_gui-math_element.ads/.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
-| `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
+| `Coyote_GUI.Tool_Detail_Window` | Modeless co-primary transient tool-call snapshot window with fixed selectable metadata, menus, and a two-pane scrollable arguments/result work area | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
 | `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with multi-profile drafts, Save-All/Cancel-All, and profile-rule editing | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
 | `Coyote_GUI.Model_Picker` | Reusable modal searchable and sortable model selector returning a typed selection | `src/coyote_gui/coyote_gui-model_picker.ads/.adb` |
@@ -443,6 +443,7 @@ not wait for the complete user turn.
 | `Test_LLM_Suite` | LLM/provider test-domain suite composer | `test/src/test_llm_suite.ads/.adb` |
 | `Test_SQC_Suite` | SQC test-domain suite composer | `test/src/test_sqc_suite.ads/.adb` |
 | `Test_GUI_Suite` | GUI test-domain suite composer | `test/src/test_gui_suite.ads/.adb` |
+| `Coyote_GUI_Tool_Detail_Window_Tests` | Display-backed split-pane tool inspector, snapshot, arguments, menu, and fallback regressions | `test/src/coyote_gui_tool_detail_window_tests.ads/.adb` |
 | `Test_Integration_Suite` | Optional subprocess integration suite composer | `test/src/test_integration_suite.ads/.adb` |
 | `Test_Process_Control_Suite` | Final process-control test-domain suite | `test/src/test_process_control_suite.ads/.adb` |
 | `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
@@ -1399,8 +1400,25 @@ flag are not part of the product.
 step frames. Step frames contain thinking, response, tool-flow, footer, and
 fork-action elements. Notices are placed at the appropriate exchange or step
 level. Tool cards use native labels and argument-field grids, retain complete
-`Tool_Info` payloads for the Details window, and update by stable `Tool_Id`.
-The single outer scroller avoids nested scrolling regions for ordinary content.
+`Tool_Info` payloads for the modeless co-primary `coyote : Tool Call Details`
+window, and update by stable `Tool_Id`. Each activation opens an independent
+transient snapshot associated with its parent conversation window. The window
+uses fixed selectable metadata with one-line ellipsized values and complete
+selectable/copyable values and full-value tooltips; File → Close,
+Edit → Copy/Select All, and Help menus; and stationary Close and Help actions. Its work area has no outer
+scroller: a vertical `Gtk.Paned` separates an arguments pane (initially about
+40%) from a result pane (about 60%). Fixed headings and status remain outside
+content scrolling. The arguments pane contains one scrollable read-only
+monospace view for all labelled decoded arguments; the result pane contains one
+scrollable read-only monospace view or image presentation. There are no
+per-argument scrollers. Hidden-argument filtering, image fallback, status
+semantics, and render-time snapshot behavior are preserved; the window never
+rereads session history. Five display-backed inspector regressions pass under
+Xvfb; physical desktop/theme/font qualification remains DEM-041. Full metadata
+selection briefly removes ellipsization while setting the range, then restores
+it synchronously, avoiding GTK selection clamping to the shortened layout.
+The single outer scroller avoids nested scrolling regions for ordinary
+conversation content.
 
 **Content and interaction:** Streaming Markdown text is held in native text
 views and completed blocks are replaced with direct libcmark-gfm output.

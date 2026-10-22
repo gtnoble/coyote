@@ -6,13 +6,14 @@
 --
 --  Project: coyote
 
-with Coyote_GUI;
 with Gtk.Window;
 
 package Coyote_GUI.Tool_Detail_Window is
 
-   --  Show a structured, non-modal detail window for Info.  The window is
-   --  transient for Main_Window and remains open until closed by the user.
+   --  Show a modeless co-primary snapshot of Info, transient for Main_Window.
+   --  Metadata and actions remain fixed; arguments and result scroll in
+   --  separate resizable panes. Each window remains independent until closed.
+   --  Call only on the GTK main task.
    procedure Show
      (Info        : Coyote_GUI.Tool_Info;
       Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class);
