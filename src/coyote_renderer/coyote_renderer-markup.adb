@@ -5,6 +5,7 @@
 --
 --  Project: coyote
 
+with Ada.Containers;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_App.Utils;      use Coyote_App.Utils;
@@ -12,6 +13,8 @@ with Coyote_Cmark;          use Coyote_Cmark;
 with Interfaces.C;          use Interfaces.C;
 
 package body Coyote_Renderer.Markup is
+
+   use type Ada.Containers.Count_Type;
 
    function Xml_Escape (S : String) return String is
       R : Unbounded_String;
@@ -32,24 +35,22 @@ package body Coyote_Renderer.Markup is
    end Xml_Escape;
 
    function Render (MD_Text : String) return Render_Result is
-      Doc        : Document;
-      It         : Iterator;
-      Ev         : Event_Type_Int;
-      Node       : Node_Ptr;
-      Out_S      : Unbounded_String;
-      Result     : Render_Result;
-      Link_Label : Unbounded_String;
-      Link_Url   : Unbounded_String;
+      Doc         : Document;
+      It          : Iterator;
+      Ev          : Event_Type_Int;
+      Node        : Node_Ptr;
+      Out_S       : Unbounded_String;
+      Result      : Render_Result;
+      Link_Label  : Unbounded_String;
+      Link_Url    : Unbounded_String;
       In_Link     : Boolean := False;
       Image_Depth : Natural := 0;
 
       --  Ordered list counter stack (up to 8 levels)
       type Level_T is range 0 .. 7;
-      List_Counter : array (Level_T)
-        of Integer := (others => 0);
-      Is_Bullet    : array (Level_T)
-        of Boolean := (others => True);
-      List_Depth   : Natural := 0;
+      List_Counter : array (Level_T) of Integer := (others => 0);
+      Is_Bullet    : array (Level_T) of Boolean := (others => True);
+      List_Depth   : Natural                    := 0;
 
       function List_Indent (Depth : Natural) return String is
       begin
@@ -61,7 +62,8 @@ package body Coyote_Renderer.Markup is
 
       function Ends_With_Line_Feed return Boolean is
       begin
-         return Length (Out_S) > 0
+         return
+           Length (Out_S) > 0
            and then Element (Out_S, Length (Out_S)) = ASCII.LF;
       end Ends_With_Line_Feed;
 
@@ -75,8 +77,7 @@ package body Coyote_Renderer.Markup is
       Table_Cols : Natural := 0;
       Cur_Row    : Natural := 0;
       Cur_Col    : Natural := 0;
-      Table_Data : array (Row_Index, Col_Index)
-        of Unbounded_String;
+      Table_Data : array (Row_Index, Col_Index) of Unbounded_String;
 
       function Cstr (N : Node_Ptr) return String is
       begin
@@ -152,9 +153,9 @@ package body Coyote_Renderer.Markup is
       end Cell_Append;
 
       procedure Render_Table is
-         Max_Col_Width : constant := 35;
-         Col_Widths : array (0 .. Max_Table_Cols - 1)
-           of Natural := (others => 0);
+         Max_Col_Width : constant                                   := 35;
+         Col_Widths    : array (0 .. Max_Table_Cols - 1) of Natural :=
+           (others => 0);
 
          function Pad (S : String; W : Natural) return String is
             L : constant Natural := Natural'Min (S'Length, W);
@@ -226,14 +227,366 @@ package body Coyote_Renderer.Markup is
          Append (Out_S, "</tt>" & ASCII.LF);
       end Render_Table;
 
-      C_Text : constant Interfaces.C.char_array := Interfaces.C.To_C (MD_Text);
+      type Inline_Math is record
+         Source : Unbounded_String;
+         Latex  : Unbounded_String;
+         Token  : Unbounded_String;
+      end record;
+      package Inline_Math_Vectors is new Ada.Containers.Vectors
+        (Index_Type => Positive, Element_Type => Inline_Math);
+      Math_Items : Inline_Math_Vectors.Vector;
+      Parse_Text : Unbounded_String := To_Unbounded_String (MD_Text);
+
+      function Shield_Inline_Math return String is
+         Value             : constant String := To_String (Parse_Text);
+         Output            : Unbounded_String;
+         Index             : Integer         := Value'First;
+         Counter           : Natural         := 0;
+         Fence             : Character       := ASCII.NUL;
+         Fence_Ticks       : Natural         := 0;
+         Code_Ticks        : Natural         := 0;
+         In_HTML           : Boolean         := False;
+         In_URL            : Boolean         := False;
+         Destination_Depth : Natural         := 0;
+
+         function Slash_Escaped (Position : Integer) return Boolean is
+            Count  : Natural := 0;
+            Cursor : Integer := Position - 1;
+         begin
+            while Cursor >= Value'First
+              and then Value (Cursor) = ASCII.Back_Slash
+            loop
+               Count  := Count + 1;
+               Cursor := Cursor - 1;
+            end loop;
+            return Count mod 2 = 1;
+         end Slash_Escaped;
+
+         function In_Raw_HTML (Position : Integer) return Boolean is
+            Open_Tag   : Integer := Position - 1;
+            Tag_End    : Integer;
+            Tag_Closed : Boolean := False;
+            Tag_Name   : Unbounded_String;
+            Close_Tag  : Unbounded_String;
+         begin
+            while Open_Tag >= Value'First
+              and then Value (Open_Tag) not in '<' | '>'
+            loop
+               Open_Tag := Open_Tag - 1;
+            end loop;
+            if Open_Tag >= Value'First and then Value (Open_Tag) = '>' then
+               Tag_Closed := True;
+               Open_Tag   := Open_Tag - 1;
+               while Open_Tag >= Value'First and then Value (Open_Tag) /= '<'
+               loop
+                  Open_Tag := Open_Tag - 1;
+               end loop;
+            end if;
+            if Open_Tag < Value'First or else Open_Tag = Position - 1 then
+               return False;
+            end if;
+            if Ada.Strings.Fixed.Index
+                (Value (Open_Tag .. Position - 1), "</") >
+              0
+            then
+               return False;
+            end if;
+            Tag_End := Open_Tag + 1;
+            while Tag_End < Position
+              and then Value (Tag_End) in 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9'
+            loop
+               Append (Tag_Name, Value (Tag_End));
+               Tag_End := Tag_End + 1;
+            end loop;
+            if Length (Tag_Name) = 0 or else not Tag_Closed
+              or else Tag_End >= Position or else Value (Tag_End) /= '>'
+            then
+               return False;
+            end if;
+            Close_Tag := To_Unbounded_String ("</" & To_String (Tag_Name));
+            return
+              Ada.Strings.Fixed.Index
+                (Value (Position .. Value'Last), To_String (Close_Tag)) >
+              0;
+         end In_Raw_HTML;
+
+         function New_Token return Unbounded_String is
+            Candidate : Unbounded_String;
+         begin
+            loop
+               Counter   := Counter + 1;
+               Candidate :=
+                 To_Unbounded_String
+                   ("COYOTEINLINEMATH" &
+                    Ada.Strings.Fixed.Trim
+                      (Natural'Image (Counter), Ada.Strings.Both) &
+                    "TOKEN");
+               exit when Ada.Strings.Fixed.Index
+                   (Value, To_String (Candidate)) =
+                 0;
+            end loop;
+            return Candidate;
+         end New_Token;
+
+         procedure Save_Math (First, Last, Inner_First, Inner_Last : Integer)
+         is
+            Source : constant String           := Value (First .. Last);
+            Latex  : constant String           :=
+              (if Inner_Last >= Inner_First then
+                 Value (Inner_First .. Inner_Last)
+               else "");
+            Token  : constant Unbounded_String := New_Token;
+         begin
+            if Math_Items.Length < 64 then
+               Math_Items.Append
+                 ((To_Unbounded_String (Source), To_Unbounded_String (Latex),
+                   Token));
+               Append (Output, To_String (Token));
+            else
+               Append (Output, Source);
+            end if;
+            Index := Last + 1;
+         end Save_Math;
+
+         function Fence_Line (Position : Integer) return Boolean is
+            Line_End : Integer := Position;
+            Cursor   : Integer := Position;
+            Count    : Natural := 0;
+            Char     : Character;
+         begin
+            while Line_End <= Value'Last and then Value (Line_End) /= ASCII.LF
+            loop
+               Line_End := Line_End + 1;
+            end loop;
+            while Cursor < Line_End and then Value (Cursor) in ' ' | ASCII.HT
+            loop
+               Cursor := Cursor + 1;
+            end loop;
+            if Cursor >= Line_End or else Value (Cursor) not in '`' | '~' then
+               return False;
+            end if;
+            Char := Value (Cursor);
+            while Cursor < Line_End and then Value (Cursor) = Char loop
+               Count  := Count + 1;
+               Cursor := Cursor + 1;
+            end loop;
+            if Fence_Ticks = 0 then
+               if Count < 3 then
+                  return False;
+               end if;
+               Fence       := Char;
+               Fence_Ticks := Count;
+               return True;
+            elsif Char /= Fence or else Count < Fence_Ticks then
+               return False;
+            end if;
+            while Cursor < Line_End and then Value (Cursor) in ' ' | ASCII.HT
+            loop
+               Cursor := Cursor + 1;
+            end loop;
+            if Cursor = Line_End then
+               Fence_Ticks := 0;
+            end if;
+            return True;
+         end Fence_Line;
+      begin
+         while Index <= Value'Last loop
+            if Index = Value'First or else Value (Index - 1) = ASCII.LF then
+               if Fence_Line (Index) then
+                  declare
+                     Finish : Integer := Index;
+                  begin
+                     while Finish <= Value'Last
+                       and then Value (Finish) /= ASCII.LF
+                     loop
+                        Finish := Finish + 1;
+                     end loop;
+                     if Finish <= Value'Last then
+                        Finish := Finish + 1;
+                     end if;
+                     Append (Output, Value (Index .. Finish - 1));
+                     Index             := Finish;
+                     Code_Ticks        := 0;
+                     In_HTML           := False;
+                     In_URL            := False;
+                     Destination_Depth := 0;
+                     goto Continue_Scan;
+                  end;
+               end if;
+            end if;
+            if Fence_Ticks > 0 then
+               Append (Output, Value (Index));
+               Index := Index + 1;
+            elsif In_HTML then
+               Append (Output, Value (Index));
+               if Value (Index) = '>' then
+                  In_HTML := False;
+               end if;
+               Index := Index + 1;
+            elsif In_URL and then Value (Index) in ' ' | ASCII.HT | ASCII.LF
+            then
+               In_URL := False;
+               Append (Output, Value (Index));
+               Index := Index + 1;
+            elsif Destination_Depth > 0 then
+               Append (Output, Value (Index));
+               if Value (Index) = '(' then
+                  Destination_Depth := Destination_Depth + 1;
+               elsif Value (Index) = ')' then
+                  Destination_Depth := Destination_Depth - 1;
+               end if;
+               Index := Index + 1;
+            elsif Value (Index) = '`' then
+               declare
+                  Finish : Integer := Index;
+               begin
+                  while Finish <= Value'Last and then Value (Finish) = '`' loop
+                     Finish := Finish + 1;
+                  end loop;
+                  if Code_Ticks = 0 then
+                     Code_Ticks := Finish - Index;
+                  elsif Code_Ticks = Finish - Index then
+                     Code_Ticks := 0;
+                  end if;
+                  Append (Output, Value (Index .. Finish - 1));
+                  Index := Finish;
+               end;
+            elsif Code_Ticks = 0 and then Value (Index) = '<' then
+               In_HTML := True;
+               Append (Output, Value (Index));
+               Index := Index + 1;
+            elsif Code_Ticks = 0
+              and then
+              (Index = Value'First
+               or else Value (Index - 1) in ' ' | ASCII.HT | ASCII.LF)
+              and then Index + 6 <= Value'Last
+              and then
+              (Value (Index .. Index + 6) = "http://"
+               or else
+               (Index + 7 <= Value'Last
+                and then Value (Index .. Index + 7) = "https://"))
+            then
+               In_URL := True;
+               Append (Output, Value (Index));
+               Index := Index + 1;
+            elsif Code_Ticks = 0 and then Value (Index) = '('
+              and then Index > Value'First and then Value (Index - 1) = ']'
+            then
+               Destination_Depth := 1;
+               Append (Output, Value (Index));
+               Index := Index + 1;
+            elsif Code_Ticks = 0 and then not In_HTML and then not In_URL
+              and then not In_Raw_HTML (Index)
+              and then not Slash_Escaped (Index) and then Value (Index) = '$'
+              and then Index < Value'Last and then Value (Index + 1) /= '$'
+              and then Value (Index + 1) /= ' '
+              and then (Index = Value'First or else Value (Index - 1) /= '$')
+            then
+               declare
+                  Finish : Integer := Index + 1;
+               begin
+                  while Finish <= Value'Last loop
+                     exit when Value (Finish) = ASCII.LF;
+                     if Value (Finish) = '$' and then Finish > Index + 1
+                       and then
+                         Ada.Strings.Fixed.Index
+                           (Value (Index + 1 .. Finish - 1), " and ") >
+                         0
+                     then
+                        Finish := Value'Last + 1;
+                        exit;
+                     end if;
+                     if Value (Finish) = '$' and then Finish > Index + 1
+                       and then Value (Finish - 1) not in ' ' | ASCII.HT
+                       and then not Slash_Escaped (Finish)
+                       and then
+                       (Finish = Value'Last
+                        or else Value (Finish + 1) not in '0' .. '9')
+                       and then
+                       (Finish = Value'Last or else Value (Finish + 1) /= '$')
+                       and then not
+                       (Finish + 2 <= Value'Last
+                        and then Value (Finish + 1) in ',' | ';'
+                        and then Value (Finish + 2) = ' '
+                        and then Finish + 4 <= Value'Last
+                        and then Value (Finish + 3) = '$'
+                        and then Value (Finish + 4) in '0' .. '9')
+                     then
+                        exit;
+                     end if;
+                     Finish := Finish + 1;
+                  end loop;
+                  if Finish <= Value'Last and then Value (Finish) = '$'
+                    and then Value (Index + 1) in '0' .. '9'
+                    and then
+                      Ada.Strings.Fixed.Index
+                        (Value (Index + 1 .. Finish - 1), " and ") >
+                      0
+                  then
+                     Append (Output, Value (Index .. Finish));
+                     Index := Finish + 1;
+                  elsif Finish <= Value'Last and then Value (Finish) = '$'
+                    and then not
+                    (Value (Index + 1) in '0' .. '9'
+                     and then
+                       Ada.Strings.Fixed.Index
+                         (Value (Index + 1 .. Finish - 1), " ") >
+                       0)
+                  then
+                     Save_Math (Index, Finish, Index + 1, Finish - 1);
+                  else
+                     Append (Output, Value (Index));
+                     Index := Index + 1;
+                  end if;
+               end;
+            elsif Code_Ticks = 0 and then not Slash_Escaped (Index)
+              and then Value (Index) = ASCII.Back_Slash
+              and then Index < Value'Last and then Value (Index + 1) = '('
+            then
+               declare
+                  Finish : Integer := Index + 2;
+               begin
+                  while Finish + 1 <= Value'Last
+                    and then not
+                    (Value (Finish) = ASCII.Back_Slash
+                     and then Value (Finish + 1) = ')'
+                     and then not Slash_Escaped (Finish))
+                    and then Value (Finish) /= ASCII.LF
+                  loop
+                     Finish := Finish + 1;
+                  end loop;
+                  if Finish + 1 <= Value'Last
+                    and then Value (Finish) = ASCII.Back_Slash
+                    and then Value (Finish + 1) = ')'
+                  then
+                     Save_Math (Index, Finish + 1, Index + 2, Finish - 1);
+                  else
+                     Append (Output, Value (Index));
+                     Index := Index + 1;
+                  end if;
+               end;
+            else
+               Append (Output, Value (Index));
+               Index := Index + 1;
+            end if;
+            <<Continue_Scan>>
+            null;
+         end loop;
+         return To_String (Output);
+      end Shield_Inline_Math;
 
    begin
       if MD_Text'Length = 0 then
          return Result;
       end if;
 
-      Parse (Doc, C_Text, C_Text'Length - 1, OPT_DEFAULT);
+      Parse_Text := To_Unbounded_String (Shield_Inline_Math);
+      declare
+         C_Text : constant Interfaces.C.char_array :=
+           Interfaces.C.To_C (To_String (Parse_Text));
+      begin
+         Parse (Doc, C_Text, C_Text'Length - 1, OPT_DEFAULT);
+      end;
       if Is_Null (Root (Doc)) then
          Result.Markup := To_Unbounded_String (Xml_Escape (MD_Text));
          return Result;
@@ -265,15 +618,14 @@ package body Coyote_Renderer.Markup is
             elsif NT = NODE_IMAGE then
                if Ev = EVENT_ENTER and then not In_Cell then
                   declare
-                     Alt : constant String := Image_Alt (Node);
-                     Shown : constant String :=
+                     Alt          : constant String := Image_Alt (Node);
+                     Shown        : constant String           :=
                        (if Alt'Length = 0 then "[image]" else Alt);
-                     Start_Offset : constant Natural :=
+                     Start_Offset : constant Natural          :=
                        Visible_Length (To_String (Out_S));
-                     Link_Target : constant Unbounded_String :=
-                       (if In_Link then Link_Url
-                        else Null_Unbounded_String);
-                     Shown_Length : constant Natural :=
+                     Link_Target  : constant Unbounded_String :=
+                       (if In_Link then Link_Url else Null_Unbounded_String);
+                     Shown_Length : constant Natural          :=
                        Visible_Length (Xml_Escape (Shown));
                   begin
                      Append (Out_S, Xml_Escape (Shown));
@@ -281,14 +633,14 @@ package body Coyote_Renderer.Markup is
                         Append (Link_Label, Shown);
                      end if;
                      Result.Images.Append
-                       ((Alt_Text => To_Unbounded_String (Alt),
-                         Destination => To_Unbounded_String
-                           (Coyote_Cmark.Url (Node)),
-                         Title => To_Unbounded_String
-                           (Coyote_Cmark.Title (Node)),
+                       ((Alt_Text         => To_Unbounded_String (Alt),
+                         Destination      =>
+                           To_Unbounded_String (Coyote_Cmark.Url (Node)),
+                         Title            =>
+                           To_Unbounded_String (Coyote_Cmark.Title (Node)),
                          Link_Destination => Link_Target,
-                         Start_Char => Start_Offset,
-                         End_Char => Start_Offset + Shown_Length));
+                         Start_Char       => Start_Offset,
+                         End_Char         => Start_Offset + Shown_Length));
                      Image_Depth := 1;
                   end;
                end if;
@@ -360,13 +712,13 @@ package body Coyote_Renderer.Markup is
                         if H_Level <= 2 then
                            Append
                              (Out_S,
-                              ASCII.LF & "<span weight=""bold"""
-                              & " size=""larger"">");
+                              ASCII.LF & "<span weight=""bold""" &
+                              " size=""larger"">");
                         elsif H_Level <= 4 then
                            Append
                              (Out_S,
-                              ASCII.LF & "<span weight=""bold"""
-                              & " size=""medium"">");
+                              ASCII.LF & "<span weight=""bold""" &
+                              " size=""medium"">");
                         else
                            Append (Out_S, ASCII.LF & "<span weight=""bold"">");
                         end if;
@@ -398,16 +750,14 @@ package body Coyote_Renderer.Markup is
                if not In_Cell then
                   if Ev = EVENT_ENTER then
                      Link_Label := Null_Unbounded_String;
-                     Link_Url := To_Unbounded_String
-                       (Coyote_Cmark.Url (Node));
-                     In_Link := True;
+                     Link_Url := To_Unbounded_String (Coyote_Cmark.Url (Node));
+                     In_Link    := True;
                      Append (Out_S, "<u>");
                   else
                      Append (Out_S, "</u>");
                      if Length (Link_Label) > 0 then
                         Result.Links.Append
-                          ((Label => Link_Label,
-                            Destination => Link_Url));
+                          ((Label => Link_Label, Destination => Link_Url));
                      end if;
                      In_Link := False;
                   end if;
@@ -434,14 +784,31 @@ package body Coyote_Renderer.Markup is
                   Append (Out_S, Xml_Escape (Lit (Node)));
                   Append (Out_S, "</tt></span>" & ASCII.LF);
                end if;
+
+            elsif NT = NODE_HTML_INLINE or else NT = NODE_HTML_BLOCK then
+               if Ev = EVENT_ENTER then
+                  declare
+                     Html_Source : constant String := Lit (Node);
+                  begin
+                     if In_Cell then
+                        Cell_Append (Html_Source);
+                     else
+                        Append (Out_S, Xml_Escape (Html_Source));
+                        if In_Link then
+                           Append (Link_Label, Html_Source);
+                        end if;
+                     end if;
+                  end;
+               end if;
+
             elsif NT = NODE_BLOCK_QUOTE then
                if not In_Cell then
                   if Ev = EVENT_ENTER then
                      Append
                        (Out_S,
-                        ASCII.LF
-                        & "<span alpha=""50%%"" font_style=""italic"">"
-                        & UC_BOX_V & " ");
+                        ASCII.LF &
+                        "<span alpha=""50%%"" font_style=""italic"">" &
+                        UC_BOX_V & " ");
                   else
                      Append (Out_S, "</span>" & ASCII.LF & ASCII.LF);
                   end if;
@@ -483,21 +850,75 @@ package body Coyote_Renderer.Markup is
                        (Out_S,
                         Ada.Strings.Fixed.Trim
                           (Integer'Image (List_Counter (Level_T (List_Depth))),
-                           Ada.Strings.Left)
-                        & ". ");
+                           Ada.Strings.Left) &
+                        ". ");
                   end if;
                end if;
 
             elsif NT = NODE_TEXT then
                if Ev = EVENT_ENTER then
-                  if In_Cell then
-                     Cell_Append (Lit (Node));
-                  else
-                     Append (Out_S, Xml_Escape (Lit (Node)));
-                     if In_Link then
-                        Append (Link_Label, Lit (Node));
-                     end if;
-                  end if;
+                  declare
+                     Text_Value : constant String := Lit (Node);
+                     Cursor     : Natural         := Text_Value'First;
+                     Position   : Natural;
+                     Found      : Natural;
+                     Best       : Natural;
+
+                     procedure Emit (Text : String) is
+                     begin
+                        if In_Cell then
+                           Cell_Append (Text);
+                        else
+                           Append (Out_S, Xml_Escape (Text));
+                           if In_Link then
+                              Append (Link_Label, Text);
+                           end if;
+                        end if;
+                     end Emit;
+                  begin
+                     while Cursor <= Text_Value'Last loop
+                        Found := 0;
+                        Best  := 0;
+                        for Index in
+                          Math_Items.First_Index .. Math_Items.Last_Index
+                        loop
+                           Position :=
+                             Ada.Strings.Fixed.Index
+                               (Text_Value,
+                                To_String (Math_Items (Index).Token), Cursor);
+                           if Position > 0
+                             and then (Found = 0 or else Position < Found)
+                           then
+                              Found := Position;
+                              Best  := Index;
+                           end if;
+                        end loop;
+                        if Found = 0 then
+                           Emit (Text_Value (Cursor .. Text_Value'Last));
+                           exit;
+                        end if;
+                        if Found > Cursor then
+                           Emit (Text_Value (Cursor .. Found - 1));
+                        end if;
+                        declare
+                           Item : constant Inline_Math := Math_Items (Best);
+                           Start_Char : constant Natural     :=
+                             Visible_Length (To_String (Out_S));
+                           Source : constant String := To_String (Item.Source);
+                        begin
+                           Emit (Source);
+                           if not In_Cell then
+                              Result.Maths.Append
+                                ((Source => Item.Source, LaTeX => Item.Latex,
+                                  Start_Char => Start_Char,
+                                  End_Char   =>
+                                    Start_Char +
+                                    Visible_Length (Xml_Escape (Source))));
+                           end if;
+                           Cursor := Found + Length (Item.Token);
+                        end;
+                     end loop;
+                  end;
                end if;
 
             elsif NT = NODE_SOFTBREAK then
@@ -528,10 +949,10 @@ package body Coyote_Renderer.Markup is
                if Ev = EVENT_ENTER and then not In_Cell then
                   Append
                     (Out_S,
-                     "<span alpha=""50%%"">" & UC_HORIZ & UC_HORIZ & UC_HORIZ
-                     & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ
-                     & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ & "</span>"
-                     & ASCII.LF);
+                     "<span alpha=""50%%"">" & UC_HORIZ & UC_HORIZ & UC_HORIZ &
+                     UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ &
+                     UC_HORIZ & UC_HORIZ & UC_HORIZ & UC_HORIZ & "</span>" &
+                     ASCII.LF);
                end if;
 
             else

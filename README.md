@@ -12,10 +12,15 @@ shared between coyote and pi.
 
 - **GTK frontend** — graphical conversation view with Markdown, tool cards,
   session management, status, preferences, keyboard navigation, and Help
-- **Markdown responses** — assistant output is rendered through the legacy
-  direct libcmark-gfm path. GitHub Flavored Markdown tables are realized as
-  native tables, and standalone display-math blocks use Lasem-backed
-  Presentation MathML. Plain output remains line-oriented.
+- **Markdown responses** — assistant output uses direct libcmark-gfm rendering.
+  GitHub Flavored Markdown tables are native tables. Inline `$...$` and
+  `\(...\)` and display `$$...$$` and `\[...\]` math use the native Ada
+  parser/layout engine, with code protected and unsupported input visible as
+  source text. It supports common symbols, fractions, scripts, square and
+  indexed roots, text/roman content, arrays, font styles, delimiters, limits,
+  and accents; it does not promise full TeX compatibility. Bundled KaTeX 0.16.22
+  fonts and MIT notices are under `share/coyote/math/fonts/`. Plain output
+  remains line-oriented.
 - **Session compatibility** — newly written assistant JSONL records contain no
   `format` or `formatVersion` fields. Older records containing those fields
   remain loadable; the fields are ignored and their content is handled as
@@ -46,7 +51,8 @@ shared between coyote and pi.
 - `libcurl` development headers (for example `libcurl4-openssl-dev`)
 - `libcmark-gfm` and `libcmark-gfm-extensions` development headers
 - GTK3 and GtkAda development packages
-- Lasem 0.6 and Computer Modern math fonts for display math
+- Bundled KaTeX 0.16.22 math fonts and their MIT notices under
+  `share/coyote/math/fonts/` (no Lasem runtime dependency)
 - Yelp Help viewer for the GTK Help menu
 - `gnatcoll` ≥ 25.0.0 (pulled automatically by Alire)
 
@@ -171,10 +177,12 @@ Configuration files live under `~/.coyote/`. The main settings file is
 ```
 
 Assistant response text uses direct libcmark-gfm Markdown rendering. Native
-GFM tables and Lasem-backed Presentation MathML display blocks are retained in
-the GUI. Newly written assistant JSONL has no `format` or `formatVersion`
-fields; older records containing those fields remain loadable because the
-fields are ignored and their content is handled as Markdown during replay.
+GFM tables are retained in the GUI. Inline and standalone math use the native
+Ada math engine with code protection and visible-source fallback for
+unsupported input. Legacy MathML-shaped source is not typeset. Newly written
+assistant JSONL has no `format` or `formatVersion` fields; older records
+containing those fields remain loadable because the fields are ignored and
+their content is handled as Markdown during replay.
 
 ## Architecture
 
@@ -188,9 +196,9 @@ Coyote has two supported execution paths:
 Both paths share `LLM.Agent`, session persistence, provider adapters, and
 `Coyote_App.Dispatch.Dispatch_Event`. The frontend contract carries structured
 streaming events rather than provider-specific wire data. Assistant response
-text uses the direct libcmark-gfm Markdown path; native GFM tables and
-Lasem-backed Presentation MathML display blocks remain in the GTK conversation
-stack.
+text uses direct libcmark-gfm Markdown rendering. Native GFM tables remain,
+and the native Ada math engine handles supported inline/display expressions
+with visible-source fallback; legacy MathML source is not typeset.
 
 ## Testing
 
@@ -202,10 +210,10 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 890 registered tests and passes 890/890 on the
-development host. AUnit reports cumulative
-and per-test timing. Live provider tests remain opt-in; subagent subprocess
-tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
+The preceding qualified hierarchy contained 890 registered tests and passed
+890/890 on the development host. That dated count predates the native-math
+change and is not a current qualification claim. Live provider tests remain
+opt-in; subagent subprocess tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 
 ## License
 

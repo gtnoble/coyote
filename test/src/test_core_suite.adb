@@ -12,7 +12,7 @@ with Model_Row_Match_Tests;
 with Coyote_Cmark_Tests;
 with Sandbox_Tests;
 with Coyote_Help_Tests;
-with Coyote_Lasem_Tests;
+with Coyote_Math_Tests;
 with Coyote_Image_Loader_Tests;
 with Coyote_Image_Jobs_Tests;
 
@@ -36,7 +36,7 @@ package body Test_Core_Suite is
       Result.Add_Test (Coyote_Cmark_Tests.Suite);
       Result.Add_Test (Sandbox_Tests.Suite);
       Result.Add_Test (Coyote_Help_Tests.Suite);
-      Result.Add_Test (Coyote_Lasem_Tests.Suite);
+      Result.Add_Test (Coyote_Math_Tests.Suite);
       Result.Add_Test (Coyote_Image_Loader_Tests.Suite);
       Result.Add_Test (Coyote_Image_Jobs_Tests.Suite);
 

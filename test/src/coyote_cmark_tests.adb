@@ -8,7 +8,7 @@ with AUnit.Assertions;
 with Coyote_Cmark;
 with Coyote_App.Utils;
 with Coyote_Renderer.Markup;
-with Coyote_Renderer.MathML;
+with Coyote_Renderer.Math;
 with Coyote_Renderer.Tables;
 with Ada.Characters.Latin_1;
 with Ada.Containers;
@@ -587,10 +587,37 @@ package body Coyote_Cmark_Tests is
       Source : constant String := "<p>legacy response</p>";
       Markup : constant String :=
         Coyote_Renderer.Markup.To_Pango_Markup (Source);
+      Mixed : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("before <math><mi>x</mi></math> after");
+      Script : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup
+          ("before <script>alert('x')</script> after");
+      Block : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup
+          ("<div>first" & ASCII.LF & "second</div>" & ASCII.LF &
+           ASCII.LF & "after");
    begin
       Assert
-        (Markup = "&lt;p&gt;legacy response&lt;/p&gt;",
+        (Ada.Strings.Fixed.Index
+           (Markup, "&lt;p&gt;legacy response&lt;/p&gt;") > 0,
          "unsupported raw HTML remains visible as escaped source");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Mixed.Markup),
+            "before &lt;math&gt;&lt;mi&gt;x&lt;/mi&gt;&lt;/math&gt; after") > 0,
+         "raw MathML and adjacent prose remain visible as escaped source");
+      Assert (Mixed.Maths.Is_Empty, "raw MathML is not rendered as math");
+      Assert
+        (Ada.Strings.Fixed.Index (Script, "&lt;script&gt;") > 0
+         and then Ada.Strings.Fixed.Index (Script, "&lt;/script&gt;") > 0
+         and then Ada.Strings.Fixed.Index (Script, "<script>") = 0,
+         "raw HTML is escaped and cannot execute as Pango markup");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Block,
+            "&lt;div&gt;first" & ASCII.LF & "second&lt;/div&gt;") > 0,
+         "raw HTML block source newlines are preserved");
    end Test_Pango_Markup_Raw_Html_Falls_Back;
 
    procedure Test_Pango_Markup_Captures_Link_Destinations
@@ -743,7 +770,7 @@ package body Coyote_Cmark_Tests is
       Assert (Table.Images.Is_Empty, "table-cell images use table fallback");
    end Test_Image_Metadata_Alt_Fallbacks;
 
-   procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test) is
+   procedure Test_Display_LaTeX_Extraction_Is_Code_Safe (T : in out Test) is
       pragma Unreferenced (T);
       Fenced          : constant String                                   :=
         "```" & Ada.Characters.Latin_1.LF & "$$" & Ada.Characters.Latin_1.LF
@@ -752,10 +779,15 @@ package body Coyote_Cmark_Tests is
       Indented        : constant String                                   :=
         "    $$" & Ada.Characters.Latin_1.LF & "    not math"
         & Ada.Characters.Latin_1.LF & "    $$";
-      Fenced_Result   : constant Coyote_Renderer.MathML.Extraction_Result :=
-        Coyote_Renderer.MathML.Extract_Display_Math (Fenced);
-      Indented_Result : constant Coyote_Renderer.MathML.Extraction_Result :=
-        Coyote_Renderer.MathML.Extract_Display_Math (Indented);
+      Tab_Indented    : constant String :=
+        Character'Val (9) & "$$" & ASCII.LF & Character'Val (9) & "not math"
+        & ASCII.LF & Character'Val (9) & "$$";
+      Fenced_Result   : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Fenced);
+      Indented_Result : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Indented);
+      Tab_Result      : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Tab_Indented);
    begin
       Assert
         (Fenced_Result.Blocks.Is_Empty,
@@ -772,19 +804,23 @@ package body Coyote_Cmark_Tests is
            (To_String (Indented_Result.Masked_Text), "    $$")
          > 0,
          "indented code keeps its indentation");
-   end Test_Display_Math_Extraction_Is_Code_Safe;
+      Assert
+        (Tab_Result.Blocks.Is_Empty
+         and then Ada.Strings.Fixed.Index
+           (To_String (Tab_Result.Masked_Text), Character'Val (9) & "$$") > 0,
+         "tab-indented code remains protected and preserves its tab");
+   end Test_Display_LaTeX_Extraction_Is_Code_Safe;
 
-   procedure Test_Display_Math_Extraction_Preserves_Source (T : in out Test) is
+   procedure Test_Display_LaTeX_Extraction_Preserves_Source (T : in out Test) is
       pragma Unreferenced (T);
       Input     : constant String                                    :=
         "before" & Ada.Characters.Latin_1.LF & "$$" & Ada.Characters.Latin_1.LF
-        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+        & "\frac{x}{y} < 1"
         & Ada.Characters.Latin_1.LF & "$$" & Ada.Characters.Latin_1.LF
         & "after";
-      Extracted : constant Coyote_Renderer.MathML.Extraction_Result  :=
-        Coyote_Renderer.MathML.Extract_Display_Math (Input);
-      Block     : constant Coyote_Renderer.MathML.Display_Math_Block :=
+      Extracted : constant Coyote_Renderer.Math.Extraction_Result  :=
+        Coyote_Renderer.Math.Extract_Display_Math (Input);
+      Block     : constant Coyote_Renderer.Math.Display_Math_Block :=
         Extracted.Blocks (Extracted.Blocks.First_Index);
    begin
       Assert
@@ -793,30 +829,26 @@ package body Coyote_Cmark_Tests is
       Assert
         (To_String (Block.Source)
          = "$$" & Ada.Characters.Latin_1.LF
-         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-         & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+         & "\frac{x}{y} < 1"
          & Ada.Characters.Latin_1.LF & "$$",
          "original display-math source is retained");
       Assert
-        (To_String (Block.MathML)
-         = "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-         & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
-         & Ada.Characters.Latin_1.LF,
-         "inner MathML is separated from delimiters");
+        (To_String (Block.LaTeX) = ASCII.LF & "\frac{x}{y} < 1" & ASCII.LF,
+         "inner LaTeX is separated from delimiters");
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Extracted.Masked_Text), "COYOTE_MATH_BLOCK_1__")
          > 0,
          "complete display math becomes a placeholder");
-   end Test_Display_Math_Extraction_Preserves_Source;
+   end Test_Display_LaTeX_Extraction_Preserves_Source;
 
-   procedure Test_Display_Math_Extraction_Preserves_Unmatched (T : in out Test)
+   procedure Test_Display_LaTeX_Extraction_Preserves_Unmatched (T : in out Test)
    is
       pragma Unreferenced (T);
       Input     : constant String                                   :=
         "$$" & Ada.Characters.Latin_1.LF & "<math><mi>x</mi></math>";
-      Extracted : constant Coyote_Renderer.MathML.Extraction_Result :=
-        Coyote_Renderer.MathML.Extract_Display_Math (Input);
+      Extracted : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Input);
    begin
       Assert
         (Extracted.Blocks.Is_Empty,
@@ -824,7 +856,212 @@ package body Coyote_Cmark_Tests is
       Assert
         (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
          "unmatched display-math source remains visible");
-   end Test_Display_Math_Extraction_Preserves_Unmatched;
+   end Test_Display_LaTeX_Extraction_Preserves_Unmatched;
+
+   procedure Test_Display_LaTeX_Bracket_Delimiters (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String := "before" & ASCII.LF & "\[" & ASCII.LF &
+        "\sum_{i=1}^n x_i" & ASCII.LF & "\]" & ASCII.LF & "after";
+      Extracted : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Input);
+   begin
+      Assert (Extracted.Blocks.Length = 1, "bracket display form is extracted");
+      Assert
+        (To_String (Extracted.Blocks (1).LaTeX) = ASCII.LF &
+         "\sum_{i=1}^n x_i" & ASCII.LF,
+         "bracket delimiters are excluded from LaTeX payload");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Extracted.Masked_Text), "after") > 0,
+         "following text remains after a bracket display block");
+   end Test_Display_LaTeX_Bracket_Delimiters;
+
+   procedure Test_Display_LaTeX_Same_Line (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        Coyote_App.Utils.UC_MICRO & " $$\frac{x_i}{y}$$ and \[z_2\] $$w$$";
+      Extracted : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Input);
+   begin
+      Assert
+        (Extracted.Blocks.Length = 3,
+         "multiple same-line display expressions are extracted");
+      Assert
+        (To_String (Extracted.Blocks (1).Source) = "$$\frac{x_i}{y}$$"
+         and then To_String (Extracted.Blocks (1).LaTeX) = "\frac{x_i}{y}"
+         and then To_String (Extracted.Blocks (2).Source) = "\[z_2\]"
+         and then To_String (Extracted.Blocks (2).LaTeX) = "z_2"
+         and then To_String (Extracted.Blocks (3).LaTeX) = "w",
+         "display source and LaTeX retain exact escapes and underscores");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text),
+            Coyote_App.Utils.UC_MICRO & " COYOTE_MATH_BLOCK_1__") > 0
+         and then Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "COYOTE_MATH_BLOCK_3__") > 0,
+         "Unicode neighboring text and ordered placeholders are retained");
+   end Test_Display_LaTeX_Same_Line;
+
+   procedure Test_Display_LaTeX_Protected_Contexts (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "`$$code$$` [link](https://host.invalid/$$url$$) " &
+        "https://host.invalid/$$path$$ $$safe$$" & ASCII.LF &
+        "```" & ASCII.LF & "$$fence$$" & ASCII.LF & "```";
+      Extracted : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Input);
+   begin
+      Assert
+        (Extracted.Blocks.Length = 1
+         and then To_String (Extracted.Blocks (1).LaTeX) = "safe",
+         "code spans, fenced code, link destinations and URLs are protected");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "$$code$$") > 0
+         and then Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "$$url$$") > 0
+         and then Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "$$fence$$") > 0,
+         "protected display-like text remains literal");
+   end Test_Display_LaTeX_Protected_Contexts;
+
+   procedure Test_Inline_LaTeX_Exact_Source (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render ("$\alpha_i + x_{a_b}$ and \(y_i\)");
+   begin
+      Assert
+        (Result.Maths.Length = 2
+         and then To_String (Result.Maths (1).Source) = "$\alpha_i + x_{a_b}$"
+         and then To_String (Result.Maths (1).LaTeX) = "\alpha_i + x_{a_b}"
+         and then To_String (Result.Maths (2).Source) = "\(y_i\)"
+         and then To_String (Result.Maths (2).LaTeX) = "y_i",
+         "inline source preserves LaTeX backslashes and underscores");
+   end Test_Inline_LaTeX_Exact_Source;
+
+   procedure Test_Inline_LaTeX_Currency (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render
+          ("$5 and $6; prices $5, $6. $x$ and $2x$.");
+   begin
+      Assert
+        (Result.Maths.Length = 2
+         and then To_String (Result.Maths (1).Source) = "$x$"
+         and then To_String (Result.Maths (2).Source) = "$2x$",
+         "currency amounts stay literal while numeric math is recognized");
+   end Test_Inline_LaTeX_Currency;
+
+   procedure Test_Inline_LaTeX_Metadata_Offsets (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String := Coyote_App.Utils.UC_MICRO & " $x_i$ and \(y\)";
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render (Source);
+   begin
+      Assert (Result.Maths.Length = 2, "both inline math forms are captured");
+      Assert
+        (To_String (Result.Maths (1).Source) = "$x_i$"
+         and then To_String (Result.Maths (1).LaTeX) = "x_i",
+         "dollar math retains exact source and inner LaTeX");
+      Assert
+        (Result.Maths (1).Start_Char = 2 and then Result.Maths (1).End_Char = 7,
+         "math offsets count Unicode code points and are end-exclusive");
+      Assert
+        (To_String (Result.Maths (2).Source) = "\(y\)"
+         and then To_String (Result.Maths (2).LaTeX) = "y",
+         "parenthesis math retains exact source");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Result.Markup), "$x_i$") > 0,
+         "shared markup continues to show exact source");
+   end Test_Inline_LaTeX_Metadata_Offsets;
+
+   procedure Test_Inline_LaTeX_Protection (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String :=
+        "\$no$ ` $code$ ` https://host.invalid/$path$ " &
+        "[link](https://host.invalid/$path$) $5 and $6 " &
+        "<i>$raw$</i> <math><mi>x</mi></math> $ok$";
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render (Source);
+   begin
+      Assert
+        (Result.Maths.Length = 1,
+         "only standalone safe inline math matches");
+      Assert
+        (To_String (Result.Maths (1).Source) = "$ok$",
+         "escaped, code, URL, link destination, currency and HTML are excluded");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Result.Markup), "x") > 0,
+         "legacy MathML content remains visible without math extraction");
+   end Test_Inline_LaTeX_Protection;
+
+   procedure Test_Display_LaTeX_Scanner_Regression (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "```" & ASCII.LF & "```" & ASCII.LF &
+        "`code" & ASCII.LF & "$$hidden$$` $$visible$$" & ASCII.LF &
+        "COYOTE_MATH_BLOCK_1__ $$second$$";
+      Extracted : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math (Input);
+   begin
+      Assert
+        (Extracted.Blocks.Length = 2,
+         "closing fence permits following inline display extraction");
+      Assert
+        (To_String (Extracted.Blocks (1).Placeholder) =
+           "COYOTE_MATH_BLOCK_2__"
+         and then To_String (Extracted.Blocks (2).Placeholder) =
+           "COYOTE_MATH_BLOCK_3__",
+         "placeholder collision search scans the complete Markdown source");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Extracted.Masked_Text), "$$hidden$$") > 0,
+         "multiline inline code span remains unchanged");
+   end Test_Display_LaTeX_Scanner_Regression;
+
+   procedure Test_Math_Extraction_Caps (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : Unbounded_String;
+      Inline_Input : Unbounded_String;
+      Display : Coyote_Renderer.Math.Extraction_Result;
+      Inline_Result : Coyote_Renderer.Markup.Render_Result;
+   begin
+      for I in 1 .. 65 loop
+         Append (Input, "$$x$$ ");
+         Append (Inline_Input, "$x$ ");
+      end loop;
+      Display := Coyote_Renderer.Math.Extract_Display_Math (To_String (Input));
+      Inline_Result := Coyote_Renderer.Markup.Render (To_String (Inline_Input));
+      Assert
+        (Display.Blocks.Length = 64 and then
+         Ada.Strings.Fixed.Index
+           (To_String (Display.Masked_Text), "$$x$$") > 0,
+         "display extraction caps metadata and leaves excess math visible");
+      Assert
+        (Inline_Result.Maths.Length = 64 and then
+         Ada.Strings.Fixed.Index
+           (To_String (Inline_Result.Markup), "$x$") > 0,
+         "inline extraction caps metadata and leaves excess math visible");
+   end Test_Math_Extraction_Caps;
+
+   procedure Test_Inline_LaTeX_Scanner_Regression (T : in out Test) is
+      pragma Unreferenced (T);
+      Source : constant String :=
+        "```" & ASCII.LF & "$fenced$" & ASCII.LF & "```" & ASCII.LF &
+        "`code" & ASCII.LF & "$hidden$` $2x$ $12$ " &
+        Character'Val (92) & "$escaped$ " &
+        Character'Val (92) & Character'Val (92) & "$ok$";
+      Result : constant Coyote_Renderer.Markup.Render_Result :=
+        Coyote_Renderer.Markup.Render (Source);
+   begin
+      Assert
+        (Result.Maths.Length = 3,
+         "fences, multiline code, and odd backslash parity are protected");
+      Assert
+        (To_String (Result.Maths (1).Source) = "$2x$" and then
+         To_String (Result.Maths (2).Source) = "$12$" and then
+         To_String (Result.Maths (3).Source) = "$ok$",
+         "numeric math is retained while escaped dollar openers stay literal");
+   end Test_Inline_LaTeX_Scanner_Regression;
 
    procedure Test_Table_Extraction_Preserves_Plain_Text (T : in out Test) is
       pragma Unreferenced (T);
@@ -1056,20 +1293,60 @@ package body Coyote_Cmark_Tests is
             Coyote_Cmark_Tests.Test_Image_Metadata_Alt_Fallbacks'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
-           ("Coyote.Renderer.MathML protects Markdown code blocks",
-            Coyote_Cmark_Tests.Test_Display_Math_Extraction_Is_Code_Safe'
+           ("Coyote.Renderer.Math protects Markdown code blocks",
+            Coyote_Cmark_Tests.Test_Display_LaTeX_Extraction_Is_Code_Safe'
               Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
-           ("Coyote.Renderer.MathML preserves display-math source",
-            Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Source'
+           ("Coyote.Renderer.Math preserves display-math source",
+            Coyote_Cmark_Tests.Test_Display_LaTeX_Extraction_Preserves_Source'
               Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
-           ("Coyote.Renderer.MathML preserves unmatched delimiters",
+           ("Coyote.Renderer.Math preserves unmatched delimiters",
             Coyote_Cmark_Tests
-              .Test_Display_Math_Extraction_Preserves_Unmatched'
+              .Test_Display_LaTeX_Extraction_Preserves_Unmatched'
               Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Math extracts bracket display LaTeX",
+            Coyote_Cmark_Tests.Test_Display_LaTeX_Bracket_Delimiters'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Math extracts same-line display LaTeX",
+            Coyote_Cmark_Tests.Test_Display_LaTeX_Same_Line'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Math protects inline display contexts",
+            Coyote_Cmark_Tests.Test_Display_LaTeX_Protected_Contexts'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Markup preserves exact inline LaTeX",
+            Coyote_Cmark_Tests.Test_Inline_LaTeX_Exact_Source'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Markup excludes currency from inline LaTeX",
+            Coyote_Cmark_Tests.Test_Inline_LaTeX_Currency'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Markup inline LaTeX metadata offsets",
+            Coyote_Cmark_Tests.Test_Inline_LaTeX_Metadata_Offsets'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Markup protects inline LaTeX contexts",
+            Coyote_Cmark_Tests.Test_Inline_LaTeX_Protection'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Math scanner regression",
+            Coyote_Cmark_Tests.Test_Display_LaTeX_Scanner_Regression'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Math extraction caps",
+            Coyote_Cmark_Tests.Test_Math_Extraction_Caps'Access));
+      Result.Add_Test
+        (Coyote_Cmark_Caller.Create
+           ("Coyote.Renderer.Markup scanner regression",
+            Coyote_Cmark_Tests.Test_Inline_LaTeX_Scanner_Regression'Access));
       Result.Add_Test
         (Coyote_Cmark_Caller.Create
            ("Coyote.Renderer.Tables preserves plain text",

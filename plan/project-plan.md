@@ -162,8 +162,9 @@ advances to project or client control.
 status throughout development.
 
 **Non-deliverable tools:** GTK3 dev headers,
-libcurl dev headers, libcmark-gfm dev headers, Lasem 0.6 dev headers, and Computer Modern math fonts. Operation of delivered
-binaries does not depend on any of these tools at runtime except GTK3
+libcurl dev headers and libcmark-gfm dev headers. Bundled math fonts and MIT
+notices are under `share/coyote/math/fonts/`. Operation of delivered binaries
+does not depend on these build tools at runtime except GTK3
 (which must be present on the user's system; this is a known dependency).
 
 ### 4.3 Requirements Analysis
@@ -401,8 +402,7 @@ Subsequent builds will define their own milestone sets.
 | GTK3 + dev headers | GUI frontend | System package |
 | libcurl + dev headers | HTTP/SSE client | System package |
 | libcmark-gfm + dev headers | Markdown rendering | System package |
-| Lasem 0.6 + dev headers | Display math rendering | System package/custom install |
-| Computer Modern math fonts | Lasem glyph coverage | System font package |
+| Bundled KaTeX 0.16.22 fonts and MIT notices | Native math glyphs and metrics | `share/coyote/math/fonts/` |
 
 | Git | Version control / project library | Project root |
 
@@ -957,8 +957,8 @@ for review.
 | Indicator | Value |
 |---|---|
 | Scope | CSM parser, semantic document, response renderer/presenter/streaming owner, format metadata, environment toggle, prompt branch, persistence metadata writing, replay selection, and RPC response-format event retired from the operational path. |
-| Current design | Assistant output uses direct libcmark-gfm Markdown; native GFM tables and Lasem-backed Presentation MathML display blocks remain. |
-| Qualification | Current full suite 890/890; Markup 6/6, Conversation_Stack 28/28, System_Prompt 32/32, Session_Store 26/26, History 1/1, Agent RPC 27/27, and GUI Updates 9/9. New regression coverage includes safe oversized GFM-table truncation, cmark exception cleanup, visible escaped raw-HTML fallback, image alt-text behavior, configured font inheritance for native table labels, and focus-safe Clear. |
+| 2026-09-15 historical design | Assistant output used direct libcmark-gfm Markdown; native GFM tables and Lasem-backed Presentation MathML display blocks remained. Superseded by the current native Ada math baseline; see PCR-123. |
+| Qualification | PCR-105 qualification is historical and superseded for math. Native math implementation and replacement math test results are pending coordinator qualification; no current test count is inferred from the dated baseline. |
 | Compatibility | New assistant JSONL has no `format` or `formatVersion`; old records containing those fields remain loadable because the fields are ignored and content is handled as Markdown. |
 | Governance disposition | PCR-101 through PCR-104 current-baseline claims are superseded; their dated qualification evidence remains historical. |
 | Residual limitations | No remaining CSM operational path is claimed. Historical CSM references remain only where needed to preserve factual project history. |

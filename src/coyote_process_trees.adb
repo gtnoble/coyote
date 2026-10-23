@@ -2,7 +2,10 @@ with Ada.Containers.Ordered_Maps;
 with Ada.Containers.Ordered_Sets;
 with Ada.Containers.Vectors;
 with Ada.Directories;
-with Ada.Text_IO;
+with Ada.IO_Exceptions;
+with Ada.Streams;
+with Ada.Streams.Stream_IO;
+with Ada.Strings.Unbounded;
 with Interfaces.C;
 
 package body Coyote_Process_Trees is
@@ -126,6 +129,71 @@ package body Coyote_Process_Trees is
       return Decimal (Line (First .. Last - 1), Parent_Pid);
    end Parse_Stat;
 
+   function Read_Process_Record
+     (Path       : String;
+      Pid        : Integer;
+      Parent_Pid : out Integer) return Boolean
+   is
+      Max_Record_Bytes : constant := 65_536;
+      File             : Ada.Streams.Stream_IO.File_Type;
+      Buffer           : Ada.Streams.Stream_Element_Array (1 .. 8_192);
+      pragma Suppress_Initialization (Buffer);
+      Last             : Ada.Streams.Stream_Element_Offset;
+      Content          : Ada.Strings.Unbounded.Unbounded_String;
+      Total            : Natural := 0;
+      use type Ada.Streams.Stream_Element_Offset;
+   begin
+      Parent_Pid := 0;
+      if Path'Length = 0 or else Pid <= 0 then
+         return False;
+      end if;
+      Ada.Streams.Stream_IO.Open
+        (File, Ada.Streams.Stream_IO.In_File, Path);
+      loop
+         Ada.Streams.Stream_IO.Read (File, Buffer, Last);
+         exit when Last = 0;
+         if Natural (Last) > Max_Record_Bytes - Total then
+            Ada.Streams.Stream_IO.Close (File);
+            return False;
+         end if;
+         for Position in 1 .. Last loop
+            Ada.Strings.Unbounded.Append
+              (Content, Character'Val (Buffer (Position)));
+         end loop;
+         Total := Total + Natural (Last);
+      end loop;
+      Ada.Streams.Stream_IO.Close (File);
+      return Parse_Stat
+        (Ada.Strings.Unbounded.To_String (Content), Pid, Parent_Pid);
+   exception
+      when Ada.IO_Exceptions.Name_Error |
+           Ada.IO_Exceptions.Use_Error |
+           Ada.IO_Exceptions.Status_Error |
+           Ada.IO_Exceptions.Device_Error |
+           Ada.IO_Exceptions.End_Error |
+           Ada.IO_Exceptions.Data_Error |
+           Ada.IO_Exceptions.Layout_Error =>
+         if Ada.Streams.Stream_IO.Is_Open (File) then
+            Ada.Streams.Stream_IO.Close (File);
+         end if;
+         Parent_Pid := 0;
+         return False;
+      when others =>
+         if Ada.Streams.Stream_IO.Is_Open (File) then
+            begin
+               Ada.Streams.Stream_IO.Close (File);
+            exception
+               when Ada.IO_Exceptions.Name_Error |
+                    Ada.IO_Exceptions.Use_Error |
+                    Ada.IO_Exceptions.Status_Error |
+                    Ada.IO_Exceptions.Device_Error =>
+                  null;
+            end;
+         end if;
+         Parent_Pid := 0;
+         raise;
+   end Read_Process_Record;
+
    function Descendants
      (Root_Pid : Integer;
       Records  : Process_Record_Array) return PID_Array
@@ -174,17 +242,13 @@ package body Coyote_Process_Trees is
    end Descendants;
 
    procedure Signal_Group_Tree (Root_Pid : Integer; Signal : Integer) is
-      Snapshot : Record_Vectors.Vector;
-      Search   : Ada.Directories.Search_Type;
-      Dir_Entry : Ada.Directories.Directory_Entry_Type;
+      Snapshot       : Record_Vectors.Vector;
+      Search         : Ada.Directories.Search_Type;
+      Dir_Entry      : Ada.Directories.Directory_Entry_Type;
       Search_Started : Boolean := False;
-      --  Linux comm can contain newlines; the fixed buffer retains the
-      --  legacy limitation and is not expanded in this regression fix.
-      Line     : String (1 .. 4096);
-      Length   : Natural;
-      Parent   : Integer;
-      Pid      : Integer;
-      Ignored  : Interfaces.C.int;
+      Parent         : Integer;
+      Pid            : Integer;
+      Ignored        : Interfaces.C.int;
    begin
       if Root_Pid <= 1 or else Signal < 0 then
          return;
@@ -203,49 +267,12 @@ package body Coyote_Process_Trees is
                  Ada.Directories.Simple_Name (Dir_Entry);
             begin
                if Decimal (Entry_Name, Pid) and then Pid > 0 then
-                  declare
-                     File : Ada.Text_IO.File_Type;
-                  begin
-                     Ada.Text_IO.Open
-                       (File, Ada.Text_IO.In_File,
-                        "/proc/" & Entry_Name & "/stat");
-                     begin
-                        Ada.Text_IO.Get_Line (File, Line, Length);
-                        Ada.Text_IO.Close (File);
-                     exception
-                        when Ada.Text_IO.Status_Error |
-                             Ada.Text_IO.Mode_Error |
-                             Ada.Text_IO.Name_Error |
-                             Ada.Text_IO.Use_Error |
-                             Ada.Text_IO.Data_Error |
-                             Ada.Text_IO.End_Error |
-                             Ada.Text_IO.Layout_Error |
-                             Ada.Text_IO.Device_Error =>
-                           if Ada.Text_IO.Is_Open (File) then
-                              Ada.Text_IO.Close (File);
-                           end if;
-                           raise;
-                        when others =>
-                           if Ada.Text_IO.Is_Open (File) then
-                              Ada.Text_IO.Close (File);
-                           end if;
-                           raise;
-                     end;
-                     if Parse_Stat (Line (1 .. Length), Pid, Parent) then
-                        Snapshot.Append
-                          (Process_Record'(Pid => Pid, Parent => Parent));
-                     end if;
-                  exception
-                     when Ada.Text_IO.Status_Error |
-                          Ada.Text_IO.Mode_Error |
-                          Ada.Text_IO.Name_Error |
-                          Ada.Text_IO.Use_Error |
-                          Ada.Text_IO.Data_Error |
-                          Ada.Text_IO.End_Error |
-                          Ada.Text_IO.Layout_Error |
-                          Ada.Text_IO.Device_Error =>
-                        null;
-                  end;
+                  if Read_Process_Record
+                    ("/proc/" & Entry_Name & "/stat", Pid, Parent)
+                  then
+                     Snapshot.Append
+                       (Process_Record'(Pid => Pid, Parent => Parent));
+                  end if;
                end if;
             end;
          end loop;

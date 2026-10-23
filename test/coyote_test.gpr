@@ -7,7 +7,8 @@ project Coyote_Test is
    for Create_Missing_Dirs use "True";
    for Exec_Dir use "bin";
    for Main use ("coyote_test.adb", "mock_coyote.adb", "auth_test_worker.adb",
-                 "help_test_worker.adb", "notify_test_worker.adb");
+                 "help_test_worker.adb", "notify_test_worker.adb",
+                 "signal_shutdown_worker.adb");
 
    package Compiler is
       for Default_Switches ("Ada") use Coyote_Test_Config.Ada_Compiler_Switches;
@@ -18,7 +19,7 @@ project Coyote_Test is
    end Binder;
 
    package Linker is
-      for Switches ("Ada") use ("-lcurl", "-lcmark-gfm", "-lcmark-gfm-extensions", "-L/usr/local/lib/x86_64-linux-gnu", "-llasem-0.6", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread");
+      for Switches ("Ada") use ("-lcurl", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread");
    end Linker;
 
    package Install is

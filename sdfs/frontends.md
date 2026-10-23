@@ -159,14 +159,16 @@ RPC protocol, and is a no-op for line-oriented Plain output.
 finalization and continuation into a new frame; Agent_RPC verifies the new
 `endStep` event round trip.
 
-## 2026-09-15 — Complete CSM retirement and Markdown-only frontend baseline (PCR-105)
+## Historical — 2026-09-15 — Complete CSM retirement and Markdown-only frontend baseline (PCR-105; math superseded by PCR-123)
 
 The frontend no longer selects or presents CSM. The environment toggle, prompt
 branch, response-format fields/events, persistence metadata writing, replay
 selection, and deleted parser/semantic/presenter/streaming-owner units have no
-operational path. Assistant output follows direct libcmark-gfm Markdown;
-Conversation_Stack retains native GFM tables and Lasem-backed Presentation
-MathML display blocks. Plain output remains line-oriented.
+operational path. Assistant output followed direct libcmark-gfm Markdown;
+Conversation_Stack retained native GFM tables and Lasem-backed Presentation
+MathML display blocks in that 2026-09-15 baseline. The math implementation and
+qualification claims in this entry are superseded by the 2026-10-23 native Ada
+math engine record below. Plain output remains line-oriented.
 
 New assistant JSONL records have no `format` or `formatVersion` fields. Legacy
 records containing those fields remain readable because the fields are ignored
@@ -1849,3 +1851,31 @@ on focused GUI runs. Developer self-evaluation and a separate read-only review
 were performed; these are not independent human acceptance. DEM-041 desktop,
 light/dark theme, enlarged fonts, wheel/touchpad and physical keyboard/menu
 interaction, and actual Yelp navigation remain manual qualification.
+
+
+## 2026-10-22 — Reference-guided native Ada math feasibility slice (superseded)
+
+This earlier prototype entry records the exploratory work and its standalone
+results. It was subsequently promoted and replaced by the production engine
+recorded below; its non-production status and deferred-scope statements are
+historical and no longer describe the current product baseline. PCR-122 remains
+a factual record of the feasibility work.
+
+## 2026-10-22 — Production native math cutover qualified (PCR-123)
+
+The user authorized production completion and removal, not preservation, of the
+legacy MathML renderer. The production engine now lives in `src/coyote_math/`
+with shared font assets/notices under `share/coyote/math/`; duplicated prototype
+code and fonts were removed. `Coyote_Renderer.Math` replaces the old extractor.
+Inline GTK formulas retain hidden exact source for Copy, stable marks for zoom
+reflow, baseline offsets and theme colours. Display formulas draw natively.
+Unsupported input and resource-limit/font failures retain visible source.
+
+The MathML/Lasem binding, C bridge, extractor, five registered tests and link
+settings are removed. Historical entries are superseded, not current support.
+The prompt and active requirements now request LaTeX. Final development builds
+pass; Xvfb full suite passes 1042/1042 with no failures/unexpected errors.
+Native qualification passes 151 assertions; Valgrind has zero errors/lost bytes;
+metrics regenerate byte-identically. See `plan/native-math-test-report.md` for
+full evidence and explicit qualification gaps. These are developer/agent checks,
+not independent human visual acceptance or a promise of complete TeX support.

@@ -17,7 +17,7 @@ with Coyote_GUI.Math_Element;
 with Coyote_GUI.Markdown_Links;
 with Coyote_GUI.Rich_Text;
 with Coyote_GUI.Navigation;
-with Coyote_Renderer.MathML;
+with Coyote_Renderer.Math;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
 with Glib;                  use Glib;
@@ -356,7 +356,7 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Render_Markdown then
          Coyote_GUI.Rich_Text.Insert
            (View, Rendered, To_String (C.Source_Directory),
-            C.Images_Remaining, Clear => True);
+            C.Images_Remaining, Clear => True, Math_Scale => C.Math_Scale);
       end if;
       C.Active_Text := Buffer;
       C.Active_View := View;
@@ -447,11 +447,11 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Add_Response_Math
      (C      : in out Instance;
       Parent :        not null access Gtk.Box.Gtk_Box_Record'Class;
-      Block  :        Coyote_Renderer.MathML.Display_Math_Block)
+      Block  :        Coyote_Renderer.Math.Display_Math_Block)
    is
       Element : constant Coyote_GUI.Math_Element.Instance_Access :=
         Coyote_GUI.Math_Element.New_Element
-          (To_String (Block.MathML), To_String (Block.Source), C.Math_Scale);
+          (To_String (Block.LaTeX), To_String (Block.Source), C.Math_Scale);
    begin
       if Element = null then
          Add_Response_Text (C, Parent, To_String (Block.Source));
@@ -465,8 +465,8 @@ package body Coyote_GUI.Conversation_Stack is
    is
       Table_Extraction : constant Coyote_Renderer.Tables.Extraction_Result :=
         Coyote_Renderer.Tables.Extract_Tables (Full_Text);
-      Math_Extraction  : constant Coyote_Renderer.MathML.Extraction_Result :=
-        Coyote_Renderer.MathML.Extract_Display_Math
+      Math_Extraction  : constant Coyote_Renderer.Math.Extraction_Result :=
+        Coyote_Renderer.Math.Extract_Display_Math
           (To_String (Table_Extraction.Masked_Text));
       Masked : constant String := To_String (Math_Extraction.Masked_Text);
       Cursor : Positive := (if Masked'Length > 0 then Masked'First else 1);
@@ -514,12 +514,8 @@ package body Coyote_GUI.Conversation_Stack is
             Table_Position := 0;
          end if;
          if Math_Index <= Natural (Math_Extraction.Blocks.Length) then
-            Math_Token    :=
-              To_Unbounded_String
-                ("COYOTE_MATH_BLOCK_"
-                 & Ada.Strings.Fixed.Trim
-                   (Natural'Image (Math_Index), Ada.Strings.Both)
-                 & "__");
+            Math_Token :=
+              Math_Extraction.Blocks (Math_Index).Placeholder;
             Math_Position :=
               Ada.Strings.Fixed.Index (Masked, To_String (Math_Token), Cursor);
          else
@@ -577,8 +573,8 @@ package body Coyote_GUI.Conversation_Stack is
          end if;
       end;
       declare
-         Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
-           Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
+         Extraction : constant Coyote_Renderer.Math.Extraction_Result :=
+           Coyote_Renderer.Math.Extract_Display_Math (Full_Text);
       begin
          if not Extraction.Blocks.Is_Empty then
             Has_Display_Math := True;
@@ -592,7 +588,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       Coyote_GUI.Rich_Text.Insert
         (C.Active_View, Rendered, To_String (C.Source_Directory),
-         C.Images_Remaining);
+         C.Images_Remaining, Math_Scale => C.Math_Scale);
    end Replace_Streamed_Text;
 
    procedure Configure_Text_View
@@ -1814,7 +1810,7 @@ package body Coyote_GUI.Conversation_Stack is
       View : constant Gtk.Text_View.Gtk_Text_View := Selection_View (C);
    begin
       if View /= null and then View.Get_Buffer.Get_Has_Selection then
-         View.Get_Buffer.Copy_Clipboard (Gtk.Clipboard.Get);
+         Coyote_GUI.Rich_Text.Copy_Selection (View);
       end if;
    end Copy_Selection;
 
@@ -1885,6 +1881,13 @@ package body Coyote_GUI.Conversation_Stack is
          end loop;
       end if;
       C.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
+      if not C.Text_Views.Is_Empty then
+         for Text_Index in C.Text_Views.First_Index .. C.Text_Views.Last_Index
+         loop
+            Coyote_GUI.Rich_Text.Reflow
+              (C.Text_Views (Text_Index), C.Math_Scale);
+         end loop;
+      end if;
       if not C.Math_Elements.Is_Empty then
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index

@@ -154,31 +154,45 @@ package body LLM_System_Prompt_Tests is
    begin
       Assert
         (Ada.Strings.Fixed.Index (P, "# Display Math") > 0,
-         "default prompt should include display-math guidance");
+         "prompt includes display-math guidance");
       Assert
-        (Ada.Strings.Fixed.Index (P, "Presentation MathML") > 0,
-         "display-math guidance should require Presentation MathML");
+        (Ada.Strings.Fixed.Index (P, "standalone `$$` lines") > 0
+         and then Ada.Strings.Fixed.Index (P, "`\[...\]`") > 0,
+         "prompt documents both display delimiters");
       Assert
-        (Ada.Strings.Fixed.Index (P, "`<math>`") > 0,
-         "display-math guidance should require a math root document");
+        (Ada.Strings.Fixed.Index (P, "# Inline Math") > 0
+         and then Ada.Strings.Fixed.Index (P, "$x^2$") > 0
+         and then Ada.Strings.Fixed.Index (P, "`\(x^2\)`") > 0,
+         "prompt documents both inline delimiters");
       Assert
-        (Ada.Strings.Fixed.Index (P, "http://www.w3.org/1998/Math/MathML") > 0,
-         "display-math guidance should require the MathML namespace");
+        (Ada.Strings.Fixed.Index (P, "## Native Math Capabilities") > 0,
+         "prompt describes the native engine's supported profile");
       Assert
-        (Ada.Strings.Fixed.Index (P, "`&lt;`") > 0,
-         "display-math guidance should require XML escaping");
+        (Ada.Strings.Fixed.Index (P, "`\dfrac`") > 0
+         and then Ada.Strings.Fixed.Index (P, "`\sqrt[3]{x}`") > 0
+         and then Ada.Strings.Fixed.Index (P, "`\mathbb`") > 0
+         and then Ada.Strings.Fixed.Index (P, "`\limits`") > 0,
+         "prompt advertises implemented layout and font capabilities");
       Assert
-        (Ada.Strings.Fixed.Index (P, "LaTeX") > 0,
-         "display-math guidance should prohibit LaTeX commands");
+        (Ada.Strings.Fixed.Index (P, "`cases`") > 0
+         and then Ada.Strings.Fixed.Index (P, "`aligned`") > 0
+         and then Ada.Strings.Fixed.Index (P, "`Vmatrix`") > 0,
+         "prompt advertises supported array environments");
       Assert
-        (Ada.Strings.Fixed.Index (P, "\frac") = 0,
-         "display-math guidance should not advertise LaTeX commands");
+        (Ada.Strings.Fixed.Index (P, "Do not define macros") > 0
+         and then Ada.Strings.Fixed.Index (P, "not full TeX") > 0
+         and then Ada.Strings.Fixed.Index (P, "4096 source bytes") > 0,
+         "prompt states dialect and processing limits");
       Assert
-        (Ada.Strings.Fixed.Index (P, "# Inline Math") > 0,
-         "default prompt should include inline-math guidance");
+        (Ada.Strings.Fixed.Index (P, "Escape currency dollars") > 0
+         and then Ada.Strings.Fixed.Index
+           (P, "Keep multilingual prose outside math delimiters") > 0
+         and then Ada.Strings.Fixed.Index
+           (P, "Unsupported expressions remain visible") > 0,
+         "prompt explains currency, text and source fallback");
       Assert
-        (Ada.Strings.Fixed.Index (P, "Unicode math symbols directly") > 0,
-         "inline-math guidance should require Unicode math symbols");
+        (Ada.Strings.Fixed.Index (P, "Presentation MathML") = 0,
+         "retired MathML instruction is absent");
    end Test_Default_Prompt_Contains_Display_Math_Guidance;
 
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test) is

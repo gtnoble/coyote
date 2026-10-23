@@ -18,6 +18,14 @@ package Coyote_Process_Trees is
       Pid        : Integer;
       Parent_Pid : out Integer) return Boolean;
 
+   --  Read a complete stat record through EOF and parse its PPID. Records
+   --  larger than 64 KiB, missing files, and malformed records return False
+   --  and clear Parent_Pid to zero. Unexpected exceptions propagate.
+   function Read_Process_Record
+     (Path       : String;
+      Pid        : Integer;
+      Parent_Pid : out Integer) return Boolean;
+
    --  Return breadth-first descendants from a process snapshot.
    --  Root_Pid is included as a traversal sentinel even if not present;
    --  cycles are visited once.  Root_Pid <= 1 returns an empty result.

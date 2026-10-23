@@ -1,9 +1,9 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.34
+**Version:** 1.35
 **Date:** 2026-10-22
 
-**Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; DEM-060 desktop qualification pending
+**Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -70,9 +70,9 @@ owner) is invited to independently review test results before accepting them.
 | GTK3 runtime + dev headers | GUI frontend, coyote_sqc | ≥ 3.0 |
 | libcurl + dev headers | All providers (LLM.HTTP) | Any current |
 | libcmark-gfm + dev headers | GUI frontend markdown rendering | Any current |
-| Lasem 0.6 + shared library | GUI display-math rendering | 0.6.0 |
+| Bundled KaTeX 0.16.22 math fonts and metrics | Native Ada math rendering | `share/coyote/math/fonts/` |
 | libnotify4 + notification daemon | GTK completion notifications | 0.8.3-compatible |
-| Computer Modern math fonts | Lasem glyph coverage | cmr10/cmmi10/cmex10/cmsy10 |
+| KaTeX font license notices | Bundled font redistribution | MIT notices in `share/coyote/math/fonts/` |
 | GNATCOLL | JSON processing | ≥ 25.0.0 (via Alire) |
 
 ### 3.3 Test Infrastructure
@@ -97,8 +97,8 @@ See `plan/integration-test-guide.md` for full setup instructions.
 - GUI conversation coverage targets the qualified
   `Coyote_GUI.Conversation_Stack` implementation with GTK3 and a display (or
   `xvfb-run`). The native tests cover one outer scroller, exchange and step
-  widgets, Markdown, MathML, selection, tool flow, lifecycle, reset, and zoom.
-  Display-backed native qualification is complete.
+  widgets, Markdown, native math, selection, tool flow, lifecycle, reset, and zoom.
+  Native-math qualification is recorded in `plan/native-math-test-report.md`.
 - The obsolete `Coyote_GUI.Buffer` unit and legacy conversation renderer were
   removed. Plain frontend tests remain independent and headless where applicable.
 Headless `GtkTextBuffer` tests, when present, do not require a display.
@@ -130,9 +130,10 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** The complete current AUnit suite (1014 registered
-tests) must pass before any demonstration-verified requirements are reviewed.
-Demonstration tests are performed after the automated suite is green.
+**Progression criterion:** The complete current AUnit suite must pass before any
+demonstration-verified requirements are reviewed. The registered total is
+pending the current coordinator run. Demonstration tests are performed after
+the automated suite is green.
 
 **PCR-117 verification (2026-10-22):** Root `alr build --development` and
 `cd test && alr build --development --profiles=coyote=development` passed;
@@ -210,17 +211,18 @@ SRS-CORE requirement groups.
 | `coyote_image_jobs_tests.adb` | REQ-CORE-111 Ada image-job scheduling behavior | Focused jobs tests pass 3/3 |
 | `test/tools/check-image-loader.sh` + `test/native/image_io_test.c` | Thin POSIX C I/O shim and native shim checks only; 15/15 checks pass in normal and ASan/UBSan modes |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111 image context, caption, image policy, and clear/lifetime behavior; history source-root restoration and RPC source-context forwarding are also covered | Three added GUI tests; focused `Conversation_Stack` family 38/38; history coverage extended; RPC family includes two added tests |
-| `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
+| `coyote_math_tests.adb` | Native math parsing, layout, metrics, painting, supported common constructs, visible unsupported-source fallback, and resource lookup | 18 registrations; focused 18/18 passed |
 
 
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy and native lifecycle) | 7 direct registrations; includes `Coyote.Notify isolated lifecycle smoke test`, invoking `test/tools/notify_test_worker.adb` under a 10-second timeout and unavailable D-Bus address |
-| `coyote_process_control_tests.adb` | PCR-117 process-tree parser/snapshot and live signalling regressions | `Coyote process stat parser handles proc records`; `Coyote process snapshot handles cycles and large trees` (breadth-first order, missing root, cycles, root PID 1 rejection, 9,000 records); existing registered `Coyote process signalling reaches nested setsid descendants` exercises live nested-group signalling |
-
+| `coyote_process_control_tests.adb` | PCR-117/120 process-tree parser, complete-record reader, snapshot and live signalling | Exact registrations: `Coyote process stat parser handles proc records`; `Coyote process stat reader consumes complete records`; `Coyote process snapshot handles cycles and large trees`; `Coyote process signalling reaches nested setsid descendants`. Focused Process-Control passed 7/7 and the full suite passed 1017/1017. Reader coverage in that run includes CRLF and no-final-newline records, tabs and parentheses in `comm`, >4 KiB records, oversized rejection with parent cleared, empty/malformed/missing files, repeated reads, and `/proc/self/stat`. The final rerun includes the exact-64-KiB record and embedded-CR assertion. |
+| `test/tools/check-signal-bridge.sh` + `test/native/signal_bridge_test.c` | PCR-121 native SIGTERM bridge installation/handler qualification | Isolated child cases cover handler `errno`, first/second state and draining, saturation, repeat installation/no descriptor leak, EINTR, fd flags, bad-fd exit, and injected `pipe`, `fcntl`, `sigaction`, and read behavior. Strict C11 and ASan/UBSan runs are each bounded at 30 seconds. 48 parent fork/wait/status checks passed in each strict C11 and ASan/UBSan run across 16 isolated cases (not 48 semantic assertions); all eight distinct fcntl failure targets were exercised. Harness uses single-threaded isolated subprocesses; standard SIGTERM coalescing is not an exact concurrent-delivery counter. |
+| `Coyote_Signal_Shutdown_Tests` and `Signal_Shutdown_Worker` | PCR-121 isolated Ada first/second SIGTERM shutdown lifecycle | Exact registrations: `Coyote.Signal_Shutdown grace waits full interval` and `Coyote.Signal_Shutdown second signal escalates`. Worker is included in `test/coyote_test.gpr` and invoked under timeout. Development builds passed with development profiles; isolated Ada lifecycle tests passed 2/2 and full suite passed 1017/1017. Worker calls `Complete_Shutdown` directly after read/`Begin_Shutdown`; no registered groups, so this is not full-application shutdown or real group-cleanup qualification. Installation is startup-serialized, not concurrency-qualified; real desktop shutdown remains manual. |
 | `llm_http_tests.adb` | PCR-117 fixed-signature curl timeout wrapper coverage | Focused HTTP suite passes 6/6, including `LLM.HTTP total timeout bounds a delayed response` and `LLM.HTTP aborts a stalled response promptly`. The latter exercises stalled-transfer cancellation, not a separate connect-timeout timing test; connect-timeout configuration is confirmed by source inspection. |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
-| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, Markdown/images, tables, MathML, tool-card flow, lifecycle, reset, configured font inheritance for response views and native table labels, and focus-safe Clear | 31 direct registrations |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, Markdown/images, tables, inline/display math, code protection, tool-card flow, lifecycle, reset, configured font inheritance, and focus-safe Clear | 40 registrations; focused 40/40 passed under Xvfb |
 | `coyote_gui_updates_tests.adb` | REQ-CORE-116..119, 128; protected GTK update queue payload and lifecycle coverage | 9 direct registrations |
 | `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
@@ -236,7 +238,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **1014**
+**Historical automated-test baseline:** 1017 registered tests in the preceding qualified build; superseded for the current native-math change. The native-math suite passed 1042/1042; results are in `plan/native-math-test-report.md`.
 
 **Historical baseline:** PCR-116 passed 1001/1001 in 70.87 seconds (exit 0); that dated result remains historical and is not the current PCR-117 baseline.
 
@@ -287,7 +289,7 @@ behaviour. Results are recorded in a Test Report.
 | Historical DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming; GFM tables become native grids with selectable cells, bold headers, and column alignment; local selection exposes plain text; the Render Markdown toggle preserves source text when disabled; and zoom changes native response font size. Native-table automated qualification is complete; remaining manual visual checks are tracked separately. |
 | DEM-060 | REQ-CORE-111 | In the display-backed GTK GUI with session-local fixtures, manually verify inline PNG/JPEG display and visible selectable alt caption, including clickable linked-caption behavior, representative allocation, enlarged fonts, scrolling, clipboard interaction, and missing/remote/out-of-root/symlink/corrupt fallbacks. Automated PCR-116 qualification is complete; Plain/SQC remain text-only by automated/source verification. Desktop visual and interaction acceptance remains pending. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
-| DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, zoom, visual, and local-selection acceptance is complete. |
+| DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise supported inline and display delimiters, code protection, common constructs, unsupported visible-source fallback, local selection, and zoom. Automated replacement qualification passed; physical desktop acceptance remains manual. See `plan/native-math-test-report.md`. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room, the persistent status area contains the lifecycle label and context progress indicator, the indicator updates and remains bounded between empty and full, and the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI layout and shutdown lifecycle`; visual sizing and theme contrast remain manual checks under the active theme. |
 | DEM-006 | REQ-CORE-040–044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | Historical DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
@@ -299,12 +301,13 @@ behaviour. Results are recorded in a Test Report.
 
 **Phase 12 automated qualification note:** The consolidated headless fixture contributes 5 passing tests with no display dependency. The consolidated GUI fixture contributes 3 passing display-backed tests on `DISPLAY=:0.0` (X11). If no `DISPLAY` or `WAYLAND_DISPLAY` is available, the fixture emits `[SKIP display unavailable] CSM-2 GUI qualification fixture` and returns without assertions. The checks use normalized content, semantic/block order, native table cells/alignment, terminal MathML validity/source, shared spacing/style, selection/copy, deterministic child counts, split-delta reconciliation, and malformed fallback; they do not claim pixel identity or clipboard retrieval.
 
-**Current Markdown-only retirement qualification (2026-09-15):** The CSM parser,
+**Historical Markdown-only retirement qualification (2026-09-15; math portion superseded):** The CSM parser,
 semantic document, response presenter/renderer/streaming owner, format metadata,
 environment toggle, prompt branch, persistence writer, replay selector, and RPC
 response-format event were removed. Assistant output uses direct libcmark-gfm
-Markdown rendering; native GFM tables and Lasem-backed Presentation MathML
-display blocks remain covered by the retained renderer and native stack tests.
+Markdown rendering; native GFM tables remain. Its Lasem-backed Presentation
+MathML math claims are superseded by the native Ada math engine; replacement
+qualification passed; see `plan/native-math-test-report.md`.
 New JSONL assistant records have no `format` or `formatVersion`; legacy records
 containing those fields remain loadable because the fields are ignored and
 content is handled as Markdown.
@@ -386,10 +389,12 @@ and must be demonstrated or inspected:
 - REQ-CORE-074 — Copilot token auto-refresh (requires live Copilot credential)
 - REQ-CORE-142 — SIGTERM handling (requires OS signal; manual test)
 
-The native Markdown, MathML, live/replay, local-selection, responsive-flow,
-and large-history qualification gates were accepted on 2026-08-31. Remaining
-coverage gaps are limited to the unrelated filesystem, live-provider, signal,
-and preferences demonstrations listed above.
+The native Markdown, live/replay, local-selection, responsive-flow, and
+large-history qualification gates were accepted on 2026-08-31. The prior
+display-math acceptance is superseded by the native Ada engine and replacement
+automated and display-backed qualification remains pending. Other prior gates
+remain as recorded. Remaining unrelated coverage gaps include filesystem,
+live-provider, signal, and preferences demonstrations listed above.
 
 ---
 
@@ -445,7 +450,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-090–093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100–109 | Historical | Retired Acme/plumber controls; see PCR-090 |
 | REQ-CORE-110–115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
-| REQ-CORE-111 | T/D | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `coyote_cmark_tests.adb`, `coyote_image_loader_tests.adb`, `coyote_image_jobs_tests.adb`, `test/tools/check-image-loader.sh`, `test/native/image_io_test.c`, `coyote_gui_conversation_stack_tests.adb`, `coyote_app_history_tests.adb`, `coyote_app_agent_rpc_tests.adb`, `Coyote_GUI.Math_Element`, DEM-014, DEM-046..047, DEM-060; PCR-116 automated verification complete; DEM-060 pending |
+| REQ-CORE-111 | T/D | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.Math`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `coyote_cmark_tests.adb`, `coyote_image_loader_tests.adb`, `coyote_image_jobs_tests.adb`, `test/tools/check-image-loader.sh`, `test/native/image_io_test.c`, `coyote_gui_conversation_stack_tests.adb`, `coyote_app_history_tests.adb`, `coyote_app_agent_rpc_tests.adb`, `Coyote_GUI.Math_Element`, DEM-014, DEM-046..047, DEM-060; PCR-116 automated verification complete; DEM-060 pending |
 | REQ-CORE-113a | D/T/I | `coyote_help_tests.adb`, `coyote_app-frontend-gui-help_tests.adb`, `test/check-help.sh`; widget/launcher coverage only; remaining activation/navigation DEM-036..039 |
 | REQ-CORE-113b..113c | D/T/I | `coyote_app_frontend_gui_tests.adb`, `coyote_gui_mode_tests.adb` (Agent run-mode availability only), DEM-036..039, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
@@ -454,7 +459,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014, DEM-046 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
-| REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-048 |
+| REQ-CORE-124 | T/D | `coyote_math_tests.adb`, `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`; replacement automated qualification passed; see `plan/native-math-test-report.md` |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D/T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |

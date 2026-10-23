@@ -103,14 +103,45 @@ package Coyote_Cmark_Tests is
    --  escaped-entity and Unicode visible positions.
    procedure Test_Image_Metadata_Alt_Fallbacks (T : in out Test);
    --  Display-math extraction must preserve Markdown code blocks.
-   procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test);
+   procedure Test_Display_LaTeX_Extraction_Is_Code_Safe (T : in out Test);
 
-   --  A complete display-math block yields source and inner MathML.
-   procedure Test_Display_Math_Extraction_Preserves_Source (T : in out Test);
+   --  A complete display-math block yields source and inner LaTeX.
+   procedure Test_Display_LaTeX_Extraction_Preserves_Source (T : in out Test);
 
    --  An unmatched display delimiter remains ordinary Markdown.
-   procedure Test_Display_Math_Extraction_Preserves_Unmatched
+   procedure Test_Display_LaTeX_Extraction_Preserves_Unmatched
      (T : in out Test);
+
+   --  Display \[...\] delimiters extract their inner LaTeX.
+   procedure Test_Display_LaTeX_Bracket_Delimiters (T : in out Test);
+
+   --  Same-line display delimiters preserve exact source and extract repeatedly.
+   procedure Test_Display_LaTeX_Same_Line (T : in out Test);
+
+   --  Same-line display math remains protected in spans, links, and URLs.
+   procedure Test_Display_LaTeX_Protected_Contexts (T : in out Test);
+
+   --  Inline source preserves LaTeX backslashes and underscores exactly.
+   procedure Test_Inline_LaTeX_Exact_Source (T : in out Test);
+
+   --  Inline dollar handling does not treat ordinary currency as math.
+   procedure Test_Inline_LaTeX_Currency (T : in out Test);
+
+   --  Inline LaTeX remains visible while exposing Unicode source offsets.
+   procedure Test_Inline_LaTeX_Metadata_Offsets (T : in out Test);
+
+   --  Inline math scanner excludes escaped, code, URL, link, currency, and
+   --  raw HTML contexts while retaining legacy MathML visibly.
+   procedure Test_Inline_LaTeX_Protection (T : in out Test);
+
+   --  Display scanner preserves code and unique placeholders across source.
+   procedure Test_Display_LaTeX_Scanner_Regression (T : in out Test);
+
+   --  Display and inline metadata caps preserve excess source literally.
+   procedure Test_Math_Extraction_Caps (T : in out Test);
+
+   --  Inline scanner preserves code spans, escaped delimiters, and currency.
+   procedure Test_Inline_LaTeX_Scanner_Regression (T : in out Test);
 
    --  Plain Markdown does not cause an empty table-vector lookup.
    procedure Test_Table_Extraction_Preserves_Plain_Text (T : in out Test);

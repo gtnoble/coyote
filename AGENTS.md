@@ -12,7 +12,8 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered test baseline is 1005.
+current code or documentation. The current registered native-math test baseline is 1042; see
+`plan/native-math-test-report.md` for its qualification scope.
 
 Executables:
 
@@ -45,8 +46,9 @@ factual and are superseded by the 2026-08-30 removal entry.
 The generated configuration must select the `development` profile. Object
 files are under `obj/<profile>/`; executables are under `bin/`.
 
-Dependencies include GNATCOLL, GtkAda/GTK3, libcurl, libcmark-gfm,
-Lasem 0.6, Computer Modern math fonts, and Yelp for the GUI Help menu.
+Dependencies include GNATCOLL, GtkAda/GTK3, libcurl, libcmark-gfm, and Yelp
+for the GUI Help menu. Bundled KaTeX 0.16.22 math fonts and MIT notices are
+under `share/coyote/math/fonts/`; Lasem is not a runtime dependency.
 There is no plan9port dependency.
 
 ## Source layout
@@ -97,9 +99,13 @@ The GUI path has the GTK main task plus an agent task. The agent task emits
 `LLM.Events.Agent_Event'Class` values synchronously through
 `Coyote_App.Dispatch.Dispatch_Event`; GUI updates cross the GTK boundary via
 `Coyote_GUI.Updates`, and input crosses back via `Coyote_GUI.Prompt_Queue`.
-Assistant output uses direct libcmark-gfm Markdown rendering; native GFM tables
-and Lasem-backed Presentation MathML display blocks remain in the GTK
-conversation stack. All GTK widget operations execute on the GTK main task.
+Assistant output uses direct libcmark-gfm Markdown rendering, native GFM tables,
+and the native Ada math engine in the GTK conversation stack. Math delimiters
+are `$...$`/`\(...\)` inline and `$$...$$`/`\[...\]` display; code is
+protected, unsupported input remains visible, and no full TeX compatibility is
+claimed. The engine supports common symbols, fractions, scripts, roots,
+text/roman content, arrays, font styles, delimiters, limits, and accents. All
+GTK widget operations execute on the GTK main task.
 
 The Plain path is synchronous. `Coyote_App.Plain` owns the agent session,
 replays requested history, dispatches native events through the same dispatcher,
@@ -127,9 +133,12 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 1014 registered tests and
-passes 1014/1014 under Xvfb from `test/` (zero failed assertions, zero
-unexpected errors, 78.70 seconds wall, exit 0; `/tmp/coyote-ownership-full-tests.log`).
+The native-math development suite passes 1042/1042 under Xvfb from `test/`,
+zero failed assertions/unexpected errors, 76.446748 seconds cumulative,
+`/tmp/coyote-native-math-full-final.log`. Root/test development builds pass;
+see `plan/native-math-test-report.md`. The preceding 1017/1017 signal/process
+record result is historical (`/tmp/coyote-signal-proc-full-final.log`). PCR-118's 1014/1014 result
+below is historical (`/tmp/coyote-ownership-full-tests.log`).
 Root `alr build --development` and test
 `cd test && alr build --development --profiles=coyote=development` passed;
 both generated profiles select `development`. PCR-117's 1005/1005 result
@@ -137,17 +146,30 @@ below is historical. PCR-118 focused cmark passes 17/17 (three added tests),
 renderer 10/10, and the standalone native ownership probe passes 27
 assertions. PCR-119 Ada cases ran in the full suite; native detached-spawn checks passed 28 dynamically counted checks in both normal and ASan/UBSan logs.
 See `/tmp/coyote-ownership-native-spawn-final.log` and `/tmp/coyote-ownership-native-spawn-asan-final.log`.
-Help coverage passes 12/12
-core and 1/1 display-backed widget tests; Mallard validation/links and CLI
-checks pass, with existing GTK theme CSS warnings. No end-user visual
-acceptance or live-provider qualification was performed. The cmark raw pointer
-APIs remain public for binding tests; borrowed lifetime rules are documented,
-not enforced, and no general native/Ada allocator-failure injection exists.
-Spawn status-pipe EOF with the intermediate child reaped means no setup/exec
-error was reported and normally indicates successful exec, but unexpected
-pre-exec grandchild death is indistinguishable. Post-fork `execvp` retains a
-Linux/glibc assumption and is not claimed portable or async-signal-safe; Ada
-runtime calls do not occur after fork. Developer self-evaluation and
+PCR-120/121 focused Process-Control passed 7/7 and isolated signal-shutdown
+passed 2/2. `test/tools/check-signal-bridge.sh` passed 48 parent fork/wait/status
+checks in each strict C11 and ASan/UBSan run across 16 isolated cases; 48 is
+not a count of semantic assertions. The harness covers all eight distinct
+`fcntl` failure targets, rollback/retry, errno preservation, descriptor leaks,
+and 100,000 sequential signal deliveries under saturation. Simultaneous
+standard SIGTERM deliveries may coalesce and are not promised to be counted
+individually. See `/tmp/coyote-signal-proc-build-final.log`,
+`/tmp/coyote-signal-proc-test-build-final.log`,
+`/tmp/coyote-signal-proc-focused-final.log`,
+`/tmp/coyote-signal-shutdown-focused.log`,
+`/tmp/coyote-signal-native-final.log`, and
+`/tmp/coyote-signal-proc-full-final.log`. Run the native check with
+`sh test/tools/check-signal-bridge.sh` from the repository root.
+Help coverage passes 12/12 core and 1/1 display-backed widget tests; Mallard
+validation/links and CLI checks pass, with existing GTK theme CSS warnings.
+No end-user visual acceptance or live-provider qualification was performed.
+PCR-120's fixtures do not test a live process `comm` rename; PID-reuse races
+remain. PCR-121 installation is serialized at startup before agent/frontend
+tasks; concurrent initialization and thread-safety are not qualified. The
+isolated lifecycle worker invokes `Complete_Shutdown` directly after signal
+read/`Begin_Shutdown`; it has no registered process groups and does not verify
+full-application shutdown or real group cleanup. Real desktop shutdown remains
+manual. There is no production reset API. Developer self-evaluation and
 read-only review are not independent user acceptance.
 
 Qualified commands: `alr build --development` and `cd test && alr build --development --profiles=coyote=development`; after builds, `xvfb-run -a sh test/check-help.sh` from the

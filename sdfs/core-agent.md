@@ -31,10 +31,38 @@ intermediate child reaped means no error was reported and normally indicates
 successful exec, but unexpected grandchild death before exec is
 indistinguishable. The API does not report eventual application exit status.
 Linux `pipe2(O_CLOEXEC)` and C/POSIX-only post-fork operations remain; no Ada
-runtime calls occur after fork. The implementation retains a Linux/glibc `execvp` assumption and is not claimed portable or async-signal-safe.
+runtime calls occur after fork. The implementation retains a Linux/glibc `execvp` assumption and is not claimed
+portable or async-signal-safe.
 Both final normal and ASan/UBSan logs each report 28 dynamically counted checks
 passed. The intermediate unused-counter strict-build failure was corrected
 before both passing runs.
+
+## 2026-10-22 — Complete process records and harden isolated SIGTERM bridge qualification (PCR-120/121)
+
+`Coyote_Process_Trees.Read_Process_Record` reads chunks through EOF without relying on pseudo-file `Size`. It preserves record bytes, accepts complete records through 64 KiB, and rejects oversized records rather than parsing a truncated prefix. Parsing handles spaces and parentheses in `comm`. Complete byte reading supersedes PCR-117's historical newline-truncated reader limitation; embedded LF and CR in `comm` are preserved for parsing. PID reuse remains out of scope.
+
+The signal bridge installs its nonblocking close-on-exec pipe and SIGTERM handler only after descriptor setup. Failure closes locally held descriptors, preserves `errno`, leaves global bridge state unpublished and retryable; successful repeated installation is idempotent. There is no production reset API. Native tests use isolated subprocesses and cover rollback/retry, handler state, drain/saturation, descriptor flags/leaks, and injected setup failures. POSIX standard-signal coalescing means concurrent deliveries are not guaranteed individually counted. The isolated Ada worker and Process-Control suite cover normal grace and second-signal expedite behavior.
+
+Exact registered cases: `Coyote process stat reader consumes complete records`,
+`Coyote.Signal_Shutdown grace waits full interval`, and
+`Coyote.Signal_Shutdown second signal escalates`. The native script
+`test/tools/check-signal-bridge.sh` runs `test/native/signal_bridge_test.c`
+in strict C11 and ASan/UBSan modes. Root `alr build --development` and test
+`cd test && alr build --development --profiles=coyote=development` passed
+with development profiles. Process-Control passed 7/7, isolated Ada shutdown
+passed 2/2, and the recorded full suite passed 1017/1017, zero failures/errors,
+79.42 seconds wall, exit 0. The native script passed 48 parent fork/wait/status
+checks in each strict C11 and ASan/UBSan run across 16 isolated cases; 48 is not
+a semantic assertion count. The eight distinct `fcntl` failure targets were
+validated; saturation sent 100,000 signals sequentially, not a guarantee about
+simultaneous standard-signal deliveries. The final rerun verifies the exact-64-KiB record
+and CR-in-`comm` fixture. Installation is serialized
+before agent/frontend tasks; concurrent initialization/thread-safety is not
+qualified. The isolated worker calls `Complete_Shutdown` directly after signal
+read/`Begin_Shutdown`, with no registered process groups, and does not assert
+full-application shutdown or real group cleanup. No production reset API exists.
+Real desktop shutdown remains a manual qualification.
+
 ## 2026-10-22 — Move process-tree and curl boundary policy into Ada (PCR-117)
 
 This approved behavior-preserving refactor adds `Coyote_Process_Trees` as the
@@ -1541,3 +1569,23 @@ message end and backoff, failed text/tool isolation, retry completion reporting,
 and diagnostic redaction. `git diff --check` passes. This is developer
 self-evaluation; independent acceptance remains with the user. Live providers
 and guarded real subagent subprocess tests were not enabled.
+
+
+## 2026-10-22 — Native math capability guidance in the system prompt
+
+Expanded PCR-123's delimiter-only guidance in `share/coyote/system-prompt.md`
+to describe the implemented common-math profile: fractions, indexed roots,
+operators/limits, font styles, accents, delimiters and AMS-style arrays. The
+instructions distinguish literal code from rendered formulas, explain currency
+escaping and command-based Greek/symbol input, keep multilingual prose outside
+math, prohibit all macro definitions/package/file loading, state bounded input
+and array sizes, and direct unsupported expressions to readable source/prose.
+No full-TeX or full KaTeX/MathJax compatibility is claimed.
+
+Strengthened the existing math-guidance regression in
+`test/src/llm_system_prompt_tests.adb`; no registrations were added. Development
+test build passes and the focused `LLM.System_Prompt` family passes 32/32,
+zero failures/unexpected errors (`/tmp/coyote-math-prompt-build.log`,
+`/tmp/coyote-math-prompt-tests.log`). `git diff --check` passes. The prompt is
+loaded from the resource at runtime; no embedded-prompt regeneration is needed.
+This is developer verification, not live-provider behavioural qualification.

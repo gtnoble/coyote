@@ -154,7 +154,16 @@ Shell used for prompt-filter commands. Defaults to
 Assistant responses use direct libcmark-gfm Markdown rendering. GitHub
 Flavored Markdown tables are retained as native tables, and standalone
 .B display-math
-blocks use Lasem-backed Presentation MathML in the GUI.
+blocks use the native Ada math engine in the GUI. Inline math is delimited by
+.BR $...$
+(or `\\(...\\)`); display math is delimited by
+.BR $$...$$
+(or `\\[...\\]`). Code spans and blocks are protected. Supported common
+constructs include symbols, fractions, scripts, roots, text/roman content,
+arrays, font styles, delimiters, limits, and accents. Unsupported expressions
+and legacy MathML source remain visible as text. Full TeX compatibility is not
+promised. Bundled KaTeX 0.16.22 fonts and MIT notices are installed under
+.BR share/coyote/math/fonts/.
 .PP
 Newly written assistant JSONL records contain no
 .B format

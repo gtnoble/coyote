@@ -341,8 +341,9 @@ The CSM parser, semantic document, response renderer/presenter/streaming owner,
 format enums and fields, environment toggle, prompt branch, persistence metadata
 writing, replay selection, and RPC response-format event are not part of the
 current product baseline. Assistant output uses direct libcmark-gfm Markdown
-rendering, with native GFM tables and Lasem-backed Presentation MathML display
-blocks retained.
+rendering, with native GFM tables and the native Ada math engine for supported
+standalone and inline math. Earlier Presentation MathML rendering is superseded;
+legacy MathML-shaped source is shown visibly as unsupported text.
 
 New assistant JSONL records contain no `format` or `formatVersion` fields. Older
 records containing those fields remain loadable because the fields are ignored;
@@ -785,8 +786,13 @@ lists, nested-list indentation, ordered-list starting values, tables, images,
 and thematic breaks. A response may remain plain text while streaming and
 shall be converted when the completed response block is rendered. Conversion
 failure shall preserve visible source text, and copying rendered text shall
-not expose Pango markup. Native GFM tables remain native GTK tables; standalone
-display-math blocks retain Lasem-backed Presentation MathML realization.
+not expose Pango markup. Native GFM tables remain native GTK tables. The
+native Ada math engine shall render supported inline and standalone math in completed response blocks. It
+shall protect code spans and code blocks from math parsing and preserve
+unsupported math source visibly as text. Supported math includes common symbols,
+fractions, scripts, square roots, indexed roots, text/roman content, arrays,
+font styles, delimiters, limits, and accents. This is a bounded common-math
+contract, not full TeX compatibility.
 
 For completed assistant Markdown blocks in the GTK conversation, local image
 destinations may resolve only when the active session source directory is
@@ -1044,11 +1050,14 @@ remains usable.  Plain (non-Ctrl) wheel scrolling shall retain its normal
 viewport-scrolling behaviour.
 
 **REQ-CORE-124** (D)
-The GUI conversation view shall render standalone display-math blocks delimited
-by `$$`/`$$` and containing a complete Presentation MathML `<math>` document.
-The opening and closing `$$` delimiters shall be on standalone lines. If
-parsing fails, the original source shall remain visible as text. The native component stack satisfies this requirement through its localized
-GTK/Lasem realization, selectable source fallback, and zoom propagation.
+The GUI conversation view shall recognize inline math delimited by `$...$` or
+`\(...\)` and standalone display math delimited by `$$...$$` or
+`\[...\]`. Code spans and code blocks shall be protected from math extraction.
+Supported expressions shall be laid out with the native Ada math engine;
+unsupported expressions and legacy MathML source shall remain visible as source
+text. The engine shall support common symbols, fractions, scripts, square roots,
+indexed roots, text/roman content, arrays, font styles, delimiters, limits, and
+accents. This requirement does not promise full TeX compatibility.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
@@ -1399,15 +1408,14 @@ repeating verbatim plans across turns; preface each tool batch with a
 one-sentence preamble stating why, what, and expected outcome.
 
 **REQ-CORE-173** (D)
-The system prompt shall instruct the agent that standalone display
-mathematics intended for the GUI must use Presentation MathML inside
-standalone `$$` delimiter lines. The block shall contain one complete
-`<math>` document using the MathML namespace and Presentation MathML
-rather than LaTeX commands or Content MathML. The instruction shall tell
-the agent to keep unsupported expressions readable as plain text rather
-than inventing markup. It shall also instruct the agent to write inline
-mathematics with Unicode math symbols directly in ordinary text rather than
-LaTeX notation or backslash commands.
+The system prompt shall instruct the agent to use `$...$` or `\(...\)` for
+inline mathematics and `$$...$$` or `\[...\]` for standalone display
+mathematics intended for the GUI. It shall describe the native engine's
+supported common-math subset and instruct the agent to keep unsupported
+expressions readable as visible source rather than inventing unsupported
+markup or implying full TeX compatibility. Code spans and code blocks are not
+math input. Inline math may also use Unicode math symbols directly in ordinary
+text.
 
 **REQ-CORE-174** (I/T)
 The static system-prompt prose shall be shipped as one contiguous resource at
@@ -1747,7 +1755,10 @@ target system.
 All frontends require libcurl (HTTPS) at runtime.
 
 **REQ-CORE-504** (I)
-The GUI frontend requires libcmark-gfm at runtime for Markdown rendering and Lasem 0.6 plus Computer Modern math fonts for display-math rendering.
+The GUI frontend requires libcmark-gfm at runtime for Markdown rendering.
+Native math layout uses the bundled resources under `share/coyote/math/fonts/`;
+Lasem and system-installed Computer Modern math fonts are not runtime
+requirements.
 
 **REQ-CORE-504a** (I)
 The GUI frontend requires the Yelp Help viewer at runtime. The installed
@@ -1906,7 +1917,7 @@ identifiers.
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | Historical REQ-CORE-047..049 | Superseded incremental markup and format-selection requirements | D/T/I | Dated historical DEM/PCR records |
 | Historical REQ-CORE-047a..047h | Superseded CSM grammar, presentation, prompt, and persistence requirements | A/I/T | Dated PCR-101/PCR-103 qualification matrix |
-| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables, Presentation MathML, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `Coyote_GUI.Math_Element`; focused and full automated verification complete; DEM-060 pending |
+| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables and common inline/display math, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.Math`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `Coyote_GUI.Math_Element`, `Math_Syntax`, `Math_Layout`, `Math_Metrics`, `Math_Painter`, `Coyote_Math_Resources`; automated math qualification passed (PCR-123); DEM-060 pending |
 | REQ-CORE-240–241 | Current session JSONL behavior, including ignoring legacy `format`/`formatVersion` fields during Markdown replay | T | `LLM.Session_Store`, `Coyote_App.History`, `llm_session_store_tests.adb`, `coyote_app_history_tests.adb` |
 
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
@@ -1979,7 +1990,7 @@ identifiers.
 | REQ-CORE-170 | Personality and interaction rules in prompt | D | TC-170 |
 | REQ-CORE-171 | Conditional tool-use instructions by capability | D | TC-171 |
 | REQ-CORE-172 | Per-turn reminder instructions appended to prompt | D | TC-172 |
-| REQ-CORE-173 | Presentation MathML display-math guidance in prompt | D/T | TC-173 |
+| REQ-CORE-173 | Inline/display delimiters and bounded common-math visible-source guidance in prompt | D/T | TC-173 |
 | REQ-CORE-174 | Static prompt resource installed and loaded from executable-relative share/coyote | I/T | TC-174 |
 | REQ-CORE-180 | MEMORY.md index file discovery | D | TC-180 |
 | REQ-CORE-181 | Four-type memory taxonomy in system prompt | D | TC-181 |

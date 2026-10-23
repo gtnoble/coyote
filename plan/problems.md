@@ -50,7 +50,8 @@ client-controlled work product gets an entry here.
   fork/setup/exec failed after the parent had detached. Report explicit
   setup/exec errors without waiting for application exit. A clean status-pipe
   close is the usual exec indication, subject to the pre-exec death ambiguity
-  documented below.- **Affected work products:** `design/coyote-design.md`, `plan/test-plan.md`,
+  documented below.
+- **Affected work products:** `design/coyote-design.md`, `plan/test-plan.md`,
   `plan/problems.md`, `sdfs/core-agent.md`, `sdfs/frontends.md`,
   `Coyote_Spawn`, native detached-spawn C adapter, callers, and tests.
 - **Corrective action:** Use a close-on-exec status pipe to report setup/exec
@@ -79,6 +80,33 @@ client-controlled work product gets an entry here.
   called after fork. The API does not report eventual application exit status.
   Native normal and sanitizer qualification passed.
 - **Status:** Implemented and verified; documented protocol limits remain.
+
+## PCR-120 — Read complete Linux process records without pseudo-file size assumptions
+
+- **Date reported:** 2026-10-22
+- **Category:** Code, Design, Test
+- **Classification:** Approved process-record completeness correction
+- **Priority:** 3-Moderate
+- **Description:** The process-tree reader must consume complete `/proc/<pid>/stat` records without relying on pseudo-file `Size`, preserve all bytes needed by the parser (including LF, CR, tabs, spaces and parentheses), and reject oversized records without parsing a partial prefix.
+- **Affected work products:** `src/coyote_process_trees.ads/.adb`, `test/src/coyote_process_control_tests.ads/.adb`, `design/coyote-design.md`, `plan/test-plan.md`, and `sdfs/core-agent.md`.
+- **Corrective action:** Read in bounded chunks through EOF, accept records up to 64 KiB, and reject records exceeding the limit while clearing the returned parent PID. Preserve parser handling of `comm` containing spaces or parentheses and validate complete-record behavior.
+- **Verification:** Root `alr build --development` and test `cd test && alr build --development --profiles=coyote=development` passed; both profiles select `development`. The focused Process-Control suite passed 7/7, zero failed assertions and unexpected errors (`/tmp/coyote-signal-proc-focused-final.log`); the full suite passed 1017/1017, zero failed assertions and unexpected errors, 79.42 seconds wall, exit 0 (`/tmp/coyote-signal-proc-full-final.log`). The registered case is `Coyote process stat reader consumes complete records`. Its logged fixture covers CRLF-terminated and no-final-newline records, tabs and parentheses in `comm`, records larger than 4 KiB, oversized records, empty/malformed/missing files, repeated reads, and `/proc/self/stat`. The final run also verifies the exact 64 KiB boundary and CR inside `comm`.
+- **Limitations:** Complete byte reading removes the newline-in-`comm` limitation. PID-reuse races remain; this correction does not address process-identity races.
+- **Status:** Implemented and verified, including exact-limit and embedded-CR fixtures.
+
+## PCR-121 — Roll back incomplete SIGTERM bridge installation and qualify shutdown
+
+- **Date reported:** 2026-10-22
+- **Category:** Code, Design, Test
+- **Classification:** Approved signal-bridge installation and isolated-shutdown qualification correction
+- **Priority:** 3-Moderate
+- **Description:** A failed process-wide SIGTERM bridge installation must not leak partially configured descriptors or publish invalid global state; setup failure must leave a retryable, uninstalled bridge while preserving failure `errno`. Installation qualification must run in isolated subprocesses because signal disposition and bridge state are process-wide.
+- **Affected work products:** `src/coyote_signal_bridge.c/.h`, `src/coyote_process_control.*`, `test/native/signal_bridge_test.c`, `test/tools/check-signal-bridge.sh`, `test/tools/signal_shutdown_worker.adb`, `test/src/coyote_signal_shutdown_tests.ads/.adb`, `test/src/test_process_control_suite.adb`, `test/coyote_test.gpr`, `design/coyote-design.md`, `plan/test-plan.md`, and `sdfs/core-agent.md`.
+- **Corrective action:** Keep descriptors local until configured; on setup failure close local descriptors, restore original `errno`, leave global descriptors invalid, and allow retry. Successful repeated installation is idempotent. Qualify the native bridge in isolated child processes and test first-SIGTERM grace and second-SIGTERM expedite behavior through the isolated Ada shutdown worker.
+- **Verification:** Root `alr build --development` and test `cd test && alr build --development --profiles=coyote=development` passed; both profiles select `development`. The isolated Ada cases `Coyote.Signal_Shutdown grace waits full interval` and `Coyote.Signal_Shutdown second signal escalates` passed 2/2; Process-Control passed 7/7; the full suite passed 1017/1017 with zero failures/errors in 79.42 seconds wall, exit 0. `test/tools/check-signal-bridge.sh` passed 48 parent fork/wait/status checks in each strict C11 and ASan/UBSan run across 16 isolated cases (48 is not a semantic assertion count). Coverage includes handler `errno`, state/drain, 100,000 sequential deliveries under saturation, idempotence/fd leak checks, EINTR, descriptor flags, bad-fd exit, and rollback/retry for pipe, all eight distinct `fcntl` failure targets, and sigaction. These are sequential test deliveries; real simultaneous standard SIGTERM may coalesce. Build and test logs: `/tmp/coyote-signal-proc-build-final.log`, `/tmp/coyote-signal-proc-test-build-final.log`, `/tmp/coyote-signal-proc-focused-final.log`, `/tmp/coyote-signal-shutdown-focused.log`, `/tmp/coyote-signal-native-final.log`, and `/tmp/coyote-signal-proc-full-final.log`.
+- **Limitations:** Installation is serialized at startup before agent/frontend tasks; concurrent initialization and general thread-safety are not qualified. There is no production bridge reset API; bridge state is process-lifetime state. Simultaneous standard-signal deliveries may coalesce. The isolated worker calls `Complete_Shutdown` directly after signal read/`Begin_Shutdown`; it has no registered groups and does not prove full-application shutdown or real group cleanup. Real desktop shutdown qualification remains manual.
+- **Status:** Implemented and verified within the stated isolated native/Ada scope; desktop and full-application lifecycle qualification remain open.
+
 ## PCR-117 — Move selected native-boundary policy into Ada (2026-10-22)
 
 - **Date reported:** 2026-10-22
@@ -4043,3 +4071,67 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   window-manager behavior, light/dark themes and Yelp remain manual DEM-041.
 - **Status:** Implemented and automated verification complete; manual DEM-041
   qualification remains open.
+
+
+## PCR-122 — Native Ada LaTeX-math feasibility prototype (2026-10-22)
+
+- **Date reported:** 2026-10-22
+- **Category:** Design, Code, Test
+- **Priority:** 3-Moderate
+- **Description:** Current display MathML/Lasem contract does not accept familiar
+  inline LaTeX. User rejected direct MathJax/KaTeX runtime integration and
+  endorsed a reference-guided Ada parser/layout implementation.
+- **Authorization and scope:** User endorsed the bounded native-engine prototype
+  proposal. This increment is isolated feasibility work, not authorization to
+  replace the production prompt/requirements or claim full LaTeX support.
+- **Affected work products:** Initial `prototypes/ada_math/` feasibility
+  sources (retired after migration), fixed metrics and fonts, notices, and
+  standalone build/check/reference tools; promoted test tooling is now under
+  `test/native/` and `test/tools/`, with canonical provenance in
+  `share/coyote/math/PROVENANCE.md`; SDD inventory and frontend SDF.
+- **Action taken:** Implemented strict bounded subset parsing, em box layout,
+  exact-font native Cairo painting and headless tests. Runtime requires native
+  Cairo/FreeType, not JavaScript or a reference engine. Existing production
+  source and unrelated working-tree changes were left intact.
+- **Verification:** Checked standalone build and workflow pass 155 assertions;
+  three direct KaTeX layout cases pass six ascent/descent comparisons; 19 valid
+  and eight invalid reference-engine sanity cases; generated metric table
+  reproduces byte-identically. Final Valgrind: zero errors/lost bytes after
+  standalone-only native cache teardown. See prototype RESULTS.md for commands,
+  log paths, remaining reachable allocations, and limitations.
+- **Evaluation:** Developer self-evaluation plus separate agent review, not
+  independent human acceptance. Processing limits do not bound original-source
+  retention. Broad syntax, visual/layout equivalence, native failure injection,
+  fuzzing and GTK inline integration are unqualified. Main suite not rerun.
+- **Status:** Initial feasibility slice implemented and checked; production
+  adoption and further dialect/layout increments remain open for review.
+
+
+## PCR-123 — Native Ada LaTeX production cutover and MathML retirement
+
+- **Date reported:** 2026-10-22
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Authorization:** User requested completion of the native Ada math project
+  and explicitly required full retirement of the legacy MathML path/dead code.
+- **Affected work products:** Native engine in `src/coyote_math/`, Markdown
+  math extraction/metadata, GTK display/inline math and copy/reflow, bundled
+  fonts/notices, prompt, build/link configuration, registered/native tests,
+  requirements/design and current developer/user documentation.
+- **Action taken:** Promoted and extended the engine to the documented common
+  math profile. Implemented protected inline/display extraction, baseline-aware
+  inline presentation, hidden-source reconstruction on Copy, marked-position
+  zoom reflow, theme foreground and bounded source fallback. Removed Lasem
+  bindings/C bridge/extractor/tests/dependency and duplicate prototype artifacts.
+- **Verification:** Development root/test builds pass. Full Xvfb suite passes
+  1042/1042 with zero failures/unexpected errors. Native qualification passes
+  151 assertions; three reference layout cases pass six comparisons. Generated
+  metrics reproduce byte-identically; Valgrind reports zero errors/lost bytes.
+  Help/Mallard/CLI checks and whitespace checks pass; executables do not link
+  Lasem. Detailed commands, scope and evidence: `plan/native-math-test-report.md`.
+- **Evaluation:** Developer self-evaluation plus separate agent reviews; not
+  independent human acceptance. Full TeX, arbitrary macros/packages, general
+  multilingual shaping and unrestricted glyph assemblies are outside the
+  supported profile. Human desktop/assistive-technology/live-provider acceptance
+  was not performed. Historical MathML remains source-only, without a renderer.
+- **Status:** Implemented and automated qualification complete.

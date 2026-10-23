@@ -21,6 +21,16 @@ package Coyote_GUI.Rich_Text is
       Result           : Coyote_Renderer.Markup.Render_Result;
       Source_Directory : String;
       Images_Remaining : in out Natural;
-      Clear            : Boolean := False);
+      Clear            : Boolean := False;
+      Math_Scale       : Long_Float := 1.0);
+
+   --  Re-render valid inline formulas at the requested scale.
+   procedure Reflow
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
+      Math_Scale : Long_Float);
+   --  Copy selected text including source hidden by inline math tags.
+   procedure Copy_Selection
+     (View : not null access
+        Gtk.Text_View.Gtk_Text_View_Record'Class);
 
 end Coyote_GUI.Rich_Text;

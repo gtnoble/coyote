@@ -21,6 +21,9 @@ with Gdk.Rectangle;
 with Gdk.Window;
 with Gdk.Cursor;
 with Gtk.Text_Iter;
+with Gtk.Clipboard;
+with Coyote_GUI.Rich_Text;
+with Coyote_Renderer.Markup;
 with Gtk.Text_Child_Anchor;
 with GNAT.OS_Lib;
 with Ada.Strings.Fixed;
@@ -37,7 +40,9 @@ with Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Coyote_GUI.Markdown_Links;
+with Coyote_GUI.Math_Element;
 with Gtk.Enums;
+with Glib.Properties;
 with Gtk.Flow_Box;
 with Gtk.Flow_Box_Child;
 with Gtk.Frame;
@@ -53,6 +58,8 @@ with Gtk.Tooltip;
 with Gtk.Text_Tag;
 with Gtk.Text_Tag_Table;
 with Gtk.Text_View;
+with Gtk.Style_Context;
+with Gdk.RGBA;
 with Pango.Context;
 with Pango.Font;
 
@@ -80,6 +87,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Text_Tag.Gtk_Text_Tag;
+   use type Gtk.Text_Tag.Text_Tag_List.GSlist;
    use type Gtk.Window.Gtk_Window;
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Button.Gtk_Button;
@@ -966,6 +974,322 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       end;
    end Test_Native_Markdown_Renders_After_Streaming;
 
+   procedure Test_Inline_Math_Renders_And_Copies_Source
+     (T : in out Test)
+   is
+      Rendered : Coyote_Renderer.Markup.Render_Result;
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Images_Remaining : Natural := 0;
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      Pixbuf_Found : Boolean := False;
+      Pixbuf_Count : Natural := 0;
+      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Initial_Rect : Gdk.Rectangle.Gdk_Rectangle;
+      Tags : Gtk.Text_Tag.Text_Tag_List.GSlist;
+      Tag_Cursor : Gtk.Text_Tag.Text_Tag_List.GSlist;
+      Rise_Matched : Boolean := True;
+      Rise_Count : Natural := 0;
+      Font_Size : Glib.Gint;
+      Expected_Rise : Glib.Gint;
+      Expected_Baseline : Natural;
+      Expected_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Color : Gdk.RGBA.Gdk_RGBA;
+      Small_Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 8");
+      Large_Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 18");
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "placeholder");
+      Buffer := Active_Text_View (T.Stack.all).Get_Buffer;
+      Rendered.Markup := To_Unbounded_String
+        ("$x$ middle $y$ tail $\unknowncommand$");
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$x$"),
+          LaTeX => To_Unbounded_String ("x"),
+          Start_Char => 0,
+          End_Char => 3));
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$y$"),
+          LaTeX => To_Unbounded_String ("y"),
+          Start_Char => 11,
+          End_Char => 14));
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$\unknowncommand$"),
+          LaTeX => To_Unbounded_String ("\unknowncommand"),
+          Start_Char => 20,
+          End_Char => 37));
+      Coyote_GUI.Rich_Text.Insert
+        (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining,
+         Clear => True);
+      Assert
+        (Index (Active_Text (T.Stack.all), "middle") > 0
+           and then Index (Active_Text (T.Stack.all), "tail") > 0,
+         "text around formulas remains visible");
+      Assert
+        (Index (Active_Text (T.Stack.all), "$x$") = 0
+           and then Index (Active_Text (T.Stack.all), "$y$") = 0
+           and then Index
+             (Active_Text (T.Stack.all), "\unknowncommand") > 0,
+         "valid formulas hide source and invalid source remains visible");
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+            Pixbuf_Count := Pixbuf_Count + 1;
+            Pixbuf_Found := True;
+            Pixbuf := Gtk.Text_Iter.Get_Pixbuf (Start_Iter);
+            Active_Text_View (T.Stack.all).Get_Iter_Location
+              (Start_Iter, Initial_Rect);
+            Font_Size := Pango.Font.Get_Size
+              (Pango.Context.Get_Font_Description
+                 (Active_Text_View (T.Stack.all).Get_Pango_Context));
+            Gtk.Style_Context.Get_Style_Context
+              (Active_Text_View (T.Stack.all)).Get_Color
+                (Gtk.Enums.Gtk_State_Flag_Normal, Color);
+            Expected_Pixbuf := Coyote_GUI.Math_Element.Render_Inline
+              ((if Pixbuf_Count = 1 then "x" else "y"),
+               Expected_Baseline, 1.0,
+               Long_Float (Font_Size) / 1_024.0 / 0.75, Color);
+            Expected_Rise :=
+              -(Glib.Gint (Gdk.Pixbuf.Get_Height (Expected_Pixbuf)
+                - Glib.Gint (Expected_Baseline)) * 1_024);
+            Tags := Gtk.Text_Iter.Get_Tags (Start_Iter);
+            Tag_Cursor := Tags;
+            while Tag_Cursor /= Gtk.Text_Tag.Text_Tag_List.Null_List loop
+               declare
+                  Tag : constant Gtk.Text_Tag.Gtk_Text_Tag :=
+                    Gtk.Text_Tag.Convert
+                      (Gtk.Text_Tag.Text_Tag_List.Get_Data_Address
+                         (Tag_Cursor));
+                  Rise : constant Glib.Gint := Glib.Properties.Get_Property
+                    (Tag, Gtk.Text_Tag.Rise_Property);
+                  Rise_Set : constant Boolean := Glib.Properties.Get_Property
+                    (Tag, Gtk.Text_Tag.Rise_Set_Property);
+               begin
+                  if Rise_Set then
+                     Rise_Count := Rise_Count + 1;
+                     Rise_Matched := Rise_Matched and then
+                       Rise = Expected_Rise;
+                  end if;
+               end;
+               Tag_Cursor := Gtk.Text_Tag.Text_Tag_List.Next (Tag_Cursor);
+            end loop;
+            Gtk.Text_Tag.Text_Tag_List.Free (Tags);
+         end if;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      Assert
+        (Pixbuf_Found and then Pixbuf_Count = 2,
+         "two valid formulas each render as one pixbuf");
+      Assert
+        (Rise_Matched and then Rise_Count = 2,
+         "both inline pixbuf rises equal negative descent in Pango units");
+      if Expected_Pixbuf /= null then
+         Glib.Object.Unref (Glib.Object.GObject (Expected_Pixbuf));
+      end if;
+      Assert
+        (Pixbuf /= null
+         and then Gdk.Pixbuf.Get_Width (Pixbuf) > 0
+         and then Gdk.Pixbuf.Get_Height (Pixbuf) > 0
+         and then Initial_Rect.Height > 0
+         and then Initial_Rect.Height >= Gdk.Pixbuf.Get_Height (Pixbuf),
+         "rendered pixbuf aligns within its text line geometry");
+      Set_Font (T.Stack.all, Small_Font, Math_Scale => 0.5);
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+            Pixbuf := Gtk.Text_Iter.Get_Pixbuf (Start_Iter);
+            Active_Text_View (T.Stack.all).Get_Iter_Location
+              (Start_Iter, Initial_Rect);
+         end if;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      Set_Font (T.Stack.all, Large_Font, Math_Scale => 2.0);
+      for Reflow_Index in 1 .. 4 loop
+         Coyote_GUI.Rich_Text.Reflow
+           (Active_Text_View (T.Stack.all), 2.0);
+      end loop;
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+            Pixbuf := Gtk.Text_Iter.Get_Pixbuf (Start_Iter);
+            exit;
+         end if;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      Buffer.Get_Start_Iter (Start_Iter);
+      Buffer.Get_End_Iter (End_Iter);
+      Assert
+        (Index (Buffer.Get_Text
+           (Start_Iter, End_Iter, Include_Hidden_Chars => True),
+           "$x$ middle $y$ tail $\unknowncommand$") > 0
+         and then Initial_Rect.Height > 0,
+         "inline math source survives repeated font reflow");
+      Pango.Font.Free (Small_Font);
+      Pango.Font.Free (Large_Font);
+      Buffer.Get_Start_Iter (Start_Iter);
+      Buffer.Get_End_Iter (End_Iter);
+      Buffer.Select_Range (Start_Iter, End_Iter);
+      Coyote_GUI.Rich_Text.Copy_Selection
+        (Active_Text_View (T.Stack.all));
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) =
+           "$x$ middle $y$ tail $\unknowncommand$",
+         "copy preserves the complete source in original order");
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         exit when Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      End_Iter := Start_Iter;
+      declare
+         Moved : Boolean;
+      begin
+         Gtk.Text_Iter.Forward_Char (End_Iter, Moved);
+         Assert (Moved, "first inline pixbuf has a selectable range");
+      end;
+      Buffer.Select_Range (Start_Iter, End_Iter);
+      Coyote_GUI.Rich_Text.Copy_Selection
+        (Active_Text_View (T.Stack.all));
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) = "$x$",
+         "selecting an inline pixbuf copies its hidden source");
+      Buffer.Get_Iter_At_Offset (Start_Iter, 3);
+      Buffer.Get_Iter_At_Offset (End_Iter, 13);
+      Buffer.Select_Range (Start_Iter, End_Iter);
+      Coyote_GUI.Rich_Text.Copy_Selection
+        (Active_Text_View (T.Stack.all));
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) =
+           "$x$ middle $y$",
+         "mixed text and pixbuf selection copies source once in order");
+      Rendered.Markup := To_Unbounded_String (" + $z$");
+      Rendered.Maths.Clear;
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$z$"),
+          LaTeX => To_Unbounded_String ("z"),
+          Start_Char => 3,
+          End_Char => 6));
+      Coyote_GUI.Rich_Text.Insert
+        (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining);
+      Pixbuf_Count := 0;
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+            Pixbuf_Count := Pixbuf_Count + 1;
+         end if;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      Assert
+        (Pixbuf_Count = 3, "append renders exactly one new formula");
+      Coyote_GUI.Rich_Text.Reflow
+        (Active_Text_View (T.Stack.all), 1.5);
+      Pixbuf_Count := 0;
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+            Pixbuf_Count := Pixbuf_Count + 1;
+         end if;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      Assert
+        (Pixbuf_Count = 3,
+         "reflow tracks formulas across appended text segments");
+      Rendered.Markup := To_Unbounded_String ("$q$");
+      Rendered.Maths.Clear;
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$q$"),
+          LaTeX => To_Unbounded_String ("q"),
+          Start_Char => 0,
+          End_Char => 3));
+      Coyote_GUI.Rich_Text.Insert
+        (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining,
+         Clear => True);
+      Pixbuf_Count := 0;
+      Buffer.Get_Start_Iter (Start_Iter);
+      while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+         if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+            Pixbuf_Count := Pixbuf_Count + 1;
+         end if;
+         declare
+            Moved : Boolean;
+         begin
+            Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+            exit when not Moved;
+         end;
+      end loop;
+      Assert
+        (Pixbuf_Count = 1,
+         "clear and reuse leaves exactly one formula pixbuf");
+   end Test_Inline_Math_Renders_And_Copies_Source;
+
+   procedure Test_Inline_Math_Invalid_Falls_Back_To_Source
+     (T : in out Test)
+   is
+      Rendered : Coyote_Renderer.Markup.Render_Result;
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Images_Remaining : Natural := 0;
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "placeholder");
+      Buffer := Active_Text_View (T.Stack.all).Get_Buffer;
+      Rendered.Markup := To_Unbounded_String ("\unknowncommand after");
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$\unknowncommand$"),
+          LaTeX => To_Unbounded_String ("\unknowncommand"),
+          Start_Char => 0,
+          End_Char => 18));
+      Coyote_GUI.Rich_Text.Insert
+        (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining,
+         Clear => True);
+      Buffer.Get_Start_Iter (Start_Iter);
+      Buffer.Get_End_Iter (End_Iter);
+      Assert
+        (Index (Buffer.Get_Text
+           (Start_Iter, End_Iter, Include_Hidden_Chars => True),
+           "\unknowncommand") > 0,
+         "failed inline math keeps original source visible and copyable");
+   end Test_Inline_Math_Invalid_Falls_Back_To_Source;
+
    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test)
    is
    begin
@@ -1692,8 +2016,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Native_Display_Math_Realizes_Element (T : in out Test) is
       Source : constant String :=
         "before" & ASCII.LF & "$$" & ASCII.LF
-        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & "<mfrac><mn>1</mn><mn>2</mn></mfrac></math>" & ASCII.LF & "$$"
+        & "\frac{1}{2}" & ASCII.LF & "$$"
         & ASCII.LF & "after";
    begin
       if not T.Display_Available then
@@ -1717,7 +2040,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "native math element retains delimiter-wrapped source");
       Assert
         (not Response_Stream_Present (T.Stack.all),
-         "native MathML replacement removes the raw stream view");
+         "native LaTeX replacement removes the raw stream view");
       Assert
         (Active_Text_View (T.Stack.all) /= null,
          "rendered response text remains the active text component");
@@ -1726,21 +2049,22 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "rendered response text uses the response style");
       Assert
         (Math_Area_Visible (T.Stack.all, 1),
-         "valid MathML shows the rendered area");
+         "valid LaTeX shows the rendered area");
       Assert
         (not Math_Fallback_Visible (T.Stack.all, 1),
-         "valid MathML hides the source fallback");
+         "valid LaTeX hides the source fallback");
       Assert
         (Math_Has_Response_Style (T.Stack.all, 1),
-         "rendered MathML uses the response style");
+         "rendered LaTeX uses the response style");
       Host_Widget (T.Stack.all).Show_All;
       Assert
         (not Math_Fallback_Visible (T.Stack.all, 1),
-         "parent Show_All does not reveal valid MathML source");
+         "parent Show_All does not reveal valid LaTeX source");
    end Test_Native_Display_Math_Realizes_Element;
 
    procedure Test_Native_Display_Math_Invalid_Falls_Back (T : in out Test) is
-      Source : constant String := "$$" & ASCII.LF & "<" & ASCII.LF & "$$";
+      Source : constant String :=
+        "$$" & ASCII.LF & "\unknowncommand" & ASCII.LF & "$$";
    begin
       if not T.Display_Available then
          return;
@@ -1755,19 +2079,19 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (not Math_Is_Valid (T.Stack.all, 1),
          "invalid display math is marked invalid");
       Assert
-        (Index (Math_Source (T.Stack.all, 1), "<") > 0,
+        (Index (Math_Source (T.Stack.all, 1), "unknowncommand") > 0,
          "invalid display math retains readable source");
       Assert
         (not Math_Area_Visible (T.Stack.all, 1),
-         "invalid MathML hides the rendered area");
+         "invalid LaTeX hides the rendered area");
       Assert
         (Math_Fallback_Visible (T.Stack.all, 1),
-         "invalid MathML shows the source fallback");
+         "invalid LaTeX shows the source fallback");
    end Test_Native_Display_Math_Invalid_Falls_Back;
 
    procedure Test_Native_Display_Math_Protects_Code (T : in out Test) is
       Source : constant String :=
-        "```" & ASCII.LF & "$$" & ASCII.LF & "<math><mi>x</mi></math>"
+        "```" & ASCII.LF & "$$" & ASCII.LF & "x"
         & ASCII.LF & "$$" & ASCII.LF & "```";
    begin
       if not T.Display_Available then
@@ -1786,8 +2110,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
 
    procedure Test_Native_Display_Math_Zooms (T : in out Test) is
       Source        : constant String                   :=
-        "$$" & ASCII.LF & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & "<mi>x</mi></math>" & ASCII.LF & "$$";
+        "$$" & ASCII.LF & "x" & ASCII.LF & "$$";
       Small_Font    : Pango.Font.Pango_Font_Description :=
         Pango.Font.From_String ("sans 8");
       Large_Font    : Pango.Font.Pango_Font_Description :=
@@ -1807,10 +2130,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Set_Font (T.Stack.all, Large_Font, Math_Scale => 2.0);
       Assert
         (Math_Scale (T.Stack.all, 1) > Initial_Scale,
-         "native MathML scale changes during zoom");
+         "native LaTeX scale changes during zoom");
       Assert
         (Math_Height (T.Stack.all, 1) > 0,
-         "native MathML remains measured after zoom");
+         "native LaTeX remains measured after zoom");
       Pango.Font.Free (Small_Font);
       Pango.Font.Free (Large_Font);
    end Test_Native_Display_Math_Zooms;
@@ -1897,15 +2220,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Math_Source : constant String :=
         "before ![first](ok.png)" & ASCII.LF & ASCII.LF
         & "$$" & ASCII.LF
-        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & "<mn>1</mn></math>" & ASCII.LF & "$$" & ASCII.LF & ASCII.LF
+        & "\frac{1}{1}" & ASCII.LF & "$$" & ASCII.LF & ASCII.LF
         & "| A | B |" & ASCII.LF & "| --- | --- |" & ASCII.LF
         & "| x | y |" & ASCII.LF & ASCII.LF & "after ![last](ok.png)";
       Image_Run : constant String := "![cap](ok.png) ";
       Native_Split : constant String :=
         ASCII.LF & "$$" & ASCII.LF
-        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
-        & "<mn>1</mn></math>" & ASCII.LF & "$$" & ASCII.LF & ASCII.LF
+        & "\frac{1}{1}" & ASCII.LF & "$$" & ASCII.LF & ASCII.LF
         & "| A | B |" & ASCII.LF & "| --- | --- |" & ASCII.LF
         & "| x | y |" & ASCII.LF & ASCII.LF;
    begin
@@ -2079,6 +2400,16 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack renders and copies inline LaTeX",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Inline_Math_Renders_And_Copies_Source'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack keeps invalid inline LaTeX source",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Inline_Math_Invalid_Falls_Back_To_Source'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack toggles Markdown rendering",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Markdown_Toggle_Disables_Rendering'
@@ -2109,25 +2440,25 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack realizes display MathML",
+           ("Coyote.GUI.Conversation_Stack realizes display LaTeX",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Display_Math_Realizes_Element'
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack falls back for invalid MathML",
+           ("Coyote.GUI.Conversation_Stack falls back for invalid LaTeX",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Display_Math_Invalid_Falls_Back'
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack protects code MathML",
+           ("Coyote.GUI.Conversation_Stack protects code LaTeX",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Display_Math_Protects_Code'
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack zooms display MathML",
+           ("Coyote.GUI.Conversation_Stack zooms display LaTeX",
             Coyote_GUI_Conversation_Stack_Tests.Test_Native_Display_Math_Zooms'
               Access));
       Result.Add_Test
@@ -2226,7 +2557,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               .Test_Search_Covers_Request_Thinking_And_Streaming'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack preserves and searches image alt text",
+           ("Coyote.GUI.Conversation_Stack preserves and searches "
+            & "image alt text",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Inline_Markdown_Images_And_Search'Access));
       Result.Add_Test

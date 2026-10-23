@@ -4,6 +4,10 @@ with AUnit.Test_Caller;
 
 with Ada.Directories;
 with Ada.Real_Time;
+with Ada.Streams;
+with Ada.Streams.Stream_IO;
+with Ada.Strings;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with AUnit.Assertions;
@@ -127,6 +131,127 @@ package body Coyote_Process_Control_Tests is
             "stat parser should accept non-unit string bounds");
       end;
    end Test_Process_Stat_Parser;
+
+   procedure Test_Process_Record_Reader (T : in out Test) is
+      pragma Unreferenced (T);
+      FD       : GNAT.OS_Lib.File_Descriptor;
+      Path     : Ada.Strings.Unbounded.Unbounded_String;
+      File     : Ada.Streams.Stream_IO.File_Type;
+      Parent   : Integer;
+      Self_Pid : constant Integer :=
+        GNAT.OS_Lib.Pid_To_Integer (GNAT.OS_Lib.Current_Process_Id);
+      Pid_Text : constant String := Ada.Strings.Fixed.Trim
+        (Integer'Image (Self_Pid), Ada.Strings.Both);
+      Prefix   : constant String :=
+        Pid_Text & " (reader" & Character'Val (10)
+        & Character'Val (13) & Character'Val (9) & "(worker) comm) S 77 ";
+      Tail     : constant String :=
+        "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20";
+      Long_Comm    : constant String := String'(1 .. 5_000 => 'x');
+      Large_Prefix : constant String :=
+        Pid_Text & " (" & Long_Comm & Character'Val (9)
+        & ") S 77 ";
+      Large_Record : constant String := Large_Prefix & Tail;
+      Too_Large : constant String :=
+        Pid_Text & " ("
+        & String'(1 .. 65_537 => 'x') & ") S 77 " & Tail;
+
+      procedure Write_Record (Text : String) is
+      begin
+         Ada.Streams.Stream_IO.Create
+           (File, Ada.Streams.Stream_IO.Out_File,
+            Ada.Strings.Unbounded.To_String (Path));
+         String'Write (Ada.Streams.Stream_IO.Stream (File), Text);
+         Ada.Streams.Stream_IO.Close (File);
+      exception
+         when others =>
+            if Ada.Streams.Stream_IO.Is_Open (File) then
+               Ada.Streams.Stream_IO.Close (File);
+            end if;
+            raise;
+      end Write_Record;
+   begin
+      Coyote_Temp_Files.Create (FD, Path);
+      GNAT.OS_Lib.Close (FD);
+      begin
+         Write_Record
+           (Prefix & "1 2 3 4 5 6 7 8 9" & Character'Val (13)
+            & Character'Val (10));
+         Assert
+           (Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 77,
+            "reader should parse newline and CR-terminated records");
+         Write_Record (Prefix & Tail);
+         Assert
+           (Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 77,
+            "reader should accept complete records without final newline");
+         Write_Record (Large_Record);
+         Assert
+           (Large_Record'Length > 4_096
+            and then Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 77,
+            "reader should retain complete records beyond 4096 bytes");
+         Write_Record
+           (Prefix & Tail & String'(1 .. 65_536 - Prefix'Length
+                                    - Tail'Length => ' '));
+         Assert
+           (Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 77,
+            "reader should accept the exact 64 KiB record limit");
+         Write_Record (Too_Large);
+         Parent := 9;
+         Assert
+           (not Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 0,
+            "reader should reject oversized records and clear the parent");
+         Write_Record ("");
+         Parent := 9;
+         Assert
+           (not Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 0,
+            "reader should reject empty records and clear the parent");
+         Write_Record ("malformed");
+         Parent := 9;
+         Assert
+           (not Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+            and then Parent = 0,
+            "reader should reject malformed records and clear the parent");
+         Parent := 9;
+         Assert
+           (not Coyote_Process_Trees.Read_Process_Record
+              (Ada.Strings.Unbounded.To_String (Path) & ".missing",
+               Self_Pid, Parent)
+            and then Parent = 0,
+            "reader should reject missing paths and clear the parent");
+         Write_Record (Prefix & Tail);
+         for Iteration in 1 .. 20 loop
+            Assert              (Coyote_Process_Trees.Read_Process_Record
+                 (Ada.Strings.Unbounded.To_String (Path), Self_Pid, Parent)
+               and then Parent = 77,
+               "repeated reads should close descriptors cleanly");
+         end loop;
+         Assert
+           (Coyote_Process_Trees.Read_Process_Record
+              ("/proc/self/stat", Self_Pid, Parent)
+            and then Parent > 0,
+            "reader should parse the real process stat record");
+      exception
+         when others =>
+            Coyote_Temp_Files.Delete
+              (Ada.Strings.Unbounded.To_String (Path));
+            raise;
+      end;
+      Coyote_Temp_Files.Delete
+        (Ada.Strings.Unbounded.To_String (Path));
+   end Test_Process_Record_Reader;
 
    procedure Test_Process_Snapshot (T : in out Test) is
       pragma Unreferenced (T);
@@ -443,6 +568,10 @@ package body Coyote_Process_Control_Tests is
         (Coyote_Process_Control_Caller.Create
            ("Coyote process snapshot handles cycles and large trees",
             Coyote_Process_Control_Tests.Test_Process_Snapshot'Access));
+      Result.Add_Test
+        (Coyote_Process_Control_Caller.Create
+           ("Coyote process stat reader consumes complete records",
+            Coyote_Process_Control_Tests.Test_Process_Record_Reader'Access));
       return Result;
    end Suite;
 

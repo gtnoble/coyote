@@ -1,10 +1,10 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.34
+**Version:** 1.35
 **Date:** 2026-10-22
 
-**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; DEM-060 desktop qualification pending
+**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -103,11 +103,17 @@ This model has two key properties:
 - **The frontend is a pure sink.** No LLM-specific logic appears in any
   frontend implementation. `LLM.Agent` emits typed events; `Dispatch_Event`
   translates them to frontend primitives; each frontend renders them.
-- **Direct Markdown response path.** Assistant response text uses the legacy
-  direct libcmark-gfm path. Native GFM tables and Lasem-backed Presentation
-  MathML display blocks remain in the GTK conversation stack. Streaming text
-  may remain plain until the completed response block is rendered; Plain output
-  remains line-oriented.
+- **Direct Markdown response path.** Assistant response text uses direct
+  libcmark-gfm rendering. Native GFM tables remain native GTK tables.
+  `Coyote_Renderer.Math` extracts inline `$...$`/`\(...\)` and display
+  `$$...$$`/`\[...\]` math while protecting code spans and blocks, then routes
+  supported input through the native Ada syntax/layout/metrics/painter/resources.
+  Unsupported input and legacy MathML-shaped source remain visible as text.
+  Streaming text may remain plain until completion; Plain output remains
+  line-oriented. Supported common constructs include symbols, fractions, scripts,
+  square/indexed roots, text/roman content, arrays, font styles, delimiters,
+  limits, and accents. Full TeX compatibility is not promised. Bundled KaTeX
+  0.16.22 fonts carry MIT notices under `share/coyote/math/fonts/`.
 - **Session compatibility.** New assistant JSONL records contain no `format` or
   `formatVersion` fields. Older records containing those fields remain loadable;
   the fields are ignored and their content is handled as Markdown during replay.
@@ -115,7 +121,8 @@ This model has two key properties:
 ### Historical — 3.1a CSM-2 implementation design (PCR-101 Phase 12; superseded 2026-09-15)
 
 The following section is retained as factual historical evidence only; it is
-not part of the current design baseline.
+not part of the current design baseline. Its references to native MathML are
+superseded by the native Ada math engine documented in §3.1.4a and §4.1.
 
 CSM-2 is an independent XML-like semantic language, not Markdown. The
 implemented bounded parser and renderer-neutral semantic model accept only the
@@ -181,7 +188,7 @@ for each CSM-2 response. All GTK operations run on the GTK main task. The
 presenter reconciles snapshots into persistent root-identified text/native
 components, marks dirty roots, commits roots only at semantic completion, and
 preserves focus, selection, scroll position, font, and math scale while updating.
-Native tables and terminal MathML are promoted only when their roots commit;
+Native tables and completed math components are promoted only when their roots commit;
 malformed or incomplete source remains visible and stale widgets are removed by
 local reconciliation.
 
@@ -291,7 +298,7 @@ inserted as plain text and replaced with Pango markup when the block completes
 
 **Markdown response rendering:** Completed assistant blocks use the direct
 libcmark-gfm path. Native GFM tables remain native GTK tables, and standalone
-display-math blocks use Lasem-backed Presentation MathML. Streaming text may
+inline/display common math uses the native Ada math engine. Streaming text may
 remain plain until block completion; Plain output remains line-oriented.
 
 ### 3.5 Output Media and Formats
@@ -299,7 +306,7 @@ remain plain until block completion; Plain output remains line-oriented.
 - **GUI frontend:** GTK3 native widget hierarchy hosted by
   `Coyote_GUI.Conversation_Stack`. Each exchange contains native text views,
   step frames, tool cards, footers, fork controls, notices, and localized
-  Lasem-backed display math. Plain UTF-8 text is rendered directly while
+  native Ada math. Plain UTF-8 text is rendered directly while
   streaming and completed blocks use the shared GFM path. Selection is local
   to semantic components, and one outer scroller hosts the conversation.
 
@@ -385,7 +392,7 @@ not wait for the complete user turn.
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
-| `Coyote_GUI.Math_Element` | Native Lasem-backed display-math widget with selectable fallback source | `src/coyote_gui/coyote_gui-math_element.ads/.adb` |
+| `Coyote_GUI.Math_Element` | Native GTK math element with selectable source fallback | `src/coyote_gui/coyote_gui-math_element.ads/.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Modeless co-primary transient tool-call snapshot window with fixed selectable metadata, menus, and a two-pane scrollable arguments/result work area | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
@@ -423,7 +430,7 @@ not wait for the complete user turn.
 | `LLM.Tools.Shell` | Built-in shell tool and tracked process-group execution | `src/llm/llm-tools-shell.ads/.adb` |
 | `LLM.Tools.Sandbox` | Sandbox profile discovery and bwrap arg construction | `src/llm/llm-tools-sandbox.ads/.adb` |
 | `Coyote_Process_Control` | SIGTERM bridge, shell process-group registry, persistence freeze, and escalation | `src/coyote_process_control.ads/.adb`, `src/coyote_signal_bridge.c/.h` |
-| `Coyote_Process_Trees` | `/proc` stat parsing, process snapshots, breadth-first descendant traversal, and process-group tree signalling | `src/coyote_process_trees.ads/.adb`, `src/coyote_signal_bridge.c/.h` (native `pid_t` kill/getpgid adapters) |
+| `Coyote_Process_Trees` | Complete chunked `/proc` stat-record reads (64 KiB maximum), parsing, snapshots, breadth-first descendant traversal, and process-group tree signalling | `src/coyote_process_trees.ads/.adb`; native `pid_t` kill/getpgid adapters in `src/coyote_signal_bridge.c/.h` |
 | `LLM.Tools.Temp_File` | Tool-result size cap and spill | `src/llm/llm-tools-temp_file.ads/.adb` |
 | `LLM.Skills` | Skill discovery and system prompt formatting | `src/llm/llm-skills.ads/.adb` |
 | `LLM.System_Prompt` | System prompt construction and resource rendering | `src/llm/llm-system_prompt.ads/.adb`, `share/coyote/system-prompt.md` |
@@ -435,10 +442,14 @@ not wait for the complete user turn.
 | `Coyote_App.History` | Persisted session replay with Markdown content handling | `src/coyote_app-history.ads/.adb` |
 | `Coyote_Cmark` | Ada binding with scope-owned documents/iterators and copied string accessors | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Spawn` | Detached double-fork launch and synchronous exec-status boundary | `src/coyote_spawn.ads/.adb`, `src/coyote_detach_spawn.h`, `src/coyote_detach_spawn.c` |
-| `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
+| `Math_Syntax` | Bounded native Ada math parser and syntax tree | `src/coyote_math/math_syntax.ads/.adb` |
+| `Math_Layout` | Common-math layout into glyph, rule, and placement commands | `src/coyote_math/math_layout.ads/.adb` |
+| `Math_Metrics` | Bundled math-font metrics and glyph lookup | `src/coyote_math/math_metrics.ads/.adb` |
+| `Math_Painter` | Native Cairo glyph/rule painting | `src/coyote_math/math_painter.ads/.adb` |
+| `Coyote_Math_Resources` | Executable-relative bundled math-font resources | `src/coyote_math/coyote_math_resources.ads/.adb` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | Direct GFM Markdown-to-Pango converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
-| `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
+| `Coyote_Renderer.Math` | Markdown math extraction with inline/display delimiters and code protection | `src/coyote_renderer/coyote_renderer-math.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
 | `Coyote_Notify` | Ada binding to libnotify desktop notifications; private Ada imports own notification lifecycle and resource policy | `src/coyote_notify.ads/.adb` |
@@ -453,6 +464,10 @@ not wait for the complete user turn.
 | `Coyote_GUI_Tool_Detail_Window_Tests` | Display-backed split-pane tool inspector, snapshot, arguments, menu, and fallback regressions | `test/src/coyote_gui_tool_detail_window_tests.ads/.adb` |
 | `Test_Integration_Suite` | Optional subprocess integration suite composer | `test/src/test_integration_suite.ads/.adb` |
 | `Test_Process_Control_Suite` | Final process-control test-domain suite | `test/src/test_process_control_suite.ads/.adb` |
+| `Coyote_Process_Control_Tests` | Process-tree parser, complete-record reader, snapshot and nested-group signalling tests | `test/src/coyote_process_control_tests.ads/.adb` |
+| `Coyote_Signal_Shutdown_Tests` | Isolated Ada SIGTERM grace and second-signal escalation tests | `test/src/coyote_signal_shutdown_tests.ads/.adb` |
+| `Signal_Shutdown_Worker` | Subprocess worker for isolated first/second SIGTERM shutdown lifecycle tests | `test/tools/signal_shutdown_worker.adb` |
+| Native signal-bridge harness | Isolated signal bridge handler, rollback/retry, and descriptor checks; strict and sanitizer script | `test/native/signal_bridge_test.c`, `test/tools/check-signal-bridge.sh` |
 | `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
 | `Auth_Test_Worker` | Subprocess helper for credential-lock and auth concurrency tests | `test/tools/auth_test_worker.adb` |
 | `Help_Test_Worker` | Isolated real Help launcher and parent-environment assertions | `test/tools/help_test_worker.adb` |
@@ -511,11 +526,12 @@ three layers:
   LLM.SSE  (pure parser, no external dependencies)
   Coyote_Cmark ──► libcmark-gfm and coyote_cmark_c.c (constants, GFM parsing, and table metadata only; Ada normalizes null string results and preserves borrowed pointers)
   Coyote_Renderer.Tables ──► Coyote_Cmark
-  Coyote_Renderer.MathML ──► Coyote_Cmark
-  Coyote_GUI.Math_Element ──► Coyote_Lasem
+  Coyote_Renderer.Math ──► Coyote_Cmark
+  Coyote_GUI.Math_Element ──► Math_Syntax, Layout, Metrics, Painter,
+                               Math_Resources
   Coyote_GUI.Conversation_Stack ──► Coyote_Renderer.Markup,
                                       Coyote_Renderer.Tables,
-                                      Coyote_Renderer.MathML,
+                                      Coyote_Renderer.Math,
                                       Coyote_GUI.Math_Element,
                                       Coyote_GUI.Updates,
                                       Coyote_GUI.Prompt_Queue
@@ -2195,7 +2211,7 @@ executable-derived `$BASE/share` tree; a nested test executable may use the
 parent checkout prefix. Missing or empty resources raise
 `LLM.System_Prompt.System_Prompt_Error` rather than silently producing an
 incomplete prompt. This covers personality definition, conditional tool-use
-instructions, Presentation MathML display-math guidance, memory taxonomy,
+instructions, bounded common-math delimiter and visible-source guidance, memory taxonomy,
 coordinator guidance, and subagent delegation (REQ-CORE-170..174,
 REQ-CORE-180..183, REQ-CORE-190..192). Response-format prose also advertises
 Markdown links and session-contained PNG/JPEG image syntax, retained captions,
@@ -2207,8 +2223,8 @@ explains desktop activation without claiming editor-specific line navigation.
 Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode) → String`:**
 Concatenates:
 
-1. **Static resource** — role description, communication style, Presentation
-   MathML guidance, tool guidance, delegation, coordinator, and
+1. **Static resource** — role description, communication style, bounded
+   common-math delimiter and visible-source guidance, tool guidance, delegation, coordinator, and
    editing-discipline loaded from `share/coyote/system-prompt.md`.
 2. **Capability rendering** — tool descriptor, tool policy variant, coordinator
    variant, and shell-quoted subagent command are rendered into the resource.
@@ -2219,11 +2235,9 @@ Concatenates:
 4. **Personality definition** — terse, direct, pragmatic; no cheerleading or
    conversational interjections; guidance on final answers and intermediary
    updates (REQ-CORE-170).
-5. **Math-formatting guidance** — for standalone mathematics intended for the
-   GUI, require Presentation MathML inside standalone `$$` delimiters, with a
-   complete `<math>` document; unsupported expressions remain readable as
-   plain text. For inline mathematics, require Unicode math symbols in
-   ordinary text rather than LaTeX notation or backslash commands
+5. **Math-formatting guidance** — use inline `$...$`/`\(...\)` and display
+   `$$...$$`/`\[...\]`; describe the bounded common-math subset, protect code,
+   and preserve unsupported input visibly without claiming full TeX support
    (REQ-CORE-173).
 4. **Conditional tool-use instructions** — keyed to `Available_Tools`: when
    editing tools exist, prefer them over printing code blocks; when terminal
@@ -2987,8 +3001,8 @@ session-header rules synchronously.
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | Historical retired Acme frontend requirement; see PCR-090 |
 | REQ-CORE-110, 112–119, 125, 129, 132, 230 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils`, `LLM.Settings` |
-| REQ-CORE-111 | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.MathML`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Math_Element` |
-| REQ-CORE-124 | `Coyote_GUI.Conversation_Stack`, `Coyote_Lasem` |
+| REQ-CORE-111 | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.Math`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Math_Element`, `Math_Syntax`, `Math_Layout`, `Math_Metrics`, `Math_Painter`, `Coyote_Math_Resources` |
+| REQ-CORE-124 | `Coyote_Renderer.Math`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Math_Element`, `Math_Syntax`, `Math_Layout`, `Math_Metrics`, `Math_Painter`, `Coyote_Math_Resources` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.Markup`, `Coyote_Renderer.Session_View` |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
@@ -3038,29 +3052,70 @@ owner) is invited to review it before it advances to client-control status.
 `Coyote_Process_Control` owns a protected registry of shell-tool process-group
 leaders and launch reservations. `Begin_Launch` closes the Start/register race;
 `Complete_Launch` registers the `setsid` group and signals it immediately if
-shutdown began during spawning. A native self-pipe receives SIGTERM using an
-async-signal-safe handler; deferred Ada monitor tasks perform all protected
-operations, process-tree signalling, persistence freezing, and frontend wakeup.
+shutdown began during spawning. `Coyote_Signal_Bridge` installs a process-wide
+SIGTERM handler and nonblocking close-on-exec self-pipe. The handler only updates
+`volatile sig_atomic_t` signal state and writes a byte; Ada monitor tasks defer
+protected operations, process-tree signalling, persistence freezing, and
+frontend wakeup to ordinary task context.
+
+The bridge configures both pipe descriptors before publishing them globally.
+Setup failure closes local descriptors, preserves the original `errno`, leaves
+the bridge uninstalled and retryable; repeated successful installation is
+idempotent. There is no production reset API. An absent/invalid write descriptor
+or `EBADF` causes `_exit(128 + SIGTERM)`. Pipe saturation does not erase the
+recorded signal state. The read operation drains a batch and reports 0 (none),
+1 (a SIGTERM recorded), or 2 (at least two). POSIX standard-signal coalescing
+means simultaneous SIGTERM deliveries are not guaranteed to be counted
+individually.
 
 The first SIGTERM freezes new JSONL writes, requests agent cancellation, sends
 SIGTERM to all registered groups and nested shell-launched coyote groups, waits
 0 through 30 configured seconds, then sends SIGKILL and waits for group cleanup.
-A second SIGTERM bypasses the grace interval. GUI Stop requests direct agent
-cancellation. GUI window-close and File → Exit use the frontend shutdown
+A second observed SIGTERM bypasses the grace interval. GUI Stop requests direct
+agent cancellation. GUI window-close and File → Exit use the frontend shutdown
 operation, which requests direct cancellation, stops the monitor, wakes the
 prompt queue, and stops update producers. The callbacks then quit GTK.
 
-**Process-tree implementation boundary (PCR-117):** `Coyote_Process_Trees`
+**Process-tree implementation boundary (PCR-117/120):** `Coyote_Process_Trees`
 in Ada parses `/proc/<pid>/stat`, constructs snapshots, traverses descendants
-breadth-first and coordinates process-group/descendant signalling. Native C
-retains only `pid_t` conversion and `kill`/`getpgid` adapters; the SIGTERM
-handler and self-pipe bridge remain C. Roots at or below PID 1 are rejected.
-Discovery is best effort: if snapshot traversal or signalling raises, the root
-process group is still signalled so the caller's SIGKILL escalation is not
-skipped. If the requested root is absent from the snapshot, traversal still
-starts from that PID and selects discovered children; root-group signalling is
-not dependent on a root record. Existing `/proc` newline-in-`comm` parsing and
-PID-reuse limitations remain unchanged.
+breadth-first and coordinates process-group/descendant signalling. The reader
+consumes bytes in chunks through EOF without relying on pseudo-file `Size`,
+accepts complete records up to 64 KiB, and rejects larger records rather than
+parsing a prefix. Parsing handles `comm` containing spaces and parentheses;
+fixtures include LF/CR, tabs and parentheses, and records without final LF.
+Complete-record reading supersedes PCR-117's historical newline-truncated
+read limitation; LF and CR inside `comm` are preserved for parsing. PID-reuse
+limitations remain.
+Native C retains `pid_t` conversion and `kill`/`getpgid` adapters alongside the
+signal bridge. Roots at or below PID 1 are rejected. Discovery is best effort:
+if snapshot traversal or signalling raises, the root process group is still
+signalled so SIGKILL escalation is not skipped. If the root is absent from the
+snapshot, traversal still starts from it and selects discovered children.
+
+Signal qualification uses isolated subprocesses because handler disposition
+and bridge state are process-wide. `test/tools/check-signal-bridge.sh` builds and
+runs the C harness with strict C11 warnings-as-errors and ASan/UBSan, bounded
+at 30 seconds per run. Its subprocess cases cover handler `errno`, first/second
+state and draining, saturation, idempotence and descriptor leakage, EINTR,
+fd flags, bad-fd exit, and injected setup failures with cleanup/retry. The
+harness is single-threaded per worker; standard-signal coalescing limits claims
+about counting concurrent signals. The isolated Ada worker and Process-Control
+suite cover first-SIGTERM grace and second-SIGTERM expedite behavior. Recorded
+qualification passed: both development builds passed with development
+profiles, Process-Control passed 7/7, isolated Ada shutdown cases passed 2/2,
+and the logged full suite passed 1017/1017 with zero failures/errors in 79.42
+seconds wall (exit 0). The native harness passed 48 parent fork/wait/status
+checks per strict C11 and ASan/UBSan run across 16 isolated cases; this is not
+48 semantic assertions. Its saturation case sends 100,000 signals
+sequentially; simultaneous standard signals may coalesce. The eight distinct
+`fcntl` failure targets were exercised. The final rerun verifies the exact-64-KiB
+reader fixture and CR inside `comm`. Installation
+is serialized at startup before agent/frontend tasks; no concurrent-init or
+thread-safety claim is made. The isolated Ada worker invokes
+`Complete_Shutdown` directly after signal read/`Begin_Shutdown` and has no
+registered groups, so it does not establish full-application shutdown or real
+group cleanup. No production reset API is exposed. Real desktop shutdown
+qualification remains manual.
 
 The GTK Preferences dialog persists `shellTerminationGraceSeconds` as an
 integer number of seconds. The active process applies a saved value immediately;
