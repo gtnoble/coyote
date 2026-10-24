@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Strings.Fixed;
+with Ada.Real_Time;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_Temp_Files;
@@ -21,6 +22,7 @@ with Coyote_Renderer.Math;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
 with Glib;                  use Glib;
+with Glib.Main;
 with Glib.Error;
 with Gtk.Adjustment;
 with Gtk.Handlers;
@@ -61,8 +63,94 @@ package body Coyote_GUI.Conversation_Stack is
    use type GNAT.OS_Lib.File_Descriptor;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
+   use type Ada.Real_Time.Time;
+   use type Ada.Real_Time.Time_Span;
+   use type Glib.Main.G_Source_Id;
+   use type Glib.Main.G_Source;
 
    type Instance_Access is access all Instance;
+
+   package Tool_Time_Sources is new Glib.Main.Generic_Sources
+     (Instance_Access);
+
+   function On_Tool_Time_Tick (C : Instance_Access) return Boolean;
+
+   package Tool_Destroy_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Widget.Gtk_Widget_Record, Instance_Access);
+
+   procedure On_Stack_Widget_Destroy
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      C : Instance_Access);
+
+   function Elapsed_Text (Seconds : Natural) return String is
+      Hours   : constant Natural := Seconds / 3_600;
+      Minutes : constant Natural := (Seconds / 60) mod 60;
+      Remainder : constant Natural := Seconds mod 60;
+      function Two_Digits (Value : Natural) return String is
+      begin
+         return (if Value < 10 then "0" else "")
+           & Ada.Strings.Fixed.Trim (Value'Image, Ada.Strings.Left);
+      end Two_Digits;
+   begin
+      if Hours > 0 then
+         return Ada.Strings.Fixed.Trim (Hours'Image, Ada.Strings.Left)
+           & ":" & Two_Digits (Minutes) & ":" & Two_Digits (Remainder);
+      end if;
+      return Two_Digits (Seconds / 60) & ":" & Two_Digits (Remainder);
+   end Elapsed_Text;
+
+   procedure Show_Elapsed
+     (Tool_Value : in out Tool_Entry; At_Time : Ada.Real_Time.Time) is
+      Duration_Seconds : Natural;
+   begin
+      if Tool_Value.Started_At = Ada.Real_Time.Time_First then
+         return;
+      end if;
+      Duration_Seconds := Natural
+        (((if Tool_Value.Ended_At /= Ada.Real_Time.Time_First
+           then Tool_Value.Ended_At
+           else (if At_Time < Tool_Value.Started_At
+                 then Tool_Value.Started_At else At_Time))
+          - Tool_Value.Started_At) / Ada.Real_Time.Seconds (1));
+      if Tool_Value.Last_Elapsed_Second /= Duration_Seconds then
+         Tool_Value.Elapsed.Set_Text
+           ("Elapsed: " & Elapsed_Text (Duration_Seconds));
+         Tool_Value.Last_Elapsed_Second := Duration_Seconds;
+      end if;
+   end Show_Elapsed;
+
+   procedure Start_Tool_Timer (C : in out Instance) is
+   begin
+      if C.Timer_Id = 0 then
+         C.Timer_Id := Tool_Time_Sources.Timeout_Add
+           (1_000, On_Tool_Time_Tick'Access, C'Unchecked_Access);
+      end if;
+   end Start_Tool_Timer;
+
+   procedure Stop_Tool_Timer (C : in out Instance);
+
+   procedure Stop_Timer_If_Idle (C : in out Instance) is
+   begin
+      for Cursor in C.Tools.Iterate loop
+         if Tool_Maps.Element (Cursor).Started_At /= Ada.Real_Time.Time_First
+           and then Tool_Maps.Element (Cursor).Ended_At
+             = Ada.Real_Time.Time_First
+         then
+            return;
+         end if;
+      end loop;
+      Stop_Tool_Timer (C);
+   end Stop_Timer_If_Idle;
+
+   procedure Stop_Tool_Timer (C : in out Instance) is
+   begin
+      if C.Timer_Id /= 0 then
+         if Glib.Main.Find_Source_By_Id (C.Timer_Id) /= null then
+            Glib.Main.Remove (C.Timer_Id);
+         end if;
+         C.Timer_Id := 0;
+      end if;
+   end Stop_Tool_Timer;
 
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
@@ -814,6 +902,9 @@ package body Coyote_GUI.Conversation_Stack is
       C.Scroll.Set_Policy (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
       Gtk.Box.Gtk_New_Vbox (C.Host, Homogeneous => False, Spacing => 6);
       C.Scroll.Add (C.Host);
+      Tool_Destroy_Callback.Connect
+        (C.Scroll, Gtk.Widget.Signal_Destroy, On_Stack_Widget_Destroy'Access,
+         C'Unchecked_Access);
       Log (C, "created outer scroll host");
    end Create;
 
@@ -888,8 +979,23 @@ package body Coyote_GUI.Conversation_Stack is
    --  reference otherwise.
    procedure Delete_Stream_Mark (C : in out Instance);
 
+   procedure On_Stack_Widget_Destroy
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      C : Instance_Access)
+   is
+      pragma Unreferenced (Widget);
+   begin
+      if C /= null then
+         Stop_Tool_Timer (C.all);
+      end if;
+   exception
+      when others =>
+         null;
+   end On_Stack_Widget_Destroy;
+
    procedure Clear (C : in out Instance) is
    begin
+      Stop_Tool_Timer (C);
       if C.Main_Window /= null then
          C.Main_Window.Set_Focus (null);
       end if;
@@ -966,6 +1072,7 @@ package body Coyote_GUI.Conversation_Stack is
       Caption : constant String :=
         (if Kind = Coyote_GUI.Steer then "Steer" else "Request");
    begin
+      Stop_Tool_Timer (C);
       Create (C, C.Main_Window.all'Access);
       if C.Text_Open then
          End_Text_Block (C);
@@ -1162,12 +1269,14 @@ package body Coyote_GUI.Conversation_Stack is
       Session_Start    :        String                 := "";
       Turn_Index       :        Positive               := 1;
       Call_In_Turn     :        Positive               := 1;
-      Initial_Status   :        Coyote_GUI.Tool_Status := Coyote_GUI.Running)
+      Initial_Status   :        Coyote_GUI.Tool_Status := Coyote_GUI.Running;
+      At_Time          :        Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Frame                : Gtk.Frame.Gtk_Frame;
       Box                  : Gtk.Box.Gtk_Box;
       Header               : Gtk.Label.Gtk_Label;
       Status               : Gtk.Label.Gtk_Label;
+      Elapsed              : Gtk.Label.Gtk_Label;
       Arguments            : Gtk.Grid.Gtk_Grid;
       Details              : Gtk.Button.Gtk_Button;
       Abort_Button         : Gtk.Button.Gtk_Button;
@@ -1214,6 +1323,17 @@ package body Coyote_GUI.Conversation_Stack is
          & Tool_Status_Text (Initial_Status, "", Running => False));
       Status.Set_Xalign (0.0);
       Box.Pack_Start (Status, Expand => False, Fill => False, Padding => 0);
+
+      Gtk.Label.Gtk_New
+        (Elapsed, (if Initial_Status = Coyote_GUI.Queued
+                   then "Elapsed: -" else ""));
+      Elapsed.Set_Xalign (0.0);
+      Elapsed.Set_No_Show_All
+        (Initial_Status in Coyote_GUI.Success .. Coyote_GUI.Cancelled);
+      Box.Pack_Start (Elapsed, False, False, 0);
+      if Initial_Status = Coyote_GUI.Running then
+         Elapsed.Show;
+      end if;
 
       Gtk.Grid.Gtk_New (Arguments);
       Arguments.Set_Column_Spacing (12);
@@ -1313,6 +1433,13 @@ package body Coyote_GUI.Conversation_Stack is
         (Tool_Id,
         (Summary_Text          => To_Unbounded_String (Summary_Text),
           Status               => Status,
+          Elapsed              => Elapsed,
+          Started_At           => (if Initial_Status = Coyote_GUI.Running
+                                   then At_Time
+                                   else Ada.Real_Time.Time_First),
+          Ended_At             => Ada.Real_Time.Time_First,
+          Result_Received      => False,
+          Last_Elapsed_Second  => Natural'Last,
           Details              => Details,
           Abort_Button         => Abort_Button,
           Abort_Message_Button => Abort_Message_Button,
@@ -1320,17 +1447,49 @@ package body Coyote_GUI.Conversation_Stack is
           Card_Box             => Box,
           Thumbnail            => null,
           Info                 => Info));
+      if Initial_Status = Coyote_GUI.Running then
+         Elapsed.Set_Text ("Elapsed: 00:00");
+         Start_Tool_Timer (C);
+      end if;
    end Begin_Tool;
 
    procedure Set_Tool_Status
-     (C : in out Instance; Tool_Id : String; Status : Coyote_GUI.Tool_Status)
+     (C : in out Instance;
+      Tool_Id : String;
+      Status : Coyote_GUI.Tool_Status;
+      At_Time : Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Tool_Value : Tool_Entry;
    begin
       if not C.Tools.Contains (Tool_Id) then
          return;
       end if;
-      Tool_Value                    := C.Tools.Element (Tool_Id);
+      Tool_Value := C.Tools.Element (Tool_Id);
+      if Tool_Value.Result_Received or else Tool_Value.Info.Completed then
+         return;
+      end if;
+      if Status = Coyote_GUI.Running
+        and then Tool_Value.Started_At = Ada.Real_Time.Time_First
+      then
+         Tool_Value.Started_At := At_Time;
+         Tool_Value.Elapsed.Set_No_Show_All (False);
+         Tool_Value.Elapsed.Show;
+         Tool_Value.Elapsed.Set_Text ("Elapsed: 00:00");
+         Tool_Value.Last_Elapsed_Second := 0;
+         Start_Tool_Timer (C);
+      elsif Status in Coyote_GUI.Success .. Coyote_GUI.Cancelled then
+         if Tool_Value.Started_At /= Ada.Real_Time.Time_First then
+            if Tool_Value.Ended_At = Ada.Real_Time.Time_First then
+               Tool_Value.Ended_At :=
+                 (if At_Time < Tool_Value.Started_At
+                  then Tool_Value.Started_At else At_Time);
+            end if;
+            Show_Elapsed (Tool_Value, At_Time);
+         else
+            Tool_Value.Elapsed.Set_No_Show_All (True);
+            Tool_Value.Elapsed.Hide;
+         end if;
+      end if;
       Tool_Value.Info.Result_Status := Status;
       Tool_Value.Info.Completed     :=
         Status in Coyote_GUI.Success .. Coyote_GUI.Cancelled;
@@ -1352,6 +1511,7 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Abort_Message_Button.Set_Sensitive
         (Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
       C.Tools.Replace (Tool_Id, Tool_Value);
+      Stop_Timer_If_Idle (C);
    end Set_Tool_Status;
 
    procedure End_Tool
@@ -1359,7 +1519,8 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Id    :        String;
       Status     :        Coyote_GUI.Tool_End_Status;
       Result     :        String;
-      Media_Type :        String := "")
+      Media_Type :        String := "";
+      At_Time    :        Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Tool_Value : Tool_Entry;
    begin
@@ -1367,6 +1528,21 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       Tool_Value                    := C.Tools.Element (Tool_Id);
+      if Tool_Value.Result_Received then
+         return;
+      end if;
+      if Tool_Value.Started_At /= Ada.Real_Time.Time_First then
+         if Tool_Value.Ended_At = Ada.Real_Time.Time_First then
+            Tool_Value.Ended_At :=
+              (if At_Time < Tool_Value.Started_At
+               then Tool_Value.Started_At else At_Time);
+         end if;
+         Show_Elapsed (Tool_Value, At_Time);
+      else
+         Tool_Value.Elapsed.Set_No_Show_All (True);
+         Tool_Value.Elapsed.Hide;
+      end if;
+      Tool_Value.Result_Received := True;
       Tool_Value.Info.Result_Text   := To_Unbounded_String (Result);
       Tool_Value.Info.Media_Type    := To_Unbounded_String (Media_Type);
       Tool_Value.Info.Result_Status :=
@@ -1396,6 +1572,7 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Abort_Message_Button.Set_Sensitive (False);
       Tool_Value.Details.Set_Sensitive (True);
       C.Tools.Replace (Tool_Id, Tool_Value);
+      Stop_Timer_If_Idle (C);
    end End_Tool;
 
    procedure Append_Notice
@@ -1515,7 +1692,9 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Fork_Action;
 
    procedure Complete_Request
-     (C : in out Instance; Status : Coyote_GUI.Completion_Status)
+     (C : in out Instance;
+      Status : Coyote_GUI.Completion_Status;
+      At_Time : Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
    begin
       if not C.Has_Exchange or else C.Completed then
@@ -1543,12 +1722,59 @@ package body Coyote_GUI.Conversation_Stack is
               (C          => C,
                Tool_Id    => To_String (Tool_Id),
                Status     => Coyote_GUI.Cancelled,
-               Result     => "[request ended before tool completed]");
+               Result     => "[request ended before tool completed]",
+               At_Time    => At_Time);
          end;
       end loop;
       C.Completed := True;
       Finalize_Active_Step (C);
    end Complete_Request;
+
+   procedure Refresh_Tool_Times
+     (C : in out Instance; At_Time : Ada.Real_Time.Time := Ada.Real_Time.Clock)
+   is
+   begin
+      for Cursor in C.Tools.Iterate loop
+         declare
+            Tool_Value : Tool_Entry := Tool_Maps.Element (Cursor);
+         begin
+            if Tool_Value.Started_At /= Ada.Real_Time.Time_First
+              and then Tool_Value.Ended_At = Ada.Real_Time.Time_First
+            then
+               Show_Elapsed (Tool_Value, At_Time);
+               C.Tools.Replace (Tool_Maps.Key (Cursor), Tool_Value);
+            end if;
+         end;
+      end loop;
+   end Refresh_Tool_Times;
+
+   function On_Tool_Time_Tick (C : Instance_Access) return Boolean is
+   begin
+      if C = null or else C.Scroll = null then
+         return False;
+      end if;
+      Refresh_Tool_Times (C.all, Ada.Real_Time.Clock);
+      if C.Timer_Id = 0 then
+         return False;
+      end if;
+      for Cursor in C.Tools.Iterate loop
+         if Tool_Maps.Element (Cursor).Started_At
+             /= Ada.Real_Time.Time_First
+           and then Tool_Maps.Element (Cursor).Ended_At
+             = Ada.Real_Time.Time_First
+         then
+            return True;
+         end if;
+      end loop;
+      C.Timer_Id := 0;
+      return False;
+   exception
+      when others =>
+         if C /= null then
+            C.Timer_Id := 0;
+         end if;
+         return False;
+   end On_Tool_Time_Tick;
 
    function Tool_Summary (C : Instance; Tool_Id : String) return String is
       Tool_Value : Tool_Entry;

@@ -565,7 +565,8 @@ package body Coyote_App.History is
                                                     (UUID),
                                                 Turn_Index       =>
                                                   Turns_Rendered + 1,
-                                                Call_In_Turn => Call_In_Turn);
+                                                Call_In_Turn => Call_In_Turn,
+                                                Initial_Status => Status);
                                              Frontend.End_Tool
                                                (Tool_Id     => Tool_Id,
                                                 Status      => Status,

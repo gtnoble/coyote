@@ -145,6 +145,28 @@ package Coyote_GUI.Conversation_Stack.Testing is
       Tool_Id : String)
       return String;
 
+   function Tool_Elapsed_Visible
+     (C : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Boolean;
+
+   function Timer_Active
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Timer_Source_Exists
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Tool_Result_Received
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Boolean;
+
+   function Tool_Card_Child_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Natural;
+
+   function Tool_Elapsed_Label
+     (C : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return String;
+
    function Tool_Status_Label
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String)

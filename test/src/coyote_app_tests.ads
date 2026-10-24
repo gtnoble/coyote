@@ -66,6 +66,7 @@ package Coyote_App_Tests is
    --  Pending_Stats is gated by Last_Stop_Reason in Dispatch_Event.
    --  "stop" and "length" trigger the footer; other reasons do not.
    procedure Test_State_Pending_Stats_Gated_By_Stop_Reason (T : in out Test);
+   procedure Test_Dispatch_Agent_End_Completion (T : in out Test);
 
    --  Model in stats summary line
    --  Verify the App_State accessor that gates the model part in the

@@ -6,6 +6,7 @@
 --  Project: coyote
 
 with Ada.Containers.Indefinite_Hashed_Maps;
+with Ada.Real_Time;
 with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
@@ -13,6 +14,7 @@ with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
 with Glib;
+with Glib.Main;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -70,6 +72,10 @@ package Coyote_GUI.Conversation_Stack is
    procedure Append_Thinking (C : in out Instance; Text : String);
    procedure End_Thinking (C : in out Instance);
 
+   --  At_Time is a monotonic event time for elapsed-time accounting. Queued
+   --  and terminal history cards do not accrue elapsed duration. Status and
+   --  End events freeze the first terminal time; Refresh_Tool_Times accepts
+   --  a monotonic timestamp and displays whole elapsed seconds.
    procedure Begin_Tool
      (C                : in out Instance;
       Name             :        String;
@@ -81,17 +87,22 @@ package Coyote_GUI.Conversation_Stack is
       Session_Start    :        String                 := "";
       Turn_Index       :        Positive               := 1;
       Call_In_Turn     :        Positive               := 1;
-      Initial_Status   :        Coyote_GUI.Tool_Status := Coyote_GUI.Running);
+      Initial_Status   :        Coyote_GUI.Tool_Status := Coyote_GUI.Running;
+      At_Time          :        Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    procedure Set_Tool_Status
-     (C : in out Instance; Tool_Id : String; Status : Coyote_GUI.Tool_Status);
+     (C : in out Instance;
+      Tool_Id : String;
+      Status : Coyote_GUI.Tool_Status;
+      At_Time : Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    procedure End_Tool
      (C          : in out Instance;
       Tool_Id    :        String;
       Status     :        Coyote_GUI.Tool_End_Status;
       Result     :        String;
-      Media_Type :        String := "");
+      Media_Type :        String := "";
+      At_Time    :        Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    procedure Append_Notice
      (C : in out Instance; Kind : Coyote_GUI.Notice_Kind; Text : String);
@@ -111,7 +122,15 @@ package Coyote_GUI.Conversation_Stack is
       Step_N :        Natural);
 
    procedure Complete_Request
-     (C : in out Instance; Status : Coyote_GUI.Completion_Status);
+     (C        : in out Instance;
+      Status   :        Coyote_GUI.Completion_Status;
+      At_Time  :        Ada.Real_Time.Time := Ada.Real_Time.Clock);
+
+   --  Refresh running tool labels from a monotonic timestamp. When omitted,
+   --  the current monotonic clock is used; elapsed values are whole seconds.
+   procedure Refresh_Tool_Times
+     (C : in out Instance;
+      At_Time : Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    --  Return the compact summary rendered for Tool_Id.
    function Tool_Summary (C : Instance; Tool_Id : String) return String;
@@ -163,6 +182,11 @@ private
    type Tool_Entry is record
       Summary_Text         : Ada.Strings.Unbounded.Unbounded_String;
       Status               : Gtk.Label.Gtk_Label;
+      Elapsed              : Gtk.Label.Gtk_Label;
+      Started_At           : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
+      Ended_At             : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
+      Result_Received      : Boolean := False;
+      Last_Elapsed_Second  : Natural := Natural'Last;
       Details              : Gtk.Button.Gtk_Button;
       Abort_Button         : Gtk.Button.Gtk_Button;
       Abort_Message_Button : Gtk.Button.Gtk_Button;
@@ -240,6 +264,7 @@ private
       Thinking            : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View       : Gtk.Text_View.Gtk_Text_View;
       Tools               : Tool_Maps.Map;
+      Timer_Id            : Glib.Main.G_Source_Id := 0;
       Tool_Action_Handler : Coyote_GUI.Tool_Action_Handler;
       Selected_Tool       : Ada.Strings.Unbounded.Unbounded_String;
       Has_Exchange        : Boolean                      := False;

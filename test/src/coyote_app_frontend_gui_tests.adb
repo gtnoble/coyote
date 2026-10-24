@@ -4,6 +4,7 @@ with AUnit.Test_Caller;
 --  Project: coyote
 
 with Ada.Environment_Variables;
+with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
@@ -319,6 +320,135 @@ package body Coyote_App_Frontend_GUI_Tests is
       Frontend.Request_Shutdown;
       Main_Window (Frontend).Destroy;
    end Test_RPC_Tool_Lifecycle_Status;
+
+   procedure Test_RPC_Tool_Stopwatch_Replay (T : in out Test) is
+      use Coyote_App.Agent_RPC;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Ada.Real_Time;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      T0       : constant Time := Clock - Seconds (100);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote tool stopwatch replay test", Pop_Under => True);
+      Apply_Handshake (Frontend, "worker", "root", "worker");
+      Apply_Event
+        (Frontend, "worker", 1, Request_Start,
+         "{""text"":""tool request"",""kind"":""prompt""}", T0);
+      Apply_Event
+        (Frontend, "worker", 2, Tool_Start,
+         "{""name"":""shell"",""args"":{},""toolId"":""watch"","
+         & """turn"":1,""call"":1,""status"":""queued""}", T0);
+      Apply_Event
+        (Frontend, "worker", 3, Tool_Status,
+         "{""toolId"":""watch"",""status"":""running""}",
+         T0 + Seconds (10));
+      Select_Agent (Frontend, "worker");
+      Refresh_Tool_Times (Frontend, T0 + Seconds (15));
+      Assert
+        (Tool_Elapsed_Label (Frontend, "watch") = "Elapsed: 00:05",
+         "running tool elapsed time starts at the running event timestamp");
+
+      Select_Agent (Frontend, "root");
+      Refresh_Tool_Times (Frontend, T0 + Seconds (15));
+      Select_Agent (Frontend, "worker");
+      Refresh_Tool_Times (Frontend, T0 + Seconds (15));
+      Assert
+        (Tool_Elapsed_Label (Frontend, "watch") = "Elapsed: 00:05",
+         "replaying a running tool preserves its original start timestamp");
+
+      Apply_Event
+        (Frontend, "worker", 4, Tool_End,
+         "{""toolId"":""watch"",""result"":""ok"","
+         & """status"":""success""}", T0 + Seconds (30));
+      Refresh_Tool_Times (Frontend, T0 + Seconds (40));
+      Assert
+        (Tool_Elapsed_Label (Frontend, "watch") = "Elapsed: 00:20",
+         "tool end freezes elapsed time at its event timestamp");
+      Select_Agent (Frontend, "root");
+      Refresh_Tool_Times (Frontend, T0 + Seconds (50));
+      Select_Agent (Frontend, "worker");
+      Refresh_Tool_Times (Frontend, T0 + Seconds (50));
+      Assert
+        (Tool_Elapsed_Label (Frontend, "watch") = "Elapsed: 00:20",
+         "replay of a completed tool retains its frozen duration");
+      Apply_Event
+        (Frontend, "worker", 5, Request_End,
+         "{""status"":""completed""}", T0 + Seconds (60));
+      Apply_Terminal
+        (Frontend, RPC_Generation (Frontend), "worker", Completed,
+         T0 + Seconds (70));
+      Refresh_Tool_Times (Frontend, T0 + Seconds (80));
+      Assert
+        (Tool_Elapsed_Label (Frontend, "watch") = "Elapsed: 00:20",
+         "terminal completion after a normal request cannot alter "
+         & "frozen time");
+
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+   end Test_RPC_Tool_Stopwatch_Replay;
+
+   procedure Test_RPC_Tool_Stopwatch_Terminal (T : in out Test) is
+      use Coyote_App.Agent_RPC;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Ada.Real_Time;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      T0       : constant Time := Clock - Seconds (100);
+      Terminal_States : constant array (1 .. 4) of Terminal_Status :=
+        (Disconnected, Failed, Aborted, Completed);
+      Id : String (1 .. 1);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote tool stopwatch terminal test", Pop_Under => True);
+      for Index in Terminal_States'Range loop
+         Id (1) := Character'Val (Character'Pos ('a') + Index - 1);
+         Apply_Handshake (Frontend, Id, "root", Id);
+         Apply_Event
+           (Frontend, Id, 1, Request_Start,
+            "{""text"":""tool request"",""kind"":""prompt""}", T0);
+         Apply_Event
+           (Frontend, Id, 2, Tool_Start,
+            "{""name"":""shell"",""args"":{},""toolId"":""tool-"
+            & Id & """,""turn"":1,""call"":1,""status"":""queued""}",
+            T0);
+         Apply_Event
+           (Frontend, Id, 3, Tool_Status,
+            "{""toolId"":""tool-" & Id
+            & """,""status"":""running""}", T0 + Seconds (10));
+         Apply_Terminal
+           (Frontend, RPC_Generation (Frontend), Id, Terminal_States (Index),
+            T0 + Seconds (30));
+         Select_Agent (Frontend, Id);
+         Refresh_Tool_Times (Frontend, T0 + Seconds (50));
+         Assert
+           (Tool_Elapsed_Label (Frontend, "tool-" & Id) = "Elapsed: 00:20",
+            "terminal status freezes unfinished tool at original "
+            & "terminal time");
+         Apply_Event
+           (Frontend, Id, 4, Tool_Status,
+            "{""toolId"":""tool-" & Id
+            & """,""status"":""running""}", T0 + Seconds (60));
+         Apply_Event
+           (Frontend, Id, 5, Tool_End,
+            "{""toolId"":""tool-" & Id & """,""result"":""late""}",
+            T0 + Seconds (70));
+         Refresh_Tool_Times (Frontend, T0 + Seconds (80));
+         Assert
+           (Tool_Elapsed_Label (Frontend, "tool-" & Id) = "Elapsed: 00:20",
+            "late running and end frames cannot restart a terminal "
+            & "tool clock");
+      end loop;
+
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+   end Test_RPC_Tool_Stopwatch_Terminal;
 
    procedure Test_Selected_Agent_Status (T : in out Test) is
       use Coyote_App.Agent_RPC;
@@ -838,6 +968,16 @@ package body Coyote_App_Frontend_GUI_Tests is
            ("Coyote.GUI RPC tool lifecycle status",
             Coyote_App_Frontend_GUI_Tests
               .Test_RPC_Tool_Lifecycle_Status'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI RPC tool stopwatch replay",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_RPC_Tool_Stopwatch_Replay'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI RPC tool stopwatch terminal cleanup",
+            Coyote_App_Frontend_GUI_Tests
+              .Test_RPC_Tool_Stopwatch_Terminal'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI selected agent status",

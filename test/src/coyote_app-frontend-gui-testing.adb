@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Real_Time;
 with Ada.Exceptions;
 with Ada.Strings;
 with Ada.Strings.Fixed;
@@ -158,11 +159,13 @@ package body Coyote_App.Frontend.GUI.Testing is
       Agent_Id   :        String;
       Sequence   :        Natural;
       Event_Name :        Coyote_App.Agent_RPC.Event_Kind;
-      Payload    :        String)
+      Payload    :        String;
+      At_Time    :        Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
    begin
       Apply_Event
-        (F, RPC_Generation (F), Agent_Id, Sequence, Event_Name, Payload);
+        (F, RPC_Generation (F), Agent_Id, Sequence, Event_Name, Payload,
+         At_Time);
    end Apply_Event;
 
    procedure Apply_Event
@@ -171,10 +174,12 @@ package body Coyote_App.Frontend.GUI.Testing is
       Agent_Id       :        String;
       Sequence       :        Natural;
       Event_Name     :        Coyote_App.Agent_RPC.Event_Kind;
-      Payload        :        String)
+      Payload        :        String;
+      At_Time        :        Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Update : Coyote_GUI.Update;
    begin
+      Update.Occurred_At := At_Time;
       Update.Kind           := Coyote_GUI.Rpc_Frame;
       Update.RPC_Generation := RPC_Generation;
       Update.Text :=
@@ -192,10 +197,12 @@ package body Coyote_App.Frontend.GUI.Testing is
      (F              : in out Coyote_App.Frontend.GUI.Instance;
       RPC_Generation :        Natural;
       Agent_Id       :        String;
-      Status         :        Coyote_App.Agent_RPC.Terminal_Status)
+      Status         :        Coyote_App.Agent_RPC.Terminal_Status;
+      At_Time        :        Ada.Real_Time.Time := Ada.Real_Time.Clock)
    is
       Update : Coyote_GUI.Update;
    begin
+      Update.Occurred_At := At_Time;
       Update.Kind           := Coyote_GUI.Rpc_Frame;
       Update.RPC_Generation := RPC_Generation;
       Update.Text :=
@@ -439,6 +446,21 @@ package body Coyote_App.Frontend.GUI.Testing is
         Coyote_GUI.Conversation_Stack.Testing.Tool_Status_Label
           (F.Stack, Tool_Id);
    end Tool_Status_Label;
+
+   function Tool_Elapsed_Label
+     (F : Coyote_App.Frontend.GUI.Instance; Tool_Id : String) return String
+   is
+   begin
+      return Coyote_GUI.Conversation_Stack.Testing.Tool_Elapsed_Label
+        (F.Stack, Tool_Id);
+   end Tool_Elapsed_Label;
+
+   procedure Refresh_Tool_Times
+     (F : in out Coyote_App.Frontend.GUI.Instance;
+      At_Time : Ada.Real_Time.Time) is
+   begin
+      F.Stack.Refresh_Tool_Times (At_Time);
+   end Refresh_Tool_Times;
 
    function Tool_Detail
      (F       : Coyote_App.Frontend.GUI.Instance;

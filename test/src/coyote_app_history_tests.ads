@@ -13,6 +13,9 @@ package Coyote_App_History_Tests is
    procedure Test_Legacy_Format_Metadata_Ignored
      (T : in out Test);
 
+   procedure Test_Tool_Replay_Status_And_Result
+     (T : in out Test);
+
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_App_History_Tests;

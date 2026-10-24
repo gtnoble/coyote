@@ -4135,3 +4135,37 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   supported profile. Human desktop/assistive-technology/live-provider acceptance
   was not performed. Historical MathML remains source-only, without a renderer.
 - **Status:** Implemented and automated qualification complete.
+
+
+## PCR-124 — Tool-card elapsed runtime stopwatch
+
+- **Date reported:** 2026-10-23
+- **Category:** Requirements, Design, Code, Test
+- **Priority:** 3-Moderate
+- **Authorization:** User requested investigation of elapsed tool-card runtime,
+  then authorized implementation of the reported proposal.
+- **Scope:** REQ-CORE-112a. Count running time, not queue wait; freeze on tool
+  termination or owning request/agent termination; preserve timing across
+  virtual-agent switching. Do not invent durations for restored disk history.
+- **Action taken:** Added a separate elapsed label and monotonic timestamps to
+  native tool cards, with one GTK timeout per visible conversation stack.
+  Retained GUI updates preserve original timestamps through view reconstruction.
+  Child terminal/disconnected frames close unfinished cards, and exceptional
+  agent-end diagnostics complete the request even after tool/text output.
+  Terminal disk replay still accepts its captured result and image payload.
+- **Verification:** Production/test development builds pass. Focused stack
+  41/41, RPC tool 3/3, history 2/2 and exceptional dispatcher 1/1 pass under
+  Xvfb. Full registered suite passes 1047/1047, zero failed assertions or
+  unexpected errors, 76.32 s wall. Logs: `/tmp/coyote-stopwatch-build.log`,
+  `/tmp/coyote-stopwatch-test-build.log`, `/tmp/coyote-stopwatch-focused.log`,
+  `/tmp/coyote-stopwatch-full.log`. An initial destruction-test fixture teardown
+  crash was corrected by recording that its widget hierarchy was already
+  destroyed; subsequent focused and full runs pass.
+- **Evaluation:** Developer self-evaluation and read-only agent review, not
+  independent human acceptance. Existing compiler and GTK theme warnings
+  remain. Timing is frontend-observed (parent RPC receipt for children), not
+  precise process profiling; final durations are not persisted across restarts.
+  Desktop visual/theme/font acceptance and live-provider/subagent qualification
+  were not performed. No new runtime units or dependencies were introduced.
+- **Status:** Implemented and automated qualification complete; user visual
+  review remains manual.

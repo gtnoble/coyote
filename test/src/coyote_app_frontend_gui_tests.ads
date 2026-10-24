@@ -24,6 +24,10 @@ package Coyote_App_Frontend_GUI_Tests is
 
    procedure Test_RPC_Tool_Lifecycle_Status (T : in out Test);
 
+   procedure Test_RPC_Tool_Stopwatch_Replay (T : in out Test);
+
+   procedure Test_RPC_Tool_Stopwatch_Terminal (T : in out Test);
+
    procedure Test_Selected_Agent_Status (T : in out Test);
 
    procedure Test_Reset_Agents_Rejects_Old_Generation

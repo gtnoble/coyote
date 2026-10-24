@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Characters.Handling;
+with Ada.Real_Time;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -227,6 +228,7 @@ package body Coyote_App.Frontend.GUI is
       for U of F.Histories.Element (Position).Updates loop
          Apply_Update_Visible (F, U);
       end loop;
+      F.Stack.Refresh_Tool_Times;
       F.Replaying := False;
    exception
       when others =>
@@ -563,7 +565,9 @@ package body Coyote_App.Frontend.GUI is
    end Tool_Status_Value;
 
    procedure Apply_RPC_Event
-     (F : in out Instance; Value : Coyote_App.Agent_RPC.Frame)
+     (F : in out Instance;
+      Value : Coyote_App.Agent_RPC.Frame;
+      At_Time : Ada.Real_Time.Time)
    is
       use Coyote_App.Agent_RPC;
       Parsed : constant GNATCOLL.JSON.Read_Result :=
@@ -577,6 +581,7 @@ package body Coyote_App.Frontend.GUI is
          return;
       end if;
       U.Runtime_Agent_Id := Value.Agent_Id;
+      U.Occurred_At := At_Time;
       case Value.Event_Name is
          when Request_Start =>
             U.Kind   := Coyote_GUI.Begin_Request;
@@ -789,7 +794,7 @@ package body Coyote_App.Frontend.GUI is
                end if;
             end;
          when Event =>
-            Apply_RPC_Event (F, Value);
+            Apply_RPC_Event (F, Value, U.Occurred_At);
             if Value.Event_Name = Session_Info then
                declare
                   Parsed  : constant GNATCOLL.JSON.Read_Result :=
@@ -882,6 +887,21 @@ package body Coyote_App.Frontend.GUI is
                   null;
             end case;
          when Terminal =>
+            --  A dead/disconnected child cannot send missing tool-end events.
+            --  Retain cleanup even when its conversation is not selected.
+            declare
+               Completion : Coyote_GUI.Update;
+            begin
+               Completion.Kind := Coyote_GUI.Complete_Request;
+               Completion.Runtime_Agent_Id := Value.Agent_Id;
+               Completion.Occurred_At := U.Occurred_At;
+               Completion.C_Status :=
+                 (case Value.Status is
+                    when Completed => Coyote_GUI.Completed,
+                    when Aborted => Coyote_GUI.Aborted,
+                    when Failed | Disconnected => Coyote_GUI.Failed);
+               Apply_Update (F, Completion);
+            end;
             Set_Child_Status (F, Runtime_Id,
                (case Value.Status is
                   when Completed => "completed",
@@ -1947,7 +1967,7 @@ package body Coyote_App.Frontend.GUI is
 
          when Complete_Request =>
             F.Stack.Complete_Request
-              (Coyote_GUI.Completion_Status (U.C_Status));
+              (Coyote_GUI.Completion_Status (U.C_Status), U.Occurred_At);
             if Is_Local_Agent (F, To_String (U.Runtime_Agent_Id)) then
                case U.C_Status is
                   when Coyote_GUI.Completed =>
@@ -2000,12 +2020,14 @@ package body Coyote_App.Frontend.GUI is
                Session_Start    => To_String (U.Text7),
                Turn_Index       => Positive'Max (U.Tool_Turn, 1),
                Call_In_Turn     => Positive'Max (U.Tool_Call, 1),
-               Initial_Status   => U.T_Status);
+               Initial_Status   => U.T_Status,
+               At_Time          => U.Occurred_At);
             Apply_Agent_Menu_Sensitivity (F);
 
          when Set_Tool_Status =>
             F.Stack.Set_Tool_Status
-              (Tool_Id => To_String (U.Text), Status => U.T_Status);
+              (Tool_Id => To_String (U.Text), Status => U.T_Status,
+               At_Time => U.Occurred_At);
             Apply_Agent_Menu_Sensitivity (F);
 
          when End_Tool =>
@@ -2013,7 +2035,8 @@ package body Coyote_App.Frontend.GUI is
               (Tool_Id    => To_String (U.Text),
                Status     => U.T_Status,
                Result     => To_String (U.Text2),
-               Media_Type => To_String (U.Text3));
+               Media_Type => To_String (U.Text3),
+               At_Time    => U.Occurred_At);
             Apply_Agent_Menu_Sensitivity (F);
 
          when Append_Notice =>

@@ -15,6 +15,8 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Widget.Gtk_Widget;
    use type Gtk.Widget.Widget_List.Glist;
+   use type Glib.Main.G_Source_Id;
+   use type Glib.Main.G_Source;
 
    function Math_Element_At
      (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
@@ -411,6 +413,70 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    begin
       return C.Tool_Summary (Tool_Id);
    end Tool_Summary;
+
+   function Tool_Elapsed_Visible
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Boolean
+   is
+   begin
+      return C.Tools.Contains (Tool_Id)
+        and then C.Tools.Element (Tool_Id).Elapsed.Get_Visible;
+   end Tool_Elapsed_Visible;
+
+   function Timer_Active
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Timer_Id /= 0;
+   end Timer_Active;
+
+   function Timer_Source_Exists
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Timer_Id /= 0
+        and then Glib.Main.Find_Source_By_Id (C.Timer_Id) /= null;
+   end Timer_Source_Exists;
+
+   function Tool_Result_Received
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Boolean
+   is
+   begin
+      return C.Tools.Contains (Tool_Id)
+        and then C.Tools.Element (Tool_Id).Result_Received;
+   end Tool_Result_Received;
+
+   function Tool_Card_Child_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return Natural
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Count    : Natural := 0;
+   begin
+      if not C.Tools.Contains (Tool_Id) then
+         return 0;
+      end if;
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (C.Tools.Element (Tool_Id).Card_Box));
+      Children := Gtk.Widget.Widget_List.First (Children);
+      while Children /= Gtk.Widget.Widget_List.Null_List loop
+         Count := Count + 1;
+         Children := Gtk.Widget.Widget_List.Next (Children);
+      end loop;
+      return Count;
+   end Tool_Card_Child_Count;
+
+   function Tool_Elapsed_Label
+     (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)
+      return String
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Elapsed.Get_Text;
+      end if;
+      return "";
+   end Tool_Elapsed_Label;
 
    function Tool_Status_Label
      (C : Coyote_GUI.Conversation_Stack.Instance; Tool_Id : String)

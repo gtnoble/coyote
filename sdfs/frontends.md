@@ -1879,3 +1879,36 @@ Native qualification passes 151 assertions; Valgrind has zero errors/lost bytes;
 metrics regenerate byte-identically. See `plan/native-math-test-report.md` for
 full evidence and explicit qualification gaps. These are developer/agent checks,
 not independent human visual acceptance or a promise of complete TeX support.
+
+
+## 2026-10-23 — Tool-card elapsed runtime stopwatch (PCR-124)
+
+Implemented REQ-CORE-112a after the user's investigation/implementation request.
+Each live native tool card has a separate elapsed label: queued calls display
+`Elapsed: -`; first Running begins a monotonic interval; terminal outcomes freeze
+whole seconds as `MM:SS` or `H:MM:SS`. Cancellation counts until acknowledged
+completion, not just the button click. Duplicate/late events cannot restart the
+interval. Initially terminal history cards hide unknown duration while retaining
+their first result/media payload.
+
+One GLib timeout per stack refreshes running labels only when their displayed
+second changes. It is removed on idle, clear, next request and widget destruction.
+Original monotonic timestamps in retained GUI updates survive virtual-agent
+switching. RPC terminal/disconnect produces retained request completion for
+unfinished tools, and exceptional Agent_End diagnostics now guarantee failed
+request completion after output. No session format, worker protocol, dependency
+or new production source unit was added. The counter is frontend-observed and
+not an exact execution profiler; RPC timing uses parent receipt time.
+
+Production/test development builds pass. Focused stack 41/41, RPC tool 3/3,
+history 2/2 and dispatcher 1/1 pass under Xvfb. Full registered suite passes
+1047/1047, no failed assertions/unexpected errors, 76.32 s wall; evidence is in
+`/tmp/coyote-stopwatch-{build,test-build,focused,full}.log`. Tests cover fractional
+flooring, minute/hour formatting, queued cancellation, all terminal outcomes,
+request fallback, retained history payloads, concurrent cards, real GTK callback,
+idle/reset/destroy cleanup, switching and background child termination. Initial
+fixture cleanup failure was corrected before successful focused/full reruns.
+Existing GTK theme warnings remain. Self-evaluation and a read-only agent review
+are not independent acceptance; desktop allocation/theme/font interaction and
+live-provider/subagent execution remain unqualified. No persistence of elapsed
+durations across application restart is claimed.

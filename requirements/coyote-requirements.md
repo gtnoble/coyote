@@ -839,6 +839,14 @@ and an explicit message that no result is available yet.  Completed,
 failed, timed-out, and cancelled snapshots shall additionally show the
 captured result or diagnostic text.
 
+**REQ-CORE-112a** (D/T)
+Live tool-call cards shall show elapsed running time, excluding queued wait.
+The counter shall stop when the call terminates, including success, failure,
+timeout, cancellation, or termination of its owning request/agent. Switching
+between virtual agents shall preserve running and final elapsed values.
+Restored session history without recorded timing shall not fabricate a
+duration.
+
 **REQ-CORE-113** (D)
 The GUI frontend shall provide the following native menu actions: Send, Stop,
 New, Clear Conversation, Models, Session Stats, Compact, Pause, and Resume.

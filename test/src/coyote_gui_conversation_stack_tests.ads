@@ -17,6 +17,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with record
       Display_Available : Boolean := False;
+      Stack_Destroyed   : Boolean := False;
       Parent            : Gtk.Window.Gtk_Window;
       Stack             : Stack_Access;
       Image_Root        : Ada.Strings.Unbounded.Unbounded_String;
@@ -58,6 +59,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_New_Request_Resets_Step_Frames (T : in out Test);
    procedure Test_Tool_Updates_By_Stable_Id (T : in out Test);
    procedure Test_Tool_Status_Transitions (T : in out Test);
+   procedure Test_Tool_Stopwatch (T : in out Test);
    procedure Test_Request_Completion_Closes_Active_Tools (T : in out Test);
    procedure Test_Tool_Abort_Controls_Follow_Status (T : in out Test);
    procedure Test_Tool_Action_Buttons_Use_Horizontal_Row (T : in out Test);

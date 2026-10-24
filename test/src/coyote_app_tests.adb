@@ -6,6 +6,9 @@ with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with Coyote_App;            use Coyote_App;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
+with Coyote_App.Frontend;
+with Coyote_App.Frontend.Plain;
+with LLM.Events;
 with Ada.Strings.Fixed;
 with Coyote_Cmark;
 with Interfaces.C;
@@ -15,6 +18,27 @@ with System;
 package body Coyote_App_Tests is
 
    use AUnit.Assertions;
+   use type Coyote_App.Frontend.Completion_Status;
+
+   type Tracking_Frontend is new Coyote_App.Frontend.Plain.Instance with
+      record
+         Completion_Count : Natural := 0;
+         Last_Completion  : Coyote_App.Frontend.Completion_Status :=
+           Coyote_App.Frontend.Completed;
+      end record;
+
+   overriding procedure Complete_Request
+     (F      : in out Tracking_Frontend;
+      Status :        Coyote_App.Frontend.Completion_Status);
+
+   overriding procedure Complete_Request
+     (F      : in out Tracking_Frontend;
+      Status :        Coyote_App.Frontend.Completion_Status)
+   is
+   begin
+      F.Completion_Count := F.Completion_Count + 1;
+      F.Last_Completion := Status;
+   end Complete_Request;
 
    --  ── Model ─────────────────────────────────────────────────────────────
 
@@ -456,6 +480,62 @@ package body Coyote_App_Tests is
         (S.Pending_Stats,
          "Pending_Stats must be True when stopReason = ""length""");
    end Test_State_Pending_Stats_Gated_By_Stop_Reason;
+
+   procedure Test_Dispatch_Agent_End_Completion (T : in out Test) is
+      pragma Unreferenced (T);
+      Frontend : Tracking_Frontend;
+      State    : App_State;
+      Section  : Section_Kind := No_Section;
+      Start    : constant LLM.Events.Agent_Start_Event :=
+        (LLM.Events.Agent_Event with null record);
+      Tool     : constant LLM.Events.Tool_Execution_Start_Event :=
+        (LLM.Events.Agent_Event with
+         Tool_Call_Id => To_Unbounded_String ("tool-1"),
+         Tool_Name    => To_Unbounded_String ("test"),
+         Args_Json    => To_Unbounded_String ("{}"));
+      Failed_End : constant LLM.Events.Agent_End_Event :=
+        (LLM.Events.Agent_Event with
+         Was_Aborted => False,
+         Error_Msg   => To_Unbounded_String ("exceptional failure"));
+      Normal_End : constant LLM.Events.Agent_End_Event :=
+        (LLM.Events.Agent_Event with
+         Was_Aborted => False,
+         Error_Msg   => Null_Unbounded_String);
+      Aborted_End : constant LLM.Events.Agent_End_Event :=
+        (LLM.Events.Agent_Event with
+         Was_Aborted => True,
+         Error_Msg   => To_Unbounded_String ("cancelled"));
+   begin
+      Coyote_App.Frontend.Plain.Create
+        (Coyote_App.Frontend.Plain.Instance (Frontend));
+      Dispatch_Event (Start, Frontend, State, Section);
+      State.Set_Last_Stop_Reason ("toolUse");
+      Dispatch_Event (Tool, Frontend, State, Section);
+      Dispatch_Event (Failed_End, Frontend, State, Section);
+      Assert
+        (Frontend.Completion_Count = 1
+         and then Frontend.Last_Completion =
+           Coyote_App.Frontend.Failed,
+         "text/tool-emitting exceptional end must complete once as Failed");
+
+      Frontend.Completion_Count := 0;
+      Dispatch_Event (Start, Frontend, State, Section);
+      State.Set_Last_Stop_Reason ("stop");
+      State.Set_Text_Emitted (True);
+      Dispatch_Event (Normal_End, Frontend, State, Section);
+      Assert
+        (Frontend.Completion_Count = 0,
+         "normal stop end must not add a Failed completion");
+
+      Frontend.Completion_Count := 0;
+      Dispatch_Event (Start, Frontend, State, Section);
+      Dispatch_Event (Aborted_End, Frontend, State, Section);
+      Assert
+        (Frontend.Completion_Count = 1
+         and then Frontend.Last_Completion =
+           Coyote_App.Frontend.Aborted,
+         "aborted end must complete once as Aborted");
+   end Test_Dispatch_Agent_End_Completion;
 
    --  ── App_State Last_Stop_Reason ────────────────────────────────────────
    procedure Test_State_Last_Stop_Reason_Initial (T : in out Test) is
@@ -1699,6 +1779,10 @@ package body Coyote_App_Tests is
               Access));
       Result.Add_Test
         (App_State_Caller.Create
+           ("Dispatch Agent_End: exceptional failure completes once",
+            Coyote_App_Tests.Test_Dispatch_Agent_End_Completion'Access));
+      Result.Add_Test
+        (App_State_Caller.Create
            ("Stats model part: non-empty when model is set",
             Coyote_App_Tests.Test_Stats_Model_Part_When_Set'Access));
       Result.Add_Test
@@ -1775,7 +1859,8 @@ package body Coyote_App_Tests is
             Coyote_App_Tests.Test_One_Shot_Result_First_Write_Wins'Access));
       Result.Add_Test
         (App_State_Caller.Create
-           ("Format_Tool_Field: single-line value returns border + label + value",
+           ("Format_Tool_Field: single-line value returns border + label"
+            & " + value",
             Coyote_App_Tests.Test_Format_Tool_Field_Single_Line'Access));
       Result.Add_Test
         (App_State_Caller.Create
@@ -1912,11 +1997,13 @@ package body Coyote_App_Tests is
       Result.Add_Test
         (App_State_Caller.Create
            ("Format_Status: working directory appears when set",
-            Coyote_App_Tests.Test_Format_Status_With_Working_Directory'Access));
+            Coyote_App_Tests.Test_Format_Status_With_Working_Directory
+              'Access));
       Result.Add_Test
         (App_State_Caller.Create
            ("Format_Status: empty working directory is omitted",
-            Coyote_App_Tests.Test_Format_Status_Without_Working_Directory'Access));
+            Coyote_App_Tests.Test_Format_Status_Without_Working_Directory
+              'Access));
       Result.Add_Test
         (App_State_Caller.Create
            ("Apply_Prompt_Filter: empty filter returns raw unchanged",
@@ -1931,7 +2018,8 @@ package body Coyote_App_Tests is
             Coyote_App_Tests.Test_Apply_Filter_Transform'Access));
       Result.Add_Test
         (App_State_Caller.Create
-           ("Apply_Prompt_Filter: non-zero exit falls back to raw with warning",
+           ("Apply_Prompt_Filter: non-zero exit falls back to raw"
+            & " with warning",
             Coyote_App_Tests.Test_Apply_Filter_Non_Zero_Exit'Access));
       Result.Add_Test
         (App_State_Caller.Create

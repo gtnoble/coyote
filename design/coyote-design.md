@@ -312,6 +312,22 @@ remain plain until block completion; Plain output remains line-oriented.
 
 - **Plain frontend:** Plain UTF-8 to stdout. No ANSI escape codes.
 
+Tool-card elapsed time starts on the first `Running` transition, not on card
+creation. A separate label displays whole seconds as `MM:SS`, expanding to
+`H:MM:SS`; queued cards show `Elapsed: -`. The first terminal timestamp freezes
+the counter. One per-stack GLib timeout refreshes running labels on the GTK
+main task, without creating tasks or per-card sources. It is removed when no
+running intervals remain, on clear/request reset, and widget destruction.
+
+GUI updates capture a monotonic `Occurred_At` before queueing. Retained updates
+keep these timestamps when virtual-agent selection rebuilds the conversation;
+a final refresh catches running cards up to the current clock. Child terminal
+frames synthesize retained request completion to close missing tool ends, and
+exceptional agent-end diagnostics complete requests as failed. Disk-history
+cards begin terminal and accept their first result without inventing elapsed
+time. Timing is frontend-observed (RPC receipt for children), not persisted or
+claimed as exact worker/process execution profiling.
+
 ### 3.6 Reuse of Shared Data and Services
 
 - **Session persistence:** The GUI and Plain paths share `LLM.Session_Store`

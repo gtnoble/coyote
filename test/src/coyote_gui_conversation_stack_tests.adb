@@ -4,6 +4,7 @@ with AUnit.Test_Caller;
 --  Project: coyote
 
 with Ada.Calendar;
+with Ada.Real_Time;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Streams;
@@ -68,6 +69,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Glib.Gfloat;
    use type System.Address;
    use type Ada.Calendar.Time;
+   use type Ada.Real_Time.Time;
+   use type Ada.Real_Time.Time_Span;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
    use type Ada.Directories.File_Size;
    use type GNAT.OS_Lib.File_Descriptor;
@@ -320,9 +323,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    overriding procedure Tear_Down (T : in out Test) is
    begin
       if T.Display_Available then
-         Clear (T.Stack.all);
-         T.Parent.Destroy;
-         T.Parent := null;
+         if not T.Stack_Destroyed then
+            Clear (T.Stack.all);
+         end if;
+         if T.Parent /= null then
+            T.Parent.Destroy;
+            T.Parent := null;
+         end if;
          Free_Stack : declare
             procedure Free is new Ada.Unchecked_Deallocation
               (Coyote_GUI.Conversation_Stack.Instance, Stack_Access);
@@ -1640,6 +1647,252 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "timed-out status is visible in the compact card");
    end Test_Tool_Status_Transitions;
 
+   procedure Test_Tool_Stopwatch (T : in out Test) is
+      Start_Time : constant Ada.Real_Time.Time := Ada.Real_Time.Time_First
+        + Ada.Real_Time.Seconds (10_000);
+      End_Time   : constant Ada.Real_Time.Time :=
+        Start_Time + Ada.Real_Time.Seconds (59)
+        + Ada.Real_Time.Milliseconds (999);
+      Image_Data : constant String :=
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4"
+        & "z8DAAMIg4j8QMAAAM94G+lX/f/AAAAAASUVORK5CYII=";
+      Info : Coyote_GUI.Tool_Info;
+      Card_Children : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Begin_Tool
+        (C => T.Stack.all, Name => "queued", Args => "{}",
+         Session_Id => "session", Tool_Id => "queued",
+         Initial_Status => Queued,
+         At_Time => Start_Time);
+      Assert (not Timer_Active (T.Stack.all),
+              "queued card does not start an elapsed timer");
+      Refresh_Tool_Times
+        (T.Stack.all, Start_Time + Ada.Real_Time.Seconds (90));
+      Assert (Tool_Elapsed_Label (T.Stack.all, "queued") = "Elapsed: -",
+              "queued wait is excluded from elapsed time");
+      Set_Tool_Status
+        (T.Stack.all, "queued", Cancelled,
+         Start_Time + Ada.Real_Time.Seconds (1));
+      Assert (not Timer_Active (T.Stack.all),
+              "cancelled queued tool never starts a running timer");
+      Assert (not Tool_Elapsed_Visible (T.Stack.all, "queued"),
+              "cancelled queued tool keeps duration hidden");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "fractional", Args => "{}",
+         Session_Id => "session", Tool_Id => "fractional",
+         At_Time => Start_Time);
+      Refresh_Tool_Times (T.Stack.all, End_Time);
+      Assert
+        (Tool_Elapsed_Label (T.Stack.all, "fractional") = "Elapsed: 00:59",
+         "fractional elapsed duration floors 59.999 seconds");
+      Refresh_Tool_Times (T.Stack.all, Start_Time - Ada.Real_Time.Seconds (1));
+      Assert
+        (Tool_Elapsed_Label (T.Stack.all, "fractional") = "Elapsed: 00:00",
+         "backwards refresh timestamp clamps to the start time");
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "fractional", Status => Success,
+         Result => "ok", At_Time => End_Time);
+      Assert
+        (Tool_Elapsed_Label (T.Stack.all, "fractional") = "Elapsed: 00:59",
+         "success freezes a floored elapsed duration");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "error", Args => "{}",
+         Session_Id => "session", Tool_Id => "error", At_Time => Start_Time);
+      Set_Tool_Status
+        (T.Stack.all, "error", Error, Start_Time + Ada.Real_Time.Seconds (15));
+      Refresh_Tool_Times
+        (T.Stack.all, Start_Time + Ada.Real_Time.Seconds (90));
+      Assert (Tool_Elapsed_Label (T.Stack.all, "error") = "Elapsed: 00:15",
+              "error status freezes elapsed time");
+      Begin_Tool
+        (C => T.Stack.all, Name => "timeout", Args => "{}",
+         Session_Id => "session", Tool_Id => "timeout", At_Time => Start_Time);
+      Set_Tool_Status
+        (T.Stack.all, "timeout", Timed_Out,
+         Start_Time + Ada.Real_Time.Seconds (16));
+      Assert (Tool_Elapsed_Label (T.Stack.all, "timeout") = "Elapsed: 00:16",
+              "timeout status freezes elapsed time");
+      Begin_Tool
+        (C => T.Stack.all, Name => "cancel", Args => "{}",
+         Session_Id => "session", Tool_Id => "cancel", At_Time => Start_Time);
+      Set_Tool_Status
+        (T.Stack.all, "cancel", Cancelled,
+         Start_Time + Ada.Real_Time.Seconds (17));
+      Assert (Tool_Elapsed_Label (T.Stack.all, "cancel") = "Elapsed: 00:17",
+              "cancelled running status freezes elapsed time");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "history", Args => "{}",
+         Session_Id => "session", Tool_Id => "history",
+         Initial_Status => Success,
+         At_Time => Start_Time);
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "history", Status => Success,
+         Result => Image_Data, Media_Type => "image/png",
+         At_Time => Start_Time + Ada.Real_Time.Seconds (30));
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack.all, "history");
+      Assert (To_String (Info.Result_Text) = Image_Data,
+              "terminal history accepts its first result");
+      Assert (To_String (Info.Media_Type) = "image/png",
+              "terminal history retains media type");
+      Assert (Tool_Thumbnail (T.Stack.all, "history") /= null,
+              "terminal history result creates its image thumbnail");
+      Card_Children := Tool_Card_Child_Count (T.Stack.all, "history");
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "history", Status => Error,
+         Result => "duplicate", Media_Type => "text/plain",
+         At_Time => Start_Time + Ada.Real_Time.Seconds (40));
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack.all, "history");
+      Assert (To_String (Info.Result_Text) = Image_Data,
+              "duplicate End_Tool preserves the first result");
+      Assert (To_String (Info.Media_Type) = "image/png",
+              "duplicate End_Tool preserves the first media type");
+      Assert (Tool_Card_Child_Count (T.Stack.all, "history") = Card_Children,
+              "duplicate End_Tool does not append an image twice");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "status-terminal", Args => "{}",
+         Session_Id => "session", Tool_Id => "status-terminal",
+         At_Time => Start_Time);
+      Set_Tool_Status
+        (T.Stack.all, "status-terminal", Error,
+         Start_Time + Ada.Real_Time.Seconds (15));
+      End_Tool
+        (C          => T.Stack.all,
+         Tool_Id    => "status-terminal",
+         Status     => Success,
+         Result     => "history payload",
+         At_Time    => Start_Time + Ada.Real_Time.Seconds (20));
+      Refresh_Tool_Times
+        (T.Stack.all, Start_Time + Ada.Real_Time.Seconds (90));
+      Assert
+        (Tool_Elapsed_Label (T.Stack.all, "status-terminal")
+         = "Elapsed: 00:15",
+         "End_Tool retains the first terminal timestamp");
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack.all, "status-terminal");
+      Assert (To_String (Info.Result_Text) = "history payload",
+              "status-terminal card accepts the first End_Tool result");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "first-run", Args => "{}",
+         Session_Id => "session", Tool_Id => "first-run",
+         Initial_Status => Error, At_Time => Start_Time);
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "first-run", Status => Success,
+         Result => "retained",
+         At_Time => Start_Time + Ada.Real_Time.Seconds (2));
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack.all, "first-run");
+      Assert (To_String (Info.Result_Text) = "retained",
+              "initially terminal history accepts result"
+              & " without inventing time");
+      Assert (not Tool_Elapsed_Visible (T.Stack.all, "first-run"),
+              "initially terminal duration remains hidden");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "queued-only", Args => "{}",
+         Session_Id => "session", Tool_Id => "queued-only",
+         Initial_Status => Queued, At_Time => Start_Time);
+      Begin_Tool
+        (C => T.Stack.all, Name => "active", Args => "{}",
+         Session_Id => "session", Tool_Id => "active", At_Time => Start_Time);
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "active", Status => Success,
+         Result => "ok", At_Time => Start_Time + Ada.Real_Time.Seconds (3));
+      Assert (not Timer_Active (T.Stack.all),
+              "idle source stops even when a queued card remains");
+      Assert (not Timer_Source_Exists (T.Stack.all),
+              "idle timer source has been removed from GLib");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "independent-a", Args => "{}",
+         Session_Id => "session", Tool_Id => "independent-a",
+         At_Time => Start_Time);
+      Begin_Tool
+        (C => T.Stack.all, Name => "independent-b", Args => "{}",
+         Session_Id => "session", Tool_Id => "independent-b",
+         At_Time => Start_Time + Ada.Real_Time.Seconds (10));
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "independent-a", Status => Success,
+         Result => "ok", At_Time => Start_Time + Ada.Real_Time.Seconds (20));
+      Refresh_Tool_Times (T.Stack.all,
+         Start_Time + Ada.Real_Time.Seconds (30));
+      Assert (Tool_Elapsed_Label (T.Stack.all,
+         "independent-a") = "Elapsed: 00:20",
+              "first concurrent tool freezes independently");
+      Assert (Tool_Elapsed_Label (T.Stack.all,
+         "independent-b") = "Elapsed: 00:20",
+              "second concurrent tool keeps its independent duration");
+      Assert (Timer_Active (T.Stack.all),
+              "timer remains while another tool is running");
+      Begin_Tool
+        (C => T.Stack.all, Name => "long", Args => "{}",
+         Session_Id => "session", Tool_Id => "long", At_Time => Start_Time);
+      Refresh_Tool_Times
+        (T.Stack.all, Start_Time + Ada.Real_Time.Seconds (60));
+      Assert (Tool_Elapsed_Label (T.Stack.all, "long") = "Elapsed: 01:00",
+              "elapsed format crosses the minute boundary");
+      End_Tool
+        (C => T.Stack.all, Tool_Id => "long", Status => Timed_Out,
+         Result => "timeout",
+         At_Time => Start_Time + Ada.Real_Time.Seconds (3_601));
+      Assert (Tool_Elapsed_Label (T.Stack.all, "long") = "Elapsed: 1:00:01",
+              "elapsed format expands at the hour boundary");
+      Complete_Request
+        (T.Stack.all, Failed, Start_Time + Ada.Real_Time.Seconds (40));
+      Assert
+        (Tool_Elapsed_Label (T.Stack.all, "independent-b") = "Elapsed: 00:30",
+         "request failure freezes an unfinished timer at completion time");
+      Begin_Tool
+        (C => T.Stack.all, Name => "reset", Args => "{}",
+         Session_Id => "session", Tool_Id => "reset", At_Time => Start_Time);
+      Begin_Request (T.Stack.all, "next request", Prompt);
+      Assert (not Timer_Active (T.Stack.all),
+              "beginning a request removes the previous timer source");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "callback", Args => "{}",
+         Session_Id => "session", Tool_Id => "callback",
+         At_Time => Ada.Real_Time.Clock);
+      delay 1.1;
+      while Gtk.Main.Events_Pending loop
+         declare
+            Continue : constant Boolean := Gtk.Main.Main_Iteration;
+            pragma Unreferenced (Continue);
+         begin
+            null;
+         end;
+      end loop;
+      Assert (Tool_Elapsed_Label (T.Stack.all, "callback") /= "Elapsed: 00:00",
+              "GTK main iteration invokes timer callback and refreshes label");
+
+      Begin_Tool
+        (C => T.Stack.all, Name => "teardown", Args => "{}",
+         Session_Id => "session", Tool_Id => "teardown",
+         At_Time => Start_Time);
+      Clear (T.Stack.all);
+      Assert (not Timer_Source_Exists (T.Stack.all),
+              "clear removes the registered timeout source");
+      Begin_Request (T.Stack.all, "destroy test", Prompt);
+      Begin_Tool
+        (C => T.Stack.all, Name => "destroy", Args => "{}",
+         Session_Id => "session", Tool_Id => "destroy",
+         At_Time => Ada.Real_Time.Clock);
+      T.Stack_Destroyed := True;
+      Host_Widget (T.Stack.all).Destroy;
+      Assert (not Timer_Source_Exists (T.Stack.all),
+              "destroying stack widget removes the GLib timeout");
+   end Test_Tool_Stopwatch;
+
    procedure Test_Request_Completion_Closes_Active_Tools (T : in out Test) is
       Info : Coyote_GUI.Tool_Info;
    begin
@@ -2495,6 +2748,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("Coyote.GUI.Conversation_Stack tracks tool status transitions",
             Coyote_GUI_Conversation_Stack_Tests.Test_Tool_Status_Transitions'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack tracks tool stopwatches",
+            Coyote_GUI_Conversation_Stack_Tests.Test_Tool_Stopwatch'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack closes tools at request completion",

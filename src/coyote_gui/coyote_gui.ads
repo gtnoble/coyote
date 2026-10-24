@@ -7,6 +7,7 @@
 --
 --  Project: coyote
 
+with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with LLM.Model_Registry;
 
@@ -215,6 +216,8 @@ package Coyote_GUI is
 
    type Update is record
       Kind             : Update_Kind       := Append_Text;
+      --  Captured once, before queueing; retained replay must not retime tools.
+      Occurred_At      : Ada.Real_Time.Time := Ada.Real_Time.Clock;
       --  Originating runtime agent; empty is the legacy single-agent value.
       Runtime_Agent_Id : Ada.Strings.Unbounded.Unbounded_String;
       --  RPC frames and session-reset markers share service ordering.

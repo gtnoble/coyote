@@ -226,7 +226,7 @@ package body Coyote_App.Dispatch is
                Stop    : constant String := State.Last_Stop_Reason;
                Err_Msg : constant String := State.Last_Error_Message;
             begin
-               if Stop = "error" then
+               if Stop = "error" or else Err_Msg'Length > 0 then
                   Frontend.Append_Notice
                     (Coyote_App.Frontend.Warning,
                      "Agent stopped with an error"

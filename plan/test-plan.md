@@ -1096,3 +1096,25 @@ suite: 982/982, zero failed assertions/unexpected errors, 60.36 s wall from
 checks pass. Focused GUI runs retain existing GTK theme CSS warnings. DEM-041
 physical wheel/touchpad/keyboard/menu, enlarged-font, theme, window-manager and
 actual Yelp checks remain manual; automated checks are not human acceptance.
+
+
+**PCR-124 tool-card stopwatch qualification (2026-10-23):**
+REQ-CORE-112a is exercised by the registered `Conversation_Stack` stopwatch,
+GUI RPC stopwatch replay/terminal, history terminal replay, and exceptional
+`Dispatch Agent_End` regression cases. Deterministic monotonic timestamps cover
+queue exclusion, fractional flooring, minute/hour boundaries, independent calls,
+first-terminal freeze, duplicate/late events, missing tool-end fallback and view
+reconstruction. A display-backed main-loop check exercises the real GLib timeout;
+clear, idle, next-request and widget-destroy paths check timer removal. History
+without timing remains terminal, keeps results and hides unknown elapsed values.
+
+Qualified commands: `alr build --development`; from `test/`,
+`alr build --development --profiles=coyote=development`, then
+`xvfb-run -a ./bin/coyote_test`. Full registered result: 1047/1047, zero failed
+assertions or unexpected errors, 76.32 s wall. Focused stack 41/41, RPC tool 3/3,
+history 2/2, dispatcher 1/1. Logs are `/tmp/coyote-stopwatch-build.log`,
+`/tmp/coyote-stopwatch-test-build.log`, `/tmp/coyote-stopwatch-focused.log`, and
+`/tmp/coyote-stopwatch-full.log`. Existing theme/compiler warnings remain.
+Developer self-evaluation/read-only agent review are not independent user
+acceptance. Desktop visual review and live providers/real subagent execution
+remain manual/opt-in; no exact worker profiling or restart persistence is claimed.

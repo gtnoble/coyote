@@ -8,20 +8,43 @@ with Coyote_App;
 with Coyote_App.Frontend;
 with Coyote_App.History;
 with LLM.Session_Store;
+with Session_Fixture;
 
 package body Coyote_App_History_Tests is
 
    use AUnit.Assertions;
+   use type Coyote_App.Frontend.Tool_Status;
 
    type Text_Block_Array is
      array (Positive range 1 .. 8) of Unbounded_String;
 
+   type Tool_Event_Array is array (Positive range 1 .. 8) of Unbounded_String;
+
+   type Tool_Status_Array is
+     array (Positive range 1 .. 8) of Coyote_App.Frontend.Tool_Status;
+
+   type Tool_End_Status_Array is
+     array (Positive range 1 .. 8) of Coyote_App.Frontend.Tool_End_Status;
+
    type Recorder is new Coyote_App.Frontend.Instance with record
-      Source_Directory      : Unbounded_String;
-      Tool_Source_Directory : Unbounded_String;
+      Source_Directory       : Unbounded_String;
+      Tool_Source_Directory  : Unbounded_String;
       Source_Set_Before_Text : Boolean := False;
-      Text_Block_Count : Natural := 0;
-      Text_Block_Texts : Text_Block_Array := (others => Null_Unbounded_String);
+      Text_Block_Count       : Natural := 0;
+      Text_Block_Texts       : Text_Block_Array :=
+        (others => Null_Unbounded_String);
+      Begin_Tool_Count       : Natural := 0;
+      Begin_Tool_Ids         : Tool_Event_Array :=
+        (others => Null_Unbounded_String);
+      Begin_Tool_Statuses    : Tool_Status_Array :=
+        (others => Coyote_App.Frontend.Running);
+      End_Tool_Count         : Natural := 0;
+      End_Tool_Ids           : Tool_Event_Array :=
+        (others => Null_Unbounded_String);
+      End_Tool_Statuses      : Tool_End_Status_Array :=
+        (others => Coyote_App.Frontend.Success);
+      End_Tool_Results       : Tool_Event_Array :=
+        (others => Null_Unbounded_String);
    end record;
 
    overriding procedure Set_Source_Directory
@@ -156,6 +179,12 @@ package body Coyote_App_History_Tests is
         Coyote_App.Frontend.Running) is
    begin
       F.Tool_Source_Directory := To_Unbounded_String (Source_Directory);
+      F.Begin_Tool_Count := F.Begin_Tool_Count + 1;
+      if F.Begin_Tool_Count <= F.Begin_Tool_Ids'Last then
+         F.Begin_Tool_Ids (F.Begin_Tool_Count) :=
+           To_Unbounded_String (Tool_Id);
+         F.Begin_Tool_Statuses (F.Begin_Tool_Count) := Initial_Status;
+      end if;
    end Begin_Tool;
 
    overriding
@@ -175,7 +204,14 @@ package body Coyote_App_History_Tests is
       Result_Text : String := "";
       Media_Type  : String := "") is
    begin
-      null;
+      F.End_Tool_Count := F.End_Tool_Count + 1;
+      if F.End_Tool_Count <= F.End_Tool_Ids'Last then
+         F.End_Tool_Ids (F.End_Tool_Count) :=
+           To_Unbounded_String (Tool_Id);
+         F.End_Tool_Statuses (F.End_Tool_Count) := Status;
+         F.End_Tool_Results (F.End_Tool_Count) :=
+           To_Unbounded_String (Result_Text);
+      end if;
    end End_Tool;
 
    overriding
@@ -237,6 +273,14 @@ package body Coyote_App_History_Tests is
         & """}],""usage"":{},""stopReason"":""stop"""
         & "}";
    end Assistant_JSON;
+
+   procedure Append_Result_Status
+     (Home     : String;
+      Cwd_Slug : String;
+      UUID     : String;
+      Tool_Id  : String;
+      Result   : String;
+      Status   : String);
 
    procedure Test_Legacy_Format_Metadata_Ignored
      (T : in out Test)
@@ -334,6 +378,148 @@ package body Coyote_App_History_Tests is
          raise;
    end Test_Legacy_Format_Metadata_Ignored;
 
+   procedure Test_Tool_Replay_Status_And_Result (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Root : constant String := "/tmp/coyote_history_tool_test";
+      Cwd_Slug : constant String := "--tmp--";
+      Session_Id : Unbounded_String;
+      Frontend : Recorder;
+      State : Coyote_App.App_State;
+   begin
+      if Ada.Directories.Exists (Root) then
+         Ada.Directories.Delete_Tree (Root);
+      end if;
+      Ada.Directories.Create_Path (Root);
+      Ada.Environment_Variables.Set ("HOME", Root);
+
+      Session_Id := To_Unbounded_String
+        (Session_Fixture.Create_Native_Session
+           (Home => Root, Cwd_Slug => Cwd_Slug, Name => "tool replay"));
+      Session_Fixture.Append_Assistant_Tool_Call
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "success-id",
+         Tool_Name => "shell", Args_JSON => "{""command"":""true""}");
+      Session_Fixture.Append_Tool_Result
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "success-id",
+         Result => "success payload");
+      Session_Fixture.Append_Assistant_Tool_Call
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "timeout-id",
+         Tool_Name => "shell", Args_JSON => "{}");
+      Append_Result_Status (Root, Cwd_Slug, To_String (Session_Id),
+                           "timeout-id", "timeout payload", "timed_out");
+      Session_Fixture.Append_Assistant_Tool_Call
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "cancel-id",
+         Tool_Name => "shell", Args_JSON => "{}");
+      Append_Result_Status (Root, Cwd_Slug, To_String (Session_Id),
+                           "cancel-id", "cancel payload", "cancelled");
+      Session_Fixture.Append_Assistant_Tool_Call
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "error-id",
+         Tool_Name => "shell", Args_JSON => "{}");
+      Session_Fixture.Append_Tool_Result
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "error-id",
+         Result => "error payload", Is_Error => True);
+      Session_Fixture.Append_Assistant_Tool_Call
+        (Home => Root, Cwd_Slug => Cwd_Slug,
+         UUID => To_String (Session_Id), Tool_Id => "unmatched-id",
+         Tool_Name => "shell", Args_JSON => "{}");
+
+      Coyote_App.History.Render_Session_History
+        (UUID => To_String (Session_Id), Frontend => Frontend,
+         State => State);
+
+      Assert (Frontend.Begin_Tool_Count = 5,
+              "replay begins each recorded tool call");
+      Assert (Frontend.End_Tool_Count = 5,
+              "replay ends each recorded tool call");
+      Assert
+        (To_String (Frontend.Begin_Tool_Ids (1)) = "success-id"
+         and then Frontend.Begin_Tool_Statuses (1) =
+           Coyote_App.Frontend.Success,
+         "successful history begins in terminal Success state");
+      Assert
+        (To_String (Frontend.End_Tool_Ids (1)) = "success-id"
+         and then Frontend.End_Tool_Statuses (1) =
+           Coyote_App.Frontend.Success
+         and then To_String (Frontend.End_Tool_Results (1)) =
+           "success payload",
+         "successful history retains result payload and matching ID");
+      Assert
+        (Frontend.Begin_Tool_Statuses (2) = Coyote_App.Frontend.Timed_Out
+         and then Frontend.End_Tool_Statuses (2) =
+           Coyote_App.Frontend.Timed_Out,
+         "timed-out history begins and ends with Timed_Out");
+      Assert
+        (To_String (Frontend.End_Tool_Ids (2)) = "timeout-id"
+         and then To_String (Frontend.End_Tool_Results (2)) =
+           "timeout payload",
+         "timed-out history retains result ID and payload");
+      Assert
+        (Frontend.Begin_Tool_Statuses (3) = Coyote_App.Frontend.Cancelled
+         and then Frontend.End_Tool_Statuses (3) =
+           Coyote_App.Frontend.Cancelled,
+         "cancelled history begins and ends with Cancelled");
+      Assert
+        (Frontend.Begin_Tool_Statuses (4) = Coyote_App.Frontend.Error
+         and then Frontend.End_Tool_Statuses (4) =
+           Coyote_App.Frontend.Error,
+         "error history begins and ends with Error");
+      Assert
+        (Frontend.Begin_Tool_Statuses (5) = Coyote_App.Frontend.Cancelled
+         and then Frontend.End_Tool_Statuses (5) =
+           Coyote_App.Frontend.Cancelled,
+         "unmatched tool call begins and ends as Cancelled");
+
+      if Ada.Directories.Exists (Root) then
+         Ada.Directories.Delete_Tree (Root);
+      end if;
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      else
+         Ada.Environment_Variables.Clear ("HOME");
+      end if;
+   exception
+      when others =>
+         if Ada.Directories.Exists (Root) then
+            Ada.Directories.Delete_Tree (Root);
+         end if;
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         else
+            Ada.Environment_Variables.Clear ("HOME");
+         end if;
+         raise;
+   end Test_Tool_Replay_Status_And_Result;
+
+   procedure Append_Result_Status
+     (Home     : String;
+      Cwd_Slug : String;
+      UUID     : String;
+      Tool_Id  : String;
+      Result   : String;
+      Status   : String)
+   is
+      File : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Open
+        (File, Ada.Text_IO.Append_File,
+         Session_Fixture.Session_File_Path (Home, Cwd_Slug, UUID));
+      Ada.Text_IO.Put_Line
+        (File, "{""role"":""toolResult"",""toolCallId"":"""
+         & Tool_Id & """,""content"":[{""type"":""text"",""text"":"""
+         & Result & """}],""isError"":false,""status"":"""
+         & Status & """}");
+      Ada.Text_IO.Close (File);
+   end Append_Result_Status;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -344,6 +530,10 @@ package body Coyote_App_History_Tests is
         (Caller.Create
            ("Coyote_App.History ignores legacy format metadata",
             Test_Legacy_Format_Metadata_Ignored'Access));
+      Result.Add_Test
+        (Caller.Create
+           ("Coyote_App.History replays terminal tool results",
+            Test_Tool_Replay_Status_And_Result'Access));
       return Result;
    end Suite;
 

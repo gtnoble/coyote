@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Real_Time;
 with Coyote_App.Agent_RPC;
 with Coyote_GUI;
 with Gtk.Box;
@@ -76,7 +77,8 @@ package Coyote_App.Frontend.GUI.Testing is
       Agent_Id   :        String;
       Sequence   :        Natural;
       Event_Name :        Coyote_App.Agent_RPC.Event_Kind;
-      Payload    :        String);
+      Payload    :        String;
+      At_Time    :        Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    procedure Apply_Event
      (F              : in out Coyote_App.Frontend.GUI.Instance;
@@ -84,13 +86,15 @@ package Coyote_App.Frontend.GUI.Testing is
       Agent_Id       :        String;
       Sequence       :        Natural;
       Event_Name     :        Coyote_App.Agent_RPC.Event_Kind;
-      Payload        :        String);
+      Payload        :        String;
+      At_Time        :        Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    procedure Apply_Terminal
      (F              : in out Coyote_App.Frontend.GUI.Instance;
       RPC_Generation :        Natural;
       Agent_Id       :        String;
-      Status         :        Coyote_App.Agent_RPC.Terminal_Status);
+      Status         :        Coyote_App.Agent_RPC.Terminal_Status;
+      At_Time        :        Ada.Real_Time.Time := Ada.Real_Time.Clock);
 
    procedure Reset_Agents_From_Task
      (F : in out Coyote_App.Frontend.GUI.Instance);
@@ -151,6 +155,13 @@ package Coyote_App.Frontend.GUI.Testing is
      (F       : Coyote_App.Frontend.GUI.Instance;
       Tool_Id : String)
       return String;
+
+   function Tool_Elapsed_Label
+     (F : Coyote_App.Frontend.GUI.Instance; Tool_Id : String) return String;
+
+   procedure Refresh_Tool_Times
+     (F : in out Coyote_App.Frontend.GUI.Instance;
+      At_Time : Ada.Real_Time.Time);
 
    function Tool_Detail
      (F       : Coyote_App.Frontend.GUI.Instance;
