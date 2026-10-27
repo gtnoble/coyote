@@ -1,0 +1,28 @@
+{
+  "schema": "coyote.math-browser-pilot.v1",
+  "reference": {
+    "name": "KaTeX",
+    "version": "0.16.22",
+    "archiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
+    "bundleSha256": "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33"
+  },
+  "render": {
+    "viewportContentWidth": 800,
+    "fontSizePx": 24,
+    "deviceScaleFactor": 1,
+    "background": "transparent",
+    "options": {
+      "throwOnError": true,
+      "trust": false,
+      "strict": "warn",
+      "maxSize": 100,
+      "maxExpand": 1000
+    }
+  },
+  "cases": [
+    { "id": "x", "source": "x", "displayMode": false },
+    { "id": "frac-x-y", "source": "\\frac{x}{y}", "displayMode": false },
+    { "id": "heatbalance-first-term", "source": "\\dot{Q}_{\\mathrm{in}}", "displayMode": false }
+  ],
+  "scope": "Development-only real-browser DOM geometry, leaf text-span bounds, raw KaTeX SVG path data when present, and a browser screenshot artifact. Does not compare pixels against the native renderer, claim glyph-to-math-node component mapping, or cover the full math dialect."
+}

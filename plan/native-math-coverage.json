@@ -175,7 +175,7 @@
     "src/coyote_math/math_engine.ads": "39159693f604ff2ff0a3240e9e938497a78a0a333a7520b3e5b3bc7c6f0000b8",
     "src/coyote_math/math_engine.adb": "73c2db3ad9fe22c7a9dd7a0cc0db7366a6346ba5f9010262adcd4e74995d8e45",
     "src/coyote_math/math_expander.ads": "a14672509c67af44206c16a1b991f0dda25ae29089c13dcfa9c9bfe38bb1ad6f",
-    "src/coyote_math/math_expander.adb": "c006bd6711a5ea121d220bf01f614ae627f10fa7c451008503aec612a14d0939",
+    "src/coyote_math/math_expander.adb": "9d4578d4468f6fa1057cf253aef6b7d133ad17c86e95cc5027bdace184d5f7b0",
     "src/coyote_math/math_font_data.ads": "4ec548af70dbf4e9dfa2da29a723aeb5b5fbeee7f7a2627a361d8b5081d846b6",
     "src/coyote_math/math_font_data.adb": "3c252344a7240b85dccb801f05d4360c4cb500d00e738be5676ac2ea98e574b6",
     "src/coyote_math/math_unicode.ads": "cbdecbf9f6da59d0366b723c1a01cdb7fe04f7348c3cebcc79c01ed7ae620e4a",

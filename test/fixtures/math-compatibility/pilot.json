@@ -1,0 +1,159 @@
+{
+  "schema": "coyote.math-compatibility-pilot.v1",
+  "reference": {
+    "name": "KaTeX",
+    "version": "0.16.22",
+    "archiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
+    "bundleSha256": "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33"
+  },
+  "cases": [
+    {
+      "id": "x",
+      "source": "x",
+      "displayMode": false,
+      "group": "symbol",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "script",
+      "source": "x^2_3",
+      "displayMode": false,
+      "group": "scripts",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "accent",
+      "source": "\\hat{x}",
+      "displayMode": false,
+      "group": "accent",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "frac",
+      "source": "\\frac{a+b}{c}",
+      "displayMode": false,
+      "group": "fraction",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "sqrt",
+      "source": "\\sqrt{\\frac{x}{y}}",
+      "displayMode": false,
+      "group": "radical",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "namedoperators",
+      "source": "\\lim_{x\\to 0}\\max(x)+\\min(y)+\\sin(z)+\\log(t)",
+      "displayMode": false,
+      "group": "operators",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "heat-balance-001",
+      "source": "C_a\\dot T_a =\nH_o(T_o-T_a)+H_m(T_m-T_a)\n+Q_{\\mathrm{solar}}+Q_{\\mathrm{internal}}-Q_{\\mathrm{cool,sens}}.",
+      "displayMode": true,
+      "group": "reported-formula",
+      "sourceSha256": "7c0b054ddefe208304f4a8829a71ea04b82f0b5130a2aa999dbc2a50f68c68cc",
+      "delimiterSeparatedSourceSha256": "5b73b894f35e36a42d6fe34a4dbf9dc3f888a8066fe2c2b2712181cac5a8c1ac",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "matrix",
+      "source": "\\begin{matrix}a&b\\\\c&d\\end{matrix}",
+      "displayMode": true,
+      "group": "array",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "wideaccent-path",
+      "source": "\\widehat{abcdef}+\\overrightarrow{xy}+\\sqrt{abcdef}",
+      "displayMode": false,
+      "group": "wideaccent-path",
+      "requires": [
+        "paths"
+      ],
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "unicode",
+      "source": "α+∑_{i=0}^{∞}≤β",
+      "displayMode": false,
+      "group": "unicode",
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "invalid",
+      "source": "\\frac{a}",
+      "displayMode": false,
+      "group": "invalid",
+      "expectedOutcome": "parse-error"
+    },
+    {
+      "id": "untrusted-href",
+      "source": "\\href{https://example.invalid}{x}",
+      "displayMode": false,
+      "group": "trust-refusal",
+      "options": {
+        "trust": false
+      },
+      "expectedOutcome": "policy-visible-command"
+    },
+    {
+      "id": "shared-global-on-error",
+      "source": "\\gdef\\foo{A}\\bogus",
+      "displayMode": false,
+      "group": "shared-macro-sequence",
+      "sequence": "shared-on-error",
+      "options": {
+        "throwOnError": true
+      },
+      "requires": [
+        "sharedMacros"
+      ],
+      "expectedOutcome": "parse-error"
+    },
+    {
+      "id": "shared-global-followup",
+      "source": "\\foo",
+      "displayMode": false,
+      "group": "shared-macro-sequence",
+      "sequence": "shared-on-error",
+      "requires": [
+        "sharedMacros"
+      ],
+      "expectedOutcome": "ok"
+    },
+    {
+      "id": "shared-local-on-error",
+      "source": "\\def\\bar{B}\\bogus",
+      "displayMode": false,
+      "group": "shared-macro-sequence",
+      "sequence": "shared-on-error",
+      "options": {
+        "throwOnError": true
+      },
+      "requires": [
+        "sharedMacros"
+      ],
+      "expectedOutcome": "parse-error"
+    },
+    {
+      "id": "shared-local-undefined",
+      "source": "\\bar",
+      "displayMode": false,
+      "group": "shared-macro-sequence",
+      "sequence": "shared-on-error",
+      "requires": [
+        "sharedMacros"
+      ],
+      "expectedOutcome": "parse-error"
+    }
+  ],
+  "coverageNotes": [
+    "The exact heat-balance source is preserved including LF line breaks.",
+    "Path geometry, semantic export, colors, and shared macros are explicit unavailable capabilities; absence is never interpreted as an empty match.",
+    "Reference policy refusal is distinguished from successful output by strict render status and visible HTML command classification.",
+    "Browser pixel geometry is not part of this pilot and may be reported blocked."
+  ]
+}
