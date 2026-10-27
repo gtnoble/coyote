@@ -12,7 +12,7 @@ compatibility. The approved target and current results are separate documents:
 
 - [Requirements](../../../requirements/native-math-compatibility.md).
 - [Implementation checkpoint report](../../../plan/native-math-parity-test-report.md),
-  especially its current-status §8.
+  especially coordinator-owned latest-status §9; §8 is a dated prior checkpoint.
 - [Per-entry coverage map](../../../plan/native-math-coverage.md), which records
   missing and partial/unqualified entries, not a compatibility percentage.
 
@@ -94,11 +94,14 @@ The approved native profile excludes browser markup serialization, the
 JavaScript API, caller JavaScript callbacks/macros, trusted browser effects,
 unbounded expansion/sizing, and optional contrib extensions. These exclusions
 do not excuse missing core mathematical behavior. `maxSize` is clamped to the
-implemented bounded range 1..100; `leqno` is implemented. `fleqn` is
-explicitly rejected by the current engine. `trust=true` is unsupported;
-`trust=false` is the explicit untrusted profile. A `colorIsTextColor` option
-exists in the API, but its latest body candidate has an empty validation log
-and is unvalidated.
+implemented bounded range 1..100; `leqno` is implemented. Fleqn has focused
+GUI-option coverage, not full option-equivalence qualification; fleqn affects
+display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px
+at 48 px/em). The default remains centered with no indent, and inline math is
+unaffected. `trust=true` is unsupported; `trust=false` is the
+explicit untrusted profile. A scoped engine probe passes for
+`colorIsTextColor`, but broad color behavior and interactions remain
+unqualified.
 
 Legacy MathML-shaped source remains text-only. The retired MathML/Lasem
 extractor, bridge and renderer have not been restored.
@@ -111,7 +114,7 @@ extractor, bridge and renderer have not been restored.
 | Syntax | 32,768 nodes, argument depth 128 | Same numerical target; complete interaction/resource qualification open |
 | Arrays | At most 64 rows and 64 columns | All other budgets apply too |
 | Macro expansion | Default 1,000; configurable through 10,000 | Token ceiling 131,072; complete expansion semantics unqualified |
-| Layout | Depth 64; 16,384 draw commands; 16,384 em geometry | Target depth 256 and 131,072 draw commands is not implemented |
+| Layout | Depth 256; 131,072 draw commands; 16,384 em geometry | Numerical depth/command targets match; exact-boundary and broader budget qualification remain open |
 | Presentation | At most 64 display formulas per extraction and 64 inline formulas per text view | Excess remains source text |
 | Raster dimensions | Inline 2,000×512 including padding; display bounded by 8,192×4,096 | Scale, workspace and GUI adoption checks also apply |
 | Job service | Two workers, eight pending descriptors; 250 ms deadline and retained-source ledger | Deadline checks do not prove cooperative preemption or queue-inclusive latency compliance |
@@ -126,18 +129,22 @@ batch, not a hard 50 ms bound; none of these qualify the approved targets.
 
 ## Verification and maintenance
 
-See [the current completion report](../../../plan/native-math-parity-test-report.md),
-§8, for controlling evidence and status. The frozen final2 full suite is
-1061/1061 in 82.378580 seconds, but predates subsequent candidate changes and is
-not current-source qualification. Latest scoped geometry evidence is 145/145,
-including generalized/infix fractions; later minimum-rule checks are separate
-option evidence. Neither establishes full parity. The macro probe passed 511 assertions; that count is neither macro definitions
-nor registry coverage. Separate probes passed 157 semantic and 344 path checks. The
-earlier engine probe recorded 40/41 (`/tmp/coyote-math-engine/probe.log`),
-with one color-related failure. The later
-`colorIsTextColor` body candidate has an empty validation log and remains
-unvalidated. Consult report §8 for differential, image, resource, and acceptance
-status; scoped checks are not full qualification.
+The coordinator-owned [completion report](../../../plan/native-math-parity-test-report.md)
+§9 is the latest status; §8 remains a dated prior checkpoint. The latest
+supplied development suite passed 1062/1062 with zero failed assertions or
+unexpected errors in 82.228506 s
+(`/tmp/coyote-next-frozen-full.log`), which is regression evidence only. Scoped
+evidence includes engine 57 pass, macro assertion count as recorded in §9, 133
+jobs checks with 2,000 valid warm requests (p95 1 ms, maximum 2 ms), geometry
+145/145, structured pilot 16/16, image pilot 3/3, and 156 native assertions in
+aggregate, including one case with 100 nested groups and one with 17,000 glyphs.
+One added fleqn widget test brings `Conversation_Stack` to 48 total registrations.
+Fleqn affects display math only, adding a 2 em left margin (48 px at 24 px/em;
+96 px at 48 px/em); default display stays centered with no indent, and
+inline math is unaffected. None of these establishes full parity. In particular, the
+structured path pilot uses 0.01 normalized units, not image geometry; full
+origins, widths, and option effects remain unmeasured. `colorIsTextColor` has a
+scoped passing engine probe, but broad color qualification is not established.
 
 The deterministic 10,000-case fuzz run reported 4,184 successful parses, 5,221
 parse errors, 595 policy errors, zero layout failures and deterministic
@@ -170,8 +177,11 @@ sh test/tools/check-math-browser.sh
 sh test/tools/check-math-images.sh
 ```
 
-Geometry/image checks currently return failure and the structured comparison
-reports incomplete coverage. Preserve those outcomes; do not interpret a smoke
-check or generator pass as full qualification. See the checkpoint report for
-exact commands, scope and log paths. The older
+The recent focused geometry corpus passed 145/145; this does not establish full
+origins, widths, option effects, or all reference geometry. Frozen structured
+and image pilots passed 16/16 and 3/3, but the structured path comparison uses
+normalized units and the image pilot is not calibrated visual acceptance.
+Do not interpret smoke checks or pilot passes as full qualification. See the
+coordinator-owned report for exact commands, scope, log paths, resource limits,
+and open acceptance gates. The older
 [PCR-123 report](../../../plan/native-math-test-report.md) is historical.

@@ -225,6 +225,9 @@ procedure Math_Probe is
       At_Limit : String (1 .. Math_Syntax.Max_Source_Bytes) :=
         [others => ' '];
       Deep : Unbounded_String;
+      Beyond_Old_Depth : Math_Layout.Box;
+      Beyond_Old_Commands : Math_Layout.Box;
+      Deep_Groups : Unbounded_String;
    begin
       Lower_Bound_Source (7 .. 9) := "x+y";
       Check_Accepted ("x+y=2", "basic operators");
@@ -301,6 +304,27 @@ procedure Math_Probe is
       Item := Parsed (To_String (Deep));
       Check (not Math_Syntax.Is_Valid (Item), "depth limit rejected");
       Check (Math_Syntax.Error (Item)'Length > 0, "depth error reported");
+      Check (not Math_Layout.Build (Item).Valid,
+        "parser depth rejection remains a layout rejection");
+
+      Deep_Groups := Null_Unbounded_String;
+      for Index in 1 .. 100 loop
+         Append (Deep_Groups, "{");
+      end loop;
+      Append (Deep_Groups, "x");
+      for Index in 1 .. 100 loop
+         Append (Deep_Groups, "}");
+      end loop;
+      Beyond_Old_Depth := Laid_Out (To_String (Deep_Groups));
+      Check (Beyond_Old_Depth.Valid,
+        "100 nested groups exceed old layout depth budget");
+
+      Beyond_Old_Commands := Laid_Out
+        ([1 .. 17_000 => 'x']);
+      Check (Beyond_Old_Commands.Valid,
+        "17,000 glyphs exceed old command budget");
+      Check (Glyph_Count (Beyond_Old_Commands) = 17_000,
+        "17,000 glyph commands retained");
 
       Item := Parsed (Formula);
       Check (not Math_Syntax.Is_Valid (Item), "node budget rejected");

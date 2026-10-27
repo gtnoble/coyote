@@ -1,10 +1,10 @@
 # Native math compatibility design — SDD-MATH
 
 **Component:** coyote shared math engine and GTK presentation
-**Version:** 0.5
-**Date:** 2026-10-26
+**Version:** 0.6
+**Date:** 2026-10-27
 **Change:** PCR-125
-**Status:** Approved design and execution basis; implementation and qualification incomplete
+**Status:** User-approved design v0.3 and execution basis; this document is a later v0.6 status revision. Implementation and qualification incomplete.
 **Requirements:** `requirements/native-math-compatibility.md` v1.0 (approved)
 
 ## Contents
@@ -38,8 +38,9 @@ blockers are recorded in
 `plan/native-math-parity-test-report.md`.
 
 References: SRS-MATH above; `design/coyote-design.md`; approved
-`plan/native-math-parity-plan.md`; updated combined STP/STD v0.5 (readiness review and approval open)
-`plan/native-math-compatibility-tests.md`; generated pinned inventory;
+`plan/native-math-parity-plan.md` v0.6; updated combined STP/STD v0.6
+(readiness review and approval open): `plan/native-math-compatibility-tests.md`;
+generated pinned inventory;
 `share/coyote/math/PROVENANCE.md`; current `src/coyote_math/` interfaces.
 KaTeX Parser/Lexer/MacroExpander/Namespace/Options/Style, registered functions and
 environments, delimiter/stretchy/SVG and font data are reference inputs. Their
@@ -457,24 +458,22 @@ Developer evaluation: the approved design covers the approved requirement IDs
 and preserves explicitly approved deviations. Shared-state cleanup follows
 inspected reference behavior; GUI lifetimes and ownership transfers are
 specified. Proposed tool paths and interfaces remain proposals unless separately
-implemented. Frozen and subsequent candidate evidence are distinguished below.
-The latest known full suite passed 1061/1061 in 82.378580 seconds
-(`/tmp/coyote-completion-final2-full.log`) before subsequent genfrac,
-mathchoice, color and minRule edits; a full integration rerun remains required.
-The later geometry run passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`),
-resolving all seven earlier geometry failures. The frozen geometry, structured
-and image checks are separate evidence classes. The structured pilot alone
-uses a 0.01 normalized-unit path comparison, not em-unit path positioning; full
-reference origins, widths and option effects remain unmeasured. Generic fraction/infix/cfrac, mathchoice and hbox fields are
-implemented but require full integration rerun. Latest engine color-candidate
-validation aborted; the earlier 40/41 default-color result preceded that
-candidate, so no current color pass is claimed. Coverage counts are being
-regenerated; use the coordinator-owned report/map rather than historical totals.
-Trust=false is the enforced default; trust=true and fleqn are explicitly
-rejected. Whole-job memory, deadline and GTK guarantees remain unqualified:
-resource test10 peak RSS 44,644 KiB is not whole-job memory, and display64 is a
-ledger, not process-inline measurement. P1 readiness, resource/GUI evidence,
-qualification and human acceptance remain open; no parity or acceptance claim.
+implemented. The coordinator-owned `plan/native-math-parity-test-report.md` §9
+is the current evidence pointer; §8 remains the dated prior checkpoint. The
+latest frozen development suite passed 1062/1062 with zero failed assertions
+or unexpected errors in 82.228506 seconds
+(`/tmp/coyote-next-frozen-full.log`), a regression result only. Scoped results:
+engine 57; one added fleqn GUI test, bringing `Conversation_Stack` to 48 total
+registrations; jobs 133, including 2,000 valid warm requests (p95 1 ms, max
+2 ms); geometry 145/145; structured/image pilots 16/16 and 3/3; macro assertion
+count is in coordinator-owned report §9; 156 native assertions in aggregate,
+including one case with 100 nested groups and one with 17,000 glyphs. Fleqn
+affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); the default remains centered with no indent, and inline math
+is unaffected. Structured paths use normalized units; full reference origins,
+widths and option effects remain unmeasured. Whole-job memory/cache, hard 250 ms
+completion, GTK slice limits, complete reference mapping, P1 readiness, remaining
+core behavior and independent human acceptance remain open. No parity or
+acceptance claim is made.
 
 Risks requiring later evidence: worker-local native font/shaping thread safety,
 worst-case native-call latency and cleanup, bounded publication, context aggregate
@@ -492,20 +491,23 @@ behavior unless requirements are explicitly changed.
 
 ## Approval and execution status (updated 2026-10-26)
 
-The user approved design version 0.3 and authorized continued P0–P6
-implementation and qualification on 2026-10-25. This supersedes the preceding
-historical request for approval and the statement that P1 may start only after
-approval. No further design-approval wait is required: continue the already
-approved execution and do not create an approval-wait loop. This authorization
-is not acceptance and does not make any P1–P6 phase complete.
-
-The latest completed full development-suite checkpoint passed 1061/1061 in
-82.378580 seconds, after the original accent fixes but before later generalized
-fractions, mathchoice, minimum-rule and color-scope candidate edits. Later
-focused geometry passed 145/145; frozen structured/image pilots passed 16/16
-and 3/3. A full latest-source rerun remains required. Current regenerated
-coverage is a source crosswalk with no qualified rows, not completion evidence.
-Resource/GTK, readiness and human acceptance gates remain open; see
-`plan/native-math-parity-test-report.md` §8 for exact snapshot boundaries.
+The user specifically approved native design version 0.3 and authorized
+continued P0–P6 implementation and qualification on 2026-10-25. The current SDD
+version 0.6 is a later status/document revision, not a separately user-approved
+design baseline. Continued execution remains authorized; no additional design
+approval wait is required. That authorization is not acceptance and does not
+make any P1–P6 phase complete. The latest frozen suite passed 1062/1062 with
+zero failed assertions or unexpected errors in 82.228506 s
+(`/tmp/coyote-next-frozen-full.log`), regression evidence only. Scoped results:
+engine 57; one added fleqn GUI test, bringing `Conversation_Stack` to 48 total
+registrations; jobs 133 (2,000 valid warm requests, p95 1 ms, max 2 ms); geometry
+145/145; structured/image pilots 16/16 and 3/3; macro assertion count is
+recorded in coordinator-owned report §9; 156 native assertions in aggregate,
+including one case with 100 nested groups and one with 17,000 glyphs. Fleqn
+affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); the default remains centered with no indent, and inline math
+is unaffected. These results do not establish full reference geometry, complete
+option behavior, whole-job resource/timing compliance, or human acceptance.
+Coverage is a source crosswalk, not completion evidence; consult coordinator-
+owned report §9 for the current snapshot and preserve §8 as historical.
 RD-CTX-01 additional context caps remain unauthorized. Do not claim full KaTeX
 parity, project completion, or product acceptance.

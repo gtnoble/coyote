@@ -1,26 +1,35 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.38
-**Date:** 2026-10-26
+**Version:** 1.39
+**Date:** 2026-10-27
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**PCR-125 native-math parity (2026-10-26):** The user-approved SRS-MATH v1.0,
+**PCR-125 native-math parity (2026-10-27 status refresh):** The user-approved SRS-MATH v1.0,
 including D01–D15, remains authoritative; no approved scope change is recorded.
-Design and execution are approved; test readiness and qualification remain
-open. The coordinator-owned checkpoint report §8 is authoritative for current
-results. The latest known full suite passed 1061/1061 before subsequent
-genfrac/mathchoice/color/minRule edits, so full integration rerun remains
-required. Geometry later passed 145/145, resolving seven prior failures.
-Frozen geometry, structured and image pilots are separate checks; 16 structured
-and three image cases passed with negative controls. Only the structured path
-comparison uses normalized units. Full origins, widths and option effects remain
-unmeasured.
-The color candidate validation aborted. Whole-job memory/deadline/GTK
-qualification and human acceptance remain open. See
-`plan/native-math-parity-plan.md`; older report sections remain historical.
+Design and execution are approved; test readiness and qualification remain open.
+Coordinator-owned report §9 is the current checkpoint; §8 is historical. The
+frozen full development suite passed 1062/1062 with zero failed assertions or
+unexpected errors in 82.228506 seconds (`/tmp/coyote-next-frozen-full.log`),
+regression evidence only. Two intermediate frozen-suite attempts each failed
+one GTK tool-allocation assertion. Three isolated focused passes followed, then
+a test-only correction added one second of monotonic GTK polling while retaining
+the exact 760×600 criterion; no production layout change or criterion relaxation
+was made. Root/test build logs: `/tmp/coyote-next-frozen-build.log` and
+`/tmp/coyote-next-frozen-testbuild.log`. Current-source complete macro scanner:
+622 checks (`/tmp/coyote-next-brace-final/probe.log`). Scoped results include engine
+57; jobs 133 with 2,000 warm requests (p95 0.750889 ms, maximum 1.186076 ms,
+GTK excluded); geometry 145/145; frozen structured differential 16/16 and
+controls; image pilot 3/3; resource sample 10 cases, peak RSS 46,184 KiB; and
+the prior layout-limit probe’s 156 native assertions (API unchanged). Fuzz
+results remain 4,184 parse successes, 5,221 parse errors, 595 policy errors,
+zero layout failures. Fleqn affects display math only: 2 em left margin equals
+48 px at 24 em (48 px/em) and 96 px at 48 em (48 px/em); default display stays
+centered without indent, inline math is unaffected. Coverage counts and open
+qualification gaps are in coordinator-owned report §9. Requirements and approved
+targets remain unchanged; parity and product acceptance are not established.
 
 ---
 
@@ -114,9 +123,9 @@ See `plan/integration-test-guide.md` for full setup instructions.
   `xvfb-run`). The native tests cover one outer scroller, exchange and step
   widgets, Markdown, native math, selection, tool flow, lifecycle, reset, and zoom.
   The current native-math checkpoint and qualification gaps are recorded in
-  `plan/native-math-parity-test-report.md` §8; the latest known 1061/1061 suite
-  predates genfrac/mathchoice/color/minRule edits and is regression-only, not
-  current-source integration or parity qualification.
+  `plan/native-math-parity-test-report.md` §9; §8 is a dated prior checkpoint.
+  The frozen 1062/1062 suite is current regression evidence only, not parity
+  qualification or acceptance.
 - The obsolete `Coyote_GUI.Buffer` unit and legacy conversation renderer were
   removed. Plain frontend tests remain independent and headless where applicable.
 Headless `GtkTextBuffer` tests, when present, do not require a display.
@@ -229,7 +238,7 @@ SRS-CORE requirement groups.
 | `coyote_image_jobs_tests.adb` | REQ-CORE-111 Ada image-job scheduling behavior | Focused jobs tests pass 3/3 |
 | `test/tools/check-image-loader.sh` + `test/native/image_io_test.c` | Thin POSIX C I/O shim and native shim checks only; 15/15 checks pass in normal and ASan/UBSan modes |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111 image context, caption, image policy, and clear/lifetime behavior; history source-root restoration and RPC source-context forwarding are also covered | Three added GUI tests; focused `Conversation_Stack` family 38/38; history coverage extended; RPC family includes two added tests |
-| `coyote_math_tests.adb` | Native math source/tokenization, macro expansion, syntax, semantic tree, layout/metrics/fonts/resources, constructs and painting; coverage is partial and not full KaTeX parity | Latest known full suite is 1061/1061 before subsequent genfrac/mathchoice/color/minRule edits; it requires full integration rerun. Current disposition and qualification status are in `plan/native-math-parity-test-report.md` §8 |
+| `coyote_math_tests.adb` | Native math source/tokenization, macro expansion, syntax, semantic tree, layout/metrics/fonts/resources, constructs and painting; coverage is partial and not full KaTeX parity | Frozen full suite passed 1062/1062; it is regression evidence, not full parity or acceptance. Latest scoped probes and qualification gaps are maintained in `plan/native-math-parity-test-report.md` §9 |
 
 
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |

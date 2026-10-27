@@ -2813,6 +2813,132 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Pango.Font.Free (Large_Font);
    end Test_Native_Display_Math_Zooms;
 
+   procedure Test_Native_Display_Math_Fleqn_Alignment
+     (T : in out Test)
+   is
+      Fleqn_Element : Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element
+          ("x+y", "$$x+y$$", Fleqn => True);
+      Center_Element : Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element ("x+y", "$$x+y$$");
+      Fleqn_Root : Gtk.Box.Gtk_Box;
+      Center_Root : Gtk.Box.Gtk_Box;
+      Fleqn_Children : Gtk.Widget.Widget_List.Glist;
+      Center_Children : Gtk.Widget.Widget_List.Glist;
+      Fleqn_Area : Gtk.Widget.Gtk_Widget;
+      Fleqn_Fallback : Gtk.Widget.Gtk_Widget;
+      Center_Area : Gtk.Widget.Gtk_Widget;
+      Center_Fallback : Gtk.Widget.Gtk_Widget;
+      Fleqn_Node : Gtk.Widget.Widget_List.Glist;
+      Center_Node : Gtk.Widget.Widget_List.Glist;
+      Width : Natural;
+      Deadline : Ada.Calendar.Time;
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      if not T.Display_Available then
+         Coyote_GUI.Math_Element.Free (Fleqn_Element);
+         Coyote_GUI.Math_Element.Free (Center_Element);
+         return;
+      end if;
+      Fleqn_Root := Coyote_GUI.Math_Element.Widget (Fleqn_Element.all);
+      Center_Root := Coyote_GUI.Math_Element.Widget (Center_Element.all);
+      Fleqn_Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Fleqn_Root));
+      Center_Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Center_Root));
+      Fleqn_Node := Gtk.Widget.Widget_List.First (Fleqn_Children);
+      Center_Node := Gtk.Widget.Widget_List.First (Center_Children);
+      Fleqn_Area := Gtk.Widget.Widget_List.Get_Data (Fleqn_Node);
+      Center_Area := Gtk.Widget.Widget_List.Get_Data (Center_Node);
+      Fleqn_Node := Gtk.Widget.Widget_List.Next (Fleqn_Node);
+      Center_Node := Gtk.Widget.Widget_List.Next (Center_Node);
+      Fleqn_Fallback := Gtk.Widget.Widget_List.Get_Data (Fleqn_Node);
+      Center_Fallback := Gtk.Widget.Widget_List.Get_Data (Center_Node);
+      Gtk.Widget.Widget_List.Free (Fleqn_Children);
+      Fleqn_Children := Gtk.Widget.Widget_List.Null_List;
+      Gtk.Widget.Widget_List.Free (Center_Children);
+      Center_Children := Gtk.Widget.Widget_List.Null_List;
+
+      Assert
+        (Fleqn_Area.Get_Margin_Start = 48
+         and then Fleqn_Fallback.Get_Margin_Start = 48,
+         "pending fleqn math indents area and fallback by two em");
+      Assert
+        (Center_Area.Get_Margin_Start = 0
+         and then Center_Fallback.Get_Margin_Start = 0,
+         "centered math has no display indent");
+      Deadline := Ada.Calendar.Clock + 3.0;
+      while Ada.Calendar.Clock < Deadline
+        and then (Coyote_GUI.Math_Element.Is_Pending (Fleqn_Element.all)
+          or else Coyote_GUI.Math_Element.Is_Pending (Center_Element.all))
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Fleqn_Element.all)
+         and then not Coyote_GUI.Math_Element.Is_Pending (Center_Element.all),
+         "fleqn and centered layouts complete");
+      Assert
+        (Coyote_GUI.Math_Element.Is_Valid (Fleqn_Element.all)
+         and then Coyote_GUI.Math_Element.Is_Valid (Center_Element.all),
+         "both fleqn and centered formulas have valid layouts");
+      Width := Coyote_GUI.Math_Element.Width (Center_Element.all);
+      Assert
+        (Width > 0
+         and then Coyote_GUI.Math_Element.Width (Fleqn_Element.all) = Width,
+         "fleqn indentation does not inflate formula width");
+      Assert
+        (Fleqn_Area.Get_Margin_Start = 48,
+         "left-aligned layout retains its two-em widget margin");
+
+      Coyote_GUI.Math_Element.Set_Scale (Fleqn_Element.all, 2.0);
+      Assert
+        (Fleqn_Area.Get_Margin_Start = 96
+         and then Fleqn_Fallback.Get_Margin_Start = 96,
+         "fleqn margin follows scale changes");
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Fleqn_Element.all, "\unknowncommand", "invalid source");
+      Assert
+        (Fleqn_Area.Get_Margin_Start = 96
+         and then Fleqn_Fallback.Get_Margin_Start = 96,
+         "fleqn fallback retains scale-aware margin while pending");
+      Deadline := Ada.Calendar.Clock + 3.0;
+      while Ada.Calendar.Clock < Deadline
+        and then Coyote_GUI.Math_Element.Is_Pending (Fleqn_Element.all)
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Fleqn_Element.all),
+         "invalid fleqn layout completes before the test deadline");
+      Assert
+        (Fleqn_Area.Get_Margin_Start = 96
+         and then Fleqn_Fallback.Get_Margin_Start = 96,
+         "invalid fleqn layout keeps the fallback indent");
+      Coyote_GUI.Math_Element.Free (Fleqn_Element);
+      Coyote_GUI.Math_Element.Free (Center_Element);
+   exception
+      when others =>
+         if Fleqn_Children /= Gtk.Widget.Widget_List.Null_List then
+            Gtk.Widget.Widget_List.Free (Fleqn_Children);
+         end if;
+         if Center_Children /= Gtk.Widget.Widget_List.Null_List then
+            Gtk.Widget.Widget_List.Free (Center_Children);
+         end if;
+         Coyote_GUI.Math_Element.Free (Fleqn_Element);
+         Coyote_GUI.Math_Element.Free (Center_Element);
+         raise;
+   end Test_Native_Display_Math_Fleqn_Alignment;
+
    procedure Test_Search_Covers_Request_Thinking_And_Streaming
      (T : in out Test)
    is
@@ -3200,6 +3326,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("Coyote.GUI.Conversation_Stack zooms display LaTeX",
             Coyote_GUI_Conversation_Stack_Tests.Test_Native_Display_Math_Zooms'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack aligns fleqn display LaTeX",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Display_Math_Fleqn_Alignment'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack uses visible step frames",

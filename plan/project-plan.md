@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.36
-**Date:** 2026-10-26
+**Version:** 1.37
+**Date:** 2026-10-27
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
 
@@ -150,16 +150,17 @@ implementation and qualification; `requirements/native-math-compatibility.md`
 v1.0 and D01–D15 remain authoritative and unchanged. Implementation remains
 partial: P1 baseline/browser tools exist but matching/readiness are incomplete;
 P2 is a pilot; P3/P4 are partial; P5 async/tree/raster display is partial; P6
-checks have run but are incomplete. Report §8 distinguishes the frozen
-1061/1061 full-suite checkpoint from later 145/145 focused geometry and the
-latest unvalidated color/minimum-rule candidate. Frozen structured and image
-pilots pass 16/16 and 3/3 within their stated measurement limits. Current source
-coverage records 116 missing core rows and no qualified rows. This does not
-establish parity or acceptance. Whole-job memory, queue-inclusive deadlines,
-GTK/cache guarantees, full component mapping and independent human review
-remain open. RD-CTX-01 context caps remain unauthorized. Continued execution
-is already approved; no further approval loop is required. See
-`plan/native-math-parity-test-report.md` §8 for controlling evidence and gates.
+checks have run but are incomplete. Report §9 records native color-scope,
+display-only fleqn, bounded delimited definitions and approved layout-admission
+limits. Frozen development regression passed 1062/1062 twice; geometry 145/145,
+structured pilot 16/16 and image pilot 3/3 pass within their recorded scopes.
+Intermediate GTK allocation failures and the unchanged-dimension synchronization
+fix remain explicit in the report. Current source coverage has 115 missing core
+rows and zero qualified rows. Whole-job memory, deadlines, GTK/cache guarantees,
+full component mapping and independent human acceptance remain open. RD-CTX-01
+context caps remain unauthorized. Continued execution is already approved;
+SRS-MATH v1.0 and D01–D15 are unchanged. See
+`plan/native-math-parity-test-report.md` §9 for controlling evidence and gates.
 
 ### 4.2 Development Environment
 
@@ -994,18 +995,18 @@ Test Plan, user documentation, and SDF entries.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.36 (2026-10-26) | Project |
-| Native math port plan | PLAN-MATH | `plan/native-math-parity-plan.md` | 0.5 (2026-10-26) | Client — plan approved |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.37 (2026-10-27) | Project |
+| Native math port plan | PLAN-MATH | `plan/native-math-parity-plan.md` | 0.6 (2026-10-27) | Client — plan approved |
 | Native math requirements | SRS-MATH | `requirements/native-math-compatibility.md` | 1.0 (2026-10-24) | Client — requirements approved |
-| Native math design | SDD-MATH | `design/native-math-compatibility.md` | 0.5 (2026-10-26) | Client — approved design/execution; parity/qualification open |
-| Native math test plan/description | STP/STD-MATH | `plan/native-math-compatibility-tests.md` | 0.5 (2026-10-26) | Client — execution baseline approved; readiness/calibration open |
-| Native math checkpoint report | STR-MATH | `plan/native-math-parity-test-report.md` | §8 updated (2026-10-26) | Project — NOT COMPLETE |
-| Native math human acceptance checklist | CHECK-MATH | `plan/native-math-acceptance-checklist.md` | 0.2 (2026-10-26) | Author — not executed |
+| Native math design | SDD-MATH | `design/native-math-compatibility.md` | 0.6 (2026-10-27) | Client — approved design/execution; parity/qualification open |
+| Native math test plan/description | STP/STD-MATH | `plan/native-math-compatibility-tests.md` | 0.6 (2026-10-27) | Client — execution baseline approved; readiness/calibration open |
+| Native math checkpoint report | STR-MATH | `plan/native-math-parity-test-report.md` | §9 current snapshot (2026-10-27; coordinator-owned) | Project — NOT COMPLETE |
+| Native math human acceptance checklist | CHECK-MATH | `plan/native-math-acceptance-checklist.md` | 0.3 (2026-10-27) | Author — not executed |
 | Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.33 (2026-10-26) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.40 (2026-10-26) | Project |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.41 (2026-10-27) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.38 (2026-10-26) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.39 (2026-10-27) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

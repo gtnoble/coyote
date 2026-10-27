@@ -1,31 +1,32 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.40
-**Date:** 2026-10-26
+**Version:** 1.41
+**Date:** 2026-10-27
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**Native-math port (PCR-125):** The user approved the native design and
-execution on 2026-10-24. The v1.0 requirements annex remains authoritative.
-Implementation is substantially broader than the former common-math subset,
-but parity, final qualification, and product acceptance remain open; this is
-not a full KaTeX compatibility claim. See `design/native-math-compatibility.md`,
-`plan/native-math-parity-plan.md`, and the coordinator-owned checkpoint report
-`plan/native-math-parity-test-report.md` §8 is the current checkpoint authority.
-The latest known full suite passed 1061/1061 (82.378580 s) in
-`/tmp/coyote-completion-final2-full.log`, before subsequent `genfrac`,
-`mathchoice`, color and `minRule` edits; a full integration rerun is required.
-The later geometry check passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`),
-resolving all seven earlier geometry failures. The frozen structured pilot
-passed 16/16 and the image pilot 3/3, with negative controls. Only the structured
-path comparison uses normalized units; full origins, widths and option effects
-remain unmeasured. The current color-candidate
-validation aborted, so no color pass is claimed. Native math qualification,
-parity and product acceptance remain open. The following inventory includes
-implemented math components.
+**Native-math port (PCR-125):** The user-approved SRS-MATH v1.0 remains
+authoritative; implementation details do not change its scope. The coordinator-
+owned `plan/native-math-parity-test-report.md` §9 is the latest status; §8 is a
+dated prior checkpoint. The latest frozen development suite passed 1062/1062
+with zero failed assertions or unexpected errors in 82.228506 s
+(`/tmp/coyote-next-frozen-full.log`). This is regression evidence, not parity or
+product acceptance. Scoped evidence includes engine 57 pass; one added fleqn GUI
+test, bringing `Conversation_Stack` to 48 total registrations; jobs 133 pass
+with 2,000 valid warm requests (p95 1 ms, maximum 2 ms); geometry 145/145;
+structured and image pilots 16/16 and 3/3; macro assertion count as recorded in
+coordinator-owned report §9; and 156 native assertions in aggregate, including
+one case with 100 nested groups and one 17,000-glyph case. Fleqn affects display
+math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em);
+the default remains centered with no indent, and inline math is unaffected.
+Structured paths use normalized units, not image geometry. Whole-job memory, hard
+250 ms completion, GTK/cache guarantees, full reference origins/widths/options,
+remaining core behavior and human acceptance remain unqualified. The full
+inventory below includes implemented math components; none of these results
+establishes full KaTeX compatibility.
 
 ---
 
@@ -454,7 +455,7 @@ not wait for the complete user turn.
 | KaTeX resource/coverage generators | Inventory and coverage mapping for pinned upstream assets | `tools/inventory_katex.cjs`, `tools/map_math_coverage.py` |
 | Native math development tooling | Inventory, reference/browser export, differential comparison, fuzz, resource/accessibility checks, and pilot fixtures; partial readiness only, no parity claim | `test/tools/check-math-*.sh`, `test/tools/check-math-*.cjs`, `test/tools/export-math-*.cjs`, `test/tools/compare-math-layout.cjs`, `test/fixtures/math-compatibility/` |
 | Native math standalone probes and projects | Ada probes and isolated GPR projects for token, macro, engine, geometry, paths, constructs, semantics, raster, jobs, accessibility and related units | `test/tools/math_*_probe.adb`, `test/native/math_*.gpr` |
-| Native math AUnit tests | Registered engine/parser/layout cases; the latest known 1061/1061 full-suite checkpoint predates subsequent genfrac/mathchoice/color/minRule edits and needs full integration rerun; current disposition and open gaps are recorded in `plan/native-math-parity-test-report.md` §8 | `test/src/coyote_math_tests.adb` |
+| Native math AUnit tests | Registered engine/parser/layout cases; current full suite passed 1062/1062 as regression evidence, not parity or acceptance; current disposition and open gaps are recorded in coordinator-owned §9 of `plan/native-math-parity-test-report.md` | `test/src/coyote_math_tests.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Modeless co-primary transient tool-call snapshot window with fixed selectable metadata, menus, and a two-pane scrollable arguments/result work area | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |

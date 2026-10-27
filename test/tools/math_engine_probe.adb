@@ -13,6 +13,7 @@ procedure Math_Engine_Probe is
    use type Math_Engine.Status_Kind;
    use type Math_Layout.Command_Kind;
    use type Math_Model.Node_Kind;
+   use type Math_Syntax.Diagnostic_Kind;
    Checks : Natural := 0;
    Failures : Natural := 0;
    Shared : aliased Math_Macros.Context;
@@ -51,11 +52,35 @@ procedure Math_Engine_Probe is
       Check (not Opt.Settings.Color_Is_Text_Color,
         "colorIsTextColor defaults to false");
       Math_Engine.Parse ("\color{red}x+y", Shared'Access, Opt, Outp);
-      Check (Outp.Status = Math_Engine.Ready,
-        "default color command request remains syntactically ready");
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then Outp.Geometry.Commands.Length > 0,
+        "default color command produces nonempty valid geometry");
       declare
+         Root_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Math_Syntax.Root (Outp.Parsed)));
+         Color_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Root_Node.First));
          Red_Glyphs : Natural := 0;
       begin
+         declare
+            Expression_Row : constant Math_Syntax.Node := Math_Syntax.Element
+              (Outp.Parsed, Positive (Color_Node.First));
+            First_Atom : constant Math_Syntax.Node := Math_Syntax.Element
+              (Outp.Parsed, Positive (Expression_Row.First));
+            Binary_Atom : constant Math_Syntax.Node := Math_Syntax.Element
+              (Outp.Parsed, Positive (First_Atom.Next));
+            Last_Atom : constant Math_Syntax.Node := Math_Syntax.Element
+              (Outp.Parsed, Positive (Binary_Atom.Next));
+         begin
+            Check (Color_Node.Kind = Math_Model.Color_Node and then
+              Expression_Row.Kind = Math_Model.Row_Node and then
+              First_Atom.Code_Point = Character'Pos ('x'),
+              "default color AST wraps initial expression");
+            Check (Binary_Atom.Code_Point = Character'Pos ('+'),
+              "default color AST includes subsequent binary atom");
+            Check (Last_Atom.Code_Point = Character'Pos ('y'),
+              "default color AST includes subsequent ordinary atom");
+         end;
          for Command of Outp.Geometry.Commands loop
             if Command.Kind = Math_Layout.Glyph_Command and then
               Command.Has_Color and then Command.Red = 1.0 and then
@@ -65,15 +90,26 @@ procedure Math_Engine_Probe is
             end if;
          end loop;
          Check (Red_Glyphs = 3,
-           "default color command colors following math atoms");
+           "default color command colors all expression glyphs");
       end;
       Opt.Settings.Color_Is_Text_Color := True;
       Math_Engine.Parse ("\color{red}x+y", Shared'Access, Opt, Outp);
-      Check (Outp.Status = Math_Engine.Ready,
-        "text-color compatibility request remains syntactically ready");
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then Outp.Geometry.Commands.Length > 0,
+        "text-color compatibility request has nonempty geometry");
       declare
+         Root_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Math_Syntax.Root (Outp.Parsed)));
+         Color_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Root_Node.First));
+         Inner_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Color_Node.First));
          Red_Glyphs : Natural := 0;
       begin
+         Check (Color_Node.Kind = Math_Model.Color_Node and then
+           Inner_Node.Code_Point = Character'Pos ('x') and then
+           Inner_Node.Next = Math_Model.No_Node,
+           "text-color compatibility limits color node to one argument");
          for Command of Outp.Geometry.Commands loop
             if Command.Kind = Math_Layout.Glyph_Command and then
               Command.Has_Color and then Command.Red = 1.0 and then
@@ -83,8 +119,176 @@ procedure Math_Engine_Probe is
             end if;
          end loop;
          Check (Red_Glyphs = 1,
-           "text-color compatibility command colors its argument only");
+           "text-color compatibility colors only its argument");
       end;
+
+      Opt := (others => <>);
+      Math_Engine.Parse ("{\color{red}x+y}z", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then Outp.Geometry.Commands.Length > 0,
+        "grouped color scope retains nonempty valid geometry");
+      declare
+         Root_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Math_Syntax.Root (Outp.Parsed)));
+         Group_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Root_Node.First));
+         Color_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Group_Row.First));
+         Inner_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Color_Node.First));
+         Following_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Group_Row.Next));
+         Red_Glyphs : Natural := 0;
+         Plain_Z : Boolean := False;
+      begin
+         Check (Color_Node.Kind = Math_Model.Color_Node and then
+           Inner_Row.Kind = Math_Model.Row_Node and then
+           Inner_Row.First /= Math_Model.No_Node,
+           "nested group retains its own color node scope");
+         for Command of Outp.Geometry.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command and then
+              Command.Code_Point = Character'Pos ('z')
+            then
+               Plain_Z := not Command.Has_Color;
+            elsif Command.Kind = Math_Layout.Glyph_Command and then
+              Command.Has_Color and then Command.Red = 1.0 and then
+              Command.Green = 0.0 and then Command.Blue = 0.0
+            then
+               Red_Glyphs := Red_Glyphs + 1;
+            end if;
+         end loop;
+         Check (Following_Node.Code_Point = Character'Pos ('z') and then
+           Plain_Z and then Red_Glyphs = 3,
+           "nested color restores uncolored following glyphs");
+      end;
+
+      Math_Engine.Parse
+        ("\begin{matrix}\color{red}a+b&c\\d&e\end{matrix}",
+         Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then Outp.Geometry.Valid and
+        then Outp.Geometry.Commands.Length > 0,
+        "color expression respects array cell and row boundaries");
+      declare
+         Root_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Math_Syntax.Root (Outp.Parsed)));
+         Array_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Root_Node.First));
+         First_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Array_Node.First));
+         First_Cell : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (First_Row.First));
+         Color_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (First_Cell.First));
+         Color_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Color_Node.First));
+         Second_Cell : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (First_Cell.Next));
+         Second_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (First_Row.Next));
+         Second_Glyph_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Second_Cell.First));
+         Second_Glyph : constant Math_Syntax.Node := Second_Glyph_Row;
+      begin
+         Check (Array_Node.Kind = Math_Model.Array_Node and then
+           Color_Node.Kind = Math_Model.Color_Node and then
+           Color_Row.Kind = Math_Model.Row_Node and then
+           Color_Row.First /= Math_Model.No_Node and then
+           Math_Syntax.Element
+             (Outp.Parsed, Positive (Color_Row.First)).Next /=
+               Math_Model.No_Node and then
+           Second_Glyph.Code_Point = Character'Pos ('c') and then
+           Second_Row.First /= Math_Model.No_Node,
+           "array AST closes color before next cell and row");
+      end;
+
+      Math_Engine.Parse
+        ("\left(\color{red}x+y\right)+z", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then Outp.Geometry.Valid and
+        then Outp.Geometry.Commands.Length > 0,
+        "color expression stops at right delimiter boundary");
+      declare
+         Root_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Math_Syntax.Root (Outp.Parsed)));
+         Delimited_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Root_Node.First));
+         Inner_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Delimited_Node.First));
+         Color_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Inner_Row.First));
+         Color_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Color_Node.First));
+         Trailing : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Delimited_Node.Next));
+      begin
+         Check (Delimited_Node.Kind = Math_Model.Delimited_Node and then
+           Color_Node.Kind = Math_Model.Color_Node and then
+           Math_Syntax.Element
+             (Outp.Parsed, Positive (Color_Row.First)).Code_Point =
+               Character'Pos ('x') and then
+           Math_Syntax.Element
+             (Outp.Parsed,
+              Positive
+                (Math_Syntax.Element
+                   (Outp.Parsed, Positive (Color_Row.First)).Next))
+                .Code_Point = Character'Pos ('+') and then
+           Trailing.Code_Point = Character'Pos ('+'),
+           "right delimiter remains outside color expression");
+      end;
+
+      Math_Engine.Parse
+        ("\color{red}x^2+\frac{a}{b}+z", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then Outp.Geometry.Valid and
+        then Outp.Geometry.Commands.Length > 0,
+        "color expression with scripts and fraction has geometry");
+      declare
+         Root_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Math_Syntax.Root (Outp.Parsed)));
+         Color_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Root_Node.First));
+         Color_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Color_Node.First));
+         Script_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Color_Row.First));
+         Binary_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Script_Node.Next));
+         Fraction_Node : constant Math_Syntax.Node := Math_Syntax.Element
+           (Outp.Parsed, Positive (Binary_Node.Next));
+         Red_Glyphs : Natural := 0;
+      begin
+         Check (Color_Node.Kind = Math_Model.Color_Node and then
+           Script_Node.Kind = Math_Model.Scripts_Node and then
+           Fraction_Node.Kind = Math_Model.Fraction_Node and then
+           Math_Syntax.Element
+             (Outp.Parsed, Positive (Fraction_Node.First)).First /=
+               Math_Model.No_Node and then
+           Math_Syntax.Element
+             (Outp.Parsed, Positive (Fraction_Node.Second)).First /=
+               Math_Model.No_Node,
+           "script and fraction AST remain inside color scope");
+         for Command of Outp.Geometry.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command and then
+              Command.Has_Color and then Command.Red = 1.0 and then
+              Command.Green = 0.0 and then Command.Blue = 0.0
+            then
+               Red_Glyphs := Red_Glyphs + 1;
+            end if;
+         end loop;
+         Check (Red_Glyphs = 7,
+           "script and fraction descendant glyphs receive scoped color");
+      end;
+
+      Math_Engine.Parse ("\color{unknown}x", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        Math_Syntax.Error (Outp.Parsed) = "unsupported color name" and then
+        Math_Syntax.Diagnostic_Count (Outp.Parsed) = 1 and then
+        Math_Syntax.Diagnostic_At (Outp.Parsed, 1).Kind =
+          Math_Syntax.Parse_Error,
+        "unsupported color retains its explicit parse diagnostic");
+      Math_Engine.Parse ("\color{#12xz56}x", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        Math_Syntax.Error (Outp.Parsed) = "invalid color value" and then
+        Math_Syntax.Diagnostic_Count (Outp.Parsed) = 1,
+        "malformed hex color retains its explicit parse diagnostic");
 
       Opt := (others => <>);
       Math_Engine.Parse ("\href{https://example.invalid}{x}",

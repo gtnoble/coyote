@@ -62,6 +62,56 @@ procedure Math_Export is
       return Result;
    end Token_Array;
 
+   function Prefix_Array
+     (Definition : Math_Macros.Definition) return JSON_Array is
+      Result : JSON_Array := Empty_Array;
+   begin
+      for Index in 1 .. Math_Macros.Prefix_Token_Count (Definition) loop
+         declare
+            Token : constant Math_Tokens.Token :=
+              Math_Macros.Prefix_Token_At (Definition, Index);
+            Value : constant JSON_Value := Create_Object;
+         begin
+            Set_Field (Value, "text",
+              Ada.Strings.Unbounded.To_String (Token.Lexeme));
+            Set_Field (Value, "startByte", Integer (Token.First_Byte));
+            Set_Field (Value, "endByte", Integer (Token.After_Byte));
+            Append (Result, Value);
+         end;
+      end loop;
+      return Result;
+   end Prefix_Array;
+
+   function Delimiter_Array
+     (Definition : Math_Macros.Definition) return JSON_Array is
+      Result : JSON_Array := Empty_Array;
+   begin
+      for Delimiter_Index in 1 .. Math_Macros.Delimiter_Count (Definition) loop
+         declare
+            Tokens : JSON_Array := Empty_Array;
+         begin
+            for Token_Index in 1 .. Math_Macros.Delimiter_Token_Count
+              (Definition, Delimiter_Index)
+            loop
+               declare
+                  Token : constant Math_Tokens.Token :=
+                    Math_Macros.Delimiter_Token_At
+                      (Definition, Delimiter_Index, Token_Index);
+                  Value : constant JSON_Value := Create_Object;
+               begin
+                  Set_Field (Value, "text",
+                    Ada.Strings.Unbounded.To_String (Token.Lexeme));
+                  Set_Field (Value, "startByte", Integer (Token.First_Byte));
+                  Set_Field (Value, "endByte", Integer (Token.After_Byte));
+                  Append (Tokens, Value);
+               end;
+            end loop;
+            Append (Result, Create (Tokens));
+         end;
+      end loop;
+      return Result;
+   end Delimiter_Array;
+
    function Macro_State (Item : Math_Macros.Context) return JSON_Value is
       Result : constant JSON_Value := Create_Object;
    begin
@@ -73,6 +123,16 @@ procedure Math_Export is
          begin
             Set_Field (Value, "tokens", Create
               (Token_Array (Definition, False)));
+            Set_Field (Value, "prefix", Create
+              (Prefix_Array (Definition)));
+            Set_Field (Value, "prefixTokenCount", Integer
+              (Math_Macros.Prefix_Token_Count (Definition)));
+            Set_Field (Value, "delimiters", Create
+              (Delimiter_Array (Definition)));
+            Set_Field (Value, "delimiterCount", Integer
+              (Math_Macros.Delimiter_Count (Definition)));
+            Set_Field (Value, "tokenCount", Integer
+              (Math_Macros.Token_Count (Definition)));
             Set_Field (Value, "numArgs", Integer
               (Math_Macros.Num_Params (Definition)));
             Set_Field (Value, "hasOptionalDefault",
@@ -176,7 +236,8 @@ procedure Math_Export is
       Semantic : JSON_Value := JSON_Null;
       Macro_State_Value : JSON_Value := JSON_Null;
       Policy : Boolean := False;
-      Policy_Message : String := "") return JSON_Value is
+      Policy_Message : String := "";
+      Fleqn : Boolean := False) return JSON_Value is
       Result : constant JSON_Value := Create_Object;
       Capabilities : constant JSON_Value := Create_Object;
    begin
@@ -212,6 +273,9 @@ procedure Math_Export is
          Options : constant JSON_Value := Create_Object;
       begin
          Set_Field (Options, "displayMode", Display_Mode);
+         if Fleqn then
+            Set_Field (Options, "fleqn", True);
+         end if;
          Set_Field (Options, "maxExpand", Integer (1_000));
          Set_Field (Options, "maxSize", Integer (100));
          Set_Field (Options, "strict", Strict_Name);
@@ -228,6 +292,7 @@ procedure Math_Export is
       Set_Field (Capabilities, "macroStateSnapshot", True);
       Set_Field (Capabilities, "optionsMeasured", False);
       Set_Field (Capabilities, "optionsApplied", True);
+      Set_Field (Capabilities, "fleqnApplied", Fleqn);
       Set_Field (Result, "capabilities", Capabilities);
       return Result;
    end New_Record;
@@ -442,6 +507,7 @@ procedure Math_Export is
       Source_Value : JSON_Value := JSON_Null;
       Source_Text : Ada.Strings.Unbounded.Unbounded_String;
       Display_Mode : Boolean := False;
+      Fleqn : Boolean := False;
       Document : Math_Syntax.Document;
       Layout : Math_Layout.Box;
       Box_Value : JSON_Value;
@@ -495,6 +561,22 @@ procedure Math_Export is
          Display_Mode := Get (Request, "displayMode");
       end if;
 
+      if Has_Field (Request, "options") and then
+        Get (Request, "options").Kind = JSON_Object_Type and then
+        Has_Field (Get (Request, "options"), "fleqn")
+      then
+         declare
+            Options : constant JSON_Value := Get (Request, "options");
+         begin
+            if Get (Options, "fleqn").Kind /= JSON_Boolean_Type then
+               return New_Record
+                 (Id, Source_Value, Display_Mode, "parse-error",
+                  Error_Value ("options.fleqn must be boolean", 0));
+            end if;
+            Fleqn := Get (Options, "fleqn");
+         end;
+      end if;
+
       if Has_Field (Request, "sequence") and then
         Get (Request, "sequence").Kind = JSON_String_Type
       then
@@ -517,6 +599,7 @@ procedure Math_Export is
       Engine_Request.Settings.Max_Expand := 1_000;
       Engine_Request.Settings.Max_Size := 100;
       Engine_Request.Settings.Throw_On_Error := True;
+      Engine_Request.Settings.Fleqn := Fleqn;
       Math_Engine.Parse
         (Ada.Strings.Unbounded.To_String (Source_Text), Context,
          Engine_Request, Engine_Result);
@@ -563,7 +646,8 @@ procedure Math_Export is
             Root => Integer (Math_Syntax.Root (Document)),
             Macro_State_Value => Macro_Snapshot, Policy => Policy_Refusal,
             Policy_Message => Ada.Strings.Unbounded.To_String
-              (Policy_Diagnostic));
+              (Policy_Diagnostic),
+            Fleqn => Fleqn);
       end if;
       Layout := Engine_Result.Geometry;
       if not Layout.Valid or else not Is_Finite (Layout) then
@@ -578,11 +662,14 @@ procedure Math_Export is
             Root => Integer (Math_Syntax.Root (Document)),
             Macro_State_Value => Macro_Snapshot, Policy => Policy_Refusal,
             Policy_Message => Ada.Strings.Unbounded.To_String
-              (Policy_Diagnostic));
+              (Policy_Diagnostic),
+            Fleqn => Fleqn);
       end if;
       Semantic := Semantic_Value (Engine_Result.Meaning);
       Box_Value := Create_Object;
       Set_Field_Long_Float (Box_Value, "width", Layout.Width);
+      Set_Field (Box_Value, "leftAligned", Layout.Left_Aligned);
+      Set_Field_Long_Float (Box_Value, "leftIndent", Layout.Left_Indent);
       Set_Field_Long_Float (Box_Value, "ascent", Layout.Ascent);
       Set_Field_Long_Float (Box_Value, "descent", Layout.Descent);
       return New_Record
@@ -595,7 +682,8 @@ procedure Math_Export is
          Semantic => Semantic, Macro_State_Value => Macro_Snapshot,
          Policy => Policy_Refusal,
          Policy_Message => Ada.Strings.Unbounded.To_String
-           (Policy_Diagnostic));
+           (Policy_Diagnostic),
+         Fleqn => Fleqn);
    exception
       when Error : others =>
          Ada.Text_IO.Put_Line

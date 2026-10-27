@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto'),{spawnSync}=require('node:child_process');
 const repo=path.resolve(__dirname,'../..'),exporter=path.join(__dirname,'export-math-reference.cjs'),comparator=path.join(__dirname,'compare-math-layout.cjs'),pilotPath=path.join(repo,'test/fixtures/math-compatibility/pilot.json');
-const nativeOptions=c=>({displayMode:c.displayMode,maxExpand:1000,maxSize:100,strict:'warn',throwOnError:true,trust:false});
+const nativeOptions=c=>({displayMode:c.displayMode,...(c.options?.fleqn===true?{fleqn:true}:{}),maxExpand:1000,maxSize:100,strict:'warn',throwOnError:true,trust:false});
 if(process.argv[2]==='--emit-requests'){
  const p=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));for(const c of p.cases)process.stdout.write(JSON.stringify({id:c.id,source:c.source,displayMode:c.displayMode,options:c.options||{},sequence:c.sequence})+'\n');process.exit(0);
 }
@@ -13,11 +13,105 @@ if(process.argv[2]==='--annotate-native'){
 }
 const archive=process.argv[2]||'/tmp/coyote-katex-support-check/katex.tgz',packageRoot=process.argv[3]||'/tmp/coyote-katex-support-check/package',temp=fs.mkdtempSync(path.join(os.tmpdir(),'coyote-math-diff-test-'));
 function runExport(input,out=path.join(temp,'ref.jsonl')){const r=spawnSync(process.execPath,[exporter,archive,packageRoot],{input,encoding:'utf8'});assert.equal(r.status,0,r.stderr);fs.writeFileSync(out,r.stdout);return r.stdout;}
+let nativeExporter;
+function runNative(input){
+ if(!nativeExporter){
+  if(process.env.MATH_EXPORT_BIN){
+   nativeExporter=path.resolve(process.env.MATH_EXPORT_BIN);
+   fs.accessSync(nativeExporter,fs.constants.F_OK|fs.constants.X_OK);
+  }else{
+   const root=path.join(temp,'native-build');
+   const build=spawnSync('alr',['exec','--','gprbuild','-P',path.join(repo,'test/native/math_export.gpr'),`-XMATH_EXPORT_ROOT=${root}`],{cwd:repo,env:{...process.env,MATH_EXPORT_ROOT:root},encoding:'utf8'});
+   assert.equal(build.status,0,`local native exporter build failed:\n${build.stdout}\n${build.stderr}`);
+   nativeExporter=path.join(root,'bin','math_export');
+   fs.accessSync(nativeExporter,fs.constants.F_OK|fs.constants.X_OK);
+  }
+ }
+ const r=spawnSync(nativeExporter,[],{input,encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim().split(/\n/).filter(Boolean).map(JSON.parse);
+}
 function compare(ref,native,pilot=pilotPath,label='report',allow=true){const target=path.join(temp,`${label}.json`),args=[comparator,pilot,ref,native,target];if(allow)args.push('--allow-unsupported');const r=spawnSync(process.execPath,args,{encoding:'utf8'});return {r,report:fs.existsSync(target)?JSON.parse(fs.readFileSync(target,'utf8')):null};}
 function fixture(){return JSON.parse(fs.readFileSync(pilotPath,'utf8'));}
 function refs(input){const f=path.join(temp,'refs.jsonl');fs.writeFileSync(f,input);return f;}
 function nativeRows(p,refs=[],actual=[]){const rm=new Map(refs.map(r=>[r.id,r])),am=new Map(actual.map(r=>[r.id,r]));return p.cases.map(c=>{const m=rm.get(c.id)?.metrics,gs=rm.get(c.id)?.glyphs||[],cps=Array.from(gs.flatMap(g=>Array.from(g.text||'')),x=>x.codePointAt(0)),options=nativeOptions(c),sequence=c.sequence||null,caseHash=crypto.createHash('sha256').update(JSON.stringify({id:c.id,source:c.source,displayMode:c.displayMode,sequence,options})).digest('hex');return {schema:'coyote.math-export.v1',engine:'native',id:c.id,source:c.source,displayMode:c.displayMode,sequence,options,caseHash,status:c.expectedOutcome||((c.id==='invalid'||c.id.startsWith('shared-'))?'parse-error':c.id==='untrusted-href'?'policy-visible-command':'ok'),box:{width:1,ascent:m?.height??1,descent:m?.depth??.2},commands:am.get(c.id)?.commands||(c.requires?.includes('paths')?[{kind:'path',font:'main_regular',codePoint:0,x:0,y:0,scale:1,width:1,height:1,segments:[{kind:'move',x1:0,y1:0,x2:0,y2:0,x3:0,y3:0},{kind:'line',x1:1,y1:0,x2:0,y2:0,x3:0,y3:0}]}]:cps.map(cp=>({kind:'glyph',font:'main_regular',codePoint:cp,x:0,y:0,scale:1,width:.5,height:.7}))),semanticTree:{root:1,nodes:[{id:1,kind:'row_node',role:'root_role',parent:0,firstChild:2,nextSibling:0,childCount:cps.length},...cps.filter(cp=>cp>0).map((cp,i)=>({id:i+2,kind:'glyph_node',role:'sequence_item',parent:1,firstChild:0,nextSibling:i+1<cps.length?i+3:0,childCount:0,codePoint:cp}))]},macroState:c.sequence?JSON.parse(JSON.stringify(rm.get(c.id)?.macroState||{})):undefined,macroStateComplete:true,capabilities:{syntax:true,commands:true,semantic:c.expectedOutcome!=='parse-error'&&c.id!=='option-max-size',paths:!!c.requires?.includes('paths'),colors:false,sharedMacros:!!sequence,macroStateSnapshot:true,optionsMeasured:false,optionsApplied:true}};});}
 try{
+ const layoutRequests=[
+  {id:'layout-default-display',source:'x+y',displayMode:true,options:{}},
+  {id:'layout-fleqn-display',source:'x+y',displayMode:true,options:{fleqn:true}},
+  {id:'layout-fleqn-inline',source:'x+y',displayMode:false,options:{fleqn:true}},
+  {id:'layout-bad-fleqn',source:'x',displayMode:true,options:{fleqn:'yes'}},
+ ].map(r=>JSON.stringify(r)).join('\n')+'\n';
+ const validLayoutRequests=layoutRequests.split(/\n/).filter(Boolean).slice(0,3).join('\n')+'\n';
+ const referenceLayout=runExport(validLayoutRequests).trim().split(/\n/).map(JSON.parse);
+ assert.equal(referenceLayout[1].options.fleqn,true,'pinned reference receives and records Fleqn request');
+ assert.equal(referenceLayout[1].capabilities.optionsApplied,true,'reference options are recorded as supplied to KaTeX');
+ assert.equal(referenceLayout[1].capabilities.optionsMeasured,false,'reference option effects are not claimed measured');
+ const nativeLayout=runNative(layoutRequests);
+ const [normalBox,fleqnBox,inlineBox,badFleqn]=nativeLayout;
+ assert.equal(normalBox.box.leftAligned,false,'default display alignment remains centered');
+ assert.equal(normalBox.box.leftIndent,0,'default display indent remains zero');
+ assert.equal(fleqnBox.box.leftAligned,true,'display Fleqn marks presentation as left aligned');
+ assert.equal(fleqnBox.box.leftIndent,2,'display Fleqn exports its two-em presentation indent');
+ assert.equal(fleqnBox.box.width,normalBox.box.width,'Fleqn does not alter formula width');
+ assert.equal(fleqnBox.options.fleqn,true,'requested Fleqn is part of effective options');
+ assert.equal(fleqnBox.capabilities.fleqnApplied,true,'engine receives requested Fleqn');
+ assert.equal(fleqnBox.capabilities.optionsMeasured,false,'Fleqn effects are not claimed measured');
+ assert.equal(inlineBox.box.leftAligned,false,'inline Fleqn does not change alignment');
+ assert.equal(inlineBox.box.leftIndent,0,'inline Fleqn retains zero presentation indent');
+ assert.equal(inlineBox.box.width,normalBox.box.width,'inline Fleqn does not alter formula width');
+ assert.equal(inlineBox.capabilities.fleqnApplied,true,'inline request setting is still reported applied');
+ assert.equal(badFleqn.status,'parse-error','non-boolean Fleqn request rejected');
+ const macroRequests=[
+  {id:'macro-global-def',source:'\\gdef\\pref a+b#1{#1}\\gdef\\del#1END{#1}\\bogus',displayMode:false,sequence:'native-macro-state'},
+  {id:'macro-global-followup',source:'\\pref a+b{x}\\del yEND',displayMode:false,sequence:'native-macro-state'},
+  {id:'macro-local-def',source:'{\\def\\local p#1;{#1}\\bogus}',displayMode:false,sequence:'native-macro-local'},
+  {id:'macro-local-followup',source:'\\local',displayMode:false,sequence:'native-macro-local'},
+ ].map(r=>JSON.stringify(r)).join('\n')+'\n';
+ const nativeMacros=runNative(macroRequests),referenceMacros=runExport(macroRequests).trim().split(/\n/).map(JSON.parse);
+ const nativeDef=nativeMacros[0].macroState;
+ assert(nativeDef['\\pref'],'native global pref definition survives parse error');
+ assert.deepEqual(nativeDef['\\pref'].prefix.map(t=>t.text),['a','+','b'],'native snapshot preserves actual multi-token prefix');
+ assert.equal(nativeDef['\\pref'].prefixTokenCount,3,'native prefix count matches complete prefix array');
+ assert.deepEqual(nativeDef['\\del'].delimiters.map(g=>g.map(t=>t.text)),[['E','N','D']],'native snapshot preserves actual argument delimiter tokens');
+ assert.equal(nativeDef['\\del'].delimiterCount,1,'native delimiter count matches delimiter groups');
+ assert.equal(nativeDef['\\del'].tokenCount,nativeDef['\\del'].tokens.length,'native body token count matches complete body');
+ assert.equal(nativeMacros[1].status,'ok','global definitions persist and expand in shared sequence');
+ assert.equal(nativeMacros[1].macroState['\\pref'].prefix.map(t=>t.text).join(''),'a+b','global prefix survives follow-up context');
+ assert.equal(nativeMacros[2].macroState['\\local'],undefined,'local macro is removed before snapshot after group');
+ assert.equal(nativeMacros[3].status,'parse-error','local macro does not leak to following request');
+ assert.deepEqual(nativeDef['\\pref'].prefix.map(t=>t.text),referenceMacros[0].macroState['\\pref'].prefix,'actual native and KaTeX prefix fields agree for custom probe');
+ assert.deepEqual(nativeDef['\\del'].delimiters.map(g=>g.map(t=>t.text)),referenceMacros[0].macroState['\\del'].delimiters.slice(1),'actual native and KaTeX argument delimiter fields agree for custom probe');
+ assert.notDeepEqual(nativeDef['\\del'].delimiters.map(g=>g.map(t=>t.text)),[[],[]],'delimiter negative control is not a fabricated empty field');
+ const referenceDef=referenceMacros[0].macroState;
+ function nativeMacroProjection(definition){
+  assert.equal(definition.prefixTokenCount,definition.prefix.length,'native prefix count matches snapshot field');
+  assert.equal(definition.delimiterCount,definition.delimiters.length,'native delimiter count matches snapshot field');
+  assert.equal(definition.tokenCount,definition.tokens.length,'native replacement count matches snapshot field');
+  return {
+   tokens:definition.tokens.map(token=>token.text).reverse(),
+   prefix:definition.prefix.map(token=>token.text),
+   delimiters:[definition.prefix.map(token=>token.text),...definition.delimiters.map(group=>group.map(token=>token.text))],
+   numArgs:definition.numArgs,
+   unexpandable:false,
+  };
+ }
+ function referenceMacroProjection(definition){return {
+  tokens:definition.tokens.map(token=>token.text),
+  prefix:definition.prefix,
+  delimiters:definition.delimiters,
+  numArgs:definition.numArgs,
+  unexpandable:definition.unexpandable,
+ };}
+ for(const name of ['\\pref','\\del']){
+  assert.deepEqual(nativeMacroProjection(nativeDef[name]),referenceMacroProjection(referenceDef[name]),`${name}: full actual macro definition agrees across exporters`);
+  assert.deepEqual(nativeMacroProjection(nativeMacros[1].macroState[name]),referenceMacroProjection(referenceMacros[1].macroState[name]),`${name}: full shared macro state agrees after follow-up`);
+ }
+ assert.deepEqual(referenceDef['\\pref'].prefix,['a','+','b'],'reference prefix is derived from actual KaTeX delimiter structure');
+ assert.deepEqual(referenceDef['\\del'].delimiters,[[],['E','N','D']],'reference preserves actual KaTeX delimiter groups');
+ assert.equal(referenceMacros[1].macroState['\\pref'].prefix.join(''),'a+b','reference shared macro prefix persists in context');
+ const mutatedNative=JSON.parse(JSON.stringify(nativeMacros[0]));mutatedNative.macroState['\\pref'].prefix[0].text='z';
+ assert.throws(()=>assert.deepEqual(nativeMacroProjection(mutatedNative.macroState['\\pref']),referenceMacroProjection(referenceDef['\\pref'])),'prefix mutation is detected by cross-exporter projection comparison');
+ const mutatedDelimiter=JSON.parse(JSON.stringify(nativeMacros[0]));mutatedDelimiter.macroState['\\del'].delimiters[0][0].text='X';
+ assert.throws(()=>assert.deepEqual(nativeMacroProjection(mutatedDelimiter.macroState['\\del']),referenceMacroProjection(referenceDef['\\del'])),'delimiter mutation is detected by cross-exporter projection comparison');
  const p=fixture(),requests=p.cases.map(c=>JSON.stringify({id:c.id,source:c.source,displayMode:c.displayMode,options:c.options||{},sequence:c.sequence})).join('\n')+'\n',a=runExport(requests),b=runExport(requests);assert.equal(a,b,'single-pass export must be byte deterministic');
  let rr=a.trim().split('\n').map(JSON.parse);assert.equal(rr.find(x=>x.id==='x').status,'ok');
  const override=spawnSync(process.execPath,[exporter,archive,packageRoot],{input:JSON.stringify({id:'override',source:'x',displayMode:false,options:{maxExpand:9}})+'\n',encoding:'utf8'});assert.notEqual(override.status,0,'native/reference options override must be explicitly rejected');assert.equal(rr.find(x=>x.id==='invalid').status,'parse-error');assert.equal(rr.find(x=>x.id==='untrusted-href').status,'policy-visible-command');

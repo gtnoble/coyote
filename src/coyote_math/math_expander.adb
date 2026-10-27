@@ -6,6 +6,7 @@ with Ada.Containers;
 with Ada.Strings.Unbounded;
 
 package body Math_Expander is
+   use type Ada.Strings.Unbounded.Unbounded_String;
    use type Ada.Containers.Count_Type;
    use type Math_Tokens.Token_Kind;
    use type Math_Macros.Diagnostic_Kind;
@@ -633,10 +634,14 @@ package body Math_Expander is
                      Name_Tok : constant Math_Tokens.Token := Read_Raw (Item);
                      Macro_Name : constant String := Name_Of (Item, Name_Tok);
                      Params : Natural := 0;
+                     Prefix : Token_Vectors.Vector;
+                     Delimiters : Math_Macros.Delimiter_Vectors.Vector;
                      Rep : Token_Vectors.Vector;
                      D : Math_Macros.Diagnostic_Kind;
                      Failed : Boolean := False;
                      Depth : Natural := 0;
+                     Special_Brace_Delimiter : Boolean := False;
+                     Special_Opening : Math_Tokens.Token;
                   begin
                      if Name_Tok.Kind not in Math_Tokens.Control_Word |
                        Math_Tokens.Control_Symbol
@@ -646,9 +651,27 @@ package body Math_Expander is
                      end if;
                      loop
                         Tok := Read_Raw (Item);
-                        exit when Tok.Kind = Math_Tokens.Left_Group;
-                        if Tok.Kind = Math_Tokens.Parameter then
+                        if Tok.Kind = Math_Tokens.Left_Group then
+                           exit;
+                        elsif Tok.Kind = Math_Tokens.Parameter then
                            Tok := Read_Raw (Item);
+                           if Tok.Kind = Math_Tokens.Left_Group then
+                              Special_Brace_Delimiter := True;
+                              Special_Opening := Tok;
+                              if Params = 0 then
+                                 Prefix.Append (Tok);
+                              else
+                                 declare
+                                    Delimiter : Math_Macros.Token_Vectors.Vector :=
+                                      Delimiters.Last_Element;
+                                 begin
+                                    Delimiter.Append (Tok);
+                                    Delimiters.Replace_Element
+                                      (Positive (Params), Delimiter);
+                                 end;
+                              end if;
+                              exit;
+                           end if;
                            if Tok.Kind /= Math_Tokens.Character_Token or else
                              Tok.Code_Point not in 49 .. 57 or else
                              Tok.Code_Point /= 49 + Params
@@ -657,13 +680,29 @@ package body Math_Expander is
                               exit;
                            end if;
                            Params := Params + 1;
+                           Delimiters.Append
+                             (Math_Macros.Token_Vectors.Empty_Vector);
                         elsif Tok.Kind = Math_Tokens.End_Of_Input then
                            Failed := True;
                            exit;
+                        elsif Params = 0 then
+                           Prefix.Append (Tok);
+                        else
+                           declare
+                              Delimiter : Math_Macros.Token_Vectors.Vector :=
+                                Delimiters.Last_Element;
+                           begin
+                              Delimiter.Append (Tok);
+                              Delimiters.Replace_Element
+                                (Positive (Params), Delimiter);
+                           end;
                         end if;
                      end loop;
                      if not Failed then
-                        loop
+                        if Special_Brace_Delimiter then
+                           Depth := 1;
+                        end if;
+                        while not Failed loop
                            Tok := Read_Raw (Item);
                            if Tok.Kind = Math_Tokens.End_Of_Input then
                               Failed := True;
@@ -673,9 +712,15 @@ package body Math_Expander is
                            elsif Tok.Kind = Math_Tokens.Right_Group then
                               if Depth = 0 then exit; end if;
                               Depth := Depth - 1;
+                              if Special_Brace_Delimiter and then Depth = 0 then
+                                 exit;
+                              end if;
                            end if;
                            Rep.Append (Tok);
                         end loop;
+                        if not Failed and then Special_Brace_Delimiter then
+                           Rep.Insert (1, Special_Opening);
+                        end if;
                      end if;
                      if Failed then
                         Item.Status := Malformed_Definition;
@@ -749,9 +794,17 @@ package body Math_Expander is
                               for I in Seq'Range loop
                                  Seq (I) := Rep (Positive (I));
                               end loop;
-                              Math_Macros.Define_Tokens
-                                (Shared, Macro_Name, Params, Seq,
-                                 Is_Global, D);
+                              declare
+                                 Prefix_Seq : Math_Macros.Token_Sequence
+                                   (1 .. Natural (Prefix.Length));
+                              begin
+                                 for I in Prefix_Seq'Range loop
+                                    Prefix_Seq (I) := Prefix (Positive (I));
+                                 end loop;
+                                 Math_Macros.Define_Tokens
+                                   (Shared, Macro_Name, Params, Seq,
+                                    Is_Global, D, Prefix_Seq, Delimiters);
+                              end;
                            end;
                            if D /= Math_Macros.No_Error then
                               Item.Status := Malformed_Definition;
@@ -1338,6 +1391,7 @@ package body Math_Expander is
                   Def_Count : Natural := 0;
                   Has_Default : Boolean := False;
                   Default_Count : Natural := 0;
+                  Definition_Value : Math_Macros.Definition;
                   Args : array (1 .. 9) of Token_Vectors.Vector;
                   Out_Tokens : Token_Vectors.Vector;
                   Bad : Boolean := False;
@@ -1385,6 +1439,7 @@ package body Math_Expander is
                         Def : constant Math_Macros.Definition :=
                           Math_Macros.Lookup (Shared, Name);
                      begin
+                        Definition_Value := Def;
                         Params := Math_Macros.Num_Params (Def);
                         Has_Default := Math_Macros.Has_Optional_Default (Def);
                         Default_Count := Math_Macros.Default_Token_Count (Def);
@@ -1412,16 +1467,187 @@ package body Math_Expander is
                      end if;
                      Def_Count := Math_Tokens.Count (Template_Stream) - 1;
                   end if;
+                  if User_Defined then
+                     for I in 1 .. Math_Macros.Prefix_Token_Count
+                       (Definition_Value)
+                     loop
+                        declare
+                           Actual : constant Math_Tokens.Token :=
+                             Read_Raw (Item);
+                           Expected : constant Math_Tokens.Token :=
+                             Math_Macros.Prefix_Token_At
+                               (Definition_Value, Positive (I));
+                        begin
+                           if Actual.Kind /= Expected.Kind or else
+                             Actual.Code_Point /= Expected.Code_Point or else
+                             Actual.Lexeme /= Expected.Lexeme
+                           then
+                              Bad := True;
+                              exit;
+                           end if;
+                        end;
+                     end loop;
+                  end if;
+                  if Bad then
+                     if Item.Status = No_Error then
+                        Item.Status := Argument_Error;
+                     end if;
+                     return Tok;
+                  end if;
                   for A in 1 .. Params loop
                      declare
                         T : Math_Tokens.Token := Read_Raw (Item);
                         Spaces : Token_Vectors.Vector;
+                        Delimited : constant Boolean := User_Defined and then
+                          Math_Macros.Delimiter_Count (Definition_Value) >
+                            A - 1 and then
+                          Math_Macros.Delimiter_Token_Count
+                            (Definition_Value, Positive (A)) > 0;
                      begin
-                        while T.Kind = Math_Tokens.Space_Token loop
+                        while not Delimited and then
+                          T.Kind = Math_Tokens.Space_Token
+                        loop
                            Spaces.Append (T);
                            T := Read_Raw (Item);
                         end loop;
-                        if A = 1 and then Has_Default and then
+                        if Delimited then
+                           declare
+                              Pattern_Length : constant Positive :=
+                                Math_Macros.Delimiter_Token_Count
+                                  (Definition_Value, Positive (A));
+                              type Failure_Array is
+                                array (Positive range <>) of Natural;
+                              Pattern : Token_Vectors.Vector;
+                              Failure : Failure_Array (1 .. Pattern_Length) :=
+                                (others => 0);
+                              Matched : Natural := 0;
+                              Level : Natural := 0;
+                              Found : Boolean := False;
+                              Brace_Delimiter : Boolean := False;
+                              function Same_Token
+                                (Left, Right : Math_Tokens.Token)
+                                 return Boolean is
+                                (Left.Kind = Right.Kind and then
+                                 Left.Code_Point = Right.Code_Point and then
+                                 Left.Lexeme = Right.Lexeme);
+                           begin
+                              for I in 1 .. Pattern_Length loop
+                                 Pattern.Append
+                                   (Math_Macros.Delimiter_Token_At
+                                      (Definition_Value, Positive (A),
+                                       Positive (I)));
+                              end loop;
+                              for I in 2 .. Pattern_Length loop
+                                 while Matched > 0 and then not Same_Token
+                                   (Pattern (Positive (I)),
+                                    Pattern (Positive (Matched + 1)))
+                                 loop
+                                    Matched := Failure (Positive (Matched));
+                                 end loop;
+                                 if Same_Token
+                                   (Pattern (Positive (I)),
+                                    Pattern (Positive (Matched + 1)))
+                                 then
+                                    Matched := Matched + 1;
+                                 end if;
+                                 Failure (Positive (I)) := Matched;
+                              end loop;
+                              Matched := 0;
+                              loop
+                                 if T.Kind = Math_Tokens.End_Of_Input then
+                                    Bad := True;
+                                    exit;
+                                 elsif T.Kind = Math_Tokens.Left_Group and then
+                                   Level = 0 and then
+                                   Matched + 1 = Pattern_Length and then
+                                   Same_Token
+                                     (T, Pattern (Pattern_Length))
+                                 then
+                                    Brace_Delimiter := True;
+                                    Found := True;
+                                    exit;
+                                 elsif T.Kind = Math_Tokens.Left_Group then
+                                    Level := Level + 1;
+                                    Append_Temporary (Args (A), T);
+                                    Matched := 0;
+                                 elsif T.Kind = Math_Tokens.Right_Group then
+                                    if Level = 0 then
+                                       Bad := True;
+                                       exit;
+                                    end if;
+                                    Level := Level - 1;
+                                    Append_Temporary (Args (A), T);
+                                    Matched := 0;
+                                 else
+                                    Append_Temporary (Args (A), T);
+                                    if Level = 0 then
+                                       while Matched > 0 and then not Same_Token
+                                         (T, Pattern (Positive (Matched + 1)))
+                                       loop
+                                          Matched := Failure
+                                            (Positive (Matched));
+                                       end loop;
+                                       if Same_Token
+                                         (T, Pattern
+                                           (Positive (Matched + 1)))
+                                       then
+                                          Matched := Matched + 1;
+                                       end if;
+                                    end if;
+                                 end if;
+                                 exit when Bad;
+                                 if Matched = Pattern_Length then
+                                    Found := True;
+                                    exit;
+                                 end if;
+                                 T := Read_Raw (Item);
+                              end loop;
+                              if not Found then
+                                 Bad := True;
+                              else
+                                 if not (Pattern_Length = 1 and then
+                                   Pattern (1).Kind = Math_Tokens.Left_Group)
+                                 then
+                                    Args (A).Delete_Last
+                                      (Ada.Containers.Count_Type
+                                         (Pattern_Length -
+                                            (if Brace_Delimiter then 1
+                                             else 0)));
+                                 end if;
+                                 if Args (A).Length >= 2 and then
+                                   Args (A).First_Element.Kind =
+                                     Math_Tokens.Left_Group
+                                 then
+                                    declare
+                                       Group_Depth : Natural := 0;
+                                       Whole_Group : Boolean := True;
+                                    begin
+                                       for I in 1 .. Natural (Args (A).Length) loop
+                                          if Args (A) (Positive (I)).Kind =
+                                            Math_Tokens.Left_Group
+                                          then
+                                             Group_Depth := Group_Depth + 1;
+                                          elsif Args (A) (Positive (I)).Kind =
+                                            Math_Tokens.Right_Group
+                                          then
+                                             Group_Depth := Group_Depth - 1;
+                                             if Group_Depth = 0 and then
+                                               I < Natural (Args (A).Length)
+                                             then
+                                                Whole_Group := False;
+                                                exit;
+                                             end if;
+                                          end if;
+                                       end loop;
+                                       if Whole_Group and then Group_Depth = 0 then
+                                          Args (A).Delete_Last;
+                                          Args (A).Delete_First;
+                                       end if;
+                                    end;
+                                 end if;
+                              end if;
+                           end;
+                        elsif A = 1 and then Has_Default and then
                           T.Kind = Math_Tokens.Character_Token and then
                           T.Code_Point = 91
                         then
@@ -1451,8 +1677,7 @@ package body Math_Expander is
                            for I in 1 .. Default_Count loop
                               Append_Temporary
                                 (Args (A), Math_Macros.Default_Token_At
-                                   (Math_Macros.Lookup (Shared, Name),
-                                    Positive (I)));
+                                   (Definition_Value, Positive (I)));
                            end loop;
                            if T.Kind /= Math_Tokens.End_Of_Input then
                               Pushback (Item, T);

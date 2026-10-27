@@ -13,7 +13,7 @@ The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
 current code or documentation. The current native-math evidence and open
-qualification status are recorded in §8 of
+qualification status are recorded in §9 of
 `plan/native-math-parity-test-report.md`; consult that coordinator-owned report
 rather than treating earlier full-suite or focused results as current-source
 qualification. No parity or product acceptance is implied.
@@ -136,16 +136,43 @@ grace period before escalation.
 
 ## Testing
 
-The PCR-123 1042/1042, earlier 1057/1057 and final3 1060/1060 results
-are historical. The latest completed full development-suite checkpoint passed
-1061/1061, zero failed assertions/unexpected errors, 82.378580 seconds
-(`/tmp/coyote-completion-final2-full.log`), before subsequent candidate edits.
-Later focused geometry passed 145/145; frozen structured/image pilots passed
-16/16 and 3/3. Consult `plan/native-math-parity-test-report.md` §8 for snapshot
-boundaries and current gaps. Whole-job memory, deadlines, GTK/cache guarantees,
-remaining core behavior and human acceptance are not qualified. Latest color
-validation was interrupted; no full regression pass for that candidate is
-recorded. These development builds are not warning-free or release qualification.
+Historical native-math full-suite results include PCR-123 1042/1042, earlier
+1057/1057, final3 1060/1060, and final2 1061/1061. Two intermediate frozen
+full-suite attempts failed exactly one GTK tool-allocation assertion each;
+three isolated focused passes followed, then a test-only correction added a
+one-second monotonic GTK poll without changing or weakening the exact 760×600
+dimension criterion. The frozen full development suite then passed 1062/1062
+with zero failed assertions or unexpected errors in 82.228506 seconds
+(`/tmp/coyote-next-frozen-full.log`). It is regression evidence, not parity or
+product acceptance. Root build and test build logs are
+`/tmp/coyote-next-frozen-build.log` and
+`/tmp/coyote-next-frozen-testbuild.log`.
+
+Scoped evidence: current-source complete macro scanner 622 checks
+(`/tmp/coyote-next-brace-final/probe.log`); engine 57; jobs 133 with 2,000
+valid warm requests (p95 1 ms, max 2 ms); geometry 145/145
+(`/tmp/coyote-next-frozen-geometry.log`); frozen structured differential 16/16
+(`/tmp/coyote-next-frozen-differential/report.json`) and controls
+(`/tmp/coyote-next-frozen-controls.log`); image pilot 3/3
+(`/tmp/coyote-next-final-images/report.json`); native aggregate 156 assertions
+from the prior layout-limit probe (API unchanged); and ten resource cases with
+peak RSS 46,184 KiB (`/tmp/coyote-next-frozen-resources.json`). The 2,000-request
+performance sample measured p95 0.750889 ms and maximum 1.186076 ms; GTK is
+excluded. The 10,000-case fuzz run remains identical: 4,184 parse successes,
+5,221 parse errors, 595 policy errors, zero layout failures.
+
+Fleqn affects display math only. At 24 px/em, the added left margin is
+2 em = 48 px; at 48 px/em it is 96 px. The default display
+remains centered with no indent; inline math is unaffected. One added GUI test
+brings `Conversation_Stack` to 48 total registrations. The generated coverage
+map currently records 115 missing core rows, 2,814 partial/unqualified rows,
+one deviation, and zero development-only rows; settings have 13 partial rows
+and one deviation, with no missing settings. These counts are a source crosswalk,
+not qualification. See coordinator-owned report §9 for snapshot boundaries and
+qualification gaps. Whole-job memory, hard 250 ms completion, GTK/cache
+ guarantees, full reference origins/widths/options, remaining core behavior,
+and human acceptance remain unqualified. These development builds are not
+warning-free or release qualification.
 The preceding 1017/1017 signal/process
 record result is historical (`/tmp/coyote-signal-proc-full-final.log`). PCR-118's 1014/1014 result
 below is historical (`/tmp/coyote-ownership-full-tests.log`).

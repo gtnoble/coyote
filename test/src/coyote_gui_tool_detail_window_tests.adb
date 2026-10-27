@@ -1,6 +1,7 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
 with Ada.Environment_Variables;
+with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI;
@@ -27,6 +28,8 @@ with Pango.Layout;
 package body Coyote_GUI_Tool_Detail_Window_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Real_Time.Time;
+   use type Ada.Real_Time.Time_Span;
    use type Glib.Gint;
    use type Gtk.Adjustment.Gtk_Adjustment;
    use type Glib.Gdouble;
@@ -289,6 +292,10 @@ package body Coyote_GUI_Tool_Detail_Window_Tests is
       Start_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter     : Gtk.Text_Iter.Gtk_Text_Iter;
       Has_Selection : Boolean;
+      Deadline      : Ada.Real_Time.Time;
+      Next_Poll     : Ada.Real_Time.Time;
+      Quit          : Boolean;
+      pragma Unreferenced (Quit);
    begin
       if not T.Display_Available then
          return;
@@ -297,9 +304,27 @@ package body Coyote_GUI_Tool_Detail_Window_Tests is
       Window := Find_Window;
       Assert (Window /= null, "Show creates named detail toplevel");
       Pump_Frames;
-      Window.Get_Allocation (Allocation);
-      Assert (Allocation.Width = 760 and then Allocation.Height = 600,
-              "default mapped allocation is 760 by 600");
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (1_000);
+      loop
+         while Gtk.Main.Events_Pending
+           and then Ada.Real_Time.Clock < Deadline
+         loop
+            Quit := Gtk.Main.Main_Iteration;
+         end loop;
+         Window.Get_Allocation (Allocation);
+         exit when (Allocation.Width = 760 and then Allocation.Height = 600)
+           or else Ada.Real_Time.Clock >= Deadline;
+         Next_Poll := Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (10);
+         if Next_Poll > Deadline then
+            Next_Poll := Deadline;
+         end if;
+         delay until Next_Poll;
+      end loop;
+      Assert
+        (Allocation.Width = 760 and then Allocation.Height = 600,
+         "allocation is " & Glib.Gint'Image (Allocation.Width) & " by"
+         & Glib.Gint'Image (Allocation.Height)
+         & "; expected 760 by 600 within 1.0 s deadline");
       Header := Find_Widget
         (Gtk.Widget.Gtk_Widget (Window), "tool-detail-header");
       Menu := Find_Widget

@@ -45,11 +45,6 @@ package body Math_Engine is
          Set_Message (Output, "maxSize must be in 1..100");
          return;
       end if;
-      if Options.Settings.Fleqn then
-         Output.Status := Unsupported_Settings;
-         Set_Message (Output, "fleqn is not supported by native math");
-         return;
-      end if;
       if Options.Settings.Trust then
          Output.Status := Unsupported_Settings;
          Set_Message (Output, "trust is not supported by native math");
@@ -158,6 +153,12 @@ package body Math_Engine is
          Output.Status := Layout_Error;
          Set_Message (Output, To_String (Output.Geometry.Message));
          return;
+      end if;
+      if Options.Settings.Fleqn and then
+        Options.Style = Math_Layout.Display_Style
+      then
+         Output.Geometry.Left_Aligned := True;
+         Output.Geometry.Left_Indent := 2.0;
       end if;
       if Options.Foreground_Set then
          for Index in Output.Geometry.Commands.First_Index ..

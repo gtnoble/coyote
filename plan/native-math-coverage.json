@@ -166,24 +166,24 @@
     "generation_validation": "Generator verifies every relevant package/archive file byte-for-byte, exact instrumentation anchors, registry counts, and pinned archive/dist hashes; this map validates the pinned inventory and regenerates native symbol tables byte-identically against checked-in sources."
   },
   "evidence_source_sha256": {
-    "src/coyote_math/coyote_math_jobs.ads": "46cbe8d9eb9256f440dc55b52ce658db201fd8b134830d3956ab0fba51aa23c2",
-    "src/coyote_math/coyote_math_jobs.adb": "1c85561775090eb3808ad1d4a8703dcb44a680af4cde105ebcce7a48acac1799",
+    "src/coyote_math/coyote_math_jobs.ads": "48690a94f9c2a964ed4336489055a8f2a1abd8c800482cc92ad240126ae37fb2",
+    "src/coyote_math/coyote_math_jobs.adb": "fff27468aed1c98e2dc80dedff3ec1e67624dd133cd04c1f756d467efd891610",
     "src/coyote_math/coyote_math_resources.ads": "39af20bbd8702191c7ab199ac8b75bfb76ce951c6911499304b0e50c5c413614",
     "src/coyote_math/coyote_math_resources.adb": "43b1a2718f5f48b2e4286bd9d6a0c13b0916cb9b2e91f766c1960bc4a4e0dd5b",
     "src/coyote_math/math_builtin_macros.ads": "475bfa14f680637247a05872f000fd74109dffb7004b756d5bb699127d44c153",
     "src/coyote_math/math_builtin_macros.adb": "5ee8a153e194bf3d05ce9a0c7f03588ae18ff90bd913e1f48ac5d38bbec1666f",
     "src/coyote_math/math_engine.ads": "39159693f604ff2ff0a3240e9e938497a78a0a333a7520b3e5b3bc7c6f0000b8",
-    "src/coyote_math/math_engine.adb": "73c2db3ad9fe22c7a9dd7a0cc0db7366a6346ba5f9010262adcd4e74995d8e45",
+    "src/coyote_math/math_engine.adb": "e5e7a2d73609025006e6a351c4f3e771a76d945c873f7372772b69b40cad939d",
     "src/coyote_math/math_expander.ads": "a14672509c67af44206c16a1b991f0dda25ae29089c13dcfa9c9bfe38bb1ad6f",
-    "src/coyote_math/math_expander.adb": "9d4578d4468f6fa1057cf253aef6b7d133ad17c86e95cc5027bdace184d5f7b0",
+    "src/coyote_math/math_expander.adb": "cee6dc282d24775a3ec8cb9967e90544d0c30cd16ef81bc457d0311b21beb653",
     "src/coyote_math/math_font_data.ads": "4ec548af70dbf4e9dfa2da29a723aeb5b5fbeee7f7a2627a361d8b5081d846b6",
     "src/coyote_math/math_font_data.adb": "3c252344a7240b85dccb801f05d4360c4cb500d00e738be5676ac2ea98e574b6",
     "src/coyote_math/math_unicode.ads": "cbdecbf9f6da59d0366b723c1a01cdb7fe04f7348c3cebcc79c01ed7ae620e4a",
     "src/coyote_math/math_unicode.adb": "14a15a94e2cd24cac3fa3a1be2e5063a77dc94ae7cae306a261409df3abbccf2",
-    "src/coyote_math/math_layout.ads": "b77d6e271e6f2d842b0d6eea2d9d30f6fbb80cab026fc26c0f72efa82cbb87c4",
-    "src/coyote_math/math_layout.adb": "837b844e172ddee07e100282f0962789d300aa7d1a852a457bb99d686598bbeb",
-    "src/coyote_math/math_macros.ads": "16fd9b2c4bfe889e8f40b05147afcc17de1dd773c703422c317ebbafd7b2b580",
-    "src/coyote_math/math_macros.adb": "7c3273d38737e60c49de88a0a7b0d78ece81d577cc66f762ecf75a78545f82cf",
+    "src/coyote_math/math_layout.ads": "84c650e44a4815304a0edb840d2efd00778b01f0890ffd6e1a11015303a7f658",
+    "src/coyote_math/math_layout.adb": "93b65b4e09e3d365bf6f73d691643e61bec2140235de7f78329fdb4b210c712f",
+    "src/coyote_math/math_macros.ads": "6cfde0ec8ed092bea241e3a10d83fc5e97edcef356a52a42fbc3ae360ef6cf50",
+    "src/coyote_math/math_macros.adb": "f164ed655374fca40b72654e9764245c1c2048e169208879b23f970dd15d1fa9",
     "src/coyote_math/math_metrics.ads": "73bb8bd227601f16f8734e22dcfa4aca163ee356de7635fc163f9ce8329dcf2b",
     "src/coyote_math/math_metrics.adb": "aea263767f4a478cc9ddfd718eb4d6bd1e67e145bad02ea2b160e444a87a1665",
     "src/coyote_math/math_model.ads": "3d24d21ad277d95ca97b4988c67ddf9ab39e4936fd5a67ec42c29285abfa4894",
@@ -204,7 +204,7 @@
     "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
     "src/coyote_math/math_symbols.adb": "c5fbc9d6e665aa429ce6e51c3e50f064643c074e9acc17f196876611d443bc52",
     "src/coyote_math/math_syntax.ads": "f601254bc3ff4989ca8c495ef857f171ad1fdbfcad33a482add8b77432acae1d",
-    "src/coyote_math/math_syntax.adb": "2b76f9e661e2509b8c77b23e3f99ab618a9f5679069cb37b37c111309b1afd5c",
+    "src/coyote_math/math_syntax.adb": "e1430034cdb17dc0a19e4315ace4dc5de8d15275626816d816f134f65941eb8f",
     "src/coyote_math/math_tokens.ads": "e3b97231543c26dc52a562682f6ed51f9657d94d77da1c22505db18b6fcc74e1",
     "src/coyote_math/math_tokens.adb": "77b7e9b4b64bd5d652271478a73b3bf0bb9e759e0441deb51643e5a84e971ebc"
   },
@@ -218,7 +218,7 @@
     {
       "id": "REQ-MATH-002",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "Expander/templates exist; complete argument, scope, and built-in semantics remain unqualified."
+      "evidence_and_unmet": "Expander/templates include literal-prefix and balanced delimited parameters, scoped copies and special opening-brace terminators. Complete argument, scope and built-in semantics remain unqualified."
     },
     {
       "id": "REQ-MATH-003",
@@ -243,7 +243,7 @@
     {
       "id": "REQ-MATH-007",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "Several settings have partial native surfaces; exact option parity remains unqualified. fleqn is explicitly rejected. trust=False is the enforced profile and trust=True is rejected; colorIsTextColor has a parser candidate branch but no option wiring and remains unvalidated. D11/D12 apply only to their approved callback/API deviations."
+      "evidence_and_unmet": "Scalar settings have partial native paths: display-only fleqn metadata is consumed by GTK and both colorIsTextColor modes have focused checks. trust=False is enforced and trust=True rejected. Full option-effect/interaction parity remains unqualified. D11/D12 apply only to their approved callback/API deviations."
     },
     {
       "id": "REQ-MATH-008",
@@ -273,7 +273,7 @@
     {
       "id": "REQ-MATH-013",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "The frozen 16-case differential pilot and 3-image pilot are scoped evidence only; later focused geometry evidence includes failures, and full-width origin/measurement remains unmeasured. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete."
+      "evidence_and_unmet": "The 16-case structured and three-image pilots and 145-case ascent/depth corpus pass within their scopes; normalized paths do not establish em-unit origins or widths. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete."
     },
     {
       "id": "REQ-MATH-014",
@@ -290,8 +290,8 @@
     "core_registry_rows": 2930,
     "core_status": {
       "approved-deviation-not-applicable": 1,
-      "missing": 116,
-      "partial-implemented-unqualified": 2813
+      "missing": 115,
+      "partial-implemented-unqualified": 2814
     },
     "by_registry": {
       "builtin-macro": {
@@ -310,8 +310,7 @@
       },
       "setting": {
         "total": 14,
-        "partial-implemented-unqualified": 12,
-        "missing": 1,
+        "partial-implemented-unqualified": 13,
         "approved-deviation-not-applicable": 1
       },
       "supplemental-font-face": {
@@ -363,10 +362,6 @@
       ],
       [
         "environment",
-        1
-      ],
-      [
-        "setting",
         1
       ]
     ],
@@ -62574,7 +62569,7 @@
       "status": "partial-implemented-unqualified",
       "inventory_entry": "[function]",
       "native_evidence": {
-        "claim": "Helper-level expansion probes exist, including the expected 499-case budget; no full KaTeX registry implementation or semantic qualification is claimed.",
+        "claim": "Helper-level expansion probes exist, including shared expansion-budget checks; no full KaTeX registry implementation or semantic qualification is claimed.",
         "source": [
           "src/coyote_math/math_expander.adb",
           "test/tools/math_macros_probe.adb"
@@ -62591,7 +62586,7 @@
       "status": "partial-implemented-unqualified",
       "inventory_entry": "[function]",
       "native_evidence": {
-        "claim": "Helper-level expansion probes exist, including the expected 499-case budget; no full KaTeX registry implementation or semantic qualification is claimed.",
+        "claim": "Helper-level expansion probes exist, including shared expansion-budget checks; no full KaTeX registry implementation or semantic qualification is claimed.",
         "source": [
           "src/coyote_math/math_expander.adb",
           "test/tools/math_macros_probe.adb"
@@ -67321,14 +67316,14 @@
         "pinned_effective_default": false
       },
       "native_evidence": {
-        "claim": "A color/textcolor parser branch exists, but the colorIsTextColor API option is not exposed or wired; candidate parser behavior is unvalidated.",
+        "claim": "The scalar is wired through the engine to the parser. Focused checks exercise remainder scope, argument-only compatibility, groups, arrays and right delimiters; full option interactions remain unqualified.",
         "source": [
           "src/coyote_math/math_syntax.adb",
           "src/coyote_math/math_syntax.adb"
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Candidate color/textcolor parser branch exists, but this API option is not exposed or wired; parser behavior remains unvalidated."
+      "note": "Both scalar modes have focused parser/layout checks; complete reference option-effect measurement remains unqualified."
     },
     {
       "id": "MATH-SETTING-d2da947e6be0",
@@ -67385,7 +67380,7 @@
       "registry": "setting",
       "key": "fleqn",
       "mode": null,
-      "status": "missing",
+      "status": "partial-implemented-unqualified",
       "inventory_entry": {
         "schema": {
           "description": "Render display math flush left.",
@@ -67394,14 +67389,14 @@
         "pinned_effective_default": false
       },
       "native_evidence": {
-        "claim": "Setting exists in the request record but nondefault use is explicitly rejected; no left-aligned equation layout is established.",
+        "claim": "Display-only left alignment and 2 em presentation indentation are carried by immutable layout/job metadata and consumed by GTK; formula width and inline alignment are unchanged. Complete option qualification remains open.",
         "source": [
           "src/coyote_math/math_engine.adb",
           "src/coyote_math/math_syntax.adb"
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Option exists in the request record but true is explicitly rejected; left-aligned equation layout is not implemented."
+      "note": "Display presentation is left-aligned with a 2 em indent when requested; centered defaults and inline behavior remain unchanged. Complete option and tag interactions remain unqualified."
     },
     {
       "id": "MATH-SETTING-7420205c49de",

@@ -6,6 +6,11 @@ package Math_Macros is
    use type Math_Tokens.Token;
    Max_Definitions : constant := 32_768;
    type Token_Sequence is array (Positive range <>) of Math_Tokens.Token;
+   package Token_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Math_Tokens.Token);
+   use type Token_Vectors.Vector;
+   package Delimiter_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Token_Vectors.Vector);
    type Definition is private;
    type Context is limited private;
    type Diagnostic_Kind is
@@ -27,7 +32,19 @@ package Math_Macros is
    procedure Define_Tokens
      (Item : in out Context; Name : String; Num_Params : Natural;
       Replacement : Token_Sequence; Is_Global : Boolean;
-      Diagnostic : out Diagnostic_Kind);
+      Diagnostic : out Diagnostic_Kind;
+      Prefix : Token_Sequence := (1 .. 0 => <>);
+      Delimiters : Delimiter_Vectors.Vector :=
+        Delimiter_Vectors.Empty_Vector);
+   function Prefix_Token_Count (Item : Definition) return Natural;
+   function Prefix_Token_At
+     (Item : Definition; Index : Positive) return Math_Tokens.Token;
+   function Delimiter_Count (Item : Definition) return Natural;
+   function Delimiter_Token_Count
+     (Item : Definition; Index : Positive) return Natural;
+   function Delimiter_Token_At
+     (Item : Definition; Index, Token_Index : Positive)
+      return Math_Tokens.Token;
    procedure Set_Optional_Default
      (Item : in out Context; Name : String;
       Replacement : Token_Sequence; Diagnostic : out Diagnostic_Kind);
@@ -43,19 +60,19 @@ package Math_Macros is
    function Default_Token_At
      (Item : Definition; Index : Positive) return Math_Tokens.Token;
    function Token_Count (Item : Definition) return Natural;
-   function Token_At
-     (Item : Definition; Index : Positive) return Math_Tokens.Token;
+   function Token_At (Item : Definition; Index : Positive)
+      return Math_Tokens.Token;
    function Definition_Count (Item : Context) return Natural;
    --  Return the definition at its current context index without changing it.
    function Definition_At
      (Item : Context; Index : Positive) return Definition;
    function Diagnostic (Item : Context) return Diagnostic_Kind;
 private
-   package Token_Vectors is new Ada.Containers.Vectors
-     (Index_Type => Positive, Element_Type => Math_Tokens.Token);
    type Definition is record
       Name : Ada.Strings.Unbounded.Unbounded_String;
       Num_Params : Natural := 0;
+      Prefix : Token_Vectors.Vector;
+      Delimiters : Delimiter_Vectors.Vector;
       Optional_Default : Token_Vectors.Vector;
       Has_Default : Boolean := False;
       Tokens : Token_Vectors.Vector;

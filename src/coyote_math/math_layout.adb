@@ -20,8 +20,8 @@ package body Math_Layout is
    use type Math_Stretchy.Brace_Kind;
 
    Layout_Failure : exception;
-   Max_Layout_Depth  : constant Natural    := 64;
-   Max_Draw_Commands : constant            := 16_384;
+   Max_Layout_Depth  : constant Natural    := 256;
+   Max_Draw_Commands : constant            := 131_072;
    Max_Geometry      : constant Long_Float := 16_384.0;
    Default_Rule_Thickness : constant Long_Float := 0.04;
    Fraction_Axis     : constant Long_Float := 0.25;
@@ -42,6 +42,14 @@ package body Math_Layout is
    begin
       raise Layout_Failure with Why;
    end Reject;
+
+   procedure Append_Command (Target : in out Box; Command : Draw_Command) is
+   begin
+      if Target.Commands.Length >= Max_Draw_Commands then
+         Reject ("draw-command limit exceeded");
+      end if;
+      Target.Commands.Append (Command);
+   end Append_Command;
 
    function Is_Cramped (Level : Style_Level) return Boolean is
    begin
@@ -394,11 +402,7 @@ package body Math_Layout is
          M : constant Math_Metrics.Glyph_Metric :=
            Scaled_Metric (Font, Code, Scale);
       begin
-         if Result.Commands.Length >= Max_Draw_Commands then
-            Reject ("draw-command limit exceeded");
-         end if;
-         Result.Commands.Append
-           (Draw_Command'
+         Append_Command (Result, Draw_Command'
            (Kind => Glyph_Command, Font => Font, Code_Point => Code,
              X => 0.0, Y => Baseline, Scale => Scale, Width => M.Width,
              Height => M.Ascent + M.Descent, others => <>));
@@ -414,8 +418,7 @@ package body Math_Layout is
          Metric := Scaled_Metric (Main_Regular, 16#7C#, Scale);
          Result.Width := Metric.Width;
          if Metric.Ascent + Metric.Descent >= Need_Height then
-            Result.Commands.Append
-              (Draw_Command'(Kind => Glyph_Command, Font => Main_Regular,
+            Append_Command (Result, Draw_Command'(Kind => Glyph_Command, Font => Main_Regular,
                 Code_Point => 16#7C#, X => 0.0,
                 Y => (Metric.Ascent - Metric.Descent) / 2.0,
                 Scale => Scale, Width => Metric.Width,
@@ -426,8 +429,7 @@ package body Math_Layout is
             if Need_Height > Max_Geometry then
                Reject ("delimiter assembly bounds exceeded");
             end if;
-            Result.Commands.Append
-              (Draw_Command'(Kind => Rule_Command, Font => Main_Regular,
+            Append_Command (Result, Draw_Command'(Kind => Rule_Command, Font => Main_Regular,
                 Code_Point => 0, X => 0.0, Y => -Need_Height / 2.0,
                 Scale => Scale, Width => Thickness.Effective * Scale,
                 Height => Need_Height, others => <>));
@@ -516,8 +518,7 @@ package body Math_Layout is
          Result.Valid := True;
          return Result;
       end if;
-      Result.Commands.Append
-        (Draw_Command'
+      Append_Command (Result, Draw_Command'
         (Kind => Glyph_Command, Font => Font, Code_Point => Point,
           X => 0.0,
           Y => (Metric.Ascent - Metric.Descent) / 2.0 -
@@ -544,13 +545,10 @@ package body Math_Layout is
       if not Source.Commands.Is_Empty then
          for Index in Source.Commands.First_Index .. Source.Commands.Last_Index
          loop
-            if Target.Commands.Length >= Max_Draw_Commands then
-               Reject ("draw-command limit exceeded");
-            end if;
             Command   := Source.Commands (Index);
             Command.X := Command.X + X_Offset;
             Command.Y := Command.Y + Y_Offset;
-            Target.Commands.Append (Command);
+            Append_Command (Target, Command);
          end loop;
       end if;
    end Append_At;
@@ -829,7 +827,7 @@ package body Math_Layout is
          Rule.X := Left_Width + Margin;
          Rule.Width := Fraction_Width;
          Rule.Height := Rule_Thickness * Scale;
-         Result.Commands.Append (Rule);
+         Append_Command (Result, Rule);
       end if;
       if not No_Rule and then Value.Left_Delimiter /= Math_Syntax.No_Delimiter then
          Append_At (Result, Left_Box, 0.0, 0.0);
@@ -1017,7 +1015,7 @@ package body Math_Layout is
          for Part in 1 .. Math_Paths.Count (Scaled) loop
             Command.Path_Data.Append (Math_Paths.Element (Scaled, Part));
          end loop;
-         Result.Commands.Append (Command);
+         Append_Command (Result, Command);
       end;
 
       Append_At (Result, Radicand, Advance_Width, 0.0);
@@ -1095,7 +1093,7 @@ package body Math_Layout is
                  (Math_Paths.Element (Scaled_Path, Segment));
             end loop;
          end;
-         Result.Commands.Append (Geometry);
+         Append_Command (Result, Geometry);
       end Add_Part;
    begin
       if Value.First = No_Node then
@@ -1231,8 +1229,7 @@ package body Math_Layout is
                        when others => Width * 0.749)
                   else (if Part = 1 then 0.0 else Width * 0.498));
             begin
-               Result.Commands.Append
-                 (Make_Part (Part, Part_Width, Left));
+               Append_Command (Result, Make_Part (Part, Part_Width, Left));
             end;
          end loop;
          declare
@@ -1263,7 +1260,7 @@ package body Math_Layout is
             Scale, Depth + 1, Thickness);
          Width := Long_Float'Max (Min_Width, Base.Width);
          if Math_Stretchy.PartCount (Name) = 1 then
-            Result.Commands.Append (Make_Part (1, Width, 0.0));
+            Append_Command (Result, Make_Part (1, Width, 0.0));
          else
             for Part in 1 .. Math_Stretchy.PartCount (Name) loop
                declare
@@ -1281,8 +1278,7 @@ package body Math_Layout is
                           when others => Width * 0.749)
                      else (if Part = 1 then 0.0 else Width * 0.498));
                begin
-                  Result.Commands.Append
-                    (Make_Part (Part, Part_Width, Left));
+                  Append_Command (Result, Make_Part (Part, Part_Width, Left));
                end;
             end loop;
          end if;
@@ -1747,8 +1743,7 @@ package body Math_Layout is
                      X := X + Column_Gap;
                   end if;
                elsif C = '|' then
-                  Result.Commands.Append
-                    (Draw_Command'
+                  Append_Command (Result, Draw_Command'
                        (Kind => Rule_Command, X => X,
                         Y => -Total_Height / 2.0,
                         Width => Thickness.Effective * Scale,
@@ -1789,7 +1784,7 @@ package body Math_Layout is
       if Value.Right_Delimiter = Math_Syntax.Double_Bar_Delimiter then
          declare Bar : Box := Right_Delimiter; begin
             Bar.Commands.Clear;
-            Bar.Commands.Append (Draw_Command' (Kind => Glyph_Command, Font => Main_Regular,
+            Append_Command (Bar, Draw_Command' (Kind => Glyph_Command, Font => Main_Regular,
               Code_Point => 16#7C#, X => 0.0, Y => 0.0, Scale => Scale,
               Width => Right_Delimiter.Width, Height => Need_Height, others => <>));
             Append_At (Result, Bar, Total_Width - Right_Width +
@@ -1861,7 +1856,7 @@ package body Math_Layout is
             Command.Scale      := Scale;
             Command.Width      := Metric.Width;
             Command.Height     := Metric.Ascent + Metric.Descent;
-            Result.Commands.Append (Command);
+            Append_Command (Result, Command);
             Result.Width   := Metric.Width;
             Result.Ascent  := Maximum (Metric.Ascent, 0.0);
             Result.Descent := Maximum (Metric.Descent, 0.0);
@@ -2034,7 +2029,7 @@ package body Math_Layout is
                         end loop;
                      end;
                      Result := Base;
-                     Result.Commands.Append (Geometry);
+                     Append_Command (Result, Geometry);
                      Result.Ascent := Base.Ascent + 0.08 * Scale +
                        Geometry.Height;
                      Result.Descent := Base.Descent;
@@ -2086,7 +2081,7 @@ package body Math_Layout is
                   end;
                   Result.Ascent := Long_Float'Max (Result.Ascent, Base.Ascent);
                end if;
-                  Result.Commands.Append (Accent);
+                  Append_Command (Result, Accent);
                   Result.Valid := True;
                end;
             end if;
@@ -2131,8 +2126,7 @@ package body Math_Layout is
                      Result.Width := Thickness.Effective * Scale;
                      Result.Ascent := Height / 2.0 + Fraction_Axis * Scale;
                      Result.Descent := Height / 2.0 - Fraction_Axis * Scale;
-                     Result.Commands.Append
-                       (Draw_Command'(Kind => Rule_Command,
+                     Append_Command (Result, Draw_Command'(Kind => Rule_Command,
                          Font => Main_Regular, Code_Point => Point,
                          X => 0.0, Y => -Height / 2.0 - Fraction_Axis * Scale,
                          Scale => Scale, Width => Result.Width, Height => Height,
@@ -2141,8 +2135,7 @@ package body Math_Layout is
                      Result.Width := Metric.Width * Scale;
                      Result.Ascent := Metric.Ascent * Scale;
                      Result.Descent := Metric.Descent * Scale;
-                     Result.Commands.Append
-                       (Draw_Command'(Kind => Glyph_Command, Font => Size,
+                     Append_Command (Result, Draw_Command'(Kind => Glyph_Command, Font => Size,
                          Code_Point => Point, X => 0.0, Y => 0.0,
                          Scale => Scale, Width => Result.Width,
                          Height =>
@@ -2188,7 +2181,7 @@ package body Math_Layout is
                      if Value.Right_Delimiter = Math_Syntax.Double_Bar_Delimiter then
                         declare Bar : Box := Right; begin
                            Bar.Commands.Clear;
-                           Bar.Commands.Append (Draw_Command' (Kind => Glyph_Command,
+                           Append_Command (Bar, Draw_Command' (Kind => Glyph_Command,
                              Font => Main_Regular, Code_Point => 16#7C#,
                              X => 0.0, Y => 0.0, Scale => Scale,
                              Width => Right.Width, Height => Need, others => <>));
@@ -2284,14 +2277,14 @@ package body Math_Layout is
                R.Kind := Rule_Command;
                R.X := 0.0; R.Y := -(Result.Ascent + Padding);
                R.Width := Result.Width + 2.0 * Padding; R.Height := T;
-               Result.Commands.Append (R);
+               Append_Command (Result, R);
                R.Y := Result.Descent + Padding;
-               Result.Commands.Append (R);
+               Append_Command (Result, R);
                R.X := 0.0; R.Y := -(Result.Ascent + Padding);
                R.Width := T; R.Height := Result.Ascent + Result.Descent + 2.0 * Padding;
-               Result.Commands.Append (R);
+               Append_Command (Result, R);
                R.X := Result.Width + 2.0 * Padding - T;
-               Result.Commands.Append (R);
+               Append_Command (Result, R);
                Result.Width := Result.Width + 2.0 * Padding;
                Result.Ascent := Result.Ascent + Padding;
                Result.Descent := Result.Descent + Padding;
@@ -2431,7 +2424,7 @@ package body Math_Layout is
             Command.Y := -(Value.Height + Value.Amount) * Scale;
             Command.Width := Result.Width;
             Command.Height := Value.Height * Scale;
-            Result.Commands.Append (Command);
+            Append_Command (Result, Command);
             Result.Valid := True;
          when Sized_Node =>
             if Value.Scale <= 0.0 or Value.Scale > 100.0 or
@@ -2528,7 +2521,7 @@ package body Math_Layout is
                end if;
                --  The SVG extends beyond the content but TeX cancellation
                --  retains the original logical height/depth (enclose.js).
-               Result.Commands.Append (Geometry);
+               Append_Command (Result, Geometry);
                Result.Valid := True;
             end;
       end case;
@@ -2584,6 +2577,9 @@ package body Math_Layout is
       then
          Reject ("layout geometry limit exceeded");
       end if;
+      if Result.Commands.Length > Max_Draw_Commands then
+         Reject ("draw-command limit exceeded");
+      end if;
       for Command of Result.Commands loop
          if abs Command.X > Max_Geometry or else abs Command.Y > Max_Geometry
            or else Command.Width > Max_Geometry
@@ -2599,8 +2595,10 @@ package body Math_Layout is
       when E : Layout_Failure =>
          Result :=
            (Valid    => False, Width => 0.0, Ascent => 0.0, Descent => 0.0,
-            Italic   => 0.0,
-            Message  =>
+            Italic        => 0.0,
+            Left_Aligned => False,
+            Left_Indent  => 0.0,
+            Message       =>
               To_Unbounded_String (Ada.Exceptions.Exception_Message (E)),
             Commands => Command_Vectors.Empty_Vector);
          return Result;

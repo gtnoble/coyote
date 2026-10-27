@@ -22,6 +22,7 @@ package body Coyote_Math_Jobs is
       Color_Enabled : Boolean := False;
       Color : Math_Color := (others => 0.0);
       Raster_Requested : Boolean := False;
+      Fleqn : Boolean := False;
       Em_Pixels : Long_Float := 16.0;
       Font_Directory : Unbounded_String;
       Deadline : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
@@ -41,14 +42,16 @@ package body Coyote_Math_Jobs is
       procedure Add (Text : String; Id : out Request_Id;
         View : View_Generation; Style : Math_Layout.Math_Style;
         Color_Enabled : Boolean; Color : Math_Color;
-        Raster_Requested : Boolean; Em_Pixels : Long_Float;
+        Raster_Requested : Boolean; Fleqn : Boolean;
+        Em_Pixels : Long_Float;
         Font_Directory : String;
         Shared : Boolean; State : out Job_Status);
       entry Take (Index : out Positive; Stop : out Boolean;
         Job : out Request_Id; View : out View_Generation;
         Text : out Unbounded_String; Style : out Math_Layout.Math_Style;
         Color_Enabled : out Boolean; Color : out Math_Color;
-        Raster_Requested : out Boolean; Em_Pixels : out Long_Float;
+        Raster_Requested : out Boolean; Fleqn : out Boolean;
+        Em_Pixels : out Long_Float;
         Font_Directory : out Unbounded_String;
         Deadline : out Ada.Real_Time.Time);
       procedure Complete (Index : Positive; Job : Request_Id;
@@ -92,7 +95,8 @@ package body Coyote_Math_Jobs is
       procedure Add (Text : String; Id : out Request_Id;
         View : View_Generation; Style : Math_Layout.Math_Style;
         Color_Enabled : Boolean; Color : Math_Color;
-        Raster_Requested : Boolean; Em_Pixels : Long_Float;
+        Raster_Requested : Boolean; Fleqn : Boolean;
+        Em_Pixels : Long_Float;
         Font_Directory : String;
         Shared : Boolean; State : out Job_Status) is
       begin
@@ -152,6 +156,7 @@ package body Coyote_Math_Jobs is
                     Text => To_Unbounded_String (Text), Style => Style,
                     Color_Enabled => Color_Enabled, Color => Color,
                     Raster_Requested => Raster_Requested,
+                    Fleqn => Fleqn,
                     Em_Pixels => Em_Pixels,
                     Font_Directory => To_Unbounded_String (Font_Directory),
                     Deadline => Submitted +
@@ -169,7 +174,8 @@ package body Coyote_Math_Jobs is
         Job : out Request_Id; View : out View_Generation;
         Text : out Unbounded_String; Style : out Math_Layout.Math_Style;
         Color_Enabled : out Boolean; Color : out Math_Color;
-        Raster_Requested : out Boolean; Em_Pixels : out Long_Float;
+        Raster_Requested : out Boolean; Fleqn : out Boolean;
+        Em_Pixels : out Long_Float;
         Font_Directory : out Unbounded_String;
         Deadline : out Ada.Real_Time.Time)
         when Stopping or else (Running and then not Paused and then
@@ -180,6 +186,7 @@ package body Coyote_Math_Jobs is
          Text := Null_Unbounded_String; Style := Math_Layout.Text_Style;
          Color_Enabled := False; Color := (others => 0.0);
          Raster_Requested := False;
+         Fleqn := False;
          Em_Pixels := 16.0;
          Font_Directory := Null_Unbounded_String;
          Deadline := Ada.Real_Time.Time_First;
@@ -194,6 +201,7 @@ package body Coyote_Math_Jobs is
                   Color_Enabled := Items (I).Color_Enabled;
                   Color := Items (I).Color;
                   Raster_Requested := Items (I).Raster_Requested;
+                  Fleqn := Items (I).Fleqn;
                   Em_Pixels := Items (I).Em_Pixels;
                   Font_Directory := Items (I).Font_Directory;
                   Deadline := Items (I).Deadline; return;
@@ -375,6 +383,7 @@ package body Coyote_Math_Jobs is
       Color_Enabled : Boolean;
       Color : Math_Color;
       Raster_Requested : Boolean;
+      Fleqn : Boolean;
       Em_Pixels : Long_Float;
       Font_Directory : Unbounded_String;
       Deadline : Ada.Real_Time.Time;
@@ -386,7 +395,7 @@ package body Coyote_Math_Jobs is
       loop
          Control.Take
            (Index, Stop, Job, View, Text, Style, Color_Enabled, Color,
-            Raster_Requested, Em_Pixels, Font_Directory, Deadline);
+            Raster_Requested, Fleqn, Em_Pixels, Font_Directory, Deadline);
          exit when Stop;
          R := null;
          State := Failed;
@@ -405,6 +414,12 @@ package body Coyote_Math_Jobs is
                if Math_Syntax.Is_Valid (R.Parsed) then
                   R.Meaning := Math_Semantics.Project (R.Parsed);
                   R.Geometry := Math_Layout.Build (R.Parsed, Style);
+                  if R.Geometry.Valid and then Fleqn and then
+                    Style = Math_Layout.Display_Style
+                  then
+                     R.Geometry.Left_Aligned := True;
+                     R.Geometry.Left_Indent := 2.0;
+                  end if;
                   if Color_Enabled then
                      for I in R.Geometry.Commands.First_Index ..
                        R.Geometry.Commands.Last_Index
@@ -530,11 +545,11 @@ package body Coyote_Math_Jobs is
       Color_Enabled : Boolean := False; Color : Math_Color := (others => 0.0);
       Shared_Context_Requested : Boolean := False; Status : out Job_Status;
       Request_Raster : Boolean := False; Em_Pixels : Long_Float := 16.0;
-      Font_Directory : String := "") is
+      Font_Directory : String := ""; Fleqn : Boolean := False) is
    begin
       Control.Add
         (Source, Id, Generation, Style, Color_Enabled, Color,
-         Request_Raster, Em_Pixels, Font_Directory,
+         Request_Raster, Fleqn, Em_Pixels, Font_Directory,
          Shared_Context_Requested, Status);
    end Submit;
    procedure Cancel (Id : Request_Id; Generation : View_Generation) is

@@ -52,14 +52,18 @@ package Math_Layout is
      (Index_Type => Positive, Element_Type => Draw_Command);
 
    type Box is record
-      Valid    : Boolean := False;
-      Width    : Long_Float := 0.0;
-      Ascent   : Long_Float := 0.0;
-      Descent  : Long_Float := 0.0;
-      Italic   : Long_Float := 0.0;
-      Message  : Ada.Strings.Unbounded.Unbounded_String;
-      Commands : Command_Vectors.Vector;
+      Valid        : Boolean := False;
+      Width        : Long_Float := 0.0;
+      Ascent       : Long_Float := 0.0;
+      Descent      : Long_Float := 0.0;
+      Italic       : Long_Float := 0.0;
+      Left_Aligned : Boolean := False;
+      Left_Indent  : Long_Float := 0.0;
+      Message      : Ada.Strings.Unbounded.Unbounded_String;
+      Commands     : Command_Vectors.Vector;
    end record;
+   --  Alignment is presentation metadata; Width and draw coordinates describe
+   --  only the formula. Left_Indent is measured in em units.
 
    function Build
      (Item : Math_Syntax.Document;

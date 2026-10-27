@@ -78,10 +78,15 @@ package body Math_Macros is
    procedure Define_Tokens
      (Item : in out Context; Name : String; Num_Params : Natural;
       Replacement : Token_Sequence; Is_Global : Boolean;
-      Diagnostic : out Diagnostic_Kind) is
+      Diagnostic : out Diagnostic_Kind;
+      Prefix : Token_Sequence := (1 .. 0 => <>);
+      Delimiters : Delimiter_Vectors.Vector :=
+        Delimiter_Vectors.Empty_Vector) is
       Pos : constant Natural := Find (Item, Name);
       New_Def : Definition :=
         (Name => To_Unbounded_String (Name), Num_Params => Num_Params,
+         Prefix => Token_Vectors.Empty_Vector,
+         Delimiters => Delimiter_Vectors.Empty_Vector,
          Optional_Default => Token_Vectors.Empty_Vector,
          Has_Default => False,
          Tokens => Token_Vectors.Empty_Vector);
@@ -99,6 +104,8 @@ package body Math_Macros is
                Previous => (if Pos > 0 then Item.Definitions (Positive (Pos))
                             else (Name => Null_Unbounded_String,
                               Num_Params => 0,
+                              Prefix => Token_Vectors.Empty_Vector,
+                              Delimiters => Delimiter_Vectors.Empty_Vector,
                               Optional_Default => Token_Vectors.Empty_Vector,
                               Has_Default => False,
                               Tokens => Token_Vectors.Empty_Vector)));
@@ -110,7 +117,7 @@ package body Math_Macros is
    begin
       Diagnostic := No_Error;
       if Name'Length < 2 or else Name (Name'First) /= '\' or else
-        Num_Params > 9
+        Num_Params > 9 or else Natural (Delimiters.Length) > Num_Params
       then
          Diagnostic := Definition_Limit;
          return;
@@ -119,6 +126,12 @@ package body Math_Macros is
          Diagnostic := Definition_Limit;
          return;
       end if;
+      for T of Prefix loop
+         New_Def.Prefix.Append (New_Item => T);
+      end loop;
+      for Delimiter of Delimiters loop
+         New_Def.Delimiters.Append (New_Item => Delimiter);
+      end loop;
       for T of Replacement loop
          New_Def.Tokens.Append (New_Item => T);
       end loop;
@@ -193,8 +206,17 @@ package body Math_Macros is
          for I in Seq'Range loop
             Seq (I) := Token_At (Def, I);
          end loop;
-         Define_Tokens
-           (Item, Target, Num_Params (Def), Seq, Is_Global, Diagnostic);
+         declare
+            Prefix : Token_Sequence (1 .. Prefix_Token_Count (Def));
+            Delimiters : Delimiter_Vectors.Vector := Def.Delimiters;
+         begin
+            for I in Prefix'Range loop
+               Prefix (I) := Prefix_Token_At (Def, I);
+            end loop;
+            Define_Tokens
+              (Item, Target, Num_Params (Def), Seq, Is_Global,
+               Diagnostic, Prefix, Delimiters);
+         end;
       end;
    end Copy_Definition;
 
@@ -228,6 +250,20 @@ package body Math_Macros is
    function Name_Of (Item : Definition) return String is
      (To_String (Item.Name));
    function Num_Params (Item : Definition) return Natural is (Item.Num_Params);
+   function Prefix_Token_Count (Item : Definition) return Natural is
+     (Natural (Item.Prefix.Length));
+   function Prefix_Token_At
+     (Item : Definition; Index : Positive) return Math_Tokens.Token is
+     (Item.Prefix (Index));
+   function Delimiter_Count (Item : Definition) return Natural is
+     (Natural (Item.Delimiters.Length));
+   function Delimiter_Token_Count
+     (Item : Definition; Index : Positive) return Natural is
+     (Natural (Item.Delimiters (Index).Length));
+   function Delimiter_Token_At
+     (Item : Definition; Index, Token_Index : Positive)
+      return Math_Tokens.Token is
+     (Item.Delimiters (Index) (Token_Index));
    function Has_Optional_Default (Item : Definition) return Boolean is
      (Item.Has_Default);
    function Default_Token_Count (Item : Definition) return Natural is

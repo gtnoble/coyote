@@ -87,14 +87,16 @@ procedure Math_Macros_Probe is
         "opening cursor clears prior message history");
    end Expect_Message;
 
-   procedure Expect_Output (Text, Expected, Label : String) is
+   procedure Expect_Output
+     (Text, Expected, Label : String;
+      Limit : Positive := Math_Expander.Default_Max_Expand) is
       Local_Cursor : Math_Expander.Cursor;
       T : Math_Tokens.Token;
       Actual : String (1 .. 512);
       Length : Natural := 0;
    begin
       Math_Macros.Reset (Ctx);
-      Open_Text (Text, Local_Cursor);
+      Open_Text (Text, Local_Cursor, Limit);
       loop
          T := Math_Expander.Next (Local_Cursor, Ctx);
          exit when T.Kind = Math_Tokens.End_Of_Input;
@@ -187,6 +189,144 @@ begin
      T.After_UTF16 = 10,
      "unicode actual argument retains exact invocation span");
 
+   Expect_Output ("\def\pref a+b#1{#1!}\pref a+b{x}", "x!",
+     "multi-token prefix matches actual tokens and expands its argument");
+   Open_Text ("\def\pref a+b#1{#1!}\pref a-x{x}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Argument_Error,
+     "mismatched prefix is diagnosed");
+   Open_Text ("\def\pref a+b#1{#1!}\pref a+", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Argument_Error,
+     "EOF in prefix is diagnosed");
+   Expect_Output ("\def\pref a+b#1{#1!}\let\copy=\pref\copy a+b{q}",
+     "q!", "let preserves prefix metadata");
+   Expect_Output ("\def\f#1,#2;{#2/#1}\f a,b;", "b/a",
+     "comma and semicolon delimit two raw arguments");
+   Expect_Output ("\def\f#1,#2;{#2/#1}\f {a,b},c;", "c/a,b",
+     "grouped comma is data and complete outer group is stripped");
+   Expect_Output ("\def\f#1END{#1}\f abcEND", "abc",
+     "multitoken literal delimiter ends argument");
+   Expect_Raw_Output
+     ("\def\f#1END#{#1}\f xEND{}", "{x}",
+      "literal delimiter followed by brace matches and reinserts opener");
+   Expect_Raw_Output
+     ("\def\f#1aab#{#1}\f xa{q}aab{}", "{xa{q}}",
+      "group resets partial delimiter before matching outer brace");
+   Expect_Output ("\def\f#1abab{#1}\f xxabxabab", "xxabx",
+     "overlapping delimiter prefixes use linear fallback matching");
+   Expect_Raw_Output ("\def\f#1ab{#1}\f a{xx}bab", "a{xx}b",
+     "grouped tokens reset delimiter matching and remain argument data");
+   Expect_Raw_Output ("\def\f#1#{#1}\f x{}", "{x}",
+     "trailing parameter hash reinserts consumed opening brace");
+   Expect_Raw_Output
+     ("\def\f#1#{#1}\f x{a{b}}{}", "{xa{b}}{}",
+      "brace delimiter matches before nested groups and preserves provenance");
+   Expect_Raw_Output
+     ("\def\f pre:#1#{#1}\f pre:x{}", "{x}",
+      "brace delimiter follows matched literal prefix");
+   Expect_Raw_Output
+     ("\def\f#1#{#1}\let\g=\f\g x{}", "{x}",
+      "let alias preserves brace delimiter and inserted replacement opener");
+   Expect_Raw_Output
+     ("\def\f#1#{#1}\def\g#1#{#1}\g x{}", "{x}",
+      "later definitions preserve brace delimiter metadata");
+   Expect_Raw_Output ("\def\zero#{X}\zero{}", "{X}",
+     "zero-parameter special hash brace is matched as a prefix");
+   Expect_Output ("\def\pref a+b#1{#1!}\pref a+b{x}", "x!",
+     "multi-token prefix matches actual tokens and expands its argument",
+     Limit => 1);
+   Expect_Output ("\def\f#1 END{#1}\f abc END", "abc",
+     "leading spaces are matched as part of the delimiter");
+   Expect_Output ("\def\bad#1x{<#1>}\bad abx", "<ab>",
+     "a trailing parameter delimiter is accepted");
+   Open_Text ("\def\f#1#{#1}\f x{}", Cur, Limit => 1);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "special brace definition consumes no expansion budget");
+   Open_Text ("\def\f#1#{#1}\f x", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Argument_Error,
+     "EOF before special brace delimiter is diagnosed");
+   Open_Text ("\def\f#1END#{#1}\f xEND", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Argument_Error,
+     "EOF after literal prefix before brace delimiter is diagnosed");
+   Expect_Output ("\edef\f#1END{<#1>}\f qEND", "<q>",
+     "edef preserves parameter delimiter metadata");
+   Expect_Output ("\xdef\f#1END{<#1>}\f qEND", "<q>",
+     "xdef preserves parameter delimiter metadata");
+   Expect_Output ("\def\f#1\alpha{#1}\f abc\alpha", "abc",
+     "control token delimiter matches by token identity");
+   Expect_Output ("\def\f pre:#1END{#1}\f pre:abcEND", "abc",
+     "prefix and delimiter are both consumed");
+   Expect_Output ("\def\f#1,#2;{<#1><#2>}\f ,;", "<><>",
+     "adjacent delimiters capture empty arguments");
+   Expect_Output ("\def\f#1,#2;{#2/#1}\let\g=\f\g a,b;", "b/a",
+     "let copies delimiter metadata");
+   Expect_Output ("\def\f#1,#2;{#2/#1}\gdef\g#1,#2;{#2/#1}\g a,b;", "b/a",
+     "global definition accepts actual delimiters");
+   Math_Macros.Reset (Ctx);
+   Math_Macros.Begin_Group (Ctx);
+   Open_Text ("\def\f#1END{#1}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "scoped delimiter definition parses");
+   Math_Macros.End_Group (Ctx);
+   Check (not Math_Macros.Is_Defined (Ctx, "\f"),
+     "scoped delimiter definition unwinds with definition");
+   Open_Text ("\def\f#1,#2;{#1}\f a,b", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Argument_Error,
+     "EOF before delimiter is diagnosed");
+   Open_Text ("\def\f#1END{#1}\f {abcEND", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Argument_Error,
+     "unbalanced group before delimiter is diagnosed");
+   Open_Text ("\def\f#1END{#1}\f abcEND", Cur,
+     Token_Ceiling => 18);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Token_Limit,
+     "delimited raw argument respects shared token ceiling");
+   Expect_Output ("\def\nested#1{#1}\def\outer pre#1{\nested{#1}}"
+     & "\outer pre{x}", "x", "nested macro expands within max-expand",
+     Limit => 2);
+   Open_Text ("\def\first#1{#1}\def\second#1{\first{#1}}"
+     & "\second{x}", Cur, Limit => 1);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Expansion_Limit,
+     "nested macro expansions exceed max-expand one");
+
    Open_Text ("\def\pair#1#2{#2#1}", Cur);
    loop
       T := Math_Expander.Next (Cur, Ctx);
@@ -233,6 +373,11 @@ begin
    Check (T.Code_Point = Character'Pos (']'),
      "nested definition closes after cross-source expansion");
 
+   Open_Text ("\def\id#1{#1}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
    Math_Macros.Begin_Group (Ctx);
    Open_Text ("\def\id#1{u}", Cur);
    loop T := Math_Expander.Next (Cur, Ctx); exit when T.Kind = Math_Tokens.End_Of_Input; end loop;

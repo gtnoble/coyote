@@ -1,13 +1,13 @@
 # Native math KaTeX compatibility — test report
 
 **Document:** Combined Software Test Report (STR) for the approved execution baseline; final test readiness open
-**Date:** 2026-10-26 (PCR-125; approved work began 2026-10-24)
+**Date:** 2026-10-27 (PCR-125; approved work began 2026-10-24)
 **Reference:** KaTeX 0.16.22, pinned archive SHA-256 `e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365`; bundle SHA-256 `8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33`
 **Status: NOT COMPLETE — final qualification and product acceptance remain open.**
 
 This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its controlling scope is approved SRS-MATH v1.0 and D01–D15, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
 
-**Current-results pointer:** §1–7 preserve historical checkpoints and narrative. The latest completion attempt and controlling status are in [§8](#8-latest-completion-attempt--not-complete); earlier final2/final3 full-suite results are historical and superseded as latest-source evidence.
+**Current-results pointer:** §§1–8 preserve historical checkpoints. The latest implementation and controlling status are in [§9](#9-native-implementation-increment--2026-10-27). Do not treat earlier failures, coverage counts or the interrupted color validation as current-source outcomes.
 
 
 ## 1. Test scope and environment
@@ -150,6 +150,9 @@ and read-only agent reviews are not independent human acceptance.
 
 ## 8. Latest completion attempt — NOT COMPLETE
 
+**Historical checkpoint:** Superseded as current-source evidence by §9. Its
+recorded outcomes and open issues describe the 2026-10-26 snapshot only.
+
 **Documentation checkpoint: 2026-10-26.** This section supersedes the current-state
 claims in §§1–7, which retain earlier run results as history. The source tree
 contains further implementation beyond the last full-suite checkpoint. No
@@ -282,3 +285,135 @@ documentation update; no runtime changes or new test runs were made in it.
 **Current exit decision: NOT COMPLETE.** Earlier pilot failures have been
 resolved within their scopes, but missing/unqualified core behavior, the
 unvalidated latest candidate, system-level budgets and human acceptance remain.
+
+
+## 9. Native implementation increment — 2026-10-27
+
+**Status: NOT COMPLETE.** Approved SRS-MATH v1.0 and D01–D15 are unchanged.
+This section supersedes earlier current-state assertions, not their historical
+run evidence. Production remains native Ada/GTK/Cairo/FreeType; KaTeX and the
+browser are development-only references. Changes are uncommitted at this
+checkpoint; this is not a release or human acceptance record.
+
+### 9.1 Implemented and reviewed changes
+
+- **Color scope:** default `\color` consumes the following expression, stopping
+  before the enclosing right delimiter, array cell/row separator, or group end.
+  `colorIsTextColor=true` and `\textcolor` remain argument-scoped. Focused
+  assertions cover AST ownership, actual draw-command colors, nested groups,
+  arrays, delimiters, scripts/fractions and malformed input. The empty previous
+  validation log and earlier 40/41 result are historical, not current failures.
+- **Fleqn:** explicit display requests carry left-alignment and **2 em** indent
+  metadata through engine and immutable jobs into GTK. Formula width and draw
+  coordinates are unchanged; inline math is unaffected. The default remains
+  centered with no added indent. GTK uses 48 px at 24 px/em, scales to 96 px at
+  48 px/em, and preserves indentation during pending and invalid-source fallback.
+  One new widget test brings `Conversation_Stack` to **48 total registrations**;
+  it does not add 48 tests or constitute human visual acceptance.
+- **Macro arguments:** definitions own literal prefixes and per-parameter
+  delimiters. Raw balanced argument scanning uses linear-time prefix matching,
+  cannot match across groups, and strips outer braces only for a whole-group
+  argument. Prefix/delimiter metadata survives local/global definitions, copies,
+  let, edef and xdef. Special opening-brace terminators cover both `#1#{` and
+  multi-token `#1END#{` forms. Review fixed quadratic front deletion,
+  cross-group partial matches and incorrect maxExpand charges for prefix tokens.
+  This is focused pinned-KaTeX compatibility, not complete TeX argument semantics.
+- **Layout admission:** depth **256** and **131072 draw commands** now match the
+  approved finite-domain targets. All command appends pass a checked helper;
+  the final count is checked too. Calculated geometry remains limited to
+  16384 em, syntax depth 128 and nodes 32768. Cases with 100 nested groups and
+  17000 glyphs demonstrate support beyond the former limits; exact maximum and
+  combined budget boundaries remain unqualified. Raising these admission bounds
+  does not create an aggregate memory or timing guarantee.
+- **Reference/state tooling:** native export includes fleqn presentation fields
+  separately from formula width, and actual prefix/delimiter state. Reference
+  snapshots derive from real KaTeX definitions. Controls mutate those fields
+  and require disagreement with the reference projection. The harness builds
+  its exporter locally when no explicit executable is supplied; it no longer
+  relies on a previous scratch build. Option effects remain marked unmeasured.
+
+### 9.2 Builds, full regression and intermediate failures
+
+Development commands were `alr build --development`, followed by
+`cd test && alr build --development --profiles=coyote=development` and
+`xvfb-run -a ./bin/coyote_test` from `test/`.
+
+| Check | Recorded result | Artifact |
+|---|---|---|
+| Root development build | Pass; existing compiler/style warnings remain | `/tmp/coyote-next-frozen-build.log` |
+| Test development build | Pass | `/tmp/coyote-next-frozen-testbuild.log` |
+| Frozen full suite | **1062/1062**, zero failed assertions/unexpected errors, **82.228506 s** cumulative | `/tmp/coyote-next-frozen-full.log` |
+| Same-binary full repeat | **1062/1062**, zero failed assertions/unexpected errors, **82.167636 s** cumulative | `/tmp/coyote-next-frozen-full-repeat.log` |
+
+Earlier runs at `/tmp/coyote-next-full.log` (82.499529 s) and
+`/tmp/coyote-next-final-full.log` (82.415849 s) also passed 1062/1062, before the
+last brace-scanner correction. Two intervening latest-source runs failed
+**1061/1062**, both at the tool-detail window's exact mapped-size assertion:
+`/tmp/coyote-next-brace-full.log` and `...-full-retry.log`. They are retained as
+failures, not reclassified as successful runs. The focused test passed three
+isolated attempts; the precise initial allocation was not logged, so the
+original discrepancy cannot be attributed conclusively to a specific cause.
+
+The test fixture previously relied on six fixed 20 ms frame delays. It now
+pumps GTK and polls allocation against a one-second monotonic deadline, still
+requiring **exactly 760×600**, with observed dimensions in the failure message.
+It does not resize the window, alter production sizing, skip the assertion or
+relax its dimensions. Both frozen full passes above include this test-only
+synchronization correction. Two passes are regression evidence, not proof that
+all display/environment timing interactions are qualified.
+
+### 9.3 Focused and reference evidence
+
+| Evidence | Recorded outcome | Artifact |
+|---|---|---|
+| Macro probe | **622 checks, zero failures** | `/tmp/coyote-next-brace-final/probe.log` |
+| Engine probe | **57 assertions, zero failures** | `/tmp/coyote-next-final-engine/probe.log` |
+| Jobs/raster lifecycle | **133 assertions, zero failures**; 2000/2000 warm requests valid; saturation eight accepted/two Busy | `/tmp/coyote-next-final-jobs/probe.log` |
+| Native probe | **156 assertions**, including one 100-group case and one 17000-glyph case | `/tmp/coyote-next-frozen-native/math-probe.log` |
+| Geometry | **145/145** aggregate ascent/depth cases; unchanged 0.01 em tolerance | `/tmp/coyote-next-frozen-geometry.log` |
+| Structured pilot | **16 pass, zero fail/gap/blocked** | `/tmp/coyote-next-frozen-differential/report.json` |
+| Comparator and state controls | Pass, including changed prefix/delimiter fields | `/tmp/coyote-next-frozen-controls.log` |
+| Browser/native PNG pilot | **3 pass, zero fail/blocked**; shifted-baseline control retained | `/tmp/coyote-next-final-images/report.json` |
+| Deterministic fuzz | **10000 cases**: 4184 ok, 5221 parse errors, 595 policy-visible commands, zero layout errors; identical 32-case replay | `/tmp/coyote-next-frozen-fuzz.json` |
+
+The native 156-assertion probe was rebuilt against the frozen source. It remains
+a focused rendering/admission check, not full-product qualification. The structured pilot compares normalized
+paths at **0.01 normalized units**, not em-unit origins or full placement.
+Origins, widths, complete component mapping and independently measured option
+effects remain unqualified. The three PNGs are a pilot, not full visual corpus
+qualification. No tolerance or acceptance denominator was relaxed.
+
+### 9.4 Characterization, coverage and remaining gates
+
+Ten isolated exporter cases completed the resource harness with peak child RSS
+**46184 KiB** (`/tmp/coyote-next-frozen-resources.json`). A 2000-request headless
+exporter benchmark recorded p95 **0.750889 ms**, maximum **1.186076 ms**
+(`/tmp/coyote-next-frozen-performance.json`), excluding GTK/job-worker scheduling.
+The actual job probe separately observed submit-through-poll p95 **1 ms**,
+maximum **2 ms**, at millisecond resolution. These bounded corpora are not hard
+queue-inclusive completion, cooperative cancellation or whole-job memory proof.
+
+The regenerated [source crosswalk](native-math-coverage.md) records **2930 core
+rows: 115 missing, 2814 partial/unqualified, one approved deviation, zero
+qualified**. All scalar setting rows now have partial paths or an approved
+serialization deviation; that does not mean complete option equivalence.
+Missing rows remain 106 functions, one environment (`CD`) and eight symbols;
+seven supplemental scriptData ranges remain missing. Generated template and
+handler presence is not per-entry semantic qualification.
+
+Whole-job additional memory ≤256 MiB still lacks aggregate allocation
+accounting/enforcement. Retained source accounting is not all transient memory;
+the separate 64 MiB display-surface ledger is not a process-wide inline/cache
+bound. Hard queue-inclusive 250 ms completion/rejection, representative GUI
+p95, preemptible parser/layout/native calls, GTK ≤50 ms slices, full cache/
+tiling behavior, failure injection and approved exact-limit testing remain open.
+RD-CTX-01 proposed additional context caps remain unauthorized. Core primitives,
+Unicode/font behavior, full reference mapping and per-entry traceability still
+need implementation or qualification. True long/short argument behavior is not
+claimed from the accepted long-prefix path.
+
+The [manual acceptance checklist](native-math-acceptance-checklist.md) remains
+unexecuted. Developer/agent evaluation is not independent human visual or
+assistive-technology acceptance. No release build, automatic approval or
+completion claim follows from this increment. **Exit decision: NOT COMPLETE;
+continue the already-approved native implementation and qualification.**

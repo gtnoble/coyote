@@ -160,6 +160,12 @@ begin
    end;
    declare
       Raster_Id : Jobs.Request_Id;
+      Inline_Id : Jobs.Request_Id;
+      Default_Id : Jobs.Request_Id;
+      Inline_Result : Jobs.Result_Access;
+      Default_Result : Jobs.Result_Access;
+      Inline_Status : Jobs.Job_Status;
+      Default_Status : Jobs.Job_Status;
       Raster_Status : Jobs.Job_Status;
       Raster_Result : Jobs.Result_Access;
       Raster_Has_Color : Boolean := False;
@@ -172,8 +178,13 @@ begin
         Color_Enabled => True,
         Color => (Red => 0.2, Green => 0.1, Blue => 0.05, Alpha => 1.0),
         Status => Raster_Status, Request_Raster => True,
-        Em_Pixels => 24.0, Font_Directory => Font_Directory);
+        Em_Pixels => 24.0, Font_Directory => Font_Directory,
+        Fleqn => True);
       Check (Raster_Status = Jobs.Pending, "raster request queued");
+      Jobs.Submit ("x+y", Default_Id, 303, Math_Layout.Display_Style,
+        Status => Default_Status);
+      Jobs.Submit ("x+y", Inline_Id, 303, Math_Layout.Text_Style,
+        Status => Inline_Status, Fleqn => True);
       Jobs.Submit ("x", Bad_Scale_Id, 304, Math_Layout.Text_Style,
         Status => Bad_Scale_Status, Request_Raster => True,
         Em_Pixels => 257.0, Font_Directory => Font_Directory);
@@ -192,6 +203,15 @@ begin
       Check (Raster_Status = Jobs.Valid and Raster_Result /= null,
         "requested raster completes valid");
       if Raster_Result /= null then
+         declare
+            Fleqn_Box : constant Math_Layout.Box :=
+              Jobs.Layout (Raster_Result.all);
+         begin
+            Check (Fleqn_Box.Left_Aligned and Fleqn_Box.Left_Indent = 2.0,
+              "display Fleqn carries two-em immutable alignment metadata");
+            Check (Fleqn_Box.Width > 0.0,
+              "display Fleqn preserves nonzero formula width");
+         end;
          Check (Jobs.Has_Raster (Raster_Result.all),
            "owned raster reported available");
          Check (Jobs.Raster_Width (Raster_Result.all) > 0 and
@@ -220,6 +240,29 @@ begin
          Check (Raster_Has_Color,
            "requested raster layout retains caller foreground");
          Jobs.Release (Raster_Result);
+      end if;
+      for Wait in 1 .. 400 loop
+         Jobs.Poll (Default_Id, 303, Default_Status, Default_Result);
+         Jobs.Poll (Inline_Id, 303, Inline_Status, Inline_Result);
+         exit when Default_Status /= Jobs.Pending and
+           Inline_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Default_Status = Jobs.Valid and Default_Result /= null,
+        "default display job remains valid");
+      Check (Inline_Status = Jobs.Valid and Inline_Result /= null,
+        "inline request remains valid with Fleqn requested");
+      if Default_Result /= null then
+         Check (not Jobs.Layout (Default_Result.all).Left_Aligned and
+           Jobs.Layout (Default_Result.all).Left_Indent = 0.0,
+           "default display alignment metadata remains centered");
+         Jobs.Release (Default_Result);
+      end if;
+      if Inline_Result /= null then
+         Check (not Jobs.Layout (Inline_Result.all).Left_Aligned and
+           Jobs.Layout (Inline_Result.all).Left_Indent = 0.0,
+           "inline Fleqn request does not change alignment");
+         Jobs.Release (Inline_Result);
       end if;
    end;
    Jobs.Shutdown;

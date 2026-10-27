@@ -2054,3 +2054,38 @@ Documentation checks comprise coverage determinism, local Markdown targets,
 artifact versions, evidence-file presence and whitespace. No build or test
 suite was rerun for this documentation request. Developer/agent review is not
 independent human acceptance.
+
+
+## 2026-10-27 — Native math scope, alignment and delimited arguments (PCR-125)
+
+Implemented default remainder-scoped color with group/array/right-delimiter
+boundaries, display-only fleqn metadata through engine/jobs/GTK, and scale-aware
+2 em indentation without changing formula width or the centered default. Added
+one display-backed alignment regression (48 total Conversation_Stack cases).
+Native definitions now retain literal prefixes and per-parameter delimiters,
+including special opening-brace terminators. Review corrected prefix expansion
+charges, group-crossing partial matches and quadratic token front deletion.
+Layout depth/command admission now matches the approved 256/131072 targets;
+all command appends are checked. Exact-limit and whole-memory qualification
+remain open. Export/state controls compare actual definitions and build their
+own native exporter rather than relying on an earlier scratch executable.
+
+Full root/test development builds pass. Frozen full suite passes 1062/1062
+in 82.228506 seconds; a same-binary repeat passes 1062/1062 in 82.167636 seconds.
+Two intermediate runs failed the tool-detail exact-allocation assertion. The
+test now pumps GTK against a monotonic deadline while retaining exactly 760×600
+and reporting observed dimensions; production window sizing is unchanged.
+Those failed runs remain in report §9 rather than being discarded.
+
+Focused evidence: macros 622 checks, engine 57 assertions, jobs 133 assertions
+and 2000/2000 valid warm requests; geometry 145/145; structured pilot 16/16;
+image pilot 3/3; seeded fuzz 10000 with zero layout errors and identical replay.
+Native admission probe passes 156 assertions, including 100 nested groups and
+17000 glyphs. These are scoped checks, not complete parity or human acceptance.
+Peak isolated exporter RSS is 46184 KiB; headless p95 is 0.750889 ms excluding
+GUI scheduling. Coverage is 115 missing/2814 partial/one deviation/zero qualified
+core rows. Full artifacts and chronology are in
+`plan/native-math-parity-test-report.md` §9. Whole-job allocation, hard deadlines,
+GTK/cache limits, remaining core behavior, complete mapping and human visual/
+assistive-technology acceptance remain open. No release or commit was made in
+this increment; approved requirements and deviations are unchanged.

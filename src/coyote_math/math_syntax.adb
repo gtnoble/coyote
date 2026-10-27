@@ -277,7 +277,8 @@ package body Math_Syntax is
       Grouped : Boolean;
       Stop_Environment : String := "";
       Stop_Separators : Boolean := True;
-      Stop_Dollar : Boolean := False) return Node_Id;
+      Stop_Dollar : Boolean := False;
+      Stop_At_Expression_Boundary : Boolean := False) return Node_Id;
 
    function Is_Environment_End
      (State : Parser_State; Name : String) return Boolean is
@@ -1267,7 +1268,9 @@ package body Math_Syntax is
                   Content : constant Node_Id :=
                     (if Word = "color" and then
                        not State.Settings.Color_Is_Text_Color
-                     then Parse_Expression (State, True)
+                     then Parse_Expression
+                       (State, True, To_String (State.Environment_Stop),
+                        Stop_At_Expression_Boundary => True)
                      else Parse_Argument (State));
                   Parsed_Color : Color_Value;
                begin
@@ -2187,7 +2190,8 @@ package body Math_Syntax is
       Grouped : Boolean;
       Stop_Environment : String := "";
       Stop_Separators : Boolean := True;
-      Stop_Dollar : Boolean := False) return Node_Id is
+      Stop_Dollar : Boolean := False;
+      Stop_At_Expression_Boundary : Boolean := False) return Node_Id is
       Start : constant Natural := State.Cursor_Pos;
       Row : Node;
       Row_Id : Node_Id;
@@ -2218,6 +2222,9 @@ package body Math_Syntax is
          exit when Grouped and then
            (Peek (State) = '}' or else Peek (State) = ']');
          exit when Stop_Dollar and then Peek (State) = '$';
+         exit when Stop_At_Expression_Boundary and then
+           (Command_Is (State, "\right") or else Peek (State) = '&' or else
+            Command_Is (State, "\\"));
          exit when not Grouped and then Command_Is (State, "\right");
          exit when Stop_Environment'Length > 0 and then
            ((Stop_Separators and then Peek (State) = '&') or else

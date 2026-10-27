@@ -149,6 +149,22 @@ package body Coyote_GUI.Math_Element is
 
    procedure Update_Visibility (Element : in out Instance);
 
+   procedure Apply_Display_Indent (Element : Instance) is
+      Indent : Glib.Gint := 0;
+   begin
+      if Element.Area = null or else Element.Fallback = null then
+         return;
+      end if;
+      if (Element.Layout_Valid and then Element.Layout.Left_Aligned)
+        or else (not Element.Layout_Valid and then Element.Fleqn)
+      then
+         Indent := Glib.Gint
+           (Long_Float'Ceiling (2.0 * 24.0 * Element.Math_Scale));
+      end if;
+      Element.Area.Set_Margin_Start (Indent);
+      Element.Fallback.Set_Margin_Start (Indent);
+   end Apply_Display_Indent;
+
    procedure Measure_Layout (Element : in out Instance) is
       Em : Long_Float;
       Width : Long_Float;
@@ -179,6 +195,7 @@ package body Coyote_GUI.Math_Element is
          Element.Math_Baseline := 0;
          Element.Math_Height := 1;
       end if;
+      Apply_Display_Indent (Element);
    exception
       when others =>
          Element.Layout_Valid := False;
@@ -186,6 +203,7 @@ package body Coyote_GUI.Math_Element is
          Element.Math_Width := 0;
          Element.Math_Height := 1;
          Element.Math_Baseline := 0;
+         Apply_Display_Indent (Element);
    end Measure_Layout;
 
    procedure Stop_Poll (Element : in out Instance) is
@@ -476,6 +494,7 @@ package body Coyote_GUI.Math_Element is
       Element.Math_Width := 0;
       Element.Math_Height := 1;
       Element.Math_Baseline := 0;
+      Apply_Display_Indent (Element);
       Coyote_Math_Jobs.Start;
       if Element.Area /= null then
          Gtk.Style_Context.Get_Style_Context (Element.Area).Get_Color
@@ -494,7 +513,8 @@ package body Coyote_GUI.Math_Element is
          Request_Raster => True,
          Em_Pixels => 24.0 * Element.Math_Scale,
          Font_Directory => Coyote_Math_Resources.Font_Directory,
-         Status => Status);
+         Status => Status,
+         Fleqn => Element.Fleqn);
       if Status /= Coyote_Math_Jobs.Pending then
          Element.Request := 0;
          Update_Visibility (Element);
@@ -546,9 +566,10 @@ package body Coyote_GUI.Math_Element is
       if Element = null or else Element.Detached or else not Element.Valid then
          return False;
       end if;
-      X := Long_Float'Max
-        (2.0, (Long_Float (Area.Get_Allocated_Width)
-          - Long_Float (Element.Math_Width - 4)) / 2.0);
+      X := (if Element.Layout.Left_Aligned then 2.0
+        else Long_Float'Max
+          (2.0, (Long_Float (Area.Get_Allocated_Width)
+            - Long_Float (Element.Math_Width - 4)) / 2.0));
       Gtk.Style_Context.Get_Style_Context (Area).Get_Color
         (Gtk.Enums.Gtk_State_Flag_Normal, Color);
       if Element.Raster_Ready and then
@@ -573,12 +594,12 @@ package body Coyote_GUI.Math_Element is
    end On_Draw;
 
    function New_Element
-     (LaTeX : String; Source : String; Scale : Long_Float := 1.0)
-      return Instance_Access
+     (LaTeX : String; Source : String; Scale : Long_Float := 1.0;
+      Fleqn : Boolean := False) return Instance_Access
    is
       Element : Instance_Access := new Instance;
    begin
-      Create (Element.all, LaTeX, Source, Scale);
+      Create (Element.all, LaTeX, Source, Scale, Fleqn);
       return Element;
    exception
       when others =>
@@ -588,7 +609,7 @@ package body Coyote_GUI.Math_Element is
 
    procedure Create
      (Element : in out Instance; LaTeX : String; Source : String;
-      Scale : Long_Float := 1.0)
+      Scale : Long_Float := 1.0; Fleqn : Boolean := False)
    is
       Safe_Scale : Long_Float := 1.0;
    begin
@@ -602,6 +623,7 @@ package body Coyote_GUI.Math_Element is
       Element.Source_Text := To_Unbounded_String (Source);
       Element.LaTeX_Text := To_Unbounded_String (LaTeX);
       Element.Math_Scale := Safe_Scale;
+      Element.Fleqn := Fleqn;
       Element.Detached := False;
       if Element.Root = null then
          Gtk.Box.Gtk_New_Vbox (Element.Root, False, 2);
@@ -630,6 +652,7 @@ package body Coyote_GUI.Math_Element is
          Element.Root.Pack_Start (Element.Fallback, False, True, 2);
          Element.Root.Pack_Start (Element.Accessibility, False, True, 2);
       end if;
+      Apply_Display_Indent (Element);
       Math_Painter.Load (Element.Fonts, Coyote_Math_Resources.Font_Directory);
       Start_Request (Element);
       Update_Visibility (Element);
@@ -778,6 +801,7 @@ package body Coyote_GUI.Math_Element is
          return;
       end if;
       Element.Math_Scale := Safe_Scale;
+      Apply_Display_Indent (Element);
       Clear_Raster (Element);
       Start_Request (Element);
       Update_Visibility (Element);

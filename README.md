@@ -234,10 +234,16 @@ cd test && alr build
 ```
 
 See [the current native-math test report](plan/native-math-parity-test-report.md)
-for the latest regression and focused evidence. Its §8 is controlling; the
-1061/1061 final2 full-suite result is a frozen checkpoint before subsequent
-source changes, not current-source qualification. Current focused evidence is
-not full parity or product acceptance. Live provider tests are opt-in;
+for evidence and qualification status; coordinator-owned §9 is the latest
+snapshot, while §8 remains historical. The latest frozen full development-suite
+run passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s
+(`/tmp/coyote-next-frozen-full.log`). This is regression evidence only; it does
+not establish parity, resource qualification or product acceptance. Two
+intermediate frozen-suite runs failed one GTK tool-allocation assertion; after
+three isolated focused passes, a test-only correction added a one-second
+monotonic GTK poll while retaining the exact 760×600 dimension criterion. The
+frozen full suite then passed. Current evidence and qualification limits are
+recorded in coordinator-owned report §9. Live provider tests are opt-in;
 subagent subprocess tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 
 ## License

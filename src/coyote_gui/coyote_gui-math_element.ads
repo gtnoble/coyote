@@ -26,11 +26,12 @@ package Coyote_GUI.Math_Element is
    type Instance_Access is access all Instance;
 
    function New_Element
-     (LaTeX : String; Source : String; Scale : Long_Float := 1.0)
-      return Instance_Access;
+     (LaTeX : String; Source : String; Scale : Long_Float := 1.0;
+      Fleqn : Boolean := False) return Instance_Access;
    procedure Create
      (Element : in out Instance; LaTeX : String; Source : String;
-      Scale : Long_Float := 1.0);
+      Scale : Long_Float := 1.0;
+      Fleqn : Boolean := False);
    function Widget (Element : Instance) return Gtk.Box.Gtk_Box;
    function Render_Inline
      (LaTeX : String;
@@ -85,6 +86,7 @@ private
       Layout_Valid : Boolean := False;
       Fonts : Math_Painter.Font_Set;
       Math_Scale : Long_Float := 1.0;
+      Fleqn : Boolean := False;
       Math_Width : Natural := 0;
       Math_Height : Natural := 1;
       Math_Baseline : Natural := 0;

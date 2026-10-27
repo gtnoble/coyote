@@ -45,7 +45,25 @@ function snapshotMacros(macros) {
     const value = macros[key];
     if (typeof value === 'string') result[key] = value;
     else if (value && typeof value === 'object' && Array.isArray(value.tokens)) {
-      result[key] = {tokens: value.tokens.map(t => ({text: String(t.text || ''), loc: t.loc ? {start: t.loc.start, end: t.loc.end} : null})), numArgs: Number.isInteger(value.numArgs) ? value.numArgs : null};
+      const delimiters = Array.isArray(value.delimiters)
+        ? value.delimiters.map(group => Array.isArray(group)
+          ? group.map(token => String(token)) : null)
+        : null;
+      const prefix = delimiters && Array.isArray(delimiters[0])
+        ? delimiters[0].slice() : [];
+      result[key] = {
+        tokens: value.tokens.map(t => ({
+          text: String(t.text || ''),
+          loc: t.loc ? {start: t.loc.start, end: t.loc.end} : null,
+        })),
+        prefix,
+        prefixTokenCount: prefix.length,
+        delimiters,
+        delimiterCount: delimiters?.length ?? 0,
+        tokenCount: value.tokens.length,
+        numArgs: Number.isInteger(value.numArgs) ? value.numArgs : null,
+        unexpandable: value.unexpandable === true,
+      };
     } else result[key] = {unsupportedValueType: typeof value};
   }
   return result;
@@ -90,19 +108,24 @@ for (const line of input) {
   try { req = JSON.parse(line); } catch (error) { die(`invalid request JSON: ${error.message}`); }
   if (!req || typeof req.id !== 'string' || typeof req.source !== 'string' || typeof req.displayMode !== 'boolean') die('each request needs string id/source and boolean displayMode');
   const supplied = req.options || {};
-  const supported = ['trust','strict','maxSize','maxExpand','throwOnError','displayMode'];
-  const fixed = Object.keys(supplied).filter(k => !supported.includes(k) || (k === 'displayMode' ? supplied[k] !== req.displayMode : supplied[k] !== BASE[k]));
+  const supported = ['trust','strict','maxSize','maxExpand','throwOnError','displayMode','fleqn'];
+  const fixed = Object.keys(supplied).filter(k => !supported.includes(k) ||
+    (k === 'displayMode' ? supplied[k] !== req.displayMode :
+      k === 'fleqn' ? typeof supplied[k] !== 'boolean' :
+        supplied[k] !== BASE[k]));
   if (fixed.length) die(`${req.id}: unsupported/non-baseline option ${fixed.join(', ')}`);
+  const fleqn = supplied.fleqn === true;
   const options = Object.assign({displayMode: req.displayMode}, BASE);
+  if (fleqn) options.fleqn = true;
   const sequence = typeof req.sequence === 'string' ? req.sequence : null;
   if (sequence) {
     if (!sharedMacros.has(sequence)) sharedMacros.set(sequence, {});
     options.macros = sharedMacros.get(sequence);
   }
-  const serialOptions = canonical({displayMode:req.displayMode, throwOnError:true, trust:false, strict:'warn', maxSize:100, maxExpand:1000});
+  const serialOptions = canonical({displayMode:req.displayMode, throwOnError:true, trust:false, strict:'warn', maxSize:100, maxExpand:1000, ...(fleqn ? {fleqn:true} : {})});
   const identity = {id:req.id, source:req.source, displayMode:req.displayMode, sequence, options:serialOptions};
   const hashOptions = canonical(serialOptions);
-  const out = {schema:'coyote.math-reference.v1',engine:'katex-0.16.22',provenance,id:req.id,source:req.source,displayMode:req.displayMode,sequence,options:serialOptions,caseHash:sha(JSON.stringify(identity)),configHash:sha(JSON.stringify(hashOptions)),sourceHash:sha(req.source),delimiterSeparatedSourceHash:sha(req.displayMode?`$$${req.source}$$`:`$${req.source}$`),status:'ok',error:null,warnings:[],html:null,tree:null,metrics:null,glyphs:[],paths:[],macroState:null,capabilities:{successfulRender:false,policyRefusal:false,tree:true,mathMLTree:true,heightDepth:true,glyphText:true,glyphFont:true,origin:false,widths:false,paths:false,colors:false,semantic:false,sharedMacros:!!sequence,macroStateSnapshot:!!sequence,browserPixels:false}};
+  const out = {schema:'coyote.math-reference.v1',engine:'katex-0.16.22',provenance,id:req.id,source:req.source,displayMode:req.displayMode,sequence,options:serialOptions,caseHash:sha(JSON.stringify(identity)),configHash:sha(JSON.stringify(hashOptions)),sourceHash:sha(req.source),delimiterSeparatedSourceHash:sha(req.displayMode?`$$${req.source}$$`:`$${req.source}$`),status:'ok',error:null,warnings:[],html:null,tree:null,metrics:null,glyphs:[],paths:[],macroState:null,capabilities:{successfulRender:false,policyRefusal:false,tree:true,mathMLTree:true,heightDepth:true,glyphText:true,glyphFont:true,origin:false,widths:false,paths:false,colors:false,semantic:false,sharedMacros:!!sequence,macroStateSnapshot:!!sequence,browserPixels:false,optionsApplied:true,optionsMeasured:false}};
   const oldWarn = console.warn;
   const consoleWarnings = [];
   console.warn = (...args) => consoleWarnings.push(args.map(String).join(' '));

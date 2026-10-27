@@ -13,10 +13,10 @@
 6. Requirements traceability
 7. Risks, blockers, and review actions
 
-**Version:** 0.5
-**Date:** 2026-10-26
-**Status:** Execution baseline updated from approved v0.4; readiness review and approval of this revision remain open
-**Authority:** `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24; D01–D15 are approved profile deviations. Native design v0.5 and project execution are approved; `plan/native-math-parity-plan.md` records phased status. This plan does not supersede requirements.
+**Version:** 0.6
+**Date:** 2026-10-27
+**Status:** In-progress draft; evidence and procedures are refreshed from the approved execution baseline. This status revision remains open for readiness review and approval.
+**Authority:** `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24; D01–D15 are approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.6 records phased status. This plan does not supersede requirements.
 ## 1. Scope and status
 
 This document specifies planned cases, preconditions, expected results, procedures
@@ -26,7 +26,7 @@ normative, including resource/performance targets. Design-proposed RD-CTX limits
 and other unapproved admission/ownership/scheduling caps are not SRS limits;
 visual thresholds remain provisional pending calibration.
 
-The approved execution/design baseline is not pending approval. Test readiness,
+The approved execution/design baseline is not pending reapproval. Test readiness,
 complete scope, matching and qualification remain open. Current checks, failures,
 blocked cases and coverage gaps are summarized in §2.2 and
 `plan/native-math-parity-test-report.md`; missing inventory items do not become
@@ -38,7 +38,7 @@ Levels: P1 exploratory baseline/harness readiness; increment-focused verificatio
 ### 2.1 Governing and supporting references
 
 - `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24, especially §§3–6 and approved D01–D15 profile deviations.
-- `plan/native-math-parity-plan.md` v0.5, increments P0–P6 and gates.
+- `plan/native-math-parity-plan.md` v0.6, increments P0–P6 and gates.
 - `requirements/coyote-requirements.md` §3.1.4a, REQ-CORE-111/124; authoritative until approved change.
 - `plan/native-math-test-report.md`, historical PCR-123 evidence and limitations.
 - `plan/native-math-katex-0.16.22-inventory.md` and `.json`; registration census, not native coverage.
@@ -52,13 +52,12 @@ Reference is KaTeX **0.16.22**, npm archive `https://registry.npmjs.org/katex/-/
 
 Each qualification snapshot must record archive, bundle/config and corpus hashes; native revision; font hashes; OS/distribution; GNAT/Alire, Node, browser and Cairo/FreeType versions; browser engine/build, viewport/device scale, locale, color profile, display scale; seeds; commands; environment; output hashes. The final3 pilot has a verified 63-member browser asset manifest and identified Chromium version, but the report does not provide a complete frozen workstation/platform/toolchain manifest or broad qualification snapshot corpus. Freeze complete corpus and expected outputs before acceptance.
 
-Current verified commands and report-backed evidence (full qualification outcomes are in `plan/native-math-parity-test-report.md`):
+Current verified commands and report-backed evidence (full qualification outcomes belong to coordinator-owned §9 of `plan/native-math-parity-test-report.md`; §8 is a dated prior snapshot):
 
-- `alr build --development`; `cd test && alr build --development --profiles=coyote=development`.
-- Latest known full suite: 1061/1061 (82.378580 s) in `/tmp/coyote-completion-final2-full.log`, predating subsequent genfrac/mathchoice/color/minRule edits; full integration rerun required. It is regression evidence only. Geometry later passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`), resolving seven prior failures. The frozen structured pilot passed 16/16 and image pilot 3/3 with negative controls; the separate geometry corpus uses em-unit ascent/depth checks. Only the structured path comparison uses normalized units. Full origins, widths and option effects remain unmeasured. No current color pass is claimed: latest candidate validation aborted; prior 40/41 default-color result preceded it. Resource test10 RSS 44,644 KiB is not whole-job memory; display64 is a ledger, not process-inline measurement. See report §8.
-- Earlier 113-case geometry worker result (`/tmp/coyote-completion-113-final`) is historical; current geometry evidence is 145/145 as stated above and in report §8.
-- Frozen structured and image pilots passed 16/16 and 3/3 with negative controls. Only the structured path comparison uses 0.01 normalized units, not em-unit origins. Full origins, widths and option effects remain unmeasured. The source crosswalk has been regenerated; it is not semantic qualification.
-- Macro focused checks passed 499 cases (344 path, 157 semantic, 44 token cases); engine 31 cases; jobs 127 cases. A 2,000-request headless performance corpus measured p95 1 ms, max 1 ms, excluding GUI queueing and rasterization.
+- The frozen root/test development builds passed; the full suite passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s (`/tmp/coyote-next-frozen-full.log`). This is regression evidence only, not parity or acceptance.
+- Scoped results: engine 57 pass; macro assertion count is maintained in coordinator-owned report §9; jobs 133 pass, including 2,000 valid warm requests (p95 1 ms, maximum 2 ms); geometry 145/145; structured/image pilots 16/16 and 3/3; and 156 native assertions in aggregate, including one case with 100 nested groups and one with 17,000 glyphs. One added fleqn GUI test brings `Conversation_Stack` to 48 total registrations. Fleqn affects display math only: it adds a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); the default remains centered with no indent, and inline math is unaffected. These scoped results do not establish complete option equivalence.
+- Geometry and structured evidence are different measures: structured paths use normalized units, whereas the focused geometry corpus checks its own fields. Full reference origins, widths and option effects remain unmeasured. The image pilot is not calibrated visual acceptance.
+- Whole-job memory ≤256 MiB, hard 250 ms job completion, GTK/cache guarantees, full corpus mapping, readiness, final qualification and human acceptance remain open. Approved SRS thresholds remain unchanged. See §9 for exact artifacts/snapshot details when recorded by the coordinator.
 - The deterministic 10,000-case fuzz run reported 4,184 parse successes, 5,221 parse errors, 595 policy errors, zero layout failures and no nondeterminism (`/tmp/coyote-completion-final-fuzz.json`); memory was not measured.
 - `test/tools/check-math-resources.cjs` via the recorded resource harness (10 isolated cases; not whole-GUI memory qualification).
 - Browser/reference export: `test/tools/export-math-browser.cjs`, `test/tools/export-math-reference.cjs`; comparison: `test/tools/compare-math-layout.cjs`, `test/tools/check-math-differential.sh`; image checks: `test/tools/check-math-images.sh`; inventory/accessibility: `test/tools/check-math-inventory.cjs`, `test/tools/check-math-accessibility.sh`.
@@ -96,7 +95,7 @@ Development tools and exporters exist for reference/browser output, structured
 geometry comparison, image comparison, fuzzing, resource/performance probes,
 inventory and accessibility. The final3 findings in the preceding paragraph
 are historical. Current scoped evidence and limitations are summarized in §2.2
-and report §8; the current source crosswalk has been regenerated.
+and coordinator-owned report §9; §8 remains the dated prior checkpoint. The current source crosswalk has been regenerated.
 These snapshots do not establish full P1 readiness or parity.
 
 ## 3. Test plan and gates
@@ -110,19 +109,18 @@ Progression: approved requirements, design and execution baseline are establishe
 ### 3.2 Minimal P1 harness readiness gate (not final acceptance)
 
 P1 readiness remains open. Browser/reference exporters, structured geometry
-comparison, pilot fixtures and browser manifest exist. Current scoped evidence
-is summarized in §2.2 and report §8: geometry 145/145; frozen structured pilot
-16/16 and image pilot 3/3, with negative controls. Only the structured path
-comparison uses normalized units; full origins, widths and option effects remain
-unmeasured. Do not report the older
-geometry failures or three image failures as current. Color-candidate validation
-aborted; trust=false is the enforced default, while trust=true and fleqn
-are explicitly rejected. Whole-job memory/deadline/GTK qualification remains open. Matching,
-accounting, complete frozen corpus and reviewed reproducibility/readiness remain
-incomplete. Changed-input and omission controls do not qualify the full approved
-field set. Consult the coordinator-owned coverage map/report; its source crosswalk is
-regenerated and remains unqualified. Tool presence or partial checks are not a pass for missing
-inventory entries.
+comparison, pilot fixtures and browser manifest exist. Current frozen results
+are summarized in §2.2 and coordinator-owned report §9; §8 is a dated previous
+snapshot. Geometry passed 145/145; frozen structured and image pilots passed
+16/16 and 3/3 with negative controls. The structured path comparison uses
+normalized units, not image geometry; full origins, widths and option effects
+remain unmeasured. Fleqn now has focused GUI-option coverage; one added test brings
+`Conversation_Stack` to 48 total registrations. Fleqn affects display math only,
+adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); default
+display remains centered with no indent, and inline math is unaffected.
+trust=false remains the enforced default and trust=true unsupported. Whole-job memory, hard deadline,
+GTK/cache qualification, matching, complete corpus and readiness remain open.
+Partial checks and tool presence do not qualify missing inventory entries.
 
 P1 does not require full feature parity, calibrated final visual tolerances,
 performance compliance, 10,000-case robustness, human accessibility acceptance,
@@ -154,13 +152,14 @@ Approved quantitative REQ-MATH-010/013 budgets:
 | Robustness | ≥10,000 seeded generated/adversarial cases/final run | fixed seeds; not proof of all-input safety |
 
 These are approved SRS targets, not qualified implementation guarantees. The
-source/layout code clamps user maxSize to 1..100, but layout depth remains 64
-and draw-command count 16,384 versus targets 256 and 131,072. Whole-job memory
-has no aggregate allocator instrumentation; the 64 MiB ledger accounts for
-GUI display-math Cairo surfaces, not inline rasters or a process-wide cache. The 250 ms deadline check does
-not preempt a blocking native call. GTK adoption uses a 5 ms soft quantum and
-batches of at most eight operations, not a hard 50 ms bound. These measured or
-implemented controls do not establish REQ-MATH-010 budget compliance.
+source/layout code clamps user maxSize to 1..100; layout depth and draw-command
+limits are 256 and 131,072, matching the corresponding target values. Exact-
+boundary test coverage remains incomplete. Whole-job memory has no aggregate
+allocator instrumentation; the 64 MiB ledger accounts for GUI display-math Cairo
+surfaces, not inline rasters or a process-wide cache. The 250 ms deadline check
+does not preempt a blocking native call. GTK adoption uses a 5 ms soft quantum
+and batches of at most eight operations, not a hard 50 ms bound. These controls
+do not establish REQ-MATH-010 budget compliance.
 
 Visual targets in the approved SRS remain **provisional pending calibration**: at 24 px/em, bidirectional foreground-mask distance ≤1 px for ≥99% each direction; alpha ≥0.1; semantic component count matched/reviewed; component bounds ≤0.01 em; interior RGBA channel delta ≤2/255 (>1 px from edge). These are not calibrated or achieved. P1 must calibrate using frozen fixtures and missing/extra/shifted/wrong-color/tiny-accent controls; readiness approval is required before acceptance use.
 
@@ -271,7 +270,7 @@ complete reference mapping and qualification coverage remain open.
 
 **MATH-CONSTRUCT-002 — environments, arrays, rules, tags** (T/D; REQ-MATH-006). Every core environment; alignment, gaps, rules, tags/numbering, malformed rows, zero/max/over-max rows/columns, nesting. Compare outcomes, geometry, labels and command sequence. Pass: every row classified, documented limits exact, no silent truncation.
 
-**MATH-OPTIONS-001 — scalar options and profiles** (T; REQ-MATH-007). `displayMode`, `leqno`, `fleqn`, `throwOnError`, `errorColor`, textual macros, `minRuleThickness`, `colorIsTextColor`, strict warn/ignore/error/boolean, `trust`, `maxSize`, `maxExpand`, `globalGroup`. Test reference defaults and approved variants/combinations. The default trust=false profile is enforced; trust=true and fleqn are explicitly rejected. Full option equivalence remains unqualified. Color-candidate validation aborted, so no current color pass is claimed. Pass: applicable behavior/diagnostic and state match. Callable JS callback modes excluded under D11.
+**MATH-OPTIONS-001 — scalar options and profiles** (T; REQ-MATH-007). `displayMode`, `leqno`, `fleqn`, `throwOnError`, `errorColor`, textual macros, `minRuleThickness`, `colorIsTextColor`, strict warn/ignore/error/boolean, `trust`, `maxSize`, `maxExpand`, `globalGroup`. Test reference defaults and approved variants/combinations. The default trust=false profile is enforced; trust=true remains unsupported. Fleqn has focused GUI-option coverage but complete option-equivalence and interaction testing remain open. Fleqn affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); default display remains centered with no indent, and inline math is unaffected. The engine probe passes a scoped `colorIsTextColor` case; broad color qualification is incomplete. Pass: applicable behavior/diagnostic and state match. Callable JS callback modes excluded under D11.
 
 ### 5.4 Errors, policy, security, bounds, scheduling
 
@@ -289,9 +288,9 @@ complete reference mapping and qualification coverage remain open.
 
 ### 5.5 Differential, GUI, semantics, regression
 
-**MATH-DIFF-001 — structural/geometry and controls** (T/I; REQ-MATH-005/013). Geometry later passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`), resolving the seven prior failures. The frozen structured pilot passed 16/16 with negative controls. Its path comparison uses 0.01 normalized units, not em-unit origins. Geometry ascent/depth are measured separately; full origins, widths and option effects remain unqualified/unmeasured. Complete mapping/accounting and frozen corpus remain required. Compare reference/native boxes, glyph positions and paths at the approved ≤0.01 em; missing records/components and real mismatches must remain visible, never omitted. See report §8.
+**MATH-DIFF-001 — structural/geometry and controls** (T/I; REQ-MATH-005/013). Geometry later passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`), resolving the seven prior failures. The frozen structured pilot passed 16/16 with negative controls. Its path comparison uses 0.01 normalized units, not em-unit origins. Geometry ascent/depth are measured separately; full origins, widths and option effects remain unqualified/unmeasured. Complete mapping/accounting and frozen corpus remain required. Compare reference/native boxes, glyph positions and paths at the approved ≤0.01 em; missing records/components and real mismatches must remain visible, never omitted. See coordinator-owned report §9; §8 is the dated prior checkpoint.
 
-**MATH-DIFF-002 — raster differential/calibration** (T/D; REQ-MATH-005/012/013). Pinned browser/native fixtures at 24 px/em, matched fonts/colors/transparent background. The three-case PNG pilot passes its raster checks and shifted-baseline negative control, separately from the normalized path comparison. This is not calibrated visual acceptance: full component mapping/calibration and option-effect qualification remain open. Retain approved SRS criteria and controls unchanged; no full image or parity qualification is claimed. See report §8.
+**MATH-DIFF-002 — raster differential/calibration** (T/D; REQ-MATH-005/012/013). Pinned browser/native fixtures at 24 px/em, matched fonts/colors/transparent background. The three-case PNG pilot passed its scoped raster checks and shifted-baseline negative control, separately from normalized path comparison. This is not calibrated visual acceptance: full component mapping/calibration and option-effect qualification remain open. Retain approved SRS criteria and controls unchanged; no full image or parity qualification is claimed. See coordinator-owned report §9.
 
 **MATH-GUI-001 — Markdown/GTK integration** (T/D; REQ-MATH-003/011). Inline `$...$`, `\(...\)`, display `$$...$$`, `\[...\]`, multiline, prose, code spans/fences/indented code, link destinations, ordinary dollars, malformed math, many formulas. Check baseline/display, protected code, exact source copy, selection, zoom/reflow, theme, session replay, resize/repeated render, error/limit fallback. GTK operations on main task; Plain/session compatibility. Automated AUnit/Xvfb and manual desktop where needed.
 
@@ -299,7 +298,7 @@ complete reference mapping and qualification coverage remain open.
 human assistive-technology/desktop assessment and independent acceptance remain
 pending. The report records no such acceptance.
 
-**MATH-REGRESS-001 — build and suite** (T; REQ-MATH-014). Root/test development builds, focused `Coyote.Math`, full `cd test && alr run coyote_test` under Xvfb when needed, existing probe/inventory check. Save commands/logs/status. The latest known full suite passed 1061/1061 in `/tmp/coyote-completion-final2-full.log` before subsequent genfrac/mathchoice/color/minRule edits; this is a regression checkpoint, not current-source integration or parity qualification. Require a full integration rerun before drawing current-source conclusions. Earlier dated suite results remain historical; do not rerun or infer results from this plan update.
+**MATH-REGRESS-001 — build and suite** (T; REQ-MATH-014). Root/test development builds, focused `Coyote.Math`, full `cd test && alr run coyote_test` under Xvfb when needed, existing probe/inventory check. Save commands/logs/status. The latest frozen suite passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s (`/tmp/coyote-next-frozen-full.log`); treat it as regression evidence only. This plan update does not independently execute or qualify that result. See coordinator-owned report §9 for snapshot provenance; §8 is the dated prior checkpoint. Do not infer parity or acceptance from the full-suite result.
 
 **MATH-REGRESS-002 — seeded fuzz and failure paths** (T/A; REQ-MATH-010/014). ≥10,000 fixed-seed generated/adversarial cases per final run: malformed syntax, nesting, macro cycles, dimensions, arrays, Unicode, cancellation/failure injection. Bounded isolated runner. Record seeds, failures, crashes, hangs, leaks. Pass: no unbounded work/resource breach, crash, state leak or unexplained nondeterminism; triage all failures. Existing 40 malformed AUnit samples are insufficient.
 
@@ -339,4 +338,4 @@ Trace source: approved REQ-MATH-001–015 and U1/U2/B1 sources in SRS §6. D01�
 6. **State/cancellation:** KaTeX parse-error mutation behavior is an explicit differential; the approved design specifies publication/ownership rules, but their full implementation and qualification remain open. Do not assume all-error rollback or claim those rules proven by component tests.
 7. **Accessibility/independence:** named tools and human reviewer pending. Developer self-evaluation/read-only review is not independent acceptance; user review of readiness/results remains separate.
 
-**Plan status:** This approved execution baseline retains cases where implementation, matching or evidence is incomplete. Current evidence and limitations are summarized in §2.2 and coordinator-owned report §8. The 1061/1061 full-suite checkpoint predates subsequent genfrac/mathchoice/color/minRule edits and requires a full integration rerun; geometry later passed 145/145. The frozen structured pilot passed 16/16 and image pilot 3/3 with negative controls. Only the structured path comparison uses normalized units; full origins, widths and option effects remain unmeasured. The current color-candidate validation aborted. Whole-job memory/deadline/GTK guarantees, P1 readiness, full qualification, visual calibration and independent human/user acceptance remain open. Coverage is regenerated; use the current map/report rather than older totals. Approved targets remain normative; no parity or acceptance claim is made.
+**Plan status:** This approved execution baseline retains cases where implementation, matching or evidence is incomplete. The latest frozen suite passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s (`/tmp/coyote-next-frozen-full.log`); focused engine, jobs, macro, geometry, structured/image, and native checks passed only within their stated scopes. One added fleqn GUI test brings `Conversation_Stack` to 48 total registrations. Fleqn affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); default display remains centered with no indent, and inline math is unaffected. Macro assertion count is maintained in coordinator-owned report §9. Native validation totals 156 assertions, including one case with 100 nested groups and one with 17,000 glyphs. These results are regression/focused evidence, not qualification. See coordinator-owned report §9 for current details; §8 is the dated prior snapshot. Normalized-unit structured paths are not image geometry; full origins, widths and option effects remain unmeasured. Whole-job memory, hard deadline, GTK/cache guarantees, P1 readiness, complete qualification, visual calibration and independent human/user acceptance remain open. Coverage is a generated source crosswalk, not completion evidence. Approved targets remain normative; no parity or acceptance claim is made.

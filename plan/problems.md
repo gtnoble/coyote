@@ -4266,3 +4266,33 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   report are reconciled. No runtime source change or new execution result is
   implied by this documentation entry. Developer review is not independent
   acceptance. **PCR-125 remains open; project NOT COMPLETE.**
+
+
+### PCR-125 — 2026-10-27 native implementation increment
+
+- **Category:** Code, Test, Design evidence, Documentation.
+- **Priority:** High — required native compatibility and qualification work.
+- **Changes:** Validated default/compatibility color scopes; implemented
+  display-only fleqn through native engine/jobs/GTK; added owned literal-prefix
+  and balanced delimited macro parameters, including opening-brace terminators.
+  Review corrected prefix expansion-budget accounting, group-crossing matches
+  and quadratic scanner work. Layout admission is now 256 levels/131072 draw
+  commands with checked appends, without changing approved requirements.
+- **Verification:** Root/test development builds pass. Frozen full suite and
+  repeat pass 1062/1062, zero failures/errors (82.228506 and 82.167636 seconds).
+  Macros 622, engine 57, jobs 133, native admission probe 156 assertions;
+  geometry 145/145, structured pilot 16/16, image pilot 3/3 and seeded fuzz
+  10000 pass within their recorded scopes. Source coverage: 115 missing,
+  2814 partial/unqualified, one deviation and zero qualified core rows.
+- **Observed test problem:** Two intermediate full runs failed the tool-detail
+  mapped-allocation assertion. Isolated checks passed; original logs did not
+  expose observed dimensions. Replaced the fixed-delay assumption with bounded
+  monotonic polling and actual-dimension diagnostics, retaining exactly
+  760×600 and leaving production sizing unchanged. Subsequent full runs pass;
+  original failure cause and all display timing conditions are not qualified.
+- **Disposition:** Report §9 retains exact logs and failed-run chronology.
+  Resource measurements are characterization, not whole-job memory/deadline/
+  GTK/cache guarantees. Per-entry core semantics, full reference mapping,
+  independent visual/accessibility acceptance and remaining system gates are
+  open. Developer/agent review is not independent acceptance. **PCR-125 remains
+  open; project NOT COMPLETE.** No commit or release was made in this increment.

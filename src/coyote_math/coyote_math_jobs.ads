@@ -47,7 +47,9 @@ package Coyote_Math_Jobs is
       Em_Pixels : Long_Float := 16.0;
       --  Raster requests accept finite scales in (0, 256]; this directory
       --  must be supplied by a trusted caller and is never formula-derived.
-      Font_Directory : String := "");
+      Font_Directory : String := "";
+      Fleqn : Boolean := False);
+   --  Fleqn affects display presentation only; formula width is unchanged.
    procedure Cancel (Id : Request_Id; Generation : View_Generation);
    --  Cancel and discard a matching request without requiring a later Poll.
    --  Completed results are freed; in-flight work is discarded on completion.
