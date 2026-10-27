@@ -1,12 +1,31 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.35
-**Date:** 2026-10-22
+**Version:** 1.40
+**Date:** 2026-10-26
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
+
+**Native-math port (PCR-125):** The user approved the native design and
+execution on 2026-10-24. The v1.0 requirements annex remains authoritative.
+Implementation is substantially broader than the former common-math subset,
+but parity, final qualification, and product acceptance remain open; this is
+not a full KaTeX compatibility claim. See `design/native-math-compatibility.md`,
+`plan/native-math-parity-plan.md`, and the coordinator-owned checkpoint report
+`plan/native-math-parity-test-report.md` §8 is the current checkpoint authority.
+The latest known full suite passed 1061/1061 (82.378580 s) in
+`/tmp/coyote-completion-final2-full.log`, before subsequent `genfrac`,
+`mathchoice`, color and `minRule` edits; a full integration rerun is required.
+The later geometry check passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`),
+resolving all seven earlier geometry failures. The frozen structured pilot
+passed 16/16 and the image pilot 3/3, with negative controls. Only the structured
+path comparison uses normalized units; full origins, widths and option effects
+remain unmeasured. The current color-candidate
+validation aborted, so no color pass is claimed. Native math qualification,
+parity and product acceptance remain open. The following inventory includes
+implemented math components.
 
 ---
 
@@ -409,6 +428,33 @@ not wait for the complete user turn.
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Math_Element` | Native GTK math element with selectable source fallback | `src/coyote_gui/coyote_gui-math_element.ads/.adb` |
+| `Coyote_GUI.Math_Accessibility` | Accessible semantic-tree description for native math elements | `src/coyote_gui/coyote_gui-math_accessibility.ads/.adb` |
+| `Coyote_Math.Source` | Source normalization and UTF-8-aware source locations | `src/coyote_math/math_source.ads/.adb` |
+| `Coyote_Math.Tokens` | Math token model and lexer | `src/coyote_math/math_tokens.ads/.adb` |
+| `Coyote_Math.Macros` | Macro definitions and scoped macro context | `src/coyote_math/math_macros.ads/.adb` |
+| `Coyote_Math.Builtin_Macros` | Built-in macro registry | `src/coyote_math/math_builtin_macros.ads/.adb` |
+| `Coyote_Math.Expander` | Macro expansion with limits and diagnostics | `src/coyote_math/math_expander.ads/.adb` |
+| `Coyote_Math.Syntax` | Parser and syntax tree | `src/coyote_math/math_syntax.ads/.adb` |
+| `Coyote_Math.Semantics` | Native semantic tree construction | `src/coyote_math/math_semantics.ads/.adb` |
+| `Coyote_Math.Model` | Box/layout model | `src/coyote_math/math_model.ads` |
+| `Coyote_Math.Metrics` | Font metrics and layout measurements | `src/coyote_math/math_metrics.ads/.adb` |
+| `Coyote_Math.Font_Data` | Bundled font face/resource data | `src/coyote_math/math_font_data.ads/.adb` |
+| `Coyote_Math.Symbols` | Native symbol metadata | `src/coyote_math/math_symbols.ads/.adb` |
+| `Coyote_Math.Layout` | Math box layout and construct placement | `src/coyote_math/math_layout.ads/.adb` |
+| `Coyote_Math.Paths` | Native vector path primitives | `src/coyote_math/math_paths.ads/.adb` |
+| `Coyote_Math.Radical_Paths` | Pinned native radical path templates | `src/coyote_math/math_radical_paths.ads/.adb` |
+| `Coyote_Math.Stretchy` | Extensible delimiters and stretchy constructs | `src/coyote_math/math_stretchy.ads/.adb` |
+| `Coyote_Math.Painter` | Cairo drawing of native math layouts | `src/coyote_math/math_painter.ads/.adb` |
+| Core layout node variants | Rule, sized, raised, enclosed, and stretchy construct nodes | `src/coyote_math/math_model.ads` |
+| `Coyote_Math.Engine` | Native parsing, expansion, semantics, layout and rendering orchestration | `src/coyote_math/math_engine.ads/.adb` |
+| `Coyote_Math.Raster` | Offscreen raster rendering support | `src/coyote_math/math_raster.ads/.adb` |
+| `Coyote_Math.Jobs` | Asynchronous math job execution and completion lifecycle | `src/coyote_math/coyote_math_jobs.ads/.adb` |
+| Native math resource lookup | Bundled KaTeX asset discovery | `src/coyote_math/math_resources.ads/.adb` |
+| KaTeX data generators | Development generators for metrics, macros, symbols, and stretchy constructs | `tools/generate_metrics.py`, `tools/generate_katex_data.py`, `tools/generate_math_macros.py`, `tools/generate_math_symbols.py`, `tools/generate_math_stretchy.py` |
+| KaTeX resource/coverage generators | Inventory and coverage mapping for pinned upstream assets | `tools/inventory_katex.cjs`, `tools/map_math_coverage.py` |
+| Native math development tooling | Inventory, reference/browser export, differential comparison, fuzz, resource/accessibility checks, and pilot fixtures; partial readiness only, no parity claim | `test/tools/check-math-*.sh`, `test/tools/check-math-*.cjs`, `test/tools/export-math-*.cjs`, `test/tools/compare-math-layout.cjs`, `test/fixtures/math-compatibility/` |
+| Native math standalone probes and projects | Ada probes and isolated GPR projects for token, macro, engine, geometry, paths, constructs, semantics, raster, jobs, accessibility and related units | `test/tools/math_*_probe.adb`, `test/native/math_*.gpr` |
+| Native math AUnit tests | Registered engine/parser/layout cases; the latest known 1061/1061 full-suite checkpoint predates subsequent genfrac/mathchoice/color/minRule edits and needs full integration rerun; current disposition and open gaps are recorded in `plan/native-math-parity-test-report.md` §8 | `test/src/coyote_math_tests.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Modeless co-primary transient tool-call snapshot window with fixed selectable metadata, menus, and a two-pane scrollable arguments/result work area | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |

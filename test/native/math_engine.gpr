@@ -1,0 +1,25 @@
+project Math_Engine is
+   for Languages use ("Ada");
+   for Source_Dirs use ("../../src/coyote_math", "../tools");
+   for Source_Files use
+     ("math_model.ads", "math_source.ads", "math_source.adb",
+      "math_unicode.ads", "math_unicode.adb", "math_tokens.ads", "math_tokens.adb", "math_macros.ads",
+      "math_macros.adb", "math_expander.ads", "math_expander.adb",
+      "math_builtin_macros.ads", "math_builtin_macros.adb",
+      "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
+      "math_syntax.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+      "math_stretchy.ads", "math_stretchy.adb", "math_metrics.ads",
+      "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+      "math_layout.ads", "math_layout.adb",
+      "math_semantics.ads", "math_semantics.adb",
+      "math_engine.ads", "math_engine.adb", "math_engine_probe.adb");
+   for Object_Dir use External ("MATH_ENGINE_ROOT") & "/obj";
+   for Exec_Dir use External ("MATH_ENGINE_ROOT") & "/bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("math_engine_probe.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
+   end Compiler;
+end Math_Engine;

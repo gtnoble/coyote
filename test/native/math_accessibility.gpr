@@ -1,0 +1,14 @@
+project Math_Accessibility extends "../../coyote.gpr" is
+   for Source_Dirs use ("../tools");
+   for Object_Dir use External ("MATH_ACCESSIBILITY_ROOT") & "/obj";
+   for Exec_Dir use External ("MATH_ACCESSIBILITY_ROOT") & "/bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("math_accessibility_probe.adb");
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
+   end Compiler;
+   package Linker is
+      for Switches ("Ada") use Coyote.Linker'Switches ("Ada") & ("-latk-1.0");
+   end Linker;
+end Math_Accessibility;

@@ -345,6 +345,18 @@ package body Coyote_GUI.Conversation_Stack.Testing is
         and then Coyote_GUI.Math_Element.Is_Valid (Element.all);
    end Math_Is_Valid;
 
+   function Math_Is_Pending
+     (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
+      return Boolean
+   is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Math_Element_At (C, Index);
+   begin
+      return
+        Element /= null
+        and then Coyote_GUI.Math_Element.Is_Pending (Element.all);
+   end Math_Is_Pending;
+
    function Math_Width
      (C : Coyote_GUI.Conversation_Stack.Instance; Index : Positive)
       return Natural

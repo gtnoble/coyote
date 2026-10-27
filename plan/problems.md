@@ -4169,3 +4169,100 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   were not performed. No new runtime units or dependencies were introduced.
 - **Status:** Implemented and automated qualification complete; user visual
   review remains manual.
+
+
+## PCR-125 — Versioned native KaTeX compatibility port (updated 2026-10-25)
+
+- **Date reported:** 2026-10-24; execution/status update: 2026-10-25
+- **Category:** Plans, Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** Investigation of an unrendered heat-balance formula exposed
+  unsupported ordinary notation such as `\dot` and broader parser/layout gaps.
+  Code inspection also identified first-letter-only handling of `\lim`,
+  `\max`, and `\min`. The bounded PCR-123 profile is not KaTeX parity.
+- **Authorization:** The user approved SRS-MATH v1.0 and the phased native-math
+  plan on 2026-10-24, then approved SDD-MATH v0.3 and continued P0–P6 execution
+  on 2026-10-25. Execution is authorized to continue; no further P1 approval
+  gate or wait loop applies. Authorization is not parity or product acceptance.
+  Proposed extra RD-CTX-01 limits and a browser/JS production runtime remain
+  unauthorized.
+- **Affected work products:** `plan/native-math-parity-plan.md`,
+  `requirements/native-math-compatibility.md`, `design/coyote-design.md`,
+  `plan/project-plan.md`, `plan/test-plan.md`,
+  `plan/native-math-compatibility-tests.md`, `sdfs/frontends.md`, the native
+  math/GUI implementation, development-only generators and checks, and the
+  final parity test report `plan/native-math-parity-test-report.md`. The SRS
+  requirements and approved D01–D15 dispositions remain authoritative and
+  unchanged.
+- **Corrective action:** Continue the approved native port in staged increments;
+  maintain traceable inventories and executable checks; compare against pinned
+  KaTeX without obscuring missing cases; and qualify safety, resources,
+  regression, geometry, visual behavior, GUI, and accessibility separately.
+  Keep additional context caps unauthorized absent explicit requirements
+  disposition. The project remains NOT COMPLETE until implementation,
+  qualification, and user acceptance gates close.
+- **Actions taken:** The approved requirements and design/execution plan have
+  been followed by partial native implementation: source/tokens, macros and
+  expansion, built-ins, symbols/font data/resources, syntax/model/layout,
+  paths/stretchy constructs, semantics, engine, painter, raster/jobs and GUI
+  accessibility are present. Metrics/macros/symbol/stretchy/resource/coverage
+  generators, browser/reference exporters, comparison/fuzz/inventory checks,
+  standalone math probes/GPR projects, AUnit cases, and compatibility fixtures
+  are present. P1 baseline/tooling exists but matching/readiness is incomplete;
+  P2 pilot works; P3/P4 are partial; P5 async/tree/raster display work is
+  partial, with inline paint and GTK main-thread timing unqualified; P6 checks
+  have run but acceptance remains open. RD-CTX-01 additional context caps remain
+  unauthorized. No full KaTeX parity is claimed.
+- **Verification and evaluation:** The final development-evidence report is
+  `plan/native-math-parity-test-report.md` (execution captured 2026-10-25).
+  Root and test development builds passed; the fresh full registered suite
+  passed 1060/1060, zero failed assertions/unexpected errors, cumulative
+  81.260278 s (`/tmp/coyote-parity-final3-full.log`). This supersedes 1042/1042 and 1057/1057
+  as the current regression count only; neither the fresh nor historical suite
+  establishes parity or acceptance. Focused raster, accessibility, and macro
+  probes passed only their scoped checks; raster Valgrind reported 0 errors and
+  no definitely/indirectly/possibly lost bytes, with still-reachable allocations.
+  The same report records two geometry failures (22/24 within tolerance), three
+  image failures (0/3 pass), and 16 blocked differential cases. Coverage has
+  277 missing, 2,652 partial-implemented-unqualified and one deviation-N/A row,
+  including 17 missing callable core built-ins. Human visual/accessibility and
+  user acceptance, GUI/resource/performance qualification, and final parity
+  remain open. The full evidence inventory and paths are in the report; it was
+  not rerun by this documentation refresh. Current-state docs, Help, provenance
+  and artifact versions were reconciled without changing runtime code or
+  approved requirements. Help checks pass 12/12 core and 1/1 widget; Mallard
+  schema/links and CLI help checks pass (existing theme CSS warnings). Log:
+  `/tmp/coyote-math-docs-help-check.log`. Developer review is not independent
+  acceptance.
+- **Status:** In progress — approved execution continues; full implementation,
+  parity, qualification, and product acceptance are NOT COMPLETE. P1–P6 are not
+  all complete. No further P1 approval is required to continue.
+
+
+### PCR-125 — 2026-10-26 current-state documentation checkpoint
+
+- **Category:** Documentation, Test evidence, Project status.
+- **Priority:** High — prevent regression checkpoints being mistaken for parity
+  or acceptance; implementation remains in progress.
+- **Correction:** The preceding dated PCR-125 narratives remain historical.
+  Current status is `plan/native-math-parity-test-report.md` §8. The frozen
+  full-suite result is 1061/1061, zero failures/errors, 82.378580 seconds; later
+  focused geometry passed 145/145. Frozen structured/image pilots passed 16/16
+  and 3/3. These resolve the earlier pilot discrepancies within their scopes,
+  but are not full candidate qualification. The latest color-scope validation
+  was interrupted, and further source changes postdate the last full suite.
+- **Coverage:** Regenerated core census: 116 missing, 2813 partial/unqualified,
+  one approved deviation out of 2930 rows; zero qualified rows. Source-path
+  presence and assertion counts are not semantic compatibility percentages.
+- **Outstanding:** Remaining core behavior and option interactions, complete
+  reference/component mapping and per-entry evidence, latest-source regression,
+  whole-job memory/deadline/cache/GTK guarantees, readiness, and independent
+  human visual/accessibility acceptance. The display surface ledger is not a
+  process-wide cache or whole-job allocation bound. Approved scope and D01–D15
+  are unchanged; implementation remains authorized without another approval
+  loop.
+- **Evaluation:** READMEs, provenance, SRS baseline references, design/plans,
+  artifact inventory, working instructions, acceptance checklist, coverage and
+  report are reconciled. No runtime source change or new execution result is
+  implied by this documentation entry. Developer review is not independent
+  acceptance. **PCR-125 remains open; project NOT COMPLETE.**

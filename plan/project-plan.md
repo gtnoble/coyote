@@ -1,8 +1,9 @@
 # Project Plan — coyote
 
-**Version:** 1.31
-**Date:** 2026-09-15
-**Status:** Active — PCR-105 Markdown-only retirement recorded
+**Version:** 1.36
+**Date:** 2026-10-26
+**Status:** Active — PCR-125 native design and project execution approved;
+implementation partial/in progress; final qualification and acceptance open
 
 ---
 
@@ -141,6 +142,24 @@ the point of decision, not reconstructed post-hoc.
   (see `AGENTS.md §Ada Style Guide`).
 - Test cases: AUnit for unit and integration tests; test fixtures in
   `test/fixtures/`.
+
+**Approved native-math execution (PCR-125; user authorization recorded
+2026-10-25):** `plan/native-math-parity-plan.md` governs the staged port. The
+user-approved native design and project execution authorize continued P0–P6
+implementation and qualification; `requirements/native-math-compatibility.md`
+v1.0 and D01–D15 remain authoritative and unchanged. Implementation remains
+partial: P1 baseline/browser tools exist but matching/readiness are incomplete;
+P2 is a pilot; P3/P4 are partial; P5 async/tree/raster display is partial; P6
+checks have run but are incomplete. Report §8 distinguishes the frozen
+1061/1061 full-suite checkpoint from later 145/145 focused geometry and the
+latest unvalidated color/minimum-rule candidate. Frozen structured and image
+pilots pass 16/16 and 3/3 within their stated measurement limits. Current source
+coverage records 116 missing core rows and no qualified rows. This does not
+establish parity or acceptance. Whole-job memory, queue-inclusive deadlines,
+GTK/cache guarantees, full component mapping and independent human review
+remain open. RD-CTX-01 context caps remain unauthorized. Continued execution
+is already approved; no further approval loop is required. See
+`plan/native-math-parity-test-report.md` §8 for controlling evidence and gates.
 
 ### 4.2 Development Environment
 
@@ -975,11 +994,18 @@ Test Plan, user documentation, and SDF entries.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.31 (2026-09-15) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.36 (2026-10-26) | Project |
+| Native math port plan | PLAN-MATH | `plan/native-math-parity-plan.md` | 0.5 (2026-10-26) | Client — plan approved |
+| Native math requirements | SRS-MATH | `requirements/native-math-compatibility.md` | 1.0 (2026-10-24) | Client — requirements approved |
+| Native math design | SDD-MATH | `design/native-math-compatibility.md` | 0.5 (2026-10-26) | Client — approved design/execution; parity/qualification open |
+| Native math test plan/description | STP/STD-MATH | `plan/native-math-compatibility-tests.md` | 0.5 (2026-10-26) | Client — execution baseline approved; readiness/calibration open |
+| Native math checkpoint report | STR-MATH | `plan/native-math-parity-test-report.md` | §8 updated (2026-10-26) | Project — NOT COMPLETE |
+| Native math human acceptance checklist | CHECK-MATH | `plan/native-math-acceptance-checklist.md` | 0.2 (2026-10-26) | Author — not executed |
+| Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.28 (2026-09-15) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.30 (2026-09-15) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.33 (2026-10-26) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.40 (2026-10-26) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.31 (2026-09-15) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.38 (2026-10-26) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

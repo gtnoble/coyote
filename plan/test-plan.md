@@ -1,11 +1,26 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.35
-**Date:** 2026-10-22
+**Version:** 1.38
+**Date:** 2026-10-26
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
+
+**PCR-125 native-math parity (2026-10-26):** The user-approved SRS-MATH v1.0,
+including D01–D15, remains authoritative; no approved scope change is recorded.
+Design and execution are approved; test readiness and qualification remain
+open. The coordinator-owned checkpoint report §8 is authoritative for current
+results. The latest known full suite passed 1061/1061 before subsequent
+genfrac/mathchoice/color/minRule edits, so full integration rerun remains
+required. Geometry later passed 145/145, resolving seven prior failures.
+Frozen geometry, structured and image pilots are separate checks; 16 structured
+and three image cases passed with negative controls. Only the structured path
+comparison uses normalized units. Full origins, widths and option effects remain
+unmeasured.
+The color candidate validation aborted. Whole-job memory/deadline/GTK
+qualification and human acceptance remain open. See
+`plan/native-math-parity-plan.md`; older report sections remain historical.
 
 ---
 
@@ -98,7 +113,10 @@ See `plan/integration-test-guide.md` for full setup instructions.
   `Coyote_GUI.Conversation_Stack` implementation with GTK3 and a display (or
   `xvfb-run`). The native tests cover one outer scroller, exchange and step
   widgets, Markdown, native math, selection, tool flow, lifecycle, reset, and zoom.
-  Native-math qualification is recorded in `plan/native-math-test-report.md`.
+  The current native-math checkpoint and qualification gaps are recorded in
+  `plan/native-math-parity-test-report.md` §8; the latest known 1061/1061 suite
+  predates genfrac/mathchoice/color/minRule edits and is regression-only, not
+  current-source integration or parity qualification.
 - The obsolete `Coyote_GUI.Buffer` unit and legacy conversation renderer were
   removed. Plain frontend tests remain independent and headless where applicable.
 Headless `GtkTextBuffer` tests, when present, do not require a display.
@@ -211,7 +229,7 @@ SRS-CORE requirement groups.
 | `coyote_image_jobs_tests.adb` | REQ-CORE-111 Ada image-job scheduling behavior | Focused jobs tests pass 3/3 |
 | `test/tools/check-image-loader.sh` + `test/native/image_io_test.c` | Thin POSIX C I/O shim and native shim checks only; 15/15 checks pass in normal and ASan/UBSan modes |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111 image context, caption, image policy, and clear/lifetime behavior; history source-root restoration and RPC source-context forwarding are also covered | Three added GUI tests; focused `Conversation_Stack` family 38/38; history coverage extended; RPC family includes two added tests |
-| `coyote_math_tests.adb` | Native math parsing, layout, metrics, painting, supported common constructs, visible unsupported-source fallback, and resource lookup | 18 registrations; focused 18/18 passed |
+| `coyote_math_tests.adb` | Native math source/tokenization, macro expansion, syntax, semantic tree, layout/metrics/fonts/resources, constructs and painting; coverage is partial and not full KaTeX parity | Latest known full suite is 1061/1061 before subsequent genfrac/mathchoice/color/minRule edits; it requires full integration rerun. Current disposition and qualification status are in `plan/native-math-parity-test-report.md` §8 |
 
 
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
@@ -238,7 +256,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 
-**Historical automated-test baseline:** 1017 registered tests in the preceding qualified build; superseded for the current native-math change. The native-math suite passed 1042/1042; results are in `plan/native-math-test-report.md`.
+**Historical automated-test baseline:** 1017 registered tests in the preceding qualified build; superseded for the current native-math change. The 1042/1042 result is the historical PCR-123 checkpoint; see `plan/native-math-test-report.md`. Current full-suite regression results and open native-math qualification status are recorded in `plan/native-math-parity-test-report.md`.
 
 **Historical baseline:** PCR-116 passed 1001/1001 in 70.87 seconds (exit 0); that dated result remains historical and is not the current PCR-117 baseline.
 
@@ -289,7 +307,7 @@ behaviour. Results are recorded in a Test Report.
 | Historical DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming; GFM tables become native grids with selectable cells, bold headers, and column alignment; local selection exposes plain text; the Render Markdown toggle preserves source text when disabled; and zoom changes native response font size. Native-table automated qualification is complete; remaining manual visual checks are tracked separately. |
 | DEM-060 | REQ-CORE-111 | In the display-backed GTK GUI with session-local fixtures, manually verify inline PNG/JPEG display and visible selectable alt caption, including clickable linked-caption behavior, representative allocation, enlarged fonts, scrolling, clipboard interaction, and missing/remote/out-of-root/symlink/corrupt fallbacks. Automated PCR-116 qualification is complete; Plain/SQC remain text-only by automated/source verification. Desktop visual and interaction acceptance remains pending. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
-| DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise supported inline and display delimiters, code protection, common constructs, unsupported visible-source fallback, local selection, and zoom. Automated replacement qualification passed; physical desktop acceptance remains manual. See `plan/native-math-test-report.md`. |
+| DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise supported inline and display delimiters, code protection, common constructs, unsupported visible-source fallback, local selection, and zoom. The PCR-123 automated replacement result (1042/1042) is historical; physical desktop acceptance remains manual. Current checkpoint and qualification gaps: `plan/native-math-parity-test-report.md`. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room, the persistent status area contains the lifecycle label and context progress indicator, the indicator updates and remains bounded between empty and full, and the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI layout and shutdown lifecycle`; visual sizing and theme contrast remain manual checks under the active theme. |
 | DEM-006 | REQ-CORE-040–044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | Historical DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
@@ -307,7 +325,8 @@ environment toggle, prompt branch, persistence writer, replay selector, and RPC
 response-format event were removed. Assistant output uses direct libcmark-gfm
 Markdown rendering; native GFM tables remain. Its Lasem-backed Presentation
 MathML math claims are superseded by the native Ada math engine; replacement
-qualification passed; see `plan/native-math-test-report.md`.
+PCR-123 qualification evidence is historical; current checkpoint and open gaps
+are in `plan/native-math-parity-test-report.md`.
 New JSONL assistant records have no `format` or `formatVersion`; legacy records
 containing those fields remain loadable because the fields are ignored and
 content is handled as Markdown.
@@ -459,7 +478,7 @@ live-provider, signal, and preferences demonstrations listed above.
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014, DEM-046 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
-| REQ-CORE-124 | T/D | `coyote_math_tests.adb`, `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`; replacement automated qualification passed; see `plan/native-math-test-report.md` |
+| REQ-CORE-124 | T/D | `coyote_math_tests.adb`, `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`; PCR-123 replacement qualification (1042/1042) is historical; current PCR-125 checkpoint and open qualification gaps: `plan/native-math-parity-test-report.md` |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D/T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |

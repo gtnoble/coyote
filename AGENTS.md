@@ -12,8 +12,11 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered native-math test baseline is 1042; see
-`plan/native-math-test-report.md` for its qualification scope.
+current code or documentation. The current native-math evidence and open
+qualification status are recorded in §8 of
+`plan/native-math-parity-test-report.md`; consult that coordinator-owned report
+rather than treating earlier full-suite or focused results as current-source
+qualification. No parity or product acceptance is implied.
 
 Executables:
 
@@ -133,10 +136,17 @@ grace period before escalation.
 
 ## Testing
 
-The native-math development suite passes 1042/1042 under Xvfb from `test/`,
-zero failed assertions/unexpected errors, 76.446748 seconds cumulative,
-`/tmp/coyote-native-math-full-final.log`. Root/test development builds pass;
-see `plan/native-math-test-report.md`. The preceding 1017/1017 signal/process
+The PCR-123 1042/1042, earlier 1057/1057 and final3 1060/1060 results
+are historical. The latest completed full development-suite checkpoint passed
+1061/1061, zero failed assertions/unexpected errors, 82.378580 seconds
+(`/tmp/coyote-completion-final2-full.log`), before subsequent candidate edits.
+Later focused geometry passed 145/145; frozen structured/image pilots passed
+16/16 and 3/3. Consult `plan/native-math-parity-test-report.md` §8 for snapshot
+boundaries and current gaps. Whole-job memory, deadlines, GTK/cache guarantees,
+remaining core behavior and human acceptance are not qualified. Latest color
+validation was interrupted; no full regression pass for that candidate is
+recorded. These development builds are not warning-free or release qualification.
+The preceding 1017/1017 signal/process
 record result is historical (`/tmp/coyote-signal-proc-full-final.log`). PCR-118's 1014/1014 result
 below is historical (`/tmp/coyote-ownership-full-tests.log`).
 Root `alr build --development` and test

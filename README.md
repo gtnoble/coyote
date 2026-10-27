@@ -18,9 +18,19 @@ shared between coyote and pi.
   parser/layout engine, with code protected and unsupported input visible as
   source text. It supports common symbols, fractions, scripts, square and
   indexed roots, text/roman content, arrays, font styles, delimiters, limits,
-  and accents; it does not promise full TeX compatibility. Bundled KaTeX 0.16.22
-  fonts and MIT notices are under `share/coyote/math/fonts/`. Plain output
-  remains line-oriented.
+  accents, and selected geometry; broad SVG/KaTeX geometry parity is not
+  claimed. This is explicitly **not full TeX or
+  complete KaTeX compatibility**. Bundled KaTeX 0.16.22 TTFs are in
+  `share/coyote/math/fonts/`; retained MIT notices are in
+  `share/coyote/math/licenses/`. The bounded native profile includes textual
+  definitions, fractions, scripts, roots, selected arrays, equation/tag cases,
+  text/font styles, delimiters, limits, accents, color, `\mathchoice`,
+  `\hbox`, and generalized/infix fractions. Support is uneven and these
+  features are not comprehensively qualified. Unicode aliases are substitutions,
+  not general Unicode shaping. See the [supported profile](share/coyote/math/README.md),
+  [asset provenance](share/coyote/math/PROVENANCE.md), and
+  [coverage map](plan/native-math-coverage.md). Plain output remains
+  line-oriented.
 - **Session compatibility** — newly written assistant JSONL records contain no
   `format` or `formatVersion` fields. Older records containing those fields
   remain loadable; the fields are ignored and their content is handled as
@@ -51,8 +61,9 @@ shared between coyote and pi.
 - `libcurl` development headers (for example `libcurl4-openssl-dev`)
 - `libcmark-gfm` and `libcmark-gfm-extensions` development headers
 - GTK3 and GtkAda development packages
-- Bundled KaTeX 0.16.22 math fonts and their MIT notices under
-  `share/coyote/math/fonts/` (no Lasem runtime dependency)
+- Bundled KaTeX 0.16.22 math fonts under `share/coyote/math/fonts/` and their
+  retained MIT notices under `share/coyote/math/licenses/` (no Lasem runtime
+  dependency)
 - Yelp Help viewer for the GTK Help menu
 - `gnatcoll` ≥ 25.0.0 (pulled automatically by Alire)
 
@@ -198,7 +209,19 @@ Both paths share `LLM.Agent`, session persistence, provider adapters, and
 streaming events rather than provider-specific wire data. Assistant response
 text uses direct libcmark-gfm Markdown rendering. Native GFM tables remain,
 and the native Ada math engine handles supported inline/display expressions
-with visible-source fallback; legacy MathML source is not typeset.
+with visible-source fallback; legacy MathML source is not typeset. Production
+math rendering has no JavaScript runtime. GUI parsing/layout now uses
+background jobs. Display formulas are painted by native workers and adopted
+in batches; inline painting and all widget updates remain on the GTK main
+task. Display formulas offer a collapsed **Math structure** expander with a
+native semantic tree; human assistive-technology acceptance is still pending.
+Inline formulas remain capped at 64 per text view. The worker pool has two
+workers, a queue capacity of eight, a 250 ms per-job budget and a 256 MiB
+source-ledger accounting cap. These limits do not bound all parser/layout
+allocations, and the asynchronous GUI pipeline and its latency/resource
+behavior are not yet qualified. See [math requirements](requirements/native-math-compatibility.md)
+and the [compatibility test plan](plan/native-math-compatibility-tests.md).
+Unsupported input retains visible source.
 
 ## Testing
 
@@ -210,10 +233,12 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The preceding qualified hierarchy contained 890 registered tests and passed
-890/890 on the development host. That dated count predates the native-math
-change and is not a current qualification claim. Live provider tests remain
-opt-in; subagent subprocess tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
+See [the current native-math test report](plan/native-math-parity-test-report.md)
+for the latest regression and focused evidence. Its §8 is controlling; the
+1061/1061 final2 full-suite result is a frozen checkpoint before subsequent
+source changes, not current-source qualification. Current focused evidence is
+not full parity or product acceptance. Live provider tests are opt-in;
+subagent subprocess tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 
 ## License
 

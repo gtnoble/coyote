@@ -49,9 +49,17 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Native_Response_Mixed_Blocks_Skip_Whitespace
      (T : in out Test);
    procedure Test_Native_Display_Math_Realizes_Element (T : in out Test);
+   procedure Test_Native_Display_Math_Pending_Raster_Visible
+     (T : in out Test);
+   procedure Test_Native_Display_Math_Raster_Budget (T : in out Test);
    procedure Test_Native_Display_Math_Invalid_Falls_Back (T : in out Test);
    procedure Test_Native_Display_Math_Protects_Code (T : in out Test);
    procedure Test_Native_Display_Math_Zooms (T : in out Test);
+   procedure Test_Native_Display_Math_Clear_Pending (T : in out Test);
+   procedure Test_Native_Math_Free_Disconnects_Expander
+     (T : in out Test);
+   procedure Test_Native_Math_Expansion_Tracks_Source
+     (T : in out Test);
    procedure Test_Assistant_Content_Uses_Visible_Step_Frame (T : in out Test);
    procedure Test_Footer_Closes_Step_Before_Next_Step (T : in out Test);
    procedure Test_Cancelled_Tool_Closes_Step_Without_Footer
@@ -72,6 +80,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Inline_Markdown_Images_And_Search (T : in out Test);
    procedure Test_Inline_Markdown_Image_Policy (T : in out Test);
    procedure Test_Clear_With_Queued_Inline_Image (T : in out Test);
+   procedure Test_Destroy_With_Queued_Inline_Image (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

@@ -219,7 +219,7 @@ procedure Math_Probe is
       Display_Fraction : Math_Layout.Box;
       Text_Sum : Math_Layout.Box;
       Nested_Scripts : Math_Layout.Box;
-      Formula : constant String := [1 .. 2_048 => 'x'];
+      Formula : constant String := [1 .. Math_Syntax.Max_Nodes => 'x'];
       Too_Long : constant String :=
         [1 .. Math_Syntax.Max_Source_Bytes + 1 => 'x'];
       At_Limit : String (1 .. Math_Syntax.Max_Source_Bytes) :=
@@ -391,8 +391,21 @@ procedure Math_Probe is
          Append (Deep, "}");
       end loop;
       Wide := Laid_Out (To_String (Deep));
-      Check (not Wide.Valid, "oversized radical fails");
-      Check (Wide.Commands.Is_Empty, "radical failure has no commands");
+      Check (Wide.Valid, "nested radical uses genuine bounded path geometry");
+      Check (not Wide.Commands.Is_Empty and then
+        Wide.Width <= 16_384.0 and then Wide.Ascent <= 16_384.0 and then
+        Wide.Descent <= 16_384.0,
+        "nested radical commands remain within layout geometry bounds");
+      declare
+         Has_Path : Boolean := False;
+      begin
+         for Command of Wide.Commands loop
+            if Command.Kind = Math_Layout.Path_Command then
+               Has_Path := Has_Path or else not Command.Path_Data.Is_Empty;
+            end if;
+         end loop;
+         Check (Has_Path, "nested radical emits a nonempty native outline");
+      end;
 
       Ada.Text_IO.Put_Line
         ("METRIC x width=" & Long_Float'Image (Laid_Out ("x").Width) &

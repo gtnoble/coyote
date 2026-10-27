@@ -1912,3 +1912,145 @@ Existing GTK theme warnings remain. Self-evaluation and a read-only agent review
 are not independent acceptance; desktop allocation/theme/font interaction and
 live-provider/subagent execution remain unqualified. No persistence of elapsed
 durations across application restart is claimed.
+
+
+## 2026-10-24 — Native KaTeX compatibility P0 (PCR-125, historical status snapshot)
+
+The user approved `plan/native-math-parity-plan.md`. P0 produced a proposed
+requirements annex (`requirements/native-math-compatibility.md`) and the pinned
+KaTeX 0.16.22 inventory (`plan/native-math-katex-0.16.22-inventory.md`/`.json`).
+The generator `tools/inventory_katex.cjs` verifies the npm archive SHA-256 and
+relevant extracted paths/bytes before VM registry inspection. It snapshots
+309 function names, 33 environments, 338 built-in macros, 2236 mode-specific
+symbol keys, 14 actual option defaults, implicit/Unicode tables, and 20 font
+faces. Registry counts include aliases/internal entries and are not feature
+coverage. Per-entry native coverage remains unassessed; family-level gaps are
+code observations, not newly passing tests.
+
+Proposed scope is complete core mathematical behavior within a reviewed native/
+untrusted profile and finite resource domain. Browser/API/trusted-mode deviations
+are individually listed for approval; textual macros and explicit shared state
+remain required. Quantitative geometry/image/resource proposals are not measured
+results; calibration and test-readiness approval remain separate gates.
+
+`node test/tools/check-math-inventory.cjs /tmp/coyote-katex-support-check/katex.tgz`
+passes deterministic artifact/count/default/Unicode checks and seven rejection
+cases (bad archive, wrong version, modified bundle/source/font/contrib and extra
+source file). Both scripts pass `node --check`. Read-only agent review found no
+remaining blocker to presenting the requirements proposal after corrections;
+this and developer self-evaluation are not independent human acceptance.
+At this dated P0 checkpoint, no production sources, existing SRS-CORE math
+contracts, runtime dependencies, or GUI behavior had changed. No development
+builds/native suites were rerun at that checkpoint. The requirements review and
+native design/test planning were then the next gates.
+
+## 2026-10-24 — Native compatibility design/test review package (PCR-125, historical status snapshot)
+
+The user approved SRS-MATH (recorded as v1.0) after the P0 requirements review.
+SRS-CORE was updated to reference that target amendment without claiming the
+bounded engine qualified the target at that checkpoint. Proposed design was
+`design/native-math-compatibility.md` v0.2 and combined STP/STD was
+`plan/native-math-compatibility-tests.md` v0.2. At this historical checkpoint,
+both awaited design review; production source, public Ada APIs and runtime
+dependencies were unchanged.
+
+Design separates typed source/tokens/expansion and explicit macro contexts from
+syntax, visual boxes/draw commands and native semantic content. P1 first exports
+existing native/reference results with case/configuration hashes and explicit
+missing capabilities; no gap is counted as passing. Later workers own their
+FT/Cairo/Pango objects; only generation-validated immutable results reach GTK.
+Final native-library thread-safety, latency and accessibility feasibility are
+explicit prototype/qualification gates, not assurances.
+
+Reference-only KaTeX 0.16.22 probes found global definitions survive a later
+parse error; default top-level local definitions unwind, but survive with
+`globalGroup=true`. Design therefore separates atomic epoch-checked semantic
+publication from visual success and gives cancellation/reset precedence rules.
+The initial probe attempted to JSON-serialize circular lexer-backed definitions;
+it was rerun using token text/definition keys only. This is exploratory reference
+evidence, not a native state implementation or qualified test result.
+
+Read-only review led to precise publication race tests, context accounting,
+worker-API ownership and tile/completion timing rules. Proposed additional
+aggregate shared-context caps (RD-CTX-01) need requirements disposition before
+P3; design approval does not authorize rejecting approved in-domain requests.
+The P1 harness does not depend on those caps. Final visual calibration/readiness
+and independent human acceptance remain pending. No Ada build, production
+regression, native parity or physical GUI acceptance was run in this design turn.
+
+## 2026-10-25 — Native math implementation status update (PCR-125; superseded by current report)
+
+This dated implementation snapshot remains useful for component history but
+its test/status statements are superseded by the current final evidence report.
+The user-approved design and P0–P6 execution remain active; there is no further
+P1 approval wait. No full KaTeX parity or acceptance is claimed. The current
+qualification, coverage, and completion status is explicitly NOT COMPLETE.
+
+The fresh 2026-10-25 full development-suite regression passed 1060/1060 with
+zero failed assertions and unexpected errors (`/tmp/coyote-parity-final3-full.log`).
+This updates the previously qualified 1057/1057 historical count but establishes
+regression only, not parity or product acceptance. See
+`plan/native-math-parity-test-report.md` for the complete current result: two
+geometry cases fail, three image comparisons fail, 16 differential cases are
+blocked, 277 coverage rows are missing, 2,652 are partial/unqualified, and 17
+callable core built-ins remain missing. P1 matching/readiness; P3/P4 and P5
+implementation; P6 traceability/regression; GUI, resource, performance,
+accessibility, and human acceptance gates remain open. P1–P6 are not complete.
+RD-CTX-01 additional context caps remain unauthorized and do not pause the
+approved work. Continue implementation and qualification without another
+approval loop. No source changes are implied by this documentation entry.
+
+## 2026-10-25 — Documentation reconciled to native-math checkpoint (PCR-125)
+
+Updated the root/profile READMEs, provenance, current SRS/SDD and Test Plan
+references, detailed compatibility test plan, port plan/version inventory, and
+conversation Help. Documented actual parser/layout limits separately from the
+approved targets, generated-template/symbol counts separately from supported
+behavior, pending formula source and Math structure presentation, and the
+partial implementation/qualification state. Corrected the font-metrics hash
+against the pinned source and identified the verified browser-asset manifest.
+Historical PCR-123 and other dated results remain historical. SRS requirements
+and runtime sources are unchanged by this documentation pass.
+
+Current evidence remains final3 regression 1060/1060, geometry 22/24, three
+image failures, 16 blocked structured cases and 277 missing core rows. The
+original exact-source heat-balance export succeeds; the separate image pilot
+does not qualify the full original equation. Full native KaTeX parity and
+human acceptance remain open.
+
+Documentation verification: `xvfb-run -a sh test/check-help.sh` passed 12 core
+and one widget test, Mallard validation/links, and CLI help checks. Existing GTK
+theme CSS warnings remain. Log: `/tmp/coyote-math-docs-help-check.log`.
+Developer/read-only review is not independent human acceptance; no build,
+full suite or math qualification was rerun for these prose changes.
+
+
+## 2026-10-26 — Native-math project-state reconciliation (PCR-125)
+
+Documentation now points to `plan/native-math-parity-test-report.md` §8 as the
+current checkpoint. The last completed full development suite passed 1061/1061
+in 82.378580 seconds (`/tmp/coyote-completion-final2-full.log`), before later
+generalized fractions, mathchoice, minimum-rule and color-scope work. Frozen
+structured and image pilots passed 16/16 and 3/3; the expanded focused geometry
+corpus subsequently passed 145/145. These are separate source snapshots and
+evidence classes, not full native KaTeX parity.
+
+The latest color-scope validation was interrupted and its log is empty. The
+last earlier engine probe reported 40/41; no pass is inferred for the candidate.
+Current source coverage was regenerated: 2930 core rows, 116 missing, 2813
+partial/unqualified, one approved deviation, zero qualified. Macro probe counts
+are assertions, not numbers of implemented definitions or qualified entries.
+
+Updated profile/provenance, working instructions, design and plan status,
+SRS baseline references, acceptance procedure, artifact versions and PCR-125
+records. Historical test reports and dated implementation entries remain
+historical. Approved requirements and runtime code were not changed in this
+documentation pass. Full candidate regression, reference/component and option
+qualification, whole-job memory/deadline/cache/GTK enforcement, and independent
+human visual/accessibility acceptance remain open. No further design/execution
+authorization is needed to continue the approved project.
+
+Documentation checks comprise coverage determinism, local Markdown targets,
+artifact versions, evidence-file presence and whitespace. No build or test
+suite was rerun for this documentation request. Developer/agent review is not
+independent human acceptance.

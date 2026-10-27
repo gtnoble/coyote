@@ -10,6 +10,7 @@ package Math_Metrics is
       Ascent  : Long_Float := 0.0;
       Descent : Long_Float := 0.0;
       Italic  : Long_Float := 0.0;
+      Skew    : Long_Float := 0.0;
    end record;
    function Lookup
      (Font : Math_Model.Font_Kind;

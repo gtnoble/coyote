@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Generate Ada glyph metrics from the pinned KaTeX 0.16.22 data export."""
+"""Generate the production adapter for KaTeX 0.16.22 metrics."""
 import hashlib
-import json
 from pathlib import Path
 import sys
 
@@ -9,43 +8,69 @@ source = Path(sys.argv[1]).read_bytes()
 expected = '1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d'
 if hashlib.sha256(source).hexdigest() != expected:
     raise SystemExit('Expected unmodified KaTeX 0.16.22 fontMetricsData.js')
-text = source.decode().split('export default ', 1)[1].strip().rstrip(';')
-text = text.replace(',\n    }', '\n    }').replace(',\n}', '\n}')
-data = json.loads(text)
-fonts = [('Main_Regular', 'Main-Regular'), ('Main_Bold', 'Main-Bold'),
-         ('AMS_Regular', 'AMS-Regular'),
-         ('Caligraphic_Regular', 'Caligraphic-Regular'),
-         ('Math_Italic', 'Math-Italic'),
-         ('Size_1', 'Size1-Regular'), ('Size_2', 'Size2-Regular'),
-         ('Size_3', 'Size3-Regular'), ('Size_4', 'Size4-Regular')]
-lines = ['--  GENERATED from KaTeX 0.16.22 src/fontMetricsData.js (MIT).',
-         '--  Copyright (c) 2013-2020 Khan Academy and other contributors.',
-         '--  See ../../share/coyote/math/licenses/KaTeX-MIT.txt and',
-         '--  ../../share/coyote/math/PROVENANCE.md.',
-         'with Math_Model; use Math_Model;', '',
-         'package body Math_Metrics is',
-         '   function Lookup (Font : Font_Kind; Code_Point : Natural) return Glyph_Metric',
-         '   is', '   begin', '      case Font is']
-for ada, upstream in fonts:
-    lines += [f'         when {ada} =>', '            case Code_Point is']
-    for code, (depth, height, italic, skew, width) in data[upstream].items():
-        prefix = '                  '
-        code_value = str(code)
-        code_value = f'{int(code_value):,}'.replace(',', '_')
-        values = [float(width), float(height), float(depth), float(italic)]
-        formatted = []
-        for value in values:
-            whole, fraction = f'{value:.9f}'.split('.')
-            formatted.append(
-                f'{whole}.{fraction[:3]}_{fraction[3:6]}_{fraction[6:]}')
-        lines += [f'               when {code_value} =>',
-                  f'{prefix}return',
-                  f'                    (True, {formatted[0]}, {formatted[1]}, {formatted[2]},',
-                  f'                     {formatted[3]});']
-    lines += ['               when others =>',
-              '                  return (others => <>);',
-              '            end case;']
-lines += ['      end case;', '   end Lookup;', 'end Math_Metrics;', '']
+
+faces = [
+    ('AMS_Regular', 'AMS_Regular'),
+    ('Caligraphic_Bold', 'Caligraphic_Bold'),
+    ('Caligraphic_Regular', 'Caligraphic_Regular'),
+    ('Fraktur_Bold', 'Fraktur_Bold'),
+    ('Fraktur_Regular', 'Fraktur_Regular'),
+    ('Main_Regular', 'Main_Regular'),
+    ('Main_Bold', 'Main_Bold'),
+    ('Main_Bold_Italic', 'Main_BoldItalic'),
+    ('Main_Italic', 'Main_Italic'),
+    ('Math_Bold_Italic', 'Math_BoldItalic'),
+    ('Math_Italic', 'Math_Italic'),
+    ('Sans_Serif_Bold', 'SansSerif_Bold'),
+    ('Sans_Serif_Italic', 'SansSerif_Italic'),
+    ('Sans_Serif_Regular', 'SansSerif_Regular'),
+    ('Script_Regular', 'Script_Regular'),
+    ('Size_1', 'Size1_Regular'),
+    ('Size_2', 'Size2_Regular'),
+    ('Size_3', 'Size3_Regular'),
+    ('Size_4', 'Size4_Regular'),
+    ('Typewriter_Regular', 'Typewriter_Regular'),
+]
+lines = [
+    '--  GENERATED metric adapter for the complete KaTeX 0.16.22 tables.',
+    '--  The authoritative glyph values and skew live in Math_Font_Data.',
+    'with Math_Font_Data;',
+    'with Math_Model;',
+    '',
+    'package body Math_Metrics is',
+    '   function Face_For (Font : Math_Model.Font_Kind)',
+    '      return Math_Font_Data.Font_Face',
+    '   is',
+    '   begin',
+    '      case Font is',
+]
+for model_face, data_face in faces:
+    lines += [
+        f'         when Math_Model.{model_face} =>',
+        f'            return Math_Font_Data.{data_face};',
+    ]
+lines += [
+    '      end case;',
+    '   end Face_For;',
+    '',
+    '   function Lookup',
+    '     (Font : Math_Model.Font_Kind;',
+    '      Code_Point : Natural) return Glyph_Metric',
+    '   is',
+    '      Value : constant Math_Font_Data.Glyph_Metric :=',
+    '        Math_Font_Data.Lookup (Face_For (Font), Code_Point);',
+    '   begin',
+    '      return',
+    '        (Found   => Value.Found,',
+    '         Width   => Value.Width,',
+    '         Ascent  => Value.Ascent,',
+    '         Descent => Value.Descent,',
+    '         Italic  => Value.Italic,',
+    '         Skew    => Value.Skew);',
+    '   end Lookup;',
+    'end Math_Metrics;',
+    '',
+]
 Path(sys.argv[2]).write_text('\n'.join(lines))
 print('source sha256=' + hashlib.sha256(source).hexdigest())
 print('generated ' + sys.argv[2])

@@ -7,6 +7,7 @@ with Interfaces.C.Strings;
 with System;
 with System.Address_To_Access_Conversions;
 with Math_Model;
+with Math_Paths;
 
 package body Math_Painter is
    use type Cairo.Cairo_Font_Face;
@@ -114,16 +115,35 @@ package body Math_Painter is
      (Directory : String; Kind : Math_Model.Font_Kind) return String
    is
       Name : constant String :=
-        (case Kind is when Math_Model.Main_Regular => "KaTeX_Main-Regular.ttf",
-           when Math_Model.Main_Bold => "KaTeX_Main-Bold.ttf",
+        (case Kind is
            when Math_Model.AMS_Regular => "KaTeX_AMS-Regular.ttf",
+           when Math_Model.Caligraphic_Bold =>
+             "KaTeX_Caligraphic-Bold.ttf",
            when Math_Model.Caligraphic_Regular =>
              "KaTeX_Caligraphic-Regular.ttf",
+           when Math_Model.Fraktur_Bold => "KaTeX_Fraktur-Bold.ttf",
+           when Math_Model.Fraktur_Regular => "KaTeX_Fraktur-Regular.ttf",
+           when Math_Model.Main_Regular => "KaTeX_Main-Regular.ttf",
+           when Math_Model.Main_Bold => "KaTeX_Main-Bold.ttf",
+           when Math_Model.Main_Bold_Italic =>
+             "KaTeX_Main-BoldItalic.ttf",
+           when Math_Model.Main_Italic => "KaTeX_Main-Italic.ttf",
+           when Math_Model.Math_Bold_Italic =>
+             "KaTeX_Math-BoldItalic.ttf",
            when Math_Model.Math_Italic => "KaTeX_Math-Italic.ttf",
+           when Math_Model.Sans_Serif_Bold =>
+             "KaTeX_SansSerif-Bold.ttf",
+           when Math_Model.Sans_Serif_Italic =>
+             "KaTeX_SansSerif-Italic.ttf",
+           when Math_Model.Sans_Serif_Regular =>
+             "KaTeX_SansSerif-Regular.ttf",
+           when Math_Model.Script_Regular => "KaTeX_Script-Regular.ttf",
            when Math_Model.Size_1 => "KaTeX_Size1-Regular.ttf",
            when Math_Model.Size_2 => "KaTeX_Size2-Regular.ttf",
            when Math_Model.Size_3 => "KaTeX_Size3-Regular.ttf",
-           when Math_Model.Size_4 => "KaTeX_Size4-Regular.ttf");
+           when Math_Model.Size_4 => "KaTeX_Size4-Regular.ttf",
+           when Math_Model.Typewriter_Regular =>
+             "KaTeX_Typewriter-Regular.ttf");
    begin
       if Directory'Length = 0 then
          return Name;
@@ -271,6 +291,7 @@ package body Math_Painter is
             declare
                Command : constant Math_Layout.Draw_Command :=
                  Item.Commands (Index);
+               Clip_Saved : Boolean := False;
             begin
                if not Command.X'Valid or else not Command.Y'Valid
                  or else not Command.Scale'Valid
@@ -282,6 +303,26 @@ package body Math_Painter is
                  or else Command.Width < 0.0 or else Command.Height < 0.0
                then
                   raise Font_Error with "invalid drawing command geometry";
+               end if;
+               if Command.Has_Clip then
+                  if not Command.Clip_X'Valid or else
+                    not Command.Clip_Y'Valid or else
+                    not Command.Clip_W'Valid or else
+                    not Command.Clip_H'Valid or else
+                    Command.Clip_W < 0.0 or else Command.Clip_H < 0.0
+                  then
+                     raise Font_Error with "invalid drawing clip geometry";
+                  end if;
+                  Cairo.Save (Context);
+                  Clip_Saved := True;
+                  Cairo.Rectangle
+                    (Context,
+                     Glib.Gdouble (X + (Command.X + Command.Clip_X) * Em),
+                     Glib.Gdouble
+                       (Baseline + (Command.Y + Command.Clip_Y) * Em),
+                     Glib.Gdouble (Command.Clip_W * Em),
+                     Glib.Gdouble (Command.Clip_H * Em));
+                  Cairo.Clip (Context);
                end if;
                case Command.Kind is
                   when Math_Layout.Glyph_Command =>
@@ -308,6 +349,51 @@ package body Math_Painter is
                           (Context, Glib.Gdouble (Em * Command.Scale));
                         Cairo.Show_Glyphs (Context, Glyph'Access, 1);
                      end;
+                  when Math_Layout.Path_Command =>
+                     declare
+                        Segment : Math_Paths.Segment;
+                        function PX (Value : Long_Float) return Glib.Gdouble is
+                          (Glib.Gdouble (X + (Command.X + Value) * Em));
+                        function PY (Value : Long_Float) return Glib.Gdouble is
+                          (Glib.Gdouble (Baseline + (Command.Y + Value) * Em));
+                     begin
+                        if Command.Path_Data.Is_Empty then
+                           raise Font_Error with "empty path command";
+                        end if;
+                        if Command.Has_Color then
+                           Cairo.Set_Source_Rgba
+                             (Context, Glib.Gdouble (Command.Red),
+                              Glib.Gdouble (Command.Green),
+                              Glib.Gdouble (Command.Blue),
+                              Glib.Gdouble (Command.Alpha));
+                        end if;
+                        for Part in Command.Path_Data.First_Index ..
+                          Command.Path_Data.Last_Index
+                        loop
+                           Segment := Command.Path_Data (Part);
+                           case Segment.Kind is
+                              when Math_Paths.Move_To =>
+                                 Cairo.Move_To
+                                   (Context, PX (Segment.First.X),
+                                    PY (Segment.First.Y));
+                              when Math_Paths.Line_To =>
+                                 Cairo.Line_To
+                                   (Context, PX (Segment.First.X),
+                                    PY (Segment.First.Y));
+                              when Math_Paths.Cubic_To =>
+                                 Cairo.Curve_To
+                                   (Context, PX (Segment.First.X),
+                                    PY (Segment.First.Y),
+                                    PX (Segment.Second.X),
+                                    PY (Segment.Second.Y),
+                                    PX (Segment.Third.X),
+                                    PY (Segment.Third.Y));
+                              when Math_Paths.Close_Path =>
+                                 Cairo.Close_Path (Context);
+                           end case;
+                        end loop;
+                        Cairo.Fill (Context);
+                     end;
                   when Math_Layout.Rule_Command =>
                      if Command.Width < 0.0 or else Command.Height < 0.0 then
                         raise Font_Error with "invalid rule geometry";
@@ -319,7 +405,23 @@ package body Math_Painter is
                         Glib.Gdouble (Command.Height * Em));
                      Cairo.Fill (Context);
                end case;
+               if Clip_Saved then
+                  Cairo.Restore (Context);
+                  Clip_Saved := False;
+               end if;
                Check_Cairo (Context);
+            exception
+               when others =>
+                  if Clip_Saved then
+                     begin
+                        Cairo.Restore (Context);
+                     exception
+                        when others =>
+                           null;
+                     end;
+                     Clip_Saved := False;
+                  end if;
+                  raise;
             end;
          end loop;
       end if;

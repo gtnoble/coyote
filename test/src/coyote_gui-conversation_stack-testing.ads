@@ -115,6 +115,11 @@ package Coyote_GUI.Conversation_Stack.Testing is
       Index : Positive)
       return Boolean;
 
+   function Math_Is_Pending
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive)
+      return Boolean;
+
    function Math_Width
      (C     : Coyote_GUI.Conversation_Stack.Instance;
       Index : Positive)

@@ -23,6 +23,7 @@ with LLM.Types;
 with Session_Lister;
 with Coyote_App.Frontend.GUI;
 with Coyote_Process_Control;
+with Coyote_Math_Jobs;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI;
 with Coyote_Notify;
@@ -1294,6 +1295,7 @@ package body Coyote_App is
       State.Set_Frontend_Ready (True);
       if Coyote_Process_Control.Shutdown_Requested then
          My_Frontend.Shutdown;
+         Coyote_Math_Jobs.Shutdown;
          State.Signal_Shutdown;
          return;
       end if;
@@ -1344,6 +1346,11 @@ package body Coyote_App is
                null;
          end;
       end if;
+      Coyote_Math_Jobs.Shutdown;
+   exception
+      when others =>
+         Coyote_Math_Jobs.Shutdown;
+         raise;
    end Run_GUI;
 
 end Coyote_App;

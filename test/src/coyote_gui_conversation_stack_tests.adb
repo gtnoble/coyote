@@ -42,6 +42,7 @@ with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Coyote_GUI.Markdown_Links;
 with Coyote_GUI.Math_Element;
+with Coyote_Math_Jobs;
 with Gtk.Enums;
 with Glib.Properties;
 with Gtk.Flow_Box;
@@ -54,6 +55,11 @@ with Gdk.Pixbuf;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
+with Gtk.Expander;
+with Gtk.Bin;
+with Gtk.Tree_Model;
+with Gtk.Tree_View;
+with Glib.Values;
 with Gtk.Text_Buffer;
 with Gtk.Tooltip;
 with Gtk.Text_Tag;
@@ -72,6 +78,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Ada.Real_Time.Time;
    use type Ada.Real_Time.Time_Span;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
+   use type Coyote_GUI.Math_Element.Instance_Access;
    use type Ada.Directories.File_Size;
    use type GNAT.OS_Lib.File_Descriptor;
    use type Glib.Gint;
@@ -97,6 +104,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use Ada.Strings.Fixed;
    use Ada.Strings.Unbounded;
    use type Gtk.Widget.Widget_List.Glist;
+   use type Gtk.Expander.Gtk_Expander;
    use type Gtk.Widget.Gtk_Widget;
    use type Gtk.Image.Gtk_Image;
 
@@ -240,11 +248,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    end Find_Image_Count;
 
    procedure Pump_Until_Images (T : Test; Expected : Natural) is
-      Deadline : constant Ada.Calendar.Time := Ada.Calendar.Clock + 3.0;
-      Quit     : Boolean;
+      Deadline : constant Ada.Real_Time.Time :=
+        Ada.Real_Time.Clock + Ada.Real_Time.Seconds (2);
+      Quit : Boolean;
       pragma Unreferenced (Quit);
    begin
-      while Ada.Calendar.Clock < Deadline
+      while Ada.Real_Time.Clock < Deadline
         and then Find_Image_Count
           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) < Expected
       loop
@@ -254,6 +263,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             delay 0.01;
          end if;
       end loop;
+      Assert
+        (Find_Image_Count (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all)))
+           >= Expected,
+         "inline images commit before the two-second test deadline");
    end Pump_Until_Images;
 
    function Child_Anchor_At
@@ -287,6 +300,65 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          end if;
       end loop;
    end Drain_Gtk_Events;
+
+   procedure Pump_Until_Math_Complete (LaTeX : String) is
+      Deadline : constant Ada.Calendar.Time := Ada.Calendar.Clock + 3.0;
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+      Element : Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element (LaTeX, LaTeX);
+   begin
+      Assert (Element /= null, "math element is created for completion probe");
+      while Ada.Calendar.Clock < Deadline
+        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
+         "math worker completes before the test deadline");
+      Coyote_GUI.Math_Element.Free (Element);
+   end Pump_Until_Math_Complete;
+
+   procedure Pump_Until_Inline_Pixbufs
+     (View : Gtk.Text_View.Gtk_Text_View; Expected : Natural)
+   is
+      Deadline : constant Ada.Real_Time.Time :=
+        Ada.Real_Time.Clock + Ada.Real_Time.Seconds (2);
+      Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+        Gtk.Text_View.Get_Buffer (View);
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      Count : Natural;
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      loop
+         Count := 0;
+         Buffer.Get_Start_Iter (Start_Iter);
+         while not Gtk.Text_Iter.Is_End (Start_Iter) loop
+            if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
+               Count := Count + 1;
+            end if;
+            declare
+               Moved : Boolean;
+            begin
+               Gtk.Text_Iter.Forward_Char (Start_Iter, Moved);
+               exit when not Moved;
+            end;
+         end loop;
+         exit when Count >= Expected
+           or else Ada.Real_Time.Clock >= Deadline;
+         Quit := Gtk.Main.Main_Iteration_Do (False);
+         delay 0.01;
+      end loop;
+      Assert
+        (Count >= Expected,
+         "inline math pixbufs commit before the two-second test deadline");
+   end Pump_Until_Inline_Pixbufs;
 
    function Display_Available return Boolean is
    begin
@@ -326,6 +398,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          if not T.Stack_Destroyed then
             Clear (T.Stack.all);
          end if;
+         Coyote_Math_Jobs.Shutdown;
          if T.Parent /= null then
             T.Parent.Destroy;
             T.Parent := null;
@@ -1038,11 +1111,34 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            and then Index (Active_Text (T.Stack.all), "tail") > 0,
          "text around formulas remains visible");
       Assert
+        (Index (Active_Text (T.Stack.all), "$x$") > 0
+         and then Index (Active_Text (T.Stack.all), "$y$") > 0,
+         "valid inline math remains visible while worker render is pending");
+      Buffer.Get_Start_Iter (Start_Iter);
+      Buffer.Get_End_Iter (End_Iter);
+      Buffer.Select_Range (Start_Iter, End_Iter);
+      Coyote_GUI.Rich_Text.Copy_Selection
+        (Active_Text_View (T.Stack.all));
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) =
+           "$x$ middle $y$ tail $\unknowncommand$",
+         "copy preserves source while inline render is pending");
+      Buffer.Get_Iter_At_Offset (Start_Iter, 0);
+      Buffer.Get_Iter_At_Offset (End_Iter, 1);
+      Buffer.Select_Range (Start_Iter, End_Iter);
+      Coyote_GUI.Rich_Text.Copy_Selection
+        (Active_Text_View (T.Stack.all));
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) = "$x$",
+         "partial copy preserves pending inline math source");
+      Pump_Until_Inline_Pixbufs
+        (Active_Text_View (T.Stack.all), 2);
+      Assert
         (Index (Active_Text (T.Stack.all), "$x$") = 0
            and then Index (Active_Text (T.Stack.all), "$y$") = 0
            and then Index
              (Active_Text (T.Stack.all), "\unknowncommand") > 0,
-         "valid formulas hide source and invalid source remains visible");
+         "committed formulas hide source and invalid source remains visible");
       Buffer.Get_Start_Iter (Start_Iter);
       while not Gtk.Text_Iter.Is_End (Start_Iter) loop
          if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
@@ -1130,6 +1226,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Coyote_GUI.Rich_Text.Reflow
            (Active_Text_View (T.Stack.all), 2.0);
       end loop;
+      Pump_Until_Inline_Pixbufs
+        (Active_Text_View (T.Stack.all), 2);
       Buffer.Get_Start_Iter (Start_Iter);
       while not Gtk.Text_Iter.Is_End (Start_Iter) loop
          if Gtk.Text_Iter.Get_Pixbuf (Start_Iter) /= null then
@@ -1203,6 +1301,23 @@ package body Coyote_GUI_Conversation_Stack_Tests is
           End_Char => 6));
       Coyote_GUI.Rich_Text.Insert
         (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining);
+      Assert
+        (Index (Active_Text (T.Stack.all), "$z$") > 0,
+         "appended inline math source remains visible while pending");
+      Buffer.Get_Start_Iter (Start_Iter);
+      Buffer.Get_End_Iter (End_Iter);
+      Buffer.Select_Range (Start_Iter, End_Iter);
+      Coyote_GUI.Rich_Text.Copy_Selection
+        (Active_Text_View (T.Stack.all));
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) =
+           "$x$ middle $y$ tail $\unknowncommand$ + $z$",
+         "copy preserves appended source while inline render is pending");
+      Pump_Until_Inline_Pixbufs
+        (Active_Text_View (T.Stack.all), 3);
+      Assert
+        (Index (Active_Text (T.Stack.all), "$z$") = 0,
+         "committed appended formula hides its source");
       Pixbuf_Count := 0;
       Buffer.Get_Start_Iter (Start_Iter);
       while not Gtk.Text_Iter.Is_End (Start_Iter) loop
@@ -1220,6 +1335,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (Pixbuf_Count = 3, "append renders exactly one new formula");
       Coyote_GUI.Rich_Text.Reflow
         (Active_Text_View (T.Stack.all), 1.5);
+      Pump_Until_Inline_Pixbufs
+        (Active_Text_View (T.Stack.all), 3);
       Pixbuf_Count := 0;
       Buffer.Get_Start_Iter (Start_Iter);
       while not Gtk.Text_Iter.Is_End (Start_Iter) loop
@@ -1246,6 +1363,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Coyote_GUI.Rich_Text.Insert
         (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining,
          Clear => True);
+      Pump_Until_Inline_Pixbufs
+        (Active_Text_View (T.Stack.all), 1);
       Pixbuf_Count := 0;
       Buffer.Get_Start_Iter (Start_Iter);
       while not Gtk.Text_Iter.Is_End (Start_Iter) loop
@@ -2281,6 +2400,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert
         (Math_Element_Count (T.Stack.all) = 1,
          "valid display math creates one native element");
+      Pump_Until_Math_Complete ("\frac{1}{2}");
       Assert
         (Math_Is_Valid (T.Stack.all, 1),
          "valid display math is measured successfully");
@@ -2315,6 +2435,171 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "parent Show_All does not reveal valid LaTeX source");
    end Test_Native_Display_Math_Realizes_Element;
 
+   procedure Test_Native_Display_Math_Pending_Raster_Visible
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "$$" & ASCII.LF &
+        "\begin{matrix}" & ASCII.LF &
+        "a\\b\\c\\d\\e\\f\\g\\h\\i\\j"
+        & ASCII.LF & "\end{matrix}" & ASCII.LF & "$$";
+      Deadline : constant Ada.Real_Time.Time :=
+        Ada.Real_Time.Clock + Ada.Real_Time.Seconds (2);
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Assert
+        (Math_Element_Count (T.Stack.all) = 1,
+         "multiline display math creates one native element");
+      while Ada.Real_Time.Clock < Deadline
+        and then Math_Width (T.Stack.all, 1) = 0
+        and then Math_Is_Pending (T.Stack.all, 1)
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.005;
+         end if;
+      end loop;
+      Assert
+        (Math_Width (T.Stack.all, 1) > 0,
+         "worker result arrives before the two-second deadline");
+      Assert
+        (Math_Is_Pending (T.Stack.all, 1),
+         "raster adoption remains pending after worker result arrival");
+      Assert
+        (not Math_Is_Valid (T.Stack.all, 1),
+         "math remains invalid for display until the raster is complete");
+      Assert
+        (not Math_Area_Visible (T.Stack.all, 1),
+         "rendered area stays hidden while raster adoption is pending");
+      Assert
+        (Math_Fallback_Visible (T.Stack.all, 1),
+         "source fallback stays visible while raster adoption is pending");
+      while Ada.Real_Time.Clock < Deadline
+        and then Math_Is_Pending (T.Stack.all, 1)
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.005;
+         end if;
+      end loop;
+      Assert
+        (not Math_Is_Pending (T.Stack.all, 1),
+         "raster adoption finishes before the two-second deadline");
+      Assert
+        (Math_Is_Valid (T.Stack.all, 1),
+         "completed raster makes measured math valid for display");
+      Assert
+        (Math_Area_Visible (T.Stack.all, 1),
+         "completed raster shows the rendered area");
+      Assert
+        (not Math_Fallback_Visible (T.Stack.all, 1),
+         "completed raster hides the source fallback");
+   end Test_Native_Display_Math_Pending_Raster_Visible;
+
+   procedure Test_Native_Display_Math_Raster_Budget (T : in out Test) is
+      Matrix : constant String :=
+        "\begin{matrix}" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j\\" & ASCII.LF
+        & "a&b&c&d&e&f&g&h&i&j" & ASCII.LF
+        & "\end{matrix}";
+      Formula : constant String := "$$" & ASCII.LF & Matrix
+        & ASCII.LF & "$$";
+      Source : constant String := Formula & ASCII.LF & Formula
+        & ASCII.LF & Formula & ASCII.LF & Formula;
+      Baseline : constant Natural :=
+        Coyote_GUI.Math_Element.Retained_Raster_Bytes;
+      Deadline : Ada.Real_Time.Time;
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      T.Parent.Show_All;
+      Begin_Request (T.Stack.all, "raster budget", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Assert
+        (Math_Element_Count (T.Stack.all) = 4,
+         "bounded fixture creates four native raster elements");
+
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+      loop
+         exit when Ada.Real_Time.Clock >= Deadline;
+         exit when Math_Is_Valid (T.Stack.all, 1)
+           and then Math_Is_Valid (T.Stack.all, 2)
+           and then Math_Is_Valid (T.Stack.all, 3)
+           and then Math_Is_Valid (T.Stack.all, 4);
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.005;
+         end if;
+      end loop;
+      Assert
+        (Math_Is_Valid (T.Stack.all, 1)
+         and then Math_Is_Valid (T.Stack.all, 2)
+         and then Math_Is_Valid (T.Stack.all, 3)
+         and then Math_Is_Valid (T.Stack.all, 4),
+         "all four asynchronous raster adoptions complete in five seconds");
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes > Baseline,
+         "main-loop raster adoption retains a nonzero byte count");
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes <= 64 * 1024 * 1024,
+         "aggregate retained raster accounting respects the 64 MiB cap");
+      Assert
+        (Coyote_GUI.Math_Element.Max_Raster_Callback_Milliseconds <= 50.0,
+         "bounded raster fixture callback maximum meets the 50 ms target");
+
+      Clear (T.Stack.all);
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Baseline,
+         "clearing adopted rasters returns the ledger to its baseline");
+
+      Begin_Request (T.Stack.all, "replacement raster", Prompt);
+      Append_Text (T.Stack.all, Formula);
+      End_Text_Block (T.Stack.all);
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+      loop
+         exit when Ada.Real_Time.Clock >= Deadline;
+         exit when Math_Is_Valid (T.Stack.all, 1);
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.005;
+         end if;
+      end loop;
+      Assert
+        (Math_Is_Valid (T.Stack.all, 1),
+         "replacement display math adopts its asynchronous raster");
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes > Baseline,
+         "replacement retains raster bytes after adoption");
+      Clear (T.Stack.all);
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Baseline,
+         "freeing replacement math returns the ledger to its baseline");
+   end Test_Native_Display_Math_Raster_Budget;
+
    procedure Test_Native_Display_Math_Invalid_Falls_Back (T : in out Test) is
       Source : constant String :=
         "$$" & ASCII.LF & "\unknowncommand" & ASCII.LF & "$$";
@@ -2328,6 +2613,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert
         (Math_Element_Count (T.Stack.all) = 1,
          "invalid display math retains a native fallback element");
+      Pump_Until_Math_Complete ("\unknowncommand");
       Assert
         (not Math_Is_Valid (T.Stack.all, 1),
          "invalid display math is marked invalid");
@@ -2341,6 +2627,142 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (Math_Fallback_Visible (T.Stack.all, 1),
          "invalid LaTeX shows the source fallback");
    end Test_Native_Display_Math_Invalid_Falls_Back;
+
+   procedure Test_Native_Display_Math_Clear_Pending (T : in out Test) is
+      Source : constant String :=
+        "$$" & ASCII.LF & "\frac{1}{2}" & ASCII.LF & "$$";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, Source);
+      End_Text_Block (T.Stack.all);
+      Assert
+        (Math_Element_Count (T.Stack.all) = 1,
+         "pending display math creates one element");
+      Clear (T.Stack.all);
+      Drain_Gtk_Events;
+      Assert
+        (Math_Element_Count (T.Stack.all) = 0,
+         "clearing pending math removes the element safely");
+   end Test_Native_Display_Math_Clear_Pending;
+
+   procedure Test_Native_Math_Free_Disconnects_Expander
+     (T : in out Test)
+   is
+      Element : Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element ("x", "x");
+      Root : Gtk.Box.Gtk_Box;
+      Children : Gtk.Widget.Widget_List.Glist;
+      Node : Gtk.Widget.Widget_List.Glist;
+      Expander : Gtk.Expander.Gtk_Expander;
+   begin
+      if not T.Display_Available then
+         Coyote_GUI.Math_Element.Free (Element);
+         return;
+      end if;
+      Root := Coyote_GUI.Math_Element.Widget (Element.all);
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Root));
+      Node := Gtk.Widget.Widget_List.First (Children);
+      for Index in 1 .. 3 loop
+         exit when Node = Gtk.Widget.Widget_List.Null_List;
+         if Index = 3 then
+            Expander := Gtk.Expander.Gtk_Expander
+              (Gtk.Widget.Widget_List.Get_Data (Node));
+         end if;
+         Node := Gtk.Widget.Widget_List.Next (Node);
+      end loop;
+      Gtk.Widget.Widget_List.Free (Children);
+      Glib.Object.Ref (Glib.Object.GObject (Expander));
+      Coyote_GUI.Math_Element.Free (Element);
+      Expander.Set_Expanded (True);
+      Expander.Set_Expanded (False);
+      Glib.Object.Unref (Glib.Object.GObject (Expander));
+   end Test_Native_Math_Free_Disconnects_Expander;
+
+   procedure Test_Native_Math_Expansion_Tracks_Source
+     (T : in out Test)
+   is
+      Element : Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element ("x", "old source");
+      Root : Gtk.Box.Gtk_Box;
+      Children : Gtk.Widget.Widget_List.Glist;
+      Node : Gtk.Widget.Widget_List.Glist;
+      Expander : Gtk.Expander.Gtk_Expander;
+      Scroll : Gtk.Widget.Gtk_Widget;
+      Tree : Gtk.Widget.Gtk_Widget;
+      Model : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Value : Glib.Values.GValue;
+      Deadline : Ada.Real_Time.Time;
+      Quit : Boolean;
+      pragma Unreferenced (Quit);
+   begin
+      if not T.Display_Available then
+         Coyote_GUI.Math_Element.Free (Element);
+         return;
+      end if;
+      Root := Coyote_GUI.Math_Element.Widget (Element.all);
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Root));
+      Node := Gtk.Widget.Widget_List.First (Children);
+      for Index in 1 .. 3 loop
+         exit when Node = Gtk.Widget.Widget_List.Null_List;
+         if Index = 3 then
+            Expander := Gtk.Expander.Gtk_Expander
+              (Gtk.Widget.Widget_List.Get_Data (Node));
+         end if;
+         Node := Gtk.Widget.Widget_List.Next (Node);
+      end loop;
+      Gtk.Widget.Widget_List.Free (Children);
+      Expander.Set_Expanded (True);
+      Assert
+        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null,
+         "pending math expansion creates no invalid semantic tree");
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
+      while Ada.Real_Time.Clock < Deadline
+        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+      loop
+         Quit := Gtk.Main.Main_Iteration_Do (False);
+         delay 0.01;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
+         "initial semantic result completes");
+      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+      Assert (Scroll /= null, "valid expansion creates semantic child");
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Element.all, "y", "new source");
+      Assert
+        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null,
+         "source replacement removes old semantic child immediately");
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
+      while Ada.Real_Time.Clock < Deadline
+        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+      loop
+         Quit := Gtk.Main.Main_Iteration_Do (False);
+         delay 0.01;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
+         "replacement semantic result completes");
+      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+      Tree := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll));
+      Assert
+        (Tree /= null and then Gtk.Widget.Get_Name (Tree) =
+           "coyote-math-semantics",
+         "expanded replacement contains the current semantic tree");
+      Model := Gtk.Tree_View.Get_Model (Gtk.Tree_View.Gtk_Tree_View (Tree));
+      Iter := Gtk.Tree_Model.Get_Iter_First (Model);
+      Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
+      Assert
+        (Glib.Values.Get_String (Value) = "y",
+         "replacement semantic tree is rooted in the new source");
+      Glib.Values.Unset (Value);
+      Coyote_GUI.Math_Element.Free (Element);
+   end Test_Native_Math_Expansion_Tracks_Source;
 
    procedure Test_Native_Display_Math_Protects_Code (T : in out Test) is
       Source : constant String :=
@@ -2491,6 +2913,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Begin_Request (T.Stack.all, "request", Prompt);
       Append_Text (T.Stack.all, Source);
       End_Text_Block (T.Stack.all);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 0,
+         "valid inline images begin without a committed pixbuf");
+      Assert
+        (Index (Active_Text (T.Stack.all), "local") > 0,
+         "inline image description is visible while load is pending");
       Pump_Until_Images (T, 1);
       Assert
         (Find_Image_Count
@@ -2541,7 +2970,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Begin_Request (T.Stack.all, "request", Prompt);
       Append_Text (T.Stack.all, "![disabled](ok.png)");
       End_Text_Block (T.Stack.all);
-      Pump_Until_Images (T, 1);
       Assert
         (Find_Image_Count
            (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 0,
@@ -2563,6 +2991,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Begin_Request (T.Stack.all, "request", Prompt);
       Append_Text (T.Stack.all, "![queued](queued.png)");
       End_Text_Block (T.Stack.all);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 0,
+         "queued image has not committed when clear cancels its view");
+      Assert
+        (Index (Active_Text (T.Stack.all), "queued") > 0,
+         "queued image source remains visible before clear");
       View := Active_Text_View (T.Stack.all);
       Inline_View_Destroyed := False;
       View.On_Destroy (On_Inline_View_Destroy'Access);
@@ -2588,6 +3023,32 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (Index (Active_Text (T.Stack.all), "retained") > 0,
          "post-clear image alt text remains searchable");
    end Test_Clear_With_Queued_Inline_Image;
+
+   procedure Test_Destroy_With_Queued_Inline_Image (T : in out Test) is
+      Root : constant String := To_String (T.Image_Root);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Write_PNG (Root & "/destroyed.png");
+      Set_Source_Directory (T.Stack.all, Root);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "![destroyed](destroyed.png)");
+      End_Text_Block (T.Stack.all);
+      Assert
+        (Find_Image_Count
+           (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all))) = 0,
+         "image view is destroyed while its load is pending");
+      Inline_View_Destroyed := False;
+      Active_Text_View (T.Stack.all).On_Destroy
+        (On_Inline_View_Destroy'Access);
+      T.Stack_Destroyed := True;
+      Host_Widget (T.Stack.all).Destroy;
+      Drain_Gtk_Events;
+      Assert
+        (Inline_View_Destroyed,
+         "destroying the host destroys its pending image-owning view");
+   end Test_Destroy_With_Queued_Inline_Image;
 
    package Coyote_GUI_Conversation_Stack_Caller is new AUnit.Test_Caller
      (Coyote_GUI_Conversation_Stack_Tests.Test);
@@ -2699,10 +3160,35 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack keeps source during rasterization",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Display_Math_Pending_Raster_Visible'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack bounds retained display rasters",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Display_Math_Raster_Budget'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack falls back for invalid LaTeX",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Display_Math_Invalid_Falls_Back'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack clears pending display LaTeX",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Display_Math_Clear_Pending'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack disconnects freed math expanders",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Math_Free_Disconnects_Expander'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack replaces expanded math semantics",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Math_Expansion_Tracks_Source'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack protects code LaTeX",
@@ -2825,10 +3311,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               .Test_Inline_Markdown_Image_Policy'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack destroys pending image views",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Destroy_With_Queued_Inline_Image'Access));
+
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack clears queued image work",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Clear_With_Queued_Inline_Image'Access));
-
       return Result;
    end Suite;
 

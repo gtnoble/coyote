@@ -1,14 +1,23 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.30
-**Date:** 2026-10-22
+**Version:** 1.33
+**Date:** 2026-10-26
 **Status:** Session-contained local PNG/JPEG behavior is implemented and PCR-116 automated qualification is complete; DEM-060 desktop qualification remains pending
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
-revision updates REQ-CORE-111 with the scoped local-image contract and records
-PCR-116 automated qualification; DEM-060 desktop qualification remains pending.
+revision records the scoped local-image contract and PCR-116 evidence; DEM-060
+desktop qualification remains pending. The native-math checkpoint status and
+open gaps are recorded in `plan/native-math-parity-test-report.md`.
 **Project Plan:** `plan/project-plan.md`
+
+**Approved native-math target amendment (2026-10-24, PCR-125):**
+`requirements/native-math-compatibility.md` v1.0 extends REQ-CORE-111/124 with
+the approved pinned KaTeX core/native profile, D01–D15 dispositions and resource
+targets. Existing bounded-profile descriptions below remain the implemented
+baseline, not the final approved compatibility scope. Design and execution
+are approved; the extension is partially implemented, while full implementation,
+test readiness, qualification and product acceptance remain open.
 
 ---
 
@@ -1882,8 +1891,11 @@ qualification requirements are identified.
 ## 4. Qualification Provisions
 
 Traceability from requirements to test cases. Current test procedures and
-status are maintained in `plan/test-plan.md`; the current automated baseline is
-1001 registered tests. PCR-116 verification covers Ada loader and job tests,
+status are maintained in `plan/test-plan.md`. The latest completed full-suite
+checkpoint passed 1061/1061 before subsequent candidate changes; it is regression
+evidence, not latest-source qualification. Current evidence boundaries and open
+gates are recorded in `plan/native-math-parity-test-report.md` §8. PCR-116 verification covers
+Ada loader and job tests,
 native thin-shim checks, and GTK presentation regressions; focused and full
 suite results are recorded in the Test Plan. DEM-060 desktop qualification
 remains pending. PCR-101, PCR-103, and PCR-104 qualification matrices remain
@@ -1925,7 +1937,7 @@ identifiers.
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
 | Historical REQ-CORE-047..049 | Superseded incremental markup and format-selection requirements | D/T/I | Dated historical DEM/PCR records |
 | Historical REQ-CORE-047a..047h | Superseded CSM grammar, presentation, prompt, and persistence requirements | A/I/T | Dated PCR-101/PCR-103 qualification matrix |
-| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables and common inline/display math, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.Math`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `Coyote_GUI.Math_Element`, `Math_Syntax`, `Math_Layout`, `Math_Metrics`, `Math_Painter`, `Coyote_Math_Resources`; automated math qualification passed (PCR-123); DEM-060 pending |
+| REQ-CORE-111 | Direct libcmark-gfm Markdown rendering, native GFM tables and common inline/display math, and session-contained local assistant images with visible alt text/fallback | D/T/I | `Coyote_Renderer.Markup`, `Coyote_Renderer.Tables`, `Coyote_Renderer.Math`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Rich_Text`, `Coyote_Image_Loader`, `Coyote_Image_Decoder`, `Coyote_Image_IO`, `Coyote_Image_Jobs`, `Coyote_GUI.Math_Element`, `Math_Syntax`, `Math_Layout`, `Math_Metrics`, `Math_Painter`, `Coyote_Math_Resources`; PCR-123 math qualification (1042/1042) is historical; current PCR-125 checkpoint and open gaps: `plan/native-math-parity-test-report.md`; DEM-060 pending |
 | REQ-CORE-240–241 | Current session JSONL behavior, including ignoring legacy `format`/`formatVersion` fields during Markdown replay | T | `LLM.Session_Store`, `Coyote_App.History`, `llm_session_store_tests.adb`, `coyote_app_history_tests.adb` |
 
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
