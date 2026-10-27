@@ -12,7 +12,7 @@ compatibility. The approved target and current results are separate documents:
 
 - [Requirements](../../../requirements/native-math-compatibility.md).
 - [Implementation checkpoint report](../../../plan/native-math-parity-test-report.md),
-  especially coordinator-owned latest-status §9; §8 is a dated prior checkpoint.
+  especially coordinator-owned current-status §10; §9 and earlier sections are historical.
 - [Per-entry coverage map](../../../plan/native-math-coverage.md), which records
   missing and partial/unqualified entries, not a compatibility percentage.
 
@@ -53,7 +53,10 @@ matches KaTeX.
   The originally reported heat-balance equation now produces native output
   including its dot glyph.
 - Over/under annotations, boxes, phantoms, overlaps, explicit math styles and
-  selected color commands. Font commands use bundled faces where metrics exist.
+  selected color commands. Typed `\verb`, `\vcenter`, and `\pmb` forms have
+  raw-token literal grammar guards; native Gaussian shadow is an approximation,
+  not exact CSS. Shadow overflow and integer bounds are checked. Font commands
+  use bundled faces where metrics exist.
 - Matrix/cases/aligned families, `array`/`subarray` column specifications,
   `alignat`/`alignedat`, and limited display equation/tag handling. Not all
   registered environments, numbering rules or column constructs are implemented.
@@ -68,8 +71,9 @@ matches KaTeX.
   may still expand to unsupported primitives. All 20 native callable core
   built-ins have source paths; this is not comprehensive semantic qualification.
 - Registered Unicode symbols, selected precomposed/combining accent mappings,
-  and Unicode subscript/superscript substitutions. This is not general Unicode
-  text shaping or full text/math mode compatibility.
+  and Unicode subscript/superscript substitutions. Unicode ranges are predicate-
+  only and unused for text shaping; this is not general Unicode text shaping or
+  full text/math mode compatibility.
 
 Twenty TTF faces are bundled. Upstream supplies 18 metric tables containing
 2,038 glyph records; two named faces have no source metrics. Font-file identity
@@ -129,31 +133,14 @@ batch, not a hard 50 ms bound; none of these qualify the approved targets.
 
 ## Verification and maintenance
 
-The coordinator-owned [completion report](../../../plan/native-math-parity-test-report.md)
-§9 is the latest status; §8 remains a dated prior checkpoint. The latest
-supplied development suite passed 1062/1062 with zero failed assertions or
-unexpected errors in 82.228506 s
-(`/tmp/coyote-next-frozen-full.log`), which is regression evidence only. Scoped
-evidence includes engine 57 pass, macro assertion count as recorded in §9, 133
-jobs checks with 2,000 valid warm requests (p95 1 ms, maximum 2 ms), geometry
-145/145, structured pilot 16/16, image pilot 3/3, and 156 native assertions in
-aggregate, including one case with 100 nested groups and one with 17,000 glyphs.
-One added fleqn widget test brings `Conversation_Stack` to 48 total registrations.
-Fleqn affects display math only, adding a 2 em left margin (48 px at 24 px/em;
-96 px at 48 px/em); default display stays centered with no indent, and
-inline math is unaffected. None of these establishes full parity. In particular, the
-structured path pilot uses 0.01 normalized units, not image geometry; full
-origins, widths, and option effects remain unmeasured. `colorIsTextColor` has a
-scoped passing engine probe, but broad color qualification is not established.
-
-The deterministic 10,000-case fuzz run reported 4,184 successful parses, 5,221
-parse errors, 595 policy errors, zero layout failures and deterministic
-repetition. This bounded corpus is not memory or whole-job budget qualification.
-Coverage totals are coordinator-generated and may be stale; consult the current
-report and regenerated map rather than hardcoding totals. Native callable-path
-presence is not complete semantic qualification. Human visual/accessibility
-acceptance remains pending.
-
+Current verification evidence, discrepancies, coverage and open qualification
+gates are recorded in coordinator-owned report §10. The frozen full suite passed
+1063/1063 with zero failed assertions or unexpected errors in 82.418882 s
+(`/tmp/coyote-core-frozen-full.log`); this is regression evidence only. Scoped
+probe results and raster discrepancies are reported there, not repeated here.
+No parity, whole-job resource/timing compliance, or human visual/accessibility
+acceptance is established. Coverage is a source crosswalk, not qualification.
+Section §9 and earlier report sections are historical snapshots.
 Run bounded native smoke checks from the repository root:
 
 ```sh
@@ -177,11 +164,5 @@ sh test/tools/check-math-browser.sh
 sh test/tools/check-math-images.sh
 ```
 
-The recent focused geometry corpus passed 145/145; this does not establish full
-origins, widths, option effects, or all reference geometry. Frozen structured
-and image pilots passed 16/16 and 3/3, but the structured path comparison uses
-normalized units and the image pilot is not calibrated visual acceptance.
-Do not interpret smoke checks or pilot passes as full qualification. See the
-coordinator-owned report for exact commands, scope, log paths, resource limits,
-and open acceptance gates. The older
+Current geometry, structured and raster results are recorded in coordinator-owned report §10. The raster pilot is 7/9 with two failures under unchanged thresholds; this is not calibrated visual acceptance. Do not interpret smoke checks or scoped results as full qualification. See the report for scope, logs, limits and open acceptance gates. The older
 [PCR-123 report](../../../plan/native-math-test-report.md) is historical.

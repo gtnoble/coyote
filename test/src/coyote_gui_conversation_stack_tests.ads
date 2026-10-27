@@ -57,6 +57,8 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Native_Display_Math_Zooms (T : in out Test);
    procedure Test_Native_Display_Math_Fleqn_Alignment
      (T : in out Test);
+   procedure Test_Native_Display_Math_Core_Primitives
+     (T : in out Test);
    procedure Test_Native_Display_Math_Clear_Pending (T : in out Test);
    procedure Test_Native_Math_Free_Disconnects_Expander
      (T : in out Test);

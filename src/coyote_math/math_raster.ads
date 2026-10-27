@@ -13,6 +13,9 @@ package Math_Raster is
    package Byte_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Byte);
    type Image is private;
+   --  Width and Height include right/bottom shadow overflow when present;
+   --  The logical top-left origin is unchanged; the baseline is
+   --  Layout.Ascent * Em_Scale pixels below it.
    function Width (Item : Image) return Natural;
    function Height (Item : Image) return Natural;
    function Stride (Item : Image) return Natural;
@@ -24,6 +27,8 @@ package Math_Raster is
       Layout : Math_Layout.Box;
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value) return Image;
+   --  Tile coordinates use the full raster's logical top-left as origin.
+   --  Tiles can include padded shadow pixels beyond the logical layout edge.
    function Render_Tile
      (Fonts : Math_Painter.Font_Set;
       Layout : Math_Layout.Box;

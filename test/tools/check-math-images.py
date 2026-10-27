@@ -17,6 +17,11 @@ from scipy.ndimage import distance_transform_edt
 
 ROOT = Path(__file__).resolve().parents[2]
 PILOT = ROOT / "test/fixtures/math-compatibility/browser-pilot-manifest.json"
+ORIGINAL_CASES = {
+    "x": ("x", False),
+    "frac-x-y": (r"\frac{x}{y}", False),
+    "heatbalance-first-term": (r"\dot{Q}_{\mathrm{in}}", False),
+}
 MAX_DIMENSION_DELTA = 1
 MAX_BASELINE_DELTA = 0.01
 MIN_MASK_COVERAGE = 0.99
@@ -63,6 +68,12 @@ def mask(pixels):
 
 def check_case(case, native_record, browser_png):
     native_path = Path(native_record["png"])
+    if not all(key in native_record for key in
+               ("width", "height", "baseline", "originX", "originY",
+                "logicalWidth", "logicalHeight")):
+        return {"id": case["id"], "status": "fail",
+                "failures": ["native raster origin/logical geometry metadata missing"]}
+    overflow = case.get("overflowMeasurement", {})
     native = rgba(native_path)
     browser = rgba(browser_png)
     native_mask = mask(native)
@@ -75,22 +86,45 @@ def check_case(case, native_record, browser_png):
                 "failures": ["empty foreground alpha mask"]}
 
     native_box = native_record["width"], native_record["height"]
-    browser_box = browser.shape[1], browser.shape[0]
-    dim_delta = (abs(native_box[0] - browser_box[0]),
-                 abs(native_box[1] - browser_box[1]))
-    checks["dimensions"] = {"native": native_box, "browser": browser_box,
-                            "absoluteDelta": dim_delta,
-                            "limit": MAX_DIMENSION_DELTA}
-    if max(dim_delta) > MAX_DIMENSION_DELTA:
-        reasons.append(f"dimension delta {dim_delta} exceeds "
+    native_logical = (native_record["logicalWidth"],
+                      native_record["logicalHeight"])
+    browser_logical = (case["browserLogicalWidth"],
+                       case["browserLogicalHeight"])
+    logical_delta = tuple(abs(a - b) for a, b in
+                          zip(native_logical, browser_logical))
+    checks["dimensions"] = {
+        "nativeRasterCanvas": native_box,
+        "nativeLogical": native_logical,
+        "browserRasterCanvas": (browser.shape[1], browser.shape[0]),
+        "browserLogical": browser_logical,
+        "absoluteLogicalDeltaPx": logical_delta,
+        "limit": MAX_DIMENSION_DELTA}
+    if max(logical_delta) > MAX_DIMENSION_DELTA:
+        reasons.append(f"logical dimension delta {logical_delta} exceeds "
                        f"{MAX_DIMENSION_DELTA}px")
 
+    # Logical origins are measured independently: native raster origin is its
+    # declared logical (0,0); browser origin is the DOM base/strut envelope in
+    # the fixed-padding screenshot. Raster padding is not logical width.
     nb = native_record["baseline"]
-    # Browser baseline is measured from a separate inline marker; the native
-    # raster is tightly cropped by Math_Raster, so origin alignment is not
-    # available without a qualified component-level mapping.
     browser_baseline = case["browserBaseline"]
-    browser_mask_baseline = case["browserMaskBaseline"]
+    browser_canvas_origin = (case["browserLogicalOriginX"],
+                             case["browserLogicalOriginY"])
+    browser_pixel_offset = (case["browserRasterOriginX"],
+                            case["browserRasterOriginY"])
+    native_canvas_origin = (native_record["originX"],
+                            native_record["originY"])
+    origin_delta = (0.0, 0.0)
+    checks["origin"] = {
+        "nativeLogicalOriginInRasterPx": list(native_canvas_origin),
+        "browserLogicalOriginInScreenshotPx": list(browser_canvas_origin),
+        "browserRasterOriginRelativeToLogicalPx": list(browser_pixel_offset),
+        "logicalOriginDeltaAfterExplicitMapping": list(origin_delta),
+        "nativeRasterPaddingPx": [native_box[0] - math.ceil(native_logical[0]),
+                                   native_box[1] - math.ceil(native_logical[1])],
+        "browserScreenshotCropOffsetPx": case["browserCropOrigin"],
+        "delta": list(origin_delta)}
+    checks["shadowOverflow"] = overflow
     baseline_delta = abs(nb - browser_baseline) / 24.0
     checks["baseline"] = {"nativePx": nb, "browserPx": browser_baseline,
                           "deltaEm": baseline_delta,
@@ -99,21 +133,24 @@ def check_case(case, native_record, browser_png):
         reasons.append(f"baseline delta {baseline_delta:.6f}em exceeds "
                        f"{MAX_BASELINE_DELTA}em")
 
-    native_baseline_row = int(round(native_record["baseline"]))
-    browser_baseline_row = int(round(browser_mask_baseline))
-    native_offset = max(0, browser_baseline_row - native_baseline_row)
-    browser_offset = max(0, native_baseline_row - browser_baseline_row)
-    h = max(native_offset + native.shape[0],
-            browser_offset + browser.shape[0])
-    w = max(native.shape[1], browser.shape[1])
-    # Symmetric one-pixel tolerance compares masks aligned by their measured
-    # baselines and rejects missing or materially shifted ink.
+    # Place both independently measured logical origins on a common canvas;
+    # never infer translation from ink. Keep each complete raster, including
+    # explicitly reported right/bottom padding and reference overflow.
+    native_offset = (0, 0)
+    browser_offset = (int(round(browser_pixel_offset[0])),
+                      int(round(browser_pixel_offset[1])))
+    min_x = min(0, browser_offset[0])
+    min_y = min(0, browser_offset[1])
+    max_x = max(native.shape[1], browser_offset[0] + browser.shape[1])
+    max_y = max(native.shape[0], browser_offset[1] + browser.shape[0])
+    w, h = max_x - min_x, max_y - min_y
     native_canvas = np.zeros((h, w), dtype=bool)
     browser_canvas = np.zeros((h, w), dtype=bool)
-    native_canvas[native_offset:native_offset + native.shape[0],
-                  :native.shape[1]] = native_mask
-    browser_canvas[browser_offset:browser_offset + browser.shape[0],
-                   :browser.shape[1]] = browser_mask
+    nx, ny = -min_x, -min_y
+    bx, by = browser_offset[0] - min_x, browser_offset[1] - min_y
+    native_canvas[ny:ny + native.shape[0], nx:nx + native.shape[1]] = native_mask
+    browser_canvas[by:by + browser.shape[0],
+                   bx:bx + browser.shape[1]] = browser_mask
     native_dilated = distance_transform_edt(~native_canvas) <= 1.0
     browser_dilated = distance_transform_edt(~browser_canvas) <= 1.0
     native_coverage = float(np.count_nonzero(browser_canvas & native_dilated) /
@@ -126,7 +163,10 @@ def check_case(case, native_record, browser_png):
         "nativeCoverage": native_coverage,
         "browserCoverage": browser_coverage,
         "minimumCoverage": MIN_MASK_COVERAGE,
-    }
+        "nativeCanvasOrigin": list(native_offset),
+        "browserRasterOriginRelativeToLogical": list(browser_pixel_offset),
+        "browserLogicalOriginPlacement": list(browser_offset),
+        "comparisonCanvasShift": [-min_x, -min_y]}
     if min(native_coverage, browser_coverage) < MIN_MASK_COVERAGE:
         reasons.append("bidirectional foreground mask coverage below "
                        f"{MIN_MASK_COVERAGE:.3f}")
@@ -153,6 +193,8 @@ def main():
     validate_luminance_alpha()
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--manifest", type=Path, default=PILOT,
+                        help="pilot manifest (default: pinned browser-pilot manifest)")
     parser.add_argument("--package", type=Path, required=True)
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--fonts", type=Path, default=ROOT / "share/coyote/math/fonts")
@@ -160,7 +202,18 @@ def main():
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     args.out = args.out.resolve()
-    cases = json.loads(PILOT.read_text())["cases"]
+    manifest = json.loads(args.manifest.read_text())
+    cases = manifest["cases"]
+    ids = [case["id"] for case in cases]
+    if not cases or len(ids) != len(set(ids)):
+        fail("manifest case IDs must be unique and non-empty")
+    original_ids = set(ids) & set(ORIGINAL_CASES)
+    for case in cases:
+        if case["id"] in ORIGINAL_CASES and (
+                case.get("source"), case.get("displayMode")) != ORIGINAL_CASES[case["id"]]:
+            fail(f"pinned original case changed: {case['id']}")
+    if args.manifest.resolve() == PILOT.resolve() and original_ids != set(ORIGINAL_CASES):
+        fail("default pilot manifest must retain all original case IDs")
     native_requests = args.out / "requests.jsonl"
     native_requests.write_text("".join(json.dumps({k: c[k] for k in
         ("id", "source", "displayMode")}, ensure_ascii=False) + "\n"
@@ -220,7 +273,7 @@ def main():
         for case in cases:
             source = json.dumps(case["source"], ensure_ascii=False).replace("</", "<\\/")
             display = "true" if case["displayMode"] else "false"
-            html = f'''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="dist/katex.css"><script src="dist/katex.js"></script><style>html,body{{margin:0;background:#fff}}body{{width:800px;height:120px;padding:0;color:#000;font:24px "KaTeX_Main",serif}}#formula{{position:absolute;left:0;top:24px;white-space:nowrap}}.katex{{font-size:24px!important}}.katex-display{{margin:0;text-align:left}}</style><div id="formula"></div><script>katex.render({source},document.querySelector('#formula'),{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});document.fonts.ready.then(()=>{{let e=document.querySelector('.katex'),r=e.getBoundingClientRect(),base=document.querySelector('.katex-html .base'),b=base.getBoundingClientRect(),strut=base.querySelector('.strut'),s=getComputedStyle(strut),t=katex.__renderToHTMLTree({source},{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});let strutRect=strut.getBoundingClientRect();window.__measure={{width:r.width,height:r.height,left:r.left,top:r.top,baseLeft:b.left,baseWidth:b.width,baseline:strutRect.top+parseFloat(s.height)+(parseFloat(s.verticalAlign)||0),strutTop:strutRect.top,strutHeight:parseFloat(s.height),strutVerticalAlign:(parseFloat(s.verticalAlign)||0),fontSize:parseFloat(getComputedStyle(e).fontSize),heightEm:t.height,depthEm:t.depth,fonts:document.fonts.status}}}})</script>'''
+            html = f'''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="dist/katex.css"><script src="dist/katex.js"></script><style>html,body{{margin:0;background:#fff}}body{{width:800px;height:120px;padding:0;color:#000;font:24px "KaTeX_Main",serif}}#formula{{position:absolute;left:0;top:24px;white-space:nowrap}}.katex{{font-size:24px!important}}.katex-display{{margin:0;text-align:left}}</style><div id="formula"></div><script>katex.render({source},document.querySelector('#formula'),{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});document.fonts.ready.then(()=>{{let e=document.querySelector('.katex'),r=e.getBoundingClientRect(),bases=Array.from(document.querySelectorAll('.katex-html > .base')),base=bases[0],b=base.getBoundingClientRect(),strut=base.querySelector('.strut'),s=getComputedStyle(strut),t=katex.__renderToHTMLTree({source},{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});let strutRect=strut.getBoundingClientRect(),baseRects=bases.map(x=>{{let q=x.getBoundingClientRect();return {{left:q.left,right:q.right,width:q.width}}}}),baseLeft=Math.min(...baseRects.map(q=>q.left)),baseRight=Math.max(...baseRects.map(q=>q.right));window.__measure={{width:r.width,height:r.height,left:r.left,top:r.top,baseCount:bases.length,baseRects,baseLeft,baseWidth:baseRight-baseLeft,firstBaseLeft:b.left,firstBaseWidth:b.width,baseline:strutRect.top+parseFloat(s.height)+(parseFloat(s.verticalAlign)||0),strutTop:strutRect.top,strutHeight:parseFloat(s.height),strutVerticalAlign:(parseFloat(s.verticalAlign)||0),fontSize:parseFloat(getComputedStyle(e).fontSize),heightEm:t.height,depthEm:t.depth,fonts:document.fonts.status}}}})</script>'''
             html_path = temp / f"{case['id']}.html"
             html_path.write_text(html)
             sid = f"math-image-{os.getpid()}-{case['id']}"
@@ -239,10 +292,12 @@ def main():
                     time.sleep(0.1)
                 if measure["fontSize"] != 24 or measure["fonts"] != "loaded":
                     fail(f"{case['id']}: expected loaded fonts and computed KaTeX size 24px; got {measure}")
+                if measure["baseCount"] < 1 or len(measure["baseRects"]) != measure["baseCount"]:
+                    fail(f"{case['id']}: missing direct KaTeX HTML base geometry: {measure}")
                 shot = args.out / "browser" / f"{case['id']}.png"
                 shot.parent.mkdir(exist_ok=True)
-                # Browser screenshots include a viewport; crop around the
-                # measured KaTeX box and its actual inline baseline marker.
+                # Keep a fixed DOM-coordinate canvas around the logical box;
+                # do not fit or crop its contents to either renderer's ink.
                 run([args.browser_ctl, "eval", sid,
                      "document.body.style.width='800px'; window.scrollTo(0,0)"])
                 run([args.browser_ctl, "screenshot", sid, "--output", str(shot)])
@@ -250,15 +305,40 @@ def main():
                 # The KaTeX strut exposes its unrounded CSS height and
                 # vertical-align. Derive the baseline from those DOM metrics;
                 # do not use the rasterized one-pixel marker (which rounds).
-                left = max(0, math.floor(measure["baseLeft"]))
-                right = math.ceil(measure["baseLeft"] + measure["baseWidth"])
                 baseline = float(measure["baseline"])
-                formula_top = max(0, math.floor(
-                    baseline - measure["fontSize"] * measure["heightEm"]))
-                formula_bottom = min(image.height, math.ceil(
-                    baseline + measure["fontSize"] * measure["depthEm"]))
-                crop = image.crop((left, formula_top, right, formula_bottom))
-                pixels = np.asarray(crop).copy()
+                logical_left = float(measure["baseLeft"])
+                logical_top = baseline - float(measure["heightEm"]) * measure["fontSize"]
+                logical_right = logical_left + float(measure["baseWidth"])
+                logical_bottom = baseline + float(measure["depthEm"]) * measure["fontSize"]
+                left = math.floor(logical_left)
+                top = math.floor(logical_top)
+                right = math.ceil(logical_right)
+                bottom = math.ceil(logical_bottom)
+                padding = 12
+                outer_left = max(0, left - padding)
+                outer_top = max(0, top - padding)
+                outer_right = min(image.width, right + padding)
+                outer_bottom = min(image.height, bottom + padding)
+                outer = np.asarray(
+                    image.crop((outer_left, outer_top, outer_right, outer_bottom))).copy()
+                outer_rgb = outer[:, :, :3]
+                outer_alpha = luminance_alpha(outer_rgb)
+                outer_marker = ((outer_rgb[:, :, 0] > 220) &
+                                (outer_rgb[:, :, 1] < 80) &
+                                (outer_rgb[:, :, 2] > 220))
+                outer_ink = (outer_alpha >= round(255 * ALPHA_THRESHOLD)) & ~outer_marker
+                logical_bounds = np.zeros(outer_ink.shape, dtype=bool)
+                logical_bounds[top - outer_top:bottom - outer_top,
+                               left - outer_left:right - outer_left] = True
+                measure["browserInkOutsideLogicalBox"] = bool(
+                    np.any(outer_ink & ~logical_bounds))
+                measure["browserOverflowPixels"] = int(
+                    np.count_nonzero(outer_ink & ~logical_bounds))
+                measure["logicalOriginX"] = logical_left - left
+                measure["logicalOriginY"] = logical_top - top
+                measure["logicalWidth"] = logical_right - logical_left
+                measure["logicalHeight"] = logical_bottom - logical_top
+                pixels = outer
                 rgb = pixels[:, :, :3]
                 marker = ((rgb[:, :, 0] > 220) & (rgb[:, :, 1] < 80) &
                           (rgb[:, :, 2] > 220))
@@ -268,25 +348,62 @@ def main():
                 ink = pixels[:, :, 3] >= round(255 * ALPHA_THRESHOLD)
                 if not ink.any():
                     fail(f"{case['id']}: browser screenshot has no ink")
-                # Rebase the DOM baseline onto the unrounded KaTeX metric
-                # envelope. The screenshot crop begins at an integer pixel;
-                # that raster origin must not quantize a CSS baseline.
-                case["browserBaseline"] = (
-                    float(measure["heightEm"]) * measure["fontSize"])
-                case["browserMaskBaseline"] = (
-                    float(measure["baseline"]) - formula_top)
+                # Keep the established unrounded KaTeX metric baseline while
+                # separately recording its integer screenshot-crop row.
+                case["browserBaseline"] = baseline - logical_top
+                case["browserLogicalOriginX"] = logical_left
+                case["browserLogicalOriginY"] = logical_top
+                case["browserRasterOriginX"] = outer_left - logical_left
+                case["browserRasterOriginY"] = outer_top - logical_top
+                case["browserLogicalWidth"] = logical_right - logical_left
+                case["browserLogicalHeight"] = logical_bottom - logical_top
+                case["browserCropOrigin"] = [left, top]
+                case["overflowMeasurement"] = {
+                    "paddingPx": padding,
+                    "browserInkOutsideLogicalBox": measure["browserInkOutsideLogicalBox"],
+                    "browserOverflowPixels": measure["browserOverflowPixels"],
+                    "nativeBeyondLogicalBox": (
+                        by_id[case["id"]]["width"] >
+                        math.ceil(by_id[case["id"]]["logicalWidth"]) or
+                        by_id[case["id"]]["height"] >
+                        math.ceil(by_id[case["id"]]["logicalHeight"])),
+                    "nativeOverflowPixels": [
+                        by_id[case["id"]]["width"] -
+                        math.ceil(by_id[case["id"]]["logicalWidth"]),
+                        by_id[case["id"]]["height"] -
+                        math.ceil(by_id[case["id"]]["logicalHeight"])],
+                    "nativeRaster": [by_id[case["id"]]["width"],
+                                     by_id[case["id"]]["height"]],
+                    "nativeLogical": [by_id[case["id"]]["logicalWidth"],
+                                      by_id[case["id"]]["logicalHeight"]],
+                    "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation",
+                }
                 case["browserMetrics"] = {
-                    "cropTopPx": formula_top,
-                    "unroundedCropTopPx": (
-                        float(measure["baseline"]) -
-                        float(measure["heightEm"]) * measure["fontSize"]),
+                    "directBaseCount": measure["baseCount"],
+                    "directBaseRectsPx": measure["baseRects"],
+                    "logicalWidthSource": "union of all direct .katex-html > .base bounding rectangles; MathML/pre/post excluded",
+                    "cropTopPx": top,
+                    "cropLeftPx": left,
+                    "logicalOriginXInScreenshotPx": logical_left,
+                    "logicalOriginYInScreenshotPx": logical_top,
+                    "logicalOriginInRasterPx": [logical_left - outer_left,
+                                                 logical_top - outer_top],
+                    "rasterOriginRelativeToLogicalPx": [case["browserRasterOriginX"],
+                                                         case["browserRasterOriginY"]],
+                    "logicalDimensionsPx": [case["browserLogicalWidth"],
+                                            case["browserLogicalHeight"]],
+                    "rasterCanvasDimensionsPx": [outer.shape[1], outer.shape[0]],
+                    "rasterCanvasOriginInScreenshotPx": [outer_left, outer_top],
+                    "overflowPaddingPx": padding,
+                    "browserInkOutsideLogicalBox": measure["browserInkOutsideLogicalBox"],
+                    "browserOverflowPixels": measure["browserOverflowPixels"],
+                    "unroundedCropTopPx": logical_top,
                     "strutTopPx": measure["strutTop"],
                     "strutHeightPx": measure["strutHeight"],
                     "strutVerticalAlignPx": measure["strutVerticalAlign"],
                     "baselinePx": measure["baseline"],
                     "metricBaselineFromEnvelopePx": case["browserBaseline"],
-                    "maskBaselineFromIntegerCropPx": case["browserMaskBaseline"],
-                    "baselineSource": "DOM strut top + computed height + computed vertical-align; metric baseline is rebased to unrounded KaTeX height envelope, mask baseline retains integer screenshot crop origin",
+                    "baselineSource": "DOM strut top + computed height + computed vertical-align; baseline retained relative to logical envelope",
                     "heightEm": measure["heightEm"],
                     "depthEm": measure["depthEm"],
                 }
@@ -298,20 +415,59 @@ def main():
             finally:
                 run([args.browser_ctl, "session", "delete", sid])
 
-    # Negative control: a deliberate one-em baseline displacement must never
-    # be accepted as a positive image match.
-    control_case = dict(cases[0], browserBaseline=cases[0]["browserBaseline"] + 24.0,
-                        browserMaskBaseline=cases[0]["browserMaskBaseline"] + 24.0)
-    control = check_case(control_case, by_id[control_case["id"]],
-                         Path(rows[0]["browserPNG"]))
-    negative_control = {"id": "shifted-baseline-negative-control",
-                        "status": "pass" if control["status"] == "fail" else "fail",
-                        "expected": "reject", "actual": control["status"]}
+    # Omit the final direct base from pmb-relation width; the existing
+    # logical-dimension threshold must reject the shortened envelope.
+    pmb_relation = next((case for case in cases
+                         if case["id"] == "pmb-relation"), None)
+    if pmb_relation is None:
+        fail("pilot manifest is missing pmb-relation negative-control case")
+    pmb_bases = pmb_relation["browserMetrics"]["directBaseRectsPx"]
+    if len(pmb_bases) < 2:
+        fail("pmb-relation negative control requires multiple direct HTML bases")
+    omitted_last_width = (max(rect["right"] for rect in pmb_bases[:-1]) -
+                          min(rect["left"] for rect in pmb_bases[:-1]))
+    omitted_case = dict(pmb_relation, browserLogicalWidth=omitted_last_width)
+    omitted_control = check_case(
+        omitted_case, by_id[omitted_case["id"]],
+        Path(next(row["browserPNG"] for row in rows
+                  if row["id"] == omitted_case["id"])))
+    omitted_dimensions = omitted_control.get("checks", {}).get("dimensions", {})
+    omitted_delta = omitted_dimensions.get("absoluteLogicalDeltaPx", [0, 0])[0]
+    omitted_negative_control = {
+        "id": "pmb-relation-omitted-last-base-negative-control",
+        "status": "pass" if (omitted_delta > MAX_DIMENSION_DELTA and
+                               omitted_control["status"] == "fail") else "fail",
+        "expected": "reject omitted last direct base by logical dimension threshold",
+        "actual": omitted_control["status"],
+        "omittedLastBaseWidthPx": omitted_last_width,
+        "fullUnionWidthPx": pmb_relation["browserLogicalWidth"],
+        "dimensionDeltaPx": omitted_dimensions.get("absoluteLogicalDeltaPx"),
+        "dimensionLimitPx": MAX_DIMENSION_DELTA}
+
+    # Deliberate two-pixel logical-origin displacement must be rejected.
+    origin_case = dict(cases[0],
+                       browserRasterOriginX=cases[0]["browserRasterOriginX"] - 2.0)
+    origin_control = check_case(origin_case, by_id[origin_case["id"]],
+                                Path(rows[0]["browserPNG"]))
+    baseline_case = dict(cases[0],
+                         browserBaseline=cases[0]["browserBaseline"] + 24.0)
+    baseline_control = check_case(baseline_case, by_id[baseline_case["id"]],
+                                  Path(rows[0]["browserPNG"]))
+    negative_control = {
+        "id": "wrong-origin-and-shifted-baseline-negative-controls",
+        "status": "pass" if (omitted_negative_control["status"] == "pass" and
+                               origin_control["status"] == "fail" and
+                               baseline_control["status"] == "fail") else "fail",
+        "expected": "reject omitted base, wrong origin, and shifted baseline",
+        "omittedBase": omitted_negative_control,
+        "originActual": origin_control["status"],
+        "baselineActual": baseline_control["status"]}
     if negative_control["status"] != "pass":
-        fail("shifted-baseline negative control was not rejected")
+        fail("omitted-base, wrong-origin, or shifted-baseline negative control was not rejected")
     summary = {name: sum(r["status"] == name for r in rows)
                for name in ("pass", "fail", "blocked")}
     report = {"schema": "coyote.math-image-report.v1",
+              "manifest": str(args.manifest.resolve()),
               "scope": "pinned KaTeX 0.16.22 Chromium PNG versus native Math_Raster; pilot only",
               "thresholds": {"dimensionDeltaPx": MAX_DIMENSION_DELTA,
                              "baselineDeltaEm": MAX_BASELINE_DELTA,

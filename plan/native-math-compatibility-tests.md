@@ -13,10 +13,10 @@
 6. Requirements traceability
 7. Risks, blockers, and review actions
 
-**Version:** 0.6
+**Version:** 0.7
 **Date:** 2026-10-27
 **Status:** In-progress draft; evidence and procedures are refreshed from the approved execution baseline. This status revision remains open for readiness review and approval.
-**Authority:** `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24; D01–D15 are approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.6 records phased status. This plan does not supersede requirements.
+**Authority:** `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24; D01–D15 are approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.7 records phased status. This plan does not supersede requirements.
 ## 1. Scope and status
 
 This document specifies planned cases, preconditions, expected results, procedures
@@ -38,7 +38,7 @@ Levels: P1 exploratory baseline/harness readiness; increment-focused verificatio
 ### 2.1 Governing and supporting references
 
 - `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24, especially §§3–6 and approved D01–D15 profile deviations.
-- `plan/native-math-parity-plan.md` v0.6, increments P0–P6 and gates.
+- `plan/native-math-parity-plan.md` v0.7, increments P0–P6 and gates.
 - `requirements/coyote-requirements.md` §3.1.4a, REQ-CORE-111/124; authoritative until approved change.
 - `plan/native-math-test-report.md`, historical PCR-123 evidence and limitations.
 - `plan/native-math-katex-0.16.22-inventory.md` and `.json`; registration census, not native coverage.
@@ -52,16 +52,16 @@ Reference is KaTeX **0.16.22**, npm archive `https://registry.npmjs.org/katex/-/
 
 Each qualification snapshot must record archive, bundle/config and corpus hashes; native revision; font hashes; OS/distribution; GNAT/Alire, Node, browser and Cairo/FreeType versions; browser engine/build, viewport/device scale, locale, color profile, display scale; seeds; commands; environment; output hashes. The final3 pilot has a verified 63-member browser asset manifest and identified Chromium version, but the report does not provide a complete frozen workstation/platform/toolchain manifest or broad qualification snapshot corpus. Freeze complete corpus and expected outputs before acceptance.
 
-Current verified commands and report-backed evidence (full qualification outcomes belong to coordinator-owned §9 of `plan/native-math-parity-test-report.md`; §8 is a dated prior snapshot):
-
-- The frozen root/test development builds passed; the full suite passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s (`/tmp/coyote-next-frozen-full.log`). This is regression evidence only, not parity or acceptance.
-- Scoped results: engine 57 pass; macro assertion count is maintained in coordinator-owned report §9; jobs 133 pass, including 2,000 valid warm requests (p95 1 ms, maximum 2 ms); geometry 145/145; structured/image pilots 16/16 and 3/3; and 156 native assertions in aggregate, including one case with 100 nested groups and one with 17,000 glyphs. One added fleqn GUI test brings `Conversation_Stack` to 48 total registrations. Fleqn affects display math only: it adds a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); the default remains centered with no indent, and inline math is unaffected. These scoped results do not establish complete option equivalence.
-- Geometry and structured evidence are different measures: structured paths use normalized units, whereas the focused geometry corpus checks its own fields. Full reference origins, widths and option effects remain unmeasured. The image pilot is not calibrated visual acceptance.
-- Whole-job memory ≤256 MiB, hard 250 ms job completion, GTK/cache guarantees, full corpus mapping, readiness, final qualification and human acceptance remain open. Approved SRS thresholds remain unchanged. See §9 for exact artifacts/snapshot details when recorded by the coordinator.
-- The deterministic 10,000-case fuzz run reported 4,184 parse successes, 5,221 parse errors, 595 policy errors, zero layout failures and no nondeterminism (`/tmp/coyote-completion-final-fuzz.json`); memory was not measured.
+Current implementation and results are frozen in coordinator-owned
+`plan/native-math-parity-test-report.md` §10; §9 and earlier sections are
+historical. The current full-suite regression passed 1063/1063 in 82.418882 s
+(`/tmp/coyote-core-frozen-full.log`), not parity or acceptance. The incremental
+features and scoped probe results—including two raster discrepancies—are
+summarized in §10. Whole-job memory, hard deadline, GTK/cache guarantees,
+complete corpus/readiness, final qualification and human acceptance remain
+open. Approved SRS targets and D01–D15 are unchanged.
 - `test/tools/check-math-resources.cjs` via the recorded resource harness (10 isolated cases; not whole-GUI memory qualification).
 - Browser/reference export: `test/tools/export-math-browser.cjs`, `test/tools/export-math-reference.cjs`; comparison: `test/tools/compare-math-layout.cjs`, `test/tools/check-math-differential.sh`; image checks: `test/tools/check-math-images.sh`; inventory/accessibility: `test/tools/check-math-inventory.cjs`, `test/tools/check-math-accessibility.sh`.
-
 The report records actual invocations/artifact paths. Existing tooling supports a P1 pilot, not complete matching/readiness or acceptance. These results are evidence, not a substitute for complete corpus and qualification.
 
 Existing asset regeneration (repo root, pinned extracted archive):
@@ -95,7 +95,7 @@ Development tools and exporters exist for reference/browser output, structured
 geometry comparison, image comparison, fuzzing, resource/performance probes,
 inventory and accessibility. The final3 findings in the preceding paragraph
 are historical. Current scoped evidence and limitations are summarized in §2.2
-and coordinator-owned report §9; §8 remains the dated prior checkpoint. The current source crosswalk has been regenerated.
+and coordinator-owned report §10; §9 and earlier sections are historical. The current source crosswalk has been regenerated.
 These snapshots do not establish full P1 readiness or parity.
 
 ## 3. Test plan and gates
@@ -108,20 +108,11 @@ Progression: approved requirements, design and execution baseline are establishe
 
 ### 3.2 Minimal P1 harness readiness gate (not final acceptance)
 
-P1 readiness remains open. Browser/reference exporters, structured geometry
-comparison, pilot fixtures and browser manifest exist. Current frozen results
-are summarized in §2.2 and coordinator-owned report §9; §8 is a dated previous
-snapshot. Geometry passed 145/145; frozen structured and image pilots passed
-16/16 and 3/3 with negative controls. The structured path comparison uses
-normalized units, not image geometry; full origins, widths and option effects
-remain unmeasured. Fleqn now has focused GUI-option coverage; one added test brings
-`Conversation_Stack` to 48 total registrations. Fleqn affects display math only,
-adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); default
-display remains centered with no indent, and inline math is unaffected.
-trust=false remains the enforced default and trust=true unsupported. Whole-job memory, hard deadline,
-GTK/cache qualification, matching, complete corpus and readiness remain open.
-Partial checks and tool presence do not qualify missing inventory entries.
-
+P1 readiness remains open. Current scoped results and discrepancies are
+recorded in coordinator-owned report §10; §9 is historical. Tool availability
+and partial probes do not qualify complete matching, the corpus, budgets,
+readiness or any missing inventory entry. Whole-job memory, hard deadline,
+GTK/cache qualification, and final qualification remain open.
 P1 does not require full feature parity, calibrated final visual tolerances,
 performance compliance, 10,000-case robustness, human accessibility acceptance,
 or a passing full inventory. The recorded 10,000-case fuzz run is evidence for
@@ -288,18 +279,15 @@ complete reference mapping and qualification coverage remain open.
 
 ### 5.5 Differential, GUI, semantics, regression
 
-**MATH-DIFF-001 — structural/geometry and controls** (T/I; REQ-MATH-005/013). Geometry later passed 145/145 (`/tmp/coyote-fraction-final145-r8.log`), resolving the seven prior failures. The frozen structured pilot passed 16/16 with negative controls. Its path comparison uses 0.01 normalized units, not em-unit origins. Geometry ascent/depth are measured separately; full origins, widths and option effects remain unqualified/unmeasured. Complete mapping/accounting and frozen corpus remain required. Compare reference/native boxes, glyph positions and paths at the approved ≤0.01 em; missing records/components and real mismatches must remain visible, never omitted. See coordinator-owned report §9; §8 is the dated prior checkpoint.
-
-**MATH-DIFF-002 — raster differential/calibration** (T/D; REQ-MATH-005/012/013). Pinned browser/native fixtures at 24 px/em, matched fonts/colors/transparent background. The three-case PNG pilot passed its scoped raster checks and shifted-baseline negative control, separately from normalized path comparison. This is not calibrated visual acceptance: full component mapping/calibration and option-effect qualification remain open. Retain approved SRS criteria and controls unchanged; no full image or parity qualification is claimed. See coordinator-owned report §9.
-
+**MATH-DIFF-001 — structural/geometry and controls** (T/I; REQ-MATH-005/013). Current geometry and structured results are recorded in coordinator-owned report §10; §9 is historical. Structured path tolerance is not image geometry. Full reference origins, widths, option effects and complete corpus mapping remain open. Preserve approved thresholds and negative controls; do not omit mismatches.
+**MATH-DIFF-002 — raster differential/calibration** (T/D; REQ-MATH-005/012/013). Pinned browser/native fixtures at 24 px/em, matched fonts/colors/transparent background. The current nine-case pilot is 7/9; the original three cases remain unchanged and six were added. Two cases fail the unchanged thresholds (verbatim punctuation width/mask and starred verbatim spacing). Scoped Gaussian-shadow images pass but do not constitute independent human acceptance. See coordinator-owned report §10. Calibration, full component mapping and human acceptance remain open; preserve approved criteria and controls.
 **MATH-GUI-001 — Markdown/GTK integration** (T/D; REQ-MATH-003/011). Inline `$...$`, `\(...\)`, display `$$...$$`, `\[...\]`, multiline, prose, code spans/fences/indented code, link destinations, ordinary dollars, malformed math, many formulas. Check baseline/display, protected code, exact source copy, selection, zoom/reflow, theme, session replay, resize/repeated render, error/limit fallback. GTK operations on main task; Plain/session compatibility. Automated AUnit/Xvfb and manual desktop where needed.
 
 **MATH-A11Y-001 — semantics and human acceptance** (T/D/I; REQ-MATH-012). Fractions, scripts, operators, arrays, annotations and approved links; exact source. Record named desktop, screen reader/accessibility tool versions, bridge, locale, user role. Inspect discoverability, name/navigation, numerator/denominator, scripts, rows/cells, reading order, links, source copy/delimiters, display/inline and fallback. Bitmap cannot pass. Automated accessibility tooling and focused checks exist;
 human assistive-technology/desktop assessment and independent acceptance remain
 pending. The report records no such acceptance.
 
-**MATH-REGRESS-001 — build and suite** (T; REQ-MATH-014). Root/test development builds, focused `Coyote.Math`, full `cd test && alr run coyote_test` under Xvfb when needed, existing probe/inventory check. Save commands/logs/status. The latest frozen suite passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s (`/tmp/coyote-next-frozen-full.log`); treat it as regression evidence only. This plan update does not independently execute or qualify that result. See coordinator-owned report §9 for snapshot provenance; §8 is the dated prior checkpoint. Do not infer parity or acceptance from the full-suite result.
-
+**MATH-REGRESS-001 — build and suite** (T; REQ-MATH-014). Root/test development builds, focused `Coyote.Math`, full `cd test && alr run coyote_test` under Xvfb when needed, existing probe/inventory check. Save commands/logs/status. The frozen suite passed 1063/1063 in 82.418882 s (`/tmp/coyote-core-frozen-full.log`), regression evidence only. This documentation update does not independently execute or qualify that result. Current snapshot details are in report §10; §9 and earlier sections are historical. Do not infer parity or acceptance from the full-suite result.
 **MATH-REGRESS-002 — seeded fuzz and failure paths** (T/A; REQ-MATH-010/014). ≥10,000 fixed-seed generated/adversarial cases per final run: malformed syntax, nesting, macro cycles, dimensions, arrays, Unicode, cancellation/failure injection. Bounded isolated runner. Record seeds, failures, crashes, hangs, leaks. Pass: no unbounded work/resource breach, crash, state leak or unexplained nondeterminism; triage all failures. Existing 40 malformed AUnit samples are insufficient.
 
 **MATH-PROVENANCE-001 — repeatability and maintenance** (I/T; REQ-MATH-001/015). Rerun approved offline generation/export/comparison; hashes; altered-input rejection; notices/provenance/change records. Pass: deterministic output, identified inputs, no npm/runtime dependency; upstream change separately reviewed. The browser asset manifest and pilot output artifacts exist. Broad frozen qualification
@@ -338,4 +326,4 @@ Trace source: approved REQ-MATH-001–015 and U1/U2/B1 sources in SRS §6. D01�
 6. **State/cancellation:** KaTeX parse-error mutation behavior is an explicit differential; the approved design specifies publication/ownership rules, but their full implementation and qualification remain open. Do not assume all-error rollback or claim those rules proven by component tests.
 7. **Accessibility/independence:** named tools and human reviewer pending. Developer self-evaluation/read-only review is not independent acceptance; user review of readiness/results remains separate.
 
-**Plan status:** This approved execution baseline retains cases where implementation, matching or evidence is incomplete. The latest frozen suite passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s (`/tmp/coyote-next-frozen-full.log`); focused engine, jobs, macro, geometry, structured/image, and native checks passed only within their stated scopes. One added fleqn GUI test brings `Conversation_Stack` to 48 total registrations. Fleqn affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); default display remains centered with no indent, and inline math is unaffected. Macro assertion count is maintained in coordinator-owned report §9. Native validation totals 156 assertions, including one case with 100 nested groups and one with 17,000 glyphs. These results are regression/focused evidence, not qualification. See coordinator-owned report §9 for current details; §8 is the dated prior snapshot. Normalized-unit structured paths are not image geometry; full origins, widths and option effects remain unmeasured. Whole-job memory, hard deadline, GTK/cache guarantees, P1 readiness, complete qualification, visual calibration and independent human/user acceptance remain open. Coverage is a generated source crosswalk, not completion evidence. Approved targets remain normative; no parity or acceptance claim is made.
+**Plan status:** This approved execution baseline retains open implementation, matching, readiness and qualification cases. Current checkpoint results and limitations are maintained in coordinator-owned report §10; §9 and earlier sections are historical. The frozen suite passed 1063/1063 as regression evidence only. Raster pilot is 7/9 with two known discrepancies; this is not calibrated visual acceptance. Whole-job memory, hard deadline, GTK/cache guarantees, full corpus/readiness, final qualification and independent human acceptance remain open. Coverage is a source crosswalk, not completion evidence. Approved targets remain normative; no parity or acceptance claim is made.

@@ -20,6 +20,7 @@ procedure Math_Export is
    use type Math_Layout.Command_Kind;
    use type Math_Engine.Status_Kind;
    use type Math_Model.Node_Id;
+   use type Math_Model.Node_Kind;
    use type Math_Paths.Command_Kind;
 
    Schema_Name : constant String := "coyote.math-export.v1";
@@ -203,7 +204,11 @@ procedure Math_Export is
                if not Finite (Command.X) or else not Finite (Command.Y) or else
                  not Finite (Command.Scale) or else
                  not Finite (Command.Width) or else
-                 not Finite (Command.Height)
+                 not Finite (Command.Height) or else
+                 (Command.Has_Shadow and then
+                  (not Finite (Command.Shadow_X) or else
+                   not Finite (Command.Shadow_Y) or else
+                   not Finite (Command.Shadow_Blur_Px)))
                then
                   return False;
                end if;
@@ -286,6 +291,14 @@ procedure Math_Export is
       Set_Field (Capabilities, "syntax", True);
       Set_Field (Capabilities, "commands", True);
       Set_Field (Capabilities, "semantic", Semantic.Kind = JSON_Object_Type);
+      declare
+         Feature_Support : constant JSON_Value := Create_Object;
+      begin
+         Set_Field (Feature_Support, "verbatim", "partial");
+         Set_Field (Feature_Support, "vcenter", "partial");
+         Set_Field (Feature_Support, "poorManBold", "partial");
+         Set_Field (Capabilities, "featureSupport", Feature_Support);
+      end;
       Set_Field (Capabilities, "paths", True);
       Set_Field (Capabilities, "colors", True);
       Set_Field (Capabilities, "sharedMacros", True);
@@ -328,6 +341,13 @@ procedure Math_Export is
                Set_Field_Long_Float (Value, "height", Command.Height);
                Set_Field (Value, "hasClip", Command.Has_Clip);
                Set_Field_Long_Float (Value, "clipX", Command.Clip_X);
+               Set_Field (Value, "hasShadow", Command.Has_Shadow);
+               if Command.Has_Shadow then
+                  Set_Field_Long_Float (Value, "shadowX", Command.Shadow_X);
+                  Set_Field_Long_Float (Value, "shadowY", Command.Shadow_Y);
+                  Set_Field_Long_Float
+                    (Value, "shadowBlurPx", Command.Shadow_Blur_Px);
+               end if;
                Set_Field_Long_Float (Value, "clipY", Command.Clip_Y);
                Set_Field_Long_Float (Value, "clipW", Command.Clip_W);
                Set_Field_Long_Float (Value, "clipH", Command.Clip_H);
@@ -420,6 +440,20 @@ procedure Math_Export is
             Set_Field (Value, "font", Lower (Math_Model.Font_Kind'Image
               (Node.Font)));
             Set_Field (Value, "codePoint", Integer (Node.Code_Point));
+            if Node.Kind = Math_Model.Verbatim_Node then
+               Set_Field (Value, "rawVerbatim",
+                 Ada.Strings.Unbounded.To_String (Node.Verbatim_Text));
+               Set_Field (Value, "verbatimStarred", Node.Verbatim_Starred);
+            elsif Node.Kind = Math_Model.Poor_Bold_Node then
+               Set_Field (Value, "pmbClass", Lower
+                 (Math_Model.Atom_Class'Image (Node.Poor_Bold_Class)));
+               Set_Field_Long_Float (Value, "pmbShadowX",
+                 Node.Poor_Bold_Shadow_X);
+               Set_Field_Long_Float (Value, "pmbShadowY",
+                 Node.Poor_Bold_Shadow_Y);
+               Set_Field_Long_Float (Value, "pmbShadowBlurPx",
+                 Node.Poor_Bold_Blur_Px);
+            end if;
             Set_Field (Value, "stretchyName",
               Ada.Strings.Unbounded.To_String (Node.Stretchy_Name));
             Set_Field (Value, "stretchyMode",
@@ -476,6 +510,20 @@ procedure Math_Export is
             Set_Field (Value, "first", Integer (Node.First));
             Set_Field (Value, "second", Integer (Node.Second));
             Set_Field (Value, "third", Integer (Node.Third));
+            if Node.Kind = Math_Model.Verbatim_Node then
+               Set_Field (Value, "rawVerbatim",
+                 Ada.Strings.Unbounded.To_String (Node.Verbatim_Text));
+               Set_Field (Value, "verbatimStarred", Node.Verbatim_Starred);
+            elsif Node.Kind = Math_Model.Poor_Bold_Node then
+               Set_Field (Value, "pmbClass", Lower
+                 (Math_Model.Atom_Class'Image (Node.Poor_Bold_Class)));
+               Set_Field_Long_Float (Value, "pmbShadowX",
+                 Node.Poor_Bold_Shadow_X);
+               Set_Field_Long_Float (Value, "pmbShadowY",
+                 Node.Poor_Bold_Shadow_Y);
+               Set_Field_Long_Float (Value, "pmbShadowBlurPx",
+                 Node.Poor_Bold_Blur_Px);
+            end if;
             Set_Field (Value, "next", Integer (Node.Next));
             Set_Field (Value, "position", Integer (Node.Position));
             Set_Field_Long_Float (Value, "amount", Node.Amount);

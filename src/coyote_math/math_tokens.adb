@@ -17,7 +17,8 @@ package body Math_Tokens is
       procedure Add
         (Kind : Token_Kind; Start_B : Natural; Start_S : Natural;
          Start_U : Natural; End_B : Natural; End_S : Natural;
-         End_U : Natural; Point : Natural := 0) is
+         End_U : Natural; Point : Natural := 0;
+         Starred : Boolean := False; Raw_Lexeme : String := "") is
          Lexeme : Ada.Strings.Unbounded.Unbounded_String :=
            Ada.Strings.Unbounded.Null_Unbounded_String;
       begin
@@ -25,7 +26,10 @@ package body Math_Tokens is
             Diagnostic := Token_Limit;
             Error_Byte := Start_B;
          else
-            if End_B > Start_B then
+            if Kind = Verbatim_Token then
+               Lexeme := Ada.Strings.Unbounded.To_Unbounded_String
+                 (Raw_Lexeme);
+            elsif End_B > Start_B then
                declare
                   Lexeme_End : Natural := End_B;
                begin
@@ -46,7 +50,7 @@ package body Math_Tokens is
             Result.Items.Append
               (New_Item => Token'(Kind, Start_B, End_B, Start_S, End_S,
                 Start_U, End_U, Point, Start_B + 1, End_B - Start_B,
-                Lexeme, others => <>));
+                Lexeme, Verbatim_Starred => Starred, others => <>));
          end if;
       end Add;
       function Byte_Value (Offset : Natural) return Natural is
@@ -80,6 +84,47 @@ package body Math_Tokens is
         (Point in Character'Pos ('A') .. Character'Pos ('Z') or else
          Point in Character'Pos ('a') .. Character'Pos ('z') or else
          Point = Character'Pos ('@'));
+      function ASCII_Letter (Point : Natural) return Boolean is
+        (Point in Character'Pos ('A') .. Character'Pos ('Z') or else
+         Point in Character'Pos ('a') .. Character'Pos ('z'));
+      function Verb_Matches (Offset : Natural) return Boolean is
+         Name_End : Natural := Offset + 5;
+         Starred : Boolean;
+         Delimiter : Natural;
+         Scan : Natural;
+      begin
+         if Name_End >= Text'Length then
+            return True;
+         end if;
+         Starred := Text (Text'First + Name_End) = '*';
+         if Starred then
+            Name_End := Name_End + 1;
+         elsif ASCII_Letter (Byte_Value (Name_End)) or else
+           Byte_Value (Name_End) = Character'Pos ('*')
+         then
+            return False;
+         end if;
+         if Name_End >= Text'Length then
+            return True;
+         end if;
+         Delimiter := Byte_Value (Name_End);
+         if Delimiter in 10 | 13 | 16#2028# | 16#2029# then
+            return True;
+         end if;
+         if not Starred and then Delimiter = Character'Pos ('*') then
+            return False;
+         end if;
+         Scan := Name_End + Width (Name_End);
+         while Scan < Text'Length loop
+            if Byte_Value (Scan) = Delimiter then
+               return True;
+            elsif Byte_Value (Scan) in 10 | 13 | 16#2028# | 16#2029# then
+               return True;
+            end if;
+            Scan := Scan + Width (Scan);
+         end loop;
+         return not (Starred and then Delimiter = Character'Pos ('*'));
+      end Verb_Matches;
    begin
       Result := (Original => Input, Items => Token_Vectors.Empty_Vector);
       Diagnostic := No_Error;
@@ -118,6 +163,72 @@ package body Math_Tokens is
                   UTF16 := UTF16 + 1;
                end loop;
                Add (Kind, Start_B, Start_S, Start_U, Pos, Scalar, UTF16);
+            --  KaTeX captures the complete verb command before normal
+            --  tokenization; payload delimiters have no escape semantics.
+            elsif Point = 92 and then
+              Text'Length - Pos >= 5 and then
+              Text (Text'First + Pos .. Text'First + Pos + 4) = "\verb" and then
+              Verb_Matches (Pos)
+            then
+               declare
+                  Name_End : Natural := Pos + 5;
+                  Starred : Boolean := False;
+                  Delimiter : Natural;
+                  Delimiter_Width : Natural;
+                  Closed : Boolean := False;
+               begin
+                  if Name_End < Text'Length and then
+                    Text (Text'First + Name_End) = '*'
+                  then
+                     Starred := True;
+                     Name_End := Name_End + 1;
+                  end if;
+                  if Name_End = Text'Length then
+                     Diagnostic := Verbatim_Error;
+                     Error_Byte := Start_B;
+                  else
+                     Delimiter := Byte_Value (Name_End);
+                     Delimiter_Width := Width (Name_End);
+                     if Delimiter in 10 | 13 | 16#2028# | 16#2029# then
+                        Diagnostic := Verbatim_Error;
+                        Error_Byte := Start_B;
+                     else
+                        Pos := Name_End + Delimiter_Width;
+                        Scalar := Start_S + (Name_End - Start_B) + 1;
+                        UTF16 := Start_U + (Name_End - Start_B) +
+                          (if Delimiter > 16#FFFF# then 2 else 1);
+                        while Pos < Text'Length loop
+                           Point := Byte_Value (Pos);
+                           Step := Width (Pos);
+                           if Point = Delimiter then
+                              Pos := Pos + Step;
+                              Scalar := Scalar + 1;
+                              UTF16 := UTF16 +
+                                (if Point > 16#FFFF# then 2 else 1);
+                              Closed := True;
+                              exit;
+                           elsif Point in 10 | 13 | 16#2028# | 16#2029# then
+                              exit;
+                           else
+                              Pos := Pos + Step;
+                              Scalar := Scalar + 1;
+                              UTF16 := UTF16 +
+                                (if Point > 16#FFFF# then 2 else 1);
+                           end if;
+                        end loop;
+                        if not Closed then
+                           Diagnostic := Verbatim_Error;
+                           Error_Byte := Start_B;
+                        else
+                           Add (Verbatim_Token, Start_B, Start_S, Start_U,
+                             Pos, Scalar, UTF16, 0, Starred,
+                             Text (Text'First + Name_End +
+                               Delimiter_Width ..
+                               Text'First + Pos - Step - 1));
+                        end if;
+                     end if;
+                  end if;
+               end;
             elsif Point = 92 then
                Pos := Pos + 1;
                Scalar := Scalar + 1;
@@ -336,7 +447,9 @@ package body Math_Tokens is
                   Script : constant String :=
                     Math_Unicode.Lookup_Script (Item.Code_Point);
                begin
-                  if Consumed (I) then
+                  if Item.Kind = Verbatim_Token then
+                     Append (Item);
+                  elsif Consumed (I) then
                      null;
                   elsif Item.Kind = Character_Token and then
                     Item.Code_Point in 16#300# .. 16#36F#

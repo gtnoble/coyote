@@ -73,9 +73,15 @@ package Math_Syntax is
       --  Code_Point is 0 for accent content and 1 for labelled arrows.
       --  Stretchy_Name is an allowlisted Math_Stretchy table key.
       Stretchy_Name   : Ada.Strings.Unbounded.Unbounded_String;
+      Verbatim_Text   : Ada.Strings.Unbounded.Unbounded_String;
+      Verbatim_Starred : Boolean := False;
       Tag_Is_Left     : Boolean := False;
       Left_Delimiter  : Delimiter_Kind := No_Delimiter;
       Right_Delimiter : Delimiter_Kind := No_Delimiter;
+      Poor_Bold_Class : Atom_Class := Ordinary;
+      Poor_Bold_Shadow_X : Long_Float := 0.02;
+      Poor_Bold_Shadow_Y : Long_Float := 0.01;
+      Poor_Bold_Blur_Px : Long_Float := 0.04;
       Position        : Positive      := 1;
    end record;
    --  Row.First starts a Next-linked sequence. Array.First links rows;
@@ -83,6 +89,10 @@ package Math_Syntax is
    --  their fraction/radical/script meanings. Dual nodes keep both branches.
    --  MathChoice nodes use First, Second, Third, Fourth for display, text,
    --  script, and scriptscript branches, respectively.
+   --  VCenter_Node.First is boxed content. Poor_Bold_Node.First is its
+   --  expression and Poor_Bold_Class stores its bin/rel/ord atom class.
+   --  Verbatim_Node stores raw text without token decomposition; star
+   --  selects the visible-space glyph when layout builds the node.
    --  A Delimited_Node with First = No_Node and Amount > 0 represents one
    --  explicitly sized delimiter. Amount is the target height in em;
    --  Left_Delimiter stores its shape. Code_Point is the sizing-command role:

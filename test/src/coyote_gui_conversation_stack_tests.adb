@@ -58,6 +58,7 @@ with Gtk.Separator;
 with Gtk.Expander;
 with Gtk.Bin;
 with Gtk.Tree_Model;
+with Gtk.Tree_Store;
 with Gtk.Tree_View;
 with Glib.Values;
 with Gtk.Text_Buffer;
@@ -2813,6 +2814,146 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Pango.Font.Free (Large_Font);
    end Test_Native_Display_Math_Zooms;
 
+   procedure Test_Native_Display_Math_Core_Primitives
+     (T : in out Test)
+   is
+      Formula : constant String :=
+        "\verb@a%{b}#^_@ + \verb*|a b| + " &
+        "\vcenter{\frac{a}{b}}+\pmb{g}";
+      Source : constant String := "$$" & Formula & "$$";
+      Element : Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element
+          (Formula, Source, Fleqn => True);
+      Root : Gtk.Box.Gtk_Box;
+      Parent_Window : Gtk.Window.Gtk_Window;
+      Children : Gtk.Widget.Widget_List.Glist;
+      Node : Gtk.Widget.Widget_List.Glist;
+      Area : Gtk.Widget.Gtk_Widget;
+      Expander : Gtk.Expander.Gtk_Expander;
+      Scroll : Gtk.Widget.Gtk_Widget;
+      Tree : Gtk.Widget.Gtk_Widget;
+      Store : Gtk.Tree_Store.Gtk_Tree_Store;
+      Value : Glib.Values.GValue;
+      Label : Unbounded_String;
+      Deadline : Ada.Real_Time.Time;
+      Quit : Boolean;
+      Requested_Width : Glib.Gint;
+      Requested_Height : Glib.Gint;
+      pragma Unreferenced (Quit);
+
+      procedure Append_Tree
+        (Model : Gtk.Tree_Store.Gtk_Tree_Store;
+         Parent : Gtk.Tree_Model.Gtk_Tree_Iter)
+      is
+      begin
+         for Row in 0 .. Gtk.Tree_Store.N_Children (Model, Parent) - 1 loop
+            declare
+               Current : Gtk.Tree_Model.Gtk_Tree_Iter :=
+                 Gtk.Tree_Store.Nth_Child (Model, Parent, Row);
+            begin
+               Gtk.Tree_Store.Get_Value (Model, Current, 0, Value);
+               Append (Label, Glib.Values.Get_String (Value));
+               Glib.Values.Unset (Value);
+               Append_Tree (Model, Current);
+            end;
+         end loop;
+      end Append_Tree;
+   begin
+      if not T.Display_Available then
+         Coyote_GUI.Math_Element.Free (Element);
+         return;
+      end if;
+      Root := Coyote_GUI.Math_Element.Widget (Element.all);
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Root));
+      Node := Gtk.Widget.Widget_List.First (Children);
+      Area := Gtk.Widget.Widget_List.Get_Data (Node);
+      Node := Gtk.Widget.Widget_List.Next (Node);
+      Node := Gtk.Widget.Widget_List.Next (Node);
+      Expander := Gtk.Expander.Gtk_Expander
+        (Gtk.Widget.Widget_List.Get_Data (Node));
+      Gtk.Widget.Widget_List.Free (Children);
+      Children := Gtk.Widget.Widget_List.Null_List;
+      Gtk.Window.Gtk_New (Parent_Window, Gtk.Enums.Window_Toplevel);
+      Parent_Window.Add (Root);
+      Parent_Window.Show_All;
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+      while Ada.Real_Time.Clock < Deadline
+        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Element.all)
+         and then Coyote_GUI.Math_Element.Is_Valid (Element.all),
+         "core primitive display raster is adopted and valid");
+      Assert
+        (Coyote_GUI.Math_Element.Source (Element.all) = Source,
+         "display source round-trips byte-for-byte unchanged");
+      Assert
+        (Coyote_GUI.Math_Element.Width (Element.all) > 0
+         and then Coyote_GUI.Math_Element.Height (Element.all) > 0,
+         "display dimensions remain non-empty after raster adoption");
+      Area.Get_Size_Request (Requested_Width, Requested_Height);
+      Assert
+        (Requested_Width > 0 and then Requested_Height > 0
+         and then Area.Get_Allocated_Width > 0
+         and then Area.Get_Allocated_Height > 0,
+         "display area allocation and request are non-empty");
+      Assert
+        (Requested_Width =
+           Glib.Gint (Coyote_GUI.Math_Element.Width (Element.all))
+         and then Requested_Height =
+           Glib.Gint (Coyote_GUI.Math_Element.Height (Element.all)),
+         "display area adopts measured raster bounds with padding");
+      Expander.Set_Expanded (True);
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
+      while Ada.Real_Time.Clock < Deadline
+        and then Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+      Assert (Scroll /= null, "valid display creates its semantic tree");
+      Tree := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll));
+      Assert
+        (Tree /= null and then Gtk.Widget.Get_Name (Tree) =
+           "coyote-math-semantics",
+         "display semantics use the native math accessibility tree");
+      Store := Gtk.Tree_Store."-"
+        (Gtk.Tree_View.Get_Model (Gtk.Tree_View.Gtk_Tree_View (Tree)));
+      Append_Tree (Store, Gtk.Tree_Model.Null_Iter);
+      Assert
+        (Index (To_String (Label), "VERBATIM_NODE") > 0
+         and then Index (To_String (Label), "raw verbatim: a%{b}#^_") > 0
+         and then Index (To_String (Label), "a b - starred") > 0
+         and then Index (To_String (Label), "VCENTER_NODE") > 0
+         and then Index (To_String (Label), "POOR_BOLD_NODE") > 0
+         and then Index (To_String (Label), "VCENTER_CONTENT") > 0
+         and then Index (To_String (Label), "POOR_BOLD_CONTENT") > 0,
+         "semantic tree preserves core roles: " & To_String (Label));
+      Coyote_GUI.Math_Element.Free (Element);
+      Parent_Window.Destroy;
+   exception
+      when others =>
+         if Children /= Gtk.Widget.Widget_List.Null_List then
+            Gtk.Widget.Widget_List.Free (Children);
+         end if;
+         Coyote_GUI.Math_Element.Free (Element);
+         if Parent_Window /= null then
+            Parent_Window.Destroy;
+         end if;
+         raise;
+   end Test_Native_Display_Math_Core_Primitives;
+
    procedure Test_Native_Display_Math_Fleqn_Alignment
      (T : in out Test)
    is
@@ -3331,6 +3472,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("Coyote.GUI.Conversation_Stack aligns fleqn display LaTeX",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Display_Math_Fleqn_Alignment'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack renders display core primitives",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Native_Display_Math_Core_Primitives'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack uses visible step frames",

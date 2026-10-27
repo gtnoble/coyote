@@ -34,6 +34,9 @@ procedure Math_Accessibility_Probe is
    end Cell;
    Item : constant Math_Semantics.Document := Math_Semantics.Project
      ("\frac{x^i}{\sqrt[3]{y}}+\begin{matrix}a&b\\c&d\end{matrix}");
+   Verbatim_Payload : constant String := "<&😀";
+   Special : constant Math_Semantics.Document := Math_Semantics.Project
+     ("\vcenter{x}+\pmb{a}+\verb*|" & Verbatim_Payload & "|");
    function Large_Source return String is
       use Ada.Strings.Unbounded;
       Result : Unbounded_String;
@@ -73,6 +76,37 @@ procedure Math_Accessibility_Probe is
      (Count_Subtree (Tree, Children (Tree, Null_Iter)));
    View : Gtk.Tree_View.Gtk_Tree_View;
    Model : Gtk_Tree_Model;
+   Special_View : Gtk.Tree_View.Gtk_Tree_View;
+   Special_Model : Gtk_Tree_Model;
+   Saw_VCenter_Role, Saw_Poor_Bold_Role : Boolean := False;
+   Saw_Raw_Verbatim, Saw_Starred_Verbatim : Boolean := False;
+   procedure Visit_Special (Iter : Gtk_Tree_Iter) is
+      Current : Gtk_Tree_Iter := Iter;
+      Child : Gtk_Tree_Iter;
+   begin
+      while Current /= Null_Iter loop
+         declare
+            Text : constant String := Cell (Special_Model, Current, 0);
+         begin
+            Saw_VCenter_Role := Saw_VCenter_Role or else
+              Ada.Strings.Fixed.Index (Text, "ROW_NODE - VCENTER_CONTENT") > 0;
+            Saw_Poor_Bold_Role := Saw_Poor_Bold_Role or else
+              Ada.Strings.Fixed.Index
+                (Text, "ROW_NODE - POOR_BOLD_CONTENT") > 0;
+            Saw_Raw_Verbatim := Saw_Raw_Verbatim or else
+              Ada.Strings.Fixed.Index
+                (Text, "raw verbatim: " & Verbatim_Payload) > 0;
+            Saw_Starred_Verbatim := Saw_Starred_Verbatim or else
+              (Ada.Strings.Fixed.Index (Text, "VERBATIM_NODE") > 0 and then
+               Ada.Strings.Fixed.Index (Text, " - starred") > 0);
+         end;
+         Child := Children (Special_Model, Current);
+         if Child /= Null_Iter then
+            Visit_Special (Child);
+         end if;
+         Next (Special_Model, Current);
+      end loop;
+   end Visit_Special;
    Root_Iter : Gtk_Tree_Iter;
    Seen_Fraction, Seen_Numerator, Seen_Denominator : Boolean := False;
    Seen_Script, Seen_Radical, Seen_Index : Boolean := False;
@@ -139,6 +173,17 @@ begin
       return;
    end if;
    Check (Math_Semantics.Is_Valid (Item), "semantic document valid");
+   Check (Math_Semantics.Is_Valid (Special),
+     "vcenter, poor-bold, and verbatim semantic fixture valid");
+   Special_View := Coyote_GUI.Math_Accessibility.Create (Special);
+   Special_Model := Gtk.Tree_View.Get_Model (Special_View);
+   Visit_Special (Children (Special_Model, Null_Iter));
+   Check (Saw_VCenter_Role, "vcenter child role is exposed");
+   Check (Saw_Poor_Bold_Role, "poor-bold child role is exposed");
+   Check (Saw_Raw_Verbatim and Saw_Starred_Verbatim,
+     "starred raw verbatim preserves literal markup characters and UTF-8");
+   Gtk.Widget.Destroy
+     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Special_View)));
    View := Coyote_GUI.Math_Accessibility.Create (Item);
    Model := Gtk.Tree_View.Get_Model (View);
    Root_Iter := Children (Model, Null_Iter);

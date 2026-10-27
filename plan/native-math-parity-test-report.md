@@ -7,7 +7,7 @@
 
 This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its controlling scope is approved SRS-MATH v1.0 and D01–D15, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
 
-**Current-results pointer:** §§1–8 preserve historical checkpoints. The latest implementation and controlling status are in [§9](#9-native-implementation-increment--2026-10-27). Do not treat earlier failures, coverage counts or the interrupted color validation as current-source outcomes.
+**Current-results pointer:** §§1–9 preserve historical checkpoints. Current implementation, evidence and open failures are in [§10](#10-core-primitives-and-phase-cancellation--2026-10-27). Earlier suite and pilot results are not substitutes for this source snapshot.
 
 
 ## 1. Test scope and environment
@@ -289,6 +289,9 @@ unvalidated latest candidate, system-level budgets and human acceptance remain.
 
 ## 9. Native implementation increment — 2026-10-27
 
+**Historical checkpoint:** Superseded as current-source evidence by §10. The
+following results describe the prior committed increment.
+
 **Status: NOT COMPLETE.** Approved SRS-MATH v1.0 and D01–D15 are unchanged.
 This section supersedes earlier current-state assertions, not their historical
 run evidence. Production remains native Ada/GTK/Cairo/FreeType; KaTeX and the
@@ -417,3 +420,141 @@ unexecuted. Developer/agent evaluation is not independent human visual or
 assistive-technology acceptance. No release build, automatic approval or
 completion claim follows from this increment. **Exit decision: NOT COMPLETE;
 continue the already-approved native implementation and qualification.**
+
+
+## 10. Core primitives and phase cancellation — 2026-10-27
+
+**Exit status: NOT COMPLETE.** The native implementation now includes typed
+verbatim, vertical centering and poor-man-bold nodes, but full parity, resource
+qualification and human acceptance remain open. SRS-MATH v1.0 and D01–D15 are
+unchanged. This working-tree increment is not committed or released.
+
+### 10.1 Implementation and corrections
+
+- **Verbatim:** the lexer captures `\verb` and `\verb*` payloads as owned raw
+  tokens before comments, substitutions or expansion. Full command byte/scalar/
+  UTF-16 spans and starred state are retained. Typed syntax and semantic nodes
+  preserve literal text; layout uses pinned Typewriter metrics, NBSP for ordinary
+  spaces and U+2423 for starred spaces. `@` is a valid delimiter. Parser lookahead
+  treats the token atomically rather than interpreting payload-leading braces,
+  dollars, scripts or alignment characters as syntax. Malformed commands remain
+  explicit failures; missing glyph metrics are not invented as Unicode fallback.
+- **Vcenter:** native layout shifts boxed content to the pinned math-axis
+  centering formula while preserving its semantic child role.
+- **Poor-man-bold:** the pinned 0.02 em/0.01 em shadow offset and 0.04 CSS-pixel
+  blur are represented in typed layout/export metadata and painted for glyphs.
+  The native bounded Gaussian-tap mask is an **approximation**, not demonstrated
+  exact browser CSS blur. Rules and SVG paths are not themselves text-shadowed.
+  Color/alpha and group cleanup have focused tests. Full raster dimensions retain
+  right/bottom shadow overflow without changing logical formula metrics; display
+  adoption sizes its area from the raster. Integer allocation dimensions, after
+  rounding the combined extent, are checked against 8192×4096; tile limits remain
+  256×256. Exact and one-over fractional-extent cases exercise these checks.
+- **Jobs:** cancellation/deadline checks bracket parsing, semantic projection,
+  layout, font loading, rasterization and publication. Expired queued jobs skip
+  source/font-input copying and parsing. Successful-result assertions were kept
+  separate from new paused-queue expiry cases; changing successful cases into
+  expired jobs is not counted as equivalent coverage. These are **phase-boundary
+  cooperative checks**, not interruption inside a parser/layout loop or native
+  call and not a hard queue-inclusive 250 ms guarantee.
+- **Presentation and evidence:** accessibility labels and JSON exports preserve
+  raw payloads and distinct content roles. One new display-backed primitive case
+  brings `Conversation_Stack` to **49 registered cases**. The image oracle now
+  measures all direct reference bases, separates logical dimensions from padded
+  rasters, and compares with independently recorded origins. Omitted-base,
+  wrong-origin and shifted-baseline controls must reject.
+
+An intermediate verbatim change replaced the 0.525 em font advance with 13/24 em
+to match the 24 px pilot. Review found this was a pixel-size-specific fit, not
+pinned font data; it was **reverted**, and regressions now check font-derived
+advances at multiple native sizing scales. The intermediate 9/9 image result
+with that override is not current qualification. TTF/WOFF2 metrics both report
+525/1000 em; successful font loads do not yet explain or resolve the image
+setup's 13 px versus native 12.6 px per-character advance at 24 px/em.
+
+### 10.2 Frozen development and focused evidence
+
+Root and test builds use development profiles. Full suites run from `test/`
+under Xvfb. Existing compiler/style and GTK theme warnings remain; no warning-
+free or release qualification is claimed.
+
+| Evidence | Recorded result | Artifact |
+|---|---|---|
+| Root development build | Pass | `/tmp/coyote-core-frozen-build.log` |
+| Test development build | Pass | `/tmp/coyote-core-frozen-testbuild.log` |
+| Full suite | **1063/1063**, zero failed assertions/unexpected errors; **82.418882 s** | `/tmp/coyote-core-frozen-full.log` |
+| Same-binary full repeat | **1063/1063**, zero failed assertions/unexpected errors; **83.167815 s** | `/tmp/coyote-core-frozen-full-repeat.log` |
+| Geometry | **157/157**, original 145 plus 12 primitive/style cases; unchanged 0.01 em ascent/depth tolerance | `/tmp/coyote-core-frozen-geometry.log` |
+| Additional runtime cases | **211 PASS records** | `/tmp/coyote-core-frozen-additional.log` |
+| Tokens | **56 assertions**, zero failures | `/tmp/coyote-core-frozen-tokens/probe.log` |
+| Macros | **622 checks**, zero failures | `/tmp/coyote-core-frozen-macros/probe.log` |
+| Engine | **57 assertions**, zero failures | `/tmp/coyote-core-frozen-engine/probe.log` |
+| Jobs | **137 assertions**, zero failures; 2000/2000 warm requests valid | `/tmp/coyote-core-frozen-jobs/probe.log` |
+| Native rendering/admission | **156 assertions**, zero failures | `/tmp/coyote-core-frozen-native/math-probe.log` |
+| Accessibility | **67 assertions**, zero failures | `/tmp/coyote-core-frozen-accessibility/probe.log` |
+| Raster/Valgrind | **54 focused checks**; zero Valgrind errors, zero definitely/indirectly/possibly lost bytes; reachable allocations remain | `/tmp/coyote-core-frozen-raster.log` |
+| Structured pilot | **16 pass**, zero fail/gap/blocked | `/tmp/coyote-core-frozen-differential/report.json` |
+| Comparator controls | Pass | `/tmp/coyote-core-frozen-controls.log` |
+
+The full suite includes the new literal/box primitive widget case. These checks
+are distinct from end-user or assistive-technology acceptance. Structured path
+comparison remains at 0.01 **normalized units**, not full em-unit glyph origins
+or complete placement. The expanded geometry corpus is aggregate ascent/depth,
+not comprehensive width, ink or option-effect qualification.
+
+### 10.3 Expanded raster pilot — two unresolved failures
+
+The original three IDs and sources are unchanged; six new cases exercise
+vcenter, raw punctuation, visible spaces and poor-bold glyph/relation/fraction
+content. The final **nine-case pilot is 7 pass / 2 fail / 0 blocked** at
+`/tmp/coyote-core-frozen-images/report.json`. The runner exits nonzero for these
+mismatches. Approved comparison criteria were not loosened, and failing cases
+were not removed from the denominator.
+
+| Case | Current failure |
+|---|---|
+| `verb-punctuation` | Logical width delta **4.0 px** exceeds 1 px; bidirectional foreground-mask coverage below 99% at 1 px tolerance |
+| `verb-star-spaces` | Logical width delta **1.2 px** exceeds 1 px; mask and baseline checks pass |
+
+The original three cases and the vcenter/poor-bold cases pass within this pilot.
+Pmb relation initially appeared too wide because the reference measured only its
+first `.base`; measuring the union of direct bases corrected the oracle without
+changing native relation spacing. The omitted-last-base negative control still
+rejects a 9.6738 px discrepancy. Wrong-origin and shifted-baseline controls also
+reject. These controls and the bounded cases do not establish full component
+mapping, exact blur/color parity, arbitrary overflow handling or calibrated
+visual acceptance. Browser/native Typewriter advance behavior still needs a
+reference-guided fix across sizes, not another pilot-specific constant.
+
+### 10.4 Characterization and remaining gates
+
+- Fuzz: **10000 cases**, 4184 ok, 5221 parse errors, 595 policy-visible commands,
+  zero layout errors; identical 32-case replay.
+  `/tmp/coyote-core-frozen-fuzz.json`.
+- Ten isolated exporter resource cases: peak child RSS **49256 KiB**.
+  `/tmp/coyote-core-frozen-resources.json`. This is not whole-job allocation
+  enforcement or process-global GUI/cache accounting.
+- Headless exporter: **2000 requests**, p95 **0.784945 ms**, maximum
+  **0.944486 ms**, excluding GTK/job scheduling.
+  `/tmp/coyote-core-frozen-performance.json`.
+- Job API characterization: 2000 valid requests, submit-through-poll p95 **1 ms**,
+  maximum **2 ms**; saturation eight accepted/two Busy. This bounded corpus is
+  not a hard deadline or adversarial cancellation-latency guarantee.
+
+The regenerated [coverage map](native-math-coverage.md) has **2930 core rows:
+112 missing, 2817 partial/unqualified, one approved deviation, zero qualified**.
+Three new primitive paths moved from missing to partial, not to qualified.
+Seven supplemental Unicode script-range predicates are generated but unused;
+their runtime shaping paths remain missing. The range data itself is not absent.
+General Unicode/font fallback, remaining core commands/environments including
+CD, full per-entry behavior, reference widths/origins/options, complete corpus
+and traceability remain open.
+
+Whole-job ≤256 MiB allocation accounting/enforcement, process-wide ≤64 MiB cache,
+inline off-thread painting, hard queue-inclusive completion/rejection ≤250 ms,
+GTK ≤50 ms slices, complete tiling/cache behavior and failure injection are not
+qualified. Phase checks improve cancellation but do not close these gates.
+RD-CTX-01 additional context caps remain unauthorized. The manual visual and
+accessibility checklist remains unexecuted. Developer/agent self-review is not
+independent acceptance. **Project remains NOT COMPLETE; continue approved
+implementation and qualification with both raster failures visible.**

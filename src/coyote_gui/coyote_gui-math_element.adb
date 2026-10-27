@@ -304,6 +304,10 @@ package body Coyote_GUI.Math_Element is
       end if;
       if Last_Row = Element.Raster_Height then
          Coyote_Math_Jobs.Release (Element.Raster_Result);
+         Element.Math_Width := Natural'Max
+           (Element.Math_Width, Element.Raster_Width + 4);
+         Element.Math_Height := Natural'Max
+           (Element.Math_Height, Element.Raster_Height + 4);
          Element.Raster_Ready := True;
          Element.Valid := Element.Layout_Valid;
          Update_Visibility (Element.all);

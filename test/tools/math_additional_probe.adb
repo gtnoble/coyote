@@ -9,6 +9,7 @@ with Math_Syntax;
 with Math_Semantics;
 with Math_Stretchy;
 with Math_Paths;
+with Math_Metrics;
 
 procedure Math_Additional_Probe is
    use Math_Model;
@@ -17,6 +18,8 @@ procedure Math_Additional_Probe is
    use type Math_Syntax.Delimiter_Kind;
    use type Math_Syntax.Diagnostic_Kind;
    use type Math_Semantics.Child_Role;
+   use type Ada.Strings.Unbounded.Unbounded_String;
+   use type Math_Layout.Command_Kind;
 
    Shared : aliased Math_Macros.Context;
 
@@ -495,6 +498,187 @@ procedure Math_Additional_Probe is
         Positive'Image (Glyph_Index);
    end Check_Font;
 
+   procedure Check_Poor_Bold (Source : String; Expected : Atom_Class) is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Root : Math_Syntax.Node;
+      Wrapper : Math_Syntax.Node;
+      Semantics : constant Math_Semantics.Document :=
+        Math_Semantics.Project (Parsed);
+      Semantic : Math_Semantics.Semantic_Node;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+        not Math_Semantics.Is_Valid (Semantics)
+      then
+         raise Program_Error with "pmb parse/layout/projection failed: " &
+           Source;
+      end if;
+      Root := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Wrapper := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Wrapper.Kind /= Poor_Bold_Node or else
+        Wrapper.Poor_Bold_Class /= Expected or else
+        Wrapper.Class /= Expected or else Wrapper.First = No_Node
+      then
+         raise Program_Error with "pmb lost argument/class: " & Source;
+      end if;
+      Semantic := Math_Semantics.Element
+        (Semantics, Positive (Math_Semantics.Root (Semantics) + 1));
+      if Semantic.Kind /= Poor_Bold_Node or else
+        Semantic.Poor_Bold_Class /= Expected or else
+        Semantic.Child_Count /= 1 or else
+        Math_Semantics.Element
+          (Semantics, Positive (Math_Semantics.Root (Semantics) + 2)).Role /=
+            Math_Semantics.Poor_Bold_Content
+      then
+         raise Program_Error with "pmb semantic projection lost class/child";
+      end if;
+      if Geometry.Commands.Is_Empty then
+         raise Program_Error with "pmb emitted no drawing commands";
+      end if;
+      for Command of Geometry.Commands loop
+         if not Command.Has_Shadow or else
+           Command.Shadow_X /= 0.02 or else Command.Shadow_Y /= 0.01 or else
+           Command.Shadow_Blur_Px /= 0.04
+         then
+            raise Program_Error with "pmb CSS shadow parameters changed";
+         end if;
+      end loop;
+      Ada.Text_IO.Put_Line ("PASS pmb semantics/shadow " & Source);
+   end Check_Poor_Bold;
+
+   procedure Check_Text_Poor_Bold is
+      Parsed : constant Math_Syntax.Document :=
+        Math_Syntax.Parse ("\text{a \pmb{b}}");
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Found : Boolean := False;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid then
+         raise Program_Error with "text-mode pmb parse/layout failed";
+      end if;
+      for Index in 1 .. Math_Syntax.Count (Parsed) loop
+         declare
+            Item : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Parsed, Index);
+         begin
+            if Item.Kind = Poor_Bold_Node then
+               Found := True;
+               if Item.Poor_Bold_Class /= Ordinary or else
+                 Item.First = No_Node
+               then
+                  raise Program_Error with "text-mode pmb AST is invalid";
+               end if;
+            end if;
+         end;
+      end loop;
+      if not Found then
+         raise Program_Error with "text-mode pmb node missing";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS pmb allowed in text mode");
+   end Check_Text_Poor_Bold;
+
+   procedure Check_VCenter (Source, Box_Source : String) is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Semantics : constant Math_Semantics.Document :=
+        Math_Semantics.Project (Parsed);
+      Root : Math_Syntax.Node;
+      Wrapper : Math_Syntax.Node;
+      Semantic : Math_Semantics.Semantic_Node;
+      Child_Box : constant Math_Layout.Box := Math_Layout.Build
+        (Math_Syntax.Parse (Box_Source));
+      Expected_Ascent : constant Long_Float :=
+        (Child_Box.Ascent + Child_Box.Descent) / 2.0 + 0.25;
+      Expected_Descent : constant Long_Float :=
+        (Child_Box.Ascent + Child_Box.Descent) / 2.0 - 0.25;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+        not Math_Semantics.Is_Valid (Semantics) or else not Child_Box.Valid
+      then
+         raise Program_Error with "vcenter parse/layout/projection failed";
+      end if;
+      Root := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Wrapper := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Wrapper.Kind /= VCenter_Node or else Wrapper.First = No_Node then
+         raise Program_Error with "vcenter AST wrapper lost";
+      end if;
+      Semantic := Math_Semantics.Element
+        (Semantics, Positive (Math_Semantics.Root (Semantics) + 1));
+      if Semantic.Kind /= VCenter_Node or else Semantic.Child_Count /= 1 or else
+        Math_Semantics.Element
+          (Semantics, Positive (Math_Semantics.Root (Semantics) + 2)).Role /=
+            Math_Semantics.VCenter_Content
+      then
+         raise Program_Error with "vcenter semantic child lost";
+      end if;
+      if abs (Geometry.Ascent - Long_Float'Max (0.0, Expected_Ascent)) >
+           0.000_001 or else
+        abs (Geometry.Descent - Long_Float'Max (0.0, Expected_Descent)) >
+          0.000_001
+      then
+         raise Program_Error with "vcenter axis shift differs: actual=" &
+           Long_Float'Image (Geometry.Ascent) & "/" &
+           Long_Float'Image (Geometry.Descent) & " expected=" &
+           Long_Float'Image (Long_Float'Max (0.0, Expected_Ascent)) & "/" &
+           Long_Float'Image (Long_Float'Max (0.0, Expected_Descent));
+      end if;
+      Ada.Text_IO.Put_Line ("PASS vcenter axis layout " & Source);
+   end Check_VCenter;
+
+   procedure Check_Invalid_Command (Source : String) is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+   begin
+      if Math_Syntax.Is_Valid (Parsed) then
+         raise Program_Error with "accepted invalid vcenter mode/box: " & Source;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS rejected invalid vcenter " & Source);
+   end Check_Invalid_Command;
+
+   procedure Check_Verbatim (Source, Payload : String; Starred : Boolean) is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Semantics : constant Math_Semantics.Document :=
+        Math_Semantics.Project (Parsed);
+      Root : Math_Syntax.Node;
+      Item : Math_Syntax.Node;
+      Semantic : Math_Semantics.Semantic_Node;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else
+        not Geometry.Valid or else not Math_Semantics.Is_Valid (Semantics)
+      then
+         raise Program_Error with "verb parse/layout/projection failed: " &
+           Source & " " & Math_Syntax.Error (Parsed);
+      end if;
+      Root := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+      Semantic := Math_Semantics.Element
+        (Semantics, Positive (Math_Semantics.Root (Semantics) + 1));
+      if Item.Kind /= Verbatim_Node or else Item.Class /= Ordinary or else
+        Item.Font /= Typewriter_Regular or else Item.First /= No_Node or else
+        Item.Verbatim_Text /= Ada.Strings.Unbounded.To_Unbounded_String
+          (Payload) or else Item.Verbatim_Starred /= Starred or else
+        Item.Position /= 1 or else Semantic.Kind /= Verbatim_Node or else
+        Semantic.Child_Count /= 0 or else
+        Semantic.Verbatim_Text /= Item.Verbatim_Text or else
+        Semantic.Verbatim_Starred /= Starred
+      then
+         raise Program_Error with "verb AST/semantic payload mismatch: " &
+           Source;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS verb AST/projection " & Source);
+   end Check_Verbatim;
+
+   procedure Check_Invalid_Verbatim (Source : String) is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+   begin
+      if Math_Syntax.Is_Valid (Parsed) then
+         raise Program_Error with "accepted invalid verb: " & Source;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS rejected verb " & Source);
+   end Check_Invalid_Verbatim;
+
    procedure Check_Dimension
      (Source : String;
       Max_Size : Positive;
@@ -521,6 +705,204 @@ procedure Math_Additional_Probe is
    end Check_Dimension;
 
 begin
+      Check_Verbatim ("\verb|a b\alpha%{}#^&_|", "a b\alpha%{}#^&_", False);
+      Check_Verbatim ("\verb*|a b~|", "a b~", True);
+      Check_Verbatim ("\verb|}|", "}", False);
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\frac\verb|{|{x}");
+         Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Root : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Fraction : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Root.First));
+         Numerator : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Fraction.First));
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+           Fraction.Kind /= Fraction_Node or else
+           Numerator.Kind /= Verbatim_Node or else
+           Numerator.Verbatim_Text /=
+             Ada.Strings.Unbounded.To_Unbounded_String ("{") or else
+           Fraction.Second = No_Node
+         then
+            raise Program_Error with
+              "verbatim fraction argument altered payload or structure";
+         end if;
+         Ada.Text_IO.Put_Line ("PASS verb atomicity in fraction argument");
+      end;
+      Check_Verbatim ("\verb|$|", "$", False);
+      Check_Verbatim ("\verb|^|", "^", False);
+      Check_Verbatim ("\verb|_|", "_", False);
+      Check_Verbatim ("\verb|&|", "&", False);
+      Check_Verbatim ("\verb|{|", "{", False);
+      Check_Verbatim ("\verb|~|", "~", False);
+      Check_Verbatim ("\verb|\|", "\", False);
+      Check_Verbatim ("\verb|%|", "%", False);
+      Check_Invalid_Node ("{x");
+      Check_Invalid_Node ("x}");
+      declare
+         Source : constant String := "\hbox{\verb|$|}";
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+         Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Semantics : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+         Found : Boolean := False;
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+           not Math_Semantics.Is_Valid (Semantics)
+         then
+            raise Program_Error with
+              "hbox verbatim dollar was parsed as a math boundary";
+         end if;
+         for Command of Geometry.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command and then
+              Command.Code_Point = Character'Pos ('$')
+            then
+               Found := True;
+            end if;
+         end loop;
+         if not Found then
+            raise Program_Error with "hbox verbatim dollar glyph was lost";
+         end if;
+         Ada.Text_IO.Put_Line ("PASS hbox atomic verbatim dollar");
+      end;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\verb|😀|");
+         Root : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Item : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Root.First));
+         Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Semantics : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+         Semantic : constant Math_Semantics.Semantic_Node :=
+           Math_Semantics.Element
+             (Semantics, Positive (Math_Semantics.Root (Semantics) + 1));
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else Geometry.Valid or else
+           not Math_Semantics.Is_Valid (Semantics) or else
+           Semantic.Verbatim_Text /= Item.Verbatim_Text or else
+           Item.Kind /= Verbatim_Node or else Item.Position /= 1 or else
+           Item.Verbatim_Text /= Ada.Strings.Unbounded.To_Unbounded_String
+             ("😀")
+         then
+            raise Program_Error with "UTF-8 verb payload or missing metric";
+         end if;
+      end;
+      Check_Invalid_Verbatim ("\verb");
+      Check_Invalid_Verbatim ("\verb|unfinished");
+      declare
+         Metric : constant Math_Metrics.Glyph_Metric :=
+           Math_Metrics.Lookup (Typewriter_Regular, Character'Pos ('A'));
+      begin
+         if not Metric.Found or else Metric.Width /= 0.525 then
+            raise Program_Error with
+              "pinned Typewriter A width is not 0.525 em";
+         end if;
+         declare
+            procedure Check_Scaled (Source : String) is
+               Parsed : constant Math_Syntax.Document :=
+                 Math_Syntax.Parse (Source);
+               Geometry : constant Math_Layout.Box :=
+                 Math_Layout.Build (Parsed);
+               Command : Math_Layout.Draw_Command;
+            begin
+               if not Math_Syntax.Is_Valid (Parsed) or else
+                 not Geometry.Valid or else Geometry.Commands.Length /= 1
+               then
+                  raise Program_Error with
+                    "scaled verb parse/layout failed: " & Source;
+               end if;
+               Command := Geometry.Commands (1);
+               if Command.Scale = 1.0 or else
+                 abs (Command.Width / Command.Scale - Metric.Width) >
+                   0.000_001
+               then
+                  raise Program_Error with
+                    "scaled verb width differs from pinned metric: " & Source;
+               end if;
+            end Check_Scaled;
+         begin
+            Check_Scaled ("\tiny{\verb*|A|}");
+            Check_Scaled ("\scriptsize{\verb*|A|}");
+            Check_Scaled ("\Huge{\verb*|A|}");
+         end;
+      end;
+      declare
+         Payload : constant String :=
+           " !" & Character'Val (34) & "#$%&'()*+,-./:;<=>?@[" &
+           Character'Val (92) & "]^_`{|}~ ";
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\verb*§" & Payload & "§");
+         Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Index : Natural := 0;
+      begin
+         if not Geometry.Valid or else
+           Natural (Geometry.Commands.Length) /= Payload'Length
+         then
+            raise Program_Error with "verb punctuation layout invalid";
+         end if;
+         for Char of Payload loop
+            Index := Index + 1;
+            declare
+               Command : constant Math_Layout.Draw_Command :=
+                 Geometry.Commands (Positive (Index));
+               Metric_Point : constant Natural :=
+                 (if Char = ' ' then Character'Pos (' ')
+                  else Character'Pos (Char));
+               Metric : constant Math_Metrics.Glyph_Metric :=
+                 Math_Metrics.Lookup (Typewriter_Regular, Metric_Point);
+            begin
+               if Command.Kind /= Math_Layout.Glyph_Command or else
+                 Command.Font /= Typewriter_Regular or else
+                 Command.Code_Point /=
+                   (if Char = ' ' then 16#2423# else Character'Pos (Char)) or else
+                 not Metric.Found or else Metric.Width /= 0.525 or else
+                 abs (Command.Width - Metric.Width * Command.Scale) >
+                   0.000_001
+               then
+                  raise Program_Error with
+                    "verb punctuation differs from pinned font metric";
+               end if;
+            end;
+         end loop;
+         if abs (Geometry.Width -
+           Long_Float (Payload'Length) * 0.525) > 0.000_001
+         then
+            raise Program_Error with "verb punctuation logical width changed";
+         end if;
+      end;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\verb*| |");
+         Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      begin
+         if not Geometry.Valid or else Geometry.Commands.Length /= 1 or else
+           Geometry.Commands (1).Code_Point /= 16#2423# or else
+           abs (Geometry.Width - 0.525) > 0.000_001
+         then
+            raise Program_Error with "verb starred-space width changed";
+         end if;
+      end;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("x\verb|😀|y");
+         Root : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Prefix : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Root.First));
+         Verbatim : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Prefix.Next));
+      begin
+         if Verbatim.Position /= 2 or else Verbatim.Next = No_Node or else
+           Math_Syntax.Element
+             (Parsed, Positive (Verbatim.Next)).Position /= 13
+         then
+            raise Program_Error with "verb UTF-8 source byte span wrong";
+         end if;
+      end;
       Check_Font ("\bf x", Main_Bold);
       Check_Font ("\bold x", Main_Bold);
       Check_Font ("\cal x", Caligraphic_Regular);
@@ -752,6 +1134,14 @@ begin
    Check_Node ("\sout{x}", Enclosed_Node);
    Check_Node ("\rule{2em}{0.5em}", Rule_Node);
    Check_Node ("\raisebox{2pt}{x}", Raised_Node);
+   Check_Poor_Bold ("\pmb{x}", Ordinary);
+   Check_Poor_Bold ("\pmb{+}", Binary_Atom);
+   Check_Poor_Bold ("\pmb{\le}", Relation_Atom);
+   Check_Text_Poor_Bold;
+   Check_VCenter ("\vcenter{\hbox{$\frac{a+b}{\dfrac{c}{d}}$}}",
+     "\hbox{$\frac{a+b}{\dfrac{c}{d}}$}");
+   Check_Invalid_Command ("\text{\vcenter{\hbox{x}}}");
+   Check_Invalid_Command ("\vcenter");
    Check_Node ("\tiny{x}", Sized_Node);
    Check_Invalid_Node ("\rule{-2em}{0.5em}");
    Check_Invalid_Node ("\rule{2em}{-0.5em}");

@@ -87,6 +87,18 @@ package body Coyote_GUI.Math_Accessibility is
       elsif N.Kind = Math_Model.Enclosed_Node then
          Append (Result, " - enclosure " &
            Math_Model.Enclosure_Kind'Image (N.Enclosure));
+      elsif N.Kind = Math_Model.VCenter_Node then
+         Append (Result, " - VCenter content");
+      elsif N.Kind = Math_Model.Poor_Bold_Node then
+         Append (Result, " - PoorBold content - class " &
+           Math_Model.Atom_Class'Image (N.Poor_Bold_Class));
+      elsif N.Kind = Math_Model.Verbatim_Node then
+         Append (Result, " - raw verbatim: " & To_String (N.Verbatim_Text));
+         if N.Verbatim_Starred then
+            Append (Result, " - starred");
+         else
+            Append (Result, " - unstarred");
+         end if;
       end if;
       if N.Width /= 0.0 or else N.Height /= 0.0 or else N.Depth /= 0.0 then
          Append (Result, " - width" & Long_Float'Image (N.Width) &

@@ -10,6 +10,7 @@ package Coyote_Math_Jobs is
    Queue_Capacity : constant := 8;
    --  Bounds retained request source accounting, not parser/layout allocations.
    Source_Ledger_Capacity : constant := 256 * 1_024 * 1_024;
+   --  Queue and phase-boundary budget; does not preempt active native calls.
    Budget_Milliseconds : constant := 250;
    type Request_Id is new Natural;
    type View_Generation is new Natural;

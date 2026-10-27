@@ -46,6 +46,12 @@ package Math_Layout is
       Clip_Y     : Long_Float := 0.0;
       Clip_W     : Long_Float := 0.0;
       Clip_H     : Long_Float := 0.0;
+      --  Shadow offsets are em units; blur remains CSS pixels for exact
+      --  conversion by a renderer that knows its pixel-per-em size.
+      Has_Shadow : Boolean := False;
+      Shadow_X   : Long_Float := 0.0;
+      Shadow_Y   : Long_Float := 0.0;
+      Shadow_Blur_Px : Long_Float := 0.0;
    end record;
    --  Glyph X/Y is its baseline; rule X/Y is its upper-left corner.
    package Command_Vectors is new Ada.Containers.Vectors

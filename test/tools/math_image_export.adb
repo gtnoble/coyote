@@ -30,7 +30,9 @@ procedure Math_Image_Export is
       Path : String := "";
       Width : Natural := 0;
       Height : Natural := 0;
-      Baseline : Long_Float := 0.0) return JSON_Value is
+      Baseline : Long_Float := 0.0;
+      Logical_Width : Long_Float := 0.0;
+      Logical_Height : Long_Float := 0.0) return JSON_Value is
       Result : constant JSON_Value := Create_Object;
    begin
       Set_Field (Result, "id", Id);
@@ -40,6 +42,16 @@ procedure Math_Image_Export is
          Set_Field (Result, "width", Integer (Width));
          Set_Field (Result, "height", Integer (Height));
          Set_Field_Long_Float (Result, "baseline", Baseline);
+         Set_Field (Result, "originX", Integer (0));
+         Set_Field (Result, "originY", Integer (0));
+         Set_Field_Long_Float (Result, "logicalWidth", Logical_Width);
+         Set_Field_Long_Float (Result, "logicalHeight", Logical_Height);
+         Set_Field (Result, "rasterOriginX", Integer (0));
+         Set_Field (Result, "rasterOriginY", Integer (0));
+         Set_Field (Result, "rasterRightPaddingPx",
+           Integer (Width) - Integer (Long_Float'Ceiling (Logical_Width)));
+         Set_Field (Result, "rasterBottomPaddingPx",
+           Integer (Height) - Integer (Long_Float'Ceiling (Logical_Height)));
       end if;
       return Result;
    end Response;
@@ -171,7 +183,9 @@ procedure Math_Image_Export is
                        (Write
                           (Response
                              (Id, "ok", Filename, Width, Height,
-                              Layout.Ascent * Scale),
+                              Layout.Ascent * Scale,
+                              Layout.Width * Scale,
+                              (Layout.Ascent + Layout.Descent) * Scale),
                            Compact => True));
                   exception
                      when others =>

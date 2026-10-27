@@ -63,7 +63,8 @@ package Math_Model is
       Overlap_Node, Binomial_Node, Annotation_Node, Boxed_Node,
       Phantom_Node, Color_Node, Tagged_Node,
       Style_Node, Dual_Node, Rule_Node, Sized_Node, Raised_Node,
-      Enclosed_Node, Stretchy_Node, MathChoice_Node);
+      Enclosed_Node, Stretchy_Node, MathChoice_Node,
+      VCenter_Node, Poor_Bold_Node, Verbatim_Node);
 
    subtype Node_Id is Natural;
    No_Node : constant Node_Id := 0;

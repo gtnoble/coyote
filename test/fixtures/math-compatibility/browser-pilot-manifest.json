@@ -22,7 +22,13 @@
   "cases": [
     { "id": "x", "source": "x", "displayMode": false },
     { "id": "frac-x-y", "source": "\\frac{x}{y}", "displayMode": false },
-    { "id": "heatbalance-first-term", "source": "\\dot{Q}_{\\mathrm{in}}", "displayMode": false }
+    { "id": "heatbalance-first-term", "source": "\\dot{Q}_{\\mathrm{in}}", "displayMode": false },
+    { "id": "vcenter-tall-fraction", "source": "\\vcenter{\\frac{a}{b}}", "displayMode": false },
+    { "id": "verb-punctuation", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false },
+    { "id": "verb-star-spaces", "source": "\\verb*|a b|", "displayMode": false },
+    { "id": "pmb-glyph", "source": "\\pmb{g}", "displayMode": false },
+    { "id": "pmb-relation", "source": "a\\pmb{=}b", "displayMode": false },
+    { "id": "pmb-vector", "source": "\\pmb{\\frac{a}{b}}", "displayMode": false }
   ],
-  "scope": "Development-only real-browser DOM geometry, leaf text-span bounds, raw KaTeX SVG path data when present, and a browser screenshot artifact. Does not compare pixels against the native renderer, claim glyph-to-math-node component mapping, or cover the full math dialect."
+  "scope": "Development-only real-browser DOM geometry, leaf text-span bounds, raw KaTeX SVG path data when present, and a browser screenshot artifact. Primitive pixel pilot adds tall fraction, literal verbatim punctuation and spacing, and poor-man-bold glyph/relation/vector overflow cases. Does not claim full math-dialect parity or glyph-to-math-node component mapping."
 }

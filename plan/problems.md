@@ -4296,3 +4296,38 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   independent visual/accessibility acceptance and remaining system gates are
   open. Developer/agent review is not independent acceptance. **PCR-125 remains
   open; project NOT COMPLETE.** No commit or release was made in this increment.
+
+
+### PCR-125 — 2026-10-27 core primitives and cooperative phase checks
+
+- **Category:** Code, Test, Design evidence, Documentation.
+- **Priority:** High — required native compatibility; qualification remains open.
+- **Implementation:** Added verbatim raw tokens and typed syntax/semantics,
+  vcenter geometry, poor-bold glyph shadows, overflow-aware raster allocation,
+  actual integer surface bounds, accessibility/export payloads and a display
+  regression. Cancellation/expiry checks bracket pipeline phases; overdue
+  queued inputs are skipped before copying/parsing. These do not preempt
+  individual parser/layout/native calls or establish whole-job budgets.
+- **Corrective review:** Fixed `@` delimiters and payload-leading syntax in
+  verbatim. Removed a 24 px-specific Typewriter width fit and restored pinned
+  metrics with sizing tests. Repaired mask-group cleanup and fractional
+  rounded-surface limit checks. Preserved successful job-result assertions
+  separately from new expiry cases. Reference width now includes all direct
+  bases; omission and origin controls continue to fail correctly.
+- **Verification:** Frozen development suite and repeat pass 1063/1063, zero
+  failures/errors (82.418882 and 83.167815 seconds). Geometry 157/157, additional
+  211 PASS records, tokens 56, macros 622, engine 57, jobs 137, native 156,
+  accessibility 67, raster 54; structured pilot 16/16 and deterministic fuzz
+  10000 pass within their stated scopes. Raster Valgrind reports zero errors
+  and no lost bytes in its standalone scope.
+- **Unresolved discrepancy:** Expanded nine-case image pilot is 7 pass/2 fail.
+  Verbatim punctuation has a 4.0 px width delta and mask failure; starred spaces
+  have a 1.2 px width delta. Both fail unchanged thresholds. Temporary 9/9
+  evidence from the reverted width fit is not accepted as current qualification.
+  Native shadow blur remains an approximation; no exact CSS parity is claimed.
+- **Disposition:** Current source crosswalk has 112 missing/2817 partial/one
+  deviation/zero qualified core rows. Whole-job memory, process-wide cache,
+  hard deadlines, GTK budgets, remaining core behavior, mapping/readiness and
+  independent human acceptance remain open. Authoritative evidence is report
+  §10. Developer/agent review is not independent acceptance. **PCR-125 remains
+  open; project NOT COMPLETE.** No commit or release was made in this increment.

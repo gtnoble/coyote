@@ -7,8 +7,8 @@ package Math_Tokens is
    Max_Tokens : constant := 131_072;
    type Token_Kind is
      (Character_Token, Control_Word, Control_Symbol, Space_Token,
-      Left_Group, Right_Group, Parameter, Superscript, Subscript,
-      Alignment, End_Of_Input);
+      Verbatim_Token, Left_Group, Right_Group, Parameter, Superscript,
+      Subscript, Alignment, End_Of_Input);
    type Token is record
       Kind        : Token_Kind := End_Of_Input;
       First_Byte  : Natural := 0;
@@ -21,6 +21,9 @@ package Math_Tokens is
       Text_First  : Natural := 0;
       Text_Length : Natural := 0;
       Lexeme      : Ada.Strings.Unbounded.Unbounded_String;
+      --  Verbatim tokens carry only their exact payload in Lexeme; their
+      --  source spans cover the command, delimiter, payload, and delimiter.
+      Verbatim_Starred : Boolean := False;
       Has_Invocation : Boolean := False;
       Invocation_First_Byte : Natural := 0;
       Invocation_After_Byte : Natural := 0;
@@ -29,7 +32,7 @@ package Math_Tokens is
    type Token_Sequence is array (Positive range <>) of Token;
    type Diagnostic_Kind is
      (No_Error, Invalid_Source, Token_Limit, Trailing_Escape,
-      Unicode_Unsupported);
+      Verbatim_Error, Unicode_Unsupported);
 
    procedure Lex
      (Input       : Math_Source.Source;

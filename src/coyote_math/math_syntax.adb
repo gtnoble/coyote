@@ -67,6 +67,8 @@ package body Math_Syntax is
          return Character'Val (0);
       elsif State.Current.Kind = Math_Tokens.Space_Token then
          return ' ';
+      elsif State.Current.Kind = Math_Tokens.Verbatim_Token then
+         return ' ';
       elsif Text'Length > 0 then
          return Text (Text'First);
       end if;
@@ -580,7 +582,16 @@ package body Math_Syntax is
       Fresh : Node;
       Id : Node_Id;
    begin
-      if State.Current.Kind = Math_Tokens.Character_Token and then
+      if State.Current.Kind = Math_Tokens.Verbatim_Token then
+         Fresh.Kind := Verbatim_Node;
+         Fresh.Class := Ordinary;
+         Fresh.Font := Typewriter_Regular;
+         Fresh.Verbatim_Text := State.Current.Lexeme;
+         Fresh.Verbatim_Starred := State.Current.Verbatim_Starred;
+         Fresh.Position := Positive (Start);
+         Advance (State);
+         return Add (State, Fresh);
+      elsif State.Current.Kind = Math_Tokens.Character_Token and then
         State.Current.Text_First = Natural'Last
       then
          Point := Current_Code_Point (State);
@@ -698,6 +709,35 @@ package body Math_Syntax is
                Fresh.Fourth := Parse_Argument (State);
                Fresh.Position := Positive (Start);
                return Add (State, Fresh);
+            elsif Word = "vcenter" then
+               if State.Regular_Mode then
+                  Fail (State, "\\vcenter is only valid in math mode", Start);
+               end if;
+               Fresh.Kind := VCenter_Node;
+               Fresh.First := Parse_Argument (State);
+               Fresh.Position := Positive (Start);
+               return Add (State, Fresh);
+            elsif Word = "pmb" then
+               declare
+                  Content : constant Node_Id := Parse_Argument (State);
+                  Base : Math_Syntax.Node :=
+                    State.Item.Nodes (Positive (Content));
+               begin
+                  if Base.Kind = Scripts_Node and then Base.First /= No_Node then
+                     Base := State.Item.Nodes (Positive (Base.First));
+                  end if;
+                  if Base.Kind = Row_Node and then Base.First /= No_Node then
+                     Base := State.Item.Nodes (Positive (Base.First));
+                  end if;
+                  Fresh.Kind := Poor_Bold_Node;
+                  Fresh.First := Content;
+                  Fresh.Class :=
+                    (if Base.Class in Binary_Atom | Relation_Atom
+                     then Base.Class else Ordinary);
+                  Fresh.Poor_Bold_Class := Fresh.Class;
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
             elsif Word = "hbox" then
                declare
                   Old_Mode : constant Boolean := State.Regular_Mode;

@@ -166,8 +166,8 @@
     "generation_validation": "Generator verifies every relevant package/archive file byte-for-byte, exact instrumentation anchors, registry counts, and pinned archive/dist hashes; this map validates the pinned inventory and regenerates native symbol tables byte-identically against checked-in sources."
   },
   "evidence_source_sha256": {
-    "src/coyote_math/coyote_math_jobs.ads": "48690a94f9c2a964ed4336489055a8f2a1abd8c800482cc92ad240126ae37fb2",
-    "src/coyote_math/coyote_math_jobs.adb": "fff27468aed1c98e2dc80dedff3ec1e67624dd133cd04c1f756d467efd891610",
+    "src/coyote_math/coyote_math_jobs.ads": "7704b3b8b9c319afbbc506075b6d5eee9b2846ee6961ae02e8a9ca5a1abf09f3",
+    "src/coyote_math/coyote_math_jobs.adb": "7370bb806651cc91415fc0b8cfd4233659d341949c0a25fcb69d5c763646cffb",
     "src/coyote_math/coyote_math_resources.ads": "39af20bbd8702191c7ab199ac8b75bfb76ce951c6911499304b0e50c5c413614",
     "src/coyote_math/coyote_math_resources.adb": "43b1a2718f5f48b2e4286bd9d6a0c13b0916cb9b2e91f766c1960bc4a4e0dd5b",
     "src/coyote_math/math_builtin_macros.ads": "475bfa14f680637247a05872f000fd74109dffb7004b756d5bb699127d44c153",
@@ -180,35 +180,35 @@
     "src/coyote_math/math_font_data.adb": "3c252344a7240b85dccb801f05d4360c4cb500d00e738be5676ac2ea98e574b6",
     "src/coyote_math/math_unicode.ads": "cbdecbf9f6da59d0366b723c1a01cdb7fe04f7348c3cebcc79c01ed7ae620e4a",
     "src/coyote_math/math_unicode.adb": "14a15a94e2cd24cac3fa3a1be2e5063a77dc94ae7cae306a261409df3abbccf2",
-    "src/coyote_math/math_layout.ads": "84c650e44a4815304a0edb840d2efd00778b01f0890ffd6e1a11015303a7f658",
-    "src/coyote_math/math_layout.adb": "93b65b4e09e3d365bf6f73d691643e61bec2140235de7f78329fdb4b210c712f",
+    "src/coyote_math/math_layout.ads": "be7bb3a9dc2ea7f6ddf9ea56a60a41d591e5ea74f91ef6300f329472142c3daa",
+    "src/coyote_math/math_layout.adb": "eed84983faa37b2ff3175fdf016e22b105bca85a22b97712e8d3be1eb5b4c06a",
     "src/coyote_math/math_macros.ads": "6cfde0ec8ed092bea241e3a10d83fc5e97edcef356a52a42fbc3ae360ef6cf50",
     "src/coyote_math/math_macros.adb": "f164ed655374fca40b72654e9764245c1c2048e169208879b23f970dd15d1fa9",
     "src/coyote_math/math_metrics.ads": "73bb8bd227601f16f8734e22dcfa4aca163ee356de7635fc163f9ce8329dcf2b",
     "src/coyote_math/math_metrics.adb": "aea263767f4a478cc9ddfd718eb4d6bd1e67e145bad02ea2b160e444a87a1665",
-    "src/coyote_math/math_model.ads": "3d24d21ad277d95ca97b4988c67ddf9ab39e4936fd5a67ec42c29285abfa4894",
+    "src/coyote_math/math_model.ads": "49d4bee98f1cac00d9981929a50dc6a52aa367f3eb0e219d26005f0ea8eeef38",
     "src/coyote_math/math_painter.ads": "7c0db585a17a754135f1521bed6c41d44f0eca250adee663f677e95dc5cd1c61",
-    "src/coyote_math/math_painter.adb": "b851f5b41a512b5918d8b2bc5af146c5155a6bb536395578f3ce7439a38ee712",
+    "src/coyote_math/math_painter.adb": "abb5953f594882292f5e1335ad37cd8301ba2104b8bf8f5b49bebab8e3d61ebb",
     "src/coyote_math/math_paths.ads": "b720458a5095c1230f91a13e1017fee64aeb0c63c46a12f7d5950da9e5c69445",
     "src/coyote_math/math_paths.adb": "54e691fa2b6a4edfba610f996e593cb5dbfcd5210c7d37325623b3efefd81868",
     "src/coyote_math/math_radical_paths.ads": "9d6eb5db60c99de866994118c155881e94197426d82b2b3cd046f7c48d89171a",
     "src/coyote_math/math_radical_paths.adb": "676139a84878dd44a4433555cb8e16b1fdb4d04c7c8b37b3635a2d5f195b8a30",
-    "src/coyote_math/math_raster.ads": "a78c6b04cb24621798300a464e68319e73b49e803de86132167f6bb1ae8af3de",
-    "src/coyote_math/math_raster.adb": "0007b1cdf8e2410cbd5043e1410fc9cafc4468cbc90c6572dc952f7d55d53916",
-    "src/coyote_math/math_semantics.ads": "cb0c5cf2f2fbf7d1efe28265e4bfe58c59f336a9a0452bf2ba688f84d00195c1",
-    "src/coyote_math/math_semantics.adb": "51826a6cccb053d9e24a9f31a6eb16530f588a64f57922cd83178c95e941a87d",
+    "src/coyote_math/math_raster.ads": "9236f9e899cdf776aeebff7489385d6fca9ea1291364df758cb8f8d3236e2cba",
+    "src/coyote_math/math_raster.adb": "5ebd2419e77dd79b1ba0baee5479bf9b5ce5d2341f737a98bf09896250bba2b4",
+    "src/coyote_math/math_semantics.ads": "b9975a93bb4823c50df1807ec969d86bc6df80b565d06757447bffcd399f1361",
+    "src/coyote_math/math_semantics.adb": "7c6a3ae9c566ac7d3de03a8bc39c15303da9c5eb4f00ef6bd8f7b4791db5f8a7",
     "src/coyote_math/math_source.ads": "f7717535028368e5c87d45aa10401fc9fc29b92c67f9c00cce8463397ae348fd",
     "src/coyote_math/math_source.adb": "930384f63e0725ec839215e2fdd557ba6abafea177317fc4b1862596e0f8b51b",
     "src/coyote_math/math_stretchy.ads": "7ab290d7fca15ebece2f04b1b2076914bf78d93a5c5c3f96f6a0fb4155eb3ac7",
     "src/coyote_math/math_stretchy.adb": "22a596a9bcd368f02829854ac2f43a8b79de7f9197700ff4da39f2e04d47d863",
     "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
     "src/coyote_math/math_symbols.adb": "c5fbc9d6e665aa429ce6e51c3e50f064643c074e9acc17f196876611d443bc52",
-    "src/coyote_math/math_syntax.ads": "f601254bc3ff4989ca8c495ef857f171ad1fdbfcad33a482add8b77432acae1d",
-    "src/coyote_math/math_syntax.adb": "e1430034cdb17dc0a19e4315ace4dc5de8d15275626816d816f134f65941eb8f",
-    "src/coyote_math/math_tokens.ads": "e3b97231543c26dc52a562682f6ed51f9657d94d77da1c22505db18b6fcc74e1",
-    "src/coyote_math/math_tokens.adb": "77b7e9b4b64bd5d652271478a73b3bf0bb9e759e0441deb51643e5a84e971ebc"
+    "src/coyote_math/math_syntax.ads": "ed6074d2f4ce6712f5ecc2906d8e3f261b1b4522fc341829b29d6cbd084bc03d",
+    "src/coyote_math/math_syntax.adb": "bd12494d60c0eb064aaf971d5d493df58faef64cc4527ca22ecbba0282113d6e",
+    "src/coyote_math/math_tokens.ads": "9ac68653b5a685b703c1195d52a240177c346e7fb459a49b1b58d197d16176f6",
+    "src/coyote_math/math_tokens.adb": "fddcd4cd0e9ae21b002ec1dd7847676bd5e44ea9b5c48c31731db7af8f5290f6"
   },
-  "method": "Reviewed actual parser branches/refusals, contextual parser handling and exact mode-specific generated-symbol fallback keys; builtin macros by generated templates and explicit callable allowlist; symbols by pinned generated tables; Unicode runtime rows by Math_Unicode token paths; scriptData by item-specific substitution evidence; settings by engine surfaces/rejections. Stable IDs and ordered source hashes make regeneration deterministic; no semantic or qualification status is claimed.",
+  "method": "Reviewed actual parser branches/refusals, contextual parser handling, dedicated verbatim token/node/layout path, and exact mode-specific generated-symbol fallback keys; builtin macros by generated templates and explicit callable allowlist; symbols by pinned generated tables; Unicode runtime rows by Math_Unicode token paths; scriptData rows by item-specific substitution evidence and explicit unused-predicate detection; settings by engine surfaces/rejections. Stable IDs and ordered source hashes make regeneration deterministic; no semantic or qualification status is claimed.",
   "requirements": [
     {
       "id": "REQ-MATH-001",
@@ -233,7 +233,7 @@
     {
       "id": "REQ-MATH-005",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "Font/style mappings and size commands are source-present, including tiny (0.5) and sixptsize (0.6); the latest focused geometry corpus passes 145/145 cases. This remains scoped evidence and does not establish full-width origin/measurement or qualification."
+      "evidence_and_unmet": "Font/style mappings and size commands are source-present, including tiny (0.5) and sixptsize (0.6); the latest focused geometry corpus passes 157 ascent/depth cases. This remains scoped evidence and does not establish full-width origin/measurement or qualification."
     },
     {
       "id": "REQ-MATH-006",
@@ -258,7 +258,7 @@
     {
       "id": "REQ-MATH-010",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "Job queue/source ledger exist; ledger is not CPU/work budgeting or cooperative cancellation."
+      "evidence_and_unmet": "Job queue/source ledger exist; six lifecycle phases check expiration, and expired queued work is skipped before copying; parser/layout/raster work is not preempted by a hard deadline. The source ledger is not whole-job memory accounting or CPU/work budgeting."
     },
     {
       "id": "REQ-MATH-011",
@@ -273,7 +273,7 @@
     {
       "id": "REQ-MATH-013",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "The 16-case structured and three-image pilots and 145-case ascent/depth corpus pass within their scopes; normalized paths do not establish em-unit origins or widths. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete."
+      "evidence_and_unmet": "The 16-case structured pilot passes within its scope; normalized paths do not establish em-unit origins or widths. The expanded nine-image comparison currently passes 7/9: two verbatim widths differ (native 0.525 versus browser 13 px at 24 px/em). The earlier 9/9 relied on a reverted hardcoded 13/24 width and is not current evidence. The 157-case ascent/depth corpus passes within scope. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete."
     },
     {
       "id": "REQ-MATH-014",
@@ -290,8 +290,8 @@
     "core_registry_rows": 2930,
     "core_status": {
       "approved-deviation-not-applicable": 1,
-      "missing": 115,
-      "partial-implemented-unqualified": 2814
+      "missing": 112,
+      "partial-implemented-unqualified": 2817
     },
     "by_registry": {
       "builtin-macro": {
@@ -305,8 +305,8 @@
       },
       "function": {
         "total": 309,
-        "partial-implemented-unqualified": 203,
-        "missing": 106
+        "partial-implemented-unqualified": 206,
+        "missing": 103
       },
       "setting": {
         "total": 14,
@@ -350,7 +350,7 @@
     "top_missing_families": [
       [
         "function",
-        106
+        103
       ],
       [
         "symbol",
@@ -6104,7 +6104,7 @@
       "registry": "function",
       "key": "\\pmb",
       "mode": null,
-      "status": "missing",
+      "status": "partial-implemented-unqualified",
       "inventory_entry": {
         "allowedInArgument": false,
         "allowedInMath": true,
@@ -6118,13 +6118,14 @@
         "type": "pmb"
       },
       "native_evidence": {
-        "claim": "Reviewed explicit Parse_Atom dispatch and exact generated-symbol fallback; no corresponding implementation branch/key identified.",
+        "claim": "Reviewed explicit Parse_Atom/expander implementation path; source correspondence does not establish successful support.",
         "source": [
-          "src/coyote_math/math_syntax.adb"
+          "src/coyote_math/math_syntax.adb",
+          "src/coyote_math/math_expander.adb"
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "No corresponding implementation path identified in the explicit Parse_Atom allowlist or exact generated-symbol fallback."
+      "note": "Native parser or expander handling path identified; runtime success, arguments, semantics, and geometry remain unqualified."
     },
     {
       "id": "MATH-FUNCTION-580e69bac702",
@@ -7754,7 +7755,7 @@
       "registry": "function",
       "key": "\\vcenter",
       "mode": null,
-      "status": "missing",
+      "status": "partial-implemented-unqualified",
       "inventory_entry": {
         "allowedInArgument": false,
         "allowedInMath": true,
@@ -7770,13 +7771,14 @@
         "type": "vcenter"
       },
       "native_evidence": {
-        "claim": "Reviewed explicit Parse_Atom dispatch and exact generated-symbol fallback; no corresponding implementation branch/key identified.",
+        "claim": "Reviewed explicit Parse_Atom/expander implementation path; source correspondence does not establish successful support.",
         "source": [
-          "src/coyote_math/math_syntax.adb"
+          "src/coyote_math/math_syntax.adb",
+          "src/coyote_math/math_expander.adb"
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "No corresponding implementation path identified in the explicit Parse_Atom allowlist or exact generated-symbol fallback."
+      "note": "Native parser or expander handling path identified; runtime success, arguments, semantics, and geometry remain unqualified."
     },
     {
       "id": "MATH-FUNCTION-cb7793b72cd1",
@@ -7811,7 +7813,7 @@
       "registry": "function",
       "key": "\\verb",
       "mode": null,
-      "status": "missing",
+      "status": "partial-implemented-unqualified",
       "inventory_entry": {
         "allowedInArgument": false,
         "allowedInMath": true,
@@ -7825,13 +7827,16 @@
         "type": "verb"
       },
       "native_evidence": {
-        "claim": "Reviewed explicit Parse_Atom dispatch and exact generated-symbol fallback; no corresponding implementation branch/key identified.",
+        "claim": "Tokenizer captures the verb payload; Parse_Atom builds a Verbatim_Node, semantic projection retains its payload/star flag, and layout emits native typewriter glyph commands. This is source-path evidence, not lexical, semantic, geometry, or parity qualification.",
         "source": [
-          "src/coyote_math/math_syntax.adb"
+          "src/coyote_math/math_tokens.adb",
+          "src/coyote_math/math_syntax.adb",
+          "src/coyote_math/math_semantics.adb",
+          "src/coyote_math/math_layout.adb"
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "No corresponding implementation path identified in the explicit Parse_Atom allowlist or exact generated-symbol fallback."
+      "note": "Dedicated verbatim token is consumed into Verbatim_Node and laid out with typewriter glyph metrics; malformed-command diagnostics, full reference behavior, glyph fallback/shaping, and geometry remain unqualified."
     },
     {
       "id": "MATH-FUNCTION-a396b0aa1fd2",
@@ -67775,7 +67780,7 @@
         "name": "latin"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67786,7 +67791,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-SCRIPTDATA-5de1ba21c849",
@@ -67804,7 +67809,7 @@
         "name": "cyrillic"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67815,7 +67820,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-SCRIPTDATA-8889429149c6",
@@ -67833,7 +67838,7 @@
         "name": "armenian"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67844,7 +67849,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-SCRIPTDATA-51586c1154b6",
@@ -67862,7 +67867,7 @@
         "name": "brahmic"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67873,7 +67878,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-SCRIPTDATA-bb81eeb77512",
@@ -67891,7 +67896,7 @@
         "name": "georgian"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67902,7 +67907,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-SCRIPTDATA-a8e56c72e685",
@@ -67928,7 +67933,7 @@
         "name": "cjk"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67939,7 +67944,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-SCRIPTDATA-7e78e3b59911",
@@ -67957,7 +67962,7 @@
         "name": "hangul"
       },
       "native_evidence": {
-        "claim": "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented.",
+        "claim": "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers.",
         "source": [
           "src/coyote_math/math_unicode.ads",
           "src/coyote_math/math_unicode.adb",
@@ -67968,7 +67973,7 @@
         ]
       },
       "qualification": "unqualified; name/source correspondence only",
-      "note": "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+      "note": "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
     },
     {
       "id": "MATH-SUPPLEMENTAL-USUBSANDSUPS-42c46cc42b3d",

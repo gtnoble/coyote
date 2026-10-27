@@ -118,7 +118,13 @@ package body Math_Semantics is
             Annotation_Type => A.Annotation_Type,
             Color           => A.Color,
             Left_Delimiter  => A.Left_Delimiter,
-            Right_Delimiter => A.Right_Delimiter);
+            Right_Delimiter => A.Right_Delimiter,
+            Poor_Bold_Class => A.Poor_Bold_Class,
+            Poor_Bold_Shadow_X => A.Poor_Bold_Shadow_X,
+            Poor_Bold_Shadow_Y => A.Poor_Bold_Shadow_Y,
+            Poor_Bold_Blur_Px => A.Poor_Bold_Blur_Px,
+            Verbatim_Text   => A.Verbatim_Text,
+            Verbatim_Starred => A.Verbatim_Starred);
       end Make_Node;
       procedure Add_Child
         (Parent : Natural; Id : Node_Id; Role : Child_Role) is
@@ -264,7 +270,11 @@ package body Math_Semantics is
                Add_Child (Sem_Id, A.First, Raised_Content);
             when Enclosed_Node =>
                Add_Child (Sem_Id, A.First, Enclosed_Content);
-            when Rule_Node | Glyph_Node | Space_Node =>
+            when VCenter_Node =>
+               Add_Child (Sem_Id, A.First, VCenter_Content);
+            when Poor_Bold_Node =>
+               Add_Child (Sem_Id, A.First, Poor_Bold_Content);
+            when Verbatim_Node | Rule_Node | Glyph_Node | Space_Node =>
                null;
          end case;
       end Expand;

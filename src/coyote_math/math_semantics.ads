@@ -16,7 +16,8 @@ package Math_Semantics is
       Array_Cell, Delimited_Content, Accent_Base, Overlay_Base,
       Overlay_Mark, Annotation_Base, Annotation_Above, Annotation_Below,
       Boxed_Content, Phantom_Content, Color_Content, Styled_Content,
-      Sized_Content, Raised_Content, Enclosed_Content,
+      Sized_Content, Raised_Content, Enclosed_Content, VCenter_Content,
+      Poor_Bold_Content,
       Display_Choice_Text, Text_Choice_Text, Script_Choice_Text,
       Scriptscript_Choice_Text);
 
@@ -57,6 +58,12 @@ package Math_Semantics is
         Math_Syntax.No_Delimiter;
       Right_Delimiter : Math_Syntax.Delimiter_Kind :=
         Math_Syntax.No_Delimiter;
+      Poor_Bold_Class : Atom_Class := Ordinary;
+      Poor_Bold_Shadow_X : Long_Float := 0.02;
+      Poor_Bold_Shadow_Y : Long_Float := 0.01;
+      Poor_Bold_Blur_Px : Long_Float := 0.04;
+      Verbatim_Text   : Ada.Strings.Unbounded.Unbounded_String;
+      Verbatim_Starred : Boolean := False;
    end record;
 
    type Document is private;

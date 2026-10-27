@@ -1,6 +1,6 @@
 # Native KaTeX compatibility-port plan — coyote
 
-**Version:** 0.6
+**Version:** 0.7
 **Date:** 2026-10-27
 **Change:** PCR-125
 **Status:** Native design and project execution approved; implementation in
@@ -158,25 +158,17 @@ runtime dependency inspection still shows no reference engine/browser runtime.
 Preserve GUI-main-task widget ownership while addressing measured work latency.
 
 Record exact commands, versions, seeds, counts, failures, exclusions, log paths,
-and human-review status. The coordinator-owned
-`plan/native-math-parity-test-report.md` §9 is the latest status; §8 and earlier
-report sections remain dated historical evidence. The current suite
-The latest frozen full development-suite run passed 1062/1062 with zero failed
-assertions or unexpected errors in 82.228506 s
-(`/tmp/coyote-next-frozen-full.log`), regression evidence only. Scoped evidence:
-engine 57; one added fleqn GUI test, bringing `Conversation_Stack` to 48 total
-registrations; jobs 133 with 2,000 valid warm requests (p95 1 ms, max 2 ms);
-macros: see coordinator-owned report §9 for the latest assertion count; geometry
-145/145; structured/image pilots 16/16 and 3/3; and 156 native assertions in
-aggregate, including one case with 100 nested groups and one 17,000-glyph case.
-Fleqn affects display math only, adding a 2 em left margin (48 px at 24 px/em;
-96 px at 48 px/em); the default remains centered with no indent, and
-inline math is unaffected. Structured paths use normalized units, not image
-geometry. Full origins, widths and option effects remain unmeasured. Whole-job
-memory, hard 250 ms completion, GTK/cache guarantees, complete mapping/readiness,
-full qualification, and human acceptance remain open. Do not infer parity or
-qualification from these scoped results.
-
+and human-review status. Coordinator-owned report §10 is the current checkpoint.
+Section §9 and earlier report sections are historical. The frozen suite passed
+1063/1063 with zero failed assertions or unexpected errors in 82.418882 s
+(`/tmp/coyote-core-frozen-full.log`), regression evidence only. Current work adds
+typed `\verb`, `\vcenter`, and `\pmb` with raw-token grammar guards; approximate
+Gaussian shadow (not exact CSS); overflow/integer bounds; semantic payload roles;
+and cooperative cancellation checks at processing stage boundaries. Expired
+queued jobs skip input copying. This is not stage-loop preemption or a hard
+deadline guarantee. Raster pilot is 7/9 with two discrepancies. Whole-job
+memory, hard timing, GTK/cache guarantees, complete mapping, readiness,
+qualification and human acceptance remain open. No parity claim is made.
 ## 6. Resources, risks, and maintenance
 
 Use the existing GNAT/Alire/AUnit/GTK/Cairo/FreeType environment, development-only
@@ -198,10 +190,10 @@ calendar or staffing estimate is available before the inventory and pilot.
 
 The user approved this staged native-port plan and SRS-MATH v1.0 on
 2026-10-24, specifically approved native design v0.3, and authorized continued
-project execution on 2026-10-25. Later SDD v0.6 is a status/document revision,
+project execution on 2026-10-25. Later SDD v0.7 is a status/document revision,
 not a separately approved design baseline. The design and test work products
 are recorded in `design/coyote-design.md`, `design/native-math-compatibility.md`
-v0.6, and `plan/native-math-compatibility-tests.md` v0.6. Requirements remain authoritative; implementation progress does not change
+v0.7, and `plan/native-math-compatibility-tests.md` v0.7. Requirements remain authoritative; implementation progress does not change
 their scope or approved D01–D15 dispositions.
 
 Phase/status summary: P0 requirements/inventory approved and produced. P1
@@ -209,15 +201,11 @@ baseline/browser tooling exists, but full field coverage, matching and readiness
 are incomplete. P2 pilot works. P3 and P4 are partial. P5 async jobs, semantic
 tree and raster display are partial; inline painting and GTK main-thread timing
 are unqualified. P6 checks have run, but final qualification and acceptance are
-open. Fleqn now has focused GUI-option coverage, without full option-equivalence
-qualification. One added GUI test brings `Conversation_Stack` to 48 total
-registrations. Fleqn affects display math only, adding a 2 em left margin (48 px
-at 24 px/em; 96 px at 48 px/em); default display remains centered with no
-indent, and inline math is unaffected. RD-CTX-01 additional
-context caps remain unauthorized. Do not mark P1–P6 complete or claim full
-KaTeX parity. Latest evidence is in coordinator-owned report §9; preserve §8 as
-a dated prior checkpoint. Calendar dates and cost remain unestimated; independent
-human acceptance is pending.
+open. Fleqn has focused GUI-option coverage, not full option equivalence. Current
+implementation details and evidence are in coordinator-owned report §10; §9 and
+earlier sections are historical. RD-CTX-01 additional context caps remain
+unauthorized. Do not mark P1–P6 complete or claim full KaTeX parity. Calendar
+dates and cost remain unestimated; independent human acceptance is pending.
 
 Developer self-evaluation: current implementation and evidence are separated
 from the approved target and final acceptance gates. Existing tooling and

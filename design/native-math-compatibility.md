@@ -1,10 +1,10 @@
 # Native math compatibility design — SDD-MATH
 
 **Component:** coyote shared math engine and GTK presentation
-**Version:** 0.6
+**Version:** 0.7
 **Date:** 2026-10-27
 **Change:** PCR-125
-**Status:** User-approved design v0.3 and execution basis; this document is a later v0.6 status revision. Implementation and qualification incomplete.
+**Status:** User-approved design v0.3 and execution basis; this document is a later v0.7 status revision. Implementation and qualification incomplete.
 **Requirements:** `requirements/native-math-compatibility.md` v1.0 (approved)
 
 ## Contents
@@ -38,7 +38,7 @@ blockers are recorded in
 `plan/native-math-parity-test-report.md`.
 
 References: SRS-MATH above; `design/coyote-design.md`; approved
-`plan/native-math-parity-plan.md` v0.6; updated combined STP/STD v0.6
+`plan/native-math-parity-plan.md` v0.7; updated combined STP/STD v0.7
 (readiness review and approval open): `plan/native-math-compatibility-tests.md`;
 generated pinned inventory;
 `share/coyote/math/PROVENANCE.md`; current `src/coyote_math/` interfaces.
@@ -454,27 +454,16 @@ mapped in the scheduling increment before adding tasks.
 
 ## 8. Evaluation, risks, and review gate
 
-Developer evaluation: the approved design covers the approved requirement IDs
-and preserves explicitly approved deviations. Shared-state cleanup follows
-inspected reference behavior; GUI lifetimes and ownership transfers are
-specified. Proposed tool paths and interfaces remain proposals unless separately
-implemented. The coordinator-owned `plan/native-math-parity-test-report.md` §9
-is the current evidence pointer; §8 remains the dated prior checkpoint. The
-latest frozen development suite passed 1062/1062 with zero failed assertions
-or unexpected errors in 82.228506 seconds
-(`/tmp/coyote-next-frozen-full.log`), a regression result only. Scoped results:
-engine 57; one added fleqn GUI test, bringing `Conversation_Stack` to 48 total
-registrations; jobs 133, including 2,000 valid warm requests (p95 1 ms, max
-2 ms); geometry 145/145; structured/image pilots 16/16 and 3/3; macro assertion
-count is in coordinator-owned report §9; 156 native assertions in aggregate,
-including one case with 100 nested groups and one with 17,000 glyphs. Fleqn
-affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); the default remains centered with no indent, and inline math
-is unaffected. Structured paths use normalized units; full reference origins,
-widths and option effects remain unmeasured. Whole-job memory/cache, hard 250 ms
-completion, GTK slice limits, complete reference mapping, P1 readiness, remaining
-core behavior and independent human acceptance remain open. No parity or
-acceptance claim is made.
-
+Developer evaluation: the approved design and D01–D15 remain authoritative;
+this status revision does not constitute design approval or acceptance. Current
+source evidence and open qualification gates are in coordinator-owned report
+§10; §9 and earlier sections are historical. The frozen 1063/1063 suite is
+regression evidence only. New scoped implementation and the 7/9 raster pilot
+(two failures) are described in §10; approximate Gaussian shadow is not exact
+CSS, and cooperative stage checks do not guarantee preemption or a hard
+deadline. Whole-job memory/cache, GTK guarantees, full reference behavior,
+readiness, remaining core behavior and independent human acceptance remain open.
+No parity or acceptance claim is made.
 Risks requiring later evidence: worker-local native font/shaping thread safety,
 worst-case native-call latency and cleanup, bounded publication, context aggregate
 retention, exact full reference geometry export, GTK3 semantic role mapping and
@@ -491,23 +480,10 @@ behavior unless requirements are explicitly changed.
 
 ## Approval and execution status (updated 2026-10-26)
 
-The user specifically approved native design version 0.3 and authorized
-continued P0–P6 implementation and qualification on 2026-10-25. The current SDD
-version 0.6 is a later status/document revision, not a separately user-approved
-design baseline. Continued execution remains authorized; no additional design
-approval wait is required. That authorization is not acceptance and does not
-make any P1–P6 phase complete. The latest frozen suite passed 1062/1062 with
-zero failed assertions or unexpected errors in 82.228506 s
-(`/tmp/coyote-next-frozen-full.log`), regression evidence only. Scoped results:
-engine 57; one added fleqn GUI test, bringing `Conversation_Stack` to 48 total
-registrations; jobs 133 (2,000 valid warm requests, p95 1 ms, max 2 ms); geometry
-145/145; structured/image pilots 16/16 and 3/3; macro assertion count is
-recorded in coordinator-owned report §9; 156 native assertions in aggregate,
-including one case with 100 nested groups and one with 17,000 glyphs. Fleqn
-affects display math only, adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); the default remains centered with no indent, and inline math
-is unaffected. These results do not establish full reference geometry, complete
-option behavior, whole-job resource/timing compliance, or human acceptance.
-Coverage is a source crosswalk, not completion evidence; consult coordinator-
-owned report §9 for the current snapshot and preserve §8 as historical.
-RD-CTX-01 additional context caps remain unauthorized. Do not claim full KaTeX
-parity, project completion, or product acceptance.
+The user approved native design v0.3 and authorized continued P0–P6 execution
+on 2026-10-25; document version 0.7 is a status revision, not a new design
+approval. Continued execution remains authorized, but that authorization is not
+acceptance and does not complete a phase. Current-source status and gates are in
+coordinator-owned report §10; §9 and earlier sections are historical. RD-CTX-01
+additional context caps remain unauthorized. Do not claim full KaTeX parity,
+project completion, or product acceptance.

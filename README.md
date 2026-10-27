@@ -16,18 +16,18 @@ shared between coyote and pi.
   GitHub Flavored Markdown tables are native tables. Inline `$...$` and
   `\(...\)` and display `$$...$$` and `\[...\]` math use the native Ada
   parser/layout engine, with code protected and unsupported input visible as
-  source text. It supports common symbols, fractions, scripts, square and
-  indexed roots, text/roman content, arrays, font styles, delimiters, limits,
-  accents, and selected geometry; broad SVG/KaTeX geometry parity is not
-  claimed. This is explicitly **not full TeX or
-  complete KaTeX compatibility**. Bundled KaTeX 0.16.22 TTFs are in
+  source text. The bounded, uneven native profile includes textual definitions,
+  fractions, scripts, roots, selected arrays and equation/tag cases, text/font
+  styles, delimiters, limits, accents, color, `\mathchoice`, `\hbox`,
+  generalized/infix fractions, and typed `\verb`, `\vcenter`, and `\pmb`
+  forms guarded by raw-token literal grammar. Native Gaussian shadow is an
+  approximation, not exact CSS; overflow and integer bounds are checked.
+  Unsupported input remains visible as source. This is explicitly **not full
+  TeX or complete KaTeX compatibility**. Bundled KaTeX 0.16.22 TTFs are in
   `share/coyote/math/fonts/`; retained MIT notices are in
-  `share/coyote/math/licenses/`. The bounded native profile includes textual
-  definitions, fractions, scripts, roots, selected arrays, equation/tag cases,
-  text/font styles, delimiters, limits, accents, color, `\mathchoice`,
-  `\hbox`, and generalized/infix fractions. Support is uneven and these
-  features are not comprehensively qualified. Unicode aliases are substitutions,
-  not general Unicode shaping. See the [supported profile](share/coyote/math/README.md),
+  `share/coyote/math/licenses/`. Unicode ranges are predicate-only, not general
+  Unicode shaping or full text/math mode compatibility. See the
+  [supported profile](share/coyote/math/README.md),
   [asset provenance](share/coyote/math/PROVENANCE.md), and
   [coverage map](plan/native-math-coverage.md). Plain output remains
   line-oriented.
@@ -234,16 +234,16 @@ cd test && alr build
 ```
 
 See [the current native-math test report](plan/native-math-parity-test-report.md)
-for evidence and qualification status; coordinator-owned §9 is the latest
-snapshot, while §8 remains historical. The latest frozen full development-suite
-run passed 1062/1062 with zero failed assertions or unexpected errors in 82.228506 s
-(`/tmp/coyote-next-frozen-full.log`). This is regression evidence only; it does
+for evidence and qualification status; coordinator-owned §10 is current
+snapshot. Sections §9 and earlier are historical. The latest frozen full
+development suite passed 1063/1063 with zero failed assertions or unexpected errors in 82.418882 s
+(`/tmp/coyote-core-frozen-full.log`). This is regression evidence only; it does
 not establish parity, resource qualification or product acceptance. Two
 intermediate frozen-suite runs failed one GTK tool-allocation assertion; after
 three isolated focused passes, a test-only correction added a one-second
 monotonic GTK poll while retaining the exact 760×600 dimension criterion. The
 frozen full suite then passed. Current evidence and qualification limits are
-recorded in coordinator-owned report §9. Live provider tests are opt-in;
+recorded in coordinator-owned report §10. Live provider tests are opt-in;
 subagent subprocess tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 
 ## License

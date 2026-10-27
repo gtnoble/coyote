@@ -1,10 +1,10 @@
 # Native math human acceptance checklist
 
 **Document:** Operator checklist for approved manual component-acceptance checks
-**Version:** 0.3
+**Version:** 0.4
 **Date:** 2026-10-27
 **Status:** Procedure drafted; readiness review, execution, qualification, and human acceptance remain **PENDING**
-**Authority:** [SRS-MATH v1.0](../requirements/native-math-compatibility.md), especially REQ-MATH-012; updated [STP/STD-MATH v0.6](native-math-compatibility-tests.md), especially §§2.2, 3, 4, 5.5 (`MATH-GUI-001`, `MATH-A11Y-001`); current [parity test report](native-math-parity-test-report.md). This checklist supplements, and does not change or supersede, those documents.
+**Authority:** [SRS-MATH v1.0](../requirements/native-math-compatibility.md), especially REQ-MATH-012; updated [STP/STD-MATH v0.7](native-math-compatibility-tests.md), especially §§2.2, 3, 4, 5.5 (`MATH-GUI-001`, `MATH-A11Y-001`); current [parity test report](native-math-parity-test-report.md). This checklist supplements, and does not change or supersede, those documents.
 
 ## 1. Purpose and limits
 
@@ -12,26 +12,15 @@ Use this checklist to collect **actual operator and human-review evidence** for 
 
 REQ-MATH-012 requires formula source and structured mathematical content adequate for assistive-technology navigation, exact delimited-source copying, and human review using named desktop/assistive tools. Bitmap inspection or the automated probe alone cannot pass it. This protocol does not claim that a screen reader, accessibility bridge, or any particular tool is adequate; the reviewer must describe what was actually exposed and usable. A failed or unavailable AT interaction is recorded as such, not explained away.
 
-**No product acceptance may be declared from this checklist while the approved STP readiness/final-qualification gates are open or known fatal acceptance gaps remain.** Coordinator-owned report §9 is the latest status; §8 is a dated prior checkpoint. Focused geometry passed 145/145, and frozen structured/image pilots passed 16/16 and 3/3. This evidence is scoped; normalized path units are not image geometry, and full origins, widths and option effects remain unmeasured. Whole-job resource/deadline/GTK/cache qualification remains open. Coverage crosswalks are not semantic qualification. A passing manual session cannot waive open gates or silently alter approved criteria. No human acceptance has occurred.
-
+**No product acceptance may be declared from this checklist while the approved STP readiness/final-qualification gates are open or known fatal acceptance gaps remain.** Current evidence is in coordinator-owned report §10; §9 and earlier sections are historical. The frozen suite is regression evidence only, and the raster pilot has two known failures. Whole-job resource/deadline/GTK/cache qualification, readiness and human acceptance remain open. A passing manual session cannot waive open gates or silently alter approved criteria. No human acceptance has occurred.
 ## 2. Gate and evidence status at issue
 
-STP v0.6 records the current test-planning baseline; readiness,
-qualification and acceptance remain open. The current development
-suite passed 1062/1062 (82.228506 s) with zero failed assertions or unexpected
-errors (`/tmp/coyote-next-frozen-full.log`); the result and scoped probes do not
-establish product qualification.
-Focused geometry passed 145/145, and structured/image pilots passed 16/16 and
-3/3. The structured path comparison uses normalized units; full origins, widths
-and option effects remain unmeasured. One added fleqn GUI test brings
-`Conversation_Stack` to 48 total registrations. Fleqn affects display math only,
-adding a 2 em left margin (48 px at 24 px/em; 96 px at 48 px/em); default
-display remains centered with no indent, and inline math is unaffected. Whole-
-job memory/deadline/GTK/cache guarantees remain unqualified. Consult coordinator-
-owned report §9 for current evidence, preserving §8 as a dated prior checkpoint,
-and capture fresh evidence against the exact tested source before execution. No
-human acceptance has occurred.
-
+STP/STD-MATH v0.7 records the current planning baseline; readiness,
+qualification and acceptance remain open. Coordinator-owned report §10 is the
+current evidence source; §9 and earlier sections are historical. The frozen
+1063/1063 full suite is regression evidence only, and the raster pilot has two
+known discrepancies. Capture fresh evidence against the exact tested source
+before execution. No human acceptance has occurred.
 There is **no end-to-end product GUI acceptance harness** that drives and records this human protocol. Available standalone commands generate component evidence; they do not launch the conversation stack with this checklist's controlled formula set or establish whole-product behavior:
 
 ```sh
@@ -178,7 +167,7 @@ A PASS for these manual checks means only that the recorded checks passed for th
 ## 8. Traceability and controlled references
 
 - [SRS-MATH v1.0](../requirements/native-math-compatibility.md): REQ-MATH-011, REQ-MATH-012, REQ-MATH-013 and REQ-MATH-014.
-- [STP/STD-MATH v0.6](native-math-compatibility-tests.md): §§2.2, 3.2–3.4, 4.1–4.2, `MATH-GUI-001`, `MATH-A11Y-001`, §6 traceability, §7 blockers.
+- [STP/STD-MATH v0.7](native-math-compatibility-tests.md): §§2.2, 3.2–3.4, 4.1–4.2, `MATH-GUI-001`, `MATH-A11Y-001`, §6 traceability, §7 blockers.
 - [Native math parity test report](native-math-parity-test-report.md): current observed regression, geometry, image, differential, coverage and open-qualification evidence. Recheck for updates before every execution; older dated snapshots are historical.
 - Pilot source: `test/fixtures/math-compatibility/pilot.json`, case `heat-balance-001`. The pilot is not the full approved corpus.
 - Focused local probes: `test/tools/check-native-math.sh`, `test/tools/check-math-accessibility.sh`. Their scope does not establish whole-product manual acceptance.

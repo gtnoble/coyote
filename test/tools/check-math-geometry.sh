@@ -176,16 +176,30 @@ const fractionCases = [
   ['fraction-infix-above-zero', 'a\\above{0pt}b', false],
   ['fraction-infix-above-custom', 'a\\above{0.2pt}b', false],
 ];
-const cases = [...legacyCases, ...additions, ...arrowCases, ...mathChoiceCases, ...fractionCases];
+const supportCases = [
+  ['support-vcenter-frac', '\\vcenter{\\hbox{$\\frac{a+b}{\\dfrac{c}{d}}$}}', false],
+  ['support-vcenter-x', '\\vcenter{\\hbox{$x$}}', false],
+  ['support-vcenter-atom', '\\vcenter{x}', false],
+  ['support-pmb-x', '\\pmb{x}', false],
+  ['support-pmb-relation', 'a\\pmb{\\leq}b', false],
+  ['support-pmb-display', '\\pmb{x+y}', true],
+  ['verb-plain', '\\verb|a b~|', false],
+  ['verb-starred', '\\verb*|a b~|', false],
+  ['verb-subscript', 'x_{\\verb*|a b|}', false],
+  ['verb-superscript', 'x^{\\verb|a b|}', false],
+  ['verb-display-style', '\\verb*|a b|', true],
+  ['verb-star-space-only', '\\verb*| |', false],
+];
+const cases = [...legacyCases, ...additions, ...arrowCases, ...mathChoiceCases, ...fractionCases, ...supportCases];
 const expectedIds = new Set(cases.map(([id]) => id));
 const duplicates = cases.map(([id]) => id).filter((id, i, all) => all.indexOf(id) !== i);
 const unexpected = [...native.keys()].filter(id => !expectedIds.has(id));
 const missing = [...expectedIds].filter(id => !native.has(id));
 let failures = 0;
 if (legacyCases.length !== 37 || additions.length !== 52 || arrowCases.length !== 24 ||
-    mathChoiceCases.length !== 8 || fractionCases.length !== 24 || duplicates.length || native.size !== 145 || expectedIds.size !== 145 ||
+    mathChoiceCases.length !== 8 || fractionCases.length !== 24 || duplicates.length || native.size !== 145 + supportCases.length || expectedIds.size !== 145 + supportCases.length ||
     unexpected.length || missing.length) {
-  console.error(`ID/count mismatch: legacy=${legacyCases.length}/37 additions=${additions.length}/52 arrows=${arrowCases.length}/24 mathchoice=${mathChoiceCases.length}/8 fractions=${fractionCases.length}/24 native=${native.size}/145; duplicates=${duplicates.join(',')} missing=${missing.join(',')} unexpected=${unexpected.join(',')}`);
+  console.error(`ID/count mismatch: legacy=${legacyCases.length}/37 additions=${additions.length}/52 arrows=${arrowCases.length}/24 mathchoice=${mathChoiceCases.length}/8 fractions=${fractionCases.length}/24 native=${native.size}/${145 + supportCases.length}; duplicates=${duplicates.join(',')} missing=${missing.join(',')} unexpected=${unexpected.join(',')}`);
   failures++;
 }
 function compare(group, rows) {
@@ -211,6 +225,7 @@ compare('added', additions);
 compare('arrows', arrowCases);
 compare('mathchoice', mathChoiceCases);
 compare('fractions', fractionCases);
+compare('vcenter-pmb', supportCases);
 if (failures) process.exitCode = 1;
 NODE
 printf 'Build log: %s/build.log\nNative geometry: %s/native.txt\n' "$out" "$out"

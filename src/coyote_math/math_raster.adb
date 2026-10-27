@@ -65,6 +65,10 @@ package body Math_Raster is
       Context : Cairo.Cairo_Context := Cairo.Null_Context;
       W : Natural := View_Width;
       H : Natural := View_Height;
+      Full_Width : Natural;
+      Full_Height : Natural;
+      Right_Overflow : Long_Float := 0.0;
+      Bottom_Overflow : Long_Float := 0.0;
       S : Natural;
       Data : System.Address;
    begin
@@ -90,32 +94,86 @@ package body Math_Raster is
       then
          raise Raster_Error with "invalid layout bounds";
       end if;
-      if Is_Tile then
-         if W = 0 or else H = 0 or else W > 256 or else H > 256 then
-            raise Raster_Error with "tile dimensions exceed 256 x 256";
+      declare
+         Logical_Width : constant Long_Float := Layout.Width * Em_Scale;
+         Logical_Height : constant Long_Float :=
+           (Layout.Ascent + Layout.Descent) * Em_Scale;
+      begin
+         if not Logical_Width'Valid or else not Logical_Height'Valid then
+            raise Raster_Error with "invalid scaled layout dimensions";
          end if;
-      else
-         declare
-            FW : constant Long_Float := Layout.Width * Em_Scale;
-            FH : constant Long_Float :=
-              (Layout.Ascent + Layout.Descent) * Em_Scale;
-         begin
-            if not FW'Valid or else not FH'Valid or else FW > 8192.0
-              or else FH > 4096.0 then
-               raise Raster_Error with "full raster dimension limit exceeded";
+         if not Is_Tile then
+            if Logical_Width > 8192.0 or else Logical_Height > 4096.0 then
+               raise Raster_Error with
+                 "full raster dimension limit exceeded";
             end if;
-            W := Natural'Max (1, Natural (Long_Float'Ceiling (FW)));
-            H := Natural'Max (1, Natural (Long_Float'Ceiling (FH)));
-         end;
+            Full_Width := Natural'Max
+              (1, Natural (Long_Float'Ceiling (Logical_Width)));
+            Full_Height := Natural'Max
+              (1, Natural (Long_Float'Ceiling (Logical_Height)));
+         end if;
+         for Index in Layout.Commands.First_Index ..
+           Layout.Commands.Last_Index
+         loop
+            declare
+               Command : constant Math_Layout.Draw_Command :=
+                 Layout.Commands (Index);
+            begin
+               if Command.Has_Shadow then
+                  if not Command.Shadow_X'Valid or else
+                    not Command.Shadow_Y'Valid or else
+                    not Command.Shadow_Blur_Px'Valid or else
+                    Command.Shadow_X < 0.0 or else
+                    Command.Shadow_X > 256.0 or else
+                    Command.Shadow_Y < 0.0 or else
+                    Command.Shadow_Y > 256.0 or else
+                    Command.Shadow_Blur_Px < 0.0 or else
+                    Command.Shadow_Blur_Px > 256.0
+                  then
+                     raise Raster_Error with
+                       "unsupported or invalid shadow bounds";
+                  end if;
+                  Right_Overflow := Long_Float'Max
+                    (Right_Overflow, Command.Shadow_X * Em_Scale +
+                     Command.Shadow_Blur_Px);
+                  Bottom_Overflow := Long_Float'Max
+                    (Bottom_Overflow, Command.Shadow_Y * Em_Scale +
+                     Command.Shadow_Blur_Px);
+               end if;
+            end;
+         end loop;
+         if Right_Overflow > 8192.0 or else Bottom_Overflow > 4096.0 then
+            raise Raster_Error with "shadow overflow exceeds raster limit";
+         end if;
+         if Is_Tile then
+            null;
+         else
+            W := Natural'Max
+              (1, Natural (Long_Float'Ceiling
+                (Logical_Width + Right_Overflow)));
+            H := Natural'Max
+              (1, Natural (Long_Float'Ceiling
+                (Logical_Height + Bottom_Overflow)));
+            if W > 8192 or else H > 4096 then
+               raise Raster_Error with
+                 "full raster dimension limit exceeded";
+            end if;
+         end if;
+      end;
+      if Is_Tile and then (W = 0 or else H = 0 or else W > 256 or else
+        H > 256)
+      then
+         raise Raster_Error with "tile dimensions exceed 256 x 256";
       end if;
       S := W * 4;
       if Long_Float (S) * Long_Float (H) * 2.0 > 268_435_456.0 then
          raise Raster_Error with "raster workspace exceeds 256 MiB";
       end if;
       if Is_Tile
-        and then (Long_Float (Left) > Layout.Width * Em_Scale
-          or else Long_Float (Top) >
-            (Layout.Ascent + Layout.Descent) * Em_Scale)
+        and then (Long_Float (Left) >
+          Layout.Width * Em_Scale + Right_Overflow or else
+          Long_Float (Top) >
+            (Layout.Ascent + Layout.Descent) * Em_Scale + Bottom_Overflow)
       then
          raise Raster_Error with "viewport origin outside layout";
       end if;

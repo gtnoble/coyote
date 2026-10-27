@@ -53,13 +53,15 @@ package body Coyote_Math_Jobs is
         Raster_Requested : out Boolean; Fleqn : out Boolean;
         Em_Pixels : out Long_Float;
         Font_Directory : out Unbounded_String;
-        Deadline : out Ada.Real_Time.Time);
+        Deadline : out Ada.Real_Time.Time;
+        Take_Status : out Job_Status);
       procedure Complete (Index : Positive; Job : Request_Id;
         View : View_Generation; State : Job_Status;
         Value : Result_Access; Discard : out Result_Access);
       procedure Cancel_Job (Id : Request_Id; View : View_Generation);
-      function Is_Cancelled (Id : Request_Id; View : View_Generation)
-        return Boolean;
+      function Worker_Control_Status
+        (Id : Request_Id; View : View_Generation;
+         Deadline : Ada.Real_Time.Time) return Job_Status;
       procedure Abandon_Job (Id : Request_Id; View : View_Generation;
         Discard : out Result_Access);
       procedure Drain (Values : out Slot_Array);
@@ -177,7 +179,8 @@ package body Coyote_Math_Jobs is
         Raster_Requested : out Boolean; Fleqn : out Boolean;
         Em_Pixels : out Long_Float;
         Font_Directory : out Unbounded_String;
-        Deadline : out Ada.Real_Time.Time)
+        Deadline : out Ada.Real_Time.Time;
+        Take_Status : out Job_Status)
         when Stopping or else (Running and then not Paused and then
           (for some I in Items'Range => Items (I).Used and
              not Items (I).Taken and not Items (I).Done)) is
@@ -190,6 +193,7 @@ package body Coyote_Math_Jobs is
          Em_Pixels := 16.0;
          Font_Directory := Null_Unbounded_String;
          Deadline := Ada.Real_Time.Time_First;
+         Take_Status := Pending;
          if not Stop then
             for I in Items'Range loop
                if Items (I).Used and not Items (I).Taken and
@@ -197,6 +201,12 @@ package body Coyote_Math_Jobs is
                   Items (I).Taken := True; Index := I;
                   Items (I).Started_At := Ada.Real_Time.Clock;
                   Job := Items (I).Job; View := Items (I).View;
+                  Deadline := Items (I).Deadline;
+                  if Ada.Real_Time.Clock > Deadline then
+                     --  Avoid copying expired source and raster inputs.
+                     Take_Status := Expired;
+                     return;
+                  end if;
                   Text := Items (I).Text; Style := Items (I).Style;
                   Color_Enabled := Items (I).Color_Enabled;
                   Color := Items (I).Color;
@@ -204,7 +214,7 @@ package body Coyote_Math_Jobs is
                   Fleqn := Items (I).Fleqn;
                   Em_Pixels := Items (I).Em_Pixels;
                   Font_Directory := Items (I).Font_Directory;
-                  Deadline := Items (I).Deadline; return;
+                  return;
                end if;
             end loop;
          end if;
@@ -252,6 +262,25 @@ package body Coyote_Math_Jobs is
             Discard := null;
          end if;
       end Complete;
+      function Worker_Control_Status
+        (Id : Request_Id; View : View_Generation;
+         Deadline : Ada.Real_Time.Time) return Job_Status is
+      begin
+         for I in Items'Range loop
+            if Items (I).Used and Items (I).Job = Id and
+              Items (I).View = View
+            then
+               if Items (I).Cancelled or Items (I).Abandoned then
+                  return Cancelled;
+               elsif Ada.Real_Time.Clock > Deadline then
+                  return Expired;
+               else
+                  return Pending;
+               end if;
+            end if;
+         end loop;
+         return Cancelled;
+      end Worker_Control_Status;
       procedure Cancel_Job (Id : Request_Id; View : View_Generation) is
       begin
          for I in Items'Range loop
@@ -263,18 +292,6 @@ package body Coyote_Math_Jobs is
             end if;
          end loop;
       end Cancel_Job;
-      function Is_Cancelled (Id : Request_Id; View : View_Generation)
-        return Boolean is
-      begin
-         for I in Items'Range loop
-            if Items (I).Used and Items (I).Job = Id and
-              Items (I).View = View
-            then
-               return Items (I).Cancelled or Items (I).Abandoned;
-            end if;
-         end loop;
-         return True;
-      end Is_Cancelled;
       procedure Abandon_Job (Id : Request_Id; View : View_Generation;
         Discard : out Result_Access) is
       begin
@@ -363,6 +380,10 @@ package body Coyote_Math_Jobs is
          end loop;
       end Mark_Stop;
    end Control;
+   function Worker_Control_Status
+     (Id : Request_Id; View : View_Generation;
+      Deadline : Ada.Real_Time.Time) return Job_Status is
+     (Control.Worker_Control_Status (Id, View, Deadline));
    procedure Free_Result (Item : in out Result_Access) is
       procedure Dealloc is new Ada.Unchecked_Deallocation (Job_Result, Result_Access);
    begin if Item /= null then Dealloc (Item); end if; end Free_Result;
@@ -376,6 +397,7 @@ package body Coyote_Math_Jobs is
    task body Worker is
       Index : Positive;
       Stop : Boolean;
+      Taken_State : Job_Status;
       Job : Request_Id;
       View : View_Generation;
       Text : Unbounded_String;
@@ -390,18 +412,24 @@ package body Coyote_Math_Jobs is
       Parse_Settings : Math_Syntax.Options;
       R : Result_Access;
       State : Job_Status;
+      Phase_Status : Job_Status;
       Discard : Result_Access;
    begin
       loop
          Control.Take
            (Index, Stop, Job, View, Text, Style, Color_Enabled, Color,
-            Raster_Requested, Fleqn, Em_Pixels, Font_Directory, Deadline);
+            Raster_Requested, Fleqn, Em_Pixels, Font_Directory, Deadline,
+            State);
          exit when Stop;
+         Taken_State := State;
          R := null;
          State := Failed;
          begin
-            if Control.Is_Cancelled (Job, View) then
-               State := Cancelled;
+            Phase_Status := Worker_Control_Status (Job, View, Deadline);
+            if Taken_State /= Pending then
+               State := Taken_State;
+            elsif Phase_Status /= Pending then
+               State := Phase_Status;
             else
                R := new Job_Result;
                R.Job := Job;
@@ -409,11 +437,34 @@ package body Coyote_Math_Jobs is
                R.Text := Text;
                Parse_Settings.Display_Mode :=
                  Style = Math_Layout.Display_Style;
-               R.Parsed := Math_Syntax.Parse
-                 (To_String (Text), Parse_Settings);
-               if Math_Syntax.Is_Valid (R.Parsed) then
+               Phase_Status := Worker_Control_Status (Job, View, Deadline);
+               if Phase_Status = Pending then
+                  R.Parsed := Math_Syntax.Parse
+                    (To_String (Text), Parse_Settings);
+                  Phase_Status := Worker_Control_Status
+                    (Job, View, Deadline);
+               end if;
+               if Phase_Status = Pending and then
+                 Math_Syntax.Is_Valid (R.Parsed)
+               then
                   R.Meaning := Math_Semantics.Project (R.Parsed);
+                  Phase_Status := Worker_Control_Status
+                    (Job, View, Deadline);
+               end if;
+               if Phase_Status = Pending and then
+                 Math_Syntax.Is_Valid (R.Parsed)
+               then
                   R.Geometry := Math_Layout.Build (R.Parsed, Style);
+                  Phase_Status := Worker_Control_Status
+                    (Job, View, Deadline);
+               end if;
+               if Phase_Status /= Pending then
+                  State := Phase_Status;
+               elsif not Math_Syntax.Is_Valid (R.Parsed) then
+                  R.Message := To_Unbounded_String
+                    (Math_Syntax.Error (R.Parsed));
+                  State := Invalid;
+               else
                   if R.Geometry.Valid and then Fleqn and then
                     Style = Math_Layout.Display_Style
                   then
@@ -445,37 +496,47 @@ package body Coyote_Math_Jobs is
                   end if;
                   State := (if R.Geometry.Valid and then
                     Math_Semantics.Is_Valid (R.Meaning) then Valid else Invalid);
-                  if State = Valid and then Raster_Requested and then
-                    Ada.Real_Time.Clock <= Deadline
-                  then
-                     declare
-                        Fonts : Math_Painter.Font_Set;
-                        Foreground : Math_Model.Color_Value :=
-                          (Alpha => 1.0, others => 0.0);
-                     begin
-                        if Color_Enabled then
-                           Foreground :=
-                             (Red => Color.Red, Green => Color.Green,
-                              Blue => Color.Blue, Alpha => Color.Alpha);
-                        end if;
-                        Math_Painter.Load
-                          (Fonts, To_String (Font_Directory));
-                        R.Pixels := Math_Raster.Render
-                          (Fonts, R.Geometry, Em_Pixels, Foreground);
-                        R.Raster_Baseline_Value := Natural
-                          (Long_Float'Ceiling
-                             (R.Geometry.Ascent * Em_Pixels));
-                        R.Raster_Ready := True;
-                     end;
+                  if State = Valid and then Raster_Requested then
+                     Phase_Status := Worker_Control_Status
+                       (Job, View, Deadline);
+                     if Phase_Status = Pending then
+                        declare
+                           Fonts : Math_Painter.Font_Set;
+                           Foreground : Math_Model.Color_Value :=
+                             (Alpha => 1.0, others => 0.0);
+                        begin
+                           if Color_Enabled then
+                              Foreground :=
+                                (Red => Color.Red, Green => Color.Green,
+                                 Blue => Color.Blue, Alpha => Color.Alpha);
+                           end if;
+                           Math_Painter.Load
+                             (Fonts, To_String (Font_Directory));
+                           Phase_Status := Worker_Control_Status
+                             (Job, View, Deadline);
+                           if Phase_Status = Pending then
+                              R.Pixels := Math_Raster.Render
+                                (Fonts, R.Geometry, Em_Pixels, Foreground);
+                              Phase_Status := Worker_Control_Status
+                                (Job, View, Deadline);
+                           end if;
+                           if Phase_Status = Pending then
+                              R.Raster_Baseline_Value := Natural
+                                (Long_Float'Ceiling
+                                   (R.Geometry.Ascent * Em_Pixels));
+                              R.Raster_Ready := True;
+                           else
+                              State := Phase_Status;
+                           end if;
+                        end;
+                     else
+                        State := Phase_Status;
+                     end if;
                   end if;
-               else
-                  R.Message := To_Unbounded_String
-                    (Math_Syntax.Error (R.Parsed));
-                  State := Invalid;
                end if;
-               if Ada.Real_Time.Clock > Deadline
-               then
-                  State := Expired;
+               Phase_Status := Worker_Control_Status (Job, View, Deadline);
+               if Phase_Status /= Pending then
+                  State := Phase_Status;
                elsif Raster_Requested and then State = Valid and then
                  not R.Raster_Ready
                then

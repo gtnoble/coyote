@@ -363,9 +363,12 @@ package body Math_Layout is
         Math_Syntax.Element (Item, Positive (Id));
    begin
       if Value.Kind in Row_Node | Glyph_Node | Scripts_Node | Fraction_Node |
-        Overlay_Node | Overlap_Node | Dual_Node
+        Overlay_Node | Overlap_Node | Dual_Node | Poor_Bold_Node |
+        Verbatim_Node
       then
-         if Value.Class = Binary_Atom
+         if (if Value.Kind = Poor_Bold_Node
+             then Value.Poor_Bold_Class = Binary_Atom
+             else Value.Class = Binary_Atom)
            and then (Position = 1 or Position = Total)
          then
             return Ordinary;
@@ -1862,6 +1865,73 @@ package body Math_Layout is
             Result.Descent := Maximum (Metric.Descent, 0.0);
             Result.Italic  := Metric.Italic;
             Result.Valid   := True;
+         when Verbatim_Node =>
+            declare
+               Text : constant String := To_String (Value.Verbatim_Text);
+               Offset : Natural := 0;
+               Point : Natural;
+               Step : Natural;
+               Metric : Math_Metrics.Glyph_Metric;
+               Command : Draw_Command;
+            begin
+               if Value.First /= No_Node or Value.Second /= No_Node or
+                 Value.Third /= No_Node or Value.Fourth /= No_Node or
+                 Value.Class /= Ordinary or
+                 Value.Font /= Typewriter_Regular
+               then
+                  Reject ("invalid verbatim node");
+               end if;
+               while Offset < Text'Length loop
+                  declare
+                     Lead : constant Natural := Character'Pos
+                       (Text (Text'First + Offset));
+                  begin
+                     if Lead < 16#80# then
+                        Point := Lead;
+                        Step := 1;
+                     elsif Lead < 16#E0# then
+                        Point := (Lead mod 32) * 64 +
+                          (Character'Pos
+                            (Text (Text'First + Offset + 1)) mod 64);
+                        Step := 2;
+                     elsif Lead < 16#F0# then
+                        Point := (Lead mod 16) * 4_096 +
+                          (Character'Pos
+                            (Text (Text'First + Offset + 1)) mod 64) * 64 +
+                          (Character'Pos
+                            (Text (Text'First + Offset + 2)) mod 64);
+                        Step := 3;
+                     else
+                        Point := (Lead mod 8) * 262_144 +
+                          (Character'Pos
+                            (Text (Text'First + Offset + 1)) mod 64) * 4_096 +
+                          (Character'Pos
+                            (Text (Text'First + Offset + 2)) mod 64) * 64 +
+                          (Character'Pos
+                            (Text (Text'First + Offset + 3)) mod 64);
+                        Step := 4;
+                     end if;
+                  end;
+                  if Point = Character'Pos (' ') then
+                     Point := (if Value.Verbatim_Starred
+                       then 16#2423# else 16#00A0#);
+                  end if;
+                  Metric := Scaled_Metric (Typewriter_Regular, Point, Scale);
+                  Command := (Kind => Glyph_Command,
+                     Font => Typewriter_Regular, Code_Point => Point,
+                     X => Result.Width,
+                     Y => 0.0,
+                     Scale => Scale, Width => Metric.Width,
+                     Height => Metric.Ascent + Metric.Descent,
+                     others => <>);
+                  Append_Command (Result, Command);
+                  Result.Width := Result.Width + Metric.Width;
+                  Result.Ascent := Maximum (Result.Ascent, Metric.Ascent, 0.0);
+                  Result.Descent := Maximum (Result.Descent, Metric.Descent, 0.0);
+                  Offset := Offset + Step;
+               end loop;
+               Result.Valid := True;
+            end;
          when Fraction_Node =>
             if Value.First = No_Node or Value.Second = No_Node or
               Value.Third /= No_Node
@@ -2453,6 +2523,63 @@ package body Math_Layout is
                Result.Ascent := Long_Float'Max (0.0, Result.Ascent + Shift);
                Result.Descent := Long_Float'Max (0.0, Result.Descent - Shift);
             end;
+         when VCenter_Node =>
+            if Value.First = No_Node or else Value.Second /= No_Node or else
+              Value.Third /= No_Node or else Value.Fourth /= No_Node
+            then
+               Reject ("vcenter has invalid boxed content");
+            end if;
+            Result := Compose
+              (Item, Value.First, Level, Scale, Depth + 1, Thickness);
+            declare
+               Shift : constant Long_Float :=
+                 Fraction_Axis * Scale -
+                 (Result.Ascent - Result.Descent) / 2.0;
+            begin
+               if Result.Ascent + Result.Descent > Max_Geometry then
+                  Reject ("vcenter box geometry limit exceeded");
+               end if;
+               for Index in Result.Commands.First_Index ..
+                 Result.Commands.Last_Index
+               loop
+                  declare
+                     Command : Draw_Command := Result.Commands (Index);
+                  begin
+                     Command.Y := Command.Y - Shift;
+                     Result.Commands.Replace_Element (Index, Command);
+                  end;
+               end loop;
+               Result.Ascent := Long_Float'Max (0.0, Result.Ascent + Shift);
+               Result.Descent := Long_Float'Max (0.0, Result.Descent - Shift);
+               Result.Valid := True;
+            end;
+         when Poor_Bold_Node =>
+            if Value.First = No_Node or else Value.Second /= No_Node or else
+              Value.Third /= No_Node or else Value.Fourth /= No_Node or else
+              Value.Poor_Bold_Class not in Ordinary | Binary_Atom |
+                Relation_Atom or else
+              Value.Poor_Bold_Shadow_X /= 0.02 or else
+              Value.Poor_Bold_Shadow_Y /= 0.01 or else
+              Value.Poor_Bold_Blur_Px /= 0.04
+            then
+               Reject ("invalid poor-man bold content or style");
+            end if;
+            Result := Compose
+              (Item, Value.First, Level, Scale, Depth + 1, Thickness);
+            for Index in Result.Commands.First_Index ..
+              Result.Commands.Last_Index
+            loop
+               declare
+                  Command : Draw_Command := Result.Commands (Index);
+               begin
+                  Command.Has_Shadow := True;
+                  Command.Shadow_X := Value.Poor_Bold_Shadow_X * Scale;
+                  Command.Shadow_Y := Value.Poor_Bold_Shadow_Y * Scale;
+                  Command.Shadow_Blur_Px := Value.Poor_Bold_Blur_Px;
+                  Result.Commands.Replace_Element (Index, Command);
+               end;
+            end loop;
+            Result.Valid := True;
          when Enclosed_Node =>
             if Value.First = No_Node then
                Reject ("enclosure has no content");

@@ -13,11 +13,19 @@ The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
 current code or documentation. The current native-math evidence and open
-qualification status are recorded in §9 of
-`plan/native-math-parity-test-report.md`; consult that coordinator-owned report
-rather than treating earlier full-suite or focused results as current-source
-qualification. No parity or product acceptance is implied.
+qualification status are recorded in §10 of the coordinator-owned
+`plan/native-math-parity-test-report.md`; treat §9 and earlier sections as
+historical snapshots. No parity or product acceptance is implied.
 
+The current checkpoint adds typed `\verb`, `\vcenter` and `\pmb` with
+raw-token literal grammar guards, native Gaussian-shadow approximation (not
+exact CSS), shadow overflow checks, expanded integer bounds, and semantic
+payload roles; the added GUI case brings `Conversation_Stack` to 49
+registrations. Cancellation checks bracket parsing, semantic analysis,
+layout, font work, rasterization and publication; expired queued jobs are
+skipped before copying input. These are cooperative checks, not stage-loop
+preemption or a hard deadline guarantee. Unicode ranges remain predicate-only,
+not shaped text. Consult report §10 for evidence and open gates.
 Executables:
 
 - `bin/coyote` — selects GUI or Plain and runs the native agent loop.
@@ -141,38 +149,20 @@ Historical native-math full-suite results include PCR-123 1042/1042, earlier
 full-suite attempts failed exactly one GTK tool-allocation assertion each;
 three isolated focused passes followed, then a test-only correction added a
 one-second monotonic GTK poll without changing or weakening the exact 760×600
-dimension criterion. The frozen full development suite then passed 1062/1062
-with zero failed assertions or unexpected errors in 82.228506 seconds
-(`/tmp/coyote-next-frozen-full.log`). It is regression evidence, not parity or
+dimension criterion. The frozen full development suite then passed 1063/1063
+with zero failed assertions or unexpected errors in 82.418882 seconds
+(`/tmp/coyote-core-frozen-full.log`). It is regression evidence, not parity or
 product acceptance. Root build and test build logs are
-`/tmp/coyote-next-frozen-build.log` and
-`/tmp/coyote-next-frozen-testbuild.log`.
+`/tmp/coyote-core-frozen-build.log` and
+`/tmp/coyote-core-frozen-testbuild.log`.
 
-Scoped evidence: current-source complete macro scanner 622 checks
-(`/tmp/coyote-next-brace-final/probe.log`); engine 57; jobs 133 with 2,000
-valid warm requests (p95 1 ms, max 2 ms); geometry 145/145
-(`/tmp/coyote-next-frozen-geometry.log`); frozen structured differential 16/16
-(`/tmp/coyote-next-frozen-differential/report.json`) and controls
-(`/tmp/coyote-next-frozen-controls.log`); image pilot 3/3
-(`/tmp/coyote-next-final-images/report.json`); native aggregate 156 assertions
-from the prior layout-limit probe (API unchanged); and ten resource cases with
-peak RSS 46,184 KiB (`/tmp/coyote-next-frozen-resources.json`). The 2,000-request
-performance sample measured p95 0.750889 ms and maximum 1.186076 ms; GTK is
-excluded. The 10,000-case fuzz run remains identical: 4,184 parse successes,
-5,221 parse errors, 595 policy errors, zero layout failures.
+Current implementation and checkpoint evidence, including focused probes,
+coverage counts and open qualification gates, are recorded in coordinator-owned
+report §10. Coverage is a source crosswalk, not completion evidence. Whole-job
+memory, hard 250 ms completion, GTK/cache guarantees, full reference behavior,
+remaining core behavior and human acceptance remain unqualified. These
+development builds are not warning-free or release qualification.
 
-Fleqn affects display math only. At 24 px/em, the added left margin is
-2 em = 48 px; at 48 px/em it is 96 px. The default display
-remains centered with no indent; inline math is unaffected. One added GUI test
-brings `Conversation_Stack` to 48 total registrations. The generated coverage
-map currently records 115 missing core rows, 2,814 partial/unqualified rows,
-one deviation, and zero development-only rows; settings have 13 partial rows
-and one deviation, with no missing settings. These counts are a source crosswalk,
-not qualification. See coordinator-owned report §9 for snapshot boundaries and
-qualification gaps. Whole-job memory, hard 250 ms completion, GTK/cache
- guarantees, full reference origins/widths/options, remaining core behavior,
-and human acceptance remain unqualified. These development builds are not
-warning-free or release qualification.
 The preceding 1017/1017 signal/process
 record result is historical (`/tmp/coyote-signal-proc-full-final.log`). PCR-118's 1014/1014 result
 below is historical (`/tmp/coyote-ownership-full-tests.log`).

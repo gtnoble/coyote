@@ -210,4 +210,17 @@ begin
    Show ("fraction-infix-brace", "a\brace b");
    Show ("fraction-infix-above-zero", "a\above{0pt}b");
    Show ("fraction-infix-above-custom", "a\above{0.2pt}b");
+   Show ("support-vcenter-frac",
+     "\vcenter{\hbox{$\frac{a+b}{\dfrac{c}{d}}$}}");
+   Show ("support-vcenter-x", "\vcenter{\hbox{$x$}}");
+   Show ("support-vcenter-atom", "\vcenter{x}");
+   Show ("support-pmb-x", "\pmb{x}");
+   Show ("support-pmb-relation", "a\pmb{\leq}b");
+   Show ("support-pmb-display", "\pmb{x+y}", Math_Layout.Display_Style);
+   Show ("verb-plain", "\verb|a b~|", Math_Layout.Text_Style);
+   Show ("verb-starred", "\verb*|a b~|", Math_Layout.Text_Style);
+   Show ("verb-subscript", "x_{\verb*|a b|}", Math_Layout.Text_Style);
+   Show ("verb-superscript", "x^{\verb|a b|}", Math_Layout.Text_Style);
+   Show ("verb-display-style", "\verb*|a b|", Math_Layout.Display_Style);
+   Show ("verb-star-space-only", "\verb*| |", Math_Layout.Text_Style);
 end Math_Geometry_Probe;

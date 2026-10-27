@@ -26,7 +26,7 @@ PINNED_SHA256 = "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e3
 # Reviewed explicit Parse_Atom branches; branch/name presence is not support evidence.
 FUNCTION_ALLOWLIST = {
     "tag", "tag@literal", "tag@paren", "notag", "nonumber", "relax",
-    "mathchoice", "hbox", "genfrac", "cfrac",
+    "mathchoice", "hbox", "genfrac", "cfrac", "vcenter", "pmb", "verb",
     "hskip", "kern", "mkern", "mskip", "mathrel", "mathord", "mathbin",
     "mathop", "mathopen", "mathclose", "mathpunct", "mathinner",
     "html@mathml", "not", "mathrlap", "mathllap", "mathclap",
@@ -104,8 +104,7 @@ SOURCE_PATHS = tuple(
                  "math_paths", "math_radical_paths", "math_raster", "math_semantics", "math_source",
                  "math_stretchy", "math_symbols", "math_syntax", "math_tokens")
     for name in (f"{stem}.ads", f"{stem}.adb")
-    if (ROOT / f"src/coyote_math/{stem}.ads").exists() or
-       (ROOT / f"src/coyote_math/{stem}.adb").exists()
+    if (ROOT / f"src/coyote_math/{name}").exists()
 )
 
 
@@ -174,6 +173,9 @@ def inventory_rows(data: dict[str, Any], inventory_path: Path) -> list[dict[str,
             if bare in {"right", "end"}:
                 note = "Contextual parser path only: \\right closes a matching \\left group and \\end is consumed with a matching environment; these commands are not standalone atoms."
                 ev = evidence([parser], "Parse_Atom/Parse_Expression delimiter and Parse_Array environment-end handling identified; context matching is implemented, broader command semantics remain unqualified.")
+            elif bare == "verb":
+                note = "Dedicated verbatim token is consumed into Verbatim_Node and laid out with typewriter glyph metrics; malformed-command diagnostics, full reference behavior, glyph fallback/shaping, and geometry remain unqualified."
+                ev = evidence(["src/coyote_math/math_tokens.adb", parser, "src/coyote_math/math_semantics.adb", "src/coyote_math/math_layout.adb"], "Tokenizer captures the verb payload; Parse_Atom builds a Verbatim_Node, semantic projection retains its payload/star flag, and layout emits native typewriter glyph commands. This is source-path evidence, not lexical, semantic, geometry, or parity qualification.")
             else:
                 note = "Native parser or expander handling path identified; runtime success, arguments, semantics, and geometry remain unqualified."
                 ev = evidence([parser, "src/coyote_math/math_expander.adb"], "Reviewed explicit Parse_Atom/expander implementation path; source correspondence does not establish successful support.")
@@ -322,9 +324,30 @@ def supplemental_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
                 claim = "Math_Expander has explicit directive handling; complete semantics remain unqualified."
                 note = "Expansion directive source path identified; not semantic qualification."
             elif family == "scriptData":
+                unicode_spec = (ROOT / "src/coyote_math/math_unicode.ads").read_text(encoding="utf-8")
+                unicode_body = (ROOT / "src/coyote_math/math_unicode.adb").read_text(encoding="utf-8")
+                predicate_present = (
+                    "function Is_Script_Data" in unicode_spec
+                    and "function Is_Script_Data" in unicode_body
+                    and "end Is_Script_Data;" in unicode_body
+                )
+                predicate_callers = [
+                    path for path in SOURCE_PATHS
+                    if path not in {"src/coyote_math/math_unicode.ads", "src/coyote_math/math_unicode.adb"}
+                    and "Is_Script_Data" in (ROOT / path).read_text(encoding="utf-8")
+                ]
+                predicate_unused = predicate_present and not predicate_callers
                 state = "missing"
-                claim = "The Math_Unicode.Is_Script_Data predicate recognizes these ranges, but no equivalent item-specific scriptData substitution table/path is implemented."
-                note = "Range predicate presence is not KaTeX scriptData substitution/shaping support; general Pango Unicode handling is not engine table evidence."
+                claim = (
+                    "Math_Unicode.Is_Script_Data is declared and implemented as a range predicate, but it has no item-specific substitution table and no runtime callers."
+                    if predicate_unused else
+                    "No item-specific scriptData substitution table or unused Is_Script_Data predicate path was identified."
+                )
+                note = (
+                    "The source range predicate is currently unused; its existence does not implement KaTeX scriptData substitution. All seven ranges remain absent from runtime mapping, and Unicode glyph fallback/shaping is not established."
+                    if predicate_unused else
+                    "An Is_Script_Data source use exists or the predicate declaration/implementation is absent; no item-specific scriptData substitution table is established."
+                )
             else:
                 state = "missing"
                 claim = "No direct native counterpart identified."
@@ -393,15 +416,15 @@ REQ_MATRIX = [
     ("REQ-MATH-002", "partial-implemented-unqualified", "Expander/templates include literal-prefix and balanced delimited parameters, scoped copies and special opening-brace terminators. Complete argument, scope and built-in semantics remain unqualified."),
     ("REQ-MATH-003", "partial-implemented-unqualified", "Fresh/shared contexts exist; complete state-sequence qualification remains open."),
     ("REQ-MATH-004", "partial-implemented-unqualified", "Generated Math_Unicode decompositions, 12 accent mappings, and 102 script substitutions now feed tokenization; 344 raw Unicode symbol paths are inventoried. Runtime coverage is partial: scriptData's seven block ranges remain absent as a substitution table, and full Unicode shaping/geometry is unqualified."),
-    ("REQ-MATH-005", "partial-implemented-unqualified", "Font/style mappings and size commands are source-present, including tiny (0.5) and sixptsize (0.6); the latest focused geometry corpus passes 145/145 cases. This remains scoped evidence and does not establish full-width origin/measurement or qualification."),
+    ("REQ-MATH-005", "partial-implemented-unqualified", "Font/style mappings and size commands are source-present, including tiny (0.5) and sixptsize (0.6); the latest focused geometry corpus passes 157 ascent/depth cases. This remains scoped evidence and does not establish full-width origin/measurement or qualification."),
     ("REQ-MATH-006", "partial-implemented-unqualified", "Partial parser/environment support mapped; parser-present environments and aliases remain partial/unqualified, and remaining constructs are missing or partial."),
     ("REQ-MATH-007", "partial-implemented-unqualified", "Scalar settings have partial native paths: display-only fleqn metadata is consumed by GTK and both colorIsTextColor modes have focused checks. trust=False is enforced and trust=True rejected. Full option-effect/interaction parity remains unqualified. D11/D12 apply only to their approved callback/API deviations."),
     ("REQ-MATH-008", "partial-implemented-unqualified", "Diagnostics/source fallback exist; error-fragment and source-position parity unqualified."),
     ("REQ-MATH-009", "partial-implemented-unqualified", "The core default trust=false is maintained and sensitive commands are refused; full policy equivalence unqualified."),
-    ("REQ-MATH-010", "partial-implemented-unqualified", "Job queue/source ledger exist; ledger is not CPU/work budgeting or cooperative cancellation."),
+    ("REQ-MATH-010", "partial-implemented-unqualified", "Job queue/source ledger exist; six lifecycle phases check expiration, and expired queued work is skipped before copying; parser/layout/raster work is not preempted by a hard deadline. The source ledger is not whole-job memory accounting or CPU/work budgeting."),
     ("REQ-MATH-011", "partial-implemented-unqualified", "Native integration exists; complete compatibility regression evidence remains open."),
     ("REQ-MATH-012", "partial-implemented-unqualified", "Semantic-tree source exists; no completed human assistive-technology review."),
-    ("REQ-MATH-013", "partial-implemented-unqualified", "The 16-case structured and three-image pilots and 145-case ascent/depth corpus pass within their scopes; normalized paths do not establish em-unit origins or widths. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete."),
+    ("REQ-MATH-013", "partial-implemented-unqualified", "The 16-case structured pilot passes within its scope; normalized paths do not establish em-unit origins or widths. The expanded nine-image comparison currently passes 7/9: two verbatim widths differ (native 0.525 versus browser 13 px at 24 px/em). The earlier 9/9 relied on a reverted hardcoded 13/24 width and is not current evidence. The 157-case ascent/depth corpus passes within scope. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete."),
     ("REQ-MATH-014", "partial-implemented-unqualified", "Regression-suite chronology and the latest authoritative result are recorded in the current STR; earlier run counts are historical evidence only. A green regression count is not compatibility qualification."),
     ("REQ-MATH-015", "partial-implemented-unqualified", "Pinned generators/provenance exist; full repeatable qualification and upgrade review unqualified."),
 ]
@@ -423,11 +446,11 @@ def render_markdown(result: dict[str, Any]) -> str:
     for req, state, unmet in REQ_MATRIX:
         lines.append(f"| {req} | {state} | {unmet} |")
     lines += ["", "REQ-MATH status is evidence only, not acceptance. D11 excludes only function-valued strict/trust callbacks; D12 excludes only caller-supplied function-valued JavaScript macros. Neither excludes callable KaTeX core built-ins; unresolved core work stays visible.", "", "## Interpretation and limits", "",
-        "* Partial means source-path/name evidence only; for explicit parser handlers it records actual command handling, not arguments, success, errors, semantics, geometry, or parity.",
-        "* Function classification records explicit Parse_Atom branches, explicitly contextual parser commands, and exact generated-symbol registry fallback keys. Contextual right/end are only recognized in matching delimiter/environment contexts. Lookup-path evidence is not successful command or semantic support; explicit refusals and names with no path/key remain missing. Environment evidence reflects explicit Parse_Array names; one inventory environment remains absent. Equation/equation* are display-tag paths, not general aliases/starred semantics. Literal-prefix and balanced delimited macro definitions, including special opening-brace terminators, have expander paths and focused tests; full semantics remain unqualified.",
+        "* Partial means source-path/name evidence only; for explicit parser handlers it records actual command handling, not arguments, success, errors, semantics, geometry, GUI presentation, or parity. vcenter and pmb have explicit syntax branches; verb has a dedicated lexer-to-verbatim-node-to-layout path. Their native implementations remain unqualified: pmb uses a bounded glyph-mask Gaussian-shadow approximation rather than exact CSS behavior; unicode text fallback/shaping is not established as equivalent.",
+        "* Function classification records explicit Parse_Atom branches, explicitly contextual parser commands, exact generated-symbol registry fallback keys, and the dedicated lexer/Verbatim_Node/layout path for \\verb. Contextual right/end are only recognized in matching delimiter/environment contexts. Lookup-path evidence is not successful command or semantic support; explicit refusals and names with no path/key remain missing. Environment evidence reflects explicit Parse_Array names; one inventory environment remains absent. Equation/equation* are display-tag paths, not general aliases/starred semantics. Literal-prefix and balanced delimited macro definitions, including special opening-brace terminators, have expander paths and focused tests; full semantics remain unqualified.",
         "* Generated string templates have lazy lookup/expansion paths but no per-template success qualification. Callable bra@ket and bra@set have helper-level expansion probes (including shared expansion-budget checks); those tests are not full KaTeX registry-semantic qualification. Both remain partial/unqualified core rows and neither has a D12 exception. @ifstar is a string template using @ifnextchar. TextOrMath has dynamic text/math mode selection; remaining callable paths are partial only where actual handlers exist, and otherwise remain missing.",
         "* Settings with partial native surfaces include strict, maxExpand, displayMode, minRuleThickness, errorColor, throwOnError, globalGroup, macros, maxSize, trust, and colorIsTextColor. maxSize is accepted and passed to bounded layout; exact scaling parity remains unqualified. fleqn has display-only alignment metadata and native presentation; trust=False is enforced while trust=True is explicitly rejected. colorIsTextColor is exposed and wired with focused scope checks, not full option qualification. D11/D12 record only approved function-valued callback/macro deviations.",
-        "* Unicode symbol/accent/substitution rows are partial where generated Math_Unicode lookups feed tokenization; this is not complete shaping or parity. The seven scriptData block ranges remain missing: generic Pango Unicode handling is not the engine's scriptData substitution table.",
+        "* Unicode symbol/accent/substitution rows are partial where generated Math_Unicode lookups feed tokenization; this is not complete shaping or parity. Is_Script_Data exists only as an unused range predicate; all seven scriptData block ranges remain missing as runtime mappings. Generic Pango Unicode handling is not engine substitution-table evidence, and a pending Unicode glyph fallback does not establish Pango shaping.",
         "* Symbols are mode-specific generated lookup rows; generator membership is not parser reachability, runtime lookup, glyph/font/layout equivalence, or qualification.", "",
         "## Supplemental family totals", ""]
     for family, values in sorted(result["summary"]["supplemental"].items()):
@@ -485,7 +508,7 @@ def main() -> int:
                 "generation_validation": "Generator verifies every relevant package/archive file byte-for-byte, exact instrumentation anchors, registry counts, and pinned archive/dist hashes; this map validates the pinned inventory and regenerates native symbol tables byte-identically against checked-in sources.",
             },
             "evidence_source_sha256": source_hashes,
-            "method": "Reviewed actual parser branches/refusals, contextual parser handling and exact mode-specific generated-symbol fallback keys; builtin macros by generated templates and explicit callable allowlist; symbols by pinned generated tables; Unicode runtime rows by Math_Unicode token paths; scriptData by item-specific substitution evidence; settings by engine surfaces/rejections. Stable IDs and ordered source hashes make regeneration deterministic; no semantic or qualification status is claimed.",
+            "method": "Reviewed actual parser branches/refusals, contextual parser handling, dedicated verbatim token/node/layout path, and exact mode-specific generated-symbol fallback keys; builtin macros by generated templates and explicit callable allowlist; symbols by pinned generated tables; Unicode runtime rows by Math_Unicode token paths; scriptData rows by item-specific substitution evidence and explicit unused-predicate detection; settings by engine surfaces/rejections. Stable IDs and ordered source hashes make regeneration deterministic; no semantic or qualification status is claimed.",
             "requirements": [{"id": req, "status": status, "evidence_and_unmet": evidence_text} for req, status, evidence_text in REQ_MATRIX],
             "summary": {"core_registry_rows": sum(by_registry[k]["total"] for k in ("function", "environment", "symbol", "builtin-macro", "setting")), "core_status": dict(sorted(core_status.items())), "by_registry": {k: dict(v) for k, v in sorted(by_registry.items())}, "top_missing_families": top_missing, "supplemental": {k: dict(v) for k, v in sorted(by_registry.items()) if k.startswith("supplemental-")}},
             "rows": rows,

@@ -283,7 +283,7 @@ begin
    Jobs.Cancel (Ids (Ids'Last), 77);
    Jobs.Poll (Ids (Ids'Last), 77, S, R);
    Check (S = Jobs.Cancelled and R = null,
-     "queued cancellation consumed");
+     "cancel-before-resume consumes without worker result");
    Jobs.Abandon (Ids (1), 77);
    Jobs.Submit ("abandon frees queued slot", Abandoned_Id,
      Abandoned_Generation, Math_Layout.Text_Style, Status => S);
@@ -298,7 +298,6 @@ begin
    Jobs.Timing (Ids (2), 77, Timing_Value, Timing_Found);
    Check (not Timing_Found,
      "timing query does not consume queued job");
-   delay 0.3;
    Jobs.Resume;
    for I in 2 .. Ids'Last - 1 loop
       Timing_Found := False;
@@ -308,13 +307,11 @@ begin
          delay 0.005;
       end loop;
       Jobs.Poll (Ids (I), 77, S, R);
-      Check (S in Jobs.Expired | Jobs.Cancelled,
-        "intentionally overdue queued request terminal status" & I'Image);
+      Check (S = Jobs.Valid and R /= null,
+        "resumed queued request completes successfully" & I'Image);
       if I = 2 then
-         Check (Timing_Found and
-           Timing_Value.Queue_Milliseconds >= Jobs.Budget_Milliseconds and
-           Timing_Value.Total_Milliseconds >= Jobs.Budget_Milliseconds,
-           "queue and total timing include paused wait");
+         Check (Timing_Found,
+           "completed queue timing is available after resume");
       end if;
       if R /= null then
          Check (Jobs.Id (R.all) = Ids (I), "result request id");
@@ -344,24 +341,26 @@ begin
    Late_Invalid_Source (Late_Invalid_Source'Last) := '}';
    Jobs.Submit (Late_Invalid_Source, Ids (1), 93,
      Math_Layout.Text_Style, Status => S);
+   Check (S = Jobs.Pending, "paused invalid expiry request accepted");
+   Jobs.Submit ("x+1", Ids (2), 93, Math_Layout.Text_Style, Status => S);
+   Check (S = Jobs.Pending, "paused valid expiry request accepted");
    delay 0.3;
    Jobs.Resume;
-   Timing_Found := False;
-   for Wait in 1 .. 400 loop
-      Jobs.Timing (Ids (1), 93, Timing_Value, Timing_Found);
-      exit when Timing_Found;
-      delay 0.005;
+   for I in 1 .. 2 loop
+      Timing_Found := False;
+      for Wait in 1 .. 400 loop
+         Jobs.Timing (Ids (I), 93, Timing_Value, Timing_Found);
+         exit when Timing_Found;
+         delay 0.005;
+      end loop;
+      Check (Timing_Found and
+        Timing_Value.Queue_Milliseconds >= Jobs.Budget_Milliseconds and
+        Timing_Value.Cleanup_Milliseconds <= Timing_Value.Total_Milliseconds,
+        "expired queued outcome retains finalized timing metadata" & I'Image);
+      Jobs.Poll (Ids (I), 93, S, R);
+      Check (S = Jobs.Expired and R = null,
+        "overdue queued request skipped before parse" & I'Image);
    end loop;
-   Check (Timing_Found and
-     Timing_Value.Queue_Milliseconds >= Jobs.Budget_Milliseconds and
-     Timing_Value.Cleanup_Milliseconds <= Timing_Value.Total_Milliseconds,
-     "expired invalid outcome retains finalized timing metadata");
-   Jobs.Poll (Ids (1), 93, S, R);
-   Check (S = Jobs.Expired and R /= null,
-     "invalid parse completed after deadline expires");
-   if R /= null then
-      Jobs.Release (R);
-   end if;
    Jobs.Timing (Ids (1), 93, Timing_Value, Timing_Found);
    Check (not Timing_Found,
      "timing metadata follows existing poll-consumption lifetime");

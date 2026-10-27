@@ -1,6 +1,7 @@
 with Ada.Exceptions;
 with Ada.Unchecked_Deallocation;
 with Cairo.Font_Face;
+with Cairo.Pattern;
 with Glib;
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -11,6 +12,7 @@ with Math_Paths;
 
 package body Math_Painter is
    use type Cairo.Cairo_Font_Face;
+   use type Cairo.Cairo_Pattern;
    use type Cairo.Cairo_Status;
    use type Interfaces.C.unsigned;
    use type Interfaces.C.int;
@@ -304,6 +306,17 @@ package body Math_Painter is
                then
                   raise Font_Error with "invalid drawing command geometry";
                end if;
+               if Command.Has_Shadow and then
+                 (not Command.Shadow_X'Valid or else
+                  not Command.Shadow_Y'Valid or else
+                  not Command.Shadow_Blur_Px'Valid or else
+                  abs Command.Shadow_X > 256.0 or else
+                  abs Command.Shadow_Y > 256.0 or else
+                  Command.Shadow_Blur_Px < 0.0 or else
+                  Command.Shadow_Blur_Px > 256.0)
+               then
+                  raise Font_Error with "invalid glyph shadow metadata";
+               end if;
                if Command.Has_Clip then
                   if not Command.Clip_X'Valid or else
                     not Command.Clip_Y'Valid or else
@@ -347,6 +360,84 @@ package body Math_Painter is
                           (Context, Fonts.Data.Cairo_Faces (Command.Font));
                         Cairo.Set_Font_Size
                           (Context, Glib.Gdouble (Em * Command.Scale));
+                        if Command.Has_Shadow then
+                           declare
+                              Source : Cairo.Cairo_Pattern :=
+                                Cairo.Pattern.Reference
+                                  (Cairo.Get_Source (Context));
+                              Mask : Cairo.Cairo_Pattern :=
+                                Cairo.Null_Pattern;
+                              Group_Open : Boolean := False;
+                              --  A bounded separable Gaussian approximation;
+                              --  sigma is half the CSS blur radius.
+                              Taps : constant array (Integer range -2 .. 2)
+                                of Long_Float :=
+                                  (0 => 0.40262, -1 | 1 => 0.24420,
+                                   -2 | 2 => 0.05449);
+                              Blur_Sigma : constant Long_Float :=
+                                Command.Shadow_Blur_Px / 2.0;
+                           begin
+                              Cairo.Push_Group_With_Content
+                                (Context, Cairo.Cairo_Content_Alpha);
+                              Group_Open := True;
+                              Cairo.Set_Operator
+                                (Context, Cairo.Cairo_Operator_Add);
+                              for Y_Tap in Taps'Range loop
+                                 for X_Tap in Taps'Range loop
+                                    Glyph.X := Glib.Gdouble
+                                      (X + (Command.X + Command.Shadow_X) * Em
+                                       + Long_Float (X_Tap) * Blur_Sigma);
+                                    Glyph.Y := Glib.Gdouble
+                                      (Baseline + (Command.Y +
+                                       Command.Shadow_Y) * Em
+                                       + Long_Float (Y_Tap) * Blur_Sigma);
+                                    Cairo.Set_Source_Rgba
+                                      (Context, 1.0, 1.0, 1.0,
+                                       Glib.Gdouble
+                                         (Taps (X_Tap) * Taps (Y_Tap)));
+                                    Cairo.Show_Glyphs
+                                      (Context, Glyph'Access, 1);
+                                 end loop;
+                              end loop;
+                              Mask := Cairo.Pop_Group (Context);
+                              Group_Open := False;
+                              if Cairo.Pattern.Status (Mask) /=
+                                Cairo.Cairo_Status_Success
+                              then
+                                 Cairo.Pattern.Destroy (Mask);
+                                 Mask := Cairo.Null_Pattern;
+                                 raise Font_Error with
+                                   "cannot create glyph shadow mask";
+                              end if;
+                              Cairo.Set_Source (Context, Source);
+                              Cairo.Mask (Context, Mask);
+                              Cairo.Pattern.Destroy (Mask);
+                              Mask := Cairo.Null_Pattern;
+                              Cairo.Pattern.Destroy (Source);
+                              Source := Cairo.Null_Pattern;
+                           exception
+                              when others =>
+                                 if Group_Open then
+                                    begin
+                                       Mask := Cairo.Pop_Group (Context);
+                                       Cairo.Pattern.Destroy (Mask);
+                                    exception
+                                       when others =>
+                                          null;
+                                    end;
+                                    Group_Open := False;
+                                 end if;
+                                 if Mask /= Cairo.Null_Pattern then
+                                    Cairo.Pattern.Destroy (Mask);
+                                 end if;
+                                 if Source /= Cairo.Null_Pattern then
+                                    Cairo.Pattern.Destroy (Source);
+                                 end if;
+                                 raise;
+                           end;
+                           Glyph.X := Glib.Gdouble (X + Command.X * Em);
+                           Glyph.Y := Glib.Gdouble (Baseline + Command.Y * Em);
+                        end if;
                         Cairo.Show_Glyphs (Context, Glyph'Access, 1);
                      end;
                   when Math_Layout.Path_Command =>

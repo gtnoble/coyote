@@ -69,17 +69,15 @@ The stretchy generator verifies `svgGeometry.js` SHA-256 `e7bb196633f23cab95da9d
 
 ## Current evidence and browser-reference assets
 
-The latest evidence and qualification status belong in coordinator-owned §9 of
-the [completion report](../../../plan/native-math-parity-test-report.md); §8 is
-a dated prior checkpoint. The latest frozen development suite passed 1062/1062 with zero failed
-assertions or unexpected errors in 82.228506 seconds
-(`/tmp/coyote-next-frozen-full.log`), as regression evidence only. Scoped engine,
-macro, jobs, geometry, structured, image, and native checks also passed within
-their recorded boundaries. These results do not establish full compatibility,
-whole-job resource/timing compliance, or human acceptance. The [PCR-123
-report](../../../plan/native-math-test-report.md), including its 1042/1042
-result, is historical.
-
+The latest evidence and qualification status belong in coordinator-owned §10 of
+the [completion report](../../../plan/native-math-parity-test-report.md); §9 and
+earlier sections are historical snapshots. The frozen development suite passed
+1063/1063 with zero failed assertions or unexpected errors in 82.418882 seconds
+(`/tmp/coyote-core-frozen-full.log`), as regression evidence only. Scoped probe
+results and known raster discrepancies are recorded in §10. These results do
+not establish full compatibility, whole-job resource/timing compliance, or
+human acceptance. The [PCR-123 report](../../../plan/native-math-test-report.md),
+including its 1042/1042 result, is historical.
 Browser exporters use JS, CSS, package metadata and all 60 font-format files
 extracted from the SHA-256-verified archive, not mutable package-directory CSS
 or fonts. The 63-member browser-asset manifest SHA-256 is

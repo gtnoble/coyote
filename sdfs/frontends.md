@@ -2089,3 +2089,43 @@ core rows. Full artifacts and chronology are in
 GTK/cache limits, remaining core behavior, complete mapping and human visual/
 assistive-technology acceptance remain open. No release or commit was made in
 this increment; approved requirements and deviations are unchanged.
+
+
+## 2026-10-27 — Core literal/box primitives and job phase checks (PCR-125)
+
+Added typed verbatim, vcenter and poor-man-bold nodes through syntax, semantic
+projection, layout, export and accessibility labels. Raw verbatim tokens own
+payloads/spans and bypass comments/expansion; parser lookahead no longer treats
+payload-leading grammar characters as syntax. Typewriter advances remain the
+pinned 0.525 em metric. A temporary 13/24 em pilot fit was reviewed and reverted.
+Native glyph shadows use bounded Gaussian taps, not qualified exact CSS blur;
+raster overflow and actual rounded allocation bounds are checked. GTK adoption
+uses padded raster dimensions. One new primitive widget test brings the
+Conversation_Stack suite to 49 cases.
+
+Jobs now check cancellation/expiry around pipeline phases and skip expired
+queued inputs before copying/parsing. These checks are not intra-phase
+preemption or hard queue-inclusive deadline enforcement. Successful-result
+coverage is preserved separately from paused-queue expiry tests.
+
+Development builds and frozen full suite pass 1063/1063, zero failures/errors,
+82.418882 seconds; repeat passes 1063/1063 in 83.167815 seconds. Focused results:
+157 geometry, 211 additional PASS records, 56 token assertions, 622 macro checks,
+57 engine, 137 jobs, 156 native, 67 accessibility and 54 raster checks. Raster
+Valgrind reports zero errors/lost bytes in its standalone scope, with reachable
+allocations. Structured pilot passes 16/16; seeded fuzz remains deterministic.
+
+Expanded raster pilot preserves the original three cases and adds six. The
+current result is 7/9: verbatim punctuation fails width/mask comparison and
+starred spaces fail width comparison. Intermediate 9/9 used the reverted width
+fit and is not current-source evidence. Measuring all direct reference bases
+corrected an oracle omission for pmb relations; omitted-base, wrong-origin and
+shifted-baseline controls reject. No comparison threshold was relaxed.
+
+Current coverage: 112 missing, 2817 partial/unqualified, one approved deviation,
+zero qualified core rows. General Unicode range data exists but is unused by
+runtime shaping. Whole-job allocation, process-wide cache, hard deadlines,
+GTK timing, remaining core behavior, complete reference mapping and independent
+human visual/accessibility acceptance remain open. See authoritative report
+§10 for logs and evidence boundaries. No commit or release was made for this
+increment; approved requirements and deviations remain unchanged.

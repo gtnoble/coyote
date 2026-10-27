@@ -208,6 +208,110 @@ procedure Math_Tokens_Probe is
         Math_Tokens.End_Of_Input, "explicit end token");
       Check (Math_Tokens.Source (Tokens) = Math_Source.Text (Input),
         "token stream owns source");
+      Math_Source.Create ("\verb|a{#%\alpha 😀|+x", Input,
+        Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      declare
+         Verbatim : constant Math_Tokens.Token :=
+           Math_Tokens.Element (Tokens, 1);
+      begin
+         Check (Token_Diagnostic = Math_Tokens.No_Error and
+           Verbatim.Kind = Math_Tokens.Verbatim_Token and
+           not Verbatim.Verbatim_Starred and
+           Verbatim.Lexeme = Ada.Strings.Unbounded.To_Unbounded_String
+             ("a{#%\alpha 😀") and Verbatim.First_Byte = 0 and
+           Verbatim.After_Byte = 22 and Verbatim.First_Scalar = 0 and
+           Verbatim.After_Scalar = 19 and Verbatim.First_UTF16 = 0 and
+           Verbatim.After_UTF16 = 20 and Verbatim.Text_First = 1 and
+           Verbatim.Text_Length = 22,
+           "unstarred verbatim owns raw payload and full command span");
+         Check (Math_Tokens.Element (Tokens, 2).Code_Point =
+           Character'Pos ('+') and Math_Tokens.Source (Tokens) =
+             "\verb|a{#%\alpha 😀|+x",
+           "verbatim payload bypasses comments and macro lexing");
+      end;
+      Math_Source.Create ("\verb*|a b\%c|", Input, Diagnostic,
+        Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Element (Tokens, 1).Kind = Math_Tokens.Verbatim_Token and
+        Math_Tokens.Element (Tokens, 1).Verbatim_Starred and
+        Math_Tokens.Element (Tokens, 1).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("a b\%c") and
+        Math_Tokens.Element (Tokens, 1).After_Byte = 14,
+        "starred verbatim keeps spaces and delimiter-like escapes raw");
+      Math_Source.Create ("\verb|a|\verb* b c ", Input,
+        Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Element (Tokens, 2).Kind = Math_Tokens.Verbatim_Token and
+        Math_Tokens.Element (Tokens, 2).Verbatim_Starred and
+        Math_Tokens.Element (Tokens, 2).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("b"),
+        "starred space delimiter remains a raw boundary");
+      Math_Source.Create ("\verb|😀|", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Element (Tokens, 1).After_Byte = 11 and
+        Math_Tokens.Element (Tokens, 1).After_Scalar = 8 and
+        Math_Tokens.Element (Tokens, 1).After_UTF16 = 9 and
+        Math_Tokens.Element (Tokens, 1).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("😀"),
+        "verbatim Unicode payload retains UTF-8 and UTF-16 source offsets");
+      Math_Source.Create ("\verbatim", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Element (Tokens, 1).Kind = Math_Tokens.Control_Word and
+        Math_Tokens.Element (Tokens, 1).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("\verbatim"),
+        "verb prefix of longer control word is not captured");
+      Math_Source.Create ("\verb@a@", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Count (Tokens) = 2 and
+        Math_Tokens.Element (Tokens, 1).Kind = Math_Tokens.Verbatim_Token and
+        Math_Tokens.Element (Tokens, 1).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("a") and
+        Math_Tokens.Element (Tokens, 1).First_Byte = 0 and
+        Math_Tokens.Element (Tokens, 1).After_Byte = 8 and
+        Math_Tokens.Element (Tokens, 1).First_Scalar = 0 and
+        Math_Tokens.Element (Tokens, 1).After_Scalar = 8 and
+        Math_Tokens.Element (Tokens, 1).First_UTF16 = 0 and
+        Math_Tokens.Element (Tokens, 1).After_UTF16 = 8,
+        "at-sign delimits unstarred raw verbatim with full source spans");
+      Math_Source.Create ("\verb*XfooX", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Element (Tokens, 1).Kind = Math_Tokens.Verbatim_Token and
+        Math_Tokens.Element (Tokens, 1).Verbatim_Starred and
+        Math_Tokens.Element (Tokens, 1).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("foo") and
+        Math_Tokens.Element (Tokens, 1).After_Byte = 11 and
+        Math_Tokens.Element (Tokens, 1).After_Scalar = 11 and
+        Math_Tokens.Element (Tokens, 1).After_UTF16 = 11,
+        "starred ASCII-letter delimiter follows pinned lexer regex");
+      Math_Source.Create ("\verb***", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.No_Error and
+        Math_Tokens.Element (Tokens, 1).Kind = Math_Tokens.Verbatim_Token and
+        Math_Tokens.Element (Tokens, 1).Verbatim_Starred and
+        Math_Tokens.Element (Tokens, 1).Lexeme =
+          Ada.Strings.Unbounded.To_Unbounded_String ("") and
+        Math_Tokens.Element (Tokens, 1).After_Byte = 8,
+        "starred asterisk delimiter follows pinned lexer regex");
+      Math_Source.Create ("\verb**", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic /= Math_Tokens.Verbatim_Error,
+        "two asterisks do not form a complete verb regex match");
+      Math_Source.Create ("\verb|unfinished" & Character'Val (10) & "x",
+        Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.Verbatim_Error and
+        Error_Byte = 0, "newline before verb delimiter fails closed");
+      Math_Source.Create ("\verb", Input, Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
+      Check (Token_Diagnostic = Math_Tokens.Verbatim_Error and
+        Error_Byte = 0, "missing verb delimiter fails closed");
       Math_Source.Create (String'(1 => Character'Val (92)), Input, Diagnostic, Error_Byte);
       Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
       Check (Token_Diagnostic = Math_Tokens.Trailing_Escape and Error_Byte = 0,
