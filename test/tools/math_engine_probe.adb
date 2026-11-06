@@ -7,6 +7,7 @@ with Math_Macros;
 with Math_Model;
 with Math_Semantics;
 with Math_Syntax;
+with Math_Work_Control;
 
 procedure Math_Engine_Probe is
    use type Ada.Containers.Count_Type;
@@ -17,6 +18,31 @@ procedure Math_Engine_Probe is
    Checks : Natural := 0;
    Failures : Natural := 0;
    Shared : aliased Math_Macros.Context;
+
+   type Budget_Context is new Math_Work_Control.Context with record
+      Stop_At : Natural := Natural'Last;
+      Reason : Math_Work_Control.Stop_Reason :=
+        Math_Work_Control.Continue_Work;
+   end record;
+
+   overriding function Check
+     (Item : Budget_Context) return Math_Work_Control.Stop_Reason;
+
+   Poll_Count : Natural := 0;
+   Cancel_Context : aliased Budget_Context :=
+     (Math_Work_Control.Context with Stop_At => 3,
+      Reason => Math_Work_Control.Cancel_Requested);
+   Deadline_Context : aliased Budget_Context :=
+     (Math_Work_Control.Context with Stop_At => 3,
+      Reason => Math_Work_Control.Deadline_Reached);
+
+   overriding function Check
+     (Item : Budget_Context) return Math_Work_Control.Stop_Reason is
+   begin
+      Poll_Count := Poll_Count + 1;
+      return (if Poll_Count >= Item.Stop_At then Item.Reason
+              else Math_Work_Control.Continue_Work);
+   end Check;
 
    procedure Check (Condition : Boolean; Label : String) is
    begin
@@ -485,17 +511,87 @@ procedure Math_Engine_Probe is
 
       Opt := (others => <>);
       Opt.Global_Group := True;
-      Math_Engine.Parse ("\gdef\facade{Q}", Shared'Access, Opt, Outp);
-      Check (Outp.Status = Math_Engine.Parse_Error and
-        Math_Macros.Is_Defined (Shared, "\facade"),
-        "global definitions persist in caller context");
+      Math_Engine.Parse ("\gdef\saved{x}", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Macros.Is_Defined (Shared, "\saved") and then
+        Outp.Geometry.Valid and then Outp.Geometry.Width = 0.0 and then
+        Outp.Geometry.Ascent = 0.0 and then Outp.Geometry.Descent = 0.0 and then
+        Outp.Geometry.Commands.Is_Empty,
+        "command-only global definition is a valid empty rendering");
       Opt.Global_Group := False;
-      Math_Engine.Parse ("\facade", Shared'Access, Opt, Outp);
-      Check (Outp.Status = Math_Engine.Ready and
-        Math_Syntax.Source (Outp.Parsed) = "\facade",
+      Math_Engine.Parse ("\saved", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Source (Outp.Parsed) = "\saved" and then
+        not Outp.Geometry.Commands.Is_Empty,
+        "global macro renders in a following request");
+      Math_Engine.Parse ("\def\temp{x}", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        not Math_Macros.Is_Defined (Shared, "\temp") and then
+        Outp.Geometry.Commands.Is_Empty,
+        "local definition in command-only root rolls back");
+      Math_Engine.Parse ("\gdef\saved{y}\bogus", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        Math_Macros.Is_Defined (Shared, "\saved"),
+        "global definition persists after later parse failure");
+      Math_Engine.Parse ("\saved", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        not Outp.Geometry.Commands.Is_Empty,
+        "failed request leaves updated global macro available");
+      Math_Engine.Parse ("", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready,
+        "empty source is engine-ready");
+      Check (Outp.Geometry.Valid and then Outp.Geometry.Width = 0.0 and then
+        Outp.Geometry.Ascent = 0.0 and then
+        Outp.Geometry.Descent = 0.0 and then
+        Outp.Geometry.Commands.Is_Empty,
+        "empty source has empty valid geometry");
+      Math_Engine.Parse ("\newline", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then Outp.Geometry.Width = 0.0 and then
+        Outp.Geometry.Ascent = 0.0 and then
+        Outp.Geometry.Descent = 0.0 and then
+        Outp.Geometry.Commands.Is_Empty,
+        "standalone forced break has no rendered line extent");
+      Math_Engine.Parse ("\saved", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Source (Outp.Parsed) = "\saved" and then
+        not Outp.Geometry.Commands.Is_Empty,
         "shared macro expands with source identity preserved");
       Check (Math_Macros.Scope_Depth (Shared) = 0,
         "shared scope restored after requests");
+
+      declare
+         Parsed : Math_Syntax.Document;
+         Geometry : Math_Layout.Box;
+         Source : constant String := (1 .. 1_000 => 'x');
+      begin
+         Poll_Count := 0;
+         Parsed := Math_Syntax.Parse (Source);
+         begin
+            Geometry := Math_Layout.Build
+              (Parsed, Math_Layout.Text_Style, Cancel_Context'Unchecked_Access);
+            Check (False, "layout cancellation propagates from row sweep");
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Check (True, "layout cancellation propagates from row sweep");
+         end;
+      end;
+      declare
+         Parsed : Math_Syntax.Document;
+         Geometry : Math_Layout.Box;
+         Source : constant String := (1 .. 1_000 => 'x');
+      begin
+         Poll_Count := 0;
+         Parsed := Math_Syntax.Parse (Source);
+         begin
+            Geometry := Math_Layout.Build
+              (Parsed, Math_Layout.Text_Style, Deadline_Context'Unchecked_Access);
+            Check (False, "layout deadline propagates distinctly");
+         exception
+            when Math_Work_Control.Deadline_Expired =>
+               Check (True, "layout deadline propagates distinctly");
+         end;
+      end;
    end Run;
 begin
    Run;

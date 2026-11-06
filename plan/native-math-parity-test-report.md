@@ -1,14 +1,13 @@
 # Native math KaTeX compatibility — test report
 
 **Document:** Combined Software Test Report (STR) for the approved execution baseline; final test readiness open
-**Date:** 2026-10-27 (PCR-125; approved work began 2026-10-24)
+**Date:** 2026-11-06 (documentation reconciliation; approved work began 2026-10-24)
 **Reference:** KaTeX 0.16.22, pinned archive SHA-256 `e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365`; bundle SHA-256 `8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33`
 **Status: NOT COMPLETE — final qualification and product acceptance remain open.**
 
 This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its controlling scope is approved SRS-MATH v1.0 and D01–D15, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
 
-**Current-results pointer:** §§1–9 preserve historical checkpoints. Current implementation, evidence and open failures are in [§10](#10-core-primitives-and-phase-cancellation--2026-10-27). Earlier suite and pilot results are not substitutes for this source snapshot.
-
+**Current-results pointer:** §11, “Current implementation and qualification reconciliation — 2026-11-06”, controls the present status. §§1–10 preserve historical checkpoints. §11 distinguishes source inspection and the latest recorded results from unavailable temporary artifacts; no tests were rerun for this documentation reconciliation.
 
 ## 1. Test scope and environment
 
@@ -558,3 +557,179 @@ RD-CTX-01 additional context caps remain unauthorized. The manual visual and
 accessibility checklist remains unexecuted. Developer/agent self-review is not
 independent acceptance. **Project remains NOT COMPLETE; continue approved
 implementation and qualification with both raster failures visible.**
+
+
+## 11. Current implementation and qualification reconciliation — 2026-11-06
+
+**Exit status: NOT COMPLETE.** Approved SRS-MATH v1.0 and D01–D15 remain
+unchanged. The native implementation has advanced beyond §10, but source-path
+coverage, scoped regression passes, and outcome agreement are not full KaTeX
+parity, resource qualification, or product acceptance. PCR-125 remains open.
+This reconciliation does not authorize additional RD-CTX-01 context caps.
+
+### 11.1 Evidence authority and availability
+
+This section reconciles the implementation work recorded during the preceding
+continuation with current source inspection. The implementation chronology
+includes checkpoints dated 2026-10-27–28. **No application build, math probe,
+full suite, browser comparison, or live-provider test was rerun for this
+2026-11-06 documentation update.** Documentation validation and deterministic
+coverage regeneration are separate from runtime testing.
+
+The temporary `/tmp` logs and JSON reports cited during that continuation are
+not available in this workspace at reconciliation. Results below are therefore
+**recorded execution results**, not newly inspected raw evidence or a freshly
+qualified snapshot. Former artifact names are retained as retrieval identifiers,
+not links to files asserted to exist. Reproduce and archive the required runs,
+with source/executable hashes and workstation/font manifests, before using them
+for a qualification decision. The working-tree increment is uncommitted; no
+release build, push, or product acceptance is recorded.
+
+### 11.2 Current native implementation
+
+Source inspection identifies these paths, without establishing complete
+per-command behavior or reference equivalence:
+
+- Dedicated CD parsing and typed arrows/labels, including the separate final
+  ghost row and admission of 64 visible rows; angled, floor, ceiling and middle
+  delimiters; contour double/triple integrals composed from pinned glyphs and
+  SVG paths; and solid/dashed horizontal array rules.
+- Text cedilla and circled accents, widecheck/undertilde, phase and actuarial
+  enclosures, colorbox/framed-colorbox, stack/annotation and internal fraction
+  helpers. CD/helper argument contracts and parent-relative behavior remain
+  subject to per-entry qualification, not completion by name recognition.
+- Raw Unicode builtin expansion, command-definition namespace checks, scoped
+  `\long`/global-prefix behavior, preserved conditional lookahead, and valid
+  empty mathematical outcomes. KaTeX compatibility does not imply full TeX
+  paragraph/long-argument semantics.
+- Native glyph advances measured from loaded Cairo/FreeType fonts at the target
+  pixel size, plus fragment font extents and CSS-leading line-box construction.
+  The pinned normalized Typewriter advance remains 0.525 em. Pixel-specific
+  13/24 em and browser-line-height fits were rejected; successful intermediate
+  runs using those fits are not evidence for the retained implementation.
+- Typed UTF-8 text runs gated by the seven `scriptData` ranges, with native
+  Pango-Cairo shaping, semantic payloads and source preservation. Runtime
+  shaping now exists; the old predicate-only description is historical.
+  System font families are selected at runtime and are **not pinned fallback
+  fixtures**. Glyph coverage, strict-policy behavior and shaping equivalence
+  remain unqualified.
+- Borrowed `Math_Work_Control` contexts polled in source validation, lexing,
+  expansion, syntax, semantics, layout, paths, font/shaping and raster work.
+  Nested cursors inherit the context. Cooperative polling does not interrupt
+  an individual native call or establish a hard deadline.
+- Shared `Math_Raster_Budget` noncopyable leases with a 64 MiB capacity for
+  tracked completed job raster vectors, display Cairo surfaces and inline
+  Pixbuf lifetimes. This is retained-raster accounting, not aggregate job
+  allocation accounting or qualification of every process cache.
+
+The production renderer remains native Ada with Cairo/FreeType/Pango; KaTeX,
+Node and Chromium are development oracles, not production dependencies.
+Poor-man-bold shadow rendering remains an approximation, not exact CSS blur.
+
+**Inline integration is unfinished:** `Rich_Text.Render_Formula` still calls
+`Math_Element.Render_Layout_Inline` on GTK; its math-job submission does not
+request a raster. Worker-backed display output does not close inline off-thread
+painting, complete tiling/cache/repaint reuse, or GTK time-slice requirements.
+The aborted inline-worker attempt supplied no completed implementation.
+
+### 11.3 Latest recorded regression and comparison results
+
+| Evidence class | Latest recorded result | Interpretation |
+|---|---|---|
+| Development builds and full AUnit suite | Root/test development builds passed; full runs passed **1063/1063**, zero unexpected errors | Historical regression evidence; later renderer/test edits and unavailable logs prevent current-snapshot qualification |
+| Full-suite repeat exceptions | Some intermediate/repeat runs failed one GTK allocation assertion or a prompt-filter trimming assertion | Retain as failures; isolated reruns do not establish the original cause or waive them |
+| Geometry corpus | **235/235**, across 13 groups | Aggregate ascent/depth at unchanged 0.01 em tolerance; not complete widths, origins, placement or raster equivalence |
+| Structured reference pilot | **16/16**, zero fail/gap/blocked; comparator controls passed | Scoped role/path evidence; path tolerance is 0.01 normalized units, not 0.01 em placement |
+| Expanded image pilot | **28/29**, one failure, zero blocked | Original nine cases retained; includes actual 12/16/20/24/32/48 pixel-em sizing, new primitives, CD and explicit newlines |
+| Builtin callable audit | **338/338 outcome matches; 278 scoped semantic matches; 60 explicit comparison gaps; zero outcome deviations/blocked probes** | Strict audit remains nonzero and `NOT_QUALIFIED`; the 60 gaps are not passes |
+| Native rendering/admission probe | **161 assertions**; accompanying reference checks 19 valid and 8 invalid cases | Scoped probe, not complete approved-domain boundary qualification |
+| Raster functional probe | **111/111** | Does not override the failing strict Valgrind result below |
+| Seeded fuzz | **10000 cases**: 4184 ok, 5221 parse errors, 595 policy-visible, zero layout errors; identical 32-case replay | Fixed seeded corpus only |
+| Resource characterization | **10 isolated exporter cases passed**, peak child RSS **66752 KiB** | Not aggregate additional job-memory enforcement; source-limit comment-only input is reference-valid empty output |
+| Headless performance | **2000 requests**, recorded p95 about **0.93 ms** | Excludes GTK, queue-inclusive completion and representative whole-product latency |
+
+The final callable comparator records 44 projection differences, seven
+out-of-scope font/script-style cases, three unsupported `mspace` attribute
+cases, three accent-marker cases, two stretchy nodes and one tagged node among
+the 60 gaps. This is a comparison-readiness classification, not proof that all
+60 are renderer defects. Complete the mappings and adjudicate the resulting
+comparisons without silently normalizing away unsupported behavior.
+
+The remaining pixel failure is **`utilde-long`** (`\utilde{abcdef}`): recorded
+native-to-browser foreground-mask coverage is approximately **0.9851**, below
+**0.990**; logical dimensions and baseline pass in that pilot. The parsed cubic
+path/control-point checks did not establish a source-data/parser discrepancy.
+The pixel mismatch remains unresolved, not waived as a backend difference.
+The 1 px mask tolerance, 1 px logical-dimension limit and 0.01 em baseline limit
+were not relaxed. These pilot criteria remain distinct from final calibration
+and human visual acceptance.
+
+Recorded corrections include obsolete negative cedilla and comment-only-source
+fixtures, rejected width/line-height fits, source-specific parser shortcuts,
+macro-context pollution, single-part arrow clipping, vertical-piece/shaft
+placement and centered array-column stride. Passing corrected tests do not
+retroactively turn their earlier failures into passes.
+
+Former retrieval identifiers include `/tmp/coyote-native-closure-full.log`,
+`/tmp/coyote-native-closure-full-repeat.log`,
+`/tmp/coyote-native-closure-images/report.json`,
+`/tmp/coyote-native-closure-differential/report.json`,
+`/tmp/math-callables-final2.json`, and
+`/tmp/coyote-math-shaping-lifecycle/`. They are **unavailable at this
+reconciliation**. In particular, the closure repeat recorded 1062/1063 with a
+prompt-filter assertion; it must not be described as a successful repeat.
+Earlier recorded pairs of 1063/1063 passes predate some later changes.
+
+### 11.4 Native-library lifecycle failure
+
+Strict Valgrind remains failing. The recorded raster run reports **6656 bytes
+definitely lost, 2183 bytes indirectly lost and 26 bytes possibly lost**, with
+two unsuppressed error contexts. Isolated shaping lifecycle runs reported the
+same definite/indirect totals at 1, 10, 100 and 1000 measure calls; drawing runs
+at 1, 10 and 100 had the same definite/indirect totals. Possible-loss and
+reachable-cache totals varied with Pango/GLib thread-local and native cache
+state. The fixed definite/indirect trace points into Fontconfig initialization.
+
+This supports a fixed initialization-loss observation in that isolated test,
+not zero leaks, proof of all ownership paths, or a process-wide memory bound.
+No blanket suppression, unsafe per-job global Fontconfig shutdown, or passing
+lifecycle qualification is justified. Resolve or formally adjudicate the
+native-library lifecycle evidence with reproducible platform-specific tests.
+
+### 11.5 Source crosswalk and open exit gates
+
+The generated map contains **2930 core rows: 2929 partial/unqualified, one
+approved deviation, zero missing and zero qualified**. All 309 function names,
+33 environments and 338 builtin names have source-path entries. Supplemental
+script-range rows now identify conditional runtime shaping paths. Zero missing
+rows means no remaining unmapped source-path row under the crosswalk method;
+it does **not** establish complete arguments, mode behavior, glyph coverage,
+semantics, rendering, diagnostics, options or combinations.
+
+The remaining exit work is:
+
+1. Resolve undertilde pixels and the 60 callable comparison gaps; finish full
+   component mapping, widths/origins, independently measured option effects,
+   complete per-entry/interaction/invalid/boundary traceability and readiness.
+2. Enforce **at most 256 MiB additional memory per job**, including overlapping
+   transient allocations. Source/vector/surface limits and measured child RSS
+   do not substitute for aggregate enforcement. Qualify all retained-cache
+   lifetimes against the process target, not only the tracked lease counter.
+3. Establish bounded cleanup and queue-inclusive completion/rejection within
+   **250 ms**, representative warm p95 at most **50 ms**, and GTK math slices
+   at most **50 ms**. Polling and fast headless probes are not those guarantees.
+4. Complete inline worker rasterization and approved display tiling/cache/
+   repaint reuse; qualify cancellation, stale results, allocation failures,
+   ownership and exact/combined resource boundaries.
+5. Pin fallback-font files/licenses and workstation/browser/font manifests;
+   qualify Unicode/font behavior and resolve the native-library lifecycle gate.
+6. Execute the named-desktop visual and assistive-technology checklist and obtain
+   independent/user acceptance. Automated widgets, source review and this
+   developer self-evaluation are not human acceptance.
+7. Reproduce and archive a coherent final-source regression/oracle matrix,
+   reconcile failed repeats, and complete configuration/handover records.
+
+**Disposition:** continue approved P0–P6 execution. There is no new approval-wait
+loop and no authorization to narrow the approved domain, waive failures, or add
+RD-CTX-01 caps. This documentation update changes no requirements or comparison
+thresholds. **Project remains NOT COMPLETE.**

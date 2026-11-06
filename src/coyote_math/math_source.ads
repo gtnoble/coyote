@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
 with Ada.Containers.Vectors;
+with Math_Work_Control;
 
 --  Owns exact UTF-8 input and maps scalar boundaries to byte and UTF-16
 --  offsets. Construction validates but never normalizes source text.
@@ -15,7 +16,8 @@ package Math_Source is
      (Text      : String;
       Item      : out Source;
       Diagnostic : out Diagnostic_Kind;
-      Error_Byte : out Natural);
+      Error_Byte : out Natural;
+      Work       : Math_Work_Control.Context_Access := null);
    function Is_Valid (Item : Source) return Boolean;
    function Text (Item : Source) return String;
    function Byte_Length (Item : Source) return Natural;

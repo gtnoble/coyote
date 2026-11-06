@@ -1,7 +1,7 @@
 # Native KaTeX compatibility-port plan — coyote
 
-**Version:** 0.7
-**Date:** 2026-10-27
+**Version:** 0.9
+**Date:** 2026-11-06
 **Change:** PCR-125
 **Status:** Native design and project execution approved; implementation in
 progress; P1 readiness and final qualification pending. No full parity claim.
@@ -37,7 +37,7 @@ References:
 - `requirements/coyote-requirements.md`: §3.1.4a, REQ-CORE-111, REQ-CORE-124.
 - `design/coyote-design.md`: native math architecture and unit inventory.
 - `plan/test-plan.md`: math coverage and manual display demonstrations.
-- `plan/native-math-test-report.md`: PCR-123 evidence and limitations.
+- `plan/native-math-test-report.md`: historical PCR-123 evidence and limitations.
 - `share/coyote/math/README.md`: currently supported profile and bounds.
 - `share/coyote/math/PROVENANCE.md`: pinned upstream archive and licenses.
 - `test/tools/check-math-reference.cjs`: current narrow development oracle.
@@ -158,17 +158,35 @@ runtime dependency inspection still shows no reference engine/browser runtime.
 Preserve GUI-main-task widget ownership while addressing measured work latency.
 
 Record exact commands, versions, seeds, counts, failures, exclusions, log paths,
-and human-review status. Coordinator-owned report §10 is the current checkpoint.
-Section §9 and earlier report sections are historical. The frozen suite passed
-1063/1063 with zero failed assertions or unexpected errors in 82.418882 s
-(`/tmp/coyote-core-frozen-full.log`), regression evidence only. Current work adds
-typed `\verb`, `\vcenter`, and `\pmb` with raw-token grammar guards; approximate
-Gaussian shadow (not exact CSS); overflow/integer bounds; semantic payload roles;
-and cooperative cancellation checks at processing stage boundaries. Expired
-queued jobs skip input copying. This is not stage-loop preemption or a hard
-deadline guarantee. Raster pilot is 7/9 with two discrepancies. Whole-job
-memory, hard timing, GTK/cache guarantees, complete mapping, readiness,
-qualification and human acceptance remain open. No parity claim is made.
+and human-review status. Coordinator-owned report §11 is the current-source checkpoint; §10 and
+earlier report sections are historical. Previously frozen full-suite results
+are regression evidence only and predate the latest source changes; this plan
+does not claim a fresh full-suite result. Current work includes typed `\verb`,
+`\vcenter`, and `\pmb` with raw-token grammar guards; generalized CD helpers;
+Unicode alias/long-prefix handling; accent/path and color/box/rule primitives;
+Pango shaping; and cooperative phase-boundary cancellation checks. Gaussian
+shadow remains approximate. The shared 64 MiB retained-raster ledger is not
+whole-job memory accounting or total allocation/RSS enforcement. No deterministic
+font-family policy, hard 250 ms completion, or full compatibility qualification
+is established. The report's §11 “Current implementation and qualification
+reconciliation — 2026-11-06” is the latest recorded checkpoint; §10 and earlier
+sections are historical. Its scoped results are 28/29 raster comparisons
+(long-tilde mask 0.9851 < 0.99), 278/338 structured semantic matches with 60
+explicit gaps (strict mode fails), and 235/235 geometry matches. These are not
+parity. Temporary artifacts referenced there are unavailable in this
+documentation-only task; no reruns or new qualification are claimed. Runtime
+Pango shaping and Unicode fallback exist, but font-family resolution is
+unpinned. Cooperative checks do not interrupt native C calls. Inline math
+remains synchronous GTK `RenderLayoutInline`; off-thread inline painting and
+tiled adoption/cache reuse remain unimplemented. Queue-inclusive ≤250 ms,
+GTK ≤50 ms, aggregate ≤256 MiB job-memory enforcement, complete reference
+behavior/corpus qualification, and independent human visual/accessibility
+acceptance remain open. Do not claim the recorded 1063/1063 suite as a fresh
+result: one repeat had a prompt-filter assertion failure of unproven non-math
+cause, not waived. Valgrind failed (6,656 definitely lost, 2,183 indirectly
+lost, 26 possibly lost bytes); isolated Pango/Fontconfig initialization showed
+the same definite/indirect loss through 1,000 calls, not zero leaks. Coverage
+remains a source crosswalk, not semantic completion. No parity claim is made.
 ## 6. Resources, risks, and maintenance
 
 Use the existing GNAT/Alire/AUnit/GTK/Cairo/FreeType environment, development-only
@@ -193,19 +211,22 @@ The user approved this staged native-port plan and SRS-MATH v1.0 on
 project execution on 2026-10-25. Later SDD v0.7 is a status/document revision,
 not a separately approved design baseline. The design and test work products
 are recorded in `design/coyote-design.md`, `design/native-math-compatibility.md`
-v0.7, and `plan/native-math-compatibility-tests.md` v0.7. Requirements remain authoritative; implementation progress does not change
+v0.9, and `plan/native-math-compatibility-tests.md` v0.9. Requirements remain authoritative; implementation progress does not change
 their scope or approved D01–D15 dispositions.
 
 Phase/status summary: P0 requirements/inventory approved and produced. P1
 baseline/browser tooling exists, but full field coverage, matching and readiness
 are incomplete. P2 pilot works. P3 and P4 are partial. P5 async jobs, semantic
-tree and raster display are partial; inline painting and GTK main-thread timing
-are unqualified. P6 checks have run, but final qualification and acceptance are
-open. Fleqn has focused GUI-option coverage, not full option equivalence. Current
-implementation details and evidence are in coordinator-owned report §10; §9 and
-earlier sections are historical. RD-CTX-01 additional context caps remain
-unauthorized. Do not mark P1–P6 complete or claim full KaTeX parity. Calendar
-dates and cost remain unestimated; independent human acceptance is pending.
+The P0–P6 execution remains authorized. P0 is approved; P1 matching/readiness
+is incomplete, P2 is scoped, P3/P4 partial, and P5 is partial. Inline painting
+remains synchronous GTK `RenderLayoutInline`; the planned worker-inline and
+tiled display adoption/cache path are not implemented. P6 checks are recorded,
+but acceptance, qualification and full corpus mapping remain open. Fleqn has
+focused GUI-option coverage, not full equivalence. The latest recorded
+checkpoint is report §11, “Current implementation and qualification
+reconciliation — 2026-11-06”; §10 and earlier sections are historical.
+RD-CTX-01 caps remain unauthorized. Do not mark phases complete or claim parity.
+Dates/cost remain unestimated; independent human acceptance is pending.
 
 Developer self-evaluation: current implementation and evidence are separated
 from the approved target and final acceptance gates. Existing tooling and

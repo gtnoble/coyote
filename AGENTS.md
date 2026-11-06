@@ -13,19 +13,22 @@ The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
 current code or documentation. The current native-math evidence and open
-qualification status are recorded in §10 of the coordinator-owned
-`plan/native-math-parity-test-report.md`; treat §9 and earlier sections as
+qualification status belong in §11 of the coordinator-owned
+`plan/native-math-parity-test-report.md`; treat §10 and earlier sections as
 historical snapshots. No parity or product acceptance is implied.
 
-The current checkpoint adds typed `\verb`, `\vcenter` and `\pmb` with
-raw-token literal grammar guards, native Gaussian-shadow approximation (not
-exact CSS), shadow overflow checks, expanded integer bounds, and semantic
-payload roles; the added GUI case brings `Conversation_Stack` to 49
-registrations. Cancellation checks bracket parsing, semantic analysis,
-layout, font work, rasterization and publication; expired queued jobs are
-skipped before copying input. These are cooperative checks, not stage-loop
-preemption or a hard deadline guarantee. Unicode ranges remain predicate-only,
-not shaped text. Consult report §10 for evidence and open gates.
+The current implementation includes typed literal/box primitives, CD diagrams,
+expanded accents/delimiters, contour integrals, array rules, color enclosures,
+native font measurements and conditional Pango Unicode text-run shaping.
+System fallback-font resolution remains unpinned. Cooperative checks reach
+pipeline loops and phase boundaries but cannot preempt individual native calls
+or guarantee hard deadlines. The shared 64 MiB retained-raster ledger covers
+tracked worker results, display surfaces and inline Pixbufs, not whole-job
+allocation. Inline math painting still runs on GTK. `Conversation_Stack` has
+49 registered cases; registration is not qualification. Consult report §11,
+“Current implementation and qualification reconciliation — 2026-11-06”, for
+recorded evidence, unavailable-artifact limits and open gates. Earlier dated
+implementation checkpoints are historical.
 Executables:
 
 - `bin/coyote` — selects GUI or Plain and runs the native agent loop.
@@ -149,16 +152,18 @@ Historical native-math full-suite results include PCR-123 1042/1042, earlier
 full-suite attempts failed exactly one GTK tool-allocation assertion each;
 three isolated focused passes followed, then a test-only correction added a
 one-second monotonic GTK poll without changing or weakening the exact 760×600
-dimension criterion. The frozen full development suite then passed 1063/1063
-with zero failed assertions or unexpected errors in 82.418882 seconds
-(`/tmp/coyote-core-frozen-full.log`). It is regression evidence, not parity or
-product acceptance. Root build and test build logs are
-`/tmp/coyote-core-frozen-build.log` and
-`/tmp/coyote-core-frozen-testbuild.log`.
+dimension criterion. The previously recorded frozen full development suite passed 1063/1063
+with zero failed assertions or unexpected errors in 82.418882 seconds. This is
+historical regression evidence, not a current-snapshot rerun, qualification,
+parity or product acceptance. The original `/tmp` evidence files are not
+currently available; do not treat them as accessible artifacts. Isolated
+non-math repeat failures remain to be reconciled; no current-snapshot full-suite
+result is claimed. Root build
+and test-build evidence is likewise historical and unavailable here.
 
 Current implementation and checkpoint evidence, including focused probes,
 coverage counts and open qualification gates, are recorded in coordinator-owned
-report §10. Coverage is a source crosswalk, not completion evidence. Whole-job
+report §11. Coverage is a source crosswalk, not completion evidence. Whole-job
 memory, hard 250 ms completion, GTK/cache guarantees, full reference behavior,
 remaining core behavior and human acceptance remain unqualified. These
 development builds are not warning-free or release qualification.

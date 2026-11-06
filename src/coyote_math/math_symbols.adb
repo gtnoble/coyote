@@ -4287,6 +4287,24 @@ package body Math_Symbols is
                Relation_Atom, Main_Regular);
          end if;
          if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (143) then
+            return
+              (True, 8719,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (144) then
+            return
+              (True, 8720,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (145) then
+            return
+              (True, 8721,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
            Character'Val (226) & Character'Val (136) & Character'Val (146) then
             return
               (True, 8722,
@@ -4399,6 +4417,42 @@ package body Math_Symbols is
             return
               (True, 8746,
                Binary_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (171) then
+            return
+              (True, 8747,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (172) then
+            return
+              (True, 8748,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (173) then
+            return
+              (True, 8749,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (174) then
+            return
+              (True, 8750,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (175) then
+            return
+              (True, 8751,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (136) & Character'Val (176) then
+            return
+              (True, 8752,
+               Operator_Atom, Main_Regular);
          end if;
          if Name =
            Character'Val (226) & Character'Val (136) & Character'Val (180) then
@@ -4941,6 +4995,30 @@ package body Math_Symbols is
                Binary_Atom, AMS_Regular);
          end if;
          if Name =
+           Character'Val (226) & Character'Val (139) & Character'Val (128) then
+            return
+              (True, 8896,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (139) & Character'Val (129) then
+            return
+              (True, 8897,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (139) & Character'Val (130) then
+            return
+              (True, 8898,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (139) & Character'Val (131) then
+            return
+              (True, 8899,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
            Character'Val (226) & Character'Val (139) & Character'Val (133) then
             return
               (True, 8901,
@@ -5317,6 +5395,36 @@ package body Math_Symbols is
             return
               (True, 10236,
                Relation_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (168) & Character'Val (128) then
+            return
+              (True, 10752,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (168) & Character'Val (129) then
+            return
+              (True, 10753,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (168) & Character'Val (130) then
+            return
+              (True, 10754,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (168) & Character'Val (132) then
+            return
+              (True, 10756,
+               Operator_Atom, Main_Regular);
+         end if;
+         if Name =
+           Character'Val (226) & Character'Val (168) & Character'Val (134) then
+            return
+              (True, 10758,
+               Operator_Atom, Main_Regular);
          end if;
          if Name =
            Character'Val (226) & Character'Val (169) & Character'Val (158) then

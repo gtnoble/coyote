@@ -5,7 +5,9 @@ with Ada.Unchecked_Deallocation;
 with Math_Model;
 with Math_Painter;
 with Math_Raster;
+with Math_Raster_Budget;
 with Math_Syntax;
+with Math_Work_Control;
 
 package body Coyote_Math_Jobs is
    use Ada.Strings.Unbounded;
@@ -386,7 +388,12 @@ package body Coyote_Math_Jobs is
      (Control.Worker_Control_Status (Id, View, Deadline));
    procedure Free_Result (Item : in out Result_Access) is
       procedure Dealloc is new Ada.Unchecked_Deallocation (Job_Result, Result_Access);
-   begin if Item /= null then Dealloc (Item); end if; end Free_Result;
+   begin
+      if Item /= null then
+         Math_Raster_Budget.Release (Item.Raster_Charge);
+         Dealloc (Item);
+      end if;
+   end Free_Result;
    task type Worker is
       pragma Storage_Size (16 * 1_024 * 1_024);
    end Worker;
@@ -395,6 +402,25 @@ package body Coyote_Math_Jobs is
      (Worker, Worker_Access);
    Workers : array (1 .. Worker_Count) of Worker_Access := (others => null);
    task body Worker is
+      type Worker_Context is new Math_Work_Control.Context with record
+         Job : Request_Id := 0;
+         View : View_Generation := 0;
+         Deadline : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
+      end record;
+      overriding function Check
+        (Item : Worker_Context) return Math_Work_Control.Stop_Reason is
+         Status : constant Job_Status := Worker_Control_Status
+           (Item.Job, Item.View, Item.Deadline);
+      begin
+         case Status is
+            when Cancelled =>
+               return Math_Work_Control.Cancel_Requested;
+            when Expired =>
+               return Math_Work_Control.Deadline_Reached;
+            when others =>
+               return Math_Work_Control.Continue_Work;
+         end case;
+      end Check;
       Index : Positive;
       Stop : Boolean;
       Taken_State : Job_Status;
@@ -424,6 +450,13 @@ package body Coyote_Math_Jobs is
          Taken_State := State;
          R := null;
          State := Failed;
+         declare
+            Work_Context : aliased Worker_Context :=
+              (Math_Work_Control.Context with
+               Job => Job, View => View, Deadline => Deadline);
+            Work_Access : constant Math_Work_Control.Context_Access :=
+              Work_Context'Unchecked_Access;
+            Fonts : aliased Math_Painter.Font_Set;
          begin
             Phase_Status := Worker_Control_Status (Job, View, Deadline);
             if Taken_State /= Pending then
@@ -439,22 +472,65 @@ package body Coyote_Math_Jobs is
                  Style = Math_Layout.Display_Style;
                Phase_Status := Worker_Control_Status (Job, View, Deadline);
                if Phase_Status = Pending then
-                  R.Parsed := Math_Syntax.Parse
-                    (To_String (Text), Parse_Settings);
+                  begin
+                     R.Parsed := Math_Syntax.Parse
+                       (To_String (Text), Parse_Settings, Work_Access);
+                  exception
+                     when Math_Work_Control.Stop_Requested =>
+                        State := Cancelled;
+                     when Math_Work_Control.Deadline_Expired =>
+                        State := Expired;
+                  end;
                   Phase_Status := Worker_Control_Status
                     (Job, View, Deadline);
+                  if State = Cancelled or State = Expired then
+                     Phase_Status := State;
+                  end if;
                end if;
                if Phase_Status = Pending and then
                  Math_Syntax.Is_Valid (R.Parsed)
                then
-                  R.Meaning := Math_Semantics.Project (R.Parsed);
+                  begin
+                     R.Meaning := Math_Semantics.Project
+                       (R.Parsed, Work_Access);
+                  exception
+                     when Math_Work_Control.Stop_Requested =>
+                        State := Cancelled;
+                     when Math_Work_Control.Deadline_Expired =>
+                        State := Expired;
+                  end;
                   Phase_Status := Worker_Control_Status
                     (Job, View, Deadline);
+                  if State = Cancelled or State = Expired then
+                     Phase_Status := State;
+                  end if;
+               end if;
+               if Phase_Status = Pending and then Raster_Requested then
+                  begin
+                     Math_Painter.Load
+                       (Fonts, To_String (Font_Directory), Work_Access);
+                  exception
+                     when Math_Work_Control.Stop_Requested =>
+                        State := Cancelled;
+                     when Math_Work_Control.Deadline_Expired =>
+                        State := Expired;
+                  end;
+                  Phase_Status := Worker_Control_Status
+                    (Job, View, Deadline);
+                  if State = Cancelled or State = Expired then
+                     Phase_Status := State;
+                  end if;
                end if;
                if Phase_Status = Pending and then
                  Math_Syntax.Is_Valid (R.Parsed)
                then
-                  R.Geometry := Math_Layout.Build (R.Parsed, Style);
+                  R.Geometry := Math_Layout.Build
+                    (R.Parsed, Style,
+                     (Pixel_Em => (if Raster_Requested then Em_Pixels
+                                   else 0.0),
+                      Advance_Source => (if Raster_Requested
+                        then Fonts'Unchecked_Access else null),
+                      others => <>), Work_Access);
                   Phase_Status := Worker_Control_Status
                     (Job, View, Deadline);
                end if;
@@ -501,7 +577,6 @@ package body Coyote_Math_Jobs is
                        (Job, View, Deadline);
                      if Phase_Status = Pending then
                         declare
-                           Fonts : Math_Painter.Font_Set;
                            Foreground : Math_Model.Color_Value :=
                              (Alpha => 1.0, others => 0.0);
                         begin
@@ -510,22 +585,44 @@ package body Coyote_Math_Jobs is
                                 (Red => Color.Red, Green => Color.Green,
                                  Blue => Color.Blue, Alpha => Color.Alpha);
                            end if;
-                           Math_Painter.Load
-                             (Fonts, To_String (Font_Directory));
                            Phase_Status := Worker_Control_Status
                              (Job, View, Deadline);
                            if Phase_Status = Pending then
                               R.Pixels := Math_Raster.Render
-                                (Fonts, R.Geometry, Em_Pixels, Foreground);
+                                (Fonts, R.Geometry, Em_Pixels, Foreground,
+                                 Work_Access);
                               Phase_Status := Worker_Control_Status
                                 (Job, View, Deadline);
+                              if Phase_Status = Pending then
+                                 declare
+                                    Bytes : constant Natural :=
+                                      Math_Raster.Stride (R.Pixels) *
+                                      Math_Raster.Height (R.Pixels);
+                                    Accepted : Boolean;
+                                 begin
+                                    Math_Raster_Budget.Reserve
+                                      (Bytes, R.Raster_Charge, Accepted);
+                                    if not Accepted then
+                                       R.Message := To_Unbounded_String
+                                         ("retained raster budget exceeded");
+                                       State := Failed;
+                                    end if;
+                                 end;
+                              end if;
+                              Phase_Status := Worker_Control_Status
+                                (Job, View, Deadline);
+                              if State = Failed then
+                                 Phase_Status := Failed;
+                              end if;
                            end if;
-                           if Phase_Status = Pending then
+                           if Phase_Status = Pending and then
+                             State = Valid
+                           then
                               R.Raster_Baseline_Value := Natural
                                 (Long_Float'Ceiling
                                    (R.Geometry.Ascent * Em_Pixels));
                               R.Raster_Ready := True;
-                           else
+                           elsif Phase_Status /= Pending then
                               State := Phase_Status;
                            end if;
                         end;
@@ -544,6 +641,10 @@ package body Coyote_Math_Jobs is
                end if;
             end if;
          exception
+            when Math_Work_Control.Stop_Requested =>
+               State := Cancelled;
+            when Math_Work_Control.Deadline_Expired =>
+               State := Expired;
             when E : others =>
                if R /= null then
                   R.Message := To_Unbounded_String
@@ -639,6 +740,8 @@ package body Coyote_Math_Jobs is
    function Error (Item : Job_Result) return String is (To_String (Item.Message));
    function Has_Raster (Item : Job_Result) return Boolean is
      (Item.Raster_Ready);
+   function Raster_Retained_Bytes (Item : Job_Result) return Natural is
+     (Math_Raster_Budget.Bytes (Item.Raster_Charge));
    function Raster_Width (Item : Job_Result) return Natural is
      (Math_Raster.Width (Item.Pixels));
    function Raster_Height (Item : Job_Result) return Natural is

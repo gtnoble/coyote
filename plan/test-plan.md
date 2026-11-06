@@ -1,19 +1,26 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.40
-**Date:** 2026-10-27
+**Version:** 1.42
+**Date:** 2026-11-06
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**PCR-125 native-math status (2026-10-27):** SRS-MATH v1.0 and D01–D15 remain
-authoritative; design/execution are approved, while readiness and qualification
-remain open. Current-source evidence and discrepancies are in coordinator-owned
-report §10; §9 and earlier sections are historical. The frozen full suite passed
-1063/1063 in 82.418882 s (`/tmp/coyote-core-frozen-full.log`), regression evidence
-only. Raster pilot is 7/9 with two documented failures. No parity or product
-acceptance is established.
+**PCR-125 native-math status (2026-11-06):** SRS-MATH v1.0 and D01–D15 remain
+authoritative and unchanged; the already-approved execution continues without
+reopening approval. Coordinator report §11, “Current implementation and
+qualification reconciliation — 2026-11-06”, is the latest recorded checkpoint;
+§10 and earlier sections are historical. It records 28/29 raster cases
+(long-tilde mask 0.9851 < 0.99), 278/338 scoped semantic matches with 60 explicit
+gaps (strict comparison failed), and 235/235 geometry matches. A 1063/1063 suite
+and repeat with one prompt-filter assertion failure of unproven non-math cause
+are recorded, not a fresh pass; the failure is not waived. Temporary artifacts
+are unavailable for this documentation-only update; tests were not rerun. Queue-
+inclusive 250 ms completion, GTK ≤50 ms work, aggregate 256 MiB job memory,
+inline worker painting/tiled adoption, complete corpus/reference behavior,
+readiness and qualification remain open. Independent human visual/accessibility
+acceptance has not occurred. No parity or product acceptance is established.
 ---
 
 ## Table of Contents
@@ -106,7 +113,7 @@ See `plan/integration-test-guide.md` for full setup instructions.
   `xvfb-run`). The native tests cover one outer scroller, exchange and step
   widgets, Markdown, native math, selection, tool flow, lifecycle, reset, and zoom.
   Current native-math evidence and qualification gaps are recorded in
-  `plan/native-math-parity-test-report.md` §10; §9 and earlier sections are
+  `plan/native-math-parity-test-report.md` §11; §10 and earlier sections are
   historical. Regression results are not parity qualification or acceptance.
 - The obsolete `Coyote_GUI.Buffer` unit and legacy conversation renderer were
   removed. Plain frontend tests remain independent and headless where applicable.
@@ -219,7 +226,7 @@ SRS-CORE requirement groups.
 | `coyote_image_jobs_tests.adb` | REQ-CORE-111 Ada image-job scheduling behavior | Focused jobs tests pass 3/3 |
 | `test/tools/check-image-loader.sh` + `test/native/image_io_test.c` | Thin POSIX C I/O shim and native shim checks only; 15/15 checks pass in normal and ASan/UBSan modes |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111 image context, caption, image policy, and clear/lifetime behavior; history source-root restoration and RPC source-context forwarding are also covered | Three added GUI tests; focused `Conversation_Stack` family 38/38; history coverage extended; RPC family includes two added tests |
-| `coyote_math_tests.adb` | Native math source/tokenization, macro expansion, syntax, semantic tree, layout/metrics/fonts/resources, constructs and painting; coverage is partial and not full KaTeX parity | Frozen full suite passed 1063/1063; regression evidence only. Current results, discrepancies and qualification gaps are maintained in `plan/native-math-parity-test-report.md` §10 |
+| `coyote_math_tests.adb` | Native math source/tokenization, macro expansion, syntax, semantic tree, layout/metrics/fonts/resources, constructs and painting; coverage is partial and not full KaTeX parity | Historical frozen full-suite results are regression evidence only, not qualification of the latest snapshot. Current results, discrepancies and qualification gaps belong in coordinator-owned `plan/native-math-parity-test-report.md` §11 |
 
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy and native lifecycle) | 7 direct registrations; includes `Coyote.Notify isolated lifecycle smoke test`, invoking `test/tools/notify_test_worker.adb` under a 10-second timeout and unavailable D-Bus address |

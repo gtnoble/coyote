@@ -11,6 +11,9 @@ package Math_Stretchy is
 
    --  Names are KaTeX table keys without a leading backslash.
    function Geometry_For (Name : String) return Math_Paths.Path;
+   function Svg_Width_For (Name : String) return Long_Float;
+   function Svg_Height_For (Name : String) return Long_Float;
+   function Svg_Y_Shift_For (Name : String) return Long_Float;
    function ViewBoxHeightFor (Name : String) return Long_Float;
    function MinWidthFor (Name : String) return Long_Float;
    function PartCount (Name : String) return Natural;
@@ -28,6 +31,13 @@ package Math_Stretchy is
    function View_Height (Kind : Accent_Kind) return Long_Float;
    function Path_For
      (Kind : Accent_Kind; Width : Long_Float) return Math_Paths.Path;
+   --  Selects the fixed KaTeX path variant by base character count.
+   function Accent_Path_For
+     (Name : String; Character_Count : Positive)
+      return Math_Paths.Path;
+   --  KaTeX view-box height; valid range is 80 through 1,000,000.
+   function Phase_Path (View_Box_Height : Natural)
+      return Math_Paths.Path;
    function Tall_Radical
      (Height_Em, Extra_Vinculum, Width_Em : Long_Float)
       return Math_Paths.Path;

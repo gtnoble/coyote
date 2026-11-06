@@ -4,6 +4,7 @@ with Ada.Containers;
 with Ada.Text_IO;
 with Interfaces;
 with Math_Raster;
+with Math_Raster_Budget;
 with Coyote_Math_Jobs;
 with Math_Layout;
 with Math_Syntax;
@@ -70,6 +71,24 @@ procedure Math_Jobs_Probe is
      (if Ada.Command_Line.Argument_Count = 1
       then Ada.Command_Line.Argument (1) else "");
 begin
+   declare
+      First_Lease : Math_Raster_Budget.Lease;
+      Second_Lease : Math_Raster_Budget.Lease;
+      First_Accepted : Boolean;
+      Second_Accepted : Boolean;
+   begin
+      Math_Raster_Budget.Reserve (100, First_Lease, First_Accepted);
+      Math_Raster_Budget.Reserve (200, Second_Lease, Second_Accepted);
+      Check (First_Accepted and Second_Accepted,
+        "distinct raster leases reserve independently");
+      Math_Raster_Budget.Release (First_Lease);
+      Math_Raster_Budget.Release (First_Lease);
+      Check (Math_Raster_Budget.Used = 200,
+        "duplicate release leaves another owner's charge intact");
+      Math_Raster_Budget.Release (Second_Lease);
+      Check (Math_Raster_Budget.Used = 0,
+        "all lease owners release to baseline");
+   end;
    Check (Font_Directory'Length > 0, "trusted font directory supplied");
    Jobs.Start (Paused => True);
    declare
@@ -214,6 +233,11 @@ begin
          end;
          Check (Jobs.Has_Raster (Raster_Result.all),
            "owned raster reported available");
+         Check (Jobs.Raster_Retained_Bytes (Raster_Result.all) > 0,
+           "result retention records rendered raster storage");
+         Check (Math_Raster_Budget.Used =
+           Jobs.Raster_Retained_Bytes (Raster_Result.all),
+           "published raster result remains charged");
          Check (Jobs.Raster_Width (Raster_Result.all) > 0 and
            Jobs.Raster_Height (Raster_Result.all) > 0,
            "raster dimensions positive");
@@ -240,6 +264,8 @@ begin
          Check (Raster_Has_Color,
            "requested raster layout retains caller foreground");
          Jobs.Release (Raster_Result);
+         Check (Math_Raster_Budget.Used = 0,
+           "result release returns retained raster bytes to baseline");
       end if;
       for Wait in 1 .. 400 loop
          Jobs.Poll (Default_Id, 303, Default_Status, Default_Result);
@@ -366,11 +392,37 @@ begin
      "timing metadata follows existing poll-consumption lifetime");
 
    Jobs.Start;
-   Jobs.Submit ("done", Abandoned_Id, Abandoned_Generation,
-     Math_Layout.Text_Style, Status => S);
-   Check (S = Jobs.Pending, "orphan cleanup request accepted");
+   declare
+      Large_Source : String (1 .. Math_Syntax.Max_Source_Bytes) :=
+        (others => 'x');
+   begin
+      Jobs.Submit (Large_Source, Ids (1), 94,
+        Math_Layout.Text_Style, Status => S);
+   end;
+   Check (S = Jobs.Pending,
+     "large-source cancellation request accepted");
+   Jobs.Cancel (Ids (1), 94);
+   R := null;
+   for Wait in 1 .. 400 loop
+      Jobs.Poll (Ids (1), 94, S, R);
+      exit when S /= Jobs.Pending;
+      delay 0.005;
+   end loop;
+   Check (S = Jobs.Cancelled and R = null,
+     "cancelled large-source work publishes no result");
+   Jobs.Release (R);
+
+   Jobs.Start;
+   Jobs.Submit ("x+y", Abandoned_Id, Abandoned_Generation,
+     Math_Layout.Display_Style, Status => S, Request_Raster => True,
+     Em_Pixels => 24.0, Font_Directory => Font_Directory);
+   Check (S = Jobs.Pending, "unpolled raster request accepted");
    delay 0.1;
+   Check (Math_Raster_Budget.Used > 0,
+     "completed unpolled raster remains charged in its queue slot");
    Jobs.Shutdown;
+   Check (Math_Raster_Budget.Used = 0,
+     "shutdown releases unpolled raster result charge");
    Jobs.Poll (Abandoned_Id, Abandoned_Generation, S, R);
    Check (S = Jobs.Unknown and R = null,
      "shutdown drains completed orphan result");

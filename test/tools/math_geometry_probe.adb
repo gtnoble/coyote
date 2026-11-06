@@ -1,24 +1,33 @@
 with Ada.Text_IO;
+with Ada.Strings.Unbounded;
 with Math_Layout;
 with Math_Paths;
 with Math_Syntax;
 
 procedure Math_Geometry_Probe is
+   use type Math_Layout.Math_Style;
    use type Math_Layout.Command_Kind;
 
    procedure Show
      (Name, Source : String;
       Style : Math_Layout.Math_Style := Math_Layout.Text_Style)
    is
+      Settings : Math_Syntax.Options :=
+        (Display_Mode => Style = Math_Layout.Display_Style, others => <>);
       Layout : constant Math_Layout.Box := Math_Layout.Build
-        (Math_Syntax.Parse (Source), Style);
+        (Math_Syntax.Parse (Source, Settings), Style);
    begin
       if Layout.Valid then
          Ada.Text_IO.Put_Line
            (Name & " " & Long_Float'Image (Layout.Ascent) & " " &
-            Long_Float'Image (Layout.Descent));
+            Long_Float'Image (Layout.Descent) & " " &
+            Long_Float'Image (Layout.Width));
       else
          Ada.Text_IO.Put_Line (Name & " ERROR");
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            Name & " ERROR " &
+              Ada.Strings.Unbounded.To_String (Layout.Message));
       end if;
    end Show;
 
@@ -65,6 +74,24 @@ procedure Math_Geometry_Probe is
    end Check_Right_Arrow_Clip;
 begin
    Check_Right_Arrow_Clip;
+   Show ("contour-oiint-text", "\oiint");
+   Show ("contour-oiint-display", "\oiint", Math_Layout.Display_Style);
+   Show ("contour-oiiint-text", "\oiiint");
+   Show ("contour-oiiint-display", "\oiiint", Math_Layout.Display_Style);
+   Show ("contour-raw-oiint-text", "∯");
+   Show ("contour-raw-oiint-display", "∯", Math_Layout.Display_Style);
+   Show ("contour-raw-oiiint-text", "∰");
+   Show ("contour-raw-oiiint-display", "∰", Math_Layout.Display_Style);
+   Show
+     ("array-hline-top", "\begin{array}{c}\hline a\end{array}");
+   Show
+     ("array-hline-interior",
+      "\begin{array}{c}a\\\hline b\end{array}");
+   Show ("array-hline-repeated-top", "\begin{array}{c}\hline\hline a\end{array}");
+   Show ("array-hline-repeated-interior",
+     "\begin{array}{c}a\\\hline\hline b\end{array}");
+   Show
+     ("array-hdashline", "\begin{array}{c}a\\\hdashline b\end{array}");
    Show ("dot-x", "\dot{x}");
    Show ("ddot-T-sub-a", "\ddot{T}_a");
    Show ("heatbalance-first-term", "\dot{Q}_{\mathrm{in}}");
@@ -76,12 +103,41 @@ begin
    Show ("hat-x-sup-2", "\hat{x}^2");
    Show ("frac-sub-script", "\frac{a}{b}_c");
    Show ("fraction-xy", "\frac{x}{y}");
+   Show ("spacing-medspace-colon", "a\:b");
+   Show ("spacing-medspace-greater", "a\>b");
+   Show ("break-allow", "a\allowbreak b");
+   Show ("break-forbid", "a\nobreak b");
+   Show ("callable-newline", "\newline");
+   Show ("callable-notag", "\notag");
+   Show ("callable-nonumber", "\nonumber");
+   Show ("callable-tag-literal", "\tag{A}x", Math_Layout.Display_Style);
+   Show ("callable-approx-equal", "≘");
+   Show ("callable-approx-equal-composed", "a≘b");
+   Show ("callable-not-equal", "\ne");
+   Show ("callable-not-equal-alias", "\neq");
    Show ("sqrt-abcdef", "\sqrt{abcdef}");
    Show ("sqrt-nested-fraction", "\sqrt{\frac{x}{y}}");
    Show ("sqrt-x-plus-one", "\sqrt{x+1}");
    Show ("widehat-abcdef", "\widehat{abcdef}");
    Show ("overrightarrow-xy", "\overrightarrow{xy}");
    Show ("wideaccent-pilot", "\widehat{abcdef}+\overrightarrow{xy}+\sqrt{abcdef}");
+   Show ("widecheck-one", "\widecheck{x}");
+   Show ("widecheck-two", "\widecheck{xy}");
+   Show ("widecheck-three", "\widecheck{xyz}");
+   Show ("widecheck-four", "\widecheck{wxyz}");
+   Show ("widecheck-five", "\widecheck{vwxyz}");
+   Show ("widecheck-six", "\widecheck{uvwxyz}");
+   Show ("widecheck-long", "\widecheck{abcdefg}");
+   Show ("utilde-one", "\utilde{x}");
+   Show ("utilde-two", "\utilde{xy}");
+   Show ("utilde-three", "\utilde{xyz}");
+   Show ("utilde-four", "\utilde{wxyz}");
+   Show ("utilde-five", "\utilde{vwxyz}");
+   Show ("utilde-six", "\utilde{uvwxyz}");
+   Show ("phase-one", "\phase{x}");
+   Show ("phase-fraction", "\phase{\frac{x}{y}}");
+   Show ("angl-one", "\angl{x}");
+   Show ("angl-group", "\angl{xy}");
    Show ("sqrt-x-squared-text", "\sqrt{x^2}");
    Show ("frac-x-squared-text", "\frac{x^2}{y^2}");
    Show ("sqrt-frac-squared-text", "\sqrt{\frac{1}{x^2}}");
@@ -163,6 +219,8 @@ begin
    Show ("sized-big-right-bracket", "\bigr]");
    Show ("sized-big-right-brace", "\bigr\}");
    Show ("sized-big-bar", "\big|");
+   Show ("delimiter-braket-macro", "\Braket{a}{b}");
+   Show ("delimiter-braket-middle", "\left\langle a \middle| b \right\rangle");
    Show ("sized-Big-left-paren", "\Bigl(");
    Show ("sized-Big-right-paren", "\Bigr)");
    Show ("sized-Big-right-bracket", "\Bigr]");
@@ -210,6 +268,10 @@ begin
    Show ("fraction-infix-brace", "a\brace b");
    Show ("fraction-infix-above-zero", "a\above{0pt}b");
    Show ("fraction-infix-above-custom", "a\above{0.2pt}b");
+   Show ("fraction-stack-above", "\stackrel{n}{=}");
+   Show ("fraction-stack-binary", "a+\stackrel{n}{=}b");
+   Show ("fraction-overset-relation", "a\overset{n}{=}b");
+   Show ("fraction-overset-binary", "a\overset{n}{+}b");
    Show ("support-vcenter-frac",
      "\vcenter{\hbox{$\frac{a+b}{\dfrac{c}{d}}$}}");
    Show ("support-vcenter-x", "\vcenter{\hbox{$x$}}");
@@ -223,4 +285,38 @@ begin
    Show ("verb-superscript", "x^{\verb|a b|}", Math_Layout.Text_Style);
    Show ("verb-display-style", "\verb*|a b|", Math_Layout.Display_Style);
    Show ("verb-star-space-only", "\verb*| |", Math_Layout.Text_Style);
+   Show ("text-cedilla-below", "\text{\c{c}}");
+   Show ("text-circled-full", "\text{\textcircled{R}}");
+   Show ("colorbox-red-x", "\colorbox{red}{x}");
+   Show ("colorbox-text-space", "\colorbox{red}{a b}");
+   Show ("fcolorbox-white-a", "\fcolorbox{blue}{#ffffff}{A}");
+   Show ("fcolorbox-math-dollar", "\fcolorbox{blue}{#ffffff}{$x^2$}");
+   Show ("cd-empty", "\begin{CD}\end{CD}");
+   Show ("cd-empty-horizontal-label", "\begin{CD}A@>x>>B\end{CD}");
+   Show ("cd-empty-vertical-label", "\begin{CD}A@VVV\\B\end{CD}");
+   Show
+     ("cd-two-by-two",
+      "\begin{CD} A @>f>> B \\ @VgVV @AAhA \\ C @>>k> D \end{CD}");
+   Show
+     ("cd-grouped-label",
+      "\begin{CD}A@>{x>y}>z>B\end{CD}");
+   Show ("cd-horizontal-right", "\begin{CD}A@>f>>B\end{CD}");
+   Show ("cd-horizontal-left", "\begin{CD}X@<g<<Y\end{CD}");
+   Show ("cd-long-equal", "\begin{CD}C@=D\end{CD}");
+   Show ("cd-vertical-up", "\begin{CD}A@AfAAB\\C\end{CD}");
+   Show ("cd-vertical-down", "\begin{CD}X@VgVV\\Y\end{CD}");
+   Show ("cd-markers", "\begin{CD}A@|B@.C\\D@|E@.F\end{CD}");
+   Show ("cd-mixed", "\begin{CD}P@>f>>Q&R@VgVV\\S@<h<<T&U\end{CD}");
+   Show ("delimiter-angle", "\left\langle x \right\rangle");
+   Show ("delimiter-angle-raw", "\left< x \right>");
+   Show ("delimiter-floor", "\left\lfloor x \right\rfloor");
+   Show ("delimiter-ceiling", "\left\lceil x \right\rceil");
+   Show ("delimiter-floor-large", "\left\lfloor \frac{x}{y} \right\rfloor");
+   Show ("delimiter-ceiling-large", "\left\lceil \frac{x}{y} \right\rceil");
+   Show ("delimiter-angle-sized", "\bigl\langle");
+   Show ("delimiter-floor-sized", "\bigl\lfloor");
+   Show ("delimiter-ceiling-sized", "\bigl\lceil");
+   Show ("delimiter-doublebar", "\left\Vert x \right\Vert");
+   Show ("delimiter-doublebar-sized", "\Big\Vert");
+   Show ("raw-vertical-bar", "a|b");
 end Math_Geometry_Probe;

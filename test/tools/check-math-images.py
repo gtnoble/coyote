@@ -21,6 +21,12 @@ ORIGINAL_CASES = {
     "x": ("x", False),
     "frac-x-y": (r"\frac{x}{y}", False),
     "heatbalance-first-term": (r"\dot{Q}_{\mathrm{in}}", False),
+    "vcenter-tall-fraction": (r"\vcenter{\frac{a}{b}}", False),
+    "verb-punctuation": (r"\verb|a%{b}#^_\\|", False),
+    "verb-star-spaces": (r"\verb*|a b|", False),
+    "pmb-glyph": (r"\pmb{g}", False),
+    "pmb-relation": (r"a\pmb{=}b", False),
+    "pmb-vector": (r"\pmb{\frac{a}{b}}", False),
 }
 MAX_DIMENSION_DELTA = 1
 MAX_BASELINE_DELTA = 0.01
@@ -103,6 +109,47 @@ def check_case(case, native_record, browser_png):
         reasons.append(f"logical dimension delta {logical_delta} exceeds "
                        f"{MAX_DIMENSION_DELTA}px")
 
+    expected_literal = case.get("expectedLiteralText")
+    if expected_literal is not None:
+        leaf_texts = case.get("browserMetrics", {}).get("leafTexts", [])
+        if expected_literal not in "".join(leaf_texts):
+            reasons.append("expected literal text is absent from reference DOM leaves")
+        checks["literalText"] = {
+            "expected": expected_literal,
+            "browserLeafTexts": leaf_texts,
+            "matched": expected_literal in "".join(leaf_texts)}
+
+    if case.get("expectedLineBreak"):
+        baselines = case.get("browserMetrics", {}).get("lineBaselinesPx", [])
+        native_rows = np.flatnonzero(native_mask.any(axis=1))
+        browser_rows = np.flatnonzero(browser_mask.any(axis=1))
+        native_groups = int(np.count_nonzero(np.diff(native_rows) > 1) + 1) if len(native_rows) else 0
+        browser_groups = int(np.count_nonzero(np.diff(browser_rows) > 1) + 1) if len(browser_rows) else 0
+        checks["lineBreak"] = {
+            "expected": True,
+            "browserBaselinesPx": baselines,
+            "nativeInkRowGroups": native_groups,
+            "browserInkRowGroups": browser_groups}
+        if len(baselines) < 2 or native_groups < 2 or browser_groups < 2:
+            reasons.append("expected visible ink on distinct lines")
+        expected_margin = case.get("expectedExtraMarginEm")
+        if expected_margin is not None and len(baselines) >= 2:
+            control = case.get("noMarginControl", {})
+            control_baselines = control.get("browserBaselinesPx", [])
+            control_height = control.get("nativeLogicalHeightPx")
+            if len(control_baselines) < 2 or control_height is None:
+                reasons.append("optional newline margin lacks independent no-margin control")
+            else:
+                reference_gap_em = ((baselines[-1] - baselines[0]) -
+                                    (control_baselines[-1] - control_baselines[0])) / case["emPixels"]
+                native_gap_em = (native_logical[1] - control_height) / case["emPixels"]
+                checks["lineBreak"]["expectedExtraMarginEm"] = expected_margin
+                checks["lineBreak"]["referenceExtraMarginEm"] = reference_gap_em
+                checks["lineBreak"]["nativeExtraMarginEm"] = native_gap_em
+                if (abs(reference_gap_em - expected_margin) > 0.01 or
+                    abs(native_gap_em - reference_gap_em) > 0.01):
+                    reasons.append("native optional newline margin differs from independent reference control")
+
     # Logical origins are measured independently: native raster origin is its
     # declared logical (0,0); browser origin is the DOM base/strut envelope in
     # the fixed-padding screenshot. Raster padding is not logical width.
@@ -125,7 +172,8 @@ def check_case(case, native_record, browser_png):
         "browserScreenshotCropOffsetPx": case["browserCropOrigin"],
         "delta": list(origin_delta)}
     checks["shadowOverflow"] = overflow
-    baseline_delta = abs(nb - browser_baseline) / 24.0
+    em_pixels = case["emPixels"]
+    baseline_delta = abs(nb - browser_baseline) / em_pixels
     checks["baseline"] = {"nativePx": nb, "browserPx": browser_baseline,
                           "deltaEm": baseline_delta,
                           "limitEm": MAX_BASELINE_DELTA}
@@ -212,11 +260,21 @@ def main():
         if case["id"] in ORIGINAL_CASES and (
                 case.get("source"), case.get("displayMode")) != ORIGINAL_CASES[case["id"]]:
             fail(f"pinned original case changed: {case['id']}")
-    if args.manifest.resolve() == PILOT.resolve() and original_ids != set(ORIGINAL_CASES):
-        fail("default pilot manifest must retain all original case IDs")
+    if args.manifest.resolve() == PILOT.resolve():
+        if original_ids != set(ORIGINAL_CASES):
+            fail("default pilot manifest must retain all original case IDs")
+        if len(cases) != 29:
+            fail(f"default pilot manifest must contain exactly 29 cases, got {len(cases)}")
     native_requests = args.out / "requests.jsonl"
-    native_requests.write_text("".join(json.dumps({k: c[k] for k in
-        ("id", "source", "displayMode")}, ensure_ascii=False) + "\n"
+    for case in cases:
+        case.setdefault("emPixels", 24)
+        if (isinstance(case["emPixels"], bool) or
+                not isinstance(case["emPixels"], (int, float)) or
+                not math.isfinite(case["emPixels"]) or
+                not 0 < case["emPixels"] <= 256):
+            fail(f"{case['id']}: emPixels must be finite and in (0, 256]")
+    native_requests.write_text("".join(json.dumps({**{k: c[k] for k in
+        ("id", "source", "displayMode")}, "emPixels": c["emPixels"]}, ensure_ascii=False) + "\n"
         for c in cases))
     native_output = args.out / "native"
     native_output.mkdir(exist_ok=True)
@@ -229,8 +287,6 @@ def main():
     by_id = {r["id"]: r for r in records}
     if set(by_id) != {c["id"] for c in cases}:
         fail("native export IDs differ from browser pilot")
-    if any(r["status"] != "ok" for r in records):
-        fail("native PNG export failed: " + repr(records))
 
     package = args.package.resolve()
     expected_archive = "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365"
@@ -273,7 +329,9 @@ def main():
         for case in cases:
             source = json.dumps(case["source"], ensure_ascii=False).replace("</", "<\\/")
             display = "true" if case["displayMode"] else "false"
-            html = f'''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="dist/katex.css"><script src="dist/katex.js"></script><style>html,body{{margin:0;background:#fff}}body{{width:800px;height:120px;padding:0;color:#000;font:24px "KaTeX_Main",serif}}#formula{{position:absolute;left:0;top:24px;white-space:nowrap}}.katex{{font-size:24px!important}}.katex-display{{margin:0;text-align:left}}</style><div id="formula"></div><script>katex.render({source},document.querySelector('#formula'),{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});document.fonts.ready.then(()=>{{let e=document.querySelector('.katex'),r=e.getBoundingClientRect(),bases=Array.from(document.querySelectorAll('.katex-html > .base')),base=bases[0],b=base.getBoundingClientRect(),strut=base.querySelector('.strut'),s=getComputedStyle(strut),t=katex.__renderToHTMLTree({source},{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});let strutRect=strut.getBoundingClientRect(),baseRects=bases.map(x=>{{let q=x.getBoundingClientRect();return {{left:q.left,right:q.right,width:q.width}}}}),baseLeft=Math.min(...baseRects.map(q=>q.left)),baseRight=Math.max(...baseRects.map(q=>q.right));window.__measure={{width:r.width,height:r.height,left:r.left,top:r.top,baseCount:bases.length,baseRects,baseLeft,baseWidth:baseRight-baseLeft,firstBaseLeft:b.left,firstBaseWidth:b.width,baseline:strutRect.top+parseFloat(s.height)+(parseFloat(s.verticalAlign)||0),strutTop:strutRect.top,strutHeight:parseFloat(s.height),strutVerticalAlign:(parseFloat(s.verticalAlign)||0),fontSize:parseFloat(getComputedStyle(e).fontSize),heightEm:t.height,depthEm:t.depth,fonts:document.fonts.status}}}})</script>'''
+            em_pixels = case["emPixels"]
+            viewport_height = max(512, em_pixels * 12 + 128)
+            html = f'''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="dist/katex.css"><script src="dist/katex.js"></script><style>html,body{{margin:0;background:#fff}}body{{width:800px;height:{viewport_height}px;padding:0;color:#000;font:{em_pixels}px "KaTeX_Main",serif}}#formula{{position:absolute;left:0px;top:{em_pixels}px;white-space:nowrap}}.katex{{font-size:{em_pixels}px!important}}.katex-display{{margin:0;text-align:left}}</style><div id="formula"></div><script>try{{katex.render({source},document.querySelector('#formula'),{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}})}}catch(error){{window.__renderError=String(error)}}document.fonts.ready.then(()=>{{let e=document.querySelector('.katex'),r=e.getBoundingClientRect(),bases=Array.from(document.querySelectorAll('.katex-html > .base')),base=bases[0],b=base.getBoundingClientRect(),strut=base.querySelector('.strut'),s=getComputedStyle(strut),t=katex.__renderToHTMLTree({source},{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});let strutRect=strut.getBoundingClientRect(),baseRects=bases.map(x=>{{let q=x.getBoundingClientRect();return {{left:q.left,right:q.right,width:q.width}}}}),baseLeft=Math.min(...baseRects.map(q=>q.left)),baseRight=Math.max(...baseRects.map(q=>q.right)),lineMetrics=bases.map(x=>{{let z=x.querySelector('.strut'),q=z.getBoundingClientRect(),c=getComputedStyle(z);return {{baseline:q.top+parseFloat(c.height)+(parseFloat(c.verticalAlign)||0),top:q.top,bottom:q.bottom}}}}),glyphs=[...e.querySelectorAll('.katex-html span')].filter(x=>x.children.length===0&&x.textContent).map(x=>x.textContent);window.__measure={{lineMetrics,glyphs,width:r.width,height:r.height,left:r.left,top:r.top,baseCount:bases.length,baseRects,baseLeft,baseWidth:baseRight-baseLeft,firstBaseLeft:b.left,firstBaseWidth:b.width,baseline:strutRect.top+parseFloat(s.height)+(parseFloat(s.verticalAlign)||0),strutTop:strutRect.top,strutHeight:parseFloat(s.height),strutVerticalAlign:(parseFloat(s.verticalAlign)||0),fontSize:parseFloat(getComputedStyle(e).fontSize),heightEm:t.height,depthEm:t.depth,fonts:document.fonts.status}}}})</script>'''
             html_path = temp / f"{case['id']}.html"
             html_path.write_text(html)
             sid = f"math-image-{os.getpid()}-{case['id']}"
@@ -283,15 +341,22 @@ def main():
                 deadline = time.monotonic() + 20
                 while True:
                     raw = run([args.browser_ctl, "eval", sid,
-                               "JSON.stringify(window.__measure||null)"])
+                               "JSON.stringify(window.__measure||(window.__renderError?{error:window.__renderError}:null))"])
                     measure = json.loads(raw)
                     if measure:
                         break
                     if time.monotonic() > deadline:
-                        fail(f"{case['id']}: fonts/layout did not settle")
+                        measure = {"error": run(
+                            [args.browser_ctl, "eval", sid,
+                             "document.body.innerText || document.documentElement.innerText || 'no DOM error text'"])}
+                        break
                     time.sleep(0.1)
-                if measure["fontSize"] != 24 or measure["fonts"] != "loaded":
-                    fail(f"{case['id']}: expected loaded fonts and computed KaTeX size 24px; got {measure}")
+                if "error" in measure:
+                    rows.append({"id": case["id"], "status": "fail",
+                                 "failures": ["browser render/layout failed: " + measure["error"]]})
+                    continue
+                if measure["fontSize"] != em_pixels or measure["fonts"] != "loaded":
+                    fail(f"{case['id']}: expected loaded fonts and computed KaTeX size {em_pixels}px; got {measure}")
                 if measure["baseCount"] < 1 or len(measure["baseRects"]) != measure["baseCount"]:
                     fail(f"{case['id']}: missing direct KaTeX HTML base geometry: {measure}")
                 shot = args.out / "browser" / f"{case['id']}.png"
@@ -305,11 +370,19 @@ def main():
                 # The KaTeX strut exposes its unrounded CSS height and
                 # vertical-align. Derive the baseline from those DOM metrics;
                 # do not use the rasterized one-pixel marker (which rounds).
-                baseline = float(measure["baseline"])
+                line_metrics = measure.get("lineMetrics", [])
+                baselines = [line["baseline"] for line in line_metrics]
+                if not baselines:
+                    baselines = [measure["baseline"]]
+                    line_metrics = [{"top": measure["baseline"] -
+                                     float(measure["heightEm"]) * measure["fontSize"],
+                                     "bottom": measure["baseline"] +
+                                     float(measure["depthEm"]) * measure["fontSize"]}]
+                baseline = float(baselines[0])
                 logical_left = float(measure["baseLeft"])
-                logical_top = baseline - float(measure["heightEm"]) * measure["fontSize"]
+                logical_top = min(float(line["top"]) for line in line_metrics)
                 logical_right = logical_left + float(measure["baseWidth"])
-                logical_bottom = baseline + float(measure["depthEm"]) * measure["fontSize"]
+                logical_bottom = max(float(line["bottom"]) for line in line_metrics)
                 left = math.floor(logical_left)
                 top = math.floor(logical_top)
                 right = math.ceil(logical_right)
@@ -363,24 +436,32 @@ def main():
                     "browserInkOutsideLogicalBox": measure["browserInkOutsideLogicalBox"],
                     "browserOverflowPixels": measure["browserOverflowPixels"],
                     "nativeBeyondLogicalBox": (
-                        by_id[case["id"]]["width"] >
-                        math.ceil(by_id[case["id"]]["logicalWidth"]) or
-                        by_id[case["id"]]["height"] >
-                        math.ceil(by_id[case["id"]]["logicalHeight"])),
-                    "nativeOverflowPixels": [
-                        by_id[case["id"]]["width"] -
-                        math.ceil(by_id[case["id"]]["logicalWidth"]),
-                        by_id[case["id"]]["height"] -
-                        math.ceil(by_id[case["id"]]["logicalHeight"])],
-                    "nativeRaster": [by_id[case["id"]]["width"],
-                                     by_id[case["id"]]["height"]],
-                    "nativeLogical": [by_id[case["id"]]["logicalWidth"],
-                                      by_id[case["id"]]["logicalHeight"]],
+                        by_id[case["id"]]["status"] == "ok" and
+                        (by_id[case["id"]]["width"] >
+                         math.ceil(by_id[case["id"]]["logicalWidth"]) or
+                         by_id[case["id"]]["height"] >
+                         math.ceil(by_id[case["id"]]["logicalHeight"]))),
+                    "nativeOverflowPixels": (
+                        [by_id[case["id"]]["width"] -
+                         math.ceil(by_id[case["id"]]["logicalWidth"]),
+                         by_id[case["id"]]["height"] -
+                         math.ceil(by_id[case["id"]]["logicalHeight"])]
+                        if by_id[case["id"]]["status"] == "ok" else None),
+                    "nativeRaster": (
+                        [by_id[case["id"]]["width"], by_id[case["id"]]["height"]]
+                        if by_id[case["id"]]["status"] == "ok" else None),
+                    "nativeLogical": (
+                        [by_id[case["id"]]["logicalWidth"],
+                         by_id[case["id"]]["logicalHeight"]]
+                        if by_id[case["id"]]["status"] == "ok" else None),
                     "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation",
                 }
                 case["browserMetrics"] = {
                     "directBaseCount": measure["baseCount"],
                     "directBaseRectsPx": measure["baseRects"],
+                    "lineBaselinesPx": baselines,
+                    "leafTexts": measure.get("glyphs", []),
+                    "lineStrutBoundsPx": line_metrics,
                     "logicalWidthSource": "union of all direct .katex-html > .base bounding rectangles; MathML/pre/post excluded",
                     "cropTopPx": top,
                     "cropLeftPx": left,
@@ -408,12 +489,43 @@ def main():
                     "depthEm": measure["depthEm"],
                 }
                 Image.fromarray(pixels, "RGBA").save(shot)
-                result = check_case(case, by_id[case["id"]], shot)
+                native_record = by_id[case["id"]]
+                if native_record["status"] != "ok":
+                    result = {"id": case["id"], "status": "fail",
+                              "failures": [f"native export status: {native_record['status']}"]}
+                    result["nativeError"] = native_record.get("error", "see native exporter stderr")
+                else:
+                    result = check_case(case, native_record, shot)
+                    result["nativePNG"] = native_record["png"]
                 result["browserPNG"] = str(shot)
-                result["nativePNG"] = by_id[case["id"]]["png"]
                 rows.append(result)
             finally:
                 run([args.browser_ctl, "session", "delete", sid])
+
+    # Compare the explicit optional margin against both renderers' independently
+    # measured no-margin sibling; do not fit native spacing to this case.
+    literal_case = next((case for case in cases
+                         if case.get("expectedLiteralText") is not None), None)
+    if literal_case is not None and "\\\\newline" in literal_case["source"]:
+        fail("newline literal-brackets case must invoke the control-word macro")
+
+    margin_case = next((case for case in cases
+                        if case.get("expectedExtraMarginEm") is not None), None)
+    if margin_case is not None:
+        control_case = next((case for case in cases
+                             if case["id"] == "newline-two-lines"), None)
+        if control_case is None:
+            fail("newline margin case is missing its no-margin control")
+        margin_case["noMarginControl"] = {
+            "browserBaselinesPx": control_case.get("browserMetrics", {}).get(
+                "lineBaselinesPx", []),
+            "nativeLogicalHeightPx": by_id[control_case["id"]].get(
+                "logicalHeight")}
+        result = next(row for row in rows if row["id"] == margin_case["id"])
+        checked = check_case(margin_case, by_id[margin_case["id"]],
+                             Path(result["browserPNG"]))
+        result.update(checked)
+        result["nativePNG"] = by_id[margin_case["id"]]["png"]
 
     # Omit the final direct base from pmb-relation width; the existing
     # logical-dimension threshold must reject the shortened envelope.
@@ -469,6 +581,8 @@ def main():
     report = {"schema": "coyote.math-image-report.v1",
               "manifest": str(args.manifest.resolve()),
               "scope": "pinned KaTeX 0.16.22 Chromium PNG versus native Math_Raster; pilot only",
+              "caseCount": len(rows),
+              "emPixelsByCase": {case["id"]: case["emPixels"] for case in cases},
               "thresholds": {"dimensionDeltaPx": MAX_DIMENSION_DELTA,
                              "baselineDeltaEm": MAX_BASELINE_DELTA,
                              "maskCoverage": MIN_MASK_COVERAGE,

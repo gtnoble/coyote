@@ -6,11 +6,15 @@ with Cairo.Image_Surface;
 with Cairo.Surface;
 with Glib;
 with Math_Painter;
+with Math_Metrics;
+with Math_Paths;
+with Math_Work_Control;
 
 package body Math_Raster is
    use type Cairo.Cairo_Status;
    use type Cairo.Cairo_Context;
    use type Cairo.Cairo_Surface;
+   use type Math_Layout.Command_Kind;
    use type System.Address;
    use type Interfaces.Unsigned_32;
    use type System.Storage_Elements.Storage_Offset;
@@ -60,7 +64,8 @@ package body Math_Raster is
       Color : Math_Model.Color_Value;
       Left, Top, View_Width, View_Height : Natural;
       Is_Tile : Boolean;
-      Result : out Image) is
+      Result : out Image;
+      Work : Math_Work_Control.Context_Access) is
       Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Context : Cairo.Cairo_Context := Cairo.Null_Context;
       W : Natural := View_Width;
@@ -69,9 +74,61 @@ package body Math_Raster is
       Full_Height : Natural;
       Right_Overflow : Long_Float := 0.0;
       Bottom_Overflow : Long_Float := 0.0;
+      Glyph_Bottom_Overflow : Long_Float := 0.0;
+      Rule_Bottom_Overflow : Long_Float := 0.0;
       S : Natural;
       Data : System.Address;
+      procedure Path_Ink_Bounds
+        (Command : Math_Layout.Draw_Command;
+         Logical_Width, Logical_Height : Long_Float) is
+         Min_X : Long_Float := Long_Float'Last;
+         Max_X : Long_Float := -Long_Float'Last;
+         Min_Y : Long_Float := Long_Float'Last;
+         Max_Y : Long_Float := -Long_Float'Last;
+         procedure Include (X, Y : Long_Float) is
+         begin
+            Min_X := Long_Float'Min (Min_X, X);
+            Max_X := Long_Float'Max (Max_X, X);
+            Min_Y := Long_Float'Min (Min_Y, Y);
+            Max_Y := Long_Float'Max (Max_Y, Y);
+         end Include;
+      begin
+         if Command.Path_Data.Is_Empty then
+            return;
+         end if;
+         for Segment of Command.Path_Data loop
+            Math_Work_Control.Poll (Work);
+            case Segment.Kind is
+               when Math_Paths.Move_To | Math_Paths.Line_To =>
+                  Include (Segment.First.X, Segment.First.Y);
+               when Math_Paths.Cubic_To =>
+                  Include (Segment.First.X, Segment.First.Y);
+                  Include (Segment.Second.X, Segment.Second.Y);
+                  Include (Segment.Third.X, Segment.Third.Y);
+               when Math_Paths.Close_Path =>
+                  null;
+            end case;
+         end loop;
+         if Command.Has_Clip then
+            Min_X := Long_Float'Max (Min_X, Command.Clip_X);
+            Max_X := Long_Float'Min
+              (Max_X, Command.Clip_X + Command.Clip_W);
+            Min_Y := Long_Float'Max (Min_Y, Command.Clip_Y);
+            Max_Y := Long_Float'Min
+              (Max_Y, Command.Clip_Y + Command.Clip_H);
+         end if;
+         if Min_X <= Max_X and then Min_Y <= Max_Y then
+            Right_Overflow := Long_Float'Max
+              (Right_Overflow,
+               (Command.X + Max_X) * Em_Scale - Logical_Width);
+            Bottom_Overflow := Long_Float'Max
+              (Bottom_Overflow,
+               (Layout.Ascent + Command.Y + Max_Y) * Em_Scale -
+                 Logical_Height);
+         end if;
+      end Path_Ink_Bounds;
    begin
+      Math_Work_Control.Poll (Work);
       if not Layout.Valid then
          raise Raster_Error with "layout is invalid";
       end if;
@@ -115,10 +172,43 @@ package body Math_Raster is
          for Index in Layout.Commands.First_Index ..
            Layout.Commands.Last_Index
          loop
+            Math_Work_Control.Poll (Work);
             declare
                Command : constant Math_Layout.Draw_Command :=
                  Layout.Commands (Index);
             begin
+               if Command.Kind = Math_Layout.Glyph_Command and then
+                 not Command.Has_Clip
+               then
+                  declare
+                     Metric : constant Math_Metrics.Glyph_Metric :=
+                       Math_Metrics.Lookup
+                         (Command.Font, Command.Code_Point);
+                     Ink_Bottom : Long_Float;
+                  begin
+                     if Metric.Found then
+                        Ink_Bottom :=
+                          (Layout.Ascent + Command.Y +
+                           Metric.Descent * Command.Scale) * Em_Scale;
+                        Glyph_Bottom_Overflow := Long_Float'Max
+                          (Glyph_Bottom_Overflow,
+                           Ink_Bottom -
+                             (Layout.Ascent + Layout.Descent) * Em_Scale);
+                     end if;
+                  end;
+               end if;
+               if Command.Kind = Math_Layout.Rule_Command and then
+                 not Command.Has_Clip and then
+                 not Command.Has_Shadow
+               then
+                  Rule_Bottom_Overflow := Long_Float'Max
+                    (Rule_Bottom_Overflow,
+                     (Command.Y + Command.Height - Layout.Descent) *
+                       Em_Scale);
+               end if;
+               if Command.Kind = Math_Layout.Path_Command then
+                  Path_Ink_Bounds (Command, Logical_Width, Logical_Height);
+               end if;
                if Command.Has_Shadow then
                   if not Command.Shadow_X'Valid or else
                     not Command.Shadow_Y'Valid or else
@@ -151,9 +241,17 @@ package body Math_Raster is
             W := Natural'Max
               (1, Natural (Long_Float'Ceiling
                 (Logical_Width + Right_Overflow)));
-            H := Natural'Max
-              (1, Natural (Long_Float'Ceiling
-                (Logical_Height + Bottom_Overflow)));
+            declare
+               Ink_Raster_Height : constant Natural := Natural'Max
+                 (1, Natural (Long_Float'Ceiling
+                   (Logical_Height + Long_Float'Max
+                      (Bottom_Overflow, Long_Float'Max
+                         (0.0, Long_Float'Max
+                            (Glyph_Bottom_Overflow,
+                             Rule_Bottom_Overflow))))));
+            begin
+               H := Ink_Raster_Height;
+            end;
             if W > 8192 or else H > 4096 then
                raise Raster_Error with
                  "full raster dimension limit exceeded";
@@ -177,13 +275,16 @@ package body Math_Raster is
       then
          raise Raster_Error with "viewport origin outside layout";
       end if;
+      Math_Work_Control.Poll (Work);
       Surface := Cairo.Image_Surface.Create
         (Cairo.Image_Surface.Cairo_Format_ARGB32,
          Glib.Gint (W), Glib.Gint (H));
+      Math_Work_Control.Poll (Work);
       if Cairo.Surface.Status (Surface) /= Cairo.Cairo_Status_Success then
          raise Raster_Error with "cannot create Cairo image surface";
       end if;
       Context := Cairo.Create (Surface);
+      Math_Work_Control.Poll (Work);
       if Cairo.Status (Context) /= Cairo.Cairo_Status_Success then
          raise Raster_Error with "cannot create Cairo context";
       end if;
@@ -192,10 +293,12 @@ package body Math_Raster is
          Glib.Gdouble (Color.Blue), Glib.Gdouble (Color.Alpha));
       Math_Painter.Draw
         (Fonts, Context, Layout, -Long_Float (Left),
-         Layout.Ascent * Em_Scale - Long_Float (Top), Em_Scale);
+         Layout.Ascent * Em_Scale - Long_Float (Top), Em_Scale, Work);
+      Math_Work_Control.Poll (Work);
       Cairo.Destroy (Context);
       Context := Cairo.Null_Context;
       Cairo.Surface.Flush (Surface);
+      Math_Work_Control.Poll (Work);
       if Cairo.Surface.Status (Surface) /= Cairo.Cairo_Status_Success then
          raise Raster_Error with "Cairo image flush failed";
       end if;
@@ -211,10 +314,26 @@ package body Math_Raster is
       Result.Pixel_Height := H;
       Result.Pixel_Stride := S;
       Result.Pixels.Reserve_Capacity (Ada.Containers.Count_Type (S * H));
-      for Index in 0 .. S * H - 1 loop
-         Result.Pixels.Append
-           (Byte_Addresses.To_Pointer
-              (Data + System.Storage_Elements.Storage_Offset (Index)).all);
+      for Row in 0 .. H - 1 loop
+         Math_Work_Control.Poll (Work);
+         for Start in 0 .. (S - 1) / 128 loop
+            Math_Work_Control.Poll (Work);
+            declare
+               First : constant Natural := Start * 128;
+               Last : constant Natural := Natural'Min (S - 1, First + 127);
+            begin
+               for Column in First .. Last loop
+                  declare
+                     Index : constant Natural := Row * S + Column;
+                  begin
+                     Result.Pixels.Append
+                       (Byte_Addresses.To_Pointer
+                         (Data + System.Storage_Elements.Storage_Offset
+                           (Index)).all);
+                  end;
+               end loop;
+            end;
+         end loop;
       end loop;
       Cairo.Surface.Destroy (Surface);
    exception
@@ -232,10 +351,11 @@ package body Math_Raster is
      (Fonts : Math_Painter.Font_Set;
       Layout : Math_Layout.Box;
       Em_Scale : Long_Float;
-      Color : Math_Model.Color_Value) return Image is
+      Color : Math_Model.Color_Value;
+      Work : Math_Work_Control.Context_Access := null) return Image is
       Result : Image;
    begin
-      Paint (Fonts, Layout, Em_Scale, Color, 0, 0, 0, 0, False, Result);
+      Paint (Fonts, Layout, Em_Scale, Color, 0, 0, 0, 0, False, Result, Work);
       return Result;
    end Render;
 
@@ -244,12 +364,12 @@ package body Math_Raster is
       Layout : Math_Layout.Box;
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value;
-      Viewport_X, Viewport_Y, Tile_Width, Tile_Height : Natural)
-      return Image is
+      Viewport_X, Viewport_Y, Tile_Width, Tile_Height : Natural;
+      Work : Math_Work_Control.Context_Access := null) return Image is
       Result : Image;
    begin
       Paint (Fonts, Layout, Em_Scale, Color, Viewport_X, Viewport_Y,
-        Tile_Width, Tile_Height, True, Result);
+        Tile_Width, Tile_Height, True, Result, Work);
       return Result;
    end Render_Tile;
 end Math_Raster;

@@ -3,14 +3,26 @@ with Ada.Text_IO;
 with Ada.Strings.Unbounded;
 with Math_Source;
 with Math_Tokens;
+with Math_Work_Control;
 
 procedure Math_Tokens_Probe is
+   type Stopped_Context is new Math_Work_Control.Context with null record;
+   overriding function Check
+     (Item : Stopped_Context) return Math_Work_Control.Stop_Reason;
+   overriding function Check
+     (Item : Stopped_Context) return Math_Work_Control.Stop_Reason is
+      pragma Unreferenced (Item);
+   begin
+      return Math_Work_Control.Cancel_Requested;
+   end Check;
    use type Math_Source.Diagnostic_Kind;
    use type Math_Tokens.Diagnostic_Kind;
    use type Math_Tokens.Token_Kind;
    use type Math_Tokens.Token;
    use type Ada.Strings.Unbounded.Unbounded_String;
    Checks : Natural := 0;
+   Stopped : aliased Stopped_Context;
+   Work : constant Math_Work_Control.Context_Access := Stopped'Unchecked_Access;
    Failures : Natural := 0;
    procedure Check (Condition : Boolean; Label : String) is
    begin
@@ -30,6 +42,14 @@ procedure Math_Tokens_Probe is
       Error_Byte : Natural;
       String_Source : String (8 .. 15) := "\alpha x";
    begin
+      begin
+         Math_Source.Create ((1 .. 128 => 'x'), Input, Diagnostic,
+           Error_Byte, Work);
+         Check (False, "source poll raises cancellation");
+      exception
+         when Math_Work_Control.Stop_Requested =>
+            Check (True, "source validation polls cancellation");
+      end;
       Math_Source.Create ("a" & Character'Val (16#C3#) &
         Character'Val (16#A9#) & "😀", Input, Diagnostic, Error_Byte);
       Check (Diagnostic = Math_Source.No_Error, "valid UTF-8 accepted");
@@ -46,6 +66,13 @@ procedure Math_Tokens_Probe is
           Math_Source.Byte_Length (Input), "final scalar byte mapping");
       Check (Math_Source.Scalar_Boundary (Input, 3) = 2,
         "reverse byte boundary mapping");
+      begin
+         Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte, Work);
+         Check (False, "lexer poll raises cancellation");
+      exception
+         when Math_Work_Control.Stop_Requested =>
+            Check (True, "lexer scan polls cancellation");
+      end;
       Math_Tokens.Lex (Input, Tokens, Token_Diagnostic, Error_Byte);
       Check (Token_Diagnostic = Math_Tokens.No_Error and
         Math_Tokens.Element (Tokens, 2).Kind = Math_Tokens.Control_Word and

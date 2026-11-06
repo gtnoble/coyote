@@ -1,3 +1,4 @@
+with "gtkada";
 with "gnatcoll_core";
 project Math_Export is
    for Languages use ("Ada");
@@ -7,8 +8,10 @@ project Math_Export is
       "math_stretchy.ads", "math_stretchy.adb",
       "math_semantics.ads", "math_semantics.adb",
       "math_syntax.ads", "math_syntax.adb",
+      "math_text_shaping.ads", "math_text_shaping.adb",
       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+      "math_work_control.ads", "math_work_control.adb",
       "math_source.ads", "math_source.adb",
       "math_unicode.ads", "math_unicode.adb",
       "math_tokens.ads", "math_tokens.adb",

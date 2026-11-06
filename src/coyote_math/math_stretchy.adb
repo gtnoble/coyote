@@ -4,6 +4,8 @@
 --  stretchy.js: 5bcda72e30f9768cf65f29e73bd9b8905aabe42e0022cd8de9cbaa60aec69abd
 --  katex.css: 009f1e58806819e90d02e90ffecafa988a3ee4b54418f8cab70f4f2cbf8ce2d8
 --  package.json: bd6430ca96592a055393a1ce980925162da3d40cd0231813d41ef0c56daacd91
+--  buildCommon.js: 3814e699845563ec85eddfae5b9deb3f6eaa2e86f3331568d864073b28bda455
+--  op.js: 51dff1916c6302133d486f9bc474188531896390982b5eda5eb2776ac6cd9b58
 --  Copyright (c) 2013-2020 Khan Academy and contributors.
 with Math_Paths;
 package body Math_Stretchy is
@@ -128,6 +130,57 @@ package body Math_Stretchy is
    begin
       return Math_Paths.Parse (Geometry (Name));
    end Geometry_For;
+
+   function Svg_Width_For (Name : String) return Long_Float is
+   begin
+      if Name = "oiintSize1" then
+         return 0.957;
+      end if;
+      if Name = "oiintSize2" then
+         return 1.472;
+      end if;
+      if Name = "oiiintSize1" then
+         return 1.304;
+      end if;
+      if Name = "oiiintSize2" then
+         return 1.980;
+      end if;
+      return 0.0;
+   end Svg_Width_For;
+
+   function Svg_Height_For (Name : String) return Long_Float is
+   begin
+      if Name = "oiintSize1" then
+         return 0.499;
+      end if;
+      if Name = "oiintSize2" then
+         return 0.659;
+      end if;
+      if Name = "oiiintSize1" then
+         return 0.499;
+      end if;
+      if Name = "oiiintSize2" then
+         return 0.659;
+      end if;
+      return 0.0;
+   end Svg_Height_For;
+
+   function Svg_Y_Shift_For (Name : String) return Long_Float is
+   begin
+      if Name = "oiintSize1" then
+         return 0.000;
+      end if;
+      if Name = "oiintSize2" then
+         return 0.080;
+      end if;
+      if Name = "oiiintSize1" then
+         return 0.000;
+      end if;
+      if Name = "oiiintSize2" then
+         return 0.080;
+      end if;
+      return 0.0;
+   end Svg_Y_Shift_For;
 
    function ViewBoxHeightFor (Name : String) return Long_Float is
    begin
@@ -1201,6 +1254,53 @@ package body Math_Stretchy is
       end if;
       return Geometry_For (Name);
    end Path_For;
+
+   function Accent_Path_For
+     (Name : String; Character_Count : Positive)
+      return Math_Paths.Path is
+      Index : constant Positive :=
+        (if Character_Count = 1 then 1
+         elsif Character_Count <= 3 then 2
+         elsif Character_Count <= 5 then 3
+         else 4);
+      Index_Text : constant String := Positive'Image (Index);
+      Suffix : constant String :=
+        Index_Text (Index_Text'First + 1 .. Index_Text'Last);
+      Prefix : constant String :=
+        (if Name = "widehat" or else Name = "widecheck" then Name
+         elsif Name = "widetilde" or else Name = "utilde" then "tilde"
+         else "");
+   begin
+      if Prefix = "" then
+         return Math_Paths.Parse ("");
+      end if;
+      return Geometry_For (Prefix & Suffix);
+   end Accent_Path_For;
+
+   function Phase_Path (View_Box_Height : Natural)
+      return Math_Paths.Path is
+      function Image (Value : Natural) return String is
+         Text : constant String := Natural'Image (Value);
+      begin
+         return Text (Text'First + 1 .. Text'Last);
+      end Image;
+      Height : constant String := Image (View_Box_Height);
+      Half_Height : constant String :=
+        (if View_Box_Height mod 2 = 0 then
+           Image (View_Box_Height / 2)
+         else Image (View_Box_Height / 2) & ".5");
+      Bottom : constant String :=
+        (if View_Box_Height >= 80 then
+           Image (View_Box_Height - 80) else "0");
+      Data : constant String :=
+        "M400000 " & Height & " H0 L" & Half_Height &
+        " 0 l65 45 L145 " & Bottom & " H400000z";
+   begin
+      if View_Box_Height < 80 or else View_Box_Height > 1_000_000 then
+         return Math_Paths.Parse ("");
+      end if;
+      return Math_Paths.Parse (Data);
+   end Phase_Path;
 
    function Tall_Radical (Height_Em, Extra_Vinculum, Width_Em : Long_Float)
       return Math_Paths.Path is

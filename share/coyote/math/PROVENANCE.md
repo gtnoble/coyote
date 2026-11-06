@@ -10,9 +10,9 @@ KaTeX **0.16.22**, fixed npm distribution:
 - Source reference: <https://github.com/KaTeX/KaTeX/tree/v0.16.22/src>
 - Copyright (c) 2013-2020 Khan Academy and other contributors. Notice: `licenses/KaTeX-MIT.txt`.
 
-`math_font_data.ads/.adb` are generated from the full font metrics source. It contains 18 nonempty tables and 2,038 glyph records for 20 named faces. `Caligraphic-Bold` and `Fraktur-Bold` have no source table; their generated lookup returns `Found = False` for every code point. This does not claim all faces have usable metrics, nor that metric fallback is implemented. Per-face metric/render qualification is not implied.
+`math_font_data.ads/.adb` are generated from the full font metrics source. They contain 18 nonempty tables and 2,038 glyph records for 20 named faces. `Caligraphic-Bold` and `Fraktur-Bold` have no source table; their generated lookup returns `Found = False` for every code point. Native Pango shaping and Unicode fallback are runtime paths for text, but do not supply missing bundled math metrics. System font-family resolution is unpinned, and per-face metric/render behavior remains unqualified.
 
-The syntax parser and layout are bounded native implementations, not an exact KaTeX port. Static path geometry includes selected widehat/tilde variants, right/left and under-arrows, vec, brace constructs, and parameterized tall radicals. Native delimiters also use pinned font-piece metrics. This is not broad SVG, delimiter, accent, or KaTeX geometry parity. The profile is not full TeX compatibility. No MathJax or Lasem source is incorporated; no JavaScript engine runs in production rendering.
+The syntax parser and layout are bounded native implementations, not an exact KaTeX port. Native path data includes selected widehat/tilde variants, right/left and under-arrows, vec, brace constructs, parameterized tall radicals, and additional accent paths/helpers. Source provenance does not establish complete SVG-geometry or KaTeX path coverage. Native delimiters also use pinned font-piece metrics. This is not broad delimiter, accent, or KaTeX geometry parity. The profile is not full TeX compatibility. No MathJax or Lasem source is incorporated; no JavaScript engine runs in production rendering.
 
 `tools/generate_math_radical_paths.py` extracts the five pinned radical path templates from `svgGeometry.js` and writes `src/coyote_math/math_radical_paths.ads/.adb`. It verifies the same pinned source SHA-256 documented for stretchy geometry. It is a dedicated generator; the JSON inventory generator does not generate Ada source.
 
@@ -56,27 +56,36 @@ python3 tools/generate_katex_data.py \
 cmp /tmp/math_font_data.ads src/coyote_math/math_font_data.ads
 cmp /tmp/math_font_data.adb src/coyote_math/math_font_data.adb
 
-python3 tools/generate_metrics.py \
-  /tmp/katex/package/src/fontMetricsData.js /tmp/math_metrics.adb
-cmp /tmp/math_metrics.adb src/coyote_math/math_metrics.adb
-
 python3 tools/generate_math_stretchy.py \
-  /tmp/katex/package/src/svgGeometry.js /tmp/math_stretchy.adb
+  /tmp/katex/package/src/svgGeometry.js \
+  /tmp/katex/package/src/stretchy.js \
+  /tmp/katex/package/dist/katex.css \
+  /tmp/katex/package/package.json \
+  /tmp/katex/package/src/buildCommon.js \
+  /tmp/katex/package/src/functions/op.js \
+  /tmp/math_stretchy.ads /tmp/math_stretchy.adb
+cmp /tmp/math_stretchy.ads src/coyote_math/math_stretchy.ads
 cmp /tmp/math_stretchy.adb src/coyote_math/math_stretchy.adb
 ```
 
-The stretchy generator verifies `svgGeometry.js` SHA-256 `e7bb196633f23cab95da9d010ffbbdad37d2c942c2f96a33f8094f260ecfd892`; it extracts only its selected paths. The optional reference check uses Node and archive `dist/katex.js`, without npm installation. Run `test/tools/check-native-math.sh` with `NATIVE_MATH_ROOT` set to a persistent output directory; reference regeneration is separate from production build and qualification.
+The `Math_Metrics` facade now also contains maintained font-resolution and
+measurement-provider interfaces; regenerating an older metrics adapter is not
+a byte-identical replacement for that facade. The stretchy generator validates
+all six supplied source/configuration inputs, including the contour-integral
+metadata in `buildCommon.js` and `functions/op.js`. It verifies `svgGeometry.js` SHA-256 `e7bb196633f23cab95da9d010ffbbdad37d2c942c2f96a33f8094f260ecfd892`; it extracts only its selected paths. The optional reference check uses Node and archive `dist/katex.js`, without npm installation. Run `test/tools/check-native-math.sh` with `NATIVE_MATH_ROOT` set to a persistent output directory; reference regeneration is separate from production build and qualification.
 
 ## Current evidence and browser-reference assets
 
-The latest evidence and qualification status belong in coordinator-owned §10 of
-the [completion report](../../../plan/native-math-parity-test-report.md); §9 and
-earlier sections are historical snapshots. The frozen development suite passed
-1063/1063 with zero failed assertions or unexpected errors in 82.418882 seconds
-(`/tmp/coyote-core-frozen-full.log`), as regression evidence only. Scoped probe
-results and known raster discrepancies are recorded in §10. These results do
-not establish full compatibility, whole-job resource/timing compliance, or
-human acceptance. The [PCR-123 report](../../../plan/native-math-test-report.md),
+The current documentation reconciliation is dated 2026-11-06. Coordinator-owned
+§11 of the [completion report](../../../plan/native-math-parity-test-report.md),
+“Current implementation and qualification reconciliation — 2026-11-06”, is the
+current status and qualification record; §10 and earlier sections
+are historical. The implementation chronology of 2026-10-27–28 is historical.
+The image, geometry, structured and full-suite results summarized for §11 are
+recorded evidence, not freshly reverified for this documentation update. The
+original `/tmp` evidence files are currently absent. No fresh qualification,
+full compatibility, whole-job resource/timing compliance, or human acceptance
+is implied. The [PCR-123 report](../../../plan/native-math-test-report.md),
 including its 1042/1042 result, is historical.
 Browser exporters use JS, CSS, package metadata and all 60 font-format files
 extracted from the SHA-256-verified archive, not mutable package-directory CSS
@@ -84,11 +93,12 @@ or fonts. The 63-member browser-asset manifest SHA-256 is
 `3e71d9db460b0d544a2aba0302db7aeee592ba88a08d457ec6e7860cf302cffc`.
 This reference asset identity does not establish native pixel equivalence.
 
-Generated symbol, built-in macro and Unicode tables use the pinned inventory
+Generated symbol, built-in macro, Unicode, and source-mapped callable tables use the pinned inventory
 in `plan/native-math-katex-0.16.22-inventory.json`. Regeneration tools are
-`tools/generate_math_symbols.py`, `tools/generate_math_macros.py`, and
-`tools/generate_math_unicode.py`; each takes that inventory followed by output
-specification/body paths and verifies its pin before writing. The inventory
+`tools/generate_math_symbols.py`, `tools/generate_math_macros.py`,
+`tools/generate_math_unicode.py`, and `tools/generate_math_functions.py`; each
+takes that inventory followed by output specification/body paths and verifies
+its pin before writing. The inventory
 itself is regenerated by `tools/inventory_katex.cjs` with the extraction and
 verified archive as explicit inputs.
 

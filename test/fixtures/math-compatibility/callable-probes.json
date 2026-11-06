@@ -1,0 +1,2699 @@
+{
+  "schema": "coyote.math-callable-probes.v1",
+  "reference": {
+    "name": "KaTeX",
+    "version": "0.16.22",
+    "archiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
+    "bundleSha256": "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33"
+  },
+  "count": 338,
+  "entries": [
+    {
+      "macro": "\\!",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\!",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\,",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\,",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\:",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\:",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\;",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\;",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\>",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\>",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\@firstoftwo",
+      "kind": "callable",
+      "source": "\\@firstoftwo{A}{B}",
+      "inputRationale": "Two braced alternatives exercise first-argument selection.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\@hspace",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\@hspace{1em}",
+      "inputRationale": "Valid TeX dimension argument.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\@hspacer",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\@hspacer{1em}",
+      "inputRationale": "Valid TeX dimension argument.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\@ifnextchar",
+      "kind": "callable",
+      "source": "\\@ifnextchar x{A}{B} x",
+      "inputRationale": "Tests positive lookahead branch; an explicit separating space after the test token lets the following input survive lookahead consumption.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\@ifstar",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\@ifstar{A}{B}",
+      "inputRationale": "Both branches are present to exercise the star-lookahead callable.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\@secondoftwo",
+      "kind": "callable",
+      "source": "\\@secondoftwo{A}{B}",
+      "inputRationale": "Two braced alternatives exercise second-argument selection.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\AA",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\AA",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Alpha",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Alpha",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Bbbk",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Bbbk",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Beta",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Beta",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Bra",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\Bra{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Braket",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Braket{x}",
+      "inputRationale": "Required argument supplied to the public callable.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Chi",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Chi",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Colonapprox",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Colonapprox",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Coloneq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Coloneq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Coloneqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Coloneqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Colonsim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Colonsim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Complex",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Complex",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\DOTSB",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\DOTSB",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\DOTSI",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\DOTSI",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\DOTSX",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\DOTSX",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Dagger",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Dagger",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Darr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Darr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Epsilon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Epsilon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Eqcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Eqcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Eqqcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Eqqcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Eta",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Eta",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Harr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Harr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Iota",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Iota",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\KaTeX",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\KaTeX",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Kappa",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Kappa",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Ket",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\Ket{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\LaTeX",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\LaTeX",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Larr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Larr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Lrarr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Lrarr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Mu",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Mu",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\N",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\N",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Nu",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Nu",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Omicron",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Omicron",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\R",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\R",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Rarr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Rarr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Reals",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Reals",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Rho",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Rho",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Set",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Set{x}",
+      "inputRationale": "Required argument supplied to the public callable.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Tau",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Tau",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\TeX",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\TeX",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\TextOrMath",
+      "kind": "callable",
+      "source": "\\TextOrMath{A}{B}",
+      "inputRationale": "Both text and math arguments supplied; current math mode selects the math branch.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Uarr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Uarr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Z",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Z",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\Zeta",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\Zeta",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\aa",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\aa",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\alef",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\alef",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\alefsym",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\alefsym",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\angln",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\angln",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\approxcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\approxcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\approxcoloncolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\approxcoloncolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\argmax",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\argmax",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\argmin",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\argmin",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\bgroup",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\bgroup x \\egroup",
+      "inputRationale": "Balanced expansion context for the opening group helper.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\blue",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\blue{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\blueA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\blueA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\blueB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\blueB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\blueC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\blueC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\blueD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\blueD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\blueE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\blueE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\bmod",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\bmod",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\boxed",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\boxed{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\bra",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\bra{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\bra@ket",
+      "kind": "callable",
+      "source": "\\Braket{x}",
+      "inputRationale": "Exercises the callable helper through the public builtin caller that supplies its delimiter arguments.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\bra@set",
+      "kind": "callable",
+      "source": "\\Set{x}",
+      "inputRationale": "Exercises the callable helper through the public builtin caller that supplies its delimiter arguments.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\braket",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\braket{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\bull",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\bull",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\cdots",
+      "kind": "callable",
+      "source": "\\cdots",
+      "inputRationale": "No explicit arguments; context-sensitive dots probe.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\char",
+      "kind": "callable",
+      "source": "\\char\"41",
+      "inputRationale": "Hex character-code form, chosen explicitly rather than inferred arity.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\clap",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\clap{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\clubs",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\clubs",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\cnums",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\cnums",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\colon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\colon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\colonapprox",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\colonapprox",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloncolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloncolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloncolonapprox",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloncolonapprox",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloncolonequals",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloncolonequals",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloncolonminus",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloncolonminus",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloncolonsim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloncolonsim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloneq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloneq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\coloneqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\coloneqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\colonequals",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\colonequals",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\colonminus",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\colonminus",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\colonsim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\colonsim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\copyright",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\copyright",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dArr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\dArr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\darr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\darr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dblcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\dblcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ddddot",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\ddddot{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dddot",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\dddot{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\diamonds",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\diamonds",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dots",
+      "kind": "callable",
+      "source": "\\dots",
+      "inputRationale": "No explicit arguments; context-sensitive dots probe.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dotsb",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\dotsb",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dotsc",
+      "kind": "callable",
+      "source": "\\dotsc",
+      "inputRationale": "No explicit arguments; context-sensitive comma-dots probe.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dotsi",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\dotsi",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dotsm",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\dotsm",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dotso",
+      "kind": "callable",
+      "source": "\\dotso",
+      "inputRationale": "No explicit arguments; context-sensitive ordinary-dots probe.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\dotsx",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\dotsx",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\egroup",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\bgroup x \\egroup",
+      "inputRationale": "Balanced expansion context for the closing group helper.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\empty",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\empty",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\enskip",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\enskip",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\enspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\enspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\eqcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\eqcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\eqqcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\eqqcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\equalscolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\equalscolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\equalscoloncolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\equalscoloncolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\errmessage",
+      "kind": "callable",
+      "source": "\\errmessage{callable-probe}x",
+      "inputRationale": "Explicit error message followed by visible token; KaTeX reports the message and the render remains nonempty.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\exist",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\exist",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\expandafter",
+      "kind": "callable",
+      "source": "\\expandafter A B",
+      "inputRationale": "Token-ordering primitive probe; not a claim of full expansion semantics.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\goldA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\goldA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\goldB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\goldB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\goldC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\goldC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\goldD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\goldD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\goldE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\goldE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\gray",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\gray{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayF",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayF{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayG",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayG{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayH",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayH{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\grayI",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\grayI{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\green",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\green{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\greenA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\greenA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\greenB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\greenB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\greenC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\greenC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\greenD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\greenD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\greenE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\greenE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\gvertneqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\gvertneqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\hArr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\hArr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\harr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\harr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\hearts",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\hearts",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\hspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\hspace{1em}",
+      "inputRationale": "Required valid TeX dimension supplied.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\iff",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\iff",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\image",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\image",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\imath",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\imath",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\impliedby",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\impliedby",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\implies",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\implies",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\infin",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\infin",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\injlim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\injlim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\isin",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\isin",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\jmath",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\jmath",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\kaBlue",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\kaBlue{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\kaGreen",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\kaGreen{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ket",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\ket{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lArr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lArr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lBrace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lBrace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lang",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lang",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\larr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\larr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\liminf",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\liminf",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\limsup",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\limsup",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\llap",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\llap{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\llbracket",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\llbracket",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\llcorner",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\llcorner",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lrArr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lrArr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lrarr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lrarr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lrcorner",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lrcorner",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\lvertneqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\lvertneqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\maroonA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\maroonA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\maroonB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\maroonB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\maroonC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\maroonC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\maroonD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\maroonD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\maroonE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\maroonE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\mathstrut",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\mathstrut",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\medspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\medspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\message",
+      "kind": "callable",
+      "source": "\\message{callable-probe}x",
+      "inputRationale": "Explicit message payload followed by visible token.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\mintA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\mintA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\mintB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\mintB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\mintC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\mintC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\minuscolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\minuscolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\minuscoloncolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\minuscoloncolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\minuso",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\minuso",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\mod",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\mod{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\natnums",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\natnums",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ne",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\ne",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\negmedspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\negmedspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\negthickspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\negthickspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\negthinspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\negthinspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\neq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\neq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\newcommand",
+      "kind": "callable",
+      "source": "\\newcommand{\\callableprobe}{A}\\callableprobe",
+      "inputRationale": "One explicit definition followed by use; context semantics are probed.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\newline",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\newline",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ngeqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\ngeqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ngeqslant",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\ngeqslant",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nleqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nleqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nleqslant",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nleqslant",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\noexpand",
+      "kind": "callable",
+      "source": "\\noexpand\\alpha",
+      "inputRationale": "Explicit following control sequence.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nonumber",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nonumber",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\not",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\not",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\notag",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\notag",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\notin",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\notin",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\notni",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\notni",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nshortmid",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nshortmid",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nshortparallel",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nshortparallel",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nsubseteqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nsubseteqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\nsupseteqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\nsupseteqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\operatorname",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\operatorname{sin}",
+      "inputRationale": "Required operator-name argument supplied.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\orange",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\orange{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ordinarycolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\ordinarycolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\pink",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\pink{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\plim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\plim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\plusmn",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\plusmn",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\pmod",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\pmod{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\pod",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\pod{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\projlim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\projlim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\providecommand",
+      "kind": "callable",
+      "source": "\\providecommand{\\callableprobe}{A}\\callableprobe",
+      "inputRationale": "One explicit definition followed by use.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\purple",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\purple{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\purpleA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\purpleA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\purpleB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\purpleB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\purpleC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\purpleC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\purpleD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\purpleD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\purpleE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\purpleE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\qquad",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\qquad",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\quad",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\quad",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rArr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\rArr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rBrace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\rBrace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rang",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\rang",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rarr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\rarr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ratio",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\ratio",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\real",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\real",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\reals",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\reals",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\red",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\red{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\redA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\redA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\redB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\redB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\redC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\redC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\redD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\redD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\redE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\redE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\renewcommand",
+      "kind": "callable",
+      "source": "\\newcommand{\\callableprobe}{a}\\renewcommand{\\callableprobe}{b}\\callableprobe",
+      "inputRationale": "Defines then renews the same command and uses the renewed definition; avoids mutating a KaTeX builtin.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rlap",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\rlap{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\rq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\rrbracket",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\rrbracket",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\sdot",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\sdot",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\sect",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\sect",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\set",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\set{x}",
+      "inputRationale": "Required set body supplied.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\show",
+      "kind": "callable",
+      "source": "\\show\\alpha x",
+      "inputRationale": "Explicit target command followed by visible token; diagnostic is exercised without an empty native expression.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\simcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\simcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\simcoloncolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\simcoloncolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\spades",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\spades",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\sub",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\sub",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\sube",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\sube",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\substack",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\substack{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\supe",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\supe",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\tag",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\begin{equation}\\tag{A}x\\end{equation}",
+      "inputRationale": "Valid AMS display equation row with a nonempty tag.",
+      "blockedReason": null,
+      "displayMode": true
+    },
+    {
+      "macro": "\\tag@literal",
+      "kind": "callable",
+      "source": "\\tag{A}x",
+      "inputRationale": "Exercises the callable tag renderer via its public caller in display mode.",
+      "blockedReason": null,
+      "displayMode": true
+    },
+    {
+      "macro": "\\tag@paren",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\begin{equation}\\tag{A}x\\end{equation}",
+      "inputRationale": "Exercises the tag helper through the public AMS row caller in display mode.",
+      "blockedReason": null,
+      "displayMode": true
+    },
+    {
+      "macro": "\\tealA",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\tealA{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\tealB",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\tealB{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\tealC",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\tealC{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\tealD",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\tealD{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\tealE",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\tealE{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\textcopyright",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\textcopyright",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\textregistered",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\textregistered",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\thetasym",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\thetasym",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\thickspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\thickspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\thinspace",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\thinspace",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\tmspace",
+      "kind": "template",
+      "templateArity": 3,
+      "source": "\\tmspace+{3mu}{.1667em}",
+      "inputRationale": "Valid signed math-unit spacing arguments following KaTeX comma spacing definition.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\uArr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\uArr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\uarr",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\uarr",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\ulcorner",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\ulcorner",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\underbar",
+      "kind": "template",
+      "templateArity": 1,
+      "source": "\\underbar{x1}",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\urcorner",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\urcorner",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varDelta",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varDelta",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varGamma",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varGamma",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varLambda",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varLambda",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varOmega",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varOmega",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varPhi",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varPhi",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varPi",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varPi",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varPsi",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varPsi",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varSigma",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varSigma",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varTheta",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varTheta",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varUpsilon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varUpsilon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varXi",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varXi",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varinjlim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varinjlim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varliminf",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varliminf",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varlimsup",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varlimsup",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varprojlim",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varprojlim",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varsubsetneq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varsubsetneq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varsubsetneqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varsubsetneqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varsupsetneq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varsupsetneq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\varsupsetneqq",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\varsupsetneqq",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\vcentcolon",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\vcentcolon",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\vdots",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\vdots",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "\\weierp",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "\\weierp",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "~",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "~",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "©",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "©",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "®",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "®",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "·",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "·",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "‼",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "‼",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℋ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℋ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℌ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℌ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℐ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℐ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℒ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℒ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℛ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℛ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℨ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℨ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℬ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℬ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℭ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℭ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℰ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℰ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℱ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℱ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "ℳ",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "ℳ",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "∉",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "∉",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "∌",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "∌",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "∷",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "∷",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "∹",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "∹",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≔",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≔",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≕",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≕",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≘",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≘",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≙",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≙",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≚",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≚",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≛",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≛",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≝",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≝",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≞",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≞",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≟",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≟",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "≠",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "≠",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⋮",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⋮",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⌜",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⌜",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⌝",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⌝",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⌞",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⌞",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⌟",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⌟",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⟂",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⟂",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⟦",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⟦",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⟧",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⟧",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⦃",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⦃",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⦄",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⦄",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⦵",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⦵",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "⩴",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "⩴",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    },
+    {
+      "macro": "️",
+      "kind": "template",
+      "templateArity": 0,
+      "source": "️",
+      "inputRationale": "Generated from highest unescaped #n in pinned template; one braced ordinary-string argument per declared slot.",
+      "blockedReason": null
+    }
+  ]
+}

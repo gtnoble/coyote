@@ -1,4 +1,5 @@
 with Ada.Strings.Unbounded;
+with Math_Work_Control;
 
 package body Math_Source is
    use Ada.Strings.Unbounded;
@@ -7,7 +8,8 @@ package body Math_Source is
      (Text       : String;
       Item       : out Source;
       Diagnostic : out Diagnostic_Kind;
-      Error_Byte : out Natural) is
+      Error_Byte : out Natural;
+      Work       : Math_Work_Control.Context_Access := null) is
       Position : Integer := Text'First;
       Scalar   : Natural := 0;
       UTF16    : Natural := 0;
@@ -31,6 +33,7 @@ package body Math_Source is
       Item.Byte_Map.Append (0);
       Item.UTF16_Map.Append (0);
       while Position <= Text'Last loop
+         Math_Work_Control.Poll (Work);
          First_Byte := Natural (Position - Text'First);
          Lead := Character'Pos (Text (Position));
          if Lead < 16#80# then
@@ -56,6 +59,7 @@ package body Math_Source is
             return;
          end if;
          for Offset in 1 .. Need loop
+            Math_Work_Control.Poll (Work);
             declare
                Next_Byte : constant Natural :=
                  Character'Pos (Text (Position + Integer (Offset)));

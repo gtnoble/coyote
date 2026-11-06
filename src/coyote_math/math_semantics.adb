@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with Math_Macros;
+with Math_Work_Control;
 
 package body Math_Semantics is
    use Ada.Strings.Unbounded;
@@ -8,6 +8,7 @@ package body Math_Semantics is
       N : constant Semantic_Node := Element (Item, Index);
       Text : constant String := Source (Item);
       First : Natural := N.Position;
+      Command_First : Natural := N.Position;
       Last : Natural;
    begin
       if N.Kind = Stretchy_Node then
@@ -20,6 +21,10 @@ package body Math_Semantics is
             return "\widehat";
          when Wide_Tilde_Code_Point =>
             return "\widetilde";
+         when Wide_Check_Code_Point =>
+            return "\widecheck";
+         when Under_Tilde_Code_Point =>
+            return "\utilde";
          when Over_Right_Arrow_Code_Point =>
             return "\overrightarrow";
          when Over_Left_Arrow_Code_Point =>
@@ -28,6 +33,8 @@ package body Math_Semantics is
             return "\overbrace";
          when Under_Brace_Code_Point =>
             return "\underbrace";
+         when 16#00B8# =>
+            return "\c";
          when others =>
             if N.Code_Point >= Wide_Hat_Code_Point then
                return "";
@@ -36,25 +43,30 @@ package body Math_Semantics is
       if First > Text'Last then
          return "";
       end if;
-      if Text (First) = '\' then
-         First := First + 1;
+      if Text (First) /= '\' then
+         return "";
       end if;
+      Command_First := First;
+      First := First + 1;
       Last := First;
       while Last <= Text'Last and then Text (Last) in 'a' .. 'z' loop
          Last := Last + 1;
       end loop;
       if Last > First then
-         return Text (First - (if Text (First - 1) = '\' then 1 else 0)
-           .. Last - 1);
+         return Text (Command_First .. Last - 1);
       end if;
       return "";
    end Accent_Command;
-   function Project (Source : String) return Document is
+   function Project
+     (Source : String;
+      Work : Math_Work_Control.Context_Access := null) return Document is
    begin
-      return Project (Math_Syntax.Parse (Source));
+      return Project (Math_Syntax.Parse (Source, Work), Work);
    end Project;
 
-   function Project (AST : Math_Syntax.Document) return Document is
+   function Project
+     (AST : Math_Syntax.Document;
+      Work : Math_Work_Control.Context_Access := null) return Document is
       Result : Document;
       Tail_Array : array (1 .. Max_Semantic_Nodes) of Natural :=
         (others => 0);
@@ -104,6 +116,11 @@ package body Math_Semantics is
             Depth           => A.Depth,
             Scale           => A.Scale,
             Enclosure       => A.Enclosure,
+            Box_Background  => A.Box_Background,
+            Box_Border      => A.Box_Border,
+            Box_Border_Thickness => A.Box_Border_Thickness,
+            Accent_Type     => A.Accent_Type,
+            Break           => A.Break,
             Fraction_Type   => A.Fraction_Type,
             Fraction_Bar    => A.Fraction_Bar,
             Fraction_Alignment_Mode => A.Fraction_Alignment_Mode,
@@ -112,6 +129,7 @@ package body Math_Semantics is
             Fraction_Style_Mode => A.Fraction_Style_Mode,
             Script_Type     => A.Script_Type,
             Array_Type      => A.Array_Type,
+            Array_Rules     => A.Array_Rules,
             Column_Spec     => A.Column_Spec,
             Row_Spacing     => A.Row_Spacing,
             Math_Style      => A.Math_Style,
@@ -124,7 +142,9 @@ package body Math_Semantics is
             Poor_Bold_Shadow_Y => A.Poor_Bold_Shadow_Y,
             Poor_Bold_Blur_Px => A.Poor_Bold_Blur_Px,
             Verbatim_Text   => A.Verbatim_Text,
-            Verbatim_Starred => A.Verbatim_Starred);
+            Verbatim_Starred => A.Verbatim_Starred,
+            Text_Run_Text   => A.Text_Run_Text,
+            Text_Run_Profile => A.Text_Run_Profile);
       end Make_Node;
       procedure Add_Child
         (Parent : Natural; Id : Node_Id; Role : Child_Role) is
@@ -166,6 +186,7 @@ package body Math_Semantics is
          Seen : Natural := 0;
       begin
          while Current /= No_Node and then Length (Result.Message) = 0 loop
+            Math_Work_Control.Poll (Work);
             if Current > Math_Syntax.Count (AST) or else
               Seen >= Math_Syntax.Count (AST)
             then
@@ -192,7 +213,13 @@ package body Math_Semantics is
          end if;
          case A.Kind is
             when Row_Node =>
-               Add_Chain (Sem_Id, A.First, Sequence_Item);
+               if A.Stretchy_Name =
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\cdparent")
+               then
+                  Add_Child (Sem_Id, A.First, CD_Arrow_Right_Label);
+               else
+                  Add_Chain (Sem_Id, A.First, Sequence_Item);
+               end if;
             when Fraction_Node =>
                Add_Child (Sem_Id, A.First, Numerator);
                Add_Child (Sem_Id, A.Second, Denominator);
@@ -208,6 +235,7 @@ package body Math_Semantics is
                while Current_Row /= No_Node and then
                  Length (Result.Message) = 0
                loop
+                  Math_Work_Control.Poll (Work);
                   if Current_Row > Math_Syntax.Count (AST) or else
                     Row_Count >= Math_Syntax.Count (AST)
                   then
@@ -223,10 +251,21 @@ package body Math_Semantics is
             when Delimited_Node =>
                Add_Child (Sem_Id, A.First, Delimited_Content);
             when Accent_Node =>
-               Add_Child (Sem_Id, A.First, Accent_Base);
+               Add_Child
+                 (Sem_Id, A.First,
+                  (if A.Accent_Type = Below_Accent
+                   then Accent_Under_Base else Accent_Base));
+            when CD_Arrow_Node =>
+               Add_Child (Sem_Id, A.First, CD_Arrow_Left_Label);
+               Add_Child (Sem_Id, A.Second, CD_Arrow_Right_Label);
             when Stretchy_Node =>
                if A.Code_Point = 0 then
                   Add_Child (Sem_Id, A.First, Accent_Base);
+               elsif To_String (A.Stretchy_Name) in
+                 "cdleftarrow" | "cdrightarrow" | "cdlongequal"
+               then
+                  Add_Child (Sem_Id, A.First, CD_Arrow_Left_Label);
+                  Add_Child (Sem_Id, A.Second, CD_Arrow_Right_Label);
                else
                   Add_Child (Sem_Id, A.First, Annotation_Above);
                   Add_Child (Sem_Id, A.Second, Annotation_Below);
@@ -263,7 +302,10 @@ package body Math_Semantics is
             when Overlap_Node =>
                Add_Child (Sem_Id, A.First, Delimited_Content);
             when Style_Node =>
-               Add_Child (Sem_Id, A.First, Styled_Content);
+               Add_Child
+                 (Sem_Id, A.First,
+                  (if To_String (A.Stretchy_Name) in "\cdleft" | "\cdright"
+                   then CD_Arrow_Left_Label else Styled_Content));
             when Sized_Node =>
                Add_Child (Sem_Id, A.First, Sized_Content);
             when Raised_Node =>
@@ -274,7 +316,7 @@ package body Math_Semantics is
                Add_Child (Sem_Id, A.First, VCenter_Content);
             when Poor_Bold_Node =>
                Add_Child (Sem_Id, A.First, Poor_Bold_Content);
-            when Verbatim_Node | Rule_Node | Glyph_Node | Space_Node =>
+            when Verbatim_Node | Text_Run_Node | Rule_Node | Glyph_Node | Space_Node =>
                null;
          end case;
       end Expand;
@@ -296,15 +338,19 @@ package body Math_Semantics is
       Result.Root_Index := 1;
       Push (Math_Syntax.Root (AST), 1);
       while Stack_Last > 0 and then Length (Result.Message) = 0 loop
+         Math_Work_Control.Poll (Work);
          declare
-            Work : constant Frame := Stack (Stack_Last);
+            Current_Work : constant Frame := Stack (Stack_Last);
          begin
             Stack_Last := Stack_Last - 1;
-            Expand (Work.Sem_Id, Work.AST_Id);
+            Expand (Current_Work.Sem_Id, Current_Work.AST_Id);
          end;
       end loop;
       return Result;
    exception
+      when Math_Work_Control.Stop_Requested |
+        Math_Work_Control.Deadline_Expired =>
+         raise;
       when others =>
          Result.Message := To_Unbounded_String
            ("semantic projection failed safely");

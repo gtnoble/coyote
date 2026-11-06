@@ -19,14 +19,17 @@ shared between coyote and pi.
   source text. The bounded, uneven native profile includes textual definitions,
   fractions, scripts, roots, selected arrays and equation/tag cases, text/font
   styles, delimiters, limits, accents, color, `\mathchoice`, `\hbox`,
-  generalized/infix fractions, and typed `\verb`, `\vcenter`, and `\pmb`
+  generalized/infix fractions and CD helpers, angle/phase and selected text
+  accents, color boxes, rules/dashed segments, and typed `\verb`, `\vcenter`, and `\pmb`
   forms guarded by raw-token literal grammar. Native Gaussian shadow is an
   approximation, not exact CSS; overflow and integer bounds are checked.
   Unsupported input remains visible as source. This is explicitly **not full
   TeX or complete KaTeX compatibility**. Bundled KaTeX 0.16.22 TTFs are in
   `share/coyote/math/fonts/`; retained MIT notices are in
-  `share/coyote/math/licenses/`. Unicode ranges are predicate-only, not general
-  Unicode shaping or full text/math mode compatibility. See the
+  `share/coyote/math/licenses/`. Registered Unicode mappings and native Pango
+  shaping with Unicode fallback are runtime paths; Unicode-range predicates
+  are not themselves shaping. System font-family resolution remains unpinned,
+  so fallback and shaping are not deterministic or fully qualified. See the
   [supported profile](share/coyote/math/README.md),
   [asset provenance](share/coyote/math/PROVENANCE.md), and
   [coverage map](plan/native-math-coverage.md). Plain output remains
@@ -212,14 +215,20 @@ and the native Ada math engine handles supported inline/display expressions
 with visible-source fallback; legacy MathML source is not typeset. Production
 math rendering has no JavaScript runtime. GUI parsing/layout now uses
 background jobs. Display formulas are painted by native workers and adopted
-in batches; inline painting and all widget updates remain on the GTK main
-task. Display formulas offer a collapsed **Math structure** expander with a
+in batches. Inline formulas still call `Render_Layout_Inline` on the GTK main
+task and submit jobs without `Request_Raster`; do not infer off-thread inline
+painting. All widget updates remain on the GTK main task. Display formulas
+offer a collapsed **Math structure** expander with a
 native semantic tree; human assistive-technology acceptance is still pending.
 Inline formulas remain capped at 64 per text view. The worker pool has two
-workers, a queue capacity of eight, a 250 ms per-job budget and a 256 MiB
-source-ledger accounting cap. These limits do not bound all parser/layout
-allocations, and the asynchronous GUI pipeline and its latency/resource
-behavior are not yet qualified. See [math requirements](requirements/native-math-compatibility.md)
+workers and a queue capacity of eight. Cooperative pipeline-loop and phase-boundary checks do not
+preempt parser/layout loops or native calls and do not establish the approved
+250 ms completion target. The shared 64 MiB `Math_Raster_Budget` applies retained-raster leases to
+completed-job vectors, display Cairo surfaces and GTK inline Pixbufs through
+weak references. It does not bound whole-job allocation, all actual retention,
+transient allocation or process RSS. The approved whole-job 256 MiB and
+process-wide cache limits remain unqualified. See
+[math requirements](requirements/native-math-compatibility.md)
 and the [compatibility test plan](plan/native-math-compatibility-tests.md).
 Unsupported input retains visible source.
 
@@ -234,16 +243,18 @@ cd test && alr build
 ```
 
 See [the current native-math test report](plan/native-math-parity-test-report.md)
-for evidence and qualification status; coordinator-owned §10 is current
-snapshot. Sections §9 and earlier are historical. The latest frozen full
-development suite passed 1063/1063 with zero failed assertions or unexpected errors in 82.418882 s
-(`/tmp/coyote-core-frozen-full.log`). This is regression evidence only; it does
-not establish parity, resource qualification or product acceptance. Two
-intermediate frozen-suite runs failed one GTK tool-allocation assertion; after
-three isolated focused passes, a test-only correction added a one-second
-monotonic GTK poll while retaining the exact 760×600 dimension criterion. The
-frozen full suite then passed. Current evidence and qualification limits are
-recorded in coordinator-owned report §10. Live provider tests are opt-in;
+for evidence and qualification status; coordinator-owned §11 is the current
+snapshot. Sections §10 and earlier are historical. A previously recorded frozen full
+development suite passed 1063/1063 with zero failed assertions or unexpected
+errors in 82.418882 s. That run predates the latest source changes and is
+historical regression evidence only; it does not qualify the current snapshot,
+parity, resource behavior or product acceptance. The original `/tmp` evidence
+files are absent, so do not treat them as available or freshly verified. Two
+intermediate frozen-suite runs each failed one GTK tool-allocation assertion.
+After three isolated focused passes, a test-only correction added a one-second
+monotonic GTK poll without weakening the exact 760×600 dimension criterion;
+the recorded frozen full suite then passed. All are historical evidence.
+Current evidence and qualification limits belong in coordinator-owned report §11. Live provider tests are opt-in;
 subagent subprocess tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 
 ## License

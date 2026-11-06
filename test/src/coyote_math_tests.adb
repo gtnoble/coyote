@@ -251,8 +251,8 @@ package body Coyote_Math_Tests is
       Empty   : constant Document := Parse ("");
       Unknown : constant Document := Parse ("\unknown");
    begin
-      Assert (not Is_Valid (Empty), "empty input is rejected");
-      Assert (Error_Position (Empty) = 1, "empty error starts at byte 1");
+      Assert (Is_Valid (Empty), "empty input is a valid empty document");
+      Assert (Count (Empty) > 0, "empty input retains an empty root");
       Assert (not Is_Valid (Unknown), "unknown command is rejected");
       Assert
         (Error (Unknown)'Length > 0 and then Error_Position (Unknown) = 1,
@@ -450,7 +450,8 @@ package body Coyote_Math_Tests is
         (Parse ("\overbrace{x+y}^{n}"));
       Under_Brace  : constant Box      := Build
         (Parse ("\underbrace{x+y}_{n}"));
-      Unsupported : constant Document := Parse ("\left\langle x\right\rangle");
+      Angle_Delimited : constant Document := Parse
+        ("\left\langle x\right\rangle");
       Has_Index   : Boolean           := False;
       Has_Limits  : Boolean           := False;
       Has_Fonts   : Boolean           := False;
@@ -495,8 +496,8 @@ package body Coyote_Math_Tests is
          and then Math_Metrics.Lookup (Main_Regular, 16#2C6#).Found,
          "hat uses a measured circumflex glyph");
       Assert
-        (not Is_Valid (Unsupported),
-         "unsupported angle delimiters fail explicitly");
+        (Is_Valid (Angle_Delimited) and then Build (Angle_Delimited).Valid,
+         "angle delimiters parse and lay out with pinned geometry");
    end Test_Layout_Requested_Engine_Features;
 
    procedure Test_Layout_Fraction_Text_And_Display (T : in out Test) is
@@ -613,9 +614,11 @@ package body Coyote_Math_Tests is
       Aliases : constant Document := Parse ("\leq \ge \to \dots \ldots \pm");
       Additional_Aliases  : constant Document := Parse ("\le \geq");
       Negation            : constant Document := Parse ("\ne \neq");
+      Raw_Negation        : constant Document := Parse ("\not= \not\mathrel{=}");
       Layout              : constant Box      := Build (Operators);
       Alias_Layout        : constant Box      := Build (Aliases);
       Negation_Layout     : constant Box      := Build (Negation);
+      Raw_Negation_Layout : constant Box      := Build (Raw_Negation);
       Saw_Not_Equal       : Boolean           := False;
       Saw_Not_Equal_Base  : Boolean           := False;
       Saw_Not_Equal_Slash : Boolean           := False;
@@ -626,6 +629,9 @@ package body Coyote_Math_Tests is
       Assert (Alias_Layout.Valid, "accepted aliases have metrics");
       Assert (Is_Valid (Negation), "ne and neq aliases parse");
       Assert (Negation_Layout.Valid, "ne and neq aliases have metrics");
+      Assert
+        (Is_Valid (Raw_Negation) and then Raw_Negation_Layout.Valid,
+         "raw not/equality and mathrel forms parse and lay out");
       Assert
         (Is_Valid (Additional_Aliases)
          and then Build (Additional_Aliases).Valid,

@@ -1,10 +1,10 @@
 # Native math compatibility design — SDD-MATH
 
 **Component:** coyote shared math engine and GTK presentation
-**Version:** 0.7
-**Date:** 2026-10-27
+**Version:** 0.9
+**Date:** 2026-11-06
 **Change:** PCR-125
-**Status:** User-approved design v0.3 and execution basis; this document is a later v0.7 status revision. Implementation and qualification incomplete.
+**Status:** User-approved design v0.3 and execution basis; this document is a v0.9 status revision dated 2026-11-06, not a new approval. Implementation is partial and qualification incomplete.
 **Requirements:** `requirements/native-math-compatibility.md` v1.0 (approved)
 
 ## Contents
@@ -33,14 +33,21 @@ final test readiness remain open. The current project is NOT COMPLETE.
 Implemented source ledgers and deadline checks do not bound all REQ-MATH-010
 allocations or preempt blocking native calls. Do not wait for another P1
 approval to continue the already approved execution, do not mark P1–P6 complete,
-and do not claim full KaTeX parity or acceptance. Current results and open
-blockers are recorded in
-`plan/native-math-parity-test-report.md`.
+and do not claim full KaTeX parity or acceptance. Current results and open blockers are recorded in
+coordinator-owned §11 of `plan/native-math-parity-test-report.md`; §10 and
+earlier sections are historical.
 
 References: SRS-MATH above; `design/coyote-design.md`; approved
-`plan/native-math-parity-plan.md` v0.7; updated combined STP/STD v0.7
+`plan/native-math-parity-plan.md` v0.9; updated combined STP/STD v0.9
 (readiness review and approval open): `plan/native-math-compatibility-tests.md`;
 generated pinned inventory;
+
+The coordinator's report §11, “Current implementation and qualification
+reconciliation — 2026-11-06”, is the latest recorded source checkpoint; §10
+and earlier sections are historical. This documentation update does not rerun
+tests or create new qualification evidence. The reported counts and artifact
+paths are recorded evidence; referenced temporary logs are unavailable in this
+documentation task and cannot be independently inspected here.
 `share/coyote/math/PROVENANCE.md`; current `src/coyote_math/` interfaces.
 KaTeX Parser/Lexer/MacroExpander/Namespace/Options/Style, registered functions and
 environments, delimiter/stretchy/SVG and font data are reference inputs. Their
@@ -90,6 +97,19 @@ No mutable process-global macros. Read-only generated tables are shared. A
 limited controlled result handle owns arenas/draw data with explicit retention
 and finalization; queue transfer is ownership transfer, not accidental deep
 copy. Headless consumers use the same engine, not a second port implementation.
+
+The implemented feature increment also includes CD helpers, selected Unicode
+aliases/long-prefix resolution, accent/path helpers, color boxes/rules/dashed
+segments, and typed source-map tooling; feature presence is not parity or
+qualification. The implemented native units include `Math_Work_Control`,
+`Math_Raster_Budget`, and `Math_Text_Shaping`. Cooperative polling reaches
+pipeline loops and phase boundaries; it does not preempt individual native calls
+or guarantee a hard completion deadline. The raster ledger
+leases retained completed-job vectors, display Cairo surfaces and GTK inline
+Pixbufs through weak references; it is not whole-job allocation accounting or
+process-RSS enforcement. Worker text shaping uses local Pango font-map/context
+state, but resolved system font families are not pinned, and the FFI/global
+font-cache ownership and determinism remain unqualified.
 
 ### 2.1 Request/result contract
 
@@ -276,6 +296,15 @@ complete only when required visible tiles are installed; full-image acceptance
 requires every tile, not merely the viewport. Queue wait, worker tile generation,
 postback delay, adoption/composition and cleanup are recorded separately. Deadline
 failure is a real test failure when a successful in-domain case should complete.
+
+**Current implementation distinction (2026-11-06):** The 256×256 display-tile
+and adoption behavior above is the approved design target, not implemented
+behavior. Inline math still paints through GTK `RenderLayoutInline` in the
+synchronous conversation path; it does not submit a `RequestRaster` job. A
+worker inline attempt was abandoned without source changes. Off-thread inline
+painting, tiled display adoption/cache reuse, GTK ≤50 ms work, and the
+queue-inclusive ≤250 ms target remain open qualification gates.
+
 Full-image headless
 qualification can allocate a temporary bounded surface under the job budget,
 then release it rather than retain it in the GUI cache. Tiles do not relax visual
@@ -456,14 +485,20 @@ mapped in the scheduling increment before adding tasks.
 
 Developer evaluation: the approved design and D01–D15 remain authoritative;
 this status revision does not constitute design approval or acceptance. Current
-source evidence and open qualification gates are in coordinator-owned report
-§10; §9 and earlier sections are historical. The frozen 1063/1063 suite is
-regression evidence only. New scoped implementation and the 7/9 raster pilot
-(two failures) are described in §10; approximate Gaussian shadow is not exact
-CSS, and cooperative stage checks do not guarantee preemption or a hard
-deadline. Whole-job memory/cache, GTK guarantees, full reference behavior,
-readiness, remaining core behavior and independent human acceptance remain open.
-No parity or acceptance claim is made.
+source evidence and open qualification gates belong in coordinator-owned report
+§11; §10 and earlier sections are historical. Previously frozen full-suite results are historical regression evidence
+only; they predate the latest source changes and do not qualify the current
+snapshot. The nine-case pilot is historical; the latest recorded 29-case image
+comparison is 28 pass / 1 fail, with long-tilde mask coverage 0.9851 below the
+unchanged 0.99 target, and is not calibrated acceptance. The structured
+comparator recorded 338 outcomes: 278 scoped semantic matches and 60 explicit
+gaps; strict mode fails. Geometry recorded 235/235 matches. Gaussian shadow is
+an approximation. Cooperative checks do not interrupt native C calls or
+establish a hard deadline. Runtime Pango shaping and Unicode fallback are
+implemented; system font-family resolution remains unpinned. Whole-job
+memory/cache, GTK guarantees, full reference behavior, readiness, remaining
+core behavior and independent human acceptance remain open. No parity or
+acceptance claim is made.
 Risks requiring later evidence: worker-local native font/shaping thread safety,
 worst-case native-call latency and cleanup, bounded publication, context aggregate
 retention, exact full reference geometry export, GTK3 semantic role mapping and
@@ -481,9 +516,9 @@ behavior unless requirements are explicitly changed.
 ## Approval and execution status (updated 2026-10-26)
 
 The user approved native design v0.3 and authorized continued P0–P6 execution
-on 2026-10-25; document version 0.7 is a status revision, not a new design
+on 2026-10-25; document version 0.8 is a status revision, not a new design
 approval. Continued execution remains authorized, but that authorization is not
-acceptance and does not complete a phase. Current-source status and gates are in
-coordinator-owned report §10; §9 and earlier sections are historical. RD-CTX-01
+acceptance and does not complete a phase. Current-source status and gates belong in coordinator-owned report §11; §10
+and earlier sections are historical. RD-CTX-01
 additional context caps remain unauthorized. Do not claim full KaTeX parity,
 project completion, or product acceptance.

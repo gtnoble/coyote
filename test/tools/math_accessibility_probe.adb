@@ -37,6 +37,12 @@ procedure Math_Accessibility_Probe is
    Verbatim_Payload : constant String := "<&😀";
    Special : constant Math_Semantics.Document := Math_Semantics.Project
      ("\vcenter{x}+\pmb{a}+\verb*|" & Verbatim_Payload & "|");
+   Accent_Source : constant String := "\text{\c{c}}+\widehat{x}+\text{\textcircled{R}}";
+   Accent_Document : constant Math_Semantics.Document :=
+     Math_Semantics.Project (Accent_Source);
+   CD_Source : constant String := "\begin{CD}A@V\alpha VV&B@|C@.D\end{CD}";
+   CD_Document : constant Math_Semantics.Document :=
+     Math_Semantics.Project (CD_Source);
    function Large_Source return String is
       use Ada.Strings.Unbounded;
       Result : Unbounded_String;
@@ -78,8 +84,52 @@ procedure Math_Accessibility_Probe is
    Model : Gtk_Tree_Model;
    Special_View : Gtk.Tree_View.Gtk_Tree_View;
    Special_Model : Gtk_Tree_Model;
+   Accent_View : Gtk.Tree_View.Gtk_Tree_View;
+   Accent_Model : Gtk_Tree_Model;
+   CD_View : Gtk.Tree_View.Gtk_Tree_View;
+   CD_Model : Gtk_Tree_Model;
+   Saw_Accent_Below, Saw_Accent_Full, Saw_Circled : Boolean := False;
+   Saw_CD_Array, Saw_CD_Arrow : Boolean := False;
+   Saw_Left_Label, Saw_Right_Label : Boolean := False;
    Saw_VCenter_Role, Saw_Poor_Bold_Role : Boolean := False;
    Saw_Raw_Verbatim, Saw_Starred_Verbatim : Boolean := False;
+   Box_Document : constant Math_Semantics.Document := Math_Semantics.Project
+     ("\colorbox{red}{x}+\fcolorbox{blue}{#ffffff}{A}");
+   Box_View : Gtk.Tree_View.Gtk_Tree_View;
+   Box_Model : Gtk_Tree_Model;
+   Saw_Red_Background, Saw_Blue_Border, Saw_White_Background : Boolean := False;
+   Text_And_Rules_Source : constant String :=
+     "\text{Ж}\allowbreak\begin{array}{c}\hline a\end{array}";
+   Text_And_Rules : constant Math_Semantics.Document :=
+     Math_Semantics.Project (Text_And_Rules_Source);
+   Text_And_Rules_View : Gtk.Tree_View.Gtk_Tree_View;
+   Text_And_Rules_Model : Gtk_Tree_Model;
+   Saw_Text_Profile, Saw_Allow_Break : Boolean := False;
+   Saw_Solid_Horizontal_Rule : Boolean := False;
+   procedure Visit_Text_And_Rules (Iter : Gtk_Tree_Iter) is
+      Current : Gtk_Tree_Iter := Iter;
+      Child : Gtk_Tree_Iter;
+   begin
+      while Current /= Null_Iter loop
+         declare
+            Text : constant String := Cell (Text_And_Rules_Model, Current, 0);
+         begin
+            Saw_Text_Profile := Saw_Text_Profile or else
+              (Ada.Strings.Fixed.Index (Text, "text: Ж") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "CYRILLIC_FALLBACK") > 0);
+            Saw_Allow_Break := Saw_Allow_Break or else
+              Ada.Strings.Fixed.Index (Text, "break ALLOW_BREAK") > 0;
+            Saw_Solid_Horizontal_Rule := Saw_Solid_Horizontal_Rule or else
+              Ada.Strings.Fixed.Index
+                (Text, "horizontal rule at boundary 0 solid") > 0;
+         end;
+         Child := Children (Text_And_Rules_Model, Current);
+         if Child /= Null_Iter then
+            Visit_Text_And_Rules (Child);
+         end if;
+         Next (Text_And_Rules_Model, Current);
+      end loop;
+   end Visit_Text_And_Rules;
    procedure Visit_Special (Iter : Gtk_Tree_Iter) is
       Current : Gtk_Tree_Iter := Iter;
       Child : Gtk_Tree_Iter;
@@ -107,6 +157,87 @@ procedure Math_Accessibility_Probe is
          Next (Special_Model, Current);
       end loop;
    end Visit_Special;
+   procedure Visit_Accent (Iter : Gtk_Tree_Iter) is
+      Current : Gtk_Tree_Iter := Iter;
+      Child : Gtk_Tree_Iter;
+   begin
+      while Current /= Null_Iter loop
+         declare
+            Text : constant String := Cell (Accent_Model, Current, 0);
+         begin
+            Saw_Accent_Below := Saw_Accent_Below or else
+              (Ada.Strings.Fixed.Index (Text, "accent \c") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "BELOW_ACCENT") > 0);
+            Saw_Accent_Full := Saw_Accent_Full or else
+              Ada.Strings.Fixed.Index (Text, "FULL_ACCENT") > 0;
+            Saw_Circled := Saw_Circled or else
+              Ada.Strings.Fixed.Index (Text, "textcircled") > 0;
+         end;
+         Child := Children (Accent_Model, Current);
+         if Child /= Null_Iter then
+            Visit_Accent (Child);
+         end if;
+         Next (Accent_Model, Current);
+      end loop;
+   end Visit_Accent;
+   procedure Visit_Boxes (Iter : Gtk_Tree_Iter) is
+      Current : Gtk_Tree_Iter := Iter;
+      Child : Gtk_Tree_Iter;
+   begin
+      while Current /= Null_Iter loop
+         declare
+            Text : constant String := Cell (Box_Model, Current, 0);
+         begin
+            Saw_Red_Background := Saw_Red_Background or else
+              (Ada.Strings.Fixed.Index (Text, "COLOR_BOX_ENCLOSURE") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "background RGBA") > 0 and then
+               Ada.Strings.Fixed.Index
+                 (Text, "1.00000000000000E+00, 0.00000000000000E+00, 0.00000000000000E+00") > 0);
+            Saw_Blue_Border := Saw_Blue_Border or else
+              (Ada.Strings.Fixed.Index (Text, "FRAMED_COLOR_BOX_ENCLOSURE") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "border RGBA") > 0 and then
+               Ada.Strings.Fixed.Index
+                 (Text, "0.00000000000000E+00, 0.00000000000000E+00, 1.00000000000000E+00") > 0);
+            Saw_White_Background := Saw_White_Background or else
+              (Ada.Strings.Fixed.Index (Text, "background RGBA") > 0 and then
+               Ada.Strings.Fixed.Index
+                 (Text, "1.00000000000000E+00, 1.00000000000000E+00, 1.00000000000000E+00") > 0);
+         end;
+         Child := Children (Box_Model, Current);
+         if Child /= Null_Iter then
+            Visit_Boxes (Child);
+         end if;
+         Next (Box_Model, Current);
+      end loop;
+   end Visit_Boxes;
+   procedure Visit_CD (Iter : Gtk_Tree_Iter) is
+      Current : Gtk_Tree_Iter := Iter;
+      Child : Gtk_Tree_Iter;
+   begin
+      while Current /= Null_Iter loop
+         declare
+            Text : constant String := Cell (CD_Model, Current, 0);
+         begin
+            Saw_CD_Array := Saw_CD_Array or else
+              (Ada.Strings.Fixed.Index (Text, "CD_ARRAY") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "commutative diagram") > 0);
+            Saw_CD_Arrow := Saw_CD_Arrow or else
+              (Ada.Strings.Fixed.Index (Text, "CD_ARROW_NODE") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "vertical arrow Unicode") > 0);
+            Saw_Left_Label := Saw_Left_Label or else
+              (Ada.Strings.Fixed.Index (Text, "CD_ARROW_LEFT_LABEL") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "left label") > 0);
+            Saw_Right_Label := Saw_Right_Label or else
+              (Ada.Strings.Fixed.Index (Text, "CD_ARROW_RIGHT_LABEL") > 0 and then
+               Ada.Strings.Fixed.Index (Text, "right label") > 0);
+         end;
+         Child := Children (CD_Model, Current);
+         if Child /= Null_Iter then
+            Visit_CD (Child);
+         end if;
+         Next (CD_Model, Current);
+      end loop;
+   end Visit_CD;
    Root_Iter : Gtk_Tree_Iter;
    Seen_Fraction, Seen_Numerator, Seen_Denominator : Boolean := False;
    Seen_Script, Seen_Radical, Seen_Index : Boolean := False;
@@ -173,8 +304,54 @@ begin
       return;
    end if;
    Check (Math_Semantics.Is_Valid (Item), "semantic document valid");
+   Check (Math_Semantics.Is_Valid (Text_And_Rules),
+     "text, break and array-rule accessibility fixture is valid");
+   Text_And_Rules_View :=
+     Coyote_GUI.Math_Accessibility.Create (Text_And_Rules);
+   Text_And_Rules_Model := Gtk.Tree_View.Get_Model (Text_And_Rules_View);
+   Visit_Text_And_Rules (Children (Text_And_Rules_Model, Null_Iter));
+   Check (Saw_Text_Profile, "text-run label exposes UTF-8 and Pango profile");
+   Check (Saw_Allow_Break, "space label exposes break metadata");
+   Check (Saw_Solid_Horizontal_Rule,
+     "array label exposes horizontal rule boundary and style");
+   Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget
+     (Gtk.Container.Gtk_Container (Text_And_Rules_View)));
    Check (Math_Semantics.Is_Valid (Special),
      "vcenter, poor-bold, and verbatim semantic fixture valid");
+   Check (Math_Semantics.Is_Valid (Accent_Document),
+     "accent fixture remains a valid single semantic projection");
+   Accent_View := Coyote_GUI.Math_Accessibility.Create (Accent_Document);
+   Accent_Model := Gtk.Tree_View.Get_Model (Accent_View);
+   Visit_Accent (Children (Accent_Model, Null_Iter));
+   Check (Saw_Accent_Below, "below accent command and kind are explicit");
+   Check (Saw_Accent_Full, "full accent command and kind are explicit");
+   Check (Saw_Circled, "circled accent remains identifiable");
+   Check (Cell (Accent_Model, Children (Accent_Model, Null_Iter), 1) =
+     Accent_Source, "accent source is preserved exactly at root");
+   Check (Math_Semantics.Is_Valid (Box_Document),
+     "colorbox semantic fixture is valid");
+   Box_View := Coyote_GUI.Math_Accessibility.Create (Box_Document);
+   Box_Model := Gtk.Tree_View.Get_Model (Box_View);
+   Visit_Boxes (Children (Box_Model, Null_Iter));
+   Check (Saw_Red_Background and Saw_White_Background and Saw_Blue_Border,
+     "accessibility labels expose box background and border RGBA");
+   Gtk.Widget.Destroy
+     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Box_View)));
+   Check (Math_Semantics.Is_Valid (CD_Document),
+     "CD diagram fixture is valid");
+   CD_View := Coyote_GUI.Math_Accessibility.Create (CD_Document);
+   CD_Model := Gtk.Tree_View.Get_Model (CD_View);
+   Visit_CD (Children (CD_Model, Null_Iter));
+   Check (Saw_CD_Array, "CD array is explicitly identified");
+   Check (Saw_CD_Arrow, "vertical CD arrow glyph identity is explicit");
+   Check (Saw_Left_Label and Saw_Right_Label,
+     "CD arrow label roles are explicit");
+   Check (Cell (CD_Model, Children (CD_Model, Null_Iter), 1) = CD_Source,
+     "CD source is preserved exactly at root");
+   Gtk.Widget.Destroy
+     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Accent_View)));
+   Gtk.Widget.Destroy
+     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (CD_View)));
    Special_View := Coyote_GUI.Math_Accessibility.Create (Special);
    Special_Model := Gtk.Tree_View.Get_Model (Special_View);
    Visit_Special (Children (Special_Model, Null_Iter));

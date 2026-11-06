@@ -1,4 +1,5 @@
 with Math_Source;
+with Math_Work_Control;
 with Math_Builtin_Macros;
 with Math_Symbols;
 with Math_Model;
@@ -9,6 +10,7 @@ package body Math_Expander is
    use type Ada.Strings.Unbounded.Unbounded_String;
    use type Ada.Containers.Count_Type;
    use type Math_Tokens.Token_Kind;
+   use type Math_Work_Control.Context_Access;
    use type Math_Macros.Diagnostic_Kind;
    use type Math_Source.Diagnostic_Kind;
    use type Math_Tokens.Diagnostic_Kind;
@@ -17,11 +19,14 @@ package body Math_Expander is
      (Input : Math_Tokens.Stream; Item : in out Cursor;
       Max_Expand : Positive := Default_Max_Expand;
       Token_Ceiling : Positive := Maximum_Tokens;
-      Expansion_Only : Boolean := False) is
+      Expansion_Only : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null) is
    begin
       Item.Input := Input;
+      Item.Work := Work;
       Item.Queue.Clear;
       for I in 1 .. Math_Tokens.Count (Input) loop
+         Math_Work_Control.Poll (Item.Work);
          Item.Queue.Append (Math_Tokens.Element (Input, I));
       end loop;
       Item.Position := 1;
@@ -130,6 +135,12 @@ package body Math_Expander is
          Last : Natural := Text'Last;
       begin
          if Tok.Kind = Math_Tokens.Control_Word then
+            --  Internal function labels have a doubled leading backslash.
+            if Text'Length >= 2 and then
+              Text (Text'First .. Text'First + 1) = "\\"
+            then
+               return Text;
+            end if;
             Last := Text'First + 1;
             while Last < Text'Last and then
               Text (Last + 1) in 'A' .. 'Z' | 'a' .. 'z' | '@'
@@ -140,6 +151,945 @@ package body Math_Expander is
          return Text (Text'First .. Last);
       end;
    end Name_Of;
+
+   function Is_Registered_Function_Name (Name : String)
+      return Boolean is
+   begin
+      if Name = "$" then
+         return True;
+      end if;
+      if Name = "\" & """" then
+         return True;
+      end if;
+      if Name = "\" & "'" then
+         return True;
+      end if;
+      if Name = "\" & "(" then
+         return True;
+      end if;
+      if Name = "\" & ")" then
+         return True;
+      end if;
+      if Name = "\" & "." then
+         return True;
+      end if;
+      if Name = "\" & "=" then
+         return True;
+      end if;
+      if Name = "\" & "@" & "b" & "i" & "n" & "r" & "e" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "@" & "c" & "h" & "a" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "b" & "b" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "g" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "g" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "g" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "B" & "i" & "g" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "H" then
+         return True;
+      end if;
+      if Name = "\" & "H" & "u" & "g" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "L" & "A" & "R" & "G" & "E" then
+         return True;
+      end if;
+      if Name = "\" & "L" & "a" & "r" & "g" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "O" & "v" & "e" & "r" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "P" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "\" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "a" & "b" & "o" & "v" & "e" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "a" & "t" & "o" & "p" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "b" & "r" & "a" & "c" & "e" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "b" & "r" & "a" & "c" & "k" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "c" & "d" & "l" & "e" & "f" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "c" & "d" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "c" & "d" & "l" & "o" & "n" & "g" & "e" & "q" & "u" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "c" & "d" & "p" & "a" & "r" & "e" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "c" & "d" & "r" & "i" & "g" & "h" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "c" & "d" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "g" & "l" & "o" & "b" & "a" & "l" & "f" & "u" & "t" & "u" & "r" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "g" & "l" & "o" & "b" & "a" & "l" & "l" & "e" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "\" & "g" & "l" & "o" & "b" & "a" & "l" & "l" & "o" & "n" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "]" then
+         return True;
+      end if;
+      if Name = "\" & "^" then
+         return True;
+      end if;
+      if Name = "\" & "`" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "b" & "o" & "v" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "c" & "u" & "t" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "n" & "g" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "r" & "c" & "c" & "o" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "r" & "c" & "c" & "t" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "r" & "c" & "s" & "i" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "r" & "c" & "t" & "a" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "r" & "c" & "t" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "r" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "a" & "t" & "o" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "a" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "c" & "a" & "n" & "c" & "e" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "e" & "g" & "i" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "c" & "a" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "c" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "g" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "g" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "g" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "o" & "d" & "o" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "o" & "p" & "l" & "u" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "o" & "t" & "i" & "m" & "e" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "s" & "q" & "c" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "u" & "p" & "l" & "u" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "v" & "e" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "g" & "w" & "e" & "d" & "g" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "i" & "n" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "o" & "l" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "o" & "l" & "d" & "s" & "y" & "m" & "b" & "o" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "r" & "a" & "c" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "r" & "a" & "c" & "k" then
+         return True;
+      end if;
+      if Name = "\" & "b" & "r" & "e" & "v" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "a" & "n" & "c" & "e" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "h" & "e" & "c" & "k" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "h" & "o" & "o" & "s" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "l" & "o" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "l" & "o" & "r" & "b" & "o" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "p" & "r" & "o" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "s" & "e" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "s" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "t" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "o" & "t" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "s" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "t" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "c" & "t" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "b" & "i" & "n" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "d" & "o" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "e" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "e" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "e" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "i" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "i" & "s" & "p" & "l" & "a" & "y" & "s" & "t" & "y" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "d" & "o" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "e" & "d" & "e" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "e" & "m" & "p" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "e" & "n" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "e" & "x" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "f" & "b" & "o" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "f" & "c" & "o" & "l" & "o" & "r" & "b" & "o" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "f" & "o" & "o" & "t" & "n" & "o" & "t" & "e" & "s" & "i" & "z" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "f" & "r" & "a" & "k" then
+         return True;
+      end if;
+      if Name = "\" & "f" & "u" & "t" & "u" & "r" & "e" & "l" & "e" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "g" & "c" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "g" & "d" & "e" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "g" & "e" & "n" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "g" & "l" & "o" & "b" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "g" & "r" & "a" & "v" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "a" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "b" & "o" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "d" & "a" & "s" & "h" & "l" & "i" & "n" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "l" & "i" & "n" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "p" & "h" & "a" & "n" & "t" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "r" & "e" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "s" & "k" & "i" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "t" & "m" & "l" & "@" & "m" & "a" & "t" & "h" & "m" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "t" & "m" & "l" & "C" & "l" & "a" & "s" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "t" & "m" & "l" & "D" & "a" & "t" & "a" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "t" & "m" & "l" & "I" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "t" & "m" & "l" & "S" & "t" & "y" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "h" & "u" & "g" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "i" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "n" & "c" & "l" & "u" & "d" & "e" & "g" & "r" & "a" & "p" & "h" & "i" & "c" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "n" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "n" & "t" & "o" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "i" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "k" & "e" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "k" & "e" & "r" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "a" & "r" & "g" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "e" & "f" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "e" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "i" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "o" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "l" & "o" & "n" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "b" & "b" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "b" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "b" & "i" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "c" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "c" & "h" & "o" & "i" & "c" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "c" & "l" & "a" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "c" & "l" & "o" & "s" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "f" & "r" & "a" & "k" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "i" & "n" & "n" & "e" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "i" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "l" & "l" & "a" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "n" & "o" & "r" & "m" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "o" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "o" & "p" & "e" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "o" & "r" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "p" & "u" & "n" & "c" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "r" & "e" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "r" & "i" & "n" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "r" & "l" & "a" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "r" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "s" & "c" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "s" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "s" & "f" & "i" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "t" & "h" & "t" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "a" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "i" & "d" & "d" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "i" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "k" & "e" & "r" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "m" & "s" & "k" & "i" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "n" & "e" & "w" & "l" & "i" & "n" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "n" & "o" & "r" & "m" & "a" & "l" & "s" & "i" & "z" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "i" & "i" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "i" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "p" & "e" & "r" & "a" & "t" & "o" & "r" & "n" & "a" & "m" & "e" & "@" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "p" & "e" & "r" & "a" & "t" & "o" & "r" & "n" & "a" & "m" & "e" & "w" & "i" & "t" & "h" & "l" & "i" & "m" & "i" & "t" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "b" & "r" & "a" & "c" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "g" & "r" & "o" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "l" & "e" & "f" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "l" & "e" & "f" & "t" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "l" & "i" & "n" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "l" & "i" & "n" & "e" & "s" & "e" & "g" & "m" & "e" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "r" & "i" & "g" & "h" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "o" & "v" & "e" & "r" & "s" & "e" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "p" & "h" & "a" & "n" & "t" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "p" & "h" & "a" & "s" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "p" & "m" & "b" then
+         return True;
+      end if;
+      if Name = "\" & "p" & "r" & "o" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "r" & "a" & "i" & "s" & "e" & "b" & "o" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "r" & "e" & "l" & "a" & "x" then
+         return True;
+      end if;
+      if Name = "\" & "r" & "i" & "g" & "h" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "r" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "r" & "u" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "c" & "r" & "i" & "p" & "t" & "s" & "c" & "r" & "i" & "p" & "t" & "s" & "t" & "y" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "c" & "r" & "i" & "p" & "t" & "s" & "i" & "z" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "c" & "r" & "i" & "p" & "t" & "s" & "t" & "y" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "e" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "i" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "i" & "n" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "i" & "x" & "p" & "t" & "s" & "i" & "z" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "m" & "a" & "l" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "m" & "a" & "l" & "l" & "i" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "m" & "a" & "s" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "o" & "u" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "q" & "r" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "t" & "a" & "c" & "k" & "r" & "e" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "u" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "s" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "a" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "a" & "n" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "b" & "i" & "n" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "b" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "c" & "i" & "r" & "c" & "l" & "e" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "c" & "o" & "l" & "o" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "i" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "m" & "d" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "n" & "o" & "r" & "m" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "r" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "s" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "s" & "t" & "y" & "l" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "t" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "e" & "x" & "t" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "f" & "r" & "a" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "g" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "h" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "i" & "l" & "d" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "i" & "n" & "y" then
+         return True;
+      end if;
+      if Name = "\" & "t" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "u" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "b" & "r" & "a" & "c" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "g" & "r" & "o" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "l" & "e" & "f" & "t" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "l" & "i" & "n" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "l" & "i" & "n" & "e" & "s" & "e" & "g" & "m" & "e" & "n" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "n" & "d" & "e" & "r" & "s" & "e" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "r" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "u" & "t" & "i" & "l" & "d" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "v" then
+         return True;
+      end if;
+      if Name = "\" & "v" & "c" & "e" & "n" & "t" & "e" & "r" then
+         return True;
+      end if;
+      if Name = "\" & "v" & "e" & "c" then
+         return True;
+      end if;
+      if Name = "\" & "v" & "e" & "r" & "b" then
+         return True;
+      end if;
+      if Name = "\" & "v" & "p" & "h" & "a" & "n" & "t" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "w" & "i" & "d" & "e" & "c" & "h" & "e" & "c" & "k" then
+         return True;
+      end if;
+      if Name = "\" & "w" & "i" & "d" & "e" & "h" & "a" & "t" then
+         return True;
+      end if;
+      if Name = "\" & "w" & "i" & "d" & "e" & "t" & "i" & "l" & "d" & "e" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "L" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "L" & "e" & "f" & "t" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "R" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "c" & "a" & "n" & "c" & "e" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "d" & "e" & "f" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "h" & "o" & "o" & "k" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "h" & "o" & "o" & "k" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "e" & "f" & "t" & "e" & "q" & "u" & "i" & "l" & "i" & "b" & "r" & "i" & "u" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "e" & "f" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" & "d" & "o" & "w" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "e" & "f" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "e" & "f" & "t" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "e" & "f" & "t" & "r" & "i" & "g" & "h" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "l" & "o" & "n" & "g" & "e" & "q" & "u" & "a" & "l" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "m" & "a" & "p" & "s" & "t" & "o" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "r" & "i" & "g" & "h" & "t" & "e" & "q" & "u" & "i" & "l" & "i" & "b" & "r" & "i" & "u" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "r" & "i" & "g" & "h" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" & "d" & "o" & "w" & "n" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "r" & "i" & "g" & "h" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" & "u" & "p" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "r" & "i" & "g" & "h" & "t" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "r" & "i" & "g" & "h" & "t" & "l" & "e" & "f" & "t" & "h" & "a" & "r" & "p" & "o" & "o" & "n" & "s" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "t" & "o" & "f" & "r" & "o" & "m" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "t" & "w" & "o" & "h" & "e" & "a" & "d" & "l" & "e" & "f" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "x" & "t" & "w" & "o" & "h" & "e" & "a" & "d" & "r" & "i" & "g" & "h" & "t" & "a" & "r" & "r" & "o" & "w" then
+         return True;
+      end if;
+      if Name = "\" & "~" then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (143) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (144) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (145) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (171) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (172) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (173) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (174) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (175) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (136) & Character'Val (176) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (139) & Character'Val (128) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (139) & Character'Val (129) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (139) & Character'Val (130) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (139) & Character'Val (131) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (168) & Character'Val (128) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (168) & Character'Val (129) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (168) & Character'Val (130) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (168) & Character'Val (132) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (168) & Character'Val (134) then
+         return True;
+      end if;
+      if Name = Character'Val (226) & Character'Val (137) & Character'Val (152) then
+         return True;
+      end if;
+      return False;
+   end Is_Registered_Function_Name;
 
    procedure Queue_At_Cursor
      (Item : in out Cursor; Seq : Math_Macros.Token_Sequence) is
@@ -156,6 +1106,7 @@ package body Math_Expander is
          Item.Pushback_Used := False;
       end if;
       for I in reverse Seq'Range loop
+      Math_Work_Control.Poll (Item.Work);
          Item.Queue.Insert
            (Before => Positive (Item.Position), New_Item => Seq (I));
       end loop;
@@ -164,12 +1115,17 @@ package body Math_Expander is
 
 
    function Next
-     (Item : in out Cursor; Shared : in out Math_Macros.Context)
+     (Item : in out Cursor; Shared : in out Math_Macros.Context;
+      Work : Math_Work_Control.Context_Access := null)
       return Math_Tokens.Token is
       Tok : Math_Tokens.Token;
    begin
+      if Work /= null then
+         Item.Work := Work;
+      end if;
       loop
       <<Iterate>>
+      Math_Work_Control.Poll (Item.Work);
       Tok := Read_Raw (Item);
       if Item.Status /= No_Error then
          return Tok;
@@ -240,6 +1196,7 @@ package body Math_Expander is
                  (1 .. Natural (Replacement.Length));
             begin
                for I in Seq'Range loop
+               Math_Work_Control.Poll (Item.Work);
                   Seq (I) := Replacement (Positive (I));
                end loop;
                Queue_At_Cursor (Item, Seq);
@@ -247,9 +1204,18 @@ package body Math_Expander is
             goto Iterate;
          end;
       end if;
-      if Tok.Kind = Math_Tokens.Control_Word then
+      if Tok.Kind = Math_Tokens.Control_Word or else
+        (Tok.Kind = Math_Tokens.Character_Token and then
+         Tok.Text_First /= Natural'Last and then
+         (Tok.Code_Point >= 16#80# or else Tok.Code_Point = 126) and then
+         Math_Builtin_Macros.Lookup
+           (Ada.Strings.Unbounded.To_String (Tok.Lexeme)).Found)
+      then
          declare
-            Name : constant String := Name_Of (Item, Tok);
+            Name : constant String :=
+              (if Tok.Kind = Math_Tokens.Control_Word then
+                 Name_Of (Item, Tok)
+               else Ada.Strings.Unbounded.To_String (Tok.Lexeme));
          begin
             if Name = "\char" then
                declare
@@ -271,6 +1237,7 @@ package body Math_Expander is
                   end Digit_Value;
                begin
                   while First.Kind = Math_Tokens.Space_Token loop
+                  Math_Work_Control.Poll (Item.Work);
                      First := Read_Raw (Item);
                   end loop;
                   if First.Kind = Math_Tokens.End_Of_Input then
@@ -353,6 +1320,7 @@ package body Math_Expander is
                begin
                   if Name /= "\show" then
                      while T.Kind = Math_Tokens.Space_Token loop
+                     Math_Work_Control.Poll (Item.Work);
                         T := Read_Raw (Item);
                      end loop;
                      if T.Kind = Math_Tokens.Left_Group then
@@ -365,6 +1333,7 @@ package body Math_Expander is
                         Started := True;
                      end if;
                      while Started and then Level > 0 loop
+                     Math_Work_Control.Poll (Item.Work);
                         T := Read_Raw (Item);
                         if T.Kind = Math_Tokens.End_Of_Input then
                            Item.Status := Argument_Error;
@@ -400,6 +1369,7 @@ package body Math_Expander is
                            Ada.Strings.Unbounded.To_String (T.Lexeme));
                      else
                         for Part of Arg loop
+                        Math_Work_Control.Poll (Item.Work);
                            Ada.Strings.Unbounded.Append
                              (Message,
                               Ada.Strings.Unbounded.To_String (Part.Lexeme));
@@ -442,6 +1412,7 @@ package body Math_Expander is
                     Ada.Strings.Unbounded.Null_Unbounded_String;
                begin
                   while Look.Kind = Math_Tokens.Space_Token loop
+                  Math_Work_Control.Poll (Item.Work);
                      Spaces.Append (Look);
                      Look := Read_Raw (Item);
                   end loop;
@@ -453,6 +1424,7 @@ package body Math_Expander is
                         (if Look.Kind = Math_Tokens.End_Of_Input then 0 else 1));
                   begin
                      for I in 1 .. Natural (Spaces.Length) loop
+                     Math_Work_Control.Poll (Item.Work);
                         Replay (I) := Spaces (Positive (I));
                      end loop;
                      if Look.Kind /= Math_Tokens.End_Of_Input then
@@ -503,7 +1475,7 @@ package body Math_Expander is
                   Item.Returned := Item.Returned + 1;
                   return Tok;
                end;
-            elsif Name = "\futurelet" then
+            elsif Name = "\futurelet" or else Name = "\\globalfuture" then
                if Item.Expansion_Only then
                   Item.Returned := Item.Returned + 1;
                   return Tok;
@@ -513,6 +1485,7 @@ package body Math_Expander is
                   First : constant Math_Tokens.Token := Read_Raw (Item);
                   Second : constant Math_Tokens.Token := Read_Raw (Item);
                   D : Math_Macros.Diagnostic_Kind;
+                  Is_Global : constant Boolean := Name = "\\globalfuture";
                begin
                   if Target.Kind not in Math_Tokens.Control_Word |
                     Math_Tokens.Control_Symbol or else
@@ -523,7 +1496,7 @@ package body Math_Expander is
                   else
                      Math_Macros.Define_Tokens
                        (Shared, Name_Of (Item, Target), 0,
-                        (1 => Second), False, D);
+                        (1 => Second), Is_Global, D);
                      if D /= Math_Macros.No_Error then
                         Item.Status := Malformed_Definition;
                      else
@@ -532,37 +1505,84 @@ package body Math_Expander is
                   end if;
                end;
                goto Iterate;
-            elsif Name = "\long" and then
-              not Math_Macros.Is_Defined (Shared, Name) and then
-              not Math_Builtin_Macros.Lookup (Name).Found
+            elsif (Name = "\long" and then
+                   not Math_Macros.Is_Defined (Shared, Name) and then
+                   not Math_Builtin_Macros.Lookup (Name).Found) or else
+              Name = "\\globallong"
             then
                if Item.Expansion_Only then
                   Item.Returned := Item.Returned + 1;
                   return Tok;
                end if;
-               Tok := Read_Raw (Item);
-               if Tok.Kind = Math_Tokens.Control_Word and then
-                 Name_Of (Item, Tok) in "\def" | "\gdef" |
-                   "\edef" | "\xdef"
-               then
-                  Pushback (Item, Tok);
-                  goto Iterate;
-               elsif Math_Macros.Is_Defined (Shared, Name) or else
-                 Math_Builtin_Macros.Lookup (Name).Found
-               then
-                  Pushback (Item, Tok);
-                  Tok := (Kind => Math_Tokens.Control_Word,
-                    Lexeme => Ada.Strings.Unbounded.To_Unbounded_String
-                      (Name), others => <>);
-                  Pushback (Item, Tok);
-                  goto Iterate;
-               else
-                  Item.Status := Malformed_Definition;
-               end if;
+               declare
+                  Prefix_Name : constant String := Name;
+                  Directive : Math_Tokens.Token := Read_Raw (Item);
+                  Mapped_Name : String (1 .. 32) := (others => ' ');
+                  Mapped_Length : Natural := 0;
+               begin
+                  while Directive.Kind = Math_Tokens.Space_Token loop
+                     Math_Work_Control.Poll (Item.Work);
+                     Directive := Read_Raw (Item);
+                  end loop;
+                  if Directive.Kind = Math_Tokens.Control_Word then
+                     declare
+                        Following : constant String := Name_Of (Item, Directive);
+                        Mapped : constant String :=
+                          (if Following = "\global" then "\global"
+                           elsif Following = "\long" and then
+                             Prefix_Name = "\\globallong"
+                           then "\\globallong"
+                           elsif Following = "\long" then "\long"
+                           elsif Following = "\\globallong" then
+                             "\\globallong"
+                           elsif Following = "\def" and then
+                             Prefix_Name = "\\globallong"
+                           then "\gdef"
+                           elsif Following in "\def" | "\gdef" then
+                             Following
+                           elsif Following in "\edef" | "\xdef" then
+                             Following
+                           elsif Following = "\let" and then
+                             Prefix_Name = "\\globallong"
+                           then "\\globallet"
+                           elsif Following = "\let" then "\let"
+                           elsif Following = "\futurelet" and then
+                             Prefix_Name = "\\globallong"
+                           then "\\globalfuture"
+                           elsif Following = "\futurelet" then "\futurelet"
+                           else "");
+                     begin
+                        if Mapped'Length > 0 then
+                           Mapped_Length := Mapped'Length;
+                           Mapped_Name (1 .. Mapped_Length) := Mapped;
+                        end if;
+                     end;
+                  end if;
+                  if Mapped_Length = 0 then
+                     if Math_Macros.Is_Defined (Shared, Name) or else
+                       Math_Builtin_Macros.Lookup (Name).Found
+                     then
+                        Pushback (Item, Directive);
+                        Tok :=
+                          (Kind => Math_Tokens.Control_Word,
+                           Lexeme => Ada.Strings.Unbounded.To_Unbounded_String
+                             (Prefix_Name), others => <>);
+                        Pushback (Item, Tok);
+                     else
+                        Item.Status := Malformed_Definition;
+                     end if;
+                  else
+                     Directive.Kind := Math_Tokens.Control_Word;
+                     Directive.Lexeme :=
+                       Ada.Strings.Unbounded.To_Unbounded_String
+                         (Mapped_Name (1 .. Mapped_Length));
+                     Pushback (Item, Directive);
+                  end if;
+               end;
                goto Iterate;
             elsif Name = "\def" or else Name = "\gdef" or else
               Name = "\edef" or else Name = "\xdef" or else
-              Name = "\global"
+              Name = "\global" or else Name = "\\globallet"
             then
                if Item.Expansion_Only then
                   Item.Returned := Item.Returned + 1;
@@ -570,20 +1590,51 @@ package body Math_Expander is
                end if;
                declare
                   Is_Global : Boolean := Name = "\gdef" or else
-                    Name = "\xdef";
+                    Name = "\xdef" or else Name = "\\globallet";
                   Directive : Math_Tokens.Token := Tok;
                begin
-                  if Name = "\global" then
+                  if Name = "\global" or else Name = "\\globallet" then
                      Is_Global := True;
-                     Directive := Read_Raw (Item);
-                     if Directive.Kind /= Math_Tokens.Control_Word or else
+                     Directive :=
+                       (if Name = "\\globallet" then
+                          (Kind => Math_Tokens.Control_Word,
+                           Lexeme => Ada.Strings.Unbounded.To_Unbounded_String
+                             ("\let"), others => <>)
+                        else Read_Raw (Item));
+                     if Name = "\global" then
+                        while Directive.Kind = Math_Tokens.Space_Token loop
+                           Math_Work_Control.Poll (Item.Work);
+                           Directive := Read_Raw (Item);
+                        end loop;
+                     end if;
+                     if Directive.Kind = Math_Tokens.Control_Word and then
+                       Name_Of (Item, Directive) = "\global"
+                     then
+                        Pushback (Item, Directive);
+                        goto Iterate;
+                     elsif Directive.Kind = Math_Tokens.Control_Word and then
+                       Name_Of (Item, Directive) = "\long"
+                     then
+                        Directive.Lexeme :=
+                          Ada.Strings.Unbounded.To_Unbounded_String
+                            ("\\globallong");
+                        Pushback (Item, Directive);
+                        goto Iterate;
+                     elsif Directive.Kind = Math_Tokens.Control_Word and then
+                       Name_Of (Item, Directive) = "\\globallong"
+                     then
+                        Pushback (Item, Directive);
+                        goto Iterate;
+                     elsif Directive.Kind /= Math_Tokens.Control_Word or else
                        Name_Of (Item, Directive) not in
                          "\def" | "\edef" | "\xdef" | "\let"
                      then
                         Item.Status := Malformed_Definition;
                         return Tok;
                      end if;
-                     if Name_Of (Item, Directive) = "\let" then
+                     if Name = "\\globallet" or else
+                       Name_Of (Item, Directive) = "\let"
+                     then
                         declare
                            Target : constant Math_Tokens.Token :=
                              Read_Raw (Item);
@@ -592,6 +1643,7 @@ package body Math_Expander is
                            D : Math_Macros.Diagnostic_Kind;
                         begin
                            while Equal.Kind = Math_Tokens.Space_Token loop
+                           Math_Work_Control.Poll (Item.Work);
                               Equal := Read_Raw (Item);
                            end loop;
                            if Target.Kind not in Math_Tokens.Control_Word |
@@ -703,6 +1755,7 @@ package body Math_Expander is
                            Depth := 1;
                         end if;
                         while not Failed loop
+                        Math_Work_Control.Poll (Item.Work);
                            Tok := Read_Raw (Item);
                            if Tok.Kind = Math_Tokens.End_Of_Input then
                               Failed := True;
@@ -746,6 +1799,7 @@ package body Math_Expander is
                                 (1, Available);
                            begin
                               for I in Seq'Range loop
+                              Math_Work_Control.Poll (Item.Work);
                                  Seq (I) := Rep (Positive (I));
                               end loop;
                               Math_Tokens.From_Tokens
@@ -755,7 +1809,8 @@ package body Math_Expander is
                               Math_Expander.Open
                                 (Expanded_Stream, Expanded_Cursor,
                                  Remaining, Item.Token_Ceiling,
-                                 Expansion_Only => True);
+                                 Expansion_Only => True,
+                                 Work => Item.Work);
                               loop
                                  Expanded_Token := Math_Expander.Next
                                    (Expanded_Cursor, Shared);
@@ -792,6 +1847,7 @@ package body Math_Expander is
                                 (1 .. Natural (Rep.Length));
                            begin
                               for I in Seq'Range loop
+                              Math_Work_Control.Poll (Item.Work);
                                  Seq (I) := Rep (Positive (I));
                               end loop;
                               declare
@@ -799,6 +1855,7 @@ package body Math_Expander is
                                    (1 .. Natural (Prefix.Length));
                               begin
                                  for I in Prefix_Seq'Range loop
+                                 Math_Work_Control.Poll (Item.Work);
                                     Prefix_Seq (I) := Prefix (Positive (I));
                                  end loop;
                                  Math_Macros.Define_Tokens
@@ -835,6 +1892,7 @@ package body Math_Expander is
                   Failed : Boolean := False;
                begin
                   while Name_Tok.Kind = Math_Tokens.Space_Token loop
+                  Math_Work_Control.Poll (Item.Work);
                      Name_Tok := Read_Raw (Item);
                   end loop;
                   if Name_Tok.Kind = Math_Tokens.Left_Group then
@@ -864,6 +1922,7 @@ package body Math_Expander is
                   if not Failed then
                      Tok := Read_Raw (Item);
                      while Tok.Kind = Math_Tokens.Space_Token loop
+                     Math_Work_Control.Poll (Item.Work);
                         Tok := Read_Raw (Item);
                      end loop;
                   end if;
@@ -899,6 +1958,7 @@ package body Math_Expander is
                         Default.Append (Tok);
                      end loop;
                      while not Failed loop
+                     Math_Work_Control.Poll (Item.Work);
                         Tok := Read_Raw (Item);
                         exit when Tok.Kind /= Math_Tokens.Space_Token;
                      end loop;
@@ -925,7 +1985,10 @@ package body Math_Expander is
                   else
                      declare M : constant String := Macro_Name (1 .. Name_Length); begin
                         Existing := Math_Macros.Is_Defined (Shared, M) or else
-                          Math_Builtin_Macros.Lookup (M).Found;
+                          Math_Builtin_Macros.Lookup (M).Found or else
+                          Math_Symbols.Lookup_Math (M).Found or else
+                          Math_Symbols.Lookup_Text (M).Found or else
+                          Is_Registered_Function_Name (M);
                         if (Name = "\newcommand" and Existing) or else
                           (Name = "\renewcommand" and not Existing)
                         then Item.Status := Malformed_Definition;
@@ -940,6 +2003,7 @@ package body Math_Expander is
                                       (1 .. Natural (Default.Length));
                                  begin
                                     for I in Default_Seq'Range loop
+                                    Math_Work_Control.Poll (Item.Work);
                                        Default_Seq (I) := Default (I);
                                     end loop;
                                     Math_Macros.Set_Optional_Default
@@ -1021,6 +2085,7 @@ package body Math_Expander is
                                          (Template_Stream) - 1);
                                  begin
                                     for I in Seq'Range loop
+                                    Math_Work_Control.Poll (Item.Work);
                                        Seq (I) := Math_Tokens.Element
                                          (Template_Stream, I);
                                     end loop;
@@ -1076,6 +2141,7 @@ package body Math_Expander is
                      Level : Natural := 0;
                   begin
                      while Part.Kind = Math_Tokens.Space_Token loop
+                     Math_Work_Control.Poll (Item.Work);
                         Part := Read_Raw (Item);
                      end loop;
                      if Part.Kind = Math_Tokens.End_Of_Input or else
@@ -1116,6 +2182,7 @@ package body Math_Expander is
                   Look : Math_Tokens.Token;
                begin
                   for A in 1 .. Count loop
+                  Math_Work_Control.Poll (Item.Work);
                      Read_Raw_Argument (Args (A));
                      exit when Failed;
                   end loop;
@@ -1142,7 +2209,6 @@ package body Math_Expander is
                         Selected := 1;
                      else
                         Selected := 2;
-                        Args (2).Append (Look);
                      end if;
                   else
                      loop
@@ -1153,16 +2219,26 @@ package body Math_Expander is
                         Selected := 2;
                      else
                         Selected := 3;
-                        Args (3).Append (Look);
                      end if;
                   end if;
                   declare
                      Seq : Math_Macros.Token_Sequence
-                       (1 .. Natural (Args (Selected).Length));
+                       (1 .. Natural (Args (Selected).Length) +
+                          (if Name = "\@ifnextchar" or else
+                            Name = "\@ifstar" then 1 else 0));
+                     Position : Positive := 1;
                   begin
-                     for I in Seq'Range loop
-                        Seq (I) := Args (Selected) (Positive (I));
+                     for I in 1 .. Natural (Args (Selected).Length) loop
+                        Math_Work_Control.Poll (Item.Work);
+                        Seq (Position) := Args (Selected) (Positive (I));
+                        Position := Position + 1;
                      end loop;
+                     if Name = "\@ifnextchar" or else
+                       Name = "\@ifstar"
+                     then
+                        Math_Work_Control.Poll (Item.Work);
+                        Seq (Position) := Look;
+                     end if;
                      Queue_At_Cursor (Item, Seq);
                   end;
                   goto Iterate;
@@ -1206,6 +2282,7 @@ package body Math_Expander is
                        (1 .. Natural (Replacement.Length));
                   begin
                      for I in Seq'Range loop
+                     Math_Work_Control.Poll (Item.Work);
                         Seq (I) := Replacement (Positive (I));
                      end loop;
                      Queue_At_Cursor (Item, Seq);
@@ -1233,6 +2310,7 @@ package body Math_Expander is
                      Level : Natural := 0;
                   begin
                      while Part.Kind = Math_Tokens.Space_Token loop
+                     Math_Work_Control.Poll (Item.Work);
                         Part := Read_Raw (Item);
                      end loop;
                      if Part.Kind = Math_Tokens.Left_Group then
@@ -1290,6 +2368,7 @@ package body Math_Expander is
                        Natural'Min (Item.Live_Tokens, Item.Token_Ceiling));
                begin
                   for A in Args'Range loop
+                  Math_Work_Control.Poll (Item.Work);
                      Read_Raw_Argument (Args (A));
                      exit when Failed;
                   end loop;
@@ -1307,6 +2386,7 @@ package body Math_Expander is
                        (1 .. Natural (Combined.Length));
                   begin
                      for I in Seq'Range loop
+                     Math_Work_Control.Poll (Item.Work);
                         Seq (I) := Combined (Positive (I));
                      end loop;
                      Math_Tokens.From_Tokens
@@ -1314,7 +2394,7 @@ package body Math_Expander is
                   end;
                   Math_Expander.Open
                     (Child_Stream, Child, Remaining, Child_Ceiling,
-                     Expansion_Only => True);
+                     Expansion_Only => True, Work => Item.Work);
                   Child.Middle_Binding := Item.Middle_Binding;
                   Child.Double_Binding := Item.Double_Binding;
                   Child.Has_Middle_Binding := Item.Has_Middle_Binding;
@@ -1328,12 +2408,14 @@ package body Math_Expander is
                   Child.Middle_Binding.Clear;
                   Child.Double_Binding.Clear;
                   for V of Args (2) loop
+                  Math_Work_Control.Poll (Item.Work);
                      Child.Middle_Binding.Append (V);
                   end loop;
                   if Args (3).Is_Empty then
                      Child.Double_Binding := Item.Double_Binding;
                   else
                      for V of Args (3) loop
+                     Math_Work_Control.Poll (Item.Work);
                         Child.Double_Binding.Append (V);
                      end loop;
                   end if;
@@ -1362,6 +2444,7 @@ package body Math_Expander is
                           (1 .. Natural (Expanded_Tokens.Length));
                      begin
                         for I in Seq'Range loop
+                        Math_Work_Control.Poll (Item.Work);
                            Seq (I) := Expanded_Tokens (Positive (I));
                         end loop;
                         Queue_At_Cursor (Item, Seq);
@@ -1369,6 +2452,15 @@ package body Math_Expander is
                   end if;
                   goto Iterate;
                end;
+            elsif Tok.Kind = Math_Tokens.Control_Word and then
+              Name (Name'First .. Name'First + 1) /= "\\" and then
+              not Item.Expansion_Only and then
+              not Math_Macros.Is_Defined (Shared, Name) and then
+              Name /= "\newline" and then
+              Is_Registered_Function_Name (Name)
+            then
+               Item.Returned := Item.Returned + 1;
+               return Tok;
             elsif Math_Macros.Is_Defined (Shared, Name) or else
               Math_Builtin_Macros.Lookup (Name).Found
             then
@@ -1382,6 +2474,8 @@ package body Math_Expander is
                     Math_Macros.Is_Defined (Shared, Name);
                   Builtin : constant Math_Builtin_Macros.Macro_Record :=
                     Math_Builtin_Macros.Lookup (Name);
+                  Template_Text : constant String :=
+                    Ada.Strings.Unbounded.To_String (Builtin.Template);
                   Template_Source : Math_Source.Source;
                   Template_Stream : Math_Tokens.Stream;
                   Source_Status : Math_Source.Diagnostic_Kind;
@@ -1447,25 +2541,29 @@ package body Math_Expander is
                      end;
                   else
                      Params := Builtin.Num_Params;
-                     declare
-                        Text : constant String :=
-                          Ada.Strings.Unbounded.To_String (Builtin.Template);
                      begin
-                        Math_Source.Create
-                          (Text, Template_Source, Source_Status, Error_Byte);
-                        if Source_Status /= Math_Source.No_Error then
+                        if Template_Text'Length > 0 then
+                           Math_Source.Create
+                             (Template_Text, Template_Source,
+                              Source_Status, Error_Byte);
+                           if Source_Status /= Math_Source.No_Error then
+                              Item.Status := Malformed_Definition;
+                              return Tok;
+                           end if;
+                        end if;
+                     end;
+                     if Template_Text'Length > 0 then
+                        Math_Tokens.Lex
+                          (Template_Source, Template_Stream, Lex_Status,
+                           Error_Byte);
+                        if Lex_Status /= Math_Tokens.No_Error then
                            Item.Status := Malformed_Definition;
                            return Tok;
                         end if;
-                     end;
-                     Math_Tokens.Lex
-                       (Template_Source, Template_Stream, Lex_Status,
-                        Error_Byte);
-                     if Lex_Status /= Math_Tokens.No_Error then
-                        Item.Status := Malformed_Definition;
-                        return Tok;
+                        Def_Count := Math_Tokens.Count (Template_Stream) - 1;
+                     else
+                        Def_Count := 0;
                      end if;
-                     Def_Count := Math_Tokens.Count (Template_Stream) - 1;
                   end if;
                   if User_Defined then
                      for I in 1 .. Math_Macros.Prefix_Token_Count
@@ -1495,6 +2593,7 @@ package body Math_Expander is
                      return Tok;
                   end if;
                   for A in 1 .. Params loop
+                  Math_Work_Control.Poll (Item.Work);
                      declare
                         T : Math_Tokens.Token := Read_Raw (Item);
                         Spaces : Token_Vectors.Vector;
@@ -1532,12 +2631,14 @@ package body Math_Expander is
                                  Left.Lexeme = Right.Lexeme);
                            begin
                               for I in 1 .. Pattern_Length loop
+                              Math_Work_Control.Poll (Item.Work);
                                  Pattern.Append
                                    (Math_Macros.Delimiter_Token_At
                                       (Definition_Value, Positive (A),
                                        Positive (I)));
                               end loop;
                               for I in 2 .. Pattern_Length loop
+                              Math_Work_Control.Poll (Item.Work);
                                  while Matched > 0 and then not Same_Token
                                    (Pattern (Positive (I)),
                                     Pattern (Positive (Matched + 1)))
@@ -1623,6 +2724,7 @@ package body Math_Expander is
                                        Whole_Group : Boolean := True;
                                     begin
                                        for I in 1 .. Natural (Args (A).Length) loop
+                                       Math_Work_Control.Poll (Item.Work);
                                           if Args (A) (Positive (I)).Kind =
                                             Math_Tokens.Left_Group
                                           then
@@ -1675,6 +2777,7 @@ package body Math_Expander is
                            end;
                         elsif A = 1 and then Has_Default then
                            for I in 1 .. Default_Count loop
+                           Math_Work_Control.Poll (Item.Work);
                               Append_Temporary
                                 (Args (A), Math_Macros.Default_Token_At
                                    (Definition_Value, Positive (I)));
@@ -1683,6 +2786,7 @@ package body Math_Expander is
                               Pushback (Item, T);
                            end if;
                            for I in reverse 1 .. Natural (Spaces.Length) loop
+                           Math_Work_Control.Poll (Item.Work);
                               Pushback (Item, Spaces (Positive (I)));
                            end loop;
                         elsif T.Kind = Math_Tokens.Left_Group then
@@ -1690,6 +2794,7 @@ package body Math_Expander is
                               Level : Natural := 1;
                            begin
                               while Level > 0 loop
+                              Math_Work_Control.Poll (Item.Work);
                                  T := Read_Raw (Item);
                                  if T.Kind = Math_Tokens.End_Of_Input then
                                     Bad := True;
@@ -1723,6 +2828,7 @@ package body Math_Expander is
                      I : Positive := 1;
                   begin
                      while I <= Def_Count loop
+                     Math_Work_Control.Poll (Item.Work);
                         declare
                            T : constant Math_Tokens.Token :=
                              Definition_Token (I);
@@ -1760,6 +2866,7 @@ package body Math_Expander is
                                    (Definition_Token (I).Code_Point - 48);
                               begin
                                  for V of Args (Arg_No) loop
+                                 Math_Work_Control.Poll (Item.Work);
                                     Append_Temporary (Out_Tokens, V);
                                  end loop;
                               end;
@@ -1783,6 +2890,7 @@ package body Math_Expander is
                        (1 .. Natural (Out_Tokens.Length));
                   begin
                      for I in Seq'Range loop
+                     Math_Work_Control.Poll (Item.Work);
                         Seq (I) := Out_Tokens (Positive (I));
                      end loop;
                      Queue_At_Cursor (Item, Seq);
@@ -1814,14 +2922,18 @@ package body Math_Expander is
    procedure Scan_Argument
      (Item : in out Cursor; Shared : in out Math_Macros.Context;
       Result : out Math_Tokens.Stream;
-      Diagnostic : out Diagnostic_Kind) is
+      Diagnostic : out Diagnostic_Kind;
+      Work : Math_Work_Control.Context_Access := null) is
       Tokens : Token_Vectors.Vector;
       T : Math_Tokens.Token;
+      Effective_Work : constant Math_Work_Control.Context_Access :=
+        (if Work = null then Item.Work else Work);
       Level : Natural := 0;
       Started : Boolean := False;
    begin
       loop
-         T := Next (Item, Shared);
+         Math_Work_Control.Poll (Effective_Work);
+         T := Next (Item, Shared, Effective_Work);
          if T.Kind = Math_Tokens.End_Of_Input then
             Item.Status := Argument_Error;
             Diagnostic := Argument_Error;
@@ -1850,6 +2962,7 @@ package body Math_Expander is
          Seq : Math_Tokens.Token_Sequence (1 .. Natural (Tokens.Length));
       begin
          for I in Seq'Range loop
+         Math_Work_Control.Poll (Item.Work);
             Seq (I) := Tokens (Positive (I));
          end loop;
          Math_Tokens.From_Tokens (Item.Input, Seq, Result);

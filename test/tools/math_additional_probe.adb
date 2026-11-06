@@ -4,6 +4,8 @@ with Ada.Strings.Unbounded;
 with Math_Engine;
 with Math_Layout;
 with Math_Macros;
+with Math_Tokens;
+with Math_Source;
 with Math_Model;
 with Math_Syntax;
 with Math_Semantics;
@@ -20,8 +22,65 @@ procedure Math_Additional_Probe is
    use type Math_Semantics.Child_Role;
    use type Ada.Strings.Unbounded.Unbounded_String;
    use type Math_Layout.Command_Kind;
+   use type Math_Source.Diagnostic_Kind;
+   use type Math_Tokens.Diagnostic_Kind;
+   use type Math_Tokens.Token_Kind;
+   use type Math_Macros.Diagnostic_Kind;
 
    Shared : aliased Math_Macros.Context;
+
+   type Test_Advance_Source is new Math_Metrics.Advance_Source with null record;
+
+   overriding function Advance
+     (Item       : Test_Advance_Source;
+      Font       : Font_Kind;
+      Code_Point : Natural;
+      Pixel_Em   : Long_Float) return Long_Float;
+
+   overriding function Font_Line_Extents
+     (Item     : Test_Advance_Source;
+      Font     : Font_Kind;
+      Pixel_Em : Long_Float) return Math_Metrics.Font_Line_Extent;
+
+   overriding function Font_Line_Height
+     (Item     : Test_Advance_Source;
+      Font     : Font_Kind;
+      Pixel_Em : Long_Float) return Long_Float;
+
+   overriding function Advance
+     (Item       : Test_Advance_Source;
+      Font       : Font_Kind;
+      Code_Point : Natural;
+      Pixel_Em   : Long_Float) return Long_Float is
+      pragma Unreferenced (Item);
+      pragma Unreferenced (Code_Point);
+   begin
+      if Font /= Typewriter_Regular then
+         raise Program_Error with "measured source got unexpected font";
+      end if;
+      return Pixel_Em * 0.75;
+   end Advance;
+
+   overriding function Font_Line_Extents
+     (Item     : Test_Advance_Source;
+      Font     : Font_Kind;
+      Pixel_Em : Long_Float) return Math_Metrics.Font_Line_Extent is
+      pragma Unreferenced (Item, Font);
+   begin
+      return
+        (Ascent => Pixel_Em * 0.8,
+         Descent => Pixel_Em * 0.2,
+         Height => Pixel_Em * 1.25);
+   end Font_Line_Extents;
+
+   overriding function Font_Line_Height
+     (Item     : Test_Advance_Source;
+      Font     : Font_Kind;
+      Pixel_Em : Long_Float) return Long_Float is
+      pragma Unreferenced (Item, Font);
+   begin
+      return Pixel_Em * 1.25;
+   end Font_Line_Height;
 
    procedure Check_Node
      (Source : String;
@@ -193,6 +252,196 @@ procedure Math_Additional_Probe is
       Ada.Text_IO.Put_Line ("PASS fraction " & Source);
    end Check_Fraction;
 
+   procedure Check_Internal_Class
+     (Class_Name, Body_Name : String; Expected : Atom_Class) is
+      Source : Math_Source.Source;
+      Stream : Math_Tokens.Stream;
+      Source_Diagnostic : Math_Source.Diagnostic_Kind;
+      Token_Diagnostic : Math_Tokens.Diagnostic_Kind;
+      Macro_Diagnostic : Math_Macros.Diagnostic_Kind;
+      Error_Byte : Natural;
+      Replacement : Math_Macros.Token_Sequence (1 .. 1);
+      Parsed : Math_Syntax.Document;
+      Root : Math_Syntax.Node;
+      Value : Math_Syntax.Node;
+      Semantics : Math_Semantics.Document;
+   begin
+      Math_Source.Create (Class_Name, Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Source, Stream, Token_Diagnostic, Error_Byte);
+      Replacement (1) := Math_Tokens.Element (Stream, 1);
+      Replacement (1).Kind := Math_Tokens.Control_Word;
+      Replacement (1).Lexeme := Ada.Strings.Unbounded.To_Unbounded_String
+        (Class_Name);
+      Math_Macros.Define_Tokens
+        (Shared, "\class", 0, Replacement, False, Macro_Diagnostic);
+      if Source_Diagnostic /= Math_Source.No_Error or else
+        Token_Diagnostic /= Math_Tokens.No_Error or else
+        Macro_Diagnostic /= Math_Macros.No_Error
+      then
+         raise Program_Error with "internal mclass token setup failed";
+      end if;
+      Math_Source.Create (Body_Name, Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Source, Stream, Token_Diagnostic, Error_Byte);
+      Replacement (1) := Math_Tokens.Element (Stream, 1);
+      Replacement (1).Kind := Math_Tokens.Control_Word;
+      Replacement (1).Lexeme := Ada.Strings.Unbounded.To_Unbounded_String
+        (Body_Name);
+      Math_Macros.Define_Tokens
+        (Shared, "\body", 0, Replacement, False, Macro_Diagnostic);
+      if Macro_Diagnostic /= Math_Macros.No_Error then
+         raise Program_Error with "internal mclass body token setup failed";
+      end if;
+      Math_Source.Create ("\@binrel", Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Source, Stream, Token_Diagnostic, Error_Byte);
+      Replacement (1) := Math_Tokens.Element (Stream, 1);
+      Replacement (1).Kind := Math_Tokens.Control_Word;
+      Replacement (1).Lexeme := Ada.Strings.Unbounded.To_Unbounded_String
+        ("\\@binrel");
+      Math_Macros.Define_Tokens
+        (Shared, "\binrel", 0, Replacement, False, Macro_Diagnostic);
+      if Macro_Diagnostic /= Math_Macros.No_Error then
+         raise Program_Error with "internal mclass function setup failed";
+      end if;
+      Parsed := Math_Syntax.Parse
+        ("\binrel{" & Class_Name & "{=}}{\alpha}", Shared'Access);
+      if not Math_Syntax.Is_Valid (Parsed) then
+         raise Program_Error with "internal mclass parse failed: " &
+           Math_Syntax.Error (Parsed);
+      end if;
+      Root := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Value := Math_Syntax.Element (Parsed, Positive (Root.First));
+      Semantics := Math_Semantics.Project (Parsed);
+      if Value.Class /= Expected or else
+        not Math_Layout.Build (Parsed).Valid or else
+        not Math_Semantics.Is_Valid (Semantics) or else
+        Math_Semantics.Element
+          (Semantics, Positive (Math_Semantics.Root (Semantics) + 1)).Class /=
+            Expected
+      then
+         raise Program_Error with "wrong internal mclass class transfer: AST=" &
+           Value.Class'Image & " expected=" & Expected'Image & " semantic=" &
+           Math_Semantics.Element
+             (Semantics, Positive (Math_Semantics.Root (Semantics) + 1)).Class'Image;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS internal mclass " & Class_Name);
+   end Check_Internal_Class;
+
+   procedure Check_Internal_Fraction
+     (Name, Call, Expected_Name : String;
+      Bar : Fraction_Bar_Mode;
+      Left : Math_Syntax.Delimiter_Kind := Math_Syntax.No_Delimiter;
+      Thickness : Long_Float := -1.0) is
+      Source : Math_Source.Source;
+      Stream : Math_Tokens.Stream;
+      Source_Diagnostic : Math_Source.Diagnostic_Kind;
+      Token_Diagnostic : Math_Tokens.Diagnostic_Kind;
+      Macro_Diagnostic : Math_Macros.Diagnostic_Kind;
+      Error_Byte : Natural;
+      Replacement : Math_Macros.Token_Sequence (1 .. 1);
+      Parsed : Math_Syntax.Document;
+      Root : Math_Syntax.Node;
+      Item : Math_Syntax.Node;
+   begin
+      Math_Source.Create (Expected_Name, Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Source, Stream, Token_Diagnostic, Error_Byte);
+      if Source_Diagnostic /= Math_Source.No_Error or else
+        Token_Diagnostic /= Math_Tokens.No_Error
+      then
+         raise Program_Error with "internal command token setup failed";
+      end if;
+      Replacement (1) := Math_Tokens.Element (Stream, 1);
+      Replacement (1).Kind := Math_Tokens.Control_Word;
+      Replacement (1).Lexeme :=
+        Ada.Strings.Unbounded.To_Unbounded_String (Expected_Name);
+      Math_Macros.Define_Tokens
+        (Shared, Name, 0, Replacement, False, Macro_Diagnostic);
+      if Macro_Diagnostic /= Math_Macros.No_Error then
+         raise Program_Error with "internal command macro definition failed";
+      end if;
+      Parsed := Math_Syntax.Parse (Call, Shared'Access);
+      if not Math_Syntax.Is_Valid (Parsed) then
+         raise Program_Error with Call & ": " & Math_Syntax.Error (Parsed);
+      end if;
+      Root := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Item.Kind /= Fraction_Node or else Item.Fraction_Bar /= Bar or else
+        Item.Left_Delimiter /= Left or else
+        abs (Item.Fraction_Rule_Thickness - Thickness) > 0.000_000_001 or else
+        not Math_Layout.Build (Parsed).Valid or else
+        not Math_Semantics.Is_Valid (Math_Semantics.Project (Parsed))
+      then
+         raise Program_Error with "internal helper payload/layout failed: " &
+           Expected_Name;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS internal fraction " & Expected_Name);
+   end Check_Internal_Fraction;
+
+   procedure Check_Internal_Command
+     (Name, Call, Expected_Name : String;
+      Expected_Kind : Node_Kind;
+      Expected_Stretchy : Boolean := False) is
+      Source : Math_Source.Source;
+      Stream : Math_Tokens.Stream;
+      Source_Diagnostic : Math_Source.Diagnostic_Kind;
+      Token_Diagnostic : Math_Tokens.Diagnostic_Kind;
+      Macro_Diagnostic : Math_Macros.Diagnostic_Kind;
+      Error_Byte : Natural;
+      Replacement : Math_Macros.Token_Sequence (1 .. 1);
+      Parsed : Math_Syntax.Document;
+      Root : Math_Syntax.Node;
+      Item : Math_Syntax.Node;
+      Meaning : Math_Semantics.Document;
+   begin
+      Math_Source.Create (Expected_Name, Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Source, Stream, Token_Diagnostic, Error_Byte);
+      if Source_Diagnostic /= Math_Source.No_Error or else
+        Token_Diagnostic /= Math_Tokens.No_Error
+      then
+         raise Program_Error with "internal command token setup failed";
+      end if;
+      Replacement (1) := Math_Tokens.Element (Stream, 1);
+      Replacement (1).Kind := Math_Tokens.Control_Word;
+      Replacement (1).Lexeme :=
+        Ada.Strings.Unbounded.To_Unbounded_String
+          ((if Expected_Name (Expected_Name'First) = '\'
+            then Expected_Name else "\\" & Expected_Name));
+      Math_Macros.Define_Tokens
+        (Shared, Name, 0, Replacement, False, Macro_Diagnostic);
+      if Macro_Diagnostic /= Math_Macros.No_Error then
+         raise Program_Error with "internal command macro definition failed";
+      end if;
+      Parsed := Math_Syntax.Parse (Call, Shared'Access);
+      Meaning := Math_Semantics.Project (Parsed);
+      if not Math_Syntax.Is_Valid (Parsed) then
+         raise Program_Error with Call & ": " & Math_Syntax.Error (Parsed);
+      end if;
+      Root := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Item.Kind /= Expected_Kind or else
+        not Math_Layout.Build (Parsed).Valid or else
+        not Math_Semantics.Is_Valid (Meaning)
+      then
+         raise Program_Error with "internal command branch failed: " & Name &
+           " kind=" & Item.Kind'Image & " layout=" &
+           Boolean'Image (Math_Layout.Build (Parsed).Valid) &
+           " semantics=" & Boolean'Image
+             (Math_Semantics.Is_Valid (Meaning)) & " stretchy=" &
+           Ada.Strings.Unbounded.To_String (Item.Stretchy_Name);
+      end if;
+      if Expected_Stretchy and then
+        Ada.Strings.Unbounded.To_String (Item.Stretchy_Name) /=
+          (if Expected_Name (Expected_Name'First) = '\'
+           then Expected_Name (Expected_Name'First + 1 .. Expected_Name'Last)
+           else Expected_Name)
+      then
+         raise Program_Error with "internal CD arrow name changed: " & Name;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS internal command " & Name);
+   end Check_Internal_Command;
+
    procedure Check_Invalid_Fraction (Source : String; Position : Natural) is
       Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
    begin
@@ -279,6 +528,111 @@ procedure Math_Additional_Probe is
       Ada.Text_IO.Put_Line ("PASS stretchy " & Source);
    end Check_Stretchy;
 
+   procedure Check_Accent_Geometry
+     (Source : String; Selector : Natural; Name : String;
+      Under : Boolean := False)
+   is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Root : Math_Syntax.Node;
+      Item : Math_Syntax.Node;
+      Found : Boolean := False;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid then
+         raise Program_Error with "accent geometry rejected: " & Source;
+      end if;
+      Root := Math_Syntax.Element (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Item.Kind /= Accent_Node or else Item.Code_Point /= Selector or else
+        Item.Accent_Type /= (if Under then Below_Accent else Above_Accent)
+      then
+         raise Program_Error with "accent metadata mismatch: " & Source;
+      end if;
+      for Command of Geometry.Commands loop
+         if Command.Kind = Math_Layout.Path_Command and then
+           not Command.Path_Data.Is_Empty
+         then
+            Found := True;
+         end if;
+      end loop;
+      if not Found then
+         raise Program_Error with "accent path missing: " & Source;
+      end if;
+      declare
+         Semantics : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+      begin
+         if not Math_Semantics.Is_Valid (Semantics) or else
+           Math_Semantics.Accent_Command
+             (Semantics, Positive (Math_Semantics.Root (Semantics) + 1)) /=
+               "\" & Name
+         then
+            raise Program_Error with "accent semantics invalid: " & Source;
+         end if;
+      end;
+      Ada.Text_IO.Put_Line ("PASS accent " & Name & " " & Source);
+   end Check_Accent_Geometry;
+
+   procedure Check_Enclosure_Geometry
+     (Source : String; Kind : Enclosure_Kind)
+   is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Root : Math_Syntax.Node;
+      Item : Math_Syntax.Node;
+      Found_Path : Boolean := False;
+      Found_Top : Boolean := False;
+      Found_Right : Boolean := False;
+      Bad_Actuarial_Rule : Boolean := False;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid then
+         raise Program_Error with "enclosure geometry rejected: " & Source;
+      end if;
+      Root := Math_Syntax.Element (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Item.Kind /= Enclosed_Node or else Item.Enclosure /= Kind then
+         raise Program_Error with "enclosure metadata mismatch: " & Source;
+      end if;
+      for Command of Geometry.Commands loop
+         if Kind = Phase_Enclosure and then
+           Command.Kind = Math_Layout.Path_Command and then
+           Command.Has_Clip and then not Command.Path_Data.Is_Empty
+         then
+            Found_Path := True;
+         elsif Kind = Actuarial_Enclosure and then
+           Command.Kind = Math_Layout.Rule_Command
+         then
+            if abs (Command.X) <= 0.000_001 and then
+              abs (Command.Y + Geometry.Ascent) <= 0.000_001 and then
+              abs (Command.Height - 0.04) <= 0.000_001 and then
+              abs (Command.Width - Geometry.Width) <= 0.000_001
+            then
+               Found_Top := True;
+            elsif abs (Command.X - (Geometry.Width - 0.04)) <=
+              0.000_001 and then
+              abs (Command.Y + Geometry.Ascent) <= 0.000_001 and then
+              abs (Command.Width - 0.04) <= 0.000_001 and then
+              abs (Command.Height - (Geometry.Ascent + Geometry.Descent)) <=
+                0.000_001
+            then
+               Found_Right := True;
+            else
+               Bad_Actuarial_Rule := True;
+            end if;
+         end if;
+      end loop;
+      if (Kind = Phase_Enclosure and then not Found_Path) or else
+        (Kind = Actuarial_Enclosure and then
+         (abs (Geometry.Ascent - 0.590_56) > 0.000_01 or else
+          abs (Geometry.Descent - 0.25) > 0.000_01 or else
+          not Found_Top or else not Found_Right or else
+          Bad_Actuarial_Rule))
+      then
+         raise Program_Error with "enclosure edge/path missing: " & Source;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS enclosure " & Kind'Image & " " & Source);
+   end Check_Enclosure_Geometry;
+
    procedure Check_Unsupported (Source : String) is
       Options : Math_Engine.Request;
       Result : Math_Engine.Result;
@@ -315,17 +669,22 @@ procedure Math_Additional_Probe is
       Scripts : Math_Syntax.Node;
    begin
       if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid then
-         raise Program_Error with Source & ": " & Math_Syntax.Error (Parsed);
+         raise Program_Error with Source & ": " & Math_Syntax.Error (Parsed) &
+           " at byte " & Natural'Image (Math_Syntax.Error_Position (Parsed));
       end if;
       Root := Math_Syntax.Element
         (Parsed, Positive (Math_Syntax.Root (Parsed)));
       Operator := Math_Syntax.Element (Parsed, Positive (Root.First));
-      while Operator.Next /= No_Node loop
-         Operator := Math_Syntax.Element
-           (Parsed, Positive (Operator.Next));
-         exit when Operator.Kind = Scripts_Node;
-      end loop;
-      Scripts := Operator;
+      if Operator.Kind = Scripts_Node then
+         Scripts := Operator;
+      else
+         while Operator.Next /= No_Node loop
+            Operator := Math_Syntax.Element
+              (Parsed, Positive (Operator.Next));
+            exit when Operator.Kind = Scripts_Node;
+         end loop;
+         Scripts := Operator;
+      end if;
       if Scripts.Kind /= Scripts_Node or else
         Scripts.Script_Type /= Expected
       then
@@ -704,7 +1063,229 @@ procedure Math_Additional_Probe is
       Ada.Text_IO.Put_Line ("PASS " & Source);
    end Check_Dimension;
 
+   procedure Check_Space_Control
+     (Source : String; Expected_Amount : Long_Float;
+      Expected_Break : Break_Kind := No_Break_Metadata) is
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Semantics : constant Math_Semantics.Document :=
+        Math_Semantics.Project (Parsed);
+      Root : Math_Syntax.Node;
+      Item : Math_Syntax.Node;
+      Semantic_Found : Boolean := False;
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+        not Math_Semantics.Is_Valid (Semantics)
+      then
+         raise Program_Error with "space command rejected: " & Source;
+      end if;
+      Root := Math_Syntax.Element (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+      if Item.Kind /= Space_Node or else
+        Item.Amount /= Expected_Amount or else Item.Break /= Expected_Break
+      then
+         raise Program_Error with "space payload mismatch: " & Source;
+      end if;
+      if Expected_Break /= No_Break_Metadata then
+         for Index in 1 .. Math_Semantics.Count (Semantics) loop
+            declare
+               Semantic_Value : constant Math_Semantics.Semantic_Node :=
+                 Math_Semantics.Element (Semantics, Index);
+            begin
+               if Semantic_Value.Kind = Space_Node and then
+                 Semantic_Value.Break = Expected_Break
+               then
+                  Semantic_Found := True;
+               end if;
+            end;
+         end loop;
+         if not Semantic_Found or else
+           (Expected_Amount = 0.0 and then Geometry.Width /= 0.0)
+         then
+            raise Program_Error with
+              "break metadata lost or assigned visible width: " & Source;
+         end if;
+      end if;
+      Ada.Text_IO.Put_Line ("PASS spacing/break metadata " & Source);
+   end Check_Space_Control;
+
 begin
+      declare
+         Strict_Phase : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\phase", (Strict => Math_Syntax.Strict_Error, others => <>));
+         Strict_Angle : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\angl", (Strict => Math_Syntax.Strict_Error, others => <>));
+      begin
+         if Math_Syntax.Is_Valid (Strict_Phase) or else
+           Math_Syntax.Is_Valid (Strict_Angle) or else
+           Math_Syntax.Error (Strict_Phase)'Length = 0 or else
+           Math_Syntax.Error (Strict_Angle)'Length = 0
+         then
+            raise Program_Error with "strict malformed enclosure accepted";
+         end if;
+      end;
+      declare
+         Strict_Cedilla : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\c{c}", (Strict => Math_Syntax.Strict_Error, others => <>));
+         Strict_Circle : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\textcircled{R}",
+            (Strict => Math_Syntax.Strict_Error, others => <>));
+      begin
+         if Math_Syntax.Is_Valid (Strict_Cedilla) or else
+           Math_Syntax.Error (Strict_Cedilla)'Length = 0 or else
+           Math_Syntax.Error (Strict_Cedilla) (1 .. 7) /= "refused" or else
+           Math_Syntax.Is_Valid (Strict_Circle)
+         then
+            raise Program_Error with "strict text accent refusal mismatch";
+         end if;
+      end;
+      declare
+         Settings : Math_Syntax.Options := (Strict => Math_Syntax.Strict_Ignore,
+                                             others => <>);
+         Parsed : Math_Syntax.Document;
+      begin
+         declare
+            Accents : constant array (Positive range 1 .. 11) of
+              Ada.Strings.Unbounded.Unbounded_String :=
+                (Ada.Strings.Unbounded.To_Unbounded_String ("\`"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\'"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\^"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\~"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\="),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\."),
+                 Ada.Strings.Unbounded.To_Unbounded_String
+                   ("\" & Character'Val (34)),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\u"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\v"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\r"),
+                 Ada.Strings.Unbounded.To_Unbounded_String ("\H"));
+         begin
+            for Accent of Accents loop
+               Parsed := Math_Syntax.Parse
+                 ("\text{" & Ada.Strings.Unbounded.To_String (Accent) &
+                  "{a}}", Settings);
+               if not Math_Syntax.Is_Valid (Parsed) then
+                  raise Program_Error with
+                    "text accent parse failed: " &
+                    Ada.Strings.Unbounded.To_String (Accent) & ": " &
+                    Math_Syntax.Error (Parsed);
+               elsif not Math_Layout.Build (Parsed).Valid then
+                  raise Program_Error with
+                    "text accent layout failed: " &
+                    Ada.Strings.Unbounded.To_String (Accent);
+               end if;
+            end loop;
+         end;
+         declare
+            Italic : constant Math_Syntax.Document := Math_Syntax.Parse
+              ("\text{\textit{\^{a}}}", Settings);
+            Layout : constant Math_Layout.Box := Math_Layout.Build (Italic);
+            Found : Boolean := False;
+         begin
+            for Command of Layout.Commands loop
+               if Command.Code_Point = 16#02C6# then
+                  Found := Command.Font = Main_Italic;
+               end if;
+            end loop;
+            if not Layout.Valid or else not Found then
+               raise Program_Error with
+                 "text accent did not inherit the selected italic face";
+            end if;
+         end;
+         Ada.Text_IO.Put_Line ("PASS text accents in text font mode");
+      end;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\text{\c{c}}+x");
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) then
+            raise Program_Error with
+              "cedilla text parse failed: " & Math_Syntax.Error (Parsed);
+         end if;
+         declare
+            Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+            Semantics : constant Math_Semantics.Document :=
+              Math_Semantics.Project (Parsed);
+            Root : constant Math_Syntax.Node := Math_Syntax.Element
+              (Parsed, Positive (Math_Syntax.Root (Parsed)));
+            Text_Row : constant Math_Syntax.Node := Math_Syntax.Element
+              (Parsed, Positive (Root.First));
+            Accent : constant Math_Syntax.Node := Math_Syntax.Element
+              (Parsed, Positive (Text_Row.First));
+            Base_Row : constant Math_Syntax.Node := Math_Syntax.Element
+              (Parsed, Positive (Accent.First));
+            Base : constant Math_Syntax.Node := Math_Syntax.Element
+              (Parsed, Positive (Base_Row.First));
+            Semantic_Role_Found : Boolean := False;
+            Found : Boolean := False;
+            Mark : Math_Layout.Draw_Command;
+         begin
+            for Index in 1 .. Math_Semantics.Count (Semantics) loop
+               if Math_Semantics.Element (Semantics, Index).Role =
+                 Math_Semantics.Accent_Under_Base
+               then
+                  Semantic_Role_Found := True;
+               end if;
+            end loop;
+            for Command of Geometry.Commands loop
+               if Command.Code_Point = 16#00B8# then
+                  Found := True;
+                  Mark := Command;
+               end if;
+            end loop;
+            if not Geometry.Valid or else
+              not Math_Semantics.Is_Valid (Semantics) or else
+              Accent.Kind /= Accent_Node or else
+              Accent.Code_Point /= 16#00B8# or else
+              Accent.Accent_Type /= Below_Accent or else
+              Accent.Position /= 7 or else Base.Kind /= Glyph_Node or else
+              Base.Font /= Main_Regular or else not Semantic_Role_Found or else
+              not Found or else Mark.Font /= Main_Regular or else
+              Mark.Kind /= Math_Layout.Glyph_Command or else Mark.Y /= 0.0 or else
+              Mark.Height <= 0.0
+            then
+               raise Program_Error with
+                 "cedilla typed below layout mismatch";
+            end if;
+            Ada.Text_IO.Put_Line
+              ("PASS cedilla typed below-role and glyph paint");
+         end;
+      end;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\text{\textcircled{R}}");
+         Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Root : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Text_Row : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Root.First));
+         Accent : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Text_Row.First));
+         Base : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Accent.First));
+         Found : Boolean := False;
+         Circle : Math_Layout.Draw_Command;
+      begin
+         for Command of Geometry.Commands loop
+            if Command.Code_Point = 16#25EF# then
+               Found := True;
+               Circle := Command;
+            end if;
+         end loop;
+         if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+           Accent.Kind /= Accent_Node or else
+           Accent.Accent_Type /= Full_Accent or else
+           Accent.Code_Point /= 16#25EF# or else Accent.Position /= 7 or else
+           Base.Font /= Main_Regular or else not Found or else
+           Circle.Font /= Main_Regular or else
+           Circle.Kind /= Math_Layout.Glyph_Command or else
+           Circle.X /= 0.0 or else abs (Circle.Y - 0.005_56) > 0.000_01 or else
+           Geometry.Width < Circle.Width
+         then
+            raise Program_Error with "textcircled did not paint pinned bigcirc";
+         end if;
+         Ada.Text_IO.Put_Line ("PASS textcircled full-width bigcirc glyph");
+      end;
       Check_Verbatim ("\verb|a b\alpha%{}#^&_|", "a b\alpha%{}#^&_", False);
       Check_Verbatim ("\verb*|a b~|", "a b~", True);
       Check_Verbatim ("\verb|}|", "}", False);
@@ -750,7 +1331,8 @@ begin
          Found : Boolean := False;
       begin
          if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
-           not Math_Semantics.Is_Valid (Semantics)
+           not Math_Semantics.Is_Valid (Semantics) or else
+           Math_Semantics.Count (Semantics) < 4
          then
             raise Program_Error with
               "hbox verbatim dollar was parsed as a math boundary";
@@ -935,9 +1517,348 @@ begin
       Check_Dimension ("\kern500pt", 10, 10.0);
       Check_Dimension ("\kern-101em", 10, -101.0);
       Check_Invalid_Node ("\kern-16385em");
+      Check_Node ("\sqrt[[x]]{x}", Radical_Node);
       Check_Dimension ("\kern100em", 100, 100.0);
       Check_Dimension ("\kern1bp", 100, 0.100375);
       Check_Dimension ("\kern1pt", 100, 0.1);
+      Check_Dimension ("\kern.2em", 100, 0.2);
+      Check_Dimension ("\kern-.2em", 100, -0.2);
+      Check_Dimension ("\kern-.1667em", 100, -0.1667);
+      Check_Dimension ("\kern{-.5ex}", 100, -0.2155);
+      Check_Space_Control ("\:", 4.0 / 18.0);
+      Check_Space_Control ("\>", 4.0 / 18.0);
+      Check_Space_Control ("\allowbreak", 0.0, Allow_Break);
+      Check_Space_Control ("\nobreak", 0.0, Forbid_Break);
+      declare
+         procedure Check_Empty_Root (Source : String) is
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+            Root : Math_Syntax.Node;
+            Layout : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+            Meaning : constant Math_Semantics.Document :=
+              Math_Semantics.Project (Parsed);
+         begin
+            if not Math_Syntax.Is_Valid (Parsed) or else
+              not Layout.Valid or else Layout.Width /= 0.0 or else
+              Layout.Ascent /= 0.0 or else Layout.Descent /= 0.0 or else
+              not Math_Semantics.Is_Valid (Meaning)
+            then
+               raise Program_Error with "empty command root invalid: " & Source;
+            end if;
+            Root := Math_Syntax.Element
+              (Parsed, Positive (Math_Syntax.Root (Parsed)));
+            Ada.Text_IO.Put_Line ("PASS empty command root " & Source);
+         end Check_Empty_Root;
+      begin
+         declare
+            Inline_Options : Math_Syntax.Options := (others => <>);
+            Display_Options : Math_Syntax.Options := (others => <>);
+            Inline : constant Math_Syntax.Document :=
+              Math_Syntax.Parse ("x\newline y", Inline_Options);
+            Spaced : constant Math_Syntax.Document :=
+              Math_Syntax.Parse ("x\\[.5em]y", Inline_Options);
+            Warn_Display : Math_Syntax.Document;
+            Ignore_Display : Math_Syntax.Document;
+            Inline_Box : Math_Layout.Box;
+            Spaced_Box : Math_Layout.Box;
+            Warn_Box : Math_Layout.Box;
+            Ignore_Box : Math_Layout.Box;
+            Literal_Box : Math_Layout.Box;
+            Inline_Semantics : Math_Semantics.Document;
+            Saw_Break : Boolean := False;
+            function Has_Break
+              (Parsed : Math_Syntax.Document;
+               Kind : Break_Kind;
+               Amount : Long_Float := Long_Float'First)
+               return Boolean
+            is
+            begin
+               for Index in 1 .. Math_Syntax.Count (Parsed) loop
+                  declare
+                     Item : constant Math_Syntax.Node :=
+                       Math_Syntax.Element (Parsed, Index);
+                  begin
+                     if Item.Kind = Space_Node and then
+                       Item.Code_Point = 7 and then Item.Break = Kind and then
+                       (Amount = Long_Float'First or else
+                        Item.Amount = Amount)
+                     then
+                        return True;
+                     end if;
+                  end;
+               end loop;
+               return False;
+            end Has_Break;
+         begin
+            Display_Options.Display_Mode := True;
+            Warn_Display := Math_Syntax.Parse
+              ("x\newline y", Display_Options);
+            Display_Options.Strict := Math_Syntax.Strict_Ignore;
+            Ignore_Display := Math_Syntax.Parse
+              ("x\\[.5em]y", Display_Options);
+            Inline_Box := Math_Layout.Build (Inline);
+            Spaced_Box := Math_Layout.Build (Spaced);
+            Warn_Box := Math_Layout.Build (Warn_Display);
+            Ignore_Box := Math_Layout.Build (Ignore_Display);
+            for Index in 1 .. Math_Syntax.Count (Ignore_Display) loop
+               declare
+                  Value : constant Math_Syntax.Node :=
+                    Math_Syntax.Element (Ignore_Display, Index);
+               begin
+                  if Value.Code_Point = 7 then
+                     Ada.Text_IO.Put_Line
+                       ("newline margin" & Long_Float'Image (Value.Amount));
+                  end if;
+               end;
+            end loop;
+            Inline_Semantics := Math_Semantics.Project (Inline);
+            declare
+               Macro_Context : aliased Math_Macros.Context;
+               Macro_Source : Math_Source.Source;
+               Macro_Stream : Math_Tokens.Stream;
+               Source_Status : Math_Source.Diagnostic_Kind;
+               Token_Status : Math_Tokens.Diagnostic_Kind;
+               Macro_Status : Math_Macros.Diagnostic_Kind;
+               Error_Byte : Natural;
+               Replacement : Math_Macros.Token_Sequence (1 .. 2);
+               Expanded : Math_Syntax.Document;
+               Expanded_Box : Math_Layout.Box;
+               Expanded_Literal : Math_Syntax.Document;
+               Expanded_Literal_Box : Math_Layout.Box;
+            Native_Literal : constant Math_Syntax.Document :=
+              Math_Syntax.Parse ("x\newline[.5em]y", Macro_Context'Access);
+            Native_Literal_Box : Math_Layout.Box;
+            Alias_Literal : constant Math_Syntax.Document :=
+              Math_Syntax.Parse
+                ("\\def\\br{\\newline}x\\br[.5em]y",
+                 Macro_Context'Access);
+            Alias_Literal_Box : Math_Layout.Box;
+            begin
+               Math_Source.Create
+                 ("\\\relax", Macro_Source, Source_Status, Error_Byte);
+               Math_Tokens.Lex
+                 (Macro_Source, Macro_Stream, Token_Status, Error_Byte);
+               if Source_Status /= Math_Source.No_Error or else
+                 Token_Status /= Math_Tokens.No_Error or else
+                 Math_Tokens.Count (Macro_Stream) /= 3
+               then
+                  raise Program_Error with "newline replacement tokens failed";
+               end if;
+               Replacement (1) := Math_Tokens.Element (Macro_Stream, 1);
+               Replacement (2) := Math_Tokens.Element (Macro_Stream, 2);
+               if Replacement (1).Kind /= Math_Tokens.Control_Symbol or else
+                 Replacement (1).Lexeme /= "\\" or else
+                 Replacement (2).Kind /= Math_Tokens.Control_Word or else
+                 Replacement (2).Lexeme /= "\relax"
+               then
+                  raise Program_Error with "newline macro expansion differs from KaTeX";
+               end if;
+               Math_Macros.Define_Tokens
+                 (Macro_Context, "\expandednewline", 0, Replacement,
+                  False, Macro_Status);
+               Expanded := Math_Syntax.Parse
+                 ("x\expandednewline y", Macro_Context'Access);
+               Expanded_Box := Math_Layout.Build (Expanded);
+               Expanded_Literal := Math_Syntax.Parse
+                 ("x\expandednewline[.5em]y", Macro_Context'Access);
+               Expanded_Literal_Box := Math_Layout.Build (Expanded_Literal);
+               Native_Literal_Box := Math_Layout.Build (Native_Literal);
+               Alias_Literal_Box := Math_Layout.Build (Alias_Literal);
+               if Macro_Status /= Math_Macros.No_Error or else
+                 not Math_Syntax.Is_Valid (Alias_Literal) or else
+                 not Alias_Literal_Box.Valid or else
+                 (for some Command of Alias_Literal_Box.Commands =>
+                    Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = Character'Pos ('[')) = False or else
+                 (for some Command of Alias_Literal_Box.Commands =>
+                    Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = Character'Pos (']')) = False or else
+                 Has_Break (Alias_Literal, Forced_Break, 0.5) or else
+                 not Math_Syntax.Is_Valid (Native_Literal) or else
+                 not Native_Literal_Box.Valid or else
+                 (for some Command of Native_Literal_Box.Commands =>
+                    Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = Character'Pos ('[')) = False or else
+                 (for some Command of Native_Literal_Box.Commands =>
+                    Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = Character'Pos (']')) = False or else
+                 Has_Break (Native_Literal, Forced_Break, 0.5) or else
+                 not Math_Syntax.Is_Valid (Expanded) or else
+                 not Has_Break (Expanded, Forced_Break) or else
+                 not Expanded_Box.Valid or else
+                 not Math_Syntax.Is_Valid (Expanded_Literal) or else
+                 not Expanded_Literal_Box.Valid or else
+                 Expanded_Literal_Box.Commands.Length < 8 or else
+                 (for some Command of Expanded_Literal_Box.Commands =>
+                    Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = Character'Pos ('[')) = False or else
+                 Has_Break (Expanded_Literal, Forced_Break, 0.5)
+               then
+                  raise Program_Error with
+                    "expanded newline did not leave optional-looking brackets literal";
+               end if;
+               Ada.Text_IO.Put_Line
+                 ("PASS newline macro expansion preserves token behavior");
+            end;
+            if not Has_Break (Warn_Display, Forced_Break) or else
+              not Has_Break (Ignore_Display, Forced_Break) or else
+              not Has_Break (Ignore_Display, Forced_Break, 0.5) or else
+              not Has_Break (Spaced, Forced_Break, 0.5) or else
+              not Math_Syntax.Is_Valid (Inline) or else
+              not Math_Syntax.Is_Valid (Spaced) or else
+              not Math_Syntax.Is_Valid (Warn_Display) or else
+              not Math_Syntax.Is_Valid (Ignore_Display) or else
+              not Inline_Box.Valid or else not Spaced_Box.Valid or else
+              not Warn_Box.Valid or else not Ignore_Box.Valid or else
+              Inline_Box.Commands.Length < 2 or else
+              Spaced_Box.Commands.Length < 2 or else
+              Warn_Box.Commands.Length < 2 or else
+              Ignore_Box.Commands.Length < 2
+            then
+               raise Program_Error with "newline layout did not emit lines";
+            end if;
+            declare
+               First : constant Math_Layout.Draw_Command :=
+                 Inline_Box.Commands (Inline_Box.Commands.First_Index);
+               Second : constant Math_Layout.Draw_Command :=
+                 Inline_Box.Commands (Inline_Box.Commands.Last_Index);
+               Spaced_First : constant Math_Layout.Draw_Command :=
+                 Spaced_Box.Commands (Spaced_Box.Commands.First_Index);
+               Spaced_Second : constant Math_Layout.Draw_Command :=
+                 Spaced_Box.Commands (Spaced_Box.Commands.Last_Index);
+            begin
+               if Second.Y - First.Y < 1.19 or else
+                 Spaced_Second.Y - Spaced_First.Y < 1.69 or else
+                 abs (Spaced_Second.Y - Spaced_First.Y -
+                   (Second.Y - First.Y) - 0.5) > 0.001 or else
+                 Inline_Box.Ascent + Inline_Box.Descent < 1.19 or else
+                 Spaced_Box.Ascent + Spaced_Box.Descent < 1.69
+               then
+                  raise Program_Error with "newline baseline spacing mismatch";
+               end if;
+            end;
+            for Index in 1 .. Math_Semantics.Count (Inline_Semantics) loop
+               declare
+                  Semantic : constant Math_Semantics.Semantic_Node :=
+                    Math_Semantics.Element (Inline_Semantics, Index);
+               begin
+                  if Semantic.Break = Forced_Break then
+                     Saw_Break := True;
+                  end if;
+               end;
+            end loop;
+            if not Saw_Break or else Ignore_Box.Width <= 0.0 then
+               raise Program_Error with "newline semantic payload missing";
+            end if;
+            Ada.Text_IO.Put_Line
+              ("PASS forced newline layout and semantic metadata");
+         end;
+         Check_Empty_Root ("\notag");
+         Check_Empty_Root ("\nonumber");
+         Check_Empty_Root ("\relax");
+         Check_Empty_Root ("{}");
+         Check_Empty_Root ("\gdef\saved{x}");
+         Check_Empty_Root ("\newline");
+         declare
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+              ("\newline \kern.5em");
+            Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         begin
+            if not Math_Syntax.Is_Valid (Parsed) or else
+              not Geometry.Valid or else Geometry.Width /= 0.5 or else
+              Geometry.Ascent /= 0.0 or else Geometry.Descent /= 0.0 or else
+              not Geometry.Commands.Is_Empty
+            then
+               raise Program_Error with
+                 "kern after an empty line must retain width, not height";
+            end if;
+            Ada.Text_IO.Put_Line ("PASS kern after empty line retains width");
+         end;
+      end;
+      declare
+         Source : constant String :=
+           "\ne \neq \not= a\ne b \not\mathrel{=}";
+         Initial_Count : constant Natural :=
+           Math_Macros.Definition_Count (Shared);
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           (Source, Shared'Access);
+         Layout : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Semantics : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else not Layout.Valid or else
+           not Math_Semantics.Is_Valid (Semantics) or else
+           Math_Macros.Definition_Count (Shared) /= Initial_Count or else
+           Math_Macros.Is_Defined (Shared, "\ne") or else
+           Math_Macros.Is_Defined (Shared, "\neq") or else
+           Math_Macros.Is_Defined (Shared, "\not")
+         then
+            raise Program_Error with Source & ": " & Math_Syntax.Error (Parsed);
+         end if;
+         Ada.Text_IO.Put_Line ("PASS raw not-equal aliases and relations");
+      end;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse ("≘");
+         Layout : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Semantics : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+         Root : Math_Syntax.Node;
+         Value : Math_Syntax.Node;
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) then
+            raise Program_Error with
+              "raw ≘ builtin macro parse failed: " & Math_Syntax.Error (Parsed);
+         end if;
+         Root := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Value := Math_Syntax.Element (Parsed, Positive (Root.First));
+         if Value.Kind /= Dual_Node or else Value.First = No_Node or else
+           Value.Second = No_Node or else not Layout.Valid or else
+           not Math_Semantics.Is_Valid (Semantics) or else
+           Math_Macros.Is_Defined (Shared, "\ne") or else
+           Math_Macros.Is_Defined (Shared, "\neq") or else
+           Math_Macros.Is_Defined (Shared, "\not")
+         then
+            raise Program_Error with "raw ≘ dual parse/layout/projection failed";
+         end if;
+         Ada.Text_IO.Put_Line ("PASS raw ≘ dual AST/layout/projection");
+      end;
+      declare
+         Source : constant String := "a≘b";
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+         Layout : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Semantics : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else not Layout.Valid or else
+           not Math_Semantics.Is_Valid (Semantics) or else
+           Math_Macros.Is_Defined (Shared, "\ne") or else
+           Math_Macros.Is_Defined (Shared, "\neq") or else
+           Math_Macros.Is_Defined (Shared, "\not")
+         then
+            raise Program_Error with Source & ": " & Math_Syntax.Error (Parsed);
+         end if;
+         Ada.Text_IO.Put_Line ("PASS composed ≘ macro expansion");
+      end;
+      declare
+         Settings : Math_Syntax.Options := (Display_Mode => True, others => <>);
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\tag{A}x", Settings);
+         Layout : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+         Root : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Tag_Node_Value : constant Math_Syntax.Node := Math_Syntax.Element
+           (Parsed, Positive (Root.First));
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else
+           Root.Kind /= Row_Node or else Root.Next /= No_Node or else
+           Tag_Node_Value.Kind /= Tagged_Node or else
+           Tag_Node_Value.Second = No_Node or else
+           not Layout.Valid
+         then
+            raise Program_Error with "display public tag parse/layout failed";
+         end if;
+         Ada.Text_IO.Put_Line ("PASS display public tag parse/layout");
+      end;
       declare
          Source : constant String :=
            "\approx \equiv \sim \propto \subseteq \notin " &
@@ -1014,6 +1935,110 @@ begin
    Check_Fraction ("a\above{0pt}b", No_Rule, Thickness => 0.0);
    Check_Fraction ("a\above{0.2pt}b", Custom_Rule,
      Thickness => 0.02);
+   Check_Internal_Class ("\mathbin", "\alpha", Binary_Atom);
+   Check_Internal_Class ("\mathrel", "\alpha", Relation_Atom);
+   Check_Internal_Class ("\mathord", "\alpha", Ordinary);
+   Check_Internal_Fraction ("\atopfrac", "\atopfrac{a}{b}",
+     "\\atopfrac", No_Rule);
+   Check_Internal_Fraction ("\bracefrac", "\bracefrac{a}{b}",
+     "\\bracefrac", No_Rule, Math_Syntax.Brace_Delimiter);
+   Check_Internal_Fraction ("\brackfrac", "\brackfrac{a}{b}",
+     "\\brackfrac", No_Rule, Math_Syntax.Bracket_Delimiter);
+   Check_Internal_Fraction ("\abovefrac", "\abovefrac{a}{0.2pt}{b}",
+     "\\abovefrac", Custom_Rule, Thickness => 0.02);
+   Check_Internal_Command
+     ("\internalcdleft", "\internalcdleft{a}", "\\cdleft", Style_Node);
+   Check_Internal_Command
+     ("\internalcdright", "\internalcdright{a}", "\\cdright", Style_Node);
+   Check_Internal_Command
+     ("\internalcdparent", "\internalcdparent{a}", "\\cdparent", Row_Node);
+   Check_Internal_Command
+     ("\internalcdleftarrow", "\internalcdleftarrow[b]{a}", "cdleftarrow",
+      Stretchy_Node, True);
+   Check_Internal_Command
+     ("\internalcdrightarrow", "\internalcdrightarrow[b]{a}", "cdrightarrow",
+      Stretchy_Node, True);
+   Check_Internal_Command
+     ("\internalcdlongequal", "\internalcdlongequal[b]{a}", "cdlongequal",
+      Stretchy_Node, True);
+   declare
+      procedure Check_CD_Arrow_Roles (Call : String) is
+         Parsed : constant Math_Syntax.Document :=
+           Math_Syntax.Parse (Call, Shared'Access);
+         Meaning : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+         Arrow : constant Math_Semantics.Semantic_Node :=
+           Math_Semantics.Element
+             (Meaning, Positive (Math_Semantics.Root (Meaning) + 1));
+         Upper : constant Math_Semantics.Semantic_Node :=
+           Math_Semantics.Element (Meaning, Positive (Arrow.First_Child));
+         Lower : constant Math_Semantics.Semantic_Node :=
+           Math_Semantics.Element
+             (Meaning, Positive (Upper.Next_Sibling));
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else
+           not Math_Semantics.Is_Valid (Meaning) or else
+           Arrow.Child_Count /= 2 or else
+           Upper.Role /= Math_Semantics.CD_Arrow_Left_Label or else
+           Lower.Role /= Math_Semantics.CD_Arrow_Right_Label
+         then
+            raise Program_Error with "CD arrow label roles failed: " & Call;
+         end if;
+      end Check_CD_Arrow_Roles;
+   begin
+      Check_CD_Arrow_Roles ("\internalcdleftarrow[b]{a}");
+      Check_CD_Arrow_Roles ("\internalcdrightarrow[b]{a}");
+      Check_CD_Arrow_Roles ("\internalcdlongequal[b]{a}");
+      Ada.Text_IO.Put_Line ("PASS CD arrow semantic label roles");
+   end;
+   declare
+      procedure Check_CD_Wrapper_Role
+        (Call : String; Expected_Kind : Node_Kind;
+         Expected_Role : Math_Semantics.Child_Role) is
+         Parsed : constant Math_Syntax.Document :=
+           Math_Syntax.Parse (Call, Shared'Access);
+         Meaning : constant Math_Semantics.Document :=
+           Math_Semantics.Project (Parsed);
+         Wrapper : constant Math_Semantics.Semantic_Node :=
+           Math_Semantics.Element
+             (Meaning, Positive (Math_Semantics.Root (Meaning) + 1));
+         Child : constant Math_Semantics.Semantic_Node :=
+           Math_Semantics.Element (Meaning, Positive (Wrapper.First_Child));
+      begin
+         if not Math_Syntax.Is_Valid (Parsed) or else
+           not Math_Semantics.Is_Valid (Meaning) or else
+           Wrapper.Kind /= Expected_Kind or else Wrapper.Child_Count /= 1 or else
+           Child.Role /= Expected_Role
+         then
+            raise Program_Error with "CD wrapper role failed: " & Call;
+         end if;
+      end Check_CD_Wrapper_Role;
+   begin
+      Check_CD_Wrapper_Role ("\internalcdleft{a}", Style_Node,
+        Math_Semantics.CD_Arrow_Left_Label);
+      Check_CD_Wrapper_Role ("\internalcdright{a}", Style_Node,
+        Math_Semantics.CD_Arrow_Left_Label);
+      Check_CD_Wrapper_Role ("\internalcdparent{a}", Row_Node,
+        Math_Semantics.CD_Arrow_Right_Label);
+      Ada.Text_IO.Put_Line ("PASS CD label and parent semantic roles");
+   end;
+   Check_Space_Control ("\space", 0.333, Forbid_Break);
+   Check_Node ("\stackrel{n}{=}", Annotation_Node);
+   declare
+      Relation_Layout : constant Math_Layout.Box := Math_Layout.Build
+        (Math_Syntax.Parse ("a\stackrel{n}{=}b"));
+      Overset_Layout : constant Math_Layout.Box := Math_Layout.Build
+        (Math_Syntax.Parse ("a\overset{n}{=}b"));
+      Underset_Layout : constant Math_Layout.Box := Math_Layout.Build
+        (Math_Syntax.Parse ("a\underset{n}{=}b"));
+   begin
+      if not Relation_Layout.Valid or else not Overset_Layout.Valid or else
+        not Underset_Layout.Valid
+      then
+         raise Program_Error with "stacked relation layout failed";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS stacked relations in expression context");
+   end;
    Check_Invalid_Fraction ("a\over b\choose c", 9);
    Check_Invalid_Fraction ("\over a", 1);
    Check_Invalid_Fraction ("a\over", 2);
@@ -1046,6 +2071,83 @@ begin
    Check_Sized_Delimiter ("Bigm", "|", 1.8, Ordinary, 4);
    Check_Sized_Delimiter ("biggm", "|", 2.4, Ordinary, 4);
    Check_Sized_Delimiter ("Biggm", "|", 3.0, Ordinary, 4);
+   declare
+      procedure Check_Delimiters is
+         Parsed : Math_Syntax.Document;
+         Root : Math_Syntax.Node;
+         Item : Math_Syntax.Node;
+         procedure Expect
+           (Source : String; Left, Right : Math_Syntax.Delimiter_Kind) is
+         begin
+            Parsed := Math_Syntax.Parse (Source);
+            if not Math_Syntax.Is_Valid (Parsed) then
+               raise Program_Error with Source & ": " & Math_Syntax.Error (Parsed);
+            end if;
+            Root := Math_Syntax.Element
+              (Parsed, Positive (Math_Syntax.Root (Parsed)));
+            Item := Math_Syntax.Element (Parsed, Positive (Root.First));
+            if Item.Kind /= Delimited_Node or else
+              Item.Left_Delimiter /= Left or else
+              Item.Right_Delimiter /= Right
+            then
+               raise Program_Error with "wrong delimiter AST: " & Source;
+            end if;
+            declare
+               Layout : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+            begin
+               if not Layout.Valid then
+                  raise Program_Error with "delimiter layout failed: " & Source;
+               end if;
+            end;
+         end Expect;
+      begin
+         Expect ("\left\langle x \right\rangle",
+           Math_Syntax.Angle_Delimiter, Math_Syntax.Angle_Delimiter);
+         Expect ("\left< x \right>",
+           Math_Syntax.Angle_Delimiter, Math_Syntax.Angle_Delimiter);
+         Expect ("\left\lfloor x \right\rfloor",
+           Math_Syntax.Floor_Delimiter, Math_Syntax.Floor_Delimiter);
+         Expect ("\left\lceil x \right\rceil",
+           Math_Syntax.Ceiling_Delimiter, Math_Syntax.Ceiling_Delimiter);
+         Parsed := Math_Syntax.Parse ("a|b");
+         if not Math_Syntax.Is_Valid (Parsed) then
+            raise Program_Error with "raw vertical bar rejected";
+         end if;
+         Parsed := Math_Syntax.Parse
+           ("\left\langle a \middle| b \right\rangle");
+         if not Math_Syntax.Is_Valid (Parsed) then
+            raise Program_Error with "bra-ket middle bar rejected";
+         end if;
+         declare
+            Found_Middle : Boolean := False;
+         begin
+            for Index in 1 .. Math_Syntax.Count (Parsed) loop
+               declare
+                  Middle_Node : constant Math_Syntax.Node :=
+                    Math_Syntax.Element (Parsed, Index);
+               begin
+                  if Middle_Node.Kind = Delimited_Node and then
+                    Middle_Node.Code_Point = 4
+                  then
+                     Found_Middle := True;
+                     if Middle_Node.Amount /= 1.0 then
+                        raise Program_Error with
+                          "middle delimiter size mismatch";
+                     end if;
+                  end if;
+               end;
+            end loop;
+            if not Found_Middle then
+               raise Program_Error with "middle delimiter node missing";
+            end if;
+         end;
+         Ada.Text_IO.Put_Line
+           ("PASS angle/floor/ceiling delimiters, bra-ket, and raw bar");
+      end Check_Delimiters;
+   begin
+      Check_Delimiters;
+   end;
+
    Check_Unsupported_Delimiter ("\big");
    Check_Unsupported_Delimiter ("\big x");
    Check_Unsupported_Delimiter ("\big\unknown");
@@ -1128,6 +2230,36 @@ begin
    Check_Stretchy ("\xrightleftarrows{a}", "xrightleftarrows", 1);
    Check_Stretchy ("\xrightequilibrium{a}", "xrightequilibrium", 1);
    Check_Stretchy ("\xleftequilibrium{a}", "xleftequilibrium", 1);
+   Check_Accent_Geometry ("\widecheck{x}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\widecheck{xy}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\widecheck{xyz}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\widecheck{wxyz}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\widecheck{vwxyz}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\widecheck{uvwxyz}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\widecheck{abcdefg}", Wide_Check_Code_Point,
+     "widecheck");
+   Check_Accent_Geometry ("\utilde{x}", Under_Tilde_Code_Point,
+     "utilde", Under => True);
+   Check_Accent_Geometry ("\utilde{xy}", Under_Tilde_Code_Point,
+     "utilde", Under => True);
+   Check_Accent_Geometry ("\utilde{xyz}", Under_Tilde_Code_Point,
+     "utilde", Under => True);
+   Check_Accent_Geometry ("\utilde{wxyz}", Under_Tilde_Code_Point,
+     "utilde", Under => True);
+   Check_Accent_Geometry ("\utilde{uvwxyz}", Under_Tilde_Code_Point,
+     "utilde", Under => True);
+   Check_Enclosure_Geometry ("\phase{x}", Phase_Enclosure);
+   Check_Enclosure_Geometry ("\phase{\frac{x}{y}}", Phase_Enclosure);
+   Check_Enclosure_Geometry ("\angl{x}", Actuarial_Enclosure);
+   Check_Enclosure_Geometry ("\angl{xy}", Actuarial_Enclosure);
+   Check_Invalid_Node ("\phase");
+   Check_Invalid_Node ("\angl");
    Check_Node ("\cancel{x}", Enclosed_Node);
    Check_Node ("\bcancel{x}", Enclosed_Node);
    Check_Node ("\xcancel{x}", Enclosed_Node);
@@ -1250,5 +2382,192 @@ begin
          raise Program_Error with "hbox dollar-math row failed";
       end if;
       Ada.Text_IO.Put_Line ("PASS hbox dollar-math baseline layout");
+   end;
+   declare
+      Source : aliased Test_Advance_Source;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\verb|AB|");
+      Normalized : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Measured_12 : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => 12.0, Advance_Source => Source'Unchecked_Access,
+          others => <>));
+      Measured_16 : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => 16.0, Advance_Source => Source'Unchecked_Access,
+          others => <>));
+      Measured_20 : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => 20.0, Advance_Source => Source'Unchecked_Access,
+          others => <>));
+      Measured_24 : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => 24.0, Advance_Source => Source'Unchecked_Access,
+          others => <>));
+      Measured_32 : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => 32.0, Advance_Source => Source'Unchecked_Access,
+          others => <>));
+      Measured_48 : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => 48.0, Advance_Source => Source'Unchecked_Access,
+          others => <>));
+   begin
+      if not Normalized.Valid or else not Measured_12.Valid or else
+        not Measured_16.Valid or else not Measured_20.Valid or else
+        not Measured_24.Valid or else not Measured_32.Valid or else
+        not Measured_48.Valid or else
+        abs (Normalized.Width - 1.05) > 0.000_001 or else
+        abs (Measured_12.Width - 1.5) > 0.000_001 or else
+        abs (Measured_16.Width - 1.5) > 0.000_001 or else
+        abs (Measured_20.Width - 1.5) > 0.000_001 or else
+        abs (Measured_24.Width - 1.5) > 0.000_001 or else
+        abs (Measured_32.Width - 1.5) > 0.000_001 or else
+        abs (Measured_48.Width - 1.5) > 0.000_001 or else
+        Measured_12.Commands (1).Width /= 0.75 or else
+        Measured_16.Commands (1).Width /= 0.75 or else
+        Measured_20.Commands (1).Width /= 0.75 or else
+        Measured_24.Commands (1).Width /= 0.75 or else
+        Measured_32.Commands (1).Width /= 0.75 or else
+        Measured_48.Commands (1).Width /= 0.75 or else
+        Math_Syntax.Source (Parsed) /= "\verb|AB|"
+      then
+         raise Program_Error with
+           "measured advances not normalized or input AST changed";
+      end if;
+      Ada.Text_IO.Put_Line
+        ("PASS measured advances normalized across 12/16/20/24/32/48 px em");
+      declare
+         Sizes : constant array (Positive range 1 .. 3) of Long_Float :=
+           (12.0, 24.0, 48.0);
+      begin
+         for Pixel_Em of Sizes loop
+         declare
+            Extents : constant Math_Metrics.Font_Line_Extent :=
+              Math_Metrics.Font_Line_Extents
+                (Math_Metrics.Advance_Source'Class (Source),
+                 Main_Regular, Pixel_Em);
+         begin
+            if Extents.Ascent /= Pixel_Em * 0.8 or else
+              Extents.Descent /= Pixel_Em * 0.2 or else
+              Extents.Height /= Pixel_Em * 1.25
+            then
+               raise Program_Error with
+                 "font line extents did not preserve measured scale";
+            end if;
+            end;
+         end loop;
+      end;
+      Ada.Text_IO.Put_Line
+        ("PASS font line extents preserve measured ascent/descent/height");
+   end;
+   declare
+      Source : aliased Test_Advance_Source;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\verb|A|");
+      Bad : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Advance_Source => Source'Unchecked_Access, others => <>));
+   begin
+      if Bad.Valid then
+         raise Program_Error with "provider accepted nonpositive pixel em";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS measured provider requires positive pixel em");
+   end;
+   declare
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\verb|A|");
+      Bad : constant Math_Layout.Box := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style, (Pixel_Em => 12.0, others => <>));
+   begin
+      if Bad.Valid then
+         raise Program_Error with "pixel em accepted without advance source";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS pixel em requires borrowed advance source");
+   end;
+   declare
+      Source : constant String := "\colorbox{red}{a b}";
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Source);
+      Root : constant Math_Syntax.Node := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Box_Node : constant Math_Syntax.Node := Math_Syntax.Element
+        (Parsed, Positive (Root.First));
+      Content : constant Math_Syntax.Node := Math_Syntax.Element
+        (Parsed, Positive (Box_Node.First));
+      Semantics : constant Math_Semantics.Document :=
+        Math_Semantics.Project (Parsed);
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      Background_Command : constant Math_Layout.Draw_Command :=
+        Geometry.Commands (Geometry.Commands.First_Index);
+      Last_Command : constant Math_Layout.Draw_Command :=
+        Geometry.Commands (Geometry.Commands.Last_Index);
+      Saw_Space : Boolean := False;
+      Saw_Glyph_After_Space : Boolean := False;
+      Current : Math_Syntax.Node := Math_Syntax.Element
+        (Parsed, Positive (Content.First));
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+        Box_Node.Kind /= Enclosed_Node or else
+        Box_Node.Enclosure /= Color_Box_Enclosure or else
+        Box_Node.Position /= 1 or else Box_Node.Box_Background.Red /= 1.0 or else
+        Box_Node.Box_Background.Green /= 0.0 or else
+        Content.Kind /= Row_Node or else Content.First = No_Node or else
+        not Math_Semantics.Is_Valid (Semantics) or else
+        not Background_Command.Has_Color or else
+        Background_Command.Red /= 1.0 or else
+        Last_Command.Kind /= Math_Layout.Glyph_Command or else
+        Last_Command.Font /= Main_Regular
+      then
+         raise Program_Error with "colorbox parse/layout contract failed";
+      end if;
+      loop
+         if Current.Kind = Space_Node and then Current.Amount = 0.333 then
+            Saw_Space := True;
+         elsif Saw_Space and then Current.Kind = Glyph_Node then
+            Saw_Glyph_After_Space := True;
+         end if;
+         exit when Current.Next = No_Node;
+         Current := Math_Syntax.Element (Parsed, Positive (Current.Next));
+      end loop;
+      if not Saw_Space or else not Saw_Glyph_After_Space then
+         raise Program_Error with "colorbox text whitespace was lost";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS colorbox whitespace, regular font, and fill");
+   end;
+   declare
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\fcolorbox{blue}{#ffffff}{A}");
+      Root : constant Math_Syntax.Node := Math_Syntax.Element
+        (Parsed, Positive (Math_Syntax.Root (Parsed)));
+      Box_Node : constant Math_Syntax.Node := Math_Syntax.Element
+        (Parsed, Positive (Root.First));
+      Geometry : constant Math_Layout.Box := Math_Layout.Build (Parsed);
+      First_Command : constant Math_Layout.Draw_Command :=
+        Geometry.Commands (Geometry.Commands.First_Index);
+      Last_Command : constant Math_Layout.Draw_Command :=
+        Geometry.Commands (Geometry.Commands.Last_Index);
+   begin
+      if not Math_Syntax.Is_Valid (Parsed) or else not Geometry.Valid or else
+        Box_Node.Enclosure /= Framed_Color_Box_Enclosure or else
+        Box_Node.Box_Background.Red /= 1.0 or else
+        Box_Node.Box_Border.Blue /= 1.0 or else
+        Box_Node.Box_Border_Thickness /= 0.04 or else
+        not First_Command.Has_Color or else not Last_Command.Has_Color or else
+        First_Command.Red /= 1.0 or else Last_Command.Blue /= 1.0
+      then
+         raise Program_Error with "fcolorbox distinct fill/border failed";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS fcolorbox distinct background and border");
+   end;
+   declare
+      Invalid : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\colorbox{not-a-color}{x}");
+   begin
+      if Math_Syntax.Is_Valid (Invalid) or else
+        Math_Syntax.Error (Invalid)'Length = 0
+      then
+         raise Program_Error with "invalid colorbox color was accepted";
+      end if;
+      Ada.Text_IO.Put_Line ("PASS colorbox rejects unsupported color");
    end;
 end Math_Additional_Probe;

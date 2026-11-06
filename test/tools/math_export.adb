@@ -14,6 +14,7 @@ with Math_Syntax;
 with Math_Paths;
 with Math_Semantics;
 with Math_Tokens;
+with Math_Text_Shaping;
 
 procedure Math_Export is
    use GNATCOLL.JSON;
@@ -21,6 +22,9 @@ procedure Math_Export is
    use type Math_Engine.Status_Kind;
    use type Math_Model.Node_Id;
    use type Math_Model.Node_Kind;
+   use type Math_Model.Break_Kind;
+   use type Math_Model.Array_Rule_Kind;
+   use type Math_Source.Diagnostic_Kind;
    use type Math_Paths.Command_Kind;
 
    Schema_Name : constant String := "coyote.math-export.v1";
@@ -176,6 +180,17 @@ procedure Math_Export is
       return Result;
    end Lower;
 
+   procedure Set_Color_Fields
+     (Value : JSON_Value;
+      Prefix : String;
+      Color : Math_Model.Color_Value) is
+   begin
+      Set_Field_Long_Float (Value, Prefix & "Red", Color.Red);
+      Set_Field_Long_Float (Value, Prefix & "Green", Color.Green);
+      Set_Field_Long_Float (Value, Prefix & "Blue", Color.Blue);
+      Set_Field_Long_Float (Value, Prefix & "Alpha", Color.Alpha);
+   end Set_Color_Fields;
+
    function Field_String
      (Item : JSON_Value;
       Name : String) return String is
@@ -205,12 +220,58 @@ procedure Math_Export is
                  not Finite (Command.Scale) or else
                  not Finite (Command.Width) or else
                  not Finite (Command.Height) or else
+                 not Finite (Command.Clip_X) or else
+                 not Finite (Command.Clip_Y) or else
+                 not Finite (Command.Clip_W) or else
+                 not Finite (Command.Clip_H) or else
+                 not Finite (Command.Red) or else
+                 not Finite (Command.Green) or else
+                 not Finite (Command.Blue) or else
+                 not Finite (Command.Alpha) or else
                  (Command.Has_Shadow and then
                   (not Finite (Command.Shadow_X) or else
                    not Finite (Command.Shadow_Y) or else
                    not Finite (Command.Shadow_Blur_Px)))
                then
                   return False;
+               end if;
+               if Command.Kind = Math_Layout.Path_Command then
+                  for Part in Command.Path_Data.First_Index ..
+                    Command.Path_Data.Last_Index
+                  loop
+                     declare
+                        Segment : constant Math_Paths.Segment :=
+                          Command.Path_Data (Part);
+                     begin
+                        if not Finite (Segment.First.X) or else
+                          not Finite (Segment.First.Y) or else
+                          not Finite (Segment.Second.X) or else
+                          not Finite (Segment.Second.Y) or else
+                          not Finite (Segment.Third.X) or else
+                          not Finite (Segment.Third.Y)
+                        then
+                           return False;
+                        end if;
+                     end;
+                  end loop;
+               end if;
+               if Command.Kind = Math_Layout.Text_Run_Command then
+                  declare
+                     Text_Source : Math_Source.Source;
+                     Diagnostic : Math_Source.Diagnostic_Kind;
+                     Error_Byte : Natural;
+                  begin
+                     Math_Source.Create
+                       (Ada.Strings.Unbounded.To_String
+                          (Command.Text_Run_Text),
+                        Text_Source, Diagnostic, Error_Byte);
+                     if Diagnostic /= Math_Source.No_Error or else
+                       not Math_Text_Shaping.Is_Valid_Profile
+                         (Command.Text_Run_Profile)
+                     then
+                        return False;
+                     end if;
+                  end;
                end if;
             end;
          end loop;
@@ -297,6 +358,10 @@ procedure Math_Export is
          Set_Field (Feature_Support, "verbatim", "partial");
          Set_Field (Feature_Support, "vcenter", "partial");
          Set_Field (Feature_Support, "poorManBold", "partial");
+         Set_Field (Feature_Support, "accentType", "partial");
+         Set_Field (Feature_Support, "semanticAccentUnderBase", "partial");
+         Set_Field (Feature_Support, "cdArray", "partial");
+         Set_Field (Feature_Support, "cdArrow", "partial");
          Set_Field (Capabilities, "featureSupport", Feature_Support);
       end;
       Set_Field (Capabilities, "paths", True);
@@ -330,10 +395,19 @@ procedure Math_Export is
                   (case Command.Kind is
                      when Math_Layout.Glyph_Command => "glyph",
                      when Math_Layout.Rule_Command => "rule",
-                     when Math_Layout.Path_Command => "path"));
+                     when Math_Layout.Path_Command => "path",
+                     when Math_Layout.Text_Run_Command => "text-run"));
                Set_Field (Value, "font", Lower (Math_Model.Font_Kind'Image
                  (Command.Font)));
                Set_Field (Value, "codePoint", Integer (Command.Code_Point));
+               if Command.Kind = Math_Layout.Text_Run_Command then
+                  Set_Field (Value, "text",
+                    Ada.Strings.Unbounded.To_String
+                      (Command.Text_Run_Text));
+                  Set_Field (Value, "scriptProfile",
+                    Lower (Math_Model.Script_Profile'Image
+                      (Command.Text_Run_Profile)));
+               end if;
                Set_Field_Long_Float (Value, "x", Command.X);
                Set_Field_Long_Float (Value, "y", Command.Y);
                Set_Field_Long_Float (Value, "scale", Command.Scale);
@@ -440,6 +514,56 @@ procedure Math_Export is
             Set_Field (Value, "font", Lower (Math_Model.Font_Kind'Image
               (Node.Font)));
             Set_Field (Value, "codePoint", Integer (Node.Code_Point));
+            if Node.Kind = Math_Model.Color_Node then
+               Set_Color_Fields (Value, "color", Node.Color);
+            end if;
+            Set_Field (Value, "mathStyle", Lower
+              (Math_Model.Math_Style_Kind'Image (Node.Math_Style)));
+            Set_Field (Value, "leftDelimiter", Lower
+              (Math_Syntax.Delimiter_Kind'Image (Node.Left_Delimiter)));
+            Set_Field (Value, "rightDelimiter", Lower
+              (Math_Syntax.Delimiter_Kind'Image (Node.Right_Delimiter)));
+            if Node.Kind = Math_Model.Text_Run_Node then
+               Set_Field (Value, "text",
+                 Ada.Strings.Unbounded.To_String (Node.Text_Run_Text));
+               Set_Field (Value, "scriptProfile", Lower
+                 (Math_Model.Script_Profile'Image (Node.Text_Run_Profile)));
+            end if;
+            if Node.Kind = Math_Model.Space_Node and then
+              Node.Break /= Math_Model.No_Break_Metadata
+            then
+               Set_Field (Value, "breakKind", Lower
+                 (Math_Model.Break_Kind'Image (Node.Break)));
+            end if;
+            if Node.Kind = Math_Model.Array_Node and then
+              not Node.Array_Rules.Is_Empty
+            then
+               declare
+                  Rules : constant JSON_Value := Create (Empty_Array);
+               begin
+                  for Rule_Index in Node.Array_Rules.First_Index ..
+                    Node.Array_Rules.Last_Index
+                  loop
+                     declare
+                        Rule : constant Math_Model.Array_Rule :=
+                          Node.Array_Rules (Rule_Index);
+                        Rule_Value : constant JSON_Value := Create_Object;
+                     begin
+                        Set_Field (Rule_Value, "boundary",
+                          Integer (Rule.Boundary));
+                        Set_Field (Rule_Value, "kind",
+                          (if Rule.Kind = Math_Model.Dashed_Array_Rule
+                           then "dashed" else "solid"));
+                        Append (Rules, Rule_Value);
+                     end;
+                  end loop;
+                  Set_Field (Value, "horizontalRules", Rules);
+               end;
+            end if;
+            Set_Field (Value, "accentType", Lower
+              (Math_Model.Accent_Kind'Image (Node.Accent_Type)));
+            Set_Field (Value, "annotationType", Lower
+              (Math_Model.Annotation_Kind'Image (Node.Annotation_Type)));
             if Node.Kind = Math_Model.Verbatim_Node then
                Set_Field (Value, "rawVerbatim",
                  Ada.Strings.Unbounded.To_String (Node.Verbatim_Text));
@@ -470,6 +594,15 @@ procedure Math_Export is
             Set_Field_Long_Float (Value, "sizingScale", Node.Scale);
             Set_Field (Value, "enclosure",
               Lower (Math_Model.Enclosure_Kind'Image (Node.Enclosure)));
+            if Node.Kind = Math_Model.Enclosed_Node and then
+              Node.Enclosure in Math_Model.Color_Box_Enclosure |
+                Math_Model.Framed_Color_Box_Enclosure
+            then
+               Set_Color_Fields (Value, "boxBackground", Node.Box_Background);
+               Set_Color_Fields (Value, "boxBorder", Node.Box_Border);
+               Set_Field_Long_Float
+                 (Value, "boxBorderThickness", Node.Box_Border_Thickness);
+            end if;
             Set_Field (Value, "fractionStyle", Lower
               (Math_Model.Fraction_Style'Image (Node.Fraction_Type)));
             Set_Field (Value, "scriptType", Lower
@@ -501,6 +634,47 @@ procedure Math_Export is
             Set_Field (Value, "font", Lower (Math_Model.Font_Kind'Image
               (Node.Font)));
             Set_Field (Value, "codePoint", Integer (Node.Code_Point));
+            if Node.Kind = Math_Model.Text_Run_Node then
+               Set_Field (Value, "text",
+                 Ada.Strings.Unbounded.To_String (Node.Text_Run_Text));
+               Set_Field (Value, "scriptProfile", Lower
+                 (Math_Model.Script_Profile'Image (Node.Text_Run_Profile)));
+            end if;
+            if Node.Kind = Math_Model.Space_Node and then
+              Node.Break /= Math_Model.No_Break_Metadata
+            then
+               Set_Field (Value, "breakKind", Lower
+                 (Math_Model.Break_Kind'Image (Node.Break)));
+            end if;
+            if Node.Kind = Math_Model.Array_Node and then
+              not Node.Array_Rules.Is_Empty
+            then
+               declare
+                  Rules : constant JSON_Value := Create (Empty_Array);
+               begin
+                  for Rule_Index in Node.Array_Rules.First_Index ..
+                    Node.Array_Rules.Last_Index
+                  loop
+                     declare
+                        Rule : constant Math_Model.Array_Rule :=
+                          Node.Array_Rules (Rule_Index);
+                        Rule_Value : constant JSON_Value := Create_Object;
+                     begin
+                        Set_Field (Rule_Value, "boundary",
+                          Integer (Rule.Boundary));
+                        Set_Field (Rule_Value, "kind",
+                          (if Rule.Kind = Math_Model.Dashed_Array_Rule
+                           then "dashed" else "solid"));
+                        Append (Rules, Rule_Value);
+                     end;
+                  end loop;
+                  Set_Field (Value, "horizontalRules", Rules);
+               end;
+            end if;
+            Set_Field (Value, "accentType", Lower
+              (Math_Model.Accent_Kind'Image (Node.Accent_Type)));
+            Set_Field (Value, "annotationType", Lower
+              (Math_Model.Annotation_Kind'Image (Node.Annotation_Type)));
             Set_Field (Value, "stretchyName",
               Ada.Strings.Unbounded.To_String (Node.Stretchy_Name));
             Set_Field (Value, "stretchyMode",
@@ -536,12 +710,29 @@ procedure Math_Export is
             Set_Field_Long_Float (Value, "sizingScale", Node.Scale);
             Set_Field (Value, "enclosure",
               Lower (Math_Model.Enclosure_Kind'Image (Node.Enclosure)));
+            if Node.Kind = Math_Model.Enclosed_Node and then
+              Node.Enclosure in Math_Model.Color_Box_Enclosure |
+                Math_Model.Framed_Color_Box_Enclosure
+            then
+               Set_Color_Fields (Value, "boxBackground", Node.Box_Background);
+               Set_Color_Fields (Value, "boxBorder", Node.Box_Border);
+               Set_Field_Long_Float
+                 (Value, "boxBorderThickness", Node.Box_Border_Thickness);
+            end if;
             Set_Field (Value, "fractionStyle",
               Lower (Math_Model.Fraction_Style'Image (Node.Fraction_Type)));
             Set_Field (Value, "scriptType",
               Lower (Math_Model.Script_Layout'Image (Node.Script_Type)));
             Set_Field (Value, "arrayType",
               Lower (Math_Model.Array_Kind'Image (Node.Array_Type)));
+            Set_Field (Value, "fractionBar", Lower
+              (Math_Model.Fraction_Bar_Mode'Image (Node.Fraction_Bar)));
+            Set_Field (Value, "mathStyle", Lower
+              (Math_Model.Math_Style_Kind'Image (Node.Math_Style)));
+            Set_Field (Value, "dualType", Lower
+              (Math_Model.Dual_Projection'Image (Node.Dual_Type)));
+            Set_Field (Value, "overlapMode", Lower
+              (Math_Model.Overlap_Alignment'Image (Node.Overlap_Mode)));
             Append (Result, Value);
          end;
       end loop;

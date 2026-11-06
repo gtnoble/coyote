@@ -20,6 +20,8 @@ procedure Math_Probe is
    use type Math_Layout.Command_Kind;
    use type Math_Layout.Math_Style;
    use type Math_Model.Font_Kind;
+   use type Math_Model.Node_Kind;
+   use type Math_Model.Accent_Kind;
    use Ada.Strings.Unbounded;
 
    --  Test-only global teardown, after every context/font owner is gone.
@@ -399,6 +401,43 @@ procedure Math_Probe is
         Math_Model.Main_Regular), "infinity font mapping");
       Check (Has_Glyph (Laid_Out ("\epsilon"), 16#03F5#,
         Math_Model.Math_Italic), "epsilon math-italic mapping");
+      Item := Parsed ("\text{\c{c}}");
+      Check (Math_Syntax.Is_Valid (Item), "text cedilla parses");
+      declare
+         Saw_Below_Accent : Boolean := False;
+         Saw_Base_Glyph : Boolean := False;
+         Cedilla : constant Math_Layout.Box := Math_Layout.Build (Item);
+      begin
+         for Index in 1 .. Math_Syntax.Count (Item) loop
+            declare
+               Node : constant Math_Syntax.Node :=
+                 Math_Syntax.Element (Item, Index);
+            begin
+               Saw_Below_Accent := Saw_Below_Accent or else
+                 (Node.Kind = Math_Model.Accent_Node and then
+                  Node.Accent_Type = Math_Model.Below_Accent);
+               Saw_Base_Glyph := Saw_Base_Glyph or else
+                 (Node.Kind = Math_Model.Glyph_Node and then
+                  Node.Code_Point = Character'Pos ('c'));
+            end;
+         end loop;
+         Check (Saw_Below_Accent,
+           "text cedilla uses below-accent semantic kind");
+         Check (Saw_Base_Glyph, "text cedilla retains source base glyph");
+         Check (Cedilla.Valid and then Cedilla.Descent > 0.0 and then
+           Has_Glyph (Cedilla, 16#00B8#, Math_Model.Main_Regular) and then
+           Has_Glyph (Cedilla, Character'Pos ('c'), Math_Model.Main_Regular),
+           "text cedilla lays out base and native cedilla glyph");
+      end;
+      declare
+         Settings : Math_Syntax.Options := (others => <>);
+         Strict_Item : Math_Syntax.Document;
+      begin
+         Settings.Strict := Math_Syntax.Strict_Error;
+         Strict_Item := Math_Syntax.Parse ("\c{c}", Settings);
+         Check (not Math_Syntax.Is_Valid (Strict_Item),
+           "text accent in math mode rejected by strict policy");
+      end;
       Check (Has_Glyph (Laid_Out ("\times"), 16#00D7#,
         Math_Model.Main_Regular), "times operator exact font mapping");
       Check (Has_Glyph (Laid_Out ("\le"), 16#2264#,

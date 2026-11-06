@@ -1,4 +1,5 @@
 with Math_Source;
+with Math_Work_Control;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 
@@ -38,7 +39,8 @@ package Math_Tokens is
      (Input       : Math_Source.Source;
       Result      : out Stream;
       Diagnostic  : out Diagnostic_Kind;
-      Error_Byte  : out Natural);
+      Error_Byte  : out Natural;
+      Work        : Math_Work_Control.Context_Access := null);
    function Count (Item : Stream) return Natural;
    function Element (Item : Stream; Index : Positive) return Token;
    function Source (Item : Stream) return String;

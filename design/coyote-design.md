@@ -1,39 +1,14 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.42
-**Date:** 2026-10-27
+**Version:** 1.44
+**Date:** 2026-11-06
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative;
-this design document does not change their scope. Current-source evidence and
-open qualification gates are in coordinator-owned
-`plan/native-math-parity-test-report.md` §10; §9 and earlier sections are
-historical snapshots. The frozen full development suite passed 1063/1063 in
-82.418882 s (`/tmp/coyote-core-frozen-full.log`), regression evidence only.
-Current implementation includes typed `\verb`, `\vcenter`, and `\pmb` with
-raw-token literal grammar guards, approximate Gaussian shadow (not exact CSS),
-overflow/integer bounds, semantic payload roles, and cooperative stage-boundary
-cancellation; expired queued jobs skip input copying. These checks do not
-establish stage-loop preemption or a hard deadline. Raster pilot is 7/9 with two
-known discrepancies. Unicode ranges are predicate-only and unused for shaping.
-Whole-job memory, hard timing, GTK/cache guarantees, full reference behavior,
-remaining core requirements and human acceptance remain open. No parity or
-product acceptance is implied.
----
-
-## Table of Contents
-
-1. [Scope](#1-scope)
-2. [Referenced Documents](#2-referenced-documents)
-3. [Component-Wide Design Decisions](#3-component-wide-design-decisions)
-4. [Architectural Design](#4-architectural-design)
-5. [Detailed Design](#5-detailed-design)
-6. [Requirements Traceability](#6-requirements-traceability)
-7. [Notes](#7-notes)
+**Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
 ---
 
@@ -125,10 +100,14 @@ This model has two key properties:
   supported input through the native Ada syntax/layout/metrics/painter/resources.
   Unsupported input and legacy MathML-shaped source remain visible as text.
   Streaming text may remain plain until completion; Plain output remains
-  line-oriented. Supported common constructs include symbols, fractions, scripts,
-  square/indexed roots, text/roman content, arrays, font styles, delimiters,
-  limits, and accents. Full TeX compatibility is not promised. Bundled KaTeX
-  0.16.22 fonts carry MIT notices under `share/coyote/math/fonts/`.
+  line-oriented. GUI display formulas use native worker rasterization; inline
+  formulas still follow the GTK-main-task rendering path. Native Pango text
+  shaping and Unicode fallback are runtime paths, but system font-family
+  resolution is unpinned and this does not imply full text/math-mode parity.
+  Supported common constructs include symbols, fractions, scripts, square/indexed
+  roots, text/roman content, arrays, font styles, delimiters, limits and accents.
+  Full TeX compatibility is not promised. Bundled KaTeX 0.16.22 fonts carry MIT
+  notices under `share/coyote/math/fonts/`.
 - **Session compatibility.** New assistant JSONL records contain no `format` or
   `formatVersion` fields. Older records containing those fields remain loadable;
   the fields are ignored and their content is handled as Markdown during replay.
@@ -444,13 +423,17 @@ not wait for the complete user turn.
 | Core layout node variants | Rule, sized, raised, enclosed, and stretchy construct nodes | `src/coyote_math/math_model.ads` |
 | `Coyote_Math.Engine` | Native parsing, expansion, semantics, layout and rendering orchestration | `src/coyote_math/math_engine.ads/.adb` |
 | `Coyote_Math.Raster` | Offscreen raster rendering support | `src/coyote_math/math_raster.ads/.adb` |
+| `Coyote_Math.Raster_Budget` | Shared retained-raster ledger and bounded raster-retention leases | `src/coyote_math/math_raster_budget.ads/.adb` |
+| `Coyote_Math.Text_Shaping` | Native Pango text shaping through worker-local font-map/context state | `src/coyote_math/math_text_shaping.ads/.adb` |
+| `Coyote_Math.Work_Control` | Cooperative deadline/cancellation checks at math processing boundaries | `src/coyote_math/math_work_control.ads/.adb` |
 | `Coyote_Math.Jobs` | Asynchronous math job execution and completion lifecycle | `src/coyote_math/coyote_math_jobs.ads/.adb` |
 | Native math resource lookup | Bundled KaTeX asset discovery | `src/coyote_math/math_resources.ads/.adb` |
-| KaTeX data generators | Development generators for metrics, macros, symbols, and stretchy constructs | `tools/generate_metrics.py`, `tools/generate_katex_data.py`, `tools/generate_math_macros.py`, `tools/generate_math_symbols.py`, `tools/generate_math_stretchy.py` |
+| KaTeX data generators | Development generators for metrics, macros, symbols, stretchy constructs, and source-mapped callable inventory | `tools/generate_metrics.py`, `tools/generate_katex_data.py`, `tools/generate_math_macros.py`, `tools/generate_math_symbols.py`, `tools/generate_math_stretchy.py`, `tools/generate_math_functions.py` |
 | KaTeX resource/coverage generators | Inventory and coverage mapping for pinned upstream assets | `tools/inventory_katex.cjs`, `tools/map_math_coverage.py` |
-| Native math development tooling | Inventory, reference/browser export, differential comparison, fuzz, resource/accessibility checks, and pilot fixtures; partial readiness only, no parity claim | `test/tools/check-math-*.sh`, `test/tools/check-math-*.cjs`, `test/tools/export-math-*.cjs`, `test/tools/compare-math-layout.cjs`, `test/fixtures/math-compatibility/` |
-| Native math standalone probes and projects | Ada probes and isolated GPR projects for token, macro, engine, geometry, paths, constructs, semantics, raster, jobs, accessibility and related units | `test/tools/math_*_probe.adb`, `test/native/math_*.gpr` |
-| Native math AUnit tests | Registered engine/parser/layout cases; frozen full suite passed 1063/1063 as regression evidence, not parity or acceptance; current disposition and open gaps are recorded in coordinator-owned §10 of `plan/native-math-parity-test-report.md` | `test/src/coyote_math_tests.adb` |
+| Native math development tooling | Inventory, reference/browser export, differential comparison, source-mapped callable audit, operator probes, fuzz, resource/accessibility checks, and pilot fixtures; partial readiness only, no parity claim | `test/tools/check-math-*.sh`, `test/tools/check-math-*.cjs`, `test/tools/check-math-callables.cjs`, `test/tools/check-math-operators.sh`, `test/tools/export-math-*.cjs`, `test/tools/compare-math-layout.cjs`, `test/tools/math_semantic_compare.cjs`, `test/fixtures/math-compatibility/`, including `callable-probes.json` |
+| Native math standalone probes and projects | Ada probes and isolated GPR projects for token, macro, engine, geometry, paths, constructs, semantics, raster, jobs, accessibility, operators and shaping lifecycle | `test/tools/math_*_probe.adb`, `test/native/math_*.gpr`, including `test/native/math_operators.gpr` and `test/native/math_shaping_lifecycle.gpr` |
+| Native math shaping-lifecycle check | Focused shaping worker lifecycle probe and its runner | `test/tools/math_shaping_lifecycle_probe.adb`, `test/tools/check-math-shaping-lifecycle.sh` |
+| Native math AUnit tests | Registered engine/parser/layout cases; historical frozen full-suite results are regression evidence only, not parity or acceptance; current disposition and open gaps belong in coordinator-owned §11 of `plan/native-math-parity-test-report.md` | `test/src/coyote_math_tests.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Modeless co-primary transient tool-call snapshot window with fixed selectable metadata, menus, and a two-pane scrollable arguments/result work area | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |

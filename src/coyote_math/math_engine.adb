@@ -2,6 +2,7 @@ with Ada.Strings.Unbounded;
 with Math_Metrics;
 with Math_Model;
 with Math_Syntax;
+with Math_Work_Control;
 
 package body Math_Engine is
    use type Math_Layout.Command_Kind;
@@ -81,7 +82,8 @@ package body Math_Engine is
       end if;
 
       Output.Parsed := Math_Syntax.Parse
-        (Source, Shared, Syntax_Options, Options.Global_Group);
+        (Source, Shared, Syntax_Options, Options.Global_Group,
+         Options.Work);
       if not Math_Syntax.Is_Valid (Output.Parsed) then
          Output.Status := Parse_Error;
          Set_Message (Output, Math_Syntax.Error (Output.Parsed));
@@ -96,6 +98,7 @@ package body Math_Engine is
                Can_Draw : Boolean := True;
             begin
                for Char of Source loop
+                  Math_Work_Control.Poll (Options.Work);
                   declare
                      Point : constant Natural := Character'Pos (Char);
                      Metric : Math_Metrics.Glyph_Metric :=
@@ -139,7 +142,8 @@ package body Math_Engine is
          end if;
          return;
       end if;
-      Output.Meaning := Math_Semantics.Project (Output.Parsed);
+      Output.Meaning := Math_Semantics.Project
+        (Output.Parsed, Options.Work);
       if not Math_Semantics.Is_Valid (Output.Meaning) then
          Output.Status := Layout_Error;
          Set_Message (Output, Math_Semantics.Error (Output.Meaning));
@@ -148,7 +152,9 @@ package body Math_Engine is
       Output.Geometry := Math_Layout.Build
         (Output.Parsed, Options.Style,
          (Min_Rule_Thickness => Options.Settings.Min_Rule_Thickness,
-          Max_Size => Options.Settings.Max_Size));
+          Max_Size => Options.Settings.Max_Size,
+          Pixel_Em => Options.Pixel_Em,
+          Advance_Source => Options.Advance_Source), Options.Work);
       if not Output.Geometry.Valid then
          Output.Status := Layout_Error;
          Set_Message (Output, To_String (Output.Geometry.Message));

@@ -12,7 +12,7 @@ compatibility. The approved target and current results are separate documents:
 
 - [Requirements](../../../requirements/native-math-compatibility.md).
 - [Implementation checkpoint report](../../../plan/native-math-parity-test-report.md),
-  especially coordinator-owned current-status §10; §9 and earlier sections are historical.
+  especially coordinator-owned current-status §11; §10 and earlier sections are historical.
 - [Per-entry coverage map](../../../plan/native-math-coverage.md), which records
   missing and partial/unqualified entries, not a compatibility percentage.
 
@@ -28,8 +28,10 @@ compatibility. The approved target and current results are separate documents:
 - Inline Copy reconstructs the original delimited input rather than copying
   the raster image or exposing internal markup.
 - Two native workers compute syntax, semantics and layout. Display formulas
-  are rasterized off-thread and adopted in batches on the GTK main task;
-  inline raster painting still runs on that task. Workers never mutate widgets.
+  are rasterized off-thread and adopted in batches on the GTK main task. Inline
+  formulas still call `Render_Layout_Inline` on GTK and submit jobs without
+  `Request_Raster`; do not infer off-thread inline painting. GTK widget
+  operations remain on the GTK main task.
 - Zoom/reflow uses cached inline syntax/layout. Display scale changes currently
   submit a fresh independent request; cached-AST-only display repaint is not
   implemented.
@@ -60,20 +62,27 @@ matches KaTeX.
 - Matrix/cases/aligned families, `array`/`subarray` column specifications,
   `alignat`/`alignedat`, and limited display equation/tag handling. Not all
   registered environments, numbering rules or column constructs are implemented.
-- Explicit spacing and selected dimension/atom-class primitives.
+  TeX paragraph/break-intent behavior is not implemented; explicit source
+  newlines remain under validation and are not a general line-breaking claim.
+- Explicit spacing and selected dimension/atom-class primitives; generalized
+  fractions with CD helpers; angle/phase accents and selected text cedilla and
+  circled forms; color boxes, horizontal rules and dashed segments. Support is
+  bounded; these constructs are not fully reference-qualified.
 - Scoped textual definitions, including `\def`, `\gdef`, `\newcommand`,
   `\renewcommand`, `\providecommand`, `\let` and selected expansion controls.
   The engine defaults to fresh macro state per formula; explicit shared native
   contexts are available to callers. General optional-argument/default and
   definition semantics remain incomplete.
-- Generated tables contain 318 built-in string templates and 2,203 retained
-  mode-specific symbol keys. These include aliases/internal entries; templates
-  may still expand to unsupported primitives. All 20 native callable core
-  built-ins have source paths; this is not comprehensive semantic qualification.
+- Generated tables contain 318 built-in string templates, a source-mapped
+  inventory of 338 built-in function names, and 2,203 retained mode-specific
+  symbol keys. These include aliases/internal entries; templates may still
+  expand to unsupported primitives. Source-map presence and strict callable
+  checks do not establish semantic qualification or complete function behavior.
 - Registered Unicode symbols, selected precomposed/combining accent mappings,
-  and Unicode subscript/superscript substitutions. Unicode ranges are predicate-
-  only and unused for text shaping; this is not general Unicode text shaping or
-  full text/math mode compatibility.
+  and Unicode subscript/superscript substitutions. Unicode-range predicates
+  are not themselves shaping. Native Pango shaping and Unicode fallback are
+  runtime paths, but system font-family resolution is unpinned; deterministic
+  fallback and full text/math mode compatibility are not established.
 
 Twenty TTF faces are bundled. Upstream supplies 18 metric tables containing
 2,038 glyph records; two named faces have no source metrics. Font-file identity
@@ -124,23 +133,28 @@ extractor, bridge and renderer have not been restored.
 | Job service | Two workers, eight pending descriptors; 250 ms deadline and retained-source ledger | Deadline checks do not prove cooperative preemption or queue-inclusive latency compliance |
 | Memory/cache | Raster workspace checks and retained-source accounting exist | Whole-job 256 MiB and process-wide 64 MiB raster-cache targets are not qualified |
 
-Do not read the source-ledger cap as a bound on all parser/layout/font/raster
+Do not read the raster-ledger cap as a bound on all parser/layout/font/raster
 allocations. `REQ-MATH-010` whole-job memory is not bounded by allocator
-instrumentation. The separate 64 MiB retained-raster ledger accounts for GUI display-math
-Cairo surfaces, not inline rasters or the process-wide cache target. The 250 ms deadline check does not interrupt a
-blocking native call. GTK adoption has a 5 ms soft quantum/eight-operation
-batch, not a hard 50 ms bound; none of these qualify the approved targets.
+instrumentation. The shared 64 MiB `Math_Raster_Budget` applies retained-raster
+leases to completed-job vectors, display Cairo surfaces and GTK inline Pixbufs
+through weak references. It does not bound actual retention in all cases,
+total/transient allocations, process RSS, or process-wide cache behavior. The
+whole-job 256 MiB cap is unqualified. Cooperative checks inside pipeline loops
+improve cancellation but do not preempt native C calls or guarantee the hard,
+queue-inclusive 250 ms deadline. Representative warm p95 of 50 ms and the separate 50 ms GTK math-work-slice
+target remain unqualified; none of these facts qualify the approved targets.
 
 ## Verification and maintenance
 
 Current verification evidence, discrepancies, coverage and open qualification
-gates are recorded in coordinator-owned report §10. The frozen full suite passed
-1063/1063 with zero failed assertions or unexpected errors in 82.418882 s
-(`/tmp/coyote-core-frozen-full.log`); this is regression evidence only. Scoped
-probe results and raster discrepancies are reported there, not repeated here.
+gates belong in coordinator-owned report §11; §10 and earlier sections are
+historical. Previously frozen full-suite results pre-date the latest changes
+and are historical regression evidence only. The §11 summary records results
+not freshly reverified for this documentation update; this summary does not
+report current qualification.
 No parity, whole-job resource/timing compliance, or human visual/accessibility
 acceptance is established. Coverage is a source crosswalk, not qualification.
-Section §9 and earlier report sections are historical snapshots.
+Section §10 and earlier report sections are historical snapshots.
 Run bounded native smoke checks from the repository root:
 
 ```sh
@@ -164,5 +178,13 @@ sh test/tools/check-math-browser.sh
 sh test/tools/check-math-images.sh
 ```
 
-Current geometry, structured and raster results are recorded in coordinator-owned report §10. The raster pilot is 7/9 with two failures under unchanged thresholds; this is not calibrated visual acceptance. Do not interpret smoke checks or scoped results as full qualification. See the report for scope, logs, limits and open acceptance gates. The older
+The last recorded image result was 28/29, with `utilde-long` at 0.9851 against
+the unchanged 0.99 threshold; this result has not been freshly reverified.
+Recorded geometry, structured, differential and image evidence, including the
+338-name outcome (278 scoped semantic matches and 60 explicit gaps), belongs in
+coordinator-owned report §11. Do not present recorded outcomes as fresh results
+or infer complete-corpus readiness. The full 2930-row coverage map is a source
+crosswalk, not behavior-completion evidence. This is not calibrated visual
+acceptance. Do not interpret smoke checks or scoped results as full
+qualification. See the report for evidence, limits and open gates. The older
 [PCR-123 report](../../../plan/native-math-test-report.md) is historical.

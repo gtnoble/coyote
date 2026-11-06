@@ -1,0 +1,21 @@
+with "gtkada";
+project Math_Shaping_Lifecycle is
+   for Languages use ("Ada");
+   for Source_Dirs use ("../../src/coyote_math", "../tools");
+   for Source_Files use
+     ("math_model.ads", "math_work_control.ads",
+      "math_work_control.adb", "math_source.ads", "math_source.adb",
+      "math_text_shaping.ads", "math_text_shaping.adb",
+      "math_shaping_lifecycle_probe.adb");
+   for Object_Dir use
+     External ("MATH_SHAPING_LIFECYCLE_ROOT") & "/obj";
+   for Exec_Dir use
+     External ("MATH_SHAPING_LIFECYCLE_ROOT") & "/bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("math_shaping_lifecycle_probe.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
+   end Compiler;
+end Math_Shaping_Lifecycle;

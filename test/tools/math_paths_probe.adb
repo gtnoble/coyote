@@ -2,12 +2,53 @@ with Ada.Command_Line;
 with Ada.Text_IO;
 with Math_Paths;
 with Math_Stretchy;
+with Math_Work_Control;
 
 use type Math_Paths.Command_Kind;
 use type Math_Paths.Path;
 use type Math_Stretchy.Part_Align;
 
 procedure Math_Paths_Probe is
+   protected Poll_Counter is
+      procedure Reset (Threshold : Positive; Stop : Math_Work_Control.Stop_Reason);
+      procedure Check (Result : out Math_Work_Control.Stop_Reason);
+   private
+      Limit : Positive := 1;
+      Current : Natural := 0;
+      Stop_Reason : Math_Work_Control.Stop_Reason :=
+        Math_Work_Control.Cancel_Requested;
+   end Poll_Counter;
+   protected body Poll_Counter is
+      procedure Reset (Threshold : Positive; Stop : Math_Work_Control.Stop_Reason) is
+      begin
+         Limit := Threshold;
+         Current := 0;
+         Stop_Reason := Stop;
+      end Reset;
+      procedure Check (Result : out Math_Work_Control.Stop_Reason) is
+      begin
+         Current := Current + 1;
+         Result := (if Current >= Limit then Stop_Reason
+                    else Math_Work_Control.Continue_Work);
+      end Check;
+   end Poll_Counter;
+   type Stop_Context is new Math_Work_Control.Context with null record;
+   overriding function Check
+     (Item : Stop_Context) return Math_Work_Control.Stop_Reason;
+   overriding function Check
+     (Item : Stop_Context) return Math_Work_Control.Stop_Reason is
+      pragma Unreferenced (Item);
+   begin
+      declare
+         Result : Math_Work_Control.Stop_Reason;
+      begin
+         Poll_Counter.Check (Result);
+         return Result;
+      end;
+   end Check;
+   Stopped : aliased Stop_Context;
+   Work : constant Math_Work_Control.Context_Access :=
+     Stopped'Unchecked_Access;
    Checks : Natural := 0;
    Failures : Natural := 0;
 
@@ -33,6 +74,7 @@ procedure Math_Paths_Probe is
    end Reject;
 
    Item : Math_Paths.Path;
+   Failed : Boolean := False;
    Box : Math_Paths.Bounds;
    Moved : Math_Paths.Path;
    Invalid_Transform : Math_Paths.Path;
@@ -48,6 +90,23 @@ procedure Math_Paths_Probe is
      "s-235,486,-235,486c-2.7,4.7,-9,7,-19,7c-6,0,-10,-1,-12,-3" &
      "s-194,-422,-194,-422s-65,47,-65,47zM834 0h400000v40h-400000z";
 begin
+   Poll_Counter.Reset (1, Math_Work_Control.Cancel_Requested);
+   begin
+      Item := Math_Paths.Parse ("M0 0 L10 10", Work);
+   exception
+      when Math_Work_Control.Stop_Requested => Failed := True;
+   end;
+   Check (Failed, "path parse propagates cancellation");
+   Poll_Counter.Reset (1, Math_Work_Control.Deadline_Reached);
+   Failed := False;
+   begin
+      Item := Math_Paths.Transform
+        (Math_Paths.Parse ("M0 0 L10 10"), 1.0, 0.0, 0.0, 1.0,
+         0.0, 0.0, Work);
+   exception
+      when Math_Work_Control.Deadline_Expired => Failed := True;
+   end;
+   Check (Failed, "path transform propagates deadline");
    Expect_Valid ("M0 0 L10 10", "absolute line");
    Expect_Valid ("m1 2 3 4 5 6", "repeated relative moveto");
    Expect_Valid ("M.5 -.25", "leading decimal");
@@ -700,6 +759,49 @@ begin
    end loop;
    Item := Math_Stretchy.Path_For (Math_Stretchy.Wide_Hat, 1_000.0);
    Check (Math_Paths.Is_Valid (Item), "widehat dynamic choice retained");
+   Check (Math_Stretchy.Accent_Path_For ("widecheck", 1) =
+     Math_Stretchy.Geometry_For ("widecheck1"),
+     "widecheck selects exact one-character path");
+   Check (Math_Paths.Is_Valid
+     (Math_Stretchy.Accent_Path_For ("widecheck", 6)),
+     "widecheck selects long-base path");
+   Check (Math_Stretchy.Accent_Path_For ("utilde", 1) =
+     Math_Stretchy.Geometry_For ("tilde1"),
+     "utilde uses exact tilde path family");
+   Check (Math_Stretchy.Accent_Path_For ("widetilde", 3) =
+     Math_Stretchy.Geometry_For ("tilde2"),
+     "widetilde character-count threshold");
+   Check (Math_Stretchy.Accent_Path_For ("widehat", 3) =
+     Math_Stretchy.Geometry_For ("widehat2"),
+     "widehat count three selects variant two");
+   Check (Math_Stretchy.Accent_Path_For ("widehat", 4) =
+     Math_Stretchy.Geometry_For ("widehat3"),
+     "widehat count four selects variant three");
+   Check (Math_Stretchy.Accent_Path_For ("widehat", 5) =
+     Math_Stretchy.Geometry_For ("widehat3"),
+     "widehat count five selects variant three");
+   Check (Math_Stretchy.Accent_Path_For ("widehat", 6) =
+     Math_Stretchy.Geometry_For ("widehat4"),
+     "widehat count six selects variant four");
+   Check (not Math_Paths.Is_Valid
+     (Math_Stretchy.Accent_Path_For ("unknown", 1)),
+     "unknown accent selector rejected");
+   Item := Math_Stretchy.Phase_Path (401);
+   Check (Math_Paths.Is_Valid (Item), "phase path valid at odd height");
+   Box := Math_Paths.Extent (Item);
+   Check (Box.Valid and then Box.Min_X = 0.0 and then
+     Box.Max_X = 400_000.0 and then Box.Min_Y = 0.0 and then
+     Box.Max_Y = 401.0, "phase path bounds");
+   Check (Math_Paths.Element (Item, 3).First.X = 200.5,
+     "phase path preserves half-coordinate for odd height");
+   Check (not Math_Paths.Is_Valid (Math_Stretchy.Phase_Path (79)),
+     "phase path rejects too-short viewBox");
+   Check (not Math_Paths.Is_Valid
+     (Math_Stretchy.Phase_Path (1_000_001)),
+     "phase path rejects excessive viewBox");
+   Check (not Math_Paths.Is_Valid
+     (Math_Stretchy.Geometry_For ("angl")),
+     "angl has no SVG path geometry");
    Check (Math_Stretchy.Brace_Part_For
      (Math_Stretchy.Under_Brace, Math_Stretchy.Middle_Part) =
      Math_Stretchy.PartPath ("underbrace", 2),

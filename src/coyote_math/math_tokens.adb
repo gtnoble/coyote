@@ -1,5 +1,6 @@
 with Math_Source;
 with Math_Unicode;
+with Math_Work_Control;
 with Ada.Containers;
 
 use type Ada.Containers.Count_Type;
@@ -9,7 +10,8 @@ package body Math_Tokens is
      (Input       : Math_Source.Source;
       Result      : out Stream;
       Diagnostic  : out Diagnostic_Kind;
-      Error_Byte  : out Natural) is
+      Error_Byte  : out Natural;
+      Work        : Math_Work_Control.Context_Access := null) is
       Text : constant String := Math_Source.Text (Input);
       Pos  : Natural := 0;
       Scalar : Natural := 0;
@@ -134,6 +136,7 @@ package body Math_Tokens is
          return;
       end if;
       while Pos < Text'Length and Diagnostic = No_Error loop
+         Math_Work_Control.Poll (Work);
          declare
             Start_B : constant Natural := Pos;
             Start_S : constant Natural := Scalar;
@@ -146,6 +149,7 @@ package body Math_Tokens is
                while Pos < Text'Length and then
                  Byte_Value (Pos) /= 10
                loop
+                  Math_Work_Control.Poll (Work);
                   Step := Width (Pos);
                   Point := Byte_Value (Pos);
                   Pos := Pos + Step;
@@ -157,6 +161,7 @@ package body Math_Tokens is
                while Pos < Text'Length and then
                  Byte_Value (Pos) in 9 | 10 | 13 | 32
                loop
+                  Math_Work_Control.Poll (Work);
                   Point := Byte_Value (Pos);
                   Pos := Pos + 1;
                   Scalar := Scalar + 1;
@@ -198,6 +203,7 @@ package body Math_Tokens is
                         UTF16 := Start_U + (Name_End - Start_B) +
                           (if Delimiter > 16#FFFF# then 2 else 1);
                         while Pos < Text'Length loop
+                           Math_Work_Control.Poll (Work);
                            Point := Byte_Value (Pos);
                            Step := Width (Pos);
                            if Point = Delimiter then
@@ -244,6 +250,7 @@ package body Math_Tokens is
                      while Pos < Text'Length and then
                        Letter (Byte_Value (Pos))
                      loop
+                  Math_Work_Control.Poll (Work);
                         Step := Width (Pos);
                         Pos := Pos + Step;
                         Scalar := Scalar + 1;
@@ -255,6 +262,7 @@ package body Math_Tokens is
                         while Pos < Text'Length and then
                           Byte_Value (Pos) in 9 | 10 | 13 | 32
                         loop
+                  Math_Work_Control.Poll (Work);
                            Point := Byte_Value (Pos);
                            Pos := Pos + 1;
                            Scalar := Scalar + 1;
@@ -271,6 +279,7 @@ package body Math_Tokens is
                         while Pos < Text'Length and then
                           Byte_Value (Pos) in 9 | 13 | 32
                         loop
+                  Math_Work_Control.Poll (Work);
                            Pos := Pos + 1;
                            Scalar := Scalar + 1;
                            UTF16 := UTF16 + 1;
@@ -286,6 +295,7 @@ package body Math_Tokens is
                      while Pos < Text'Length and then
                        Byte_Value (Pos) in 9 | 13 | 32
                      loop
+                  Math_Work_Control.Poll (Work);
                         Pos := Pos + 1;
                         Scalar := Scalar + 1;
                         UTF16 := UTF16 + 1;
@@ -439,6 +449,7 @@ package body Math_Tokens is
             end Apply_Mark;
          begin
             for I in 1 .. Natural (Raw.Length) loop
+               Math_Work_Control.Poll (Work);
                exit when Diagnostic /= No_Error;
                declare
                   Item : constant Token := Raw (Positive (I));
@@ -469,6 +480,7 @@ package body Math_Tokens is
                      begin
                         Append (Base);
                         while Offset < Decomposed'Length loop
+                           Math_Work_Control.Poll (Work);
                            Apply_Mark (Read_Point (Decomposed, Offset), Item);
                            Marks := Marks + 1;
                         end loop;
@@ -493,6 +505,7 @@ package body Math_Tokens is
                         K : Natural := I + 1;
                      begin
                         while K <= Natural (Raw.Length) loop
+                           Math_Work_Control.Poll (Work);
                            declare
                               Next : constant Token := Raw (Positive (K));
                               Value : constant String :=
@@ -529,6 +542,7 @@ package body Math_Tokens is
                         K : Natural := I + 1;
                      begin
                         while K <= Natural (Raw.Length) loop
+                           Math_Work_Control.Poll (Work);
                            declare
                               Next : constant Token := Raw (Positive (K));
                               Value : constant String :=

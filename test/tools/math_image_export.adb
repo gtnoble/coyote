@@ -9,6 +9,8 @@ with Cairo.Surface;
 with GNATCOLL.JSON;
 with Glib;
 with Math_Layout;
+with Math_Metrics;
+with Math_Model;
 with Math_Painter;
 with Math_Raster;
 with Math_Syntax;
@@ -22,7 +24,7 @@ procedure Math_Image_Export is
    procedure Release_Buffer is new Ada.Unchecked_Deallocation
      (Cairo.Image_Surface.Byte_Array, Byte_Array_Access);
 
-   Fonts : Math_Painter.Font_Set;
+   Fonts : aliased Math_Painter.Font_Set;
 
    function Response
      (Id : JSON_Value;
@@ -32,11 +34,13 @@ procedure Math_Image_Export is
       Height : Natural := 0;
       Baseline : Long_Float := 0.0;
       Logical_Width : Long_Float := 0.0;
-      Logical_Height : Long_Float := 0.0) return JSON_Value is
+      Logical_Height : Long_Float := 0.0;
+      Em_Pixels : Long_Float := 24.0) return JSON_Value is
       Result : constant JSON_Value := Create_Object;
    begin
       Set_Field (Result, "id", Id);
       Set_Field (Result, "status", Status);
+      Set_Field_Long_Float (Result, "emPixels", Em_Pixels);
       if Status = "ok" then
          Set_Field (Result, "png", Path);
          Set_Field (Result, "width", Integer (Width));
@@ -105,9 +109,18 @@ procedure Math_Image_Export is
             Name : constant String := Get (Id);
             Source : constant String := Get (Request, "source");
             Display : constant Boolean := Get (Request, "displayMode");
+            Em_Pixels : constant Long_Float :=
+              (if not Has_Field (Request, "emPixels") then 24.0
+               elsif Get (Request, "emPixels").Kind = JSON_Int_Type then
+                 Long_Float (Integer'(Get (Request, "emPixels")))
+               elsif Get (Request, "emPixels").Kind = JSON_Float_Type then
+                 Get_Long_Float (Request, "emPixels")
+               else 0.0);
             Syntax_Options : Math_Syntax.Options;
          begin
-            if not Safe_Name (Name) then
+            if not Safe_Name (Name) or else Em_Pixels <= 0.0
+              or else Em_Pixels > 256.0 or else Em_Pixels /= Em_Pixels
+            then
                Ada.Text_IO.Put_Line
                  (Write (Response (Id, "request-error"), Compact => True));
                return;
@@ -126,7 +139,10 @@ procedure Math_Image_Export is
                   Layout : constant Math_Layout.Box := Math_Layout.Build
                     (Document,
                      (if Display then Math_Layout.Display_Style
-                      else Math_Layout.Text_Style));
+                      else Math_Layout.Text_Style),
+                     (Pixel_Em => Em_Pixels,
+                      Advance_Source => Fonts'Unchecked_Access,
+                      others => <>));
                begin
                   if not Layout.Valid then
                      Ada.Text_IO.Put_Line
@@ -134,7 +150,7 @@ procedure Math_Image_Export is
                      return;
                   end if;
                   declare
-                     Scale : constant Long_Float := 24.0;
+                     Scale : constant Long_Float := Em_Pixels;
                      Image : constant Math_Raster.Image :=
                        Math_Raster.Render
                          (Fonts, Layout, Scale, (0.0, 0.0, 0.0, 1.0));
@@ -185,7 +201,8 @@ procedure Math_Image_Export is
                              (Id, "ok", Filename, Width, Height,
                               Layout.Ascent * Scale,
                               Layout.Width * Scale,
-                              (Layout.Ascent + Layout.Descent) * Scale),
+                              (Layout.Ascent + Layout.Descent) * Scale,
+                              Em_Pixels),
                            Compact => True));
                   exception
                      when others =>

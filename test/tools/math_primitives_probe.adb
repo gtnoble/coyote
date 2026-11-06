@@ -148,6 +148,7 @@ begin
         (Octal_Item, Positive (Octal_Row.First));
    begin
       Check (Math_Syntax.Is_Valid (Hex_Item) and then
+        Hex_Glyph.Kind = Glyph_Node and then
         Hex_Glyph.Code_Point = 16#338#, "char-hexadecimal");
       Check (Math_Syntax.Is_Valid (Octal_Item) and then
         Octal_Glyph.Code_Point = 65, "char-octal");

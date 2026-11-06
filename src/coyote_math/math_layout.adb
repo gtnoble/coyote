@@ -8,6 +8,8 @@ with Math_Syntax;
 with Math_Paths;
 with Math_Stretchy;
 with Math_Radical_Paths;
+with Math_Work_Control;
+with Math_Text_Shaping;
 
 --  Geometry uses the checked-in KaTeX 0.16.22 metric tables and the supported
 --  syntax declared by Math_Syntax. Unsupported forms fail rather than being
@@ -17,6 +19,7 @@ package body Math_Layout is
    use Math_Model;
    use type Ada.Containers.Count_Type;
    use type Math_Syntax.Delimiter_Kind;
+   use type Math_Metrics.Advance_Source_Access;
    use type Math_Stretchy.Brace_Kind;
 
    Layout_Failure : exception;
@@ -29,6 +32,9 @@ package body Math_Layout is
    type Rule_Parameters is record
       Minimum  : Long_Float;
       Effective : Long_Float;
+      Work : Math_Work_Control.Context_Access := null;
+      Pixel_Em : Long_Float := 0.0;
+      Advance_Source : Math_Metrics.Advance_Source_Access := null;
    end record;
    X_Height          : constant Long_Float := 0.431;
 
@@ -43,8 +49,19 @@ package body Math_Layout is
       raise Layout_Failure with Why;
    end Reject;
 
-   procedure Append_Command (Target : in out Box; Command : Draw_Command) is
+   procedure Poll (Thickness : Rule_Parameters) is
    begin
+      Math_Work_Control.Poll (Thickness.Work);
+   end Poll;
+
+   procedure Append_Command
+     (Target : in out Box; Command : Draw_Command;
+      Work : Math_Work_Control.Context_Access := null)
+   is
+   begin
+      if Target.Commands.Length mod 128 = 0 then
+         Math_Work_Control.Poll (Work);
+      end if;
       if Target.Commands.Length >= Max_Draw_Commands then
          Reject ("draw-command limit exceeded");
       end if;
@@ -172,7 +189,8 @@ package body Math_Layout is
       end case;
    end Adjusted_Fraction_Style;
    function Scaled_Metric
-     (Font : Font_Kind; Point : Natural; Scale : Long_Float)
+     (Font : Font_Kind; Point : Natural; Scale : Long_Float;
+      Thickness : Rule_Parameters)
       return Math_Metrics.Glyph_Metric
    is
       Result : Math_Metrics.Glyph_Metric := Math_Metrics.Lookup (Font, Point);
@@ -189,6 +207,20 @@ package body Math_Layout is
       Result.Descent := Result.Descent * Scale;
       Result.Italic  := Result.Italic * Scale;
       Result.Skew    := Result.Skew * Scale;
+      if Thickness.Advance_Source /= null then
+         declare
+            Measured : constant Long_Float := Math_Metrics.Advance
+              (Thickness.Advance_Source.all, Font, Point,
+               Thickness.Pixel_Em * Scale) / Thickness.Pixel_Em;
+         begin
+            if not Measured'Valid or else Measured < 0.0 or else
+              Measured > Max_Geometry
+            then
+               Reject ("invalid measured glyph advance");
+            end if;
+            Result.Width := Measured;
+         end;
+      end if;
       return Result;
    end Scaled_Metric;
 
@@ -364,7 +396,7 @@ package body Math_Layout is
    begin
       if Value.Kind in Row_Node | Glyph_Node | Scripts_Node | Fraction_Node |
         Overlay_Node | Overlap_Node | Dual_Node | Poor_Bold_Node |
-        Verbatim_Node
+        Verbatim_Node | Annotation_Node
       then
          if (if Value.Kind = Poor_Bold_Node
              then Value.Poor_Bold_Class = Binary_Atom
@@ -403,31 +435,50 @@ package body Math_Layout is
       Factor : Natural := 1;
       procedure Add_Piece (Code : Natural; Baseline : Long_Float) is
          M : constant Math_Metrics.Glyph_Metric :=
-           Scaled_Metric (Font, Code, Scale);
+           Scaled_Metric (Font, Code, Scale, Thickness);
       begin
          Append_Command (Result, Draw_Command'
            (Kind => Glyph_Command, Font => Font, Code_Point => Code,
              X => 0.0, Y => Baseline, Scale => Scale, Width => M.Width,
-             Height => M.Ascent + M.Descent, others => <>));
+             Height => M.Ascent + M.Descent, others => <>), Thickness.Work);
       end Add_Piece;
       function Piece_Height (Code : Natural) return Long_Float is
          M : constant Math_Metrics.Glyph_Metric :=
-           Scaled_Metric (Font, Code, Scale);
+           Scaled_Metric (Font, Code, Scale, Thickness);
       begin
          return M.Ascent + M.Descent;
       end Piece_Height;
    begin
       if Kind in Math_Syntax.Bar_Delimiter | Math_Syntax.Double_Bar_Delimiter then
-         Metric := Scaled_Metric (Main_Regular, 16#7C#, Scale);
-         Result.Width := Metric.Width;
+         Metric := Scaled_Metric (Main_Regular, 16#7C#, Scale, Thickness);
+         Result.Width := Metric.Width *
+           (if Kind = Math_Syntax.Double_Bar_Delimiter then 2.0 else 1.0) +
+           (if Kind = Math_Syntax.Double_Bar_Delimiter then 0.04 * Scale else 0.0);
          if Metric.Ascent + Metric.Descent >= Need_Height then
-            Append_Command (Result, Draw_Command'(Kind => Glyph_Command, Font => Main_Regular,
-                Code_Point => 16#7C#, X => 0.0,
-                Y => (Metric.Ascent - Metric.Descent) / 2.0,
-                Scale => Scale, Width => Metric.Width,
-                Height => Metric.Ascent + Metric.Descent, others => <>));
-            Result.Ascent := (Metric.Ascent + Metric.Descent) / 2.0;
-            Result.Descent := Result.Ascent;
+            declare
+               Axis : constant Long_Float := Fraction_Axis * Scale;
+               Height : constant Long_Float :=
+                 (Metric.Ascent + Metric.Descent) * Scale;
+               Baseline : constant Long_Float :=
+                 (Metric.Ascent - Metric.Descent) * Scale / 2.0 - Axis;
+            begin
+               Append_Command (Result, Draw_Command'
+                 (Kind => Glyph_Command, Font => Main_Regular,
+                  Code_Point => 16#7C#, X => 0.0, Y => Baseline,
+                  Scale => Scale, Width => Metric.Width * Scale,
+                  Height => Height, others => <>), Thickness.Work);
+               if Kind = Math_Syntax.Double_Bar_Delimiter then
+                  Append_Command (Result, Draw_Command'
+                    (Kind => Glyph_Command, Font => Main_Regular,
+                     Code_Point => 16#7C#,
+                     X => Metric.Width * Scale + 0.04 * Scale,
+                     Y => Baseline, Scale => Scale,
+                     Width => Metric.Width * Scale, Height => Height,
+                     others => <>), Thickness.Work);
+               end if;
+               Result.Ascent := Height / 2.0 + Axis;
+               Result.Descent := Height / 2.0 - Axis;
+            end;
          else
             if Need_Height > Max_Geometry then
                Reject ("delimiter assembly bounds exceeded");
@@ -435,8 +486,9 @@ package body Math_Layout is
             Append_Command (Result, Draw_Command'(Kind => Rule_Command, Font => Main_Regular,
                 Code_Point => 0, X => 0.0, Y => -Need_Height / 2.0,
                 Scale => Scale, Width => Thickness.Effective * Scale,
-                Height => Need_Height, others => <>));
-            Result.Width := Thickness.Effective * Scale;
+                Height => Need_Height, others => <>), Thickness.Work);
+            Result.Width := Thickness.Effective * Scale *
+              (if Kind = Math_Syntax.Double_Bar_Delimiter then 2.0 else 1.0);
             Result.Ascent := Need_Height / 2.0;
             Result.Descent := Need_Height / 2.0;
          end if;
@@ -460,20 +512,43 @@ package body Math_Layout is
             Middle := (if Right_Side then 16#23AC# else 16#23A8#);
             Bottom := (if Right_Side then 16#23AD# else 16#23A9#);
             Repeat := 16#23AA#;
+         when Math_Syntax.Angle_Delimiter =>
+            Point := (if Right_Side then 16#27E9# else 16#27E8#);
+         when Math_Syntax.Floor_Delimiter =>
+            Point := (if Right_Side then 16#230B# else 16#230A#);
+            Top := (if Right_Side then 16#23A4# else 16#23A1#);
+            Repeat := (if Right_Side then 16#23A5# else 16#23A2#);
+            Bottom := (if Right_Side then 16#23A6# else 16#23A3#);
+         when Math_Syntax.Ceiling_Delimiter =>
+            Point := (if Right_Side then 16#2309# else 16#2308#);
+            Top := (if Right_Side then 16#23A1# else 16#23A4#);
+            Repeat := (if Right_Side then 16#23A2# else 16#23A5#);
+            Bottom := (if Right_Side then 16#23A3# else 16#23A6#);
          when others =>
             return Result;
       end case;
+      Metric := Scaled_Metric (Main_Regular, Point, Scale, Thickness);
+      if Metric.Ascent + Metric.Descent > Need_Height then
+         Font := Main_Regular;
+         Total := Metric.Ascent + Metric.Descent;
+      end if;
       for Index in Font_Kind'Pos (Size_1) .. Font_Kind'Pos (Size_4) loop
+         exit when Total > 0.0;
          Font := Font_Kind'Val (Index);
-         Metric := Scaled_Metric (Font, Point, Scale);
-         if Metric.Ascent + Metric.Descent >= Need_Height then
+         Metric := Scaled_Metric (Font, Point, Scale, Thickness);
+         if Metric.Ascent + Metric.Descent > Need_Height then
             Total := Metric.Ascent + Metric.Descent;
             exit;
          end if;
       end loop;
-      if Total = 0.0 then
+      if Total = 0.0 and then Kind = Math_Syntax.Angle_Delimiter then
          Font := Size_4;
-         Metric := Scaled_Metric (Font, Point, Scale);
+         Metric := Scaled_Metric (Font, Point, Scale, Thickness);
+         Total := Metric.Ascent + Metric.Descent;
+      end if;
+      if Total = 0.0 and then Kind /= Math_Syntax.Angle_Delimiter then
+         Font := Size_4;
+         Metric := Scaled_Metric (Font, Point, Scale, Thickness);
          Top_H := Piece_Height (Top);
          Repeat_H := Piece_Height (Repeat);
          Bottom_H := Piece_Height (Bottom);
@@ -527,7 +602,7 @@ package body Math_Layout is
           Y => (Metric.Ascent - Metric.Descent) / 2.0 -
             Fraction_Axis * Scale,
           Scale => Scale, Width => Metric.Width,
-          Height => Metric.Ascent + Metric.Descent, others => <>));
+          Height => Metric.Ascent + Metric.Descent, others => <>), Thickness.Work);
       Result.Width := Metric.Width;
       Result.Ascent := (Metric.Ascent + Metric.Descent) / 2.0 +
         Fraction_Axis * Scale;
@@ -538,7 +613,8 @@ package body Math_Layout is
    end Compose_Delimiter;
 
    procedure Append_At
-     (Target : in out Box; Source : Box; X_Offset, Y_Offset : Long_Float)
+     (Target : in out Box; Source : Box; X_Offset, Y_Offset : Long_Float;
+      Work : Math_Work_Control.Context_Access := null)
    is
       Command : Draw_Command;
    begin
@@ -548,10 +624,11 @@ package body Math_Layout is
       if not Source.Commands.Is_Empty then
          for Index in Source.Commands.First_Index .. Source.Commands.Last_Index
          loop
+            Math_Work_Control.Poll (Work);
             Command   := Source.Commands (Index);
             Command.X := Command.X + X_Offset;
             Command.Y := Command.Y + Y_Offset;
-            Append_Command (Target, Command);
+            Append_Command (Target, Command, Work);
          end loop;
       end if;
    end Append_At;
@@ -579,8 +656,32 @@ package body Math_Layout is
       Has_Next_Atom     : Boolean;
       Has_Previous_Atom : Boolean    := False;
       Explicit_Space    : Boolean;
+      Baseline_Offset   : Long_Float := 0.0;
+      Line_Ascent       : Long_Float := 0.0;
+      Line_Descent      : Long_Float := 0.0;
+      Main_Extents      : Math_Metrics.Font_Line_Extent;
+      Fragment_Extents : Math_Metrics.Font_Line_Extent;
    begin
+      if Thickness.Advance_Source /= null then
+         Main_Extents := Math_Metrics.Font_Line_Extents
+           (Thickness.Advance_Source.all, Main_Regular,
+            Thickness.Pixel_Em * Scale);
+         declare
+            Leading : constant Long_Float := Long_Float'Max
+              (0.0, Long_Float'Max
+                 (1.2 * Scale,
+                  Main_Extents.Height / Thickness.Pixel_Em) -
+                    (Main_Extents.Ascent + Main_Extents.Descent) /
+                      Thickness.Pixel_Em);
+         begin
+            Line_Ascent :=
+              (Main_Extents.Ascent / Thickness.Pixel_Em) + Leading / 2.0;
+            Line_Descent :=
+              (Main_Extents.Descent / Thickness.Pixel_Em) + Leading / 2.0;
+         end;
+      end if;
       while Probe /= No_Node loop
+         Poll (Thickness);
          if Probe > Math_Syntax.Count (Item) or
            Link_Count >= Math_Syntax.Count (Item)
          then
@@ -598,61 +699,133 @@ package body Math_Layout is
          return Result;
       end if;
       while Current /= No_Node loop
-         Probe_Node     := Math_Syntax.Element (Item, Positive (Current));
+         Poll (Thickness);
+         Probe_Node := Math_Syntax.Element (Item, Positive (Current));
          Explicit_Space := Probe_Node.Kind = Space_Node;
          if not Explicit_Space then
-            Position      := Position + 1;
+            Position := Position + 1;
             Current_Class := Effective_Class (Item, Current, Position, Total);
          else
             Current_Class := Ordinary;
          end if;
-         if Current_Class = Binary_Atom then
-            Next_Id       := Probe_Node.Next;
-            Has_Next_Atom := False;
-            while Next_Id /= No_Node loop
-               Next_Node := Math_Syntax.Element (Item, Positive (Next_Id));
-               exit when Next_Node.Kind /= Space_Node;
-               Next_Id := Next_Node.Next;
-            end loop;
-            if Next_Id /= No_Node then
-               Has_Next_Atom := True;
-               Next_Node     := Math_Syntax.Element (Item, Positive (Next_Id));
-               Next_Class    :=
-                 Effective_Class (Item, Next_Id, Position + 1, Total);
+         if Probe_Node.Break = Forced_Break then
+            Result.Width := Long_Float'Max (Result.Width, Offset);
+            Baseline_Offset := Baseline_Offset +
+              Long_Float'Max
+                (1.2 * Scale, Line_Ascent + Line_Descent) +
+              Probe_Node.Amount;
+            Offset := 0.0;
+            Line_Ascent :=
+              (if Thickness.Advance_Source = null then 0.0 else
+                 Main_Extents.Ascent / Thickness.Pixel_Em +
+                   Long_Float'Max
+                     (0.0, Long_Float'Max
+                        (1.2 * Scale,
+                         Main_Extents.Height / Thickness.Pixel_Em) -
+                           (Main_Extents.Ascent + Main_Extents.Descent) /
+                             Thickness.Pixel_Em) / 2.0);
+            Line_Descent :=
+              (if Thickness.Advance_Source = null then 0.0 else
+                 Main_Extents.Descent / Thickness.Pixel_Em +
+                   Long_Float'Max
+                     (0.0, Long_Float'Max
+                        (1.2 * Scale,
+                         Main_Extents.Height / Thickness.Pixel_Em) -
+                           (Main_Extents.Ascent + Main_Extents.Descent) /
+                             Thickness.Pixel_Em) / 2.0);
+            Prior_Class := Ordinary;
+            Previous_Class := Ordinary;
+            Has_Previous_Atom := False;
+            Last_Child_Italic := 0.0;
+         else
+            if Current_Class = Binary_Atom then
+               Next_Id := Probe_Node.Next;
+               Has_Next_Atom := False;
+               while Next_Id /= No_Node loop
+                  Poll (Thickness);
+                  Next_Node := Math_Syntax.Element
+                    (Item, Positive (Next_Id));
+                  exit when Next_Node.Kind /= Space_Node;
+                  Next_Id := Next_Node.Next;
+               end loop;
+               if Next_Id /= No_Node then
+                  Has_Next_Atom := True;
+                  Next_Node := Math_Syntax.Element
+                    (Item, Positive (Next_Id));
+                  Next_Class := Effective_Class
+                    (Item, Next_Id, Position + 1, Total);
+               end if;
+               if Position = 1
+                 or else Previous_Class in
+                   Binary_Atom | Operator_Atom | Relation_Atom | Opening
+                   | Punctuation
+                 or else
+                   (Has_Next_Atom and then Next_Class in
+                      Relation_Atom | Closing | Punctuation)
+                 or else not Has_Next_Atom
+               then
+                  Current_Class := Ordinary;
+               end if;
             end if;
-            if Position = 1
-              or else Previous_Class in
-                Binary_Atom | Operator_Atom | Relation_Atom | Opening
-                | Punctuation
-              or else
-              (Has_Next_Atom
-               and then Next_Class in Relation_Atom | Closing | Punctuation)
-              or else not Has_Next_Atom
+            if not Explicit_Space and Has_Previous_Atom then
+               Offset := Offset + Spacing
+                 (Prior_Class, Current_Class, Is_Tight (Level), Scale);
+            end if;
+            Child := Compose
+              (Item, Current, Level, Scale, Depth + 1, Thickness);
+            Append_At
+              (Result, Child, Offset, Baseline_Offset, Thickness.Work);
+            Offset := Offset + Child.Width;
+            if Thickness.Advance_Source /= null and then
+              not Child.Commands.Is_Empty
             then
-               Current_Class := Ordinary;
+               for Command of Child.Commands loop
+                  Poll (Thickness);
+                  if Command.Kind = Glyph_Command then
+                     Fragment_Extents := Math_Metrics.Font_Line_Extents
+                       (Thickness.Advance_Source.all, Command.Font,
+                        Thickness.Pixel_Em * Command.Scale);
+                     declare
+                        Leading : constant Long_Float := Long_Float'Max
+                          (0.0, 1.2 * Command.Scale -
+                             (Fragment_Extents.Ascent +
+                                Fragment_Extents.Descent) /
+                               Thickness.Pixel_Em);
+                     begin
+                        Line_Ascent := Long_Float'Max
+                          (Line_Ascent,
+                           Fragment_Extents.Ascent / Thickness.Pixel_Em +
+                             Leading / 2.0 - Command.Y);
+                        Line_Descent := Long_Float'Max
+                          (Line_Descent,
+                           Fragment_Extents.Descent / Thickness.Pixel_Em +
+                             Leading / 2.0 + Command.Y);
+                     end;
+                  end if;
+               end loop;
             end if;
-         end if;
-         if not Explicit_Space and Has_Previous_Atom then
-            Offset :=
-              Offset +
-              Spacing (Prior_Class, Current_Class, Is_Tight (Level), Scale);
-         end if;
-         Child := Compose (Item, Current, Level, Scale, Depth + 1, Thickness);
-         Append_At (Result, Child, Offset, 0.0);
-         Offset         := Offset + Child.Width;
-         Result.Ascent  := Maximum (Result.Ascent, Child.Ascent, 0.0);
-         Result.Descent := Maximum (Result.Descent, Child.Descent, 0.0);
-         if not Explicit_Space then
-            Last_Child_Italic := Child.Italic;
-            Prior_Class       := Current_Class;
-            Previous_Class    := Current_Class;
-            Has_Previous_Atom := True;
+            Line_Ascent := Long_Float'Max (Line_Ascent, Child.Ascent);
+            Line_Descent := Long_Float'Max (Line_Descent, Child.Descent);
+            if Child.Ascent > 0.0 or else Child.Descent > 0.0 or else
+              not Child.Commands.Is_Empty
+            then
+               Result.Ascent := Long_Float'Max
+                 (Result.Ascent, Child.Ascent - Baseline_Offset);
+               Result.Descent := Long_Float'Max
+                 (Result.Descent, Child.Descent + Baseline_Offset);
+            end if;
+            if not Explicit_Space then
+               Last_Child_Italic := Child.Italic;
+               Prior_Class := Current_Class;
+               Previous_Class := Current_Class;
+               Has_Previous_Atom := True;
+            end if;
          end if;
          Current := Probe_Node.Next;
       end loop;
-      Result.Width  := Offset;
+      Result.Width := Long_Float'Max (Result.Width, Offset);
       Result.Italic := Last_Child_Italic;
-      Result.Valid  := True;
+      Result.Valid := True;
       return Result;
    end Compose_Row;
 
@@ -822,25 +995,25 @@ package body Math_Layout is
          Numerator_X := (Fraction_Width - Numerator.Width) / 2.0;
          Denominator_X := (Fraction_Width - Denominator.Width) / 2.0;
       end if;
-      Append_At (Result, Numerator, Left_Width + Margin + Numerator_X, -Num_Shift);
-      Append_At (Result, Denominator, Left_Width + Margin + Denominator_X, Den_Shift);
+      Append_At (Result, Numerator, Left_Width + Margin + Numerator_X, -Num_Shift, Thickness.Work);
+      Append_At (Result, Denominator, Left_Width + Margin + Denominator_X, Den_Shift, Thickness.Work);
       if Has_Rule then
          Rule.Kind := Rule_Command;
          Rule.Y := -Axis - Half_Rule;
          Rule.X := Left_Width + Margin;
          Rule.Width := Fraction_Width;
          Rule.Height := Rule_Thickness * Scale;
-         Append_Command (Result, Rule);
+         Append_Command (Result, Rule, Thickness.Work);
       end if;
       if not No_Rule and then Value.Left_Delimiter /= Math_Syntax.No_Delimiter then
-         Append_At (Result, Left_Box, 0.0, 0.0);
+         Append_At (Result, Left_Box, 0.0, 0.0, Thickness.Work);
       end if;
       if not No_Rule and then not Value.Fraction_Continued and then
         Value.Right_Delimiter /= Math_Syntax.No_Delimiter
       then
          Append_At
            (Result, Right_Box,
-            Left_Width + Margin + Fraction_Width + Margin, 0.0);
+            Left_Width + Margin + Fraction_Width + Margin, 0.0, Thickness.Work);
       end if;
       Result.Width := Left_Width + Margin + Fraction_Width +
         (if No_Rule or else Value.Fraction_Continued then 0.0
@@ -866,6 +1039,7 @@ package body Math_Layout is
             for I in Result.Commands.First_Index ..
               Result.Commands.Last_Index
             loop
+               Poll (Thickness);
                declare
                   C : Draw_Command := Result.Commands (I);
                begin
@@ -1016,19 +1190,20 @@ package body Math_Layout is
          Command.Clip_W := Command.Width;
          Command.Clip_H := Command.Height;
          for Part in 1 .. Math_Paths.Count (Scaled) loop
+            Poll (Thickness);
             Command.Path_Data.Append (Math_Paths.Element (Scaled, Part));
          end loop;
-         Append_Command (Result, Command);
+         Append_Command (Result, Command, Thickness.Work);
       end;
 
-      Append_At (Result, Radicand, Advance_Width, 0.0);
+      Append_At (Result, Radicand, Advance_Width, 0.0, Thickness.Work);
       Result.Width := Advance_Width + Radicand.Width;
       Result.Ascent := Image_Height + Rule_Width - Image_Shift;
       Result.Descent := Image_Shift;
 
       if Has_Index then
          Index_Y := -0.6 * (Result.Ascent - Result.Descent);
-         Append_At (Result, Index_Box, Index_X, Index_Y);
+         Append_At (Result, Index_Box, Index_X, Index_Y, Thickness.Work);
          Result.Width := Maximum (Result.Width, Index_X + Index_Box.Width);
          Result.Ascent :=
            Maximum (Result.Ascent, Index_Box.Ascent - Index_Y, 0.0);
@@ -1092,17 +1267,18 @@ package body Math_Layout is
                  0.0, 0.0);
          begin
             for Segment in 1 .. Math_Paths.Count (Scaled_Path) loop
+               Poll (Thickness);
                Geometry.Path_Data.Append
                  (Math_Paths.Element (Scaled_Path, Segment));
             end loop;
          end;
-         Append_Command (Result, Geometry);
+         Append_Command (Result, Geometry, Thickness.Work);
       end Add_Part;
    begin
       if Value.First = No_Node then
          Reject ("brace accent has no body");
       end if;
-      Append_At (Result, Body_Box, 0.0, 0.0);
+      Append_At (Result, Body_Box, 0.0, 0.0, Thickness.Work);
       Add_Part (Math_Stretchy.Left_Part, 0.0, 0.251 * Brace_Width);
       Add_Part
         (Math_Stretchy.Middle_Part, 0.25 * Brace_Width,
@@ -1140,6 +1316,12 @@ package body Math_Layout is
       Width : Long_Float;
       Arrow_Height : Long_Float;
       Pad : constant Long_Float := 0.3 * Scale;
+      CD_Left_Pad : constant Long_Float := 0.27778 * Scale;
+      CD_Right_Pad : constant Long_Float := 0.55556 * Scale;
+      Is_CD : constant Boolean := Name in
+        "cdrightarrow" | "cdleftarrow" | "cdlongequal" |
+        "\\cdrightarrow" | "\\cdleftarrow" | "\\cdlongequal" |
+        "\cdrightarrow" | "\cdleftarrow" | "\cdlongequal";
       Axis : constant Long_Float := Fraction_Axis * Scale;
       Path_Width : constant Long_Float := 400.0 * Scale;
       function Make_Part
@@ -1179,6 +1361,7 @@ package body Math_Layout is
               (Path, 0.001 * Scale, 0.0, 0.0, 0.001 * Scale, 0.0, 0.0);
          begin
             for I in 1 .. Math_Paths.Count (Scaled) loop
+               Poll (Thickness);
                Command.Path_Data.Append (Math_Paths.Element (Scaled, I));
             end loop;
          end;
@@ -1212,44 +1395,60 @@ package body Math_Layout is
                Child_Scale (Scale, Level, Sub_Style (Level)), Depth + 1,
                Thickness);
          end if;
-         Width := Long_Float'Max (Min_Width, Upper.Width + 2.0 * Pad);
+         Width := Long_Float'Max
+           (Min_Width, Upper.Width +
+             (if Is_CD then CD_Left_Pad + CD_Right_Pad else 2.0 * Pad));
          if Value.Second /= No_Node then
-            Width := Long_Float'Max (Width, Lower.Width + 2.0 * Pad);
+            Width := Long_Float'Max
+              (Width, Lower.Width +
+                (if Is_CD then CD_Left_Pad + CD_Right_Pad else 2.0 * Pad));
          end if;
          for Part in 1 .. Math_Stretchy.PartCount (Name) loop
             declare
                Count : constant Natural := Math_Stretchy.PartCount (Name);
                Part_Width : constant Long_Float :=
-                 (if Count = 3 then
+                 (if Count = 1 then Width
+                  elsif Count = 3 then
                     (if Part = 2 then Width / 2.0
                      else 0.251 * Width)
                   else 0.502 * Width);
                Left : constant Long_Float :=
-                 (if Count = 3 then
+                 (if Count = 1 then 0.0
+                  elsif Count = 3 then
                     (case Part is
                        when 1 => 0.0,
                        when 2 => Width * 0.25,
                        when others => Width * 0.749)
                   else (if Part = 1 then 0.0 else Width * 0.498));
             begin
-               Append_Command (Result, Make_Part (Part, Part_Width, Left));
+               Append_Command (Result, Make_Part (Part, Part_Width, Left), Thickness.Work);
             end;
          end loop;
          declare
             Upper_Shift : constant Long_Float := Axis + Arrow_Height / 2.0 +
-              0.111 * Scale + Upper.Descent;
+              0.111 * Scale +
+              (if Is_CD and then Upper.Descent <= 0.25 * Scale
+               then 0.0 else Upper.Descent);
             Lower_Shift : constant Long_Float := Arrow_Height / 2.0 - Axis +
               0.111 * Scale + Lower.Ascent;
          begin
             Append_At
-              (Result, Upper, (Width - Upper.Width) / 2.0, -Upper_Shift);
+              (Result, Upper,
+               (Width - Upper.Width) / 2.0 +
+                 (if Is_CD then (CD_Left_Pad - CD_Right_Pad) / 2.0
+                  else 0.0),
+               -Upper_Shift, Thickness.Work);
             Result.Ascent := Long_Float'Max
               (Axis + Arrow_Height / 2.0, Upper_Shift + Upper.Ascent);
             Result.Descent := Long_Float'Max
               (Arrow_Height / 2.0 - Axis, Upper.Descent - Upper_Shift);
             if Value.Second /= No_Node then
                Append_At
-                 (Result, Lower, (Width - Lower.Width) / 2.0, Lower_Shift);
+                 (Result, Lower,
+                  (Width - Lower.Width) / 2.0 +
+                    (if Is_CD then (CD_Left_Pad - CD_Right_Pad) / 2.0
+                     else 0.0),
+                  Lower_Shift, Thickness.Work);
                Result.Descent := Long_Float'Max
                  (Result.Descent, Lower_Shift + Lower.Descent);
             end if;
@@ -1263,29 +1462,32 @@ package body Math_Layout is
             Scale, Depth + 1, Thickness);
          Width := Long_Float'Max (Min_Width, Base.Width);
          if Math_Stretchy.PartCount (Name) = 1 then
-            Append_Command (Result, Make_Part (1, Width, 0.0));
+            Append_Command (Result, Make_Part (1, Width, 0.0), Thickness.Work);
          else
             for Part in 1 .. Math_Stretchy.PartCount (Name) loop
                declare
                   Count : constant Natural := Math_Stretchy.PartCount (Name);
                   Part_Width : constant Long_Float :=
-                    (if Count = 3 then
+                    (if Count = 1 then Width
+                     elsif Count = 3 then
                        (if Part = 2 then Width / 2.0
                         else 0.251 * Width)
                      else 0.502 * Width);
                   Left : constant Long_Float :=
-                    (if Count = 3 then
+                    (if Count = 1 then 0.0
+                     elsif Count = 3 then
                        (case Part is
                           when 1 => 0.0,
                           when 2 => Width * 0.25,
                           when others => Width * 0.749)
                      else (if Part = 1 then 0.0 else Width * 0.498));
                begin
-                  Append_Command (Result, Make_Part (Part, Part_Width, Left));
+                  Append_Command (Result, Make_Part (Part, Part_Width, Left), Thickness.Work);
                end;
             end loop;
          end if;
-         Append_At (Result, Base, (Width - Base.Width) / 2.0, 0.0);
+         Append_At
+           (Result, Base, (Width - Base.Width) / 2.0, 0.0, Thickness.Work);
          Result.Width := Width;
          if Under then
             Result.Ascent := Base.Ascent;
@@ -1300,6 +1502,79 @@ package body Math_Layout is
       Result.Valid := True;
       return Result;
    end Compose_Stretchy;
+
+   function Compose_CD_Arrow
+     (Item : Math_Syntax.Document; Value : Math_Syntax.Node;
+      Scale : Long_Float; Depth : Natural; Thickness : Rule_Parameters)
+      return Box
+   is
+      Result : Box;
+      Left_Label, Right_Label : Box;
+      Top : constant Natural :=
+        (if Value.Code_Point = 16#2191# then 16#2191# else 16#23D0#);
+      Bottom : constant Natural :=
+        (if Value.Code_Point = 16#2191# then 16#23D0# else 16#2193#);
+      Top_M : constant Math_Metrics.Glyph_Metric :=
+        Scaled_Metric (Size_1, Top, Scale, Thickness);
+      Bottom_M : constant Math_Metrics.Glyph_Metric :=
+        Scaled_Metric (Size_1, Bottom, Scale, Thickness);
+      Repeat_M : constant Math_Metrics.Glyph_Metric :=
+        Scaled_Metric (Size_1, 16#23D0#, Scale, Thickness);
+      Top_H : constant Long_Float := Top_M.Ascent + Top_M.Descent;
+      Bottom_H : constant Long_Float := Bottom_M.Ascent + Bottom_M.Descent;
+      Repeat_H : constant Long_Float := Repeat_M.Ascent + Repeat_M.Descent;
+      Count : Natural;
+      Total, Depth_Value, Cursor : Long_Float;
+      Width : constant Long_Float := Top_M.Width;
+      procedure Piece (Point : Natural; M : Math_Metrics.Glyph_Metric;
+                       Top_Y : Long_Float) is
+      begin
+         Append_Command (Result,
+           (Kind => Glyph_Command, Font => Size_1, Code_Point => Point,
+            X => 0.0, Y => Top_Y + M.Ascent, Scale => Scale,
+            Width => M.Width, Height => M.Ascent + M.Descent,
+            others => <>), Thickness.Work);
+      end Piece;
+   begin
+      if Value.Code_Point not in 16#2191# | 16#2193# or else
+        Value.First = No_Node or else Value.Second = No_Node or else
+        Repeat_H <= 0.0
+      then
+         Reject ("invalid CD vertical arrow metadata");
+      end if;
+      Count := Natural'Max (0, Integer (Long_Float'Ceiling
+        ((1.8 * Scale - Top_H - Bottom_H) / Repeat_H)));
+      Total := Top_H + Bottom_H + Long_Float (Count) * Repeat_H;
+      Depth_Value := Total / 2.0 - Fraction_Axis * Scale;
+      Cursor := Depth_Value - Bottom_H;
+      Piece (Bottom, Bottom_M, Cursor);
+      Cursor := Depth_Value - Total + Top_H - 0.008 * Scale;
+      Append_Command (Result,
+        (Kind => Rule_Command,
+         X => (Width - 0.333 * Scale) / 2.0 + 0.145 * Scale,
+         Y => Cursor,
+         Width => 43.0 / 1_000.0 * Scale,
+         Height => Total - Top_H - Bottom_H + 0.016 * Scale,
+         others => <>), Thickness.Work);
+      Cursor := Depth_Value - Total;
+      Piece (Top, Top_M, Cursor);
+      Left_Label := Compose
+        (Item, Value.First, Script_Level, Scale * 0.7,
+         Depth + 1, Thickness);
+      Right_Label := Compose
+        (Item, Value.Second, Script_Level, Scale * 0.7,
+         Depth + 1, Thickness);
+      Append_At (Result, Left_Label,
+        Width / 2.0 - 0.3 * Scale - Left_Label.Width,
+        -0.8 * Scale + Left_Label.Descent, Thickness.Work);
+      Append_At (Result, Right_Label, Width / 2.0 + 0.3 * Scale,
+        -0.8 * Scale + Right_Label.Descent, Thickness.Work);
+      Result.Width := Width;
+      Result.Ascent := Total - Depth_Value;
+      Result.Descent := Depth_Value;
+      Result.Valid := True;
+      return Result;
+   end Compose_CD_Arrow;
 
    function Compose_Scripts
      (Item  : Math_Syntax.Document; Value : Math_Syntax.Node;
@@ -1403,7 +1678,9 @@ package body Math_Layout is
            (Sup_Shift, Sup.Descent +
               0.25 * X_Height * Scale);
          if Limit_Mode then
-            Sup_Shift := Base.Ascent + 0.2 * Scale + Sup.Descent;
+            Sup_Shift := Base.Ascent +
+              (if Value.Code_Point = 1 then 0.3 else 0.2) * Scale +
+              Sup.Descent;
          end if;
       end if;
       if Has_Sub then
@@ -1415,7 +1692,9 @@ package body Math_Layout is
          Sub_Shift := Maximum
            (Sub_Shift, Min_Sub, Sub.Ascent - 0.8 * X_Height * Scale);
          if Limit_Mode then
-            Sub_Shift := Base.Descent + 0.2 * Scale + Sub.Ascent;
+            Sub_Shift := Base.Descent +
+              (if Value.Code_Point = 1 then 0.3 else 0.2) * Scale +
+              Sub.Ascent;
          end if;
       end if;
       if Has_Sup and Has_Sub then
@@ -1444,12 +1723,12 @@ package body Math_Layout is
          else Base.Width + Base.Italic);
       Sub_X :=
         (if Limit_Mode then (Group_Width - Sub.Width) / 2.0 else Base.Width);
-      Append_At (Result, Base, Base_X, 0.0);
+      Append_At (Result, Base, Base_X, 0.0, Thickness.Work);
       if Has_Sup then
-         Append_At (Result, Sup, Sup_X, -Sup_Shift);
+         Append_At (Result, Sup, Sup_X, -Sup_Shift, Thickness.Work);
       end if;
       if Has_Sub then
-         Append_At (Result, Sub, Sub_X, Sub_Shift);
+         Append_At (Result, Sub, Sub_X, Sub_Shift, Thickness.Work);
       end if;
       Result.Width   := (if Limit_Mode then Group_Width else Base.Width);
       Result.Ascent  := Maximum (Base.Ascent, 0.0);
@@ -1484,13 +1763,17 @@ package body Math_Layout is
       Level : Style_Level; Scale : Long_Float; Depth : Natural; Thickness : Rule_Parameters) return Box
    is
       use Math_Syntax;
-      Max_Rows    : constant Positive := Math_Syntax.Max_Array_Rows;
+      Max_Rows    : constant Positive :=
+        Math_Syntax.Max_Array_Rows +
+          (if Value.Array_Type = CD_Array then 1 else 0);
       Max_Columns : constant Positive := Math_Syntax.Max_Array_Columns;
       type Box_Grid is
         array
           (Positive range 1 .. Max_Rows,
            Positive range 1 .. Max_Columns) of Box;
       type Metric_Array is array (Positive range 1 .. Max_Rows) of Long_Float;
+      type Row_Flags is array (1 .. Max_Rows) of Boolean;
+      Visible_Rows : Row_Flags := (others => False);
       type Width_Array is
         array (Positive range 1 .. Max_Columns) of Long_Float;
       type Alignment_Array is
@@ -1507,6 +1790,7 @@ package body Math_Layout is
       Cell_Id           : Node_Id;
       Column            : Natural;
       Rows              : Natural             := 0;
+      Visible_Count     : Natural             := 0;
       Columns           : Natural             := 0;
       Link_Count        : Natural             := 0;
       Cell_Count        : Natural;
@@ -1515,6 +1799,7 @@ package body Math_Layout is
       Result            : Box;
       X_Offset          : Long_Float          := 0.0;
       Y_Offset          : Long_Float          := 0.0;
+      First_Boundary_Y  : Long_Float          := 0.0;
       Cell_Level : constant Style_Level :=
         (case Value.Math_Style is
            when Display_Style => Display_Level,
@@ -1534,12 +1819,31 @@ package body Math_Layout is
          elsif Value.Array_Type = Cases_Array then 1.0
          else 0.5) * Scale;
       Row_Gap           : constant Long_Float :=
-        (if Value.Row_Spacing > 0.0 then Value.Row_Spacing
-         elsif Value.Array_Type = Aligned_Array then 0.16 else 0.0) * Scale;
+        (if Value.Array_Type = CD_Array then 0.0
+         elsif Value.Array_Type = Aligned_Array then
+           (if Value.Row_Spacing > 0.0 then Value.Row_Spacing else 0.16)
+         elsif Value.Row_Spacing > 0.0 and then
+           Value.Array_Type not in Matrix_Array | Cases_Array then
+           Value.Row_Spacing
+         else 0.0) * Scale;
       Total_Height      : Long_Float          := 0.0;
       Total_Width       : Long_Float          := 0.0;
       Rule_Count        : Natural := 0;
+      Horizontal_Rule_Count : Natural := 0;
       Row_Center        : Long_Float;
+      Column_Start      : Long_Float;
+      function Rules_At (Boundary : Natural) return Natural is
+         Count : Natural := 0;
+      begin
+         if not Value.Array_Rules.Is_Empty then
+            for Rule of Value.Array_Rules loop
+               if Rule.Boundary = Boundary then
+                  Count := Count + 1;
+               end if;
+            end loop;
+         end if;
+         return Count;
+      end Rules_At;
       Delimiter_Gap : constant Long_Float := 0.1 * Scale;
       Need_Height : Long_Float;
       Left_Delimiter : Box;
@@ -1560,10 +1864,11 @@ package body Math_Layout is
          end if;
       end Measure_Delimiter;
       procedure Add_Delimiter (D : Box; X : Long_Float) is
-      begin Append_At (Result, D, X, 0.0); end Add_Delimiter;
+      begin Append_At (Result, D, X, 0.0, Thickness.Work); end Add_Delimiter;
    begin
       Row_Id := Value.First;
       while Row_Id /= No_Node loop
+         Poll (Thickness);
          if Row_Id > Math_Syntax.Count (Item)
            or else Link_Count >= Math_Syntax.Count (Item)
          then
@@ -1578,10 +1883,18 @@ package body Math_Layout is
          if Row_Value.Kind /= Math_Model.Row_Node then
             Reject ("invalid array row node");
          end if;
+         Visible_Rows (Rows) := Row_Value.First /= No_Node;
+         if Visible_Rows (Rows) then
+            Visible_Count := Visible_Count + 1;
+            if Visible_Count > Math_Syntax.Max_Array_Rows then
+               Reject ("array row limit exceeded");
+            end if;
+         end if;
          Cell_Id    := Row_Value.First;
          Column     := 0;
          Cell_Count := 0;
          while Cell_Id /= No_Node loop
+            Poll (Thickness);
             if Cell_Id > Math_Syntax.Count (Item)
               or else Cell_Count >= Math_Syntax.Count (Item)
             then
@@ -1593,8 +1906,9 @@ package body Math_Layout is
                Reject ("array column limit exceeded");
             end if;
             Cell_Value := Math_Syntax.Element (Item, Positive (Cell_Id));
-            if Cell_Value.Kind /= Math_Model.Row_Node or
-              Cell_Value.First = No_Node
+            if Cell_Value.Kind /= Math_Model.Row_Node or else
+              (Cell_Value.First = No_Node and then
+               Value.Array_Type /= CD_Array)
             then
                Reject ("invalid array cell expression");
             end if;
@@ -1603,20 +1917,41 @@ package body Math_Layout is
                 (Item, Cell_Id,
                  Cell_Level, Cell_Scale, Depth + 1, Thickness);
             Column_Widths (Column) :=
-              Maximum (Column_Widths (Column), Cells (Rows, Column).Width);
+              Maximum
+                (Column_Widths (Column),
+                 Cells (Rows, Column).Width + Cells (Rows, Column).Italic);
             Row_Ascents (Rows)     :=
               Maximum (Row_Ascents (Rows), Cells (Rows, Column).Ascent);
             Row_Descents (Rows)    :=
               Maximum (Row_Descents (Rows), Cells (Rows, Column).Descent);
             Cell_Id                := Cell_Value.Next;
          end loop;
-         if Column = 0 then
+         if Column = 0 and then Value.Array_Type /= CD_Array then
             Reject ("empty array row");
          end if;
          Columns := Natural'Max (Columns, Column);
          Row_Id  := Row_Value.Next;
       end loop;
+      if not Value.Array_Rules.Is_Empty then
+         if Value.Array_Rules.Length > Math_Syntax.Max_Nodes then
+            Reject ("array rule metadata limit exceeded");
+         end if;
+         for Rule of Value.Array_Rules loop
+            if Rule.Boundary > Rows or else
+              Rule.Kind not in Solid_Array_Rule | Dashed_Array_Rule
+            then
+               Reject ("invalid array rule metadata");
+            end if;
+         end loop;
+      end if;
       if Rows = 0 or Columns = 0 then
+         if Value.Array_Type = CD_Array and then Columns = 0 then
+            Result.Width := 0.0;
+            Result.Ascent := 0.0;
+            Result.Descent := 0.0;
+            Result.Valid := True;
+            return Result;
+         end if;
          Reject ("empty array");
       end if;
       if Length (Value.Column_Spec) > 0 and then
@@ -1648,22 +1983,47 @@ package body Math_Layout is
          end;
       end if;
       if Value.Array_Type /= Aligned_Array then
-         --  KaTeX array.js uses a 12 pt baseline strut, scaled by arraystretch.
          for I in 1 .. Rows loop
-            Row_Ascents (I) := Long_Float'Max
-              (Row_Ascents (I), 0.84 * Scale * Stretch);
-            Row_Descents (I) := Long_Float'Max
-              (Row_Descents (I), 0.36 * Scale * Stretch);
+            if Value.Array_Type = CD_Array then
+               --  KaTeX 3ex strut plus 3pt row-depth addition at 10pt.
+               Row_Ascents (I) := Long_Float'Max
+                 (Row_Ascents (I), 0.9051 * Scale * Stretch);
+               Row_Descents (I) := Long_Float'Max
+                 (Row_Descents (I), 0.3879 * Scale * Stretch) +
+                   0.3 * Scale;
+            else
+               --  KaTeX array.js uses a 12 pt baseline strut.
+               Row_Ascents (I) := Long_Float'Max
+                 (Row_Ascents (I), 0.84 * Scale * Stretch);
+               Row_Descents (I) := Long_Float'Max
+                 (Row_Descents (I), 0.36 * Scale * Stretch);
+            end if;
          end loop;
       end if;
       for I in 1 .. Rows loop
          Total_Height := Total_Height + Row_Ascents (I) + Row_Descents (I);
+         Horizontal_Rule_Count := Horizontal_Rule_Count + Rules_At (I - 1);
+         if Rules_At (I - 1) > 1 then
+            Total_Height := Total_Height +
+              0.25 * Scale * Long_Float (Rules_At (I - 1) - 1);
+         end if;
       end loop;
-      Total_Height := Total_Height + Row_Gap * Long_Float (Rows - 1);
+      Horizontal_Rule_Count := Horizontal_Rule_Count + Rules_At (Rows);
+      if Rules_At (Rows) > 1 then
+         Total_Height := Total_Height +
+           0.25 * Scale * Long_Float (Rules_At (Rows) - 1);
+      end if;
+      if Rows > 1 then
+         Total_Height := Total_Height + Row_Gap * Long_Float (Rows - 1);
+      end if;
       for I in 1 .. Columns loop
+
          Total_Width := Total_Width + Column_Widths (I);
       end loop;
-      Total_Width := Total_Width + Column_Gap * Long_Float (Columns - 1);
+      if Columns > 1 then
+         Total_Width := Total_Width +
+           Column_Gap * Long_Float (Columns - 1);
+      end if;
       Total_Width := Total_Width + Long_Float (Rule_Count) *
         (Thickness.Effective * Scale + 0.2 * Scale);
       Need_Height := Total_Height + 0.2 * Scale;
@@ -1681,25 +2041,29 @@ package body Math_Layout is
       Measure_Delimiter (Value.Left_Delimiter, False);
       Measure_Delimiter (Value.Right_Delimiter, True);
       Y_Offset :=
-        (if Value.Array_Type = Aligned_Array
-         then -Total_Height / 2.0
+        (if Value.Array_Type = CD_Array then
+           -Total_Height / 2.0 - Fraction_Axis * Scale
+         elsif Value.Array_Type = Aligned_Array then -Total_Height / 2.0
          elsif Value.Math_Style /= Natural_Style then
            -Total_Height / 2.0 - Fraction_Axis * Scale
          else -0.95 * Scale);
+      First_Boundary_Y := Y_Offset;
       for I in 1 .. Rows loop
          Row_Center := Y_Offset + Row_Ascents (I);
          X_Offset   := Left_Width;
          for J in 1 .. Columns loop
+            Column_Start := X_Offset;
             if J <= Max_Columns and then Cells (I, J).Valid then
                if Length (Value.Column_Spec) > 0 then
                   X_Offset := X_Offset + Rule_Offsets (J);
+                  Column_Start := X_Offset;
                end if;
                if Value.Array_Type = Aligned_Array then
                   if J mod 2 = 1 then
                      X_Offset :=
                        X_Offset + Column_Widths (J) - Cells (I, J).Width;
                   end if;
-               elsif Value.Array_Type = Matrix_Array then
+               elsif Value.Array_Type in Matrix_Array | CD_Array then
                   case Alignments (J) is
                      when Left_Column => null;
                      when Center_Column =>
@@ -1710,13 +2074,19 @@ package body Math_Layout is
                           Cells (I, J).Width;
                   end case;
                end if;
-               Append_At (Result, Cells (I, J), X_Offset, Row_Center);
-               X_Offset := X_Offset + Cells (I, J).Width;
+               Append_At (Result, Cells (I, J), X_Offset, Row_Center, Thickness.Work);
+               if Value.Array_Type in Matrix_Array | CD_Array then
+                  X_Offset := Column_Start + Column_Widths (J);
+               else
+                  X_Offset := X_Offset + Cells (I, J).Width;
+               end if;
                if J < Columns then
                   X_Offset := X_Offset + Column_Gap;
                end if;
             else
                if Value.Array_Type = Aligned_Array and then J mod 2 = 1 then
+                  X_Offset := X_Offset + Column_Widths (J);
+               elsif Value.Array_Type in Matrix_Array | CD_Array then
                   X_Offset := X_Offset + Column_Widths (J);
                end if;
                if J < Columns then
@@ -1724,11 +2094,15 @@ package body Math_Layout is
                end if;
             end if;
          end loop;
-         Result.Ascent  :=
-           Maximum (Result.Ascent, -Row_Center + Row_Ascents (I), 0.0);
-         Result.Descent :=
-           Maximum (Result.Descent, Row_Center + Row_Descents (I), 0.0);
-         Y_Offset := Y_Offset + Row_Ascents (I) + Row_Descents (I) + Row_Gap;
+         if Value.Array_Type /= CD_Array or else Visible_Rows (I)
+         then
+            Result.Ascent  :=
+              Maximum (Result.Ascent, -Row_Center + Row_Ascents (I), 0.0);
+            Result.Descent :=
+              Maximum (Result.Descent, Row_Center + Row_Descents (I), 0.0);
+         end if;
+         Y_Offset := Y_Offset + Row_Ascents (I) + Row_Descents (I) + Row_Gap +
+           0.25 * Scale * Long_Float (Natural'Max (0, Rules_At (I) - 1));
       end loop;
       Total_Width  := Left_Width + Total_Width + Right_Width;
       Result.Width := Total_Width;
@@ -1751,7 +2125,7 @@ package body Math_Layout is
                         Y => -Total_Height / 2.0,
                         Width => Thickness.Effective * Scale,
                         Height => Total_Height, Scale => Scale,
-                        others => <>));
+                        others => <>), Thickness.Work);
                   Rules_Before := Rules_Before + 1;
                   X := Left_Width;
                   for Prior in 1 .. Column loop
@@ -1773,11 +2147,12 @@ package body Math_Layout is
             C : Draw_Command;
          begin
             for I in Bar.Commands.First_Index .. Bar.Commands.Last_Index loop
+               Poll (Thickness);
                C := Bar.Commands (I);
                C.X := C.X + Bar.Width + Delimiter_Gap;
                Bar.Commands.Replace_Element (I, C);
             end loop;
-            Append_At (Result, Bar, 0.0, 0.0);
+            Append_At (Result, Bar, 0.0, 0.0, Thickness.Work);
          end;
       end if;
       if Value.Right_Delimiter /= Math_Syntax.No_Delimiter then
@@ -1789,9 +2164,96 @@ package body Math_Layout is
             Bar.Commands.Clear;
             Append_Command (Bar, Draw_Command' (Kind => Glyph_Command, Font => Main_Regular,
               Code_Point => 16#7C#, X => 0.0, Y => 0.0, Scale => Scale,
-              Width => Right_Delimiter.Width, Height => Need_Height, others => <>));
+              Width => Right_Delimiter.Width, Height => Need_Height, others => <>), Thickness.Work);
             Append_At (Result, Bar, Total_Width - Right_Width +
-              2.0 * Right_Delimiter.Width + 2.0 * Delimiter_Gap, 0.0);
+              2.0 * Right_Delimiter.Width + 2.0 * Delimiter_Gap, 0.0, Thickness.Work);
+         end;
+      end if;
+      if Horizontal_Rule_Count > 0 then
+         declare
+            Boundary_Y : Long_Float := First_Boundary_Y;
+            Stroke : constant Long_Float := Long_Float'Max
+              (Thickness.Effective * Scale, Thickness.Minimum * Scale);
+         begin
+            for Boundary in 0 .. Rows loop
+               declare
+                  Count : constant Natural := Rules_At (Boundary);
+               begin
+                  if Count > 0 then
+                     for Rule_Index in 1 .. Count loop
+                        declare
+                           Rule_Command_Value : Draw_Command;
+                           begin
+                              declare
+                                 Is_Dashed : Boolean := False;
+                                 Seen : Natural := 0;
+                              begin
+                                 for Rule of Value.Array_Rules loop
+                                    if Rule.Boundary = Boundary then
+                                       Seen := Seen + 1;
+                                       if Seen = Rule_Index then
+                                          Is_Dashed :=
+                                            Rule.Kind = Dashed_Array_Rule;
+                                          exit;
+                                       end if;
+                                    end if;
+                                 end loop;
+                                 Rule_Command_Value.Kind := Rule_Command;
+                                 Rule_Command_Value.X := Left_Width;
+                                 Rule_Command_Value.Y :=
+                                   Boundary_Y - Stroke;
+                                 Rule_Command_Value.Width :=
+                                   Total_Width - Left_Width - Right_Width;
+                                 Rule_Command_Value.Height := Stroke;
+                                 Rule_Command_Value.Scale := Scale;
+                                 if Is_Dashed then
+                                    declare
+                                       Dash_Width : constant Long_Float :=
+                                         3.0 * Stroke;
+                                       Cursor : Long_Float := Left_Width;
+                                       Limit : constant Long_Float :=
+                                         Left_Width + Rule_Command_Value.Width;
+                                    begin
+                                       while Cursor < Limit loop
+                                          Rule_Command_Value.X := Cursor;
+                                          Rule_Command_Value.Width :=
+                                            Long_Float'Min (Dash_Width, Limit - Cursor);
+                                          Append_Command
+                                            (Result, Rule_Command_Value, Thickness.Work);
+                                          Result.Ascent := Long_Float'Max
+                                            (Result.Ascent, -Rule_Command_Value.Y);
+                                          Result.Descent := Long_Float'Max
+                                            (Result.Descent,
+                                             Rule_Command_Value.Y + Stroke);
+                                          Cursor := Cursor + 2.0 * Dash_Width;
+                                       end loop;
+                                    end;
+                                 else
+                                    Append_Command
+                                      (Result, Rule_Command_Value,
+                                       Thickness.Work);
+                                    Result.Ascent := Long_Float'Max
+                                      (Result.Ascent, -Rule_Command_Value.Y);
+                                    Result.Descent := Long_Float'Max
+                                      (Result.Descent,
+                                       Rule_Command_Value.Y + Stroke);
+                                 end if;
+                              end;
+                              Boundary_Y := Boundary_Y +
+                                (if Rule_Index < Count then 0.25 * Scale
+                                 else 0.0);
+                        end;
+                     end loop;
+                  end if;
+               end;
+               if Boundary < Rows then
+                  Boundary_Y := Boundary_Y +
+                    0.25 * Scale * Long_Float
+                      (Natural'Max (0, Rules_At (Boundary) - 1)) +
+                    Row_Ascents (Boundary + 1) +
+                    Row_Descents (Boundary + 1) + Row_Gap;
+               end if;
+            end loop;
          end;
       end if;
       if Value.Array_Type = Aligned_Array then
@@ -1799,6 +2261,8 @@ package body Math_Layout is
            (Result.Ascent, Total_Height / 2.0, 0.0);
          Result.Descent := Maximum
            (Result.Descent, Total_Height / 2.0, 0.0);
+      elsif Value.Array_Type = CD_Array then
+         null;
       elsif Value.Math_Style /= Natural_Style then
          Result.Ascent := Long_Float'Max
            (Result.Ascent,
@@ -1830,6 +2294,7 @@ package body Math_Layout is
       Command : Draw_Command;
       Op_Font : Font_Kind;
    begin
+      Poll (Thickness);
       if Depth > Max_Layout_Depth or Id = No_Node then
          Reject ("invalid node reference or excessive layout depth");
       end if;
@@ -1842,29 +2307,109 @@ package body Math_Layout is
          when Row_Node =>
             Result := Compose_Row (Item, Value, Level, Scale, Depth, Thickness);
          when Glyph_Node =>
-            if Value.Class = Operator_Atom and then
-              Math_Metrics.Lookup (Size_1, Value.Code_Point).Found
-            then
-               if Value.Code_Point = 16#222B# then
-                  Op_Font := Size_1;
-               elsif Is_Display (Level) then
-                  Op_Font := Size_2;
-               else
-                  Op_Font := Size_1;
+            if Value.Code_Point in 16#222F# | 16#2230# then
+               declare
+                  Name : constant String :=
+                    (if Value.Code_Point = 16#222F# then "oiint" else "oiiint");
+                  Base_Point : constant Natural :=
+                    (if Value.Code_Point = 16#222F# then 16#222C# else 16#222D#);
+                  Size_Name : constant String := Name & "Size" &
+                    (if Is_Display (Level) then "2" else "1");
+                  Base_Font : constant Font_Kind :=
+                    (if Is_Display (Level) then Size_2 else Size_1);
+                  Base_Metric : constant Math_Metrics.Glyph_Metric :=
+                    Scaled_Metric (Base_Font, Base_Point, Scale, Thickness);
+                  Path : constant Math_Paths.Path :=
+                    Math_Stretchy.Geometry_For (Size_Name);
+                  Svg_Width : constant Long_Float :=
+                    Math_Stretchy.Svg_Width_For (Size_Name) * Scale;
+                  Svg_Height : constant Long_Float :=
+                    Math_Stretchy.Svg_Height_For (Size_Name) * Scale;
+                  Svg_Y_Shift : constant Long_Float :=
+                    Math_Stretchy.Svg_Y_Shift_For (Size_Name) * Scale;
+                  View_Width : constant Long_Float :=
+                    Math_Stretchy.Svg_Width_For (Size_Name) * 1_000.0;
+                  View_Height : constant Long_Float :=
+                    Math_Stretchy.Svg_Height_For (Size_Name) * 1_000.0;
+                  Base_Width : constant Long_Float := Base_Metric.Width;
+                  Oval : Draw_Command;
+                  Scaled_Path : Math_Paths.Path;
+               begin
+                  if Value.Class /= Operator_Atom or else
+                    not Math_Metrics.Lookup (Base_Font, Base_Point).Found or else
+                    not Math_Paths.Is_Valid (Path) or else
+                    Svg_Width <= 0.0 or else Svg_Height <= 0.0 or else
+                    not View_Width'Valid or else not View_Height'Valid
+                  then
+                     Reject ("invalid contour integral overlay geometry");
+                  end if;
+                  Scaled_Path := Math_Paths.Transform
+                    (Path, Svg_Width / View_Width, 0.0, 0.0,
+                     Svg_Height / View_Height, 0.0, 0.0, Thickness.Work);
+                  if not Math_Paths.Is_Valid (Scaled_Path) then
+                     Reject ("invalid contour integral overlay path");
+                  end if;
+                  Command := (Kind => Glyph_Command, Font => Base_Font,
+                    Code_Point => Base_Point, X => 0.0,
+                    Y => (Base_Metric.Ascent - Base_Metric.Descent) / 2.0 -
+                      Fraction_Axis * Scale,
+                    Scale => Scale, Width => Base_Width,
+                    Height => Base_Metric.Ascent + Base_Metric.Descent,
+                    others => <>);
+                  Append_Command (Result, Command, Thickness.Work);
+                  Oval.Kind := Path_Command;
+                  Oval.X := (Base_Width - Svg_Width) / 2.0;
+                  Oval.Y := (Base_Metric.Ascent - Base_Metric.Descent) / 2.0 -
+                    Fraction_Axis * Scale - Svg_Height + Svg_Y_Shift;
+                  Oval.Width := Svg_Width;
+                  Oval.Height := Svg_Height;
+                  Oval.Has_Clip := True;
+                  Oval.Clip_X := 0.0;
+                  Oval.Clip_Y := 0.0;
+                  Oval.Clip_W := Svg_Width;
+                  Oval.Clip_H := Svg_Height;
+                  for Part in 1 .. Math_Paths.Count (Scaled_Path) loop
+                     Poll (Thickness);
+                     Oval.Path_Data.Append
+                       (Math_Paths.Element (Scaled_Path, Part));
+                  end loop;
+                  Append_Command (Result, Oval, Thickness.Work);
+                  Result.Width := Base_Width;
+                  Result.Ascent := Maximum
+                    (Base_Metric.Ascent,
+                     Fraction_Axis * Scale + Svg_Height - Svg_Y_Shift, 0.0);
+                  Result.Descent := Maximum
+                    (Base_Metric.Descent,
+                     Svg_Y_Shift - Fraction_Axis * Scale, 0.0);
+                  Result.Italic := Base_Metric.Italic;
+                  Result.Valid := True;
+               end;
+            else
+               if Value.Class = Operator_Atom and then
+                 Math_Metrics.Lookup (Size_1, Value.Code_Point).Found
+               then
+                  if Value.Code_Point = 16#222B# then
+                     Op_Font := Size_1;
+                  elsif Is_Display (Level) then
+                     Op_Font := Size_2;
+                  else
+                     Op_Font := Size_1;
+                  end if;
                end if;
+               Metric := Scaled_Metric
+                 (Op_Font, Value.Code_Point, Scale, Thickness);
+               Command.Font       := Op_Font;
+               Command.Code_Point := Value.Code_Point;
+               Command.Scale      := Scale;
+               Command.Width      := Metric.Width;
+               Command.Height     := Metric.Ascent + Metric.Descent;
+               Append_Command (Result, Command, Thickness.Work);
+               Result.Width   := Metric.Width;
+               Result.Ascent  := Maximum (Metric.Ascent, 0.0);
+               Result.Descent := Maximum (Metric.Descent, 0.0);
+               Result.Italic  := Metric.Italic;
+               Result.Valid   := True;
             end if;
-            Metric := Scaled_Metric (Op_Font, Value.Code_Point, Scale);
-            Command.Font       := Op_Font;
-            Command.Code_Point := Value.Code_Point;
-            Command.Scale      := Scale;
-            Command.Width      := Metric.Width;
-            Command.Height     := Metric.Ascent + Metric.Descent;
-            Append_Command (Result, Command);
-            Result.Width   := Metric.Width;
-            Result.Ascent  := Maximum (Metric.Ascent, 0.0);
-            Result.Descent := Maximum (Metric.Descent, 0.0);
-            Result.Italic  := Metric.Italic;
-            Result.Valid   := True;
          when Verbatim_Node =>
             declare
                Text : constant String := To_String (Value.Verbatim_Text);
@@ -1882,6 +2427,7 @@ package body Math_Layout is
                   Reject ("invalid verbatim node");
                end if;
                while Offset < Text'Length loop
+                  Poll (Thickness);
                   declare
                      Lead : constant Natural := Character'Pos
                        (Text (Text'First + Offset));
@@ -1916,7 +2462,7 @@ package body Math_Layout is
                      Point := (if Value.Verbatim_Starred
                        then 16#2423# else 16#00A0#);
                   end if;
-                  Metric := Scaled_Metric (Typewriter_Regular, Point, Scale);
+                  Metric := Scaled_Metric (Typewriter_Regular, Point, Scale, Thickness);
                   Command := (Kind => Glyph_Command,
                      Font => Typewriter_Regular, Code_Point => Point,
                      X => Result.Width,
@@ -1924,12 +2470,40 @@ package body Math_Layout is
                      Scale => Scale, Width => Metric.Width,
                      Height => Metric.Ascent + Metric.Descent,
                      others => <>);
-                  Append_Command (Result, Command);
+                  Append_Command (Result, Command, Thickness.Work);
                   Result.Width := Result.Width + Metric.Width;
                   Result.Ascent := Maximum (Result.Ascent, Metric.Ascent, 0.0);
                   Result.Descent := Maximum (Result.Descent, Metric.Descent, 0.0);
                   Offset := Offset + Step;
                end loop;
+               Result.Valid := True;
+            end;
+         when Text_Run_Node =>
+            declare
+               Text : constant String := To_String (Value.Text_Run_Text);
+               Shaped : Math_Text_Shaping.Metrics;
+               Run_Command : Draw_Command;
+            begin
+               if Value.First /= No_Node or Value.Second /= No_Node or
+                 Value.Third /= No_Node or Value.Fourth /= No_Node or
+                 Value.Class /= Ordinary or Text'Length = 0 or
+                 Text'Length > Math_Syntax.Max_Source_Bytes
+               then
+                  Reject ("invalid fallback text run");
+               end if;
+               Shaped := Math_Text_Shaping.Measure
+                 (Text, Value.Text_Run_Profile,
+                  Thickness.Pixel_Em, Thickness.Work);
+               Run_Command.Kind := Text_Run_Command;
+               Run_Command.Text_Run_Text := Value.Text_Run_Text;
+               Run_Command.Text_Run_Profile := Value.Text_Run_Profile;
+               Run_Command.Scale := Scale;
+               Run_Command.Width := Shaped.Advance * Scale;
+               Run_Command.Height := (Shaped.Ascent + Shaped.Descent) * Scale;
+               Append_Command (Result, Run_Command, Thickness.Work);
+               Result.Width := Run_Command.Width;
+               Result.Ascent := Shaped.Ascent * Scale;
+               Result.Descent := Shaped.Descent * Scale;
                Result.Valid := True;
             end;
          when Fraction_Node =>
@@ -1958,7 +2532,7 @@ package body Math_Layout is
                Slash : Box :=
                  Compose (Item, Value.Second, Level, Scale * 0.9, Depth + 1, Thickness);
             begin
-               Append_At (Base, Slash, Base.Width * 0.35, 0.0);
+               Append_At (Base, Slash, Base.Width * 0.35, 0.0, Thickness.Work);
                Base.Width :=
                  Long_Float'Max (Base.Width, Base.Width * 0.35 + Slash.Width);
                Result     := Base;
@@ -1973,7 +2547,7 @@ package body Math_Layout is
                     when Left_Overlap => 0.0,
                     when Center_Overlap => -Content.Width / 2.0);
             begin
-               Append_At (Result, Content, Offset, 0.0);
+               Append_At (Result, Content, Offset, 0.0, Thickness.Work);
                Result.Width := 0.0;
                Result.Ascent := Content.Ascent;
                Result.Descent := Content.Descent;
@@ -1992,6 +2566,8 @@ package body Math_Layout is
                           Depth + 1, Thickness);
                Mark   : Math_Metrics.Glyph_Metric;
                Accent : Draw_Command;
+               Accent_Font : Font_Kind := Main_Regular;
+               Accent_Font_Found : Boolean := False;
             begin
                Result := Base;
                if Value.Code_Point = 0 then
@@ -2027,39 +2603,81 @@ package body Math_Layout is
                      Result.Descent := Base.Descent;
                   end;
                elsif Value.Code_Point in Wide_Hat_Code_Point ..
-                 Wide_Tilde_Code_Point
+                 Under_Tilde_Code_Point
                then
                   declare
-                     Kind : constant Math_Stretchy.Accent_Kind :=
-                       (if Value.Code_Point = Wide_Hat_Code_Point
-                        then Math_Stretchy.Wide_Hat
-                        else Math_Stretchy.Wide_Tilde);
-                     function Requested_Width return Long_Float is
+                     Name : constant String :=
+                       (if Value.Code_Point = Wide_Check_Code_Point then
+                          "widecheck"
+                        elsif Value.Code_Point = Under_Tilde_Code_Point then
+                          "utilde"
+                        elsif Value.Code_Point = Wide_Hat_Code_Point then
+                          "widehat" else "widetilde");
+                     function Character_Count return Positive is
                         Base_Node : constant Math_Syntax.Node :=
                           Math_Syntax.Element
                             (Item, Positive (Value.First));
                         Current : Node_Id := Base_Node.First;
-                        Children : Natural := 0;
+                        Count : Natural := 0;
                      begin
-                        if Value.Code_Point /= Wide_Hat_Code_Point or else
-                          Base_Node.Kind /= Row_Node
-                        then
-                           return Base.Width * 1_000.0;
+                        if Base_Node.Kind /= Row_Node then
+                           return 1;
                         end if;
                         while Current /= No_Node loop
-                           Children := Children + 1;
+                           Poll (Thickness);
+                           Count := Count + 1;
                            Current := Math_Syntax.Element
                              (Item, Positive (Current)).Next;
                         end loop;
-                        case Children is
-                           when 0 .. 1 => return 500.0;
-                           when 2 .. 3 => return 1_500.0;
-                           when 4 .. 5 => return 2_500.0;
-                           when others => return 3_500.0;
-                        end case;
-                     end Requested_Width;
+                        return Natural'Max (1, Count);
+                     end Character_Count;
+                     Character_Total : constant Positive :=
+                       Character_Count;
+                     function Variant_Height return Long_Float is
+                     begin
+                        if Name = "widehat" or else Name = "widecheck" then
+                           return (case Character_Total is
+                              when 1 => 0.24,
+                              when 2 .. 5 => 0.30,
+                              when others => 0.42);
+                        else
+                           return (case Character_Total is
+                              when 1 => 0.26,
+                              when 2 .. 3 => 0.286,
+                              when 4 .. 5 => 0.30,
+                              when others => 0.34);
+                        end if;
+                     end Variant_Height;
+                     function View_Height return Long_Float is
+                     begin
+                        if Name = "widehat" or else Name = "widecheck" then
+                           return (case Character_Total is
+                              when 1 => 239.0,
+                              when 2 .. 5 => 300.0,
+                              when others => 420.0);
+                        else
+                           return (case Character_Total is
+                              when 1 => 260.0,
+                              when 2 => 286.0,
+                              when 3 .. 5 => 306.0,
+                              when others => 312.0);
+                        end if;
+                     end View_Height;
+                     function View_Width return Long_Float is
+                     begin
+                        if Name = "widehat" or else Name = "widecheck" then
+                           return (if Character_Total = 1 then 1_062.0 else 2_364.0);
+                        else
+                           return (case Character_Total is
+                              when 1 => 600.0,
+                              when 2 => 1_033.0,
+                              when 3 => 2_339.0,
+                              when others => 2_340.0);
+                        end if;
+                     end View_Width;
                      Path : constant Math_Paths.Path :=
-                       Math_Stretchy.Path_For (Kind, Requested_Width);
+                       Math_Stretchy.Accent_Path_For
+                         (Name, Character_Total);
                      Bounds : constant Math_Paths.Bounds :=
                        Math_Paths.Extent (Path);
                      Fit_X : Long_Float;
@@ -2075,88 +2693,188 @@ package body Math_Layout is
                      then
                         Reject ("invalid trusted stretchy accent path");
                      end if;
-                     Fit_X := Base.Width / (Bounds.Max_X - Bounds.Min_X);
-                     Fit_Y := Scale / 1_000.0;
-                     Offset_X :=
-                       (Base.Width - (Bounds.Max_X - Bounds.Min_X) * Fit_X) /
-                       2.0;
-                     Offset_Y := -(Base.Ascent + 0.08 * Scale) -
-                       Bounds.Max_Y * Fit_Y;
+                     Fit_X := Base.Width / View_Width;
+                     Fit_Y := Variant_Height * Scale / View_Height;
+                     Offset_X := -Bounds.Min_X * Fit_X;
+                     Offset_Y :=
+                       (if Value.Code_Point = Under_Tilde_Code_Point then
+                          Base.Descent + 0.12 * Scale - Bounds.Min_Y * Fit_Y
+                        else -Base.Ascent - Variant_Height * Scale);
                      Geometry.Kind := Path_Command;
                      Geometry.X := Offset_X;
                      Geometry.Y := Offset_Y;
                      Geometry.Width := Base.Width;
-                     Geometry.Height :=
-                       (Bounds.Max_Y - Bounds.Min_Y) * Fit_Y;
+                     Geometry.Height := Variant_Height * Scale;
+                     Geometry.Has_Clip := True;
+                     Geometry.Clip_X := 0.0;
+                     Geometry.Clip_Y := 0.0;
+                     Geometry.Clip_W := Base.Width;
+                     Geometry.Clip_H := Variant_Height * Scale;
                      declare
                         Scaled : constant Math_Paths.Path :=
                           Math_Paths.Transform
                             (Path, Fit_X, 0.0, 0.0, Fit_Y, 0.0, 0.0);
                      begin
                         for I in 1 .. Math_Paths.Count (Scaled) loop
+               Poll (Thickness);
                            Geometry.Path_Data.Append
                              (Math_Paths.Element (Scaled, I));
                         end loop;
                      end;
                      Result := Base;
-                     Append_Command (Result, Geometry);
-                     Result.Ascent := Base.Ascent + 0.08 * Scale +
-                       Geometry.Height;
-                     Result.Descent := Base.Descent;
+                     Append_Command (Result, Geometry, Thickness.Work);
+                     if Thickness.Advance_Source /= null then
+                        Result.Width := Result.Width + Base.Italic;
+                     end if;
+                     if Value.Code_Point = Under_Tilde_Code_Point then
+                        Result.Ascent := Base.Ascent;
+                        Result.Descent := Base.Descent + 0.12 * Scale +
+                          Geometry.Height;
+                     else
+                        Result.Ascent := Base.Ascent + Geometry.Height;
+                        Result.Descent := Base.Descent;
+                     end if;
+                     Accent.Kind := Path_Command;
                   end;
                else
-                  Mark := Math_Metrics.Lookup (Main_Regular, Value.Code_Point);
+                  if Value.Accent_Type /= Full_Accent and then
+                    not Base.Commands.Is_Empty
+                  then
+                     for Command of Base.Commands loop
+                        Poll (Thickness);
+                        if Command.Kind = Glyph_Command then
+                           Accent_Font := Command.Font;
+                           Accent_Font_Found := True;
+                           exit;
+                        end if;
+                     end loop;
+                  end if;
+                  Mark := Math_Metrics.Lookup
+                    ((if Accent_Font_Found then Accent_Font
+                      else Main_Regular), Value.Code_Point);
+                  if not Mark.Found and then
+                    Value.Accent_Type /= Full_Accent
+                  then
+                     Accent_Font_Found := False;
+                     Accent_Font := Main_Regular;
+                     Mark := Math_Metrics.Lookup
+                       (Main_Regular, Value.Code_Point);
+                  end if;
                   if not Mark.Found then
                      Reject ("accent glyph metric unavailable");
                   end if;
-                  Accent.Font       := Main_Regular;
+                  Accent.Font       :=
+                    (if Value.Accent_Type = Full_Accent then Main_Regular
+                     elsif Accent_Font_Found then Accent_Font
+                     else Main_Regular);
                   Accent.Code_Point := Value.Code_Point;
                   Accent.X          := (Base.Width - Mark.Width * Scale) / 2.0;
-                  declare
-                     Clearance : constant Long_Float :=
-                       Long_Float'Min (Base.Ascent, X_Height * Scale);
-                     Skew : Long_Float := 0.0;
-                     Glyph_Count : Natural := 0;
-                  begin
-                     if not Base.Commands.Is_Empty then
-                        for Index in Base.Commands.First_Index ..
-                          Base.Commands.Last_Index
-                        loop
-                           if Base.Commands (Index).Kind = Glyph_Command then
-                              Glyph_Count := Glyph_Count + 1;
-                              if Glyph_Count = 1 then
-                                 Metric := Math_Metrics.Lookup
-                                   (Base.Commands (Index).Font,
-                                    Base.Commands (Index).Code_Point);
-                                 if Metric.Found then
-                                    Skew := Metric.Skew * Scale;
+                  if Value.Accent_Type = Full_Accent then
+                     Result.Width := Long_Float'Max
+                       (Base.Width, Mark.Width * Scale);
+                     Accent.X := (Result.Width - Mark.Width * Scale) / 2.0;
+                     declare
+                        Base_Shift : constant Long_Float :=
+                          (Result.Width - Base.Width) / 2.0;
+                     begin
+                        if Base_Shift > 0.0 then
+                           for Index in Base.Commands.First_Index ..
+                             Base.Commands.Last_Index
+                           loop
+                              Poll (Thickness);
+                              declare
+                                 Command : Draw_Command :=
+                                   Result.Commands (Index);
+                              begin
+                                 Command.X := Command.X + Base_Shift;
+                                 Result.Commands.Replace_Element
+                                   (Index, Command);
+                              end;
+                           end loop;
+                        end if;
+                     end;
+                     Accent.Y := -Mark.Descent * Scale + 0.2 * Scale;
+                     Result.Ascent := Long_Float'Max
+                       (Base.Ascent, Mark.Ascent * Scale + Mark.Descent * Scale);
+                     Result.Descent := Long_Float'Max
+                       (Base.Descent, Mark.Descent * Scale - Mark.Descent * Scale);
+                  elsif Value.Accent_Type = Below_Accent then
+                     Accent.X := (Base.Width - Mark.Width * Scale) / 2.0 +
+                       Base.Italic;
+                     Accent.Y := 0.0;
+                     Result.Descent := Long_Float'Max
+                       (Base.Descent, Mark.Descent * Scale);
+                  else
+                     declare
+                        Clearance : constant Long_Float :=
+                          Long_Float'Min (Base.Ascent, X_Height * Scale);
+                        Skew : Long_Float := 0.0;
+                        Glyph_Count : Natural := 0;
+                     begin
+                        if not Base.Commands.Is_Empty then
+                           for Index in Base.Commands.First_Index ..
+                             Base.Commands.Last_Index
+                           loop
+                              Poll (Thickness);
+                              if Base.Commands (Index).Kind = Glyph_Command then
+                                 Glyph_Count := Glyph_Count + 1;
+                                 if Glyph_Count = 1 then
+                                    Metric := Math_Metrics.Lookup
+                                      (Base.Commands (Index).Font,
+                                       Base.Commands (Index).Code_Point);
+                                    if Metric.Found then
+                                       Skew := Metric.Skew * Scale;
+                                    end if;
                                  end if;
                               end if;
-                           end if;
-                        end loop;
-                     end if;
-                     if Glyph_Count = 1 then
-                        Accent.X := Base.Width / 2.0 + Skew -
-                          Mark.Width * Scale / 2.0;
-                     end if;
-                     Accent.Y := -Base.Ascent + Clearance -
-                       Mark.Descent * Scale;
-                     Accent.Scale  := Scale;
-                     Accent.Width  := Mark.Width * Scale;
-                     Accent.Height := (Mark.Ascent + Mark.Descent) * Scale;
-                     Result.Ascent := Long_Float'Max
-                       (Base.Ascent, Mark.Ascent * Scale - Accent.Y);
-                     Result.Descent := Long_Float'Max
-                       (Base.Descent, Accent.Y + Mark.Descent * Scale);
-                  end;
-                  Result.Ascent := Long_Float'Max (Result.Ascent, Base.Ascent);
+                           end loop;
+                        end if;
+                        if Glyph_Count = 1 then
+                           Accent.X := Base.Width / 2.0 + Skew -
+                             Mark.Width * Scale / 2.0;
+                        end if;
+                        Accent.Y := -Base.Ascent + Clearance -
+                          Mark.Descent * Scale;
+                        Result.Ascent := Long_Float'Max
+                          (Base.Ascent, Mark.Ascent * Scale - Accent.Y);
+                        Result.Descent := Long_Float'Max
+                          (Base.Descent, Accent.Y + Mark.Descent * Scale);
+                     end;
+                  end if;
+                  Accent.Scale  := Scale;
+                  Accent.Width  := Mark.Width * Scale;
+                  Accent.Height := (Mark.Ascent + Mark.Descent) * Scale;
+                  Result.Ascent := Long_Float'Max
+                    (Result.Ascent, Base.Ascent);
                end if;
-                  Append_Command (Result, Accent);
-                  Result.Valid := True;
-               end;
+               if Value.Code_Point not in Wide_Hat_Code_Point ..
+                 Under_Tilde_Code_Point
+               then
+                  Append_Command (Result, Accent, Thickness.Work);
+               end if;
+               Result.Valid := True;
+            end;
             end if;
          when Delimited_Node =>
-            if Value.First = No_Node and then
+            if Value.Code_Point = 4 then
+               declare
+                  Bar : constant Math_Metrics.Glyph_Metric :=
+                    Scaled_Metric
+                      (Main_Regular, Character'Pos ('|'), Scale, Thickness);
+               begin
+                  Result.Width := Bar.Width;
+                  Result.Ascent := Bar.Ascent;
+                  Result.Descent := Bar.Descent;
+                  Append_Command
+                    (Result, Draw_Command'
+                       (Kind => Glyph_Command, Font => Main_Regular,
+                        Code_Point => Character'Pos ('|'), X => 0.0, Y => 0.0,
+                        Scale => Scale, Width => Bar.Width,
+                        Height => Bar.Ascent + Bar.Descent, others => <>),
+                     Thickness.Work);
+                  Result.Valid := True;
+               end;
+            elsif Value.First = No_Node and then
               Value.Amount in 1.2 | 1.8 | 2.4 | 3.0
             then
                declare
@@ -2174,6 +2892,12 @@ package body Math_Layout is
                          (if Right_Side then 16#5D# else 16#5B#),
                        when Math_Syntax.Brace_Delimiter =>
                          (if Right_Side then 16#7D# else 16#7B#),
+                       when Math_Syntax.Angle_Delimiter =>
+                         (if Right_Side then 16#27E9# else 16#27E8#),
+                       when Math_Syntax.Floor_Delimiter =>
+                         (if Right_Side then 16#230B# else 16#230A#),
+                       when Math_Syntax.Ceiling_Delimiter =>
+                         (if Right_Side then 16#2309# else 16#2308#),
                        when Math_Syntax.Bar_Delimiter |
                          Math_Syntax.Double_Bar_Delimiter => 16#7C#,
                        when others => 0);
@@ -2193,14 +2917,30 @@ package body Math_Layout is
                      Result.Valid := True;
                      return Result;
                   elsif Is_Bar then
-                     Result.Width := Thickness.Effective * Scale;
-                     Result.Ascent := Height / 2.0 + Fraction_Axis * Scale;
-                     Result.Descent := Height / 2.0 - Fraction_Axis * Scale;
-                     Append_Command (Result, Draw_Command'(Kind => Rule_Command,
-                         Font => Main_Regular, Code_Point => Point,
-                         X => 0.0, Y => -Height / 2.0 - Fraction_Axis * Scale,
-                         Scale => Scale, Width => Result.Width, Height => Height,
-                         others => <>));
+                     declare
+                        Bar_Metric : constant Math_Metrics.Glyph_Metric :=
+                          Scaled_Metric (Main_Regular, 16#7C#, Scale,
+                            Thickness);
+                        Bar_Width : constant Long_Float := Bar_Metric.Width;
+                        Gap : constant Long_Float := 0.04 * Scale;
+                        Copies : constant Natural :=
+                          (if Value.Left_Delimiter =
+                            Math_Syntax.Double_Bar_Delimiter then 2 else 1);
+                     begin
+                        Result.Width := Long_Float (Copies) * Bar_Width +
+                          Long_Float (Copies - 1) * Gap;
+                        Result.Ascent := Height / 2.0 + Fraction_Axis * Scale;
+                        Result.Descent := Height / 2.0 - Fraction_Axis * Scale;
+                        for I in 1 .. Copies loop
+                           Append_Command (Result, Draw_Command'
+                             (Kind => Glyph_Command, Font => Main_Regular,
+                              Code_Point => 16#7C#,
+                              X => Long_Float (I - 1) * (Bar_Width + Gap),
+                              Y => -Height / 2.0 - Fraction_Axis * Scale,
+                              Scale => Scale, Width => Bar_Width,
+                              Height => Height, others => <>), Thickness.Work);
+                        end loop;
+                     end;
                   else
                      Result.Width := Metric.Width * Scale;
                      Result.Ascent := Metric.Ascent * Scale;
@@ -2210,7 +2950,7 @@ package body Math_Layout is
                          Scale => Scale, Width => Result.Width,
                          Height =>
                            (Metric.Ascent + Metric.Descent) * Scale,
-                         others => <>));
+                         others => <>), Thickness.Work);
                   end if;
                   Result.Valid := True;
                end;
@@ -2219,8 +2959,12 @@ package body Math_Layout is
                   Inner : constant Box := Compose
                     (Item, Value.First, Level, Scale, Depth + 1, Thickness);
                   Gap : constant Long_Float := 0.1 * Scale;
-                  Need : constant Long_Float :=
-                    Inner.Ascent + Inner.Descent + 0.2 * Scale;
+                  Axis : constant Long_Float := Fraction_Axis * Scale;
+                  Max_Distance : constant Long_Float := Long_Float'Max
+                    (Inner.Ascent - Axis, Inner.Descent + Axis);
+                  Need : constant Long_Float := Long_Float'Max
+                    (Max_Distance * 901.0 / 500.0,
+                     2.0 * Max_Distance - 0.5 * Scale);
                   Left : Box := Compose_Delimiter
                     (Value.Left_Delimiter, False, Need, Scale, Thickness);
                   Right : Box := Compose_Delimiter
@@ -2232,38 +2976,21 @@ package body Math_Layout is
                     (if Value.Right_Delimiter = Math_Syntax.No_Delimiter then 0.0
                      else Right.Width + Gap);
                begin
-                  if Value.Left_Delimiter = Math_Syntax.Double_Bar_Delimiter then
-                     Left_Width := Left_Width + Left.Width + Gap;
-                  end if;
-                  if Value.Right_Delimiter = Math_Syntax.Double_Bar_Delimiter then
-                     Right_Width := Right_Width + Right.Width + Gap;
-                  end if;
                   if Value.Left_Delimiter /= Math_Syntax.No_Delimiter then
-                     Append_At (Result, Left, 0.0, 0.0);
-                     if Value.Left_Delimiter = Math_Syntax.Double_Bar_Delimiter then
-                        for C of Result.Commands loop C.X := C.X + Left.Width + Gap; end loop;
-                        Append_At (Result, Left, 0.0, 0.0);
-                     end if;
+                     Append_At (Result, Left, 0.0, 0.0, Thickness.Work);
                   end if;
-                  Append_At (Result, Inner, Left_Width, 0.0);
+                  Append_At (Result, Inner, Left_Width, 0.0, Thickness.Work);
                   if Value.Right_Delimiter /= Math_Syntax.No_Delimiter then
-                     Append_At (Result, Right, Left_Width + Inner.Width + Gap, 0.0);
-                     if Value.Right_Delimiter = Math_Syntax.Double_Bar_Delimiter then
-                        declare Bar : Box := Right; begin
-                           Bar.Commands.Clear;
-                           Append_Command (Bar, Draw_Command' (Kind => Glyph_Command,
-                             Font => Main_Regular, Code_Point => 16#7C#,
-                             X => 0.0, Y => 0.0, Scale => Scale,
-                             Width => Right.Width, Height => Need, others => <>));
-                           Append_At (Result, Bar,
-                             Left_Width + Inner.Width + 2.0 * Right.Width + 2.0 * Gap,
-                             0.0);
-                        end;
-                     end if;
+                     Append_At (Result, Right,
+                       Left_Width + Inner.Width + Gap, 0.0, Thickness.Work);
                   end if;
                   Result.Width := Left_Width + Inner.Width + Right_Width;
-                  Result.Ascent := Long_Float'Max (Inner.Ascent, Need / 2.0);
-                  Result.Descent := Long_Float'Max (Inner.Descent, Need / 2.0);
+                  Result.Ascent := Long_Float'Max
+                    (Inner.Ascent,
+                     Long_Float'Max (Left.Ascent, Right.Ascent));
+                  Result.Descent := Long_Float'Max
+                    (Inner.Descent,
+                     Long_Float'Max (Left.Descent, Right.Descent));
                   Result.Valid := True;
                end;
             end if;
@@ -2289,9 +3016,9 @@ package body Math_Layout is
                Need := Parenthesized.Ascent + Parenthesized.Descent + 0.2 * Scale;
                Left := Compose_Delimiter (Math_Syntax.Parenthesis_Delimiter, False, Need, Scale, Thickness);
                Right := Compose_Delimiter (Math_Syntax.Parenthesis_Delimiter, True, Need, Scale, Thickness);
-               Append_At (Result, Left, 0.0, 0.0);
-               Append_At (Result, Parenthesized, Left.Width + Gap, 0.0);
-               Append_At (Result, Right, Left.Width + Gap + Parenthesized.Width + Gap, 0.0);
+               Append_At (Result, Left, 0.0, 0.0, Thickness.Work);
+               Append_At (Result, Parenthesized, Left.Width + Gap, 0.0, Thickness.Work);
+               Append_At (Result, Right, Left.Width + Gap + Parenthesized.Width + Gap, 0.0, Thickness.Work);
                Result.Width := Left.Width + Parenthesized.Width + Right.Width + 2.0 * Gap;
                Result.Ascent := Long_Float'Max (Parenthesized.Ascent, Need / 2.0);
                Result.Descent := Long_Float'Max (Parenthesized.Descent, Need / 2.0);
@@ -2300,30 +3027,60 @@ package body Math_Layout is
          when Stretchy_Node =>
             Result := Compose_Stretchy
               (Item, Value, Level, Scale, Depth, Thickness);
+         when CD_Arrow_Node =>
+            Result := Compose_CD_Arrow
+              (Item, Value, Scale, Depth, Thickness);
          when Annotation_Node =>
             declare
+               Base_Value : constant Math_Syntax.Node :=
+                 Math_Syntax.Element (Item, Positive (Value.First));
                Base : Box := Compose
-                 (Item, Value.First, Cramped (Level), Scale,
-                  Depth + 1, Thickness);
+                 (Item, Value.First,
+                  (if Value.Code_Point = 1 then Level else Cramped (Level)),
+                  Scale, Depth + 1, Thickness);
                Mark_Level : constant Style_Level := Smaller (Level);
                Mark : Box := Compose (Item, Value.Second, Mark_Level,
                  Child_Scale (Scale, Level, Mark_Level), Depth + 1, Thickness);
-               Gap : constant Long_Float := 0.1 * Scale;
+               Gap : constant Long_Float :=
+                 (if Value.Code_Point = 1 then 0.3 else 0.1) * Scale;
                Shift : Long_Float;
+               Is_Limit_Annotation : constant Boolean := Value.Code_Point = 1;
             begin
                if Value.First = No_Node or else Value.Second = No_Node then
                   Reject ("invalid annotation children");
                end if;
-               if Value.Annotation_Type = Over_Annotation then
+               if Is_Limit_Annotation then
+                  if Value.Annotation_Type = Over_Annotation then
+                     Shift := Base.Ascent + Mark.Descent + Gap;
+                     Append_At
+                       (Result, Mark, (Base.Width - Mark.Width) / 2.0,
+                        -Shift, Thickness.Work);
+                     Append_At
+                       (Result, Base, 0.0, 0.0, Thickness.Work);
+                     Result.Ascent := Long_Float'Max
+                       (Base.Ascent, Shift + Mark.Ascent);
+                     Result.Descent := Base.Descent;
+                  else
+                     Shift := Base.Descent + Mark.Ascent + Gap;
+                     Append_At
+                       (Result, Base, 0.0, 0.0, Thickness.Work);
+                     Append_At
+                       (Result, Mark, (Base.Width - Mark.Width) / 2.0,
+                        Shift, Thickness.Work);
+                     Result.Ascent := Base.Ascent;
+                     Result.Descent := Long_Float'Max
+                       (Base.Descent, Shift + Mark.Descent);
+                  end if;
+               elsif Value.Annotation_Type = Over_Annotation then
                   Shift := Base.Ascent + Mark.Descent + Gap;
-                  Append_At (Result, Mark, (Base.Width - Mark.Width) / 2.0, -Shift);
-                  Append_At (Result, Base, 0.0, 0.0);
+                  Append_At (Result, Mark, (Base.Width - Mark.Width) / 2.0, -Shift, Thickness.Work);
+                  Append_At (Result, Base, 0.0, 0.0, Thickness.Work);
                   Result.Ascent := Long_Float'Max (Base.Ascent, Shift + Mark.Ascent);
                   Result.Descent := Base.Descent;
                else
                   Shift := Base.Descent + Mark.Ascent + Gap;
-                  Append_At (Result, Base, 0.0, 0.0);
-                  Append_At (Result, Mark, (Base.Width - Mark.Width) / 2.0, Shift);
+                  Append_At (Result, Base, 0.0, 0.0, Thickness.Work);
+                  Append_At (Result, Mark, (Base.Width - Mark.Width) / 2.0, Shift, Thickness.Work);
                   Result.Ascent := Base.Ascent;
                   Result.Descent := Long_Float'Max (Base.Descent, Shift + Mark.Descent);
                end if;
@@ -2338,6 +3095,7 @@ package body Math_Layout is
                R : Draw_Command;
             begin
                for I in Result.Commands.First_Index .. Result.Commands.Last_Index loop
+                  Poll (Thickness);
                   declare C : Draw_Command := Result.Commands (I); begin
                      C.X := C.X + Padding;
                      C.Y := C.Y;
@@ -2347,14 +3105,14 @@ package body Math_Layout is
                R.Kind := Rule_Command;
                R.X := 0.0; R.Y := -(Result.Ascent + Padding);
                R.Width := Result.Width + 2.0 * Padding; R.Height := T;
-               Append_Command (Result, R);
+               Append_Command (Result, R, Thickness.Work);
                R.Y := Result.Descent + Padding;
-               Append_Command (Result, R);
+               Append_Command (Result, R, Thickness.Work);
                R.X := 0.0; R.Y := -(Result.Ascent + Padding);
                R.Width := T; R.Height := Result.Ascent + Result.Descent + 2.0 * Padding;
-               Append_Command (Result, R);
+               Append_Command (Result, R, Thickness.Work);
                R.X := Result.Width + 2.0 * Padding - T;
-               Append_Command (Result, R);
+               Append_Command (Result, R, Thickness.Work);
                Result.Width := Result.Width + 2.0 * Padding;
                Result.Ascent := Result.Ascent + Padding;
                Result.Descent := Result.Descent + Padding;
@@ -2377,6 +3135,7 @@ package body Math_Layout is
          when Color_Node =>
             Result := Compose (Item, Value.First, Level, Scale, Depth + 1, Thickness);
             for I in Result.Commands.First_Index .. Result.Commands.Last_Index loop
+                  Poll (Thickness);
                declare C : Draw_Command := Result.Commands (I); begin
                   if not C.Has_Color then
                      C.Has_Color := True;
@@ -2443,7 +3202,7 @@ package body Math_Layout is
                Content : constant Box := Compose
                  (Item, Value.First, Display_Level, Scale, Depth + 1, Thickness);
             begin
-               Append_At (Result, Content, 0.0, 0.0);
+               Append_At (Result, Content, 0.0, 0.0, Thickness.Work);
                Result.Width := Content.Width;
                Result.Ascent := Content.Ascent;
                Result.Descent := Content.Descent;
@@ -2452,7 +3211,7 @@ package body Math_Layout is
                else
                   declare
                      Tag : constant Box := Compose
-                       (Item, Value.Second, Text_Level, Scale * 0.9,
+                       (Item, Value.Second, Text_Level, Scale,
                         Depth + 1, Thickness);
                      Gap : constant Long_Float := 1.0;
                      Tag_X : constant Long_Float :=
@@ -2461,9 +3220,9 @@ package body Math_Layout is
                   begin
                      if Value.Tag_Is_Left then
                         Result.Commands.Clear;
-                        Append_At (Result, Content, Tag.Width + Gap, 0.0);
+                        Append_At (Result, Content, Tag.Width + Gap, 0.0, Thickness.Work);
                      end if;
-                     Append_At (Result, Tag, Tag_X, 0.0);
+                     Append_At (Result, Tag, Tag_X, 0.0, Thickness.Work);
                      Result.Width := Content.Width + Gap + Tag.Width;
                      Result.Ascent := Long_Float'Max
                        (Content.Ascent, Tag.Ascent);
@@ -2494,7 +3253,7 @@ package body Math_Layout is
             Command.Y := -(Value.Height + Value.Amount) * Scale;
             Command.Width := Result.Width;
             Command.Height := Value.Height * Scale;
-            Append_Command (Result, Command);
+            Append_Command (Result, Command, Thickness.Work);
             Result.Valid := True;
          when Sized_Node =>
             if Value.Scale <= 0.0 or Value.Scale > 100.0 or
@@ -2516,6 +3275,7 @@ package body Math_Layout is
                Shift : constant Long_Float := Value.Amount * Scale;
             begin
                for I in Result.Commands.First_Index .. Result.Commands.Last_Index loop
+                  Poll (Thickness);
                   Command := Result.Commands (I);
                   Command.Y := Command.Y - Shift;
                   Result.Commands.Replace_Element (I, Command);
@@ -2542,6 +3302,7 @@ package body Math_Layout is
                for Index in Result.Commands.First_Index ..
                  Result.Commands.Last_Index
                loop
+                  Poll (Thickness);
                   declare
                      Command : Draw_Command := Result.Commands (Index);
                   begin
@@ -2569,6 +3330,7 @@ package body Math_Layout is
             for Index in Result.Commands.First_Index ..
               Result.Commands.Last_Index
             loop
+               Poll (Thickness);
                declare
                   Command : Draw_Command := Result.Commands (Index);
                begin
@@ -2586,9 +3348,209 @@ package body Math_Layout is
             end if;
             Result := Compose
               (Item, Value.First, Level, Scale, Depth + 1, Thickness);
-            declare
-               Stroke : constant Long_Float := Long_Float'Max
-                 (0.066667 * Scale, Thickness.Effective * Scale);
+            if Value.Enclosure in Color_Box_Enclosure |
+              Framed_Color_Box_Enclosure
+            then
+               declare
+                  Is_Framed : constant Boolean :=
+                    Value.Enclosure = Framed_Color_Box_Enclosure;
+                  Border_Thickness : constant Long_Float :=
+                    (if Is_Framed then Long_Float'Max
+                       (Value.Box_Border_Thickness, Thickness.Effective)
+                     else 0.0) * Scale;
+                  Pad : constant Long_Float := 0.3 * Scale;
+                  Child_Commands : constant Command_Vectors.Vector :=
+                    Result.Commands;
+                  Background : Draw_Command;
+                  Edge : Draw_Command;
+                  Box_Width : constant Long_Float :=
+                    Result.Width + 2.0 * (Pad + Border_Thickness);
+                  Box_Height : constant Long_Float :=
+                    Result.Ascent + Result.Descent +
+                    2.0 * (Pad + Border_Thickness);
+                  Content_X : constant Long_Float := Pad + Border_Thickness;
+               begin
+                  if not Result.Valid or else Box_Width < 0.0 or else
+                    Box_Height < 0.0 or else Box_Width > Max_Geometry or else
+                    Box_Height > Max_Geometry or else
+                    abs (Box_Width) > Max_Geometry or else
+                    abs (Box_Height) > Max_Geometry
+                  then
+                     Reject ("invalid color-box geometry");
+                  end if;
+                  Result.Commands.Clear;
+                  Background.Kind := Rule_Command;
+                  Background.Width := Box_Width;
+                  Background.Height := Box_Height;
+                  Background.X := 0.0;
+                  Background.Y := -(Result.Ascent + Pad + Border_Thickness);
+                  Background.Has_Color := True;
+                  Background.Has_Clip := True;
+                  Background.Clip_X := 0.0;
+                  Background.Clip_Y := 0.0;
+                  Background.Clip_W := Box_Width;
+                  Background.Clip_H := Box_Height;
+                  Background.Red := Value.Box_Background.Red;
+                  Background.Green := Value.Box_Background.Green;
+                  Background.Blue := Value.Box_Background.Blue;
+                  Background.Alpha := Value.Box_Background.Alpha;
+                  Append_Command (Result, Background, Thickness.Work);
+                  for Command of Child_Commands loop
+                     Poll (Thickness);
+                     declare
+                        Shifted : Draw_Command := Command;
+                     begin
+                        Shifted.X := Shifted.X + Content_X;
+                        Append_Command (Result, Shifted, Thickness.Work);
+                     end;
+                  end loop;
+                  if Is_Framed then
+                     Edge.Kind := Rule_Command;
+                     Edge.Has_Color := True;
+                     Edge.Has_Clip := True;
+                     Edge.Red := Value.Box_Border.Red;
+                     Edge.Green := Value.Box_Border.Green;
+                     Edge.Blue := Value.Box_Border.Blue;
+                     Edge.Alpha := Value.Box_Border.Alpha;
+                     Edge.Height := Border_Thickness;
+                     Edge.Width := Box_Width;
+                     Edge.X := 0.0;
+                     Edge.Y := -(Result.Ascent + Pad + Border_Thickness);
+                     Edge.Clip_X := 0.0;
+                     Edge.Clip_Y := 0.0;
+                     Edge.Clip_W := Edge.Width;
+                     Edge.Clip_H := Edge.Height;
+                     Append_Command (Result, Edge, Thickness.Work);
+                     Edge.Y := Result.Descent + Pad;
+                     Edge.Clip_Y := 0.0;
+                     Append_Command (Result, Edge, Thickness.Work);
+                     Edge.X := 0.0;
+                     Edge.Y := -(Result.Ascent + Pad + Border_Thickness);
+                     Edge.Width := Border_Thickness;
+                     Edge.Height := Box_Height;
+                     Edge.Clip_X := 0.0;
+                     Edge.Clip_Y := 0.0;
+                     Edge.Clip_W := Edge.Width;
+                     Edge.Clip_H := Edge.Height;
+                     Append_Command (Result, Edge, Thickness.Work);
+                     Edge.X := Box_Width - Border_Thickness;
+                     Edge.Clip_X := 0.0;
+                     Append_Command (Result, Edge, Thickness.Work);
+                  end if;
+                  Result.Width := Box_Width;
+                  Result.Ascent := Result.Ascent + Pad + Border_Thickness;
+                  Result.Descent := Result.Descent + Pad + Border_Thickness;
+                  Result.Valid := True;
+               end;
+            elsif Value.Enclosure = Phase_Enclosure then
+               declare
+                  Content_Commands : constant Command_Vectors.Vector :=
+                    Result.Commands;
+                  Rule : constant Long_Float :=
+                    Long_Float'Max (0.06 * Scale,
+                      Thickness.Effective * Scale);
+                  Clearance : constant Long_Float := 0.35 * X_Height * Scale;
+                  Total_Height : constant Long_Float :=
+                    Result.Ascent + Result.Descent + Rule + Clearance;
+                  View_Height : constant Natural := Natural
+                    (Long_Float'Min (1_000_000.0,
+                      Long_Float'Max (80.0,
+                        Long_Float'Floor (Total_Height * 1_000.0))));
+                  Path : constant Math_Paths.Path :=
+                    Math_Stretchy.Phase_Path (View_Height);
+                  Pad : constant Long_Float := Total_Height / 2.0 + Rule;
+                  Angle : Draw_Command;
+                  Scaled : Math_Paths.Path;
+               begin
+                  if not Result.Valid or else not Math_Paths.Is_Valid (Path)
+                    or else Total_Height <= 0.0 or else
+                    Total_Height > Max_Geometry or else
+                    Pad + Result.Width > Max_Geometry
+                  then
+                     Reject ("invalid phase enclosure geometry");
+                  end if;
+                  Scaled := Math_Paths.Transform
+                    (Path, 0.001 * Scale, 0.0, 0.0,
+                     Scale / 1_000.0, 0.0, 0.0);
+                  Result.Commands.Clear;
+                  Angle.Kind := Path_Command;
+                  Angle.Width := Pad + Result.Width;
+                  Angle.Height := Total_Height;
+                  Angle.Y := -Result.Ascent;
+                  Angle.Has_Clip := True;
+                  Angle.Clip_X := 0.0;
+                  Angle.Clip_Y := 0.0;
+                  Angle.Clip_W := Pad + Result.Width;
+                  Angle.Clip_H := Total_Height;
+                  for Segment in 1 .. Math_Paths.Count (Scaled) loop
+                     Poll (Thickness);
+                     Angle.Path_Data.Append
+                       (Math_Paths.Element (Scaled, Segment));
+                  end loop;
+                  Append_Command (Result, Angle, Thickness.Work);
+                  for Command of Content_Commands loop
+                     Poll (Thickness);
+                     declare
+                        Shifted : Draw_Command := Command;
+                     begin
+                        Shifted.X := Shifted.X + Pad;
+                        Append_Command (Result, Shifted, Thickness.Work);
+                     end;
+                  end loop;
+                  Result.Width := Result.Width + Pad;
+                  Result.Ascent := Result.Ascent;
+                  Result.Descent := Result.Descent + Rule + Clearance;
+                  Result.Valid := True;
+               end;
+            elsif Value.Enclosure = Actuarial_Enclosure then
+               declare
+                  Default_Rule : constant Long_Float :=
+                    Style_Metric (Level, 0.04, 0.049, 0.049) * Scale;
+                  Rule : constant Long_Float :=
+                    Long_Float'Max (Default_Rule, Thickness.Minimum * Scale);
+                  Side_Pad : constant Long_Float := 0.03889 * Scale;
+                  Top_Pad : constant Long_Float := 4.0 * Rule;
+                  Bottom_Pad : constant Long_Float :=
+                    Long_Float'Max (0.0, 0.25 * Scale - Result.Descent);
+                  Edge : Draw_Command;
+               begin
+                  if not Result.Valid or else Result.Width <= 0.0 or else
+                    Result.Width + 2.0 * Side_Pad > Max_Geometry
+                  then
+                     Reject ("invalid actuarial enclosure geometry");
+                  end if;
+                  for Index in Result.Commands.First_Index ..
+                    Result.Commands.Last_Index
+                  loop
+                     Poll (Thickness);
+                     declare
+                        Shifted : Draw_Command := Result.Commands (Index);
+                     begin
+                        Shifted.X := Shifted.X + Side_Pad;
+                        Result.Commands.Replace_Element (Index, Shifted);
+                     end;
+                  end loop;
+                  Edge.Kind := Rule_Command;
+                  Edge.X := 0.0;
+                  Edge.Y := -(Result.Ascent + Top_Pad);
+                  Edge.Width := Result.Width + 2.0 * Side_Pad;
+                  Edge.Height := Rule;
+                  Append_Command (Result, Edge, Thickness.Work);
+                  Edge.X := Result.Width + 2.0 * Side_Pad - Rule;
+                  Edge.Y := -(Result.Ascent + Top_Pad);
+                  Edge.Width := Rule;
+                  Edge.Height := Result.Ascent + Result.Descent +
+                    Top_Pad + Bottom_Pad;
+                  Append_Command (Result, Edge, Thickness.Work);
+                  Result.Width := Result.Width + 2.0 * Side_Pad;
+                  Result.Ascent := Result.Ascent + Top_Pad;
+                  Result.Descent := Result.Descent + Bottom_Pad;
+                  Result.Valid := True;
+               end;
+            else
+               declare
+                  Stroke : constant Long_Float := Long_Float'Max
+                    (0.066667 * Scale, Thickness.Effective * Scale);
                Pad : constant Long_Float :=
                  (if Is_Character_Box (Item, Value.First)
                   then 0.2 * Scale else 0.0);
@@ -2648,22 +3610,25 @@ package body Math_Layout is
                end if;
                --  The SVG extends beyond the content but TeX cancellation
                --  retains the original logical height/depth (enclose.js).
-               Append_Command (Result, Geometry);
+               Append_Command (Result, Geometry, Thickness.Work);
                Result.Valid := True;
             end;
+            end if;
       end case;
       return Result;
    end Compose;
 
    function Build
-     (Item : Math_Syntax.Document; Style : Math_Style := Text_Style) return Box is
+     (Item : Math_Syntax.Document; Style : Math_Style := Text_Style;
+      Work : Math_Work_Control.Context_Access := null) return Box is
    begin
-      return Build (Item, Style, (others => <>));
+      return Build (Item, Style, (others => <>), Work);
    end Build;
 
    function Build
      (Item : Math_Syntax.Document; Style : Math_Style;
-      Settings : Layout_Settings) return Box
+      Settings : Layout_Settings;
+      Work : Math_Work_Control.Context_Access := null) return Box
    is
       Result    : Box;
       Level     : constant Style_Level :=
@@ -2671,6 +3636,7 @@ package body Math_Layout is
       Root_Id   : Node_Id;
       Root_Node : Math_Syntax.Node;
    begin
+      Math_Work_Control.Poll (Work);
       if not Math_Syntax.Is_Valid (Item) then
          Result.Message :=
            To_Unbounded_String ("invalid syntax: " & Math_Syntax.Error (Item));
@@ -2681,11 +3647,23 @@ package body Math_Layout is
          Reject ("invalid document root");
       end if;
       Root_Node := Math_Syntax.Element (Item, Positive (Root_Id));
-      if Root_Node.Kind /= Row_Node or Root_Node.Next /= No_Node then
+      if Root_Node.Kind not in Row_Node | Tagged_Node or else
+        Root_Node.Next /= No_Node
+      then
          Reject ("invalid document root");
       end if;
       if Settings.Max_Size > 100 then
          Reject ("maxSize must be in 1..100");
+      end if;
+      if Settings.Advance_Source /= null then
+         if not Settings.Pixel_Em'Valid or else
+           Settings.Pixel_Em /= Settings.Pixel_Em or else
+           Settings.Pixel_Em <= 0.0 or else Settings.Pixel_Em > 256.0
+         then
+            Reject ("advance source requires pixel em in (0, 256]");
+         end if;
+      elsif not Settings.Pixel_Em'Valid or else Settings.Pixel_Em /= 0.0 then
+         Reject ("pixel em requires an advance source");
       end if;
       if Settings.Min_Rule_Thickness < 0.0 or else
         Settings.Min_Rule_Thickness > 100.0 or else
@@ -2698,7 +3676,9 @@ package body Math_Layout is
          Rule_Parameters'(
            Minimum => Settings.Min_Rule_Thickness,
            Effective => Long_Float'Max (Default_Rule_Thickness,
-             Settings.Min_Rule_Thickness)));
+             Settings.Min_Rule_Thickness),
+           Work => Work, Pixel_Em => Settings.Pixel_Em,
+           Advance_Source => Settings.Advance_Source));
       if Result.Width > Max_Geometry or else Result.Ascent > Max_Geometry
         or else Result.Descent > Max_Geometry
       then
@@ -2708,6 +3688,8 @@ package body Math_Layout is
          Reject ("draw-command limit exceeded");
       end if;
       for Command of Result.Commands loop
+         Poll (Rule_Parameters'(Minimum => 0.0, Effective => 0.0,
+           Work => Work, Pixel_Em => 0.0, Advance_Source => null));
          if abs Command.X > Max_Geometry or else abs Command.Y > Max_Geometry
            or else Command.Width > Max_Geometry
            or else Command.Height > Max_Geometry

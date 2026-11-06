@@ -20,15 +20,187 @@
     }
   },
   "cases": [
-    { "id": "x", "source": "x", "displayMode": false },
-    { "id": "frac-x-y", "source": "\\frac{x}{y}", "displayMode": false },
-    { "id": "heatbalance-first-term", "source": "\\dot{Q}_{\\mathrm{in}}", "displayMode": false },
-    { "id": "vcenter-tall-fraction", "source": "\\vcenter{\\frac{a}{b}}", "displayMode": false },
-    { "id": "verb-punctuation", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false },
-    { "id": "verb-star-spaces", "source": "\\verb*|a b|", "displayMode": false },
-    { "id": "pmb-glyph", "source": "\\pmb{g}", "displayMode": false },
-    { "id": "pmb-relation", "source": "a\\pmb{=}b", "displayMode": false },
-    { "id": "pmb-vector", "source": "\\pmb{\\frac{a}{b}}", "displayMode": false }
+    {
+      "id": "x",
+      "source": "x",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "frac-x-y",
+      "source": "\\frac{x}{y}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "heatbalance-first-term",
+      "source": "\\dot{Q}_{\\mathrm{in}}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "vcenter-tall-fraction",
+      "source": "\\vcenter{\\frac{a}{b}}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "verb-punctuation",
+      "source": "\\verb|a%{b}#^_\\\\|",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "verb-star-spaces",
+      "source": "\\verb*|a b|",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "pmb-glyph",
+      "source": "\\pmb{g}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "pmb-relation",
+      "source": "a\\pmb{=}b",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "pmb-vector",
+      "source": "\\pmb{\\frac{a}{b}}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "verb-punctuation-12px",
+      "source": "\\verb|a%{b}#^_\\\\|",
+      "displayMode": false,
+      "emPixels": 12
+    },
+    {
+      "id": "verb-punctuation-16px",
+      "source": "\\verb|a%{b}#^_\\\\|",
+      "displayMode": false,
+      "emPixels": 16
+    },
+    {
+      "id": "verb-punctuation-20px",
+      "source": "\\verb|a%{b}#^_\\\\|",
+      "displayMode": false,
+      "emPixels": 20
+    },
+    {
+      "id": "verb-punctuation-32px",
+      "source": "\\verb|a%{b}#^_\\\\|",
+      "displayMode": false,
+      "emPixels": 32
+    },
+    {
+      "id": "verb-punctuation-48px",
+      "source": "\\verb|a%{b}#^_\\\\|",
+      "displayMode": false,
+      "emPixels": 48
+    },
+    {
+      "id": "verb-star-spaces-12px",
+      "source": "\\verb*|a b|",
+      "displayMode": false,
+      "emPixels": 12
+    },
+    {
+      "id": "verb-star-spaces-16px",
+      "source": "\\verb*|a b|",
+      "displayMode": false,
+      "emPixels": 16
+    },
+    {
+      "id": "verb-star-spaces-20px",
+      "source": "\\verb*|a b|",
+      "displayMode": false,
+      "emPixels": 20
+    },
+    {
+      "id": "verb-star-spaces-32px",
+      "source": "\\verb*|a b|",
+      "displayMode": false,
+      "emPixels": 32
+    },
+    {
+      "id": "verb-star-spaces-48px",
+      "source": "\\verb*|a b|",
+      "displayMode": false,
+      "emPixels": 48
+    },
+    {
+      "id": "text-cedilla",
+      "source": "\\text{\\c{c}}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "text-circled-r",
+      "source": "\\text{\\textcircled{R}}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "widecheck-long",
+      "source": "\\widecheck{abcdef}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "utilde-long",
+      "source": "\\utilde{abcdef}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "phase-x",
+      "source": "\\phase{x}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "angle-abc",
+      "source": "\\angl{ABC}",
+      "displayMode": false,
+      "emPixels": 24
+    },
+    {
+      "id": "cd-canonical-2x2",
+      "source": "\\begin{CD} A @>>> B \\\\ @VVV @VVV \\\\ C @>>> D \\end{CD}",
+      "displayMode": true,
+      "emPixels": 24
+    },
+    {
+      "id": "newline-two-lines",
+      "source": "x\\\\y",
+      "displayMode": false,
+      "emPixels": 24,
+      "expectedLineBreak": true
+    },
+    {
+      "id": "newline-extra-margin",
+      "source": "x\\\\[.5em]y",
+      "displayMode": false,
+      "emPixels": 24,
+      "expectedLineBreak": true,
+      "expectedExtraMarginEm": 0.5,
+      "marginSemantics": "\u005c\u005c[ consumes the optional dimension; this is not \u005cnewline[.5em], because KaTeX expands \u005cnewline to \u005c\u005c\u005crelax before scanning the option."
+    },
+    {
+      "id": "newline-macro-literal-brackets",
+      "source": "x\\newline[.5em]y",
+      "displayMode": false,
+      "emPixels": 24,
+      "expectedLineBreak": true,
+      "expectedLiteralText": "[.5em]",
+      "semanticsNote": "KaTeX \u005cnewline expands to \u005c\u005c\u005crelax; the following bracket text is ordinary input."
+    }
   ],
-  "scope": "Development-only real-browser DOM geometry, leaf text-span bounds, raw KaTeX SVG path data when present, and a browser screenshot artifact. Primitive pixel pilot adds tall fraction, literal verbatim punctuation and spacing, and poor-man-bold glyph/relation/vector overflow cases. Does not claim full math-dialect parity or glyph-to-math-node component mapping."
+  "scope": "Development-only real-browser DOM geometry, leaf text-span bounds, raw KaTeX SVG path data when present, and browser screenshot artifacts. The 29-case pilot includes all nine pinned original cases, literal verbatim punctuation and spacing at 12, 16, 20, 24, 32, and 48 CSS/native pixels per em, text cedilla and circled-R, widecheck/utilde over six characters, phase/angle constructs, canonical 2x2 CD geometry, and KaTeX newline macro literal-bracket behavior. No full math-dialect parity, semantic component mapping, or product acceptance is claimed."
 }

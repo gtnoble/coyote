@@ -16,6 +16,10 @@ with Math_Model;
 package body Coyote_GUI.Math_Accessibility is
    use type Gtk.Tree_View.Gtk_Tree_View;
    use type Math_Model.Node_Kind;
+   use type Math_Model.Array_Kind;
+   use type Math_Model.Array_Rule_Kind;
+   use type Math_Model.Break_Kind;
+   use type Math_Model.Enclosure_Kind;
    use type Glib.Main.G_Source_Id;
    use type Glib.Main.G_Source;
    use type Ada.Real_Time.Time;
@@ -67,6 +71,30 @@ package body Coyote_GUI.Math_Accessibility is
          Append (Result, " - above label");
       elsif N.Role = Annotation_Below then
          Append (Result, " - below label");
+      elsif N.Role = Accent_Base then
+         Append (Result, " - accent base");
+      elsif N.Role = Accent_Under_Base then
+         Append (Result, " - below accent base");
+      elsif N.Role = CD_Arrow_Left_Label then
+         Append (Result, " - left label");
+      elsif N.Role = CD_Arrow_Right_Label then
+         Append (Result, " - right label");
+      end if;
+      if N.Kind = Math_Model.Accent_Node then
+         Append (Result, " - accent " &
+           Math_Semantics.Accent_Command (Meaning, Index) & " - " &
+           Math_Model.Accent_Kind'Image (N.Accent_Type));
+      elsif N.Kind = Math_Model.Text_Run_Node then
+         Append (Result, " - text: " & To_String (N.Text_Run_Text) &
+           " - script profile " &
+           Math_Model.Script_Profile'Image (N.Text_Run_Profile));
+      elsif N.Kind = Math_Model.Space_Node and then
+        N.Break /= Math_Model.No_Break_Metadata
+      then
+         Append (Result, " - break " & Math_Model.Break_Kind'Image (N.Break));
+      elsif N.Kind = Math_Model.CD_Arrow_Node then
+         Append (Result, " - vertical arrow Unicode" &
+           Natural'Image (N.Code_Point));
       end if;
       if N.Kind = Math_Model.Stretchy_Node and then
         (N.Code_Point = 1 or else N.Code_Point = 2)
@@ -76,6 +104,24 @@ package body Coyote_GUI.Math_Accessibility is
          Append (Result, " - Unicode" & Natural'Image (N.Code_Point));
       elsif N.Kind = Math_Model.Array_Node then
          Append (Result, " - " & Math_Model.Array_Kind'Image (N.Array_Type));
+         if N.Array_Type = Math_Model.CD_Array then
+            Append (Result, " - commutative diagram");
+         end if;
+         if not N.Array_Rules.Is_Empty then
+            for Rule_Index in N.Array_Rules.First_Index ..
+              N.Array_Rules.Last_Index
+            loop
+               declare
+                  Rule : constant Math_Model.Array_Rule :=
+                    N.Array_Rules (Rule_Index);
+               begin
+                  Append (Result, " - horizontal rule at boundary" &
+                    Natural'Image (Rule.Boundary) &
+                    (if Rule.Kind = Math_Model.Dashed_Array_Rule
+                     then " dashed" else " solid"));
+               end;
+            end loop;
+         end if;
       elsif N.Kind = Math_Model.Sized_Node then
          Append (Result, " - sizing scale" & Long_Float'Image (N.Scale));
       elsif N.Kind = Math_Model.Raised_Node then
@@ -87,6 +133,24 @@ package body Coyote_GUI.Math_Accessibility is
       elsif N.Kind = Math_Model.Enclosed_Node then
          Append (Result, " - enclosure " &
            Math_Model.Enclosure_Kind'Image (N.Enclosure));
+         if N.Enclosure in Math_Model.Color_Box_Enclosure |
+           Math_Model.Framed_Color_Box_Enclosure
+         then
+            Append (Result, " - background RGBA" &
+              Long_Float'Image (N.Box_Background.Red) & "," &
+              Long_Float'Image (N.Box_Background.Green) & "," &
+              Long_Float'Image (N.Box_Background.Blue) & "," &
+              Long_Float'Image (N.Box_Background.Alpha));
+            if N.Enclosure = Math_Model.Framed_Color_Box_Enclosure then
+               Append (Result, " - border RGBA" &
+                 Long_Float'Image (N.Box_Border.Red) & "," &
+                 Long_Float'Image (N.Box_Border.Green) & "," &
+                 Long_Float'Image (N.Box_Border.Blue) & "," &
+                 Long_Float'Image (N.Box_Border.Alpha) &
+                 " - border thickness" &
+                 Long_Float'Image (N.Box_Border_Thickness));
+            end if;
+         end if;
       elsif N.Kind = Math_Model.VCenter_Node then
          Append (Result, " - VCenter content");
       elsif N.Kind = Math_Model.Poor_Bold_Node then

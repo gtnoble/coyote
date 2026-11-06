@@ -17,9 +17,11 @@ with Gdk.RGBA;
 with Coyote_Math_Resources;
 with Coyote_Math_Jobs;
 with Glib.Main;
+with Glib.Object;
 with Glib.Values;
 with Glib; use Glib;
 with Glib.Error;
+with Math_Raster_Budget;
 with Gtk.Css_Provider;
 with Gtk.Drawing_Area;
 with Gtk.Expander;
@@ -53,21 +55,45 @@ package body Coyote_GUI.Math_Element is
    use type Glib.Main.G_Source_Id;
    package Raster_Bytes is new System.Address_To_Access_Conversions
      (Glib.Guchar);
+   package Charge_Addresses is new System.Address_To_Access_Conversions
+     (Math_Raster_Budget.Lease);
+   use type Charge_Addresses.Object_Pointer;
+   procedure Release_Inline_Pixbuf
+     (Data : System.Address; Object : System.Address);
+   pragma Convention (C, Release_Inline_Pixbuf);
+   Inline_Pixbuf_Notify : constant Glib.Object.Weak_Notify :=
+     Release_Inline_Pixbuf'Access;
+   Inline_Weak_Ref_Failure_For_Test : Boolean := False;
+
+   procedure Release_Inline_Pixbuf
+     (Data : System.Address; Object : System.Address) is
+      pragma Unreferenced (Object);
+      procedure Free is new Ada.Unchecked_Deallocation
+        (Math_Raster_Budget.Lease, Charge_Addresses.Object_Pointer);
+      Charge : Charge_Addresses.Object_Pointer :=
+        Charge_Addresses.To_Pointer (Data);
+   begin
+      if Charge /= null then
+         Math_Raster_Budget.Release (Charge.all);
+         Free (Charge);
+      end if;
+   exception
+      when others =>
+         null;
+   end Release_Inline_Pixbuf;
    use type Glib.Main.G_Source;
    use type Coyote_Math_Jobs.Request_Id;
    use type Coyote_Math_Jobs.View_Generation;
    use type Coyote_Math_Jobs.Job_Status;
    use type Coyote_Math_Jobs.Result_Access;
 
-   Max_Retained_Raster_Bytes : constant Natural := 64 * 1024 * 1024;
-   Raster_Byte_Ledger : Natural := 0;
    Max_Raster_Callback : Ada.Real_Time.Time_Span :=
      Ada.Real_Time.Time_Span_Zero;
    Raster_Row_Budget : constant Ada.Real_Time.Time_Span :=
      Ada.Real_Time.Milliseconds (5);
 
    function Retained_Raster_Bytes return Natural is
-     (Raster_Byte_Ledger);
+     (Math_Raster_Budget.Used);
 
    function Max_Raster_Callback_Milliseconds return Long_Float is
      (Long_Float (Ada.Real_Time.To_Duration (Max_Raster_Callback)) * 1_000.0);
@@ -230,10 +256,7 @@ package body Coyote_GUI.Math_Element is
          Cairo.Surface.Destroy (Element.Raster_Image);
          Element.Raster_Image := Cairo.Null_Surface;
       end if;
-      if Element.Raster_Bytes > 0 then
-         Raster_Byte_Ledger := Raster_Byte_Ledger - Element.Raster_Bytes;
-         Element.Raster_Bytes := 0;
-      end if;
+      Math_Raster_Budget.Release (Element.Raster_Charge);
       Element.Raster_Row := 0;
       Element.Raster_Width := 0;
       Element.Raster_Height := 0;
@@ -397,16 +420,17 @@ package body Coyote_GUI.Math_Element is
                  and then Element.Raster_Height <= 4_096
                then
                   declare
+                     Row_Bytes : constant Gint :=
+                       Cairo.Image_Surface.Cairo_Format_Stride_For_Width
+                         (Cairo.Image_Surface.Cairo_Format_ARGB32,
+                          Gint (Element.Raster_Width));
                      Required : constant Natural :=
-                       Element.Raster_Width * Element.Raster_Height * 4;
+                       Natural (Row_Bytes) * Element.Raster_Height;
+                     Accepted : Boolean;
                   begin
-                     if Required <= Max_Retained_Raster_Bytes
-                       and then Raster_Byte_Ledger <=
-                         Max_Retained_Raster_Bytes - Required
-                     then
-                        Raster_Byte_Ledger :=
-                          Raster_Byte_Ledger + Required;
-                        Element.Raster_Bytes := Required;
+                     Math_Raster_Budget.Reserve
+                       (Required, Element.Raster_Charge, Accepted);
+                     if Accepted then
                         Element.Raster_Image := Cairo.Image_Surface.Create
                           (Cairo.Image_Surface.Cairo_Format_ARGB32,
                            Gint (Element.Raster_Width),
@@ -693,7 +717,8 @@ package body Coyote_GUI.Math_Element is
         (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0))
       return Gdk.Pixbuf.Gdk_Pixbuf
    is
-      Fonts : Math_Painter.Font_Set;
+      Fonts : aliased Math_Painter.Font_Set;
+      Paint_Layout : Math_Layout.Box := Layout;
       Safe_Scale : Long_Float := 1.0;
       Em : Long_Float;
       Width_Value : Long_Float;
@@ -703,6 +728,9 @@ package body Coyote_GUI.Math_Element is
       Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Context : Cairo.Cairo_Context := Cairo.Null_Context;
       Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Charge : Charge_Addresses.Object_Pointer := null;
+      Accepted : Boolean := False;
+      Weak_Ref_Installed : Boolean := False;
    begin
       Baseline := 0;
       if not Math_Syntax.Is_Valid (Parsed) or else not Layout.Valid
@@ -722,8 +750,17 @@ package body Coyote_GUI.Math_Element is
       if not Em'Valid or else Em > 256.0 then
          return null;
       end if;
-      Width_Value := Layout.Width * Em;
-      Height_Value := (Layout.Ascent + Layout.Descent) * Em;
+      Math_Painter.Load (Fonts, Coyote_Math_Resources.Font_Directory);
+      Paint_Layout := Math_Layout.Build
+        (Parsed, Math_Layout.Text_Style,
+         (Pixel_Em => Em_Pixels * Safe_Scale,
+          Advance_Source => Fonts'Unchecked_Access, others => <>));
+      if not Paint_Layout.Valid then
+         return null;
+      end if;
+      Width_Value := Paint_Layout.Width * Em;
+      Height_Value :=
+        (Paint_Layout.Ascent + Paint_Layout.Descent) * Em;
       if not Width_Value'Valid or else not Height_Value'Valid
         or else Width_Value > 1_996.0 or else Height_Value > 508.0
       then
@@ -734,8 +771,7 @@ package body Coyote_GUI.Math_Element is
       Height := Natural'Max
         (1, Natural (Long_Float'Ceiling (Height_Value)) + 4);
       Baseline := Natural'Max (1, Natural (Long_Float'Ceiling
-        (Layout.Ascent * Em)) + 2);
-      Math_Painter.Load (Fonts, Coyote_Math_Resources.Font_Directory);
+        (Paint_Layout.Ascent * Em)) + 2);
       Surface := Cairo.Image_Surface.Create
         (Cairo.Image_Surface.Cairo_Format_ARGB32,
          Gint (Width), Gint (Height));
@@ -753,15 +789,59 @@ package body Coyote_GUI.Math_Element is
          return null;
       end if;
       Gdk.Cairo.Set_Source_RGBA (Context, Color);
-      Math_Painter.Draw (Fonts, Context, Layout, 2.0,
+      Math_Painter.Draw (Fonts, Context, Paint_Layout, 2.0,
         Long_Float (Baseline), Em);
       Cairo.Destroy (Context);
       Context := Cairo.Null_Context;
       Cairo.Surface.Flush (Surface);
+      Charge := new Math_Raster_Budget.Lease;
+      Math_Raster_Budget.Reserve
+        (Width * 4 * Height, Charge.all, Accepted);
+      if not Accepted then
+         Free_Unreserved_Charge : declare
+            procedure Free is new Ada.Unchecked_Deallocation
+              (Math_Raster_Budget.Lease, Charge_Addresses.Object_Pointer);
+         begin
+            Free (Charge);
+         end Free_Unreserved_Charge;
+         Cairo.Surface.Destroy (Surface);
+         Surface := Cairo.Null_Surface;
+         return null;
+      end if;
       Pixbuf := Gdk.Pixbuf.Get_From_Surface
         (Surface, 0, 0, Gint (Width), Gint (Height));
       Cairo.Surface.Destroy (Surface);
       Surface := Cairo.Null_Surface;
+      if Pixbuf = null then
+         Math_Raster_Budget.Release (Charge.all);
+         Free_Null_Pixbuf_Charge : declare
+            procedure Free is new Ada.Unchecked_Deallocation
+              (Math_Raster_Budget.Lease, Charge_Addresses.Object_Pointer);
+         begin
+            Free (Charge);
+         end Free_Null_Pixbuf_Charge;
+         Charge := null;
+         return null;
+      end if;
+      declare
+         Actual : constant Natural := Natural
+           (Gdk.Pixbuf.Get_Rowstride (Pixbuf)) * Natural
+             (Gdk.Pixbuf.Get_Height (Pixbuf));
+      begin
+         Math_Raster_Budget.Adjust (Charge.all, Actual, Accepted);
+         if not Accepted then
+            raise Program_Error;
+         end if;
+         if Inline_Weak_Ref_Failure_For_Test then
+            Inline_Weak_Ref_Failure_For_Test := False;
+            raise Program_Error;
+         end if;
+         Glib.Object.Weak_Ref
+           (Pixbuf, Inline_Pixbuf_Notify,
+            Charge_Addresses.To_Address (Charge));
+         Weak_Ref_Installed := True;
+         Charge := null;
+      end;
       return Pixbuf;
    exception
       when others =>
@@ -770,6 +850,22 @@ package body Coyote_GUI.Math_Element is
          end if;
          if Surface /= Cairo.Null_Surface then
             Cairo.Surface.Destroy (Surface);
+         end if;
+         if Pixbuf /= null then
+            Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
+            Pixbuf := null;
+         end if;
+         if not Weak_Ref_Installed then
+            if Charge /= null then
+               Math_Raster_Budget.Release (Charge.all);
+               Free_Exception_Charge : declare
+                  procedure Free is new Ada.Unchecked_Deallocation
+                    (Math_Raster_Budget.Lease,
+                     Charge_Addresses.Object_Pointer);
+               begin
+                  Free (Charge);
+               end Free_Exception_Charge;
+            end if;
          end if;
          return null;
    end Render_Layout_Inline;
@@ -887,4 +983,10 @@ package body Coyote_GUI.Math_Element is
      (Element.Math_Baseline);
    function Scale (Element : Instance) return Long_Float is
      (Element.Math_Scale);
+   package body Raster_Testing is
+      procedure Fail_Next_Inline_Weak_Ref is
+      begin
+         Inline_Weak_Ref_Failure_For_Test := True;
+      end Fail_Next_Inline_Weak_Ref;
+   end Raster_Testing;
 end Coyote_GUI.Math_Element;

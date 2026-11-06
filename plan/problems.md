@@ -4171,7 +4171,11 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   review remains manual.
 
 
-## PCR-125 — Versioned native KaTeX compatibility port (updated 2026-10-25)
+## PCR-125 — Versioned native KaTeX compatibility port (historical baseline 2026-10-25)
+
+Current status is reconciled in the 2026-11-06 PCR-125 entry below and in
+`plan/native-math-parity-test-report.md` §11. The dated results in this baseline
+are historical, not current-source qualification.
 
 - **Date reported:** 2026-10-24; execution/status update: 2026-10-25
 - **Category:** Plans, Requirements, Design, Code, Test, Manuals
@@ -4331,3 +4335,34 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   independent human acceptance remain open. Authoritative evidence is report
   §10. Developer/agent review is not independent acceptance. **PCR-125 remains
   open; project NOT COMPLETE.** No commit or release was made in this increment.
+
+
+### PCR-125 — 2026-11-06 implementation and qualification reconciliation
+
+- **Category:** Documentation, Test evidence, Design/Code status.
+- **Priority:** 3-Moderate — required compatibility work and open qualification
+  gates; no priority change or approved requirement waiver.
+- **Correction:** Make report §11 the controlling current-status record; retain
+  §10 and earlier as historical. Reconcile implemented CD/rules/contours,
+  enclosures/accents, native text shaping, font measurements, work checks and
+  retained-raster leases without describing source paths as completed parity.
+- **Recorded evidence:** Geometry 235/235, structured pilot 16/16, images 28/29;
+  338 matching callable outcomes, 278 scoped semantic matches, 60 comparison
+  gaps. Coverage: 2930 core rows, 2929 partial/unqualified, one approved deviation,
+  zero missing and zero qualified. Full-suite passes and failed repeats remain
+  distinct; no blanket successful-repeat claim. Temporary raw artifacts are
+  unavailable at reconciliation and no runtime test/build was rerun here.
+- **Unresolved problems:** `utilde-long` mask coverage about 0.9851 fails 0.990;
+  comparison readiness and full geometry/options/interaction coverage remain
+  open. Strict Valgrind reports fixed Fontconfig/Pango-associated definite/
+  indirect loss (6656/2183 bytes) in isolated shaping runs; it remains a failure,
+  not a suppressed or qualified lifecycle result. Inline painting remains on
+  GTK. Whole-job 256 MiB enforcement, hard 250 ms completion/rejection, GTK and
+  representative p95 50 ms targets, complete tiling/cache guarantees, fallback
+  font pins, failure injection and independent human visual/AT acceptance remain
+  open. The shared 64 MiB retained-raster ledger does not close those gates.
+- **Disposition:** Documentation/source inspection only; approved SRS-MATH v1.0,
+  D01–D15 and execution authorization remain unchanged. RD-CTX-01 additional
+  caps remain unauthorized. See report §11 for evidence provenance and remaining
+  work. Developer evaluation is not independent acceptance. **PCR-125 OPEN;
+  project NOT COMPLETE.** No commit or release is made by this update.

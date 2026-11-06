@@ -4,6 +4,8 @@ with Math_Font_Data;
 with Math_Model;
 
 package body Math_Metrics is
+   use type Math_Model.Font_Kind;
+
    function Face_For (Font : Math_Model.Font_Kind)
       return Math_Font_Data.Font_Face
    is
@@ -52,12 +54,23 @@ package body Math_Metrics is
       end case;
    end Face_For;
 
+   function Font_For
+     (Font       : Math_Model.Font_Kind;
+      Code_Point : Natural) return Math_Model.Font_Kind is
+   begin
+      if Font = Math_Model.Main_Regular and then Code_Point = 16#00AE# then
+         return Math_Model.AMS_Regular;
+      end if;
+      return Font;
+   end Font_For;
+
    function Lookup
      (Font : Math_Model.Font_Kind;
       Code_Point : Natural) return Glyph_Metric
    is
       Value : constant Math_Font_Data.Glyph_Metric :=
-        Math_Font_Data.Lookup (Face_For (Font), Code_Point);
+        Math_Font_Data.Lookup (Face_For (Font_For (Font, Code_Point)),
+                               Code_Point);
    begin
       return
         (Found   => Value.Found,

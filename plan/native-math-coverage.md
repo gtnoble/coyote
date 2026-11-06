@@ -9,19 +9,19 @@ Inventory evidence: 88 source-module hashes and 61 package/font hashes; inventor
 | Registry | Total | Missing | Partial, unqualified | Approved deviation |
 |---|---:|---:|---:|---:|
 | builtin-macro | 338 | 0 | 338 | 0 |
-| environment | 33 | 1 | 32 | 0 |
-| function | 309 | 103 | 206 | 0 |
+| environment | 33 | 0 | 33 | 0 |
+| function | 309 | 0 | 309 | 0 |
 | setting | 14 | 0 | 13 | 1 |
 | supplemental-font-face | 20 | 0 | 20 | 0 |
 | supplemental-implicitCommands | 4 | 0 | 4 | 0 |
-| supplemental-scriptData | 7 | 7 | 0 | 0 |
+| supplemental-scriptData | 7 | 0 | 7 | 0 |
 | supplemental-symbol-alias | 1 | 0 | 1 | 0 |
 | supplemental-uSubsAndSups | 102 | 0 | 102 | 0 |
 | supplemental-unicodeAccents | 12 | 0 | 12 | 0 |
 | supplemental-unicodeSymbols | 344 | 0 | 344 | 0 |
-| symbol | 2236 | 8 | 2228 | 0 |
+| symbol | 2236 | 0 | 2236 | 0 |
 
-Core registry rows: 2930; missing core rows: 112. Missing means no direct native implementation evidence; partial/unqualified rows remain unqualified. These are counts, not a coverage percentage.
+Core registry rows: 2930; missing core rows: 0. Missing means no direct native implementation evidence; partial/unqualified rows remain unqualified. These are counts, not a coverage percentage.
 
 ## Requirement disposition
 
@@ -30,16 +30,16 @@ Core registry rows: 2930; missing core rows: 112. Missing means no direct native
 | REQ-MATH-001 | partial-implemented-unqualified | Census/crosswalk exist; reviewed qualification decisions and case links remain absent. |
 | REQ-MATH-002 | partial-implemented-unqualified | Expander/templates include literal-prefix and balanced delimited parameters, scoped copies and special opening-brace terminators. Complete argument, scope and built-in semantics remain unqualified. |
 | REQ-MATH-003 | partial-implemented-unqualified | Fresh/shared contexts exist; complete state-sequence qualification remains open. |
-| REQ-MATH-004 | partial-implemented-unqualified | Generated Math_Unicode decompositions, 12 accent mappings, and 102 script substitutions now feed tokenization; 344 raw Unicode symbol paths are inventoried. Runtime coverage is partial: scriptData's seven block ranges remain absent as a substitution table, and full Unicode shaping/geometry is unqualified. |
-| REQ-MATH-005 | partial-implemented-unqualified | Font/style mappings and size commands are source-present, including tiny (0.5) and sixptsize (0.6); the latest focused geometry corpus passes 157 ascent/depth cases. This remains scoped evidence and does not establish full-width origin/measurement or qualification. |
+| REQ-MATH-004 | partial-implemented-unqualified | Generated Math_Unicode decompositions, 12 accent mappings, and 102 Unicode sub/superscript substitutions feed tokenization; 344 raw Unicode symbol paths are inventoried. The seven scriptData ranges also gate conditional text-run profile selection and Pango shaping; this is not a substitution table. Font fallback/pins, policy conditions, and shaping/geometry equivalence remain unqualified. |
+| REQ-MATH-005 | partial-implemented-unqualified | Font/style mappings and size commands are source-present, including tiny (0.5) and sixptsize (0.6). Report section 11 distinguishes recorded geometry evidence from fresh qualification; complete widths, origins, font identity and placement remain unqualified. |
 | REQ-MATH-006 | partial-implemented-unqualified | Partial parser/environment support mapped; parser-present environments and aliases remain partial/unqualified, and remaining constructs are missing or partial. |
 | REQ-MATH-007 | partial-implemented-unqualified | Scalar settings have partial native paths: display-only fleqn metadata is consumed by GTK and both colorIsTextColor modes have focused checks. trust=False is enforced and trust=True rejected. Full option-effect/interaction parity remains unqualified. D11/D12 apply only to their approved callback/API deviations. |
 | REQ-MATH-008 | partial-implemented-unqualified | Diagnostics/source fallback exist; error-fragment and source-position parity unqualified. |
 | REQ-MATH-009 | partial-implemented-unqualified | The core default trust=false is maintained and sensitive commands are refused; full policy equivalence unqualified. |
-| REQ-MATH-010 | partial-implemented-unqualified | Job queue/source ledger exist; six lifecycle phases check expiration, and expired queued work is skipped before copying; parser/layout/raster work is not preempted by a hard deadline. The source ledger is not whole-job memory accounting or CPU/work budgeting. |
-| REQ-MATH-011 | partial-implemented-unqualified | Native integration exists; complete compatibility regression evidence remains open. |
+| REQ-MATH-010 | partial-implemented-unqualified | Cooperative polling reaches pipeline loops and phase boundaries; expired queued work is skipped before copying input. Raster_Budget shares a 64 MiB retained-raster lease across completed job vectors, display surfaces and inline Pixbufs. Whole-job ≤256 MiB accounting, complete process-cache qualification and hard queue-inclusive 250 ms completion remain open; individual native calls are not preempted. |
+| REQ-MATH-011 | partial-implemented-unqualified | Native integration exists, but inline Rich_Text still calls Render_Layout_Inline on GTK. Off-thread inline painting, complete tiling/cache/repaint reuse and compatibility/GTK timing qualification remain open. |
 | REQ-MATH-012 | partial-implemented-unqualified | Semantic-tree source exists; no completed human assistive-technology review. |
-| REQ-MATH-013 | partial-implemented-unqualified | The 16-case structured pilot passes within its scope; normalized paths do not establish em-unit origins or widths. The expanded nine-image comparison currently passes 7/9: two verbatim widths differ (native 0.525 versus browser 13 px at 24 px/em). The earlier 9/9 relied on a reverted hardcoded 13/24 width and is not current evidence. The 157-case ascent/depth corpus passes within scope. Full per-entry corpus, browser/platform pins, recorded outcome snapshots, approved thresholds, and qualification remain incomplete. |
+| REQ-MATH-013 | partial-implemented-unqualified | Existing structured geometry and image probes are scoped evidence only. Do not infer latest geometry/pixel counts or pass status from stale map snapshots; recorded results, artifact availability and open gates are maintained in coordinator-owned parity report section 11. Full per-entry corpus, browser/platform pins, approved thresholds, and qualification remain incomplete. |
 | REQ-MATH-014 | partial-implemented-unqualified | Regression-suite chronology and the latest authoritative result are recorded in the current STR; earlier run counts are historical evidence only. A green regression count is not compatibility qualification. |
 | REQ-MATH-015 | partial-implemented-unqualified | Pinned generators/provenance exist; full repeatable qualification and upgrade review unqualified. |
 
@@ -48,17 +48,19 @@ REQ-MATH status is evidence only, not acceptance. D11 excludes only function-val
 ## Interpretation and limits
 
 * Partial means source-path/name evidence only; for explicit parser handlers it records actual command handling, not arguments, success, errors, semantics, geometry, GUI presentation, or parity. vcenter and pmb have explicit syntax branches; verb has a dedicated lexer-to-verbatim-node-to-layout path. Their native implementations remain unqualified: pmb uses a bounded glyph-mask Gaussian-shadow approximation rather than exact CSS behavior; unicode text fallback/shaping is not established as equivalent.
-* Function classification records explicit Parse_Atom branches, explicitly contextual parser commands, exact generated-symbol registry fallback keys, and the dedicated lexer/Verbatim_Node/layout path for \verb. Contextual right/end are only recognized in matching delimiter/environment contexts. Lookup-path evidence is not successful command or semantic support; explicit refusals and names with no path/key remain missing. Environment evidence reflects explicit Parse_Array names; one inventory environment remains absent. Equation/equation* are display-tag paths, not general aliases/starred semantics. Literal-prefix and balanced delimited macro definitions, including special opening-brace terminators, have expander paths and focused tests; full semantics remain unqualified.
+* Function classification records explicit Parse_Atom branches, explicitly contextual parser commands, exact generated-symbol registry fallback keys, and the dedicated lexer/Verbatim_Node/layout path for `\verb`. Contextual right/end are only recognized in matching delimiter/environment contexts. Explicit `\\` and `\newline` syntax set Forced_Break and row layout ends the current line; this is an actual forced-line path, not a claim of automatic wrapping. Lookup-path evidence is not successful command or semantic support; names without a name/context-matched path or retained symbol key remain missing. Environment evidence reflects the Parse_Array allowlist; CD has a dedicated Parse_CD parser and CD_Array layout path, partial/unqualified rather than complete support. Equation/equation* are display-tag paths, not general aliases/starred semantics. Literal-prefix and balanced delimited macro definitions, including special opening-brace terminators, have expander paths and focused tests; full semantics remain unqualified.
 * Generated string templates have lazy lookup/expansion paths but no per-template success qualification. Callable bra@ket and bra@set have helper-level expansion probes (including shared expansion-budget checks); those tests are not full KaTeX registry-semantic qualification. Both remain partial/unqualified core rows and neither has a D12 exception. @ifstar is a string template using @ifnextchar. TextOrMath has dynamic text/math mode selection; remaining callable paths are partial only where actual handlers exist, and otherwise remain missing.
 * Settings with partial native surfaces include strict, maxExpand, displayMode, minRuleThickness, errorColor, throwOnError, globalGroup, macros, maxSize, trust, and colorIsTextColor. maxSize is accepted and passed to bounded layout; exact scaling parity remains unqualified. fleqn has display-only alignment metadata and native presentation; trust=False is enforced while trust=True is explicitly rejected. colorIsTextColor is exposed and wired with focused scope checks, not full option qualification. D11/D12 record only approved function-valued callback/macro deviations.
-* Unicode symbol/accent/substitution rows are partial where generated Math_Unicode lookups feed tokenization; this is not complete shaping or parity. Is_Script_Data exists only as an unused range predicate; all seven scriptData block ranges remain missing as runtime mappings. Generic Pango Unicode handling is not engine substitution-table evidence, and a pending Unicode glyph fallback does not establish Pango shaping.
-* Symbols are mode-specific generated lookup rows; generator membership is not parser reachability, runtime lookup, glyph/font/layout equivalence, or qualification.
+* Unicode symbol/accent/substitution rows are partial where generated Math_Unicode lookups feed tokenization. Is_Script_Data is called by parser fallback/run-coalescing; Profile_For chooses script-family profiles and Math_Text_Shaping uses Pango for eligible text runs. This conditional fallback path does not provide item-specific scriptData substitutions. Font pins, strict-policy conditions, missing-glyph behavior, shaping and geometry equivalence remain unqualified.
+* Symbols are mode-specific generated lookup rows; generator membership is not parser reachability, runtime lookup, glyph/font/layout equivalence, or qualification. The production renderer is native Ada/Cairo/FreeType plus GTK Pango/Cairo shaping; it does not use the browser serializer as its production renderer. Native implementation presence is not visual or font qualification.
 
 ## Supplemental family totals
 
+Font-face rows record generated face/metric or command-name evidence only. The current narrow AMS fallback in Math_Metrics.Font_For is implementation evidence, not complete font fallback; font pins, glyph-kind-face coverage, missing-glyph policy, and rendering equivalence remain unqualified.
+
 * `supplemental-font-face`: 20 rows (20 partial/unqualified; 0 missing).
 * `supplemental-implicitCommands`: 4 rows (4 partial/unqualified; 0 missing).
-* `supplemental-scriptData`: 7 rows (0 partial/unqualified; 7 missing).
+* `supplemental-scriptData`: 7 rows (7 partial/unqualified; 0 missing).
 * `supplemental-symbol-alias`: 1 rows (1 partial/unqualified; 0 missing).
 * `supplemental-uSubsAndSups`: 102 rows (102 partial/unqualified; 0 missing).
 * `supplemental-unicodeAccents`: 12 rows (12 partial/unqualified; 0 missing).
@@ -66,10 +68,24 @@ REQ-MATH status is evidence only, not acceptance. D11 excludes only function-val
 
 ## Highest missing families
 
-* `function`: 103
-* `symbol`: 8
-* `supplemental-scriptData`: 7
-* `environment`: 1
+No unmapped source-path family; this is not a qualification verdict.
+
+## Remaining exact missing core names
+
+These are source-path gaps, not a qualification verdict. Exact inventory names and bytes are preserved; no normalization or inferred aliasing is performed. Unicode operator glyph availability and complete-font/component mapping remain unqualified.
+
+### Functions
+
+None unmapped by the source crosswalk; behavior remains unqualified.
+
+### Symbols
+
+None unmapped by the source crosswalk; behavior remains unqualified.
+
+### Environment
+
+* `CD` — dedicated Parse_CD constructs CD_Array rows/cells/arrows. Exact internal helper paths are also mapped; environment syntax, helper contracts, parent-relative placement and full rendering remain partial/unqualified.
+
 
 ## Census reconciliation
 

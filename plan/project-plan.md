@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.38
-**Date:** 2026-10-27
+**Version:** 1.40
+**Date:** 2026-11-06
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
 
@@ -145,13 +145,21 @@ the point of decision, not reconstructed post-hoc.
 
 **Approved native-math execution (PCR-125; user authorization recorded
 2026-10-25):** `plan/native-math-parity-plan.md` governs the staged port.
-SRS-MATH v1.0 and D01–D15 remain authoritative and unchanged; continued
-execution is approved, while readiness, qualification and acceptance remain
-open. Current-source implementation, evidence, raster discrepancies and gates
-are maintained in coordinator-owned report §10; §9 and earlier sections are
-historical. The frozen full suite passed 1063/1063 as regression evidence only.
-No parity or product acceptance is implied. RD-CTX-01 additional context caps
-remain unauthorized.
+SRS-MATH v1.0 and D01–D15 remain authoritative and unchanged; the already
+approved execution continues, without reopening approval or accepting design
+alternatives. Coordinator report §11, “Current implementation and qualification
+reconciliation — 2026-11-06”, is the latest recorded checkpoint; §10 and earlier
+sections are historical. Its 28/29 raster comparison (long-tilde mask 0.9851
+against 0.99), 278/338 scoped semantic matches with 60 explicit gaps (strict
+mode failed), and 235/235 geometry results are evidence, not qualification.
+The recorded 1063/1063 suite and its repeat with one prompt-filter assertion
+failure of unproven non-math cause are not a fresh pass or waived failure.
+Temporary logs are unavailable for this documentation-only update; no tests
+were rerun. Queue-inclusive 250 ms completion, GTK ≤50 ms work, aggregate
+256 MiB job-memory enforcement, inline worker painting/tiled adoption, complete
+reference behavior/corpus, readiness, qualification and independent human
+acceptance remain open. Coverage is a source crosswalk, not semantic completion.
+RD-CTX-01 caps remain unauthorized; no parity or product acceptance is implied.
 ### 4.2 Development Environment
 
 **Compiler / build:** GNAT (Ada 2022), Alire (`alr build`), GPRbuild.
@@ -985,18 +993,18 @@ Test Plan, user documentation, and SDF entries.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.38 (2026-10-27) | Project |
-| Native math port plan | PLAN-MATH | `plan/native-math-parity-plan.md` | 0.7 (2026-10-27) | Client — plan approved |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.40 (2026-11-06) | Project |
+| Native math port plan | PLAN-MATH | `plan/native-math-parity-plan.md` | 0.9 (2026-11-06) | Client — plan approved |
 | Native math requirements | SRS-MATH | `requirements/native-math-compatibility.md` | 1.0 (2026-10-24) | Client — requirements approved |
-| Native math design | SDD-MATH | `design/native-math-compatibility.md` | 0.7 (2026-10-27) | Client — approved design/execution; parity/qualification open |
-| Native math test plan/description | STP/STD-MATH | `plan/native-math-compatibility-tests.md` | 0.7 (2026-10-27) | Client — execution baseline approved; readiness/calibration open |
-| Native math checkpoint report | STR-MATH | `plan/native-math-parity-test-report.md` | §10 current-source snapshot (2026-10-27; coordinator-owned; not acceptance) | Project — NOT COMPLETE |
-| Native math human acceptance checklist | CHECK-MATH | `plan/native-math-acceptance-checklist.md` | 0.4 (2026-10-27) | Author — not executed |
+| Native math design | SDD-MATH | `design/native-math-compatibility.md` | 0.9 (2026-11-06) | Client — approved design/execution; parity/qualification open |
+| Native math test plan/description | STP/STD-MATH | `plan/native-math-compatibility-tests.md` | 0.9 (2026-11-06) | Client — execution baseline approved; readiness/calibration open |
+| Native math checkpoint report | STR-MATH | `plan/native-math-parity-test-report.md` | §11 status reconciliation (2026-11-06; recorded results, artifacts unavailable; not acceptance) | Project — NOT COMPLETE |
+| Native math human acceptance checklist | CHECK-MATH | `plan/native-math-acceptance-checklist.md` | 0.6 (2026-11-06) | Author — not executed |
 | Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.33 (2026-10-26) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.42 (2026-10-27) | Project |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.44 (2026-11-06) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.40 (2026-10-27) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.42 (2026-11-06) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

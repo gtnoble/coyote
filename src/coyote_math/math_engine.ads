@@ -1,4 +1,6 @@
 with Math_Layout;
+with Math_Metrics;
+with Math_Work_Control;
 with Math_Macros;
 with Math_Semantics;
 with Math_Syntax;
@@ -40,6 +42,9 @@ package Math_Engine is
       Foreground     : RGBA := (Red => 0.0, Green => 0.0,
                                 Blue => 0.0, Alpha => 1.0);
       Foreground_Set : Boolean := False;
+      Pixel_Em : Long_Float := 0.0;
+      Advance_Source : Math_Metrics.Advance_Source_Access := null;
+      Work : Math_Work_Control.Context_Access := null;
    end record;
 
    type Result is record

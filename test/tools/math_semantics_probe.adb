@@ -5,11 +5,22 @@ with Math_Model;
 with Math_Semantics;
 with Math_Syntax;
 with Math_Macros;
+with Math_Work_Control;
 
 procedure Math_Semantics_Probe is
    use Math_Model;
    use Math_Semantics;
    use type Math_Syntax.Delimiter_Kind;
+   type Stop_Context is new Math_Work_Control.Context with record
+      Reason : Math_Work_Control.Stop_Reason :=
+        Math_Work_Control.Cancel_Requested;
+   end record;
+   overriding function Check
+     (Item : Stop_Context) return Math_Work_Control.Stop_Reason is
+      pragma Unreferenced (Item);
+   begin
+      return Item.Reason;
+   end Check;
    Checks : Natural := 0;
    Failures : Natural := 0;
    Item : Document;
@@ -33,6 +44,15 @@ procedure Math_Semantics_Probe is
       end loop;
       return 0;
    end Child;
+   function Find_AST (Id : Node_Id) return Natural is
+   begin
+      for Index in 1 .. Count (Item) loop
+         if Element (Item, Positive (Index)).AST_Id = Id then
+            return Index;
+         end if;
+      end loop;
+      return 0;
+   end Find_AST;
    procedure Check_Common (Source_Text : String) is
       Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
         (Source_Text);
@@ -52,8 +72,57 @@ procedure Math_Semantics_Probe is
       A, B, C, D : Natural;
       Current : Natural;
       N : Semantic_Node;
+      Stopper : aliased Stop_Context;
       Invalid : constant Document := Project ("\unknown");
+      Parse_Stopped : Boolean := False;
+      Projection_Stopped : Boolean := False;
    begin
+      begin
+         declare
+            Ignored : constant Math_Syntax.Document := Math_Syntax.Parse
+              ("x", Stopper'Unchecked_Access);
+            pragma Unreferenced (Ignored);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Stop_Requested =>
+            Parse_Stopped := True;
+      end;
+      Check (Parse_Stopped, "parser propagates cancellation request");
+      Stopper.Reason := Math_Work_Control.Deadline_Reached;
+      Parse_Stopped := False;
+      begin
+         declare
+            Ignored : constant Math_Syntax.Document := Math_Syntax.Parse
+              ("x", Stopper'Unchecked_Access);
+            pragma Unreferenced (Ignored);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Deadline_Expired =>
+            Parse_Stopped := True;
+      end;
+      Check (Parse_Stopped, "parser propagates deadline request");
+      Stopper.Reason := Math_Work_Control.Cancel_Requested;
+      declare
+         AST : constant Math_Syntax.Document := Math_Syntax.Parse ("x");
+      begin
+         begin
+            declare
+               Ignored : constant Document := Project (AST, Stopper'Unchecked_Access);
+               pragma Unreferenced (Ignored);
+            begin
+               null;
+            end;
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Projection_Stopped := True;
+         end;
+      end;
+      Check (Projection_Stopped,
+        "semantic projection propagates cancellation request");
       Check_Common ("\frac{a}{b}");
       A := Child (1, Sequence_Item);
       Check (A /= 0 and then Element (Item, A).Kind = Fraction_Node,
@@ -153,23 +222,90 @@ procedure Math_Semantics_Probe is
         Element (Item, A).Annotation_Type = Under_Annotation,
         "underset retains below label and base roles");
 
-      Check_Common ("\color{blue}{\phantom{x}}");
-      A := Child (1, Sequence_Item);
-      B := Child (A, Color_Content);
-      C := Child (B, Sequence_Item);
-      D := Child (C, Phantom_Content);
-      Check (B /= 0 and C /= 0 and D /= 0,
-        "color and phantom content roles are projected");
-      if B /= 0 and then C /= 0 and then D /= 0 then
-         Check (Element (Item, A).Color.Blue = 1.0 and
-           Element (Item, C).Kind = Phantom_Node and
-           Element (Item, C).Code_Point = 0 and
-           Element (Item, D).Kind in Row_Node | Glyph_Node,
-           "nested blue color and phantom geometry content retained");
-         Check (Element (Item, A).Child_Count = 1 and
-           Element (Item, C).Child_Count = 1,
-           "phantom projection retains semantic children");
-      end if;
+      declare
+         Color_AST : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\color{blue}{\phantom{x}}");
+         Color_AST_Id : constant Node_Id :=
+           Math_Syntax.Element (Color_AST,
+             Positive (Math_Syntax.Root (Color_AST))).First;
+         Color_AST_Node : constant Math_Syntax.Node :=
+           Math_Syntax.Element (Color_AST, Positive (Color_AST_Id));
+         Content_AST_Id : constant Node_Id := Color_AST_Node.First;
+         Content_AST_Node : constant Math_Syntax.Node :=
+           Math_Syntax.Element (Color_AST, Positive (Content_AST_Id));
+         function Find_Kind (Kind : Node_Kind) return Node_Id is
+         begin
+            for Id in 1 .. Math_Syntax.Count (Color_AST) loop
+               if Math_Syntax.Element (Color_AST, Id).Kind = Kind then
+                  return Node_Id (Id);
+               end if;
+            end loop;
+            return No_Node;
+         end Find_Kind;
+         Phantom_AST_Id : constant Node_Id := Find_Kind (Phantom_Node);
+         Phantom_AST_Node : constant Math_Syntax.Node :=
+           Math_Syntax.Element (Color_AST, Positive (Phantom_AST_Id));
+         Phantom_Parent_AST_Id : constant Node_Id := Content_AST_Node.First;
+         Phantom_Content_AST_Id : constant Node_Id := Phantom_AST_Node.First;
+         Phantom_Content_AST_Node : constant Math_Syntax.Node :=
+           Math_Syntax.Element (Color_AST,
+             Positive (Phantom_Content_AST_Id));
+         Color_Sem : Natural := 0;
+         Content_Sem : Natural := 0;
+         Phantom_Sem : Natural := 0;
+         Phantom_Content_Sem : Natural := 0;
+      begin
+         Check_Common ("\color{blue}{\phantom{x}}");
+         Color_Sem := Find_AST (Color_AST_Id);
+         Content_Sem := Find_AST (Content_AST_Id);
+         Phantom_Sem := Find_AST (Phantom_AST_Id);
+         Phantom_Content_Sem := Find_AST (Phantom_Content_AST_Id);
+         Check (Color_Sem /= 0 and Content_Sem /= 0 and Phantom_Sem /= 0 and
+           Phantom_Content_Sem /= 0,
+           "color, content wrapper, and phantom AST nodes are projected");
+         if Color_Sem /= 0 and then Content_Sem /= 0 and then
+           Phantom_Sem /= 0 and then Phantom_Content_Sem /= 0
+         then
+            Check (Element (Item, Color_Sem).Kind = Color_Node and
+              Element (Item, Color_Sem).AST_Id = Color_AST_Id and
+              Element (Item, Color_Sem).Role = Sequence_Item and
+              Element (Item, Content_Sem).AST_Id = Content_AST_Id and
+              Element (Item, Content_Sem).Kind = Content_AST_Node.Kind and
+              Element (Item, Content_Sem).Position =
+                Content_AST_Node.Position and
+              Element (Item, Content_Sem).Parent = Color_Sem and
+              Element (Item, Content_Sem).Role = Color_Content,
+              "color content wrapper preserves typed AST identity and role");
+            Check (Element (Item, Color_Sem).Color.Blue = 1.0,
+              "blue color payload retained");
+            Check (Element (Item, Phantom_Sem).Kind = Phantom_Node and
+              Element (Item, Phantom_Sem).AST_Id = Phantom_AST_Id and
+              Element (Item, Phantom_Sem).Position = Phantom_AST_Node.Position,
+              "phantom node retains typed AST identity and position");
+            Check (Element (Item, Phantom_Sem).Role = Sequence_Item,
+              "phantom wrapper retains source sequence role");
+            Check (Element (Item, Phantom_Content_Sem).AST_Id =
+                Phantom_Content_AST_Id and
+              Element (Item, Phantom_Content_Sem).Role = Phantom_Content and
+              Element (Item, Phantom_Content_Sem).Position =
+                Phantom_Content_AST_Node.Position,
+              "phantom content retains typed AST identity and role");
+            Check (Element (Item, Color_Sem).Position =
+              Color_AST_Node.Position and
+              Element (Item, Phantom_Sem).Parent =
+                Find_AST (Phantom_Parent_AST_Id),
+              "color and phantom source positions and AST parentage preserved");
+         end if;
+         for AST_Id in 1 .. Math_Syntax.Count (Color_AST) loop
+            A := Find_AST (Node_Id (AST_Id));
+            Check (A /= 0 and then
+              Element (Item, Positive (A)).Kind =
+                Math_Syntax.Element (Color_AST, AST_Id).Kind and then
+              Element (Item, Positive (A)).Position =
+                Math_Syntax.Element (Color_AST, AST_Id).Position,
+              "color/phantom semantic node matches source AST byte position");
+         end loop;
+      end;
 
       Check_Common ("\displaystyle{x}");
       A := Child (1, Sequence_Item);
@@ -193,6 +329,15 @@ procedure Math_Semantics_Probe is
       A := Child (1, Sequence_Item);
       Check (Accent_Command (Item, Positive (A)) = "\bar",
         "unbraced accent command source label");
+
+      Check_Common ("\text{\c{c}}");
+      A := Child (1, Sequence_Item);
+      B := Child (A, Sequence_Item);
+      C := Child (B, Accent_Under_Base);
+      Check (Element (Item, B).Kind = Accent_Node and
+        Element (Item, B).Code_Point = 16#00B8# and C /= 0 and
+        Accent_Command (Item, Positive (B)) = "\c",
+        "cedilla semantic label is canonical and indexed safely");
 
       Check_Common ("\widehat{xy}");
       A := Child (1, Sequence_Item);
@@ -237,8 +382,10 @@ procedure Math_Semantics_Probe is
          Projected_Glyph : constant Semantic_Node :=
            Element (Projected, Positive (Projected_Node.First_Child));
       begin
-         Check (not Math_Syntax.Is_Valid (Definition_AST) and
-           Math_Syntax.Is_Valid (Use_AST), "shared macro ASTs valid");
+         Check (Math_Syntax.Is_Valid (Definition_AST) and
+           Math_Syntax.Is_Valid (Use_AST) and Definition_Count > 0 and
+           Math_Macros.Is_Defined (Shared, "\foo"),
+           "shared macro ASTs valid");
          Check (Is_Valid (Projected), "shared macro AST projects");
          Check (Source (Projected) = "\foo",
            "AST projection preserves exact unexpanded source");

@@ -1,10 +1,13 @@
 with Ada.Characters.Latin_1;
 with Ada.Containers.Vectors;
+with Math_Work_Control;
 
 package body Math_Paths is
    use type Ada.Containers.Count_Type;
 
-   function Parse (Data : String) return Path is
+   function Parse
+     (Data : String;
+      Work : Math_Work_Control.Context_Access := null) return Path is
       Result : Path;
       Items : Segment_Vectors.Vector;
       I : Integer := Data'First;
@@ -35,11 +38,13 @@ package body Math_Paths is
 
       procedure Space is
       begin
+         Math_Work_Control.Poll (Work);
          while I <= Data'Last and then
            (Data (I) = ' ' or Data (I) = Ada.Characters.Latin_1.HT or
             Data (I) = Ada.Characters.Latin_1.LF or
             Data (I) = Ada.Characters.Latin_1.CR)
          loop
+            Math_Work_Control.Poll (Work);
             I := I + 1;
          end loop;
          if I <= Data'Last and then Data (I) = ',' then
@@ -49,6 +54,7 @@ package body Math_Paths is
                Data (I) = Ada.Characters.Latin_1.LF or
                Data (I) = Ada.Characters.Latin_1.CR)
             loop
+               Math_Work_Control.Poll (Work);
                I := I + 1;
             end loop;
             if I > Data'Last or else Data (I) = ',' or else
@@ -74,6 +80,7 @@ package body Math_Paths is
             I := I + 1;
          end if;
          while I <= Data'Last and then Data (I) in '0' .. '9' loop
+            Math_Work_Control.Poll (Work);
             if Digit_Count < 18 then
                Mantissa := Mantissa * 10.0 +
                  Long_Float (Character'Pos (Data (I)) - Character'Pos ('0'));
@@ -84,6 +91,7 @@ package body Math_Paths is
          if I <= Data'Last and then Data (I) = '.' then
             I := I + 1;
             while I <= Data'Last and then Data (I) in '0' .. '9' loop
+               Math_Work_Control.Poll (Work);
                if Digit_Count < 18 then
                   Mantissa := Mantissa * 10.0 +
                     Long_Float (Character'Pos (Data (I)) - Character'Pos ('0'));
@@ -113,6 +121,7 @@ package body Math_Paths is
                return False;
             end if;
             while I <= Data'Last and then Data (I) in '0' .. '9' loop
+               Math_Work_Control.Poll (Work);
                if Exponent < 1000 then
                   Exponent := Exponent * 10 +
                     Character'Pos (Data (I)) - Character'Pos ('0');
@@ -130,6 +139,9 @@ package body Math_Paths is
          end if;
          return Value'Valid and then abs Value <= Max_Coordinate;
       exception
+         when Math_Work_Control.Stop_Requested |
+           Math_Work_Control.Deadline_Expired =>
+            raise;
          when others =>
             return False;
       end Number;
@@ -157,6 +169,7 @@ package body Math_Paths is
          return Result;
       end if;
       for J in Data'Range loop
+         Math_Work_Control.Poll (Work);
          if Data (J) = ',' then
             declare
                Left : Integer := J - 1;
@@ -168,6 +181,7 @@ package body Math_Paths is
                     Ada.Characters.Latin_1.LF or Data (Left) =
                     Ada.Characters.Latin_1.CR)
                loop
+                  Math_Work_Control.Poll (Work);
                   Left := Left - 1;
                end loop;
                while Right <= Data'Last and then
@@ -176,6 +190,7 @@ package body Math_Paths is
                     Ada.Characters.Latin_1.LF or Data (Right) =
                     Ada.Characters.Latin_1.CR)
                loop
+                  Math_Work_Control.Poll (Work);
                   Right := Right + 1;
                end loop;
                if Left < Data'First or else Right > Data'Last or else
@@ -190,6 +205,7 @@ package body Math_Paths is
       end loop;
       Space;
       while I <= Data'Last loop
+         Math_Work_Control.Poll (Work);
          if Data (I) in 'A' .. 'Z' or else Data (I) in 'a' .. 'z' then
             Mode := Data (I);
             I := I + 1;
@@ -368,6 +384,9 @@ package body Math_Paths is
       end if;
       return Result;
    exception
+      when Math_Work_Control.Stop_Requested |
+        Math_Work_Control.Deadline_Expired =>
+         raise;
       when others =>
          Fail ("malformed SVG path");
          return Result;
@@ -420,7 +439,8 @@ package body Math_Paths is
    end Extent;
 
    function Transform
-     (Item : Path; XX, YX, XY, YY, DX, DY : Long_Float) return Path is
+     (Item : Path; XX, YX, XY, YY, DX, DY : Long_Float;
+      Work : Math_Work_Control.Context_Access := null) return Path is
       Result : Path;
       function Finite (Value : Long_Float) return Boolean is
         (Value = Value and then abs Value <= Long_Float'Last);
@@ -445,6 +465,7 @@ package body Math_Paths is
          return Result;
       end if;
       for I in 1 .. Item.Length loop
+         Math_Work_Control.Poll (Work);
          declare
             Value : Segment := Item.Items (I);
             procedure Apply (P : in out Point) is
@@ -477,6 +498,9 @@ package body Math_Paths is
       Result.Good := True;
       return Result;
    exception
+      when Math_Work_Control.Stop_Requested |
+        Math_Work_Control.Deadline_Expired =>
+         raise;
       when others =>
          Reject;
          return Result;

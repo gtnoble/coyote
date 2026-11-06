@@ -1,11 +1,14 @@
+with "gtkada";
 with "gnatcoll_core";
 project Math_Radical is
    for Languages use ("Ada");
    for Source_Dirs use ("../../src/coyote_math", "../tools");
    for Source_Files use
      ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
+      "math_text_shaping.ads", "math_text_shaping.adb",
       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+      "math_work_control.ads", "math_work_control.adb",
       "math_source.ads", "math_source.adb", "math_unicode.ads",
       "math_unicode.adb", "math_tokens.ads", "math_tokens.adb", "math_macros.ads", "math_macros.adb",
       "math_expander.ads", "math_expander.adb",

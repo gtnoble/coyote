@@ -19,6 +19,7 @@ with Math_Layout;
 with Math_Painter;
 with Math_Syntax;
 with Coyote_Math_Jobs;
+with Math_Raster_Budget;
 with Glib.Main;
 
 package Coyote_GUI.Math_Element is
@@ -68,6 +69,10 @@ package Coyote_GUI.Math_Element is
    function Retained_Raster_Bytes return Natural;
    function Max_Raster_Callback_Milliseconds return Long_Float;
 
+   package Raster_Testing is
+      procedure Fail_Next_Inline_Weak_Ref;
+   end Raster_Testing;
+
 private
    type Instance is tagged limited record
       Root : Gtk.Box.Gtk_Box;
@@ -98,7 +103,7 @@ private
       Poll_Source : Glib.Main.G_Source_Id := 0;
       Raster_Result : Coyote_Math_Jobs.Result_Access := null;
       Raster_Image : Cairo.Cairo_Surface := Cairo.Null_Surface;
-      Raster_Bytes : Natural := 0;
+      Raster_Charge : Math_Raster_Budget.Lease;
       Raster_Row : Natural := 0;
       Raster_Width : Natural := 0;
       Raster_Height : Natural := 0;

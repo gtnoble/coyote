@@ -1,6 +1,7 @@
 with Ada.Containers.Vectors;
 with Math_Macros;
 with Math_Tokens;
+with Math_Work_Control;
 
 package Math_Expander is
    use type Math_Tokens.Token;
@@ -23,10 +24,12 @@ package Math_Expander is
      (Input : Math_Tokens.Stream; Item : in out Cursor;
       Max_Expand : Positive := Default_Max_Expand;
       Token_Ceiling : Positive := Maximum_Tokens;
-      Expansion_Only : Boolean := False);
+      Expansion_Only : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null);
    --  Evaluate expandable tokens without executing assignment primitives.
    function Next
-     (Item : in out Cursor; Shared : in out Math_Macros.Context)
+     (Item : in out Cursor; Shared : in out Math_Macros.Context;
+      Work : Math_Work_Control.Context_Access := null)
       return Math_Tokens.Token;
    function Peek
      (Item : in out Cursor; Shared : in out Math_Macros.Context)
@@ -37,7 +40,8 @@ package Math_Expander is
    procedure Scan_Argument
      (Item : in out Cursor; Shared : in out Math_Macros.Context;
       Result : out Math_Tokens.Stream;
-      Diagnostic : out Diagnostic_Kind);
+      Diagnostic : out Diagnostic_Kind;
+      Work : Math_Work_Control.Context_Access := null);
    procedure Begin_Group (Shared : in out Math_Macros.Context);
    procedure End_Group (Shared : in out Math_Macros.Context);
    procedure End_All (Shared : in out Math_Macros.Context);
@@ -75,6 +79,7 @@ private
       Suppress_Next : Boolean := False;
       Regular_Mode : Boolean := False;
       Expansion_Only : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null;
       Middle_Binding : Token_Vectors.Vector;
       Double_Binding : Token_Vectors.Vector;
       Has_Middle_Binding : Boolean := False;

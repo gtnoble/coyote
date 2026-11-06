@@ -1065,6 +1065,11 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       End_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       Pixbuf_Found : Boolean := False;
       Pixbuf_Count : Natural := 0;
+      Budget_Baseline : Natural := 0;
+      Failure_Baseline : Natural := 0;
+      Failure_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Failure_Baseline_Value : Natural := 0;
+      pragma Unreferenced (Failure_Baseline_Value);
       Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
       Initial_Rect : Gdk.Rectangle.Gdk_Rectangle;
       Tags : Gtk.Text_Tag.Text_Tag_List.GSlist;
@@ -1087,6 +1092,18 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Begin_Request (T.Stack.all, "request", Prompt);
       Append_Text (T.Stack.all, "placeholder");
       Buffer := Active_Text_View (T.Stack.all).Get_Buffer;
+      Budget_Baseline :=
+        Coyote_GUI.Math_Element.Retained_Raster_Bytes;
+      Failure_Baseline := Coyote_GUI.Math_Element.Retained_Raster_Bytes;
+      Coyote_GUI.Math_Element.Raster_Testing.Fail_Next_Inline_Weak_Ref;
+      Failure_Pixbuf := Coyote_GUI.Math_Element.Render_Inline
+        ("x", Failure_Baseline_Value);
+      Assert
+        (Failure_Pixbuf = null,
+         "injected weak-ref failure returns no pixbuf");
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Failure_Baseline,
+         "pre-registration failure releases pixbuf and lease charge");
       Rendered.Markup := To_Unbounded_String
         ("$x$ middle $y$ tail $\unknowncommand$");
       Rendered.Maths.Append
@@ -1194,6 +1211,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert
         (Pixbuf_Found and then Pixbuf_Count = 2,
          "two valid formulas each render as one pixbuf");
+      Assert
+        (Coyote_GUI.Math_Element.Retained_Raster_Bytes > Budget_Baseline,
+         "inline pixbuf storage remains charged while text buffer owns it");
       Assert
         (Rise_Matched and then Rise_Count = 2,
          "both inline pixbuf rises equal negative descent in Pango units");

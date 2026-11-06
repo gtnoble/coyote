@@ -2,6 +2,7 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Math_Model;
 with Math_Syntax;
+with Math_Work_Control;
 
 --  Immutable semantic view of a parsed math document. Projection retains
 --  source, AST identity, positions, and operation payloads for later clients.
@@ -13,7 +14,8 @@ package Math_Semantics is
    type Child_Role is
      (Root_Role, Sequence_Item, Numerator, Denominator, Radicand,
       Radical_Index, Script_Base, Superscript, Subscript, Array_Row,
-      Array_Cell, Delimited_Content, Accent_Base, Overlay_Base,
+      Array_Cell, Delimited_Content, Accent_Base, Accent_Under_Base,
+      CD_Arrow_Left_Label, CD_Arrow_Right_Label, Overlay_Base,
       Overlay_Mark, Annotation_Base, Annotation_Above, Annotation_Below,
       Boxed_Content, Phantom_Content, Color_Content, Styled_Content,
       Sized_Content, Raised_Content, Enclosed_Content, VCenter_Content,
@@ -39,6 +41,11 @@ package Math_Semantics is
       Depth           : Long_Float := 0.0;
       Scale           : Long_Float := 1.0;
       Enclosure       : Enclosure_Kind := Cancel_Enclosure;
+      Box_Background  : Color_Value := (others => <>);
+      Box_Border      : Color_Value := (others => <>);
+      Box_Border_Thickness : Long_Float := 0.0;
+      Accent_Type     : Accent_Kind := Above_Accent;
+      Break           : Break_Kind := No_Break_Metadata;
       Fraction_Type   : Fraction_Style := Default_Fraction;
       Fraction_Bar    : Fraction_Bar_Mode := Default_Rule;
       Fraction_Alignment_Mode : Fraction_Alignment := Center_Fraction;
@@ -47,6 +54,7 @@ package Math_Semantics is
       Fraction_Style_Mode : Math_Style_Kind := Natural_Style;
       Script_Type     : Script_Layout := Side_Scripts;
       Array_Type      : Array_Kind := Matrix_Array;
+      Array_Rules     : Array_Rule_Vectors.Vector;
       Column_Spec     : Ada.Strings.Unbounded.Unbounded_String;
       Row_Spacing     : Long_Float := 0.0;
       Math_Style      : Math_Style_Kind := Natural_Style;
@@ -64,12 +72,20 @@ package Math_Semantics is
       Poor_Bold_Blur_Px : Long_Float := 0.04;
       Verbatim_Text   : Ada.Strings.Unbounded.Unbounded_String;
       Verbatim_Starred : Boolean := False;
+      Text_Run_Text   : Ada.Strings.Unbounded.Unbounded_String;
+      Text_Run_Profile : Script_Profile := Latin_Fallback;
    end record;
 
    type Document is private;
 
-   function Project (Source : String) return Document;
-   function Project (AST : Math_Syntax.Document) return Document;
+   function Project
+     (Source : String;
+      Work : Math_Work_Control.Context_Access := null) return Document;
+   --  Work is borrowed for the duration of projection; stop exceptions
+   --  propagate to the caller.
+   function Project
+     (AST : Math_Syntax.Document;
+      Work : Math_Work_Control.Context_Access := null) return Document;
    function Is_Valid (Item : Document) return Boolean;
    function Source (Item : Document) return String;
    function Error (Item : Document) return String;

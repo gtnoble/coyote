@@ -9,8 +9,11 @@ with Math_Layout;
 with Math_Metrics;
 with Math_Model;
 with Math_Painter;
+with Math_Paths;
 with Math_Raster;
 with Math_Syntax;
+with Math_Work_Control;
+with Math_Text_Shaping;
 
 procedure Math_Raster_Probe is
    use type Interfaces.Unsigned_32;
@@ -40,6 +43,46 @@ procedure Math_Raster_Probe is
       function Assertions return Natural is (Assertion_Count);
       function Failures return Natural is (Failure_Count);
    end Monitor;
+   protected Poll_Counter is
+      procedure Reset (Threshold : Positive; Stop : Math_Work_Control.Stop_Reason);
+      procedure Check (Result : out Math_Work_Control.Stop_Reason);
+   private
+      Limit : Positive := 1;
+      Current : Natural := 0;
+      Stop_Reason : Math_Work_Control.Stop_Reason :=
+        Math_Work_Control.Cancel_Requested;
+   end Poll_Counter;
+   protected body Poll_Counter is
+      procedure Reset (Threshold : Positive; Stop : Math_Work_Control.Stop_Reason) is
+      begin
+         Limit := Threshold;
+         Current := 0;
+         Stop_Reason := Stop;
+      end Reset;
+      procedure Check (Result : out Math_Work_Control.Stop_Reason) is
+      begin
+         Current := Current + 1;
+         Result := (if Current >= Limit then Stop_Reason
+                    else Math_Work_Control.Continue_Work);
+      end Check;
+   end Poll_Counter;
+   type Stop_Context is new Math_Work_Control.Context with null record;
+   overriding function Check
+     (Item : Stop_Context) return Math_Work_Control.Stop_Reason;
+   overriding function Check
+     (Item : Stop_Context) return Math_Work_Control.Stop_Reason is
+      pragma Unreferenced (Item);
+   begin
+      declare
+         Result : Math_Work_Control.Stop_Reason;
+      begin
+         Poll_Counter.Check (Result);
+         return Result;
+      end;
+   end Check;
+   Stopped : aliased Stop_Context;
+   Work : constant Math_Work_Control.Context_Access :=
+     Stopped'Unchecked_Access;
    Fonts : Math_Painter.Font_Set;
    Parsed : Math_Syntax.Document;
    Layout : Math_Layout.Box;
@@ -160,6 +203,165 @@ begin
       when Math_Painter.Font_Error => Failed := True;
    end;
    Check (Failed, "reject missing font directory");
+   declare
+      use type Math_Model.Font_Kind;
+      Expected_Scales : constant array (1 .. 6) of Natural :=
+        (12, 16, 20, 24, 32, 48);
+      Advance : Long_Float;
+   begin
+      Check
+        (Math_Metrics.Lookup (Math_Model.Typewriter_Regular, 32).Width =
+           0.525,
+         "typewriter normalized em width remains 0.525");
+      for Scale of Expected_Scales loop
+         Advance := Math_Metrics.Advance
+           (Math_Metrics.Advance_Source'Class (Fonts),
+            Math_Model.Typewriter_Regular, 32, Long_Float (Scale));
+         Ada.Text_IO.Put_Line
+           ("# native typewriter-space em=" & Natural'Image (Scale) &
+            " x_advance=" & Long_Float'Image (Advance));
+         Check (Advance > 0.0, "native advance positive at scale" &
+           Natural'Image (Scale));
+      end loop;
+      Advance := Math_Metrics.Advance
+        (Math_Metrics.Advance_Source'Class (Fonts),
+         Math_Model.Typewriter_Regular, 32, 24.0);
+      Check (Advance = 13.0, "native typewriter-space advance at 24px is 13");
+   end;
+   declare
+      Cancel_Fonts : Math_Painter.Font_Set;
+   begin
+      Poll_Counter.Reset (1, Math_Work_Control.Cancel_Requested);
+      Failed := False;
+      begin
+         Math_Painter.Load (Cancel_Fonts, "", Work);
+      exception
+         when Math_Work_Control.Stop_Requested => Failed := True;
+      end;
+      Check (Failed, "font load polls before native font work");
+   end;
+   declare
+      use type Math_Model.Font_Kind;
+      Registered : constant Math_Syntax.Document :=
+        Math_Syntax.Parse ("\textregistered");
+      Registered_Layout : constant Math_Layout.Box :=
+        Math_Layout.Build (Registered, Math_Layout.Display_Style);
+      Registered_Image : Math_Raster.Image;
+      Registered_Metric : constant Math_Metrics.Glyph_Metric :=
+        Math_Metrics.Lookup (Math_Model.Main_Regular, 16#00AE#);
+   begin
+      Check (Registered_Layout.Valid and then Registered_Metric.Found,
+        "registered symbol resolves pinned fallback metrics");
+      Check (Math_Metrics.Font_For
+        (Math_Model.Main_Regular, 16#00AE#) = Math_Model.AMS_Regular,
+        "registered symbol selects exact AMS face");
+      Registered_Image := Math_Raster.Render
+        (Fonts, Registered_Layout, 28.0, Foreground);
+      Check (Has_Ink (Registered_Image),
+        "registered symbol paints from pinned fallback face");
+   end;
+   declare
+      Samples : constant array (Positive range 1 .. 8) of
+        Ada.Strings.Unbounded.Unbounded_String :=
+          (Ada.Strings.Unbounded.To_Unbounded_String ("Ж"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("Ա"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("क"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("ა"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("中"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("한"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("Ł"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("क्ष"));
+      Strict : constant Math_Syntax.Options :=
+        (Strict => Math_Syntax.Strict_Error, others => <>);
+      Metrics_12 : Math_Text_Shaping.Metrics;
+      Metrics_24 : Math_Text_Shaping.Metrics;
+      Metrics_48 : Math_Text_Shaping.Metrics;
+      Source_Samples : constant array (Positive range 1 .. 2) of
+        Ada.Strings.Unbounded.Unbounded_String :=
+          (Ada.Strings.Unbounded.To_Unbounded_String ("Ś"),
+           Ada.Strings.Unbounded.To_Unbounded_String ("Ś"));
+   begin
+      for Source_Sample of Source_Samples loop
+         declare
+            Text : constant String :=
+              Ada.Strings.Unbounded.To_String (Source_Sample);
+            Shaped : constant Math_Text_Shaping.Metrics :=
+              Math_Text_Shaping.Measure
+                (Text, Math_Model.Latin_Fallback, 24.0);
+            Image : Math_Raster.Image;
+         begin
+            Check (Shaped.Advance > 0.0 and then Shaped.Ascent > 0.0,
+              "Pango shapes actual Latin source sequence " & Text);
+         end;
+      end loop;
+      for Sample of Samples loop
+         declare
+            Text : constant String :=
+              Ada.Strings.Unbounded.To_String (Sample);
+            Source : constant String := "\text{" & Text & "}";
+            Parsed_Text : constant Math_Syntax.Document :=
+              Math_Syntax.Parse (Source, Strict);
+            Shaped_Layout : constant Math_Layout.Box :=
+              Math_Layout.Build (Parsed_Text, Math_Layout.Display_Style);
+            Image : Math_Raster.Image;
+         begin
+            Check (Math_Syntax.Is_Valid (Parsed_Text),
+              "strict text fallback parses " & Text);
+            Check (Shaped_Layout.Valid,
+              "fallback layout valid " & Text);
+            if Shaped_Layout.Valid then
+               Check
+                 (Shaped_Layout.Commands (Shaped_Layout.Commands.First_Index).Kind =
+                    Math_Layout.Text_Run_Command and then
+                  Ada.Strings.Unbounded.To_String
+                    (Shaped_Layout.Commands
+                       (Shaped_Layout.Commands.First_Index).Text_Run_Text) = Text,
+                  "layout command preserves text " & Text);
+               Image := Math_Raster.Render
+                 (Fonts, Shaped_Layout, 24.0, Foreground);
+               Check (Has_Ink (Image), "native raster ink " & Text);
+            end if;
+         end;
+      end loop;
+      Poll_Counter.Reset (1, Math_Work_Control.Cancel_Requested);
+      Failed := False;
+      begin
+         Metrics_12 := Math_Text_Shaping.Measure
+           ("Ж", Math_Model.Cyrillic_Fallback, 12.0, Work);
+      exception
+         when Math_Work_Control.Stop_Requested => Failed := True;
+      end;
+      Check (Failed, "shaping polls cancellation before native calls");
+      Failed := False;
+      begin
+         Metrics_12 := Math_Text_Shaping.Measure
+           (String'(1 => Character'Val (16#C0#)),
+            Math_Model.Cyrillic_Fallback);
+      exception
+         when Constraint_Error => Failed := True;
+      end;
+      Check (Failed, "shaping rejects malformed UTF-8");
+      Metrics_12 := Math_Text_Shaping.Measure
+        ("Ж", Math_Model.Cyrillic_Fallback, 12.0);
+      Metrics_24 := Math_Text_Shaping.Measure
+        ("Ж", Math_Model.Cyrillic_Fallback, 24.0);
+      Metrics_48 := Math_Text_Shaping.Measure
+        ("Ж", Math_Model.Cyrillic_Fallback, 48.0);
+      Check
+        (Metrics_12.Advance > 0.0 and then Metrics_24.Advance > 0.0 and then
+         Metrics_48.Advance > 0.0 and then
+         abs (Metrics_12.Advance - Metrics_24.Advance) < 0.08 and then
+         abs (Metrics_24.Advance - Metrics_48.Advance) < 0.08,
+         "Pango advances normalize across requested 12/24/48 pixel em sizes");
+      declare
+         Combined : constant Math_Syntax.Document := Math_Syntax.Parse
+           ("\text{क्ष}", Strict);
+         Combined_Layout : constant Math_Layout.Box :=
+           Math_Layout.Build (Combined, Math_Layout.Display_Style);
+      begin
+         Check (Combined_Layout.Valid, "Devanagari conjunct text shapes");
+      end;
+   end;
    Parsed := Math_Syntax.Parse ("x+y");
    Layout := Math_Layout.Build (Parsed, Math_Layout.Display_Style);
    Check (Layout.Valid, "parse representative formula");
@@ -178,6 +380,67 @@ begin
       "full render background alpha is zero");
    Check (Has_Ink (Full), "full render contains foreground ink");
    Check (Hash (Full) /= 0, "render output hash nonzero");
+   declare
+      Box_Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\colorbox{red}{x}+y");
+      Box_Layout : constant Math_Layout.Box := Math_Layout.Build (Box_Parsed);
+      Box_Image : constant Math_Raster.Image := Math_Raster.Render
+        (Fonts, Box_Layout, 28.0, Foreground);
+      Frame_Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\fcolorbox{blue}{#ffffff}{A}");
+      Frame_Layout : constant Math_Layout.Box := Math_Layout.Build (Frame_Parsed);
+      Frame_Image : constant Math_Raster.Image := Math_Raster.Render
+        (Fonts, Frame_Layout, 28.0, Foreground);
+      Saw_Red : Boolean := False;
+      Saw_Blue : Boolean := False;
+      Saw_Foreground : Boolean := False;
+   begin
+      for Y in 0 .. Math_Raster.Height (Box_Image) - 1 loop
+         for X in 0 .. Math_Raster.Width (Box_Image) - 1 loop
+            declare
+               Pixel : constant Interfaces.Unsigned_32 :=
+                 Math_Raster.Get_Pixel (Box_Image, X, Y);
+               Alpha : constant Interfaces.Unsigned_32 :=
+                 Interfaces.Shift_Right (Pixel, 24);
+               Red : constant Interfaces.Unsigned_32 :=
+                 Interfaces.Shift_Right (Pixel, 16) and 16#FF#;
+               Green : constant Interfaces.Unsigned_32 :=
+                 Interfaces.Shift_Right (Pixel, 8) and 16#FF#;
+               Blue : constant Interfaces.Unsigned_32 := Pixel and 16#FF#;
+            begin
+               Saw_Red := Saw_Red or else
+                 (Alpha = 255 and then Red = 255 and then Green = 0 and then Blue = 0);
+               Saw_Foreground := Saw_Foreground or else
+                 (Alpha = 255 and then Red in 20 | 21 and then
+                  Green in 30 | 31 and then Blue in 50 | 51);
+            end;
+         end loop;
+      end loop;
+      for Y in 0 .. Math_Raster.Height (Frame_Image) - 1 loop
+         for X in 0 .. Math_Raster.Width (Frame_Image) - 1 loop
+            declare
+               Pixel : constant Interfaces.Unsigned_32 :=
+                 Math_Raster.Get_Pixel (Frame_Image, X, Y);
+               Alpha : constant Interfaces.Unsigned_32 :=
+                 Interfaces.Shift_Right (Pixel, 24);
+               Red : constant Interfaces.Unsigned_32 :=
+                 Interfaces.Shift_Right (Pixel, 16) and 16#FF#;
+               Green : constant Interfaces.Unsigned_32 :=
+                 Interfaces.Shift_Right (Pixel, 8) and 16#FF#;
+               Blue : constant Interfaces.Unsigned_32 := Pixel and 16#FF#;
+            begin
+               Saw_Blue := Saw_Blue or else
+                 (Alpha = 255 and then Red = 0 and then Green = 0 and then Blue = 255);
+            end;
+         end loop;
+      end loop;
+      Check (Box_Layout.Valid and then Frame_Layout.Valid,
+        "colorbox layouts are valid");
+      Check (Saw_Red, "opaque red colorbox background pixel is present");
+      Check (Saw_Blue, "opaque blue fcolorbox border pixel is present");
+      Check (Saw_Foreground,
+        "box painting preserves configured foreground on glyph and sibling");
+   end;
    declare
       Shadow_Color : constant Math_Model.Color_Value :=
         (Red => 0.80, Green => 0.20, Blue => 0.10, Alpha => 0.50);
@@ -504,6 +767,67 @@ begin
       Check (Math_Raster.Get_Pixel (Clear, 0, 0) = 0,
         "transparent background is clear");
    end;
+   Poll_Counter.Reset
+     (Natural (Layout.Commands.Length) + 5,
+      Math_Work_Control.Cancel_Requested);
+   Failed := False;
+   begin
+      declare
+         Cancelled_Image : constant Math_Raster.Image := Math_Raster.Render
+           (Fonts, Layout, 28.0, Foreground, Work);
+         pragma Unreferenced (Cancelled_Image);
+      begin
+         null;
+      end;
+   exception
+      when Math_Work_Control.Stop_Requested => Failed := True;
+   end;
+   Check (Failed, "painter partial draw propagates cancellation");
+   declare
+      Path_Layout : Math_Layout.Box :=
+        (Valid => True, Width => 1.0, Ascent => 1.0, others => <>);
+      Path_Command : Math_Layout.Draw_Command;
+      Cancelled_Path : Boolean := False;
+   begin
+      Path_Command.Kind := Math_Layout.Path_Command;
+      for Index in 1 .. 512 loop
+         Path_Command.Path_Data.Append
+           (Math_Paths.Segment'
+              (Kind => Math_Paths.Line_To,
+               First => (X => 0.5, Y => 0.5), others => <>));
+      end loop;
+      Path_Layout.Commands.Append (Path_Command);
+      Poll_Counter.Reset (9, Math_Work_Control.Cancel_Requested);
+      begin
+         declare
+            Ignore : constant Math_Raster.Image := Math_Raster.Render
+              (Fonts, Path_Layout, 8.0, Foreground, Work);
+            pragma Unreferenced (Ignore);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Stop_Requested => Cancelled_Path := True;
+      end;
+      Check (Cancelled_Path,
+        "painter polls cancellation during a multi-segment path");
+   end;
+   Poll_Counter.Reset
+     (Natural (Layout.Commands.Length) * 2 + 8,
+      Math_Work_Control.Deadline_Reached);
+   Failed := False;
+   begin
+      declare
+         Cancelled_Image : constant Math_Raster.Image := Math_Raster.Render
+           (Fonts, Layout, 28.0, Foreground, Work);
+         pragma Unreferenced (Cancelled_Image);
+      begin
+         null;
+      end;
+   exception
+      when Math_Work_Control.Deadline_Expired => Failed := True;
+   end;
+   Check (Failed, "raster copy deadline propagates");
    Check (Math_Raster.Width (Full) <= 8192, "full width within cap");
    Check (Math_Raster.Height (Full) <= 4096, "full height within cap");
    Check (Math_Raster.Get_Pixel (Full, 0, 0) =

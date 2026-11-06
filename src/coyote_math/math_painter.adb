@@ -1,6 +1,10 @@
 with Ada.Exceptions;
+with Ada.Strings.Unbounded;
 with Ada.Unchecked_Deallocation;
 with Cairo.Font_Face;
+with Cairo.Font_Options;
+with Cairo.Image_Surface;
+with Cairo.Surface;
 with Cairo.Pattern;
 with Glib;
 with Interfaces.C;
@@ -9,9 +13,15 @@ with System;
 with System.Address_To_Access_Conversions;
 with Math_Model;
 with Math_Paths;
+with Math_Syntax;
+with Math_Work_Control;
+with Math_Text_Shaping;
 
 package body Math_Painter is
+   use Ada.Strings.Unbounded;
    use type Cairo.Cairo_Font_Face;
+   use type Cairo.Cairo_Surface;
+   use type Cairo.Cairo_Context;
    use type Cairo.Cairo_Pattern;
    use type Cairo.Cairo_Status;
    use type Interfaces.C.unsigned;
@@ -68,6 +78,8 @@ package body Math_Painter is
    type Font_State is record
       FT_Faces    : FT_Face_Array   := (others => null);
       Cairo_Faces : Font_Face_Array := (others => Cairo.Null_Font_Face);
+      Metric_Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Metric_Context : Cairo.Cairo_Context := Cairo.Null_Context;
    end record;
 
    procedure Free_State is new Ada.Unchecked_Deallocation
@@ -103,6 +115,14 @@ package body Math_Painter is
 
    procedure Release (Data : in out Font_State) is
    begin
+      if Data.Metric_Context /= Cairo.Null_Context then
+         Cairo.Destroy (Data.Metric_Context);
+         Data.Metric_Context := Cairo.Null_Context;
+      end if;
+      if Data.Metric_Surface /= Cairo.Null_Surface then
+         Cairo.Surface.Destroy (Data.Metric_Surface);
+         Data.Metric_Surface := Cairo.Null_Surface;
+      end if;
       for Kind in Math_Model.Font_Kind loop
          if Data.Cairo_Faces (Kind) /= Cairo.Null_Font_Face then
             Cairo.Font_Face.Destroy (Data.Cairo_Faces (Kind));
@@ -163,7 +183,9 @@ package body Math_Painter is
       end if;
    end Check_Cairo;
 
-   procedure Load (Fonts : in out Font_Set; Directory : String) is
+   procedure Load
+     (Fonts : in out Font_Set; Directory : String;
+      Work : Math_Work_Control.Context_Access := null) is
       Data : Font_State_Access := null;
    begin
       if Fonts.Data /= null then
@@ -171,6 +193,7 @@ package body Math_Painter is
       end if;
       Data := new Font_State;
       for Kind in Math_Model.Font_Kind loop
+         Math_Work_Control.Poll (Work);
          declare
             Path     : constant String := Font_File (Directory, Kind);
             C_Path   : Interfaces.C.Strings.chars_ptr :=
@@ -249,7 +272,39 @@ package body Math_Painter is
                end if;
                raise;
          end;
+         Math_Work_Control.Poll (Work);
       end loop;
+      Data.Metric_Surface := Cairo.Image_Surface.Create
+        (Cairo.Image_Surface.Cairo_Format_ARGB32, 1, 1);
+      if Cairo.Surface.Status (Data.Metric_Surface) /=
+        Cairo.Cairo_Status_Success
+      then
+         raise Font_Error with "cannot create metric surface";
+      end if;
+      Data.Metric_Context := Cairo.Create (Data.Metric_Surface);
+      if Cairo.Status (Data.Metric_Context) /= Cairo.Cairo_Status_Success then
+         raise Font_Error with "cannot create metric context";
+      end if;
+      declare
+         Options : constant Cairo.Cairo_Font_Options :=
+           Cairo.Font_Options.Create;
+      begin
+         if Cairo.Font_Options.Status (Options) /=
+           Cairo.Cairo_Status_Success
+         then
+            raise Font_Error with "cannot create metric font options";
+         end if;
+         begin
+            Cairo.Font_Options.Set_Hint_Metrics
+              (Options, Cairo.Cairo_Hint_Metrics_On);
+            Cairo.Set_Font_Options (Data.Metric_Context, Options);
+         exception
+            when others =>
+               Cairo.Font_Options.Destroy (Options);
+               raise;
+         end;
+         Cairo.Font_Options.Destroy (Options);
+      end;
       Fonts.Data := Data;
    exception
       when Font_Error =>
@@ -266,9 +321,110 @@ package body Math_Painter is
          Ada.Exceptions.Reraise_Occurrence (E);
    end Load;
 
+   overriding function Advance
+     (Item       : Font_Set;
+      Font       : Math_Model.Font_Kind;
+      Code_Point : Natural;
+      Pixel_Em   : Long_Float) return Long_Float
+   is
+      Glyph_Index : Interfaces.C.unsigned;
+      Glyph       : aliased Cairo.Cairo_Glyph;
+      Extents     : aliased Cairo.Cairo_Text_Extents;
+   begin
+      if Item.Data = null then
+         raise Font_Error with "font set is not loaded";
+      end if;
+      if Code_Point > 16#10_FFFF# or else
+        not Pixel_Em'Valid or else Pixel_Em <= 0.0 or else
+        Pixel_Em > 256.0
+      then
+         raise Font_Error with "invalid glyph or pixel em size";
+      end if;
+      declare
+         Effective_Font : constant Math_Model.Font_Kind :=
+           Math_Metrics.Font_For (Font, Code_Point);
+      begin
+         Glyph_Index := FT_Get_Char_Index
+           (Item.Data.FT_Faces (Effective_Font),
+            Interfaces.C.unsigned_long (Code_Point));
+         if Glyph_Index = 0 then
+            raise Font_Error with "font lacks requested glyph";
+         end if;
+         Cairo.Set_Font_Face
+           (Item.Data.Metric_Context,
+            Item.Data.Cairo_Faces (Effective_Font));
+      end;
+      Cairo.Set_Font_Size
+        (Item.Data.Metric_Context, Glib.Gdouble (Pixel_Em));
+      Glyph := (Index => Glib.Gulong (Glyph_Index), X => 0.0, Y => 0.0,
+                others => <>);
+      Cairo.Glyph_Extents
+        (Item.Data.Metric_Context, Glyph'Access, 1, Extents'Access);
+      Check_Cairo (Item.Data.Metric_Context);
+      return Long_Float (Extents.X_Advance);
+   end Advance;
+
+   overriding function Font_Line_Extents
+     (Item     : Font_Set;
+      Font     : Math_Model.Font_Kind;
+      Pixel_Em : Long_Float) return Math_Metrics.Font_Line_Extent
+   is
+   begin
+      if Item.Data = null then
+         raise Font_Error with "font set is not loaded";
+      end if;
+      if not Pixel_Em'Valid or else Pixel_Em <= 0.0 or else
+        Pixel_Em > 256.0
+      then
+         raise Font_Error with "invalid font extent size";
+      end if;
+      Cairo.Set_Font_Face
+        (Item.Data.Metric_Context, Item.Data.Cairo_Faces (Font));
+      Cairo.Set_Font_Size
+        (Item.Data.Metric_Context, Glib.Gdouble (Pixel_Em));
+      declare
+         Extents : aliased Cairo.Cairo_Font_Extents;
+      begin
+         Cairo.Font_Extents (Item.Data.Metric_Context, Extents'Access);
+         Check_Cairo (Item.Data.Metric_Context);
+         return
+           (Ascent  => Long_Float (Extents.Ascent),
+            Descent => Long_Float (Extents.Descent),
+            Height  => Long_Float (Extents.Height));
+      end;
+   end Font_Line_Extents;
+
+   overriding function Font_Line_Height
+     (Item     : Font_Set;
+      Font     : Math_Model.Font_Kind;
+      Pixel_Em : Long_Float) return Long_Float
+   is
+   begin
+      if Item.Data = null then
+         raise Font_Error with "font set is not loaded";
+      end if;
+      if not Pixel_Em'Valid or else Pixel_Em <= 0.0 or else
+        Pixel_Em > 256.0
+      then
+         raise Font_Error with "invalid font line-height size";
+      end if;
+      Cairo.Set_Font_Face
+        (Item.Data.Metric_Context, Item.Data.Cairo_Faces (Font));
+      Cairo.Set_Font_Size
+        (Item.Data.Metric_Context, Glib.Gdouble (Pixel_Em));
+      declare
+         Extents : aliased Cairo.Cairo_Font_Extents;
+      begin
+         Cairo.Font_Extents (Item.Data.Metric_Context, Extents'Access);
+         Check_Cairo (Item.Data.Metric_Context);
+         return Long_Float (Extents.Height);
+      end;
+   end Font_Line_Height;
+
    procedure Draw
      (Fonts : Font_Set; Context : Cairo.Cairo_Context; Item : Math_Layout.Box;
-      X     : Long_Float; Baseline : Long_Float; Em : Long_Float)
+      X     : Long_Float; Baseline : Long_Float; Em : Long_Float;
+      Work  : Math_Work_Control.Context_Access := null)
    is
       Saved : Boolean := False;
    begin
@@ -284,12 +440,34 @@ package body Math_Painter is
       then
          raise Font_Error with "invalid drawing scale or origin";
       end if;
+      Math_Work_Control.Poll (Work);
       Check_Cairo (Context);
       Cairo.Save (Context);
       Saved := True;
+      declare
+         Options : constant Cairo.Cairo_Font_Options :=
+           Cairo.Font_Options.Create;
+      begin
+         if Cairo.Font_Options.Status (Options) /=
+           Cairo.Cairo_Status_Success
+         then
+            raise Font_Error with "cannot create painter font options";
+         end if;
+         begin
+            Cairo.Font_Options.Set_Hint_Metrics
+              (Options, Cairo.Cairo_Hint_Metrics_On);
+            Cairo.Set_Font_Options (Context, Options);
+         exception
+            when others =>
+               Cairo.Font_Options.Destroy (Options);
+               raise;
+         end;
+         Cairo.Font_Options.Destroy (Options);
+      end;
       if not Item.Commands.Is_Empty then
          for Index in Item.Commands.First_Index .. Item.Commands.Last_Index
          loop
+            Math_Work_Control.Poll (Work);
             declare
                Command : constant Math_Layout.Draw_Command :=
                  Item.Commands (Index);
@@ -340,9 +518,12 @@ package body Math_Painter is
                case Command.Kind is
                   when Math_Layout.Glyph_Command =>
                      declare
+                        Effective_Font : constant Math_Model.Font_Kind :=
+                          Math_Metrics.Font_For
+                            (Command.Font, Command.Code_Point);
                         Glyph_Index : constant Interfaces.C.unsigned :=
                           FT_Get_Char_Index
-                            (Fonts.Data.FT_Faces (Command.Font),
+                            (Fonts.Data.FT_Faces (Effective_Font),
                              Interfaces.C.unsigned_long (Command.Code_Point));
                         Glyph       : aliased Cairo.Cairo_Glyph      :=
                           (Index  => Glib.Gulong (Glyph_Index),
@@ -357,7 +538,7 @@ package body Math_Painter is
                            raise Font_Error with "font lacks requested glyph";
                         end if;
                         Cairo.Set_Font_Face
-                          (Context, Fonts.Data.Cairo_Faces (Command.Font));
+                          (Context, Fonts.Data.Cairo_Faces (Effective_Font));
                         Cairo.Set_Font_Size
                           (Context, Glib.Gdouble (Em * Command.Scale));
                         if Command.Has_Shadow then
@@ -384,6 +565,7 @@ package body Math_Painter is
                                 (Context, Cairo.Cairo_Operator_Add);
                               for Y_Tap in Taps'Range loop
                                  for X_Tap in Taps'Range loop
+                                    Math_Work_Control.Poll (Work);
                                     Glyph.X := Glib.Gdouble
                                       (X + (Command.X + Command.Shadow_X) * Em
                                        + Long_Float (X_Tap) * Blur_Sigma);
@@ -440,6 +622,28 @@ package body Math_Painter is
                         end if;
                         Cairo.Show_Glyphs (Context, Glyph'Access, 1);
                      end;
+                  when Math_Layout.Text_Run_Command =>
+                     if Length (Command.Text_Run_Text) = 0 or else
+                       Length (Command.Text_Run_Text) >
+                         Math_Syntax.Max_Source_Bytes or else
+                       not Math_Text_Shaping.Is_Valid_Profile
+                         (Command.Text_Run_Profile)
+                     then
+                        raise Font_Error with "invalid shaped text run";
+                     end if;
+                     if Command.Has_Color then
+                        Cairo.Set_Source_Rgba
+                          (Context, Glib.Gdouble (Command.Red),
+                           Glib.Gdouble (Command.Green),
+                           Glib.Gdouble (Command.Blue),
+                           Glib.Gdouble (Command.Alpha));
+                     end if;
+                     Math_Text_Shaping.Draw
+                       (Context, To_String (Command.Text_Run_Text),
+                        Command.Text_Run_Profile,
+                        X + Command.X * Em,
+                        Baseline + Command.Y * Em,
+                        Em, Command.Scale, Work);
                   when Math_Layout.Path_Command =>
                      declare
                         Segment : Math_Paths.Segment;
@@ -461,6 +665,7 @@ package body Math_Painter is
                         for Part in Command.Path_Data.First_Index ..
                           Command.Path_Data.Last_Index
                         loop
+                           Math_Work_Control.Poll (Work);
                            Segment := Command.Path_Data (Part);
                            case Segment.Kind is
                               when Math_Paths.Move_To =>
@@ -488,6 +693,13 @@ package body Math_Painter is
                   when Math_Layout.Rule_Command =>
                      if Command.Width < 0.0 or else Command.Height < 0.0 then
                         raise Font_Error with "invalid rule geometry";
+                     end if;
+                     if Command.Has_Color then
+                        Cairo.Set_Source_Rgba
+                          (Context, Glib.Gdouble (Command.Red),
+                           Glib.Gdouble (Command.Green),
+                           Glib.Gdouble (Command.Blue),
+                           Glib.Gdouble (Command.Alpha));
                      end if;
                      Cairo.Rectangle
                        (Context, Glib.Gdouble (X + Command.X * Em),

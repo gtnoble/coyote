@@ -4,6 +4,7 @@ with Math_Layout;
 with Math_Semantics;
 with Interfaces;
 with Math_Raster;
+with Math_Raster_Budget;
 
 package Coyote_Math_Jobs is
    Worker_Count : constant := 2;
@@ -71,6 +72,7 @@ package Coyote_Math_Jobs is
    function Semantics (Item : Job_Result) return Math_Semantics.Document;
    function Error (Item : Job_Result) return String;
    function Has_Raster (Item : Job_Result) return Boolean;
+   function Raster_Retained_Bytes (Item : Job_Result) return Natural;
    function Raster_Width (Item : Job_Result) return Natural;
    function Raster_Height (Item : Job_Result) return Natural;
    function Raster_Baseline (Item : Job_Result) return Natural;
@@ -87,6 +89,7 @@ private
       Pixels : Math_Raster.Image;
       Raster_Baseline_Value : Natural := 0;
       Raster_Ready : Boolean := False;
+      Raster_Charge : Math_Raster_Budget.Lease;
       Message : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 end Coyote_Math_Jobs;

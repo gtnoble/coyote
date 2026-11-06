@@ -1,4 +1,5 @@
 with Ada.Containers.Vectors;
+with Math_Work_Control;
 
 package Math_Paths is
    Max_Commands : constant := 8_192;
@@ -30,7 +31,9 @@ package Math_Paths is
 
    type Path is private;
 
-   function Parse (Data : String) return Path;
+   function Parse
+     (Data : String;
+      Work : Math_Work_Control.Context_Access := null) return Path;
    function Is_Valid (Item : Path) return Boolean;
    function Error (Item : Path) return String;
    function Count (Item : Path) return Natural;
@@ -39,7 +42,8 @@ package Math_Paths is
    --  each curve; they are not the tight mathematical extrema.
    function Extent (Item : Path) return Bounds;
    function Transform
-     (Item : Path; XX, YX, XY, YY, DX, DY : Long_Float) return Path;
+     (Item : Path; XX, YX, XY, YY, DX, DY : Long_Float;
+      Work : Math_Work_Control.Context_Access := null) return Path;
 
 private
    package Segment_Vectors is new Ada.Containers.Vectors

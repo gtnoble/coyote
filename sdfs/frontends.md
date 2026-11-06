@@ -2129,3 +2129,32 @@ GTK timing, remaining core behavior, complete reference mapping and independent
 human visual/accessibility acceptance remain open. See authoritative report
 §10 for logs and evidence boundaries. No commit or release was made for this
 increment; approved requirements and deviations remain unchanged.
+
+
+## 2026-11-06 — Native-math implementation/status reconciliation (PCR-125)
+
+Reconciled the working-tree native implementation with coordinator-owned test
+report §11. Sections 1–10 remain historical. Source now includes CD and expanded
+delimiter/contour/array-rule paths, accents and color enclosures, conditional
+native Pango shaping, target-size font advances/fragment extents, cooperative
+work-control polling and shared retained-raster leases. Inline painting is
+still on GTK; fallback fonts are unpinned; whole-job allocation, hard deadlines,
+complete tiling/cache behavior and human visual/AT acceptance remain open.
+
+Latest recorded results are 235/235 geometry, 16/16 structured pilot and 28/29
+images (`utilde-long` below the 0.990 mask criterion). All 338 callable outcomes
+matched; 278 scoped semantic comparisons matched and 60 comparison gaps remain.
+The map has 2929 partial core rows, one approved deviation and zero qualified
+or missing core rows; source coverage is not behavioral completion. Full-suite
+1063/1063 passes and failed non-math repeats are retained separately. Raster
+functional assertions passed 111/111, but strict Valgrind failed with 6656 bytes
+definite and 2183 indirect loss; fixed totals through 1000 isolated shaping
+calls do not prove zero leaks or aggregate resource safety.
+
+These are prior recorded outcomes, not new runtime verification. Temporary raw
+logs are unavailable at this reconciliation; §11 records that limitation and
+former retrieval identifiers. No application tests/builds were rerun for this
+documentation-only update. Requirements v1.0 and D01–D15 are unchanged; RD-CTX-01
+extra context caps remain unauthorized. Developer self-review is not independent
+acceptance. PCR-125 remains open and the feature NOT COMPLETE. Implementation
+changes remain uncommitted; this update makes no release or acceptance claim.

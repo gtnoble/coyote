@@ -50,14 +50,42 @@ function invoke(c, timeout = CASE_TIMEOUT_MS) {
     assert(row.nodes.length <= MAX_NODES, `${c.id}: node cap`);
     assert(row.commands.length <= MAX_DRAW, `${c.id}: draw cap`);
   }
+  if (c.id === 'source-limit-comment-only') {
+    assert.equal(row.nodes.length, 1, `${c.id}: empty document retains only its root row`);
+    assert.equal(row.nodes[0].kind, 'row_node', `${c.id}: empty root node kind`);
+    assert.equal(row.nodes[0].first, 0, `${c.id}: empty root has no children`);
+    assert.equal(row.nodes.some(node => node.kind === 'glyph_node'), false,
+      `${c.id}: empty root has no semantic glyphs`);
+    assert.equal(row.commands.length, 0, `${c.id}: valid empty root emits no draw commands`);
+    assert.equal(row.parsedRoot, 1, `${c.id}: valid empty root is represented explicitly`);
+    assert(row.box && [row.box.width, row.box.ascent, row.box.descent].every(Number.isFinite),
+      `${c.id}: empty layout reports finite geometry`);
+    assert.equal(row.box.width, 0, `${c.id}: empty layout width`);
+    assert.equal(row.box.ascent, 0, `${c.id}: empty layout ascent`);
+    assert.equal(row.box.descent, 0, `${c.id}: empty layout descent`);
+  }
   return { row, resources };
 }
 function main() {
   assert(fs.existsSync(executable), `native exporter missing: ${executable}`);
+  const katexPath = process.env.KATEX_REFERENCE || '/tmp/coyote-katex-support-check/package/dist/katex.js';
+  assert(fs.existsSync(katexPath), `pinned KaTeX reference missing: ${katexPath}`);
+  const katex = require(katexPath);
+  assert.equal(katex.version, '0.16.22', 'resource oracle must be pinned KaTeX 0.16.22');
+  const boundarySource = '%'.repeat(MAX_SOURCE_BYTES);
+  const referenceTree = katex.__renderToHTMLTree(boundarySource, { throwOnError: true });
+  assert.equal(referenceTree.height, 0, 'KaTeX empty boundary height');
+  assert.equal(referenceTree.depth, 0, 'KaTeX empty boundary depth');
+  assert.equal(referenceTree.toMarkup(), '<span class="katex"><span class="katex-html" aria-hidden="true"></span></span>',
+    'KaTeX renders comment-only boundary as an empty tree');
+  const cedillaSource = String.raw`\text{\c{c}}`;
+  const cedillaHTML = katex.renderToString(cedillaSource, { throwOnError: true });
+  assert(cedillaHTML.includes('<mover accent="true"><mtext>c</mtext><mo>¸</mo></mover>'),
+    'KaTeX 0.16.22 positively renders text cedilla with the base and cedilla mark');
   const cases = [
     caseFor('base', 'x'),
     caseFor('path-resource', '\\sqrt{x}'),
-    caseFor('source-limit-original-prefix', '%'.repeat(MAX_SOURCE_BYTES), 'parse-error'),
+    caseFor('source-limit-comment-only', '%'.repeat(MAX_SOURCE_BYTES)),
     caseFor('source-over-limit-original-prefix', '%'.repeat(MAX_SOURCE_BYTES + 1), 'parse-error'),
     caseFor('deep-group-over-limit', '{'.repeat(MAX_DEPTH + 1) + 'x' + '}'.repeat(MAX_DEPTH + 1), 'parse-error'),
     caseFor('rows-at-limit', `\\begin{matrix}${Array(MAX_ROWS).fill('x').join('\\\\')}\\end{matrix}`),
@@ -78,7 +106,7 @@ function main() {
     maxExporterRssKiB: MAX_RSS_KIB,
     measurement: 'GNU /usr/bin/time -v around each isolated exporter process; CPU and peak RSS apply to exporter child only',
     limits: { sourceBytes: MAX_SOURCE_BYTES, nodes: MAX_NODES, depth: MAX_DEPTH, rows: MAX_ROWS, drawCommands: MAX_DRAW, macroDefaultExpand: 1000 },
-    sourceBoundary: '65536 and 65537 byte inputs exercise parser boundary; original 65537-byte request source remains in response; syntax/node errors can precede source validation in this exporter',
+    sourceBoundary: '65,536-byte comment-only input is accepted as an empty document; 65,537-byte input is rejected and its original request source remains in the response',
     processModel: 'one isolated native exporter process per case; timeouts/process failures are failures, never accepted budget outcomes',
     memory: 'per-exporter RSS measured; no whole-job, API, or browser memory claim',
     results,

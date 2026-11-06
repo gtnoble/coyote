@@ -58,6 +58,10 @@ def entries(table):
         if face == "main" and group == "mathord":
             font = "Math_Italic"
         result.append((alias, point, GROUPS[group], font))
+    #  Raw Unicode operator input is a registry key in its own right.
+    result.extend((chr(point), point, group, font)
+                  for _, point, group, font in tuple(result)
+                  if group == "Operator_Atom")
     return sorted(set(result))
 
 def ada_string(text):

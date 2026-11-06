@@ -7,6 +7,8 @@ with Math_Tokens;
 with Math_Expander;
 with Math_Macros;
 with Math_Stretchy;
+with Math_Work_Control;
+with Math_Unicode;
 
 package body Math_Syntax is
    use Ada.Strings.Unbounded;
@@ -29,11 +31,14 @@ package body Math_Syntax is
       Depth : Natural := 0;
       Diagnostic_Serial : Natural := 0;
       Regular_Mode : Boolean := False;
+      Color_Box_Mode : Boolean := False;
       Font_Mode : Font_Kind := Math_Italic;
       Has_Font_Mode : Boolean := False;
       Dollar_Math_Allowed : Boolean := False;
       Settings : Options := (Strict => Strict_Warn, others => <>);
       Environment_Stop : Unbounded_String;
+      CD_Mode : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null;
       AMS_Row : Boolean := False;
       Pending_Tag : Node_Id := No_Node;
       Has_Tag : Boolean := False;
@@ -280,7 +285,10 @@ package body Math_Syntax is
       Stop_Environment : String := "";
       Stop_Separators : Boolean := True;
       Stop_Dollar : Boolean := False;
-      Stop_At_Expression_Boundary : Boolean := False) return Node_Id;
+      Stop_At_Expression_Boundary : Boolean := False;
+      Stop_CD_Start : Boolean := False;
+      Stop_CD_Arrow : Character := Character'Val (0);
+      Stop_Square : Boolean := False) return Node_Id;
 
    function Is_Environment_End
      (State : Parser_State; Name : String) return Boolean is
@@ -293,6 +301,9 @@ package body Math_Syntax is
      (State : in out Parser_State;
       Name : String;
       Start : Natural) return Node_Id;
+
+   function Parse_CD (State : in out Parser_State; Start : Natural)
+      return Node_Id;
 
    function Parse_Argument (State : in out Parser_State) return Node_Id;
 
@@ -349,6 +360,52 @@ package body Math_Syntax is
          Consume_Current;
       end loop;
    end Read_Raw_Argument;
+
+   function Parse_Color
+     (State : in out Parser_State; Color_Text : String; Start : Natural)
+      return Color_Value
+   is
+   begin
+      if Color_Text = "red" then return (1.0, 0.0, 0.0, 1.0);
+      elsif Color_Text = "green" then return (0.0, 0.5, 0.0, 1.0);
+      elsif Color_Text = "blue" then return (0.0, 0.0, 1.0, 1.0);
+      elsif Color_Text = "black" then return (0.0, 0.0, 0.0, 1.0);
+      elsif Color_Text = "white" then return (1.0, 1.0, 1.0, 1.0);
+      elsif Color_Text = "orange" then return (1.0, 0.5, 0.0, 1.0);
+      elsif Color_Text = "purple" then return (0.5, 0.0, 0.5, 1.0);
+      elsif Color_Text = "gray" or else Color_Text = "grey" then
+         return (0.5, 0.5, 0.5, 1.0);
+      elsif Color_Text'Length = 7 and then
+        Color_Text (Color_Text'First) = '#'
+      then
+         declare
+            function Hex (C : Character) return Natural is
+            begin
+               if C in '0' .. '9' then
+                  return Character'Pos (C) - Character'Pos ('0');
+               elsif C in 'a' .. 'f' then
+                  return Character'Pos (C) - Character'Pos ('a') + 10;
+               elsif C in 'A' .. 'F' then
+                  return Character'Pos (C) - Character'Pos ('A') + 10;
+               else
+                  Fail (State, "invalid color value", Start);
+                  return 0;
+               end if;
+            end Hex;
+            function Channel (Offset : Positive) return Long_Float is
+            begin
+               return Long_Float
+                 (Hex (Color_Text (Color_Text'First + Offset)) * 16 +
+                  Hex (Color_Text (Color_Text'First + Offset + 1))) / 255.0;
+            end Channel;
+         begin
+            return (Channel (1), Channel (3), Channel (5), 1.0);
+         end;
+      else
+         Fail (State, "unsupported color name", Start);
+         return (others => <>);
+      end if;
+   end Parse_Color;
 
    function Read_Raw_Option
      (State : in out Parser_State) return String is
@@ -417,13 +474,15 @@ package body Math_Syntax is
       elsif Name = "\~" then
          return 16#02DC#;
       elsif Name = "\=" then
-         return 16#00AF#;
+         return 16#02C9#;
       elsif Name = "\." then
          return 16#02D9#;
       elsif Name = "\u" then
          return 16#02D8#;
       elsif Name = "\v" then
          return 16#02C7#;
+      elsif Name = "\c" then
+         return 16#00B8#;
       elsif Name = "\H" then
          return 16#02DD#;
       else
@@ -461,19 +520,50 @@ package body Math_Syntax is
 
    function Read_Dimension (State : in out Parser_State) return Long_Float is
       Text : Unbounded_String;
+      function Complete_Unit return Boolean is
+         Value : constant String := To_String (Text);
+      begin
+         return Value'Length >= 3 and then
+           Value (Value'Last - 1 .. Value'Last) in
+             "em" | "ex" | "mu" | "pt" | "cm" | "mm" | "in" |
+             "bp" | "pc" | "dd" | "cc" | "nd" | "nc" | "sp";
+      end Complete_Unit;
    begin
       Skip_Whitespace (State);
       if State.Current.Kind = Math_Tokens.Left_Group then
          return Parse_Dimension_String (State, Read_Raw_Argument (State));
       end if;
-      while State.Current.Kind /= Math_Tokens.End_Of_Input and then
-        State.Current.Kind /= Math_Tokens.Space_Token and then
-        State.Current.Kind not in Math_Tokens.Left_Group |
-          Math_Tokens.Right_Group | Math_Tokens.Control_Word |
-          Math_Tokens.Control_Symbol
       loop
-         Append (Text, To_String (State.Current.Lexeme));
-         Advance (State);
+         exit when State.Current.Kind = Math_Tokens.End_Of_Input;
+         exit when Complete_Unit;
+         if State.Current.Kind in Math_Tokens.Control_Word |
+           Math_Tokens.Control_Symbol
+         then
+            declare
+               Candidate : constant String := To_String (Text) &
+                 To_String (State.Current.Lexeme);
+               Candidate_Split : Natural := Candidate'First;
+            begin
+               while Candidate_Split <= Candidate'Last and then
+                 Candidate (Candidate_Split) in '0' .. '9' | '+' |
+                   '-' | '.'
+               loop
+                  Candidate_Split := Candidate_Split + 1;
+               end loop;
+               exit when Candidate_Split = Candidate'First or else
+                 Candidate'Last - Candidate_Split + 1 /= 2;
+               Append (Text, To_String (State.Current.Lexeme));
+               Advance (State);
+            end;
+         elsif State.Current.Kind = Math_Tokens.Space_Token or else
+           State.Current.Kind in Math_Tokens.Left_Group |
+             Math_Tokens.Right_Group
+         then
+            exit;
+         else
+            Append (Text, To_String (State.Current.Lexeme));
+            Advance (State);
+         end if;
       end loop;
       return Parse_Dimension_String (State, To_String (Text));
    end Read_Dimension;
@@ -485,6 +575,8 @@ package body Math_Syntax is
       Unit : String (1 .. 2);
       Factor : Long_Float;
       Value : Long_Float;
+      Normalized_Number : Unbounded_String;
+      Number_First : Natural;
    begin
       while Split <= Text'Last and then
         Text (Split) in '0' .. '9' | '+' | '-' | '.'
@@ -496,8 +588,24 @@ package body Math_Syntax is
       then
          Fail (State, "invalid dimension");
       end if;
+      Number_First := Text'First;
+      if Text (Number_First) in '+' | '-' then
+         Append (Normalized_Number, Text (Number_First));
+         Number_First := Number_First + 1;
+      end if;
+      if Number_First <= Split - 1 and then
+        Text (Number_First) = '.'
+      then
+         Append (Normalized_Number, '0');
+      end if;
+      Append
+        (Normalized_Number,
+         Text (Number_First .. Split - 1));
       begin
-         Number := Long_Float'Value (Text (Text'First .. Split - 1));
+         Number := Long_Float'Value
+           (if Length (Normalized_Number) > 0
+            then To_String (Normalized_Number)
+            else Text (Text'First .. Split - 1));
       exception
          when Constraint_Error => Fail (State, "invalid dimension");
       end;
@@ -549,6 +657,12 @@ package body Math_Syntax is
         Name = "\{" or else Name = "\}"
       then
          return Brace_Delimiter;
+      elsif Name in "\langle" | "\rangle" | "<" | ">" then
+         return Angle_Delimiter;
+      elsif Name in "\lfloor" | "\rfloor" then
+         return Floor_Delimiter;
+      elsif Name in "\lceil" | "\rceil" then
+         return Ceiling_Delimiter;
       elsif Name = "|" or else Name = "\vert" then
          return Bar_Delimiter;
       elsif Name = "\|" or else Name = "\Vert" then
@@ -562,14 +676,47 @@ package body Math_Syntax is
 
    function Delimiter_Class (Name : String) return Atom_Class is
    begin
-      if Name in "(" | "[" | "{" | "\\{" | "\\lparen" then
+      if Name in "(" | "[" | "{" | "\\{" | "\lparen" |
+        "\langle" | "<" | "\lfloor" | "\lceil" then
          return Opening;
-      elsif Name in ")" | "]" | "}" | "\\}" | "\\rparen" then
+      elsif Name in ")" | "]" | "}" | "\\}" | "\rparen" |
+        "\rangle" | ">" | "\rfloor" | "\rceil" then
          return Closing;
       else
          return Ordinary;
       end if;
    end Delimiter_Class;
+
+   function Profile_For (Point : Natural) return Script_Profile is
+   begin
+      if Point in 16#0100# .. 16#024F# or else Point in 16#1E00# .. 16#1EFF# then
+         return Latin_Fallback;
+      elsif Point in 16#0400# .. 16#052F# then
+         return Cyrillic_Fallback;
+      elsif Point in 16#0530# .. 16#058F# then
+         return Armenian_Fallback;
+      elsif Point in 16#10A0# .. 16#10FF# then
+         return Georgian_Fallback;
+      elsif Point in 16#0590# .. 16#05FF# then
+         return Hebrew_Fallback;
+      elsif Point in 16#0600# .. 16#08FF# then
+         return Arabic_Fallback;
+      elsif Point in 16#0900# .. 16#1CFF# or else
+        Point in 16#A800# .. 16#ABFF#
+      then
+         return Indic_Fallback;
+      elsif Point in 16#2E80# .. 16#9FFF# or else
+        Point in 16#F900# .. 16#FAFF#
+      then
+         return CJK_Fallback;
+      elsif Point in 16#AC00# .. 16#D7AF# then
+         return Hangul_Fallback;
+      elsif Point in 16#FF00# .. 16#FFEF# then
+         return Fullwidth_Fallback;
+      else
+         return Other_Script_Fallback;
+      end if;
+   end Profile_For;
 
    function Parse_Atom (State : in out Parser_State) return Node_Id is
       Start : constant Natural := State.Cursor_Pos;
@@ -608,11 +755,9 @@ package body Math_Syntax is
                   Content : constant Node_Id := Parse_Argument (State);
                   Tag_Node : Node;
                begin
-                  if not State.AMS_Row then
-                     Fail (State, "tag command is only valid in an AMS row", Start);
-                  elsif State.Has_Tag then
-                     Fail (State, "duplicate equation tag", Start);
-                  elsif State.Pending_Tag /= No_Node then
+                  if (not State.AMS_Row and then not State.Settings.Display_Mode) then
+                     Fail (State, "tag command requires display mode", Start);
+                  elsif State.Has_Tag or else State.Pending_Tag /= No_Node then
                      Fail (State, "duplicate equation tag", Start);
                   end if;
                   Tag_Node.Kind := Row_Node;
@@ -644,13 +789,30 @@ package body Math_Syntax is
                   return Add (State, Fresh);
                end;
             elsif Word in "notag" | "nonumber" then
-               if not State.AMS_Row then
-                  Fail (State, "tag suppression is only valid in an AMS row", Start);
-               elsif State.Has_Tag then
-                  Fail (State, "tag command conflicts with tag suppression", Start);
+               --  Outside AMS environments these commands are defined no-ops.
+               if State.AMS_Row then
+                  if State.Has_Tag then
+                     Fail (State, "tag command conflicts with tag suppression", Start);
+                  end if;
+                  State.Has_Tag := True;
                end if;
-               State.Has_Tag := True;
                Fresh.Kind := Space_Node;
+               Fresh.Position := Positive (Start);
+               return Add (State, Fresh);
+            elsif Word = "\" or else Word = "newline" then
+               Fresh.Kind := Space_Node;
+               if Word = "\" then
+                  Fresh.Code_Point := 7;
+                  Fresh.Break := Forced_Break;
+                  if Peek (State) = '[' then
+                     declare
+                        Margin : constant Long_Float := Parse_Dimension_String
+                          (State, Read_Raw_Option (State));
+                     begin
+                        Fresh.Amount := Margin;
+                     end;
+                  end if;
+               end if;
                Fresh.Position := Positive (Start);
                return Add (State, Fresh);
             elsif Word = "relax" then
@@ -658,6 +820,61 @@ package body Math_Syntax is
                Fresh.Amount := 0.0;
                Fresh.Position := Positive (Start);
                return Add (State, Fresh);
+            elsif Word = "space" then
+               Fresh.Kind := Space_Node;
+               Fresh.Amount := 0.333;
+               Fresh.Break := Forbid_Break;
+               Fresh.Position := Positive (Start);
+               return Add (State, Fresh);
+            elsif Word in "cdleft" | "cdright" | "cdparent" |
+              "\cdleft" | "\cdright" | "\cdparent"
+            then
+               declare
+                  Content : constant Node_Id := Parse_Argument (State);
+               begin
+                  if Word in "cdleft" | "cdright" |
+                    "\cdleft" | "\cdright"
+                  then
+                     Fresh.Kind := Style_Node;
+                     Fresh.Math_Style := Script_Style;
+                  else
+                     Fresh.Kind := Row_Node;
+                  end if;
+                  Fresh.Stretchy_Name := To_Unbounded_String (Word);
+                  Fresh.First := Content;
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
+            elsif Word in "cdleftarrow" | "cdrightarrow" |
+              "cdlongequal" | "\cdleftarrow" | "\cdrightarrow" |
+              "\cdlongequal"
+            then
+               declare
+                  Below : Node_Id := No_Node;
+                  Above : Node_Id;
+               begin
+                  Skip_Whitespace (State);
+                  if Peek (State) = '[' then
+                     Advance (State);
+                     Below := Parse_Expression
+                       (State, True, Stop_Square => True);
+                     if Peek (State) /= ']' then
+                        Fail (State, "missing CD lower label", Start);
+                     end if;
+                     Advance (State);
+                  end if;
+                  Above := Parse_Argument (State);
+                  Fresh.Kind := Stretchy_Node;
+                  Fresh.Stretchy_Name := To_Unbounded_String
+                    (if Word (Word'First) = '\'
+                     then Word (Word'First + 1 .. Word'Last)
+                     else Word);
+                  Fresh.First := Above;
+                  Fresh.Second := Below;
+                  Fresh.Code_Point := 1;
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
             elsif Word in "hskip" | "kern" | "mkern" | "mskip" then
                declare
                   Space : constant Long_Float := Read_Dimension (State);
@@ -762,7 +979,7 @@ package body Math_Syntax is
                end;
             elsif Word = "not" then
                declare
-                  Base : constant Node_Id := Parse_Argument (State);
+                  Base : constant Node_Id := Parse_Atom (State);
                   Base_Node : constant Node := State.Item.Nodes
                     (Positive (Base));
                begin
@@ -789,7 +1006,8 @@ package body Math_Syntax is
                Fresh.Position := Positive (Start);
                return Add (State, Fresh);
             elsif Word in "operatorname" | "operatorname@" |
-              "operatornamewithlimits"
+              "operatornamewithlimits" or else
+              (Word = "operatorname" and then Peek (State) = '*')
             then
                declare
                   Old_Mode : constant Boolean := State.Regular_Mode;
@@ -797,7 +1015,13 @@ package body Math_Syntax is
                   Old_Has_Font : constant Boolean := State.Has_Font_Mode;
                   Op_Id : Node_Id;
                   Op_Row : Node;
+                  Has_Limits : constant Boolean :=
+                    Word = "operatornamewithlimits" or else
+                    (Word = "operatorname" and then Peek (State) = '*');
                begin
+                  if Peek (State) = '*' then
+                     Advance (State);
+                  end if;
                   State.Regular_Mode := True;
                   State.Has_Font_Mode := True;
                   State.Font_Mode := Main_Regular;
@@ -809,7 +1033,7 @@ package body Math_Syntax is
                   Op_Row.Class := Operator_Atom;
                   Op_Row.Position := Positive (Start);
                   Op_Row.First := Op_Id;
-                  if Word = "operatornamewithlimits" then
+                  if Has_Limits then
                      Op_Row.Code_Point := 1;
                   end if;
                   return Add (State, Op_Row);
@@ -867,7 +1091,7 @@ package body Math_Syntax is
                      Delimiter_Command := To_Unbounded_String
                        ("\" & Read_Command (State));
                   elsif Peek (State) in '(' | ')' | '[' | ']' | '{' | '}' |
-                    '|'
+                    '|' | '<' | '>'
                   then
                      Delimiter_Command := To_Unbounded_String
                        (String'(1 => Peek (State)));
@@ -892,6 +1116,40 @@ package body Math_Syntax is
                      elsif Word in "bigr" | "Bigr" | "biggr" | "Biggr" then 3
                      else 4);
                   Fresh.Amount := Delimiter_Size;
+                  Fresh.Left_Delimiter := Delimiter_Kind_Value;
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
+            elsif Word = "middle" then
+               declare
+                  Delimiter_Command : Unbounded_String;
+                  Delimiter_Kind_Value : Delimiter_Kind;
+               begin
+                  if Peek (State) = '\' then
+                     Delimiter_Command := To_Unbounded_String
+                       ("\" & Read_Command (State));
+                  elsif Peek (State) in '(' | ')' | '[' | ']' | '{' | '}' |
+                    '|' | '<' | '>'
+                  then
+                     Delimiter_Command := To_Unbounded_String
+                       (String'(1 => Peek (State)));
+                     Advance (State);
+                  else
+                     Fail (State, "missing delimiter after middle", Start);
+                  end if;
+                  begin
+                     Delimiter_Kind_Value := Delimiter_Of
+                       (To_String (Delimiter_Command));
+                  exception
+                     when Parse_Failure =>
+                        Fail (State, "unsupported middle delimiter", Start);
+                  end;
+                  if Delimiter_Kind_Value = No_Delimiter then
+                     Fail (State, "invisible middle delimiter", Start);
+                  end if;
+                  Fresh.Kind := Delimited_Node;
+                  Fresh.Code_Point := 4;
+                  Fresh.Amount := 1.0;
                   Fresh.Left_Delimiter := Delimiter_Kind_Value;
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
@@ -972,7 +1230,10 @@ package body Math_Syntax is
                   Advance (State);
                   declare
                      Result : constant Node_Id :=
-                       Parse_Array (State, To_String (Env_Name), Start);
+                       (if To_String (Env_Name) = "CD"
+                        then Parse_CD (State, Start)
+                        else Parse_Array
+                          (State, To_String (Env_Name), Start));
                   begin
                      return Result;
                   end;
@@ -1010,6 +1271,43 @@ package body Math_Syntax is
                   Fresh.Fraction_Style_Mode :=
                     (if Word = "cfrac" then Display_Style
                      else Natural_Style);
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
+            elsif Word = "\abovefrac" then
+               declare
+                  Numerator : constant Node_Id := Parse_Argument (State);
+                  Thickness : constant Long_Float :=
+                    Parse_Dimension_String (State, Read_Raw_Argument (State));
+                  Denom : constant Node_Id := Parse_Argument (State);
+               begin
+                  Fresh.Kind := Fraction_Node;
+                  Fresh.First := Numerator;
+                  Fresh.Second := Denom;
+                  Fresh.Fraction_Bar :=
+                    (if Thickness > 0.0 then Custom_Rule else No_Rule);
+                  Fresh.Fraction_Rule_Thickness := Thickness;
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
+            elsif Word in "\atopfrac" | "\bracefrac" |
+              "\brackfrac"
+            then
+               declare
+                  Numerator : constant Node_Id := Parse_Argument (State);
+                  Denom : constant Node_Id := Parse_Argument (State);
+               begin
+                  Fresh.Kind := Fraction_Node;
+                  Fresh.First := Numerator;
+                  Fresh.Second := Denom;
+                  Fresh.Fraction_Bar := No_Rule;
+                  if Word = "\bracefrac" then
+                     Fresh.Left_Delimiter := Brace_Delimiter;
+                     Fresh.Right_Delimiter := Brace_Delimiter;
+                  elsif Word = "\brackfrac" then
+                     Fresh.Left_Delimiter := Bracket_Delimiter;
+                     Fresh.Right_Delimiter := Bracket_Delimiter;
+                  end if;
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
                end;
@@ -1115,17 +1413,58 @@ package body Math_Syntax is
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
                end;
-            elsif Word in "overset" | "underset" then
+            elsif Word = "\@binrel" then
+               declare
+                  Class_Argument : constant Node_Id := Parse_Argument (State);
+                  Body_Id : constant Node_Id := Parse_Argument (State);
+                  Argument : Math_Syntax.Node :=
+                    State.Item.Nodes (Positive (Class_Argument));
+                  Body_Value : Math_Syntax.Node :=
+                    State.Item.Nodes (Positive (Body_Id));
+                  Class : Atom_Class := Ordinary;
+               begin
+                  if Argument.Class in Binary_Atom | Relation_Atom then
+                     Class := Argument.Class;
+                  elsif Argument.Kind = Row_Node and then
+                    Argument.First /= No_Node
+                  then
+                     Argument := State.Item.Nodes
+                       (Positive (Argument.First));
+                     if Argument.Class in Binary_Atom | Relation_Atom then
+                        Class := Argument.Class;
+                     end if;
+                  end if;
+                  Body_Value.Class := Class;
+                  State.Item.Nodes.Replace_Element
+                    (Positive (Body_Id), Body_Value);
+                  return Body_Id;
+               end;
+            elsif Word in "stackrel" | "overset" | "underset" then
                declare
                   Annotation : constant Node_Id := Parse_Argument (State);
                   Base : constant Node_Id := Parse_Argument (State);
+                  Base_Atom : Math_Syntax.Node :=
+                    State.Item.Nodes (Positive (Base));
+                  Is_Stackrel : constant Boolean := Word = "stackrel";
                begin
+                  if Base_Atom.Kind = Row_Node and then
+                    Base_Atom.First /= No_Node
+                  then
+                     Base_Atom := State.Item.Nodes
+                       (Positive (Base_Atom.First));
+                  end if;
                   Fresh.Kind := Annotation_Node;
+                  Fresh.Class :=
+                    (if Is_Stackrel then Relation_Atom
+                     elsif Base_Atom.Class = Binary_Atom then Binary_Atom
+                     elsif Base_Atom.Class = Relation_Atom then Relation_Atom
+                     else Ordinary);
                   Fresh.First := Base;
                   Fresh.Second := Annotation;
                   Fresh.Annotation_Type :=
-                    (if Word = "overset" then Over_Annotation
-                     else Under_Annotation);
+                    (if Word = "underset" then Under_Annotation
+                     else Over_Annotation);
+                  Fresh.Code_Point := 1;
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
                end;
@@ -1164,7 +1503,7 @@ package body Math_Syntax is
                   else
                      if Is_Labelled and then Peek (State) = '[' then
                         Advance (State);
-                        Below := Parse_Expression (State, True);
+                        Below := Parse_Expression (State, True, Stop_Square => True);
                         if Peek (State) /= ']' then
                            Fail
                              (State, "missing closing arrow label", Start);
@@ -1174,7 +1513,7 @@ package body Math_Syntax is
                      Above := Parse_Argument (State);
                      if Is_Labelled and then Peek (State) = '[' then
                         Advance (State);
-                        Below := Parse_Expression (State, True);
+                        Below := Parse_Expression (State, True, Stop_Square => True);
                         if Peek (State) /= ']' then
                            Fail
                              (State, "missing closing arrow label", Start);
@@ -1192,20 +1531,56 @@ package body Math_Syntax is
                        "undergroup"
                      then Under_Annotation else Over_Annotation);
                   Fresh.Code_Point :=
-                    (if Is_Labelled then 1 else 0);
+                    (if Word = "widecheck" then Wide_Check_Code_Point
+                     elsif Word = "utilde" then Under_Tilde_Code_Point
+                     elsif Is_Labelled then 1 else 0);
+                  if Word = "utilde" then
+                     Fresh.Annotation_Type := Under_Annotation;
+                  end if;
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
                end;
-            elsif Word in "cancel" | "bcancel" | "xcancel" | "sout" then
-               Fresh.Kind := Enclosed_Node;
-               Fresh.First := Parse_Argument (State);
-               Fresh.Enclosure :=
-                 (if Word = "bcancel" then BCancel_Enclosure
-                  elsif Word = "xcancel" then XCancel_Enclosure
-                  elsif Word = "sout" then Strike_Enclosure
-                  else Cancel_Enclosure);
-               Fresh.Position := Positive (Start);
-               return Add (State, Fresh);
+            elsif Word in "cancel" | "bcancel" | "xcancel" | "sout" |
+              "phase" | "angl"
+            then
+               declare
+                  Content : Node_Id;
+               begin
+                  if Word = "angl" then
+                     declare
+                        Old_Mode : constant Boolean := State.Regular_Mode;
+                        Old_Font : constant Font_Kind := State.Font_Mode;
+                        Old_Has_Font : constant Boolean := State.Has_Font_Mode;
+                     begin
+                        State.Regular_Mode := True;
+                        State.Has_Font_Mode := True;
+                        State.Font_Mode := Main_Regular;
+                        Content := Parse_Argument (State);
+                        State.Regular_Mode := Old_Mode;
+                        State.Font_Mode := Old_Font;
+                        State.Has_Font_Mode := Old_Has_Font;
+                     exception
+                        when others =>
+                           State.Regular_Mode := Old_Mode;
+                           State.Font_Mode := Old_Font;
+                           State.Has_Font_Mode := Old_Has_Font;
+                           raise;
+                     end;
+                  else
+                     Content := Parse_Argument (State);
+                  end if;
+                  Fresh.Kind := Enclosed_Node;
+                  Fresh.First := Content;
+                  Fresh.Enclosure :=
+                    (if Word = "bcancel" then BCancel_Enclosure
+                     elsif Word = "xcancel" then XCancel_Enclosure
+                     elsif Word = "sout" then Strike_Enclosure
+                     elsif Word = "phase" then Phase_Enclosure
+                     elsif Word = "angl" then Actuarial_Enclosure
+                     else Cancel_Enclosure);
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
             elsif Word = "rule" then
                declare
                   Raise_By : Long_Float := 0.0;
@@ -1247,12 +1622,22 @@ package body Math_Syntax is
             elsif Word = "raisebox" then
                declare
                   Shift : constant Long_Float := Read_Dimension (State);
+                  Old_Dollar_Mode : constant Boolean :=
+                    State.Dollar_Math_Allowed;
+                  Content : Node_Id;
                begin
+                  State.Dollar_Math_Allowed := True;
+                  Content := Parse_Argument (State);
+                  State.Dollar_Math_Allowed := Old_Dollar_Mode;
                   Fresh.Kind := Raised_Node;
                   Fresh.Amount := Shift;
-                  Fresh.First := Parse_Argument (State);
+                  Fresh.First := Content;
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
+               exception
+                  when Parse_Failure =>
+                     State.Dollar_Math_Allowed := Old_Dollar_Mode;
+                     raise;
                end;
             elsif Word in "tiny" | "sixptsize" | "scriptsize" |
               "footnotesize" | "small" | "normalsize" | "large" |
@@ -1272,7 +1657,8 @@ package body Math_Syntax is
                   elsif Word = "huge" then 2.074
                   else 2.488);
                Fresh.First := Parse_Expression
-                 (State, True, To_String (State.Environment_Stop), True);
+                 (State, True, To_String (State.Environment_Stop), True,
+                  Stop_Dollar => State.Dollar_Math_Allowed);
                Fresh.Position := Positive (Start);
                return Add (State, Fresh);
             elsif Word in "boxed" | "fbox" then
@@ -1302,9 +1688,63 @@ package body Math_Syntax is
                   elsif Word = "smash" then 3 else 0);
                Fresh.Position := Positive (Start);
                return Add (State, Fresh);
+            elsif Word in "colorbox" | "fcolorbox" then
+               declare
+                  Border : Color_Value := (others => <>);
+                  Background : Color_Value;
+                  Old_Mode : constant Boolean := State.Regular_Mode;
+                  Old_Color_Box_Mode : constant Boolean := State.Color_Box_Mode;
+                  Old_Font : constant Font_Kind := State.Font_Mode;
+                  Old_Has_Font : constant Boolean := State.Has_Font_Mode;
+                  Old_Dollar_Mode : constant Boolean :=
+                    State.Dollar_Math_Allowed;
+                  Content : Node_Id;
+               begin
+                  if Word = "fcolorbox" then
+                     Border := Parse_Color
+                       (State, Read_Raw_Argument (State), Start);
+                     Background := Parse_Color
+                       (State, Read_Raw_Argument (State), Start);
+                  else
+                     Background := Parse_Color
+                       (State, Read_Raw_Argument (State), Start);
+                  end if;
+                  State.Regular_Mode := True;
+                  State.Color_Box_Mode := True;
+                  State.Has_Font_Mode := True;
+                  State.Font_Mode := Main_Regular;
+                  State.Dollar_Math_Allowed := True;
+                  Content := Parse_Argument (State);
+                  State.Regular_Mode := Old_Mode;
+                  State.Color_Box_Mode := Old_Color_Box_Mode;
+                  State.Font_Mode := Old_Font;
+                  State.Has_Font_Mode := Old_Has_Font;
+                  State.Dollar_Math_Allowed := Old_Dollar_Mode;
+                  Fresh.Kind := Enclosed_Node;
+                  Fresh.First := Content;
+                  Fresh.Enclosure :=
+                    (if Word = "fcolorbox" then Framed_Color_Box_Enclosure
+                     else Color_Box_Enclosure);
+                  Fresh.Box_Background := Background;
+                  Fresh.Box_Border := Border;
+                  Fresh.Box_Border_Thickness :=
+                    (if Word = "fcolorbox" then 0.04 else 0.0);
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               exception
+                  when others =>
+                     State.Regular_Mode := Old_Mode;
+                     State.Color_Box_Mode := Old_Color_Box_Mode;
+                     State.Font_Mode := Old_Font;
+                     State.Has_Font_Mode := Old_Has_Font;
+                     State.Dollar_Math_Allowed := Old_Dollar_Mode;
+                     raise;
+               end;
             elsif Word in "color" | "textcolor" then
                declare
                   Color_Text : constant String := Read_Raw_Argument (State);
+                  Parsed_Color : constant Color_Value :=
+                    Parse_Color (State, Color_Text, Start);
                   Content : constant Node_Id :=
                     (if Word = "color" and then
                        not State.Settings.Color_Is_Text_Color
@@ -1312,34 +1752,7 @@ package body Math_Syntax is
                        (State, True, To_String (State.Environment_Stop),
                         Stop_At_Expression_Boundary => True)
                      else Parse_Argument (State));
-                  Parsed_Color : Color_Value;
                begin
-                  if Color_Text = "red" then Parsed_Color := (1.0, 0.0, 0.0, 1.0);
-                  elsif Color_Text = "green" then Parsed_Color := (0.0, 0.5, 0.0, 1.0);
-                  elsif Color_Text = "blue" then Parsed_Color := (0.0, 0.0, 1.0, 1.0);
-                  elsif Color_Text = "black" then Parsed_Color := (0.0, 0.0, 0.0, 1.0);
-                  elsif Color_Text = "white" then Parsed_Color := (1.0, 1.0, 1.0, 1.0);
-                  elsif Color_Text = "orange" then Parsed_Color := (1.0, 0.5, 0.0, 1.0);
-                  elsif Color_Text = "purple" then Parsed_Color := (0.5, 0.0, 0.5, 1.0);
-                  elsif Color_Text = "gray" or else Color_Text = "grey" then Parsed_Color := (0.5, 0.5, 0.5, 1.0);
-                  elsif Color_Text'Length = 7 and then Color_Text (Color_Text'First) = '#' then
-                     declare
-                        function Hex (C : Character) return Natural is
-                        begin
-                           if C in '0' .. '9' then return Character'Pos (C) - Character'Pos ('0');
-                           elsif C in 'a' .. 'f' then return Character'Pos (C) - Character'Pos ('a') + 10;
-                           elsif C in 'A' .. 'F' then return Character'Pos (C) - Character'Pos ('A') + 10;
-                           else Fail (State, "invalid color value", Start); return 0;
-                           end if;
-                        end Hex;
-                        function Channel (Offset : Positive) return Long_Float is
-                        begin return Long_Float (Hex (Color_Text (Color_Text'First + Offset)) * 16 + Hex (Color_Text (Color_Text'First + Offset + 1))) / 255.0; end Channel;
-                     begin
-                        Parsed_Color := (Channel (1), Channel (3), Channel (5), 1.0);
-                     end;
-                  else
-                     Fail (State, "unsupported color name", Start);
-                  end if;
                   Fresh.Kind := Color_Node;
                   Fresh.First := Content;
                   Fresh.Color := Parsed_Color;
@@ -1403,7 +1816,8 @@ package body Math_Syntax is
                      raise;
                end;
             elsif Word in "hat" | "widehat" | "bar" | "vec" |
-              "dot" | "ddot" | "tilde" | "widetilde" | "check" |
+              "dot" | "ddot" | "tilde" | "widetilde" | "widecheck" |
+              "utilde" | "check" |
               "breve" | "acute" | "grave" | "mathring" | "overline" |
               "underline" | "r" | "H" | "u" | "v"
             then
@@ -1414,6 +1828,8 @@ package body Math_Syntax is
                      Word = "underline" then 0
                      elsif Word = "widehat" then Wide_Hat_Code_Point
                      elsif Word = "widetilde" then Wide_Tilde_Code_Point
+                     elsif Word = "widecheck" then Wide_Check_Code_Point
+                     elsif Word = "utilde" then Under_Tilde_Code_Point
                      elsif Word = "overrightarrow" then
                        Over_Right_Arrow_Code_Point
                      elsif Word = "overleftarrow" then
@@ -1438,6 +1854,9 @@ package body Math_Syntax is
                   Fresh.Code_Point := Mark;
                   Fresh.Amount :=
                     (if Word = "underline" then 1.0 else 0.0);
+                  if Word = "utilde" then
+                     Fresh.Accent_Type := Below_Accent;
+                  end if;
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
                end;
@@ -1596,8 +2015,23 @@ package body Math_Syntax is
             elsif Word = "textregistered" then
                return New_Glyph
                  (State, 16#00AE#, Ordinary, Main_Regular, Start);
-            elsif Word = "c" and then State.Regular_Mode then
-               Fail (State, "text cedilla accent requires below-accent layout", Start);
+            elsif Word = "textcircled" and then
+              (State.Regular_Mode or else
+               State.Settings.Strict /= Strict_Error)
+            then
+               declare
+                  Base : constant Node_Id := Parse_Argument (State);
+               begin
+                  Fresh.Kind := Accent_Node;
+                  Fresh.First := Base;
+                  Fresh.Code_Point :=
+                    (if Word = "textcircled" then 16#25EF#
+                     else Text_Accent_Codepoint ("\c"));
+                  Fresh.Accent_Type :=
+                    (if Word = "c" then Below_Accent else Full_Accent);
+                  Fresh.Position := Positive (Start);
+                  return Add (State, Fresh);
+               end;
             elsif Word in "emph" | "textbf" | "textit" | "textmd" |
               "textnormal" | "textrm" | "textsf" | "texttt" |
               "textup"
@@ -1635,7 +2069,7 @@ package body Math_Syntax is
                   Skip_Whitespace (State);
                   if Peek (State) = '[' then
                      Advance (State);
-                     Index_Node := Parse_Expression (State, True);
+                     Index_Node := Parse_Expression (State, True, Stop_Square => True);
                      if Peek (State) /= ']' then
                         Fail (State, "missing sqrt index bracket");
                      end if;
@@ -1648,13 +2082,13 @@ package body Math_Syntax is
                   Fresh.Position := Positive (Start);
                   return Add (State, Fresh);
                end;
-            elsif Word = "," or else Word = ";" or else Word = "!" or else
-                Word = "quad"
-            then
+            elsif Word in "," | ":" | ">" | ";" | "!" | "quad" then
                Fresh.Kind := Space_Node;
                Fresh.Position := Positive (Start);
                if Word = "," then
                   Fresh.Amount := 0.166_667;
+               elsif Word in ":" | ">" then
+                  Fresh.Amount := 4.0 / 18.0;
                elsif Word = ";" then
                   Fresh.Amount := 0.277_778;
                elsif Word = "!" then
@@ -1662,6 +2096,16 @@ package body Math_Syntax is
                else
                   Fresh.Amount := 1.0;
                end if;
+               return Add (State, Fresh);
+            elsif Word in "allowbreak" | "nobreak" | "nobreakspace" then
+               Fresh.Kind := Space_Node;
+               Fresh.Break :=
+                 (if Word = "allowbreak" then Allow_Break
+                  else Forbid_Break);
+               if Word = "nobreakspace" then
+                  Fresh.Amount := 0.333;
+               end if;
+               Fresh.Position := Positive (Start);
                return Add (State, Fresh);
             elsif Word = "sum" or else Word = "prod" or else Word = "int" then
                Point := (if Word = "sum" then 16#2211# else
@@ -1735,7 +2179,10 @@ package body Math_Syntax is
                        Math_Symbols.Lookup_Text (Alias)
                      else Math_Symbols.Lookup_Math (Alias));
                end;
-               if not Registry.Found and then State.Regular_Mode then
+               if Text_Accent_Codepoint ("\" & Word) /= 0 and then
+                 (State.Regular_Mode or else
+                  State.Settings.Strict /= Strict_Error)
+               then
                   Point := Text_Accent_Codepoint ("\" & Word);
                   if Point /= 0 then
                      declare
@@ -1745,10 +2192,22 @@ package body Math_Syntax is
                         Accent.Kind := Accent_Node;
                         Accent.First := Base;
                         Accent.Code_Point := Point;
+                        if Word = "c" then
+                           Accent.Accent_Type := Below_Accent;
+                        end if;
                         Accent.Position := Positive (Start);
                         return Add (State, Accent);
                      end;
                   end if;
+               end if;
+               if not Registry.Found and then not State.Regular_Mode and then
+                 State.Settings.Strict = Strict_Error and then
+                 Word /= "textcircled" and then
+                 Text_Accent_Codepoint ("\" & Word) /= 0
+               then
+                  Fail
+                    (State, "refused text accent in math mode: " & Word,
+                     Start);
                end if;
                if not Registry.Found then
                   Fail (State, "unknown command: \" & Word, Start);
@@ -1756,10 +2215,14 @@ package body Math_Syntax is
                Point := Registry.Code_Point;
                Class := Registry.Class;
                Font := Registry.Font;
-               return New_Glyph (State, Point, Class, Font, Start);
+               return New_Glyph
+                 (State, Point, Class,
+                  (if State.Regular_Mode then Main_Regular else Font), Start);
             end if;
          end;
-      elsif Character'Pos (Char) >= 16#80# then
+      elsif State.Current.Kind = Math_Tokens.Character_Token and then
+        State.Current.Code_Point >= 16#80#
+      then
          Point := Current_Code_Point (State);
          Registry :=
            (if State.Regular_Mode then Math_Symbols.Lookup_Text
@@ -1770,17 +2233,16 @@ package body Math_Syntax is
            16#2211# | 16#220F# | 16#222B#
          then
             Registry := (True, Point, Operator_Atom, Size_1);
-         elsif not Registry.Found and then Point = 16#2260# then
-            Fresh.Kind := Overlay_Node;
-            Fresh.First := New_Glyph
-              (State, Character'Pos ('='), Relation_Atom,
-               Main_Regular, Start);
-            Fresh.Second := New_Glyph
-              (State, Character'Pos ('/'), Ordinary, Main_Regular, Start);
-            Fresh.Class := Relation_Atom;
-            Fresh.Position := Positive (Start);
-            Advance (State);
-            return Add (State, Fresh);
+         elsif not Registry.Found and then Point in
+           16#203C# | 16#225F# | 16#27E6# | 16#27E7# |
+           16#2983# | 16#2984# | 16#2A7D# | 16#2A7E# | 16#2A7F#
+         then
+            Registry := (True, Point,
+              (if Point in 16#27E6# | 16#2983# then Opening
+               elsif Point in 16#27E7# | 16#2984# then Closing
+               else Relation_Atom),
+              (if Point in 16#27E6# | 16#27E7# then AMS_Regular
+               else Main_Regular));
          elsif not Registry.Found and then Point = 16#2209# then
             Fresh.Kind := Overlay_Node;
             Fresh.First := New_Glyph
@@ -1791,13 +2253,48 @@ package body Math_Syntax is
             Fresh.Position := Positive (Start);
             Advance (State);
             return Add (State, Fresh);
+         elsif not Registry.Found and then Point = 16#2260# then
+            Fresh.Kind := Overlay_Node;
+            Fresh.First := New_Glyph
+              (State, Character'Pos ('='), Relation_Atom, Main_Regular, Start);
+            Fresh.Second := New_Glyph
+              (State, Character'Pos ('/'), Ordinary, Main_Regular, Start);
+            Fresh.Class := Relation_Atom;
+            Fresh.Position := Positive (Start);
+            Advance (State);
+            return Add (State, Fresh);
          end if;
          if not Registry.Found then
+            if State.Current.Text_First /= Natural'Last and then
+              Math_Unicode.Is_Script_Data (Point) and then
+              (State.Regular_Mode or else
+               State.Settings.Strict /= Strict_Error)
+            then
+               Fresh.Kind := Text_Run_Node;
+               Fresh.Class := Ordinary;
+               Fresh.Text_Run_Profile := Profile_For (Point);
+               Fresh.Text_Run_Text := State.Current.Lexeme;
+               Fresh.Position := Positive (Start);
+               if not State.Regular_Mode and then
+                 State.Settings.Strict = Strict_Warn
+               then
+                  State.Item.Diagnostics.Append
+                    (New_Item => Math_Syntax.Diagnostic'
+                       (Kind => Warning,
+                        Message => To_Unbounded_String
+                          ("approximating unsupported Unicode glyph with " &
+                           "native text shaping"),
+                        Position => Start));
+               end if;
+               Advance (State);
+               return Add (State, Fresh);
+            end if;
             Fail (State, "unsupported Unicode scalar", Start);
          end if;
          Advance (State);
          return New_Glyph
-           (State, Registry.Code_Point, Registry.Class, Registry.Font, Start);
+           (State, Registry.Code_Point, Registry.Class,
+            (if State.Regular_Mode then Main_Regular else Registry.Font), Start);
       elsif Char in 'A' .. 'Z' or else Char in 'a' .. 'z' then
          Advance (State);
          return New_Glyph
@@ -1808,6 +2305,12 @@ package body Math_Syntax is
              (State, Character'Pos (Char), Ordinary, Main_Regular, Start);
       elsif Char = ' ' and then State.Regular_Mode then
          Advance (State);
+         if State.Color_Box_Mode then
+            Fresh.Kind := Space_Node;
+            Fresh.Amount := 0.333;
+            Fresh.Position := Positive (Start);
+            return Add (State, Fresh);
+         end if;
          return New_Glyph
              (State, 32, Ordinary, Main_Regular, Start);
       elsif Char = '+' or else Char = '-' then
@@ -1816,6 +2319,15 @@ package body Math_Syntax is
              (State,
               (if Char = '-' then 16#2212# else Character'Pos (Char)),
               Binary_Atom, Main_Regular, Start);
+      elsif Char = '|' and then not State.CD_Mode then
+         Registry := Math_Symbols.Lookup_Math ("|");
+         if Registry.Found then
+            Advance (State);
+            return New_Glyph
+              (State, Registry.Code_Point, Registry.Class, Registry.Font,
+               Start);
+         end if;
+         Fail (State, "unsupported math character", Start);
       elsif Char = '=' or else Char = '<' or else Char = '>' then
          Advance (State);
          return New_Glyph
@@ -1828,16 +2340,25 @@ package body Math_Syntax is
          Advance (State);
          return New_Glyph
              (State, Character'Pos (Char), Closing, Main_Regular, Start);
+      elsif Char in '@' | '|' and then State.CD_Mode then
+         Advance (State);
+         return New_Glyph
+           (State, Character'Pos (Char), Ordinary, Main_Regular, Start);
       elsif Char = '%' then
          Fail (State, "comments are not supported as math syntax", Start);
       elsif Char = '&' then
          Advance (State);
          return New_Glyph
              (State, Character'Pos (Char), Ordinary, Main_Regular, Start);
-      elsif Char = ',' or else Char = ';' then
+      elsif Char = ',' or else Char = ';' or else
+        Character'Pos (Char) = 39 or else Char = '!' or else Char = '?'
+      then
          Advance (State);
          return New_Glyph
              (State, Character'Pos (Char), Punctuation, Main_Regular, Start);
+      elsif Char = '`' then
+         Advance (State);
+         return New_Glyph (State, 16#2018#, Ordinary, Main_Regular, Start);
       elsif Char = '/' or else Char = '.' or else Char = ':' then
          Advance (State);
          return New_Glyph
@@ -2074,11 +2595,31 @@ package body Math_Syntax is
       Array_Id := Add (State, Fresh);
       New_Row;
       loop
-         if End_Matches then
-            if Cell_Tail = No_Node then
+         if Command_Is (State, "\hline") or else
+           Command_Is (State, "\hdashline")
+         then
+            declare
+               Rule_Name : constant String := Read_Command (State);
+               Array_Value : Node :=
+                 State.Item.Nodes (Positive (Array_Id));
+            begin
+               if Cell_Tail /= No_Node and then Row_Count = 0 then
+                  Fail (State, "array rule is only valid between rows");
+               end if;
+               Array_Value.Array_Rules.Append
+                 (New_Item => Array_Rule'
+                    (Boundary => Row_Count,
+                     Kind => (if Rule_Name = "hdashline" then
+                       Dashed_Array_Rule else Solid_Array_Rule)));
+               State.Item.Nodes.Replace_Element
+                 (Positive (Array_Id), Array_Value);
+            end;
+         elsif End_Matches then
+            if Cell_Tail = No_Node and then Row_Count = 0 then
                Fail (State, "empty array cell", State.Cursor_Pos);
+            elsif Cell_Tail /= No_Node then
+               Append_Row;
             end if;
-            Append_Row;
             Consume_End;
             exit;
          elsif Peek (State) = Character'Val (0) then
@@ -2179,6 +2720,258 @@ package body Math_Syntax is
       return Array_Id;
    end Parse_Array;
 
+   function Parse_CD (State : in out Parser_State; Start : Natural)
+      return Node_Id is
+      Array_Id : Node_Id;
+      Array_Row : Node_Id;
+      Row_Tail : Node_Id := No_Node;
+      Cell_Tail : Node_Id := No_Node;
+      Row_Count : Natural := 0;
+      Columns : Natural := 0;
+      Old_CD_Mode : constant Boolean := State.CD_Mode;
+      Macro_Error : Math_Macros.Diagnostic_Kind;
+      procedure Append_Cell (Cell : Node_Id) is
+         Value : Node;
+      begin
+         if Columns >= Max_Array_Columns then
+            Fail (State, "CD column limit exceeded", Start);
+         end if;
+         Columns := Columns + 1;
+         if Cell_Tail = No_Node then
+            Value := State.Item.Nodes (Positive (Array_Row));
+            Value.First := Cell;
+            State.Item.Nodes.Replace_Element (Positive (Array_Row), Value);
+         else
+            Value := State.Item.Nodes (Positive (Cell_Tail));
+            Value.Next := Cell;
+            State.Item.Nodes.Replace_Element (Positive (Cell_Tail), Value);
+         end if;
+         Cell_Tail := Cell;
+      end Append_Cell;
+      procedure New_Row (Has_Ghost : Boolean := False) is
+         Value : Node;
+      begin
+         if Row_Count >= Max_Array_Rows and then
+           (not Has_Ghost or else Row_Count /= Max_Array_Rows)
+         then
+            Fail (State, "CD row limit exceeded", Start);
+         end if;
+         Array_Row := Add (State,
+           (Kind => Row_Node, Position => Positive (Start), others => <>));
+         if Row_Tail = No_Node then
+            Value := State.Item.Nodes (Positive (Array_Id));
+            Value.First := Array_Row;
+            State.Item.Nodes.Replace_Element (Positive (Array_Id), Value);
+         else
+            Value := State.Item.Nodes (Positive (Row_Tail));
+            Value.Next := Array_Row;
+            State.Item.Nodes.Replace_Element (Positive (Row_Tail), Value);
+         end if;
+         Row_Tail := Array_Row;
+         Row_Count := Row_Count + 1;
+         Cell_Tail := No_Node;
+         Columns := 0;
+      end New_Row;
+      procedure Attach (Row : Node_Id; Tail : in out Node_Id;
+                        Part : Node_Id) is
+         Value : Node := State.Item.Nodes (Positive (Part));
+      begin
+         Value.Next := No_Node;
+         State.Item.Nodes.Replace_Element (Positive (Part), Value);
+         if Tail = No_Node then
+            Value := State.Item.Nodes (Positive (Row));
+            Value.First := Part;
+            State.Item.Nodes.Replace_Element (Positive (Row), Value);
+         else
+            Value := State.Item.Nodes (Positive (Tail));
+            Value.Next := Part;
+            State.Item.Nodes.Replace_Element (Positive (Tail), Value);
+         end if;
+         Tail := Part;
+      end Attach;
+      function Empty_Row (Position : Positive) return Node_Id is
+        (Add (State, (Kind => Row_Node, Position => Position, others => <>)));
+      procedure Build_Row (Parsed : Node_Id; Odd : Boolean) is
+         Current : Node_Id := State.Item.Nodes (Positive (Parsed)).First;
+         Cell : Node_Id := Empty_Row (Positive (Start));
+         Tail : Node_Id := No_Node;
+         Marker : Natural;
+         Labels : array (1 .. 2) of Node_Id;
+         Arrow : Node;
+      begin
+         while Current /= No_Node loop
+            Math_Work_Control.Poll (State.Work);
+            declare
+               Value : constant Node := State.Item.Nodes (Positive (Current));
+               Next : constant Node_Id := Value.Next;
+            begin
+               if Value.Kind /= Glyph_Node or else
+                 Value.Code_Point /= Character'Pos ('@')
+               then
+                  Attach (Cell, Tail, Current);
+                  Current := Next;
+               else
+                  --  The reference drops the first implicit cell in odd rows.
+                  if not Odd or else Columns > 0 then
+                     Append_Cell (Cell);
+                  end if;
+                  Cell := Empty_Row (Value.Position);
+                  Tail := No_Node;
+                  Current := Next;
+                  if Current = No_Node then
+                     Fail (State, "missing CD arrow marker", Value.Position);
+                  end if;
+                  declare
+                     M : constant Node := State.Item.Nodes (Positive (Current));
+                  begin
+                     if M.Kind /= Glyph_Node then
+                        Fail (State, "invalid CD arrow marker", M.Position);
+                     end if;
+                     Marker := M.Code_Point;
+                     Current := M.Next;
+                  end;
+                  if Marker not in Character'Pos ('>') | Character'Pos ('<') |
+                    Character'Pos ('A') | Character'Pos ('V') |
+                    Character'Pos ('=') | Character'Pos ('|') |
+                    Character'Pos ('.')
+                  then
+                     Fail (State, "invalid CD arrow marker", Value.Position);
+                  end if;
+                  for L in Labels'Range loop
+                     Labels (L) := Empty_Row (Value.Position);
+                     if Marker in Character'Pos ('>') | Character'Pos ('<') |
+                       Character'Pos ('A') | Character'Pos ('V')
+                     then
+                        declare
+                           Label_Tail : Node_Id := No_Node;
+                           Found : Boolean := False;
+                        begin
+                           while Current /= No_Node loop
+                              Math_Work_Control.Poll (State.Work);
+                              declare
+                                 X : constant Node := State.Item.Nodes
+                                   (Positive (Current));
+                              begin
+                                 if X.Kind = Glyph_Node and then
+                                   X.Code_Point = Marker
+                                 then
+                                    Current := X.Next;
+                                    Found := True;
+                                    exit;
+                                 elsif X.Kind = Glyph_Node and then
+                                   X.Code_Point = Character'Pos ('@')
+                                 then
+                                    Fail (State, "incomplete CD arrow", X.Position);
+                                 end if;
+                                 Attach (Labels (L), Label_Tail, Current);
+                                 Current := X.Next;
+                              end;
+                           end loop;
+                           if not Found then
+                              Fail (State, "incomplete CD arrow", Value.Position);
+                           end if;
+                        end;
+                     end if;
+                  end loop;
+                  Arrow := (Position => Value.Position, others => <>);
+                  if Marker in Character'Pos ('>') | Character'Pos ('<') |
+                    Character'Pos ('=')
+                  then
+                     Arrow.Kind := Stretchy_Node;
+                     Arrow.Stretchy_Name := To_Unbounded_String
+                       (if Marker = Character'Pos ('>') then "cdrightarrow"
+                        elsif Marker = Character'Pos ('<') then "cdleftarrow"
+                        else "cdlongequal");
+                     Arrow.First := Labels (1);
+                     Arrow.Second := Labels (2);
+                     Arrow.Code_Point := 1;
+                  elsif Marker in Character'Pos ('A') | Character'Pos ('V') then
+                     Arrow.Kind := CD_Arrow_Node;
+                     Arrow.First := Labels (1);
+                     Arrow.Second := Labels (2);
+                     Arrow.Code_Point :=
+                       (if Marker = Character'Pos ('A') then 16#2191#
+                        else 16#2193#);
+                  elsif Marker = Character'Pos ('|') then
+                     Arrow.Kind := Delimited_Node;
+                     Arrow.Left_Delimiter := Double_Bar_Delimiter;
+                     Arrow.Amount := 1.8;
+                     Arrow.Code_Point := 1;
+                  else
+                     Arrow.Kind := Space_Node;
+                  end if;
+                  declare
+                     Id : constant Node_Id := Add (State, Arrow);
+                  begin
+                     Append_Cell (Add (State,
+                       (Kind => Row_Node, First => Id,
+                        Position => Value.Position, others => <>)));
+                  end;
+               end if;
+            end;
+         end loop;
+         if not Odd then
+            Append_Cell (Cell);
+         end if;
+      end Build_Row;
+   begin
+      if State.Depth >= Max_Depth then
+         Fail (State, "nesting depth exceeded", Start);
+      end if;
+      State.Depth := State.Depth + 1;
+      Array_Id := Add (State,
+        (Kind => Array_Node, Array_Type => CD_Array,
+         Math_Style => Display_Style, Position => Positive (Start),
+         others => <>));
+      State.CD_Mode := True;
+      Math_Macros.Define_Tokens
+        (State.Shared.all, "\cr", 0,
+         (1 => (Kind => Math_Tokens.Control_Symbol,
+           Lexeme => To_Unbounded_String ("\\"), others => <>)),
+         False, Macro_Error);
+      if Macro_Error /= Math_Macros.No_Error then
+         Fail (State, "unable to scope CD row command", Start);
+      end if;
+      loop
+         Math_Work_Control.Poll (State.Work);
+         Math_Macros.Begin_Group (State.Shared.all);
+         declare
+            Parsed : constant Node_Id := Parse_Expression
+              (State, False, "CD", Stop_Separators => True);
+         begin
+            Math_Macros.End_Group (State.Shared.all);
+            exit when State.Item.Nodes (Positive (Parsed)).First = No_Node
+              and then Is_Environment_End (State, "CD");
+            New_Row;
+            Build_Row (Parsed, Row_Count mod 2 = 0);
+         end;
+         if State.Current.Kind = Math_Tokens.Alignment or else
+           Command_Is (State, "\\")
+         then
+            Advance (State);
+         elsif Is_Environment_End (State, "CD") then
+            exit;
+         else
+            Fail (State, "missing CD row separator or environment end", Start);
+         end if;
+      end loop;
+      --  The final reference body row affects centering but has no cells.
+      New_Row (Has_Ghost => True);
+      if Read_Command (State) /= "end" or else
+        Read_Raw_Argument (State) /= "CD"
+      then
+         Fail (State, "mismatched CD environment end", Start);
+      end if;
+      Math_Macros.End_Group (State.Shared.all);
+      State.CD_Mode := Old_CD_Mode;
+      State.Depth := State.Depth - 1;
+      return Array_Id;
+   exception
+      when others =>
+         State.CD_Mode := Old_CD_Mode;
+         raise;
+   end Parse_CD;
+
    function Parse_Argument (State : in out Parser_State) return Node_Id is
       Result : Node_Id;
    begin
@@ -2231,7 +3024,10 @@ package body Math_Syntax is
       Stop_Environment : String := "";
       Stop_Separators : Boolean := True;
       Stop_Dollar : Boolean := False;
-      Stop_At_Expression_Boundary : Boolean := False) return Node_Id is
+      Stop_At_Expression_Boundary : Boolean := False;
+      Stop_CD_Start : Boolean := False;
+      Stop_CD_Arrow : Character := Character'Val (0);
+      Stop_Square : Boolean := False) return Node_Id is
       Start : constant Natural := State.Cursor_Pos;
       Row : Node;
       Row_Id : Node_Id;
@@ -2259,15 +3055,23 @@ package body Math_Syntax is
       loop
          Skip_Whitespace (State);
          exit when Peek (State) = Character'Val (0);
-         exit when Grouped and then
-           (Peek (State) = '}' or else Peek (State) = ']');
+         exit when Grouped and then Peek (State) = '}';
+         exit when Grouped and then Stop_Square and then
+           Peek (State) = ']';
          exit when Stop_Dollar and then Peek (State) = '$';
+         exit when not Grouped and then Stop_CD_Start and then
+           State.CD_Mode and then Peek (State) = '@';
+         exit when not Grouped and then
+           Stop_CD_Arrow /= Character'Val (0) and then
+           State.CD_Mode and then Peek (State) = Stop_CD_Arrow;
          exit when Stop_At_Expression_Boundary and then
-           (Command_Is (State, "\right") or else Peek (State) = '&' or else
+           (Command_Is (State, "\right") or else
+            State.Current.Kind = Math_Tokens.Alignment or else
             Command_Is (State, "\\"));
          exit when not Grouped and then Command_Is (State, "\right");
          exit when Stop_Environment'Length > 0 and then
-           ((Stop_Separators and then Peek (State) = '&') or else
+           (((Stop_Separators or State.CD_Mode) and then
+             State.Current.Kind = Math_Tokens.Alignment) or else
             Command_Is (State, "\\") or else
             Is_Environment_End (State, Stop_Environment));
          if Peek (State) = '$' and then State.Dollar_Math_Allowed then
@@ -2281,6 +3085,24 @@ package body Math_Syntax is
             Fail (State, "unmatched closing brace");
          else
             Part := Parse_Atom (State);
+         end if;
+         if State.Item.Nodes (Positive (Part)).Kind = Text_Run_Node then
+            declare
+               Run : Node := State.Item.Nodes (Positive (Part));
+            begin
+               while State.Current.Kind = Math_Tokens.Character_Token and then
+                 State.Current.Code_Point >= 16#80# and then
+                 State.Regular_Mode and then
+                 not Math_Symbols.Lookup_Text
+                   (To_String (State.Current.Lexeme)).Found and then
+                 Math_Unicode.Is_Script_Data (State.Current.Code_Point) and then
+                 Profile_For (State.Current.Code_Point) = Run.Text_Run_Profile
+               loop
+                  Append (Run.Text_Run_Text, To_String (State.Current.Lexeme));
+                  Advance (State);
+               end loop;
+               State.Item.Nodes.Replace_Element (Positive (Part), Run);
+            end;
          end if;
          Skip_Whitespace (State);
          Sup := No_Node;
@@ -2435,30 +3257,32 @@ package body Math_Syntax is
          Row := State.Item.Nodes (Positive (Row_Id));
          Row.First := Fraction_Id;
          State.Item.Nodes.Replace_Element (Positive (Row_Id), Row);
-      elsif Tail = No_Node and then not Grouped then
-         Fail (State, "empty expression");
       end if;
       return Row_Id;
    end Parse_Expression;
 
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
-      Global_Group : Boolean := False) return Document is
+      Global_Group : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null) return Document is
    begin
       return Parse
         (Source, Shared, (Strict => Strict_Warn, others => <>),
-         Global_Group);
+         Global_Group, Work);
    end Parse;
 
-   function Parse (Source : String; Settings : Options) return Document is
+   function Parse
+     (Source : String; Settings : Options;
+      Work : Math_Work_Control.Context_Access := null) return Document is
       Shared : aliased Math_Macros.Context;
    begin
-      return Parse (Source, Shared'Access, Settings);
+      return Parse (Source, Shared'Access, Settings, Work => Work);
    end Parse;
 
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
-      Settings : Options; Global_Group : Boolean := False) return Document
+      Settings : Options; Global_Group : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null) return Document
    is
       State : Parser_State (Shared);
       Entry_Depth : constant Natural := Math_Macros.Scope_Depth (Shared.all);
@@ -2469,6 +3293,7 @@ package body Math_Syntax is
       Error_Byte : Natural;
    begin
       State.Settings := Settings;
+      State.Work := Work;
       if Source'Length > Max_Source_Bytes then
          State.Item.Text := To_Unbounded_String
            (Source (Source'First .. Source'First + Max_Source_Bytes - 1));
@@ -2482,16 +3307,9 @@ package body Math_Syntax is
          return State.Item;
       end if;
       State.Item.Text := To_Unbounded_String (Source);
-      if Source'Length = 0 then
-         State.Item.Message := To_Unbounded_String ("empty math expression");
-         State.Item.Failure := 1;
-         State.Item.Diagnostics.Append
-           (New_Item => Math_Syntax.Diagnostic'
-              (Kind => Parse_Error, Message => State.Item.Message,
-               Position => 1));
-         return State.Item;
-      end if;
-      Math_Source.Create (Source, Validated, Diagnostic, Error_Byte);
+      Math_Source.Create
+        ((if Source'Length = 0 then " " else Source), Validated,
+         Diagnostic, Error_Byte, Work => Work);
       if Diagnostic /= Math_Source.No_Error then
          State.Item.Message := To_Unbounded_String
            (if Diagnostic = Math_Source.Invalid_UTF8
@@ -2525,7 +3343,8 @@ package body Math_Syntax is
             return State.Item;
          end if;
       end;
-      Math_Tokens.Lex (Validated, Tokens, Lexical_Error, Error_Byte);
+      Math_Tokens.Lex
+        (Validated, Tokens, Lexical_Error, Error_Byte, Work => Work);
       if Lexical_Error /= Math_Tokens.No_Error then
          State.Item.Message := To_Unbounded_String
            ("invalid math token stream: " & Lexical_Error'Image);
@@ -2536,17 +3355,41 @@ package body Math_Syntax is
                Position => State.Item.Failure));
          return State.Item;
       end if;
+
       Math_Expander.Open
-        (Tokens, State.Cursor, Max_Expand => Settings.Max_Expand);
+        (Tokens, State.Cursor, Max_Expand => Settings.Max_Expand,
+         Work => Work);
       if not Global_Group then
          Math_Macros.Begin_Group (Shared.all);
       end if;
       begin
-         Advance (State);
-         Skip_Whitespace (State);
-         State.Item.Root_Id := Parse_Expression (State, False);
+
+         if Source'Length = 0 then
+            State.Current := (Kind => Math_Tokens.End_Of_Input, others => <>);
+            State.Item.Root_Id := Add
+              (State, Node'(Kind => Row_Node, Position => 1, others => <>));
+         else
+            Advance (State);
+            Skip_Whitespace (State);
+            State.Item.Root_Id := Parse_Expression (State, False);
+         end if;
          if State.Current.Kind /= Math_Tokens.End_Of_Input then
             Fail (State, "unexpected trailing input");
+         end if;
+         if State.Pending_Tag /= No_Node and then not State.AMS_Row then
+            declare
+               Tag_Wrapper : Node;
+            begin
+               Tag_Wrapper.Kind := Row_Node;
+               Tag_Wrapper.First := Add
+                 (State, Node'(Kind => Tagged_Node,
+                   First => State.Item.Root_Id,
+                   Second => State.Pending_Tag,
+                   Tag_Is_Left => State.Settings.Left_Tags,
+                   Position => 1, others => <>));
+               Tag_Wrapper.Position := 1;
+               State.Item.Root_Id := Add (State, Tag_Wrapper);
+            end;
          end if;
       exception
          when Parse_Failure =>
@@ -2561,10 +3404,12 @@ package body Math_Syntax is
          raise;
    end Parse;
 
-   function Parse (Source : String) return Document is
+   function Parse
+     (Source : String;
+      Work : Math_Work_Control.Context_Access := null) return Document is
    begin
       return Parse
-        (Source, (Strict => Strict_Warn, others => <>));
+        (Source, (Strict => Strict_Warn, others => <>), Work);
    end Parse;
 
    function Is_Valid (Item : Document) return Boolean is

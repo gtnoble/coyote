@@ -8,9 +8,21 @@ with Math_Source;
 with Math_Tokens;
 with Math_Expander;
 with Math_Builtin_Macros;
+with Math_Work_Control;
 
 
 procedure Math_Macros_Probe is
+   type Stopped_Context is new Math_Work_Control.Context with null record;
+   overriding function Check
+     (Item : Stopped_Context) return Math_Work_Control.Stop_Reason;
+   overriding function Check
+     (Item : Stopped_Context) return Math_Work_Control.Stop_Reason is
+      pragma Unreferenced (Item);
+   begin
+      return Math_Work_Control.Cancel_Requested;
+   end Check;
+   Stopped : aliased Stopped_Context;
+   Work : constant Math_Work_Control.Context_Access := Stopped'Unchecked_Access;
    use type Math_Tokens.Token_Kind;
    use type Math_Source.Diagnostic_Kind;
    use type Math_Tokens.Diagnostic_Kind;
@@ -108,8 +120,128 @@ procedure Math_Macros_Probe is
          end if;
       end loop;
       Check (Math_Expander.Diagnostic (Local_Cursor) = Math_Expander.No_Error and then
-        Length = Expected'Length and then Actual (1 .. Length) = Expected, Label);
+        Length = Expected'Length and then
+        (Length = 0 or else Actual (1 .. Length) = Expected), Label);
    end Expect_Output;
+
+   procedure Expect_Scoped_Output (Text, Label : String) is
+      Local_Cursor : Math_Expander.Cursor;
+      T : Math_Tokens.Token;
+      Has_Output : Boolean := False;
+   begin
+      Open_Text (Text, Local_Cursor);
+      loop
+         T := Math_Expander.Next (Local_Cursor, Ctx);
+         exit when T.Kind = Math_Tokens.End_Of_Input;
+         Has_Output := True;
+      end loop;
+      Check (Math_Expander.Diagnostic (Local_Cursor) = Math_Expander.No_Error
+        and then not Has_Output, Label);
+   end Expect_Scoped_Output;
+
+   procedure Expect_Scoped_Text (Text, Expected, Label : String) is
+      Local_Cursor : Math_Expander.Cursor;
+      T : Math_Tokens.Token;
+      Actual : String (1 .. 512);
+      Length : Natural := 0;
+   begin
+      Open_Text (Text, Local_Cursor);
+      loop
+         T := Math_Expander.Next (Local_Cursor, Ctx);
+         exit when T.Kind = Math_Tokens.End_Of_Input;
+         if T.Kind = Math_Tokens.Character_Token and then
+           T.Code_Point <= Character'Pos (Character'Last) and then
+           Length < Actual'Length
+         then
+            Length := Length + 1;
+            Actual (Length) := Character'Val (T.Code_Point);
+         end if;
+      end loop;
+      Check (Math_Expander.Diagnostic (Local_Cursor) = Math_Expander.No_Error
+        and then Length = Expected'Length
+        and then (Length = 0 or else Actual (1 .. Length) = Expected), Label);
+   end Expect_Scoped_Text;
+
+   procedure Expect_Internal_Output
+     (Text, Internal_Name, Expected, Label : String) is
+      Local_Cursor : Math_Expander.Cursor;
+      Source : Math_Source.Source;
+      Original : Math_Tokens.Stream;
+      Synthetic : Math_Tokens.Stream;
+      Source_Diagnostic : Math_Source.Diagnostic_Kind;
+      Token_Diagnostic : Math_Tokens.Diagnostic_Kind;
+      Error_Byte : Natural;
+      T : Math_Tokens.Token;
+      Actual : String (1 .. 512);
+      Length : Natural := 0;
+   begin
+      Math_Macros.Reset (Ctx);
+      Math_Source.Create (Text, Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Source, Original, Token_Diagnostic, Error_Byte);
+      Check (Source_Diagnostic = Math_Source.No_Error and then
+        Token_Diagnostic = Math_Tokens.No_Error, "internal input lexed");
+      declare
+         Items : Math_Tokens.Token_Sequence
+           (1 .. Math_Tokens.Count (Original) - 1);
+      begin
+         for Index in Items'Range loop
+            Items (Index) := Math_Tokens.Element (Original, Index);
+         end loop;
+         Items (1).Kind := Math_Tokens.Control_Word;
+         Items (1).Lexeme := Ada.Strings.Unbounded.To_Unbounded_String
+           (Internal_Name);
+         Math_Tokens.From_Tokens (Original, Items, Synthetic);
+      end;
+      Math_Expander.Open (Synthetic, Local_Cursor);
+      loop
+         T := Math_Expander.Next (Local_Cursor, Ctx);
+         exit when T.Kind = Math_Tokens.End_Of_Input;
+         if T.Kind = Math_Tokens.Character_Token then
+            if Length < Actual'Length then
+               Length := Length + 1;
+               Actual (Length) := Character'Val (T.Code_Point);
+            end if;
+         end if;
+      end loop;
+      Check (Math_Expander.Diagnostic (Local_Cursor) = Math_Expander.No_Error
+        and then Length = Expected'Length
+        and then Actual (1 .. Length) = Expected, Label);
+   end Expect_Internal_Output;
+
+   procedure Expect_Unicode_Builtin (Glyph, Label : String) is
+      Lookup : constant Math_Builtin_Macros.Macro_Record :=
+        Math_Builtin_Macros.Lookup (Glyph);
+      function Expand (Text : String) return String is
+         Local_Cursor : Math_Expander.Cursor;
+         Source : Math_Source.Source;
+         Stream : Math_Tokens.Stream;
+         SD : Math_Source.Diagnostic_Kind;
+         TD : Math_Tokens.Diagnostic_Kind;
+         Byte : Natural;
+         Token : Math_Tokens.Token;
+         Result : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         Math_Macros.Reset (Ctx);
+         Math_Source.Create (Text, Source, SD, Byte);
+         Math_Tokens.Lex (Source, Stream, TD, Byte);
+         Math_Expander.Open (Stream, Local_Cursor);
+         loop
+            Token := Math_Expander.Next (Local_Cursor, Ctx);
+            exit when Token.Kind = Math_Tokens.End_Of_Input;
+            Ada.Strings.Unbounded.Append (Result,
+              Ada.Strings.Unbounded.To_String (Token.Lexeme));
+         end loop;
+         if SD /= Math_Source.No_Error or else TD /= Math_Tokens.No_Error or else
+           Math_Expander.Diagnostic (Local_Cursor) /= Math_Expander.No_Error
+         then
+            return "<error>";
+         end if;
+         return Ada.Strings.Unbounded.To_String (Result);
+      end Expand;
+   begin
+      Check (Lookup.Found and then Expand (Glyph) =
+        Expand (Ada.Strings.Unbounded.To_String (Lookup.Template)), Label);
+   end Expect_Unicode_Builtin;
 
    procedure Expect_Raw_Output (Text, Expected, Label : String) is
       Local_Cursor : Math_Expander.Cursor;
@@ -152,6 +284,31 @@ procedure Math_Macros_Probe is
    T : Math_Tokens.Token;
    MD : Math_Macros.Diagnostic_Kind;
 begin
+   declare
+      Local_Cursor : Math_Expander.Cursor;
+      Local_Source : Math_Source.Source;
+      Local_Stream : Math_Tokens.Stream;
+      Source_Diagnostic : Math_Source.Diagnostic_Kind;
+      Token_Diagnostic : Math_Tokens.Diagnostic_Kind;
+      Error_Byte : Natural;
+      Local_Token : Math_Tokens.Token;
+   begin
+      Math_Source.Create ("x", Local_Source, Source_Diagnostic, Error_Byte);
+      Math_Tokens.Lex (Local_Source, Local_Stream, Token_Diagnostic,
+        Error_Byte);
+      Math_Expander.Open (Local_Stream, Local_Cursor);
+      begin
+         Local_Token := Math_Expander.Next (Local_Cursor, Ctx, Work);
+         Check (False, "expander poll raises cancellation");
+      exception
+         when Math_Work_Control.Stop_Requested =>
+            Check (True, "expander loop polls cancellation");
+      end;
+      Math_Expander.Open (Local_Stream, Local_Cursor);
+      Local_Token := Math_Expander.Next (Local_Cursor, Ctx);
+      Check (Local_Token.Kind = Math_Tokens.Character_Token,
+        "fresh Open ignores the cursor's canceled prior context");
+   end;
    Open_Text ("\def\id#1{#1}", Cur);
    loop
       T := Math_Expander.Next (Cur, Ctx);
@@ -618,18 +775,24 @@ begin
    Expect_Output ("\newcommand{\foo}[2]{#2#1}\foo{x}{y}", "yx", "newcommand reorders two arguments");
    Expect_Output ("\newcommand{\foo}[9]{#9}\foo{a}{b}{c}{d}{e}{f}{g}{h}{i}", "i", "newcommand accepts nine arguments");
    Expect_Output ("\providecommand{\foo}{p}\foo", "p", "providecommand defines absent macro");
-   Expect_Output ("\@ifstar{Y}{N}*", "Y",
-     "ifstar selects starred branch");
+   Expect_Output ("\@ifstar{Y}{N}*", "Y*",
+     "ifstar selects starred branch and preserves lookahead");
    Expect_Output ("\@ifstar{Y}{N}x", "Nx",
      "ifstar selects unstarred branch and preserves its lookahead");
-   Expect_Output ("\@ifstar{Y}{N}*x", "Yx",
-     "ifstar consumes only the star token");
-   Expect_Output ("\@ifnextchar *{Y}{N}*", "Y",
-     "ifnextchar selects matching character");
+   Expect_Output ("\@ifstar{Y}{N}*x", "Y*x",
+     "ifstar preserves the star token for following input");
+   Expect_Output ("\@ifstar{Y}{N}", "N",
+     "ifstar selects unstarred branch at end of input");
+   Expect_Output ("\@ifnextchar *{Y}{N}*", "Y*",
+     "ifnextchar selects matching character and preserves it");
    Expect_Output ("\@ifnextchar *{Y}{N}x", "Nx",
-     "ifnextchar selects nonmatch without consuming token");
-   Expect_Output ("\@ifnextchar \alpha{Y}{N}\alpha", "Y",
-     "ifnextchar matches a control token");
+     "ifnextchar selects nonmatch and preserves token");
+   Expect_Raw_Output ("\@ifnextchar \alpha{A}{B}\alpha", "A\alpha",
+     "ifnextchar preserves exact control-token identity");
+   Expect_Raw_Output ("\@ifnextchar *{A}{B}*", "A*",
+     "ifnextchar preserves exact character-token identity");
+   Expect_Output ("\@ifnextchar *{Y}{N}", "N",
+     "ifnextchar selects nonmatch at end of input");
    Open_Text ("\@ifnextchar *{Y}{N}{*}", Cur);
    T := Math_Expander.Next (Cur, Ctx);
    Check (T.Kind = Math_Tokens.Character_Token and then
@@ -668,12 +831,109 @@ begin
      "global let aliases an undefined control token");
    Expect_Output ("\futurelet\next xA\next", "xAA",
      "futurelet aliases second lookahead and replays both tokens");
+   Expect_Internal_Output
+     ("x\next ab", "\\globalfuture", "ab",
+      "internal globalfuture handles raw lookahead input");
+   Check (Math_Macros.Is_Defined (Ctx, "\next"),
+     "internal globalfuture binding is globally defined");
+   Math_Macros.Begin_Group (Ctx);
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Internal_Output
+     ("x\futurePersist ab", "\\globalfuture", "ab",
+      "internal globalfuture executes in nested scopes");
+   Math_Macros.End_Group (Ctx);
+   Math_Macros.End_Group (Ctx);
+   Check (Math_Macros.Is_Defined (Ctx, "\futurePersist"),
+     "internal globalfuture survives nested scope unwinds");
+   Expect_Internal_Output
+     ("x\alias\missing", "\\globallet", "",
+      "internal globallet installs a global control-token alias");
+   Check (Math_Macros.Is_Defined (Ctx, "\alias"),
+     "internal globallet binding is available to subsequent input");
+   Math_Macros.Begin_Group (Ctx);
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Internal_Output
+     ("x\persistent\missing", "\\globallet", "",
+      "internal globallet executes inside nested scopes");
+   Math_Macros.End_Group (Ctx);
+   Math_Macros.End_Group (Ctx);
+   Check (Math_Macros.Is_Defined (Ctx, "\persistent"),
+     "internal globallet survives all nested scope unwinds");
    Expect_Output ("\long\def\foo#1{#1}\foo{x}", "x",
      "long prefix accepts def using bounded macro semantics");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\long\def\longLocal{l}",
+     "standalone long prefix accepts a local grouped definition");
+   Check (Math_Macros.Is_Defined (Ctx, "\longLocal"),
+     "standalone long definition is visible in its group");
+   Math_Macros.End_Group (Ctx);
+   Check (not Math_Macros.Is_Defined (Ctx, "\longLocal"),
+     "standalone long definition is removed at group end");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\long \def\longScoped{g}",
+     "long prefix leaves a local def in its current group");
+   Math_Macros.End_Group (Ctx);
+   Check (not Math_Macros.Is_Defined (Ctx, "\longScoped"),
+     "standalone long definition unwinds with its group");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\global \long \def\longChained{c}",
+     "global-long prefix chain maps to global definition");
+   Math_Macros.End_Group (Ctx);
+   Check (Math_Macros.Is_Defined (Ctx, "\longChained"),
+     "global-long definition survives scope unwind");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\long\global\def\longReverse{r}",
+     "long-global prefix order forwards to global assignment");
+   Math_Macros.End_Group (Ctx);
+   Check (Math_Macros.Is_Defined (Ctx, "\longReverse"),
+     "long-global definition survives scope unwind");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\global\long\global\def\longRepeated{m}",
+     "global prefix converts long to the global-long sentinel repeatedly");
+   Math_Macros.End_Group (Ctx);
+   Check (Math_Macros.Is_Defined (Ctx, "\longRepeated"),
+     "repeated global-long prefix remains global");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\long\edef\longExpanded{e}",
+     "standalone long edef remains local");
+   Math_Macros.End_Group (Ctx);
+   Check (not Math_Macros.Is_Defined (Ctx, "\longExpanded"),
+     "standalone long edef unwinds with its group");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\long\xdef\longExpandedGlobal{x}",
+     "xdef remains global independently of long");
+   Math_Macros.End_Group (Ctx);
+   Check (Math_Macros.Is_Defined (Ctx, "\longExpandedGlobal"),
+     "xdef remains global after group unwind");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Output ("\def\source{a}\long\let\copy=\source"
+     & "\def\source{b}",
+     "standalone long let remains local and snapshots its alias");
+   Math_Macros.End_Group (Ctx);
+   Check (not Math_Macros.Is_Defined (Ctx, "\copy"),
+     "standalone long let unwinds with its group");
+   Math_Macros.Begin_Group (Ctx);
+   Expect_Scoped_Text ("\long\futurelet\longNext xa", "xa",
+     "standalone long futurelet remains local and replays lookahead");
+   Math_Macros.End_Group (Ctx);
+   Check (not Math_Macros.Is_Defined (Ctx, "\longNext"),
+     "standalone long futurelet unwinds with its group");
+   Open_Text ("\long\frac", Cur);
+   loop T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Malformed_Definition,
+     "long prefix rejects unsupported assignment operand");
+   Open_Text ("\long x", Cur);
+   loop T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Malformed_Definition,
+     "long prefix rejects non-control operand");
    Expect_Output ("\newcommand{\foo}{a}\renewcommand{\foo}{b}\foo", "b", "newcommand and renewcommand shadow");
-   Expect_Output ("\newcommand{\foo}{a}\providecommand{\bar}{b}\foo\bar", "ab", "declarations coexist");
+   Expect_Output ("\newcommand{\foo}{a}\providecommand{\customBar}{b}\foo\customBar", "ab", "declarations coexist");
    Expect_Output ("\newcommand{\foo}[1]{x#1}\foo{y}", "xy", "replacement literals and parameters expand");
-   Expect_Output ("\newcommand{\foo}{\newcommand{\bar}{z}}\foo\bar", "z", "expanded definition directives execute");
+   Expect_Output ("\newcommand{\foo}{\newcommand{\customBar}{z}}\foo\customBar", "z", "expanded definition directives execute");
    Expect_Output ("\newcommand{\foo}{a}\let\bar=\foo\bar", "a", "let accepts optional equals");
    Expect_Output ("\newcommand{\foo}{a}\providecommand{\foo}{b}\foo", "a", "provide existing branch has no output");
    Expect_Output ("\newcommand{\foo}{a}\renewcommand{\foo}{a}\foo", "a", "renew identical body succeeds");
@@ -765,6 +1025,37 @@ begin
      "edef does not execute assignment in its replacement");
    Expect_Output ("\edef\foo{\def\side{X}}\foo\side", "X",
      "deferred edef assignment executes only when invoked");
+   Open_Text ("\newline[.5em]", Cur);
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Kind = Math_Tokens.Control_Symbol and then
+     Ada.Strings.Unbounded.To_String (T.Lexeme) = "\\",
+     "builtin newline expands to literal control-symbol linebreak");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Kind = Math_Tokens.Control_Word and then
+     Ada.Strings.Unbounded.To_String (T.Lexeme) = "\relax",
+     "builtin newline retains relax lookahead barrier");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Kind = Math_Tokens.Character_Token and then
+     T.Code_Point = Character'Pos ('['),
+     "builtin newline leaves optional-looking bracket literal");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Code_Point = Character'Pos ('.'), "newline suffix dot retained");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Code_Point = Character'Pos ('5'), "newline suffix digit retained");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Code_Point = Character'Pos ('e'), "newline suffix unit retained");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Code_Point = Character'Pos ('m'), "newline suffix unit fully retained");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Kind = Math_Tokens.Character_Token and then
+     T.Code_Point = Character'Pos (']'),
+     "builtin newline leaves closing bracket literal");
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Kind = Math_Tokens.End_Of_Input and then
+     Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "newline token sequence terminates without diagnostics");
+   Expect_Output ("\def\newline{N}\newline[.5em]", "N[.5em]",
+     "user newline definition overrides builtin expansion");
    Math_Macros.Reset (Ctx);
    Open_Text ("\xdef\foo{\global\def\side{X}}", Cur);
    loop
@@ -927,6 +1218,67 @@ begin
      "unknown macro is absent from builtin table");
    Check (not Math_Builtin_Macros.Lookup ("\to").Found,
      "unregistered arrow alias remains absent");
+   Expect_Unicode_Builtin ("~", "raw tilde expands to its active builtin");
+   Expect_Output ("x\char126y", "x~y",
+     "synthetic char tilde remains literal rather than active");
+   Expect_Raw_Output ("\noexpand©", "©",
+     "noexpand preserves a raw Unicode builtin token");
+   Open_Text ("x©y", Cur);
+   T := Math_Expander.Next (Cur, Ctx);
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Has_Invocation and then T.Invocation_First_Byte = 1 and then
+     T.Invocation_After_Byte = 3,
+     "raw Unicode macro expansion retains multibyte invocation provenance");
+   Expect_Unicode_Builtin ("©", "raw Unicode © matches builtin expansion");
+   Expect_Unicode_Builtin ("®", "raw Unicode ® matches builtin expansion");
+   Expect_Unicode_Builtin ("️", "raw FE0F matches its pinned builtin expansion");
+   Check (Math_Builtin_Macros.Lookup ("️").Found and then
+     Ada.Strings.Unbounded.To_String
+       (Math_Builtin_Macros.Lookup ("️").Template) = "\textregistered",
+     "FE0F builtin template is the pinned textregistered alias");
+   Open_Text ("\char65039", Cur);
+   T := Math_Expander.Next (Cur, Ctx);
+   Check (T.Kind = Math_Tokens.Character_Token and then
+     T.Code_Point = 16#FE0F# and then
+     Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "synthetic char FE0F remains a character and is not a raw macro key");
+   Expect_Unicode_Builtin ("·", "raw Unicode · matches builtin expansion");
+   Expect_Unicode_Builtin ("‼", "raw Unicode ‼ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℋ", "raw Unicode ℋ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℌ", "raw Unicode ℌ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℐ", "raw Unicode ℐ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℒ", "raw Unicode ℒ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℛ", "raw Unicode ℛ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℨ", "raw Unicode ℨ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℬ", "raw Unicode ℬ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℭ", "raw Unicode ℭ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℰ", "raw Unicode ℰ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℱ", "raw Unicode ℱ matches builtin expansion");
+   Expect_Unicode_Builtin ("ℳ", "raw Unicode ℳ matches builtin expansion");
+   Expect_Unicode_Builtin ("∌", "raw Unicode ∌ matches builtin expansion");
+   Expect_Unicode_Builtin ("∷", "raw Unicode ∷ matches builtin expansion");
+   Expect_Unicode_Builtin ("∹", "raw Unicode ∹ matches builtin expansion");
+   Expect_Unicode_Builtin ("≔", "raw Unicode ≔ matches builtin expansion");
+   Expect_Unicode_Builtin ("≕", "raw Unicode ≕ matches builtin expansion");
+   Expect_Unicode_Builtin ("≘", "raw Unicode ≘ matches builtin expansion");
+   Expect_Unicode_Builtin ("≙", "raw Unicode ≙ matches builtin expansion");
+   Expect_Unicode_Builtin ("≚", "raw Unicode ≚ matches builtin expansion");
+   Expect_Unicode_Builtin ("≛", "raw Unicode ≛ matches builtin expansion");
+   Expect_Unicode_Builtin ("≝", "raw Unicode ≝ matches builtin expansion");
+   Expect_Unicode_Builtin ("≞", "raw Unicode ≞ matches builtin expansion");
+   Expect_Unicode_Builtin ("≟", "raw Unicode ≟ matches builtin expansion");
+   Expect_Unicode_Builtin ("⋮", "raw Unicode ⋮ matches builtin expansion");
+   Expect_Unicode_Builtin ("⌜", "raw Unicode ⌜ matches builtin expansion");
+   Expect_Unicode_Builtin ("⌝", "raw Unicode ⌝ matches builtin expansion");
+   Expect_Unicode_Builtin ("⌞", "raw Unicode ⌞ matches builtin expansion");
+   Expect_Unicode_Builtin ("⌟", "raw Unicode ⌟ matches builtin expansion");
+   Expect_Unicode_Builtin ("⟂", "raw Unicode ⟂ matches builtin expansion");
+   Expect_Unicode_Builtin ("⟦", "raw Unicode ⟦ matches builtin expansion");
+   Expect_Unicode_Builtin ("⟧", "raw Unicode ⟧ matches builtin expansion");
+   Expect_Unicode_Builtin ("⦃", "raw Unicode ⦃ matches builtin expansion");
+   Expect_Unicode_Builtin ("⦄", "raw Unicode ⦄ matches builtin expansion");
+   Expect_Unicode_Builtin ("⦵", "raw Unicode ⦵ matches builtin expansion");
+   Expect_Unicode_Builtin ("⩴", "raw Unicode ⩴ matches builtin expansion");
    Math_Macros.Reset (Ctx);
    Open_Text ("\blue{x}", Cur);
    loop
@@ -999,6 +1351,56 @@ begin
      "newcommand recognizes builtin name");
    Check (Math_Macros.Definition_Count (Ctx) = 0,
      "builtin names are never preloaded into shared context");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\renewcommand{\alpha}{A}\alpha", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "renewcommand recognizes math-symbol names");
+   Check (Math_Macros.Definition_Count (Ctx) = 1,
+     "renewcommand stores math-symbol override in user context");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\alpha}{A}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Malformed_Definition,
+     "newcommand rejects existing math-symbol name");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\renewcommand{\frac}{A}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "renewcommand recognizes registered function name");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\frac}{A}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Malformed_Definition,
+     "newcommand rejects registered function name");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\renewcommand{\unknown}{A}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Malformed_Definition,
+     "renewcommand rejects unknown name");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\unknown}{A}\unknown", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Check (Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+     "newcommand accepts unknown name");
    Expect_Raw_Output
      ("\bra@ket{L}{M}{D}{R}{a|b}", "LaMbR",
       "bra-ket custom middle binding expands character token stream");

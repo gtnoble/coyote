@@ -2,6 +2,7 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Math_Model;
 with Math_Macros;
+with Math_Work_Control;
 
 --  Parse bounded TeX-like input. Error positions are one-based UTF-8 byte
 --  offsets. Raw Unicode is accepted only for registered math symbols.
@@ -35,6 +36,7 @@ package Math_Syntax is
 
    type Delimiter_Kind is
      (No_Delimiter, Parenthesis_Delimiter, Bracket_Delimiter, Brace_Delimiter,
+      Angle_Delimiter, Floor_Delimiter, Ceiling_Delimiter,
       Bar_Delimiter, Double_Bar_Delimiter);
 
    type Node is record
@@ -53,6 +55,11 @@ package Math_Syntax is
       Depth           : Long_Float    := 0.0;
       Scale           : Long_Float    := 1.0;
       Enclosure       : Enclosure_Kind := Cancel_Enclosure;
+      Box_Background  : Color_Value := (others => <>);
+      Box_Border      : Color_Value := (others => <>);
+      Box_Border_Thickness : Long_Float := 0.0;
+      Accent_Type     : Accent_Kind := Above_Accent;
+      Break           : Break_Kind := No_Break_Metadata;
       Fraction_Type   : Fraction_Style := Default_Fraction;
       Fraction_Bar    : Fraction_Bar_Mode := Default_Rule;
       Fraction_Alignment_Mode : Fraction_Alignment := Center_Fraction;
@@ -62,6 +69,7 @@ package Math_Syntax is
       Script_Type     : Script_Layout := Side_Scripts;
       Array_Type      : Array_Kind    := Matrix_Array;
       Column_Spec     : Ada.Strings.Unbounded.Unbounded_String;
+      Array_Rules     : Array_Rule_Vectors.Vector;
       Row_Spacing     : Long_Float := 0.0;
       Math_Style      : Math_Style_Kind := Natural_Style;
       Annotation_Type : Annotation_Kind := Over_Annotation;
@@ -75,6 +83,8 @@ package Math_Syntax is
       Stretchy_Name   : Ada.Strings.Unbounded.Unbounded_String;
       Verbatim_Text   : Ada.Strings.Unbounded.Unbounded_String;
       Verbatim_Starred : Boolean := False;
+      Text_Run_Text   : Ada.Strings.Unbounded.Unbounded_String;
+      Text_Run_Profile : Script_Profile := Latin_Fallback;
       Tag_Is_Left     : Boolean := False;
       Left_Delimiter  : Delimiter_Kind := No_Delimiter;
       Right_Delimiter : Delimiter_Kind := No_Delimiter;
@@ -93,20 +103,30 @@ package Math_Syntax is
    --  expression and Poor_Bold_Class stores its bin/rel/ord atom class.
    --  Verbatim_Node stores raw text without token decomposition; star
    --  selects the visible-space glyph when layout builds the node.
+   --  CD_Arrow_Node uses First/Second for left/right labels and Code_Point
+   --  for the vertical arrow glyph; Class is the effective atom class.
    --  A Delimited_Node with First = No_Node and Amount > 0 represents one
    --  explicitly sized delimiter. Amount is the target height in em;
    --  Left_Delimiter stores its shape. Code_Point is the sizing-command role:
    --  1 plain, 2 left, 3 right, 4 middle. Class is the delimiter's atom role.
 
    type Document is private;
-   function Parse (Source : String) return Document;
-   function Parse (Source : String; Settings : Options) return Document;
+   function Parse
+     (Source : String;
+      Work : Math_Work_Control.Context_Access := null) return Document;
+   function Parse
+     (Source : String; Settings : Options;
+      Work : Math_Work_Control.Context_Access := null) return Document;
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
-      Global_Group : Boolean := False) return Document;
+      Global_Group : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null) return Document;
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
-      Settings : Options; Global_Group : Boolean := False) return Document;
+      Settings : Options; Global_Group : Boolean := False;
+      Work : Math_Work_Control.Context_Access := null) return Document;
+   --  Work is borrowed only for this call; cancellation and deadline
+   --  exceptions propagate to the caller.
    --  Explicit shared state follows local/global namespace semantics, even
    --  when parsing fails. Ordinary parsing starts a fresh context.
    function Is_Valid (Item : Document) return Boolean;

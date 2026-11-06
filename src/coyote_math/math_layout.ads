@@ -2,7 +2,9 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Math_Model;
 with Math_Syntax;
+with Math_Metrics;
 with Math_Paths;
+with Math_Work_Control;
 
 --  Reference-guided layout in em units. Y grows down, origin is baseline.
 --  Unsupported or invalid syntax/geometry returns Valid=False; commands
@@ -24,8 +26,11 @@ package Math_Layout is
    type Layout_Settings is record
       Min_Rule_Thickness : Long_Float := 0.0;
       Max_Size : Positive := 100;
+      Pixel_Em : Long_Float := 0.0;
+      Advance_Source : Math_Metrics.Advance_Source_Access := null;
    end record;
-   type Command_Kind is (Glyph_Command, Rule_Command, Path_Command);
+   type Command_Kind is
+     (Glyph_Command, Rule_Command, Path_Command, Text_Run_Command);
    type Draw_Command is record
       Kind       : Command_Kind := Glyph_Command;
       Font       : Font_Kind := Main_Regular;
@@ -36,6 +41,8 @@ package Math_Layout is
       Width      : Long_Float := 0.0;
       Height     : Long_Float := 0.0;
       Path_Data  : Path_Segment_Vectors.Vector;
+      Text_Run_Text : Ada.Strings.Unbounded.Unbounded_String;
+      Text_Run_Profile : Script_Profile := Latin_Fallback;
       Has_Color  : Boolean := False;
       Red        : Long_Float := 0.0;
       Green      : Long_Float := 0.0;
@@ -73,13 +80,18 @@ package Math_Layout is
 
    function Build
      (Item : Math_Syntax.Document;
-      Style : Math_Style := Text_Style) return Box;
+      Style : Math_Style := Text_Style;
+      Work : Math_Work_Control.Context_Access := null) return Box;
    --  Minimum rule thickness is in em units; Max_Size accepts 1..100.
+   --  A borrowed advance source is used for Typewriter_Regular when Pixel_Em
+   --  is positive; Pixel_Em is in pixels at the unscaled text size.
    --  Parse dimensions with the same maximum before building the AST.
    --  Rule dimensions and clearance use the effective thickness per build.
    function Build
      (Item : Math_Syntax.Document; Style : Math_Style;
-      Settings : Layout_Settings) return Box;
+      Settings : Layout_Settings;
+      Work : Math_Work_Control.Context_Access := null) return Box;
+   --  Work is borrowed for this call only and is never retained or boxed.
    --  Invalid syntax or unsupported geometry produces Valid=False, never
    --  a partial success. Display/text style affects fraction and op sizing.
 end Math_Layout;
