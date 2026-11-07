@@ -1994,6 +1994,7 @@ identifiers.
 | REQ-CORE-108..108b | Retired Acme fork-token interface (historical) | D | TC-108..108b |
 | REQ-CORE-109 | Retired Acme SetDefault command (historical) | D | TC-109 |
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests including `Coyote.GUI layout and shutdown lifecycle`; DEM-033, DEM-042..044 |
+| REQ-CORE-117 | Persistent HTTP low-speed timeout, new-session application, retry and cancellation policy | D/T/I | Settings/queue/HTTP tests; PCR-126 agent wiring, timeout and cancellation cases; offline Plain/RPC lifecycle harness; `plan/evidence/http-timeout-2026-11-07/`; DEM-033 remains interactive qualification |
 | REQ-CORE-115, 115a, 115c | Virtual-agent tree, selected-agent routing, headless subagent RPC, and session-scoped reset/review semantics | D/T/I | DEM-050..053; frontend GUI and RPC service/transport reset tests; source inspection |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |

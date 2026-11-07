@@ -22,6 +22,10 @@ package LLM.HTTP is
    --  is safe to update while another request is in progress.
    procedure Configure (Low_Speed_Time_Seconds : Natural);
 
+   --  Return the process-scoped policy for subsequently started requests.
+   --  Requests already in progress retain their startup snapshot.
+   function Configured_Low_Speed_Time_Seconds return Natural;
+
    type Header_List is limited private;
 
    --  Append a request header in "Name: Value" form.

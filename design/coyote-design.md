@@ -388,6 +388,7 @@ not wait for the complete user turn.
 |---|---|---|
 | `Coyote` | Entry point | `src/coyote.adb` |
 | `Coyote_App` | App state + entry procedures | `src/coyote_app.ads/.adb` |
+| `Coyote_App.Headless` | Shared Plain/RPC session runner, prompt/result tracking, and monitor shutdown | `src/coyote_app-headless.ads/.adb` |
 | `Coyote_App.Dispatch` | Event→frontend dispatch | `src/coyote_app-dispatch.ads/.adb` |
 | `Coyote_App.History` | Session replay | `src/coyote_app-history.ads/.adb` |
 | `Coyote_App.Utils` | Formatting utilities + UC_* glyphs | `src/coyote_app-utils.ads/.adb` |
@@ -1248,6 +1249,14 @@ error bodies before parsing or dispatch. Callback/getinfo exceptions are
 captured at the C boundary and re-raised as `Curl_Error` after the transfer.
 An abort flag is polled by the transfer callback when supplied.
 
+**Low-speed policy (PCR-126):** Session creation applies the persistent
+setting before catalogue requests; see the settings description below. Each
+request snapshots the protected process-wide policy. Curl code 28 follows the
+existing agent retry policy (initial attempt plus three retries, with 2/4/8-second
+backoffs); cancellation remains non-retryable. Streaming requests impose no
+total duration deadline. Low-speed detection neither measures useful model
+progress nor preempts a synchronous application callback.
+
 **Fixed-signature timeout wrappers (PCR-117):** `LLM.HTTP.Curl_Binding` imports
 `curl_set_timeout` and `curl_set_connect_timeout` from
 `thin_curl.c`. The C wrappers call `curl_easy_setopt` with `CURLOPT_TIMEOUT`
@@ -1778,6 +1787,13 @@ made by the GUI Preferences dialog. Plain execution does not persist settings th
 - `Low_Speed_Time_Seconds` — `httpLowSpeedTimeSeconds`, an integer from 0
   through 300 seconds, default 30; zero disables libcurl's low-speed timeout.
   New HTTP requests use a fixed low-speed limit of one byte per second.
+  `LLM.Agent.Create` applies the loaded setting through `LLM.HTTP.Configure`
+  before catalogue refresh for GUI, Plain, and RPC sessions. Preferences remain
+  defaults for newly created sessions, not live updates to existing children.
+  The policy is process-scoped and protected; each request snapshots its value.
+  `Configured_Low_Speed_Time_Seconds` exposes that policy read-only for
+  diagnostics and wiring tests. Low transfer speed is not a semantic-progress
+  timer or hard deadline, and streaming total duration remains unlimited.
 - `Skill_Paths` — ordered additional absolute skill roots from the optional
   `skillPaths` JSON array; malformed or non-string entries are ignored.
 - Raw provider model entries and API-key configuration are read from
@@ -2689,16 +2705,29 @@ transient child of the coyote main window.
 
 ### 5.37 `Coyote_App.Frontend.Plain`
 
-**Purpose:** Plain-text frontend for `--one-shot` mode and non-TTY output.
+**Purpose:** Line-oriented frontend for interactive Plain and one-shot runs.
+`Coyote_App.Plain` initializes presentation and delegates the session lifecycle
+to `Coyote_App.Headless`, also used by the RPC frontend.
 
-**Rendering:** All output goes to `Ada.Text_IO.Standard_Output`. No ANSI
-escape codes. Thinking blocks are suppressed (not printed). Tool calls are
-rendered as `[tool: <name>]` … `[/tool]` text markers. Notices are prefixed
-with `[ERROR]`, `[WARN]`, or `[INFO]`.
+**Rendering:** Interactive presentation goes to standard output; one-shot
+presentation goes to standard error, leaving the final result JSON as the only
+standard-output record. Thinking text, status, tool output and notices are
+rendered as line-oriented text without GTK initialization.
 
-**`Read_Prompt`:** In `--one-shot` mode, the prompt is pre-loaded from the
-`--prompt` argument or from stdin; `Read_Prompt` returns it on the first call
-and returns `""` (signalling shutdown) on all subsequent calls.
+**Prompt ownership:** The CLI resolves `--prompt`, including reading stdin for
+`--prompt -`. The headless runner executes that initial prompt directly and
+skips the interactive prompt loop for one-shot runs. Otherwise, Plain
+`Read_Prompt` reads another line from standard input; EOF returns an empty
+string and ends the loop.
+
+**Shutdown (PCR-126):** Plain has no asynchronous control channel, so its
+control monitor may never receive Start. The monitor's initial selective
+accept permits either Start or Shutdown; cleanup can therefore stop an
+unstarted monitor, including the no-prompt one-shot error path. Started RPC
+monitors continue their normal control loop until Shutdown. The runner then
+shuts down the frontend and emits the one-shot result. Offline tests check
+JSON/terminal delivery, natural EOF, and child exit; this is not a general
+hard-deadline guarantee.
 
 ---
 

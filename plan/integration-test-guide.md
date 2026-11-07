@@ -1,18 +1,38 @@
 # Integration Test Guide
 
 This project keeps all live integration tests **opt-in**. The default AUnit run
-must stay CI-safe and must not require network access, API credentials, or a
-display unless a test is explicitly guarded.
+must stay CI-safe without live provider access or real API credentials.
+Display-backed GUI tests require a display; use Xvfb for the complete suite.
+Local transport tests use loopback sockets.
 
 ## Current Status
 
 The Acme and 9P integration surface was removed on 2026-08-30. The active
 suite contains no Acme/9P tests. Live provider tests remain opt-in; the
-standard suite is safe without network access, credentials, or a display.
+standard suite uses local fixtures and does not require live credentials.
+Display-backed GUI coverage still requires a display or Xvfb.
 
 PCR-090 records the removal. GUI sandbox/session qualification remains covered
-by the existing manual procedures; Plain subprocess tests use the neutral
-`COYOTE_TEST_SUBAGENT=1` guard.
+by the existing manual procedures; existing live-provider Plain subprocess
+tests use the `COYOTE_TEST_SUBAGENT=1` guard. Display-backed GUI tests need a
+display; use Xvfb for the complete suite as shown below.
+
+### Offline HTTP timeout lifecycle (PCR-126)
+
+After `alr build --development` from the repository root, run:
+
+```sh
+python3 test/tools/check-http-timeout-lifecycle.py
+```
+
+This separate Python 3 harness needs no live-test guard or real credentials.
+It creates an isolated HOME and cached fixture metadata, contacts a loopback
+Responses SSE server, and imposes outer deadlines with child cleanup. It checks
+Plain early shutdown, timeout JSON, RPC failure terminal/natural EOF/exit after
+retry exhaustion, and delayed success with the timeout disabled. See the
+[PCR-126 evidence summary](evidence/http-timeout-2026-11-07/README.md) for retained
+results and [the test plan](test-plan.md) for agent wiring/cancellation coverage.
+This is not a live-provider or interactive GUI qualification.
 
 ## Principles
 
@@ -43,11 +63,14 @@ clear skipped/disabled message.
 ## Running the Full Default Test Suite
 
 ```sh
-cd /home/gtnoble/Projects/coyote/test
-alr run coyote_test
+# From the repository root:
+cd test
+alr build --development --profiles=coyote=development
+xvfb-run -a ./bin/coyote_test
 ```
 
-This command should remain safe without any live credentials.
+This run requires Xvfb for display-backed GUI tests, but no live credentials.
+Literal-prefix filters can run appropriate headless subsets without a display.
 
 ## Example: Run Future OpenRouter Live Tests
 

@@ -34,6 +34,11 @@ package body LLM.HTTP is
       Configuration.Set_Low_Speed_Time (Low_Speed_Time_Seconds);
    end Configure;
 
+   function Configured_Low_Speed_Time_Seconds return Natural is
+   begin
+      return Configuration.Low_Speed_Time;
+   end Configured_Low_Speed_Time_Seconds;
+
    use type Curl_Binding.Code;
    use type Curl_Binding.Handle;
    use type Curl_Binding.Slist;

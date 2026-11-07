@@ -178,6 +178,17 @@ memory, hard 250 ms completion, GTK/cache guarantees, full reference behavior,
 remaining core behavior and human acceptance remain unqualified. These
 development builds are not warning-free or release qualification.
 
+PCR-126 HTTP-timeout developer verification (2026-11-07) passes the full
+Xvfb suite 1068/1068, zero failures/errors, 138.877699 s cumulative, and the
+standalone offline Plain/RPC lifecycle harness. Evidence and commands are in
+`plan/evidence/http-timeout-2026-11-07/README.md`. `LLM.Agent.Create` applies
+`httpLowSpeedTimeSeconds` before catalogue refresh; retain new-session semantics,
+zero-disable behavior, and the absence of a total streaming deadline. Headless
+control-monitor shutdown accepts Shutdown before Start, including Plain cleanup.
+Run `python3 test/tools/check-http-timeout-lifecycle.py` after development builds
+for bounded loopback-only subprocess checks. No live-provider or interactive
+GUI qualification, installed-binary update, or native-math acceptance is implied.
+
 The preceding 1017/1017 signal/process
 record result is historical (`/tmp/coyote-signal-proc-full-final.log`). PCR-118's 1014/1014 result
 below is historical (`/tmp/coyote-ownership-full-tests.log`).

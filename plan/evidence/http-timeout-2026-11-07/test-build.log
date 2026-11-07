@@ -1,0 +1,27 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          coyote_help.adb
+   [Ada]          coyote_help_tests.adb
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+   [Ada]          coyote_config.ads
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+   [gprbind]      mock_coyote.bexch
+   [Ada]          mock_coyote.ali
+   [gprbind]      auth_test_worker.bexch
+   [Ada]          auth_test_worker.ali
+   [gprbind]      help_test_worker.bexch
+   [Ada]          help_test_worker.ali
+   [gprbind]      notify_test_worker.bexch
+   [Ada]          notify_test_worker.ali
+   [gprbind]      signal_shutdown_worker.bexch
+   [Ada]          signal_shutdown_worker.ali
+Link
+   [link]         coyote_test.adb
+   [link]         mock_coyote.adb
+   [link]         auth_test_worker.adb
+   [link]         help_test_worker.adb
+   [link]         notify_test_worker.adb
+   [link]         signal_shutdown_worker.adb
+Success: Build finished successfully in 6.20 seconds.

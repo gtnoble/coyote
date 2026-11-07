@@ -3,6 +3,44 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-126 — Apply persistent HTTP low-speed timeout on session creation
+
+- **Date reported:** 2026-11-07
+- **Category:** Code, Test, Documentation
+- **Classification:** Approved REQ-CORE-117 configuration-wiring correction
+- **Priority:** 3-Moderate (abort/retry or restart is an available workaround)
+- **Problem:** Settings load a default 30-second low-speed timeout, but no
+  production caller applies it to `LLM.HTTP`. Its internal zero default disables
+  stalled-transfer protection, allowing a provider wait to retain a subagent
+  and its coordinator shell worker indefinitely. Live stack attribution was
+  unavailable; the missing configuration call is confirmed by inspection.
+- **Action:** Configure HTTP in shared `LLM.Agent.Create` before catalogue
+  refresh; retain new-session preference semantics, zero-disable behavior,
+  existing retry/cancellation policy, and unlimited total streaming duration.
+  Add a protected read-only policy query, agent wiring/real-timeout tests, and
+  bounded offline Plain/RPC subprocess lifecycle checks.
+- **Affected products:** `LLM.Agent`, `LLM.HTTP`, shared headless runner, agent
+  tests, standalone lifecycle harness, README/Mallard Help, agent instructions,
+  design/test/integration records, requirements traceability, component SDFs,
+  and this record.
+- **Additional defect:** Offline testing exposed a Plain shutdown deadlock:
+  an unstarted `Control_Monitor` waited at `Start` while shutdown called its
+  `Shutdown` entry. The initial task select now accepts either entry, retaining
+  the normal RPC control loop. A no-prompt one-shot checks the early exit path.
+- **Verification:** Both development builds pass with existing warnings. Five
+  new agent cases pass in the full Xvfb suite: 1068/1068, zero failed assertions
+  or unexpected errors, 138.877699 seconds cumulative. The standalone offline
+  harness passes early Plain shutdown, four timeout attempts each in Plain/RPC,
+  failed RPC terminal/natural EOF/exit, and zero-disable delayed Responses SSE
+  success. Evidence: `plan/evidence/http-timeout-2026-11-07/`.
+- **Limitations:** Low-speed transfer detection is not a semantic-progress or
+  hard wall-clock deadline; in-flight requests retain their startup policy.
+  Separate processes do not receive live preference updates. Live-provider and
+  interactive desktop qualification were not performed. Developer/agent review
+  is not independent user acceptance; optional live-subagent tests were not
+  enabled in the suite. No total streaming deadline was introduced.
+- **Status:** Implemented and developer-verified; not installed or released.
+
 ## PCR-118 — Scope libcmark resource ownership and copied-string boundary
 
 - **Date reported:** 2026-10-22

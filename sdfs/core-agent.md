@@ -1,5 +1,37 @@
 # Component Development Log — Core Agent
 
+## 2026-11-07 — Apply persistent HTTP low-speed policy (PCR-126)
+
+`LLM.Agent.Create` now applies the loaded low-speed setting before catalogue
+refresh for GUI, Plain, and RPC sessions. This corrects the missing production
+configuration call: the 2026-09-12 entry's claim that Create applied it was not
+true of the investigated snapshot. The HTTP protected policy otherwise stayed
+at zero despite a default/persisted 30-second setting. A read-only query exposes
+that policy for diagnostics and tests; no active request or existing child is
+reconfigured. Preferences remain defaults for new sessions, with zero disabling
+protection and a 300-second load/save clamp. Retry and cancellation policies
+and unlimited total stream duration are unchanged.
+
+Five agent regressions cover default/custom/zero/clamp/reload wiring, genuine
+curl code 28 timeout recovery and four-attempt exhaustion, retry-backoff
+cancellation, and active-request cancellation without retry. Local delayed
+Responses SSE exercises transport rather than calling Configure in the test.
+The standalone offline lifecycle harness checks Plain JSON/exit, RPC failed
+terminal/natural EOF/exit, and delayed success with protection disabled.
+Testing also exposed and corrected an unstarted Plain control-monitor shutdown
+rendezvous deadlock; see `sdfs/frontends.md`.
+
+Root and test development builds pass with existing warnings; generated
+profiles select development. Full Xvfb regression: 1068/1068, zero failed
+assertions/errors, 138.877699 seconds cumulative. Offline lifecycle passes with
+four stalled requests in each frontend and one delayed-success request.
+Evidence and commands: `plan/evidence/http-timeout-2026-11-07/README.md`.
+Initial short-delay/wrong-wire-format fixture failures were corrected; they
+were not transport implementation defects. No live-provider or independent
+acceptance qualification, release build, installed-binary update, or restart
+of existing instances was performed. Low-speed detection is not a hard
+completion deadline or semantic-progress watchdog.
+
 ## 2026-10-22 — Scope libcmark ownership and copied-string boundary (PCR-118)
 
 Production cmark consumers now use scope-owned `Coyote_Cmark.Document` and

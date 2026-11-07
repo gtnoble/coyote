@@ -1494,6 +1494,9 @@ package body LLM.Agent is
       Settings_Value : constant LLM.Settings.Settings :=
         LLM.Settings.Load_Settings;
    begin
+      --  Apply persistent defaults before catalogue or provider HTTP calls.
+      --  Every frontend and each subagent process creates its session here.
+      LLM.HTTP.Configure (Settings_Value.Low_Speed_Time_Seconds);
       S.Model_Spec := Null_Unbounded_String;
 
       --  Determine the working directory.  When resuming an existing session,

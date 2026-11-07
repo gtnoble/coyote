@@ -1,5 +1,32 @@
 # Component Development Log — Frontends
 
+## 2026-11-07 — Shut down unstarted headless control monitor (PCR-126)
+
+Offline HTTP-timeout lifecycle testing found Plain one-shot runs could finish
+an agent turn but never emit the final JSON or exit. Plain has no control
+channel, so its control monitor remained at `accept Start`; cleanup called
+`Shutdown`, which that task could not accept. The initial selective accept now
+permits Start or Shutdown, and the normal started RPC polling loop remains.
+The change also permits cleanup before a control monitor has been started.
+
+`test/tools/check-http-timeout-lifecycle.py` uses isolated HOME/settings,
+fake credentials, cached model metadata and a loopback Responses SSE endpoint.
+It checks early no-prompt Plain shutdown, Plain timeout JSON/exit, RPC failed
+terminal/natural EOF/exit after four stalled attempts, and zero-disable delayed
+success. Every child has an outer deadline and terminate/reap cleanup. Both
+development builds, the offline harness, and the 1068/1068 full Xvfb suite pass;
+see `plan/evidence/http-timeout-2026-11-07/`. GUI startup shares Agent.Create
+configuration by inspection; interactive desktop/provider qualification was
+not performed. Existing running instances and installed binary are unchanged.
+
+Documentation follow-up adds timeout configuration/recovery guidance to README
+and Mallard Main Menu Help, corrects the Plain rendering/prompt/shutdown design,
+and links the offline harness and REQ-CORE-117 traceability. The focused Help
+check passes 12/12 core and 1/1 widget cases, Mallard validation/links, and CLI
+checks; existing GTK theme CSS warnings remain. Output is retained as
+`plan/evidence/http-timeout-2026-11-07/documentation-help.log`. No interactive
+Yelp navigation or live-provider demonstration was performed.
+
 ## 2026-10-22 — Scope libcmark ownership and string boundary (PCR-118)
 
 Production Markdown consumers now use scope-owned `Coyote_Cmark.Document` and

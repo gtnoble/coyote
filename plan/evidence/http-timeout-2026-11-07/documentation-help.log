@@ -1,0 +1,38 @@
+OK    Coyote.Help root URI
+OK    Coyote.Help topic URI
+OK    Coyote.Help data directory follows executable prefix
+OK    Coyote.Help detects Yelp
+OK    Coyote.Help product information text
+OK    Coyote.Help area topics
+OK    Coyote.Help launch preserves existing XDG
+OK    Coyote.Help launch preserves empty XDG
+OK    Coyote.Help launch preserves unset XDG
+OK    Coyote.Help launch root URI
+OK    Coyote.Help launch without bundled data
+OK    Coyote.Help launch without Yelp
+
+Total Tests Run:   12
+Successful Tests:  12
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 0.349594 sec. seconds
+
+(coyote_test:90651): Gtk-WARNING **: 08:11:35.457: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:90651): Gtk-WARNING **: 08:11:35.457: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:90651): Gtk-WARNING **: 08:11:35.457: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:90651): Gtk-WARNING **: 08:11:35.457: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:90651): Gtk-WARNING **: 08:11:35.457: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:90651): Gtk-WARNING **: 08:11:35.457: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI Help widgets without Yelp
+
+Total Tests Run:   1
+Successful Tests:  1
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 0.192194 sec. seconds
+Help AUnit, Mallard validation/links, and CLI checks passed.

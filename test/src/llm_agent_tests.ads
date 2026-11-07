@@ -33,6 +33,13 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Auto_Retry_On_HTTP_500_Then_Success (T : in out Test);
    procedure Test_Auto_Retry_On_Transport_Error_Then_Success (T : in out Test);
+   procedure Test_Create_Applies_HTTP_Low_Speed_Settings (T : in out Test);
+   procedure Test_HTTP_Low_Speed_Timeout_Retry_Succeeds (T : in out Test);
+   procedure Test_HTTP_Low_Speed_Timeout_Retry_Exhausts (T : in out Test);
+   procedure Test_HTTP_Low_Speed_Timeout_Retry_Can_Be_Cancelled
+     (T : in out Test);
+   procedure Test_HTTP_Low_Speed_Active_Request_Can_Be_Cancelled
+     (T : in out Test);
    procedure Test_Retry_Responses_Overload_Then_Success (T : in out Test);
    procedure Test_Retry_Responses_Overload_Then_Permanent
      (T : in out Test);

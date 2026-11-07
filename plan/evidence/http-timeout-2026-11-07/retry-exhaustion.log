@@ -1,0 +1,9 @@
+[!] agent error (retry exhausted): curl_easy_perform (curl code 28): Timeout was reached
+[!] agent error (run_prompt): curl_easy_perform (curl code 28): Timeout was reached
+OK    LLM.Agent exhausts retries after repeated HTTP low-speed timeouts
+
+Total Tests Run:   1
+Successful Tests:  1
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 32.022389 sec. seconds

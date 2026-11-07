@@ -140,6 +140,22 @@ qualification remain open.
 The Help menu opens the installed Mallard documentation through Yelp. F1 opens
 the overview and Shift+F1 enables contextual help.
 
+### HTTP stalled-transfer protection
+
+Choose **Options → Preferences... → HTTP low-speed timeout (seconds)**, or set
+`httpLowSpeedTimeSeconds` in `~/.coyote/settings.json`. The default is 30 seconds;
+the supported range is 0–300, and **0 disables protection**. The setting applies
+when a new session is created, including Plain and RPC subagent sessions. Saving
+preferences does not change an in-flight request or an already-running child.
+
+Transfers below one byte per second for the configured duration can fail with
+curl code 28. The agent uses its normal retry policy: up to four attempts with
+2-, 4-, and 8-second backoffs. Stop/cancellation does not restart the request.
+This is not a total turn deadline or a detector of useful model progress:
+heartbeat traffic may keep a stalled generation connected. If necessary, select
+the affected agent in the Agents Window and choose **Agent → Stop** before
+retrying. Very quiet legitimate responses may need a longer configured timeout.
+
 ## Session listing
 
 ```sh
@@ -238,9 +254,20 @@ Tests live in `test/src/` and use AUnit. Build once, then run the development
 suite directly:
 
 ```sh
-cd test && alr build
-/usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
+cd test && alr build --development --profiles=coyote=development
+xvfb-run -a /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
+
+PCR-126 developer verification (2026-11-07) passed **1068/1068** in the full
+Xvfb suite, with zero failed assertions or unexpected errors and 138.877699 s
+cumulative test time. The offline Plain/RPC timeout lifecycle harness also
+passed. Commands, logs, and limits are retained in
+[the PCR-126 evidence summary](plan/evidence/http-timeout-2026-11-07/README.md).
+Run `python3 test/tools/check-http-timeout-lifecycle.py` from the repository root
+after a development build; it requires Python 3 and uses isolated fake
+credentials and a loopback server, not a live provider. This scoped evidence
+is not native-math qualification, end-user acceptance, or an installed-binary
+update; existing project warnings remain.
 
 See [the current native-math test report](plan/native-math-parity-test-report.md)
 for evidence and qualification status; coordinator-owned §11 is the current

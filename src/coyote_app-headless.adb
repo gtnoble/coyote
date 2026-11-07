@@ -192,27 +192,31 @@ package body Coyote_App.Headless is
       task body Control_Monitor is
          Should_Terminate : Boolean := False;
       begin
-         accept Start;
+         select
+            accept Start;
+         or
+            accept Shutdown do
+               Should_Terminate := True;
+            end Shutdown;
+         end select;
          Monitor_Loop :
-         loop
+         while not Should_Terminate loop
             select
                accept Shutdown do
                   Should_Terminate := True;
                end Shutdown;
             or
                delay 0.01;
-               if not Should_Terminate
-                 and then Coyote_App.Frontend.Has_Control_Channel (Frontend)
-               then
+               if Coyote_App.Frontend.Has_Control_Channel (Frontend) then
                   Poll_Control;
                end if;
             end select;
-            exit Monitor_Loop when Should_Terminate;
          end loop Monitor_Loop;
       exception
          when others =>
             null;
       end Control_Monitor;
+
 
       procedure Dispatch_Agent_Event (Event : LLM.Events.Agent_Event'Class) is
       begin

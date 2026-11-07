@@ -4,6 +4,8 @@ with Ada.Containers;
 with Ada.Containers.Vectors;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Exceptions;
+with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -14,6 +16,7 @@ with LLM.Compaction;
 with LLM.Agent;
 with LLM.Agent.Testing;
 with LLM.Events;
+with LLM.HTTP;
 with LLM.Session_Store;
 with LLM.System_Prompt;
 with LLM.Types;
@@ -22,6 +25,8 @@ package body LLM_Agent_Tests is
 
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
+   use type Ada.Exceptions.Exception_Id;
+   use type Ada.Real_Time.Time;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Events.Message_Update_Kind;
    use type LLM.Types.Content_Block_Kind;
@@ -3247,6 +3252,428 @@ package body LLM_Agent_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Unknown_Tool_Becomes_Error_And_Agent_Continues;
+
+   procedure Test_Create_Applies_HTTP_Low_Speed_Settings
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home : constant String := "/tmp/coyote_agent_http_settings";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Refresh_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists
+          ("COYOTE_TEST_NO_CATALOGUE_REFRESH");
+      Old_Refresh : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "");
+      Old_HTTP_Time : constant Natural :=
+        LLM.HTTP.Configured_Low_Speed_Time_Seconds;
+
+      procedure Create_With_Settings (Content : String) is
+      begin
+         Write_File (Home & "/.coyote/settings.json", Content);
+         LLM.Agent.Create
+           (S          => Agent_Session,
+            Model_Spec => "openrouter/openai/gpt-4o-mini",
+            No_Tools   => True);
+      end Create_With_Settings;
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "1");
+
+      Create_With_Settings ("{}");
+      Assert
+        (LLM.HTTP.Configured_Low_Speed_Time_Seconds = 30,
+         "Create should apply the absent-setting default of 30 seconds");
+
+      Create_With_Settings
+        ("{""httpLowSpeedTimeSeconds"":1}");
+      Assert
+        (LLM.HTTP.Configured_Low_Speed_Time_Seconds = 1,
+         "Create should apply a custom one-second setting");
+
+      Create_With_Settings
+        ("{""httpLowSpeedTimeSeconds"":0}");
+      Assert
+        (LLM.HTTP.Configured_Low_Speed_Time_Seconds = 0,
+         "Create should apply zero to disable low-speed timeout");
+
+      Create_With_Settings
+        ("{""httpLowSpeedTimeSeconds"":999}");
+      Assert
+        (LLM.HTTP.Configured_Low_Speed_Time_Seconds = 300,
+         "Create should apply the 300-second clamp");
+
+      Create_With_Settings
+        ("{""httpLowSpeedTimeSeconds"":7}");
+      Assert
+        (LLM.HTTP.Configured_Low_Speed_Time_Seconds = 7,
+         "subsequent Create should reload the saved preference");
+
+      LLM.HTTP.Configure (Old_HTTP_Time);
+      Restore_Env
+        ("COYOTE_TEST_NO_CATALOGUE_REFRESH", Refresh_Was_Set, Old_Refresh);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         LLM.HTTP.Configure (Old_HTTP_Time);
+         Restore_Env
+           ("COYOTE_TEST_NO_CATALOGUE_REFRESH", Refresh_Was_Set, Old_Refresh);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Create_Applies_HTTP_Low_Speed_Settings;
+
+   type Low_Speed_Retry_Case is
+     (Timeout_Then_Success, Timeout_Exhaustion,
+      Timeout_Backoff_Cancelled, Active_Request_Cancelled);
+
+   procedure Run_HTTP_Low_Speed_Retry_Case
+     (Kind : Low_Speed_Retry_Case)
+   is
+      Home : constant String :=
+        "/tmp/coyote_agent_low_speed_retry_" &
+        Natural_Image (Low_Speed_Retry_Case'Pos (Kind));
+      Port : constant Positive :=
+        18_880 + Low_Speed_Retry_Case'Pos (Kind);
+      Agent_Session : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Request_Count : Natural := 0;
+      Aborter_Stopped : Boolean := False;
+
+      task Aborter is
+         entry Start;
+         entry Stop;
+      end Aborter;
+      Retry_Seen : Boolean := False;
+      Retry_Error : Unbounded_String := Null_Unbounded_String;
+      Retry_End_Seen : Boolean := False;
+      Retry_Succeeded : Boolean := False;
+      Retry_Final_Error : Unbounded_String := Null_Unbounded_String;
+      Text_Result : Unbounded_String := Null_Unbounded_String;
+      Saw_Agent_End : Boolean := False;
+      End_Was_Aborted : Boolean := True;
+      Raised : Boolean := False;
+      Failure : Ada.Exceptions.Exception_Occurrence;
+
+      protected Request_Started is
+         procedure Mark;
+         function Is_Started return Boolean;
+      private
+         Seen : Boolean := False;
+      end Request_Started;
+
+      protected body Request_Started is
+         procedure Mark is
+         begin
+            Seen := True;
+         end Mark;
+
+         function Is_Started return Boolean is
+         begin
+            return Seen;
+         end Is_Started;
+      end Request_Started;
+
+      task body Aborter is
+      begin
+         select
+            accept Start;
+         or
+            accept Stop;
+            Aborter_Stopped := True;
+         end select;
+         if not Aborter_Stopped and then Kind = Active_Request_Cancelled then
+            Poll_Request :
+            for Attempt in 1 .. 100 loop
+               select
+                  accept Stop;
+                  Aborter_Stopped := True;
+                  exit Poll_Request;
+               or
+                  delay 0.05;
+               end select;
+               exit when Request_Started.Is_Started;
+            end loop Poll_Request;
+            if Request_Started.Is_Started then
+               delay until Ada.Real_Time.Clock
+                 + Ada.Real_Time.Milliseconds (100);
+               LLM.Agent.Request_Abort (Agent_Session);
+            end if;
+         end if;
+         if not Aborter_Stopped then
+            accept Stop;
+            Aborter_Stopped := True;
+         end if;
+      exception
+         when others =>
+            null;
+      end Aborter;
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+      Fast_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_TEST_FAST_RETRY");
+      Old_Fast : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_TEST_FAST_RETRY", "");
+      Refresh_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists
+          ("COYOTE_TEST_NO_CATALOGUE_REFRESH");
+      Old_Refresh : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "");
+      Old_HTTP_Time : constant Natural :=
+        LLM.HTTP.Configured_Low_Speed_Time_Seconds;
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Auto_Retry_Start_Event then
+            Retry_Seen := True;
+            Retry_Error :=
+              LLM.Events.Auto_Retry_Start_Event (E).Error_Msg;
+            if Kind = Timeout_Backoff_Cancelled then
+               LLM.Agent.Request_Abort (Agent_Session);
+            end if;
+         elsif E in LLM.Events.Auto_Retry_End_Event then
+            declare
+               Event : constant LLM.Events.Auto_Retry_End_Event :=
+                 LLM.Events.Auto_Retry_End_Event (E);
+            begin
+               Retry_End_Seen := True;
+               Retry_Succeeded := Event.Success;
+               Retry_Final_Error := Event.Final_Error;
+            end;
+         elsif E in LLM.Events.Message_Update_Event then
+            declare
+               Event : constant LLM.Events.Message_Update_Event :=
+                 LLM.Events.Message_Update_Event (E);
+            begin
+               if Event.Kind = LLM.Events.Text_Delta then
+                  Append (Text_Result, To_String (Event.Delta_Text));
+               end if;
+            end;
+         elsif E in LLM.Events.Agent_End_Event then
+            Saw_Agent_End := True;
+            End_Was_Aborted := LLM.Events.Agent_End_Event (E).Was_Aborted;
+         end if;
+      end On_Event;
+
+      procedure Handle_Request
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         if Kind = Active_Request_Cancelled then
+            Request_Started.Mark;
+         end if;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         if Kind = Timeout_Then_Success and then Request_Count > 1 then
+            Append (Res.Body_Data, Text_SSE_Payload ("timeout recovered"));
+         else
+            Append (Res.Body_Data, Text_SSE_Payload ("late response"));
+            Res.Body_Delay :=
+              (if Kind = Active_Request_Cancelled then 2.0 else 8.0);
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""httpLowSpeedTimeSeconds"":1}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+      Ada.Environment_Variables.Set ("COYOTE_TEST_FAST_RETRY", "1");
+      Ada.Environment_Variables.Set
+        ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => True);
+      Srv.Bind (Port);
+      Aborter.Start;
+      Assert
+        (LLM.HTTP.Configured_Low_Speed_Time_Seconds = 1,
+         "Create must configure one-second timeout for the HTTP test");
+      begin
+         LLM.Agent.Run_Prompt
+           (S        => Agent_Session,
+            Prompt   => "Exercise the HTTP low-speed timeout",
+            On_Event => On_Event'Access);
+      exception
+         when E : others =>
+            Raised := True;
+            Ada.Exceptions.Save_Occurrence (Failure, E);
+      end;
+      Srv.Stop;
+      Server_Stopped := True;
+      Aborter.Stop;
+      Aborter_Stopped := True;
+
+      case Kind is
+         when Timeout_Then_Success =>
+            Assert
+              (not Raised and then Request_Count = 2 and then Retry_Seen,
+               "a stalled SSE response should time out, retry, and succeed");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (To_String (Retry_Error), "curl code 28") > 0,
+               "retry must follow curl timeout code 28");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (To_String (Text_Result), "timeout recovered") > 0,
+               "the successful retry response text must be emitted");
+            Assert
+              (Saw_Agent_End and then not End_Was_Aborted,
+               "successful retry should end the turn normally");
+            Assert
+              (Retry_End_Seen and then Retry_Succeeded,
+               "successful retry should emit successful Auto_Retry_End_Event");
+         when Timeout_Exhaustion =>
+            Assert
+              (Raised and then Request_Count = 4 and then Retry_Seen,
+               "repeated stalled SSE responses should exhaust four attempts");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (To_String (Retry_Error), "curl code 28") > 0,
+               "retry must follow curl timeout code 28");
+            Assert
+              (Ada.Exceptions.Exception_Identity (Failure)
+                 = LLM.HTTP.Curl_Error'Identity,
+               "exhaustion must raise LLM.HTTP.Curl_Error");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (Ada.Exceptions.Exception_Message (Failure),
+                  "curl code 28") > 0,
+               "exhaustion must preserve curl timeout code 28");
+            Assert
+              (Retry_End_Seen and then not Retry_Succeeded
+                 and then Ada.Strings.Fixed.Index
+                   (To_String (Retry_Final_Error), "curl code 28") > 0,
+               "exhaustion should emit failed Auto_Retry_End_Event " &
+               "with timeout");
+         when Timeout_Backoff_Cancelled =>
+            Assert
+              (not Raised and then Request_Count = 1 and then Retry_Seen,
+               "cancelling during retry backoff should prevent " &
+               "another request");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (To_String (Retry_Error), "curl code 28") > 0,
+               "backoff cancellation must follow curl timeout code 28");
+         when Active_Request_Cancelled =>
+            Assert
+              (not Raised and then Request_Count = 1 and then not Retry_Seen
+                 and then not Retry_End_Seen,
+               "active request cancellation should not retry");
+            Assert
+              (Saw_Agent_End and then End_Was_Aborted,
+               "active request cancellation should emit an aborted " &
+               "Agent_End_Event");
+      end case;
+
+      LLM.HTTP.Configure (Old_HTTP_Time);
+      Restore_Env ("COYOTE_TEST_NO_CATALOGUE_REFRESH", Refresh_Was_Set,
+                   Old_Refresh);
+      Restore_Env ("COYOTE_TEST_FAST_RETRY", Fast_Was_Set, Old_Fast);
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         LLM.HTTP.Configure (Old_HTTP_Time);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error =>
+                  null;
+            end;
+            Server_Stopped := True;
+         end if;
+         if not Aborter_Stopped then
+            begin
+               Aborter.Stop;
+            exception
+               when Tasking_Error =>
+                  null;
+            end;
+            Aborter_Stopped := True;
+         end if;
+         Restore_Env ("COYOTE_TEST_NO_CATALOGUE_REFRESH", Refresh_Was_Set,
+                      Old_Refresh);
+         Restore_Env ("COYOTE_TEST_FAST_RETRY", Fast_Was_Set, Old_Fast);
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Run_HTTP_Low_Speed_Retry_Case;
+
+   procedure Test_HTTP_Low_Speed_Timeout_Retry_Succeeds
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_HTTP_Low_Speed_Retry_Case (Timeout_Then_Success);
+   end Test_HTTP_Low_Speed_Timeout_Retry_Succeeds;
+
+   procedure Test_HTTP_Low_Speed_Timeout_Retry_Exhausts
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_HTTP_Low_Speed_Retry_Case (Timeout_Exhaustion);
+   end Test_HTTP_Low_Speed_Timeout_Retry_Exhausts;
+
+   procedure Test_HTTP_Low_Speed_Timeout_Retry_Can_Be_Cancelled
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_HTTP_Low_Speed_Retry_Case (Timeout_Backoff_Cancelled);
+   end Test_HTTP_Low_Speed_Timeout_Retry_Can_Be_Cancelled;
+
+   procedure Test_HTTP_Low_Speed_Active_Request_Can_Be_Cancelled
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_HTTP_Low_Speed_Retry_Case (Active_Request_Cancelled);
+   end Test_HTTP_Low_Speed_Active_Request_Can_Be_Cancelled;
 
    procedure Test_Auto_Retry_On_HTTP_500_Then_Success (T : in out Test) is
       pragma Unreferenced (T);
@@ -6943,6 +7370,31 @@ package body LLM_Agent_Tests is
             LLM_Agent_Tests
               .Test_Unknown_Tool_Becomes_Error_And_Agent_Continues'
               Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent applies persistent HTTP low-speed settings on Create",
+            LLM_Agent_Tests.Test_Create_Applies_HTTP_Low_Speed_Settings'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent retries stalled SSE and succeeds after timeout",
+            LLM_Agent_Tests.Test_HTTP_Low_Speed_Timeout_Retry_Succeeds'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent exhausts retries after repeated HTTP low-speed timeouts",
+            LLM_Agent_Tests.Test_HTTP_Low_Speed_Timeout_Retry_Exhausts'
+              Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent cancels during HTTP low-speed retry backoff",
+            LLM_Agent_Tests
+              .Test_HTTP_Low_Speed_Timeout_Retry_Can_Be_Cancelled'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent cancels an active stalled HTTP request",
+            LLM_Agent_Tests
+              .Test_HTTP_Low_Speed_Active_Request_Can_Be_Cancelled'Access));
       Result.Add_Test
         (LLM_Agent_Caller.Create
            ("LLM.Agent retries HTTP 500 errors and succeeds on retry",

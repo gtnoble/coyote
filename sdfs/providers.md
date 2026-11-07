@@ -12,6 +12,28 @@
 
 ---
 
+## 2026-11-07 — Restore settings-to-HTTP wiring (PCR-126)
+
+`LLM.Agent.Create` now applies `httpLowSpeedTimeSeconds` before catalogue
+refresh for all frontends. This corrects an unapplied policy, not a new curl
+mechanism: the internal default was zero despite a settings default of 30.
+Each request snapshots the protected process-wide value. Preferences remain
+new-session defaults; existing requests and children are not reconfigured.
+
+The one-byte-per-second threshold, 0–300-second setting and zero-disable
+behavior are unchanged. Curl code 28 uses the existing four-attempt retry
+policy with 2/4/8-second backoffs; cancellation stays non-retryable. There is
+no total streaming deadline or semantic-progress watchdog. HTTP callbacks
+run synchronously, so this policy cannot preempt a blocked application callback.
+
+Five new agent cases and the offline Plain/RPC lifecycle harness pass; the
+full Xvfb suite passes 1068/1068, zero failures/errors, 138.877699 s cumulative.
+The lifecycle harness also exposed and now checks the unstarted Plain control
+monitor's shutdown correction. See
+[retained evidence](../plan/evidence/http-timeout-2026-11-07/README.md).
+No live-provider or interactive GUI qualification, installation, or release
+was performed. Developer/agent review is not independent user acceptance.
+
 ## Design Rationale
 
 ### AUnit provider-suite hierarchy (2026-09-05)

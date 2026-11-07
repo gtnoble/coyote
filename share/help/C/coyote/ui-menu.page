@@ -7,4 +7,10 @@
   <title>Main Menu</title>
   <p>The main menu provides access to file and session operations, editing commands, view settings, agent controls, persistent options, and Help. The top-level order is File, Edit, View, Agent, Options, Help. Under Options, Sandbox Profiles... opens the reusable modeless manager; Agent → Sandbox Profile... remains the quick active-session chooser.</p>
   <p>Choose <link xref="send-prompt">Send a Prompt</link> for the main interaction task, or <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for keyboard access.</p>
+  <section id="http-timeout">
+    <title>HTTP stalled-transfer protection</title>
+    <p>Choose <gui>Options</gui> → <gui>Preferences...</gui> to set the HTTP low-speed timeout for new sessions. The default is 30 seconds and the supported range is 0 to 300 seconds. Set it to 0 to disable this protection. The setting is saved as <code>httpLowSpeedTimeSeconds</code> in <file>~/.coyote/settings.json</file> and also applies when Plain or subagent sessions are created.</p>
+    <p>A transfer below one byte per second for the configured duration can time out. The agent may retry up to three times after the initial attempt, waiting 2, 4, and 8 seconds. This is not a total turn deadline: heartbeat traffic can keep a connection open without useful model progress, and a quiet legitimate response may need a longer timeout.</p>
+    <p>Saving preferences does not change a request already in progress or an already-running subagent. If a turn remains stuck, select the affected agent in the <gui>Agents Window</gui> and use <link xref="agent-controls"><gui>Agent</gui> → <gui>Stop</gui></link> before retrying. Cancellation does not restart the request.</p>
+  </section>
 </page>
