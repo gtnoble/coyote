@@ -1,0 +1,15 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          coyote_math_tests.adb
+coyote_math_tests.adb:617:80: (style) this line is too long: 81 [-gnatyM]
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+Link
+   [link]         coyote_test.adb
+gprbuild: "mock_coyote" up to date
+gprbuild: "auth_test_worker" up to date
+gprbuild: "help_test_worker" up to date
+gprbuild: "notify_test_worker" up to date
+gprbuild: "signal_shutdown_worker" up to date
+Success: Build finished successfully in 2.91 seconds.

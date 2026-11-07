@@ -1,0 +1,610 @@
+diff --git a/src/coyote_math/math_layout.adb b/src/coyote_math/math_layout.adb
+index 063a6f6..3ec1edb 100644
+--- a/src/coyote_math/math_layout.adb
++++ b/src/coyote_math/math_layout.adb
+@@ -2740,6 +2740,16 @@ package body Math_Layout is
+                      Accent.Kind := Path_Command;
+                   end;
+                else
++                  if Value.Accent_Type = Above_Accent and then
++                    Thickness.Advance_Source /= null
++                  then
++                     --  The accent vlist owns the body's trailing margin;
++                     --  include it once, including for nested accents.
++                     Base.Width := Base.Width + Base.Italic;
++                     Base.Italic := 0.0;
++                     Result.Width := Base.Width;
++                     Result.Italic := 0.0;
++                  end if;
+                   if Value.Accent_Type /= Full_Accent and then
+                     not Base.Commands.Is_Empty
+                   then
+@@ -2812,30 +2822,47 @@ package body Math_Layout is
+                         Clearance : constant Long_Float :=
+                           Long_Float'Min (Base.Ascent, X_Height * Scale);
+                         Skew : Long_Float := 0.0;
+-                        Glyph_Count : Natural := 0;
++                        Nucleus_Id : Node_Id := Value.First;
+                      begin
+-                        if not Base.Commands.Is_Empty then
+-                           for Index in Base.Commands.First_Index ..
+-                             Base.Commands.Last_Index
+-                           loop
+-                              Poll (Thickness);
+-                              if Base.Commands (Index).Kind = Glyph_Command then
+-                                 Glyph_Count := Glyph_Count + 1;
+-                                 if Glyph_Count = 1 then
+-                                    Metric := Math_Metrics.Lookup
+-                                      (Base.Commands (Index).Font,
+-                                       Base.Commands (Index).Code_Point);
+-                                    if Metric.Found then
+-                                       Skew := Metric.Skew * Scale;
++                        --  Only singleton groups, colors and flattened font
++                        --  arguments expose a character nucleus. Painted
++                        --  glyph counts also admit smash/enclosure bodies.
++                        Nucleus_Search :
++                        for Step in 1 .. Math_Syntax.Max_Depth loop
++                           Poll (Thickness);
++                           exit Nucleus_Search when Nucleus_Id = No_Node;
++                           declare
++                              Nucleus : constant Math_Syntax.Node :=
++                                Math_Syntax.Element
++                                  (Item, Positive (Nucleus_Id));
++                           begin
++                              case Nucleus.Kind is
++                                 when Row_Node =>
++                                    exit Nucleus_Search when
++                                      Nucleus.First = No_Node;
++                                    exit Nucleus_Search when
++                                      Math_Syntax.Element
++                                        (Item, Positive (Nucleus.First)).Next
++                                          /= No_Node;
++                                    Nucleus_Id := Nucleus.First;
++                                 when Color_Node =>
++                                    Nucleus_Id := Nucleus.First;
++                                 when Glyph_Node =>
++                                    if Nucleus.Class /= Operator_Atom then
++                                       Metric := Math_Metrics.Lookup
++                                         (Nucleus.Font, Nucleus.Code_Point);
++                                       if Metric.Found then
++                                          Skew := Metric.Skew * Scale;
++                                       end if;
+                                     end if;
+-                                 end if;
+-                              end if;
+-                           end loop;
+-                        end if;
+-                        if Glyph_Count = 1 then
+-                           Accent.X := Base.Width / 2.0 + Skew -
+-                             Mark.Width * Scale / 2.0;
+-                        end if;
++                                    exit Nucleus_Search;
++                                 when others =>
++                                    exit Nucleus_Search;
++                              end case;
++                           end;
++                        end loop Nucleus_Search;
++                        Accent.X := Base.Width / 2.0 + Skew -
++                          Mark.Width * Scale / 2.0;
+                         Accent.Y := -Base.Ascent + Clearance -
+                           Mark.Descent * Scale;
+                         Result.Ascent := Long_Float'Max
+diff --git a/test/src/coyote_math_tests.adb b/test/src/coyote_math_tests.adb
+index 434a0bd..9dfc536 100644
+--- a/test/src/coyote_math_tests.adb
++++ b/test/src/coyote_math_tests.adb
+@@ -793,7 +793,46 @@ package body Coyote_Math_Tests is
+       Overline_Y : Long_Float := 0.0;
+       Saw_Mark : Boolean := False;
+       Saw_Wide_Hat_Path : Boolean := False;
++
++      procedure Check_Skew (Source : String; Shifty : Boolean) is
++         Base : constant Box := Build (Parse (Source));
++         Accented : constant Box := Build (Parse ("\dot{" & Source & "}"));
++         Mark : constant Math_Metrics.Glyph_Metric :=
++           Math_Metrics.Lookup (Main_Regular, 16#02D9#);
++         Nucleus : constant Math_Metrics.Glyph_Metric :=
++           Math_Metrics.Lookup (Math_Italic, Character'Pos ('T'));
++         Expected_X : constant Long_Float :=
++           (Base.Width - Mark.Width) / 2.0 +
++           (if Shifty then Nucleus.Skew else 0.0);
++         Found : Boolean := False;
++      begin
++         Assert (Base.Valid and then Accented.Valid,
++                 "skew fixture lays out: " & Source);
++         Assert (Nucleus.Skew > 0.0, "skew control must be nonzero");
++         --  The outer accent is appended after all commands of its body.
++         for C of reverse Accented.Commands loop
++            if C.Kind = Glyph_Command and then C.Code_Point = 16#02D9# then
++               Assert (abs (C.X - Expected_X) < 1.0E-9,
++                       "syntax-sensitive outer accent skew: " & Source);
++               Found := True;
++               exit;
++            end if;
++         end loop;
++         Assert (Found, "outer dot retained: " & Source);
++      end Check_Skew;
+    begin
++      Check_Skew ("T", True);
++      Check_Skew ("{{T}}", True);
++      Check_Skew ("\textcolor{red}{T}", True);
++      Check_Skew ("\mathnormal{T}", True);
++      Check_Skew ("TT", False);
++      Check_Skew ("\textcolor{red}{TT}", False);
++      Check_Skew ("\dot{T}", False);
++      Check_Skew ("\overline{T}", False);
++      Check_Skew ("\smash{T}", False);
++      Check_Skew ("\cancel{T}", False);
++      Check_Skew ("\phantom{T}", False);
++      Check_Skew ("\rule{1em}{.1em}", False);
+       Assert (Glyph_Accent.Valid and then Group_Accent.Valid,
+               "accented script expressions lay out");
+       for C of Glyph_Accent.Commands loop
+diff --git a/test/tools/math_raster_probe.adb b/test/tools/math_raster_probe.adb
+index 43b0c62..c07d8d4 100644
+--- a/test/tools/math_raster_probe.adb
++++ b/test/tools/math_raster_probe.adb
+@@ -228,6 +228,107 @@ begin
+          Math_Model.Typewriter_Regular, 32, 24.0);
+       Check (Advance = 13.0, "native typewriter-space advance at 24px is 13");
+    end;
++   declare
++      use Ada.Strings.Unbounded;
++      type Skew_Case is record
++         Source : Unbounded_String;
++         Shifty : Boolean;
++      end record;
++      Cases : constant array (Positive range <>) of Skew_Case :=
++        ((To_Unbounded_String ("T"), True),
++         (To_Unbounded_String ("{{T}}"), True),
++         (To_Unbounded_String ("\textcolor{red}{T}"), True),
++         (To_Unbounded_String ("\mathnormal{T}"), True),
++         (To_Unbounded_String ("TT"), False),
++         (To_Unbounded_String ("\textcolor{red}{TT}"), False),
++         (To_Unbounded_String ("\dot{T}"), False),
++         (To_Unbounded_String ("\overline{T}"), False),
++         (To_Unbounded_String ("\smash{T}"), False),
++         (To_Unbounded_String ("\cancel{T}"), False),
++         (To_Unbounded_String ("\phantom{T}"), False),
++         (To_Unbounded_String ("\rule{1em}{.1em}"), False));
++      Sizes : constant array (Positive range <>) of Natural :=
++        (12, 16, 20, 24, 32, 48);
++   begin
++      for Size of Sizes loop
++         declare
++            Settings : constant Math_Layout.Layout_Settings :=
++              (Pixel_Em => Long_Float (Size),
++               Advance_Source => Fonts'Unchecked_Access, others => <>);
++            Base : constant Math_Layout.Box := Math_Layout.Build
++              (Math_Syntax.Parse ("T"), Math_Layout.Text_Style, Settings);
++            Below : constant Math_Layout.Box := Math_Layout.Build
++              (Math_Syntax.Parse ("\c{T}"), Math_Layout.Text_Style,
++               Settings);
++            Full : constant Math_Layout.Box := Math_Layout.Build
++              (Math_Syntax.Parse ("\textcircled{T}"),
++               Math_Layout.Text_Style, Settings);
++            Circle : constant Math_Metrics.Glyph_Metric :=
++              Math_Metrics.Lookup (Math_Model.Main_Regular, 16#25EF#);
++            Found : Boolean := False;
++         begin
++            for Command of Below.Commands loop
++               if Command.Code_Point = 16#00B8# then
++                  Found := abs (Command.X -
++                    ((Base.Width - Command.Width) / 2.0 + Base.Italic))
++                      < 1.0E-9;
++               end if;
++            end loop;
++            Check (Base.Italic > 0.0 and then Below.Valid and then Found
++              and then abs (Below.Width - Base.Width) < 1.0E-9,
++              "below accent retains prior margin placement" &
++              Natural'Image (Size));
++            Check (Full.Valid and then abs (Full.Width -
++              Long_Float'Max (Base.Width, Circle.Width)) < 1.0E-9,
++              "full accent retains prior width" & Natural'Image (Size));
++         end;
++         for Sample of Cases loop
++            declare
++               Settings : constant Math_Layout.Layout_Settings :=
++                 (Pixel_Em => Long_Float (Size),
++                  Advance_Source => Fonts'Unchecked_Access, others => <>);
++               Source : constant String := To_String (Sample.Source);
++               Base : constant Math_Layout.Box := Math_Layout.Build
++                 (Math_Syntax.Parse (Source), Math_Layout.Text_Style,
++                  Settings);
++               Accented : constant Math_Layout.Box := Math_Layout.Build
++                 (Math_Syntax.Parse ("\dot{" & Source & "}"),
++                  Math_Layout.Text_Style, Settings);
++               Mark : constant Math_Metrics.Glyph_Metric :=
++                 Math_Metrics.Lookup (Math_Model.Main_Regular, 16#02D9#);
++               Nucleus : constant Math_Metrics.Glyph_Metric :=
++                 Math_Metrics.Lookup
++                   (Math_Model.Math_Italic, Character'Pos ('T'));
++               Expected_Width : constant Long_Float :=
++                 Base.Width + Base.Italic;
++               Expected_X : constant Long_Float :=
++                 (Expected_Width - Mark.Width) / 2.0 +
++                 (if Sample.Shifty then Nucleus.Skew else 0.0);
++               Found : Boolean := False;
++               Positioned : Boolean := False;
++            begin
++               for Command of reverse Accented.Commands loop
++                  if Command.Kind = Math_Layout.Glyph_Command and then
++                    Command.Code_Point = 16#02D9#
++                  then
++                     Found := True;
++                     Positioned := abs (Command.X - Expected_X) < 1.0E-9;
++                     exit;
++                  end if;
++               end loop;
++               Check
++                 (Base.Valid and then Accented.Valid and then
++                  abs (Accented.Width - Expected_Width) < 1.0E-9 and then
++                  abs Accented.Italic < 1.0E-9,
++                  "measured ordinary accent owns body margin " & Source &
++                  Natural'Image (Size));
++               Check (Found and then Positioned,
++                 "measured ordinary accent centers with syntax skew " &
++                 Source & Natural'Image (Size));
++            end;
++         end loop;
++      end loop;
++   end;
+    declare
+       use Ada.Strings.Unbounded;
+       Accents : constant array (Positive range <>) of Unbounded_String :=
+diff --git a/test/fixtures/math-compatibility/accent-skew-manifest.json b/test/fixtures/math-compatibility/accent-skew-manifest.json
+new file mode 100644
+index 0000000..2fa00d9
+--- /dev/null
++++ b/test/fixtures/math-compatibility/accent-skew-manifest.json
+@@ -0,0 +1,350 @@
++{
++  "schema": "coyote.math-browser-pilot.v1",
++  "reference": {
++    "name": "KaTeX",
++    "version": "0.16.22",
++    "archiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
++    "bundleSha256": "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33"
++  },
++  "render": {
++    "viewportContentWidth": 800,
++    "fontSizePx": 24,
++    "deviceScaleFactor": 1,
++    "background": "transparent",
++    "options": {
++      "throwOnError": true,
++      "trust": false,
++      "strict": "warn",
++      "maxSize": 100,
++      "maxExpand": 1000
++    }
++  },
++  "cases": [
++    {
++      "id": "x",
++      "source": "x",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "frac-x-y",
++      "source": "\\frac{x}{y}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "heatbalance-first-term",
++      "source": "\\dot{Q}_{\\mathrm{in}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "vcenter-tall-fraction",
++      "source": "\\vcenter{\\frac{a}{b}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "verb-punctuation",
++      "source": "\\verb|a%{b}#^_\\\\|",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "verb-star-spaces",
++      "source": "\\verb*|a b|",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "pmb-glyph",
++      "source": "\\pmb{g}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "pmb-relation",
++      "source": "a\\pmb{=}b",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "pmb-vector",
++      "source": "\\pmb{\\frac{a}{b}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "verb-punctuation-12px",
++      "source": "\\verb|a%{b}#^_\\\\|",
++      "displayMode": false,
++      "emPixels": 12
++    },
++    {
++      "id": "verb-punctuation-16px",
++      "source": "\\verb|a%{b}#^_\\\\|",
++      "displayMode": false,
++      "emPixels": 16
++    },
++    {
++      "id": "verb-punctuation-20px",
++      "source": "\\verb|a%{b}#^_\\\\|",
++      "displayMode": false,
++      "emPixels": 20
++    },
++    {
++      "id": "verb-punctuation-32px",
++      "source": "\\verb|a%{b}#^_\\\\|",
++      "displayMode": false,
++      "emPixels": 32
++    },
++    {
++      "id": "verb-punctuation-48px",
++      "source": "\\verb|a%{b}#^_\\\\|",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "verb-star-spaces-12px",
++      "source": "\\verb*|a b|",
++      "displayMode": false,
++      "emPixels": 12
++    },
++    {
++      "id": "verb-star-spaces-16px",
++      "source": "\\verb*|a b|",
++      "displayMode": false,
++      "emPixels": 16
++    },
++    {
++      "id": "verb-star-spaces-20px",
++      "source": "\\verb*|a b|",
++      "displayMode": false,
++      "emPixels": 20
++    },
++    {
++      "id": "verb-star-spaces-32px",
++      "source": "\\verb*|a b|",
++      "displayMode": false,
++      "emPixels": 32
++    },
++    {
++      "id": "verb-star-spaces-48px",
++      "source": "\\verb*|a b|",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "text-cedilla",
++      "source": "\\text{\\c{c}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "text-circled-r",
++      "source": "\\text{\\textcircled{R}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "widecheck-long",
++      "source": "\\widecheck{abcdef}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "utilde-long",
++      "source": "\\utilde{abcdef}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "phase-x",
++      "source": "\\phase{x}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "angle-abc",
++      "source": "\\angl{ABC}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "cd-canonical-2x2",
++      "source": "\\begin{CD} A @>>> B \\\\ @VVV @VVV \\\\ C @>>> D \\end{CD}",
++      "displayMode": true,
++      "emPixels": 24
++    },
++    {
++      "id": "newline-two-lines",
++      "source": "x\\\\y",
++      "displayMode": false,
++      "emPixels": 24,
++      "expectedLineBreak": true
++    },
++    {
++      "id": "newline-extra-margin",
++      "source": "x\\\\[.5em]y",
++      "displayMode": false,
++      "emPixels": 24,
++      "expectedLineBreak": true,
++      "expectedExtraMarginEm": 0.5,
++      "marginSemantics": "\\\\[ consumes the optional dimension; this is not \\newline[.5em], because KaTeX expands \\newline to \\\\\\relax before scanning the option."
++    },
++    {
++      "id": "newline-macro-literal-brackets",
++      "source": "x\\newline[.5em]y",
++      "displayMode": false,
++      "emPixels": 24,
++      "expectedLineBreak": true,
++      "expectedLiteralText": "[.5em]",
++      "semanticsNote": "KaTeX \\newline expands to \\\\\\relax; the following bracket text is ordinary input."
++    },
++    {
++      "id": "accent-skew-plain-24",
++      "source": "\\dot{T}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-plain-48",
++      "source": "\\dot{T}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-group-24",
++      "source": "\\dot{{{T}}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-group-48",
++      "source": "\\dot{{{T}}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-color-24",
++      "source": "\\dot{\\textcolor{red}{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-color-48",
++      "source": "\\dot{\\textcolor{red}{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-font-24",
++      "source": "\\dot{\\mathnormal{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-font-48",
++      "source": "\\dot{\\mathnormal{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-multi-24",
++      "source": "\\dot{TT}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-multi-48",
++      "source": "\\dot{TT}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-color-multi-24",
++      "source": "\\dot{\\textcolor{red}{TT}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-color-multi-48",
++      "source": "\\dot{\\textcolor{red}{TT}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-nested-24",
++      "source": "\\dot{\\dot{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-nested-48",
++      "source": "\\dot{\\dot{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-overline-24",
++      "source": "\\dot{\\overline{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-overline-48",
++      "source": "\\dot{\\overline{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-smash-24",
++      "source": "\\dot{\\smash{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-smash-48",
++      "source": "\\dot{\\smash{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-cancel-24",
++      "source": "\\dot{\\cancel{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-cancel-48",
++      "source": "\\dot{\\cancel{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-phantom-24",
++      "source": "\\dot{\\phantom{T}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-phantom-48",
++      "source": "\\dot{\\phantom{T}}",
++      "displayMode": false,
++      "emPixels": 48
++    },
++    {
++      "id": "accent-skew-rule-24",
++      "source": "\\dot{\\rule{1em}{.1em}}",
++      "displayMode": false,
++      "emPixels": 24
++    },
++    {
++      "id": "accent-skew-rule-48",
++      "source": "\\dot{\\rule{1em}{.1em}}",
++      "displayMode": false,
++      "emPixels": 48
++    }
++  ],
++  "scope": "Supplemental ordinary-accent skew corpus: unchanged 29-case pilot plus 24 syntax-sensitive accent cases at 24/48 px per em. No full accent parity or acceptance claim."
++}

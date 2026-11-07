@@ -164,6 +164,12 @@ repeat 29/29. Incremental root/test development builds pass. Evidence is retaine
 under `plan/evidence/native-math-2026-11-06-accent-width/` and report §11.6;
 this does not reconcile failed repeats or establish parity/acceptance. Valgrind
 was not rerun and its existing lifecycle failure remains open.
+The 2026-11-07 ordinary-accent continuation passes final raster 363/363,
+geometry 235/235 and full suite 1063/1063 (82.909971 s cumulative). Original
+images pass 29/29 twice; expanded images improve 31/53 to 49/53 and repeat
+49/53, retaining overline-vertical and cancel-mask failures at 24/48 px. See
+report §11.7 and `plan/evidence/native-math-2026-11-07-accent-skew/`. This is
+scoped developer evidence, not parity, resource qualification or acceptance.
 
 Current implementation and checkpoint evidence, including focused probes,
 coverage counts and open qualification gates, are recorded in coordinator-owned

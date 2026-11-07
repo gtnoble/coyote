@@ -2181,3 +2181,21 @@ evidence, implementation patch and hashes are under
 Developer/agent review is not independent acceptance. Remaining accent behavior,
 60 callable gaps, inline GTK work, whole-job budgets, deadlines, font/lifecycle
 and human qualification remain open. PCR-125 remains OPEN; no release or commit.
+
+
+## 2026-11-07 — Ordinary-accent syntax skew and measured span (PCR-125)
+
+Replaced painted-glyph-count skew inference with a bounded syntax nucleus walk
+for ordinary accents. Measured above accents consume the body italic margin
+once for width and centering; nested accents do not reapply it. Below/full and
+unmeasured branches preserve prior behavior. Review caught an intermediate
+below/full regression, resolved by above-only gating and six-size guards.
+
+Final raster 363/363; final development builds and full Xvfb suite 1063/1063
+(82.909971 s cumulative); geometry 235/235. Expanded image baseline 31/53 improves
+to 49/53 and repeats identically; original29 pass both baseline and final, with
+separate final pilot/repeat29/29. Four overline-vertical/cancel-mask failures
+remain. Thresholds unchanged. Evidence and limitations: report §11.7 and
+`plan/evidence/native-math-2026-11-07-accent-skew/`. Valgrind/resource/GTK/callable
+and human acceptance gates remain open; developer/agent review is not independent
+acceptance. PCR-125 OPEN, feature NOT COMPLETE; no release or commit.

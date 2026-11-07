@@ -1,0 +1,358 @@
+ok reject missing font directory
+ok typewriter normalized em width remains 0.525
+# native typewriter-space em= 12 x_advance= 6.00000000000000E+00
+ok native advance positive at scale 12
+# native typewriter-space em= 16 x_advance= 8.00000000000000E+00
+ok native advance positive at scale 16
+# native typewriter-space em= 20 x_advance= 1.10000000000000E+01
+ok native advance positive at scale 20
+# native typewriter-space em= 24 x_advance= 1.30000000000000E+01
+ok native advance positive at scale 24
+# native typewriter-space em= 32 x_advance= 1.70000000000000E+01
+ok native advance positive at scale 32
+# native typewriter-space em= 48 x_advance= 2.50000000000000E+01
+ok native advance positive at scale 48
+ok native typewriter-space advance at 24px is 13
+not ok measured ordinary accent owns body margin T 12
+not ok measured ordinary accent centers with syntax skew T 12
+not ok measured ordinary accent owns body margin {{T}} 12
+not ok measured ordinary accent centers with syntax skew {{T}} 12
+not ok measured ordinary accent owns body margin \textcolor{red}{T} 12
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{T} 12
+not ok measured ordinary accent owns body margin \mathnormal{T} 12
+not ok measured ordinary accent centers with syntax skew \mathnormal{T} 12
+not ok measured ordinary accent owns body margin TT 12
+not ok measured ordinary accent centers with syntax skew TT 12
+not ok measured ordinary accent owns body margin \textcolor{red}{TT} 12
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{TT} 12
+not ok measured ordinary accent owns body margin \dot{T} 12
+not ok measured ordinary accent centers with syntax skew \dot{T} 12
+not ok measured ordinary accent owns body margin \overline{T} 12
+not ok measured ordinary accent centers with syntax skew \overline{T} 12
+not ok measured ordinary accent owns body margin \smash{T} 12
+not ok measured ordinary accent centers with syntax skew \smash{T} 12
+not ok measured ordinary accent owns body margin \cancel{T} 12
+not ok measured ordinary accent centers with syntax skew \cancel{T} 12
+not ok measured ordinary accent owns body margin \phantom{T} 12
+not ok measured ordinary accent centers with syntax skew \phantom{T} 12
+ok measured ordinary accent owns body margin \rule{1em}{.1em} 12
+ok measured ordinary accent centers with syntax skew \rule{1em}{.1em} 12
+not ok measured ordinary accent owns body margin T 16
+not ok measured ordinary accent centers with syntax skew T 16
+not ok measured ordinary accent owns body margin {{T}} 16
+not ok measured ordinary accent centers with syntax skew {{T}} 16
+not ok measured ordinary accent owns body margin \textcolor{red}{T} 16
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{T} 16
+not ok measured ordinary accent owns body margin \mathnormal{T} 16
+not ok measured ordinary accent centers with syntax skew \mathnormal{T} 16
+not ok measured ordinary accent owns body margin TT 16
+not ok measured ordinary accent centers with syntax skew TT 16
+not ok measured ordinary accent owns body margin \textcolor{red}{TT} 16
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{TT} 16
+not ok measured ordinary accent owns body margin \dot{T} 16
+not ok measured ordinary accent centers with syntax skew \dot{T} 16
+not ok measured ordinary accent owns body margin \overline{T} 16
+not ok measured ordinary accent centers with syntax skew \overline{T} 16
+not ok measured ordinary accent owns body margin \smash{T} 16
+not ok measured ordinary accent centers with syntax skew \smash{T} 16
+not ok measured ordinary accent owns body margin \cancel{T} 16
+not ok measured ordinary accent centers with syntax skew \cancel{T} 16
+not ok measured ordinary accent owns body margin \phantom{T} 16
+not ok measured ordinary accent centers with syntax skew \phantom{T} 16
+ok measured ordinary accent owns body margin \rule{1em}{.1em} 16
+ok measured ordinary accent centers with syntax skew \rule{1em}{.1em} 16
+not ok measured ordinary accent owns body margin T 20
+not ok measured ordinary accent centers with syntax skew T 20
+not ok measured ordinary accent owns body margin {{T}} 20
+not ok measured ordinary accent centers with syntax skew {{T}} 20
+not ok measured ordinary accent owns body margin \textcolor{red}{T} 20
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{T} 20
+not ok measured ordinary accent owns body margin \mathnormal{T} 20
+not ok measured ordinary accent centers with syntax skew \mathnormal{T} 20
+not ok measured ordinary accent owns body margin TT 20
+not ok measured ordinary accent centers with syntax skew TT 20
+not ok measured ordinary accent owns body margin \textcolor{red}{TT} 20
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{TT} 20
+not ok measured ordinary accent owns body margin \dot{T} 20
+not ok measured ordinary accent centers with syntax skew \dot{T} 20
+not ok measured ordinary accent owns body margin \overline{T} 20
+not ok measured ordinary accent centers with syntax skew \overline{T} 20
+not ok measured ordinary accent owns body margin \smash{T} 20
+not ok measured ordinary accent centers with syntax skew \smash{T} 20
+not ok measured ordinary accent owns body margin \cancel{T} 20
+not ok measured ordinary accent centers with syntax skew \cancel{T} 20
+not ok measured ordinary accent owns body margin \phantom{T} 20
+not ok measured ordinary accent centers with syntax skew \phantom{T} 20
+ok measured ordinary accent owns body margin \rule{1em}{.1em} 20
+ok measured ordinary accent centers with syntax skew \rule{1em}{.1em} 20
+not ok measured ordinary accent owns body margin T 24
+not ok measured ordinary accent centers with syntax skew T 24
+not ok measured ordinary accent owns body margin {{T}} 24
+not ok measured ordinary accent centers with syntax skew {{T}} 24
+not ok measured ordinary accent owns body margin \textcolor{red}{T} 24
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{T} 24
+not ok measured ordinary accent owns body margin \mathnormal{T} 24
+not ok measured ordinary accent centers with syntax skew \mathnormal{T} 24
+not ok measured ordinary accent owns body margin TT 24
+not ok measured ordinary accent centers with syntax skew TT 24
+not ok measured ordinary accent owns body margin \textcolor{red}{TT} 24
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{TT} 24
+not ok measured ordinary accent owns body margin \dot{T} 24
+not ok measured ordinary accent centers with syntax skew \dot{T} 24
+not ok measured ordinary accent owns body margin \overline{T} 24
+not ok measured ordinary accent centers with syntax skew \overline{T} 24
+not ok measured ordinary accent owns body margin \smash{T} 24
+not ok measured ordinary accent centers with syntax skew \smash{T} 24
+not ok measured ordinary accent owns body margin \cancel{T} 24
+not ok measured ordinary accent centers with syntax skew \cancel{T} 24
+not ok measured ordinary accent owns body margin \phantom{T} 24
+not ok measured ordinary accent centers with syntax skew \phantom{T} 24
+ok measured ordinary accent owns body margin \rule{1em}{.1em} 24
+ok measured ordinary accent centers with syntax skew \rule{1em}{.1em} 24
+not ok measured ordinary accent owns body margin T 32
+not ok measured ordinary accent centers with syntax skew T 32
+not ok measured ordinary accent owns body margin {{T}} 32
+not ok measured ordinary accent centers with syntax skew {{T}} 32
+not ok measured ordinary accent owns body margin \textcolor{red}{T} 32
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{T} 32
+not ok measured ordinary accent owns body margin \mathnormal{T} 32
+not ok measured ordinary accent centers with syntax skew \mathnormal{T} 32
+not ok measured ordinary accent owns body margin TT 32
+not ok measured ordinary accent centers with syntax skew TT 32
+not ok measured ordinary accent owns body margin \textcolor{red}{TT} 32
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{TT} 32
+not ok measured ordinary accent owns body margin \dot{T} 32
+not ok measured ordinary accent centers with syntax skew \dot{T} 32
+not ok measured ordinary accent owns body margin \overline{T} 32
+not ok measured ordinary accent centers with syntax skew \overline{T} 32
+not ok measured ordinary accent owns body margin \smash{T} 32
+not ok measured ordinary accent centers with syntax skew \smash{T} 32
+not ok measured ordinary accent owns body margin \cancel{T} 32
+not ok measured ordinary accent centers with syntax skew \cancel{T} 32
+not ok measured ordinary accent owns body margin \phantom{T} 32
+not ok measured ordinary accent centers with syntax skew \phantom{T} 32
+ok measured ordinary accent owns body margin \rule{1em}{.1em} 32
+ok measured ordinary accent centers with syntax skew \rule{1em}{.1em} 32
+not ok measured ordinary accent owns body margin T 48
+not ok measured ordinary accent centers with syntax skew T 48
+not ok measured ordinary accent owns body margin {{T}} 48
+not ok measured ordinary accent centers with syntax skew {{T}} 48
+not ok measured ordinary accent owns body margin \textcolor{red}{T} 48
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{T} 48
+not ok measured ordinary accent owns body margin \mathnormal{T} 48
+not ok measured ordinary accent centers with syntax skew \mathnormal{T} 48
+not ok measured ordinary accent owns body margin TT 48
+not ok measured ordinary accent centers with syntax skew TT 48
+not ok measured ordinary accent owns body margin \textcolor{red}{TT} 48
+not ok measured ordinary accent centers with syntax skew \textcolor{red}{TT} 48
+not ok measured ordinary accent owns body margin \dot{T} 48
+not ok measured ordinary accent centers with syntax skew \dot{T} 48
+not ok measured ordinary accent owns body margin \overline{T} 48
+not ok measured ordinary accent centers with syntax skew \overline{T} 48
+not ok measured ordinary accent owns body margin \smash{T} 48
+not ok measured ordinary accent centers with syntax skew \smash{T} 48
+not ok measured ordinary accent owns body margin \cancel{T} 48
+not ok measured ordinary accent centers with syntax skew \cancel{T} 48
+not ok measured ordinary accent owns body margin \phantom{T} 48
+not ok measured ordinary accent centers with syntax skew \phantom{T} 48
+ok measured ordinary accent owns body margin \rule{1em}{.1em} 48
+ok measured ordinary accent centers with syntax skew \rule{1em}{.1em} 48
+ok measured stretchy accent spans body utilde abcdef 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcdef 1.20000000000000E+01
+ok measured stretchy accent spans body utilde abcdef 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcdef 1.60000000000000E+01
+ok measured stretchy accent spans body utilde abcdef 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcdef 2.00000000000000E+01
+ok measured stretchy accent spans body utilde abcdef 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcdef 2.40000000000000E+01
+ok measured stretchy accent spans body utilde abcdef 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcdef 3.20000000000000E+01
+ok measured stretchy accent spans body utilde abcdef 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcdef 4.80000000000000E+01
+ok measured stretchy accent spans body utilde abcde 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcde 1.20000000000000E+01
+ok measured stretchy accent spans body utilde abcde 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcde 1.60000000000000E+01
+ok measured stretchy accent spans body utilde abcde 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcde 2.00000000000000E+01
+ok measured stretchy accent spans body utilde abcde 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcde 2.40000000000000E+01
+ok measured stretchy accent spans body utilde abcde 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcde 3.20000000000000E+01
+ok measured stretchy accent spans body utilde abcde 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body utilde abcde 4.80000000000000E+01
+ok measured stretchy accent spans body widetilde abcdef 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcdef 1.20000000000000E+01
+ok measured stretchy accent spans body widetilde abcdef 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcdef 1.60000000000000E+01
+ok measured stretchy accent spans body widetilde abcdef 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcdef 2.00000000000000E+01
+ok measured stretchy accent spans body widetilde abcdef 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcdef 2.40000000000000E+01
+ok measured stretchy accent spans body widetilde abcdef 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcdef 3.20000000000000E+01
+ok measured stretchy accent spans body widetilde abcdef 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcdef 4.80000000000000E+01
+ok measured stretchy accent spans body widetilde abcde 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcde 1.20000000000000E+01
+ok measured stretchy accent spans body widetilde abcde 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcde 1.60000000000000E+01
+ok measured stretchy accent spans body widetilde abcde 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcde 2.00000000000000E+01
+ok measured stretchy accent spans body widetilde abcde 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcde 2.40000000000000E+01
+ok measured stretchy accent spans body widetilde abcde 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcde 3.20000000000000E+01
+ok measured stretchy accent spans body widetilde abcde 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widetilde abcde 4.80000000000000E+01
+ok measured stretchy accent spans body widehat abcdef 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcdef 1.20000000000000E+01
+ok measured stretchy accent spans body widehat abcdef 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcdef 1.60000000000000E+01
+ok measured stretchy accent spans body widehat abcdef 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcdef 2.00000000000000E+01
+ok measured stretchy accent spans body widehat abcdef 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcdef 2.40000000000000E+01
+ok measured stretchy accent spans body widehat abcdef 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcdef 3.20000000000000E+01
+ok measured stretchy accent spans body widehat abcdef 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcdef 4.80000000000000E+01
+ok measured stretchy accent spans body widehat abcde 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcde 1.20000000000000E+01
+ok measured stretchy accent spans body widehat abcde 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcde 1.60000000000000E+01
+ok measured stretchy accent spans body widehat abcde 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcde 2.00000000000000E+01
+ok measured stretchy accent spans body widehat abcde 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcde 2.40000000000000E+01
+ok measured stretchy accent spans body widehat abcde 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcde 3.20000000000000E+01
+ok measured stretchy accent spans body widehat abcde 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widehat abcde 4.80000000000000E+01
+ok measured stretchy accent spans body widecheck abcdef 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcdef 1.20000000000000E+01
+ok measured stretchy accent spans body widecheck abcdef 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcdef 1.60000000000000E+01
+ok measured stretchy accent spans body widecheck abcdef 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcdef 2.00000000000000E+01
+ok measured stretchy accent spans body widecheck abcdef 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcdef 2.40000000000000E+01
+ok measured stretchy accent spans body widecheck abcdef 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcdef 3.20000000000000E+01
+ok measured stretchy accent spans body widecheck abcdef 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcdef 4.80000000000000E+01
+ok measured stretchy accent spans body widecheck abcde 1.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcde 1.20000000000000E+01
+ok measured stretchy accent spans body widecheck abcde 1.60000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcde 1.60000000000000E+01
+ok measured stretchy accent spans body widecheck abcde 2.00000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcde 2.00000000000000E+01
+ok measured stretchy accent spans body widecheck abcde 2.40000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcde 2.40000000000000E+01
+ok measured stretchy accent spans body widecheck abcde 3.20000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcde 3.20000000000000E+01
+ok measured stretchy accent spans body widecheck abcde 4.80000000000000E+01
+ok stretchy accent geometry scales from unmeasured body widecheck abcde 4.80000000000000E+01
+ok font load polls before native font work
+ok registered symbol resolves pinned fallback metrics
+ok registered symbol selects exact AMS face
+ok registered symbol paints from pinned fallback face
+ok Pango shapes actual Latin source sequence Ś
+ok Pango shapes actual Latin source sequence Ś
+ok strict text fallback parses Ж
+ok fallback layout valid Ж
+ok layout command preserves text Ж
+ok native raster ink Ж
+ok strict text fallback parses Ա
+ok fallback layout valid Ա
+ok layout command preserves text Ա
+ok native raster ink Ա
+ok strict text fallback parses क
+ok fallback layout valid क
+ok layout command preserves text क
+ok native raster ink क
+ok strict text fallback parses ა
+ok fallback layout valid ა
+ok layout command preserves text ა
+ok native raster ink ა
+ok strict text fallback parses 中
+ok fallback layout valid 中
+ok layout command preserves text 中
+ok native raster ink 中
+ok strict text fallback parses 한
+ok fallback layout valid 한
+ok layout command preserves text 한
+ok native raster ink 한
+ok strict text fallback parses Ł
+ok fallback layout valid Ł
+ok layout command preserves text Ł
+ok native raster ink Ł
+ok strict text fallback parses क्ष
+ok fallback layout valid क्ष
+ok layout command preserves text क्ष
+ok native raster ink क्ष
+ok shaping polls cancellation before native calls
+ok shaping rejects malformed UTF-8
+ok Pango advances normalize across requested 12/24/48 pixel em sizes
+ok Devanagari conjunct text shapes
+ok parse representative formula
+ok full width positive
+ok full height positive
+ok stride includes each pixel
+ok row data is owned stride
+ok full render background alpha is zero
+ok full render contains foreground ink
+ok render output hash nonzero
+ok colorbox layouts are valid
+ok opaque red colorbox background pixel is present
+ok opaque blue fcolorbox border pixel is present
+ok box painting preserves configured foreground on glyph and sibling
+ok translucent shadow preserves source color and alpha
+ok build poor-man bold glyph
+ok poor-man bold shadow changes glyph pixels
+ok shadow reserves right overflow pixels
+ok shadow reserves bottom overflow pixels
+ok shadow ink is retained outside logical bounds
+ok shadowed whole tile matches full render
+ok reject invalid glyph shadow offset
+ok whole viewport matches full render
+ok tile background alpha is zero
+ok tile render contains foreground ink
+ok tile top-left aligned
+ok tile horizontal origin
+ok tile vertical origin
+ok tile combined origin
+ok two concurrent independent render tasks
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok worker deterministic render
+ok reject zero em scale
+ok reject excessive em scale
+ok fractional width and overflow ceil combined to 8192
+ok fractional height and overflow ceil combined to 4096
+ok reject combined full width above 8192
+ok reject combined full height above 4096
+ok reject out-of-range color
+ok reject oversized tile
+ok reject invalid layout
+ok transparent background is clear
+ok painter partial draw propagates cancellation
+ok painter polls cancellation during a multi-segment path
+ok raster copy deadline propagates
+ok full width within cap
+ok full height within cap
+ok pixel access is repeatable
+# assertions= 351 failures= 132

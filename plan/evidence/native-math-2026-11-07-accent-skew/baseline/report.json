@@ -1,0 +1,6881 @@
+{
+  "schema": "coyote.math-image-report.v1",
+  "manifest": "/home/gtnoble/Projects/coyote/coyote/test/fixtures/math-compatibility/accent-skew-manifest.json",
+  "scope": "pinned KaTeX 0.16.22 Chromium PNG versus native Math_Raster; pilot only",
+  "caseCount": 53,
+  "emPixelsByCase": {
+    "x": 24,
+    "frac-x-y": 24,
+    "heatbalance-first-term": 24,
+    "vcenter-tall-fraction": 24,
+    "verb-punctuation": 24,
+    "verb-star-spaces": 24,
+    "pmb-glyph": 24,
+    "pmb-relation": 24,
+    "pmb-vector": 24,
+    "verb-punctuation-12px": 12,
+    "verb-punctuation-16px": 16,
+    "verb-punctuation-20px": 20,
+    "verb-punctuation-32px": 32,
+    "verb-punctuation-48px": 48,
+    "verb-star-spaces-12px": 12,
+    "verb-star-spaces-16px": 16,
+    "verb-star-spaces-20px": 20,
+    "verb-star-spaces-32px": 32,
+    "verb-star-spaces-48px": 48,
+    "text-cedilla": 24,
+    "text-circled-r": 24,
+    "widecheck-long": 24,
+    "utilde-long": 24,
+    "phase-x": 24,
+    "angle-abc": 24,
+    "cd-canonical-2x2": 24,
+    "newline-two-lines": 24,
+    "newline-extra-margin": 24,
+    "newline-macro-literal-brackets": 24,
+    "accent-skew-plain-24": 24,
+    "accent-skew-plain-48": 48,
+    "accent-skew-group-24": 24,
+    "accent-skew-group-48": 48,
+    "accent-skew-color-24": 24,
+    "accent-skew-color-48": 48,
+    "accent-skew-font-24": 24,
+    "accent-skew-font-48": 48,
+    "accent-skew-multi-24": 24,
+    "accent-skew-multi-48": 48,
+    "accent-skew-color-multi-24": 24,
+    "accent-skew-color-multi-48": 48,
+    "accent-skew-nested-24": 24,
+    "accent-skew-nested-48": 48,
+    "accent-skew-overline-24": 24,
+    "accent-skew-overline-48": 48,
+    "accent-skew-smash-24": 24,
+    "accent-skew-smash-48": 48,
+    "accent-skew-cancel-24": 24,
+    "accent-skew-cancel-48": 48,
+    "accent-skew-phantom-24": 24,
+    "accent-skew-phantom-48": 48,
+    "accent-skew-rule-24": 24,
+    "accent-skew-rule-48": 48
+  },
+  "thresholds": {
+    "dimensionDeltaPx": 1,
+    "baselineDeltaEm": 0.01,
+    "maskCoverage": 0.99,
+    "alphaThreshold": 0.1,
+    "colorChannelDelta": 2
+  },
+  "provenance": {
+    "katexVersion": "0.16.22",
+    "archiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
+    "bundleSha256": "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33",
+    "verifiedFilesHash": "3e71d9db460b0d544a2aba0302db7aeee592ba88a08d457ec6e7860cf302cffc",
+    "verifiedFiles": [
+      [
+        "dist/fonts/KaTeX_AMS-Regular.ttf",
+        "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13"
+      ],
+      [
+        "dist/fonts/KaTeX_AMS-Regular.woff",
+        "30da91e84c893f875e252689faebdc590b2871145e8adc7f9a9d4dbd8ce0b251"
+      ],
+      [
+        "dist/fonts/KaTeX_AMS-Regular.woff2",
+        "0cdd387c9590a1a9f9794560022dbb59654a7d86f187aa0c81495ad42d3a7308"
+      ],
+      [
+        "dist/fonts/KaTeX_Caligraphic-Bold.ttf",
+        "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268"
+      ],
+      [
+        "dist/fonts/KaTeX_Caligraphic-Bold.woff",
+        "1ae6bd7475590e97e7f145a89e09ccde322f7a6bc0b91607b1c8b8ee28290fed"
+      ],
+      [
+        "dist/fonts/KaTeX_Caligraphic-Bold.woff2",
+        "de7701e42cf1f4cf0b766c03fb27977207eee2f4fd5d76fa82188406da43ea4c"
+      ],
+      [
+        "dist/fonts/KaTeX_Caligraphic-Regular.ttf",
+        "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7"
+      ],
+      [
+        "dist/fonts/KaTeX_Caligraphic-Regular.woff",
+        "3398dd02302557a793f2863f88e02d96ce10df2abffa07c8e9fa90775116e65c"
+      ],
+      [
+        "dist/fonts/KaTeX_Caligraphic-Regular.woff2",
+        "5d53e70ad607c2352162dec9e0923fb54ecdafaccbf604cd8dcf7d00facb989b"
+      ],
+      [
+        "dist/fonts/KaTeX_Fraktur-Bold.ttf",
+        "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1"
+      ],
+      [
+        "dist/fonts/KaTeX_Fraktur-Bold.woff",
+        "9be7ceb88004ab8ad124082246fbfcca4091e36385d4ec6ed1df67375dad50fb"
+      ],
+      [
+        "dist/fonts/KaTeX_Fraktur-Bold.woff2",
+        "74444efd593c005e3f4573b44524704c0af0a937fe911cca9e94068d0d140d3f"
+      ],
+      [
+        "dist/fonts/KaTeX_Fraktur-Regular.ttf",
+        "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3"
+      ],
+      [
+        "dist/fonts/KaTeX_Fraktur-Regular.woff",
+        "5e28753be717dac97f559f49bc10be9cf3c124ddcabda6659d11cb68febc6463"
+      ],
+      [
+        "dist/fonts/KaTeX_Fraktur-Regular.woff2",
+        "51814d270d06ff0255dba0799994fa4d8c84d11f09951d47595f4abb1f3602dc"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Bold.ttf",
+        "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Bold.woff",
+        "c76c5d696297d51b9cb1639c7da4334f0e7dec81b42b11213b5e25ef671bb822"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Bold.woff2",
+        "0f60d1b897938ec918c8ce073092411baf9438f6739465693ff18b0f9d20b021"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-BoldItalic.ttf",
+        "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-BoldItalic.woff",
+        "a6f7ec0d846ac7ad975adb8959c37ed49b94acbc4ae436db9ce9e20287e4a64c"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-BoldItalic.woff2",
+        "99cd42a3c072d918f2f44984a807cf7aa16e13545fd0875fc07c6c65f99e715b"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Italic.ttf",
+        "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Italic.woff",
+        "f1d6ef86f3b11a528bd5185199bd2443ecb2b0dead96d88674b5a2c12be24bdf"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Italic.woff2",
+        "97479ca6cce906abc961ecac96faa5f9ca2e61b8e7670d475826bcdee9a7c267"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Regular.ttf",
+        "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Regular.woff",
+        "c6368d87e8a1a3a5d337623d83d8dc4b868f242a9ad476237d6f8d1e0f168cdc"
+      ],
+      [
+        "dist/fonts/KaTeX_Main-Regular.woff2",
+        "c2342cd8b869e01752a9321dc17213fc40d4d04c79688c1d43f2cf316abd7866"
+      ],
+      [
+        "dist/fonts/KaTeX_Math-BoldItalic.ttf",
+        "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5"
+      ],
+      [
+        "dist/fonts/KaTeX_Math-BoldItalic.woff",
+        "850c0af5c2238497febaf5e461d880bf458c341f42f4f330f1b1ab5698b1998e"
+      ],
+      [
+        "dist/fonts/KaTeX_Math-BoldItalic.woff2",
+        "dc47344dbb6cb5b655c8460d561f4df5f501b90c804ad3c6cec65fe322351ab1"
+      ],
+      [
+        "dist/fonts/KaTeX_Math-Italic.ttf",
+        "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a"
+      ],
+      [
+        "dist/fonts/KaTeX_Math-Italic.woff",
+        "8a8d244581371912b8f3f5a23e2437cb2a59cd9bcaebb0346e722c05737a2571"
+      ],
+      [
+        "dist/fonts/KaTeX_Math-Italic.woff2",
+        "7af58c5ec8f132a2ddde9027c6d7814decce4d3b822a11192a42a20e2e973264"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Bold.ttf",
+        "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Bold.woff",
+        "ece03cfd83e22c212cdef66feb8442d25a083beb988db3f1883f3f9738d750ba"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Bold.woff2",
+        "e99ae51144bf1232efcc1bfe5add36262c6866b0faab24fa75740e1b98577a62"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Italic.ttf",
+        "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Italic.woff",
+        "91ee67500cc0129aa0ace3ac5c61ff1692102f0f31d02b69347fba35dcb75bf2"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Italic.woff2",
+        "00b26ac825e2095056396e0553b8ac26d3f8ad158c3826e28b4c45b385c4714a"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Regular.ttf",
+        "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Regular.woff",
+        "11e4dc8a6471ff6d6ee561d53d10fde8f7489e798257ff449c5d37c197435605"
+      ],
+      [
+        "dist/fonts/KaTeX_SansSerif-Regular.woff2",
+        "68e8c73ef42afd3ccec58bf0fba302cce448938e7fc020a5e31f8a952eee1342"
+      ],
+      [
+        "dist/fonts/KaTeX_Script-Regular.ttf",
+        "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67"
+      ],
+      [
+        "dist/fonts/KaTeX_Script-Regular.woff",
+        "d96cdf2b3bdd4d64a8fd5f74a4c467f123a8a73931cd435889f08ffaf9bf947a"
+      ],
+      [
+        "dist/fonts/KaTeX_Script-Regular.woff2",
+        "036d4e95149b69ff9bcc0cd55771efeb25ffa3947293e69acd78d5ac328c684b"
+      ],
+      [
+        "dist/fonts/KaTeX_Size1-Regular.ttf",
+        "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b"
+      ],
+      [
+        "dist/fonts/KaTeX_Size1-Regular.woff",
+        "c943cc986384f59e86bea5fd7dc50a9c4dfe567a7c05eb40d6790720dead97c9"
+      ],
+      [
+        "dist/fonts/KaTeX_Size1-Regular.woff2",
+        "6b47c40166b6dbe21a5dfca7718413f2147fd2399be1ba605d8ad39cedf25dfe"
+      ],
+      [
+        "dist/fonts/KaTeX_Size2-Regular.ttf",
+        "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b"
+      ],
+      [
+        "dist/fonts/KaTeX_Size2-Regular.woff",
+        "2014c523c3210bcc166648c4d4cc57f05b747df07a24277bf71c51e67dc79e3d"
+      ],
+      [
+        "dist/fonts/KaTeX_Size2-Regular.woff2",
+        "d04c54219f9eaec6d4d4fd42dfb28785975a4794d6b2fc71e566b9cd6db842dd"
+      ],
+      [
+        "dist/fonts/KaTeX_Size3-Regular.ttf",
+        "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082"
+      ],
+      [
+        "dist/fonts/KaTeX_Size3-Regular.woff",
+        "6ab6b62e9b62dae2c00dd90f791bd10950be0ecc3490d7d6045f51c2e8fe0949"
+      ],
+      [
+        "dist/fonts/KaTeX_Size3-Regular.woff2",
+        "73d591271b1604960cb10bb90fee021670af7297017e0e98480b332d11f51995"
+      ],
+      [
+        "dist/fonts/KaTeX_Size4-Regular.ttf",
+        "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877"
+      ],
+      [
+        "dist/fonts/KaTeX_Size4-Regular.woff",
+        "99f9c6750b489c9462bf04900bd3f939df9b829339daaaaa99ef5495cdddea58"
+      ],
+      [
+        "dist/fonts/KaTeX_Size4-Regular.woff2",
+        "a4af7d414440a1c1790825cfb700cf9cf43b0f2c4b04f0ebc523011ad9853ec0"
+      ],
+      [
+        "dist/fonts/KaTeX_Typewriter-Regular.ttf",
+        "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa"
+      ],
+      [
+        "dist/fonts/KaTeX_Typewriter-Regular.woff",
+        "e14fed02b1aba7ce9f5afd5844b5d0321b22351febc720e0de8b8723527609f7"
+      ],
+      [
+        "dist/fonts/KaTeX_Typewriter-Regular.woff2",
+        "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b"
+      ],
+      [
+        "dist/katex.css",
+        "009f1e58806819e90d02e90ffecafa988a3ee4b54418f8cab70f4f2cbf8ce2d8"
+      ],
+      [
+        "dist/katex.js",
+        "8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33"
+      ],
+      [
+        "package.json",
+        "bd6430ca96592a055393a1ce980925162da3d40cd0231813d41ef0c56daacd91"
+      ]
+    ]
+  },
+  "summary": {
+    "pass": 31,
+    "fail": 22,
+    "blocked": 0
+  },
+  "negativeControl": {
+    "id": "wrong-origin-and-shifted-baseline-negative-controls",
+    "status": "pass",
+    "expected": "reject omitted base, wrong origin, and shifted baseline",
+    "omittedBase": {
+      "id": "pmb-relation-omitted-last-base-negative-control",
+      "status": "pass",
+      "expected": "reject omitted last direct base by logical dimension threshold",
+      "actual": "fail",
+      "omittedLastBaseWidthPx": 45.3125,
+      "fullUnionWidthPx": 55.3125,
+      "dimensionDeltaPx": [
+        10.0208333333333,
+        0.010310000000000485
+      ],
+      "dimensionLimitPx": 1
+    },
+    "originActual": "fail",
+    "baselineActual": "fail"
+  },
+  "cases": [
+    {
+      "id": "x",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            11
+          ],
+          "nativeLogical": [
+            14.0,
+            10.33344
+          ],
+          "browserRasterCanvas": [
+            26,
+            35
+          ],
+          "browserLogical": [
+            14.0,
+            10.328125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.0053149999999995146
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 5,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            11
+          ],
+          "nativeLogical": [
+            14.0,
+            10.33344
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.3281,
+          "deltaEm": 0.00022250000000001435,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/x.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/x.png"
+    },
+    {
+      "id": "frac-x-y",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            16,
+            29
+          ],
+          "nativeLogical": [
+            15.76,
+            28.236
+          ],
+          "browserRasterCanvas": [
+            28,
+            53
+          ],
+          "browserLogical": [
+            15.75,
+            28.234375
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.009999999999999787,
+            0.0016250000000006537
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.296875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.296875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            16,
+            29
+          ],
+          "nativeLogical": [
+            15.76,
+            28.236
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.689408,
+          "browserPx": 16.688000000000002,
+          "deltaEm": 5.8666666666577307e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.296875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/frac-x-y.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/frac-x-y.png"
+    },
+    {
+      "id": "heatbalance-first-term",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            35,
+            27
+          ],
+          "nativeLogical": [
+            34.2,
+            26.75112
+          ],
+          "browserRasterCanvas": [
+            47,
+            52
+          ],
+          "browserLogical": [
+            34.1875,
+            26.75
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.012500000000002842,
+            0.001120000000000232
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.90625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.90625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            35,
+            27
+          ],
+          "nativeLogical": [
+            34.2,
+            26.75112
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.084400000000002,
+          "deltaEm": 6.666666666562311e-06,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.90625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/heatbalance-first-term.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/heatbalance-first-term.png"
+    },
+    {
+      "id": "vcenter-tall-fraction",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            15,
+            25
+          ],
+          "nativeLogical": [
+            14.76,
+            24.969408
+          ],
+          "browserRasterCanvas": [
+            27,
+            50
+          ],
+          "browserLogical": [
+            14.75,
+            24.96875
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.009999999999999787,
+            0.0006580000000013797
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            28.515625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.515625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            28
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 2,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            15,
+            25
+          ],
+          "nativeLogical": [
+            14.76,
+            24.969408
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 18.484704,
+          "browserPx": 18.484,
+          "deltaEm": 2.9333333333288653e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.515625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/vcenter-tall-fraction.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/vcenter-tall-fraction.png"
+    },
+    {
+      "id": "verb-punctuation",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            130,
+            19
+          ],
+          "nativeLogical": [
+            130.0,
+            18.94992
+          ],
+          "browserRasterCanvas": [
+            142,
+            44
+          ],
+          "browserLogical": [
+            130.0,
+            18.9375
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.012419999999998765
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.34375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.34375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            130,
+            19
+          ],
+          "nativeLogical": [
+            130.0,
+            18.94992
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.66656,
+          "browserPx": 16.655099999999997,
+          "deltaEm": 0.0004775000000001306,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.34375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-punctuation.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-punctuation.png"
+    },
+    {
+      "id": "verb-star-spaces",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            39,
+            18
+          ],
+          "nativeLogical": [
+            39.0,
+            17.33328
+          ],
+          "browserRasterCanvas": [
+            51,
+            42
+          ],
+          "browserLogical": [
+            39.0,
+            17.328125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.005154999999998466
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            32.328125
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.328125
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            32
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 10,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            39,
+            18
+          ],
+          "nativeLogical": [
+            39.0,
+            17.33328
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 14.66664,
+          "browserPx": 14.661699999999996,
+          "deltaEm": 0.00020583333333346054,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.328125
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-star-spaces.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-star-spaces.png"
+    },
+    {
+      "id": "pmb-glyph",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            12,
+            16
+          ],
+          "nativeLogical": [
+            11.0,
+            15.0
+          ],
+          "browserRasterCanvas": [
+            24,
+            40
+          ],
+          "browserLogical": [
+            11.859375,
+            15.0
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.859375,
+            0.0
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.65625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.65625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            1,
+            1
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": true,
+          "nativeOverflowPixels": [
+            1,
+            1
+          ],
+          "nativeRaster": [
+            12,
+            16
+          ],
+          "nativeLogical": [
+            11.0,
+            15.0
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.334400000000002,
+          "deltaEm": 4.000000000011402e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.65625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/pmb-glyph.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/pmb-glyph.png"
+    },
+    {
+      "id": "pmb-relation",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            56,
+            17
+          ],
+          "nativeLogical": [
+            55.3333333333333,
+            16.66656
+          ],
+          "browserRasterCanvas": [
+            68,
+            41
+          ],
+          "browserLogical": [
+            55.3125,
+            16.65625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.020833333333300175,
+            0.010310000000000485
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.34375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.34375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 5,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            56,
+            17
+          ],
+          "nativeLogical": [
+            55.3333333333333,
+            16.66656
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.66656,
+          "browserPx": 16.656225,
+          "deltaEm": 0.0004306250000000548,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.34375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/pmb-relation.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/pmb-relation.png"
+    },
+    {
+      "id": "pmb-vector",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            16,
+            26
+          ],
+          "nativeLogical": [
+            14.76,
+            24.969408
+          ],
+          "browserRasterCanvas": [
+            27,
+            50
+          ],
+          "browserLogical": [
+            14.75,
+            24.96875
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.009999999999999787,
+            0.0006580000000013797
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.296875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.296875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            1,
+            1
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": true,
+          "nativeOverflowPixels": [
+            1,
+            1
+          ],
+          "nativeRaster": [
+            16,
+            26
+          ],
+          "nativeLogical": [
+            14.76,
+            24.969408
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.689408,
+          "browserPx": 16.6888,
+          "deltaEm": 2.533333333332166e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.296875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/pmb-vector.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/pmb-vector.png"
+    },
+    {
+      "id": "verb-punctuation-12px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            60,
+            10
+          ],
+          "nativeLogical": [
+            60.0,
+            9.47496
+          ],
+          "browserRasterCanvas": [
+            72,
+            35
+          ],
+          "browserLogical": [
+            60.0,
+            9.46875
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.006209999999999383
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            14.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            14
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            60,
+            10
+          ],
+          "nativeLogical": [
+            60.0,
+            9.47496
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 8.33328,
+          "browserPx": 8.327549999999999,
+          "deltaEm": 0.0004775000000001306,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-punctuation-12px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-punctuation-12px.png"
+    },
+    {
+      "id": "verb-punctuation-16px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            80,
+            13
+          ],
+          "nativeLogical": [
+            80.0,
+            12.63328
+          ],
+          "browserRasterCanvas": [
+            92,
+            38
+          ],
+          "browserLogical": [
+            80.0,
+            12.625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.008279999999999177
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            18.890625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.890625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            18
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            80,
+            13
+          ],
+          "nativeLogical": [
+            80.0,
+            12.63328
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 11.11104,
+          "browserPx": 11.1034,
+          "deltaEm": 0.00047749999999990855,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.890625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-punctuation-16px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-punctuation-16px.png"
+    },
+    {
+      "id": "verb-punctuation-20px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            110,
+            16
+          ],
+          "nativeLogical": [
+            110.0,
+            15.7916
+          ],
+          "browserRasterCanvas": [
+            122,
+            40
+          ],
+          "browserLogical": [
+            110.0,
+            15.78125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.010350000000000747
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            25.109375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.109375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            25
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            110,
+            16
+          ],
+          "nativeLogical": [
+            110.0,
+            15.7916
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 13.8888,
+          "browserPx": 13.879199999999997,
+          "deltaEm": 0.00048000000000012475,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.109375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-punctuation-20px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-punctuation-20px.png"
+    },
+    {
+      "id": "verb-punctuation-32px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            170,
+            26
+          ],
+          "nativeLogical": [
+            170.0,
+            25.26656
+          ],
+          "browserRasterCanvas": [
+            182,
+            51
+          ],
+          "browserLogical": [
+            170.0,
+            25.265625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.0009349999999983538
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            39.765625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.765625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            39
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            170,
+            26
+          ],
+          "nativeLogical": [
+            170.0,
+            25.26656
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.22208,
+          "browserPx": 22.222400000000007,
+          "deltaEm": 1.0000000000287557e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.765625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-punctuation-32px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-punctuation-32px.png"
+    },
+    {
+      "id": "verb-punctuation-48px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            250,
+            38
+          ],
+          "nativeLogical": [
+            250.0,
+            37.89984
+          ],
+          "browserRasterCanvas": [
+            262,
+            63
+          ],
+          "browserLogical": [
+            250.0,
+            37.890625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.00921499999999753
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            59.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            59
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            250,
+            38
+          ],
+          "nativeLogical": [
+            250.0,
+            37.89984
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 33.33312,
+          "browserPx": 33.3258,
+          "deltaEm": 0.00015249999999999986,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-punctuation-48px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-punctuation-48px.png"
+    },
+    {
+      "id": "verb-star-spaces-12px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            18,
+            9
+          ],
+          "nativeLogical": [
+            18.0,
+            8.66664
+          ],
+          "browserRasterCanvas": [
+            30,
+            34
+          ],
+          "browserLogical": [
+            18.0,
+            8.65625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.010389999999999233
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            15.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            15
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 1,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            18,
+            9
+          ],
+          "nativeLogical": [
+            18.0,
+            8.66664
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 7.33332,
+          "browserPx": 7.3230499999999985,
+          "deltaEm": 0.0008558333333334259,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-star-spaces-12px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-star-spaces-12px.png"
+    },
+    {
+      "id": "verb-star-spaces-16px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            24,
+            12
+          ],
+          "nativeLogical": [
+            24.0,
+            11.55552
+          ],
+          "browserRasterCanvas": [
+            36,
+            36
+          ],
+          "browserLogical": [
+            24.0,
+            11.546875
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.00864499999999957
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            20.21875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.21875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            20
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 8,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            24,
+            12
+          ],
+          "nativeLogical": [
+            24.0,
+            11.55552
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 9.77776,
+          "browserPx": 9.769300000000001,
+          "deltaEm": 0.0005287499999999667,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.21875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-star-spaces-16px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-star-spaces-16px.png"
+    },
+    {
+      "id": "verb-star-spaces-20px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            33,
+            15
+          ],
+          "nativeLogical": [
+            33.0,
+            14.4444
+          ],
+          "browserRasterCanvas": [
+            45,
+            40
+          ],
+          "browserLogical": [
+            33.0,
+            14.4375
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.006899999999999906
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            26.78125
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.78125
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            26
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            33,
+            15
+          ],
+          "nativeLogical": [
+            33.0,
+            14.4444
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 12.2222,
+          "browserPx": 12.215499999999999,
+          "deltaEm": 0.00033500000000010746,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.78125
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-star-spaces-20px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-star-spaces-20px.png"
+    },
+    {
+      "id": "verb-star-spaces-32px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            51,
+            24
+          ],
+          "nativeLogical": [
+            51.0,
+            23.11104
+          ],
+          "browserRasterCanvas": [
+            63,
+            48
+          ],
+          "browserLogical": [
+            51.0,
+            23.109375
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.0016649999999991394
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            42.4375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.4375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            42
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 14,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            51,
+            24
+          ],
+          "nativeLogical": [
+            51.0,
+            23.11104
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 19.55552,
+          "browserPx": 19.554199999999994,
+          "deltaEm": 4.1250000000214726e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.4375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-star-spaces-32px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-star-spaces-32px.png"
+    },
+    {
+      "id": "verb-star-spaces-48px",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            75,
+            35
+          ],
+          "nativeLogical": [
+            75.0,
+            34.66656
+          ],
+          "browserRasterCanvas": [
+            87,
+            60
+          ],
+          "browserLogical": [
+            75.0,
+            34.65625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.010309999999996933
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            63.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            63
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 21,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            75,
+            35
+          ],
+          "nativeLogical": [
+            75.0,
+            34.66656
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 29.33328,
+          "browserPx": 29.323399999999992,
+          "deltaEm": 0.00020583333333346054,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/verb-star-spaces-48px.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/verb-star-spaces-48px.png"
+    },
+    {
+      "id": "text-cedilla",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            11,
+            15
+          ],
+          "nativeLogical": [
+            11.0,
+            14.4168
+          ],
+          "browserRasterCanvas": [
+            23,
+            40
+          ],
+          "browserLogical": [
+            11.0,
+            14.40625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.010550000000000281
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            11,
+            15
+          ],
+          "nativeLogical": [
+            11.0,
+            14.4168
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.323799999999999,
+          "deltaEm": 0.00040166666666670753,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/text-cedilla.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/text-cedilla.png"
+    },
+    {
+      "id": "text-circled-r",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            24,
+            27
+          ],
+          "nativeLogical": [
+            24.0,
+            21.33312
+          ],
+          "browserRasterCanvas": [
+            36,
+            46
+          ],
+          "browserLogical": [
+            24.0,
+            21.328125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.004995000000000971
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            25.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            5
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            25
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 39,
+          "nativeBeyondLogicalBox": true,
+          "nativeOverflowPixels": [
+            0,
+            5
+          ],
+          "nativeRaster": [
+            24,
+            27
+          ],
+          "nativeLogical": [
+            24.0,
+            21.33312
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 21.33312,
+          "browserPx": 21.3281,
+          "deltaEm": 0.0002091666666667417,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/text-circled-r.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/text-circled-r.png"
+    },
+    {
+      "id": "widecheck-long",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            71,
+            32
+          ],
+          "nativeLogical": [
+            70.58336,
+            31.41312
+          ],
+          "browserRasterCanvas": [
+            83,
+            56
+          ],
+          "browserLogical": [
+            70.578125,
+            31.40625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0052349999999989905,
+            0.006869999999999266
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.0
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.0
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            71,
+            32
+          ],
+          "nativeLogical": [
+            70.58336,
+            31.41312
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 26.74656,
+          "browserPx": 26.7406,
+          "deltaEm": 0.00024833333333325786,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.0
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/widecheck-long.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/widecheck-long.png"
+    },
+    {
+      "id": "utilde-long",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            71,
+            33
+          ],
+          "nativeLogical": [
+            70.58336,
+            32.37312
+          ],
+          "browserRasterCanvas": [
+            83,
+            57
+          ],
+          "browserLogical": [
+            70.578125,
+            32.359375
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0052349999999989905,
+            0.013745000000000118
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.34375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.34375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            71,
+            33
+          ],
+          "nativeLogical": [
+            70.58336,
+            32.37312
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.66656,
+          "browserPx": 16.653800000000004,
+          "deltaEm": 0.000531666666666523,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.34375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/utilde-long.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/utilde-long.png"
+    },
+    {
+      "id": "phase-x",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            24,
+            16
+          ],
+          "nativeLogical": [
+            23.13692,
+            15.39384
+          ],
+          "browserRasterCanvas": [
+            36,
+            41
+          ],
+          "browserLogical": [
+            23.125,
+            15.390625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.01191999999999993,
+            0.003215000000000856
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.65625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.65625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            24,
+            16
+          ],
+          "nativeLogical": [
+            23.13692,
+            15.39384
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.329,
+          "deltaEm": 0.00018499999999995373,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.65625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/phase-x.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/phase-x.png"
+    },
+    {
+      "id": "angle-abc",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            54,
+            27
+          ],
+          "nativeLogical": [
+            53.86672,
+            26.23992
+          ],
+          "browserRasterCanvas": [
+            66,
+            51
+          ],
+          "browserLogical": [
+            53.84375,
+            26.234375
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.022970000000000823,
+            0.005545000000001465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            26.765625
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.765625
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            26
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            54,
+            27
+          ],
+          "nativeLogical": [
+            53.86672,
+            26.23992
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 20.23992,
+          "browserPx": 20.2344,
+          "deltaEm": 0.0002300000000000265,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.765625
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/angle-abc.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/angle-abc.png"
+    },
+    {
+      "id": "cd-canonical-2x2",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            136,
+            127
+          ],
+          "nativeLogical": [
+            135.38344,
+            126.86472
+          ],
+          "browserRasterCanvas": [
+            148,
+            151
+          ],
+          "browserLogical": [
+            135.359375,
+            126.875
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.02406500000000733,
+            0.010279999999994516
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.0
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.0
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            136,
+            127
+          ],
+          "nativeLogical": [
+            135.38344,
+            126.86472
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 88.54836,
+          "browserPx": 88.547,
+          "deltaEm": 5.6666666666889874e-05,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9990583804143126,
+          "browserCoverage": 0.9990393852065321,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.0
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/cd-canonical-2x2.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/cd-canonical-2x2.png"
+    },
+    {
+      "id": "newline-two-lines",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            46
+          ],
+          "nativeLogical": [
+            14.0,
+            45.9
+          ],
+          "browserRasterCanvas": [
+            26,
+            72
+          ],
+          "browserLogical": [
+            14.0,
+            46.78125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.8812500000000014
+          ],
+          "limit": 1
+        },
+        "lineBreak": {
+          "expected": true,
+          "browserBaselinesPx": [
+            46.999975,
+            78.787525
+          ],
+          "nativeInkRowGroups": 2,
+          "browserInkRowGroups": 2
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            46
+          ],
+          "nativeLogical": [
+            14.0,
+            45.9
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.3281,
+          "deltaEm": 0.00022250000000001435,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/newline-two-lines.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/newline-two-lines.png"
+    },
+    {
+      "id": "newline-extra-margin",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            58
+          ],
+          "nativeLogical": [
+            14.0,
+            57.9
+          ],
+          "browserRasterCanvas": [
+            26,
+            84
+          ],
+          "browserLogical": [
+            14.0,
+            58.78125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.8812500000000014
+          ],
+          "limit": 1
+        },
+        "lineBreak": {
+          "expected": true,
+          "browserBaselinesPx": [
+            46.999975,
+            90.787525
+          ],
+          "nativeInkRowGroups": 2,
+          "browserInkRowGroups": 2,
+          "expectedExtraMarginEm": 0.5,
+          "referenceExtraMarginEm": 0.5,
+          "nativeExtraMarginEm": 0.5
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            58
+          ],
+          "nativeLogical": [
+            14.0,
+            57.9
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.3281,
+          "deltaEm": 0.00022250000000001435,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/newline-extra-margin.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/newline-extra-margin.png"
+    },
+    {
+      "id": "newline-macro-literal-brackets",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            77,
+            48
+          ],
+          "nativeLogical": [
+            77.0,
+            47.23344
+          ],
+          "browserRasterCanvas": [
+            90,
+            73
+          ],
+          "browserLogical": [
+            77.859375,
+            48.125
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.859375,
+            0.8915599999999984
+          ],
+          "limit": 1
+        },
+        "literalText": {
+          "expected": "[.5em]",
+          "browserLeafTexts": [
+            "x",
+            "[",
+            ".5",
+            "e",
+            "m",
+            "]",
+            "y"
+          ],
+          "matched": true
+        },
+        "lineBreak": {
+          "expected": true,
+          "browserBaselinesPx": [
+            46.999975,
+            78.796875
+          ],
+          "nativeInkRowGroups": 2,
+          "browserInkRowGroups": 2
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            36.671875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.671875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            36
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            77,
+            48
+          ],
+          "nativeLogical": [
+            77.0,
+            47.23344
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 10.33344,
+          "browserPx": 10.3281,
+          "deltaEm": 0.00022250000000001435,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.671875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/newline-macro-literal-brackets.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/newline-macro-literal-brackets.png"
+    },
+    {
+      "id": "accent-skew-plain-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            30,
+            47
+          ],
+          "browserLogical": [
+            17.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9008264462809917,
+          "browserCoverage": 0.9905660377358491,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-plain-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-plain-24.png"
+    },
+    {
+      "id": "accent-skew-plain-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            47,
+            69
+          ],
+          "browserLogical": [
+            34.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.8422330097087378,
+          "browserCoverage": 0.954954954954955,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-plain-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-plain-48.png"
+    },
+    {
+      "id": "accent-skew-group-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            30,
+            47
+          ],
+          "browserLogical": [
+            17.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9008264462809917,
+          "browserCoverage": 0.9905660377358491,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-group-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-group-24.png"
+    },
+    {
+      "id": "accent-skew-group-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            47,
+            69
+          ],
+          "browserLogical": [
+            34.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.8422330097087378,
+          "browserCoverage": 0.954954954954955,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-group-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-group-48.png"
+    },
+    {
+      "id": "accent-skew-color-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            30,
+            47
+          ],
+          "browserLogical": [
+            17.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.896551724137931,
+          "browserCoverage": 0.9905660377358491,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-color-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-color-24.png"
+    },
+    {
+      "id": "accent-skew-color-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            47,
+            69
+          ],
+          "browserLogical": [
+            34.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.8391959798994975,
+          "browserCoverage": 0.954954954954955,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-color-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-color-48.png"
+    },
+    {
+      "id": "accent-skew-font-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            30,
+            47
+          ],
+          "browserLogical": [
+            17.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9008264462809917,
+          "browserCoverage": 0.9905660377358491,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-font-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-font-24.png"
+    },
+    {
+      "id": "accent-skew-font-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            47,
+            69
+          ],
+          "browserLogical": [
+            34.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.8422330097087378,
+          "browserCoverage": 0.954954954954955,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-font-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-font-48.png"
+    },
+    {
+      "id": "accent-skew-multi-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            23
+          ],
+          "nativeLogical": [
+            28.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            44,
+            47
+          ],
+          "browserLogical": [
+            31.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            23
+          ],
+          "nativeLogical": [
+            28.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9464285714285714,
+          "browserCoverage": 0.9951690821256038,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-multi-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-multi-24.png"
+    },
+    {
+      "id": "accent-skew-multi-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            56,
+            45
+          ],
+          "nativeLogical": [
+            56.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            75,
+            69
+          ],
+          "browserLogical": [
+            62.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            56,
+            45
+          ],
+          "nativeLogical": [
+            56.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9140211640211641,
+          "browserCoverage": 0.9778434268833087,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-multi-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-multi-48.png"
+    },
+    {
+      "id": "accent-skew-color-multi-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            23
+          ],
+          "nativeLogical": [
+            28.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            44,
+            47
+          ],
+          "browserLogical": [
+            31.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            23
+          ],
+          "nativeLogical": [
+            28.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9441860465116279,
+          "browserCoverage": 0.9951690821256038,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-color-multi-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-color-multi-24.png"
+    },
+    {
+      "id": "accent-skew-color-multi-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            56,
+            45
+          ],
+          "nativeLogical": [
+            56.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            75,
+            69
+          ],
+          "browserLogical": [
+            62.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            56,
+            45
+          ],
+          "nativeLogical": [
+            56.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.912568306010929,
+          "browserCoverage": 0.9778434268833087,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-color-multi-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-color-multi-48.png"
+    },
+    {
+      "id": "accent-skew-nested-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            28
+          ],
+          "nativeLogical": [
+            14.0,
+            27.7692
+          ],
+          "browserRasterCanvas": [
+            30,
+            52
+          ],
+          "browserLogical": [
+            17.328125,
+            27.765625
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.003575000000001438
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.0
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.0
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            28
+          ],
+          "nativeLogical": [
+            14.0,
+            27.7692
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 27.7692,
+          "browserPx": 27.7656,
+          "deltaEm": 0.0001500000000000945,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9007633587786259,
+          "browserCoverage": 0.9739130434782609,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.0
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.003575000000001438) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-nested-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-nested-24.png"
+    },
+    {
+      "id": "accent-skew-nested-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            56
+          ],
+          "nativeLogical": [
+            28.0,
+            55.5384
+          ],
+          "browserRasterCanvas": [
+            47,
+            80
+          ],
+          "browserLogical": [
+            34.65625,
+            55.53125
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.007150000000002876
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.0
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.0
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            56
+          ],
+          "nativeLogical": [
+            28.0,
+            55.5384
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 55.5384,
+          "browserPx": 55.5312,
+          "deltaEm": 0.0001500000000000945,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.814317673378076,
+          "browserCoverage": 0.9191374663072777,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.0
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.007150000000002876) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-nested-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-nested-48.png"
+    },
+    {
+      "id": "accent-skew-overline-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            25
+          ],
+          "nativeLogical": [
+            14.0,
+            24.96456
+          ],
+          "browserRasterCanvas": [
+            30,
+            51
+          ],
+          "browserLogical": [
+            17.328125,
+            26.875
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            1.9104400000000012
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.0
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.0
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            25
+          ],
+          "nativeLogical": [
+            14.0,
+            24.96456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 24.96456,
+          "browserPx": 26.875,
+          "deltaEm": 0.07960166666666672,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.7608695652173914,
+          "browserCoverage": 0.9461538461538461,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.0
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 1.9104400000000012) exceeds 1px",
+        "baseline delta 0.079602em exceeds 0.01em",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-overline-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-overline-24.png"
+    },
+    {
+      "id": "accent-skew-overline-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            50
+          ],
+          "nativeLogical": [
+            28.0,
+            49.92912
+          ],
+          "browserRasterCanvas": [
+            47,
+            78
+          ],
+          "browserLogical": [
+            34.65625,
+            53.765625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            3.8365050000000025
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.0
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.0
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            50
+          ],
+          "nativeLogical": [
+            28.0,
+            49.92912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 49.92912,
+          "browserPx": 53.765600000000006,
+          "deltaEm": 0.07992666666666685,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.5950782997762863,
+          "browserCoverage": 0.7469586374695864,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.0
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -12
+          ],
+          "comparisonCanvasShift": [
+            0,
+            12
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 3.8365050000000025) exceeds 1px",
+        "baseline delta 0.079927em exceeds 0.01em",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-overline-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-overline-48.png"
+    },
+    {
+      "id": "accent-skew-smash-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            17
+          ],
+          "nativeLogical": [
+            14.0,
+            16.02864
+          ],
+          "browserRasterCanvas": [
+            30,
+            41
+          ],
+          "browserLogical": [
+            17.328125,
+            16.015625
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.013014999999999333
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.984375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.984375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            17
+          ],
+          "nativeLogical": [
+            14.0,
+            16.02864
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.02864,
+          "browserPx": 16.0156,
+          "deltaEm": 0.0005433333333333401,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.8849557522123894,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.984375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.013014999999999333) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-smash-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-smash-24.png"
+    },
+    {
+      "id": "accent-skew-smash-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            33
+          ],
+          "nativeLogical": [
+            28.0,
+            32.05728
+          ],
+          "browserRasterCanvas": [
+            47,
+            57
+          ],
+          "browserLogical": [
+            34.65625,
+            32.046875
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.010404999999998665
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            60.953125
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.953125
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            60
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            33
+          ],
+          "nativeLogical": [
+            28.0,
+            32.05728
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 32.05728,
+          "browserPx": 32.046899999999994,
+          "deltaEm": 0.00021625000000010294,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.8736842105263158,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.953125
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.010404999999998665) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-smash-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-smash-48.png"
+    },
+    {
+      "id": "accent-skew-cancel-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            20,
+            28
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            30,
+            47
+          ],
+          "browserLogical": [
+            17.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            6,
+            5
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 9,
+          "nativeBeyondLogicalBox": true,
+          "nativeOverflowPixels": [
+            6,
+            5
+          ],
+          "nativeRaster": [
+            20,
+            28
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9530201342281879,
+          "browserCoverage": 0.9090909090909091,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-cancel-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-cancel-24.png"
+    },
+    {
+      "id": "accent-skew-cancel-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            39,
+            55
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            47,
+            69
+          ],
+          "browserLogical": [
+            34.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            11,
+            10
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": true,
+          "browserOverflowPixels": 31,
+          "nativeBeyondLogicalBox": true,
+          "nativeOverflowPixels": [
+            11,
+            10
+          ],
+          "nativeRaster": [
+            39,
+            55
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.9418604651162791,
+          "browserCoverage": 0.8738898756660746,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-cancel-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-cancel-48.png"
+    },
+    {
+      "id": "accent-skew-phantom-24",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "browserRasterCanvas": [
+            30,
+            47
+          ],
+          "browserLogical": [
+            17.328125,
+            22.078125
+          ],
+          "absoluteLogicalDeltaPx": [
+            3.328125,
+            0.0064349999999997465
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            24.921875
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.921875
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            24
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            14,
+            23
+          ],
+          "nativeLogical": [
+            14.0,
+            22.08456
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 22.08456,
+          "browserPx": 22.0781,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 0.9090909090909091,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.921875
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (3.328125, 0.0064349999999997465) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-phantom-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-phantom-24.png"
+    },
+    {
+      "id": "accent-skew-phantom-48",
+      "status": "fail",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "browserRasterCanvas": [
+            47,
+            69
+          ],
+          "browserLogical": [
+            34.65625,
+            44.15625
+          ],
+          "absoluteLogicalDeltaPx": [
+            6.65625,
+            0.012869999999999493
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            48.84375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.84375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            48
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            28,
+            45
+          ],
+          "nativeLogical": [
+            28.0,
+            44.16912
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 44.16912,
+          "browserPx": 44.1562,
+          "deltaEm": 0.0002691666666666907,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 0.4857142857142857,
+          "browserCoverage": 0.53125,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.84375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [
+        "logical dimension delta (6.65625, 0.012869999999999493) exceeds 1px",
+        "bidirectional foreground mask coverage below 0.990"
+      ],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-phantom-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-phantom-48.png"
+    },
+    {
+      "id": "accent-skew-rule-24",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            24,
+            17
+          ],
+          "nativeLogical": [
+            24.0,
+            16.02864
+          ],
+          "browserRasterCanvas": [
+            36,
+            41
+          ],
+          "browserLogical": [
+            24.0,
+            16.015625
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.013014999999999333
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            30.984375
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.984375
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            30
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            24,
+            17
+          ],
+          "nativeLogical": [
+            24.0,
+            16.02864
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 16.02864,
+          "browserPx": 16.0156,
+          "deltaEm": 0.0005433333333333401,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.984375
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-rule-24.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-rule-24.png"
+    },
+    {
+      "id": "accent-skew-rule-48",
+      "status": "pass",
+      "checks": {
+        "dimensions": {
+          "nativeRasterCanvas": [
+            48,
+            33
+          ],
+          "nativeLogical": [
+            48.0,
+            32.05728
+          ],
+          "browserRasterCanvas": [
+            60,
+            57
+          ],
+          "browserLogical": [
+            48.0,
+            32.046875
+          ],
+          "absoluteLogicalDeltaPx": [
+            0.0,
+            0.010404999999998665
+          ],
+          "limit": 1
+        },
+        "origin": {
+          "nativeLogicalOriginInRasterPx": [
+            0,
+            0
+          ],
+          "browserLogicalOriginInScreenshotPx": [
+            0.0,
+            60.953125
+          ],
+          "browserRasterOriginRelativeToLogicalPx": [
+            0.0,
+            -12.953125
+          ],
+          "logicalOriginDeltaAfterExplicitMapping": [
+            0.0,
+            0.0
+          ],
+          "nativeRasterPaddingPx": [
+            0,
+            0
+          ],
+          "browserScreenshotCropOffsetPx": [
+            0,
+            60
+          ],
+          "delta": [
+            0.0,
+            0.0
+          ]
+        },
+        "shadowOverflow": {
+          "paddingPx": 12,
+          "browserInkOutsideLogicalBox": false,
+          "browserOverflowPixels": 0,
+          "nativeBeyondLogicalBox": false,
+          "nativeOverflowPixels": [
+            0,
+            0
+          ],
+          "nativeRaster": [
+            48,
+            33
+          ],
+          "nativeLogical": [
+            48.0,
+            32.05728
+          ],
+          "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation"
+        },
+        "baseline": {
+          "nativePx": 32.05728,
+          "browserPx": 32.046899999999994,
+          "deltaEm": 0.00021625000000010294,
+          "limitEm": 0.01
+        },
+        "foregroundMask": {
+          "thresholdAlpha": 0.1,
+          "symmetricTolerancePx": 1,
+          "nativeCoverage": 1.0,
+          "browserCoverage": 1.0,
+          "minimumCoverage": 0.99,
+          "nativeCanvasOrigin": [
+            0,
+            0
+          ],
+          "browserRasterOriginRelativeToLogical": [
+            0.0,
+            -12.953125
+          ],
+          "browserLogicalOriginPlacement": [
+            0,
+            -13
+          ],
+          "comparisonCanvasShift": [
+            0,
+            13
+          ]
+        },
+        "color": {
+          "expectedRGBA": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "channelTolerance": 2,
+          "nativeAndBrowserCheckedIndependently": true
+        },
+        "componentMapping": "blocked: pixel masks are aggregate; semantic component mapping is reported separately"
+      },
+      "failures": [],
+      "nativePNG": "/tmp/coyote-math-accent-skew/baseline/native/accent-skew-rule-48.png",
+      "browserPNG": "/tmp/coyote-math-accent-skew/baseline/browser/accent-skew-rule-48.png"
+    }
+  ],
+  "componentMapping": "aggregate pixel comparison only; consult component-level differential report for qualified mappings",
+  "acceptance": "raw raster differences are reported; no tolerance fitting or artifact normalization; component acceptance remains separate"
+}

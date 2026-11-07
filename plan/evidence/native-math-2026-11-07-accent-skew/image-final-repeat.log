@@ -1,0 +1,8 @@
+{
+  "summary": {
+    "pass": 49,
+    "fail": 4,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-math-accent-skew/final-repeat/report.json"
+}

@@ -567,8 +567,10 @@ coverage, scoped regression passes, and outcome agreement are not full KaTeX
 parity, resource qualification, or product acceptance. PCR-125 remains open.
 This reconciliation does not authorize additional RD-CTX-01 context caps.
 
-**Current continuation:** §11.6 records a fresh accent-width correction, 29/29 image
-pilot and repeat, 207 raster assertions and a 1063/1063 full suite. Earlier
+**Current continuation:** §11.7 records ordinary-accent skew/span corrections,
+363 raster assertions, 1063/1063 full suite, 29/29 original images and 49/53
+expanded images/repeat with four retained failures. §11.6 is the preceding
+stretchy-accent correction. Earlier
 checkpoint results below remain historical; all other exit gates remain open.
 
 ### 11.1 Evidence authority and availability
@@ -808,3 +810,66 @@ whole-job memory, hard deadlines, GTK/cache guarantees, fallback pins, native
 library lifecycle and independent visual/AT acceptance remain open. Approved
 SRS-MATH v1.0 and D01–D15 are unchanged. PCR-125 remains OPEN and the feature
 **NOT COMPLETE**; no release or commit is made by this continuation.
+
+
+### 11.7 Fresh continuation — ordinary-accent skew and measured span, 2026-11-07
+
+**Scope:** ordinary above-accent placement and width, not full accent parity.
+The new supplemental `accent-skew-manifest.json` retains the unchanged original
+29 cases and adds 24 cases (12 base forms at 24/48 px per em). Baseline is
+**31/53**, zero blocked; the original 29 cases already pass at this baseline.
+Do not confuse that subset with the older §11.6 28/29 undertilde baseline.
+
+**Corrections:** the ordinary accent branch inferred character eligibility from
+painted glyph count, incorrectly skewing one-glyph overline/smash/cancel bodies.
+It now traverses singleton rows and colors to a non-operator glyph, stopping at
+other node kinds, with bounded work-control polling. Font arguments are flattened
+by the existing parser. The shared script `Is_Character_Box` helper is unchanged.
+Measured above accents now consume the trailing body italic margin into width
+and centering exactly once, clearing the transferred correction to avoid nested
+reapplication. Unmeasured widths and below/full accent branches are unchanged.
+Direct pinned-browser DOM measurements establish dot-T origin 7.328125 px and
+smashed-T origin 5.328125 px at 24 px/em; an initial review suggestion to center
+on the uncorrected width was rejected against these measurements. No path data,
+reference pins or comparison threshold changed.
+
+**Regression evidence:** the new unit check fails before correction on
+`\dot{\overline{T}}` and passes afterward. The measured probe before span
+correction records **351 assertions / 132 failures** (after skew-only correction).
+Final strengthened probe passes **363/363**, including 144 added width/position
+checks across 12 bases and six sizes and 12 below/full preservation guards.
+Read-only review caught an intermediate below/full scope regression; the final
+patch restricts margin consumption to above accents and adds those guards.
+
+Final-source results:
+
+- Incremental root/test development builds pass; generated profiles select
+  `development`. Existing warnings remain; no clean-build qualification.
+- Full Xvfb AUnit suite **1063/1063**, zero failures/errors, cumulative
+  **82.909971 s**. An earlier broader intermediate patch also passed 1063/1063
+  in 83.603988 s; only the final run qualifies this scoped regression snapshot.
+  Neither reconciles historical non-math failed repeats.
+- Geometry **235/235** across 13 groups. The additional probe records **280 PASS**
+  on the intermediate patch; it was not rerun after the above-only restriction.
+- Expanded images and final-source repeat **49/53** each, zero blocked, same four
+  failures. Original unchanged pilot separately passes **29/29** twice. Omitted
+  base, displaced-origin and shifted-baseline negative controls pass unchanged.
+- Remaining image failures are `accent-skew-overline-24/48` (height deltas
+  1.91044/3.836505 px, baseline deltas 0.079602/0.079927 em and mask failures)
+  and `accent-skew-cancel-24/48` (mask failures). They are retained as failures,
+  not waived or removed. Overline vertical clearance and cancel stroke geometry
+  remain separate open defects; below/full guards preserve prior behavior,
+  not proof of their reference parity.
+
+**Evidence:** `plan/evidence/native-math-2026-11-07-accent-skew/` retains
+baseline/final/repeat and separate original-pilot reports and PNGs, logs, browser
+positions, exact patch, supplemental manifest, snapshot hashes and checksums.
+Reports' absolute `/tmp` paths are original retrieval identifiers; archived PNGs
+are in the corresponding phase directories. This is a developer snapshot, not a
+frozen desktop/font or whole-product qualification matrix. Valgrind, resource,
+GTK, callable-gap and human visual/AT gates were not rerun or closed.
+
+**Disposition:** the scoped skew/span defects are corrected; expanded images
+still fail four cases. Developer and read-only agent review are not independent
+user acceptance. SRS-MATH v1.0 and D01–D15 unchanged; PCR-125 OPEN and feature
+**NOT COMPLETE**. No release or commit.

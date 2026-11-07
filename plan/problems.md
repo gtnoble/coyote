@@ -4389,3 +4389,22 @@ are historical, not current-source qualification.
   Full accent parity, callable gaps and resource/GUI/font/lifecycle/human
   qualification remain open. Valgrind not rerun; earlier failed suite repeats
   retained. Developer/agent self-review is not user acceptance. No release.
+
+
+### PCR-125 — 2026-11-07 ordinary-accent skew/span correction
+
+- **Category:** Code, Test, Design.
+- **Priority:** 3-Moderate (unchanged parent classification).
+- **Problem:** painted glyph count admits non-character accent bodies for skew;
+  measured ordinary accents omit the body's trailing italic margin from their
+  width and centering. Supplemental baseline fails 22/53 cases.
+- **Action:** bounded syntax nucleus walk; above-only measured margin transfer;
+  preserve below/full behavior with added guards. No new scope or threshold fit.
+- **Verification:** final raster363/363, geometry235/235, development builds and
+  full1063/1063; original images29/29 twice; expanded49/53 twice. Evidence and
+  before failures retained in report §11.7 and its durable archive.
+- **Open defects:** overline24/48 vertical clearance/baseline/mask failures and
+  cancel24/48 mask failures remain in the expanded corpus. Full accent parity,
+  resource/GUI/font/lifecycle/callable/human gates remain open. Valgrind not rerun.
+- **Status:** scoped skew/span defects corrected; PCR-125 OPEN, NOT COMPLETE.
+  Developer/agent self-review is not independent acceptance; no release/commit.

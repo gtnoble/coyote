@@ -793,7 +793,46 @@ package body Coyote_Math_Tests is
       Overline_Y : Long_Float := 0.0;
       Saw_Mark : Boolean := False;
       Saw_Wide_Hat_Path : Boolean := False;
+
+      procedure Check_Skew (Source : String; Shifty : Boolean) is
+         Base : constant Box := Build (Parse (Source));
+         Accented : constant Box := Build (Parse ("\dot{" & Source & "}"));
+         Mark : constant Math_Metrics.Glyph_Metric :=
+           Math_Metrics.Lookup (Main_Regular, 16#02D9#);
+         Nucleus : constant Math_Metrics.Glyph_Metric :=
+           Math_Metrics.Lookup (Math_Italic, Character'Pos ('T'));
+         Expected_X : constant Long_Float :=
+           (Base.Width - Mark.Width) / 2.0 +
+           (if Shifty then Nucleus.Skew else 0.0);
+         Found : Boolean := False;
+      begin
+         Assert (Base.Valid and then Accented.Valid,
+                 "skew fixture lays out: " & Source);
+         Assert (Nucleus.Skew > 0.0, "skew control must be nonzero");
+         --  The outer accent is appended after all commands of its body.
+         for C of reverse Accented.Commands loop
+            if C.Kind = Glyph_Command and then C.Code_Point = 16#02D9# then
+               Assert (abs (C.X - Expected_X) < 1.0E-9,
+                       "syntax-sensitive outer accent skew: " & Source);
+               Found := True;
+               exit;
+            end if;
+         end loop;
+         Assert (Found, "outer dot retained: " & Source);
+      end Check_Skew;
    begin
+      Check_Skew ("T", True);
+      Check_Skew ("{{T}}", True);
+      Check_Skew ("\textcolor{red}{T}", True);
+      Check_Skew ("\mathnormal{T}", True);
+      Check_Skew ("TT", False);
+      Check_Skew ("\textcolor{red}{TT}", False);
+      Check_Skew ("\dot{T}", False);
+      Check_Skew ("\overline{T}", False);
+      Check_Skew ("\smash{T}", False);
+      Check_Skew ("\cancel{T}", False);
+      Check_Skew ("\phantom{T}", False);
+      Check_Skew ("\rule{1em}{.1em}", False);
       Assert (Glyph_Accent.Valid and then Group_Accent.Valid,
               "accented script expressions lay out");
       for C of Glyph_Accent.Commands loop

@@ -2740,6 +2740,16 @@ package body Math_Layout is
                      Accent.Kind := Path_Command;
                   end;
                else
+                  if Value.Accent_Type = Above_Accent and then
+                    Thickness.Advance_Source /= null
+                  then
+                     --  The accent vlist owns the body's trailing margin;
+                     --  include it once, including for nested accents.
+                     Base.Width := Base.Width + Base.Italic;
+                     Base.Italic := 0.0;
+                     Result.Width := Base.Width;
+                     Result.Italic := 0.0;
+                  end if;
                   if Value.Accent_Type /= Full_Accent and then
                     not Base.Commands.Is_Empty
                   then
@@ -2812,30 +2822,47 @@ package body Math_Layout is
                         Clearance : constant Long_Float :=
                           Long_Float'Min (Base.Ascent, X_Height * Scale);
                         Skew : Long_Float := 0.0;
-                        Glyph_Count : Natural := 0;
+                        Nucleus_Id : Node_Id := Value.First;
                      begin
-                        if not Base.Commands.Is_Empty then
-                           for Index in Base.Commands.First_Index ..
-                             Base.Commands.Last_Index
-                           loop
-                              Poll (Thickness);
-                              if Base.Commands (Index).Kind = Glyph_Command then
-                                 Glyph_Count := Glyph_Count + 1;
-                                 if Glyph_Count = 1 then
-                                    Metric := Math_Metrics.Lookup
-                                      (Base.Commands (Index).Font,
-                                       Base.Commands (Index).Code_Point);
-                                    if Metric.Found then
-                                       Skew := Metric.Skew * Scale;
+                        --  Only singleton groups, colors and flattened font
+                        --  arguments expose a character nucleus. Painted
+                        --  glyph counts also admit smash/enclosure bodies.
+                        Nucleus_Search :
+                        for Step in 1 .. Math_Syntax.Max_Depth loop
+                           Poll (Thickness);
+                           exit Nucleus_Search when Nucleus_Id = No_Node;
+                           declare
+                              Nucleus : constant Math_Syntax.Node :=
+                                Math_Syntax.Element
+                                  (Item, Positive (Nucleus_Id));
+                           begin
+                              case Nucleus.Kind is
+                                 when Row_Node =>
+                                    exit Nucleus_Search when
+                                      Nucleus.First = No_Node;
+                                    exit Nucleus_Search when
+                                      Math_Syntax.Element
+                                        (Item, Positive (Nucleus.First)).Next
+                                          /= No_Node;
+                                    Nucleus_Id := Nucleus.First;
+                                 when Color_Node =>
+                                    Nucleus_Id := Nucleus.First;
+                                 when Glyph_Node =>
+                                    if Nucleus.Class /= Operator_Atom then
+                                       Metric := Math_Metrics.Lookup
+                                         (Nucleus.Font, Nucleus.Code_Point);
+                                       if Metric.Found then
+                                          Skew := Metric.Skew * Scale;
+                                       end if;
                                     end if;
-                                 end if;
-                              end if;
-                           end loop;
-                        end if;
-                        if Glyph_Count = 1 then
-                           Accent.X := Base.Width / 2.0 + Skew -
-                             Mark.Width * Scale / 2.0;
-                        end if;
+                                    exit Nucleus_Search;
+                                 when others =>
+                                    exit Nucleus_Search;
+                              end case;
+                           end;
+                        end loop Nucleus_Search;
+                        Accent.X := Base.Width / 2.0 + Skew -
+                          Mark.Width * Scale / 2.0;
                         Accent.Y := -Base.Ascent + Clearance -
                           Mark.Descent * Scale;
                         Result.Ascent := Long_Float'Max

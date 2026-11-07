@@ -230,6 +230,107 @@ begin
    end;
    declare
       use Ada.Strings.Unbounded;
+      type Skew_Case is record
+         Source : Unbounded_String;
+         Shifty : Boolean;
+      end record;
+      Cases : constant array (Positive range <>) of Skew_Case :=
+        ((To_Unbounded_String ("T"), True),
+         (To_Unbounded_String ("{{T}}"), True),
+         (To_Unbounded_String ("\textcolor{red}{T}"), True),
+         (To_Unbounded_String ("\mathnormal{T}"), True),
+         (To_Unbounded_String ("TT"), False),
+         (To_Unbounded_String ("\textcolor{red}{TT}"), False),
+         (To_Unbounded_String ("\dot{T}"), False),
+         (To_Unbounded_String ("\overline{T}"), False),
+         (To_Unbounded_String ("\smash{T}"), False),
+         (To_Unbounded_String ("\cancel{T}"), False),
+         (To_Unbounded_String ("\phantom{T}"), False),
+         (To_Unbounded_String ("\rule{1em}{.1em}"), False));
+      Sizes : constant array (Positive range <>) of Natural :=
+        (12, 16, 20, 24, 32, 48);
+   begin
+      for Size of Sizes loop
+         declare
+            Settings : constant Math_Layout.Layout_Settings :=
+              (Pixel_Em => Long_Float (Size),
+               Advance_Source => Fonts'Unchecked_Access, others => <>);
+            Base : constant Math_Layout.Box := Math_Layout.Build
+              (Math_Syntax.Parse ("T"), Math_Layout.Text_Style, Settings);
+            Below : constant Math_Layout.Box := Math_Layout.Build
+              (Math_Syntax.Parse ("\c{T}"), Math_Layout.Text_Style,
+               Settings);
+            Full : constant Math_Layout.Box := Math_Layout.Build
+              (Math_Syntax.Parse ("\textcircled{T}"),
+               Math_Layout.Text_Style, Settings);
+            Circle : constant Math_Metrics.Glyph_Metric :=
+              Math_Metrics.Lookup (Math_Model.Main_Regular, 16#25EF#);
+            Found : Boolean := False;
+         begin
+            for Command of Below.Commands loop
+               if Command.Code_Point = 16#00B8# then
+                  Found := abs (Command.X -
+                    ((Base.Width - Command.Width) / 2.0 + Base.Italic))
+                      < 1.0E-9;
+               end if;
+            end loop;
+            Check (Base.Italic > 0.0 and then Below.Valid and then Found
+              and then abs (Below.Width - Base.Width) < 1.0E-9,
+              "below accent retains prior margin placement" &
+              Natural'Image (Size));
+            Check (Full.Valid and then abs (Full.Width -
+              Long_Float'Max (Base.Width, Circle.Width)) < 1.0E-9,
+              "full accent retains prior width" & Natural'Image (Size));
+         end;
+         for Sample of Cases loop
+            declare
+               Settings : constant Math_Layout.Layout_Settings :=
+                 (Pixel_Em => Long_Float (Size),
+                  Advance_Source => Fonts'Unchecked_Access, others => <>);
+               Source : constant String := To_String (Sample.Source);
+               Base : constant Math_Layout.Box := Math_Layout.Build
+                 (Math_Syntax.Parse (Source), Math_Layout.Text_Style,
+                  Settings);
+               Accented : constant Math_Layout.Box := Math_Layout.Build
+                 (Math_Syntax.Parse ("\dot{" & Source & "}"),
+                  Math_Layout.Text_Style, Settings);
+               Mark : constant Math_Metrics.Glyph_Metric :=
+                 Math_Metrics.Lookup (Math_Model.Main_Regular, 16#02D9#);
+               Nucleus : constant Math_Metrics.Glyph_Metric :=
+                 Math_Metrics.Lookup
+                   (Math_Model.Math_Italic, Character'Pos ('T'));
+               Expected_Width : constant Long_Float :=
+                 Base.Width + Base.Italic;
+               Expected_X : constant Long_Float :=
+                 (Expected_Width - Mark.Width) / 2.0 +
+                 (if Sample.Shifty then Nucleus.Skew else 0.0);
+               Found : Boolean := False;
+               Positioned : Boolean := False;
+            begin
+               for Command of reverse Accented.Commands loop
+                  if Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = 16#02D9#
+                  then
+                     Found := True;
+                     Positioned := abs (Command.X - Expected_X) < 1.0E-9;
+                     exit;
+                  end if;
+               end loop;
+               Check
+                 (Base.Valid and then Accented.Valid and then
+                  abs (Accented.Width - Expected_Width) < 1.0E-9 and then
+                  abs Accented.Italic < 1.0E-9,
+                  "measured ordinary accent owns body margin " & Source &
+                  Natural'Image (Size));
+               Check (Found and then Positioned,
+                 "measured ordinary accent centers with syntax skew " &
+                 Source & Natural'Image (Size));
+            end;
+         end loop;
+      end loop;
+   end;
+   declare
+      use Ada.Strings.Unbounded;
       Accents : constant array (Positive range <>) of Unbounded_String :=
         (To_Unbounded_String ("utilde"),
          To_Unbounded_String ("widetilde"),

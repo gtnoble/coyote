@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-07",
+  "gitRevision": "6c330037eab6a9ef9855527c07b5720f856981bf",
+  "snapshot": "uncommitted developer snapshot; no release or acceptance",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "toolchain": {
+    "alr": "APPLICATION\nalr version:               2.1.0\nlibalire version:          2.1.0\nsource commit:             2681b313d08224014fa3f5e4f76e9c75347213d2\nsource changes:            clean\ncompilation date:          2025-03-04 10:20:58\ncompiled with version:     14.2.0\n\nCONFIGURATION\nhome folder:               /tmp\nsettings folder:           /home/gtnoble/.config/alire\ncache folder:              /home/gtnoble/.local/share/alire\nvault folder:              /home/gtnoble/.local/share/alire/releases\nbuild folder:              /home/gtnoble/.local/share/alire/builds\ntemp folder:               /run/user/1000\nforce flag:                FALSE\nnon-interactive flag:      FALSE\ncommunity index branch:    stable-1.4.0\ncompatible index versions: ^1.1 & <=1.4.0\nindexes folder:            /home/gtnoble/.config/alire/indexes\nindexes metadata:          OK\nindex #2:                  (community) git+https://github.com/alire-project/alire-index#stable-1.4.0\ntoolchain folder:          /home/gtnoble/.local/share/alire/toolchains\ntoolchain assistant:       disabled\ntool #1 gnat:              gnat_native=15.2.1\ntool #2 gprbuild:          gprbuild=25.0.1\nsystem package manager:    /usr/bin/apt\ndistro detection disabled: FALSE\n\nWORKSPACE\nroot status:               VALID\nroot release:              coyote=0.1.0-dev\nroot load error:           none\nroot folder:               /home/gtnoble/Projects/coyote/coyote\ncurrent folder:            /home/gtnoble/Projects/coyote/coyote\n\nSYSTEM\ndistribution:              UBUNTU\nhost-arch:                 X86_64\nos:                        LINUX\ntarget:                    NATIVE\ntoolchain:                 USER\nword-size:                 BITS_64",
+    "gnat": "GNATLS 15.2.0\nCopyright (C) 1992-2025, Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "gprbuild": "GPRBUILD 25.0.0 (2025-05-16) (x86_64-pc-linux-gnu)\nCopyright (C) 2004-2025, AdaCore\nThis is free software; see the source for copying conditions.\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "node": "v22.13.1",
+    "python": "3.12.3"
+  },
+  "sources": {
+    "src/coyote_math/math_layout.adb": "0f9f6c53dc1c2876bcc1e2f471635275871e5cfaba73c5a27b110a2cf755a53e",
+    "test/src/coyote_math_tests.adb": "5ed4e137b705aa722108432d03aa2762ec128458ba8db88c7f5aa7a7bb2366cf",
+    "test/tools/math_raster_probe.adb": "4e68bd343d1f373b405e76651f7f75e9bcea9b5563a3f1f496689732dc95ca01",
+    "test/fixtures/math-compatibility/accent-skew-manifest.json": "a707b83183ef1d960570241a18337313e983bb2292ea2144e9befb131f08cd1c"
+  },
+  "fonts": {
+    "share/coyote/math/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "share/coyote/math/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "share/coyote/math/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "share/coyote/math/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "share/coyote/math/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "share/coyote/math/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "share/coyote/math/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "share/coyote/math/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "share/coyote/math/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "share/coyote/math/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "share/coyote/math/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "share/coyote/math/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "share/coyote/math/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa"
+  },
+  "executables": {
+    "bin/coyote": "8509aa8359ea41b2a1d1938a5d63aa980802eba72423c18ec9886e87c3a78cef",
+    "test/bin/coyote_test": "7c72a123e840f8639d53ff33a8796d4df118fef9a2fd7ad11029bc6cc2a34c7a",
+    "/tmp/coyote-math-accent-skew/raster/bin/math_raster_probe": "1b2530a730061d40965462d67a6996f65259327ad8deee1100bec9f883f8f0f5",
+    "/tmp/coyote-math-accent-skew/final/build/bin/math_image_export": "1a2c3feaece387a352f38ac3dcdc511acd109447d360cbd5db3d0ce5c6ccb493",
+    "/tmp/coyote-math-continuation-after/build/bin/math_image_export": "d6ad3026729b22b51b87552d642bc2cd6c081d07e13fdcf62d5678f5e375273d"
+  },
+  "oracleArchiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
+  "limits": [
+    "not a frozen desktop manifest; fallback resolution unpinned",
+    "executables and oracle archive not bundled",
+    "Valgrind not rerun"
+  ]
+}

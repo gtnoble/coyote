@@ -109,7 +109,10 @@ This model has two key properties:
   Measured wide-hat/check/tilde and under-tilde paths fit and clip to the
   complete body width including its trailing italic correction; unmeasured
   layouts retain their normalized metric width. Scoped evidence and remaining
-  accent/qualification gaps are recorded in the math report §11.6.
+  accent/qualification gaps are recorded in the math report §11.6–11.7.
+  Ordinary above accents derive skew from singleton syntax nuclei, not painted
+  glyph counts; measured body margins participate in width/centering once.
+  Below/full accent placement and normalized unmeasured widths are preserved.
   Full TeX compatibility is not promised. Bundled KaTeX 0.16.22 fonts carry MIT
   notices under `share/coyote/math/fonts/`.
 - **Session compatibility.** New assistant JSONL records contain no `format` or

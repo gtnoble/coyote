@@ -1,0 +1,11 @@
+FAIL    Coyote.Math lays out accents and operator limits
+
+FAIL Coyote.Math lays out accents and operator limits (in 0.000927 sec.)
+    syntax-sensitive outer accent skew: \overline{T}
+    at coyote_math_tests.adb:815
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 0.000996 sec. seconds

@@ -1,0 +1,53 @@
+{"id": "x", "source": "x", "displayMode": false, "emPixels": 24}
+{"id": "frac-x-y", "source": "\\frac{x}{y}", "displayMode": false, "emPixels": 24}
+{"id": "heatbalance-first-term", "source": "\\dot{Q}_{\\mathrm{in}}", "displayMode": false, "emPixels": 24}
+{"id": "vcenter-tall-fraction", "source": "\\vcenter{\\frac{a}{b}}", "displayMode": false, "emPixels": 24}
+{"id": "verb-punctuation", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false, "emPixels": 24}
+{"id": "verb-star-spaces", "source": "\\verb*|a b|", "displayMode": false, "emPixels": 24}
+{"id": "pmb-glyph", "source": "\\pmb{g}", "displayMode": false, "emPixels": 24}
+{"id": "pmb-relation", "source": "a\\pmb{=}b", "displayMode": false, "emPixels": 24}
+{"id": "pmb-vector", "source": "\\pmb{\\frac{a}{b}}", "displayMode": false, "emPixels": 24}
+{"id": "verb-punctuation-12px", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false, "emPixels": 12}
+{"id": "verb-punctuation-16px", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false, "emPixels": 16}
+{"id": "verb-punctuation-20px", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false, "emPixels": 20}
+{"id": "verb-punctuation-32px", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false, "emPixels": 32}
+{"id": "verb-punctuation-48px", "source": "\\verb|a%{b}#^_\\\\|", "displayMode": false, "emPixels": 48}
+{"id": "verb-star-spaces-12px", "source": "\\verb*|a b|", "displayMode": false, "emPixels": 12}
+{"id": "verb-star-spaces-16px", "source": "\\verb*|a b|", "displayMode": false, "emPixels": 16}
+{"id": "verb-star-spaces-20px", "source": "\\verb*|a b|", "displayMode": false, "emPixels": 20}
+{"id": "verb-star-spaces-32px", "source": "\\verb*|a b|", "displayMode": false, "emPixels": 32}
+{"id": "verb-star-spaces-48px", "source": "\\verb*|a b|", "displayMode": false, "emPixels": 48}
+{"id": "text-cedilla", "source": "\\text{\\c{c}}", "displayMode": false, "emPixels": 24}
+{"id": "text-circled-r", "source": "\\text{\\textcircled{R}}", "displayMode": false, "emPixels": 24}
+{"id": "widecheck-long", "source": "\\widecheck{abcdef}", "displayMode": false, "emPixels": 24}
+{"id": "utilde-long", "source": "\\utilde{abcdef}", "displayMode": false, "emPixels": 24}
+{"id": "phase-x", "source": "\\phase{x}", "displayMode": false, "emPixels": 24}
+{"id": "angle-abc", "source": "\\angl{ABC}", "displayMode": false, "emPixels": 24}
+{"id": "cd-canonical-2x2", "source": "\\begin{CD} A @>>> B \\\\ @VVV @VVV \\\\ C @>>> D \\end{CD}", "displayMode": true, "emPixels": 24}
+{"id": "newline-two-lines", "source": "x\\\\y", "displayMode": false, "emPixels": 24}
+{"id": "newline-extra-margin", "source": "x\\\\[.5em]y", "displayMode": false, "emPixels": 24}
+{"id": "newline-macro-literal-brackets", "source": "x\\newline[.5em]y", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-plain-24", "source": "\\dot{T}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-plain-48", "source": "\\dot{T}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-group-24", "source": "\\dot{{{T}}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-group-48", "source": "\\dot{{{T}}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-color-24", "source": "\\dot{\\textcolor{red}{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-color-48", "source": "\\dot{\\textcolor{red}{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-font-24", "source": "\\dot{\\mathnormal{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-font-48", "source": "\\dot{\\mathnormal{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-multi-24", "source": "\\dot{TT}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-multi-48", "source": "\\dot{TT}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-color-multi-24", "source": "\\dot{\\textcolor{red}{TT}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-color-multi-48", "source": "\\dot{\\textcolor{red}{TT}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-nested-24", "source": "\\dot{\\dot{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-nested-48", "source": "\\dot{\\dot{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-overline-24", "source": "\\dot{\\overline{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-overline-48", "source": "\\dot{\\overline{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-smash-24", "source": "\\dot{\\smash{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-smash-48", "source": "\\dot{\\smash{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-cancel-24", "source": "\\dot{\\cancel{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-cancel-48", "source": "\\dot{\\cancel{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-phantom-24", "source": "\\dot{\\phantom{T}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-phantom-48", "source": "\\dot{\\phantom{T}}", "displayMode": false, "emPixels": 48}
+{"id": "accent-skew-rule-24", "source": "\\dot{\\rule{1em}{.1em}}", "displayMode": false, "emPixels": 24}
+{"id": "accent-skew-rule-48", "source": "\\dot{\\rule{1em}{.1em}}", "displayMode": false, "emPixels": 48}
