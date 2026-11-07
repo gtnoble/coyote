@@ -1,0 +1,196 @@
+{
+  "scope": "Developer regression snapshot, not qualification or acceptance",
+  "revision": "b08329b4a7fff040592c0d347aeaa12739b700a0",
+  "dirty": true,
+  "platform": [
+    {
+      "command": [
+        "uname",
+        "-a"
+      ],
+      "exit": 0,
+      "output": "Linux gtnoble-XPS-13-9305 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n"
+    },
+    {
+      "command": [
+        "gnat",
+        "--version"
+      ],
+      "exit": 0,
+      "output": "GNAT 13.3.0\nCopyright (C) 1996-2023, Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    {
+      "command": [
+        "alr",
+        "version"
+      ],
+      "exit": 0,
+      "output": "APPLICATION\nalr version:               2.1.0\nlibalire version:          2.1.0\nsource commit:             2681b313d08224014fa3f5e4f76e9c75347213d2\nsource changes:            clean\ncompilation date:          2025-03-04 10:20:58\ncompiled with version:     14.2.0\n\nCONFIGURATION\nhome folder:               /tmp\nsettings folder:           /home/gtnoble/.config/alire\ncache folder:              /home/gtnoble/.local/share/alire\nvault folder:              /home/gtnoble/.local/share/alire/releases\nbuild folder:              /home/gtnoble/.local/share/alire/builds\ntemp folder:               /run/user/1000\nforce flag:                FALSE\nnon-interactive flag:      FALSE\ncommunity index branch:    stable-1.4.0\ncompatible index versions: ^1.1 & <=1.4.0\nindexes folder:            /home/gtnoble/.config/alire/indexes\nindexes metadata:          OK\nindex #2:                  (community) git+https://github.com/alire-project/alire-index#stable-1.4.0\ntoolchain folder:          /home/gtnoble/.local/share/alire/toolchains\ntoolchain assistant:       disabled\ntool #1 gnat:              gnat_native=15.2.1\ntool #2 gprbuild:          gprbuild=25.0.1\nsystem package manager:    /usr/bin/apt\ndistro detection disabled: FALSE\n\nWORKSPACE\nroot status:               VALID\nroot release:              coyote=0.1.0-dev\nroot load error:           none\nroot folder:               /home/gtnoble/Projects/coyote/coyote\ncurrent folder:            /home/gtnoble/Projects/coyote/coyote\n\nSYSTEM\ndistribution:              UBUNTU\nhost-arch:                 X86_64\nos:                        LINUX\ntarget:                    NATIVE\ntoolchain:                 USER\nword-size:                 BITS_64\n"
+    },
+    {
+      "command": [
+        "node",
+        "--version"
+      ],
+      "exit": 0,
+      "output": "v22.13.1\n"
+    },
+    {
+      "command": [
+        "pkg-config",
+        "--modversion",
+        "cairo",
+        "freetype2",
+        "pango",
+        "gtk+-3.0"
+      ],
+      "exit": 0,
+      "output": "1.18.0\n26.1.20\n1.52.1\n3.24.41\n"
+    },
+    {
+      "command": [
+        "lscpu"
+      ],
+      "exit": 0,
+      "output": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  8\nOn-line CPU(s) list:                     0-7\nVendor ID:                               GenuineIntel\nModel name:                              11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz\nCPU family:                              6\nModel:                                   140\nThread(s) per core:                      2\nCore(s) per socket:                      4\nSocket(s):                               1\nStepping:                                1\nCPU(s) scaling MHz:                      17%\nCPU max MHz:                             4700.0000\nCPU min MHz:                             400.0000\nBogoMIPS:                                5606.40\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid movdiri movdir64b fsrm avx512_vp2intersect md_clear ibt flush_l1d arch_capabilities\nVirtualization:                          VT-x\nL1d cache:                               192 KiB (4 instances)\nL1i cache:                               128 KiB (4 instances)\nL2 cache:                                5 MiB (4 instances)\nL3 cache:                                12 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-7\nVulnerability Gather data sampling:      Mitigation; Microcode\nVulnerability Indirect target selection: Mitigation; Aligned branch/return thunks\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI SW loop, KVM SW loop\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n"
+    },
+    {
+      "command": [
+        "free",
+        "-m"
+      ],
+      "exit": 0,
+      "output": "               total        used        free      shared  buff/cache   available\nMem:           15717        4311         706         876       12006       11405\nSwap:          21459           1       21458\n"
+    }
+  ],
+  "environment": {
+    "LANG": "en_US.UTF-8",
+    "LC_ALL": null,
+    "DISPLAY": ":0.0",
+    "WAYLAND_DISPLAY": null,
+    "GDK_SCALE": null,
+    "GDK_DPI_SCALE": null
+  },
+  "sources": {
+    "src/coyote_math/coyote_math_jobs.adb": "6530df4e0e403210481c24248fb5fe4570772c2779392fb6dd770d4745c601d9",
+    "src/coyote_math/coyote_math_jobs.ads": "eeb42032df6144b5bb351ba8e41fda1fd7cbfea2c2f2974b1ef3e41282d149ab",
+    "src/coyote_math/coyote_math_resources.adb": "43b1a2718f5f48b2e4286bd9d6a0c13b0916cb9b2e91f766c1960bc4a4e0dd5b",
+    "src/coyote_math/coyote_math_resources.ads": "39af20bbd8702191c7ab199ac8b75bfb76ce951c6911499304b0e50c5c413614",
+    "src/coyote_math/math_builtin_macros.adb": "5ee8a153e194bf3d05ce9a0c7f03588ae18ff90bd913e1f48ac5d38bbec1666f",
+    "src/coyote_math/math_builtin_macros.ads": "475bfa14f680637247a05872f000fd74109dffb7004b756d5bb699127d44c153",
+    "src/coyote_math/math_engine.adb": "f46695f19ee0acc22b9836429819c8b0bfadc1be26e2290b9c96166307e01190",
+    "src/coyote_math/math_engine.ads": "21f57271f76d42bbeaff5c54e19a7be07f9555c58bc468d68349eaf3b7a0bdee",
+    "src/coyote_math/math_expander.adb": "d5eb4f9ff8fe07eb9e189745e0200a2b5cdcba7e75862799523c732b32082f34",
+    "src/coyote_math/math_expander.ads": "253514ed3e7d8bffa86483535115cf5816671d30f0f824333b69c757e029ebe3",
+    "src/coyote_math/math_font_data.adb": "3c252344a7240b85dccb801f05d4360c4cb500d00e738be5676ac2ea98e574b6",
+    "src/coyote_math/math_font_data.ads": "4ec548af70dbf4e9dfa2da29a723aeb5b5fbeee7f7a2627a361d8b5081d846b6",
+    "src/coyote_math/math_layout.adb": "87914b759c958bc7a73e2af17bd5c41178caf4b8e38b5236337bfb32e8655ae3",
+    "src/coyote_math/math_layout.ads": "a9b79330952f5842d0999b9d39e841b032b2ff96cffd405579c80e8abc8ae3eb",
+    "src/coyote_math/math_layout.ali": "8dc686f6a2174b59fc88d86aeb678b8db6193b85c5c27b2da31db7320c466ea4",
+    "src/coyote_math/math_layout.o": "5887a272326f5c6ecdea9e350702170cee989d0e788f1c54dd7acfe2538e6999",
+    "src/coyote_math/math_macros.adb": "f164ed655374fca40b72654e9764245c1c2048e169208879b23f970dd15d1fa9",
+    "src/coyote_math/math_macros.ads": "6cfde0ec8ed092bea241e3a10d83fc5e97edcef356a52a42fbc3ae360ef6cf50",
+    "src/coyote_math/math_metrics.adb": "952d31b4da7a7e841152a29aa201c3e1c13f92f77090d50069bed1ec392a48b5",
+    "src/coyote_math/math_metrics.ads": "b093d51726a41490d37d6772c3e11a6a332771d7175eda47f53c04b030500112",
+    "src/coyote_math/math_metrics.ali": "669d203cd51c6f8bb6bb3c15093ee41e6c1fe4dac48fcb5ca97efe7f8380b18c",
+    "src/coyote_math/math_metrics.o": "218c50d860e7730ed2da7f642a449433e3dd56c8e84408d31b458a73d5311691",
+    "src/coyote_math/math_model.ads": "706eb7c18f2386ac59e38fa917788a5493738bf9917d5cae8f8070c34a7dff7e",
+    "src/coyote_math/math_model.ali": "fcd97463fa5dda2c6ad049916a9fccca3c952a55fc9b7b5d3824248cfe3e71e1",
+    "src/coyote_math/math_model.o": "593a84e9cdd2f61facecbd326b83b4a724c3a2391a798b8c46e10c2f323bf77e",
+    "src/coyote_math/math_painter.adb": "9f977fc4b36ec211d2c7c9bd9b816993fa95a698f4d40f3664b79e3b3888f820",
+    "src/coyote_math/math_painter.ads": "e03a8db82c0db0627f6eeaca5dc95b8bbe9568d9443f4228eb25ca9bc2fb4e20",
+    "src/coyote_math/math_paths.adb": "357aff20bcfbce9d19ab99131f6c5920fc1bcf9764343a0dacaa2e32f034dd25",
+    "src/coyote_math/math_paths.ads": "8094e90e96c41c5c8496f11cde00068780a23472babc25af6eb5e31be6e7bdfa",
+    "src/coyote_math/math_probe.ali": "5a3cddfaad2eab069b384fbe4fec0d3daa0f7daf137a48a1977283ae5c6b622b",
+    "src/coyote_math/math_probe.o": "f29af976b42c6297d24759737c1c2cea2c8eead6ae09e5fb84370f15e66ac37e",
+    "src/coyote_math/math_radical_paths.adb": "676139a84878dd44a4433555cb8e16b1fdb4d04c7c8b37b3635a2d5f195b8a30",
+    "src/coyote_math/math_radical_paths.ads": "9d6eb5db60c99de866994118c155881e94197426d82b2b3cd046f7c48d89171a",
+    "src/coyote_math/math_raster.adb": "b9d8486a3858f1b5791e025660a67b2b0c442ff3ad8b17433f7221b9702c5fb7",
+    "src/coyote_math/math_raster.ads": "e042ac08490a33d4f4b214810e6a73c11f112a69c1d66c6d3aa91d0fecb90ab1",
+    "src/coyote_math/math_raster_budget.adb": "d08a6e09d9d63de5796058408bc7f222c3d6da7836bc7a3fc35bcbff2fc80e03",
+    "src/coyote_math/math_raster_budget.ads": "36466a84367a2fe8afe84854790862529ec3168b51bfb00d04a6f8ccdb8fa623",
+    "src/coyote_math/math_semantics.adb": "e02a849a017bf904b91a0cbce2e2d9b2d99f6d7f2ba90a0bb579f58fd0e7b3bc",
+    "src/coyote_math/math_semantics.ads": "c27c77002d614c3ad65fa4d5ae34cafd48ed06b650b5c0a2ebcf5f6ec18378d4",
+    "src/coyote_math/math_source.adb": "cde82636cc696fba001a46842ff89fafc3824c359a72669032393c69d1da2da2",
+    "src/coyote_math/math_source.ads": "19bf3e9b9440a75aa2e28ad5473d3344da399bdc4a297d31c885d48495beb405",
+    "src/coyote_math/math_stretchy.adb": "2d33705cfab6443e7388b1cefd32bb1135f7871964826ec8bdc22916627f2f27",
+    "src/coyote_math/math_stretchy.ads": "0a078c9602a53ad0d59fb12ecc5ab29cb2fd8b6fc46de70de83db8e1c989b801",
+    "src/coyote_math/math_symbols.adb": "116aa49efc576e32c026ca54eb9a5ba46d55394137daf975324337ced687e15d",
+    "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
+    "src/coyote_math/math_syntax.adb": "535e8289be1b62beb822c056664b39e811260a3f34ff055f83c09ca37844fc79",
+    "src/coyote_math/math_syntax.ads": "8ce0179c4359e1936e7ccce747f815b0f69bc0c4f7524cd5e73e8c99796264b9",
+    "src/coyote_math/math_syntax.ali": "2816f4fc7c79a6ee80bc515e495b06d0bccfcace3df702be507d5c8427922a67",
+    "src/coyote_math/math_syntax.o": "f4b9a0dbabf938005b83a49f0d51f576fee3ef1194acee681cf44674ecdf398f",
+    "src/coyote_math/math_text_shaping.adb": "a6d40f7d275fe747c163a2b27cd1777ed47ccfd5c1601d24cca080aa716f5e3a",
+    "src/coyote_math/math_text_shaping.ads": "bcf7e2c51e496a04222597c6a9a29daadca14d4ea222784e5cb6f5e23d0db220",
+    "src/coyote_math/math_tokens.adb": "32ff12aef12edeb5338fd59fde103e415c905608301cc1ae1ab0c62a29c8f3aa",
+    "src/coyote_math/math_tokens.ads": "e6697a4573be56ea4cfd8c960ff279def81b300ab8c476e44c4c7eb5b029f794",
+    "src/coyote_math/math_unicode.adb": "14a15a94e2cd24cac3fa3a1be2e5063a77dc94ae7cae306a261409df3abbccf2",
+    "src/coyote_math/math_unicode.ads": "cbdecbf9f6da59d0366b723c1a01cdb7fe04f7348c3cebcc79c01ed7ae620e4a",
+    "src/coyote_math/math_work_control.adb": "88232a904e03321e71fb0f42a476c97608126360f07357650a84a2dd8cd4ed64",
+    "src/coyote_math/math_work_control.ads": "d9e37e5eeb09a2029fb81fbb524092bd2341779e4cc36ed2dcbc83af2aed8597",
+    "test/tools/math_raster_probe.adb": "05ce9bff80e6232cb10f5634b0cd36f15c9492a8c19d519535f7e0c652d78c6d",
+    "test/tools/check-math-images.py": "f5ad72a3548834e5d412f7fec4054f2e84e2de051cf840d3dd7dac4c766c5274",
+    "test/fixtures/math-compatibility/browser-pilot-manifest.json": "36b50c7cce1154632ab52a42ec4500f35cf6e51947b8e6c0e18bde9c317191a7"
+  },
+  "executables": {
+    "/home/gtnoble/Projects/coyote/coyote/bin/coyote": "ece3e944d1a7b3462204ab0eb979c52bbe1a8856819c6cd52bd41190d5b0f2d9",
+    "/home/gtnoble/Projects/coyote/coyote/test/bin/coyote_test": "a729a7a130cfeafa291b9a47f749642a3197863866506b53b70d0282a0793fbb",
+    "/tmp/coyote-math-continuation-after/build/bin/math_image_export": "d6ad3026729b22b51b87552d642bc2cd6c081d07e13fdcf62d5678f5e375273d",
+    "/tmp/coyote-math-continuation-raster-strength/bin/math_raster_probe": "f047e2f7068f3fc9e7740178e842f0316ba60dbc7168013133b1374daa5265a8"
+  },
+  "fonts": {
+    "share/coyote/math/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "share/coyote/math/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "share/coyote/math/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "share/coyote/math/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "share/coyote/math/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "share/coyote/math/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "share/coyote/math/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "share/coyote/math/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "share/coyote/math/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "share/coyote/math/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "share/coyote/math/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "share/coyote/math/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "share/coyote/math/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa"
+  },
+  "browser": {
+    "command": [
+      "browser-ctl",
+      "session",
+      "new",
+      "--browser",
+      "chromium",
+      "math-evidence-manifest"
+    ],
+    "exit": 0,
+    "output": "math-evidence-manifest\n"
+  },
+  "browserUserAgent": {
+    "command": [
+      "browser-ctl",
+      "eval",
+      "math-evidence-manifest",
+      "navigator.userAgent"
+    ],
+    "exit": 0,
+    "output": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36\n"
+  },
+  "browserViewport": {
+    "command": [
+      "browser-ctl",
+      "eval",
+      "math-evidence-manifest",
+      "JSON.stringify({width:innerWidth,height:innerHeight,deviceScaleFactor:devicePixelRatio})"
+    ],
+    "exit": 0,
+    "output": "{\"width\":1280,\"height\":720,\"deviceScaleFactor\":1}\n"
+  }
+}

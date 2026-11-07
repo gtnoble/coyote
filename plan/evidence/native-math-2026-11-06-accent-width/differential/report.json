@@ -1,0 +1,1157 @@
+{
+  "schema": "coyote.math-comparison-report.v1",
+  "pilotHash": "a786b3a2187fe69f5d67a99377715cbdc2dd0722a9fc94874bef446727eb3c2c",
+  "status": "pass",
+  "capabilityDisposition": {
+    "referenceGeometry": {
+      "origin": false,
+      "widths": false,
+      "paths": false,
+      "colors": false,
+      "browserPixels": false
+    },
+    "nativeGeometry": {
+      "semantic": true,
+      "paths": true,
+      "colors": true,
+      "sharedMacros": true,
+      "optionsMeasured": false,
+      "optionsApplied": true
+    },
+    "visualComparison": []
+  },
+  "summary": {
+    "pass": 16,
+    "fail": 0,
+    "gap": 0,
+    "blocked": 0
+  },
+  "cases": [
+    {
+      "id": "x",
+      "sourceHash": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              120
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mrow",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 1,
+          "sequence": [
+            120
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "script",
+      "sourceHash": "d4a781c4a728f09df2625d9c54161b96ab58d84431e08bd6d75501f8771290a4",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 1.1102230246251565e-16
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 2.7755575615628914e-17
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              120,
+              51,
+              50
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mn",
+              "mrow",
+              "msubsup",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "root_role",
+              "script_base",
+              "sequence_item",
+              "subscript",
+              "superscript"
+            ]
+          },
+          "glyphCount": 3,
+          "sequence": [
+            120,
+            51,
+            50
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "accent",
+      "sourceHash": "434d0cbc753410c7110f3d7e152c4faba254a4c4246d3f89d79f2d5b6e17982b",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              120,
+              710
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mo",
+              "mover",
+              "mrow",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "accent_base",
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 2,
+          "sequence": [
+            120,
+            710
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "frac",
+      "sourceHash": "07df0f5905bfa1d6f9bb5666705912e9c6165fb11eba889bf94d63847903bf87",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 1.1102230246251565e-16
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              97,
+              43,
+              98,
+              99
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mfrac",
+              "mi",
+              "mo",
+              "mrow",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "denominator",
+              "numerator",
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 4,
+          "sequence": [
+            97,
+            43,
+            98,
+            99
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "sqrt",
+      "sourceHash": "cf90b50bd5ee1d566daf674133287090772e1b7de3d37ece58d57d7cbb06af29",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              120,
+              121
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mfrac",
+              "mi",
+              "mrow",
+              "msqrt",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "denominator",
+              "numerator",
+              "radicand",
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 2,
+          "sequence": [
+            120,
+            121
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "namedoperators",
+      "sourceHash": "0db7bbda91b2a5269695c488b03894a4fe51d582a3d99cd68fde08705b2c5c94",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              108,
+              105,
+              109,
+              120,
+              8594,
+              48,
+              109,
+              97,
+              120,
+              40,
+              120,
+              41,
+              43,
+              109,
+              105,
+              110,
+              40,
+              121,
+              41,
+              43,
+              115,
+              105,
+              110,
+              40,
+              122,
+              41,
+              43,
+              108,
+              111,
+              103,
+              40,
+              116,
+              41
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mn",
+              "mo",
+              "mrow",
+              "msub",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "root_role",
+              "script_base",
+              "sequence_item",
+              "subscript"
+            ]
+          },
+          "glyphCount": 33,
+          "sequence": [
+            108,
+            105,
+            109,
+            120,
+            8594,
+            48,
+            109,
+            97,
+            120,
+            40,
+            120,
+            41,
+            43,
+            109,
+            105,
+            110,
+            40,
+            121,
+            41,
+            43,
+            115,
+            105,
+            110,
+            40,
+            122,
+            41,
+            43,
+            108,
+            111,
+            103,
+            40,
+            116,
+            41
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "heat-balance-001",
+      "sourceHash": "7c0b054ddefe208304f4a8829a71ea04b82f0b5130a2aa999dbc2a50f68c68cc",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 1.1102230246251565e-16
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              67,
+              97,
+              84,
+              729,
+              97,
+              61,
+              72,
+              111,
+              40,
+              84,
+              111,
+              8722,
+              84,
+              97,
+              41,
+              43,
+              72,
+              109,
+              40,
+              84,
+              109,
+              8722,
+              84,
+              97,
+              41,
+              43,
+              81,
+              115,
+              111,
+              108,
+              97,
+              114,
+              43,
+              81,
+              105,
+              110,
+              116,
+              101,
+              114,
+              110,
+              97,
+              108,
+              8722,
+              81,
+              99,
+              111,
+              111,
+              108,
+              44,
+              115,
+              101,
+              110,
+              115,
+              46
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mo",
+              "mover",
+              "mrow",
+              "msub",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "accent_base",
+              "root_role",
+              "script_base",
+              "sequence_item",
+              "subscript"
+            ]
+          },
+          "glyphCount": 54,
+          "sequence": [
+            67,
+            97,
+            84,
+            729,
+            97,
+            61,
+            72,
+            111,
+            40,
+            84,
+            111,
+            8722,
+            84,
+            97,
+            41,
+            43,
+            72,
+            109,
+            40,
+            84,
+            109,
+            8722,
+            84,
+            97,
+            41,
+            43,
+            81,
+            115,
+            111,
+            108,
+            97,
+            114,
+            43,
+            81,
+            105,
+            110,
+            116,
+            101,
+            114,
+            110,
+            97,
+            108,
+            8722,
+            81,
+            99,
+            111,
+            111,
+            108,
+            44,
+            115,
+            101,
+            110,
+            115,
+            46
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "matrix",
+      "sourceHash": "16af63a4946948cf888c18e3a1e23b27516375a909dfd8e70ebcadd0746bb873",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 4.440892098500626e-16
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              97,
+              98,
+              99,
+              100
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mstyle",
+              "mtable",
+              "mtd",
+              "mtr",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "array_cell",
+              "array_row",
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 4,
+          "sequence": [
+            97,
+            98,
+            99,
+            100
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "wideaccent-path",
+      "sourceHash": "95b99598c329c6b22bc3d9d15ffb32df670175d6a3c40722b359863dcca6c76c",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 2.220446049250313e-16
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 8.326672684688674e-17
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              97,
+              98,
+              99,
+              100,
+              101,
+              102,
+              710,
+              43,
+              120,
+              121,
+              8594,
+              43,
+              97,
+              98,
+              99,
+              100,
+              101,
+              102
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mo",
+              "mover",
+              "mrow",
+              "msqrt",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "accent_base",
+              "radicand",
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 18,
+          "sequence": [
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            710,
+            43,
+            120,
+            121,
+            8594,
+            43,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        },
+        {
+          "status": "pass",
+          "reason": "native clip has finite positive extents; clip-to-ink and reference equivalence remain unqualified",
+          "pathCodePoint": 0,
+          "clip": {
+            "x": 0,
+            "y": 0,
+            "width": 2.86623,
+            "height": 0.42
+          }
+        },
+        {
+          "status": "pass",
+          "reason": "native clip has finite positive extents; clip-to-ink and reference equivalence remain unqualified",
+          "pathCodePoint": 0,
+          "clip": {
+            "x": 398.93819,
+            "y": 0,
+            "width": 1.06181,
+            "height": 0.522
+          }
+        },
+        {
+          "status": "pass",
+          "reason": "native clip has finite positive extents; clip-to-ink and reference equivalence remain unqualified",
+          "pathCodePoint": 0,
+          "clip": {
+            "x": 0,
+            "y": 0,
+            "width": 3.69923,
+            "height": 1.08
+          }
+        },
+        {
+          "status": "pass",
+          "reason": "native path commands contain normalized geometry",
+          "pathCount": 3
+        },
+        {
+          "status": "pass",
+          "reason": "bounded normalized SVG/native path geometry matches; origins, widths, and full geometry remain unqualified",
+          "pathCount": 3,
+          "transform": "each SVG/native path independently normalized to its finite geometric bounds; command order/topology preserved; tolerance 0.01 normalized units; not an em/origin/width comparison"
+        }
+      ]
+    },
+    {
+      "id": "unicode",
+      "sourceHash": "5819b7c8c559262b26e1ee9e9062fd070381fdb626ebe873e2b8f88ce1fbc2f1",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 5.551115123125783e-17
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              945,
+              43,
+              8721,
+              105,
+              61,
+              48,
+              8734,
+              8804,
+              946
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mn",
+              "mo",
+              "mrow",
+              "msubsup",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "root_role",
+              "script_base",
+              "sequence_item",
+              "subscript",
+              "superscript"
+            ]
+          },
+          "glyphCount": 9,
+          "sequence": [
+            945,
+            43,
+            8721,
+            105,
+            61,
+            48,
+            8734,
+            8804,
+            946
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "invalid",
+      "sourceHash": "0919561801a84fef95199d0ea17b7f372acd807f5c657d9cd4c3eb22448ba00f",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        }
+      ]
+    },
+    {
+      "id": "untrusted-href",
+      "sourceHash": "43183ddcb942cf218c2484b770c815f9814a346405f8424d3cb5909c449e9c76",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "native refused href is a red command glyph sequence matching pinned KaTeX DOM glyph and color extraction",
+          "nativeText": "\\href",
+          "rgba": {
+            "red": 0.8,
+            "green": 0,
+            "blue": 0,
+            "alpha": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-global-on-error",
+      "sourceHash": "90aca684921c7a7ff18a438f76f65c656e2290bd1d4510b87cc698c47cda0fc9",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "actual shared user macro definitions match",
+          "macroNames": [
+            "\\foo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shared-global-followup",
+      "sourceHash": "340f87a21200c5f73a4ae527f3b3f8bd406742edf043eae6c237817a170a80e7",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "actual shared user macro definitions match",
+          "macroNames": [
+            "\\foo"
+          ]
+        },
+        {
+          "status": "pass",
+          "reason": "ascent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "descent within 0.01 em",
+          "delta": 0
+        },
+        {
+          "status": "pass",
+          "reason": "semantic glyph sequence maps through reference MathML and native component tree",
+          "mapping": {
+            "reference": "KaTeX MathML semantic content tree with operator application/spacing markers excluded; script operands retain MathML order",
+            "native": "native semanticTree projected by component roles: base, subscript, superscript; accent base then accent; radicand; numerator then denominator; array rows/cells",
+            "componentSequence": [
+              65
+            ],
+            "aliases": [
+              {
+                "referenceCodePoint": "U+005E",
+                "nativeCodePoint": "U+02C6",
+                "meaning": "KaTeX MathML hat accent to native spacing circumflex glyph"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110001",
+                "mathMLCodePoint": "U+005E",
+                "meaning": "native widehat semantic sentinel to MathML accent symbol"
+              },
+              {
+                "nativeSemanticCodePoint": "U+110003",
+                "mathMLCodePoint": "U+2192",
+                "meaning": "native overrightarrow semantic sentinel to MathML accent symbol"
+              }
+            ],
+            "referenceTreeTypes": [
+              "math",
+              "mi",
+              "mrow",
+              "semantics"
+            ],
+            "nativeRoles": [
+              "root_role",
+              "sequence_item"
+            ]
+          },
+          "glyphCount": 1,
+          "sequence": [
+            65
+          ],
+          "componentMap": "role-aware recursive projection; MathML operator-application U+2061 and invisible separators excluded; accent sentinels mapped to MathML accent symbols; hat U+005E aliases native spacing circumflex U+02C6; native font identity remains separate from MathML semantics"
+        }
+      ]
+    },
+    {
+      "id": "shared-local-on-error",
+      "sourceHash": "7de860cfc8c7699af6f8501f50f33c95c50e437c3807a46b18e6ac4ff94c0d6b",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "actual shared user macro definitions match",
+          "macroNames": [
+            "\\foo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shared-local-undefined",
+      "sourceHash": "7916d968d2a925f0593df699c7089be0f30d1066f60b13563876c5fc6ac1edb4",
+      "status": "pass",
+      "checks": [
+        {
+          "status": "pass",
+          "reason": "native effective options were supplied to Math_Engine; option-effect probes remain unqualified"
+        },
+        {
+          "status": "pass",
+          "reason": "actual shared user macro definitions match",
+          "macroNames": [
+            "\\foo"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2158,3 +2158,26 @@ documentation-only update. Requirements v1.0 and D01–D15 are unchanged; RD-CTX
 extra context caps remain unauthorized. Developer self-review is not independent
 acceptance. PCR-125 remains open and the feature NOT COMPLETE. Implementation
 changes remain uncommitted; this update makes no release or acceptance claim.
+
+
+## 2026-11-06 — Measured stretchy-accent span correction (PCR-125)
+
+Reproduced the unchanged image pilot's 28/29 result using the verified pinned
+KaTeX archive. The `utilde-long` path was fitted/clipped before the final italic
+correction was added to its box width. The shared widehat/widecheck/widetilde/
+utilde branch now consistently uses the corrected measured body width; no
+path-data, vertical-origin or tolerance fit was introduced. Unmeasured layouts
+are unchanged. Added 96 width/path/control regressions over four accents,
+italic/non-italic endings and six pixel sizes; final raster probe is 207/207.
+The initial regression run retains 24 failures against the original code.
+
+Image pilot and repeat pass 29/29, with utilde-long coverage 1.0 in both
+directions. Geometry 235/235, additional probe 280 PASS records, structured
+pilot 16/16. Incremental root/test development builds pass and one fresh Xvfb
+full suite passes 1063/1063 (88.930779 s cumulative). Prior non-math failed
+repeats are not reconciled by this pass; Valgrind was not rerun. Durable raw
+evidence, implementation patch and hashes are under
+`plan/evidence/native-math-2026-11-06-accent-width/`; controlling report is §11.6.
+Developer/agent review is not independent acceptance. Remaining accent behavior,
+60 callable gaps, inline GTK work, whole-job budgets, deadlines, font/lifecycle
+and human qualification remain open. PCR-125 remains OPEN; no release or commit.

@@ -1,0 +1,9 @@
+{
+  "summary": {
+    "pass": 29,
+    "fail": 0,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-math-continuation-repeat/report.json"
+}
+Image report and PNG artifacts: /tmp/coyote-math-continuation-repeat

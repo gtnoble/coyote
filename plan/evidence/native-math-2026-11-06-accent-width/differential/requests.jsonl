@@ -1,0 +1,16 @@
+{"id":"x","source":"x","displayMode":false,"options":{}}
+{"id":"script","source":"x^2_3","displayMode":false,"options":{}}
+{"id":"accent","source":"\\hat{x}","displayMode":false,"options":{}}
+{"id":"frac","source":"\\frac{a+b}{c}","displayMode":false,"options":{}}
+{"id":"sqrt","source":"\\sqrt{\\frac{x}{y}}","displayMode":false,"options":{}}
+{"id":"namedoperators","source":"\\lim_{x\\to 0}\\max(x)+\\min(y)+\\sin(z)+\\log(t)","displayMode":false,"options":{}}
+{"id":"heat-balance-001","source":"C_a\\dot T_a =\nH_o(T_o-T_a)+H_m(T_m-T_a)\n+Q_{\\mathrm{solar}}+Q_{\\mathrm{internal}}-Q_{\\mathrm{cool,sens}}.","displayMode":true,"options":{}}
+{"id":"matrix","source":"\\begin{matrix}a&b\\\\c&d\\end{matrix}","displayMode":true,"options":{}}
+{"id":"wideaccent-path","source":"\\widehat{abcdef}+\\overrightarrow{xy}+\\sqrt{abcdef}","displayMode":false,"options":{}}
+{"id":"unicode","source":"α+∑_{i=0}^{∞}≤β","displayMode":false,"options":{}}
+{"id":"invalid","source":"\\frac{a}","displayMode":false,"options":{}}
+{"id":"untrusted-href","source":"\\href{https://example.invalid}{x}","displayMode":false,"options":{"trust":false}}
+{"id":"shared-global-on-error","source":"\\gdef\\foo{A}\\bogus","displayMode":false,"options":{"throwOnError":true},"sequence":"shared-on-error"}
+{"id":"shared-global-followup","source":"\\foo","displayMode":false,"options":{},"sequence":"shared-on-error"}
+{"id":"shared-local-on-error","source":"\\def\\bar{B}\\bogus","displayMode":false,"options":{"throwOnError":true},"sequence":"shared-on-error"}
+{"id":"shared-local-undefined","source":"\\bar","displayMode":false,"options":{},"sequence":"shared-on-error"}

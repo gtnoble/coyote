@@ -103,6 +103,15 @@ corpus/snapshots. Development-only reference/browser exporters, comparison,
 fixtures and checks exist; the remaining corpus fields, matching, accounting and
 readiness evidence are incomplete as described in §3.2.
 
+**Fresh scoped continuation:** report §11.6 and
+`plan/evidence/native-math-2026-11-06-accent-width/` supersede the preceding
+long-tilde pixel disposition: the unchanged image pilot and repeat pass 29/29
+after correcting measured body-width fitting. The raster probe adds 96
+assertions across four accents, italic/non-italic endings and six pixel sizes,
+including path-coordinate scaling and unmeasured-layout controls; 207/207 pass.
+Fresh incremental development builds and one full suite pass 1063/1063. Earlier
+failed repeats and Valgrind remain unwaived; full qualification stays open.
+
 ### 2.3 Environment and support software
 
 Use existing GNAT/Alire development profile, GTK3/Cairo/FreeType, bundled fonts, AUnit, Node oracle, and pinned reference browser. Record hardware/CPU/RAM, OS, display/Xvfb, versions, available memory and background load. Fix one named qualification workstation for timing; isolate processes for peak RSS and cache accounting. GUI automation uses Xvfb where adequate; manual accessibility tests use named desktop/tools.

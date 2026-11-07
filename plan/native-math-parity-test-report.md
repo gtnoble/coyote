@@ -7,7 +7,7 @@
 
 This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its controlling scope is approved SRS-MATH v1.0 and D01–D15, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
 
-**Current-results pointer:** §11, “Current implementation and qualification reconciliation — 2026-11-06”, controls the present status. §§1–10 preserve historical checkpoints. §11 distinguishes source inspection and the latest recorded results from unavailable temporary artifacts; no tests were rerun for this documentation reconciliation.
+**Current-results pointer:** §11, “Current implementation and qualification reconciliation — 2026-11-06”, controls the present status. §§1–10 preserve historical checkpoints. §11 distinguishes the earlier documentation reconciliation from the fresh, archived accent-width implementation evidence in §11.6. Sections 11.1–11.5 retain the prior checkpoint and its unavailable-artifact limits; §11.6 supersedes the undertilde pixel disposition only within the unchanged pilot scope.
 
 ## 1. Test scope and environment
 
@@ -567,6 +567,10 @@ coverage, scoped regression passes, and outcome agreement are not full KaTeX
 parity, resource qualification, or product acceptance. PCR-125 remains open.
 This reconciliation does not authorize additional RD-CTX-01 context caps.
 
+**Current continuation:** §11.6 records a fresh accent-width correction, 29/29 image
+pilot and repeat, 207 raster assertions and a 1063/1063 full suite. Earlier
+checkpoint results below remain historical; all other exit gates remain open.
+
 ### 11.1 Evidence authority and availability
 
 This section reconciles the implementation work recorded during the preceding
@@ -655,11 +659,13 @@ the 60 gaps. This is a comparison-readiness classification, not proof that all
 60 are renderer defects. Complete the mappings and adjudicate the resulting
 comparisons without silently normalizing away unsupported behavior.
 
-The remaining pixel failure is **`utilde-long`** (`\utilde{abcdef}`): recorded
+At the reconciliation checkpoint, the pixel failure was **`utilde-long`**
+(`\utilde{abcdef}`): recorded
 native-to-browser foreground-mask coverage is approximately **0.9851**, below
 **0.990**; logical dimensions and baseline pass in that pilot. The parsed cubic
 path/control-point checks did not establish a source-data/parser discrepancy.
-The pixel mismatch remains unresolved, not waived as a backend difference.
+That checkpoint failure was not waived; §11.6 records its fresh reproduction
+and scoped correction.
 The 1 px mask tolerance, 1 px logical-dimension limit and 0.01 em baseline limit
 were not relaxed. These pilot criteria remain distinct from final calibration
 and human visual acceptance.
@@ -708,7 +714,8 @@ semantics, rendering, diagnostics, options or combinations.
 
 The remaining exit work is:
 
-1. Resolve undertilde pixels and the 60 callable comparison gaps; finish full
+1. Extend the scoped undertilde closure in §11.6 to complete accent behavior
+   and resolve the 60 callable comparison gaps; finish full
    component mapping, widths/origins, independently measured option effects,
    complete per-entry/interaction/invalid/boundary traceability and readiness.
 2. Enforce **at most 256 MiB additional memory per job**, including overlapping
@@ -733,3 +740,71 @@ The remaining exit work is:
 loop and no authorization to narrow the approved domain, waive failures, or add
 RD-CTX-01 caps. This documentation update changes no requirements or comparison
 thresholds. **Project remains NOT COMPLETE.**
+
+
+### 11.6 Fresh continuation — measured stretchy-accent width, 2026-11-06
+
+**Scope:** one shared layout defect, not full accent parity or qualification.
+The exact pinned KaTeX 0.16.22 archive was restored from npm and its SHA-256
+verified against the existing pin. The unchanged 29-case image pilot reproduced
+**28 pass / 1 fail**, including `utilde-long` native coverage
+**0.9851411589895989** and browser coverage **0.9967159277504105**. The baseline
+failure is retained, not replaced by the later pass.
+
+**Root cause and correction:** measured body layout preserves the final glyph's
+italic correction separately from its advance width. The stretchy accent branch
+added that correction to the result box only after fitting the path and clip to
+the smaller uncorrected body. A final italic `f` therefore left the tilde too
+short. `Math_Layout.Compose` now uses one corrected width for horizontal path
+fitting, command width, clip width and result width. The shared branch covers
+`utilde`, `widetilde`, `widehat` and `widecheck`; layouts without a measured
+advance source retain their prior width. SVG path data, vertical placement,
+reference pins, corpus and comparison thresholds were not changed.
+
+**Regression design:** the raster probe adds 96 assertions over four accents,
+`abcdef` (italic-ending) and `abcde` (non-italic control), and 12/16/20/24/32/48
+pixel-em sizes. Checks cover corrected command/clip/result widths, transformed
+path endpoints/control points and preserved unmeasured geometry. Before the
+production correction, the initial 48 added width checks failed exactly the
+24 italic-ending combinations (159 total assertions, 24 failures). The final
+strengthened probe passes **207/207**, zero failures. This is functional raster
+and layout evidence; Valgrind was not rerun and §11.4 remains an open failure.
+
+Fresh execution results:
+
+- Root `alr build --development` and test
+  `alr build --development --profiles=coyote=development` pass. Generated root
+  and test profiles select `development`; root build reported executables up
+  to date. These were incremental builds, not clean-build qualification.
+- Full suite from `test/` under Xvfb: **1063/1063**, zero failed assertions and
+  unexpected errors, cumulative **88.930779 s**, wall **89.11 s**. An initial
+  invocation could not locate the test executable (exit 127); the corrected
+  working-directory invocation produced the retained suite log. This one
+  successful suite run does not reconcile earlier non-math repeat failures.
+- Unchanged image pilot and same-source repeat: **29/29** each, zero failures
+  or blocked cases. `utilde-long` bidirectional coverage is **1.0 / 1.0**;
+  logical width/height deltas remain about **0.005235 / 0.013745 px**, baseline
+  delta **0.000532 em**. Original 0.990 mask, 1 px dimension and 0.01 em baseline
+  criteria and omission/origin/baseline negative controls remain unchanged.
+- Geometry: **235/235** in 13 groups at the existing tolerance; additional
+  probe: **280 PASS records**; structured pilot: **16/16**, no fail/gap/blocked.
+  The standalone comparator control harness was not separately rerun.
+
+**Durable evidence:**
+`plan/evidence/native-math-2026-11-06-accent-width/` retains baseline/after/repeat
+reports and PNGs, full-suite/build/focused logs, structured exports, the exact
+implementation patch, platform/toolchain/font/source/executable hashes and
+`SHA256SUMS`. Original absolute `/tmp` paths inside reports are retrieval
+identifiers; corresponding images are archived under each phase directory.
+See its README for commands, provenance and limits. This is a developer snapshot,
+not a complete frozen workstation/desktop qualification matrix.
+
+**Evaluation/disposition:** developer self-review and read-only agent review
+found the width correction consistent with KaTeX's body-wide SVG contract;
+neither is independent user acceptance. The narrow `utilde-long` pilot failure
+is resolved without threshold fitting. Single-character skew placement, full
+accent combinations, the 60 callable gaps, inline off-thread rasterization,
+whole-job memory, hard deadlines, GTK/cache guarantees, fallback pins, native
+library lifecycle and independent visual/AT acceptance remain open. Approved
+SRS-MATH v1.0 and D01–D15 are unchanged. PCR-125 remains OPEN and the feature
+**NOT COMPLETE**; no release or commit is made by this continuation.

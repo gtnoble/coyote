@@ -1,0 +1,8 @@
+{
+  "summary": {
+    "pass": 28,
+    "fail": 1,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-math-continuation-baseline/report.json"
+}

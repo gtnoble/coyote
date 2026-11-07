@@ -83,7 +83,7 @@ procedure Math_Raster_Probe is
    Stopped : aliased Stop_Context;
    Work : constant Math_Work_Control.Context_Access :=
      Stopped'Unchecked_Access;
-   Fonts : Math_Painter.Font_Set;
+   Fonts : aliased Math_Painter.Font_Set;
    Parsed : Math_Syntax.Document;
    Layout : Math_Layout.Box;
    Pmb_Layout : Math_Layout.Box;
@@ -227,6 +227,151 @@ begin
         (Math_Metrics.Advance_Source'Class (Fonts),
          Math_Model.Typewriter_Regular, 32, 24.0);
       Check (Advance = 13.0, "native typewriter-space advance at 24px is 13");
+   end;
+   declare
+      use Ada.Strings.Unbounded;
+      Accents : constant array (Positive range <>) of Unbounded_String :=
+        (To_Unbounded_String ("utilde"),
+         To_Unbounded_String ("widetilde"),
+         To_Unbounded_String ("widehat"),
+         To_Unbounded_String ("widecheck"));
+      Bases : constant array (Positive range <>) of Unbounded_String :=
+        (To_Unbounded_String ("abcdef"),
+         To_Unbounded_String ("abcde"));
+      Scales : constant array (Positive range <>) of Long_Float :=
+        (12.0, 16.0, 20.0, 24.0, 32.0, 48.0);
+   begin
+      for Accent of Accents loop
+         for Base of Bases loop
+            for Scale of Scales loop
+               declare
+                  use type Math_Paths.Command_Kind;
+                  Settings : constant Math_Layout.Layout_Settings :=
+                    (Pixel_Em => Scale,
+                     Advance_Source => Fonts'Unchecked_Access,
+                     others => <>);
+                  Unmeasured_Settings : constant
+                    Math_Layout.Layout_Settings := (others => <>);
+                  Body_Box : constant Math_Layout.Box := Math_Layout.Build
+                    (Math_Syntax.Parse (To_String (Base)),
+                     Math_Layout.Text_Style, Settings);
+                  Unmeasured_Body : constant Math_Layout.Box :=
+                    Math_Layout.Build
+                      (Math_Syntax.Parse (To_String (Base)),
+                       Math_Layout.Text_Style, Unmeasured_Settings);
+                  Accent_Source : constant String :=
+                    "\" & To_String (Accent) & "{" &
+                    To_String (Base) & "}";
+                  Accent_Box : constant Math_Layout.Box := Math_Layout.Build
+                    (Math_Syntax.Parse (Accent_Source),
+                     Math_Layout.Text_Style, Settings);
+                  Unmeasured_Accent : constant Math_Layout.Box :=
+                    Math_Layout.Build
+                      (Math_Syntax.Parse (Accent_Source),
+                       Math_Layout.Text_Style, Unmeasured_Settings);
+                  Expected_Width : constant Long_Float :=
+                    Body_Box.Width + Body_Box.Italic;
+                  X_Scale : constant Long_Float := Expected_Width /
+                    Unmeasured_Body.Width;
+                  Found : Boolean := False;
+                  Spans_Body : Boolean := True;
+                  Geometry_Scales : Boolean := True;
+                  Unmeasured_Width_Retained : Boolean := True;
+               begin
+                  for Command of Accent_Box.Commands loop
+                     if Command.Kind = Math_Layout.Path_Command then
+                        Found := True;
+                        Spans_Body := Spans_Body and then
+                          Command.Has_Clip and then
+                          abs (Command.Width - Expected_Width) < 1.0E-9
+                          and then
+                          abs (Command.Clip_W - Expected_Width) < 1.0E-9;
+                     end if;
+                  end loop;
+                  for Command of Unmeasured_Accent.Commands loop
+                     if Command.Kind = Math_Layout.Path_Command then
+                        Unmeasured_Width_Retained :=
+                          Unmeasured_Width_Retained and then
+                          Command.Has_Clip and then
+                          abs (Command.Width - Unmeasured_Body.Width) <
+                            1.0E-9 and then
+                          abs (Command.Clip_W - Unmeasured_Body.Width) <
+                            1.0E-9;
+                     end if;
+                  end loop;
+                  declare
+                     Measured_Path : Math_Layout.Draw_Command;
+                     Unmeasured_Path : Math_Layout.Draw_Command;
+                     Measured_Found : Boolean := False;
+                     Unmeasured_Found : Boolean := False;
+                  begin
+                     for Command of Accent_Box.Commands loop
+                        if Command.Kind = Math_Layout.Path_Command then
+                           Measured_Path := Command;
+                           Measured_Found := True;
+                           exit;
+                        end if;
+                     end loop;
+                     for Command of Unmeasured_Accent.Commands loop
+                        if Command.Kind = Math_Layout.Path_Command then
+                           Unmeasured_Path := Command;
+                           Unmeasured_Found := True;
+                           exit;
+                        end if;
+                     end loop;
+                     Geometry_Scales := Measured_Found and then
+                       Unmeasured_Found and then
+                       Measured_Path.Path_Data.Length =
+                         Unmeasured_Path.Path_Data.Length;
+                     if Geometry_Scales then
+                        for Index in Measured_Path.Path_Data.First_Index ..
+                          Measured_Path.Path_Data.Last_Index
+                        loop
+                           declare
+                              Measured_Segment : constant Math_Paths.Segment :=
+                                Measured_Path.Path_Data.Element (Index);
+                              Unmeasured_Segment : constant
+                                Math_Paths.Segment :=
+                                  Unmeasured_Path.Path_Data.Element (Index);
+                           begin
+                              Geometry_Scales := Geometry_Scales and then
+                                Measured_Segment.Kind =
+                                  Unmeasured_Segment.Kind and then
+                                abs (Measured_Segment.First.X -
+                                  Unmeasured_Segment.First.X * X_Scale) <
+                                    1.0E-9 and then
+                                abs (Measured_Segment.Second.X -
+                                  Unmeasured_Segment.Second.X * X_Scale) <
+                                    1.0E-9 and then
+                                abs (Measured_Segment.Third.X -
+                                  Unmeasured_Segment.Third.X * X_Scale) <
+                                    1.0E-9;
+                           end;
+                        end loop;
+                     end if;
+                  end;
+                  Check
+                    (Body_Box.Valid and then Accent_Box.Valid and then
+                     Found and then Spans_Body and then
+                     abs (Accent_Box.Width - Expected_Width) < 1.0E-9,
+                     "measured stretchy accent spans body " &
+                     To_String (Accent) & " " & To_String (Base) &
+                     Long_Float'Image (Scale));
+
+                  Check
+                    (Unmeasured_Body.Valid and then
+                     Unmeasured_Accent.Valid and then
+                     Unmeasured_Width_Retained and then
+                     abs (Unmeasured_Accent.Width -
+                       Unmeasured_Body.Width) < 1.0E-9 and then
+                     Geometry_Scales,
+                     "stretchy accent geometry scales from unmeasured body " &
+                     To_String (Accent) & " " & To_String (Base) &
+                     Long_Float'Image (Scale));
+               end;
+            end loop;
+         end loop;
+      end loop;
    end;
    declare
       Cancel_Fonts : Math_Painter.Font_Set;

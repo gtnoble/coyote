@@ -106,6 +106,10 @@ This model has two key properties:
   resolution is unpinned and this does not imply full text/math-mode parity.
   Supported common constructs include symbols, fractions, scripts, square/indexed
   roots, text/roman content, arrays, font styles, delimiters, limits and accents.
+  Measured wide-hat/check/tilde and under-tilde paths fit and clip to the
+  complete body width including its trailing italic correction; unmeasured
+  layouts retain their normalized metric width. Scoped evidence and remaining
+  accent/qualification gaps are recorded in the math report §11.6.
   Full TeX compatibility is not promised. Bundled KaTeX 0.16.22 fonts carry MIT
   notices under `share/coyote/math/fonts/`.
 - **Session compatibility.** New assistant JSONL records contain no `format` or

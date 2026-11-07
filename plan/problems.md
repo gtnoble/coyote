@@ -4366,3 +4366,26 @@ are historical, not current-source qualification.
   caps remain unauthorized. See report §11 for evidence provenance and remaining
   work. Developer evaluation is not independent acceptance. **PCR-125 OPEN;
   project NOT COMPLETE.** No commit or release is made by this update.
+
+
+### PCR-125 — 2026-11-06 measured stretchy-accent width correction
+
+- **Category:** Code, Test, Design.
+- **Priority:** 3-Moderate (unchanged parent report classification).
+- **Problem:** unchanged pilot reproduces `utilde-long` coverage 0.985141,
+  below 0.990, because measured accent geometry omits the trailing italic
+  correction already included in its result width.
+- **Affected products:** `src/coyote_math/math_layout.adb`,
+  `test/tools/math_raster_probe.adb`, design/test/report/SDF records.
+- **Action:** use one corrected width for fitting, clipping and box metadata
+  in the shared widehat/widecheck/widetilde/utilde branch; preserve normalized
+  unmeasured behavior. Add 96 width/path/control regressions.
+- **Verification:** baseline 28/29 images and 24 failing new width cases;
+  corrected images and repeat 29/29, raster 207/207, geometry 235/235,
+  additional 280 PASS records, structured pilot 16/16, incremental development
+  builds and one full suite 1063/1063. No thresholds changed. Evidence archived
+  in `plan/evidence/native-math-2026-11-06-accent-width/`; see report §11.6.
+- **Status:** narrow pixel defect resolved 2026-11-06; PCR-125 remains OPEN.
+  Full accent parity, callable gaps and resource/GUI/font/lifecycle/human
+  qualification remain open. Valgrind not rerun; earlier failed suite repeats
+  retained. Developer/agent self-review is not user acceptance. No release.

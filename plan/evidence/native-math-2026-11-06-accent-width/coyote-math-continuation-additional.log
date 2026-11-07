@@ -1,0 +1,282 @@
+PASS text accents in text font mode
+PASS cedilla typed below-role and glyph paint
+PASS textcircled full-width bigcirc glyph
+PASS verb AST/projection \verb|a b\alpha%{}#^&_|
+PASS verb AST/projection \verb*|a b~|
+PASS verb AST/projection \verb|}|
+PASS verb atomicity in fraction argument
+PASS verb AST/projection \verb|$|
+PASS verb AST/projection \verb|^|
+PASS verb AST/projection \verb|_|
+PASS verb AST/projection \verb|&|
+PASS verb AST/projection \verb|{|
+PASS verb AST/projection \verb|~|
+PASS verb AST/projection \verb|\|
+PASS verb AST/projection \verb|%|
+PASS rejected {x
+PASS rejected x}
+PASS hbox atomic verbatim dollar
+PASS rejected verb \verb
+PASS rejected verb \verb|unfinished
+PASS font \bf x
+PASS font \bold x
+PASS font \cal x
+PASS font \frak x
+PASS font \it x
+PASS font \rm x
+PASS font \sf x
+PASS font \tt x
+PASS font \mathbf{x}
+PASS font \mathbb{R}
+PASS font \mathnormal{x}
+PASS font \mathsfit{x}
+PASS font \textbf{A}
+PASS font \textit{A}
+PASS font \textmd{A}
+PASS font \textnormal{A}
+PASS font \textrm{A}
+PASS font \textsf{A}
+PASS font \texttt{A}
+PASS font \textup{A}
+PASS font \emph{A}
+PASS font \bf x\alpha
+PASS font \bf x\beta
+PASS font \cal x\mathbf{\alpha}
+PASS font {\bf x}y
+PASS font \bf x{\rm y}z
+PASS font \bf x{\rm y}z
+PASS \kern100em
+PASS \kern{100em}
+PASS \kern500pt
+PASS \kern-101em
+PASS rejected \kern-16385em
+PASS \sqrt[[x]]{x}
+PASS \kern100em
+PASS \kern1bp
+PASS \kern1pt
+PASS \kern.2em
+PASS \kern-.2em
+PASS \kern-.1667em
+PASS \kern{-.5ex}
+PASS spacing/break metadata \:
+PASS spacing/break metadata \>
+PASS spacing/break metadata \allowbreak
+PASS spacing/break metadata \nobreak
+newline margin 5.00000000000000E-01
+PASS newline macro expansion preserves token behavior
+PASS forced newline layout and semantic metadata
+PASS empty command root \notag
+PASS empty command root \nonumber
+PASS empty command root \relax
+PASS empty command root {}
+PASS empty command root \gdef\saved{x}
+PASS empty command root \newline
+PASS kern after empty line retains width
+PASS raw not-equal aliases and relations
+PASS raw ≘ dual AST/layout/projection
+PASS composed ≘ macro expansion
+PASS display public tag parse/layout
+PASS relation expression \approx \equiv \sim \propto \subseteq \notin \implies \iff
+PASS \kern-16384em
+PASS \kern-101em
+PASS parser retains both primitive diagnostics
+PASS AST metadata and layout smallmatrix
+PASS AST metadata and layout cases
+PASS AST metadata and layout dcases
+PASS AST metadata and layout drcases
+PASS AST metadata and layout rcases
+PASS rejected \begin{dcases}a&b&c\end{dcases}
+PASS rejected \begin{rcases}a&b\\c\end{rcases}
+PASS fraction \frac{a}{b}
+PASS fraction \genfrac{}{}{0pt}{}{a}{b}
+PASS fraction \genfrac{(}{)}{0.2pt}{2}{a}{b}
+PASS fraction \cfrac{a}{b}
+PASS fraction \cfrac[l]{a}{b}
+PASS fraction a\over b
+PASS fraction a\over bc
+PASS fraction a\choose b
+PASS fraction a\atop b
+PASS fraction a\brace b
+PASS fraction a\brack b
+PASS fraction a\above{0pt}b
+PASS fraction a\above{0.2pt}b
+PASS internal mclass \mathbin
+PASS internal mclass \mathrel
+PASS internal mclass \mathord
+PASS internal fraction \\atopfrac
+PASS internal fraction \\bracefrac
+PASS internal fraction \\brackfrac
+PASS internal fraction \\abovefrac
+PASS internal command \internalcdleft
+PASS internal command \internalcdright
+PASS internal command \internalcdparent
+PASS internal command \internalcdleftarrow
+PASS internal command \internalcdrightarrow
+PASS internal command \internalcdlongequal
+PASS CD arrow semantic label roles
+PASS CD label and parent semantic roles
+PASS spacing/break metadata \space
+PASS \stackrel{n}{=}
+PASS stacked relations in expression context
+PASS rejected infix a\over b\choose c
+PASS rejected infix \over a
+PASS rejected infix a\over
+PASS \sum\limits_{i}
+PASS \begin{matrix*}a&b\\c&d\end{matrix*}
+PASS \begin{pmatrix*}a&b\\c&d\end{pmatrix*}
+PASS \begin{bmatrix*}a&b\\c&d\end{bmatrix*}
+PASS \begin{Bmatrix*}a&b\\c&d\end{Bmatrix*}
+PASS \begin{vmatrix*}a&b\\c&d\end{vmatrix*}
+PASS \begin{Vmatrix*}a&b\\c&d\end{Vmatrix*}
+PASS \begin{align*}a&=b\\c&=d\end{align*}
+PASS \begin{alignat*}{1}a&=b\\c&=d\end{alignat*}
+PASS \begin{gather}a\\b\end{gather}
+PASS \begin{gather*}a\\b\end{gather*}
+PASS \begin{split}a&=b\\c&=d\end{split}
+PASS \begin{darray}{lc}a&b\end{darray}
+PASS sized delimiter \big(
+PASS sized delimiter \Big[
+PASS sized delimiter \bigg{
+PASS sized delimiter \Bigg|
+PASS sized delimiter \bigl(
+PASS sized delimiter \Bigl[
+PASS sized delimiter \biggl{
+PASS sized delimiter \Biggl|
+PASS sized delimiter \bigr)
+PASS sized delimiter \Bigr]
+PASS sized delimiter \biggr}
+PASS sized delimiter \Biggr|
+PASS sized delimiter \bigm|
+PASS sized delimiter \Bigm|
+PASS sized delimiter \biggm|
+PASS sized delimiter \Biggm|
+PASS angle/floor/ceiling delimiters, bra-ket, and raw bar
+PASS rejected \big
+PASS rejected \big x
+PASS rejected \big\unknown
+PASS \arcctg(x)
+PASS \cosec(x)
+PASS \Bbb{R}
+PASS rejected with visible fallback \begin{gather}a&b\end{gather}
+PASS rejected with visible fallback \begin{align*}a&b&c\end{align}
+PASS rejected with visible fallback \begin{matrix*}a&b\end{matrix}
+PASS \sum\displaylimits_{i}
+PASS \sum\nolimits_{i}
+PASS \bigcup\nolimits_{i}
+PASS \int\limits_{i}
+PASS \sum_{i}
+PASS \prod_{i}
+PASS \coprod_{i}
+PASS \bigcap_{i}
+PASS \bigcup_{i}
+PASS \bigodot_{i}
+PASS \bigoplus_{i}
+PASS \bigotimes_{i}
+PASS \bigsqcup_{i}
+PASS \biguplus_{i}
+PASS \bigvee_{i}
+PASS \bigwedge_{i}
+PASS \int_{i}
+PASS \iint_{i}
+PASS \iiint_{i}
+PASS \oint_{i}
+PASS \limsup_{x}x
+PASS \argmax_{x}f(x)
+PASS \Pr(A)
+PASS \overset{a}{=}
+PASS \underset{i}{=}
+PASS parsed brace accent \overbrace{x}
+PASS parsed brace accent \underbrace{x}
+PASS \overbrace{x+y}^{n}
+PASS \underbrace{x+y}_{n}
+PASS \overrightarrow{xy}
+PASS \overleftarrow{xy}
+PASS stretchy \overleftharpoon[b]{a}
+PASS stretchy \overrightharpoon[b]{a}
+PASS all six static brace paths
+PASS stretchy \underrightarrow{x}
+PASS stretchy \underleftarrow{x}
+PASS stretchy \overleftrightarrow{x}
+PASS stretchy \underleftrightarrow{x}
+PASS stretchy \xrightarrow[b]{a}
+PASS stretchy \xleftarrow[b]{a}
+PASS stretchy \Overrightarrow{a}
+PASS stretchy \Overrightarrow[b]{a}
+PASS stretchy \xRightarrow{a}
+PASS stretchy \xLeftarrow{a}
+PASS stretchy \overleftharpoon{a}
+PASS stretchy \overrightharpoon{a}
+PASS stretchy \xleftharpoonup{a}
+PASS stretchy \xleftharpoondown{a}
+PASS stretchy \xrightharpoonup{a}
+PASS stretchy \xrightharpoondown{a}
+PASS stretchy \xlongequal{a}
+PASS stretchy \xtwoheadleftarrow{a}
+PASS stretchy \xtwoheadrightarrow{a}
+PASS stretchy \xleftrightarrow{a}
+PASS stretchy \xLeftrightarrow{a}
+PASS stretchy \xrightleftharpoons{a}
+PASS stretchy \xleftrightharpoons{a}
+PASS stretchy \xhookleftarrow{a}
+PASS stretchy \xhookrightarrow{a}
+PASS stretchy \overlinesegment{x}
+PASS stretchy \underlinesegment{x}
+PASS stretchy \overgroup{x}
+PASS stretchy \undergroup{x}
+PASS stretchy \xmapsto{a}
+PASS stretchy \xtofrom{a}
+PASS stretchy \xrightleftarrows{a}
+PASS stretchy \xrightequilibrium{a}
+PASS stretchy \xleftequilibrium{a}
+PASS accent widecheck \widecheck{x}
+PASS accent widecheck \widecheck{xy}
+PASS accent widecheck \widecheck{xyz}
+PASS accent widecheck \widecheck{wxyz}
+PASS accent widecheck \widecheck{vwxyz}
+PASS accent widecheck \widecheck{uvwxyz}
+PASS accent widecheck \widecheck{abcdefg}
+PASS accent utilde \utilde{x}
+PASS accent utilde \utilde{xy}
+PASS accent utilde \utilde{xyz}
+PASS accent utilde \utilde{wxyz}
+PASS accent utilde \utilde{uvwxyz}
+PASS enclosure PHASE_ENCLOSURE \phase{x}
+PASS enclosure PHASE_ENCLOSURE \phase{\frac{x}{y}}
+PASS enclosure ACTUARIAL_ENCLOSURE \angl{x}
+PASS enclosure ACTUARIAL_ENCLOSURE \angl{xy}
+PASS rejected \phase
+PASS rejected \angl
+PASS \cancel{x}
+PASS \bcancel{x}
+PASS \xcancel{x}
+PASS \sout{x}
+PASS \rule{2em}{0.5em}
+PASS \raisebox{2pt}{x}
+PASS pmb semantics/shadow \pmb{x}
+PASS pmb semantics/shadow \pmb{+}
+PASS pmb semantics/shadow \pmb{\le}
+PASS pmb allowed in text mode
+PASS vcenter axis layout \vcenter{\hbox{$\frac{a+b}{\dfrac{c}{d}}$}}
+PASS rejected invalid vcenter \text{\vcenter{\hbox{x}}}
+PASS rejected invalid vcenter \vcenter
+PASS \tiny{x}
+PASS rejected \rule{-2em}{0.5em}
+PASS rejected \rule{2em}{-0.5em}
+PASS rejected \kern16385em
+PASS size declaration \tiny abc
+PASS size declaration \sixptsize abc
+PASS size declaration \scriptsize abc
+PASS size declaration {\tiny abc}d
+PASS size declaration \normalsize abc
+PASS \begin{matrix}\normalsize a&b\\c&d\end{matrix}
+PASS MathChoice four branches and roles
+PASS hbox regular-mode row wrapper
+PASS hbox dollar-math baseline layout
+PASS measured advances normalized across 12/16/20/24/32/48 px em
+PASS font line extents preserve measured ascent/descent/height
+PASS measured provider requires positive pixel em
+PASS pixel em requires borrowed advance source
+PASS colorbox whitespace, regular font, and fill
+PASS fcolorbox distinct background and border
+PASS colorbox rejects unsupported color
+Build log: /tmp/coyote-math-continuation-additional/build.log

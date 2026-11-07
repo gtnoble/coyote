@@ -1,0 +1,5 @@
+Note: Building coyote=0.1.0-dev/coyote.gpr...
+gprbuild: "coyote" up to date
+gprbuild: "coyote_list_sessions" up to date
+gprbuild: "coyote_sqc" up to date
+Success: Build finished successfully in 0.76 seconds.

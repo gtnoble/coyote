@@ -2685,6 +2685,11 @@ package body Math_Layout is
                      Offset_X : Long_Float;
                      Offset_Y : Long_Float;
                      Geometry : Draw_Command;
+                     --  The SVG spans the complete body, including the
+                     --  trailing italic margin used by measured layout.
+                     Accent_Width : constant Long_Float := Base.Width +
+                       (if Thickness.Advance_Source /= null then
+                          Base.Italic else 0.0);
                   begin
                      if not Math_Paths.Is_Valid (Path) or else
                        not Bounds.Valid or else
@@ -2693,7 +2698,7 @@ package body Math_Layout is
                      then
                         Reject ("invalid trusted stretchy accent path");
                      end if;
-                     Fit_X := Base.Width / View_Width;
+                     Fit_X := Accent_Width / View_Width;
                      Fit_Y := Variant_Height * Scale / View_Height;
                      Offset_X := -Bounds.Min_X * Fit_X;
                      Offset_Y :=
@@ -2703,12 +2708,12 @@ package body Math_Layout is
                      Geometry.Kind := Path_Command;
                      Geometry.X := Offset_X;
                      Geometry.Y := Offset_Y;
-                     Geometry.Width := Base.Width;
+                     Geometry.Width := Accent_Width;
                      Geometry.Height := Variant_Height * Scale;
                      Geometry.Has_Clip := True;
                      Geometry.Clip_X := 0.0;
                      Geometry.Clip_Y := 0.0;
-                     Geometry.Clip_W := Base.Width;
+                     Geometry.Clip_W := Accent_Width;
                      Geometry.Clip_H := Variant_Height * Scale;
                      declare
                         Scaled : constant Math_Paths.Path :=
@@ -2723,9 +2728,7 @@ package body Math_Layout is
                      end;
                      Result := Base;
                      Append_Command (Result, Geometry, Thickness.Work);
-                     if Thickness.Advance_Source /= null then
-                        Result.Width := Result.Width + Base.Italic;
-                     end if;
+                     Result.Width := Accent_Width;
                      if Value.Code_Point = Under_Tilde_Code_Point then
                         Result.Ascent := Base.Ascent;
                         Result.Descent := Base.Descent + 0.12 * Scale +

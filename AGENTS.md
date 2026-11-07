@@ -157,9 +157,13 @@ with zero failed assertions or unexpected errors in 82.418882 seconds. This is
 historical regression evidence, not a current-snapshot rerun, qualification,
 parity or product acceptance. The original `/tmp` evidence files are not
 currently available; do not treat them as accessible artifacts. Isolated
-non-math repeat failures remain to be reconciled; no current-snapshot full-suite
-result is claimed. Root build
-and test-build evidence is likewise historical and unavailable here.
+non-math repeat failures remain to be reconciled. A fresh scoped accent-width
+continuation passes one full suite 1063/1063 (88.930779 seconds cumulative),
+207 raster assertions, 235 geometry cases, and the unchanged image pilot and
+repeat 29/29. Incremental root/test development builds pass. Evidence is retained
+under `plan/evidence/native-math-2026-11-06-accent-width/` and report §11.6;
+this does not reconcile failed repeats or establish parity/acceptance. Valgrind
+was not rerun and its existing lifecycle failure remains open.
 
 Current implementation and checkpoint evidence, including focused probes,
 coverage counts and open qualification gates, are recorded in coordinator-owned

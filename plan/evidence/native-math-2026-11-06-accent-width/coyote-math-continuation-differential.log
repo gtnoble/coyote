@@ -1,0 +1,35 @@
+Setup
+   [mkdir]        object directory for project Math_Export
+   [mkdir]        exec directory for project Math_Export
+Compile
+   [Ada]          math_export.adb
+   [Ada]          math_engine.adb
+   [Ada]          math_layout.adb
+   [Ada]          math_macros.adb
+   [Ada]          math_model.ads
+   [Ada]          math_paths.adb
+   [Ada]          math_semantics.adb
+   [Ada]          math_source.adb
+   [Ada]          math_syntax.adb
+   [Ada]          math_text_shaping.adb
+   [Ada]          math_tokens.adb
+   [Ada]          math_metrics.adb
+   [Ada]          math_work_control.adb
+   [Ada]          math_radical_paths.adb
+   [Ada]          math_stretchy.adb
+   [Ada]          math_expander.adb
+   [Ada]          math_symbols.adb
+   [Ada]          math_unicode.adb
+   [Ada]          math_font_data.adb
+   [Ada]          math_builtin_macros.adb
+Bind
+   [gprbind]      math_export.bexch
+   [Ada]          math_export.ali
+Link
+   [link]         math_export.adb
+math_export: missing argument
+math_export: unknown command: \bogus
+math_export: unknown command: \bogus
+math_export: missing argument
+comparison pass: 16 pass, 0 fail, 0 gap, 0 blocked; /tmp/coyote-math-continuation-differential/report.json
+Artifacts: /tmp/coyote-math-continuation-differential
