@@ -1,0 +1,22 @@
+scenario=link-click timeout=30
+
+(coyote_test:116751): Gtk-WARNING **: 14:27:44.009: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:116751): Gtk-WARNING **: 14:27:44.009: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:116751): Gtk-WARNING **: 14:27:44.009: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:116751): Gtk-WARNING **: 14:27:44.009: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:116751): Gtk-WARNING **: 14:27:44.009: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:116751): Gtk-WARNING **: 14:27:44.009: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI.Conversation_Stack launches Markdown link clicks
+
+Total Tests Run:   1
+Successful Tests:  1
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 0.127615 sec. seconds
+
+result=0

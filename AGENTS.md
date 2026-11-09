@@ -25,7 +25,7 @@ pipeline loops and phase boundaries but cannot preempt individual native calls
 or guarantee hard deadlines. The shared 64 MiB retained-raster ledger covers
 tracked worker results, display surfaces and inline Pixbufs, not whole-job
 allocation. Inline math painting still runs on GTK. `Conversation_Stack` has
-49 registered cases; registration is not qualification. Consult report §11,
+55 registered cases; registration is not qualification. Consult report §11,
 “Current implementation and qualification reconciliation — 2026-11-06”, for
 recorded evidence, unavailable-artifact limits and open gates. Earlier dated
 implementation checkpoints are historical.
@@ -146,6 +146,15 @@ grace period before escalation.
   `/home/gtnoble/.alire/share/agents/skills/aged/SKILL.md` before invoking it.
 
 ## Testing
+
+PCR-128 adds conversation `Text_Safety`: first Configure must be on GTK and
+binds its Ada task; later off-task boundary mutations are rejected. Other GTK
+calls remain caller responsibilities. Preserve decoder feed/flush/reset and the
+PCR-127 zero-below-line policy. After development builds, run
+`python3 test/tools/check-gtk-interactions.py` and
+`python3 test/tools/check-gtk-interaction-runner.py`. Full suite1074/1074; evidence:
+`plan/evidence/gtk-text-safety-2026-11-07/`. Source-only recovery and document-model
+redesign remain unimplemented.
 
 Historical native-math full-suite results include PCR-123 1042/1042, earlier
 1057/1057, final3 1060/1060, and final2 1061/1061. Two intermediate frozen

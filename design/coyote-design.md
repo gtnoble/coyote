@@ -402,6 +402,7 @@ not wait for the complete user turn.
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Conversation_Stack` | Native GTK exchange and step-frame host, update routing, Markdown response lifecycle, local-image request context, tool cards, and reset handling | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI.Text_Safety` | Conversation layout, NUL-safe UTF-8 streaming, fresh-iterator appends and boundary task ownership | `src/coyote_gui/coyote_gui-text_safety.ads/.adb` |
 | `Coyote_GUI.Rich_Text` | Markdown text/image realization with selectable alt-text companion for inline image anchors | `src/coyote_gui/coyote_gui-rich_text.ads/.adb` |
 | `Coyote_Image_Loader` | Synchronous local-image URI parsing, root containment, secure traversal, input limits, signature validation, and PNG/JPEG dimension/scaling policy | `src/coyote_image_loader.ads/.adb` |
 | `Coyote_Image_Decoder` | Typed private image handles; binds Gdk opaque worker decode results to GTK-main-task adoption | `src/coyote_image_decoder.ads/.adb` |
@@ -520,6 +521,7 @@ not wait for the complete user turn.
 | Native signal-bridge harness | Isolated signal bridge handler, rollback/retry, and descriptor checks; strict and sanitizer script | `test/native/signal_bridge_test.c`, `test/tools/check-signal-bridge.sh` |
 | `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
 | `Auth_Test_Worker` | Subprocess helper for credential-lock and auth concurrency tests | `test/tools/auth_test_worker.adb` |
+| GTK interaction harness | Isolated conversation interaction worker, bounded runner and offline process-containment self-test | `test/tools/gtk_interaction_worker.adb`, `test/tools/check-gtk-interactions.py`, `test/tools/check-gtk-interaction-runner.py` |
 | `Help_Test_Worker` | Isolated real Help launcher and parent-environment assertions | `test/tools/help_test_worker.adb` |
 | `Coyote_App.Frontend.GUI.Help_Tests` | Display-backed Help menu and viewer-independent Product Information widget checks | `test/src/coyote_app-frontend-gui-help_tests.ads/.adb` |
 | Help qualification scripts | Bounded fake-Yelp launch matrix and repeatable AUnit/Mallard/CLI workflow | `test/tools/check-help-launch.sh`, `test/check-help.sh` |
@@ -1524,6 +1526,17 @@ selection briefly removes ellipsization while setting the range, then restores
 it synchronously, avoiding GTK selection clamping to the shortened layout.
 The single outer scroller avoids nested scrolling regions for ordinary
 conversation content.
+
+**Conversation text boundary (PCR-128):** `Coyote_GUI.Text_Safety` centralizes
+conversation configuration and plain buffer mutations. First Configure binds
+an Ada task identity, which the caller must ensure is GTK; subsequent boundary
+mutations from other tasks fail before GTK. Other GTK calls are not guarded.
+Request text and search queries replace invalid UTF-8/NUL with U+FFFD. Separate
+response/thinking decoders retain incomplete suffixes until the next chunk,
+flush replacement on closure, and reset on clear. Persisted source is unchanged.
+Marks still delimit streamed replacement; appends acquire fresh iterators.
+Rich markup, labels and tool-detail windows are not migrated in this increment.
+Source-only recovery and document-model separation remain later work.
 
 **GTK hidden-source hit testing (PCR-127):** Conversation text views keep two
 pixels above each logical line and zero below. GTK 3.24.41's below-layout

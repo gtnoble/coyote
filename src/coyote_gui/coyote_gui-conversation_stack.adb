@@ -18,6 +18,7 @@ with Coyote_GUI.Math_Element;
 with Coyote_GUI.Markdown_Links;
 with Coyote_GUI.Rich_Text;
 with Coyote_GUI.Navigation;
+with Coyote_GUI.Text_Safety;
 with Coyote_Renderer.Math;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
@@ -382,12 +383,16 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Append_Buffer
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       Text   : String)
+   renames Coyote_GUI.Text_Safety.Append;
+
+   function Finish_Stream
+     (Decoder : in out Coyote_GUI.Text_Safety.Stream) return String
    is
-      Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      Tail : Unbounded_String;
    begin
-      Buffer.Get_End_Iter (Iter);
-      Buffer.Insert (Iter, Text);
-   end Append_Buffer;
+      Coyote_GUI.Text_Safety.Flush (Decoder, Tail);
+      return To_String (Tail);
+   end Finish_Stream;
 
    procedure Add_Text_Element
      (C              : in out Instance;
@@ -681,20 +686,7 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Configure_Text_View
      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class)
-   is
-   begin
-      View.Set_Editable (False);
-      View.Set_Cursor_Visible (False);
-      View.Set_Wrap_Mode (Gtk.Enums.Wrap_Word_Char);
-      View.Set_Accepts_Tab (False);
-      View.Set_Left_Margin (8);
-      View.Set_Right_Margin (8);
-      View.Set_Pixels_Above_Lines (2);
-      --  GTK 3.24 hit testing in below-line padding passes a raw byte count
-      --  as a visible index. Hidden inline-math source can then make it walk
-      --  into the next line and abort (PCR-127). Keep spacing above instead.
-      View.Set_Pixels_Below_Lines (0);
-   end Configure_Text_View;
+   renames Coyote_GUI.Text_Safety.Configure;
 
    procedure Show_Contents (C : Instance) is
    begin
@@ -796,6 +788,7 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Finalize_Active_Step (C : in out Instance) is
    begin
+      End_Thinking (C);
       C.Step_Frame     := null;
       C.Step_Box       := null;
       C.Tool_Flow      := null;
@@ -861,7 +854,7 @@ package body Coyote_GUI.Conversation_Stack is
          View.Set_Name ("coyote-response-stream");
       end if;
       if Text'Length > 0 then
-         Buffer.Set_Text (Text);
+         Coyote_GUI.Text_Safety.Set_Text (Buffer, Text);
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
       if Response_Block then
@@ -1052,6 +1045,8 @@ package body Coyote_GUI.Conversation_Stack is
       C.Response_Box     := null;
       C.Math_Scale       := 1.0;
       C.Stream_Buf       := Null_Unbounded_String;
+      Coyote_GUI.Text_Safety.Reset (C.Response_Decoder);
+      Coyote_GUI.Text_Safety.Reset (C.Thinking_Decoder);
       C.Thinking         := null;
       C.Thinking_View    := null;
       C.Has_Exchange     := False;
@@ -1077,6 +1072,7 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       Stop_Tool_Timer (C);
       Create (C, C.Main_Window.all'Access);
+      End_Thinking (C);
       if C.Text_Open then
          End_Text_Block (C);
       end if;
@@ -1101,6 +1097,7 @@ package body Coyote_GUI.Conversation_Stack is
    end Begin_Request;
 
    procedure Append_Text (C : in out Instance; Text : String) is
+      Decoded : Unbounded_String;
    begin
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
@@ -1111,6 +1108,7 @@ package body Coyote_GUI.Conversation_Stack is
            (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
          C.Text_Open  := True;
          C.Stream_Buf := Null_Unbounded_String;
+         Coyote_GUI.Text_Safety.Reset (C.Response_Decoder);
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
@@ -1119,8 +1117,9 @@ package body Coyote_GUI.Conversation_Stack is
               C.Active_Text.Create_Mark ("", Iter, Left_Gravity => True);
          end;
       end if;
-      Append (C.Stream_Buf, Text);
-      Append_Buffer (C.Active_Text, Text);
+      Coyote_GUI.Text_Safety.Feed (C.Response_Decoder, Text, Decoded);
+      Append (C.Stream_Buf, Decoded);
+      Append_Buffer (C.Active_Text, To_String (Decoded));
       if Length (C.Search_Query) > 0 then
          Refresh_Search (C);
       end if;
@@ -1139,11 +1138,13 @@ package body Coyote_GUI.Conversation_Stack is
    end Delete_Stream_Mark;
 
    procedure End_Text_Block (C : in out Instance) is
-      Full_Text : constant String := Sanitize_UTF8 (To_String (C.Stream_Buf));
+      Tail : constant String := Finish_Stream (C.Response_Decoder);
+      Full_Text : constant String := To_String (C.Stream_Buf) & Tail;
       Has_Display_Math  : Boolean         := False;
       Has_Native_Blocks : Boolean         := False;
    begin
       if C.Text_Open then
+         Append_Buffer (C.Active_Text, Tail);
          C.Images_Remaining := 16;
          if C.Render_Markdown then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
@@ -1201,16 +1202,19 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Thinking_Open then
          Add_Text_Element
            (C, C.Step_Box, "Thinking", "", C.Thinking, C.Thinking_View);
+         Coyote_GUI.Text_Safety.Reset (C.Thinking_Decoder);
          C.Thinking_Open := True;
       end if;
    end Begin_Thinking;
 
    procedure Append_Thinking (C : in out Instance; Text : String) is
+      Decoded : Unbounded_String;
    begin
       if not C.Thinking_Open then
          Begin_Thinking (C);
       end if;
-      Append_Buffer (C.Thinking, Text);
+      Coyote_GUI.Text_Safety.Feed (C.Thinking_Decoder, Text, Decoded);
+      Append_Buffer (C.Thinking, To_String (Decoded));
       if Length (C.Search_Query) > 0 then
          Refresh_Search (C);
       end if;
@@ -1219,7 +1223,12 @@ package body Coyote_GUI.Conversation_Stack is
    procedure End_Thinking (C : in out Instance) is
    begin
       if C.Thinking_Open then
-         Append_Buffer (C.Thinking, ASCII.LF & ASCII.LF);
+         Append_Buffer
+           (C.Thinking, Finish_Stream (C.Thinking_Decoder)
+            & ASCII.LF & ASCII.LF);
+         if Length (C.Search_Query) > 0 then
+            Refresh_Search (C);
+         end if;
          C.Thinking_Open := False;
       end if;
    end End_Thinking;
@@ -1937,7 +1946,8 @@ package body Coyote_GUI.Conversation_Stack is
    is
    begin
       if To_String (C.Search_Query) /= Query then
-         C.Search_Query := To_Unbounded_String (Query);
+         C.Search_Query :=
+           To_Unbounded_String (Coyote_GUI.Text_Safety.Clean (Query));
          Refresh_Search (C);
       end if;
       return Search_Match_Count (C);

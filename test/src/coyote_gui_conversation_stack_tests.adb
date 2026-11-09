@@ -24,6 +24,7 @@ with Gdk.Cursor;
 with Gtk.Text_Iter;
 with Gtk.Clipboard;
 with Coyote_GUI.Rich_Text;
+with Coyote_GUI.Text_Safety;
 with Coyote_Renderer.Markup;
 with Gtk.Text_Child_Anchor;
 with GNAT.OS_Lib;
@@ -605,6 +606,172 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          and then Active_Text_View (T.Stack.all).Get_Visible,
          "dynamically-created native text is visible");
    end Test_Request_And_Streaming_Are_Incremental;
+
+   procedure Test_Text_Safety_Task_Guard (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "owner", Prompt);
+      declare
+         Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+           Active_Text_View (T.Stack.all).Get_Buffer;
+         Rejected : Boolean := False;
+      begin
+         declare
+            task Other_Task;
+            task body Other_Task is
+            begin
+               Coyote_GUI.Text_Safety.Append (Buffer, "wrong task");
+            exception
+               when Program_Error =>
+                  Rejected := True;
+            end Other_Task;
+         begin
+            null;
+         end;
+         Assert (Rejected, "off-task boundary call raises Program_Error");
+      end;
+      --  The dependent task has terminated before this buffer is inspected.
+      Assert (Active_Text (T.Stack.all) = "owner",
+              "off-task append cannot mutate GTK text");
+   end Test_Text_Safety_Task_Guard;
+
+   procedure Test_Text_Safety_Request (T : in out Test) is
+      Replacement : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request
+        (T.Stack.all, "a" & ASCII.NUL & Character'Val (16#FF#) & "z", Prompt);
+      Assert
+        (Active_Text (T.Stack.all) = "a" & Replacement & Replacement & "z",
+         "request text replaces NUL/invalid bytes without truncating suffix");
+      Assert
+        (Set_Search_Query (T.Stack.all, "" & ASCII.NUL) = 2,
+         "search uses the same NUL-safe presentation boundary");
+   end Test_Text_Safety_Request;
+
+   procedure Test_Text_Safety_Response (T : in out Test) is
+      Replacement : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);
+      Glyphs : constant String :=
+        Character'Val (16#C3#) & Character'Val (16#A9#)
+        & Coyote_App.Utils.UC_CHECK
+        & Character'Val (16#F0#) & Character'Val (16#9F#)
+        & Character'Val (16#99#) & Character'Val (16#82#);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      for Markdown in Boolean loop
+         Clear (T.Stack.all);
+         Set_Render_Markdown (T.Stack.all, Markdown);
+         Begin_Request (T.Stack.all, "request", Prompt);
+         for I in Glyphs'Range loop
+            Append_Text (T.Stack.all, Glyphs (I .. I));
+            declare
+               Text : constant String := Active_Text (T.Stack.all);
+            begin
+               Assert
+                 (Text = Coyote_App.Utils.Sanitize_UTF8 (Text),
+                  "each partial chunk leaves only complete UTF-8 in GTK");
+            end;
+         end loop;
+         Assert (Active_Text (T.Stack.all) = Glyphs,
+                 "two/three/four-byte glyphs survive bytewise streaming");
+         Append_Text (T.Stack.all, ASCII.NUL & "tail");
+         Append_Text (T.Stack.all, "" & Character'Val (16#FF#));
+         Append_Text (T.Stack.all, "" & Character'Val (16#E2#));
+         Assert
+           (Active_Text (T.Stack.all) = Glyphs & Replacement & "tail"
+              & Replacement,
+            "NUL and malformed bytes are replaced before GTK insertion");
+         End_Text_Block (T.Stack.all);
+         Assert
+           (Index (Active_Text (T.Stack.all),
+                   Glyphs & Replacement & "tail"
+                     & Replacement & Replacement) = 1,
+            "finalization flushes incomplete UTF-8 in raw and Markdown modes");
+         End_Text_Block (T.Stack.all);
+      end loop;
+   end Test_Text_Safety_Response;
+
+   procedure Test_Text_Safety_Thinking (T : in out Test) is
+      Glyph : constant String := Coyote_App.Utils.UC_CHECK;
+      Replacement : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Thinking (T.Stack.all, Glyph (1 .. 1));
+      Assert (Text_View_Text (T.Stack.all, 2) = "",
+              "thinking retains an incomplete character outside GTK");
+      Append_Thinking (T.Stack.all, Glyph (2 .. 3) & ASCII.NUL & "tail");
+      Append_Thinking (T.Stack.all, "" & Character'Val (16#F0#));
+      End_Thinking (T.Stack.all);
+      Assert
+        (Text_View_Text (T.Stack.all, 2) = Glyph & Replacement & "tail"
+           & Replacement & ASCII.LF & ASCII.LF,
+         "thinking reassembles glyphs and flushes a NUL-safe terminal tail");
+      End_Thinking (T.Stack.all);
+      Append_Thinking (T.Stack.all, "fresh");
+      End_Step (T.Stack.all);
+      Assert (Text_View_Text (T.Stack.all, 3) =
+                "fresh" & ASCII.LF & ASCII.LF,
+              "new thinking block does not inherit decoder suffix");
+   end Test_Text_Safety_Thinking;
+
+   procedure Test_Text_Safety_Lifecycle (T : in out Test) is
+      Replacement : constant String :=
+        Character'Val (16#EF#) & Character'Val (16#BF#)
+        & Character'Val (16#BD#);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      for Transition in 1 .. 3 loop
+         Clear (T.Stack.all);
+         Begin_Request (T.Stack.all, "request", Prompt);
+         Append_Thinking (T.Stack.all, "t" & Character'Val (16#E2#));
+         Append_Text (T.Stack.all, "r" & Character'Val (16#F0#));
+         case Transition is
+            when 1 =>
+               Begin_Request (T.Stack.all, "next", Prompt);
+            when 2 =>
+               Complete_Request (T.Stack.all, Aborted);
+            when 3 =>
+               End_Step (T.Stack.all);
+            when others =>
+               null;
+         end case;
+         Assert
+           (Text_View_Text (T.Stack.all, 2) =
+              "t" & Replacement & ASCII.LF & ASCII.LF,
+            "implicit lifecycle closure flushes thinking decoder");
+         Assert
+           (Index (Text_View_Text (T.Stack.all, 3), "r" & Replacement) = 1,
+            "implicit lifecycle closure flushes response decoder");
+      end loop;
+      Clear (T.Stack.all);
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Thinking (T.Stack.all, "" & Character'Val (16#E2#));
+      Append_Text (T.Stack.all, "" & Character'Val (16#F0#));
+      Clear (T.Stack.all);
+      Begin_Request (T.Stack.all, "fresh", Prompt);
+      Append_Thinking (T.Stack.all, "thought");
+      Append_Text (T.Stack.all, "answer");
+      Assert (Text_View_Text (T.Stack.all, 2) = "thought"
+                and then Active_Text (T.Stack.all) = "answer",
+              "clear discards both pending decoder suffixes");
+   end Test_Text_Safety_Lifecycle;
 
    procedure Test_Markdown_Link_Destination_Policy (T : in out Test) is
       pragma Unreferenced (T);
@@ -3417,6 +3584,26 @@ package body Coyote_GUI_Conversation_Stack_Tests is
            ("Coyote.GUI.Conversation_Stack creates single outer host",
             Coyote_GUI_Conversation_Stack_Tests.Test_Creates_Single_Outer_Host'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack text safety task guard",
+            Test_Text_Safety_Task_Guard'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack text safety request",
+            Test_Text_Safety_Request'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack text safety response",
+            Test_Text_Safety_Response'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack text safety thinking",
+            Test_Text_Safety_Thinking'Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack text safety lifecycle",
+            Test_Text_Safety_Lifecycle'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack streams incrementally",

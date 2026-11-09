@@ -1,0 +1,118 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          gtk_interaction_worker.adb
+   [Ada]          test_gui_suite.adb
+   [Ada]          coyote_app.adb
+   [Ada]          coyote_gui-conversation_stack.adb
+   [Ada]          coyote_gui-conversation_stack-testing.adb
+   [Ada]          coyote_app-frontend-gui.adb
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+   [Ada]          coyote_app_frontend_gui_tests.adb
+   [Ada]          coyote_gui_conversation_stack_tests.adb
+coyote_app.adb:397:07: warning: use clause for type "Message_Update_Kind" defined at llm-events.ads:38 has no effect [-gnatwu]
+coyote_app.adb:1068:80: (style) this line is too long: 82 [-gnatyM]
+coyote_app_frontend_gui_tests.ads:10:25: warning: no entities of "Coyote_App.Frontend.GUI" are referenced in spec [-gnatwu]
+coyote_app_frontend_gui_tests.ads:10:25: warning: with clause might be moved to body [-gnatwu]
+   [Ada]          coyote_app-frontend-gui-testing.adb
+coyote_gui_conversation_stack_tests.adb:29:09: warning: unit "Gtk.Text_Child_Anchor" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:32:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:111:04: warning: use clause for type "Gtk_Image" defined at gtk-image.ads:113 has no effect [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:752:18: warning: "others" choice is redundant [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:752:18: warning: previous choices cover all values [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:1335:15: warning: aspect Unreferenced specified for "Failure_Baseline_Value" [enabled by default]
+coyote_gui_conversation_stack_tests.adb:3106:16: warning: "Current" is not modified, could be declared constant [-gnatwk]
+   [Ada]          coyote_gui-text_safety.adb
+coyote_app-frontend-gui-testing.adb:5:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui-testing.adb:10:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui-testing.adb:13:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:9:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:18:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:22:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:23:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:24:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:25:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:28:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:30:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:33:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:35:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:38:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:39:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:43:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:44:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:45:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:57:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:67:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:69:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:71:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:74:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:78:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:82:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:84:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:91:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui.adb:115:80: (style) this line is too long: 81 [-gnatyM]
+coyote_app-frontend-gui.adb:802:19: warning: variable "Changed" is assigned but never read [-gnatwm]
+coyote_app-frontend-gui.adb:984:10: warning: variable "Accepted" is assigned but never read [-gnatwm]
+coyote_app-frontend-gui.adb:997:04: warning: use clause for type "Gtk_Label" defined at gtk-label.ads:201 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1001:04: warning: use clause for type "Gtk_Tree_Store" defined at gtk-tree_store.ads:62 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1002:04: warning: use clause for private type "Gtk_Tree_Iter" defined at gtk-tree_model.ads:211 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1003:04: warning: use clause for type "Gtk_Tree_View" defined at gtk-tree_view.ads:114 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1009:04: warning: use clause for type "Price_Display_Mode" defined at llm-settings.ads:28 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1279:07: warning: use clause for type "Gdk_Key_Type" defined at gdk-types.ads:180 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1759:07: warning: variable "Button" is assigned but never read [-gnatwm]
+coyote_app-frontend-gui.adb:1764:07: warning: use clause for type "Gtk_Response_Type" defined at gtk-dialog.ads:160 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:1963:34: warning: redundant conversion, expression is of type "Request_Kind" [-gnatwr]
+coyote_app-frontend-gui.adb:1970:26: warning: redundant conversion, expression is of type "Completion_Status" [-gnatwr]
+coyote_app-frontend-gui.adb:2187:16: warning: if statement has no effect [-gnatwr]
+coyote_app-frontend-gui.adb:2356:07: warning: use clause for type "Gdk_Key_Type" defined at gdk-types.ads:180 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:2357:07: warning: use clause for type "Gdk_Modifier_Type" defined at gdk-types.ads:183 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:2597:07: warning: variable "Btn" is assigned but never read [-gnatwm]
+coyote_app-frontend-gui.adb:2733:80: (style) this line is too long: 83 [-gnatyM]
+coyote_app-frontend-gui.adb:3509:07: warning: variable "Btn" is assigned but never read [-gnatwm]
+coyote_app-frontend-gui.adb:3524:07: warning: use clause for type "Gtk_Response_Type" defined at gtk-dialog.ads:160 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:3898:80: (style) this line is too long: 82 [-gnatyM]
+coyote_app-frontend-gui.adb:3984:07: warning: use clause for type "Gtk_Text_View" defined at gtk-text_view.ads:74 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:4143:07: warning: use clause for type "Gdk_Key_Type" defined at gdk-types.ads:180 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:4144:07: warning: use clause for type "Gdk_Modifier_Type" defined at gdk-types.ads:183 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:4688:10: warning: use clause for type "Gdk_Modifier_Type" defined at gdk-types.ads:183 has no effect [-gnatwu]
+coyote_app-frontend-gui.adb:5083:04: (style) missing "overriding" indicator in body of "Set_Mode" [-gnatyO]
+coyote_app-frontend-gui.ads:10:80: (style) this line is too long: 91 [-gnatyM]
+coyote_gui-conversation_stack.adb:6:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:13:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:15:06: warning: unnecessary with of ancestor [-gnatwr]
+coyote_gui-conversation_stack.adb:15:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:17:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:20:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:21:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:26:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:31:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:32:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:33:09: warning: unit "Gtk.Clipboard" is not referenced [-gnatwu]
+coyote_gui-conversation_stack.adb:35:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:36:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:37:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:38:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:39:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:40:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:41:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:43:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:44:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:50:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:55:04: warning: use clause for type "Gtk_Box" defined at gtk-box.ads:95 has no effect [-gnatwu]
+coyote_gui-conversation_stack.adb:60:04: warning: use clause for type "Gtk_Text_View" defined at gtk-text_view.ads:74 has no effect [-gnatwu]
+coyote_gui-conversation_stack.adb:65:04: warning: use clause for type "Instance_Access" defined at coyote_gui-math_element.ads:27 has no effect [-gnatwu]
+coyote_gui-conversation_stack.adb:223:07: warning: use clause for type "Gint" defined at glib.ads:49 has no effect [-gnatwu]
+coyote_gui-conversation_stack.ads:13:06: warning: unnecessary with of ancestor [-gnatwr]
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+   [gprbind]      gtk_interaction_worker.bexch
+   [Ada]          gtk_interaction_worker.ali
+Link
+   [link]         coyote_test.adb
+gprbuild: "mock_coyote" up to date
+gprbuild: "auth_test_worker" up to date
+gprbuild: "help_test_worker" up to date
+gprbuild: "notify_test_worker" up to date
+gprbuild: "signal_shutdown_worker" up to date
+   [link]         gtk_interaction_worker.adb
+Success: Build finished successfully in 16.96 seconds.

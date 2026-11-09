@@ -1,0 +1,11 @@
+Logs: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192
+PASS plain: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/01-plain.log
+PASS unicode: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/02-unicode.log
+PASS bidi: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/03-bidi.log
+PASS inline-math: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/04-inline-math.log
+PASS multiline: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/05-multiline.log
+PASS plain: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/06-plain.log
+PASS link-click: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/07-link-click.log
+PASS link-hover: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/08-link-hover.log
+PASS math-boundary: /tmp/coyote-text-safety-interactions-final/gtk-interactions-e5ky9192/09-math-boundary.log
+Summary: 9/9 passed

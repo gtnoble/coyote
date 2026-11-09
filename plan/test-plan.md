@@ -513,6 +513,26 @@ live-provider, signal, and preferences demonstrations listed above.
 
 ## 7. Notes
 
+### PCR-128 — text boundary and isolated native interactions
+
+After root/test development builds, run from repository root:
+
+```sh
+python3 test/tools/check-gtk-interactions.py
+python3 test/tools/check-gtk-interaction-runner.py
+```
+
+The first executes nine isolated display-backed processes under Xvfb with
+30-second per-case deadlines, fatal GTK criticals, private logs and version
+metadata. `--timeout` overrides the limit; `--output-dir` selects the log parent.
+The second is a no-GTK self-test with intentional SIGKILL/timeout failures and
+requires later cases to execute. Existing CSS warnings are not made fatal.
+Five new `Coyote.GUI.Conversation_Stack text safety` cases exercise presentation
+validation, task ownership and stream lifecycle. Full suite requires `cd test`;
+first increment passes1074/1074. Evidence and remaining limits are under
+`plan/evidence/gtk-text-safety-2026-11-07/`. This is bounded deterministic
+coverage, not exhaustive native/desktop qualification.
+
 ### PCR-127 — hidden inline-math line-boundary hit testing
 
 The registered `Coyote.GUI.Conversation_Stack hit-tests inline math line

@@ -13,6 +13,7 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_GUI.Text_Safety;
 with Glib;
 with Glib.Main;
 with Gtk.Box;
@@ -249,6 +250,8 @@ private
       Response_Box        : Gtk.Box.Gtk_Box;
       Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
+      Response_Decoder    : Coyote_GUI.Text_Safety.Stream;
+      Thinking_Decoder    : Coyote_GUI.Text_Safety.Stream;
       Response_Font       : Ada.Strings.Unbounded.Unbounded_String;
       Source_Directory    : Ada.Strings.Unbounded.Unbounded_String;
       Images_Remaining    : Natural := 16;

@@ -36,6 +36,11 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Set_Font_Applies_To_New_Table_Labels (T : in out Test);
    procedure Test_Creates_Single_Outer_Host (T : in out Test);
    procedure Test_Request_And_Streaming_Are_Incremental (T : in out Test);
+   procedure Test_Text_Safety_Task_Guard (T : in out Test);
+   procedure Test_Text_Safety_Request (T : in out Test);
+   procedure Test_Text_Safety_Response (T : in out Test);
+   procedure Test_Text_Safety_Thinking (T : in out Test);
+   procedure Test_Text_Safety_Lifecycle (T : in out Test);
    procedure Test_Markdown_Link_Destination_Policy (T : in out Test);
    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test);
    procedure Test_Inline_Math_Line_Boundary_Hit_Test (T : in out Test);

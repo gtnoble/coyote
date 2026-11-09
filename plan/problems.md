@@ -3,6 +3,52 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-128 — Conversation text safety and isolated native interactions
+
+- **Date reported:** 2026-11-07
+- **Category:** Code, Design, Test
+- **Priority:** 3-Moderate (Plain presentation remains available)
+- **Authorization:** User requested implementation of the proposed robustness
+  work. First increment centralizes conversation text safety and adds isolated
+  native interaction tests; recovery UI and document-model redesign are deferred.
+- **Problem:** Response/thinking chunks reach GTK before validation; malformed
+  or incomplete UTF-8 causes native criticals and embedded NUL truncates text.
+  Thinking closure paths can discard a pending decoder suffix. Native GUI
+  failures can terminate a test process before later cases run.
+- **Implementation:** New `Coyote_GUI.Text_Safety` owns conversation layout
+  policy, NUL-free UTF-8 presentation, fresh-iterator append, stream feed/flush,
+  and synchronized first-Configure Ada-task binding. Later boundary mutations
+  on another task raise Program_Error before GTK; first binding must still
+  occur on the actual GTK task. Response/thinking have separate decoders.
+  New request, step completion and abort flush tails; clear discards them.
+  Persisted source and Plain behavior are unchanged. Rich-text mark discipline
+  and the PCR-127 below-line workaround are retained.
+- **Tests:** Five new AUnit cases cover task rejection, request sanitation,
+  bytewise 2/3/4-byte streaming, malformed/NUL handling, raw/Markdown tail flush,
+  thinking lifecycle, new request/abort/step and clear/reset. An isolated GTK
+  worker exercises copy, Unicode, bidi, inline math, resize, font reflow,
+  scrolling and repopulation. The runner additionally isolates existing real
+  link-click, hover and math-boundary cases: nine processes total. Per-case
+  deadlines, group cleanup, private logs and GTK/Pango versions are recorded.
+  Offline self-test injects SIGKILL and timeout and verifies later cases run.
+- **Verification:** Root/test development builds pass with existing warnings;
+  focused5/5 with fatal GTK criticals, isolated matrix9/9, full suite1074/1074,
+  zero failures/errors, 146.502911 seconds cumulative (146.65 wall). Initial
+  worker build errors and a multiline-copy oracle failure were corrected;
+  Markdown soft-line normalization is compared against complete buffer source.
+  A SIGTRAP injection was delayed by the host crash handler; deterministic
+  SIGKILL tests abnormal-exit isolation instead. No production errors suppressed.
+- **Evidence:** `plan/evidence/gtk-text-safety-2026-11-07/`.
+- **Limits:** This guards the new boundary, not every GTK call; rich markup,
+  tool-detail windows, other labels and the initial GTK task selection remain
+  caller responsibilities. Native abort recovery, process-wide GUI containment,
+  source-only recovery UI, comprehensive event fuzzing and source/display model
+  separation are not implemented. No live-provider, independent desktop or
+  native-math acceptance is implied. Developer self-review is not independent
+  user acceptance. Repository executable rebuilt; no installed update/release.
+- **Status:** First increment implemented and developer-verified; broader
+  robustness work remains OPEN. No commit made in this increment.
+
 ## PCR-127 — GTK text B-tree byte-index crash
 
 - **Date reported:** 2026-11-07

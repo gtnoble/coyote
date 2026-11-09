@@ -1,0 +1,1122 @@
+OK    Encode_Cwd absolute path
+OK    Encode_Cwd relative path
+OK    Encode_Cwd empty/root path
+OK    Format_Timestamp ISO with Z
+OK    Format_Timestamp short string verbatim
+OK    Parse full session JSONL
+OK    Parse session JSONL without name
+OK    Parse session JSONL with bad JSON
+OK    Parse session JSONL with a very long line (no stack overflow)
+OK    Parse_Session_File extracts Parent_Id from header
+OK    Parse_Session_File leaves Parent_Id empty when absent
+OK    Parse_Session_File: Is_Fork True when relation is fork
+OK    Parse_Session_File: Is_Fork False when relation is subagent
+OK    Find_Session_File found in test dir
+OK    Find_Session_File returns empty when UUID absent
+OK    Find_Session_File searches all session subdirectories
+OK    Fork_Session forks after first turn
+OK    Fork_Session forks after second turn
+OK    Fork_Session returns empty beyond last turn
+OK    Fork_Session returns empty for missing source
+OK    List_Sessions sorts native sessions newest first
+OK    List_Sessions ignores invalid non-session files
+OK    Fork_Session preserves native turn boundaries
+OK    Agent registry registers the main root
+OK    Agent registry registers a child under its parent
+OK    Agent registry records local and RPC endpoints
+OK    Agent registry preserves recursive descendants
+OK    Agent registry separates runtime and durable identity
+OK    Agent registry selects a live agent
+OK    Agent registry accepts controls while ready
+OK    Agent registry accepts controls while starting
+OK    Agent registry preserves live status control policy
+OK    Agent registry updates durable session identity
+OK    Agent registry retains terminal selection
+OK    Agent registry rejects terminal controls
+OK    Agent registry rejects unknown parents
+OK    Agent registry rejects duplicate runtime identities
+OK    Agent registry clears records and selection
+OK    Agent RPC service registers child handshakes
+OK    Agent RPC service routes commands
+OK    Agent RPC service reports disconnects
+OK    Agent RPC service rotates worker generation
+OK    Agent RPC service retains listener after failed rotation
+OK    Agent RPC service detaches and recovers listener
+OK    Agent RPC service rotates after worker disconnect
+OK    Agent RPC Stop command round-trips
+OK    Agent RPC Abort_Tool command round-trips
+OK    Agent RPC Abort_Tool rejects invalid payloads
+OK    Agent RPC Set_Sandbox command round-trips
+OK    Agent RPC handshake round-trips
+OK    Agent RPC event round-trips
+OK    Agent RPC context update event round-trips
+OK    Agent RPC End_Step event round-trips
+OK    Agent RPC source directory event round-trips
+OK    Agent RPC command round-trips
+OK    Agent RPC terminal round-trips
+OK    Agent RPC preserves JSON escaping
+OK    Agent RPC encoding has no trailing newline
+OK    Agent RPC rejects malformed JSON
+OK    Agent RPC rejects non-object frames
+OK    Agent RPC rejects wrong protocol markers
+OK    Agent RPC rejects unsupported versions
+OK    Agent RPC rejects missing required fields
+OK    Agent RPC rejects invalid payloads
+OK    Agent RPC transport pair round-trips a handshake
+OK    Agent RPC transport enforces handshake ordering
+OK    Agent RPC transport enforces increasing event sequence
+OK    Agent RPC transport rejects frames after terminal
+OK    Agent RPC transport reports peer close
+OK    Agent RPC transport receive times out when idle
+OK    Agent RPC transport listener times out when idle
+OK    Agent RPC transport accepts Unix clients
+OK    Agent RPC transport teardown send never waits for unread peer
+OK    RPC frontend demultiplexes prompt and abort commands
+OK    RPC frontend forwards source directory
+OK    App_State model round-trip
+OK    App_State streaming flag
+OK    App_State token counts
+OK    App_State shutdown barrier
+OK    App_State session ID
+OK    Nth_Field basic space-separated
+OK    Nth_Field tab-separated input
+OK    Nth_Field edge cases
+OK    Format_Turn_Footer: step-level separator
+OK    App_State Turn_Step increment
+OK    App_State Turn_Step set
+OK    App_State Turn_Step reset
+OK    App_State Turn_Count increment
+OK    App_State Turn_Count set
+OK    App_State Turn_Count reset
+OK    App_State Is_Retrying initial value is False
+OK    App_State Is_Retrying set and clear
+OK    App_State Is_Retrying independent of text flags
+OK    App_State Has_Text_Delta initial value is False
+OK    App_State Has_Text_Delta set and clear
+OK    App_State Has_Text_Delta independent of Text_Emitted
+OK    App_State Last_Stop_Reason initial value is empty
+OK    App_State Last_Stop_Reason round-trip for all stop-reason values
+OK    App_State Last_Stop_Reason independent of all other flags
+OK    App_State Last_Error_Message initial value is empty
+OK    App_State Last_Error_Message round-trip and independence
+OK    App_State Pending_Stats gated by Last_Stop_Reason (stop/length only)
+â â running
+â â running 0+1 tools
+[tool] test {}
+[warning] Agent stopped with an error: exceptional failure
+â â ready 0+1 tools
+â â running
+â â ready
+â â running
+[info] 
+[STOP] Aborted.
+
+â â ready
+OK    Dispatch Agent_End: exceptional failure completes once
+OK    Stats model part: non-empty when model is set
+OK    Stats model part: empty guard when no model set
+OK    App_State Turn_Cost_Dmil initial value is 0
+OK    App_State Turn_Cost_Dmil round-trip via Set_Turn_Cost
+OK    App_State session stats fields all start at 0
+OK    App_State Set_Session_Stats stores all six fields atomically
+OK    App_State Set_Session_Stats with zeros resets all fields
+OK    App_State cost fields are independent of per-turn token counts
+OK    JSON_Scalar_Image: string value returned without quotes
+OK    JSON_Scalar_Image: integer value serialised as numeric string
+OK    JSON_Scalar_Image: negative integer serialised correctly
+OK    JSON_Scalar_Image: boolean true serialises to "true"
+OK    JSON_Scalar_Image: boolean false serialises to "false"
+OK    JSON_Scalar_Image: float value serialises to non-empty string
+OK    JSON_Scalar_Image: null value returns "..."
+OK    JSON_Scalar_Image: object value returns "..."
+OK    JSON_Scalar_Image: array value returns "..."
+OK    App_State One_Shot_Result initial value is empty
+OK    App_State One_Shot_Result first-write-wins
+OK    Format_Tool_Field: single-line value returns border + label + value
+OK    Format_Tool_Field: two-line value carries border on both lines
+OK    Format_Tool_Field: three-line value carries border on every line
+OK    Format_Tool_Field: trailing LF produces empty continuation line
+OK    Format_Tool_Field: empty value returns border + label only
+OK    Format_Tool_Field: value over Max_Len is truncated with ellipsis
+OK    Tool_Segment line count: LF-count + 1 = display lines
+OK    Format_SI_Count: values below 1000 returned as decimal
+OK    Format_SI_Count: exact multiples of 1000 use "k" suffix
+OK    Format_SI_Count: non-zero hundredths produce "N.FFk" form
+OK    Format_SI_Count: values >= 1 000 000 use "M" suffix
+OK    Format_Cost: 0 dmil -> "$0.0000"
+OK    Format_Cost: sub-dollar values zero-pad fractional digits
+OK    App_State subagent model override set and clear
+OK    Format_Cost: values >= 10000 dmil have non-zero dollar part
+OK    Format_Model_Price: all zeros returns empty string
+OK    Format_Model_Price: in/out only produces two SI Âµ segments
+OK    Format_Model_Price: all four fields, four SI-prefixed segments
+OK    Format_Model_Price: zero cache fields are silently omitted
+OK    Format_Model_Price: cache-read-only produces nano cr segment
+OK    Format_DB_Price: representative values use $/tok
+OK    Format_DB_Price: free and negative values
+OK    Get_Cost_Dmil: JSON float converted to dmil units
+OK    Get_Cost_Dmil: JSON float 0.0 returns 0
+OK    Get_Cost_Dmil: JSON integer 0 returns 0
+OK    Get_Cost_Dmil: absent field returns 0
+OK    Get_Cost_Dmil: negative float returns 0
+OK    Format_Status: empty state produces "* ready"
+OK    Format_Status: Extra argument reflected verbatim
+OK    Format_Status: model shown as "[provider/model]"
+OK    Format_Status: session ID shows first 8 chars
+OK    Format_Status: token/context window shown as "Nk/Mk"
+OK    Format_Status: thinking level shown as " ~level"
+OK    Format_Status: sandbox profile shown as "[profile]"
+OK    Format_Status: working directory appears when set
+OK    Format_Status: empty working directory is omitted
+OK    Apply_Prompt_Filter: empty filter returns raw unchanged
+OK    Apply_Prompt_Filter: cat filter echoes prompt back
+OK    Apply_Prompt_Filter: tr filter transforms prompt to uppercase
+OK    Apply_Prompt_Filter: non-zero exit falls back to raw with warning
+OK    Apply_Prompt_Filter: empty stdout falls back to raw with warning
+OK    Apply_Prompt_Filter: output is trimmed of surrounding whitespace
+OK    App_State Prompt_Filter initial value is empty
+OK    App_State Prompt_Filter round-trip via Set_Prompt_Filter
+OK    App_State Is_Paused initial value is False
+OK    App_State Is_Paused toggles via Set_Paused
+OK    App_State Is_Pause_Armed initial value is False
+OK    App_State Is_Pause_Armed toggles via Set_Pause_Armed
+OK    App_State Current_Sandbox initial value is empty
+OK    App_State Current_Sandbox round-trip via Set_Sandbox
+OK    App_State Set_Sandbox to empty clears the profile
+OK    GFM cmark: table input produces node with type_string 'table'
+OK    GFM cmark: paragraph still has type_string 'paragraph'
+OK    Coyote_App.History ignores legacy format metadata
+OK    Coyote_App.History replays terminal tool results
+OK    Coyote_Utils reads file when path exists
+OK    Coyote_Utils returns empty when arg is not a file
+OK    Coyote_Utils returns empty for empty path
+OK    Coyote_Utils reads multiline file
+OK    Coyote_Temp_Files creates and removes /tmp files
+OK    Coyote_Utils Strip_Session_Prefix removes coyote-session+ prefix
+OK    Coyote_Utils Strip_Session_Prefix returns input unchanged when prefix absent
+OK    Coyote_Utils Strip_Session_Prefix returns empty for empty input
+OK    Coyote_Utils resolves the active executable path
+OK    Coyote_Spawn rejects empty argument lists
+OK    Coyote_Spawn rejects empty argv[0]
+OK    Coyote_Spawn rejects embedded NUL arguments
+OK    Coyote_Spawn rejects invalid working directory
+OK    Coyote_Spawn rejects embedded NUL working directory
+OK    Coyote_Spawn reports successful exec independent of exit status
+OK    Coyote_Spawn reports missing executable
+OK    Coyote_Utils shell-quotes paths containing spaces
+OK    Coyote_Utils shell-quotes apostrophes
+OK    Coyote_Utils hides default and empty tool arguments
+OK    Sanitize_UTF8 passes through pure ASCII unchanged
+OK    Sanitize_UTF8 passes through valid multi-byte UTF-8
+OK    Sanitize_UTF8 replaces Latin-1 text with U+FFFD
+OK    Sanitize_UTF8 replaces isolated continuation bytes
+OK    Sanitize_UTF8 replaces truncated multi-byte sequences
+OK    Sanitize_UTF8 replaces overlong encoding with U+FFFD
+OK    Sanitize_UTF8 returns empty string unchanged
+OK    UTF8_Stream reassembles two-byte sequences
+OK    UTF8_Stream reassembles three-byte sequences
+OK    UTF8_Stream reassembles four-byte sequences
+OK    UTF8_Stream flushes incomplete sequences
+OK    Collapse_Thinking_Delta: single-LF collapse to spaces
+OK    Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved
+OK    Collapse_Thinking_Delta: empty input returns empty string
+OK    Collapse_Thinking_Delta: no-LF input returned verbatim
+OK    Collapse_Thinking_Delta: leading/trailing whitespace stripped
+OK    Collapse_Thinking_Delta: spaces preserved as word boundaries
+OK    Collapse_Thinking_Delta: OpenAI-style trailing LF stripped
+OK    Collapse_Thinking_Delta: OpenAI mid-stream LFs become spaces
+OK    Model_Row_Matches: empty query matches any row
+OK    Model_Row_Matches: whitespace query matches any row
+OK    Model_Row_Matches: case-insensitive name substring
+OK    Model_Row_Matches: provider substring
+OK    Model_Row_Matches: spec substring
+OK    Model_Row_Matches: unrelated query rejected
+OK    Format_Model_Picker_Count: unfiltered wording
+OK    Format_Model_Picker_Count: filtered wording
+OK    Coyote_Cmark owned document releases on early return
+OK    Coyote_Cmark owner scope handles exception unwinding
+OK    Coyote_Cmark copied literal accessor
+OK    Coyote_Cmark enum constants are non-negative after elaboration
+OK    Coyote_Cmark Parse_Document returns non-null root node
+OK    Coyote_Cmark root node type equals NODE_DOCUMENT
+OK    Coyote_Cmark iterator yields TEXT event for plain paragraph
+OK    Coyote_Cmark TEXT node literal matches the input word
+OK    Coyote_Cmark Node_Free and Iter_Free do not raise
+OK    Coyote_Cmark Node_Get_Heading_Level returns correct level
+OK    Coyote_Cmark Node_Get_List_Type returns LIST_BULLET
+OK    Coyote_Cmark Node_Get_List_Type returns LIST_ORDERED
+OK    Coyote_Cmark Node_Get_List_Start returns declared ordinal
+OK    Coyote_Cmark Node_Get_Literal on code block returns content
+OK    Coyote_Cmark shim returns empty string for null literal
+OK    Coyote_Cmark event constants are mutually distinct
+OK    Coyote_Cmark Render_Markdown node-type constants are distinct
+OK    Coyote_Renderer.Markup nested list indentation
+OK    Coyote_Renderer.Markup list line boundaries
+OK    Coyote_Renderer.Markup truncates wide tables safely
+OK    Coyote_Renderer.Markup truncates tall tables safely
+OK    Coyote_Renderer.Markup preserves raw HTML visibly
+OK    Coyote_Renderer.Markup retains link destinations
+OK    Coyote_Renderer.Markup retains image alt text
+OK    Coyote_Renderer.Markup image metadata offsets
+OK    Coyote_Renderer.Markup image metadata destinations
+OK    Coyote_Renderer.Markup image alt fallbacks
+OK    Coyote.Renderer.Math protects Markdown code blocks
+OK    Coyote.Renderer.Math preserves display-math source
+OK    Coyote.Renderer.Math preserves unmatched delimiters
+OK    Coyote.Renderer.Math extracts bracket display LaTeX
+OK    Coyote.Renderer.Math extracts same-line display LaTeX
+OK    Coyote.Renderer.Math protects inline display contexts
+OK    Coyote.Renderer.Markup preserves exact inline LaTeX
+OK    Coyote.Renderer.Markup excludes currency from inline LaTeX
+OK    Coyote.Renderer.Markup inline LaTeX metadata offsets
+OK    Coyote.Renderer.Markup protects inline LaTeX contexts
+OK    Coyote.Renderer.Math scanner regression
+OK    Coyote.Renderer.Math extraction caps
+OK    Coyote.Renderer.Markup scanner regression
+OK    Coyote.Renderer.Tables preserves plain text
+OK    Coyote.Renderer.Tables preserves table metadata
+OK    Coyote.Renderer.Tables preserves table line count
+OK    Coyote.Renderer.Tables preserves source order
+OK    Sandbox Profiles_Dir returns path
+OK    Sandbox Available_Profiles empty when none exist
+OK    Sandbox Available_Profiles finds profile
+OK    Sandbox Load_Profile returns object for valid profile
+OK    Sandbox Load_Profile returns JSON_Null for missing profile
+OK    Sandbox Load_Profile returns JSON_Null for bad JSON
+OK    Sandbox Build_Bwrap_Args returns empty for empty profile
+OK    Sandbox Build_Bwrap_Args returns empty for non-existent profile
+OK    Sandbox Build_Bwrap_Args allowWrite uses --bind
+OK    Sandbox Build_Bwrap_Args denyWrite uses --ro-bind
+OK    Sandbox Build_Bwrap_Args allowRead uses --ro-bind
+OK    Sandbox Build_Bwrap_Args denyRead uses --tmpfs
+OK    Sandbox Build_Bwrap_Args skips missing paths
+OK    Sandbox Build_Bwrap_Args handles multiple rule types
+OK    Sandbox Build_Bwrap_Args sorts by path depth
+OK    Sandbox resolves '.' to Cwd
+OK    Sandbox resolves './...' relative to Cwd
+OK    Sandbox resolves bare relative paths against Cwd
+OK    Sandbox resolves '..' against Cwd
+OK    Sandbox resolves '../...' against Cwd
+OK    Sandbox normalizes mixed dot and parent paths
+OK    Sandbox resolves '~' to $HOME
+OK    Sandbox resolves '~/' prefix to $HOME
+OK    Sandbox passes absolute paths through unchanged
+OK    Sandbox shell allowWrite succeeds
+OK    Sandbox shell denyRead blocks access
+OK    Sandbox shell empty profile runs unsandboxed
+OK    Sandbox shell timeout terminates the process group
+OK    Sandbox shell abort terminates the process group
+OK    Coyote.Help root URI
+OK    Coyote.Help topic URI
+OK    Coyote.Help data directory follows executable prefix
+OK    Coyote.Help detects Yelp
+OK    Coyote.Help product information text
+OK    Coyote.Help area topics
+OK    Coyote.Help launch preserves existing XDG
+OK    Coyote.Help launch preserves empty XDG
+OK    Coyote.Help launch preserves unset XDG
+OK    Coyote.Help launch root URI
+OK    Coyote.Help launch without bundled data
+OK    Coyote.Help launch without Yelp
+OK    Coyote.Math parses a simple glyph
+OK    Coyote.Math rejects empty and unknown commands
+OK    Coyote.Math parses registered Unicode symbols
+OK    Coyote.Math diagnoses invalid UTF-8 and comments
+OK    Coyote.Math expands parameterized macros in source order
+OK    Coyote.Math scopes, shadows, and resets shared macros
+OK    Coyote.Math owns macro tokens across parse requests
+OK    Coyote.Math bounds retained oversized source
+OK    Coyote.Math handles deterministic malformed inputs
+OK    Coyote.Math does not accept MathML markup
+OK    Coyote.Math records strict untrusted-command policies
+OK    Coyote.Math looks up known and unknown glyph metrics
+OK    Coyote.Math lays out a simple glyph
+OK    Coyote.Math scales scripts and computes geometry
+OK    Coyote.Math keeps wide operator limits within their group
+OK    Coyote.Math emits indexed radical glyph and overbar
+OK    Coyote.Math distinguishes text and display fractions
+OK    Coyote.Math supports requested production math forms
+OK    Coyote.Math preserves explicit whitespace width
+OK    Coyote.Math emits two strokes for double-bar delimiters
+OK    Coyote.Math accepts named operators and aliases
+OK    Coyote.Math lays out text and roman fonts
+OK    Coyote.Math parses accents and common operator words
+OK    Coyote.Math lays out accents and operator limits
+OK    Coyote.Math lays out matrix, cases, and aligned arrays
+OK    Coyote.Math paints exact fonts and recovers from errors
+OK    Coyote.Image_Loader accepts PNG, JPEG, and local file URIs
+OK    Coyote.Image_Loader rejects remote, malformed, and NUL URIs
+OK    Coyote.Image_Loader rejects unsupported and corrupt formats
+OK    Coyote.Image_Loader confines paths and rejects special files
+OK    Coyote.Image_Loader enforces encoded source limits
+OK    Coyote.Image_Loader avoids upscaling small images
+OK    Coyote.Image_Loader scales within width and height limits
+OK    Coyote.Image_Loader releases descriptors after failures
+OK    Coyote.Image_Jobs bounded queue and synchronous rejection
+OK    Coyote.Image_Jobs success, failure, and capacity reuse
+Image completion callback failed: intentional callback failure
+OK    Coyote.Image_Jobs callback exception recovery
+OK    LLM.System_Prompt default prompt contains preamble
+OK    LLM.System_Prompt default prompt lists built-in tools
+OK    LLM.System_Prompt uses injected executable path
+OK    LLM.System_Prompt quotes executable path
+OK    LLM.System_Prompt default prompt contains guidelines
+OK    LLM.System_Prompt default prompt contains math guidance
+OK    LLM.System_Prompt default prompt contains cwd
+OK    LLM.System_Prompt default prompt contains date
+OK    LLM.System_Prompt agent appended to prompt
+OK    LLM.System_Prompt agent prompt appears in built prompt
+OK    LLM.System_Prompt no-tools suppresses tool list
+OK    LLM.System_Prompt injects context sections
+OK    LLM.System_Prompt injects skills section
+OK    LLM.System_Prompt empty context section is silent
+OK    LLM.System_Prompt default prompt contains current shell
+OK    LLM.System_Prompt preserves section order
+OK    LLM.System_Prompt memory block injected when provided
+OK    LLM.System_Prompt empty memory block absent from prompt
+OK    LLM.System_Prompt renders all template markers
+OK    LLM.System_Prompt removes template sections without tools
+OK    LLM.System_Prompt renders terminal tool policy
+OK    LLM.System_Prompt renders coordinator section
+OK    LLM.System_Prompt Load_Context_Sections returns empty with no files
+OK    LLM.System_Prompt Load_Context_Sections loads AGENTS.md from cwd
+OK    LLM.System_Prompt Load_Context_Sections loads global context dir
+OK    LLM.System_Prompt Load_Context_Sections loads project context dir
+OK    LLM.System_Prompt Load_Context_Sections: global before project
+OK    LLM.System_Prompt Load_Context_Sections: project before AGENTS
+OK    LLM.System_Prompt Load_Context_Sections sorts files alphabetically
+OK    LLM.System_Prompt Load_Context_Sections adds outer header
+OK    LLM.System_Prompt Load_Context_Sections omits header when empty
+OK    LLM.System_Prompt Build_System_Prompt injects loaded context
+OK    LLM.Skills returns empty string when no skills exist
+OK    LLM.Skills parses name and description from frontmatter
+OK    LLM.Skills records absolute skill file locations
+OK    LLM.Skills skips files missing name
+OK    LLM.Skills skips files missing description
+OK    LLM.Skills loads global skills
+OK    LLM.Skills loads project skills
+OK    LLM.Skills loads global ~/.agents/skills
+OK    LLM.Skills loads configured skill roots
+OK    LLM.Skills project roots shadow configured skills
+OK    LLM.Skills loads project .agents/skills
+OK    LLM.Skills format contains skill name
+OK    LLM.Skills format contains description
+OK    LLM.Skills format contains location
+OK    LLM.Skills format contains outer tags
+OK    LLM.Skills format contains preamble
+OK    LLM.Skills formats two skills
+OK    LLM.Skills auto-injects into Build_System_Prompt
+OK    LLM.Skills Install_Base derives prefix from bin/coyote
+OK    LLM.Skills Install_Base returns empty for non-bin path
+OK    LLM.Skills Install_Base uses explicit Executable arg
+OK    LLM.Skills Installation_Skills_Base appends path
+OK    LLM.Skills Installation_Skills_Base returns empty for non-bin
+OK    LLM.Skills install-root skills not loaded when bin/ absent
+OK    LLM.HTTP POST returns status and callback chunk
+OK    LLM.HTTP GET returns status and callback chunk
+OK    LLM.HTTP POST non-200 returns status and body
+OK    LLM.HTTP low-speed timeout preserves curl code
+OK    LLM.HTTP total timeout bounds a delayed response
+OK    LLM.HTTP aborts a stalled response promptly
+OK    LLM.Settings loads defaults and subagent defaults from settings.json
+OK    LLM.Settings loads appendSystemPrompt from settings.json
+OK    LLM.Settings Append_System_Prompt defaults to empty
+OK    LLM.Settings Agent parameter appears in built prompt
+OK    LLM.Settings Resolve_Api_Key prefers models.json literal value
+OK    LLM.Settings Resolve_Api_Key supports ${ENV_VAR} interpolation
+OK    LLM.Settings Resolve_Api_Key falls back to standard env map
+OK    LLM.Settings loads promptFilter from settings.json
+OK    LLM.Settings Prompt_Filter defaults to empty when absent
+OK    LLM.Settings loads default sandbox profile
+OK    LLM.Settings loads skillPaths array
+OK    LLM.Settings loads and clamps termination grace
+OK    LLM.Settings loads and clamps HTTP low-speed timeout
+OK    LLM.Settings loads and validates max recursion depth
+OK    LLM.Settings Save_Preferences preserves and clears fields
+OK    LLM.Settings completion notifications default and load
+OK    LLM.Settings price display load, default, and save
+OK    LLM.Types text block stores text content
+OK    LLM.Types thinking block stores thinking content
+OK    LLM.Types tool-call block stores id/name/arguments
+OK    LLM.Types tool-result block stores result and error flag
+OK    LLM.Types tool-result block stores Media_Type field
+OK    LLM.Types compaction summary messages preserve role and text
+OK    LLM.Types usage values add field-by-field
+OK    LLM.Types message vectors append and preserve values
+OK    LLM.Compaction estimates message tokens conservatively
+OK    LLM.Compaction estimates context tokens from usage or heuristics
+OK    LLM.Compaction decides when to compact
+OK    LLM.Compaction uses percentage threshold boundaries
+OK    LLM.Compaction finds safe user-turn cut points
+OK    LLM.Compaction serialises conversations for summarisation
+OK    LLM.Compaction builds a realistic compaction candidate
+OK    LLM.Session_Store New_UUID returns RFC 4122 v4 text
+OK    LLM.Session_Store New_UUID returns unique values
+OK    LLM.Session_Store Create_Session writes a parseable header
+OK    LLM.Session_Store user messages round-trip through disk
+OK    LLM.Session_Store assistant tool calls round-trip through disk
+OK    LLM.Session_Store assistant thinking+text round-trips
+OK    LLM.Session_Store infers legacy thinking model provenance
+OK    LLM.Session_Store tool results round-trip through disk
+OK    LLM.Session_Store native sessions can be forked
+OK    LLM.Session_Store loads legacy envelope lines
+OK    LLM.Session_Store skips malformed JSONL lines
+OK    LLM.Session_Store persists assistant usage and stop reason
+OK    LLM.Session_Store new assistant JSON omits old metadata
+OK    LLM.Session_Store ignores legacy format metadata on load
+OK    LLM.Session_Store appends compaction records to JSONL
+OK    LLM.Session_Store rejects persisted compaction summary messages
+OK    LLM.Session_Store loads synthetic history around compaction
+OK    LLM.Session_Store keeps legacy load behaviour without compaction
+OK    LLM.Session_Store append/load compaction round-trips
+OK    LLM.Session_Store.Session_Work_Dir returns stored Cwd and empty string for missing session or missing field
+OK    LLM.Session_Store.Session_Created_At returns local timestamp
+OK    LLM.Session_Store.Append_Message handles large tool result without secondary-stack overflow
+OK    LLM.Session_Store tool call with invalid args round-trips
+OK    LLM.Session_Store sandboxProfile written to header when set
+OK    LLM.Session_Store sandboxProfile absent when env var unset
+OK    LLM.Session_Store reads sandboxProfile from session header
+OK    LLM.SSE parses a complete named event
+OK    LLM.SSE parses an event split across Feed calls
+OK    LLM.SSE returns the [DONE] sentinel unchanged
+OK    LLM.SSE skips ping events transparently
+OK    LLM.SSE accepts CRLF-terminated records
+OK    LLM.SSE parses a canned Anthropic SSE fixture
+OK    LLM.SSE parses a canned OpenAI SSE fixture
+OK    LLM.SSE Reset clears partial buffered data
+OK    LLM.Tools.Shell executes a successful command
+OK    LLM.Tools.Shell reports a non-zero exit status
+OK    LLM.Tools.Shell pipes stdin text into the command
+OK    LLM.Tools.Shell treats empty stdin field as absent
+OK    LLM.Tools.Shell succeeds without a stdin field
+OK    LLM.Tools.Result_Threshold zero returns MAX
+OK    LLM.Tools.Result_Threshold small clamped to MIN
+OK    LLM.Tools.Result_Threshold 128k yields 64 KB
+OK    LLM.Tools.Result_Threshold 200k yields 100 KB
+OK    LLM.Tools.Result_Threshold large clamped to MAX
+OK    LLM.Tools.Validate_Arguments accepts valid JSON object
+OK    LLM.Tools.Validate_Arguments rejects invalid JSON
+OK    LLM.Tools.Validate_Arguments rejects non-object JSON
+OK    LLM.Tools.Validate_Arguments rejects empty string
+OK    LLM.Tools.Pause_Flag initial state is not armed and not paused
+OK    LLM.Tools.Pause_Flag Arm sets Is_Armed
+OK    LLM.Tools.Pause_Flag Unarm cancels a pending Arm
+OK    LLM.Tools.Pause_Flag Fire transitions Armed to Paused
+OK    LLM.Tools.Pause_Flag Fire without Arm is a no-op
+OK    LLM.Tools.Pause_Flag Release clears Paused
+OK    LLM.Tools.Pause_Flag Release also clears Armed
+OK    LLM.Tools.Shell media_type base64-encodes stdout
+OK    LLM.Tools.Shell media_type on error returns empty Media_Type
+OK    LLM.Tools.Shell absent media_type is plain text
+OK    LLM.Tools.Shell image keeps stderr out of payload
+OK    LLM.Tools.Shell image rejects invalid data
+OK    LLM.Tools.Shell image rejects unsupported MIME
+OK    LLM.Tools.Execute image results bypass truncation cap
+OK    LLM.Tools.Shell timeout finishes before deadline
+OK    LLM.Tools.Shell timeout kills an over-running command
+OK    LLM.Tools.Shell reports structured timeout status
+OK    LLM.Tools.Shell timeout=0 disables the timer
+OK    LLM.Tools.Shell negative timeout is ignored
+OK    LLM.Tools.Shell timeout under: elapsed time verifies fast finish
+OK    LLM.Tools.Shell timeout triggers: elapsed time verifies tight window
+OK    LLM.Tools.Shell timeout preserves stdout emitted before kill
+OK    LLM.Tools.Shell timeout allows TERM-aware exit during grace
+OK    LLM.Tools.Shell timeout escalates after grace
+OK    LLM.Tools.Shell abort preserves stdout emitted before kill
+OK    LLM.OpenAI_Completions streams text SSE responses
+OK    LLM.OpenAI_Completions streams and assembles tool calls
+OK    LLM.OpenAI_Completions assembles multiple indexed tool calls
+OK    LLM.OpenAI_Completions emits thinking deltas from reasoning
+OK    LLM.OpenAI_Completions encodes compaction summaries as user
+OK    LLM.OpenAI_Completions parses non-streaming JSON responses
+OK    LLM.OpenAI_Completions parses non-streaming tool calls
+OK    LLM.OpenAI_Completions propagates HTTP errors
+OK    LLM.OpenAI_Completions propagates streamed errors
+OK    LLM.OpenAI_Completions finalizes early-terminated streams
+OK    LLM.OpenAI_Completions system message has cache_control
+OK    LLM.OpenAI_Completions last tool has cache_control breakpoint
+OK    LLM.OpenAI_Completions cached_tokens parsed in usage
+OK    OpenAI tool_result image uses image_url data URI format
+OK    LLM.OpenAI_Responses streams text SSE responses
+OK    LLM.OpenAI_Responses streams function_call items
+OK    LLM.OpenAI_Responses emits thinking and encrypted signature
+OK    LLM.OpenAI_Responses encodes compaction summaries as user
+OK    LLM.OpenAI_Responses parses non-streaming JSON responses
+OK    LLM.OpenAI_Responses propagates HTTP errors
+OK    LLM.OpenAI_Responses does not retry default 401
+OK    LLM.OpenAI_Responses suppresses rejected 401 SSE on recovery
+OK    LLM.OpenAI_Responses cancellation stops 401 replay
+OK    LLM.OpenAI_Responses propagates recovery callback exception
+OK    LLM.OpenAI_Responses does not recover non-401 status
+OK    LLM.OpenAI_Responses parses cache_write_tokens
+OK    LLM.OpenAI_Responses encodes image tool results as input_image
+OK    LLM.OpenAI_Responses replays reasoning items
+OK    LLM.OpenAI_Responses omits store and previous_response_id
+OK    LLM.OpenAI_Responses sends store false when disabled
+OK    LLM.OpenAI_Responses classifies streamed overload failure
+OK    LLM.OpenAI_Responses classifies non-streaming failure
+OK    LLM.OpenAI_Responses returns permanent and malformed failures
+OK    LLM.OpenAI_Responses classifies top-level stream errors
+OK    LLM.Auth loads GitHub Copilot credentials from auth.json
+OK    LLM.Auth saves credentials atomically and preserves other providers
+OK    LLM.Auth refuses malformed auth overwrite
+OK    LLM.Auth canonical provider and owner-only file modes
+OK    LLM.Auth lock timeout allows subsequent reacquisition
+OK    LLM.Auth canonicalizes Codex save and load
+OK    LLM.Auth.GitHub_Copilot detects expired and valid tokens
+OK    LLM.Auth.GitHub_Copilot parses proxy-ep into the API base URL
+OK    LLM.Auth.GitHub_Copilot falls back to the default base URL
+OK    LLM.Auth.GitHub_Copilot refreshes and persists the API token
+[!] GitHub Copilot token refresh response (HTTP 403): {"error":"forbidden"}
+OK    LLM.Auth.GitHub_Copilot raises on non-200 refresh responses
+OK    LLM.Auth.GitHub_Copilot raises on invalid JSON refresh responses
+OK    LLM.Auth.GitHub_Copilot raises when token is missing
+OK    LLM.Auth.GitHub_Copilot raises when expires_at is missing
+OK    LLM.Auth serializes concurrent cross-process refresh
+OK    LLM.Auth shares rejected-token recovery across processes
+OK    LLM.Auth merges concurrent provider saves
+OK    LLM.Auth Codex save waits behind refresh lock
+OK    LLM.Auth refresh serializes against login and logout
+OK    LLM.Auth releases a killed process lock
+OK    LLM.Auth lock descriptor closes on exec
+OK    LLM.Catalogue loads and parses a fresh cached Copilot model list
+OK    LLM.Catalogue uses live fetch when the Copilot cache is stale
+[!] GitHub Copilot model catalogue fetch failed; using stale cache
+OK    LLM.Catalogue falls back to a stale cache on fetch failure
+OK    LLM.OpenRouter sends auth, metadata headers, and the broadcast session ID
+OK    LLM.OpenRouter adds reasoning.effort for reasoning models
+OK    LLM.OpenRouter refreshes a stale cache before sending
+OK    LLM.OpenRouter falls back to models.json for the API key
+OK    LLM.OpenRouter enforces the 256-character session ID limit
+OK    LLM.OpenRouter.Catalogue loads and parses a fresh cached model list
+OK    LLM.OpenRouter.Catalogue uses live fetch when the cache is stale
+[!] OpenRouter model catalogue fetch failed; using stale cache
+OK    LLM.OpenRouter.Catalogue falls back to stale cache on fetch failure
+OK    LLM.Anthropic_Messages streams thinking and text SSE responses
+OK    LLM.Anthropic_Messages sends required Anthropic headers
+OK    LLM.Anthropic_Messages injects the correct thinking budget
+OK    LLM.Anthropic_Messages encodes compaction summaries as user
+OK    LLM.Anthropic_Messages streams tool_use blocks
+OK    LLM.Anthropic_Messages maps alternate stop reasons
+OK    LLM.Anthropic_Messages uses x-api-key for Anthropic-style URLs
+OK    LLM.Anthropic_Messages propagates HTTP errors
+OK    LLM.Anthropic_Messages finalizes early-terminated streams
+OK    LLM.Anthropic_Messages captures signature from signature_delta
+OK    LLM.Anthropic_Messages echoes thinking block with signature in subsequent request
+OK    Anthropic system prompt is content-block array with cache_control
+OK    Anthropic last tool has cache_control breakpoint
+OK    Anthropic last user message has cache_control breakpoint
+OK    Anthropic tool_result with Is_Error includes is_error field
+OK    Anthropic tool_result image block uses base64 source format
+OK    LLM.GitHub_Copilot adds the static Copilot headers
+OK    LLM.GitHub_Copilot sets X-Initiator=user for user prompts
+OK    LLM.GitHub_Copilot sets X-Initiator=agent for agent prompts
+OK    LLM.GitHub_Copilot selects Anthropic Messages for Claude models
+OK    LLM.GitHub_Copilot selects OpenAI completions for GPT models
+OK    LLM.GitHub_Copilot refreshes expired tokens before sending
+OK    LLM.Codex.Catalogue loads and parses a fresh cached model list
+OK    LLM.Codex.Catalogue fetches live when the cache is missing
+OK    LLM.Codex.Catalogue refreshes expired credentials before fetch
+OK    LLM.Codex.Catalogue recovers and retries a 401 once
+[!] Codex model catalogue fetch failed; using stale cache
+OK    LLM.Codex.Catalogue bounds 401 recovery and uses stale cache
+[!] OpenAI Codex token refresh response (HTTP 401): {}
+[!] Codex model catalogue fetch failed; using stale cache
+OK    LLM.Codex.Catalogue uses stale cache when token refresh fails
+[!] Codex model catalogue fetch failed and no cache is available; codex models will be unavailable this run
+OK    LLM.Codex.Catalogue yields empty on fetch failure without cache
+[!] Codex model catalogue fetch failed and no cache is available; codex models will be unavailable this run
+OK    LLM.Codex.Catalogue yields empty without credentials
+OK    LLM.Auth.Codex generates 43-character PKCE pairs
+OK    LLM.Auth.Codex generates 32-character hex states
+OK    LLM.Auth.Codex builds the authorize URL with coyote originator
+OK    LLM.Auth.Codex extracts the account id from the JWT claim
+OK    LLM.Auth.Codex detects expiring tokens
+OK    LLM.Auth.Codex refreshes and persists rotated tokens
+OK    LLM.Auth.Codex keeps refresh token when rotation is omitted
+OK    LLM.Auth.Codex refreshes a locally valid rejected token
+OK    LLM.Auth.Codex reuses an updated stored token after rejection
+[!] OpenAI Codex token refresh response (HTTP 401): {"error":"nope"}
+[!] OpenAI Codex token refresh failed: OpenAI Codex token refresh failed with HTTP 401 (full response logged to stderr)
+OK    LLM.Auth.Codex raises on non-200 refresh responses
+[!] OpenAI Codex token refresh failed: OpenAI Codex refresh response missing fields
+OK    LLM.Auth.Codex raises when refresh response misses fields
+OK    LLM.Auth.Codex cancellation while waiting for refresh lock
+OK    LLM.Auth.Codex cancellation interrupts token HTTP request
+OK    LLM.Auth.Codex rejects stale credentials after logout
+OK    LLM.Auth.Codex persists rotation before late cancellation
+OK    LLM.Auth.Codex accepts direct refresh fallback credentials
+OK    LLM.Providers.Codex sends the Codex headers and endpoint
+[!] OpenAI Codex authentication failed: OpenAI Codex subscription is not configured; log in via Options > Subscriptions
+OK    LLM.Providers.Codex rejects sends without credentials
+[!] OpenAI Codex authentication failed: OpenAI Codex access token does not carry a chatgpt_account_id claim; log in again via Options > Subscriptions
+OK    LLM.Providers.Codex rejects sends without the account claim
+OK    LLM.Providers.Codex proactively refreshes expired credentials
+OK    LLM.Providers.Codex recovers a 401 and replays once
+OK    LLM.Providers.Codex stops after a second 401
+[!] OpenAI Codex token refresh response (HTTP 401): {}
+[!] OpenAI Codex authentication failed: OpenAI Codex token refresh failed with HTTP 401 (full response logged to stderr)
+OK    LLM.Providers.Codex does not replay when refresh fails
+OK    LLM.Providers.Codex cancellation prevents 401 recovery
+OK    LLM.Providers.Codex streams Responses text and body shape
+OK    LLM.Providers.Codex streams thinking with encrypted replay
+[!] Codex model catalogue fetch failed and no cache is available; codex models will be unavailable this run
+OK    LLM.Model_Registry defaults unknown codex ids to Responses
+[!] Codex model catalogue fetch failed and no cache is available; codex models will be unavailable this run
+OK    LLM.Model_Registry lists codex models only when logged in
+OK    LLM.Model_Registry marks Claude Copilot models as Anthropic
+OK    LLM.Model_Registry marks GPT Copilot models as OpenAI
+OK    LLM.Model_Registry returns a default for unknown Copilot ids
+OK    LLM.Model_Registry preserves OpenRouter model pricing
+OK    LLM.Model_Registry defaults unknown OpenRouter ids
+OK    LLM.Model_Registry raises Not_Found for unknown providers
+OK    LLM.Model_Registry filters Available_Models by credentials
+OK    LLM.Model_Registry adds Anthropic models only with credentials
+OK    LLM.Model_Registry Available_Models returns sorted order
+OK    LLM.Model_Registry MiniMax M2.7 uses Anthropic wire format
+OK    LLM.Model_Registry DeepSeek V4 Pro uses OpenAI wire format
+OK    LLM.Model_Registry Responses OpenCode Go models use Responses wire
+OK    LLM.Model_Registry defaults unknown opencode-go ids
+OK    LLM.Model_Registry OpenCode Go models available with key
+OK    LLM.Model_Registry defaults unknown OpenAI ids to Responses
+OK    LLM.Model_Registry OpenAI models available with key
+OK    LLM.OpenCode_Go.Catalogue MiniMax uses Anthropic wire
+OK    LLM.OpenCode_Go.Catalogue Qwen models use Anthropic wire
+OK    LLM.OpenCode_Go.Catalogue DeepSeek uses OpenAI wire
+OK    LLM.OpenCode_Go.Catalogue Responses models use Responses wire
+OK    LLM.OpenCode_Go.Catalogue unknown models default to OpenAI wire
+OK    LLM.OpenCode_Go OpenAI requests omit cache hints
+OK    LLM.OpenCode_Go Responses requests use Responses wire
+OK    LLM.Agent runs a single-turn prompt and persists it
+OK    LLM.Agent executes a tool call and loops for the final reply
+OK    LLM.Agent executes two tool calls in one turn
+OK    LLM.Agent preserves tool execution failures
+OK    LLM.Agent Switch_Session pre-loads existing history
+OK    LLM.Agent honours cross-task abort requests
+OK    LLM.Agent keeps aborted multi-tool history structurally valid
+OK    LLM.Agent aborts shell tool with timeout promptly
+OK    LLM.Agent flushes tool batch to session file as soon as it completes
+OK    LLM.Agent resumes persisted session history
+OK    LLM.Agent preserves OpenRouter Broadcast ID across subagents
+OK    LLM.Agent uses settings defaults when Model_Spec is empty
+OK    LLM.Agent ephemeral COYOTE_SUBAGENT_MODEL override precedence
+OK    LLM.Agent memory enabled by COYOTE_ENABLE_MEMORY=1
+OK    LLM.Agent memory disabled by default (env var unset)
+OK    LLM.Agent reuses history across multiple turns in one session
+OK    LLM.Agent emits model/start/update/end/stats in order
+OK    LLM.Agent turns unknown tool calls into tool errors
+OK    LLM.Agent applies persistent HTTP low-speed settings on Create
+OK    LLM.Agent retries stalled SSE and succeeds after timeout
+[!] agent error (retry exhausted): curl_easy_perform (curl code 28): Timeout was reached
+[!] agent error (run_prompt): curl_easy_perform (curl code 28): Timeout was reached
+OK    LLM.Agent exhausts retries after repeated HTTP low-speed timeouts
+OK    LLM.Agent cancels during HTTP low-speed retry backoff
+OK    LLM.Agent cancels an active stalled HTTP request
+OK    LLM.Agent retries HTTP 500 errors and succeeds on retry
+OK    LLM.Agent retries curl transport errors and succeeds on retry
+OK    LLM.Agent retries Responses overload then succeeds
+OK    LLM.Agent reports permanent failure after Responses overload
+OK    LLM.Agent rolls back partial text on permanent Responses failure
+[!] agent error (retry exhausted): OpenAI Responses: Busy [server_is_overloaded]
+[!] agent error (run_prompt): OpenAI Responses: Busy [server_is_overloaded]
+OK    LLM.Agent rolls back after Responses overload exhaustion
+OK    LLM.Agent cancels during Responses retry backoff
+OK    LLM.Agent does not retry permanent Responses failures
+OK    LLM.Agent discards failed Responses output and tool calls
+OK    LLM.Agent cancels partial Responses failure at message end
+OK    LLM.Agent cancels partial Responses failure in backoff
+OK    LLM.Agent discards tool calls on permanent Responses failure
+OK    LLM.Agent filters encrypted thinking across model switches
+[!] agent error (non-retryable): OpenAI responses request failed with HTTP 404: {"error":{"message":"encrypted content from another model"}}
+[!] agent error (run_prompt): OpenAI responses request failed with HTTP 404: {"error":{"message":"encrypted content from another model"}}
+OK    LLM.Agent rolls back prompts after non-retryable errors
+[!] agent error (retry exhausted): OpenAI responses request failed with HTTP 500: {"error":"server error"}
+[!] agent error (run_prompt): OpenAI responses request failed with HTTP 500: {"error":"server error"}
+OK    LLM.Agent rolls back prompts after retry exhaustion
+[!] agent error (non-retryable): OpenAI responses request failed with HTTP 400: validation failed
+[!] agent error (run_prompt): OpenAI responses request failed with HTTP 400: validation failed
+OK    LLM.Agent detects known context-overflow error phrases
+OK    LLM.Agent compacts and retries after a context overflow
+OK    LLM.Agent gives up after one overflow recovery attempt
+OK    LLM.Agent emits a compaction will-retry event on overflow
+OK    LLM.Agent Compact replaces old history with a summary message
+OK    LLM.Agent Compact emits compaction start and end events
+OK    LLM.Agent Compact aborts cleanly on very short history
+OK    LLM.Agent Compact persists a resumable compaction entry
+OK    LLM.Agent auto-compacts when the context threshold is reached
+OK    LLM.Agent skips auto-compaction below the context threshold
+OK    LLM.Agent persists threshold-triggered compaction entries
+OK    LLM.Agent Set_Compact_Settings Enabled=False prevents compaction
+OK    LLM.Agent Compact survives a session reload round-trip
+OK    [live] LLM.Agent Compact summarises a GitHub Copilot conversation
+OK    Tool result contains [coyote: turn=...] stats footer
+OK    Stats footer appears only on last tool in a batch
+OK    Image tool results have no stats footer appended
+OK    LLM.Agent pause fires at turn boundary and resumes normally
+OK    LLM.Agent Request_Abort while paused exits with Was_Aborted
+OK    LLM.Agent Set_Sandbox_Profile and Current_Sandbox round-trip
+OK    LLM.Agent COYOTE_SANDBOX_PROFILE inherited by Create
+OK    LLM.Agent sandbox defaults to empty without env var
+OK    LLM.Agent persistent sandbox default from settings
+OK    LLM.Agent restores sandbox profile on session resume
+OK    LLM.Agent restores and clears sandbox profile on session switch
+OK    Parallel batch: fast tool end event precedes slow tool
+OK    Parallel batch: abort during batch sets Was_Aborted
+OK    Sequential default: tools without run_group run sequentially
+OK    Group order: group 1 runs before group 2
+OK    SQC: c4(n) matches ASTM E2587 Table 1 reference values
+OK    SQC: c4(101) approximation within 0.1% of exact value
+OK    SQC: c4(1) raises Constraint_Error
+OK    SQC: Xbar limits well-formed for n > 1
+OK    SQC: Xbar n=1 returns Undefined
+OK    SQC stats: Xbar Pooled_S=0 returns Undefined ; Has_UCL and Has_LCL both False
+OK    SQC: s chart limits well-formed for n > 1
+OK    SQC: s chart n=1 returns Undefined
+OK    SQC stats: S_Chart Pooled_S=0 returns Undefined
+OK    SQC: s chart LCL clamped to 0 for n=2
+OK    SQC: p chart limits well-formed for N > 0
+OK    SQC: p chart N=0 returns Undefined
+OK    SQC: p chart LCL clamped to 0 when formula yields negative
+OK    SQC: Estimate_Parameters grand mean and pooled s (Xbar/s)
+OK    SQC Â§14.1: 5-session varying-n dataset UCL/CL/LCL to 4 dp
+OK    SQC Â§14.1: 4-session p-chart dataset UCL/CL/LCL to 4 dp
+OK    SQC: Estimate_Parameters grand p (p chart)
+OK    SQC: Estimate_Parameters all n=1 sessions -> Pooled_S = 0
+OK    SQC Â§14.1 special: n=1 contributes to grand mean, not pooled s
+OK    SQC: Estimate_Parameters excludes zero-thinking sessions
+OK    SQC Â§14.3: Estimate_Parameters excludes zero-tool-call sessions
+OK    SQC Â§14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns
+OK    SQC: I chart limits well-formed for Mean_MR > 0
+OK    SQC: I chart LCL positive when grand mean sufficiently large
+OK    SQC: I chart Mean_MR=0 returns Undefined
+OK    SQC: I chart LCL clamped to 0 when formula yields negative
+OK    SQC: MR chart limits well-formed for Mean_MR > 0
+OK    SQC: MR chart Mean_MR=0 returns Undefined
+OK    SQC: Estimate_Parameters grand mean and Mean_MR (I chart, input tokens)
+OK    SQC: Estimate_Parameters single-session setup -> Mean_MR = 0
+OK    Box_Cox ln identity
+OK    Box_Cox lambda=1 identity
+OK    Box_Cox round-trip
+OK    Box_Cox zero raises Constraint_Error
+OK    Estimate_Lambda with few observations returns 0
+OK    I chart Box-Cox ln: back-transformed limits
+OK    Box-Cox MR: differences of transformed values
+OK    Qn_Scale: N=3 known value
+OK    Qn_Scale: N=4 known value
+OK    Qn_Scale: N<2 raises Constraint_Error
+OK    Qn_Scale: zero value raises Constraint_Error
+OK    Qn_Scale: N=20 (even asymptotic) is positive
+OK    Qn_Scale: N=11 (odd asymptotic) is positive
+OK    Robust Estimate_Lambda: fewer than 3 obs returns 0.0
+OK    Robust Estimate_Lambda: result in [-2.0, 2.0] on skewed data
+OK    Estimate_Lambda: all-identical data returns 0.0 with fallback
+OK    EWMA: Compute_Z single step
+OK    EWMA: Compute_Z multi step
+OK    EWMA: time-varying limits at T=1
+OK    EWMA: limits converge toward steady state
+OK    EWMA: zero sigma gives no limits
+OK    EWMA: LCL clamped to 0 when formula yields negative
+OK    Robust: Median_Of basic (odd size)
+OK    Robust: Median_Of even size
+OK    Robust: Median_Of single element
+OK    Robust: Median_Of empty array returns 0
+OK    Robust: Median_Of unsorted input
+OK    Robust: I chart Grand_Mean = median when outlier present
+OK    Robust: I chart Mean_MR = median of MRs, I_Sigma = Qn/2.2219
+OK    Robust: Compute_I_Limits uses Sigma parameter directly (no internal divisor)
+OK    Robust: MR chart UCL = D4 * median(MR_i)
+OK    Robust: Xbar Grand_Mean = unweighted median of session means
+OK    Robust: Xbar Pooled_S = Qn of pooled residuals (> 0)
+OK    Robust: p-chart Grand_P unchanged by estimation method
+OK    SQC: Fraction_Thinking_Tokens Grand_Mean estimated correctly
+OK    SQC: Fraction_Tool_Call_Tokens Grand_Mean estimated correctly
+OK    SQC: token fraction charts exclude zero-output sessions
+OK    SQC: Fraction_Thinking_Per_Tool_Call Grand_Mean estimated correctly
+OK    SQC: Fraction_Uncached_Input Grand_Mean estimated correctly
+OK    SQC: new rate charts exclude zero-denominator sessions
+OK    SQC stats: EWMA + ln Box-Cox back-transforms to asymmetric limits
+OK    SQC stats: Robust Grand_Mean gives different EWMA Z0 than Classical
+OK    SQC: robust Xbar plot uses median
+OK    SQC: robust s chart plot uses Qn
+OK    SQC: robust plot produces distinct values
+OK    SQC: robust plot I chart unaffected
+OK    SQC: robust plot p chart unaffected
+OK    SQC: robust plot quantile CC unaffected
+OK    SQC: robust plot single-turn Xbar identical
+OK    SQC: robust plot single-turn s excluded
+OK    SQC: robust plot Box-Cox interaction
+OK    SQC stats: Sqrt_VS forward/inverse round-trip
+OK    SQC stats: Anscombe forward/inverse round-trip
+OK    SQC stats: Arcsinh_VS forward/inverse round-trip (incl. negatives)
+OK    SQC stats: Freeman-Tukey forward/inverse round-trip
+OK    SQC stats: Apply_Transform / Invert_Transform dispatch for all kinds
+OK    SQC stats: Dip_Test_P_Value returns N/A for N < 4
+OK    SQC stats: Dip test flags strongly bimodal data (p < 0.05)
+OK    SQC stats: Dip test does not flag tightly unimodal data (p > 0.10)
+OK    SQC Bootstrap: point estimates for Set A={1..5} and Set B={3..7}
+OK    SQC Bootstrap: 95% CI with seed 12345 contains true parameter
+OK    SQC Bootstrap: all stats N/A when Set A has fewer than 2 values
+OK    SQC Bootstrap: SD_Ratio N/A when SD(A) = 0
+OK    SQC Bootstrap: same seed produces identical CI bounds
+OK    SQC: v3 session ID parsed correctly
+OK    SQC: v3 turn count correct
+OK    SQC: v3 model is last model_change
+OK    SQC: v3 first user message extracted
+OK    SQC: v3 tool failure flags set correctly
+OK    SQC Â§14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1
+OK    SQC: v3 source directory parsed from cwd
+OK    SQC: v1 legacy session ID parsed correctly
+OK    SQC: v1 source directory parsed from workDir
+OK    SQC: v1 [Model -> ...] prefix stripped from first user message
+OK    SQC: v1 session turn count is 1
+OK    SQC: v1 start time year is 2025 (createdAt ms -> UTC conversion)
+OK    SQC: v1 session model is empty when no model_change present
+OK    SQC: v1 session has no tool calls (failure flags empty)
+OK    SQC: v3 start time year parsed correctly (UTC conversion)
+OK    SQC: thinking_tokens field parsed correctly
+OK    SQC: Thinking_Enabled set for thinking block
+OK    SQC: Thinking_Tokens=0 when field absent (backward compat)
+OK    SQC: Thinking_Tokens estimated from text length when usage field absent
+OK    SQC: tool-call Input_Tokens and Output_Tokens estimated from args and result text
+OK    SQC: both pre- and post-compaction turns counted
+OK    SQC: Encode_Cwd absolute path
+OK    SQC: Encode_Cwd relative path
+OK    SQC Â§5.9: interior whitespace collapsed to single space
+OK    SQC parser: Anthropic input_tokens normalized to total context window
+OK    SQC parser: Parse_File sets File_Path on success
+OK    SQC parser: Parse_File sets File_Mtime to non-epoch on success
+OK    SQC: workspace round-trip serialisation
+OK    SQC: workspace version > 2 raises Workspace_Error
+OK    SQC: workspace missing version loads without error
+OK    SQC: duplicate setup session IDs are deduplicated on load
+OK    SQC: New_UUID returns valid RFC 4122 v4 format
+OK    SQC: New_UUID returns unique values
+OK    Box-Cox config round-trip
+OK    Robust_Auto lambda source round-trip
+OK    v1 workspace loads with Box-Cox disabled
+OK    EWMA: weight and L round-trip through workspace
+OK    EWMA: v3 workspace loads default weight=0.2, L=3.0
+OK    Turn Count Box-Cox: config round-trips through workspace
+OK    Turn Count Box-Cox: v4 workspace loads default (disabled)
+OK    Robust estimation: Robust_Median survives workspace round-trip
+OK    Robust estimation: v5 workspace loads Classical default
+OK    SQC workspace: Anscombe transform round-trips through save/load
+OK    SQC workspace: logYMode round-trips through workspace save/load
+OK    SQC workspace: Analyze_All_Directories round-trips through save/load
+OK    Quantile_Bonferroni round-trip
+OK    Quantile_Bonferroni defaults to True when absent
+OK    SQC histogram: n=2 uniform: FD gives 2 bins
+OK    SQC histogram: n=8 uniform: FD gives 2 bins
+OK    SQC histogram: n=100 uniform: FD gives 5 bins
+OK    SQC histogram: IQR=0 falls back to single bin
+OK    SQC histogram: bin totals equal input length
+OK    SQC histogram: minimum value in bin 1
+OK    SQC histogram: maximum value clamped to last bin
+OK    SQC histogram: all-equal values -> N_Bins=1, Bin_Width=1.0
+OK    SQC histogram: n=1 -> N_Bins=1, Bin_Min=value
+OK    SQC histogram: bimodal FD bin count capped at 32
+OK    SQC JSD: Token_Count single tool name only
+OK    SQC JSD: Token_Count multi-word tool name
+OK    SQC JSD: Token_Count empty tool name and args yields 0
+OK    SQC JSD: Compute_S_Values identical calls pair-level sum non-zero
+OK    SQC JSD: Compute_S_Values identical calls sum = 4.0
+OK    SQC JSD: Compute_S_Values one-side absent key pair-level sum equals tool_name-only S_k
+OK    SQC JSD: Compute_S_Values integer-valued key skipped (N_k = 0)
+OK    SQC JSD: Compute_S_Values different tool names give lower pair-level sum
+OK    SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=1 for two calls
+OK    SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=0 for one call
+OK    SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=0 with no tools
+OK    SQC JSD: Total_Tool_Call_JSD_S equals sum of Per_Consecutive_Tool_S
+OK    SQC JSD: Tool calls across turns form consecutive pairs
+OK    SQC JSD: Estimate_Parameters JSD Sum I Grand_Mean
+OK    SQC JSD: Estimate_Parameters JSD Sum I Mean_MR
+OK    SQC JSD: Estimate_Parameters JSD Sum excludes sessions with 0 pairs
+OK    SQC MI: identical calls
+OK    SQC MI: different tool names
+OK    SQC MI: one side absent
+OK    SQC MI: integer key skipped
+OK    SQC MI: both sides empty
+OK    SQC MI: metrics two identical calls
+OK    SQC MI: metrics single tool call
+OK    SQC MI: metrics no tool calls
+OK    SQC MI: metrics total sum
+OK    SQC MI: metrics cross-turn pairs
+OK    SQC MI: estimate Grand_Mean
+OK    SQC MI: estimate Mean_MR
+OK    SQC MI: estimate excludes no-pairs
+OK    SQC integrity: Check all present returns Missing_Count = 0
+OK    SQC integrity: Check one missing returns Missing_Count = 1
+OK    SQC integrity: Check all missing returns Missing_Count = N
+OK    SQC integrity: Check empty setup interval returns Missing_Count = 0
+OK    SQC integrity: Remove_Missing removes absent, retains present
+OK    SQC integrity: Remove_Missing clears all when all absent
+OK    SQC integrity: Remove_Missing no-op when all present
+OK    Quantile CC: Compute_Quantiles basic 10-element array
+OK    Quantile CC: Compute_Quantiles n=1 returns all equal
+OK    Quantile CC: Build_Distribution with 3-session pool
+OK    Quantile CC: Build_Distribution single-session pool
+OK    Quantile CC: Build_Distribution seed reproducibility
+OK    Quantile CC: Extract_Limits with known distribution
+OK    Quantile CC: Is_OOC detects value above UCL
+OK    Quantile CC: Is_OOC with Has_UCL=False
+OK    Quantile CC: Session_Is_OOC all in-control
+OK    Quantile CC: Session_Is_OOC one component out
+OK    Quantile CC: OOC_Components returns correct set
+OK    Quantile CC: cache hit returns same distribution
+OK    Quantile CC: cache invalidation clears entries
+OK    Quantile CC: sort through quantiles -- reverse input
+OK    Quantile CC: sort through quantiles -- all equal values
+OK    Quantile CC: sort through quantiles -- two descending
+OK    Quantile CC: sort through quantiles -- 50 random-ish
+OK    Interpolate_Limits at anchor matches exact
+OK    Interpolate_Limits between anchors shrinks HW
+OK    Interpolate_Limits n=1 falls back to exact
+OK    Extract_Limits with Bonferroni disabled uses unadjusted ranks
+OK    Coyote.GUI.Updates first enqueue wakes exactly once
+OK    Coyote.GUI.Updates pending enqueue does not duplicate wakeup
+OK    Coyote.GUI.Updates idle completion keeps source for pending work
+OK    Coyote.GUI.Updates idle completion clears source when empty
+OK    Coyote.GUI.Updates enqueue rearms after idle completion
+OK    Coyote.GUI.Updates stopped queue does not wake
+OK    Coyote.GUI.Updates model registry refresh round trips
+OK    Coyote.GUI.Updates preserves runtime agent identity
+OK    Coyote.GUI.Updates preserves footer summary
+OK    Coyote.GUI.Updates preserves context progress
+OK    Coyote.GUI.Prompt_Queue Set_Preferences round trips
+OK    Coyote.GUI.Prompt_Queue refresh models round trips
+OK    Coyote.GUI.Prompt_Queue reports acceptance
+OK    Coyote.GUI.Prompt_Queue preserves target identity
+OK    Coyote.GUI.Prompt_Queue fork payload round trips
+OK    Coyote.GUI.Prompt_Queue rejects overflow
+OK    Coyote.GUI.Prompt_Queue Set_Subagent_Model round trips
+OK    Coyote.GUI.Prompt_Queue shutdown releases dequeue
+OK    Coyote.GUI.Notification_Policy eligibility
+OK    Coyote.GUI.Notification_Policy active window suppresses
+OK    Coyote.GUI.Notification_Policy disabled suppresses
+OK    Coyote.GUI.Notification_Policy noninteractive suppresses
+OK    Coyote.GUI.Notification_Policy notification is global
+OK    Coyote.GUI.Notification_Policy agent update selection
+OK    Coyote.Notify isolated lifecycle smoke test
+OK    Coyote.GUI.Navigation line movement
+OK    Coyote.GUI.Navigation page movement
+OK    Coyote.GUI.Navigation top bottom clamp
+OK    Coyote.GUI agent actions follow run mode
+OK    Coyote.GUI.Mnemonics extracts first key
+OK    Coyote.GUI.Mnemonics ignores escaped underscores
+OK    Coyote.GUI.Mnemonics rejects duplicate context key
+OK    Coyote.GUI.Mnemonics separates contexts
+OK    Coyote.GUI.Mnemonics protects current UI allocations
+OK    Coyote.GUI session stats snapshot round trip
+OK    Coyote.GUI session stats clear resets snapshot
+OK    Coyote.GUI session stats window creation is idempotent
+OK    Coyote.GUI Product Information displays application icon
+OK    Coyote.GUI Sandbox Profiles menu opens manager
+OK    Coyote.GUI layout and shutdown lifecycle
+OK    Coyote.GUI agent tree expands new subagents
+OK    Coyote.GUI RPC tool lifecycle status
+OK    Coyote.GUI RPC tool stopwatch replay
+OK    Coyote.GUI RPC tool stopwatch terminal cleanup
+OK    Coyote.GUI selected agent status
+OK    Coyote.GUI agent reset rejects old RPC generation
+OK    Coyote.GUI reset rotation failure recovers
+OK    Coyote.GUI clear conversation preserves agents
+OK    Coyote.GUI Help widgets without Yelp
+OK    Coyote.GUI.Zoom effective size at level zero
+OK    Coyote.GUI.Zoom effective size at positive level
+OK    Coyote.GUI.Zoom effective size clamps at maximum
+OK    Coyote.GUI.Zoom effective size clamps at minimum
+OK    Coyote.GUI.Zoom step zoom in changes level
+OK    Coyote.GUI.Zoom step zoom out changes level
+OK    Coyote.GUI.Zoom step zoom at max reports no change
+OK    Coyote.GUI.Zoom step zoom at min reports no change
+OK    Coyote.GUI.Zoom step zoom applies multiple steps
+OK    Coyote.GUI.Zoom step zoom stops at the clamp
+OK    Coyote.GUI.Zoom zero steps report no change
+OK    Coyote.GUI.Zoom baseline clamps to valid range
+OK    Coyote.GUI.Conversation_Stack creates single outer host
+OK    Coyote.GUI.Conversation_Stack text safety task guard
+OK    Coyote.GUI.Conversation_Stack text safety request
+OK    Coyote.GUI.Conversation_Stack text safety response
+OK    Coyote.GUI.Conversation_Stack text safety thinking
+OK    Coyote.GUI.Conversation_Stack text safety lifecycle
+OK    Coyote.GUI.Conversation_Stack streams incrementally
+OK    Coyote.GUI.Conversation_Stack finalizes an open text block for a new request
+OK    Coyote.GUI.Conversation_Stack removes the active stream mark on clear
+OK    Coyote.GUI.Conversation_Stack applies the configured font to new response views
+OK    Coyote.GUI.Conversation_Stack applies the configured font to new table labels
+OK    Coyote.GUI.Conversation_Stack validates Markdown link targets
+OK    Coyote.GUI.Conversation_Stack launches Markdown link clicks
+OK    Coyote.GUI.Conversation_Stack updates Markdown link cursor
+OK    Coyote.GUI.Conversation_Stack renders Markdown
+OK    Coyote.GUI.Conversation_Stack hit-tests inline math line boundaries
+OK    Coyote.GUI.Conversation_Stack renders and copies inline LaTeX
+OK    Coyote.GUI.Conversation_Stack keeps invalid inline LaTeX source
+OK    Coyote.GUI.Conversation_Stack toggles Markdown rendering
+OK    Coyote.GUI.Conversation_Stack realizes native tables
+OK    Coyote.GUI.Conversation_Stack toggles native tables
+OK    Coyote.GUI.Conversation_Stack skips table whitespace blocks
+OK    Coyote.GUI.Conversation_Stack skips mixed whitespace blocks
+OK    Coyote.GUI.Conversation_Stack realizes display LaTeX
+OK    Coyote.GUI.Conversation_Stack keeps source during rasterization
+OK    Coyote.GUI.Conversation_Stack bounds retained display rasters
+OK    Coyote.GUI.Conversation_Stack falls back for invalid LaTeX
+OK    Coyote.GUI.Conversation_Stack clears pending display LaTeX
+OK    Coyote.GUI.Conversation_Stack disconnects freed math expanders
+OK    Coyote.GUI.Conversation_Stack replaces expanded math semantics
+OK    Coyote.GUI.Conversation_Stack protects code LaTeX
+OK    Coyote.GUI.Conversation_Stack zooms display LaTeX
+OK    Coyote.GUI.Conversation_Stack aligns fleqn display LaTeX
+OK    Coyote.GUI.Conversation_Stack renders display core primitives
+OK    Coyote.GUI.Conversation_Stack uses visible step frames
+OK    Coyote.GUI.Conversation_Stack separates assistant steps
+OK    Coyote.GUI.Conversation_Stack separates cancelled steps
+OK    Coyote.GUI.Conversation_Stack resets step frames for new requests
+OK    Coyote.GUI.Conversation_Stack updates tools by stable ID
+OK    Coyote.GUI.Conversation_Stack tracks tool status transitions
+OK    Coyote.GUI.Conversation_Stack tracks tool stopwatches
+OK    Coyote.GUI.Conversation_Stack closes tools at request completion
+OK    Coyote.GUI.Conversation_Stack tracks abort controls by status
+OK    Coyote.GUI.Conversation_Stack uses horizontal tool actions
+OK    Coyote.GUI.Conversation_Stack uses responsive tool flow
+OK    Coyote.GUI.Conversation_Stack uses native labels and View Details action
+OK    Coyote.GUI.Conversation_Stack renders tool image thumbnails
+OK    Coyote.GUI.Conversation_Stack keeps footer kind explicit
+OK    Coyote.GUI.Conversation_Stack uses native footer status row
+OK    Coyote.GUI.Conversation_Stack clears exchange state
+OK    Coyote.GUI.Conversation_Stack searches request, thinking, and streaming response text
+OK    Coyote.GUI.Conversation_Stack preserves and searches image alt text
+OK    Coyote.GUI.Conversation_Stack applies inline image policy
+OK    Coyote.GUI.Conversation_Stack destroys pending image views
+OK    Coyote.GUI.Conversation_Stack clears queued image work
+OK    sandbox profile manager create is idempotent
+OK    sandbox profile names are validated
+OK    sandbox profile path editors use tree views
+OK    Coyote.GUI.Model_Picker cancelled result
+OK    Coyote.GUI.Model_Picker selected result
+OK    Coyote.GUI.Model_Picker default result
+OK    Coyote.GUI tool detail stable layout and snapshots
+OK    Coyote.GUI tool detail argument formatting
+OK    Coyote.GUI tool detail image fallback
+OK    Coyote.GUI tool detail running snapshot stability
+OK    Coyote.GUI tool detail successful image layout
+OK    [subagent] One-shot returns JSON with output and session_id
+OK    [subagent] Two --one-shot runs use distinct sessions
+OK    [subagent] Prompt-failure one-shot still returns session_id
+OK    [subagent] Recursion limit rejects nested invocation
+OK    Coyote.Signal_Shutdown grace waits full interval
+OK    Coyote.Signal_Shutdown second signal escalates
+OK    Coyote process control clamps shutdown grace
+OK    Coyote process control freezes persistence
+Terminated
+OK    Coyote process signalling reaches nested setsid descendants
+OK    Coyote process control rejects launches after shutdown
+OK    Coyote process stat parser handles proc records
+OK    Coyote process snapshot handles cycles and large trees
+OK    Coyote process stat reader consumes complete records
+
+Total Tests Run:   1074
+Successful Tests:  1074
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 2min. 26.502911 sec. seconds
+wall=146.65 user=11.73 sys=4.87 exit=0

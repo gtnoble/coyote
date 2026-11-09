@@ -1,0 +1,16 @@
+scenario=unicode timeout=30
+
+(gtk_interaction_worker:116605): Gtk-WARNING **: 14:27:38.812: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(gtk_interaction_worker:116605): Gtk-WARNING **: 14:27:38.812: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(gtk_interaction_worker:116605): Gtk-WARNING **: 14:27:38.812: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(gtk_interaction_worker:116605): Gtk-WARNING **: 14:27:38.812: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(gtk_interaction_worker:116605): Gtk-WARNING **: 14:27:38.812: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(gtk_interaction_worker:116605): Gtk-WARNING **: 14:27:38.812: Theme parsing error: colors.css:77:65: Invalid number for color value
+PASS unicode
+
+result=0

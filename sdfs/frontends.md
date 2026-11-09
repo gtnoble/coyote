@@ -1,5 +1,31 @@
 # Component Development Log — Frontends
 
+## 2026-11-07 — Text boundary and isolated interactions (PCR-128)
+
+First robustness increment adds shared `Text_Safety` configuration, NUL-safe
+UTF-8 insertion and response/thinking stream decoders. Tails flush on ordinary
+closure; clear discards them. First Configure binds its Ada task; later off-task
+boundary mutations fail before GTK. Initial GTK binding and all other GTK calls
+remain caller responsibilities. Plain behavior and persisted source are unchanged.
+
+Five new AUnit cases cover task rejection, request/stream bytes and lifecycle.
+An isolated GTK worker plus Python runner exercise nine processes: text/copy,
+Unicode/bidi, inline math, resize/font reflow/scroll/repopulation and existing
+real click/hover/boundary cases. Finite deadlines, process-group cleanup, private
+logs and GTK/Pango metadata are retained. Offline self-test checks intentional
+SIGKILL/timeout and subsequent-case execution. SIGTRAP injection was delayed by
+the host crash handler; deterministic SIGKILL checks abnormal-exit containment.
+
+A cancelled subagent left incomplete harness files; coordinator reviewed and
+completed them locally. Initial compile and multiline-copy-oracle failures were
+corrected. Builds pass with existing warnings; focused5/5, isolated9/9 and
+full1074/1074, zero failures/errors, 146.502911s cumulative/146.65s wall.
+Evidence: `plan/evidence/gtk-text-safety-2026-11-07/`. Repository executable
+rebuilt, installed binary unchanged. Developer self-review is not independent
+acceptance. No source-only recovery UI, full GUI containment, document-model
+rewrite or native-math qualification. Broader robustness remains open; no commit.
+
+
 ## 2026-11-07 — Reproduce and avoid GTK hidden-text hit-test crash (PCR-127)
 
 The user's native backtrace identifies GTK's event hit-testing visible-index
