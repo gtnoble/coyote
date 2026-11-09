@@ -1,0 +1,17 @@
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:58.986: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:58.986: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:58.986: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:58.986: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:58.986: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:58.986: Theme parsing error: colors.css:77:65: Invalid number for color value
+
+(gtk-hidden-matrix:110541): Gtk-WARNING **: 12:57:59.023: ../../../gtk/gtktextbtree.c:4048: byte index off the end of the line
+
+(gtk-hidden-matrix:110541): Gtk-ERROR **: 12:57:59.023: Byte index 23 is off the end of the line
+Trace/breakpoint trap (core dumped)

@@ -1,0 +1,21 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          test_gui_suite.adb
+   [Ada]          coyote_gui_conversation_stack_tests.adb
+coyote_gui_conversation_stack_tests.adb:28:09: warning: unit "Gtk.Text_Child_Anchor" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:31:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:110:04: warning: use clause for type "Gtk_Image" defined at gtk-image.ads:113 has no effect [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:1154:15: warning: aspect Unreferenced specified for "Failure_Baseline_Value" [enabled by default]
+coyote_gui_conversation_stack_tests.adb:2925:16: warning: "Current" is not modified, could be declared constant [-gnatwk]
+coyote_gui_conversation_stack_tests.adb:3458:80: (style) this line is too long: 82 [-gnatyM]
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+Link
+   [link]         coyote_test.adb
+gprbuild: "mock_coyote" up to date
+gprbuild: "auth_test_worker" up to date
+gprbuild: "help_test_worker" up to date
+gprbuild: "notify_test_worker" up to date
+gprbuild: "signal_shutdown_worker" up to date
+Success: Build finished successfully in 6.23 seconds.

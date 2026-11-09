@@ -1,0 +1,69 @@
+
+(coyote_test:112491): Gtk-WARNING **: 13:03:12.730: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:112491): Gtk-WARNING **: 13:03:12.730: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:112491): Gtk-WARNING **: 13:03:12.730: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:112491): Gtk-WARNING **: 13:03:12.730: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:112491): Gtk-WARNING **: 13:03:12.730: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:112491): Gtk-WARNING **: 13:03:12.730: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI.Conversation_Stack creates single outer host
+OK    Coyote.GUI.Conversation_Stack streams incrementally
+OK    Coyote.GUI.Conversation_Stack finalizes an open text block for a new request
+OK    Coyote.GUI.Conversation_Stack removes the active stream mark on clear
+OK    Coyote.GUI.Conversation_Stack applies the configured font to new response views
+OK    Coyote.GUI.Conversation_Stack applies the configured font to new table labels
+OK    Coyote.GUI.Conversation_Stack validates Markdown link targets
+OK    Coyote.GUI.Conversation_Stack launches Markdown link clicks
+OK    Coyote.GUI.Conversation_Stack updates Markdown link cursor
+OK    Coyote.GUI.Conversation_Stack renders Markdown
+OK    Coyote.GUI.Conversation_Stack hit-tests inline math line boundaries
+OK    Coyote.GUI.Conversation_Stack renders and copies inline LaTeX
+OK    Coyote.GUI.Conversation_Stack keeps invalid inline LaTeX source
+OK    Coyote.GUI.Conversation_Stack toggles Markdown rendering
+OK    Coyote.GUI.Conversation_Stack realizes native tables
+OK    Coyote.GUI.Conversation_Stack toggles native tables
+OK    Coyote.GUI.Conversation_Stack skips table whitespace blocks
+OK    Coyote.GUI.Conversation_Stack skips mixed whitespace blocks
+OK    Coyote.GUI.Conversation_Stack realizes display LaTeX
+OK    Coyote.GUI.Conversation_Stack keeps source during rasterization
+OK    Coyote.GUI.Conversation_Stack bounds retained display rasters
+OK    Coyote.GUI.Conversation_Stack falls back for invalid LaTeX
+OK    Coyote.GUI.Conversation_Stack clears pending display LaTeX
+OK    Coyote.GUI.Conversation_Stack disconnects freed math expanders
+OK    Coyote.GUI.Conversation_Stack replaces expanded math semantics
+OK    Coyote.GUI.Conversation_Stack protects code LaTeX
+OK    Coyote.GUI.Conversation_Stack zooms display LaTeX
+OK    Coyote.GUI.Conversation_Stack aligns fleqn display LaTeX
+OK    Coyote.GUI.Conversation_Stack renders display core primitives
+OK    Coyote.GUI.Conversation_Stack uses visible step frames
+OK    Coyote.GUI.Conversation_Stack separates assistant steps
+OK    Coyote.GUI.Conversation_Stack separates cancelled steps
+OK    Coyote.GUI.Conversation_Stack resets step frames for new requests
+OK    Coyote.GUI.Conversation_Stack updates tools by stable ID
+OK    Coyote.GUI.Conversation_Stack tracks tool status transitions
+OK    Coyote.GUI.Conversation_Stack tracks tool stopwatches
+OK    Coyote.GUI.Conversation_Stack closes tools at request completion
+OK    Coyote.GUI.Conversation_Stack tracks abort controls by status
+OK    Coyote.GUI.Conversation_Stack uses horizontal tool actions
+OK    Coyote.GUI.Conversation_Stack uses responsive tool flow
+OK    Coyote.GUI.Conversation_Stack uses native labels and View Details action
+OK    Coyote.GUI.Conversation_Stack renders tool image thumbnails
+OK    Coyote.GUI.Conversation_Stack keeps footer kind explicit
+OK    Coyote.GUI.Conversation_Stack uses native footer status row
+OK    Coyote.GUI.Conversation_Stack clears exchange state
+OK    Coyote.GUI.Conversation_Stack searches request, thinking, and streaming response text
+OK    Coyote.GUI.Conversation_Stack preserves and searches image alt text
+OK    Coyote.GUI.Conversation_Stack applies inline image policy
+OK    Coyote.GUI.Conversation_Stack destroys pending image views
+OK    Coyote.GUI.Conversation_Stack clears queued image work
+
+Total Tests Run:   50
+Successful Tests:  50
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 24.172117 sec. seconds
+wall=24.25 user=0.61 sys=0.22 exit=0

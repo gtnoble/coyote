@@ -1055,6 +1055,74 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       end;
    end Test_Native_Markdown_Renders_After_Streaming;
 
+   procedure Test_Inline_Math_Line_Boundary_Hit_Test (T : in out Test) is
+      Rendered : Coyote_Renderer.Markup.Render_Result;
+      View : Gtk.Text_View.Gtk_Text_View;
+      Images_Remaining : Natural := 0;
+      Iter : aliased Gtk.Text_Iter.Gtk_Text_Iter;
+      Trailing : aliased Glib.Gint := 0;
+      Inside : Boolean;
+      pragma Unreferenced (Inside);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack.all, "request", Prompt);
+      Append_Text (T.Stack.all, "placeholder");
+      View := Active_Text_View (T.Stack.all);
+      --  Keep a short second line: GTK's erroneous raw-to-visible conversion
+      --  can silently land inside a longer following line instead of aborting.
+      Rendered.Markup := To_Unbounded_String
+        ("before $x$ after" & ASCII.LF & "next line" & ASCII.LF);
+      Rendered.Maths.Append
+        ((Source => To_Unbounded_String ("$x$"),
+          LaTeX => To_Unbounded_String ("x"),
+          Start_Char => 7,
+          End_Char => 10));
+      Coyote_GUI.Rich_Text.Insert
+        (View, Rendered, "", Images_Remaining, Clear => True);
+      T.Parent.Set_Default_Size (640, 300);
+      T.Parent.Show_All;
+      Pump_Until_Inline_Pixbufs (View, 1);
+      Drain_Gtk_Events;
+      Assert
+        (Index (Active_Text (T.Stack.all), "$x$") = 0,
+         "hit-test fixture contains hidden source and a committed pixbuf");
+      for Pass in 1 .. 2 loop
+         for Line in Glib.Gint range 0 .. 1 loop
+            declare
+               Rect : Gdk.Rectangle.Gdk_Rectangle;
+            begin
+               View.Get_Buffer.Get_Iter_At_Line (Iter, Line);
+               View.Get_Iter_Location (Iter, Rect);
+               Inside := View.Get_Iter_At_Position
+                 (Iter'Access, Trailing'Access,
+                  Rect.X, Rect.Y + Rect.Height / 2);
+               Assert
+                 (Gtk.Text_Iter.Get_Line (Iter) = Line,
+                  "line-center hit testing preserves the logical line");
+            end;
+         end loop;
+         for Y in 0 .. View.Get_Allocated_Height loop
+            for X of Glib.Gint_Array'(0, 8, 100, 300) loop
+               Inside := View.Get_Iter_At_Position
+                 (Iter'Access, Trailing'Access, X, Y);
+               Assert
+                 (Gtk.Text_Iter.Get_Offset (Iter) >= 0
+                    and then Gtk.Text_Iter.Get_Offset (Iter) <=
+                      View.Get_Buffer.Get_Char_Count,
+                  "line-boundary hit testing returns an in-buffer iterator");
+            end loop;
+         end loop;
+         Coyote_GUI.Rich_Text.Reflow (View, 1.0);
+         Drain_Gtk_Events;
+      end loop;
+      Assert
+        (View.Get_Pixels_Above_Lines = 2
+           and then View.Get_Pixels_Below_Lines = 0,
+         "retain above-line padding without unsafe below-line hit region");
+   end Test_Inline_Math_Line_Boundary_Hit_Test;
+
    procedure Test_Inline_Math_Renders_And_Copies_Source
      (T : in out Test)
    is
@@ -3399,6 +3467,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Markdown_Renders_After_Streaming'
               Access));
+      Result.Add_Test
+        (Coyote_GUI_Conversation_Stack_Caller.Create
+           ("Coyote.GUI.Conversation_Stack hit-tests inline math line "
+            & "boundaries",
+            Coyote_GUI_Conversation_Stack_Tests
+              .Test_Inline_Math_Line_Boundary_Hit_Test'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
            ("Coyote.GUI.Conversation_Stack renders and copies inline LaTeX",

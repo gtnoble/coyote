@@ -513,6 +513,20 @@ live-provider, signal, and preferences demonstrations listed above.
 
 ## 7. Notes
 
+### PCR-127 — hidden inline-math line-boundary hit testing
+
+The registered `Coyote.GUI.Conversation_Stack hit-tests inline math line
+boundaries` case realizes a response text view with a hidden inline formula,
+a committed pixbuf and a short following line. It checks line-center mapping,
+sweeps pixel y positions before and after reflow, and requires zero below-line
+padding with the existing two above-line pixels retained. On affected GTK
+3.24.41 the baseline setting of two below-line pixels produces a fatal native
+byte-index assertion, so execute the baseline only as an isolated process.
+The final case and focused repeat pass; full development suite1069/1069 passes.
+Evidence and limitations: `plan/evidence/gtk-hit-test-2026-11-07/README.md`.
+Run the full suite from `test/` because fixture paths are relative to that cwd.
+This developer regression evidence is not physical desktop or math acceptance.
+
 **Verification as of 2026-08-22 (PCR-063/064 model-bound reasoning):**
 Production and test development builds succeed. Three new tests cover
 cross-model encrypted-thinking filtering with switch-back, legacy provenance

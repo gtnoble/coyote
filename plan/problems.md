@@ -3,6 +3,71 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-127 — GTK text B-tree byte-index crash
+
+- **Date reported:** 2026-11-07
+- **Category:** Code, Test
+- **Priority:** 3-Moderate (Plain frontend is an available presentation workaround)
+- **Problem:** User reports a GUI SIGTRAP after GTK warns at
+  `gtktextbtree.c:4048` and aborts with `Byte index 220 is off the end of the
+  line`. Startup theme `colors.css` warnings preceded the failure by hours;
+  no causal connection is established.
+- **Affected products:** GUI conversation text-view configuration, inline-math
+  hit-test regression, design/test/SDF records and diagnostic launcher.
+- **Resolved attribution:** A subsequent user backtrace identifies GTK's
+  `gtk_text_view_event` -> `gtk_text_layout_get_iter_at_position` ->
+  `gtk_text_iter_set_visible_line_index` path, aborting at raw offset 228.
+  A native GTK 3.24.41 reproducer and the new application regression both
+  reproduce the same assertion/call path with offset 23 and exit 133.
+  Hidden inline-math source plus nonzero below-line padding triggers the
+  defect when the following line is short. GTK passes the raw line byte count
+  from its below-layout branch to a visible-byte converter; skipping hidden
+  bytes can advance to the next line while retaining the accumulated offset.
+- **Correction:** Set conversation below-line padding to zero, retaining the
+  existing two pixels above each line, margins, wrapping, hidden source,
+  pixbufs, copy/search and reflow. The native spacing matrix passes (above,
+  below)=(0,0),(2,0) and aborts for (0,2),(2,2). This avoids the demonstrated
+  GTK bug; it does not modify or generally repair GTK's indexing algorithm.
+- **Final verification:** Root/test development builds pass with existing
+  warnings. New realized inline-math hit-test regression passes (including
+  line-center correctness, boundary sweep and reflow); conversation stack
+  passes 50/50. Full suite from the required `test/` cwd passes 1069/1069,
+  zero failures/errors, 142.032699 seconds cumulative, 142.11 seconds wall.
+  An earlier root-cwd full run failed fixture-dependent tests and is retained
+  as invalid-environment evidence, not silently omitted. Evidence and exact
+  commands: `plan/evidence/gtk-hit-test-2026-11-07/`.
+- **Current status:** Workaround implemented and developer-verified. Repository
+  `bin/coyote` rebuilt; already-running processes must restart. No installed
+  executable update, release or independent desktop acceptance is implied.
+  Remaining text below records the initial, now-superseded investigation.
+- **Investigation:** No retained core was found in the project, Apport, or
+  systemd crash directories. Source audit found no confirmed iterator reuse
+  across mutations in streaming replacement, search, images or inline math.
+  GTK 3.24.41 native probes for malformed UTF-8/NUL, styled multiline markup,
+  split CR/LF edits and hidden-text/pixbuf hit testing did not reproduce this
+  assertion. Invalid UTF-8 produces a different insertion critical; NUL
+  truncates GtkAda string insertion. Neither is an established crash cause.
+  Saved halftoning session replay under GDB reached idle; a separate bounded
+  replay with pointer movement, scrolling and resizing also did not reproduce
+  the failure. These are non-reproductions, not regression passes or proof of
+  correctness. Saved messages do not retain original streaming boundaries.
+- **Action:** Add `tools/capture-gtk-crash.sh` to run the local development
+  executable under GDB and retain all-thread full backtraces and shared-library
+  information on failure. Logs are private (0600), but may contain secrets.
+  It preserves the caller's working directory and forwards application options.
+  No production code or saved session was changed by this investigation.
+- **Verification:** Shell syntax, fake-debugger argument/cwd/exit-status and
+  log-permission checks, missing debugger/binary handling, and real GDB `--help`
+  smoke test pass. No application build or full suite rerun for this tooling-only
+  change. Developer self-review is not independent user acceptance.
+- **Next evidence required:** Native backtrace at the original GTK SIGTRAP,
+  plus the interaction in progress (streaming, selection, scrolling, hover,
+  resize or copy). Do not apply a speculative renderer fix or suppress fatal
+  GTK errors without identifying the failing path.
+- **Initial status (superseded above):** OPEN — crash not reproduced;
+  diagnostic tooling only. Subsequent reproduction/workaround verification is
+  the current disposition recorded above.
+
 ## PCR-126 — Apply persistent HTTP low-speed timeout on session creation
 
 - **Date reported:** 2026-11-07

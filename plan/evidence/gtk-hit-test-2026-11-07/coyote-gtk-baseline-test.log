@@ -1,0 +1,17 @@
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:10.874: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:10.874: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:10.874: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:10.874: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:10.874: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:10.874: Theme parsing error: colors.css:77:65: Invalid number for color value
+
+(coyote_test:111647): Gtk-WARNING **: 13:00:13.613: ../../../gtk/gtktextbtree.c:4048: byte index off the end of the line
+
+(coyote_test:111647): Gtk-ERROR **: 13:00:13.613: Byte index 23 is off the end of the line
+Trace/breakpoint trap (core dumped)

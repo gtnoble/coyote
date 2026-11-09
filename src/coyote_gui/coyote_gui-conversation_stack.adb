@@ -690,7 +690,10 @@ package body Coyote_GUI.Conversation_Stack is
       View.Set_Left_Margin (8);
       View.Set_Right_Margin (8);
       View.Set_Pixels_Above_Lines (2);
-      View.Set_Pixels_Below_Lines (2);
+      --  GTK 3.24 hit testing in below-line padding passes a raw byte count
+      --  as a visible index. Hidden inline-math source can then make it walk
+      --  into the next line and abort (PCR-127). Keep spacing above instead.
+      View.Set_Pixels_Below_Lines (0);
    end Configure_Text_View;
 
    procedure Show_Contents (C : Instance) is

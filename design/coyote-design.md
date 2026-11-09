@@ -436,6 +436,7 @@ not wait for the complete user turn.
 | `Coyote_Math.Work_Control` | Cooperative deadline/cancellation checks at math processing boundaries | `src/coyote_math/math_work_control.ads/.adb` |
 | `Coyote_Math.Jobs` | Asynchronous math job execution and completion lifecycle | `src/coyote_math/coyote_math_jobs.ads/.adb` |
 | Native math resource lookup | Bundled KaTeX asset discovery | `src/coyote_math/math_resources.ads/.adb` |
+| GUI crash diagnostic launcher | Private GDB transcript with all-thread full backtraces; preserves caller cwd and forwards CLI options; no runtime dependency | `tools/capture-gtk-crash.sh` |
 | KaTeX data generators | Development generators for metrics, macros, symbols, stretchy constructs, and source-mapped callable inventory | `tools/generate_metrics.py`, `tools/generate_katex_data.py`, `tools/generate_math_macros.py`, `tools/generate_math_symbols.py`, `tools/generate_math_stretchy.py`, `tools/generate_math_functions.py` |
 | KaTeX resource/coverage generators | Inventory and coverage mapping for pinned upstream assets | `tools/inventory_katex.cjs`, `tools/map_math_coverage.py` |
 | Native math development tooling | Inventory, reference/browser export, differential comparison, source-mapped callable audit, operator probes, fuzz, resource/accessibility checks, and pilot fixtures; partial readiness only, no parity claim | `test/tools/check-math-*.sh`, `test/tools/check-math-*.cjs`, `test/tools/check-math-callables.cjs`, `test/tools/check-math-operators.sh`, `test/tools/export-math-*.cjs`, `test/tools/compare-math-layout.cjs`, `test/tools/math_semantic_compare.cjs`, `test/fixtures/math-compatibility/`, including `callable-probes.json` |
@@ -1523,6 +1524,16 @@ selection briefly removes ellipsization while setting the range, then restores
 it synchronously, avoiding GTK selection clamping to the shortened layout.
 The single outer scroller avoids nested scrolling regions for ordinary
 conversation content.
+
+**GTK hidden-source hit testing (PCR-127):** Conversation text views keep two
+pixels above each logical line and zero below. GTK 3.24.41's below-layout
+hit-test branch passes a raw line byte count to its visible-byte converter;
+with hidden inline-math source it can walk into a shorter following line and
+abort. Removing below-line padding avoids the reproduced branch without changing
+hidden-source, pixbuf, copying/search or reflow semantics. This is a scoped
+application workaround, not a modification or general repair of GTK. Baseline
+crash, native spacing matrix and final regression evidence are retained under
+`plan/evidence/gtk-hit-test-2026-11-07/` (1069/1069 full development suite).
 
 **Assistant local images (PCR-114 behavior; original C implementation verification is historical):**
 Completed assistant Markdown responses in the GTK conversation resolve local

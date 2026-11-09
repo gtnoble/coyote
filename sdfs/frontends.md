@@ -1,5 +1,58 @@
 # Component Development Log — Frontends
 
+## 2026-11-07 — Reproduce and avoid GTK hidden-text hit-test crash (PCR-127)
+
+The user's native backtrace identifies GTK's event hit-testing visible-index
+conversion. A focused native reproducer and new conversation-stack regression
+both reproduce the same B-tree assertion (offset 23 rather than 228). Hidden
+inline math source with nonzero below-line padding makes GTK feed a raw line
+byte count to its visible-index converter; that walker can reach a shorter
+following line with the previous line's accumulated byte offset.
+
+`Configure_Text_View` now sets below-line pixels to zero and retains the two
+above-line pixels. No source hiding, pixbuf, rise, copying, search, wrapping or
+margin behavior was changed. Native spacing matrix (above,below): (0,0)/(2,0)
+pass; (0,2)/(2,2) SIGTRAP. New realized-widget regression aborts before the fix
+and passes afterward, including line-center hits, boundary sweep and reflow.
+
+Both development builds pass with existing warnings. Conversation stack50/50;
+final full suite1069/1069 from `test/`, zero failures/errors, 142.032699 seconds
+cumulative, 142.11 wall. Final focused repeat1/1. An earlier full run from root
+failed fixture-dependent cases and is retained, not counted as passing.
+Evidence and commands: `plan/evidence/gtk-hit-test-2026-11-07/`.
+
+Repository `bin/coyote` rebuilt; running processes need restart. This is a
+scoped application workaround for GTK3.24.41, not a general GTK repair or
+native-math acceptance. CSS warnings remain. No installed binary update, live
+provider or physical desktop qualification, release or independent acceptance.
+Developer self-review/agent review is not independent user acceptance.
+The following initial investigation entry is historical and superseded here.
+
+## 2026-11-07 — Initial GTK byte-index investigation (PCR-127, historical)
+
+User reports `gtktextbtree.c:4048` followed by fatal byte index 220 beyond the
+line. No retained core was located. Read-only source audits and isolated native
+GTK probes did not identify a confirmed causal defect. Both idle and interactive
+bounded replay of the saved halftoning session failed to reproduce the crash;
+original stream chunk boundaries and the original pointer/selection state are
+not retained. Startup CSS warnings reproduce independently and are not shown
+to cause this failure. The original crash remains unresolved.
+
+Added `tools/capture-gtk-crash.sh`: run it from the affected project directory,
+optionally passing normal `--session UUID` arguments. It runs the repository's
+`bin/coyote --frontend gui` under batch GDB and writes a unique private transcript
+containing full all-thread stacks and shared-library details. It does not enable
+fatal warnings, so the existing theme warnings do not stop the debugger first.
+The transcript can expose conversation text, paths or credentials; review before
+sharing. Session behavior is unchanged unless the caller passes `--no-session`.
+
+Verified shell syntax, real GDB help/exit, and isolated fake-debugger success and
+failure exits, argument forwarding, paths containing spaces, caller cwd, 0600
+log mode and missing-dependency diagnostics. No production source edits, builds,
+full-suite reruns, acceptance claims or installed-binary changes. Developer
+self-review is not independent acceptance. See PCR-127 for the required next
+failure evidence. Plain presentation is the interim workaround.
+
 ## 2026-11-07 — Shut down unstarted headless control monitor (PCR-126)
 
 Offline HTTP-timeout lifecycle testing found Plain one-shot runs could finish
