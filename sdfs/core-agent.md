@@ -1,5 +1,35 @@
 # Component Development Log — Core Agent
 
+## 2026-11-10 — Supported Markdown semantics in the system prompt (PCR-129)
+
+Added a concise Supported Markdown subsection to the runtime prompt resource:
+standard block/inline constructs, GFM tables and alignment, strikethrough,
+automatic web/email links, and reference-style links/images. Destination
+restrictions still apply. Table cells retain plain-text content, not inline
+formatting, clickable links, embedded images or typeset math; the existing
+image-alt restriction is now stated there once. Raw HTML and task-list checkbox
+semantics are explicitly excluded without claiming full-dialect compliance.
+No renderer or presentation behavior is changed.
+
+Extended the existing shared prompt-guidance helper for tools-enabled and
+No_Tools construction, preserving link/image assertions and checking that the
+new subsection and relocated table-image restriction each appear once. No new
+AUnit registrations or public declarations are needed. The prompt remains a
+runtime resource; no embedded-prompt regeneration or installation is needed.
+
+Verification: root/test development builds pass with both profiles selecting
+development; focused LLM.System_Prompt passes 32/32, zero failed assertions or
+unexpected errors. Required GTK interactions pass 9/9 and the runner self-test
+passes intentional crash/timeout containment. Offline Plain/RPC HTTP-timeout
+lifecycle and zero-disable delayed-success checks pass. `git diff --check`
+passes.
+Logs are in `/tmp/coyote-markdown-semantics/`. Corrected an initial test command
+run outside the test crate, two reflow-sensitive assertion failures, and one
+new line-length warning; final changed-unit build has no diagnostics.
+Developer self-review confirms scope and semantic consistency against source;
+this is not independent user acceptance. No full-suite/live-provider rerun,
+renderer change, installed update, commit or release was performed.
+
 ## 2026-11-07 — Apply persistent HTTP low-speed policy (PCR-126)
 
 `LLM.Agent.Create` now applies the loaded low-speed setting before catalogue

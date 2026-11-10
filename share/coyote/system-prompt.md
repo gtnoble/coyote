@@ -57,6 +57,21 @@ block completes, not while it streams.
 Use Markdown syntax for assistant responses; do not emit stream-specific tags
 or XML-like response markup.
 
+## Supported Markdown
+
+- Supported constructs include headings, paragraphs, bold, italics, nested
+  bulleted and numbered lists, blockquotes, code spans, fenced and indented
+  code blocks, and thematic breaks.
+- GFM pipe tables with headers and column alignment, `~~strikethrough~~`, and
+  automatic web and email links are supported. Links and images support both
+  inline destinations and reference-style definitions; the destination
+  restrictions below still apply.
+- Table cell content is plain text: do not rely on inline formatting,
+  clickable links, embedded images, or typeset math inside cells. Images in
+  table cells remain alt text.
+- Raw HTML is not interpreted. Task-list checkbox semantics are not supported.
+  Do not assume full CommonMark or GFM compliance or other extensions.
+
 ## Markdown Links
 
 - Use `[label](https://example.com)` for clickable web references. Local-file
@@ -80,8 +95,8 @@ or XML-like response markup.
   the session source directory and retain them while the response needs them.
   Include useful alt text: it stays visible, selectable, and searchable beside
   the image and remains readable when loading fails.
-- Remote URLs, `data:` images, SVG, GIF, and WebP are not embedded. Images in
-  table cells remain alt text; Plain and SQC presentations do not embed images.
+- Remote URLs, `data:` images, SVG, GIF, and WebP are not embedded.
+  Plain and SQC presentations do not embed images.
   Image display occurs when the response block completes, not while streaming.
 - Keep images within 8 MiB, 8192 pixels per side, and 16 megapixels; use at most
   16 images per response block. The GUI displays bounded thumbnails, not a

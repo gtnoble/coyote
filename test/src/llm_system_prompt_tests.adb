@@ -53,6 +53,31 @@ package body LLM_System_Prompt_Tests is
             "response guidance must include: " & Text);
       end Require;
    begin
+      Require ("## Supported Markdown");
+      Require ("headings, paragraphs, bold, italics, nested");
+      Require ("bulleted and numbered lists, blockquotes, code spans");
+      Require ("fenced and indented");
+      Require ("code blocks, and thematic breaks");
+      Require ("GFM pipe tables with headers and column alignment");
+      Require ("`~~strikethrough~~`");
+      Require ("automatic web and email links");
+      Require ("Links and images support both");
+      Require ("inline destinations and reference-style definitions");
+      Require ("restrictions below still apply");
+      Require ("Table cell content is plain text");
+      Require ("do not rely on inline formatting");
+      Require
+        ("clickable links, embedded images, or typeset math inside cells");
+      Require ("table cells remain alt text");
+      Require ("Raw HTML is not interpreted");
+      Require ("Task-list checkbox semantics are not supported");
+      Require ("Do not assume full CommonMark or GFM compliance");
+      Assert
+        (Count_Substring (Prompt, "## Supported Markdown") = 1,
+         "supported Markdown guidance should appear exactly once");
+      Assert
+        (Count_Substring (Prompt, "table cells remain alt text") = 1,
+         "table image restriction should appear exactly once");
       Require ("## Markdown Links");
       Require ("[label](https://example.com)");
       Require ("[report](file:///absolute/path/report.txt)");

@@ -3,6 +3,36 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-129 — Document supported Markdown semantics in the system prompt
+
+- **Date reported:** 2026-11-10
+- **Category:** Other (system-prompt resource), Test
+- **Priority:** 4-Minor
+- **Authorization:** User approved implementation of the proposed semantic
+  Markdown guidance, without renderer changes or presentation-detail additions.
+- **Problem:** The prompt describes links, images and math but leaves other
+  supported constructs and table-cell/extension restrictions implicit.
+- **Implementation:** Add a Supported Markdown subsection listing standard
+  constructs, GFM tables/alignment, strikethrough, autolinks and reference-style
+  links/images. Consolidate the table-image restriction with plain-text cell
+  semantics; state that raw HTML is not interpreted and task-list checkbox
+  semantics are unsupported. Do not claim full CommonMark/GFM compliance.
+- **Tests:** Extend the shared prompt-guidance assertions used by tools-enabled
+  and No_Tools cases, including single-copy checks for the new subsection and
+  table-image restriction. Existing link/image guidance assertions remain.
+- **Verification:** Root/test development builds pass; both generated profiles
+  select development. Focused LLM.System_Prompt passes 32/32, zero failed
+  assertions/errors. GTK interactions pass 9/9; runner self-test passes its
+  intentional crash/timeout containment checks. Offline Plain/RPC HTTP-timeout
+  lifecycle and zero-disable delayed-success checks pass. `git diff --check`
+  passes.
+  Logs: `/tmp/coyote-markdown-semantics/`. Initial wrong-directory invocation,
+  reflow-sensitive assertion failures and one new style warning were corrected.
+- **Evaluation:** Developer self-review confirms semantic consistency with
+  source and approved scope; no full-suite or live-provider rerun performed.
+- **Status:** Implemented and developer-verified. No renderer changes,
+  installed-binary update, release or independent acceptance is implied.
+
 ## PCR-128 — Conversation text safety and isolated native interactions
 
 - **Date reported:** 2026-11-07
