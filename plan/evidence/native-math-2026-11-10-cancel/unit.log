@@ -1,0 +1,11 @@
+FAIL    Coyote.Math lays out accents and operator limits
+
+FAIL Coyote.Math lays out accents and operator limits (in 0.003407 sec.)
+    unmeasured cancellation retains metrics: TT
+    at coyote_math_tests.adb:885
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 0.003617 sec. seconds

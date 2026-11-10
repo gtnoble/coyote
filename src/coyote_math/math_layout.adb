@@ -299,6 +299,44 @@ package body Math_Layout is
       end case;
    end Is_Character_Box;
 
+   function Cancel_Character_Box
+     (Item : Math_Syntax.Document; Id : Node_Id;
+      Thickness : Rule_Parameters) return Boolean
+   is
+      Current : Node_Id := Id;
+   begin
+      --  KaTeX utils.getBaseElem unwraps singleton groups/colors/fonts,
+      --  but not accents or other composite boxes. Font nodes are flattened.
+      for Step in 1 .. Math_Syntax.Max_Depth loop
+         Poll (Thickness);
+         if Current = No_Node then
+            return False;
+         end if;
+         declare
+            Value : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Item, Positive (Current));
+         begin
+            case Value.Kind is
+               when Row_Node =>
+                  if Value.First = No_Node or else
+                    Math_Syntax.Element
+                      (Item, Positive (Value.First)).Next /= No_Node
+                  then
+                     return False;
+                  end if;
+                  Current := Value.First;
+               when Color_Node =>
+                  Current := Value.First;
+               when Glyph_Node =>
+                  return Value.Class /= Operator_Atom;
+               when others =>
+                  return False;
+            end case;
+         end;
+      end loop;
+      return False;
+   end Cancel_Character_Box;
+
    function Spacing
      (Left, Right : Atom_Class; Tight : Boolean; Scale : Long_Float)
       return Long_Float
@@ -3597,17 +3635,28 @@ package body Math_Layout is
                end;
             else
                declare
-                  Stroke : constant Long_Float := Long_Float'Max
-                    (0.066667 * Scale, Thickness.Effective * Scale);
-               Pad : constant Long_Float :=
-                 (if Is_Character_Box (Item, Value.First)
+               Is_Strike : constant Boolean :=
+                 Value.Enclosure = Strike_Enclosure;
+               Is_Character : constant Boolean :=
+                 not Is_Strike and then
+                 Cancel_Character_Box (Item, Value.First, Thickness);
+               Stroke : constant Long_Float :=
+                 (if Is_Strike then Long_Float'Max
+                    (0.066667, Thickness.Effective) else 0.046) * Scale;
+               HPad : constant Long_Float :=
+                 (if not Is_Strike and then not Is_Character
                   then 0.2 * Scale else 0.0);
+               VPad : constant Long_Float :=
+                 (if Is_Character then 0.2 * Scale else 0.0);
+               Span : constant Long_Float := Result.Width +
+                 (if not Is_Strike and then Thickness.Advance_Source /= null
+                  then Result.Italic else 0.0);
                Geometry : Draw_Command;
                P : Math_Paths.Segment;
-               X1 : constant Long_Float := -Pad;
-               X2 : constant Long_Float := Result.Width + Pad;
-               Y1 : constant Long_Float := -Result.Ascent - Pad;
-               Y2 : constant Long_Float := Result.Descent + Pad;
+               X1 : constant Long_Float := -HPad;
+               X2 : constant Long_Float := Span + HPad;
+               Y1 : constant Long_Float := -Result.Ascent - VPad;
+               Y2 : constant Long_Float := Result.Descent + VPad;
                procedure Add_Point
                  (Kind : Math_Paths.Command_Kind; X, Y : Long_Float) is
                begin
@@ -3618,9 +3667,9 @@ package body Math_Layout is
                end Add_Point;
             begin
                Geometry.Kind := Path_Command;
-               Geometry.Width := Result.Width + 2.0 * Pad;
-               Geometry.Height := Result.Ascent + Result.Descent + 2.0 * Pad;
-               if Value.Enclosure = Strike_Enclosure then
+               Geometry.Width := X2 - X1;
+               Geometry.Height := Y2 - Y1;
+               if Is_Strike then
                   Geometry.Kind := Rule_Command;
                   Geometry.Y := -0.5 * X_Height * Scale - Stroke / 2.0;
                   Geometry.Width := Result.Width;
@@ -3632,9 +3681,24 @@ package body Math_Layout is
                      Length : constant Long_Float :=
                        Ada.Numerics.Long_Elementary_Functions.Sqrt
                          (DX * DX + DY * DY);
-                     NX : constant Long_Float := -DY * Stroke / (2.0 * Length);
-                     NY : constant Long_Float := DX * Stroke / (2.0 * Length);
+                     NX : constant Long_Float :=
+                       (if Length > 0.0 then -DY * Stroke / (2.0 * Length)
+                        else 0.0);
+                     NY : constant Long_Float :=
+                       (if Length > 0.0 then DX * Stroke / (2.0 * Length)
+                        else 0.0);
                   begin
+                     --  SVG strokes are butt-ended and clipped to their
+                     --  viewport; padding changes ink, not logical metrics.
+                     Geometry.Has_Clip := True;
+                     Geometry.Clip_X := X1;
+                     Geometry.Clip_Y := Y1;
+                     Geometry.Clip_W := DX;
+                     Geometry.Clip_H := DY;
+                     Result.Width := Span;
+                     if Thickness.Advance_Source /= null then
+                        Result.Italic := 0.0;
+                     end if;
                      if Value.Enclosure in BCancel_Enclosure |
                        XCancel_Enclosure
                      then

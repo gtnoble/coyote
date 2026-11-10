@@ -869,7 +869,51 @@ package body Coyote_Math_Tests is
                     Expected_Mark_Y)) < 1.0E-9,
                  "nested dot uses overline ascent: " & Prefix & Source);
       end Check_Overline;
+      procedure Check_Cancel
+        (Source : String; Character_Box : Boolean;
+         Prefix : String := ""; Scale : Long_Float := 1.0)
+      is
+         Base : constant Box := Build
+           (Parse (Prefix & "{" & Source & "}"));
+         Cancelled : constant Box := Build
+           (Parse (Prefix & "\cancel{" & Source & "}"));
+         Path : constant Draw_Command := Cancelled.Commands.Last_Element;
+         HPad : constant Long_Float :=
+           (if Character_Box then 0.0 else 0.2 * Scale);
+         VPad : constant Long_Float :=
+           (if Character_Box then 0.2 * Scale else 0.0);
+      begin
+         Assert (Cancelled.Valid and then
+                 abs (Cancelled.Width - Base.Width) < 1.0E-9 and then
+                 abs (Cancelled.Italic - Base.Italic) < 1.0E-9 and then
+                 abs (Cancelled.Ascent - Base.Ascent) < 1.0E-9 and then
+                 abs (Cancelled.Descent - Base.Descent) < 1.0E-9,
+                 "unmeasured cancellation retains metrics: " &
+                 Prefix & Source & " widths" &
+                 Long_Float'Image (Cancelled.Width) &
+                 Long_Float'Image (Base.Width) & " italic" &
+                 Long_Float'Image (Cancelled.Italic) &
+                 Long_Float'Image (Base.Italic));
+         Assert (Path.Has_Clip and then
+                 abs (Path.Clip_X + HPad) < 1.0E-9 and then
+                 abs (Path.Clip_Y + Base.Ascent + VPad) < 1.0E-9 and then
+                 abs (Path.Clip_W - Base.Width - 2.0 * HPad) < 1.0E-9
+                 and then abs (Path.Clip_H - Base.Ascent - Base.Descent -
+                   2.0 * VPad) < 1.0E-9 and then
+                 abs (Path.Height - 0.046 * Scale) < 1.0E-9,
+                 "cancellation viewport and stroke scale: " & Source);
+      end Check_Cancel;
    begin
+      Check_Cancel ("T", True);
+      Check_Cancel ("{{T}}", True);
+      Check_Cancel ("\textcolor{red}{T}", True);
+      Check_Cancel ("TT", False);
+      Check_Cancel ("\dot{T}", False);
+      Check_Cancel ("\overline{T}", False);
+      Check_Cancel ("\smash{T}", False);
+      Check_Cancel ("", False);
+      Check_Cancel ("T", True, "\scriptstyle ", 0.7);
+      Check_Cancel ("TT", False, "\scriptscriptstyle ", 0.5);
       Check_Overline ("T");
       Check_Overline ("T", Minimum => 0.09);
       Check_Overline ("T", Style => Display_Style);

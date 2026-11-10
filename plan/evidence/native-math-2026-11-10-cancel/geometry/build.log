@@ -1,0 +1,27 @@
+Setup
+   [mkdir]        object directory for project Math_Geometry
+   [mkdir]        exec directory for project Math_Geometry
+Compile
+   [Ada]          math_geometry_probe.adb
+   [Ada]          math_layout.adb
+   [Ada]          math_paths.adb
+   [Ada]          math_syntax.adb
+   [Ada]          math_metrics.adb
+   [Ada]          math_model.ads
+   [Ada]          math_radical_paths.adb
+   [Ada]          math_stretchy.adb
+   [Ada]          math_text_shaping.adb
+   [Ada]          math_work_control.adb
+   [Ada]          math_expander.adb
+   [Ada]          math_macros.adb
+   [Ada]          math_source.adb
+   [Ada]          math_symbols.adb
+   [Ada]          math_tokens.adb
+   [Ada]          math_unicode.adb
+   [Ada]          math_font_data.adb
+   [Ada]          math_builtin_macros.adb
+Bind
+   [gprbind]      math_geometry_probe.bexch
+   [Ada]          math_geometry_probe.ali
+Link
+   [link]         math_geometry_probe.adb

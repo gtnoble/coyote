@@ -229,6 +229,97 @@ begin
       Check (Advance = 13.0, "native typewriter-space advance at 24px is 13");
    end;
    declare
+      use Ada.Strings.Unbounded;
+      use type Math_Paths.Command_Kind;
+      type Cancel_Case is record
+         Source : Unbounded_String;
+         Character_Box : Boolean;
+      end record;
+      Cases : constant array (Positive range <>) of Cancel_Case :=
+        ((To_Unbounded_String ("T"), True),
+         (To_Unbounded_String ("TT"), False),
+         (To_Unbounded_String ("\dot{T}"), False),
+         (To_Unbounded_String ("\textcolor{red}{T}"), True));
+      Modes : constant array (Positive range <>) of Unbounded_String :=
+        (To_Unbounded_String ("cancel"), To_Unbounded_String ("bcancel"),
+         To_Unbounded_String ("xcancel"));
+      Sizes : constant array (Positive range <>) of Natural :=
+        (12, 16, 20, 24, 32, 48);
+      Minimums : constant array (Positive range <>) of Long_Float :=
+        (0.0, 0.09);
+   begin
+      for Size of Sizes loop
+         for Minimum of Minimums loop
+            for Sample of Cases loop
+               for Mode of Modes loop
+                  declare
+                     Settings : constant Math_Layout.Layout_Settings :=
+                       (Pixel_Em => Long_Float (Size),
+                        Advance_Source => Fonts'Unchecked_Access,
+                        Min_Rule_Thickness => Minimum, others => <>);
+                     Source : constant String := To_String (Sample.Source);
+                     Base : constant Math_Layout.Box := Math_Layout.Build
+                       (Math_Syntax.Parse (Source),
+                        Math_Layout.Text_Style, Settings);
+                     Cancelled : constant Math_Layout.Box :=
+                       Math_Layout.Build
+                         (Math_Syntax.Parse
+                            ("\" & To_String (Mode) & "{" & Source & "}"),
+                          Math_Layout.Text_Style, Settings);
+                     Path : constant Math_Layout.Draw_Command :=
+                       Cancelled.Commands.Last_Element;
+                     HPad : constant Long_Float :=
+                       (if Sample.Character_Box then 0.0 else 0.2);
+                     VPad : constant Long_Float :=
+                       (if Sample.Character_Box then 0.2 else 0.0);
+                     Span : constant Long_Float :=
+                       Base.Width + Base.Italic;
+                     DX : constant Long_Float := Span + 2.0 * HPad;
+                     DY : constant Long_Float :=
+                       Base.Ascent + Base.Descent + 2.0 * VPad;
+                     First : constant Math_Paths.Segment :=
+                       Path.Path_Data.First_Element;
+                     Fourth : constant Math_Paths.Segment :=
+                       Path.Path_Data (4);
+                     VX : constant Long_Float :=
+                       First.First.X - Fourth.First.X;
+                     VY : constant Long_Float :=
+                       First.First.Y - Fourth.First.Y;
+                     Label : constant String := To_String (Mode) &
+                       "{" & Source & "}" & Natural'Image (Size) &
+                       Long_Float'Image (Minimum);
+                  begin
+                     Check (Cancelled.Valid and then
+                       abs (Cancelled.Width - Span) < 1.0E-9 and then
+                       abs Cancelled.Italic < 1.0E-9 and then
+                       abs (Cancelled.Ascent - Base.Ascent) < 1.0E-9
+                       and then abs (Cancelled.Descent - Base.Descent)
+                         < 1.0E-9,
+                       "cancel retains logical metrics and owns margin " &
+                       Label);
+                     Check (Path.Has_Clip and then
+                       abs (Path.Clip_X + HPad) < 1.0E-9 and then
+                       abs (Path.Clip_Y + Base.Ascent + VPad) < 1.0E-9
+                       and then abs (Path.Clip_W - DX) < 1.0E-9
+                       and then abs (Path.Clip_H - DY) < 1.0E-9,
+                       "cancel SVG viewport padding and clipping " & Label);
+                     Check (abs (Path.Height - 0.046) < 1.0E-9 and then
+                       abs (DX * VX +
+                         (if To_String (Mode) = "cancel" then -DY * VY
+                          else DY * VY)) < 1.0E-9,
+                       "cancel butt stroke perpendicular to diagonal " &
+                       Label);
+                     Check (Natural (Path.Path_Data.Length) =
+                       (if To_String (Mode) = "xcancel" then 10 else 5)
+                       and then First.Kind = Math_Paths.Move_To,
+                       "cancel retains requested diagonals " & Label);
+                  end;
+               end loop;
+            end loop;
+         end loop;
+      end loop;
+   end;
+   declare
       Sizes : constant array (Positive range <>) of Natural :=
         (12, 16, 20, 24, 32, 48);
       Minimums : constant array (Positive range <>) of Long_Float :=

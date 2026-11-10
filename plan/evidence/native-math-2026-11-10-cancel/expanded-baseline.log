@@ -1,0 +1,8 @@
+{
+  "summary": {
+    "pass": 51,
+    "fail": 44,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-cancel/expanded-baseline/report.json"
+}

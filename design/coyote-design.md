@@ -116,6 +116,12 @@ This model has two key properties:
   one upper kern, independent of minimum-clamped paint thickness. Its rule
   spans the full body, incorporating measured italic margin once; underline
   is unchanged. Below/full accent placement and unmeasured widths are preserved.
+  Cancellation has a separate bounded singleton character walk, vertical padding
+  for characters and horizontal padding for composites, 0.046 em butt strokes
+  independent of rule minimums, and SVG viewport clipping. Measured cancellation
+  includes the body italic margin once; logical vertical metrics are unchanged.
+  Retained rasters still omit negative-origin overflow; isolated cancellation
+  upper-ink failures remain open (report §11.9), not hidden by logical padding.
   Full TeX compatibility is not promised. Bundled KaTeX 0.16.22 fonts carry MIT
   notices under `share/coyote/math/fonts/`.
 - **Session compatibility.** New assistant JSONL records contain no `format` or

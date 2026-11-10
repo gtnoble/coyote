@@ -1,0 +1,8 @@
+Compile
+   [Ada]          math_raster_probe.adb
+   [Ada]          math_layout.adb
+Bind
+   [gprbind]      math_raster_probe.bexch
+   [Ada]          math_raster_probe.ali
+Link
+   [link]         math_raster_probe.adb

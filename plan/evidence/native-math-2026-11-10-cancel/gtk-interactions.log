@@ -1,0 +1,11 @@
+Logs: /tmp/gtk-interactions-sfy3dvvv
+PASS plain: /tmp/gtk-interactions-sfy3dvvv/01-plain.log
+PASS unicode: /tmp/gtk-interactions-sfy3dvvv/02-unicode.log
+PASS bidi: /tmp/gtk-interactions-sfy3dvvv/03-bidi.log
+PASS inline-math: /tmp/gtk-interactions-sfy3dvvv/04-inline-math.log
+PASS multiline: /tmp/gtk-interactions-sfy3dvvv/05-multiline.log
+PASS plain: /tmp/gtk-interactions-sfy3dvvv/06-plain.log
+PASS link-click: /tmp/gtk-interactions-sfy3dvvv/07-link-click.log
+PASS link-hover: /tmp/gtk-interactions-sfy3dvvv/08-link-hover.log
+PASS math-boundary: /tmp/gtk-interactions-sfy3dvvv/09-math-boundary.log
+Summary: 9/9 passed

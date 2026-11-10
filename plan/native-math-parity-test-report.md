@@ -932,3 +932,75 @@ whole-job memory, deadlines, inline GTK/cache, unpinned fallback fonts, existing
 native lifecycle failure and independent visual/AT acceptance remain open.
 Valgrind and resource characterization were not rerun. SRS-MATH v1.0 and D01–D15
 unchanged; no release, installation or commit.
+
+
+### 11.9 Fresh continuation — cancellation SVG geometry, 2026-11-10
+
+**Scope:** cancellation paths (`cancel`, `bcancel`, `xcancel`), not full enclosure
+or raster-origin parity. Pinned KaTeX 0.16.22 `enclose.js`/`stretchy.js` and direct
+Chromium DOM measurements establish 0.046 em butt-ended strokes, SVG viewport
+clipping, vertical 0.2 em padding for character bodies and horizontal 0.2 em
+padding for composite bodies. The old code padded both axes for characters,
+neither for composites, used an oversized minimum-clamped stroke and omitted
+measured trailing italic width. The cancellation-specific bounded syntax walk
+unwraps singleton rows/colors and flattened fonts, but not accents; the shared
+script character helper is unchanged. Measured cancellation owns the body
+margin once. Unmeasured width/italic behavior, logical vertical metrics and the
+strike-through branch remain unchanged. SVG strokes intentionally do not obey
+`minRuleThickness`, matching the pinned reference. No threshold/pin changes.
+
+**Regressions:** final measured probe **999/999**, including 576 cancellation
+assertions across three modes, four bodies, six sizes and two minimum-rule
+settings. Exact final probe against isolated pre-fix production source reports
+**999 assertions / 396 failures**. The focused existing AUnit accent case passes
+with ten added unmeasured configurations, including grouped/color/accent/smash,
+empty and script-style bodies. An intermediate unit failure was a test scoping
+error: the unbraced two-glyph style baseline scaled only the first glyph; grouping
+the baseline fixes the fixture, not production behavior. Logs are retained.
+
+Final-source verification:
+
+- Incremental root/test development builds pass; generated profiles select
+  development. Existing warnings remain; no clean/release qualification.
+- Full Xvfb suite **1074/1074**, zero failed assertions/unexpected errors,
+  cumulative **146.300164 s**. Geometry unchanged **235/235** across 13 groups.
+- Unchanged preceding expanded image corpus improves **51/53 → 53/53**; both
+  previously recorded dot-cancel-T failures pass. Original pilot **29/29**.
+- Supplemental `cancel-geometry-manifest.json` preserves all preceding 53 cases
+  verbatim, adds 24 surrounded/nested cases and 18 isolated cases. Intermediate
+  77-case corpus passes **77/77** twice. Final **95-case** corpus improves
+  **51 pass / 44 fail → 89 pass / 6 fail**, zero blocked, and repeats **89/95**.
+  No passing baseline case regresses; 38 failed cases become passing. Negative
+  omitted-base/origin/baseline controls remain passing; thresholds unchanged.
+- Required GTK interactions **9/9**, interaction-runner containment self-test
+  and offline Plain/RPC HTTP-timeout lifecycle checks pass. Intentional runner
+  kill/timeout fixtures are not application failures. No live-provider checks.
+
+**Six retained failures:** isolated single-T cancellation, all three diagonals
+at 24/48 px. These exact cases fail before correction too (width plus mask);
+corrected dimensions/baselines/origins/colors pass, but masks still fail.
+Read-only PNG review localizes unmatched browser pixels above the native logical
+origin (7/25 pixels per single diagonal, 14/50 for cross cancellation, at 24/48
+px). Native `Math_Raster.Paint` retains right/bottom overflow only and cannot
+shift origin for top/left ink; the cancellation viewport extends 0.2 em upward.
+This supports top clipping as a contributor, not proof that clipping is the
+only cause. Aggregate masks do not establish component attribution; rounding
+and subpixel effects remain possible. Keep all six failures in the corpus.
+Origin-aware raster/export/jobs/GTK adoption is separate corrective work; do
+not inflate logical ascent or crop the reference to hide this limitation.
+
+**Evidence:** `plan/evidence/native-math-2026-11-10-cancel/` retains baseline/final/
+repeat reports and PNGs, original pilot, measured before/after, unit/build/full/
+geometry/lifecycle logs, direct DOM measurements and reproduction script,
+implementation patch, source/font/executable hashes and checksums. Earlier
+53/77-case report/log checkpoints are retained separately from the final corpus.
+Read-only review found no implementation blockers and prompted inside-accent
+image coverage; separate diagnostic review identified the upper-ink mismatch.
+Developer/agent review is not independent acceptance.
+
+**Disposition:** scoped cancellation geometry defects corrected; full raster
+cancellation parity remains open. PCR-125 OPEN; feature **NOT COMPLETE**.
+Whole-job allocation, hard deadlines, inline GTK/cache, fallback-font pins,
+callable comparisons, native lifecycle/Valgrind failure and independent visual/
+AT acceptance remain open. Valgrind/resources not rerun. Approved SRS-MATH v1.0
+and D01–D15 unchanged; no release, installation or commit.

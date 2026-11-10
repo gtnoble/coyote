@@ -2330,3 +2330,31 @@ evidence. Developer/agent review is not independent acceptance. Cancel, full
 behavior, resource/deadline/GTK/cache/font/lifecycle and human qualification
 remain open; Valgrind not rerun. PCR-125 OPEN; feature NOT COMPLETE; no release,
 installation or commit. Approved requirements/deviations unchanged.
+
+
+## 2026-11-10 — Cancellation SVG geometry (PCR-125)
+
+Corrected cancellation padding axes, 0.046em butt stroke and clipped SVG
+viewport; measured body italic margin is owned once. Bounded cancellation-only
+character walk unwraps singleton rows/colors/fonts, not accents. Shared script
+helper, strike-through and unmeasured width/italic behavior unchanged. Minimum
+rule thickness does not alter SVG strokes, matching the pinned reference.
+
+Final measured probe999/999 (576 added assertions); exact final probe against
+isolated pre-fix layout999 with396 failures. Focused unit1/1 with ten new
+configurations; corrected an intermediate fixture's ungrouped style baseline.
+Development builds and full Xvfb1074/1074 pass (146.300164s cumulative), geometry
+235/235. Existing expanded images51/53 improve53/53, original29/29. Additive
+77-case image corpus passes twice. Final95-case corpus preserves all prior53
+and adds isolated cases: baseline51/95, final89/95 twice, no passing baseline
+regressions. Six isolated single-T mask failures remain for all cancellation
+modes at24/48px, now with correct dimensions. Above-origin unmatched ink and
+one-sided native raster bounds support a separate top-clipping limitation;
+no logical-ascent fit, case removal or threshold relaxation. Retain failures.
+
+Required GTK9/9, containment runner and offline HTTP lifecycle checks pass.
+Read-only reviews found no geometry blockers and localized remaining upper ink;
+not independent acceptance. Evidence/report §11.9:
+`plan/evidence/native-math-2026-11-10-cancel/`. Origin-aware raster/adoption,
+resource/deadline/cache/font/lifecycle/callable/human gates remain open.
+Valgrind not rerun; PCR-125 OPEN, feature NOT COMPLETE; no release/install/commit.

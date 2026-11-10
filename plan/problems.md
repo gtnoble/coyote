@@ -4611,3 +4611,30 @@ are historical, not current-source qualification.
   NOT COMPLETE. Cancel24/48 mask failures remain. Broader behavior, resource,
   GUI/cache/font/lifecycle/callable/human gates remain open; Valgrind not rerun.
   Developer/agent review is not independent acceptance; no release/commit.
+
+
+### PCR-125 — 2026-11-10 cancellation SVG geometry correction
+
+- **Category:** Code, Test, Design.
+- **Priority:** 3-Moderate (unchanged parent classification).
+- **Problem:** cancellation uses incorrect padding axes, oversized rule-clamped
+  stroke, unclipped viewport and incomplete measured body width.
+- **Affected products:** `math_layout.adb`, math unit/raster probe, supplemental
+  `cancel-geometry-manifest.json`, design/report/SDF records.
+- **Action:** reference-derived viewport, 0.046em butt stroke and measured margin
+  transfer; cancellation-only character eligibility walk. Preserve unmeasured
+  widths and strike-through. Add measured/unit/image controls; thresholds fixed.
+- **Verification:** measured999/999 versus exact final-test baseline396 failures;
+  focused1/1, geometry235/235, development builds/full1074/1074. Existing53/53;
+  original29/29. Final additive95-case baseline51/95 improves89/95 and repeats;
+  no passing baseline regressions. Required GTK/runner/offline lifecycle pass.
+  Evidence/report §11.9, `plan/evidence/native-math-2026-11-10-cancel/`.
+- **Remaining defect:** six isolated single-T cancel/bcancel/xcancel24/48 mask
+  failures remain (also failed pre-fix). Dimensions now pass. Unmatched upper
+  browser ink and one-sided raster bounds support top clipping as a contributor;
+  full causation remains unqualified. Origin-aware raster/export/adoption work
+  is open; do not adjust logical ascent, remove cases or weaken mask thresholds.
+- **Status:** scoped path correction resolved2026-11-10; retained-raster parity
+  and parent PCR-125 OPEN, NOT COMPLETE. Broader qualification gates unchanged;
+  Valgrind/resources not rerun. Developer/agent review is not independent
+  acceptance. No release, installation or commit.

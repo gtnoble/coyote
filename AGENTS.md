@@ -196,6 +196,16 @@ report §11.8 and `plan/evidence/native-math-2026-11-10-overline/`. Required GTK
 and offline HTTP lifecycle checks pass. No parity/resource/human acceptance,
 release or installation is implied; Valgrind was not rerun.
 
+The subsequent 2026-11-10 cancellation continuation passes measured999/999,
+geometry235/235 and full Xvfb1074/1074 (146.300164s cumulative). Prior expanded
+53/53 and original29/29 pass. Additive95-case images improve baseline51/95 to
+89/95 and repeat89/95; six isolated single-T cancel/bcancel/xcancel24/48 mask
+failures remain, with unmatched upper ink and one-sided raster bounds. Do not
+hide negative-origin overflow with logical padding or case removal. Report
+§11.9 and `plan/evidence/native-math-2026-11-10-cancel/` control this checkpoint.
+Native cancellation SVG stroke is0.046em, independent of minRuleThickness;
+strike-through unchanged. No complete parity or acceptance; broad gates remain.
+
 PCR-126 HTTP-timeout developer verification (2026-11-07) passes the full
 Xvfb suite 1068/1068, zero failures/errors, 138.877699 s cumulative, and the
 standalone offline Plain/RPC lifecycle harness. Evidence and commands are in
