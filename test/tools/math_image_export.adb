@@ -35,8 +35,16 @@ procedure Math_Image_Export is
       Baseline : Long_Float := 0.0;
       Logical_Width : Long_Float := 0.0;
       Logical_Height : Long_Float := 0.0;
-      Em_Pixels : Long_Float := 24.0) return JSON_Value is
+      Em_Pixels : Long_Float := 24.0;
+      Origin_X : Integer := 0;
+      Origin_Y : Integer := 0) return JSON_Value is
       Result : constant JSON_Value := Create_Object;
+      Raster_Right : constant Integer :=
+        Integer (Width) - Origin_X -
+          Integer (Long_Float'Ceiling (Logical_Width));
+      Raster_Bottom : constant Integer :=
+        Integer (Height) - Origin_Y -
+          Integer (Long_Float'Ceiling (Logical_Height));
    begin
       Set_Field (Result, "id", Id);
       Set_Field (Result, "status", Status);
@@ -46,16 +54,16 @@ procedure Math_Image_Export is
          Set_Field (Result, "width", Integer (Width));
          Set_Field (Result, "height", Integer (Height));
          Set_Field_Long_Float (Result, "baseline", Baseline);
-         Set_Field (Result, "originX", Integer (0));
-         Set_Field (Result, "originY", Integer (0));
+         Set_Field (Result, "originX", Origin_X);
+         Set_Field (Result, "originY", Origin_Y);
          Set_Field_Long_Float (Result, "logicalWidth", Logical_Width);
          Set_Field_Long_Float (Result, "logicalHeight", Logical_Height);
-         Set_Field (Result, "rasterOriginX", Integer (0));
-         Set_Field (Result, "rasterOriginY", Integer (0));
-         Set_Field (Result, "rasterRightPaddingPx",
-           Integer (Width) - Integer (Long_Float'Ceiling (Logical_Width)));
-         Set_Field (Result, "rasterBottomPaddingPx",
-           Integer (Height) - Integer (Long_Float'Ceiling (Logical_Height)));
+         Set_Field (Result, "rasterOriginX", -Origin_X);
+         Set_Field (Result, "rasterOriginY", -Origin_Y);
+         Set_Field (Result, "rasterLeftPaddingPx", Origin_X);
+         Set_Field (Result, "rasterTopPaddingPx", Origin_Y);
+         Set_Field (Result, "rasterRightPaddingPx", Raster_Right);
+         Set_Field (Result, "rasterBottomPaddingPx", Raster_Bottom);
       end if;
       return Result;
    end Response;
@@ -156,6 +164,10 @@ procedure Math_Image_Export is
                          (Fonts, Layout, Scale, (0.0, 0.0, 0.0, 1.0));
                      Width : constant Natural := Math_Raster.Width (Image);
                      Height : constant Natural := Math_Raster.Height (Image);
+                     Origin_X : constant Integer :=
+                       Math_Raster.Origin_X (Image);
+                     Origin_Y : constant Integer :=
+                       Math_Raster.Origin_Y (Image);
                      Stride : constant Natural := Math_Raster.Stride (Image);
                      Data : Byte_Array_Access := new
                        Cairo.Image_Surface.Byte_Array
@@ -202,7 +214,7 @@ procedure Math_Image_Export is
                               Layout.Ascent * Scale,
                               Layout.Width * Scale,
                               (Layout.Ascent + Layout.Descent) * Scale,
-                              Em_Pixels),
+                              Em_Pixels, Origin_X, Origin_Y),
                            Compact => True));
                   exception
                      when others =>

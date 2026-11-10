@@ -62,6 +62,7 @@ package Coyote_GUI.Math_Element is
    function Is_Pending (Element : Instance) return Boolean;
    function Source (Element : Instance) return String;
    function LaTeX (Element : Instance) return String;
+   --  Width and Height are physical paint extents, not layout metrics.
    function Width (Element : Instance) return Natural;
    function Height (Element : Instance) return Natural;
    function Baseline (Element : Instance) return Natural;
@@ -95,6 +96,10 @@ private
       Math_Width : Natural := 0;
       Math_Height : Natural := 1;
       Math_Baseline : Natural := 0;
+      Logical_Width : Natural := 0;
+      Raster_Origin_X : Natural := 0;
+      Raster_Origin_Y : Natural := 0;
+      Raster_Baseline : Natural := 0;
       Valid : Boolean := False;
       Detached : Boolean := False;
       Draw_Handler : Gtk.Handlers.Handler_Id;
@@ -107,7 +112,6 @@ private
       Raster_Row : Natural := 0;
       Raster_Width : Natural := 0;
       Raster_Height : Natural := 0;
-      Raster_Baseline : Natural := 0;
       Raster_Ready : Boolean := False;
    end record;
 end Coyote_GUI.Math_Element;

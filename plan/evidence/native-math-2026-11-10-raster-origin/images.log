@@ -1,0 +1,8 @@
+{
+  "summary": {
+    "pass": 83,
+    "fail": 12,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-origin/images/report.json"
+}

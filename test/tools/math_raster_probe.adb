@@ -313,6 +313,49 @@ begin
                        (if To_String (Mode) = "xcancel" then 10 else 5)
                        and then First.Kind = Math_Paths.Move_To,
                        "cancel retains requested diagonals " & Label);
+                     if (Source = "T" or else Source = "TT") and then
+                       (To_String (Mode) = "cancel" or else
+                        To_String (Mode) = "xcancel")
+                     then
+                        declare
+                           Bounds : constant Math_Raster.Raster_Bounds :=
+                             Math_Raster.Measure (Cancelled, Long_Float (Size));
+                           Raster : constant Math_Raster.Image :=
+                             Math_Raster.Render
+                               (Fonts, Cancelled, Long_Float (Size), Foreground);
+                           Above_Ink : Boolean := False;
+                           Left_Ink : Boolean := False;
+                        begin
+                           if Bounds.Origin_Y > 0 then
+                              for Y in 0 .. Bounds.Origin_Y - 1 loop
+                                 for X in 0 .. Math_Raster.Width (Raster) - 1 loop
+                                    Above_Ink := Above_Ink or else
+                                      Interfaces.Shift_Right
+                                        (Math_Raster.Get_Pixel (Raster, X, Y), 24) > 0;
+                                 end loop;
+                              end loop;
+                           end if;
+                           if Bounds.Origin_X > 0 then
+                              for Y in 0 .. Math_Raster.Height (Raster) - 1 loop
+                                 for X in 0 .. Bounds.Origin_X - 1 loop
+                                    Left_Ink := Left_Ink or else
+                                      Interfaces.Shift_Right
+                                        (Math_Raster.Get_Pixel (Raster, X, Y), 24) > 0;
+                                 end loop;
+                              end loop;
+                           end if;
+                           Check ((if Source = "T" then
+                             Bounds.Origin_Y > 0 and then Above_Ink
+                             else Bounds.Origin_Y = 0),
+                             "cancel raster retains ink above logical origin " &
+                             Label);
+                           Check ((if Source = "TT" then
+                             Bounds.Origin_X > 0 and then Left_Ink
+                             else Bounds.Origin_X = 0),
+                             "cancel raster retains ink left of logical origin " &
+                             Label);
+                        end;
+                     end if;
                   end;
                end loop;
             end loop;
@@ -1013,6 +1056,139 @@ begin
         Math_Raster.Get_Pixel (Full, Right, Bottom), "tile combined origin");
    end;
    declare
+      Overflow_Layout : Math_Layout.Box :=
+        (Valid => True, Width => 32.0, Ascent => 10.0, Descent => 12.0,
+         others => <>);
+      Path : Math_Layout.Draw_Command;
+      Rule : Math_Layout.Draw_Command;
+      Before : Math_Raster.Raster_Bounds;
+      Full_Overflow : Math_Raster.Image;
+      Tile : Math_Raster.Image;
+      Clipped : Math_Layout.Box := Overflow_Layout;
+      Hidden : Math_Layout.Draw_Command;
+      Hidden_Bounds : Math_Raster.Raster_Bounds;
+   begin
+      Path.Kind := Math_Layout.Path_Command;
+      Path.Path_Data.Append
+        (Math_Paths.Segment'(Kind => Math_Paths.Move_To,
+          First => (X => -3.0, Y => -12.0), others => <>));
+      Path.Path_Data.Append
+        (Math_Paths.Segment'(Kind => Math_Paths.Line_To,
+          First => (X => 8.0, Y => -12.0), others => <>));
+      Path.Path_Data.Append
+        (Math_Paths.Segment'(Kind => Math_Paths.Line_To,
+          First => (X => 8.0, Y => 2.0), others => <>));
+      Overflow_Layout.Commands.Append (Path);
+      Rule.Kind := Math_Layout.Rule_Command;
+      Rule.X := -1.0;
+      Rule.Y := -11.0;
+      Rule.Width := 34.0;
+      Rule.Height := 24.0;
+      Overflow_Layout.Commands.Append (Rule);
+      Before := Math_Raster.Measure (Overflow_Layout, 1.0);
+      Full_Overflow := Math_Raster.Render
+        (Fonts, Overflow_Layout, 1.0, Foreground);
+      Check (Before.Origin_X = 3 and then Before.Origin_Y = 2 and then
+        Math_Raster.Origin_X (Full_Overflow) = 3 and then
+        Math_Raster.Origin_Y (Full_Overflow) = 2,
+        "negative path and rule retain exact leading raster origins");
+      Check (Overflow_Layout.Width = 32.0 and then
+        Overflow_Layout.Ascent = 10.0 and then
+        Overflow_Layout.Descent = 12.0,
+        "overflow measurement leaves logical layout metrics immutable");
+      Check (Has_Ink (Full_Overflow),
+        "negative-origin path and four-sided rule paint ink");
+      Tile := Math_Raster.Render_Tile
+        (Fonts, Overflow_Layout, 1.0, Foreground, 0, 0, 256, 256);
+      Check (Math_Raster.Origin_X (Tile) = 3 and then
+        Math_Raster.Origin_Y (Tile) = 2,
+        "tile uses full padded-raster origin");
+      Tile := Math_Raster.Render_Tile
+        (Fonts, Overflow_Layout, 1.0, Foreground, 3, 2, 256, 256);
+      Check (Math_Raster.Origin_X (Tile) = 0 and then
+        Math_Raster.Origin_Y (Tile) = 0,
+        "tile origin is zero at logical top-left");
+      Tile := Math_Raster.Render_Tile
+        (Fonts, Overflow_Layout, 1.0, Foreground, 4, 3, 256, 256);
+      Check (Math_Raster.Origin_X (Tile) = -1 and then
+        Math_Raster.Origin_Y (Tile) = -1,
+        "tile origin remains signed beyond leading padding");
+      declare
+         Right : constant Natural := Math_Raster.Width (Full_Overflow) / 2;
+         Bottom : constant Natural := Math_Raster.Height (Full_Overflow) / 2;
+         Whole : constant Math_Raster.Image := Math_Raster.Render_Tile
+           (Fonts, Overflow_Layout, 1.0, Foreground, 0, 0,
+            Math_Raster.Width (Full_Overflow),
+            Math_Raster.Height (Full_Overflow));
+         A : constant Math_Raster.Image := Math_Raster.Render_Tile
+           (Fonts, Overflow_Layout, 1.0, Foreground, 0, 0, Right, Bottom);
+         B : constant Math_Raster.Image := Math_Raster.Render_Tile
+           (Fonts, Overflow_Layout, 1.0, Foreground, Right, 0,
+            Math_Raster.Width (Full_Overflow) - Right, Bottom);
+         C : constant Math_Raster.Image := Math_Raster.Render_Tile
+           (Fonts, Overflow_Layout, 1.0, Foreground, 0, Bottom, Right,
+            Math_Raster.Height (Full_Overflow) - Bottom);
+         D : constant Math_Raster.Image := Math_Raster.Render_Tile
+           (Fonts, Overflow_Layout, 1.0, Foreground, Right, Bottom,
+            Math_Raster.Width (Full_Overflow) - Right,
+            Math_Raster.Height (Full_Overflow) - Bottom);
+         Leading_Column_Ink : Boolean := False;
+         Leading_Row_Ink : Boolean := False;
+         Matches : Boolean := True;
+         procedure Compare
+           (Part : Math_Raster.Image; Offset_X, Offset_Y : Natural) is
+         begin
+            for Y in 0 .. Math_Raster.Height (Part) - 1 loop
+               for X in 0 .. Math_Raster.Width (Part) - 1 loop
+                  Matches := Matches and then
+                    Math_Raster.Get_Pixel (Part, X, Y) =
+                      Math_Raster.Get_Pixel
+                        (Whole, X + Offset_X, Y + Offset_Y);
+               end loop;
+            end loop;
+         end Compare;
+      begin
+         Matches := Math_Raster.Width (Full_Overflow) = 36 and then
+           Math_Raster.Height (Full_Overflow) = 25 and then
+           Hash (Whole) = Hash (Full_Overflow);
+         Compare (A, 0, 0);
+         Compare (B, Right, 0);
+         Compare (C, 0, Bottom);
+         Compare (D, Right, Bottom);
+         for Y in 0 .. Math_Raster.Height (Full_Overflow) - 1 loop
+            Leading_Row_Ink := Leading_Row_Ink or else
+              Interfaces.Shift_Right
+                (Math_Raster.Get_Pixel (Full_Overflow, 0, Y), 24) > 0;
+         end loop;
+         for X in 0 .. Math_Raster.Width (Full_Overflow) - 1 loop
+            Leading_Column_Ink := Leading_Column_Ink or else
+              Interfaces.Shift_Right
+                (Math_Raster.Get_Pixel (Full_Overflow, X, 0), 24) > 0;
+         end loop;
+         Check (Matches, "full and quadrant tiles match overflow raster");
+         Check (Leading_Row_Ink and then Leading_Column_Ink,
+           "overflow ink reaches leading raster row and column");
+      end;
+      Hidden.Kind := Math_Layout.Path_Command;
+      Hidden.Has_Clip := True;
+      Hidden.Clip_X := 0.0;
+      Hidden.Clip_Y := 0.0;
+      Hidden.Clip_W := 1.0;
+      Hidden.Clip_H := 1.0;
+      Hidden.Path_Data.Append
+        (Math_Paths.Segment'(Kind => Math_Paths.Move_To,
+          First => (X => -100.0, Y => -100.0), others => <>));
+      Hidden.Path_Data.Append
+        (Math_Paths.Segment'(Kind => Math_Paths.Line_To,
+          First => (X => -90.0, Y => -90.0), others => <>));
+      Clipped.Commands.Append (Hidden);
+      Hidden_Bounds := Math_Raster.Measure (Clipped, 1.0);
+      Check (Hidden_Bounds.Origin_X = 0 and then
+        Hidden_Bounds.Origin_Y = 0 and then Hidden_Bounds.Width = 32 and then
+        Hidden_Bounds.Height = 22,
+        "negative path outside clip does not allocate hidden raster extent");
+   end;
+   declare
       Workers : array (1 .. 2) of Renderer (1);
       pragma Unreferenced (Workers);
    begin
@@ -1043,71 +1219,68 @@ begin
    end;
    Check (Failed, "reject excessive em scale");
    declare
-      Width_At_Limit : Math_Layout.Box := Pmb_Layout;
-      Width_Over_Limit : Math_Layout.Box := Pmb_Layout;
-      Height_At_Limit : Math_Layout.Box := Pmb_Layout;
-      Height_Over_Limit : Math_Layout.Box := Pmb_Layout;
+      Width_At_Limit : Math_Layout.Box :=
+        (Valid => True, Width => 8191.2, others => <>);
+      Width_Over_Limit : Math_Layout.Box := Width_At_Limit;
+      Height_At_Limit : Math_Layout.Box :=
+        (Valid => True, Ascent => 4095.2, others => <>);
+      Height_Over_Limit : Math_Layout.Box := Height_At_Limit;
+      Leading_Width : Math_Layout.Box := Width_At_Limit;
+      Leading_Height : Math_Layout.Box := Height_At_Limit;
+      Shadow_At_Limit : Math_Layout.Box :=
+        (Valid => True, Width => 8191.2, Ascent => 20.0, others => <>);
+      Shadow_Over_Limit : Math_Layout.Box := Shadow_At_Limit;
+      Rule : Math_Layout.Draw_Command;
+      Shadow : Math_Layout.Draw_Command;
       Boundary_Image : Math_Raster.Image;
    begin
-      Width_At_Limit.Width := 8191.2;
-      Width_At_Limit.Ascent := 0.0;
-      Width_At_Limit.Descent := 0.0;
-      Width_Over_Limit.Width := 8191.2;
-      Width_Over_Limit.Ascent := 0.0;
-      Width_Over_Limit.Descent := 0.0;
-      Height_At_Limit.Width := 0.0;
-      Height_At_Limit.Ascent := 4095.2;
-      Height_At_Limit.Descent := 0.0;
-      Height_Over_Limit.Width := 0.0;
-      Height_Over_Limit.Ascent := 4095.2;
-      Height_Over_Limit.Descent := 0.0;
-      for Index in Pmb_Layout.Commands.First_Index ..
-        Pmb_Layout.Commands.Last_Index
-      loop
-         declare
-            Command : constant Math_Layout.Draw_Command :=
-              Pmb_Layout.Commands (Index);
-         begin
-            if Command.Kind = Math_Layout.Glyph_Command then
-               declare
-                  Width_Command : Math_Layout.Draw_Command := Command;
-               begin
-                  Width_Command.Has_Shadow := True;
-                  Width_Command.Shadow_X := 0.0;
-                  Width_Command.Shadow_Y := 0.0;
-                  Width_Command.Shadow_Blur_Px := 0.7;
-                  Width_At_Limit.Commands.Replace_Element
-                    (Index, Width_Command);
-                  Width_Over_Limit.Commands.Replace_Element
-                    (Index, Width_Command);
-               end;
-               declare
-                  Height_Command : Math_Layout.Draw_Command := Command;
-               begin
-                  Height_Command.Has_Shadow := True;
-                  Height_Command.Shadow_X := 0.0;
-                  Height_Command.Shadow_Y := 0.0;
-                  Height_Command.Shadow_Blur_Px := 0.7;
-                  Height_At_Limit.Commands.Replace_Element
-                    (Index, Height_Command);
-                  Height_Over_Limit.Commands.Replace_Element
-                    (Index, Height_Command);
-               end;
-            end if;
-         end;
-      end loop;
+      Rule.Kind := Math_Layout.Rule_Command;
+      Rule.X := 8191.2;
+      Rule.Y := 0.0;
+      Rule.Width := 0.7;
+      Rule.Height := 1.0;
+      Width_At_Limit.Commands.Append (Rule);
+      Width_Over_Limit.Width := 8191.31;
+      Rule.X := 8191.31;
+      Width_Over_Limit.Commands.Append (Rule);
+      Rule.X := 0.0;
+      Rule.Y := 0.0;
+      Rule.Width := 1.0;
+      Rule.Height := 0.7;
+      Height_At_Limit.Commands.Append (Rule);
+      Height_Over_Limit.Ascent := 4095.31;
+      Rule.Y := 0.0;
+      Height_Over_Limit.Commands.Append (Rule);
+      Rule.X := -1.0;
+      Rule.Y := 0.0;
+      Rule.Width := 0.0;
+      Rule.Height := 0.0;
+      Leading_Width.Commands.Append (Rule);
+      Rule.X := 0.0;
+      Rule.Y := -4096.2;
+      Rule.Width := 0.0;
+      Rule.Height := 0.0;
+      Leading_Height.Commands.Append (Rule);
+      Shadow.Kind := Math_Layout.Glyph_Command;
+      Shadow.Code_Point := Character'Pos ('T');
+      Shadow.X := 1.0;
+      Shadow.Has_Shadow := True;
+      Shadow.Shadow_Blur_Px := 0.7;
+      Shadow_At_Limit.Commands.Append (Shadow);
+      Shadow_Over_Limit.Width := 8191.31;
+      Shadow_Over_Limit.Commands.Append (Shadow);
       Boundary_Image := Math_Raster.Render
         (Fonts, Width_At_Limit, 1.0, Foreground);
-      Check (Math_Raster.Width (Boundary_Image) = 8192 and then
-        Math_Raster.Height (Boundary_Image) = 1,
-        "fractional width and overflow ceil combined to 8192");
+      Check (Math_Raster.Width (Boundary_Image) = 8192,
+        "rule trailing width 8191.2 plus 0.7 ceil is 8192");
+      Boundary_Image := Math_Raster.Render
+        (Fonts, Shadow_At_Limit, 1.0, Foreground);
+      Check (Math_Raster.Width (Boundary_Image) = 8192,
+        "shadow trailing width 8191.2 plus 0.7 ceil is 8192");
       Boundary_Image := Math_Raster.Render
         (Fonts, Height_At_Limit, 1.0, Foreground);
-      Check (Math_Raster.Width (Boundary_Image) <= 8192 and then
-        Math_Raster.Height (Boundary_Image) = 4096,
-        "fractional height and overflow ceil combined to 4096");
-      Width_Over_Limit.Width := 8191.31;
-      Height_Over_Limit.Ascent := 4095.31;
+      Check (Math_Raster.Height (Boundary_Image) = 4096,
+        "rule trailing height 4095.2 plus 0.7 ceil is 4096");
       begin
          Boundary_Image := Math_Raster.Render
            (Fonts, Width_Over_Limit, 1.0, Foreground);
@@ -1118,12 +1291,36 @@ begin
       Check (Failed, "reject combined full width above 8192");
       begin
          Boundary_Image := Math_Raster.Render
+           (Fonts, Shadow_Over_Limit, 1.0, Foreground);
+         Failed := False;
+      exception
+         when Math_Raster.Raster_Error => Failed := True;
+      end;
+      Check (Failed, "reject shadow combined full width above 8192");
+      begin
+         Boundary_Image := Math_Raster.Render
            (Fonts, Height_Over_Limit, 1.0, Foreground);
          Failed := False;
       exception
          when Math_Raster.Raster_Error => Failed := True;
       end;
       Check (Failed, "reject combined full height above 4096");
+      begin
+         Boundary_Image := Math_Raster.Render
+           (Fonts, Leading_Width, 1.0, Foreground);
+         Failed := False;
+      exception
+         when Math_Raster.Raster_Error => Failed := True;
+      end;
+      Check (Failed, "one pixel leading rule padding counts toward width cap");
+      begin
+         Boundary_Image := Math_Raster.Render
+           (Fonts, Leading_Height, 1.0, Foreground);
+         Failed := False;
+      exception
+         when Math_Raster.Raster_Error => Failed := True;
+      end;
+      Check (Failed, "one pixel leading rule padding counts toward height cap");
    end;
    begin
       declare

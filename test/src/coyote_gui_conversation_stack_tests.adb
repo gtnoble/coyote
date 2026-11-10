@@ -10,9 +10,15 @@ with Ada.Environment_Variables;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Text_IO;
+with Ada.Unchecked_Conversion;
 with Interfaces.C;
 with Interfaces.C.Strings;
 with System;
+with System.Storage_Elements;
+with Cairo;
+with Cairo.Image_Surface;
+with Cairo.Surface;
+with Interfaces;
 with Coyote_Temp_Files;
 with Gdk.Event;
 with Gdk.Device;
@@ -44,6 +50,11 @@ with Coyote_GUI.Conversation_Stack.Testing;
 with Coyote_GUI.Markdown_Links;
 with Coyote_GUI.Math_Element;
 with Coyote_Math_Jobs;
+with Math_Raster;
+with Math_Layout;
+with Math_Syntax;
+with Math_Painter;
+with Coyote_Math_Resources;
 with Gtk.Enums;
 with Glib.Properties;
 with Gtk.Flow_Box;
@@ -109,6 +120,21 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Expander.Gtk_Expander;
    use type Gtk.Widget.Gtk_Widget;
    use type Gtk.Image.Gtk_Image;
+   use type Cairo.Cairo_Context;
+   use type Cairo.Cairo_Surface;
+   use System.Storage_Elements;
+
+   type Byte_Access is access all Interfaces.Unsigned_8;
+   function To_Byte_Access is new Ada.Unchecked_Conversion
+     (System.Address, Byte_Access);
+   use type Interfaces.Unsigned_8;
+
+   function Pixel_Byte
+     (Data : System.Address; Offset : Natural)
+      return Interfaces.Unsigned_8
+   is
+     (To_Byte_Access
+        (Data + System.Storage_Elements.Storage_Offset (Offset)).all);
 
    Inline_View_Destroyed : Boolean := False;
 
@@ -3075,6 +3101,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Formula : constant String :=
         "\verb@a%{b}#^_@ + \verb*|a b| + " &
         "\vcenter{\frac{a}{b}}+\pmb{g}";
+      Cancel_Layout : Math_Layout.Box;
+      Cancel_Bounds : Math_Raster.Raster_Bounds;
+      Cancel_Source : constant String := "$$" & "\cancel{T}" & "$$";
       Source : constant String := "$$" & Formula & "$$";
       Element : Coyote_GUI.Math_Element.Instance_Access :=
         Coyote_GUI.Math_Element.New_Element
@@ -3094,6 +3123,17 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Quit : Boolean;
       Requested_Width : Glib.Gint;
       Requested_Height : Glib.Gint;
+      Expected_Layout : Math_Layout.Box;
+      Expected_Bounds : Math_Raster.Raster_Bounds;
+      Cancel_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Cancel_Baseline : Natural := 0;
+      Snapshot_Data : System.Address := System.Null_Address;
+      Snapshot : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Snapshot_Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      Snapshot_Stride : Natural;
+      Top_Ink : Boolean := False;
+      Inline_Leading_Ink : Boolean := False;
+      Fonts : aliased Math_Painter.Font_Set;
       pragma Unreferenced (Quit);
 
       procedure Append_Tree
@@ -3130,6 +3170,25 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Gtk.Widget.Widget_List.Free (Children);
       Children := Gtk.Widget.Widget_List.Null_List;
       Gtk.Window.Gtk_New (Parent_Window, Gtk.Enums.Window_Toplevel);
+      Math_Painter.Load (Fonts, Coyote_Math_Resources.Font_Directory);
+      Expected_Layout := Math_Layout.Build
+        (Math_Syntax.Parse (Formula), Math_Layout.Display_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Expected_Bounds := Math_Raster.Measure (Expected_Layout, 24.0);
+      Cancel_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{TT}"), Math_Layout.Display_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
+      Assert
+        (Cancel_Bounds.Origin_X > 0 and then Cancel_Bounds.Origin_Y = 0,
+         "cancelTT has horizontal raster overflow only");
+      Cancel_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Display_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
       Parent_Window.Add (Root);
       Parent_Window.Show_All;
       Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
@@ -3159,12 +3218,67 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          and then Area.Get_Allocated_Width > 0
          and then Area.Get_Allocated_Height > 0,
          "display area allocation and request are non-empty");
+      Cancel_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Display_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
+      Assert
+        (Cancel_Bounds.Origin_X = 0 and then Cancel_Bounds.Origin_Y > 0,
+         "standalone cancellation has vertical raster overflow only");
+      Cancel_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Text_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
+      Cancel_Pixbuf := Coyote_GUI.Math_Element.Render_Inline
+        ("\cancel{T}", Cancel_Baseline, Em_Pixels => 24.0);
+      Assert
+        (Cancel_Pixbuf /= null
+         and then Cancel_Baseline = Cancel_Bounds.Origin_Y
+           + Natural'Max
+             (1, Natural (Long_Float'Ceiling
+               (Cancel_Layout.Ascent * 24.0))) + 2,
+         "inline cancellation baseline includes measured vertical origin");
+      for Row in 0 .. Natural (Cancel_Baseline) - 1 loop
+         for Column in 0 .. Natural
+           (Gdk.Pixbuf.Get_Width (Cancel_Pixbuf)) - 1
+         loop
+            declare
+               Offset : constant Natural := Row * Natural
+                 (Gdk.Pixbuf.Get_Rowstride (Cancel_Pixbuf)) + Column * 3;
+               Pixels : constant System.Address :=
+                 Gdk.Pixbuf.Get_Pixels (Cancel_Pixbuf).all'Address;
+            begin
+               if Pixel_Byte (Pixels, Offset) < 240
+                 or else Pixel_Byte (Pixels, Offset + 1) < 240
+                 or else Pixel_Byte (Pixels, Offset + 2) < 240
+               then
+                  Inline_Leading_Ink := True;
+               end if;
+            end;
+         end loop;
+      end loop;
+      Assert
+        (Inline_Leading_Ink,
+         "inline cancellation leading ink is not clipped above baseline");
+      Glib.Object.Unref (Glib.Object.GObject (Cancel_Pixbuf));
+      Cancel_Pixbuf := null;
       Assert
         (Requested_Width =
            Glib.Gint (Coyote_GUI.Math_Element.Width (Element.all))
          and then Requested_Height =
            Glib.Gint (Coyote_GUI.Math_Element.Height (Element.all)),
          "display area adopts measured raster bounds with padding");
+      Assert
+        (Requested_Width = Glib.Gint (Expected_Bounds.Width + 4)
+         and then Requested_Height = Glib.Gint (Expected_Bounds.Height + 4),
+         "display reserves the complete measured raster paint extent");
+      Assert
+        (Coyote_GUI.Math_Element.Baseline (Element.all) =
+           Natural (Long_Float'Ceiling (Expected_Layout.Ascent * 24.0))
+             + Expected_Bounds.Origin_Y + 2,
+         "display baseline includes measured raster vertical origin");
       Expander.Set_Expanded (True);
       Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
       while Ada.Real_Time.Clock < Deadline
@@ -3195,10 +3309,103 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          and then Index (To_String (Label), "VCENTER_CONTENT") > 0
          and then Index (To_String (Label), "POOR_BOLD_CONTENT") > 0,
          "semantic tree preserves core roles: " & To_String (Label));
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Element.all, "\cancel{T}", Cancel_Source);
+      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+      while Ada.Real_Time.Clock < Deadline
+        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Pending (Element.all)
+         and then Coyote_GUI.Math_Element.Is_Valid (Element.all),
+         "standalone cancellation is adopted as valid display math");
+      Assert
+        (Coyote_GUI.Math_Element.Source (Element.all) = Cancel_Source,
+         "standalone cancellation retains its exact source string");
+      Cancel_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Display_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
+      Area.Get_Size_Request (Requested_Width, Requested_Height);
+      Assert
+        (Requested_Width = Glib.Gint (Cancel_Bounds.Width + 4)
+         and then Requested_Height = Glib.Gint (Cancel_Bounds.Height + 4),
+         "standalone cancellation adopts padded raster dimensions");
+      Assert
+        (Coyote_GUI.Math_Element.Baseline (Element.all) =
+           Natural (Long_Float'Ceiling (Cancel_Layout.Ascent * 24.0))
+             + Cancel_Bounds.Origin_Y + 2,
+         "standalone cancellation baseline includes vertical raster origin");
+      declare
+         Settle_Deadline : constant Ada.Real_Time.Time :=
+           Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (1_000);
+         Settle_Start : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+      begin
+         while Ada.Real_Time.Clock < Settle_Deadline
+           and then Ada.Real_Time.Clock - Settle_Start <
+             Ada.Real_Time.Milliseconds (100)
+         loop
+            if Gtk.Main.Events_Pending then
+               Quit := Gtk.Main.Main_Iteration_Do (False);
+            else
+               delay 0.005;
+            end if;
+         end loop;
+      end;
+      Assert
+        (Area.Get_Allocated_Width >= Requested_Width
+         and then Area.Get_Allocated_Height >= Requested_Height,
+         "standalone snapshot waits for requested GTK allocation");
+      Snapshot := Cairo.Image_Surface.Create
+        (Cairo.Image_Surface.Cairo_Format_ARGB32,
+         Area.Get_Allocated_Width, Area.Get_Allocated_Height);
+      Snapshot_Context := Cairo.Create (Snapshot);
+      Gtk.Widget.Draw (Area, Snapshot_Context);
+      Cairo.Destroy (Snapshot_Context);
+      Snapshot_Context := Cairo.Null_Context;
+      Cairo.Surface.Flush (Snapshot);
+      Snapshot_Stride := Natural (Cairo.Image_Surface.Get_Stride (Snapshot));
+      Snapshot_Data := Cairo.Image_Surface.Get_Data_Generic (Snapshot);
+      for Row in 0 .. Natural (Cancel_Bounds.Origin_Y) + 1 loop
+         for Column in 0 .. Natural (Area.Get_Allocated_Width) - 1 loop
+            declare
+               Offset : constant Natural := Row * Snapshot_Stride
+                 + Column * 4;
+            begin
+               if Pixel_Byte (Snapshot_Data, Offset + 3) > 0
+                 and then (Pixel_Byte (Snapshot_Data, Offset) < 240
+                   or else Pixel_Byte (Snapshot_Data, Offset + 1) < 240
+                   or else Pixel_Byte (Snapshot_Data, Offset + 2) < 240)
+               then
+                  Top_Ink := True;
+               end if;
+            end;
+         end loop;
+      end loop;
+      Assert
+        (Top_Ink, "standalone cancellation retains visible ink");
+      Cairo.Surface.Destroy (Snapshot);
+      Snapshot := Cairo.Null_Surface;
       Coyote_GUI.Math_Element.Free (Element);
       Parent_Window.Destroy;
    exception
       when others =>
+         if Snapshot_Context /= Cairo.Null_Context then
+            Cairo.Destroy (Snapshot_Context);
+         end if;
+         if Snapshot /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Snapshot);
+         end if;
+         if Cancel_Pixbuf /= null then
+            Glib.Object.Unref (Glib.Object.GObject (Cancel_Pixbuf));
+         end if;
          if Children /= Gtk.Widget.Widget_List.Null_List then
             Gtk.Widget.Widget_List.Free (Children);
          end if;
@@ -3219,6 +3426,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         Coyote_GUI.Math_Element.New_Element ("x+y", "$$x+y$$");
       Fleqn_Root : Gtk.Box.Gtk_Box;
       Center_Root : Gtk.Box.Gtk_Box;
+      Fleqn_Window : Gtk.Window.Gtk_Window;
+      Center_Window : Gtk.Window.Gtk_Window;
       Fleqn_Children : Gtk.Widget.Widget_List.Glist;
       Center_Children : Gtk.Widget.Widget_List.Glist;
       Fleqn_Area : Gtk.Widget.Gtk_Widget;
@@ -3230,6 +3439,19 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Width : Natural;
       Deadline : Ada.Calendar.Time;
       Quit : Boolean;
+      Fleqn_Requested_Width : Glib.Gint;
+      Fleqn_Requested_Height : Glib.Gint;
+      Center_Requested_Width : Glib.Gint;
+      Center_Requested_Height : Glib.Gint;
+      Fleqn_Snapshot : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Center_Snapshot : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Fleqn_Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      Center_Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      Compound_Layout : Math_Layout.Box;
+      Compound_Bounds : Math_Raster.Raster_Bounds;
+      Fleqn_Left_Ink : Boolean := False;
+      Center_Left_Ink : Boolean := False;
+      Fonts : aliased Math_Painter.Font_Set;
       pragma Unreferenced (Quit);
    begin
       if not T.Display_Available then
@@ -3237,8 +3459,22 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Coyote_GUI.Math_Element.Free (Center_Element);
          return;
       end if;
+      Gtk.Window.Gtk_New (Fleqn_Window, Gtk.Enums.Window_Toplevel);
+      Gtk.Window.Gtk_New (Center_Window, Gtk.Enums.Window_Toplevel);
       Fleqn_Root := Coyote_GUI.Math_Element.Widget (Fleqn_Element.all);
       Center_Root := Coyote_GUI.Math_Element.Widget (Center_Element.all);
+      Fleqn_Window.Add (Fleqn_Root);
+      Center_Window.Add (Center_Root);
+      Fleqn_Window.Show_All;
+      Center_Window.Show_All;
+      Deadline := Ada.Calendar.Clock + 1.0;
+      while Ada.Calendar.Clock < Deadline loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
       Fleqn_Children := Gtk.Container.Get_Children
         (Gtk.Container.Gtk_Container (Fleqn_Root));
       Center_Children := Gtk.Container.Get_Children
@@ -3291,6 +3527,162 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert
         (Fleqn_Area.Get_Margin_Start = 48,
          "left-aligned layout retains its two-em widget margin");
+      Math_Painter.Load (Fonts, Coyote_Math_Resources.Font_Directory);
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Fleqn_Element.all, "\cancel{TT}", "$$\cancel{TT}$$");
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Center_Element.all, "\cancel{TT}", "$$\cancel{TT}$$");
+      Deadline := Ada.Calendar.Clock + 5.0;
+      while Ada.Calendar.Clock < Deadline
+        and then (Coyote_GUI.Math_Element.Is_Pending (Fleqn_Element.all)
+          or else Coyote_GUI.Math_Element.Is_Pending (Center_Element.all))
+      loop
+         if Gtk.Main.Events_Pending then
+            Quit := Gtk.Main.Main_Iteration_Do (False);
+         else
+            delay 0.01;
+         end if;
+      end loop;
+      Assert
+        (Coyote_GUI.Math_Element.Is_Valid (Fleqn_Element.all)
+         and then Coyote_GUI.Math_Element.Is_Valid (Center_Element.all),
+         "compound cancellation is adopted by both alignments");
+      Assert
+        (Coyote_GUI.Math_Element.Source (Fleqn_Element.all) =
+           "$$\cancel{TT}$$"
+         and then Coyote_GUI.Math_Element.Source (Center_Element.all) =
+           "$$\cancel{TT}$$",
+         "compound cancellation source survives both adoptions");
+      Assert
+        (Coyote_GUI.Math_Element.Height (Fleqn_Element.all) > 4
+         and then Coyote_GUI.Math_Element.Height (Center_Element.all) > 4,
+         "compound cancellation paints a non-empty raster in both alignments");
+      Compound_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{TT}"),
+         Math_Layout.Display_Style,
+         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
+          others => <>));
+      Compound_Bounds := Math_Raster.Measure (Compound_Layout, 24.0);
+      Fleqn_Area.Get_Size_Request
+        (Fleqn_Requested_Width, Fleqn_Requested_Height);
+      Center_Area.Get_Size_Request
+        (Center_Requested_Width, Center_Requested_Height);
+      Assert
+        (Fleqn_Requested_Width =
+           Glib.Gint (Compound_Bounds.Width + 4)
+         and then Center_Requested_Width =
+           Glib.Gint (Compound_Bounds.Width + 4)
+         and then Fleqn_Requested_Height =
+           Glib.Gint (Compound_Bounds.Height + 4)
+         and then Center_Requested_Height =
+           Glib.Gint (Compound_Bounds.Height + 4),
+         "compound cancellation adopts full padded raster bounds");
+      declare
+         Settle_Deadline : constant Ada.Real_Time.Time :=
+           Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (1_000);
+         Settle_Start : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+      begin
+         while Ada.Real_Time.Clock < Settle_Deadline
+           and then Ada.Real_Time.Clock - Settle_Start <
+             Ada.Real_Time.Milliseconds (100)
+         loop
+            if Gtk.Main.Events_Pending then
+               Quit := Gtk.Main.Main_Iteration_Do (False);
+            else
+               delay 0.005;
+            end if;
+         end loop;
+      end;
+      Assert
+        (Fleqn_Area.Get_Allocated_Width >= Fleqn_Requested_Width
+         and then Fleqn_Area.Get_Allocated_Height >= Fleqn_Requested_Height
+         and then Center_Area.Get_Allocated_Width >= Center_Requested_Width
+         and then Center_Area.Get_Allocated_Height >= Center_Requested_Height,
+         "compound snapshots wait for requested GTK allocations");
+      Assert
+        (Fleqn_Area.Get_Allocated_Width = Center_Area.Get_Allocated_Width
+         and then Fleqn_Area.Get_Allocated_Height =
+           Center_Area.Get_Allocated_Height,
+         "aligned comparison uses matching actual GTK allocations");
+      Fleqn_Snapshot := Cairo.Image_Surface.Create
+        (Cairo.Image_Surface.Cairo_Format_ARGB32,
+         Fleqn_Area.Get_Allocated_Width, Fleqn_Area.Get_Allocated_Height);
+      Center_Snapshot := Cairo.Image_Surface.Create
+        (Cairo.Image_Surface.Cairo_Format_ARGB32,
+         Center_Area.Get_Allocated_Width, Center_Area.Get_Allocated_Height);
+      Fleqn_Context := Cairo.Create (Fleqn_Snapshot);
+      Center_Context := Cairo.Create (Center_Snapshot);
+      Gtk.Widget.Draw (Fleqn_Area, Fleqn_Context);
+      Gtk.Widget.Draw (Center_Area, Center_Context);
+      Cairo.Destroy (Fleqn_Context);
+      Fleqn_Context := Cairo.Null_Context;
+      Cairo.Destroy (Center_Context);
+      Center_Context := Cairo.Null_Context;
+      Cairo.Surface.Flush (Fleqn_Snapshot);
+      Cairo.Surface.Flush (Center_Snapshot);
+      declare
+         Fleqn_Data : constant System.Address :=
+           Cairo.Image_Surface.Get_Data_Generic (Fleqn_Snapshot);
+         Center_Data : constant System.Address :=
+           Cairo.Image_Surface.Get_Data_Generic (Center_Snapshot);
+         Fleqn_Stride : constant Natural := Natural
+           (Cairo.Image_Surface.Get_Stride (Fleqn_Snapshot));
+         Center_Stride : constant Natural := Natural
+           (Cairo.Image_Surface.Get_Stride (Center_Snapshot));
+      begin
+         for Row in 0 .. Natural (Fleqn_Area.Get_Allocated_Height) - 1 loop
+            for Column in 0 ..
+              Natural (Fleqn_Area.Get_Allocated_Width) - 1
+            loop
+               declare
+                  Offset : constant Natural := Row * Fleqn_Stride
+                    + Column * 4;
+               begin
+                  if Pixel_Byte (Fleqn_Data, Offset + 3) > 0
+                    and then (Pixel_Byte (Fleqn_Data, Offset) < 240
+                      or else Pixel_Byte (Fleqn_Data, Offset + 1) < 240
+                      or else Pixel_Byte (Fleqn_Data, Offset + 2) < 240)
+                  then
+                     if Column <= Natural (Compound_Bounds.Origin_X) then
+                        Fleqn_Left_Ink := True;
+                     end if;
+                  end if;
+               end;
+               declare
+                  Offset : constant Natural := Row * Center_Stride
+                    + Column * 4;
+               begin
+                  if Pixel_Byte (Center_Data, Offset + 3) > 0
+                    and then (Pixel_Byte (Center_Data, Offset) < 240
+                      or else Pixel_Byte (Center_Data, Offset + 1) < 240
+                      or else Pixel_Byte (Center_Data, Offset + 2) < 240)
+                  then
+                     if Column <= Natural (Compound_Bounds.Origin_X) then
+                        Center_Left_Ink := True;
+                     end if;
+                  end if;
+               end;
+            end loop;
+         end loop;
+      end;
+      Assert
+        (Compound_Bounds.Origin_X > 0 and then Compound_Bounds.Origin_Y = 0,
+         "compound cancelTT has horizontal raster overflow only");
+      Assert
+        (Center_Left_Ink,
+         "centered cancelTT retains its measured left-origin ink");
+      Assert
+        (Fleqn_Left_Ink,
+         "fleqn cancelTT retains left-origin ink in the allocated raster");
+      Assert
+        (Fleqn_Area.Get_Margin_Start +
+           Glib.Gint (Compound_Bounds.Origin_X) = 48
+         and then Fleqn_Fallback.Get_Margin_Start = 48,
+         "fleqn anchor compensates raster origin; fallback remains 48");
+      Cairo.Surface.Destroy (Fleqn_Snapshot);
+      Fleqn_Snapshot := Cairo.Null_Surface;
+      Cairo.Surface.Destroy (Center_Snapshot);
+      Center_Snapshot := Cairo.Null_Surface;
 
       Coyote_GUI.Math_Element.Set_Scale (Fleqn_Element.all, 2.0);
       Assert
@@ -3322,8 +3714,32 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "invalid fleqn layout keeps the fallback indent");
       Coyote_GUI.Math_Element.Free (Fleqn_Element);
       Coyote_GUI.Math_Element.Free (Center_Element);
+      if Fleqn_Window /= null then
+         Fleqn_Window.Destroy;
+      end if;
+      if Center_Window /= null then
+         Center_Window.Destroy;
+      end if;
    exception
       when others =>
+         if Fleqn_Context /= Cairo.Null_Context then
+            Cairo.Destroy (Fleqn_Context);
+         end if;
+         if Center_Context /= Cairo.Null_Context then
+            Cairo.Destroy (Center_Context);
+         end if;
+         if Fleqn_Snapshot /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Fleqn_Snapshot);
+         end if;
+         if Center_Snapshot /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Center_Snapshot);
+         end if;
+         if Fleqn_Window /= null then
+            Fleqn_Window.Destroy;
+         end if;
+         if Center_Window /= null then
+            Center_Window.Destroy;
+         end if;
          if Fleqn_Children /= Gtk.Widget.Widget_List.Null_List then
             Gtk.Widget.Widget_List.Free (Fleqn_Children);
          end if;

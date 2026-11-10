@@ -2358,3 +2358,37 @@ not independent acceptance. Evidence/report §11.9:
 `plan/evidence/native-math-2026-11-10-cancel/`. Origin-aware raster/adoption,
 resource/deadline/cache/font/lifecycle/callable/human gates remain open.
 Valgrind not rerun; PCR-125 OPEN, feature NOT COMPLETE; no release/install/commit.
+
+
+## 2026-11-10 — Origin-aware retained math rasters (PCR-125)
+
+Added shared conservative raster bounds and explicit logical-origin metadata
+through full/tile images, workers, exporter and GTK. Leading padding preserves
+path/rule/reference-glyph ink without changing logical math metrics. Tile
+coordinates are padded-full-raster-local, with signed relative origins. Caps
+include leading+trailing extents. Actual stride×height remains ledger-charged.
+Display/inline physical extents and baselines include origins; Fleqn area margin
+compensates leading ink without moving the logical anchor where parent permits.
+Inline rasterization remains GTK-synchronous, not the unfinished worker path.
+
+Reference investigation found browser fixture X=0 clipped negative-X ink. Fixed
+independent32px horizontal margin retains it; DOM logical metrics, fixed12px
+crop and thresholds unchanged. Same-oracle pre-fix binary77/95 improves95/95,
+repeat95/95; original29/29. Prior89/95 used clipped oracle; first corrected
+native/old-oracle83/95 exposes12 left cases. All18 isolated cases now pass;
+old evidence remains historical, not silently replaced.
+
+Final development builds pass; full Xvfb1074/1074, zero failures/errors,
+147.547471s cumulative. Raster1108/1108, jobs162/162, geometry235/235. Extended
+existing GUI core/Fleqn cases pass with actual leading-ink snapshots, origins,
+baselines and anchor checks. Intermediate GTK snapshot before allocation failed;
+final monotonic settle/allocation checks resolve it, without changing pixel
+criteria. Required GTK9/9, runner and offline HTTP lifecycle pass. Existing
+warnings remain. Evidence/report §11.10:
+`plan/evidence/native-math-2026-11-10-raster-origin/`.
+
+Read-only review found no final blocker; developer/agent review is not independent
+acceptance. Reference glyph bearings, shaped text ink, parent clipping, inline
+worker/cache/resource/deadline/font/lifecycle/callable/human qualification remain
+open. Valgrind/resources not rerun. PCR-125 OPEN, feature NOT COMPLETE. Approved
+requirements/deviations unchanged; no release/install/commit.

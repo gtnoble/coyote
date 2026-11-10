@@ -1,0 +1,8 @@
+{
+  "summary": {
+    "pass": 77,
+    "fail": 18,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-origin/same-oracle-baseline/report.json"
+}

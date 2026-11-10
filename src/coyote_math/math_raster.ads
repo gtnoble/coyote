@@ -14,10 +14,21 @@ package Math_Raster is
    package Byte_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Byte);
    type Image is private;
-   --  Width and Height include unclipped right/bottom glyph, rule, and
-   --  shadow ink overflow; the logical top-left origin is unchanged.
-   --  The baseline is
-   --  Layout.Ascent * Em_Scale pixels below it.
+   type Raster_Bounds is record
+      Width, Height : Positive := 1;
+      Origin_X, Origin_Y : Natural := 0;
+   end record;
+   --  Logical top-left is at Origin_X/Y within the full raster. Bounds
+   --  retain leading path/rule/glyph metric overflow without changing the
+   --  layout box. Glyph bounds use reference metrics, not exact native ink;
+   --  shaped text-run ink and complete font fallback remain unqualified.
+   function Measure
+     (Layout : Math_Layout.Box; Em_Scale : Long_Float;
+      Work : Math_Work_Control.Context_Access := null) return Raster_Bounds;
+   --  Width/Height include retained overflow. The baseline in a full image
+   --  is Origin_Y + Layout.Ascent * Em_Scale pixels from raster row zero.
+   function Origin_X (Item : Image) return Integer;
+   function Origin_Y (Item : Image) return Integer;
    function Width (Item : Image) return Natural;
    function Height (Item : Image) return Natural;
    function Stride (Item : Image) return Natural;
@@ -32,8 +43,10 @@ package Math_Raster is
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value;
       Work : Math_Work_Control.Context_Access := null) return Image;
-   --  Tile coordinates use the full raster's logical top-left as origin.
-   --  Tiles can include padded shadow pixels beyond the logical layout edge.
+   --  Tile coordinates index the padded full raster, not the logical box.
+   --  Tile Origin_X/Y locate logical top-left relative to tile pixel zero
+   --  and can be negative. Whole-tile pixels match the corresponding full
+   --  raster pixels; all four overflow sides use the same translation.
    function Render_Tile
      (Fonts : Math_Painter.Font_Set;
       Layout : Math_Layout.Box;
@@ -46,6 +59,7 @@ private
       Pixel_Width : Natural := 0;
       Pixel_Height : Natural := 0;
       Pixel_Stride : Natural := 0;
+      Logical_X, Logical_Y : Integer := 0;
       Pixels : Byte_Vectors.Vector;
    end record;
 end Math_Raster;

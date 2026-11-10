@@ -1,0 +1,2129 @@
+diff --git a/src/coyote_gui/coyote_gui-math_element.adb b/src/coyote_gui/coyote_gui-math_element.adb
+index 74d949d..1edd7eb 100644
+--- a/src/coyote_gui/coyote_gui-math_element.adb
++++ b/src/coyote_gui/coyote_gui-math_element.adb
+@@ -22,6 +22,7 @@ with Glib.Values;
+ with Glib; use Glib;
+ with Glib.Error;
+ with Math_Raster_Budget;
++with Math_Raster;
+ with Gtk.Css_Provider;
+ with Gtk.Drawing_Area;
+ with Gtk.Expander;
+@@ -187,37 +188,59 @@ package body Coyote_GUI.Math_Element is
+          Indent := Glib.Gint
+            (Long_Float'Ceiling (2.0 * 24.0 * Element.Math_Scale));
+       end if;
+-      Element.Area.Set_Margin_Start (Indent);
++      if Element.Layout_Valid and then Element.Layout.Left_Aligned then
++         --  Keep the logical anchor at the requested indent when raster ink
++         --  extends left; the parent boundary clamps unavoidable overflow.
++         Element.Area.Set_Margin_Start
++           (Glib.Gint'Max
++              (0, Indent - Glib.Gint (Element.Raster_Origin_X)));
++      else
++         Element.Area.Set_Margin_Start (Indent);
++      end if;
+       Element.Fallback.Set_Margin_Start (Indent);
+    end Apply_Display_Indent;
+ 
+    procedure Measure_Layout (Element : in out Instance) is
+-      Em : Long_Float;
+-      Width : Long_Float;
+-      Height : Long_Float;
++      Em : constant Long_Float := 24.0 * Element.Math_Scale;
++      Bounds : Math_Raster.Raster_Bounds;
++      Logical_Width_Value : Long_Float;
++      Logical_Height_Value : Long_Float;
+    begin
+       Element.Layout_Valid := Element.Layout.Valid;
+       Element.Valid := False;
++      Element.Raster_Origin_X := 0;
++      Element.Raster_Origin_Y := 0;
++      Element.Raster_Baseline := 0;
+       if Element.Layout_Valid then
+-         Em := 24.0 * Element.Math_Scale;
+-         Width := Element.Layout.Width * Em;
+-         Height := (Element.Layout.Ascent + Element.Layout.Descent) * Em;
+-         if not Width'Valid or else not Height'Valid
+-           or else Width > 8_188.0 or else Height > 4_092.0
++         Logical_Width_Value := Element.Layout.Width * Em;
++         Logical_Height_Value :=
++           (Element.Layout.Ascent + Element.Layout.Descent) * Em;
++         if not Logical_Width_Value'Valid
++           or else not Logical_Height_Value'Valid
++           or else Logical_Width_Value > 8_188.0
++           or else Logical_Height_Value > 4_092.0
+          then
+             Element.Layout_Valid := False;
+          else
+-            Element.Math_Width := Natural'Max
+-              (1, Natural (Long_Float'Ceiling (Width)) + 4);
+-            Element.Math_Baseline := Natural'Max
+-              (1, Natural (Long_Float'Ceiling
+-                (Element.Layout.Ascent * Em)) + 2);
+-            Element.Math_Height := Natural'Max
+-              (1, Natural (Long_Float'Ceiling (Height)) + 4);
++            Bounds := Math_Raster.Measure (Element.Layout, Em);
++            if Bounds.Width > 8_188 or else Bounds.Height > 4_092 then
++               Element.Layout_Valid := False;
++            else
++               Element.Logical_Width := Natural'Max
++                 (1, Natural (Long_Float'Ceiling (Logical_Width_Value)));
++               Element.Raster_Origin_X := Bounds.Origin_X;
++               Element.Raster_Origin_Y := Bounds.Origin_Y;
++               Element.Math_Width := Bounds.Width + 4;
++               Element.Math_Height := Bounds.Height + 4;
++               Element.Math_Baseline := Natural
++                 (Long_Float'Ceiling (Element.Layout.Ascent * Em))
++                 + Bounds.Origin_Y + 2;
++            end if;
+          end if;
+       end if;
+       if not Element.Layout_Valid then
+          Element.Math_Width := 0;
++         Element.Logical_Width := 0;
+          Element.Math_Baseline := 0;
+          Element.Math_Height := 1;
+       end if;
+@@ -227,6 +250,7 @@ package body Coyote_GUI.Math_Element is
+          Element.Layout_Valid := False;
+          Element.Valid := False;
+          Element.Math_Width := 0;
++         Element.Logical_Width := 0;
+          Element.Math_Height := 1;
+          Element.Math_Baseline := 0;
+          Apply_Display_Indent (Element);
+@@ -260,7 +284,6 @@ package body Coyote_GUI.Math_Element is
+       Element.Raster_Row := 0;
+       Element.Raster_Width := 0;
+       Element.Raster_Height := 0;
+-      Element.Raster_Baseline := 0;
+       Element.Raster_Ready := False;
+    end Clear_Raster;
+ 
+@@ -327,10 +350,8 @@ package body Coyote_GUI.Math_Element is
+       end if;
+       if Last_Row = Element.Raster_Height then
+          Coyote_Math_Jobs.Release (Element.Raster_Result);
+-         Element.Math_Width := Natural'Max
+-           (Element.Math_Width, Element.Raster_Width + 4);
+-         Element.Math_Height := Natural'Max
+-           (Element.Math_Height, Element.Raster_Height + 4);
++         Element.Math_Width := Element.Raster_Width + 4;
++         Element.Math_Height := Element.Raster_Height + 4;
+          Element.Raster_Ready := True;
+          Element.Valid := Element.Layout_Valid;
+          Update_Visibility (Element.all);
+@@ -412,12 +433,18 @@ package body Coyote_GUI.Math_Element is
+                  Coyote_Math_Jobs.Raster_Width (Item.all);
+                Element.Raster_Height :=
+                  Coyote_Math_Jobs.Raster_Height (Item.all);
++               Element.Raster_Origin_X := Natural'Max
++                 (0, Coyote_Math_Jobs.Raster_Origin_X (Item.all));
++               Element.Raster_Origin_Y := Natural'Max
++                 (0, Coyote_Math_Jobs.Raster_Origin_Y (Item.all));
+                Element.Raster_Baseline :=
+                  Coyote_Math_Jobs.Raster_Baseline (Item.all);
+-               if Element.Raster_Width > 0
++               Element.Math_Baseline := Element.Raster_Baseline + 2;
++               if Element.Layout_Valid
++                 and then Element.Raster_Width > 0
+                  and then Element.Raster_Height > 0
+-                 and then Element.Raster_Width <= 8_192
+-                 and then Element.Raster_Height <= 4_096
++                 and then Element.Raster_Width <= 8_188
++                 and then Element.Raster_Height <= 4_092
+                then
+                   declare
+                      Row_Bytes : constant Gint :=
+@@ -597,18 +624,23 @@ package body Coyote_GUI.Math_Element is
+       X := (if Element.Layout.Left_Aligned then 2.0
+         else Long_Float'Max
+           (2.0, (Long_Float (Area.Get_Allocated_Width)
+-            - Long_Float (Element.Math_Width - 4)) / 2.0));
++            - Long_Float (Element.Logical_Width)) / 2.0));
++      if Element.Layout.Left_Aligned then
++         X := 2.0;
++      else
++         X := Long_Float'Max
++           (2.0, Long_Float'Min
++             (Long_Float (Area.Get_Allocated_Width)
++                - Long_Float (Element.Raster_Width) - 2.0,
++              X - Long_Float (Element.Raster_Origin_X)));
++      end if;
+       Gtk.Style_Context.Get_Style_Context (Area).Get_Color
+         (Gtk.Enums.Gtk_State_Flag_Normal, Color);
+       if Element.Raster_Ready and then
+         Element.Raster_Image /= Cairo.Null_Surface
+       then
+          Cairo.Set_Source_Surface
+-           (Context, Element.Raster_Image, Glib.Gdouble (X),
+-            Glib.Gdouble (Long_Float'Max
+-              (0.0, Long_Float (Element.Math_Baseline
+-                - Natural'Min (Element.Math_Baseline,
+-                  Element.Raster_Baseline)))));
++           (Context, Element.Raster_Image, Glib.Gdouble (X), 2.0);
+          Cairo.Paint (Context);
+       end if;
+       return True;
+@@ -721,8 +753,7 @@ package body Coyote_GUI.Math_Element is
+       Paint_Layout : Math_Layout.Box := Layout;
+       Safe_Scale : Long_Float := 1.0;
+       Em : Long_Float;
+-      Width_Value : Long_Float;
+-      Height_Value : Long_Float;
++      Bounds : Math_Raster.Raster_Bounds;
+       Width : Natural;
+       Height : Natural;
+       Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+@@ -758,20 +789,15 @@ package body Coyote_GUI.Math_Element is
+       if not Paint_Layout.Valid then
+          return null;
+       end if;
+-      Width_Value := Paint_Layout.Width * Em;
+-      Height_Value :=
+-        (Paint_Layout.Ascent + Paint_Layout.Descent) * Em;
+-      if not Width_Value'Valid or else not Height_Value'Valid
+-        or else Width_Value > 1_996.0 or else Height_Value > 508.0
+-      then
++      Bounds := Math_Raster.Measure (Paint_Layout, Em);
++      if Bounds.Width > 1_996 or else Bounds.Height > 508 then
+          return null;
+       end if;
+-      Width := Natural'Max
+-        (1, Natural (Long_Float'Ceiling (Width_Value)) + 4);
+-      Height := Natural'Max
+-        (1, Natural (Long_Float'Ceiling (Height_Value)) + 4);
+-      Baseline := Natural'Max (1, Natural (Long_Float'Ceiling
+-        (Paint_Layout.Ascent * Em)) + 2);
++      Width := Bounds.Width + 4;
++      Height := Bounds.Height + 4;
++      Baseline := Bounds.Origin_Y + Natural'Max
++        (1, Natural (Long_Float'Ceiling
++          (Paint_Layout.Ascent * Em))) + 2;
+       Surface := Cairo.Image_Surface.Create
+         (Cairo.Image_Surface.Cairo_Format_ARGB32,
+          Gint (Width), Gint (Height));
+@@ -789,8 +815,8 @@ package body Coyote_GUI.Math_Element is
+          return null;
+       end if;
+       Gdk.Cairo.Set_Source_RGBA (Context, Color);
+-      Math_Painter.Draw (Fonts, Context, Paint_Layout, 2.0,
+-        Long_Float (Baseline), Em);
++      Math_Painter.Draw (Fonts, Context, Paint_Layout,
++        Long_Float (Bounds.Origin_X + 2), Long_Float (Baseline), Em);
+       Cairo.Destroy (Context);
+       Context := Cairo.Null_Context;
+       Cairo.Surface.Flush (Surface);
+diff --git a/src/coyote_gui/coyote_gui-math_element.ads b/src/coyote_gui/coyote_gui-math_element.ads
+index 8ec868b..ff03f84 100644
+--- a/src/coyote_gui/coyote_gui-math_element.ads
++++ b/src/coyote_gui/coyote_gui-math_element.ads
+@@ -62,6 +62,7 @@ package Coyote_GUI.Math_Element is
+    function Is_Pending (Element : Instance) return Boolean;
+    function Source (Element : Instance) return String;
+    function LaTeX (Element : Instance) return String;
++   --  Width and Height are physical paint extents, not layout metrics.
+    function Width (Element : Instance) return Natural;
+    function Height (Element : Instance) return Natural;
+    function Baseline (Element : Instance) return Natural;
+@@ -95,6 +96,10 @@ private
+       Math_Width : Natural := 0;
+       Math_Height : Natural := 1;
+       Math_Baseline : Natural := 0;
++      Logical_Width : Natural := 0;
++      Raster_Origin_X : Natural := 0;
++      Raster_Origin_Y : Natural := 0;
++      Raster_Baseline : Natural := 0;
+       Valid : Boolean := False;
+       Detached : Boolean := False;
+       Draw_Handler : Gtk.Handlers.Handler_Id;
+@@ -107,7 +112,6 @@ private
+       Raster_Row : Natural := 0;
+       Raster_Width : Natural := 0;
+       Raster_Height : Natural := 0;
+-      Raster_Baseline : Natural := 0;
+       Raster_Ready : Boolean := False;
+    end record;
+ end Coyote_GUI.Math_Element;
+diff --git a/src/coyote_math/coyote_math_jobs.adb b/src/coyote_math/coyote_math_jobs.adb
+index 5bc9d45..682560e 100644
+--- a/src/coyote_math/coyote_math_jobs.adb
++++ b/src/coyote_math/coyote_math_jobs.adb
+@@ -619,8 +619,9 @@ package body Coyote_Math_Jobs is
+                              State = Valid
+                            then
+                               R.Raster_Baseline_Value := Natural
+-                                (Long_Float'Ceiling
+-                                   (R.Geometry.Ascent * Em_Pixels));
++                                (Math_Raster.Origin_Y (R.Pixels)) + Natural
++                                  (Long_Float'Ceiling
++                                     (R.Geometry.Ascent * Em_Pixels));
+                               R.Raster_Ready := True;
+                            elsif Phase_Status /= Pending then
+                               State := Phase_Status;
+@@ -746,6 +747,10 @@ package body Coyote_Math_Jobs is
+      (Math_Raster.Width (Item.Pixels));
+    function Raster_Height (Item : Job_Result) return Natural is
+      (Math_Raster.Height (Item.Pixels));
++   function Raster_Origin_X (Item : Job_Result) return Natural is
++     (Natural (Math_Raster.Origin_X (Item.Pixels)));
++   function Raster_Origin_Y (Item : Job_Result) return Natural is
++     (Natural (Math_Raster.Origin_Y (Item.Pixels)));
+    function Raster_Baseline (Item : Job_Result) return Natural is
+      (Item.Raster_Baseline_Value);
+    function Raster_Pixel
+diff --git a/src/coyote_math/coyote_math_jobs.ads b/src/coyote_math/coyote_math_jobs.ads
+index 66c23ae..cbcd9da 100644
+--- a/src/coyote_math/coyote_math_jobs.ads
++++ b/src/coyote_math/coyote_math_jobs.ads
+@@ -75,6 +75,10 @@ package Coyote_Math_Jobs is
+    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
+    function Raster_Width (Item : Job_Result) return Natural;
+    function Raster_Height (Item : Job_Result) return Natural;
++   --  Raster origins locate the logical top-left inside the full raster.
++   function Raster_Origin_X (Item : Job_Result) return Natural;
++   function Raster_Origin_Y (Item : Job_Result) return Natural;
++   --  Baseline is measured from raster row zero, including the top origin.
+    function Raster_Baseline (Item : Job_Result) return Natural;
+    function Raster_Pixel
+      (Item : Job_Result; X, Y : Natural) return Interfaces.Unsigned_32;
+diff --git a/src/coyote_math/math_raster.adb b/src/coyote_math/math_raster.adb
+index cc8f06c..f14d022 100644
+--- a/src/coyote_math/math_raster.adb
++++ b/src/coyote_math/math_raster.adb
+@@ -57,6 +57,194 @@ package body Math_Raster is
+       return Result;
+    end Row_Data;
+ 
++   function Origin_X (Item : Image) return Integer is (Item.Logical_X);
++   function Origin_Y (Item : Image) return Integer is (Item.Logical_Y);
++
++   function Measure
++     (Layout : Math_Layout.Box; Em_Scale : Long_Float;
++      Work : Math_Work_Control.Context_Access := null) return Raster_Bounds
++   is
++      Logical_Width, Logical_Height : Long_Float;
++      Min_X, Min_Y : Long_Float := 0.0;
++      Max_X, Max_Y : Long_Float;
++      Result : Raster_Bounds;
++
++      procedure Include
++        (Command : Math_Layout.Draw_Command;
++         Left, Top, Right, Bottom : Long_Float)
++      is
++         X1 : Long_Float := Left;
++         Y1 : Long_Float := Top;
++         X2 : Long_Float := Right;
++         Y2 : Long_Float := Bottom;
++      begin
++         if Command.Has_Clip then
++            X1 := Long_Float'Max (X1, Command.Clip_X);
++            Y1 := Long_Float'Max (Y1, Command.Clip_Y);
++            X2 := Long_Float'Min (X2, Command.Clip_X + Command.Clip_W);
++            Y2 := Long_Float'Min (Y2, Command.Clip_Y + Command.Clip_H);
++         end if;
++         if X1 <= X2 and then Y1 <= Y2 then
++            Min_X := Long_Float'Min
++              (Min_X, (Command.X + X1) * Em_Scale);
++            Max_X := Long_Float'Max
++              (Max_X, (Command.X + X2) * Em_Scale);
++            Min_Y := Long_Float'Min
++              (Min_Y, (Layout.Ascent + Command.Y + Y1) * Em_Scale);
++            Max_Y := Long_Float'Max
++              (Max_Y, (Layout.Ascent + Command.Y + Y2) * Em_Scale);
++         end if;
++      end Include;
++
++      function Finite_Geometry (Value : Long_Float) return Boolean is
++        (Value'Valid and then abs Value <= 16_777_216.0);
++   begin
++      Math_Work_Control.Poll (Work);
++      if not Layout.Valid or else not Em_Scale'Valid or else
++        Em_Scale <= 0.0 or else Em_Scale > 256.0 or else
++        not Layout.Width'Valid or else not Layout.Ascent'Valid or else
++        not Layout.Descent'Valid or else Layout.Width < 0.0 or else
++        Layout.Ascent < 0.0 or else Layout.Descent < 0.0 or else
++        Layout.Width > 8192.0 or else Layout.Ascent > 4096.0 or else
++        Layout.Descent > 4096.0
++      then
++         raise Raster_Error with "invalid layout bounds or scale";
++      end if;
++      Logical_Width := Layout.Width * Em_Scale;
++      Logical_Height := (Layout.Ascent + Layout.Descent) * Em_Scale;
++      Max_X := Logical_Width;
++      Max_Y := Logical_Height;
++      for Command of Layout.Commands loop
++         Math_Work_Control.Poll (Work);
++         if not Finite_Geometry (Command.X) or else
++           not Finite_Geometry (Command.Y) or else
++           not Finite_Geometry (Command.Width) or else
++           not Finite_Geometry (Command.Height) or else
++           not Command.Scale'Valid or else Command.Scale <= 0.0 or else
++           Command.Scale > 256.0 or else Command.Width < 0.0 or else
++           Command.Height < 0.0
++         then
++            raise Raster_Error with "invalid drawing geometry";
++         end if;
++         if Command.Has_Clip and then
++           (not Finite_Geometry (Command.Clip_X) or else
++            not Finite_Geometry (Command.Clip_Y) or else
++            not Finite_Geometry (Command.Clip_W) or else
++            not Finite_Geometry (Command.Clip_H) or else
++            Command.Clip_W < 0.0 or else Command.Clip_H < 0.0)
++         then
++            raise Raster_Error with "invalid drawing clip";
++         end if;
++         case Command.Kind is
++            when Math_Layout.Path_Command =>
++               declare
++                  X1, Y1 : Long_Float := Long_Float'Last;
++                  X2, Y2 : Long_Float := -Long_Float'Last;
++                  procedure Point (P : Math_Paths.Point) is
++                  begin
++                     if not Finite_Geometry (P.X) or else
++                       not Finite_Geometry (P.Y)
++                     then
++                        raise Raster_Error with "invalid path point";
++                     end if;
++                     X1 := Long_Float'Min (X1, P.X);
++                     X2 := Long_Float'Max (X2, P.X);
++                     Y1 := Long_Float'Min (Y1, P.Y);
++                     Y2 := Long_Float'Max (Y2, P.Y);
++                  end Point;
++               begin
++                  for Segment of Command.Path_Data loop
++                     Math_Work_Control.Poll (Work);
++                     case Segment.Kind is
++                        when Math_Paths.Move_To | Math_Paths.Line_To =>
++                           Point (Segment.First);
++                        when Math_Paths.Cubic_To =>
++                           Point (Segment.First);
++                           Point (Segment.Second);
++                           Point (Segment.Third);
++                        when Math_Paths.Close_Path =>
++                           null;
++                     end case;
++                  end loop;
++                  --  The control-point hull conservatively bounds curves.
++                  if X1 <= X2 and then Y1 <= Y2 then
++                     Include (Command, X1, Y1, X2, Y2);
++                  end if;
++               end;
++            when Math_Layout.Rule_Command =>
++               Include (Command, 0.0, 0.0, Command.Width, Command.Height);
++            when Math_Layout.Glyph_Command =>
++               declare
++                  Metric : constant Math_Metrics.Glyph_Metric :=
++                    Math_Metrics.Lookup (Command.Font, Command.Code_Point);
++               begin
++                  if Metric.Found then
++                     Include (Command, 0.0, -Metric.Ascent * Command.Scale,
++                       Metric.Width * Command.Scale,
++                       Metric.Descent * Command.Scale);
++                  end if;
++               end;
++            when Math_Layout.Text_Run_Command =>
++               --  Reference glyph bounds do not describe shaped-run ink.
++               --  Its layout envelope remains the current admission bound.
++               null;
++         end case;
++         if Command.Has_Shadow then
++            if not Command.Shadow_X'Valid or else
++              not Command.Shadow_Y'Valid or else
++              not Command.Shadow_Blur_Px'Valid or else
++              Command.Shadow_X < 0.0 or else Command.Shadow_X > 256.0 or else
++              Command.Shadow_Y < 0.0 or else Command.Shadow_Y > 256.0 or else
++              Command.Shadow_Blur_Px < 0.0 or else
++              Command.Shadow_Blur_Px > 256.0
++            then
++               raise Raster_Error with "unsupported or invalid shadow bounds";
++            end if;
++            --  Preserve the conservative trailing shadow reservation. The
++            --  Gaussian taps may also cross the leading edge of a glyph.
++            Max_X := Long_Float'Max (Max_X, Logical_Width +
++              Command.Shadow_X * Em_Scale + Command.Shadow_Blur_Px);
++            Max_Y := Long_Float'Max (Max_Y, Logical_Height +
++              Command.Shadow_Y * Em_Scale + Command.Shadow_Blur_Px);
++            if Command.Kind = Math_Layout.Glyph_Command then
++               declare
++                  Metric : constant Math_Metrics.Glyph_Metric :=
++                    Math_Metrics.Lookup (Command.Font, Command.Code_Point);
++                  Blur : constant Long_Float :=
++                    Command.Shadow_Blur_Px / Em_Scale;
++               begin
++                  if Metric.Found then
++                     Include (Command,
++                       Command.Shadow_X - Blur,
++                       -Metric.Ascent * Command.Scale +
++                         Command.Shadow_Y - Blur,
++                       Metric.Width * Command.Scale +
++                         Command.Shadow_X + Blur,
++                       Metric.Descent * Command.Scale +
++                         Command.Shadow_Y + Blur);
++                  end if;
++               end;
++            end if;
++         end if;
++      end loop;
++      --  Integer leading padding preserves the original subpixel placement.
++      --  Keep addition before the trailing ceil to avoid double rounding.
++      if -Min_X > Long_Float (Integer'Last / 2) or else
++        -Min_Y > Long_Float (Integer'Last / 2) or else
++        Max_X - Min_X > Long_Float (Integer'Last / 2) or else
++        Max_Y - Min_Y > Long_Float (Integer'Last / 2)
++      then
++         raise Raster_Error with "raster bounds overflow";
++      end if;
++      Result.Origin_X := Natural (Long_Float'Ceiling (-Min_X));
++      Result.Origin_Y := Natural (Long_Float'Ceiling (-Min_Y));
++      Result.Width := Positive'Max
++        (1, Integer (Long_Float'Ceiling (Max_X)) + Result.Origin_X);
++      Result.Height := Positive'Max
++        (1, Integer (Long_Float'Ceiling (Max_Y)) + Result.Origin_Y);
++      return Result;
++   end Measure;
++
+    procedure Paint
+      (Fonts : Math_Painter.Font_Set;
+       Layout : Math_Layout.Box;
+@@ -70,211 +258,39 @@ package body Math_Raster is
+       Context : Cairo.Cairo_Context := Cairo.Null_Context;
+       W : Natural := View_Width;
+       H : Natural := View_Height;
+-      Full_Width : Natural;
+-      Full_Height : Natural;
+-      Right_Overflow : Long_Float := 0.0;
+-      Bottom_Overflow : Long_Float := 0.0;
+-      Glyph_Bottom_Overflow : Long_Float := 0.0;
+-      Rule_Bottom_Overflow : Long_Float := 0.0;
++      Bounds : Raster_Bounds;
+       S : Natural;
+       Data : System.Address;
+-      procedure Path_Ink_Bounds
+-        (Command : Math_Layout.Draw_Command;
+-         Logical_Width, Logical_Height : Long_Float) is
+-         Min_X : Long_Float := Long_Float'Last;
+-         Max_X : Long_Float := -Long_Float'Last;
+-         Min_Y : Long_Float := Long_Float'Last;
+-         Max_Y : Long_Float := -Long_Float'Last;
+-         procedure Include (X, Y : Long_Float) is
+-         begin
+-            Min_X := Long_Float'Min (Min_X, X);
+-            Max_X := Long_Float'Max (Max_X, X);
+-            Min_Y := Long_Float'Min (Min_Y, Y);
+-            Max_Y := Long_Float'Max (Max_Y, Y);
+-         end Include;
+-      begin
+-         if Command.Path_Data.Is_Empty then
+-            return;
+-         end if;
+-         for Segment of Command.Path_Data loop
+-            Math_Work_Control.Poll (Work);
+-            case Segment.Kind is
+-               when Math_Paths.Move_To | Math_Paths.Line_To =>
+-                  Include (Segment.First.X, Segment.First.Y);
+-               when Math_Paths.Cubic_To =>
+-                  Include (Segment.First.X, Segment.First.Y);
+-                  Include (Segment.Second.X, Segment.Second.Y);
+-                  Include (Segment.Third.X, Segment.Third.Y);
+-               when Math_Paths.Close_Path =>
+-                  null;
+-            end case;
+-         end loop;
+-         if Command.Has_Clip then
+-            Min_X := Long_Float'Max (Min_X, Command.Clip_X);
+-            Max_X := Long_Float'Min
+-              (Max_X, Command.Clip_X + Command.Clip_W);
+-            Min_Y := Long_Float'Max (Min_Y, Command.Clip_Y);
+-            Max_Y := Long_Float'Min
+-              (Max_Y, Command.Clip_Y + Command.Clip_H);
+-         end if;
+-         if Min_X <= Max_X and then Min_Y <= Max_Y then
+-            Right_Overflow := Long_Float'Max
+-              (Right_Overflow,
+-               (Command.X + Max_X) * Em_Scale - Logical_Width);
+-            Bottom_Overflow := Long_Float'Max
+-              (Bottom_Overflow,
+-               (Layout.Ascent + Command.Y + Max_Y) * Em_Scale -
+-                 Logical_Height);
+-         end if;
+-      end Path_Ink_Bounds;
+    begin
+       Math_Work_Control.Poll (Work);
+-      if not Layout.Valid then
+-         raise Raster_Error with "layout is invalid";
+-      end if;
+-      if not Em_Scale'Valid or else Em_Scale <= 0.0
+-        or else Em_Scale > 256.0
+-        or else not Color.Red'Valid or else not Color.Green'Valid
+-        or else not Color.Blue'Valid or else not Color.Alpha'Valid
+-        or else Color.Red < 0.0 or else Color.Red > 1.0
+-        or else Color.Green < 0.0 or else Color.Green > 1.0
+-        or else Color.Blue < 0.0 or else Color.Blue > 1.0
+-        or else Color.Alpha < 0.0 or else Color.Alpha > 1.0
++      if not Color.Red'Valid or else not Color.Green'Valid or else
++        not Color.Blue'Valid or else not Color.Alpha'Valid or else
++        Color.Red < 0.0 or else Color.Red > 1.0 or else
++        Color.Green < 0.0 or else Color.Green > 1.0 or else
++        Color.Blue < 0.0 or else Color.Blue > 1.0 or else
++        Color.Alpha < 0.0 or else Color.Alpha > 1.0
+       then
+-         raise Raster_Error with "invalid scale or color";
++         raise Raster_Error with "invalid color";
+       end if;
+-      if not Layout.Width'Valid or else not Layout.Ascent'Valid
+-        or else not Layout.Descent'Valid or else Layout.Width < 0.0
+-        or else Layout.Ascent < 0.0 or else Layout.Descent < 0.0
+-        or else Layout.Width > 8192.0 or else Layout.Ascent > 4096.0
+-        or else Layout.Descent > 4096.0
+-      then
+-         raise Raster_Error with "invalid layout bounds";
+-      end if;
+-      declare
+-         Logical_Width : constant Long_Float := Layout.Width * Em_Scale;
+-         Logical_Height : constant Long_Float :=
+-           (Layout.Ascent + Layout.Descent) * Em_Scale;
+-      begin
+-         if not Logical_Width'Valid or else not Logical_Height'Valid then
+-            raise Raster_Error with "invalid scaled layout dimensions";
++      Bounds := Measure (Layout, Em_Scale, Work);
++      if Is_Tile then
++         if W = 0 or else H = 0 or else W > 256 or else H > 256 then
++            raise Raster_Error with "tile dimensions exceed 256 x 256";
+          end if;
+-         if not Is_Tile then
+-            if Logical_Width > 8192.0 or else Logical_Height > 4096.0 then
+-               raise Raster_Error with
+-                 "full raster dimension limit exceeded";
+-            end if;
+-            Full_Width := Natural'Max
+-              (1, Natural (Long_Float'Ceiling (Logical_Width)));
+-            Full_Height := Natural'Max
+-              (1, Natural (Long_Float'Ceiling (Logical_Height)));
++         if Left >= Bounds.Width or else Top >= Bounds.Height then
++            raise Raster_Error with "viewport origin outside raster";
+          end if;
+-         for Index in Layout.Commands.First_Index ..
+-           Layout.Commands.Last_Index
+-         loop
+-            Math_Work_Control.Poll (Work);
+-            declare
+-               Command : constant Math_Layout.Draw_Command :=
+-                 Layout.Commands (Index);
+-            begin
+-               if Command.Kind = Math_Layout.Glyph_Command and then
+-                 not Command.Has_Clip
+-               then
+-                  declare
+-                     Metric : constant Math_Metrics.Glyph_Metric :=
+-                       Math_Metrics.Lookup
+-                         (Command.Font, Command.Code_Point);
+-                     Ink_Bottom : Long_Float;
+-                  begin
+-                     if Metric.Found then
+-                        Ink_Bottom :=
+-                          (Layout.Ascent + Command.Y +
+-                           Metric.Descent * Command.Scale) * Em_Scale;
+-                        Glyph_Bottom_Overflow := Long_Float'Max
+-                          (Glyph_Bottom_Overflow,
+-                           Ink_Bottom -
+-                             (Layout.Ascent + Layout.Descent) * Em_Scale);
+-                     end if;
+-                  end;
+-               end if;
+-               if Command.Kind = Math_Layout.Rule_Command and then
+-                 not Command.Has_Clip and then
+-                 not Command.Has_Shadow
+-               then
+-                  Rule_Bottom_Overflow := Long_Float'Max
+-                    (Rule_Bottom_Overflow,
+-                     (Command.Y + Command.Height - Layout.Descent) *
+-                       Em_Scale);
+-               end if;
+-               if Command.Kind = Math_Layout.Path_Command then
+-                  Path_Ink_Bounds (Command, Logical_Width, Logical_Height);
+-               end if;
+-               if Command.Has_Shadow then
+-                  if not Command.Shadow_X'Valid or else
+-                    not Command.Shadow_Y'Valid or else
+-                    not Command.Shadow_Blur_Px'Valid or else
+-                    Command.Shadow_X < 0.0 or else
+-                    Command.Shadow_X > 256.0 or else
+-                    Command.Shadow_Y < 0.0 or else
+-                    Command.Shadow_Y > 256.0 or else
+-                    Command.Shadow_Blur_Px < 0.0 or else
+-                    Command.Shadow_Blur_Px > 256.0
+-                  then
+-                     raise Raster_Error with
+-                       "unsupported or invalid shadow bounds";
+-                  end if;
+-                  Right_Overflow := Long_Float'Max
+-                    (Right_Overflow, Command.Shadow_X * Em_Scale +
+-                     Command.Shadow_Blur_Px);
+-                  Bottom_Overflow := Long_Float'Max
+-                    (Bottom_Overflow, Command.Shadow_Y * Em_Scale +
+-                     Command.Shadow_Blur_Px);
+-               end if;
+-            end;
+-         end loop;
+-         if Right_Overflow > 8192.0 or else Bottom_Overflow > 4096.0 then
+-            raise Raster_Error with "shadow overflow exceeds raster limit";
+-         end if;
+-         if Is_Tile then
+-            null;
+-         else
+-            W := Natural'Max
+-              (1, Natural (Long_Float'Ceiling
+-                (Logical_Width + Right_Overflow)));
+-            declare
+-               Ink_Raster_Height : constant Natural := Natural'Max
+-                 (1, Natural (Long_Float'Ceiling
+-                   (Logical_Height + Long_Float'Max
+-                      (Bottom_Overflow, Long_Float'Max
+-                         (0.0, Long_Float'Max
+-                            (Glyph_Bottom_Overflow,
+-                             Rule_Bottom_Overflow))))));
+-            begin
+-               H := Ink_Raster_Height;
+-            end;
+-            if W > 8192 or else H > 4096 then
+-               raise Raster_Error with
+-                 "full raster dimension limit exceeded";
+-            end if;
++      else
++         W := Bounds.Width;
++         H := Bounds.Height;
++         if W > 8192 or else H > 4096 then
++            raise Raster_Error with "full raster dimension limit exceeded";
+          end if;
+-      end;
+-      if Is_Tile and then (W = 0 or else H = 0 or else W > 256 or else
+-        H > 256)
+-      then
+-         raise Raster_Error with "tile dimensions exceed 256 x 256";
+       end if;
+       S := W * 4;
+       if Long_Float (S) * Long_Float (H) * 2.0 > 268_435_456.0 then
+          raise Raster_Error with "raster workspace exceeds 256 MiB";
+       end if;
+-      if Is_Tile
+-        and then (Long_Float (Left) >
+-          Layout.Width * Em_Scale + Right_Overflow or else
+-          Long_Float (Top) >
+-            (Layout.Ascent + Layout.Descent) * Em_Scale + Bottom_Overflow)
+-      then
+-         raise Raster_Error with "viewport origin outside layout";
+-      end if;
+       Math_Work_Control.Poll (Work);
+       Surface := Cairo.Image_Surface.Create
+         (Cairo.Image_Surface.Cairo_Format_ARGB32,
+@@ -292,8 +308,10 @@ package body Math_Raster is
+         (Context, Glib.Gdouble (Color.Red), Glib.Gdouble (Color.Green),
+          Glib.Gdouble (Color.Blue), Glib.Gdouble (Color.Alpha));
+       Math_Painter.Draw
+-        (Fonts, Context, Layout, -Long_Float (Left),
+-         Layout.Ascent * Em_Scale - Long_Float (Top), Em_Scale, Work);
++        (Fonts, Context, Layout,
++         Long_Float (Bounds.Origin_X) - Long_Float (Left),
++         Long_Float (Bounds.Origin_Y) + Layout.Ascent * Em_Scale -
++           Long_Float (Top), Em_Scale, Work);
+       Math_Work_Control.Poll (Work);
+       Cairo.Destroy (Context);
+       Context := Cairo.Null_Context;
+@@ -313,6 +331,8 @@ package body Math_Raster is
+       Result.Pixel_Width := W;
+       Result.Pixel_Height := H;
+       Result.Pixel_Stride := S;
++      Result.Logical_X := Integer (Bounds.Origin_X) - Integer (Left);
++      Result.Logical_Y := Integer (Bounds.Origin_Y) - Integer (Top);
+       Result.Pixels.Reserve_Capacity (Ada.Containers.Count_Type (S * H));
+       for Row in 0 .. H - 1 loop
+          Math_Work_Control.Poll (Work);
+diff --git a/src/coyote_math/math_raster.ads b/src/coyote_math/math_raster.ads
+index 6d958f4..2119793 100644
+--- a/src/coyote_math/math_raster.ads
++++ b/src/coyote_math/math_raster.ads
+@@ -14,10 +14,21 @@ package Math_Raster is
+    package Byte_Vectors is new Ada.Containers.Vectors
+      (Index_Type => Positive, Element_Type => Byte);
+    type Image is private;
+-   --  Width and Height include unclipped right/bottom glyph, rule, and
+-   --  shadow ink overflow; the logical top-left origin is unchanged.
+-   --  The baseline is
+-   --  Layout.Ascent * Em_Scale pixels below it.
++   type Raster_Bounds is record
++      Width, Height : Positive := 1;
++      Origin_X, Origin_Y : Natural := 0;
++   end record;
++   --  Logical top-left is at Origin_X/Y within the full raster. Bounds
++   --  retain leading path/rule/glyph metric overflow without changing the
++   --  layout box. Glyph bounds use reference metrics, not exact native ink;
++   --  shaped text-run ink and complete font fallback remain unqualified.
++   function Measure
++     (Layout : Math_Layout.Box; Em_Scale : Long_Float;
++      Work : Math_Work_Control.Context_Access := null) return Raster_Bounds;
++   --  Width/Height include retained overflow. The baseline in a full image
++   --  is Origin_Y + Layout.Ascent * Em_Scale pixels from raster row zero.
++   function Origin_X (Item : Image) return Integer;
++   function Origin_Y (Item : Image) return Integer;
+    function Width (Item : Image) return Natural;
+    function Height (Item : Image) return Natural;
+    function Stride (Item : Image) return Natural;
+@@ -32,8 +43,10 @@ package Math_Raster is
+       Em_Scale : Long_Float;
+       Color : Math_Model.Color_Value;
+       Work : Math_Work_Control.Context_Access := null) return Image;
+-   --  Tile coordinates use the full raster's logical top-left as origin.
+-   --  Tiles can include padded shadow pixels beyond the logical layout edge.
++   --  Tile coordinates index the padded full raster, not the logical box.
++   --  Tile Origin_X/Y locate logical top-left relative to tile pixel zero
++   --  and can be negative. Whole-tile pixels match the corresponding full
++   --  raster pixels; all four overflow sides use the same translation.
+    function Render_Tile
+      (Fonts : Math_Painter.Font_Set;
+       Layout : Math_Layout.Box;
+@@ -46,6 +59,7 @@ private
+       Pixel_Width : Natural := 0;
+       Pixel_Height : Natural := 0;
+       Pixel_Stride : Natural := 0;
++      Logical_X, Logical_Y : Integer := 0;
+       Pixels : Byte_Vectors.Vector;
+    end record;
+ end Math_Raster;
+diff --git a/test/src/coyote_gui_conversation_stack_tests.adb b/test/src/coyote_gui_conversation_stack_tests.adb
+index a20e7fa..fa7a2c1 100644
+--- a/test/src/coyote_gui_conversation_stack_tests.adb
++++ b/test/src/coyote_gui_conversation_stack_tests.adb
+@@ -10,9 +10,15 @@ with Ada.Environment_Variables;
+ with Ada.Streams;
+ with Ada.Streams.Stream_IO;
+ with Ada.Text_IO;
++with Ada.Unchecked_Conversion;
+ with Interfaces.C;
+ with Interfaces.C.Strings;
+ with System;
++with System.Storage_Elements;
++with Cairo;
++with Cairo.Image_Surface;
++with Cairo.Surface;
++with Interfaces;
+ with Coyote_Temp_Files;
+ with Gdk.Event;
+ with Gdk.Device;
+@@ -44,6 +50,11 @@ with Coyote_GUI.Conversation_Stack.Testing;
+ with Coyote_GUI.Markdown_Links;
+ with Coyote_GUI.Math_Element;
+ with Coyote_Math_Jobs;
++with Math_Raster;
++with Math_Layout;
++with Math_Syntax;
++with Math_Painter;
++with Coyote_Math_Resources;
+ with Gtk.Enums;
+ with Glib.Properties;
+ with Gtk.Flow_Box;
+@@ -109,6 +120,21 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+    use type Gtk.Expander.Gtk_Expander;
+    use type Gtk.Widget.Gtk_Widget;
+    use type Gtk.Image.Gtk_Image;
++   use type Cairo.Cairo_Context;
++   use type Cairo.Cairo_Surface;
++   use System.Storage_Elements;
++
++   type Byte_Access is access all Interfaces.Unsigned_8;
++   function To_Byte_Access is new Ada.Unchecked_Conversion
++     (System.Address, Byte_Access);
++   use type Interfaces.Unsigned_8;
++
++   function Pixel_Byte
++     (Data : System.Address; Offset : Natural)
++      return Interfaces.Unsigned_8
++   is
++     (To_Byte_Access
++        (Data + System.Storage_Elements.Storage_Offset (Offset)).all);
+ 
+    Inline_View_Destroyed : Boolean := False;
+ 
+@@ -3075,6 +3101,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Formula : constant String :=
+         "\verb@a%{b}#^_@ + \verb*|a b| + " &
+         "\vcenter{\frac{a}{b}}+\pmb{g}";
++      Cancel_Layout : Math_Layout.Box;
++      Cancel_Bounds : Math_Raster.Raster_Bounds;
++      Cancel_Source : constant String := "$$" & "\cancel{T}" & "$$";
+       Source : constant String := "$$" & Formula & "$$";
+       Element : Coyote_GUI.Math_Element.Instance_Access :=
+         Coyote_GUI.Math_Element.New_Element
+@@ -3094,6 +3123,17 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Quit : Boolean;
+       Requested_Width : Glib.Gint;
+       Requested_Height : Glib.Gint;
++      Expected_Layout : Math_Layout.Box;
++      Expected_Bounds : Math_Raster.Raster_Bounds;
++      Cancel_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
++      Cancel_Baseline : Natural := 0;
++      Snapshot_Data : System.Address := System.Null_Address;
++      Snapshot : Cairo.Cairo_Surface := Cairo.Null_Surface;
++      Snapshot_Context : Cairo.Cairo_Context := Cairo.Null_Context;
++      Snapshot_Stride : Natural;
++      Top_Ink : Boolean := False;
++      Inline_Leading_Ink : Boolean := False;
++      Fonts : aliased Math_Painter.Font_Set;
+       pragma Unreferenced (Quit);
+ 
+       procedure Append_Tree
+@@ -3130,6 +3170,25 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Gtk.Widget.Widget_List.Free (Children);
+       Children := Gtk.Widget.Widget_List.Null_List;
+       Gtk.Window.Gtk_New (Parent_Window, Gtk.Enums.Window_Toplevel);
++      Math_Painter.Load (Fonts, Coyote_Math_Resources.Font_Directory);
++      Expected_Layout := Math_Layout.Build
++        (Math_Syntax.Parse (Formula), Math_Layout.Display_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Expected_Bounds := Math_Raster.Measure (Expected_Layout, 24.0);
++      Cancel_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{TT}"), Math_Layout.Display_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
++      Assert
++        (Cancel_Bounds.Origin_X > 0 and then Cancel_Bounds.Origin_Y = 0,
++         "cancelTT has horizontal raster overflow only");
++      Cancel_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Display_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
+       Parent_Window.Add (Root);
+       Parent_Window.Show_All;
+       Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+@@ -3159,12 +3218,67 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          and then Area.Get_Allocated_Width > 0
+          and then Area.Get_Allocated_Height > 0,
+          "display area allocation and request are non-empty");
++      Cancel_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Display_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
++      Assert
++        (Cancel_Bounds.Origin_X = 0 and then Cancel_Bounds.Origin_Y > 0,
++         "standalone cancellation has vertical raster overflow only");
++      Cancel_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Text_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
++      Cancel_Pixbuf := Coyote_GUI.Math_Element.Render_Inline
++        ("\cancel{T}", Cancel_Baseline, Em_Pixels => 24.0);
++      Assert
++        (Cancel_Pixbuf /= null
++         and then Cancel_Baseline = Cancel_Bounds.Origin_Y
++           + Natural'Max
++             (1, Natural (Long_Float'Ceiling
++               (Cancel_Layout.Ascent * 24.0))) + 2,
++         "inline cancellation baseline includes measured vertical origin");
++      for Row in 0 .. Natural (Cancel_Baseline) - 1 loop
++         for Column in 0 .. Natural
++           (Gdk.Pixbuf.Get_Width (Cancel_Pixbuf)) - 1
++         loop
++            declare
++               Offset : constant Natural := Row * Natural
++                 (Gdk.Pixbuf.Get_Rowstride (Cancel_Pixbuf)) + Column * 3;
++               Pixels : constant System.Address :=
++                 Gdk.Pixbuf.Get_Pixels (Cancel_Pixbuf).all'Address;
++            begin
++               if Pixel_Byte (Pixels, Offset) < 240
++                 or else Pixel_Byte (Pixels, Offset + 1) < 240
++                 or else Pixel_Byte (Pixels, Offset + 2) < 240
++               then
++                  Inline_Leading_Ink := True;
++               end if;
++            end;
++         end loop;
++      end loop;
++      Assert
++        (Inline_Leading_Ink,
++         "inline cancellation leading ink is not clipped above baseline");
++      Glib.Object.Unref (Glib.Object.GObject (Cancel_Pixbuf));
++      Cancel_Pixbuf := null;
+       Assert
+         (Requested_Width =
+            Glib.Gint (Coyote_GUI.Math_Element.Width (Element.all))
+          and then Requested_Height =
+            Glib.Gint (Coyote_GUI.Math_Element.Height (Element.all)),
+          "display area adopts measured raster bounds with padding");
++      Assert
++        (Requested_Width = Glib.Gint (Expected_Bounds.Width + 4)
++         and then Requested_Height = Glib.Gint (Expected_Bounds.Height + 4),
++         "display reserves the complete measured raster paint extent");
++      Assert
++        (Coyote_GUI.Math_Element.Baseline (Element.all) =
++           Natural (Long_Float'Ceiling (Expected_Layout.Ascent * 24.0))
++             + Expected_Bounds.Origin_Y + 2,
++         "display baseline includes measured raster vertical origin");
+       Expander.Set_Expanded (True);
+       Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
+       while Ada.Real_Time.Clock < Deadline
+@@ -3195,10 +3309,103 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          and then Index (To_String (Label), "VCENTER_CONTENT") > 0
+          and then Index (To_String (Label), "POOR_BOLD_CONTENT") > 0,
+          "semantic tree preserves core roles: " & To_String (Label));
++      Coyote_GUI.Math_Element.Set_LaTeX
++        (Element.all, "\cancel{T}", Cancel_Source);
++      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
++      while Ada.Real_Time.Clock < Deadline
++        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
++      loop
++         if Gtk.Main.Events_Pending then
++            Quit := Gtk.Main.Main_Iteration_Do (False);
++         else
++            delay 0.01;
++         end if;
++      end loop;
++      Assert
++        (not Coyote_GUI.Math_Element.Is_Pending (Element.all)
++         and then Coyote_GUI.Math_Element.Is_Valid (Element.all),
++         "standalone cancellation is adopted as valid display math");
++      Assert
++        (Coyote_GUI.Math_Element.Source (Element.all) = Cancel_Source,
++         "standalone cancellation retains its exact source string");
++      Cancel_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Display_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Cancel_Bounds := Math_Raster.Measure (Cancel_Layout, 24.0);
++      Area.Get_Size_Request (Requested_Width, Requested_Height);
++      Assert
++        (Requested_Width = Glib.Gint (Cancel_Bounds.Width + 4)
++         and then Requested_Height = Glib.Gint (Cancel_Bounds.Height + 4),
++         "standalone cancellation adopts padded raster dimensions");
++      Assert
++        (Coyote_GUI.Math_Element.Baseline (Element.all) =
++           Natural (Long_Float'Ceiling (Cancel_Layout.Ascent * 24.0))
++             + Cancel_Bounds.Origin_Y + 2,
++         "standalone cancellation baseline includes vertical raster origin");
++      declare
++         Settle_Deadline : constant Ada.Real_Time.Time :=
++           Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (1_000);
++         Settle_Start : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
++      begin
++         while Ada.Real_Time.Clock < Settle_Deadline
++           and then Ada.Real_Time.Clock - Settle_Start <
++             Ada.Real_Time.Milliseconds (100)
++         loop
++            if Gtk.Main.Events_Pending then
++               Quit := Gtk.Main.Main_Iteration_Do (False);
++            else
++               delay 0.005;
++            end if;
++         end loop;
++      end;
++      Assert
++        (Area.Get_Allocated_Width >= Requested_Width
++         and then Area.Get_Allocated_Height >= Requested_Height,
++         "standalone snapshot waits for requested GTK allocation");
++      Snapshot := Cairo.Image_Surface.Create
++        (Cairo.Image_Surface.Cairo_Format_ARGB32,
++         Area.Get_Allocated_Width, Area.Get_Allocated_Height);
++      Snapshot_Context := Cairo.Create (Snapshot);
++      Gtk.Widget.Draw (Area, Snapshot_Context);
++      Cairo.Destroy (Snapshot_Context);
++      Snapshot_Context := Cairo.Null_Context;
++      Cairo.Surface.Flush (Snapshot);
++      Snapshot_Stride := Natural (Cairo.Image_Surface.Get_Stride (Snapshot));
++      Snapshot_Data := Cairo.Image_Surface.Get_Data_Generic (Snapshot);
++      for Row in 0 .. Natural (Cancel_Bounds.Origin_Y) + 1 loop
++         for Column in 0 .. Natural (Area.Get_Allocated_Width) - 1 loop
++            declare
++               Offset : constant Natural := Row * Snapshot_Stride
++                 + Column * 4;
++            begin
++               if Pixel_Byte (Snapshot_Data, Offset + 3) > 0
++                 and then (Pixel_Byte (Snapshot_Data, Offset) < 240
++                   or else Pixel_Byte (Snapshot_Data, Offset + 1) < 240
++                   or else Pixel_Byte (Snapshot_Data, Offset + 2) < 240)
++               then
++                  Top_Ink := True;
++               end if;
++            end;
++         end loop;
++      end loop;
++      Assert
++        (Top_Ink, "standalone cancellation retains visible ink");
++      Cairo.Surface.Destroy (Snapshot);
++      Snapshot := Cairo.Null_Surface;
+       Coyote_GUI.Math_Element.Free (Element);
+       Parent_Window.Destroy;
+    exception
+       when others =>
++         if Snapshot_Context /= Cairo.Null_Context then
++            Cairo.Destroy (Snapshot_Context);
++         end if;
++         if Snapshot /= Cairo.Null_Surface then
++            Cairo.Surface.Destroy (Snapshot);
++         end if;
++         if Cancel_Pixbuf /= null then
++            Glib.Object.Unref (Glib.Object.GObject (Cancel_Pixbuf));
++         end if;
+          if Children /= Gtk.Widget.Widget_List.Null_List then
+             Gtk.Widget.Widget_List.Free (Children);
+          end if;
+@@ -3219,6 +3426,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+         Coyote_GUI.Math_Element.New_Element ("x+y", "$$x+y$$");
+       Fleqn_Root : Gtk.Box.Gtk_Box;
+       Center_Root : Gtk.Box.Gtk_Box;
++      Fleqn_Window : Gtk.Window.Gtk_Window;
++      Center_Window : Gtk.Window.Gtk_Window;
+       Fleqn_Children : Gtk.Widget.Widget_List.Glist;
+       Center_Children : Gtk.Widget.Widget_List.Glist;
+       Fleqn_Area : Gtk.Widget.Gtk_Widget;
+@@ -3230,6 +3439,19 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Width : Natural;
+       Deadline : Ada.Calendar.Time;
+       Quit : Boolean;
++      Fleqn_Requested_Width : Glib.Gint;
++      Fleqn_Requested_Height : Glib.Gint;
++      Center_Requested_Width : Glib.Gint;
++      Center_Requested_Height : Glib.Gint;
++      Fleqn_Snapshot : Cairo.Cairo_Surface := Cairo.Null_Surface;
++      Center_Snapshot : Cairo.Cairo_Surface := Cairo.Null_Surface;
++      Fleqn_Context : Cairo.Cairo_Context := Cairo.Null_Context;
++      Center_Context : Cairo.Cairo_Context := Cairo.Null_Context;
++      Compound_Layout : Math_Layout.Box;
++      Compound_Bounds : Math_Raster.Raster_Bounds;
++      Fleqn_Left_Ink : Boolean := False;
++      Center_Left_Ink : Boolean := False;
++      Fonts : aliased Math_Painter.Font_Set;
+       pragma Unreferenced (Quit);
+    begin
+       if not T.Display_Available then
+@@ -3237,8 +3459,22 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          Coyote_GUI.Math_Element.Free (Center_Element);
+          return;
+       end if;
++      Gtk.Window.Gtk_New (Fleqn_Window, Gtk.Enums.Window_Toplevel);
++      Gtk.Window.Gtk_New (Center_Window, Gtk.Enums.Window_Toplevel);
+       Fleqn_Root := Coyote_GUI.Math_Element.Widget (Fleqn_Element.all);
+       Center_Root := Coyote_GUI.Math_Element.Widget (Center_Element.all);
++      Fleqn_Window.Add (Fleqn_Root);
++      Center_Window.Add (Center_Root);
++      Fleqn_Window.Show_All;
++      Center_Window.Show_All;
++      Deadline := Ada.Calendar.Clock + 1.0;
++      while Ada.Calendar.Clock < Deadline loop
++         if Gtk.Main.Events_Pending then
++            Quit := Gtk.Main.Main_Iteration_Do (False);
++         else
++            delay 0.01;
++         end if;
++      end loop;
+       Fleqn_Children := Gtk.Container.Get_Children
+         (Gtk.Container.Gtk_Container (Fleqn_Root));
+       Center_Children := Gtk.Container.Get_Children
+@@ -3291,6 +3527,162 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Assert
+         (Fleqn_Area.Get_Margin_Start = 48,
+          "left-aligned layout retains its two-em widget margin");
++      Math_Painter.Load (Fonts, Coyote_Math_Resources.Font_Directory);
++      Coyote_GUI.Math_Element.Set_LaTeX
++        (Fleqn_Element.all, "\cancel{TT}", "$$\cancel{TT}$$");
++      Coyote_GUI.Math_Element.Set_LaTeX
++        (Center_Element.all, "\cancel{TT}", "$$\cancel{TT}$$");
++      Deadline := Ada.Calendar.Clock + 5.0;
++      while Ada.Calendar.Clock < Deadline
++        and then (Coyote_GUI.Math_Element.Is_Pending (Fleqn_Element.all)
++          or else Coyote_GUI.Math_Element.Is_Pending (Center_Element.all))
++      loop
++         if Gtk.Main.Events_Pending then
++            Quit := Gtk.Main.Main_Iteration_Do (False);
++         else
++            delay 0.01;
++         end if;
++      end loop;
++      Assert
++        (Coyote_GUI.Math_Element.Is_Valid (Fleqn_Element.all)
++         and then Coyote_GUI.Math_Element.Is_Valid (Center_Element.all),
++         "compound cancellation is adopted by both alignments");
++      Assert
++        (Coyote_GUI.Math_Element.Source (Fleqn_Element.all) =
++           "$$\cancel{TT}$$"
++         and then Coyote_GUI.Math_Element.Source (Center_Element.all) =
++           "$$\cancel{TT}$$",
++         "compound cancellation source survives both adoptions");
++      Assert
++        (Coyote_GUI.Math_Element.Height (Fleqn_Element.all) > 4
++         and then Coyote_GUI.Math_Element.Height (Center_Element.all) > 4,
++         "compound cancellation paints a non-empty raster in both alignments");
++      Compound_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{TT}"),
++         Math_Layout.Display_Style,
++         (Pixel_Em => 24.0, Advance_Source => Fonts'Unchecked_Access,
++          others => <>));
++      Compound_Bounds := Math_Raster.Measure (Compound_Layout, 24.0);
++      Fleqn_Area.Get_Size_Request
++        (Fleqn_Requested_Width, Fleqn_Requested_Height);
++      Center_Area.Get_Size_Request
++        (Center_Requested_Width, Center_Requested_Height);
++      Assert
++        (Fleqn_Requested_Width =
++           Glib.Gint (Compound_Bounds.Width + 4)
++         and then Center_Requested_Width =
++           Glib.Gint (Compound_Bounds.Width + 4)
++         and then Fleqn_Requested_Height =
++           Glib.Gint (Compound_Bounds.Height + 4)
++         and then Center_Requested_Height =
++           Glib.Gint (Compound_Bounds.Height + 4),
++         "compound cancellation adopts full padded raster bounds");
++      declare
++         Settle_Deadline : constant Ada.Real_Time.Time :=
++           Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (1_000);
++         Settle_Start : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
++      begin
++         while Ada.Real_Time.Clock < Settle_Deadline
++           and then Ada.Real_Time.Clock - Settle_Start <
++             Ada.Real_Time.Milliseconds (100)
++         loop
++            if Gtk.Main.Events_Pending then
++               Quit := Gtk.Main.Main_Iteration_Do (False);
++            else
++               delay 0.005;
++            end if;
++         end loop;
++      end;
++      Assert
++        (Fleqn_Area.Get_Allocated_Width >= Fleqn_Requested_Width
++         and then Fleqn_Area.Get_Allocated_Height >= Fleqn_Requested_Height
++         and then Center_Area.Get_Allocated_Width >= Center_Requested_Width
++         and then Center_Area.Get_Allocated_Height >= Center_Requested_Height,
++         "compound snapshots wait for requested GTK allocations");
++      Assert
++        (Fleqn_Area.Get_Allocated_Width = Center_Area.Get_Allocated_Width
++         and then Fleqn_Area.Get_Allocated_Height =
++           Center_Area.Get_Allocated_Height,
++         "aligned comparison uses matching actual GTK allocations");
++      Fleqn_Snapshot := Cairo.Image_Surface.Create
++        (Cairo.Image_Surface.Cairo_Format_ARGB32,
++         Fleqn_Area.Get_Allocated_Width, Fleqn_Area.Get_Allocated_Height);
++      Center_Snapshot := Cairo.Image_Surface.Create
++        (Cairo.Image_Surface.Cairo_Format_ARGB32,
++         Center_Area.Get_Allocated_Width, Center_Area.Get_Allocated_Height);
++      Fleqn_Context := Cairo.Create (Fleqn_Snapshot);
++      Center_Context := Cairo.Create (Center_Snapshot);
++      Gtk.Widget.Draw (Fleqn_Area, Fleqn_Context);
++      Gtk.Widget.Draw (Center_Area, Center_Context);
++      Cairo.Destroy (Fleqn_Context);
++      Fleqn_Context := Cairo.Null_Context;
++      Cairo.Destroy (Center_Context);
++      Center_Context := Cairo.Null_Context;
++      Cairo.Surface.Flush (Fleqn_Snapshot);
++      Cairo.Surface.Flush (Center_Snapshot);
++      declare
++         Fleqn_Data : constant System.Address :=
++           Cairo.Image_Surface.Get_Data_Generic (Fleqn_Snapshot);
++         Center_Data : constant System.Address :=
++           Cairo.Image_Surface.Get_Data_Generic (Center_Snapshot);
++         Fleqn_Stride : constant Natural := Natural
++           (Cairo.Image_Surface.Get_Stride (Fleqn_Snapshot));
++         Center_Stride : constant Natural := Natural
++           (Cairo.Image_Surface.Get_Stride (Center_Snapshot));
++      begin
++         for Row in 0 .. Natural (Fleqn_Area.Get_Allocated_Height) - 1 loop
++            for Column in 0 ..
++              Natural (Fleqn_Area.Get_Allocated_Width) - 1
++            loop
++               declare
++                  Offset : constant Natural := Row * Fleqn_Stride
++                    + Column * 4;
++               begin
++                  if Pixel_Byte (Fleqn_Data, Offset + 3) > 0
++                    and then (Pixel_Byte (Fleqn_Data, Offset) < 240
++                      or else Pixel_Byte (Fleqn_Data, Offset + 1) < 240
++                      or else Pixel_Byte (Fleqn_Data, Offset + 2) < 240)
++                  then
++                     if Column <= Natural (Compound_Bounds.Origin_X) then
++                        Fleqn_Left_Ink := True;
++                     end if;
++                  end if;
++               end;
++               declare
++                  Offset : constant Natural := Row * Center_Stride
++                    + Column * 4;
++               begin
++                  if Pixel_Byte (Center_Data, Offset + 3) > 0
++                    and then (Pixel_Byte (Center_Data, Offset) < 240
++                      or else Pixel_Byte (Center_Data, Offset + 1) < 240
++                      or else Pixel_Byte (Center_Data, Offset + 2) < 240)
++                  then
++                     if Column <= Natural (Compound_Bounds.Origin_X) then
++                        Center_Left_Ink := True;
++                     end if;
++                  end if;
++               end;
++            end loop;
++         end loop;
++      end;
++      Assert
++        (Compound_Bounds.Origin_X > 0 and then Compound_Bounds.Origin_Y = 0,
++         "compound cancelTT has horizontal raster overflow only");
++      Assert
++        (Center_Left_Ink,
++         "centered cancelTT retains its measured left-origin ink");
++      Assert
++        (Fleqn_Left_Ink,
++         "fleqn cancelTT retains left-origin ink in the allocated raster");
++      Assert
++        (Fleqn_Area.Get_Margin_Start +
++           Glib.Gint (Compound_Bounds.Origin_X) = 48
++         and then Fleqn_Fallback.Get_Margin_Start = 48,
++         "fleqn anchor compensates raster origin; fallback remains 48");
++      Cairo.Surface.Destroy (Fleqn_Snapshot);
++      Fleqn_Snapshot := Cairo.Null_Surface;
++      Cairo.Surface.Destroy (Center_Snapshot);
++      Center_Snapshot := Cairo.Null_Surface;
+ 
+       Coyote_GUI.Math_Element.Set_Scale (Fleqn_Element.all, 2.0);
+       Assert
+@@ -3322,8 +3714,32 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          "invalid fleqn layout keeps the fallback indent");
+       Coyote_GUI.Math_Element.Free (Fleqn_Element);
+       Coyote_GUI.Math_Element.Free (Center_Element);
++      if Fleqn_Window /= null then
++         Fleqn_Window.Destroy;
++      end if;
++      if Center_Window /= null then
++         Center_Window.Destroy;
++      end if;
+    exception
+       when others =>
++         if Fleqn_Context /= Cairo.Null_Context then
++            Cairo.Destroy (Fleqn_Context);
++         end if;
++         if Center_Context /= Cairo.Null_Context then
++            Cairo.Destroy (Center_Context);
++         end if;
++         if Fleqn_Snapshot /= Cairo.Null_Surface then
++            Cairo.Surface.Destroy (Fleqn_Snapshot);
++         end if;
++         if Center_Snapshot /= Cairo.Null_Surface then
++            Cairo.Surface.Destroy (Center_Snapshot);
++         end if;
++         if Fleqn_Window /= null then
++            Fleqn_Window.Destroy;
++         end if;
++         if Center_Window /= null then
++            Center_Window.Destroy;
++         end if;
+          if Fleqn_Children /= Gtk.Widget.Widget_List.Null_List then
+             Gtk.Widget.Widget_List.Free (Fleqn_Children);
+          end if;
+diff --git a/test/tools/check-math-images.py b/test/tools/check-math-images.py
+index 9819db9..1f4506f 100755
+--- a/test/tools/check-math-images.py
++++ b/test/tools/check-math-images.py
+@@ -33,6 +33,7 @@ MAX_BASELINE_DELTA = 0.01
+ MIN_MASK_COVERAGE = 0.99
+ ALPHA_THRESHOLD = 0.10
+ CHANNEL_DELTA = 2
++REFERENCE_CANVAS_MARGIN_PX = 32
+ 
+ 
+ def fail(message):
+@@ -74,9 +75,10 @@ def mask(pixels):
+ 
+ def check_case(case, native_record, browser_png):
+     native_path = Path(native_record["png"])
+-    if not all(key in native_record for key in
+-               ("width", "height", "baseline", "originX", "originY",
+-                "logicalWidth", "logicalHeight")):
++    required = ("width", "height", "baseline", "originX", "originY",
++                "rasterOriginX", "rasterOriginY", "logicalWidth",
++                "logicalHeight")
++    if not all(key in native_record for key in required):
+         return {"id": case["id"], "status": "fail",
+                 "failures": ["native raster origin/logical geometry metadata missing"]}
+     overflow = case.get("overflowMeasurement", {})
+@@ -86,7 +88,32 @@ def check_case(case, native_record, browser_png):
+     browser_mask = mask(browser)
+     reasons = []
+     checks = {}
+-
++    native_values = [native_record[key] for key in
++                     ("baseline", "originX", "originY", "rasterOriginX",
++                      "rasterOriginY", "logicalWidth", "logicalHeight")]
++    if (any(isinstance(value, bool) or not isinstance(value, (int, float))
++            or not math.isfinite(value) for value in native_values) or
++            any(isinstance(native_record[key], bool) or
++                not isinstance(native_record[key], int)
++                for key in ("originX", "originY", "rasterOriginX",
++                            "rasterOriginY")) or
++            any(native_record[key] < 0 for key in
++                ("originX", "originY", "logicalWidth", "logicalHeight"))):
++        return {"id": case["id"], "status": "fail",
++                "failures": ["native origins, baseline, and logical dimensions must be finite; origins and dimensions nonnegative"]}
++    actual_dimensions = (native.shape[1], native.shape[0])
++    declared_dimensions = (native_record["width"], native_record["height"])
++    if (any(isinstance(value, bool) or not isinstance(value, int) or value <= 0
++            for value in declared_dimensions) or
++            actual_dimensions != declared_dimensions):
++        return {"id": case["id"], "status": "fail",
++                "failures": [f"native PNG dimensions {actual_dimensions} do not match positive integer metadata {declared_dimensions}"]}
++    raster_origin = (native_record["rasterOriginX"],
++                     native_record["rasterOriginY"])
++    logical_origin = (native_record["originX"], native_record["originY"])
++    if raster_origin != (-logical_origin[0], -logical_origin[1]):
++        return {"id": case["id"], "status": "fail",
++                "failures": ["native rasterOriginX/Y must equal negative logical originX/Y"]}
+     if not native_mask.any() or not browser_mask.any():
+         return {"id": case["id"], "status": "fail",
+                 "failures": ["empty foreground alpha mask"]}
+@@ -150,9 +177,7 @@ def check_case(case, native_record, browser_png):
+                     abs(native_gap_em - reference_gap_em) > 0.01):
+                     reasons.append("native optional newline margin differs from independent reference control")
+ 
+-    # Logical origins are measured independently: native raster origin is its
+-    # declared logical (0,0); browser origin is the DOM base/strut envelope in
+-    # the fixed-padding screenshot. Raster padding is not logical width.
++    # Both raster canvases are placed from their declared logical origins.
+     nb = native_record["baseline"]
+     browser_baseline = case["browserBaseline"]
+     browser_canvas_origin = (case["browserLogicalOriginX"],
+@@ -161,16 +186,35 @@ def check_case(case, native_record, browser_png):
+                             case["browserRasterOriginY"])
+     native_canvas_origin = (native_record["originX"],
+                             native_record["originY"])
+-    origin_delta = (0.0, 0.0)
++    # Native raster and logical origins must describe the same point.
++    # Renderer-specific padding is recorded separately, not compared.
++    origin_delta = (native_record["rasterOriginX"] +
++                    native_record["originX"],
++                    native_record["rasterOriginY"] +
++                    native_record["originY"])
++    native_right_padding = (native_box[0] - native_record["originX"] -
++                            math.ceil(native_logical[0]))
++    native_bottom_padding = (native_box[1] - native_record["originY"] -
++                             math.ceil(native_logical[1]))
+     checks["origin"] = {
+         "nativeLogicalOriginInRasterPx": list(native_canvas_origin),
+         "browserLogicalOriginInScreenshotPx": list(browser_canvas_origin),
++        "mappedNativeLogicalOriginPx": [0, 0],
++        "mappedBrowserLogicalOriginPx": [0, 0],
+         "browserRasterOriginRelativeToLogicalPx": list(browser_pixel_offset),
+         "logicalOriginDeltaAfterExplicitMapping": list(origin_delta),
+-        "nativeRasterPaddingPx": [native_box[0] - math.ceil(native_logical[0]),
+-                                   native_box[1] - math.ceil(native_logical[1])],
++        "nativeRasterPaddingPx": {
++            "left": native_record["originX"],
++            "top": native_record["originY"],
++            "right": native_right_padding,
++            "bottom": native_bottom_padding},
++        "browserRasterPaddingPx": {
++            "left": -browser_pixel_offset[0],
++            "top": -browser_pixel_offset[1]},
+         "browserScreenshotCropOffsetPx": case["browserCropOrigin"],
+         "delta": list(origin_delta)}
++    if origin_delta != (0, 0):
++        reasons.append(f"native raster/logical origin metadata delta {origin_delta} is nonzero")
+     checks["shadowOverflow"] = overflow
+     em_pixels = case["emPixels"]
+     baseline_delta = abs(nb - browser_baseline) / em_pixels
+@@ -184,17 +228,19 @@ def check_case(case, native_record, browser_png):
+     # Place both independently measured logical origins on a common canvas;
+     # never infer translation from ink. Keep each complete raster, including
+     # explicitly reported right/bottom padding and reference overflow.
+-    native_offset = (0, 0)
++    native_offset = (-native_record["originX"], -native_record["originY"])
+     browser_offset = (int(round(browser_pixel_offset[0])),
+                       int(round(browser_pixel_offset[1])))
+-    min_x = min(0, browser_offset[0])
+-    min_y = min(0, browser_offset[1])
+-    max_x = max(native.shape[1], browser_offset[0] + browser.shape[1])
+-    max_y = max(native.shape[0], browser_offset[1] + browser.shape[0])
++    min_x = min(native_offset[0], browser_offset[0])
++    min_y = min(native_offset[1], browser_offset[1])
++    max_x = max(native_offset[0] + native.shape[1],
++                browser_offset[0] + browser.shape[1])
++    max_y = max(native_offset[1] + native.shape[0],
++                browser_offset[1] + browser.shape[0])
+     w, h = max_x - min_x, max_y - min_y
+     native_canvas = np.zeros((h, w), dtype=bool)
+     browser_canvas = np.zeros((h, w), dtype=bool)
+-    nx, ny = -min_x, -min_y
++    nx, ny = native_offset[0] - min_x, native_offset[1] - min_y
+     bx, by = browser_offset[0] - min_x, browser_offset[1] - min_y
+     native_canvas[ny:ny + native.shape[0], nx:nx + native.shape[1]] = native_mask
+     browser_canvas[by:by + browser.shape[0],
+@@ -331,7 +377,7 @@ def main():
+             display = "true" if case["displayMode"] else "false"
+             em_pixels = case["emPixels"]
+             viewport_height = max(512, em_pixels * 12 + 128)
+-            html = f'''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="dist/katex.css"><script src="dist/katex.js"></script><style>html,body{{margin:0;background:#fff}}body{{width:800px;height:{viewport_height}px;padding:0;color:#000;font:{em_pixels}px "KaTeX_Main",serif}}#formula{{position:absolute;left:0px;top:{em_pixels}px;white-space:nowrap}}.katex{{font-size:{em_pixels}px!important}}.katex-display{{margin:0;text-align:left}}</style><div id="formula"></div><script>try{{katex.render({source},document.querySelector('#formula'),{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}})}}catch(error){{window.__renderError=String(error)}}document.fonts.ready.then(()=>{{let e=document.querySelector('.katex'),r=e.getBoundingClientRect(),bases=Array.from(document.querySelectorAll('.katex-html > .base')),base=bases[0],b=base.getBoundingClientRect(),strut=base.querySelector('.strut'),s=getComputedStyle(strut),t=katex.__renderToHTMLTree({source},{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});let strutRect=strut.getBoundingClientRect(),baseRects=bases.map(x=>{{let q=x.getBoundingClientRect();return {{left:q.left,right:q.right,width:q.width}}}}),baseLeft=Math.min(...baseRects.map(q=>q.left)),baseRight=Math.max(...baseRects.map(q=>q.right)),lineMetrics=bases.map(x=>{{let z=x.querySelector('.strut'),q=z.getBoundingClientRect(),c=getComputedStyle(z);return {{baseline:q.top+parseFloat(c.height)+(parseFloat(c.verticalAlign)||0),top:q.top,bottom:q.bottom}}}}),glyphs=[...e.querySelectorAll('.katex-html span')].filter(x=>x.children.length===0&&x.textContent).map(x=>x.textContent);window.__measure={{lineMetrics,glyphs,width:r.width,height:r.height,left:r.left,top:r.top,baseCount:bases.length,baseRects,baseLeft,baseWidth:baseRight-baseLeft,firstBaseLeft:b.left,firstBaseWidth:b.width,baseline:strutRect.top+parseFloat(s.height)+(parseFloat(s.verticalAlign)||0),strutTop:strutRect.top,strutHeight:parseFloat(s.height),strutVerticalAlign:(parseFloat(s.verticalAlign)||0),fontSize:parseFloat(getComputedStyle(e).fontSize),heightEm:t.height,depthEm:t.depth,fonts:document.fonts.status}}}})</script>'''
++            html = f'''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="dist/katex.css"><script src="dist/katex.js"></script><style>html,body{{margin:0;background:#fff}}body{{width:800px;height:{viewport_height}px;padding:0;color:#000;font:{em_pixels}px "KaTeX_Main",serif}}#formula{{position:absolute;left:{REFERENCE_CANVAS_MARGIN_PX}px;top:{em_pixels}px;white-space:nowrap}}.katex{{font-size:{em_pixels}px!important}}.katex-display{{margin:0;text-align:left}}</style><div id="formula"></div><script>try{{katex.render({source},document.querySelector('#formula'),{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}})}}catch(error){{window.__renderError=String(error)}}document.fonts.ready.then(()=>{{let e=document.querySelector('.katex'),r=e.getBoundingClientRect(),bases=Array.from(document.querySelectorAll('.katex-html > .base')),base=bases[0],b=base.getBoundingClientRect(),strut=base.querySelector('.strut'),s=getComputedStyle(strut),t=katex.__renderToHTMLTree({source},{{displayMode:{display},throwOnError:true,trust:false,strict:'warn',maxSize:100,maxExpand:1000}});let strutRect=strut.getBoundingClientRect(),baseRects=bases.map(x=>{{let q=x.getBoundingClientRect();return {{left:q.left,right:q.right,width:q.width}}}}),baseLeft=Math.min(...baseRects.map(q=>q.left)),baseRight=Math.max(...baseRects.map(q=>q.right)),lineMetrics=bases.map(x=>{{let z=x.querySelector('.strut'),q=z.getBoundingClientRect(),c=getComputedStyle(z);return {{baseline:q.top+parseFloat(c.height)+(parseFloat(c.verticalAlign)||0),top:q.top,bottom:q.bottom}}}}),glyphs=[...e.querySelectorAll('.katex-html span')].filter(x=>x.children.length===0&&x.textContent).map(x=>x.textContent);window.__measure={{lineMetrics,glyphs,width:r.width,height:r.height,left:r.left,top:r.top,baseCount:bases.length,baseRects,baseLeft,baseWidth:baseRight-baseLeft,firstBaseLeft:b.left,firstBaseWidth:b.width,baseline:strutRect.top+parseFloat(s.height)+(parseFloat(s.verticalAlign)||0),strutTop:strutRect.top,strutHeight:parseFloat(s.height),strutVerticalAlign:(parseFloat(s.verticalAlign)||0),fontSize:parseFloat(getComputedStyle(e).fontSize),heightEm:t.height,depthEm:t.depth,fonts:document.fonts.status}}}})</script>'''
+             html_path = temp / f"{case['id']}.html"
+             html_path.write_text(html)
+             sid = f"math-image-{os.getpid()}-{case['id']}"
+@@ -388,10 +434,13 @@ def main():
+                 right = math.ceil(logical_right)
+                 bottom = math.ceil(logical_bottom)
+                 padding = 12
+-                outer_left = max(0, left - padding)
+-                outer_top = max(0, top - padding)
+-                outer_right = min(image.width, right + padding)
+-                outer_bottom = min(image.height, bottom + padding)
++                outer_left = left - padding
++                outer_top = top - padding
++                outer_right = right + padding
++                outer_bottom = bottom + padding
++                if (outer_left < 0 or outer_top < 0 or
++                        outer_right > image.width or outer_bottom > image.height):
++                    fail(f"{case['id']}: fixed browser crop padding clipped by screenshot viewport")
+                 outer = np.asarray(
+                     image.crop((outer_left, outer_top, outer_right, outer_bottom))).copy()
+                 outer_rgb = outer[:, :, :3]
+@@ -437,15 +486,15 @@ def main():
+                     "browserOverflowPixels": measure["browserOverflowPixels"],
+                     "nativeBeyondLogicalBox": (
+                         by_id[case["id"]]["status"] == "ok" and
+-                        (by_id[case["id"]]["width"] >
+-                         math.ceil(by_id[case["id"]]["logicalWidth"]) or
+-                         by_id[case["id"]]["height"] >
+-                         math.ceil(by_id[case["id"]]["logicalHeight"]))),
++                        (by_id[case["id"]]["originX"] > 0 or
++                         by_id[case["id"]]["originY"] > 0 or
++                         by_id[case["id"]]["rasterRightPaddingPx"] > 0 or
++                         by_id[case["id"]]["rasterBottomPaddingPx"] > 0)),
+                     "nativeOverflowPixels": (
+-                        [by_id[case["id"]]["width"] -
+-                         math.ceil(by_id[case["id"]]["logicalWidth"]),
+-                         by_id[case["id"]]["height"] -
+-                         math.ceil(by_id[case["id"]]["logicalHeight"])]
++                        [by_id[case["id"]]["originX"],
++                         by_id[case["id"]]["originY"],
++                         by_id[case["id"]]["rasterRightPaddingPx"],
++                         by_id[case["id"]]["rasterBottomPaddingPx"]]
+                         if by_id[case["id"]]["status"] == "ok" else None),
+                     "nativeRaster": (
+                         [by_id[case["id"]]["width"], by_id[case["id"]]["height"]]
+@@ -457,6 +506,8 @@ def main():
+                     "disposition": "overflow measured independently; no browser-fitted-to-native crop or threshold relaxation",
+                 }
+                 case["browserMetrics"] = {
++                    "referenceCanvasMarginPx": REFERENCE_CANVAS_MARGIN_PX,
++                    "referenceCanvasMarginSource": "fixed browser viewport safety margin; independent of native geometry and rasterized ink",
+                     "directBaseCount": measure["baseCount"],
+                     "directBaseRectsPx": measure["baseRects"],
+                     "lineBaselinesPx": baselines,
+@@ -565,17 +616,35 @@ def main():
+                          browserBaseline=cases[0]["browserBaseline"] + 24.0)
+     baseline_control = check_case(baseline_case, by_id[baseline_case["id"]],
+                                   Path(rows[0]["browserPNG"]))
++    # The +2 px native displacement is consistent metadata; unchanged masks
++    # must reject it using the existing one-pixel criterion.
++    displaced_native = dict(
++        by_id[cases[0]["id"]],
++        originX=by_id[cases[0]["id"]]["originX"] + 2,
++        rasterOriginX=by_id[cases[0]["id"]]["rasterOriginX"] - 2)
++    native_origin_control = check_case(
++        cases[0], displaced_native, Path(rows[0]["browserPNG"]))
++    # Stale origin metadata fails the independent internal consistency check.
++    stale_native_origin = dict(
++        by_id[cases[0]["id"]],
++        originX=by_id[cases[0]["id"]]["originX"] + 2)
++    stale_origin_control = check_case(
++        cases[0], stale_native_origin, Path(rows[0]["browserPNG"]))
+     negative_control = {
+         "id": "wrong-origin-and-shifted-baseline-negative-controls",
+         "status": "pass" if (omitted_negative_control["status"] == "pass" and
+                                origin_control["status"] == "fail" and
+-                               baseline_control["status"] == "fail") else "fail",
+-        "expected": "reject omitted base, wrong origin, and shifted baseline",
++                               baseline_control["status"] == "fail" and
++                               native_origin_control["status"] == "fail" and
++                               stale_origin_control["status"] == "fail") else "fail",
++        "expected": "reject omitted base, wrong browser origin, shifted baseline, displaced native mask, and inconsistent native-origin metadata",
+         "omittedBase": omitted_negative_control,
+         "originActual": origin_control["status"],
+-        "baselineActual": baseline_control["status"]}
++        "baselineActual": baseline_control["status"],
++        "nativeOriginActual": native_origin_control["status"],
++        "staleNativeOriginActual": stale_origin_control["status"]}
+     if negative_control["status"] != "pass":
+-        fail("omitted-base, wrong-origin, or shifted-baseline negative control was not rejected")
++        fail("omitted-base, wrong browser/native origin, stale metadata, or shifted-baseline negative control was not rejected")
+     summary = {name: sum(r["status"] == name for r in rows)
+                for name in ("pass", "fail", "blocked")}
+     report = {"schema": "coyote.math-image-report.v1",
+diff --git a/test/tools/math_image_export.adb b/test/tools/math_image_export.adb
+index ef3ccd6..3a8df35 100644
+--- a/test/tools/math_image_export.adb
++++ b/test/tools/math_image_export.adb
+@@ -35,8 +35,16 @@ procedure Math_Image_Export is
+       Baseline : Long_Float := 0.0;
+       Logical_Width : Long_Float := 0.0;
+       Logical_Height : Long_Float := 0.0;
+-      Em_Pixels : Long_Float := 24.0) return JSON_Value is
++      Em_Pixels : Long_Float := 24.0;
++      Origin_X : Integer := 0;
++      Origin_Y : Integer := 0) return JSON_Value is
+       Result : constant JSON_Value := Create_Object;
++      Raster_Right : constant Integer :=
++        Integer (Width) - Origin_X -
++          Integer (Long_Float'Ceiling (Logical_Width));
++      Raster_Bottom : constant Integer :=
++        Integer (Height) - Origin_Y -
++          Integer (Long_Float'Ceiling (Logical_Height));
+    begin
+       Set_Field (Result, "id", Id);
+       Set_Field (Result, "status", Status);
+@@ -46,16 +54,16 @@ procedure Math_Image_Export is
+          Set_Field (Result, "width", Integer (Width));
+          Set_Field (Result, "height", Integer (Height));
+          Set_Field_Long_Float (Result, "baseline", Baseline);
+-         Set_Field (Result, "originX", Integer (0));
+-         Set_Field (Result, "originY", Integer (0));
++         Set_Field (Result, "originX", Origin_X);
++         Set_Field (Result, "originY", Origin_Y);
+          Set_Field_Long_Float (Result, "logicalWidth", Logical_Width);
+          Set_Field_Long_Float (Result, "logicalHeight", Logical_Height);
+-         Set_Field (Result, "rasterOriginX", Integer (0));
+-         Set_Field (Result, "rasterOriginY", Integer (0));
+-         Set_Field (Result, "rasterRightPaddingPx",
+-           Integer (Width) - Integer (Long_Float'Ceiling (Logical_Width)));
+-         Set_Field (Result, "rasterBottomPaddingPx",
+-           Integer (Height) - Integer (Long_Float'Ceiling (Logical_Height)));
++         Set_Field (Result, "rasterOriginX", -Origin_X);
++         Set_Field (Result, "rasterOriginY", -Origin_Y);
++         Set_Field (Result, "rasterLeftPaddingPx", Origin_X);
++         Set_Field (Result, "rasterTopPaddingPx", Origin_Y);
++         Set_Field (Result, "rasterRightPaddingPx", Raster_Right);
++         Set_Field (Result, "rasterBottomPaddingPx", Raster_Bottom);
+       end if;
+       return Result;
+    end Response;
+@@ -156,6 +164,10 @@ procedure Math_Image_Export is
+                          (Fonts, Layout, Scale, (0.0, 0.0, 0.0, 1.0));
+                      Width : constant Natural := Math_Raster.Width (Image);
+                      Height : constant Natural := Math_Raster.Height (Image);
++                     Origin_X : constant Integer :=
++                       Math_Raster.Origin_X (Image);
++                     Origin_Y : constant Integer :=
++                       Math_Raster.Origin_Y (Image);
+                      Stride : constant Natural := Math_Raster.Stride (Image);
+                      Data : Byte_Array_Access := new
+                        Cairo.Image_Surface.Byte_Array
+@@ -202,7 +214,7 @@ procedure Math_Image_Export is
+                               Layout.Ascent * Scale,
+                               Layout.Width * Scale,
+                               (Layout.Ascent + Layout.Descent) * Scale,
+-                              Em_Pixels),
++                              Em_Pixels, Origin_X, Origin_Y),
+                            Compact => True));
+                   exception
+                      when others =>
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index de6597e..fdd88c6 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -9,6 +9,7 @@ with Coyote_Math_Jobs;
+ with Math_Layout;
+ with Math_Syntax;
+ with Math_Semantics;
++with Math_Painter;
+ procedure Math_Jobs_Probe is
+    package Jobs renames Coyote_Math_Jobs;
+    use type Jobs.Job_Status;
+@@ -412,6 +413,131 @@ begin
+      "cancelled large-source work publishes no result");
+    Jobs.Release (R);
+ 
++   Jobs.Start;
++   declare
++      Horizontal_Id : Jobs.Request_Id;
++      Vertical_Id : Jobs.Request_Id;
++      Horizontal_Status : Jobs.Job_Status;
++      Vertical_Status : Jobs.Job_Status;
++      Horizontal_Result : Jobs.Result_Access;
++      Vertical_Result : Jobs.Result_Access;
++      Fonts : aliased Math_Painter.Font_Set;
++      Horizontal_Layout : Math_Layout.Box;
++      Vertical_Layout : Math_Layout.Box;
++      Horizontal_Bounds : Math_Raster.Raster_Bounds;
++      Vertical_Bounds : Math_Raster.Raster_Bounds;
++      Settings : Math_Layout.Layout_Settings := (others => <>);
++   begin
++      Jobs.Submit ("\cancel{TT}", Horizontal_Id, 96,
++        Math_Layout.Text_Style, Status => Horizontal_Status,
++        Request_Raster => True, Em_Pixels => 48.0,
++        Font_Directory => Font_Directory);
++      Jobs.Submit ("\cancel{T}", Vertical_Id, 96,
++        Math_Layout.Text_Style, Status => Vertical_Status,
++        Request_Raster => True, Em_Pixels => 48.0,
++        Font_Directory => Font_Directory);
++      Check (Horizontal_Status = Jobs.Pending and
++        Vertical_Status = Jobs.Pending,
++        "horizontal and vertical cancel raster jobs queued");
++      for Wait in 1 .. 400 loop
++         Jobs.Poll (Horizontal_Id, 96, Horizontal_Status, Horizontal_Result);
++         Jobs.Poll (Vertical_Id, 96, Vertical_Status, Vertical_Result);
++         exit when Horizontal_Status /= Jobs.Pending and
++           Vertical_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Horizontal_Status = Jobs.Valid and
++        Horizontal_Result /= null,
++        "double-T cancellation raster completes");
++      Check (Vertical_Status = Jobs.Valid and Vertical_Result /= null,
++        "single-T cancellation raster completes");
++      Math_Painter.Load (Fonts, Font_Directory);
++      Settings.Pixel_Em := 48.0;
++      Settings.Advance_Source := Fonts'Unchecked_Access;
++      Horizontal_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{TT}"), Math_Layout.Text_Style,
++         Settings);
++      Vertical_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Text_Style,
++         Settings);
++      Horizontal_Bounds := Math_Raster.Measure
++        (Horizontal_Layout, 48.0);
++      Vertical_Bounds := Math_Raster.Measure (Vertical_Layout, 48.0);
++      Check (Horizontal_Layout.Valid and Vertical_Layout.Valid,
++        "measured cancellation reference layouts are valid");
++      if Horizontal_Result /= null then
++         Check (Jobs.Layout (Horizontal_Result.all).Width =
++           Horizontal_Layout.Width and
++           Jobs.Layout (Horizontal_Result.all).Ascent =
++             Horizontal_Layout.Ascent and
++           Jobs.Layout (Horizontal_Result.all).Descent =
++             Horizontal_Layout.Descent,
++           "double-T returned geometry matches direct measured layout");
++         Check (Jobs.Raster_Origin_X (Horizontal_Result.all) > 0,
++           "double-T cancellation independently exercises positive X origin");
++         Check (Jobs.Raster_Origin_X (Horizontal_Result.all) =
++           Horizontal_Bounds.Origin_X and
++           Jobs.Raster_Origin_Y (Horizontal_Result.all) =
++             Horizontal_Bounds.Origin_Y and
++           Jobs.Raster_Width (Horizontal_Result.all) =
++             Horizontal_Bounds.Width and
++           Jobs.Raster_Height (Horizontal_Result.all) =
++             Horizontal_Bounds.Height,
++           "double-T origins and dimensions match measured returned geometry");
++         Check (Jobs.Raster_Baseline (Horizontal_Result.all) =
++           Horizontal_Bounds.Origin_Y + Natural
++             (Long_Float'Ceiling
++                (Jobs.Layout (Horizontal_Result.all).Ascent * 48.0)),
++           "double-T baseline uses measured Y origin and ceiled ascent");
++      end if;
++      if Vertical_Result /= null then
++         Check (Jobs.Layout (Vertical_Result.all).Width =
++           Vertical_Layout.Width and
++           Jobs.Layout (Vertical_Result.all).Ascent = Vertical_Layout.Ascent and
++           Jobs.Layout (Vertical_Result.all).Descent = Vertical_Layout.Descent,
++           "single-T returned geometry matches direct measured layout");
++         Check (Jobs.Raster_Origin_Y (Vertical_Result.all) > 0,
++           "single-T cancellation independently exercises positive Y origin");
++         Check (Jobs.Raster_Origin_X (Vertical_Result.all) =
++           Vertical_Bounds.Origin_X and
++           Jobs.Raster_Origin_Y (Vertical_Result.all) =
++             Vertical_Bounds.Origin_Y and
++           Jobs.Raster_Width (Vertical_Result.all) = Vertical_Bounds.Width and
++           Jobs.Raster_Height (Vertical_Result.all) = Vertical_Bounds.Height,
++           "single-T origins and dimensions match measured returned geometry");
++         Check (Jobs.Raster_Baseline (Vertical_Result.all) =
++           Vertical_Bounds.Origin_Y + Natural
++             (Long_Float'Ceiling
++                (Jobs.Layout (Vertical_Result.all).Ascent * 48.0)),
++           "single-T baseline uses measured Y origin and ceiled ascent");
++      end if;
++      if Horizontal_Result /= null and Vertical_Result /= null then
++         Check (Jobs.Raster_Retained_Bytes (Horizontal_Result.all) > 0 and
++           Jobs.Raster_Retained_Bytes (Vertical_Result.all) > 0 and
++           Jobs.Raster_Retained_Bytes (Horizontal_Result.all) +
++             Jobs.Raster_Retained_Bytes (Vertical_Result.all) =
++               Math_Raster_Budget.Used,
++           "both raster leases remain charged by actual retained storage");
++         Check (Jobs.Raster_Retained_Bytes (Horizontal_Result.all) >=
++           Jobs.Raster_Width (Horizontal_Result.all) * 4 *
++             Jobs.Raster_Height (Horizontal_Result.all) and
++           Jobs.Raster_Retained_Bytes (Vertical_Result.all) >=
++             Jobs.Raster_Width (Vertical_Result.all) * 4 *
++               Jobs.Raster_Height (Vertical_Result.all),
++           "raster charges cover dimensions and minimum row storage");
++         Jobs.Release (Horizontal_Result);
++         Jobs.Release (Vertical_Result);
++         Check (Math_Raster_Budget.Used = 0,
++           "releasing independent cancel rasters restores empty budget");
++      else
++         if Horizontal_Result /= null then
++            Jobs.Release (Horizontal_Result);
++         end if;
++         if Vertical_Result /= null then
++            Jobs.Release (Vertical_Result);
++         end if;
++      end if;
++   end;
+    Jobs.Start;
+    Jobs.Submit ("x+y", Abandoned_Id, Abandoned_Generation,
+      Math_Layout.Display_Style, Status => S, Request_Raster => True,
+diff --git a/test/tools/math_raster_probe.adb b/test/tools/math_raster_probe.adb
+index 1197e4c..66a06d1 100644
+--- a/test/tools/math_raster_probe.adb
++++ b/test/tools/math_raster_probe.adb
+@@ -313,6 +313,49 @@ begin
+                        (if To_String (Mode) = "xcancel" then 10 else 5)
+                        and then First.Kind = Math_Paths.Move_To,
+                        "cancel retains requested diagonals " & Label);
++                     if (Source = "T" or else Source = "TT") and then
++                       (To_String (Mode) = "cancel" or else
++                        To_String (Mode) = "xcancel")
++                     then
++                        declare
++                           Bounds : constant Math_Raster.Raster_Bounds :=
++                             Math_Raster.Measure (Cancelled, Long_Float (Size));
++                           Raster : constant Math_Raster.Image :=
++                             Math_Raster.Render
++                               (Fonts, Cancelled, Long_Float (Size), Foreground);
++                           Above_Ink : Boolean := False;
++                           Left_Ink : Boolean := False;
++                        begin
++                           if Bounds.Origin_Y > 0 then
++                              for Y in 0 .. Bounds.Origin_Y - 1 loop
++                                 for X in 0 .. Math_Raster.Width (Raster) - 1 loop
++                                    Above_Ink := Above_Ink or else
++                                      Interfaces.Shift_Right
++                                        (Math_Raster.Get_Pixel (Raster, X, Y), 24) > 0;
++                                 end loop;
++                              end loop;
++                           end if;
++                           if Bounds.Origin_X > 0 then
++                              for Y in 0 .. Math_Raster.Height (Raster) - 1 loop
++                                 for X in 0 .. Bounds.Origin_X - 1 loop
++                                    Left_Ink := Left_Ink or else
++                                      Interfaces.Shift_Right
++                                        (Math_Raster.Get_Pixel (Raster, X, Y), 24) > 0;
++                                 end loop;
++                              end loop;
++                           end if;
++                           Check ((if Source = "T" then
++                             Bounds.Origin_Y > 0 and then Above_Ink
++                             else Bounds.Origin_Y = 0),
++                             "cancel raster retains ink above logical origin " &
++                             Label);
++                           Check ((if Source = "TT" then
++                             Bounds.Origin_X > 0 and then Left_Ink
++                             else Bounds.Origin_X = 0),
++                             "cancel raster retains ink left of logical origin " &
++                             Label);
++                        end;
++                     end if;
+                   end;
+                end loop;
+             end loop;
+@@ -1012,6 +1055,139 @@ begin
+       Check (Math_Raster.Get_Pixel (D, 0, 0) =
+         Math_Raster.Get_Pixel (Full, Right, Bottom), "tile combined origin");
+    end;
++   declare
++      Overflow_Layout : Math_Layout.Box :=
++        (Valid => True, Width => 32.0, Ascent => 10.0, Descent => 12.0,
++         others => <>);
++      Path : Math_Layout.Draw_Command;
++      Rule : Math_Layout.Draw_Command;
++      Before : Math_Raster.Raster_Bounds;
++      Full_Overflow : Math_Raster.Image;
++      Tile : Math_Raster.Image;
++      Clipped : Math_Layout.Box := Overflow_Layout;
++      Hidden : Math_Layout.Draw_Command;
++      Hidden_Bounds : Math_Raster.Raster_Bounds;
++   begin
++      Path.Kind := Math_Layout.Path_Command;
++      Path.Path_Data.Append
++        (Math_Paths.Segment'(Kind => Math_Paths.Move_To,
++          First => (X => -3.0, Y => -12.0), others => <>));
++      Path.Path_Data.Append
++        (Math_Paths.Segment'(Kind => Math_Paths.Line_To,
++          First => (X => 8.0, Y => -12.0), others => <>));
++      Path.Path_Data.Append
++        (Math_Paths.Segment'(Kind => Math_Paths.Line_To,
++          First => (X => 8.0, Y => 2.0), others => <>));
++      Overflow_Layout.Commands.Append (Path);
++      Rule.Kind := Math_Layout.Rule_Command;
++      Rule.X := -1.0;
++      Rule.Y := -11.0;
++      Rule.Width := 34.0;
++      Rule.Height := 24.0;
++      Overflow_Layout.Commands.Append (Rule);
++      Before := Math_Raster.Measure (Overflow_Layout, 1.0);
++      Full_Overflow := Math_Raster.Render
++        (Fonts, Overflow_Layout, 1.0, Foreground);
++      Check (Before.Origin_X = 3 and then Before.Origin_Y = 2 and then
++        Math_Raster.Origin_X (Full_Overflow) = 3 and then
++        Math_Raster.Origin_Y (Full_Overflow) = 2,
++        "negative path and rule retain exact leading raster origins");
++      Check (Overflow_Layout.Width = 32.0 and then
++        Overflow_Layout.Ascent = 10.0 and then
++        Overflow_Layout.Descent = 12.0,
++        "overflow measurement leaves logical layout metrics immutable");
++      Check (Has_Ink (Full_Overflow),
++        "negative-origin path and four-sided rule paint ink");
++      Tile := Math_Raster.Render_Tile
++        (Fonts, Overflow_Layout, 1.0, Foreground, 0, 0, 256, 256);
++      Check (Math_Raster.Origin_X (Tile) = 3 and then
++        Math_Raster.Origin_Y (Tile) = 2,
++        "tile uses full padded-raster origin");
++      Tile := Math_Raster.Render_Tile
++        (Fonts, Overflow_Layout, 1.0, Foreground, 3, 2, 256, 256);
++      Check (Math_Raster.Origin_X (Tile) = 0 and then
++        Math_Raster.Origin_Y (Tile) = 0,
++        "tile origin is zero at logical top-left");
++      Tile := Math_Raster.Render_Tile
++        (Fonts, Overflow_Layout, 1.0, Foreground, 4, 3, 256, 256);
++      Check (Math_Raster.Origin_X (Tile) = -1 and then
++        Math_Raster.Origin_Y (Tile) = -1,
++        "tile origin remains signed beyond leading padding");
++      declare
++         Right : constant Natural := Math_Raster.Width (Full_Overflow) / 2;
++         Bottom : constant Natural := Math_Raster.Height (Full_Overflow) / 2;
++         Whole : constant Math_Raster.Image := Math_Raster.Render_Tile
++           (Fonts, Overflow_Layout, 1.0, Foreground, 0, 0,
++            Math_Raster.Width (Full_Overflow),
++            Math_Raster.Height (Full_Overflow));
++         A : constant Math_Raster.Image := Math_Raster.Render_Tile
++           (Fonts, Overflow_Layout, 1.0, Foreground, 0, 0, Right, Bottom);
++         B : constant Math_Raster.Image := Math_Raster.Render_Tile
++           (Fonts, Overflow_Layout, 1.0, Foreground, Right, 0,
++            Math_Raster.Width (Full_Overflow) - Right, Bottom);
++         C : constant Math_Raster.Image := Math_Raster.Render_Tile
++           (Fonts, Overflow_Layout, 1.0, Foreground, 0, Bottom, Right,
++            Math_Raster.Height (Full_Overflow) - Bottom);
++         D : constant Math_Raster.Image := Math_Raster.Render_Tile
++           (Fonts, Overflow_Layout, 1.0, Foreground, Right, Bottom,
++            Math_Raster.Width (Full_Overflow) - Right,
++            Math_Raster.Height (Full_Overflow) - Bottom);
++         Leading_Column_Ink : Boolean := False;
++         Leading_Row_Ink : Boolean := False;
++         Matches : Boolean := True;
++         procedure Compare
++           (Part : Math_Raster.Image; Offset_X, Offset_Y : Natural) is
++         begin
++            for Y in 0 .. Math_Raster.Height (Part) - 1 loop
++               for X in 0 .. Math_Raster.Width (Part) - 1 loop
++                  Matches := Matches and then
++                    Math_Raster.Get_Pixel (Part, X, Y) =
++                      Math_Raster.Get_Pixel
++                        (Whole, X + Offset_X, Y + Offset_Y);
++               end loop;
++            end loop;
++         end Compare;
++      begin
++         Matches := Math_Raster.Width (Full_Overflow) = 36 and then
++           Math_Raster.Height (Full_Overflow) = 25 and then
++           Hash (Whole) = Hash (Full_Overflow);
++         Compare (A, 0, 0);
++         Compare (B, Right, 0);
++         Compare (C, 0, Bottom);
++         Compare (D, Right, Bottom);
++         for Y in 0 .. Math_Raster.Height (Full_Overflow) - 1 loop
++            Leading_Row_Ink := Leading_Row_Ink or else
++              Interfaces.Shift_Right
++                (Math_Raster.Get_Pixel (Full_Overflow, 0, Y), 24) > 0;
++         end loop;
++         for X in 0 .. Math_Raster.Width (Full_Overflow) - 1 loop
++            Leading_Column_Ink := Leading_Column_Ink or else
++              Interfaces.Shift_Right
++                (Math_Raster.Get_Pixel (Full_Overflow, X, 0), 24) > 0;
++         end loop;
++         Check (Matches, "full and quadrant tiles match overflow raster");
++         Check (Leading_Row_Ink and then Leading_Column_Ink,
++           "overflow ink reaches leading raster row and column");
++      end;
++      Hidden.Kind := Math_Layout.Path_Command;
++      Hidden.Has_Clip := True;
++      Hidden.Clip_X := 0.0;
++      Hidden.Clip_Y := 0.0;
++      Hidden.Clip_W := 1.0;
++      Hidden.Clip_H := 1.0;
++      Hidden.Path_Data.Append
++        (Math_Paths.Segment'(Kind => Math_Paths.Move_To,
++          First => (X => -100.0, Y => -100.0), others => <>));
++      Hidden.Path_Data.Append
++        (Math_Paths.Segment'(Kind => Math_Paths.Line_To,
++          First => (X => -90.0, Y => -90.0), others => <>));
++      Clipped.Commands.Append (Hidden);
++      Hidden_Bounds := Math_Raster.Measure (Clipped, 1.0);
++      Check (Hidden_Bounds.Origin_X = 0 and then
++        Hidden_Bounds.Origin_Y = 0 and then Hidden_Bounds.Width = 32 and then
++        Hidden_Bounds.Height = 22,
++        "negative path outside clip does not allocate hidden raster extent");
++   end;
+    declare
+       Workers : array (1 .. 2) of Renderer (1);
+       pragma Unreferenced (Workers);
+@@ -1043,71 +1219,68 @@ begin
+    end;
+    Check (Failed, "reject excessive em scale");
+    declare
+-      Width_At_Limit : Math_Layout.Box := Pmb_Layout;
+-      Width_Over_Limit : Math_Layout.Box := Pmb_Layout;
+-      Height_At_Limit : Math_Layout.Box := Pmb_Layout;
+-      Height_Over_Limit : Math_Layout.Box := Pmb_Layout;
++      Width_At_Limit : Math_Layout.Box :=
++        (Valid => True, Width => 8191.2, others => <>);
++      Width_Over_Limit : Math_Layout.Box := Width_At_Limit;
++      Height_At_Limit : Math_Layout.Box :=
++        (Valid => True, Ascent => 4095.2, others => <>);
++      Height_Over_Limit : Math_Layout.Box := Height_At_Limit;
++      Leading_Width : Math_Layout.Box := Width_At_Limit;
++      Leading_Height : Math_Layout.Box := Height_At_Limit;
++      Shadow_At_Limit : Math_Layout.Box :=
++        (Valid => True, Width => 8191.2, Ascent => 20.0, others => <>);
++      Shadow_Over_Limit : Math_Layout.Box := Shadow_At_Limit;
++      Rule : Math_Layout.Draw_Command;
++      Shadow : Math_Layout.Draw_Command;
+       Boundary_Image : Math_Raster.Image;
+    begin
+-      Width_At_Limit.Width := 8191.2;
+-      Width_At_Limit.Ascent := 0.0;
+-      Width_At_Limit.Descent := 0.0;
+-      Width_Over_Limit.Width := 8191.2;
+-      Width_Over_Limit.Ascent := 0.0;
+-      Width_Over_Limit.Descent := 0.0;
+-      Height_At_Limit.Width := 0.0;
+-      Height_At_Limit.Ascent := 4095.2;
+-      Height_At_Limit.Descent := 0.0;
+-      Height_Over_Limit.Width := 0.0;
+-      Height_Over_Limit.Ascent := 4095.2;
+-      Height_Over_Limit.Descent := 0.0;
+-      for Index in Pmb_Layout.Commands.First_Index ..
+-        Pmb_Layout.Commands.Last_Index
+-      loop
+-         declare
+-            Command : constant Math_Layout.Draw_Command :=
+-              Pmb_Layout.Commands (Index);
+-         begin
+-            if Command.Kind = Math_Layout.Glyph_Command then
+-               declare
+-                  Width_Command : Math_Layout.Draw_Command := Command;
+-               begin
+-                  Width_Command.Has_Shadow := True;
+-                  Width_Command.Shadow_X := 0.0;
+-                  Width_Command.Shadow_Y := 0.0;
+-                  Width_Command.Shadow_Blur_Px := 0.7;
+-                  Width_At_Limit.Commands.Replace_Element
+-                    (Index, Width_Command);
+-                  Width_Over_Limit.Commands.Replace_Element
+-                    (Index, Width_Command);
+-               end;
+-               declare
+-                  Height_Command : Math_Layout.Draw_Command := Command;
+-               begin
+-                  Height_Command.Has_Shadow := True;
+-                  Height_Command.Shadow_X := 0.0;
+-                  Height_Command.Shadow_Y := 0.0;
+-                  Height_Command.Shadow_Blur_Px := 0.7;
+-                  Height_At_Limit.Commands.Replace_Element
+-                    (Index, Height_Command);
+-                  Height_Over_Limit.Commands.Replace_Element
+-                    (Index, Height_Command);
+-               end;
+-            end if;
+-         end;
+-      end loop;
++      Rule.Kind := Math_Layout.Rule_Command;
++      Rule.X := 8191.2;
++      Rule.Y := 0.0;
++      Rule.Width := 0.7;
++      Rule.Height := 1.0;
++      Width_At_Limit.Commands.Append (Rule);
++      Width_Over_Limit.Width := 8191.31;
++      Rule.X := 8191.31;
++      Width_Over_Limit.Commands.Append (Rule);
++      Rule.X := 0.0;
++      Rule.Y := 0.0;
++      Rule.Width := 1.0;
++      Rule.Height := 0.7;
++      Height_At_Limit.Commands.Append (Rule);
++      Height_Over_Limit.Ascent := 4095.31;
++      Rule.Y := 0.0;
++      Height_Over_Limit.Commands.Append (Rule);
++      Rule.X := -1.0;
++      Rule.Y := 0.0;
++      Rule.Width := 0.0;
++      Rule.Height := 0.0;
++      Leading_Width.Commands.Append (Rule);
++      Rule.X := 0.0;
++      Rule.Y := -4096.2;
++      Rule.Width := 0.0;
++      Rule.Height := 0.0;
++      Leading_Height.Commands.Append (Rule);
++      Shadow.Kind := Math_Layout.Glyph_Command;
++      Shadow.Code_Point := Character'Pos ('T');
++      Shadow.X := 1.0;
++      Shadow.Has_Shadow := True;
++      Shadow.Shadow_Blur_Px := 0.7;
++      Shadow_At_Limit.Commands.Append (Shadow);
++      Shadow_Over_Limit.Width := 8191.31;
++      Shadow_Over_Limit.Commands.Append (Shadow);
+       Boundary_Image := Math_Raster.Render
+         (Fonts, Width_At_Limit, 1.0, Foreground);
+-      Check (Math_Raster.Width (Boundary_Image) = 8192 and then
+-        Math_Raster.Height (Boundary_Image) = 1,
+-        "fractional width and overflow ceil combined to 8192");
++      Check (Math_Raster.Width (Boundary_Image) = 8192,
++        "rule trailing width 8191.2 plus 0.7 ceil is 8192");
++      Boundary_Image := Math_Raster.Render
++        (Fonts, Shadow_At_Limit, 1.0, Foreground);
++      Check (Math_Raster.Width (Boundary_Image) = 8192,
++        "shadow trailing width 8191.2 plus 0.7 ceil is 8192");
+       Boundary_Image := Math_Raster.Render
+         (Fonts, Height_At_Limit, 1.0, Foreground);
+-      Check (Math_Raster.Width (Boundary_Image) <= 8192 and then
+-        Math_Raster.Height (Boundary_Image) = 4096,
+-        "fractional height and overflow ceil combined to 4096");
+-      Width_Over_Limit.Width := 8191.31;
+-      Height_Over_Limit.Ascent := 4095.31;
++      Check (Math_Raster.Height (Boundary_Image) = 4096,
++        "rule trailing height 4095.2 plus 0.7 ceil is 4096");
+       begin
+          Boundary_Image := Math_Raster.Render
+            (Fonts, Width_Over_Limit, 1.0, Foreground);
+@@ -1116,6 +1289,14 @@ begin
+          when Math_Raster.Raster_Error => Failed := True;
+       end;
+       Check (Failed, "reject combined full width above 8192");
++      begin
++         Boundary_Image := Math_Raster.Render
++           (Fonts, Shadow_Over_Limit, 1.0, Foreground);
++         Failed := False;
++      exception
++         when Math_Raster.Raster_Error => Failed := True;
++      end;
++      Check (Failed, "reject shadow combined full width above 8192");
+       begin
+          Boundary_Image := Math_Raster.Render
+            (Fonts, Height_Over_Limit, 1.0, Foreground);
+@@ -1124,6 +1305,22 @@ begin
+          when Math_Raster.Raster_Error => Failed := True;
+       end;
+       Check (Failed, "reject combined full height above 4096");
++      begin
++         Boundary_Image := Math_Raster.Render
++           (Fonts, Leading_Width, 1.0, Foreground);
++         Failed := False;
++      exception
++         when Math_Raster.Raster_Error => Failed := True;
++      end;
++      Check (Failed, "one pixel leading rule padding counts toward width cap");
++      begin
++         Boundary_Image := Math_Raster.Render
++           (Fonts, Leading_Height, 1.0, Foreground);
++         Failed := False;
++      exception
++         when Math_Raster.Raster_Error => Failed := True;
++      end;
++      Check (Failed, "one pixel leading rule padding counts toward height cap");
+    end;
+    begin
+       declare

@@ -120,8 +120,15 @@ This model has two key properties:
   for characters and horizontal padding for composites, 0.046 em butt strokes
   independent of rule minimums, and SVG viewport clipping. Measured cancellation
   includes the body italic margin once; logical vertical metrics are unchanged.
-  Retained rasters still omit negative-origin overflow; isolated cancellation
-  upper-ink failures remain open (report §11.9), not hidden by logical padding.
+  Retained rasters measure conservative clipped path/rule/reference-glyph bounds
+  on all sides and locate logical top-left with explicit origin metadata. Tiles
+  index the padded full raster; their relative logical origins can be negative.
+  Worker results carry those origins and a raster-local baseline. GTK reserves
+  physical paint extents separately from logical width, includes leading Y in
+  baselines, and compensates Fleqn area margin for leading X. Inline painting
+  uses the same bounds but still runs on GTK. Logical math metrics are unchanged.
+  Native glyph bearings, shaped-run ink and parent/viewport clipping remain
+  qualification limits; scoped evidence and oracle correction are in §11.10.
   Full TeX compatibility is not promised. Bundled KaTeX 0.16.22 fonts carry MIT
   notices under `share/coyote/math/fonts/`.
 - **Session compatibility.** New assistant JSONL records contain no `format` or

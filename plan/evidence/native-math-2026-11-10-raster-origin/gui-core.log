@@ -1,0 +1,25 @@
+
+(coyote_test:269503): Gtk-WARNING **: 12:47:26.436: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:269503): Gtk-WARNING **: 12:47:26.436: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:269503): Gtk-WARNING **: 12:47:26.436: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:269503): Gtk-WARNING **: 12:47:26.436: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:269503): Gtk-WARNING **: 12:47:26.436: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:269503): Gtk-WARNING **: 12:47:26.436: Theme parsing error: colors.css:77:65: Invalid number for color value
+
+(coyote_test:269503): Gtk-CRITICAL **: 12:47:26.638: gtk_widget_draw: assertion '!widget->priv->alloc_needed' failed
+FAIL    Coyote.GUI.Conversation_Stack renders display core primitives
+
+FAIL Coyote.GUI.Conversation_Stack renders display core primitives (in 0.170285 sec.)
+    standalone cancellation paints ink in padded top rows
+    at coyote_gui_conversation_stack_tests.adb:3359
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 0.264514 sec. seconds

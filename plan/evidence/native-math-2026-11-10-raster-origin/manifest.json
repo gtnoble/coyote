@@ -1,0 +1,78 @@
+{
+  "date": "2026-11-10",
+  "gitRevision": "b90dd02cca3fdcac985ee195d7704eba2cc00f50",
+  "snapshot": "uncommitted developer snapshot; no release or acceptance",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "sources": {
+    "src/coyote_math/math_raster.ads": "4df52c8456fab789a9bccee99ad63f1b471b990c6e13f60cd711dd6c945303f8",
+    "src/coyote_math/math_raster.adb": "bba0ac6d7719c9e624725881ac7825380daddc7b6cbedcf7d80c9c64b12ad2e5",
+    "src/coyote_math/coyote_math_jobs.ads": "31407a9e6db4e40da4c5c1c21ada4f2e7e8a449babe5831e32a829919edd648e",
+    "src/coyote_math/coyote_math_jobs.adb": "fe6dd2f85f73fe144fce6e2d9465c53ac7816b4cf7b3cf25e5d006ea3f6ca300",
+    "src/coyote_gui/coyote_gui-math_element.ads": "88fa7b193d29f053a5b2b7758db98a63cab3abb38f5f23988bc0db87b542e931",
+    "src/coyote_gui/coyote_gui-math_element.adb": "d1f94552906556f583973f541a7b6bcb789b406c5e31b6e5279e1867563b6e67",
+    "test/src/coyote_gui_conversation_stack_tests.adb": "6050462721cc42e91ae51ebf6e0d3f766cbc9834a5f3a810292ec5271c881ea5",
+    "test/tools/math_raster_probe.adb": "51c93312a0036a213adae7009ee3548a89558bf3c24f87fb7a92625268b2d185",
+    "test/tools/math_jobs_probe.adb": "9d68886f2d732df14bcbe142c362ddd4ca12b66b210284919e8edf2708e58b6e",
+    "test/tools/math_image_export.adb": "08e52ddf581ef8489f1534e6d71cf53182629f0a487c5a07f38acf5311b8acbe",
+    "test/tools/check-math-images.py": "6c824036a75d05b374e4f57b970025bf25e0029111eee7533c25c55ee410c0e5",
+    "test/fixtures/math-compatibility/cancel-geometry-manifest.json": "1ed9685a668baccb04025a65cdc1ba1ee5e88263a7a8cd4c725edca933aeee40",
+    "test/fixtures/math-compatibility/browser-pilot-manifest.json": "36b50c7cce1154632ab52a42ec4500f35cf6e51947b8e6c0e18bde9c317191a7"
+  },
+  "fonts": {
+    "share/coyote/math/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "share/coyote/math/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "share/coyote/math/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "share/coyote/math/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "share/coyote/math/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "share/coyote/math/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "share/coyote/math/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "share/coyote/math/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "share/coyote/math/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "share/coyote/math/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "share/coyote/math/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "share/coyote/math/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "share/coyote/math/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa"
+  },
+  "executables": {
+    "bin/coyote": "05127099e7c43503f55077f0c8f514b8a2cffe7709a3b6f62eeab467baab92d6",
+    "test/bin/coyote_test": "1b92f6544061d78ab5caec4eb671fe62887b62f6c60d2faed1f1a32e289bd9f6",
+    "/tmp/coyote-origin/raster/bin/math_raster_probe": "eab81bc1e3ef7efa25453bb818e4a1eb10142f9be352a5f5be80b512cb79d90f",
+    "/tmp/coyote-origin/jobs/bin/math_jobs_probe": "5077b9ef81a05c588f3a60501c30725e22b95bb9cc9f5bc41ce7cfed3f216fe7",
+    "/tmp/coyote-origin/images/build/bin/math_image_export": "930155f4b28b17f4f31c3eb1692939c4767d306bbf7824a1ab2d3df945ebce92",
+    "/tmp/coyote-cancel/images/build/bin/math_image_export": "ceddc9083ee5f62df7a1c5f2fa448cccc1c60c203b4da2c6b2a3185212e242b6"
+  },
+  "oracleArchiveSha256": "e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365",
+  "toolchain": {
+    "alr": "APPLICATION\nalr version:               2.1.0\nlibalire version:          2.1.0\nsource commit:             2681b313d08224014fa3f5e4f76e9c75347213d2\nsource changes:            clean\ncompilation date:          2025-03-04 10:20:58\ncompiled with version:     14.2.0\n\nCONFIGURATION\nhome folder:               /tmp\nsettings folder:           /home/gtnoble/.config/alire\ncache folder:              /home/gtnoble/.local/share/alire\nvault folder:              /home/gtnoble/.local/share/alire/releases\nbuild folder:              /home/gtnoble/.local/share/alire/builds\ntemp folder:               /run/user/1000\nforce flag:                FALSE\nnon-interactive flag:      FALSE\ncommunity index branch:    stable-1.4.0\ncompatible index versions: ^1.1 & <=1.4.0\nindexes folder:            /home/gtnoble/.config/alire/indexes\nindexes metadata:          OK\nindex #2:                  (community) git+https://github.com/alire-project/alire-index#stable-1.4.0\ntoolchain folder:          /home/gtnoble/.local/share/alire/toolchains\ntoolchain assistant:       disabled\ntool #1 gnat:              gnat_native=15.2.1\ntool #2 gprbuild:          gprbuild=25.0.1\nsystem package manager:    /usr/bin/apt\ndistro detection disabled: FALSE\n\nWORKSPACE\nroot status:               VALID\nroot release:              coyote=0.1.0-dev\nroot load error:           none\nroot folder:               /home/gtnoble/Projects/coyote/coyote-latex-math\ncurrent folder:            /home/gtnoble/Projects/coyote/coyote-latex-math\n\nSYSTEM\ndistribution:              UBUNTU\nhost-arch:                 X86_64\nos:                        LINUX\ntarget:                    NATIVE\ntoolchain:                 USER\nword-size:                 BITS_64",
+    "gnat": "GNATLS 15.2.0\nCopyright (C) 1992-2025, Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "gprbuild": "GPRBUILD 25.0.0 (2025-05-16) (x86_64-pc-linux-gnu)\nCopyright (C) 2004-2025, AdaCore\nThis is free software; see the source for copying conditions.\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "node": "v22.13.1",
+    "python": "Python 3.12.3"
+  },
+  "oracleCorrection": {
+    "fixedBrowserHorizontalMarginPx": 32,
+    "fixedCropPaddingPx": 12,
+    "sameOracleBaseline": {
+      "pass": 77,
+      "fail": 18
+    },
+    "final": {
+      "pass": 95,
+      "fail": 0
+    }
+  },
+  "limits": [
+    "Reference glyph metrics not exact native bearings; shaped-run ink not measured",
+    "Inline painting still GTK-synchronous",
+    "No resource/Valgrind rerun or independent acceptance",
+    "Binaries and reference archive not bundled",
+    "Absolute report paths are retrieval identifiers"
+  ]
+}

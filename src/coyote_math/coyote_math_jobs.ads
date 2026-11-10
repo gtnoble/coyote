@@ -75,6 +75,10 @@ package Coyote_Math_Jobs is
    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
    function Raster_Width (Item : Job_Result) return Natural;
    function Raster_Height (Item : Job_Result) return Natural;
+   --  Raster origins locate the logical top-left inside the full raster.
+   function Raster_Origin_X (Item : Job_Result) return Natural;
+   function Raster_Origin_Y (Item : Job_Result) return Natural;
+   --  Baseline is measured from raster row zero, including the top origin.
    function Raster_Baseline (Item : Job_Result) return Natural;
    function Raster_Pixel
      (Item : Job_Result; X, Y : Natural) return Interfaces.Unsigned_32;

@@ -22,6 +22,7 @@ with Glib.Values;
 with Glib; use Glib;
 with Glib.Error;
 with Math_Raster_Budget;
+with Math_Raster;
 with Gtk.Css_Provider;
 with Gtk.Drawing_Area;
 with Gtk.Expander;
@@ -187,37 +188,59 @@ package body Coyote_GUI.Math_Element is
          Indent := Glib.Gint
            (Long_Float'Ceiling (2.0 * 24.0 * Element.Math_Scale));
       end if;
-      Element.Area.Set_Margin_Start (Indent);
+      if Element.Layout_Valid and then Element.Layout.Left_Aligned then
+         --  Keep the logical anchor at the requested indent when raster ink
+         --  extends left; the parent boundary clamps unavoidable overflow.
+         Element.Area.Set_Margin_Start
+           (Glib.Gint'Max
+              (0, Indent - Glib.Gint (Element.Raster_Origin_X)));
+      else
+         Element.Area.Set_Margin_Start (Indent);
+      end if;
       Element.Fallback.Set_Margin_Start (Indent);
    end Apply_Display_Indent;
 
    procedure Measure_Layout (Element : in out Instance) is
-      Em : Long_Float;
-      Width : Long_Float;
-      Height : Long_Float;
+      Em : constant Long_Float := 24.0 * Element.Math_Scale;
+      Bounds : Math_Raster.Raster_Bounds;
+      Logical_Width_Value : Long_Float;
+      Logical_Height_Value : Long_Float;
    begin
       Element.Layout_Valid := Element.Layout.Valid;
       Element.Valid := False;
+      Element.Raster_Origin_X := 0;
+      Element.Raster_Origin_Y := 0;
+      Element.Raster_Baseline := 0;
       if Element.Layout_Valid then
-         Em := 24.0 * Element.Math_Scale;
-         Width := Element.Layout.Width * Em;
-         Height := (Element.Layout.Ascent + Element.Layout.Descent) * Em;
-         if not Width'Valid or else not Height'Valid
-           or else Width > 8_188.0 or else Height > 4_092.0
+         Logical_Width_Value := Element.Layout.Width * Em;
+         Logical_Height_Value :=
+           (Element.Layout.Ascent + Element.Layout.Descent) * Em;
+         if not Logical_Width_Value'Valid
+           or else not Logical_Height_Value'Valid
+           or else Logical_Width_Value > 8_188.0
+           or else Logical_Height_Value > 4_092.0
          then
             Element.Layout_Valid := False;
          else
-            Element.Math_Width := Natural'Max
-              (1, Natural (Long_Float'Ceiling (Width)) + 4);
-            Element.Math_Baseline := Natural'Max
-              (1, Natural (Long_Float'Ceiling
-                (Element.Layout.Ascent * Em)) + 2);
-            Element.Math_Height := Natural'Max
-              (1, Natural (Long_Float'Ceiling (Height)) + 4);
+            Bounds := Math_Raster.Measure (Element.Layout, Em);
+            if Bounds.Width > 8_188 or else Bounds.Height > 4_092 then
+               Element.Layout_Valid := False;
+            else
+               Element.Logical_Width := Natural'Max
+                 (1, Natural (Long_Float'Ceiling (Logical_Width_Value)));
+               Element.Raster_Origin_X := Bounds.Origin_X;
+               Element.Raster_Origin_Y := Bounds.Origin_Y;
+               Element.Math_Width := Bounds.Width + 4;
+               Element.Math_Height := Bounds.Height + 4;
+               Element.Math_Baseline := Natural
+                 (Long_Float'Ceiling (Element.Layout.Ascent * Em))
+                 + Bounds.Origin_Y + 2;
+            end if;
          end if;
       end if;
       if not Element.Layout_Valid then
          Element.Math_Width := 0;
+         Element.Logical_Width := 0;
          Element.Math_Baseline := 0;
          Element.Math_Height := 1;
       end if;
@@ -227,6 +250,7 @@ package body Coyote_GUI.Math_Element is
          Element.Layout_Valid := False;
          Element.Valid := False;
          Element.Math_Width := 0;
+         Element.Logical_Width := 0;
          Element.Math_Height := 1;
          Element.Math_Baseline := 0;
          Apply_Display_Indent (Element);
@@ -260,7 +284,6 @@ package body Coyote_GUI.Math_Element is
       Element.Raster_Row := 0;
       Element.Raster_Width := 0;
       Element.Raster_Height := 0;
-      Element.Raster_Baseline := 0;
       Element.Raster_Ready := False;
    end Clear_Raster;
 
@@ -327,10 +350,8 @@ package body Coyote_GUI.Math_Element is
       end if;
       if Last_Row = Element.Raster_Height then
          Coyote_Math_Jobs.Release (Element.Raster_Result);
-         Element.Math_Width := Natural'Max
-           (Element.Math_Width, Element.Raster_Width + 4);
-         Element.Math_Height := Natural'Max
-           (Element.Math_Height, Element.Raster_Height + 4);
+         Element.Math_Width := Element.Raster_Width + 4;
+         Element.Math_Height := Element.Raster_Height + 4;
          Element.Raster_Ready := True;
          Element.Valid := Element.Layout_Valid;
          Update_Visibility (Element.all);
@@ -412,12 +433,18 @@ package body Coyote_GUI.Math_Element is
                  Coyote_Math_Jobs.Raster_Width (Item.all);
                Element.Raster_Height :=
                  Coyote_Math_Jobs.Raster_Height (Item.all);
+               Element.Raster_Origin_X := Natural'Max
+                 (0, Coyote_Math_Jobs.Raster_Origin_X (Item.all));
+               Element.Raster_Origin_Y := Natural'Max
+                 (0, Coyote_Math_Jobs.Raster_Origin_Y (Item.all));
                Element.Raster_Baseline :=
                  Coyote_Math_Jobs.Raster_Baseline (Item.all);
-               if Element.Raster_Width > 0
+               Element.Math_Baseline := Element.Raster_Baseline + 2;
+               if Element.Layout_Valid
+                 and then Element.Raster_Width > 0
                  and then Element.Raster_Height > 0
-                 and then Element.Raster_Width <= 8_192
-                 and then Element.Raster_Height <= 4_096
+                 and then Element.Raster_Width <= 8_188
+                 and then Element.Raster_Height <= 4_092
                then
                   declare
                      Row_Bytes : constant Gint :=
@@ -597,18 +624,23 @@ package body Coyote_GUI.Math_Element is
       X := (if Element.Layout.Left_Aligned then 2.0
         else Long_Float'Max
           (2.0, (Long_Float (Area.Get_Allocated_Width)
-            - Long_Float (Element.Math_Width - 4)) / 2.0));
+            - Long_Float (Element.Logical_Width)) / 2.0));
+      if Element.Layout.Left_Aligned then
+         X := 2.0;
+      else
+         X := Long_Float'Max
+           (2.0, Long_Float'Min
+             (Long_Float (Area.Get_Allocated_Width)
+                - Long_Float (Element.Raster_Width) - 2.0,
+              X - Long_Float (Element.Raster_Origin_X)));
+      end if;
       Gtk.Style_Context.Get_Style_Context (Area).Get_Color
         (Gtk.Enums.Gtk_State_Flag_Normal, Color);
       if Element.Raster_Ready and then
         Element.Raster_Image /= Cairo.Null_Surface
       then
          Cairo.Set_Source_Surface
-           (Context, Element.Raster_Image, Glib.Gdouble (X),
-            Glib.Gdouble (Long_Float'Max
-              (0.0, Long_Float (Element.Math_Baseline
-                - Natural'Min (Element.Math_Baseline,
-                  Element.Raster_Baseline)))));
+           (Context, Element.Raster_Image, Glib.Gdouble (X), 2.0);
          Cairo.Paint (Context);
       end if;
       return True;
@@ -721,8 +753,7 @@ package body Coyote_GUI.Math_Element is
       Paint_Layout : Math_Layout.Box := Layout;
       Safe_Scale : Long_Float := 1.0;
       Em : Long_Float;
-      Width_Value : Long_Float;
-      Height_Value : Long_Float;
+      Bounds : Math_Raster.Raster_Bounds;
       Width : Natural;
       Height : Natural;
       Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
@@ -758,20 +789,15 @@ package body Coyote_GUI.Math_Element is
       if not Paint_Layout.Valid then
          return null;
       end if;
-      Width_Value := Paint_Layout.Width * Em;
-      Height_Value :=
-        (Paint_Layout.Ascent + Paint_Layout.Descent) * Em;
-      if not Width_Value'Valid or else not Height_Value'Valid
-        or else Width_Value > 1_996.0 or else Height_Value > 508.0
-      then
+      Bounds := Math_Raster.Measure (Paint_Layout, Em);
+      if Bounds.Width > 1_996 or else Bounds.Height > 508 then
          return null;
       end if;
-      Width := Natural'Max
-        (1, Natural (Long_Float'Ceiling (Width_Value)) + 4);
-      Height := Natural'Max
-        (1, Natural (Long_Float'Ceiling (Height_Value)) + 4);
-      Baseline := Natural'Max (1, Natural (Long_Float'Ceiling
-        (Paint_Layout.Ascent * Em)) + 2);
+      Width := Bounds.Width + 4;
+      Height := Bounds.Height + 4;
+      Baseline := Bounds.Origin_Y + Natural'Max
+        (1, Natural (Long_Float'Ceiling
+          (Paint_Layout.Ascent * Em))) + 2;
       Surface := Cairo.Image_Surface.Create
         (Cairo.Image_Surface.Cairo_Format_ARGB32,
          Gint (Width), Gint (Height));
@@ -789,8 +815,8 @@ package body Coyote_GUI.Math_Element is
          return null;
       end if;
       Gdk.Cairo.Set_Source_RGBA (Context, Color);
-      Math_Painter.Draw (Fonts, Context, Paint_Layout, 2.0,
-        Long_Float (Baseline), Em);
+      Math_Painter.Draw (Fonts, Context, Paint_Layout,
+        Long_Float (Bounds.Origin_X + 2), Long_Float (Baseline), Em);
       Cairo.Destroy (Context);
       Context := Cairo.Null_Context;
       Cairo.Surface.Flush (Surface);

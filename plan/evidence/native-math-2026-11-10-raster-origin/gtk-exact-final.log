@@ -1,0 +1,11 @@
+Logs: /tmp/gtk-interactions-ky93koay
+PASS plain: /tmp/gtk-interactions-ky93koay/01-plain.log
+PASS unicode: /tmp/gtk-interactions-ky93koay/02-unicode.log
+PASS bidi: /tmp/gtk-interactions-ky93koay/03-bidi.log
+PASS inline-math: /tmp/gtk-interactions-ky93koay/04-inline-math.log
+PASS multiline: /tmp/gtk-interactions-ky93koay/05-multiline.log
+PASS plain: /tmp/gtk-interactions-ky93koay/06-plain.log
+PASS link-click: /tmp/gtk-interactions-ky93koay/07-link-click.log
+PASS link-hover: /tmp/gtk-interactions-ky93koay/08-link-hover.log
+PASS math-boundary: /tmp/gtk-interactions-ky93koay/09-math-boundary.log
+Summary: 9/9 passed

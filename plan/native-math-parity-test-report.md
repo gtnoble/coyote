@@ -1004,3 +1004,93 @@ Whole-job allocation, hard deadlines, inline GTK/cache, fallback-font pins,
 callable comparisons, native lifecycle/Valgrind failure and independent visual/
 AT acceptance remain open. Valgrind/resources not rerun. Approved SRS-MATH v1.0
 and D01–D15 unchanged; no release, installation or commit.
+
+
+### 11.10 Fresh continuation — origin-aware retained rasters, 2026-11-10
+
+**Scope:** preserve leading path/rule/reference-glyph ink through full/tile
+rasterization, worker publication, GTK adoption and inline Pixbuf painting,
+without changing mathematical layout metrics. `Math_Raster.Measure` computes
+conservative clipped bounds, integer leading padding and trailing extents.
+Image origins locate logical top-left inside the pixel canvas; tile origins
+are signed relative to tile pixel zero. Tiles index the padded full raster.
+Full 8192×4096 and tile 256×256 caps still apply; leading and trailing extents
+count together. Existing shadow reservations are preserved with additional
+leading glyph-metric/blur bounds. Input validation precedes scaled arithmetic.
+
+Worker results expose origins and a raster-local baseline, and charge the
+actual stride×height. GTK keeps logical width separate from physical paint
+extent, reserves full raster bounds plus existing padding, and includes leading
+Y in its baseline. Centered placement preserves the logical center where the
+allocation permits, clamping the raster inside it. Fleqn drawing-area margin
+compensates leading X while fallback keeps its full two-em margin; compensation
+clamps at the parent boundary. Inline painting uses the same measured bounds
+and baseline, but **still runs on GTK**. Larger retained rasters are charged by
+the existing ledger; this is not aggregate memory or GTK-slice qualification.
+
+**Oracle correction:** the prior browser fixture positioned formulas at viewport
+X=0, so screenshots lost negative-X reference ink. The first origin-aware run
+passes the six single-T cases but reports **83/95**, exposing 12 isolated
+compound/accent cases whose newly retained native left ink had no reference
+pixels. The checker now uses a fixed **32 px horizontal browser margin**, the
+same for every formula, not selected from native dimensions or foreground.
+It retains the fixed 12 px crop padding and fails crops outside the screenshot;
+logical dimensions/origins remain DOM-derived. Native origin metadata drives
+union-canvas placement, never foreground fitting. Native/browser raster padding
+need not match. Added consistent native-origin displacement and inconsistent
+metadata negative controls, retaining prior browser-origin, baseline and
+omitted-base controls. No threshold, pin, source case or logical metric changed.
+
+**Comparable image results:** with the corrected oracle, the preserved pre-fix
+exporter is **77 pass / 18 fail / 0 blocked**, not the older clipped-oracle
+89/95. Final exporter and exact-source repeat are **95/95** each. All 18 isolated
+cancellation cases now pass. Original unchanged pilot **29/29**. Historical
+89/95 and the intermediate 83/95 remain archived, not rewritten or discarded.
+The 95-case manifest is unchanged. Aggregate masks still do not qualify semantic
+component mapping or the complete reference domain.
+
+Final-source developer verification:
+
+- Incremental root/test **development** builds pass; profiles select development.
+  Existing warnings remain; no release or clean/warning-free qualification.
+- Full Xvfb suite **1074/1074**, zero failed assertions/unexpected errors,
+  cumulative **147.547471 s**. Earlier intermediate candidate passes at
+  146.624884 s and 146.300164 s are distinct snapshots, not substituted for this
+  final run or reconciliation of historical failed repeats.
+- Raster probe **1108/1108**; worker probe **162/162**, including independent
+  measured cancellation origins/baselines and actual retained-byte release.
+  Its 2000/2000 warm requests and queue saturation checks are scoped headless
+  characterization, not queue-inclusive deadlines or whole-job memory proof.
+- Geometry unchanged **235/235** across 13 groups. Added full/tile pixel equality,
+  signed tile origins, leading ink, clipping, unchanged layout metrics and exact
+  combined dimension-cap tests. Old synthetic zero-ascent glyph boundary fixtures
+  legitimately gained leading ink; explicit nonzero rule fixtures now isolate
+  fractional rounding, with separate shadow/leading overflow cap checks retained.
+- Existing registered GUI core/Fleqn cases each pass with added actual display
+  and inline leading-ink snapshots, physical sizing, baseline and logical-anchor
+  checks. Registration count remains unchanged. An intermediate snapshot failed
+  because GTK allocation was pending; final tests pump a bounded monotonic settle,
+  assert allocation and snapshot actual widget dimensions. Earlier test compile/
+  scope errors and failed snapshot logs are retained as intermediate evidence.
+- Required GTK interactions **9/9**, interaction-runner containment self-test and
+  offline Plain/RPC HTTP-timeout lifecycle checks pass. Intentional kill/timeout
+  self-test fixtures are not application failures. No live-provider checks.
+
+**Evidence:** `plan/evidence/native-math-2026-11-10-raster-origin/` retains same-
+oracle baseline/final/repeat/original PNGs and reports, initial clipped-oracle
+report, exact-source probe/build/full/geometry/post-build logs, implementation
+patch and source/font/executable hashes/checksums. Read-only review prompted
+Fleqn logical-anchor compensation; final review found no concrete blocker.
+Developer and agent review are not independent human acceptance.
+
+**Limits and disposition:** scoped negative-origin retention and the 18 isolated
+cancellation image cases are corrected. Bounds use reference glyph metrics,
+not exact native bearings; shaped-run ink, fallback-font pins and complete font
+coverage remain unqualified. Curve control hulls are conservative, not minimal
+ink bounds. Fixed browser crop padding is not proof of complete overflow for
+arbitrary formulas. Parent/viewport clipping still applies. Inline worker
+painting, complete display tiling/cache scheduling, whole-job 256 MiB and all
+process cache lifetimes, hard deadlines/GTK slices, callable gaps, native
+lifecycle/Valgrind and independent visual/AT acceptance remain open. Valgrind/
+resource characterization not rerun. SRS-MATH v1.0 and D01–D15 unchanged;
+PCR-125 OPEN and feature **NOT COMPLETE**. No release, installation or commit.

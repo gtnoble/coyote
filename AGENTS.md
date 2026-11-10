@@ -206,6 +206,19 @@ hide negative-origin overflow with logical padding or case removal. Report
 Native cancellation SVG stroke is0.046em, independent of minRuleThickness;
 strike-through unchanged. No complete parity or acceptance; broad gates remain.
 
+The latest 2026-11-10 origin-aware continuation supersedes those scoped raster
+failures: corrected independent browser-margin oracle baseline77/95 improves
+95/95 and repeats95/95; original29/29. The old X=0 browser viewport clipped
+negative-X reference ink, so historical89/95 is not a comparable baseline.
+Raster1108/1108, jobs162/162, geometry235/235 and exact-final full1074/1074
+(147.547471s cumulative) pass. Full/tile images carry logical origins; worker
+baselines and GTK physical paint extents include leading padding without changing
+logical math metrics. Fleqn area margin compensates leading X. Inline painting
+still runs on GTK. Report §11.10 and
+`plan/evidence/native-math-2026-11-10-raster-origin/` control current evidence.
+Native bearings/shaped-run ink, parent clipping and broader qualification gates
+remain open; no parity/resource/human acceptance, release or installation.
+
 PCR-126 HTTP-timeout developer verification (2026-11-07) passes the full
 Xvfb suite 1068/1068, zero failures/errors, 138.877699 s cumulative, and the
 standalone offline Plain/RPC lifecycle harness. Evidence and commands are in

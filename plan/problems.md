@@ -4638,3 +4638,31 @@ are historical, not current-source qualification.
   and parent PCR-125 OPEN, NOT COMPLETE. Broader qualification gates unchanged;
   Valgrind/resources not rerun. Developer/agent review is not independent
   acceptance. No release, installation or commit.
+
+
+### PCR-125 — 2026-11-10 origin-aware raster retention and oracle viewport
+
+- **Category:** Code, Test, Design.
+- **Priority:** 3-Moderate (unchanged parent classification).
+- **Problem:** retained rasters omitted leading ink and had no origin metadata;
+  GTK/export/jobs assumed logical origin at pixel zero. Browser fixture X=0
+  independently clipped negative-X reference ink, hiding additional failures.
+- **Affected products:** `math_raster`, `coyote_math_jobs`, GUI math element,
+  raster/job/GUI probes, native image exporter/checker and design/report records.
+- **Action:** conservative four-sided bounds, origin-aware full/tile translation,
+  worker baseline and metadata, GTK physical extent/adoption/inline painting and
+  Fleqn logical-anchor compensation. Keep logical math metrics unchanged. Fixed
+  independent32px browser margin and origin-consistency/displacement controls;
+  no threshold/pin/case change. Retain historical/intermediate failures.
+- **Verification:** corrected-oracle pre-fix77/95, final95/95 twice; original29/29.
+  Exact-final development builds/full1074/1074; raster1108/1108, jobs162/162,
+  geometry235/235; extended GUI snapshots/alignment pass; GTK9/9, runner/offline
+  lifecycle pass. Evidence/report §11.10,
+  `plan/evidence/native-math-2026-11-10-raster-origin/`.
+- **Status:** scoped retention and oracle viewport defects resolved2026-11-10;
+  all18 isolated cancellation cases pass. Exact native glyph bearings, shaped
+  text ink, parent clipping and complete font/overflow qualification remain open.
+  Inline worker, complete tiling/cache scheduling, whole-job/process resources,
+  deadline/GTK-slice/callable/lifecycle/human acceptance gates unchanged.
+  Valgrind/resources not rerun. PCR-125 OPEN, feature NOT COMPLETE; developer/
+  agent review not independent acceptance; no release/install/commit.

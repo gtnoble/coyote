@@ -9,6 +9,7 @@ with Coyote_Math_Jobs;
 with Math_Layout;
 with Math_Syntax;
 with Math_Semantics;
+with Math_Painter;
 procedure Math_Jobs_Probe is
    package Jobs renames Coyote_Math_Jobs;
    use type Jobs.Job_Status;
@@ -412,6 +413,131 @@ begin
      "cancelled large-source work publishes no result");
    Jobs.Release (R);
 
+   Jobs.Start;
+   declare
+      Horizontal_Id : Jobs.Request_Id;
+      Vertical_Id : Jobs.Request_Id;
+      Horizontal_Status : Jobs.Job_Status;
+      Vertical_Status : Jobs.Job_Status;
+      Horizontal_Result : Jobs.Result_Access;
+      Vertical_Result : Jobs.Result_Access;
+      Fonts : aliased Math_Painter.Font_Set;
+      Horizontal_Layout : Math_Layout.Box;
+      Vertical_Layout : Math_Layout.Box;
+      Horizontal_Bounds : Math_Raster.Raster_Bounds;
+      Vertical_Bounds : Math_Raster.Raster_Bounds;
+      Settings : Math_Layout.Layout_Settings := (others => <>);
+   begin
+      Jobs.Submit ("\cancel{TT}", Horizontal_Id, 96,
+        Math_Layout.Text_Style, Status => Horizontal_Status,
+        Request_Raster => True, Em_Pixels => 48.0,
+        Font_Directory => Font_Directory);
+      Jobs.Submit ("\cancel{T}", Vertical_Id, 96,
+        Math_Layout.Text_Style, Status => Vertical_Status,
+        Request_Raster => True, Em_Pixels => 48.0,
+        Font_Directory => Font_Directory);
+      Check (Horizontal_Status = Jobs.Pending and
+        Vertical_Status = Jobs.Pending,
+        "horizontal and vertical cancel raster jobs queued");
+      for Wait in 1 .. 400 loop
+         Jobs.Poll (Horizontal_Id, 96, Horizontal_Status, Horizontal_Result);
+         Jobs.Poll (Vertical_Id, 96, Vertical_Status, Vertical_Result);
+         exit when Horizontal_Status /= Jobs.Pending and
+           Vertical_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Horizontal_Status = Jobs.Valid and
+        Horizontal_Result /= null,
+        "double-T cancellation raster completes");
+      Check (Vertical_Status = Jobs.Valid and Vertical_Result /= null,
+        "single-T cancellation raster completes");
+      Math_Painter.Load (Fonts, Font_Directory);
+      Settings.Pixel_Em := 48.0;
+      Settings.Advance_Source := Fonts'Unchecked_Access;
+      Horizontal_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{TT}"), Math_Layout.Text_Style,
+         Settings);
+      Vertical_Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\cancel{T}"), Math_Layout.Text_Style,
+         Settings);
+      Horizontal_Bounds := Math_Raster.Measure
+        (Horizontal_Layout, 48.0);
+      Vertical_Bounds := Math_Raster.Measure (Vertical_Layout, 48.0);
+      Check (Horizontal_Layout.Valid and Vertical_Layout.Valid,
+        "measured cancellation reference layouts are valid");
+      if Horizontal_Result /= null then
+         Check (Jobs.Layout (Horizontal_Result.all).Width =
+           Horizontal_Layout.Width and
+           Jobs.Layout (Horizontal_Result.all).Ascent =
+             Horizontal_Layout.Ascent and
+           Jobs.Layout (Horizontal_Result.all).Descent =
+             Horizontal_Layout.Descent,
+           "double-T returned geometry matches direct measured layout");
+         Check (Jobs.Raster_Origin_X (Horizontal_Result.all) > 0,
+           "double-T cancellation independently exercises positive X origin");
+         Check (Jobs.Raster_Origin_X (Horizontal_Result.all) =
+           Horizontal_Bounds.Origin_X and
+           Jobs.Raster_Origin_Y (Horizontal_Result.all) =
+             Horizontal_Bounds.Origin_Y and
+           Jobs.Raster_Width (Horizontal_Result.all) =
+             Horizontal_Bounds.Width and
+           Jobs.Raster_Height (Horizontal_Result.all) =
+             Horizontal_Bounds.Height,
+           "double-T origins and dimensions match measured returned geometry");
+         Check (Jobs.Raster_Baseline (Horizontal_Result.all) =
+           Horizontal_Bounds.Origin_Y + Natural
+             (Long_Float'Ceiling
+                (Jobs.Layout (Horizontal_Result.all).Ascent * 48.0)),
+           "double-T baseline uses measured Y origin and ceiled ascent");
+      end if;
+      if Vertical_Result /= null then
+         Check (Jobs.Layout (Vertical_Result.all).Width =
+           Vertical_Layout.Width and
+           Jobs.Layout (Vertical_Result.all).Ascent = Vertical_Layout.Ascent and
+           Jobs.Layout (Vertical_Result.all).Descent = Vertical_Layout.Descent,
+           "single-T returned geometry matches direct measured layout");
+         Check (Jobs.Raster_Origin_Y (Vertical_Result.all) > 0,
+           "single-T cancellation independently exercises positive Y origin");
+         Check (Jobs.Raster_Origin_X (Vertical_Result.all) =
+           Vertical_Bounds.Origin_X and
+           Jobs.Raster_Origin_Y (Vertical_Result.all) =
+             Vertical_Bounds.Origin_Y and
+           Jobs.Raster_Width (Vertical_Result.all) = Vertical_Bounds.Width and
+           Jobs.Raster_Height (Vertical_Result.all) = Vertical_Bounds.Height,
+           "single-T origins and dimensions match measured returned geometry");
+         Check (Jobs.Raster_Baseline (Vertical_Result.all) =
+           Vertical_Bounds.Origin_Y + Natural
+             (Long_Float'Ceiling
+                (Jobs.Layout (Vertical_Result.all).Ascent * 48.0)),
+           "single-T baseline uses measured Y origin and ceiled ascent");
+      end if;
+      if Horizontal_Result /= null and Vertical_Result /= null then
+         Check (Jobs.Raster_Retained_Bytes (Horizontal_Result.all) > 0 and
+           Jobs.Raster_Retained_Bytes (Vertical_Result.all) > 0 and
+           Jobs.Raster_Retained_Bytes (Horizontal_Result.all) +
+             Jobs.Raster_Retained_Bytes (Vertical_Result.all) =
+               Math_Raster_Budget.Used,
+           "both raster leases remain charged by actual retained storage");
+         Check (Jobs.Raster_Retained_Bytes (Horizontal_Result.all) >=
+           Jobs.Raster_Width (Horizontal_Result.all) * 4 *
+             Jobs.Raster_Height (Horizontal_Result.all) and
+           Jobs.Raster_Retained_Bytes (Vertical_Result.all) >=
+             Jobs.Raster_Width (Vertical_Result.all) * 4 *
+               Jobs.Raster_Height (Vertical_Result.all),
+           "raster charges cover dimensions and minimum row storage");
+         Jobs.Release (Horizontal_Result);
+         Jobs.Release (Vertical_Result);
+         Check (Math_Raster_Budget.Used = 0,
+           "releasing independent cancel rasters restores empty budget");
+      else
+         if Horizontal_Result /= null then
+            Jobs.Release (Horizontal_Result);
+         end if;
+         if Vertical_Result /= null then
+            Jobs.Release (Vertical_Result);
+         end if;
+      end if;
+   end;
    Jobs.Start;
    Jobs.Submit ("x+y", Abandoned_Id, Abandoned_Generation,
      Math_Layout.Display_Style, Status => S, Request_Raster => True,

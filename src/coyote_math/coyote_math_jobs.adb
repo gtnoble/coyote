@@ -619,8 +619,9 @@ package body Coyote_Math_Jobs is
                              State = Valid
                            then
                               R.Raster_Baseline_Value := Natural
-                                (Long_Float'Ceiling
-                                   (R.Geometry.Ascent * Em_Pixels));
+                                (Math_Raster.Origin_Y (R.Pixels)) + Natural
+                                  (Long_Float'Ceiling
+                                     (R.Geometry.Ascent * Em_Pixels));
                               R.Raster_Ready := True;
                            elsif Phase_Status /= Pending then
                               State := Phase_Status;
@@ -746,6 +747,10 @@ package body Coyote_Math_Jobs is
      (Math_Raster.Width (Item.Pixels));
    function Raster_Height (Item : Job_Result) return Natural is
      (Math_Raster.Height (Item.Pixels));
+   function Raster_Origin_X (Item : Job_Result) return Natural is
+     (Natural (Math_Raster.Origin_X (Item.Pixels)));
+   function Raster_Origin_Y (Item : Job_Result) return Natural is
+     (Natural (Math_Raster.Origin_Y (Item.Pixels)));
    function Raster_Baseline (Item : Job_Result) return Natural is
      (Item.Raster_Baseline_Value);
    function Raster_Pixel
