@@ -1,0 +1,42 @@
+Note: Synchronizing workspace...
+Dependencies automatically updated as follows:
+
+   +b gnat       15.2.1  (new,gnat_native,indirect,binary)
+   +  gnatcoll   25.0.0  (new)
+   +  gtkada     26.0.0  (new)
+   +  libgpr     25.0.0  (new,indirect)
+   +b libgtk3    3.24.41 (new,indirect,system package)
+   +b make       4.3.0   (new,indirect,system package)
+   +b pkg_config 1.8.1   (new,indirect,system package)
+   +  sha2       2.0.0   (new)
+   +  xmlada     25.0.0  (new,indirect)
+
+Setup
+   [mkdir]        object directory for project Math_Raster
+   [mkdir]        exec directory for project Math_Raster
+Compile
+   [Ada]          math_raster_probe.adb
+   [Ada]          math_layout.adb
+   [Ada]          math_metrics.adb
+   [Ada]          math_model.ads
+   [Ada]          math_painter.adb
+   [Ada]          math_paths.adb
+   [Ada]          math_raster.adb
+   [Ada]          math_syntax.adb
+   [Ada]          math_text_shaping.adb
+   [Ada]          math_work_control.adb
+   [Ada]          math_radical_paths.adb
+   [Ada]          math_stretchy.adb
+   [Ada]          math_font_data.adb
+   [Ada]          math_expander.adb
+   [Ada]          math_macros.adb
+   [Ada]          math_source.adb
+   [Ada]          math_symbols.adb
+   [Ada]          math_tokens.adb
+   [Ada]          math_unicode.adb
+   [Ada]          math_builtin_macros.adb
+Bind
+   [gprbind]      math_raster_probe.bexch
+   [Ada]          math_raster_probe.ali
+Link
+   [link]         math_raster_probe.adb

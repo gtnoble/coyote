@@ -2305,3 +2305,28 @@ remain. Thresholds unchanged. Evidence and limitations: report §11.7 and
 `plan/evidence/native-math-2026-11-07-accent-skew/`. Valgrind/resource/GTK/callable
 and human acceptance gates remain open; developer/agent review is not independent
 acceptance. PCR-125 OPEN, feature NOT COMPLETE; no release or commit.
+
+
+## 2026-11-10 — Overline rule geometry (PCR-125)
+
+Corrected overline against pinned Rule 9: three default-thickness kerns below
+its rule, independently minimum-clamped paint thickness, one default-thickness
+upper kern. Style-specific defaults scale in script styles. Rule spans the
+complete body, consuming measured italic margin once. Underline/cancel and
+unmeasured width/italic behavior are unchanged; no reference or threshold edits.
+
+Added nine unit configurations and 60 measured assertions including underline
+guards across six sizes/two thickness settings. Before probe:423 assertions,
+48 failures; final strengthened probe:423/423. Focused AUnit:1/1, geometry:235/235.
+Development builds pass; full Xvfb suite:1074/1074, zero failures/errors,
+142.762374 s cumulative. Expanded images improve49/53 to51/53, repeated51/53;
+original29/29. Only cancel24/48 mask failures remain in that corpus. Required
+GTK interactions9/9, runner containment self-test and offline Plain/RPC HTTP
+lifecycle checks pass. Existing compiler warnings remain.
+
+Read-only review found no blockers; strengthened nonzero italic-margin control
+passes. Report §11.8 and `plan/evidence/native-math-2026-11-10-overline/` retain
+evidence. Developer/agent review is not independent acceptance. Cancel, full
+behavior, resource/deadline/GTK/cache/font/lifecycle and human qualification
+remain open; Valgrind not rerun. PCR-125 OPEN; feature NOT COMPLETE; no release,
+installation or commit. Approved requirements/deviations unchanged.

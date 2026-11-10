@@ -873,3 +873,62 @@ GTK, callable-gap and human visual/AT gates were not rerun or closed.
 still fail four cases. Developer and read-only agent review are not independent
 user acceptance. SRS-MATH v1.0 and D01–D15 unchanged; PCR-125 OPEN and feature
 **NOT COMPLETE**. No release or commit.
+
+
+### 11.8 Fresh continuation — overline rule geometry, 2026-11-10
+
+**Scope:** correct overline rule position, envelope and width against pinned
+KaTeX 0.16.22 `overline.js` (TeX Rule 9). The previous fixed 0.08 em placement
+and 0.12 em ascent growth omitted the reference's clearance, stroke extent and
+upper kern. The rule now clears the cramped body by three style-specific
+**default** rule thicknesses, paints at max(default, minimum thickness), and
+reserves one further default thickness above the rule. Minimum thickness does
+not inflate the kerns. Script/scriptscript default thickness is 0.049 em before
+style scaling. Rules span the full body rather than being inset 0.05 em;
+measured layouts incorporate and clear the body's trailing italic margin once.
+Unmeasured widths/italic propagation, underline and cancel code are unchanged.
+No reference pin, image threshold, path data or approved requirement changed.
+
+**Regression evidence:** measured probe before correction reports **423
+assertions / 48 failures**, covering all four new overline checks across six
+pixel sizes and two minimum-thickness settings. Final strengthened probe passes
+**423/423**, including explicit nonzero italic-margin/cleared-result controls
+and 12 underline-preservation guards. The existing focused AUnit accent case
+passes with nine added configurations: default/minimum thickness, display,
+fraction/nested/smashed bases and script/scriptscript scaling. These are local
+regressions, not proof of full accent behavior.
+
+Final-source results:
+
+- Incremental root/test **development** builds pass; generated profiles select
+  development. Existing warnings remain; no release or warning-free claim.
+- Full Xvfb AUnit suite **1074/1074**, zero failed assertions/unexpected errors,
+  cumulative **142.762374 s**. This run does not reconcile historical non-math
+  failed repeats or constitute an installed-binary/desktop qualification.
+- Geometry **235/235** across the unchanged 13 groups.
+- Expanded images **51/53**, zero blocked, repeated identically. Both overline
+  cases now pass: height deltas 0.009560/0.003495 px and baseline deltas
+  0.0003983/0.0000733 em at 24/48 px. Bidirectional mask coverage is
+  1.0/0.9935897 at 24 px and 1.0/1.0 at 48 px, against unchanged 0.990 limits.
+- Original image pilot **29/29**. Omitted-base/origin/baseline negative controls
+  pass in each image report. Only `accent-skew-cancel-24/48` remain failing in
+  the expanded corpus; they still fail the mask criterion and were not waived.
+- Required post-build GTK interactions **9/9**; interaction-runner containment
+  self-test passes (its deliberately killed/timed-out fixtures are expected).
+  Offline HTTP timeout lifecycle passes Plain/RPC, zero-disable delayed success
+  and 4+4 stalled-request checks. No live-provider checks were run.
+
+**Evidence:** `plan/evidence/native-math-2026-11-10-overline/` retains before/final
+probe logs, development/full/geometry/post-build logs, final/repeat/original
+image reports and PNGs, exact implementation patch, source/font/executable
+hashes and checksums. Absolute `/tmp` paths in reports are original retrieval
+identifiers; use archived PNGs in each corresponding phase. Read-only agent
+review found no blockers; its suggested nonzero italic control was added and
+passes. Developer and agent review are not independent user acceptance.
+
+**Disposition:** scoped overline defect resolved; PCR-125 OPEN and feature
+**NOT COMPLETE**. Cancel stroke geometry, broader behavior/callable comparison,
+whole-job memory, deadlines, inline GTK/cache, unpinned fallback fonts, existing
+native lifecycle failure and independent visual/AT acceptance remain open.
+Valgrind and resource characterization were not rerun. SRS-MATH v1.0 and D01–D15
+unchanged; no release, installation or commit.

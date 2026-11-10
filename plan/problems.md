@@ -4587,3 +4587,27 @@ are historical, not current-source qualification.
   resource/GUI/font/lifecycle/callable/human gates remain open. Valgrind not rerun.
 - **Status:** scoped skew/span defects corrected; PCR-125 OPEN, NOT COMPLETE.
   Developer/agent self-review is not independent acceptance; no release/commit.
+
+
+### PCR-125 — 2026-11-10 overline rule geometry correction
+
+- **Category:** Code, Test, Design.
+- **Priority:** 3-Moderate (unchanged parent classification).
+- **Problem:** overline uses inset rule endpoints and fixed clearance/ascent
+  growth inconsistent with pinned Rule 9; nested dot-overline-T fails vertical
+  geometry, baseline and mask comparison at 24/48 px.
+- **Affected products:** `src/coyote_math/math_layout.adb`,
+  `test/src/coyote_math_tests.adb`, `test/tools/math_raster_probe.adb`,
+  design/report/SDF records.
+- **Action:** style-specific default-thickness kerns, independently clamped
+  paint thickness, complete body span and one-time measured italic transfer;
+  retain underline/cancel behavior. Add unit/measured/minimum/style guards.
+- **Verification:** before raster423 with48 failures; final423/423;
+  focused1/1, geometry235/235; development builds and full1074/1074;
+  expanded51/53 twice (previous49/53), original29/29. GTK9/9, runner self-test
+  and offline HTTP lifecycle pass. Evidence retained in report §11.8 and
+  `plan/evidence/native-math-2026-11-10-overline/`; thresholds unchanged.
+- **Status:** scoped overline defect resolved 2026-11-10; PCR-125 OPEN,
+  NOT COMPLETE. Cancel24/48 mask failures remain. Broader behavior, resource,
+  GUI/cache/font/lifecycle/callable/human gates remain open; Valgrind not rerun.
+  Developer/agent review is not independent acceptance; no release/commit.

@@ -2581,8 +2581,26 @@ package body Math_Layout is
                      Result.Descent :=
                        Base.Descent + 0.12 * Scale + Accent.Height;
                   else
-                     Accent.Y := -(Base.Ascent + 0.08 * Scale);
-                     Result.Ascent := Base.Ascent + 0.12 * Scale;
+                     declare
+                        --  Rule 9: default-thickness kerns stay independent
+                        --  of the minimum paint thickness (overline.js).
+                        Default_Stroke : constant Long_Float :=
+                          Style_Metric (Level, 0.04, 0.049, 0.049) * Scale;
+                     begin
+                        Accent.Height := Long_Float'Max
+                          (Default_Stroke, Thickness.Minimum * Scale);
+                        Result.Width := Base.Width +
+                          (if Thickness.Advance_Source /= null then
+                             Base.Italic else 0.0);
+                        Result.Italic :=
+                          (if Thickness.Advance_Source /= null then
+                             0.0 else Base.Italic);
+                        Accent.X := 0.0;
+                        Accent.Width := Result.Width;
+                        Accent.Y := -(Base.Ascent +
+                          3.0 * Default_Stroke + Accent.Height);
+                        Result.Ascent := -Accent.Y + Default_Stroke;
+                     end;
                   end if;
                elsif Value.Code_Point in
                  Over_Right_Arrow_Code_Point | Over_Left_Arrow_Code_Point

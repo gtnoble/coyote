@@ -820,7 +820,65 @@ package body Coyote_Math_Tests is
          end loop;
          Assert (Found, "outer dot retained: " & Source);
       end Check_Skew;
+
+      procedure Check_Overline
+        (Source : String; Prefix : String := "";
+         Scale : Long_Float := 1.0; Rule : Long_Float := 0.04;
+         Minimum : Long_Float := 0.0;
+         Style : Math_Style := Text_Style)
+      is
+         Settings : constant Layout_Settings :=
+           (Min_Rule_Thickness => Minimum, others => <>);
+         Base : constant Box := Build
+           (Parse (Prefix & Source), Style, Settings);
+         Lined : constant Box := Build
+           (Parse (Prefix & "\overline{" & Source & "}"), Style, Settings);
+         Dotted : constant Box := Build
+           (Parse (Prefix & "\dot{\overline{" & Source & "}}"),
+            Style, Settings);
+         Mark : constant Math_Metrics.Glyph_Metric :=
+           Math_Metrics.Lookup (Main_Regular, 16#02D9#);
+         Stroke : constant Long_Float :=
+           Long_Float'Max (Rule, Minimum) * Scale;
+         Expected_Ascent : constant Long_Float :=
+           Base.Ascent + 4.0 * Rule * Scale + Stroke;
+         Expected_Mark_Y : constant Long_Float :=
+           -Expected_Ascent +
+           Long_Float'Min (Expected_Ascent, 0.431 * Scale) -
+           Mark.Descent * Scale;
+         Line : constant Draw_Command := Lined.Commands.Last_Element;
+         Dot : constant Draw_Command := Dotted.Commands.Last_Element;
+      begin
+         Assert (Base.Valid and then Lined.Valid and then Dotted.Valid,
+                 "overline geometry fixtures: " & Prefix & Source);
+         Assert (Line.Kind = Rule_Command and then
+                 abs Line.X < 1.0E-9 and then
+                 abs (Line.Width - Base.Width) < 1.0E-9,
+                 "overline spans complete body: " & Prefix & Source);
+         Assert (abs (Line.Height - Stroke) < 1.0E-9 and then
+                 abs (Line.Y + Base.Ascent +
+                   3.0 * Rule * Scale + Stroke) < 1.0E-9,
+                 "overline rule clears body: " & Prefix & Source);
+         Assert (abs (Lined.Ascent - Expected_Ascent) < 1.0E-9 and then
+                 abs (Lined.Descent - Base.Descent) < 1.0E-9,
+                 "overline metrics include upper kern: " & Prefix & Source);
+         Assert (Dot.Code_Point = 16#02D9# and then
+                 abs (Dot.Y - Expected_Mark_Y) < 1.0E-9 and then
+                 abs (Dotted.Ascent - Long_Float'Max
+                   (Expected_Ascent, Mark.Ascent * Scale -
+                    Expected_Mark_Y)) < 1.0E-9,
+                 "nested dot uses overline ascent: " & Prefix & Source);
+      end Check_Overline;
    begin
+      Check_Overline ("T");
+      Check_Overline ("T", Minimum => 0.09);
+      Check_Overline ("T", Style => Display_Style);
+      Check_Overline ("\frac{x}{y}");
+      Check_Overline ("\overline{T}");
+      Check_Overline ("\smash{T}");
+      Check_Overline ("T", "\scriptstyle ", 0.7, 0.049);
+      Check_Overline ("T", "\scriptscriptstyle ", 0.5, 0.049);
+      Check_Overline ("T", "\scriptstyle ", 0.7, 0.049, 0.09);
       Check_Skew ("T", True);
       Check_Skew ("{{T}}", True);
       Check_Skew ("\textcolor{red}{T}", True);

@@ -1,0 +1,183 @@
+diff --git a/src/coyote_math/math_layout.adb b/src/coyote_math/math_layout.adb
+index 3ec1edb..a3a8edc 100644
+--- a/src/coyote_math/math_layout.adb
++++ b/src/coyote_math/math_layout.adb
+@@ -2581,8 +2581,26 @@ package body Math_Layout is
+                      Result.Descent :=
+                        Base.Descent + 0.12 * Scale + Accent.Height;
+                   else
+-                     Accent.Y := -(Base.Ascent + 0.08 * Scale);
+-                     Result.Ascent := Base.Ascent + 0.12 * Scale;
++                     declare
++                        --  Rule 9: default-thickness kerns stay independent
++                        --  of the minimum paint thickness (overline.js).
++                        Default_Stroke : constant Long_Float :=
++                          Style_Metric (Level, 0.04, 0.049, 0.049) * Scale;
++                     begin
++                        Accent.Height := Long_Float'Max
++                          (Default_Stroke, Thickness.Minimum * Scale);
++                        Result.Width := Base.Width +
++                          (if Thickness.Advance_Source /= null then
++                             Base.Italic else 0.0);
++                        Result.Italic :=
++                          (if Thickness.Advance_Source /= null then
++                             0.0 else Base.Italic);
++                        Accent.X := 0.0;
++                        Accent.Width := Result.Width;
++                        Accent.Y := -(Base.Ascent +
++                          3.0 * Default_Stroke + Accent.Height);
++                        Result.Ascent := -Accent.Y + Default_Stroke;
++                     end;
+                   end if;
+                elsif Value.Code_Point in
+                  Over_Right_Arrow_Code_Point | Over_Left_Arrow_Code_Point
+diff --git a/test/src/coyote_math_tests.adb b/test/src/coyote_math_tests.adb
+index 9dfc536..e60bcd3 100644
+--- a/test/src/coyote_math_tests.adb
++++ b/test/src/coyote_math_tests.adb
+@@ -820,7 +820,65 @@ package body Coyote_Math_Tests is
+          end loop;
+          Assert (Found, "outer dot retained: " & Source);
+       end Check_Skew;
++
++      procedure Check_Overline
++        (Source : String; Prefix : String := "";
++         Scale : Long_Float := 1.0; Rule : Long_Float := 0.04;
++         Minimum : Long_Float := 0.0;
++         Style : Math_Style := Text_Style)
++      is
++         Settings : constant Layout_Settings :=
++           (Min_Rule_Thickness => Minimum, others => <>);
++         Base : constant Box := Build
++           (Parse (Prefix & Source), Style, Settings);
++         Lined : constant Box := Build
++           (Parse (Prefix & "\overline{" & Source & "}"), Style, Settings);
++         Dotted : constant Box := Build
++           (Parse (Prefix & "\dot{\overline{" & Source & "}}"),
++            Style, Settings);
++         Mark : constant Math_Metrics.Glyph_Metric :=
++           Math_Metrics.Lookup (Main_Regular, 16#02D9#);
++         Stroke : constant Long_Float :=
++           Long_Float'Max (Rule, Minimum) * Scale;
++         Expected_Ascent : constant Long_Float :=
++           Base.Ascent + 4.0 * Rule * Scale + Stroke;
++         Expected_Mark_Y : constant Long_Float :=
++           -Expected_Ascent +
++           Long_Float'Min (Expected_Ascent, 0.431 * Scale) -
++           Mark.Descent * Scale;
++         Line : constant Draw_Command := Lined.Commands.Last_Element;
++         Dot : constant Draw_Command := Dotted.Commands.Last_Element;
++      begin
++         Assert (Base.Valid and then Lined.Valid and then Dotted.Valid,
++                 "overline geometry fixtures: " & Prefix & Source);
++         Assert (Line.Kind = Rule_Command and then
++                 abs Line.X < 1.0E-9 and then
++                 abs (Line.Width - Base.Width) < 1.0E-9,
++                 "overline spans complete body: " & Prefix & Source);
++         Assert (abs (Line.Height - Stroke) < 1.0E-9 and then
++                 abs (Line.Y + Base.Ascent +
++                   3.0 * Rule * Scale + Stroke) < 1.0E-9,
++                 "overline rule clears body: " & Prefix & Source);
++         Assert (abs (Lined.Ascent - Expected_Ascent) < 1.0E-9 and then
++                 abs (Lined.Descent - Base.Descent) < 1.0E-9,
++                 "overline metrics include upper kern: " & Prefix & Source);
++         Assert (Dot.Code_Point = 16#02D9# and then
++                 abs (Dot.Y - Expected_Mark_Y) < 1.0E-9 and then
++                 abs (Dotted.Ascent - Long_Float'Max
++                   (Expected_Ascent, Mark.Ascent * Scale -
++                    Expected_Mark_Y)) < 1.0E-9,
++                 "nested dot uses overline ascent: " & Prefix & Source);
++      end Check_Overline;
+    begin
++      Check_Overline ("T");
++      Check_Overline ("T", Minimum => 0.09);
++      Check_Overline ("T", Style => Display_Style);
++      Check_Overline ("\frac{x}{y}");
++      Check_Overline ("\overline{T}");
++      Check_Overline ("\smash{T}");
++      Check_Overline ("T", "\scriptstyle ", 0.7, 0.049);
++      Check_Overline ("T", "\scriptscriptstyle ", 0.5, 0.049);
++      Check_Overline ("T", "\scriptstyle ", 0.7, 0.049, 0.09);
+       Check_Skew ("T", True);
+       Check_Skew ("{{T}}", True);
+       Check_Skew ("\textcolor{red}{T}", True);
+diff --git a/test/tools/math_raster_probe.adb b/test/tools/math_raster_probe.adb
+index c07d8d4..9614075 100644
+--- a/test/tools/math_raster_probe.adb
++++ b/test/tools/math_raster_probe.adb
+@@ -228,6 +228,75 @@ begin
+          Math_Model.Typewriter_Regular, 32, 24.0);
+       Check (Advance = 13.0, "native typewriter-space advance at 24px is 13");
+    end;
++   declare
++      Sizes : constant array (Positive range <>) of Natural :=
++        (12, 16, 20, 24, 32, 48);
++      Minimums : constant array (Positive range <>) of Long_Float :=
++        (0.0, 0.09);
++      Mark : constant Math_Metrics.Glyph_Metric :=
++        Math_Metrics.Lookup (Math_Model.Main_Regular, 16#02D9#);
++   begin
++      for Size of Sizes loop
++         for Minimum of Minimums loop
++            declare
++               Settings : constant Math_Layout.Layout_Settings :=
++                 (Pixel_Em => Long_Float (Size),
++                  Advance_Source => Fonts'Unchecked_Access,
++                  Min_Rule_Thickness => Minimum, others => <>);
++               Base : constant Math_Layout.Box := Math_Layout.Build
++                 (Math_Syntax.Parse ("T"), Math_Layout.Text_Style, Settings);
++               Lined : constant Math_Layout.Box := Math_Layout.Build
++                 (Math_Syntax.Parse ("\overline{T}"),
++                  Math_Layout.Text_Style, Settings);
++               Dotted : constant Math_Layout.Box := Math_Layout.Build
++                 (Math_Syntax.Parse ("\dot{\overline{T}}"),
++                  Math_Layout.Text_Style, Settings);
++               Underlined : constant Math_Layout.Box := Math_Layout.Build
++                 (Math_Syntax.Parse ("\underline{T}"),
++                  Math_Layout.Text_Style, Settings);
++               Stroke : constant Long_Float :=
++                 Long_Float'Max (0.04, Minimum);
++               Expected_Ascent : constant Long_Float :=
++                 Base.Ascent + 0.16 + Stroke;
++               Expected_Dot_Y : constant Long_Float :=
++                 -Expected_Ascent + 0.431 - Mark.Descent;
++               Line : constant Math_Layout.Draw_Command :=
++                 Lined.Commands.Last_Element;
++               Dot : constant Math_Layout.Draw_Command :=
++                 Dotted.Commands.Last_Element;
++               Underline : constant Math_Layout.Draw_Command :=
++                 Underlined.Commands.Last_Element;
++               Label : constant String := Natural'Image (Size) &
++                 Long_Float'Image (Minimum);
++            begin
++               Check (Base.Valid and then Lined.Valid and then Dotted.Valid
++                 and then Base.Italic > 0.0 and then
++                 abs Lined.Italic < 1.0E-9 and then
++                 Line.Kind = Math_Layout.Rule_Command and then
++                 abs Line.X < 1.0E-9 and then
++                 abs (Line.Width - (Base.Width + Base.Italic)) < 1.0E-9,
++                 "measured overline spans body margin" & Label);
++               Check (abs (Line.Height - Stroke) < 1.0E-9 and then
++                 abs (Line.Y + Base.Ascent + 0.12 + Stroke) < 1.0E-9,
++                 "measured overline clearance and stroke" & Label);
++               Check (abs (Lined.Ascent - Expected_Ascent) < 1.0E-9
++                 and then abs (Lined.Descent - Base.Descent) < 1.0E-9,
++                 "measured overline vertical metrics" & Label);
++               Check (Dot.Code_Point = 16#02D9# and then
++                 abs (Dot.Y - Expected_Dot_Y) < 1.0E-9 and then
++                 abs (Dotted.Ascent - Long_Float'Max
++                   (Expected_Ascent, Mark.Ascent - Expected_Dot_Y)) < 1.0E-9,
++                 "measured nested dot vertical metrics" & Label);
++               Check (Underlined.Valid and then
++                 abs (Underline.X - 0.05) < 1.0E-9 and then
++                 abs (Underline.Y - Base.Descent - 0.08) < 1.0E-9
++                 and then abs (Underlined.Descent -
++                   Base.Descent - 0.12 - Stroke) < 1.0E-9,
++                 "underline geometry remains unchanged" & Label);
++            end;
++         end loop;
++      end loop;
++   end;
+    declare
+       use Ada.Strings.Unbounded;
+       type Skew_Case is record

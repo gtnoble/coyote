@@ -229,6 +229,75 @@ begin
       Check (Advance = 13.0, "native typewriter-space advance at 24px is 13");
    end;
    declare
+      Sizes : constant array (Positive range <>) of Natural :=
+        (12, 16, 20, 24, 32, 48);
+      Minimums : constant array (Positive range <>) of Long_Float :=
+        (0.0, 0.09);
+      Mark : constant Math_Metrics.Glyph_Metric :=
+        Math_Metrics.Lookup (Math_Model.Main_Regular, 16#02D9#);
+   begin
+      for Size of Sizes loop
+         for Minimum of Minimums loop
+            declare
+               Settings : constant Math_Layout.Layout_Settings :=
+                 (Pixel_Em => Long_Float (Size),
+                  Advance_Source => Fonts'Unchecked_Access,
+                  Min_Rule_Thickness => Minimum, others => <>);
+               Base : constant Math_Layout.Box := Math_Layout.Build
+                 (Math_Syntax.Parse ("T"), Math_Layout.Text_Style, Settings);
+               Lined : constant Math_Layout.Box := Math_Layout.Build
+                 (Math_Syntax.Parse ("\overline{T}"),
+                  Math_Layout.Text_Style, Settings);
+               Dotted : constant Math_Layout.Box := Math_Layout.Build
+                 (Math_Syntax.Parse ("\dot{\overline{T}}"),
+                  Math_Layout.Text_Style, Settings);
+               Underlined : constant Math_Layout.Box := Math_Layout.Build
+                 (Math_Syntax.Parse ("\underline{T}"),
+                  Math_Layout.Text_Style, Settings);
+               Stroke : constant Long_Float :=
+                 Long_Float'Max (0.04, Minimum);
+               Expected_Ascent : constant Long_Float :=
+                 Base.Ascent + 0.16 + Stroke;
+               Expected_Dot_Y : constant Long_Float :=
+                 -Expected_Ascent + 0.431 - Mark.Descent;
+               Line : constant Math_Layout.Draw_Command :=
+                 Lined.Commands.Last_Element;
+               Dot : constant Math_Layout.Draw_Command :=
+                 Dotted.Commands.Last_Element;
+               Underline : constant Math_Layout.Draw_Command :=
+                 Underlined.Commands.Last_Element;
+               Label : constant String := Natural'Image (Size) &
+                 Long_Float'Image (Minimum);
+            begin
+               Check (Base.Valid and then Lined.Valid and then Dotted.Valid
+                 and then Base.Italic > 0.0 and then
+                 abs Lined.Italic < 1.0E-9 and then
+                 Line.Kind = Math_Layout.Rule_Command and then
+                 abs Line.X < 1.0E-9 and then
+                 abs (Line.Width - (Base.Width + Base.Italic)) < 1.0E-9,
+                 "measured overline spans body margin" & Label);
+               Check (abs (Line.Height - Stroke) < 1.0E-9 and then
+                 abs (Line.Y + Base.Ascent + 0.12 + Stroke) < 1.0E-9,
+                 "measured overline clearance and stroke" & Label);
+               Check (abs (Lined.Ascent - Expected_Ascent) < 1.0E-9
+                 and then abs (Lined.Descent - Base.Descent) < 1.0E-9,
+                 "measured overline vertical metrics" & Label);
+               Check (Dot.Code_Point = 16#02D9# and then
+                 abs (Dot.Y - Expected_Dot_Y) < 1.0E-9 and then
+                 abs (Dotted.Ascent - Long_Float'Max
+                   (Expected_Ascent, Mark.Ascent - Expected_Dot_Y)) < 1.0E-9,
+                 "measured nested dot vertical metrics" & Label);
+               Check (Underlined.Valid and then
+                 abs (Underline.X - 0.05) < 1.0E-9 and then
+                 abs (Underline.Y - Base.Descent - 0.08) < 1.0E-9
+                 and then abs (Underlined.Descent -
+                   Base.Descent - 0.12 - Stroke) < 1.0E-9,
+                 "underline geometry remains unchanged" & Label);
+            end;
+         end loop;
+      end loop;
+   end;
+   declare
       use Ada.Strings.Unbounded;
       type Skew_Case is record
          Source : Unbounded_String;

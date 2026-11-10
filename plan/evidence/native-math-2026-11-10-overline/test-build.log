@@ -1,0 +1,246 @@
+Note: Synchronizing workspace...
+Dependencies automatically updated as follows:
+
+   +  aunit      25.0.0    (new)
+   +. coyote     0.1.0-dev (new,path=..)
+   +b gnat       15.2.1    (new,gnat_native,indirect,binary)
+   +  gnatcoll   25.0.0    (new,indirect)
+   +  gtkada     26.0.0    (new,indirect)
+   +  libgpr     25.0.0    (new,indirect)
+   +b libgtk3    3.24.41   (new,indirect,system package)
+   +b make       4.3.0     (new,indirect,system package)
+   +b pkg_config 1.8.1     (new,indirect,system package)
+   +  sha2       2.0.0     (new,indirect)
+   +  xmlada     25.0.0    (new,indirect)
+
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Setup
+   [mkdir]        object directory for project Coyote_Test
+   [mkdir]        exec directory for project Coyote_Test
+Compile
+   [Ada]          coyote_test.adb
+   [Ada]          mock_coyote.adb
+   [Ada]          auth_test_worker.adb
+   [Ada]          help_test_worker.adb
+   [Ada]          notify_test_worker.adb
+   [Ada]          signal_shutdown_worker.adb
+   [Ada]          gtk_interaction_worker.adb
+   [Ada]          coyote_help.adb
+   [Ada]          test_suites.adb
+   [Ada]          test_verbose_result.adb
+mock_coyote.adb:18:80: (style) this line is too long: 82 [-gnatyM]
+   [Ada]          test_core_suite.adb
+   [Ada]          test_gui_suite.adb
+   [Ada]          test_integration_suite.adb
+   [Ada]          test_llm_suite.adb
+   [Ada]          test_process_control_suite.adb
+test_verbose_result.adb:62:66: warning: aspect Unreferenced specified for "Elapsed" [enabled by default]
+test_verbose_result.adb:91:10: warning: aspect Unreferenced specified for "Elapsed" [enabled by default]
+test_verbose_result.adb:120:10: warning: aspect Unreferenced specified for "Elapsed" [enabled by default]
+   [Ada]          test_sqc_suite.adb
+   [Ada]          subagent_integration_tests.adb
+   [Ada]          coyote_process_control_tests.adb
+   [Ada]          coyote_signal_shutdown_tests.adb
+   [Ada]          coyote_sqc_histogram_tests.adb
+   [Ada]          coyote_sqc_integrity_tests.adb
+   [Ada]          coyote_sqc_jsd_tests.adb
+   [Ada]          coyote_sqc_mi_tests.adb
+coyote_process_control_tests.adb:129:60: warning: possibly useless assignment to "Parent", value might not be referenced [-gnatwm]
+   [Ada]          coyote_sqc_parser_tests.adb
+coyote_sqc_integrity_tests.adb:233:80: (style) this line is too long: 82 [-gnatyM]
+   [Ada]          coyote_sqc_quantile_cc_tests.adb
+   [Ada]          coyote_sqc_statistics_tests.adb
+   [Ada]          coyote_sqc_workspace_tests.adb
+coyote_sqc_jsd_tests.adb:129:07: warning: constant "Tol" is not referenced [-gnatwu]
+coyote_sqc_jsd_tests.adb:423:80: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_jsd_tests.adb:432:80: (style) this line is too long: 101 [-gnatyM]
+coyote_sqc_jsd_tests.adb:440:80: (style) this line is too long: 87 [-gnatyM]
+coyote_sqc_jsd_tests.adb:444:80: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_jsd_tests.adb:452:80: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_jsd_tests.adb:456:80: (style) this line is too long: 82 [-gnatyM]
+coyote_sqc_jsd_tests.adb:472:80: (style) this line is too long: 82 [-gnatyM]
+   [Ada]          llm_agent_tests.adb
+coyote_sqc_mi_tests.adb:160:76: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          llm_anthropic_messages_tests.adb
+coyote_sqc_parser_tests.adb:111:79: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_parser_tests.adb:225:22: warning: "Unbounded" is already use-visible through previous use_clause at line 9 [-gnatwr]
+coyote_sqc_parser_tests.adb:238:79: (style) this line is too long: 81 [-gnatyM]
+coyote_sqc_parser_tests.adb:496:80: (style) this line is too long: 82 [-gnatyM]
+coyote_sqc_parser_tests.adb:541:78: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_parser_tests.adb:593:80: (style) this line is too long: 86 [-gnatyM]
+coyote_sqc_parser_tests.adb:597:80: (style) this line is too long: 96 [-gnatyM]
+coyote_sqc_parser_tests.adb:617:80: (style) this line is too long: 84 [-gnatyM]
+coyote_sqc_parser_tests.ads:50:80: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          llm_auth_concurrency_tests.adb
+coyote_sqc_quantile_cc_tests.adb:392:07: warning: variable "Cache" is not referenced [-gnatwu]
+coyote_sqc_quantile_cc_tests.adb:474:07: warning: "Reverse_Sorted" is not modified, could be declared constant [-gnatwk]
+coyote_sqc_quantile_cc_tests.adb:511:07: warning: "Vals" is not modified, could be declared constant [-gnatwk]
+coyote_sqc_quantile_cc_tests.adb:516:80: (style) this line is too long: 81 [-gnatyM]
+coyote_sqc_quantile_cc_tests.adb:517:75: (style) this line is too long: 100 [-gnatyM]
+coyote_sqc_quantile_cc_tests.adb:518:80: (style) this line is too long: 92 [-gnatyM]
+coyote_sqc_quantile_cc_tests.adb:519:80: (style) this line is too long: 95 [-gnatyM]
+coyote_sqc_quantile_cc_tests.adb:520:72: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_quantile_cc_tests.adb:752:41: (style) "and then" required [-gnatyB]
+coyote_sqc_quantile_cc_tests.adb:757:41: (style) "and then" required [-gnatyB]
+coyote_sqc_quantile_cc_tests.adb:764:29: warning: condition is always True [-gnatwc]
+   [Ada]          llm_auth_tests.adb
+   [Ada]          llm_catalogue_tests.adb
+coyote_sqc_workspace_tests.adb:887:80: (style) this line is too long: 83 [-gnatyM]
+   [Ada]          llm_codex_catalogue_tests.adb
+   [Ada]          llm_codex_tests.adb
+   [Ada]          llm_compaction_tests.adb
+   [Ada]          llm_context_tests.adb
+   [Ada]          llm_github_copilot_tests.adb
+   [Ada]          llm_http_tests.adb
+llm_context_tests.adb:466:80: (style) this line is too long: 82 [-gnatyM]
+llm_context_tests.adb:478:80: (style) this line is too long: 80 [-gnatyM]
+llm_context_tests.adb:490:80: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          llm_model_registry_tests.adb
+   [Ada]          llm_openai_completions_tests.adb
+   [Ada]          llm_openai_responses_tests.adb
+llm_anthropic_messages_tests.adb:1960:80: (style) this line is too long: 81 [-gnatyM]
+llm_anthropic_messages_tests.adb:2131:80: (style) this line is too long: 80 [-gnatyM]
+   [Ada]          llm_opencode_go_catalogue_tests.adb
+   [Ada]          llm_openrouter_catalogue_tests.adb
+   [Ada]          llm_openrouter_tests.adb
+coyote_sqc_statistics_tests.adb:3492:80: (style) this line is too long: 82 [-gnatyM]
+coyote_sqc_statistics_tests.adb:3510:80: (style) this line is too long: 80 [-gnatyM]
+coyote_sqc_statistics_tests.adb:3515:80: (style) this line is too long: 82 [-gnatyM]
+coyote_sqc_statistics_tests.adb:3570:80: (style) this line is too long: 81 [-gnatyM]
+coyote_sqc_statistics_tests.adb:3591:80: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          llm_parallel_tools_tests.adb
+   [Ada]          llm_session_store_tests.adb
+llm_openrouter_catalogue_tests.adb:374:80: (style) this line is too long: 82 [-gnatyM]
+llm_openrouter_catalogue_tests.adb:384:80: (style) this line is too long: 82 [-gnatyM]
+   [Ada]          llm_settings_tests.adb
+llm_openrouter_tests.adb:1065:80: (style) this line is too long: 88 [-gnatyM]
+   [Ada]          llm_skills_tests.adb
+   [Ada]          llm_sse_tests.adb
+llm_settings_tests.adb:617:80: (style) this line is too long: 82 [-gnatyM]
+llm_settings_tests.adb:945:80: (style) this line is too long: 83 [-gnatyM]
+   [Ada]          llm_system_prompt_tests.adb
+llm_sse_tests.adb:98:80: (style) this line is too long: 80 [-gnatyM]
+   [Ada]          llm_tools_tests.adb
+   [Ada]          llm_types_tests.adb
+   [Ada]          collapse_utils_tests.adb
+llm_openai_responses_tests.adb:1097:80: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          coyote_app_agent_registry_tests.adb
+   [Ada]          coyote_app_agent_rpc_service_tests.adb
+llm_openai_completions_tests.adb:1274:10: warning: "Args" is not modified, could be declared constant [-gnatwk]
+llm_openai_completions_tests.adb:1935:80: (style) this line is too long: 82 [-gnatyM]
+   [Ada]          coyote_app_agent_rpc_tests.adb
+   [Ada]          coyote_app_agent_rpc_transport_tests.adb
+   [Ada]          coyote_app_frontend_rpc_tests.adb
+collapse_utils_tests.adb:67:80: (style) this line is too long: 84 [-gnatyM]
+   [Ada]          coyote_app_history_tests.adb
+coyote_app_agent_rpc_tests.adb:192:80: (style) this line is too long: 170 [-gnatyM]
+coyote_app_agent_rpc_tests.adb:195:80: (style) this line is too long: 203 [-gnatyM]
+coyote_app_agent_rpc_tests.adb:285:80: (style) this line is too long: 112 [-gnatyM]
+coyote_app_agent_rpc_tests.adb:297:80: (style) this line is too long: 126 [-gnatyM]
+coyote_app_agent_rpc_tests.adb:311:80: (style) this line is too long: 100 [-gnatyM]
+coyote_app_agent_rpc_tests.adb:319:80: (style) this line is too long: 157 [-gnatyM]
+   [Ada]          coyote_app_tests.adb
+llm_tools_tests.adb:32:80: (style) this line is too long: 100 [-gnatyM]
+llm_tools_tests.adb:791:80: (style) this line is too long: 87 [-gnatyM]
+llm_tools_tests.adb:995:80: (style) this line is too long: 83 [-gnatyM]
+   [Ada]          coyote_cmark_tests.adb
+   [Ada]          coyote_help_tests.adb
+   [Ada]          coyote_image_jobs_tests.adb
+   [Ada]          coyote_image_loader_tests.adb
+   [Ada]          coyote_math_tests.adb
+   [Ada]          coyote_utils_tests.adb
+   [Ada]          model_row_match_tests.adb
+llm_agent_tests.adb:1757:80: (style) this line is too long: 81 [-gnatyM]
+llm_agent_tests.adb:2628:80: (style) this line is too long: 80 [-gnatyM]
+llm_agent_tests.adb:2838:80: (style) this line is too long: 80 [-gnatyM]
+llm_agent_tests.adb:3411:16: (style) "exit Poll_Request" required [-gnatye]
+llm_agent_tests.adb:6535:80: (style) this line is too long: 191 [-gnatyM]
+llm_agent_tests.adb:6578:10: warning: "Block" is not modified, could be declared constant [-gnatwk]
+llm_agent_tests.adb:7385:80: (style) this line is too long: 80 [-gnatyM]
+llm_agent_tests.adb:7521:80: (style) this line is too long: 80 [-gnatyM]
+   [Ada]          sandbox_tests.adb
+   [Ada]          session_lister_tests.adb
+   [Ada]          coyote_config.ads
+   [Ada]          coyote_sqc-workspace-integrity.adb
+coyote_image_loader_tests.adb:100:07: warning: "FD" is not modified, could be declared constant [-gnatwk]
+   [Ada]          coyote_gui-conversation_stack-testing.adb
+   [Ada]          test_http_server.adb
+coyote_sqc-workspace-integrity.adb:9:04: warning: use clause for package "Unbounded" has no effect [-gnatwu]
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+coyote_cmark_tests.adb:608:80: (style) this line is too long: 80 [-gnatyM]
+coyote_cmark_tests.adb:814:80: (style) this line is too long: 80 [-gnatyM]
+coyote_cmark_tests.adb:845:80: (style) this line is too long: 80 [-gnatyM]
+coyote_cmark_tests.adb:868:80: (style) this line is too long: 80 [-gnatyM]
+coyote_cmark_tests.adb:874:80: (style) this line is too long: 82 [-gnatyM]
+coyote_cmark_tests.adb:956:80: (style) this line is too long: 81 [-gnatyM]
+coyote_cmark_tests.adb:966:80: (style) this line is too long: 80 [-gnatyM]
+coyote_cmark_tests.adb:991:80: (style) this line is too long: 81 [-gnatyM]
+coyote_cmark_tests.adb:1033:80: (style) this line is too long: 80 [-gnatyM]
+coyote_cmark_tests.ads:118:80: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          coyote_app_frontend_gui_tests.adb
+   [Ada]          coyote_gui_conversation_stack_tests.adb
+   [Ada]          coyote_gui_mnemonics_tests.adb
+coyote_app_tests.adb:15:18: warning: unit "Interfaces.C.Strings" is not referenced [-gnatwu]
+coyote_app_tests.adb:16:06: warning: unit "System" is not referenced [-gnatwu]
+coyote_app_tests.adb:898:07: warning: "V" is not modified, could be declared constant [-gnatwk]
+coyote_app_tests.adb:1143:07: warning: "Val" is not modified, could be declared constant [-gnatwk]
+coyote_app_tests.adb:1152:07: warning: "Val" is not modified, could be declared constant [-gnatwk]
+coyote_app_tests.adb:1161:07: warning: "Val" is not modified, could be declared constant [-gnatwk]
+coyote_app_tests.adb:1178:07: warning: "Val" is not modified, could be declared constant [-gnatwk]
+   [Ada]          coyote_gui_mode_tests.adb
+   [Ada]          coyote_gui_model_picker_tests.adb
+   [Ada]          coyote_gui_navigation_tests.adb
+coyote_math_tests.adb:617:80: (style) this line is too long: 81 [-gnatyM]
+   [Ada]          coyote_gui_notification_policy_tests.adb
+   [Ada]          coyote_gui_prompt_queue_tests.adb
+   [Ada]          coyote_gui_sandbox_profile_window_tests.adb
+test_http_server.adb:11:19: warning: "Unbounded" is already use-visible through previous use_clause at test_http_server.ads:32 [-gnatwr]
+   [Ada]          coyote_gui_session_stats_window_tests.adb
+   [Ada]          coyote_gui_tool_detail_window_tests.adb
+   [Ada]          coyote_gui_updates_tests.adb
+   [Ada]          coyote_gui_zoom_tests.adb
+   [Ada]          llm-providers-openai_responses-testing.adb
+   [Ada]          llm-providers-openai_completions-testing.adb
+   [Ada]          session_fixture.adb
+   [Ada]          llm-agent-testing.adb
+   [Ada]          coyote_gui-math_element-testing.adb
+   [Ada]          coyote_gui-sandbox_profile_window-testing.adb
+   [Ada]          coyote_app-frontend-gui-testing.adb
+coyote_app_frontend_gui_tests.ads:10:25: warning: no entities of "Coyote_App.Frontend.GUI" are referenced in spec [-gnatwu]
+coyote_app_frontend_gui_tests.ads:10:25: warning: with clause might be moved to body [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:29:09: warning: unit "Gtk.Text_Child_Anchor" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:32:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:111:04: warning: use clause for type "Gtk_Image" defined at gtk-image.ads:113 has no effect [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:752:18: warning: "others" choice is redundant [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:752:18: warning: previous choices cover all values [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:1335:15: warning: aspect Unreferenced specified for "Failure_Baseline_Value" [enabled by default]
+coyote_gui_conversation_stack_tests.adb:3106:16: warning: "Current" is not modified, could be declared constant [-gnatwk]
+coyote_app-frontend-gui-testing.adb:5:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui-testing.adb:10:06: warning: redundant with clause in body [-gnatwr]
+coyote_app-frontend-gui-testing.adb:13:06: warning: redundant with clause in body [-gnatwr]
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+   [gprbind]      mock_coyote.bexch
+   [Ada]          mock_coyote.ali
+   [gprbind]      auth_test_worker.bexch
+   [Ada]          auth_test_worker.ali
+   [gprbind]      help_test_worker.bexch
+   [Ada]          help_test_worker.ali
+   [gprbind]      notify_test_worker.bexch
+   [Ada]          notify_test_worker.ali
+   [gprbind]      signal_shutdown_worker.bexch
+   [Ada]          signal_shutdown_worker.ali
+   [gprbind]      gtk_interaction_worker.bexch
+   [Ada]          gtk_interaction_worker.ali
+Link
+   [archive]      libcoyote_test.a
+   [index]        libcoyote_test.a
+   [link]         coyote_test.adb
+   [link]         mock_coyote.adb
+   [link]         auth_test_worker.adb
+   [link]         help_test_worker.adb
+   [link]         notify_test_worker.adb
+   [link]         signal_shutdown_worker.adb
+   [link]         gtk_interaction_worker.adb
+Success: Build finished successfully in 18.17 seconds.

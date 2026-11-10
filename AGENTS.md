@@ -187,6 +187,15 @@ memory, hard 250 ms completion, GTK/cache guarantees, full reference behavior,
 remaining core behavior and human acceptance remain unqualified. These
 development builds are not warning-free or release qualification.
 
+The 2026-11-10 overline continuation passes raster423/423, geometry235/235 and
+full Xvfb1074/1074 (142.762374 s cumulative). Expanded images improve49/53 to
+51/53 and repeat51/53; original29/29. Only cancel24/48 mask failures remain in
+that corpus; broader gates above remain open. Rule 9 overline kerns use style
+**default** thickness independently of minimum-clamped paint thickness. Evidence:
+report §11.8 and `plan/evidence/native-math-2026-11-10-overline/`. Required GTK
+and offline HTTP lifecycle checks pass. No parity/resource/human acceptance,
+release or installation is implied; Valgrind was not rerun.
+
 PCR-126 HTTP-timeout developer verification (2026-11-07) passes the full
 Xvfb suite 1068/1068, zero failures/errors, 138.877699 s cumulative, and the
 standalone offline Plain/RPC lifecycle harness. Evidence and commands are in

@@ -1,0 +1,8 @@
+{
+  "summary": {
+    "pass": 51,
+    "fail": 2,
+    "blocked": 0
+  },
+  "report": "/tmp/coyote-overline/images/report.json"
+}
