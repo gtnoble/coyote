@@ -1,0 +1,44 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          coyote_help.adb
+   [Ada]          coyote_help_tests.adb
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+   [Ada]          coyote_gui_conversation_stack_tests.adb
+   [Ada]          coyote_config.ads
+coyote_gui_conversation_stack_tests.adb:35:09: warning: unit "Gtk.Text_Child_Anchor" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:38:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:82:09: warning: unit "Gtk.Style_Context" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:83:09: warning: unit "Gdk.RGBA" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:125:04: warning: use clause for type "Gtk_Image" defined at gtk-image.ads:113 has no effect [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:138:04: warning: use clause for type "Interfaces.Unsigned_32" has no effect [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:786:18: warning: "others" choice is redundant [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:786:18: warning: previous choices cover all values [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:3644:16: warning: "Current" is not modified, could be declared constant [-gnatwk]
+coyote_gui_conversation_stack_tests.adb:3741:23: warning: redundant conversion, "Cancel_Baseline" is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:3874:23: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:4144:35: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:4158:35: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+   [gprbind]      mock_coyote.bexch
+   [Ada]          mock_coyote.ali
+   [gprbind]      auth_test_worker.bexch
+   [Ada]          auth_test_worker.ali
+   [gprbind]      help_test_worker.bexch
+   [Ada]          help_test_worker.ali
+   [gprbind]      notify_test_worker.bexch
+   [Ada]          notify_test_worker.ali
+   [gprbind]      signal_shutdown_worker.bexch
+   [Ada]          signal_shutdown_worker.ali
+   [gprbind]      gtk_interaction_worker.bexch
+   [Ada]          gtk_interaction_worker.ali
+Link
+   [link]         coyote_test.adb
+   [link]         mock_coyote.adb
+   [link]         auth_test_worker.adb
+   [link]         help_test_worker.adb
+   [link]         notify_test_worker.adb
+   [link]         signal_shutdown_worker.adb
+   [link]         gtk_interaction_worker.adb
+Success: Build finished successfully in 7.92 seconds.

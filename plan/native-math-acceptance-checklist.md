@@ -6,6 +6,12 @@
 **Status:** Procedure drafted; readiness review, execution, qualification, and human acceptance remain **PENDING**
 **Authority:** [SRS-MATH v1.0](../requirements/native-math-compatibility.md), especially REQ-MATH-012; updated [STP/STD-MATH v0.9](native-math-compatibility-tests.md), especially §§2.2, 3, 4, 5.5 (`MATH-GUI-001`, `MATH-A11Y-001`); current [parity test report](native-math-parity-test-report.md). This checklist supplements, and does not change or supersede, those documents.
 
+**2026-11-15 status pointer:** Use report §11.11 for current developer evidence.
+Earlier image counts and synchronous-inline descriptions below are historical:
+§11.10 recorded corrected expanded images95/95; §11.11 records worker-backed
+inline rasterization and full suite1076/1076. This checklist is still unexecuted;
+readiness, broad qualification and human acceptance remain PENDING.
+
 ## 1. Purpose and limits
 
 Use this checklist to collect **actual operator and human-review evidence** for the approved manual GUI/accessibility cases. It is not a full product test plan, complete REQ-MATH-013 corpus, automated acceptance harness, readiness approval, or a claim that native math is equivalent to KaTeX. Record each step as **PASS**, **FAIL**, **BLOCKED**, or **NOT RUN** with evidence; blank is not pass. Do not infer an outcome from the presence of a widget, accessibility tree, test, or PNG.

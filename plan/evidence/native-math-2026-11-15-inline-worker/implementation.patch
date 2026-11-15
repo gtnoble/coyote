@@ -1,0 +1,1579 @@
+diff --git a/src/coyote_gui/coyote_gui-math_element.adb b/src/coyote_gui/coyote_gui-math_element.adb
+index 1edd7eb..9b19635 100644
+--- a/src/coyote_gui/coyote_gui-math_element.adb
++++ b/src/coyote_gui/coyote_gui-math_element.adb
+@@ -65,6 +65,179 @@ package body Coyote_GUI.Math_Element is
+    Inline_Pixbuf_Notify : constant Glib.Object.Weak_Notify :=
+      Release_Inline_Pixbuf'Access;
+    Inline_Weak_Ref_Failure_For_Test : Boolean := False;
++   Synchronous_Inline_Call_Count : Natural := 0;
++   procedure Free_Inline_Adoption is new Ada.Unchecked_Deallocation
++     (Inline_Adoption, Inline_Adoption_Access);
++
++   procedure Discard_Inline (State : in out Inline_Adoption_Access) is
++      procedure Free_Lease is new Ada.Unchecked_Deallocation
++        (Math_Raster_Budget.Lease, Charge_Addresses.Object_Pointer);
++   begin
++      if State = null then
++         return;
++      end if;
++      if State.Pixbuf /= null then
++         Glib.Object.Unref (Glib.Object.GObject (State.Pixbuf));
++         State.Pixbuf := null;
++      end if;
++      if State.Lease /= System.Null_Address then
++         declare
++            Charge : Charge_Addresses.Object_Pointer :=
++              Charge_Addresses.To_Pointer (State.Lease);
++         begin
++            Math_Raster_Budget.Release (Charge.all);
++            Free_Lease (Charge);
++            State.Lease := System.Null_Address;
++         end;
++      end if;
++      Free_Inline_Adoption (State);
++   exception
++      when others =>
++         State := null;
++   end Discard_Inline;
++
++   procedure Adopt_Inline
++     (Item     : Coyote_Math_Jobs.Job_Result;
++      State    : in out Inline_Adoption_Access;
++      Pixbuf   : out Gdk.Pixbuf.Gdk_Pixbuf;
++      Baseline : out Natural;
++      Finished : out Boolean)
++   is
++      Started : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
++      Accepted : Boolean;
++      Width, Height : Natural;
++      Row_End : Natural;
++      Data : System.Address;
++      Stride : Natural;
++      Source_Pixel : Interfaces.Unsigned_32;
++      Alpha, Red, Green, Blue : Natural;
++      Target_Offset : Natural;
++      procedure Put_Byte (Offset : Natural; Value : Natural) is
++      begin
++         Raster_Bytes.To_Pointer
++           (Data + System.Storage_Elements.Storage_Offset (Offset)).all :=
++             Glib.Guchar (Value);
++      end Put_Byte;
++      function Straight (Channel : Natural) return Natural is
++      begin
++         if Alpha = 0 then
++            return 0;
++         end if;
++         return Natural'Min (255, (Channel * 255 + Alpha / 2) / Alpha);
++      end Straight;
++   begin
++      Pixbuf := null;
++      Baseline := 0;
++      Finished := False;
++      if State = null then
++         if not Coyote_Math_Jobs.Has_Raster (Item) then
++            Finished := True;
++            return;
++         end if;
++         Width := Coyote_Math_Jobs.Raster_Width (Item);
++         Height := Coyote_Math_Jobs.Raster_Height (Item);
++         if Width = 0 or else Height = 0 or else Width > 1_996
++           or else Height > 508
++         then
++            Finished := True;
++            return;
++         end if;
++         State := new Inline_Adoption;
++         State.Lease := Charge_Addresses.To_Address
++           (new Math_Raster_Budget.Lease);
++         Math_Raster_Budget.Reserve
++           ((Width + 4) * 4 * (Height + 4),
++            Charge_Addresses.To_Pointer (State.Lease).all, Accepted);
++         if not Accepted then
++            Discard_Inline (State);
++            Finished := True;
++            return;
++         end if;
++         State.Pixbuf := Gdk.Pixbuf.Gdk_New
++           (Colorspace => Gdk.Pixbuf.Colorspace_RGB,
++            Has_Alpha => True, Bits_Per_Sample => 8,
++            Width => Gint (Width + 4), Height => Gint (Height + 4));
++         if State.Pixbuf = null then
++            Discard_Inline (State);
++            Finished := True;
++            return;
++         end if;
++         Stride := Natural (Gdk.Pixbuf.Get_Rowstride (State.Pixbuf));
++         Math_Raster_Budget.Adjust
++           (Charge_Addresses.To_Pointer (State.Lease).all,
++            Stride * (Height + 4), Accepted);
++         if not Accepted then
++            Discard_Inline (State);
++            Finished := True;
++            return;
++         end if;
++         if Inline_Weak_Ref_Failure_For_Test then
++            Inline_Weak_Ref_Failure_For_Test := False;
++            raise Program_Error;
++         end if;
++         Glib.Object.Weak_Ref
++           (State.Pixbuf, Inline_Pixbuf_Notify, State.Lease);
++         State.Lease := System.Null_Address;
++         Baseline := Coyote_Math_Jobs.Raster_Baseline (Item) + 2;
++      else
++         Width := Coyote_Math_Jobs.Raster_Width (Item);
++         Height := Coyote_Math_Jobs.Raster_Height (Item);
++         Baseline := Coyote_Math_Jobs.Raster_Baseline (Item) + 2;
++      end if;
++      Data := Gdk.Pixbuf.Get_Pixels (State.Pixbuf).all'Address;
++      Stride := Natural (Gdk.Pixbuf.Get_Rowstride (State.Pixbuf));
++      Row_End := Natural'Min (Height + 4, State.Next_Row + 8);
++      Copy_Rows :
++         while State.Next_Row < Row_End loop
++            declare
++               Y : constant Natural := State.Next_Row;
++            begin
++               for X in 0 .. Width + 3 loop
++                  Target_Offset := Y * Stride + X * 4;
++                  if Y < 2 or else Y >= Height + 2
++                    or else X < 2 or else X >= Width + 2
++                  then
++                     Put_Byte (Target_Offset, 0);
++                     Put_Byte (Target_Offset + 1, 0);
++                     Put_Byte (Target_Offset + 2, 0);
++                     Put_Byte (Target_Offset + 3, 0);
++                  else
++                     Source_Pixel := Coyote_Math_Jobs.Raster_Pixel
++                       (Item, X - 2, Y - 2);
++                     Blue := Natural (Source_Pixel and 16#FF#);
++                     Green := Natural
++                       (Interfaces.Shift_Right (Source_Pixel, 8)
++                          and 16#FF#);
++                     Red := Natural
++                       (Interfaces.Shift_Right (Source_Pixel, 16)
++                          and 16#FF#);
++                     Alpha := Natural
++                       (Interfaces.Shift_Right (Source_Pixel, 24)
++                          and 16#FF#);
++                     Put_Byte (Target_Offset, Straight (Red));
++                     Put_Byte (Target_Offset + 1, Straight (Green));
++                     Put_Byte (Target_Offset + 2, Straight (Blue));
++                     Put_Byte (Target_Offset + 3, Alpha);
++                  end if;
++               end loop;
++               State.Next_Row := State.Next_Row + 1;
++            end;
++            exit Copy_Rows when
++              Ada.Real_Time.Clock - Started >= Ada.Real_Time.Milliseconds (5);
++         end loop Copy_Rows;
++      if State.Next_Row = Height + 4 then
++         Pixbuf := State.Pixbuf;
++         State.Pixbuf := null;
++         Finished := True;
++         Free_Inline_Adoption (State);
++      end if;
++   exception
++      when others =>
++         Discard_Inline (State);
++         Pixbuf := null;
++         Baseline := 0;
++         Finished := True;
++   end Adopt_Inline;
+ 
+    procedure Release_Inline_Pixbuf
+      (Data : System.Address; Object : System.Address) is
+@@ -763,6 +936,8 @@ package body Coyote_GUI.Math_Element is
+       Accepted : Boolean := False;
+       Weak_Ref_Installed : Boolean := False;
+    begin
++      Synchronous_Inline_Call_Count :=
++        Synchronous_Inline_Call_Count + 1;
+       Baseline := 0;
+       if not Math_Syntax.Is_Valid (Parsed) or else not Layout.Valid
+         or else not Em_Pixels'Valid
+@@ -1014,5 +1189,7 @@ package body Coyote_GUI.Math_Element is
+       begin
+          Inline_Weak_Ref_Failure_For_Test := True;
+       end Fail_Next_Inline_Weak_Ref;
++      function Synchronous_Inline_Calls return Natural is
++        (Synchronous_Inline_Call_Count);
+    end Raster_Testing;
+ end Coyote_GUI.Math_Element;
+diff --git a/src/coyote_gui/coyote_gui-math_element.ads b/src/coyote_gui/coyote_gui-math_element.ads
+index ff03f84..fb026c7 100644
+--- a/src/coyote_gui/coyote_gui-math_element.ads
++++ b/src/coyote_gui/coyote_gui-math_element.ads
+@@ -21,6 +21,7 @@ with Math_Syntax;
+ with Coyote_Math_Jobs;
+ with Math_Raster_Budget;
+ with Glib.Main;
++with System;
+ 
+ package Coyote_GUI.Math_Element is
+    type Instance is tagged limited private;
+@@ -42,6 +43,8 @@ package Coyote_GUI.Math_Element is
+       Color : Gdk.RGBA.Gdk_RGBA :=
+         (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0))
+       return Gdk.Pixbuf.Gdk_Pixbuf;
++   --  Legacy synchronous rendering is retained for tests and compatibility.
++   --  Rich_Text must use Adopt_Inline for worker-produced raster results.
+    function Render_Layout_Inline
+      (Parsed : Math_Syntax.Document;
+       Layout : Math_Layout.Box;
+@@ -51,6 +54,18 @@ package Coyote_GUI.Math_Element is
+       Color : Gdk.RGBA.Gdk_RGBA :=
+         (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0))
+       return Gdk.Pixbuf.Gdk_Pixbuf;
++   type Inline_Adoption is limited private;
++   type Inline_Adoption_Access is access Inline_Adoption;
++   --  Item is borrowed for each GTK-only call. The caller retains and releases
++   --  it, passing the same Item until State is null. A completed Pixbuf is
++   --  transferred as an owned reference; discard State if its Item changes.
++   procedure Adopt_Inline
++     (Item     : Coyote_Math_Jobs.Job_Result;
++      State    : in out Inline_Adoption_Access;
++      Pixbuf   : out Gdk.Pixbuf.Gdk_Pixbuf;
++      Baseline : out Natural;
++      Finished : out Boolean);
++   procedure Discard_Inline (State : in out Inline_Adoption_Access);
+    procedure Set_LaTeX (Element : in out Instance; LaTeX : String;
+       Source : String);
+    procedure Set_Scale (Element : in out Instance; Scale : Long_Float);
+@@ -72,9 +87,15 @@ package Coyote_GUI.Math_Element is
+ 
+    package Raster_Testing is
+       procedure Fail_Next_Inline_Weak_Ref;
++      function Synchronous_Inline_Calls return Natural;
+    end Raster_Testing;
+ 
+ private
++   type Inline_Adoption is limited record
++      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
++      Next_Row : Natural := 0;
++      Lease : System.Address := System.Null_Address;
++   end record;
+    type Instance is tagged limited record
+       Root : Gtk.Box.Gtk_Box;
+       Area : Gtk.Drawing_Area.Gtk_Drawing_Area;
+diff --git a/src/coyote_gui/coyote_gui-rich_text.adb b/src/coyote_gui/coyote_gui-rich_text.adb
+index ec57933..fdda547 100644
+--- a/src/coyote_gui/coyote_gui-rich_text.adb
++++ b/src/coyote_gui/coyote_gui-rich_text.adb
+@@ -12,6 +12,7 @@ with Coyote_GUI.Math_Element;
+ with Coyote_Math_Jobs;
+ with Math_Layout;
+ with Math_Syntax;
++with Coyote_Math_Resources;
+ with Coyote_Image_Jobs;
+ with Gdk.Pixbuf;
+ with Gdk.RGBA;
+@@ -69,11 +70,11 @@ package body Coyote_GUI.Rich_Text is
+       Image_End : Gtk.Text_Mark.Gtk_Text_Mark;
+       Hidden : Gtk.Text_Tag.Gtk_Text_Tag;
+       Rise : Gtk.Text_Tag.Gtk_Text_Tag;
+-      Parsed_Doc : Math_Syntax.Document;
+-      Layout_Box : Math_Layout.Box;
++      Raster : Coyote_Math_Jobs.Result_Access := null;
++      Adoption : Coyote_GUI.Math_Element.Inline_Adoption_Access := null;
++      Needs_Submit : Boolean := False;
+       Pending_Job_Id : Coyote_Math_Jobs.Request_Id := 0;
+       Generation : Coyote_Math_Jobs.View_Generation := 0;
+-      Cache_Valid : Boolean := False;
+    end record;
+    subtype Math_Span is Coyote_Renderer.Markup.Math_Span;
+ 
+@@ -105,12 +106,14 @@ package body Coyote_GUI.Rich_Text is
+      (Buffer : not null access
+         Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+       Formula : Formula_State);
+-   procedure Render_Formula
+-     (View : not null access
+-        Gtk.Text_View.Gtk_Text_View_Record'Class;
+-      Buffer : not null access
+-        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
++   procedure Submit_Formula
++     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
+       Formula : in out Formula_State);
++   procedure Ensure_Poll (State : Render_State_Access);
++   function Source_Matches
++     (Buffer : not null access
++        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
++      Formula : Formula_State) return Boolean;
+    procedure On_State_Destroy
+      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+       State : Render_State_Access);
+@@ -314,6 +317,9 @@ package body Coyote_GUI.Rich_Text is
+            (Formula.Pending_Job_Id, Formula.Generation);
+          Formula.Pending_Job_Id := 0;
+       end if;
++      Coyote_GUI.Math_Element.Discard_Inline (Formula.Adoption);
++      Coyote_Math_Jobs.Release (Formula.Raster);
++      Formula.Needs_Submit := False;
+    end Abandon_Formula;
+ 
+    function Ensure_State
+@@ -328,7 +334,8 @@ package body Coyote_GUI.Rich_Text is
+          State.View := Gtk.Text_View.Gtk_Text_View'(View.all'Unchecked_Access);
+          Render_States.Set (View, State, "coyote-inline-math-state");
+          State_Destroy_Callback.Connect
+-           (State.View, Gtk.Widget.Signal_Destroy, On_State_Destroy'Access, State);
++           (State.View, Gtk.Widget.Signal_Destroy,
++            On_State_Destroy'Access, State);
+       end if;
+       return State;
+    end Ensure_State;
+@@ -361,15 +368,81 @@ package body Coyote_GUI.Rich_Text is
+          null;
+    end On_State_Destroy;
+ 
++   function Source_Matches
++     (Buffer : not null access
++        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
++      Formula : Formula_State) return Boolean
++   is
++      First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
++   begin
++      if Formula.Source_Start = null or else Formula.Source_End = null
++        or else Formula.Image_Start = null or else Formula.Image_End = null
++        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_Start)
++        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_End)
++        or else Gtk.Text_Mark.Get_Deleted (Formula.Image_Start)
++        or else Gtk.Text_Mark.Get_Deleted (Formula.Image_End)
++      then
++         return False;
++      end if;
++      Buffer.Get_Iter_At_Mark (First, Formula.Source_Start);
++      Buffer.Get_Iter_At_Mark (Last, Formula.Source_End);
++      return Buffer.Get_Text (First, Last, True) = To_String (Formula.Source);
++   end Source_Matches;
++
++   procedure Submit_Formula
++     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
++      Formula : in out Formula_State)
++   is
++      Font_Size : constant Glib.Gint := Pango.Font.Get_Size
++        (Pango.Context.Get_Font_Description (View.Get_Pango_Context));
++      Em : constant Long_Float := Long_Float (Font_Size) / 1_024.0 / 0.75;
++      Color : Gdk.RGBA.Gdk_RGBA;
++      Status : Coyote_Math_Jobs.Job_Status;
++   begin
++      if Length (Formula.LaTeX) > Math_Syntax.Max_Source_Bytes
++        or else not Source_Matches (View.Get_Buffer, Formula)
++      then
++         Formula.Needs_Submit := False;
++         return;
++      end if;
++      Gtk.Style_Context.Get_Style_Context (View).Get_Color
++        (Gtk.Enums.Gtk_State_Flag_Normal, Color);
++      Coyote_Math_Jobs.Start;
++      --  The view font already incorporates zoom; do not apply scale twice.
++      Coyote_Math_Jobs.Submit
++        (To_String (Formula.LaTeX), Formula.Pending_Job_Id,
++         Formula.Generation, Math_Layout.Text_Style,
++         Color_Enabled => True,
++         Color => (Long_Float (Color.Red), Long_Float (Color.Green),
++                   Long_Float (Color.Blue), Long_Float (Color.Alpha)),
++         Status => Status, Request_Raster => True, Em_Pixels => Em,
++         Font_Directory => Coyote_Math_Resources.Font_Directory);
++      Formula.Needs_Submit := Status = Coyote_Math_Jobs.Busy;
++      if Status /= Coyote_Math_Jobs.Pending then
++         Formula.Pending_Job_Id := 0;
++      end if;
++   end Submit_Formula;
++
++   procedure Ensure_Poll (State : Render_State_Access) is
++   begin
++      if State.Poll_Source_Id = 0
++        and then (for some Formula of State.Formulas =>
++          Formula.Needs_Submit or else Formula.Pending_Job_Id /= 0
++          or else Formula.Raster /= null)
++      then
++         State.Poll_Source_Id := State_Poll_Sources.Timeout_Add
++           (10, Poll_Formulas'Access, State);
++      end if;
++   end Ensure_Poll;
++
+    function Poll_Formulas (State : Render_State_Access) return Boolean is
+       Started : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+       Processed : Natural := 0;
+       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+-      Elapsed : Ada.Real_Time.Time_Span;
+       Count : Natural;
+       Index : Positive;
+-      Pending : Boolean := False;
+       Item : Coyote_Math_Jobs.Result_Access := null;
++      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+    begin
+       if State = null or else not State.Alive or else State.View = null then
+          return False;
+@@ -381,9 +454,9 @@ package body Coyote_GUI.Rich_Text is
+          return False;
+       end if;
+       loop
+-         Elapsed := Ada.Real_Time.Clock - Started;
+-         exit when Processed >= 8
+-           or else Elapsed >= Ada.Real_Time.Milliseconds (5);
++         exit when Processed >= Natural'Min (8, Count)
++           or else Ada.Real_Time.Clock - Started >=
++             Ada.Real_Time.Milliseconds (5);
+          if State.Next_Formula > Count then
+             State.Next_Formula := 1;
+          end if;
+@@ -391,93 +464,97 @@ package body Coyote_GUI.Rich_Text is
+          State.Next_Formula := (if Index = Count then 1 else Index + 1);
+          Processed := Processed + 1;
+          declare
+-            Formula : Formula_State := State.Formulas (Index);
++            Formula : Formula_State renames State.Formulas (Index);
++            Status : Coyote_Math_Jobs.Job_Status;
++            Current : Coyote_Math_Jobs.Request_Id;
++            Finished : Boolean;
++            Baseline : Natural;
++            First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
+          begin
+-            if Formula.Pending_Job_Id /= 0 then
+-               Pending := True;
+-               declare
+-                  Status : Coyote_Math_Jobs.Job_Status;
+-                  Current : constant Coyote_Math_Jobs.Request_Id :=
+-                    Formula.Pending_Job_Id;
+-                  First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
+-                  Current_Source : Unbounded_String;
+-               begin
+-                  Item := null;
++            if not Source_Matches (Buffer, Formula) then
++               Abandon_Formula (Formula);
++               Remove_Formula_Image (Buffer, Formula);
++               Set_Formula_Visible (Buffer, Formula, True);
++            else
++               if Formula.Needs_Submit then
++                  Submit_Formula (State.View, Formula);
++               end if;
++               if Formula.Pending_Job_Id /= 0 then
++                  Current := Formula.Pending_Job_Id;
+                   Coyote_Math_Jobs.Poll
+                     (Current, Formula.Generation, Status, Item);
+                   if Status /= Coyote_Math_Jobs.Pending then
+                      Formula.Pending_Job_Id := 0;
+-                     if Item /= null then
+-                        Current_Source := To_Unbounded_String
+-                          (Coyote_Math_Jobs.Source (Item.all));
+-                        if Status = Coyote_Math_Jobs.Valid
+-                          and then Coyote_Math_Jobs.Id (Item.all) = Current
+-                          and then Coyote_Math_Jobs.Generation (Item.all) =
+-                            Formula.Generation
+-                          and then To_String (Current_Source) =
+-                            To_String (Formula.LaTeX)
+-                          and then Formula.Source_Start /= null
+-                          and then Formula.Source_End /= null
+-                          and then not Gtk.Text_Mark.Get_Deleted
+-                            (Formula.Source_Start)
+-                          and then not Gtk.Text_Mark.Get_Deleted
+-                            (Formula.Source_End)
+-                        then
+-                           Buffer.Get_Iter_At_Mark
+-                             (First, Formula.Source_Start);
+-                           Buffer.Get_Iter_At_Mark (Last, Formula.Source_End);
+-                           if Buffer.Get_Text (First, Last, True) =
+-                             To_String (Formula.Source)
+-                           then
+-                              Formula.Parsed_Doc :=
+-                                Coyote_Math_Jobs.Parse_Document (Item.all);
+-                              Formula.Layout_Box :=
+-                                Coyote_Math_Jobs.Layout (Item.all);
+-                              Formula.Cache_Valid := True;
+-                           end if;
+-                        end if;
+-                        Coyote_Math_Jobs.Release (Item);
++                     if Item /= null and then Status = Coyote_Math_Jobs.Valid
++                       and then Coyote_Math_Jobs.Id (Item.all) = Current
++                       and then Coyote_Math_Jobs.Generation (Item.all) =
++                         Formula.Generation
++                       and then Coyote_Math_Jobs.Source (Item.all) =
++                         To_String (Formula.LaTeX)
++                       and then Coyote_Math_Jobs.Has_Raster (Item.all)
++                     then
++                        Formula.Raster := Item;
++                        Item := null;
++                     end if;
++                     Coyote_Math_Jobs.Release (Item);
++                  end if;
++               end if;
++               if Formula.Raster /= null then
++                  Coyote_GUI.Math_Element.Adopt_Inline
++                    (Formula.Raster.all, Formula.Adoption,
++                     Pixbuf, Baseline, Finished);
++                  if Finished then
++                     Coyote_Math_Jobs.Release (Formula.Raster);
++                     --  Revalidate at commit: source may have changed while
++                     --  previous callbacks copied the worker pixels.
++                     if Pixbuf /= null and then
++                       Source_Matches (Buffer, Formula)
++                     then
++                        Buffer.Get_Iter_At_Mark (First, Formula.Source_End);
++                        Buffer.Insert_Pixbuf (First, Pixbuf);
++                        Buffer.Get_Iter_At_Mark (First, Formula.Image_Start);
++                        Buffer.Get_Iter_At_Offset
++                          (Last, Gtk.Text_Iter.Get_Offset (First) + 1);
++                        Buffer.Move_Mark (Formula.Image_End, Last);
++                        Glib.Properties.Set_Property
++                          (Formula.Rise, Gtk.Text_Tag.Rise_Property,
++                           (-(Gdk.Pixbuf.Get_Height (Pixbuf) -
++                             Glib.Gint (Baseline))) * 1_024);
++                        Buffer.Apply_Tag (Formula.Rise, First, Last);
++                        Set_Formula_Visible (Buffer, Formula, False);
+                      end if;
+-                     if Formula.Cache_Valid then
+-                        Remove_Formula_Image (Buffer, Formula);
+-                        Set_Formula_Visible (Buffer, Formula, True);
+-                        Render_Formula (State.View, Buffer, Formula);
++                     if Pixbuf /= null then
++                        Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
++                        Pixbuf := null;
+                      end if;
+-                     State.Formulas.Replace_Element (Index, Formula);
+                   end if;
+-               end;
++               end if;
+             end if;
+          end;
+       end loop;
+-      Pending := (for some Formula of State.Formulas =>
+-        Formula.Pending_Job_Id /= 0);
+-      if not Pending then
++      if not (for some Formula of State.Formulas =>
++        Formula.Needs_Submit or else Formula.Pending_Job_Id /= 0
++        or else Formula.Raster /= null)
++      then
+          State.Poll_Source_Id := 0;
+          return False;
+       end if;
+       return State.Alive;
+    exception
+       when others =>
+-         if Item /= null then
+-            Coyote_Math_Jobs.Release (Item);
++         Coyote_Math_Jobs.Release (Item);
++         if Pixbuf /= null then
++            Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
+          end if;
+          if State /= null then
+             State.Poll_Source_Id := 0;
+-            if State.Alive and then State.View /= null then
+-               Buffer := State.View.Get_Buffer;
+-            end if;
+-            for Index in State.Formulas.First_Index ..
+-              State.Formulas.Last_Index
+-            loop
+-               declare
+-                  Formula : Formula_State := State.Formulas (Index);
+-               begin
+-                  Abandon_Formula (Formula);
+-                  if State.Alive and then State.View /= null then
+-                     Set_Formula_Visible (Buffer, Formula, True);
+-                  end if;
+-                  State.Formulas.Replace_Element (Index, Formula);
+-               end;
++            for Formula of State.Formulas loop
++               Abandon_Formula (Formula);
++               if State.Alive and then State.View /= null then
++                  Buffer := State.View.Get_Buffer;
++                  Remove_Formula_Image (Buffer, Formula);
++                  Set_Formula_Visible (Buffer, Formula, True);
++               end if;
+             end loop;
+          end if;
+          return False;
+@@ -614,76 +691,6 @@ package body Coyote_GUI.Rich_Text is
+       end if;
+    end Remove_Formula_Image;
+ 
+-   procedure Render_Formula
+-     (View : not null access
+-        Gtk.Text_View.Gtk_Text_View_Record'Class;
+-      Buffer : not null access
+-        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+-      Formula : in out Formula_State)
+-   is
+-      Source_Start : Gtk.Text_Iter.Gtk_Text_Iter;
+-      Source_End : Gtk.Text_Iter.Gtk_Text_Iter;
+-      Image_At : Gtk.Text_Iter.Gtk_Text_Iter;
+-      Image_End : Gtk.Text_Iter.Gtk_Text_Iter;
+-      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+-      Baseline : Natural := 0;
+-      Font_Size : Glib.Gint;
+-      Em_Pixels : Long_Float;
+-      Color : Gdk.RGBA.Gdk_RGBA;
+-   begin
+-      if Formula.Source_Start = null or else Formula.Source_End = null
+-        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_Start)
+-        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_End)
+-      then
+-         return;
+-      end if;
+-      Buffer.Get_Iter_At_Mark (Source_Start, Formula.Source_Start);
+-      Buffer.Get_Iter_At_Mark (Source_End, Formula.Source_End);
+-      if Buffer.Get_Text (Source_Start, Source_End,
+-                          Include_Hidden_Chars => True)
+-        /= To_String (Formula.Source)
+-      then
+-         Set_Formula_Visible (Buffer, Formula, True);
+-         return;
+-      end if;
+-      Font_Size := Pango.Font.Get_Size
+-        (Pango.Context.Get_Font_Description (View.Get_Pango_Context));
+-      Em_Pixels := Long_Float (Font_Size) / 1_024.0 / 0.75;
+-      Gtk.Style_Context.Get_Style_Context (View).Get_Color
+-        (Gtk.Enums.Gtk_State_Flag_Normal, Color);
+-      if not Formula.Cache_Valid then
+-         Set_Formula_Visible (Buffer, Formula, True);
+-         return;
+-      end if;
+-      Pixbuf := Coyote_GUI.Math_Element.Render_Layout_Inline
+-        (Formula.Parsed_Doc, Formula.Layout_Box, Baseline, 1.0,
+-         Em_Pixels, Color);
+-      if Pixbuf = null then
+-         Set_Formula_Visible (Buffer, Formula, True);
+-         return;
+-      end if;
+-      Set_Formula_Visible (Buffer, Formula, False);
+-      Image_At := Source_End;
+-      Buffer.Insert_Pixbuf (Image_At, Pixbuf);
+-      Buffer.Get_Iter_At_Mark (Image_At, Formula.Image_Start);
+-      Buffer.Get_Iter_At_Offset
+-        (Image_End, Gtk.Text_Iter.Get_Offset (Image_At) + 1);
+-      Buffer.Move_Mark (Formula.Image_End, Image_End);
+-      Glib.Properties.Set_Property
+-        (Formula.Rise, Gtk.Text_Tag.Rise_Property,
+-         -(Glib.Gint
+-           (Gdk.Pixbuf.Get_Height (Pixbuf) - Glib.Gint (Baseline))
+-           * 1_024));
+-      Buffer.Apply_Tag (Formula.Rise, Image_At, Image_End);
+-      Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
+-   exception
+-      when others =>
+-         if Pixbuf /= null then
+-            Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
+-         end if;
+-         Set_Formula_Visible (Buffer, Formula, True);
+-   end Render_Formula;
+-
+    procedure Reflow
+      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
+       Math_Scale : Long_Float)
+@@ -695,17 +702,16 @@ package body Coyote_GUI.Rich_Text is
+         State.Formulas.Last_Index
+       loop
+          declare
+-            Formula : Formula_State := State.Formulas (Index);
++            Formula : Formula_State renames State.Formulas (Index);
+          begin
++            Abandon_Formula (Formula);
+             Remove_Formula_Image (Buffer, Formula);
+             Set_Formula_Visible (Buffer, Formula, True);
+-            if Formula.Cache_Valid then
+-               Render_Formula (View, Buffer, Formula);
+-            end if;
+-            State.Formulas.Replace_Element (Index, Formula);
++            Submit_Formula (View, Formula);
+          end;
+       end loop;
+       State.Scale := Math_Scale;
++      Ensure_Poll (State);
+    end Reflow;
+ 
+    procedure Insert
+@@ -849,18 +855,9 @@ package body Coyote_GUI.Rich_Text is
+       if First_New_Formula <= State.Formulas.Last_Index then
+          for Index in First_New_Formula .. State.Formulas.Last_Index loop
+             declare
+-               Formula : Formula_State := State.Formulas (Index);
+-               Status : Coyote_Math_Jobs.Job_Status;
++               Formula : Formula_State renames State.Formulas (Index);
+             begin
+-               Coyote_Math_Jobs.Start;
+-               Coyote_Math_Jobs.Submit
+-                 (To_String (Formula.LaTeX), Formula.Pending_Job_Id,
+-                  Formula.Generation, Math_Layout.Text_Style,
+-                  Status => Status);
+-               if Status /= Coyote_Math_Jobs.Pending then
+-                  Formula.Pending_Job_Id := 0;
+-               end if;
+-               State.Formulas.Replace_Element (Index, Formula);
++               Submit_Formula (View, Formula);
+             end;
+          end loop;
+       end if;
+@@ -871,13 +868,7 @@ package body Coyote_GUI.Rich_Text is
+          Copy_Connected.Set (View, True, "coyote-inline-copy");
+          Gtk.Text_View.On_Copy_Clipboard (View, On_Copy'Access);
+       end if;
+-      if State.Poll_Source_Id = 0
+-        and then (for some Formula of State.Formulas =>
+-          Formula.Pending_Job_Id /= 0)
+-      then
+-         State.Poll_Source_Id := State_Poll_Sources.Timeout_Add
+-           (10, Poll_Formulas'Access, State);
+-      end if;
++      Ensure_Poll (State);
+       Images_Remaining := Images_Remaining - Count;
+    end Insert;
+ 
+diff --git a/src/coyote_gui/coyote_gui-rich_text.ads b/src/coyote_gui/coyote_gui-rich_text.ads
+index 0e553a4..2f4fd2e 100644
+--- a/src/coyote_gui/coyote_gui-rich_text.ads
++++ b/src/coyote_gui/coyote_gui-rich_text.ads
+@@ -24,7 +24,10 @@ package Coyote_GUI.Rich_Text is
+       Clear            : Boolean := False;
+       Math_Scale       : Long_Float := 1.0);
+ 
+-   --  Re-render valid inline formulas at the requested scale.
++   --  Re-submit inline formulas using the view font size and foreground.
++   --  Parse/layout/raster work runs on math workers; GTK copies bounded row
++   --  slices before committing a Pixbuf. Source stays visible while pending.
++   --  Math_Scale is retained for API compatibility; view fonts encode zoom.
+    procedure Reflow
+      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
+       Math_Scale : Long_Float);
+diff --git a/test/src/coyote_gui_conversation_stack_tests.adb b/test/src/coyote_gui_conversation_stack_tests.adb
+index fa7a2c1..49e9db3 100644
+--- a/test/src/coyote_gui_conversation_stack_tests.adb
++++ b/test/src/coyote_gui_conversation_stack_tests.adb
+@@ -55,6 +55,7 @@ with Math_Layout;
+ with Math_Syntax;
+ with Math_Painter;
+ with Coyote_Math_Resources;
++with Math_Raster_Budget;
+ with Gtk.Enums;
+ with Glib.Properties;
+ with Gtk.Flow_Box;
+@@ -92,6 +93,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+    use type Ada.Real_Time.Time_Span;
+    use type Gdk.Pixbuf.Gdk_Pixbuf;
+    use type Coyote_GUI.Math_Element.Instance_Access;
++   use type Coyote_GUI.Math_Element.Inline_Adoption_Access;
++   use type Coyote_Math_Jobs.Result_Access;
+    use type Ada.Directories.File_Size;
+    use type GNAT.OS_Lib.File_Descriptor;
+    use type Glib.Gint;
+@@ -122,12 +125,17 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+    use type Gtk.Image.Gtk_Image;
+    use type Cairo.Cairo_Context;
+    use type Cairo.Cairo_Surface;
++   use type Cairo.Cairo_Status;
+    use System.Storage_Elements;
+ 
+    type Byte_Access is access all Interfaces.Unsigned_8;
+    function To_Byte_Access is new Ada.Unchecked_Conversion
+      (System.Address, Byte_Access);
++   type Pixel_Word_Access is access all Interfaces.Unsigned_32;
++   function To_Pixel_Word_Access is new Ada.Unchecked_Conversion
++     (System.Address, Pixel_Word_Access);
+    use type Interfaces.Unsigned_8;
++   use type Interfaces.Unsigned_32;
+ 
+    function Pixel_Byte
+      (Data : System.Address; Offset : Natural)
+@@ -1308,6 +1316,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+             end loop;
+          end loop;
+          Coyote_GUI.Rich_Text.Reflow (View, 1.0);
++         Pump_Until_Inline_Pixbufs (View, 1);
+          Drain_Gtk_Events;
+       end loop;
+       Assert
+@@ -1330,7 +1339,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Failure_Baseline : Natural := 0;
+       Failure_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+       Failure_Baseline_Value : Natural := 0;
+-      pragma Unreferenced (Failure_Baseline_Value);
+       Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+       Initial_Rect : Gdk.Rectangle.Gdk_Rectangle;
+       Tags : Gtk.Text_Tag.Text_Tag_List.GSlist;
+@@ -1340,8 +1348,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Font_Size : Glib.Gint;
+       Expected_Rise : Glib.Gint;
+       Expected_Baseline : Natural;
+-      Expected_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+-      Color : Gdk.RGBA.Gdk_RGBA;
++      Expected_Layout : Math_Layout.Box;
++      Expected_Bounds : Math_Raster.Raster_Bounds;
++      Sync_Baseline : Natural;
++      Sync_Snapshot : Natural;
+       Small_Font : Pango.Font.Pango_Font_Description :=
+         Pango.Font.From_String ("sans 8");
+       Large_Font : Pango.Font.Pango_Font_Description :=
+@@ -1356,9 +1366,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Budget_Baseline :=
+         Coyote_GUI.Math_Element.Retained_Raster_Bytes;
+       Failure_Baseline := Coyote_GUI.Math_Element.Retained_Raster_Bytes;
++      Sync_Baseline :=
++        Coyote_GUI.Math_Element.Raster_Testing.Synchronous_Inline_Calls;
+       Coyote_GUI.Math_Element.Raster_Testing.Fail_Next_Inline_Weak_Ref;
+       Failure_Pixbuf := Coyote_GUI.Math_Element.Render_Inline
+         ("x", Failure_Baseline_Value);
++      Assert
++        (Coyote_GUI.Math_Element.Raster_Testing.Synchronous_Inline_Calls =
++           Sync_Baseline + 1,
++         "direct legacy inline render increments its test counter");
+       Assert
+         (Failure_Pixbuf = null,
+          "injected weak-ref failure returns no pixbuf");
+@@ -1382,9 +1398,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+           LaTeX => To_Unbounded_String ("\unknowncommand"),
+           Start_Char => 20,
+           End_Char => 37));
++      Sync_Baseline :=
++        Coyote_GUI.Math_Element.Raster_Testing.Synchronous_Inline_Calls;
+       Coyote_GUI.Rich_Text.Insert
+         (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining,
+          Clear => True);
++      Assert
++        (Coyote_GUI.Math_Element.Raster_Testing.Synchronous_Inline_Calls =
++           Sync_Baseline,
++         "production inline insertion never renders synchronously");
+       Assert
+         (Index (Active_Text (T.Stack.all), "middle") > 0
+            and then Index (Active_Text (T.Stack.all), "tail") > 0,
+@@ -1429,16 +1451,30 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+             Font_Size := Pango.Font.Get_Size
+               (Pango.Context.Get_Font_Description
+                  (Active_Text_View (T.Stack.all).Get_Pango_Context));
+-            Gtk.Style_Context.Get_Style_Context
+-              (Active_Text_View (T.Stack.all)).Get_Color
+-                (Gtk.Enums.Gtk_State_Flag_Normal, Color);
+-            Expected_Pixbuf := Coyote_GUI.Math_Element.Render_Inline
+-              ((if Pixbuf_Count = 1 then "x" else "y"),
+-               Expected_Baseline, 1.0,
+-               Long_Float (Font_Size) / 1_024.0 / 0.75, Color);
++            declare
++               Fonts : aliased Math_Painter.Font_Set;
++            begin
++               Math_Painter.Load
++                 (Fonts, Coyote_Math_Resources.Font_Directory);
++               Expected_Layout := Math_Layout.Build
++                 (Math_Syntax.Parse
++                    ((if Pixbuf_Count = 1 then "x" else "y")),
++                  Math_Layout.Text_Style,
++                  (Pixel_Em => Long_Float (Font_Size) / 1_024.0 / 0.75,
++                   Advance_Source => Fonts'Unchecked_Access, others => <>));
++               Expected_Bounds := Math_Raster.Measure
++                 (Expected_Layout,
++                  Long_Float (Font_Size) / 1_024.0 / 0.75);
++               Expected_Baseline := Expected_Bounds.Origin_Y
++                 + Natural'Max
++                   (1, Natural (Long_Float'Ceiling
++                     (Expected_Layout.Ascent
++                        * (Long_Float (Font_Size) / 1_024.0 / 0.75))))
++                 + 2;
++            end;
+             Expected_Rise :=
+-              -(Glib.Gint (Gdk.Pixbuf.Get_Height (Expected_Pixbuf)
+-                - Glib.Gint (Expected_Baseline)) * 1_024);
++              -(Glib.Gint
++                (Expected_Bounds.Height + 4 - Expected_Baseline) * 1_024);
+             Tags := Gtk.Text_Iter.Get_Tags (Start_Iter);
+             Tag_Cursor := Tags;
+             while Tag_Cursor /= Gtk.Text_Tag.Text_Tag_List.Null_List loop
+@@ -1478,9 +1514,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Assert
+         (Rise_Matched and then Rise_Count = 2,
+          "both inline pixbuf rises equal negative descent in Pango units");
+-      if Expected_Pixbuf /= null then
+-         Glib.Object.Unref (Glib.Object.GObject (Expected_Pixbuf));
+-      end if;
+       Assert
+         (Pixbuf /= null
+          and then Gdk.Pixbuf.Get_Width (Pixbuf) > 0
+@@ -1505,8 +1538,14 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       end loop;
+       Set_Font (T.Stack.all, Large_Font, Math_Scale => 2.0);
+       for Reflow_Index in 1 .. 4 loop
++         Sync_Snapshot :=
++           Coyote_GUI.Math_Element.Raster_Testing.Synchronous_Inline_Calls;
+          Coyote_GUI.Rich_Text.Reflow
+            (Active_Text_View (T.Stack.all), 2.0);
++         Assert
++           (Coyote_GUI.Math_Element.Raster_Testing.Synchronous_Inline_Calls =
++              Sync_Snapshot,
++            "production inline reflow never renders synchronously");
+       end loop;
+       Pump_Until_Inline_Pixbufs
+         (Active_Text_View (T.Stack.all), 2);
+@@ -1665,6 +1704,448 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          "clear and reuse leaves exactly one formula pixbuf");
+    end Test_Inline_Math_Renders_And_Copies_Source;
+ 
++   procedure Test_Inline_Math_Adoption_Lifecycle (T : in out Test) is
++      use type Coyote_Math_Jobs.Job_Status;
++      Job : Coyote_Math_Jobs.Request_Id;
++      Status : Coyote_Math_Jobs.Job_Status;
++      Item : Coyote_Math_Jobs.Result_Access := null;
++      State : Coyote_GUI.Math_Element.Inline_Adoption_Access := null;
++      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
++      Baseline : Natural := 0;
++      Finished : Boolean := False;
++      Budget_Baseline : Natural;
++      Worker_Bytes : Natural;
++      Width, Height : Natural;
++      Deadline : Ada.Real_Time.Time;
++      Reference_Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
++      Reference_Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
++      Pixels_Matched : Boolean := True;
++   begin
++      if not T.Display_Available then
++         return;
++      end if;
++      Budget_Baseline := Coyote_GUI.Math_Element.Retained_Raster_Bytes;
++      Coyote_Math_Jobs.Start (Paused => True);
++      Coyote_Math_Jobs.Submit
++        ("\begin{matrix}x&x\\x&x\\x&x\\x&x\\"
++         & "x&x\\x&x\\x&x\\x&x\\x&x\\x&x"
++         & "\end{matrix}",
++         Job, 771, Math_Layout.Text_Style,
++         Color_Enabled => True,
++         Color => (Red => 0.75, Green => 0.25, Blue => 0.5, Alpha => 0.5),
++         Status => Status, Request_Raster => True, Em_Pixels => 24.0,
++         Font_Directory => Coyote_Math_Resources.Font_Directory);
++      Assert
++        (Status = Coyote_Math_Jobs.Pending,
++         "paused worker accepts an isolated raster request");
++      Coyote_Math_Jobs.Resume;
++      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
++      loop
++         Coyote_Math_Jobs.Poll (Job, 771, Status, Item);
++         exit when Status /= Coyote_Math_Jobs.Pending
++           or else Ada.Real_Time.Clock >= Deadline;
++         delay 0.005;
++      end loop;
++      Assert
++        (Status = Coyote_Math_Jobs.Valid and then Item /= null
++           and then Coyote_Math_Jobs.Has_Raster (Item.all),
++         "worker publishes raster without GTK event pumping");
++      Worker_Bytes := Coyote_Math_Jobs.Raster_Retained_Bytes (Item.all);
++      Width := Coyote_Math_Jobs.Raster_Width (Item.all);
++      Height := Coyote_Math_Jobs.Raster_Height (Item.all);
++      Assert (Height > 16, "fixture raster spans multiple adoption steps");
++      declare
++         Extra : Math_Raster_Budget.Lease;
++         Accepted : Boolean;
++         Before : constant Natural := Math_Raster_Budget.Used;
++      begin
++         Math_Raster_Budget.Reserve
++           (Math_Raster_Budget.Capacity - Before, Extra, Accepted);
++         Assert (Accepted, "remaining raster capacity can be leased");
++         begin
++            Coyote_GUI.Math_Element.Adopt_Inline
++              (Item.all, State, Pixbuf, Baseline, Finished);
++            Assert
++              (Finished and then Pixbuf = null and then State = null,
++               "full ledger rejects inline pixbuf adoption cleanly");
++            Assert
++              (Math_Raster_Budget.Used = Math_Raster_Budget.Capacity,
++               "rejected adoption preserves all existing ledger charges");
++         exception
++            when others =>
++               Math_Raster_Budget.Release (Extra);
++               raise;
++         end;
++         Math_Raster_Budget.Release (Extra);
++         Assert
++           (Math_Raster_Budget.Used = Before,
++            "releasing capacity probe restores the ledger");
++      end;
++      Coyote_GUI.Math_Element.Adopt_Inline
++        (Item.all, State, Pixbuf, Baseline, Finished);
++      Assert
++        (not Finished and then Pixbuf = null and then State /= null,
++         "first adoption copies a bounded prefix of the tall image");
++      Assert
++        (Coyote_GUI.Math_Element.Retained_Raster_Bytes >
++           Budget_Baseline + Worker_Bytes,
++         "partial pixbuf lease overlaps retained worker raster storage");
++      Coyote_GUI.Math_Element.Discard_Inline (State);
++      Assert
++        (State = null
++           and then Coyote_GUI.Math_Element.Retained_Raster_Bytes =
++             Budget_Baseline + Worker_Bytes,
++         "discarding partial adoption releases its pixbuf lease");
++      Coyote_GUI.Math_Element.Raster_Testing.Fail_Next_Inline_Weak_Ref;
++      Coyote_GUI.Math_Element.Adopt_Inline
++        (Item.all, State, Pixbuf, Baseline, Finished);
++      Assert
++        (Finished and then Pixbuf = null and then State = null,
++         "injected adoption weak-ref failure aborts and clears state");
++      Assert
++        (Coyote_GUI.Math_Element.Retained_Raster_Bytes =
++           Budget_Baseline + Worker_Bytes,
++         "weak-ref failure releases the adoption pixbuf lease");
++      loop
++         Coyote_GUI.Math_Element.Adopt_Inline
++           (Item.all, State, Pixbuf, Baseline, Finished);
++         exit when Finished;
++         delay 0.001;
++      end loop;
++      Assert
++        (Pixbuf /= null and then State = null and then Finished,
++         "adoption completes and transfers one owned pixbuf");
++      Assert
++        (Baseline = Coyote_Math_Jobs.Raster_Baseline (Item.all) + 2,
++         "adopted baseline includes worker origin and two-pixel padding");
++      Assert
++        (Natural (Gdk.Pixbuf.Get_Width (Pixbuf)) = Width + 4
++           and then Natural (Gdk.Pixbuf.Get_Height (Pixbuf)) = Height + 4,
++         "adopted pixbuf preserves worker raster extents with padding");
++      Assert
++        (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Budget_Baseline
++          + Worker_Bytes
++          + Natural (Gdk.Pixbuf.Get_Rowstride (Pixbuf)) * (Height + 4),
++         "completed pixbuf charges actual rowstride allocation");
++      Reference_Surface := Cairo.Image_Surface.Create
++        (Cairo.Image_Surface.Cairo_Format_ARGB32,
++         Glib.Gint (Width), Glib.Gint (Height));
++      Assert
++        (Cairo.Surface.Status (Reference_Surface) =
++           Cairo.Cairo_Status_Success,
++         "worker raster reference surface is valid");
++      declare
++         Data : constant System.Address :=
++           Cairo.Image_Surface.Get_Data_Generic (Reference_Surface);
++         Stride : constant Natural := Natural
++           (Cairo.Image_Surface.Get_Stride (Reference_Surface));
++      begin
++         for Y in 0 .. Height - 1 loop
++            for X in 0 .. Width - 1 loop
++               To_Pixel_Word_Access
++                 (Data + System.Storage_Elements.Storage_Offset
++                    (Y * Stride + X * 4)).all :=
++                   Coyote_Math_Jobs.Raster_Pixel (Item.all, X, Y);
++            end loop;
++         end loop;
++      end;
++      Cairo.Surface.Mark_Dirty (Reference_Surface);
++      Cairo.Surface.Flush (Reference_Surface);
++      Reference_Pixbuf := Gdk.Pixbuf.Get_From_Surface
++        (Reference_Surface, 0, 0, Glib.Gint (Width), Glib.Gint (Height));
++      Assert
++        (Reference_Pixbuf /= null,
++         "GDK converts the independent worker-byte reference surface");
++      for Y in 0 .. Height + 3 loop
++         for X in 0 .. Width + 3 loop
++            declare
++               Adopted_Offset : constant Natural := Y
++                 * Natural (Gdk.Pixbuf.Get_Rowstride (Pixbuf)) + X * 4;
++               Adopted_Data : constant System.Address :=
++                 Gdk.Pixbuf.Get_Pixels (Pixbuf).all'Address;
++               In_Inner : constant Boolean := X >= 2 and then X < Width + 2
++                 and then Y >= 2 and then Y < Height + 2;
++            begin
++               if In_Inner then
++                  declare
++                     Reference_Offset : constant Natural :=
++                       (Y - 2) * Natural
++                         (Gdk.Pixbuf.Get_Rowstride (Reference_Pixbuf))
++                       + (X - 2) * 4;
++                     Reference_Data : constant System.Address :=
++                       Gdk.Pixbuf.Get_Pixels
++                         (Reference_Pixbuf).all'Address;
++                  begin
++                     for Channel in 0 .. 3 loop
++                        declare
++                           Difference : constant Integer := abs
++                             (Integer (Pixel_Byte
++                                (Adopted_Data, Adopted_Offset + Channel))
++                              - Integer (Pixel_Byte
++                                (Reference_Data,
++                                 Reference_Offset + Channel)));
++                        begin
++                           Pixels_Matched := Pixels_Matched and then
++                             Difference <= (if Channel = 3 then 0 else 1);
++                        end;
++                     end loop;
++                  end;
++               else
++                  for Channel in 0 .. 3 loop
++                     Pixels_Matched := Pixels_Matched and then
++                       Pixel_Byte
++                         (Adopted_Data, Adopted_Offset + Channel) = 0;
++                  end loop;
++               end if;
++            end;
++         end loop;
++      end loop;
++      Assert
++        (Pixels_Matched,
++         "adopted inner RGBA matches GDK reference and padding stays zero");
++      Glib.Object.Unref (Glib.Object.GObject (Reference_Pixbuf));
++      Reference_Pixbuf := null;
++      Cairo.Surface.Destroy (Reference_Surface);
++      Reference_Surface := Cairo.Null_Surface;
++      Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
++      Pixbuf := null;
++      Assert
++        (Coyote_GUI.Math_Element.Retained_Raster_Bytes =
++           Budget_Baseline + Worker_Bytes,
++         "pixbuf destruction releases its raster lease");
++      Coyote_Math_Jobs.Release (Item);
++      Assert
++        (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Budget_Baseline,
++         "worker result release returns retained bytes to baseline");
++   exception
++      when others =>
++         Coyote_GUI.Math_Element.Discard_Inline (State);
++         if Pixbuf /= null then
++            Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
++         end if;
++         if Reference_Pixbuf /= null then
++            Glib.Object.Unref (Glib.Object.GObject (Reference_Pixbuf));
++         end if;
++         if Reference_Surface /= Cairo.Null_Surface then
++            Cairo.Surface.Destroy (Reference_Surface);
++         end if;
++         Coyote_Math_Jobs.Release (Item);
++         raise;
++   end Test_Inline_Math_Adoption_Lifecycle;
++
++   procedure Test_Inline_Math_Partial_Adoption_Lifecycle
++     (T : in out Test)
++   is
++      Rendered : Coyote_Renderer.Markup.Render_Result;
++      View : Gtk.Text_View.Gtk_Text_View := null;
++      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
++      Images_Remaining : Natural := 0;
++      First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
++      Baseline : Natural;
++      Worker_Bytes : Natural;
++      Deadline : Ada.Real_Time.Time;
++      Quit : Boolean;
++      pragma Unreferenced (Quit);
++
++      function Buffer_Text return String is
++      begin
++         Buffer.Get_Start_Iter (First);
++         Buffer.Get_End_Iter (Last);
++         return Buffer.Get_Text (First, Last, True);
++      end Buffer_Text;
++
++      function Has_Pixbuf return Boolean is
++      begin
++         Buffer.Get_Start_Iter (First);
++         while not Gtk.Text_Iter.Is_End (First) loop
++            if Gtk.Text_Iter.Get_Pixbuf (First) /= null then
++               return True;
++            end if;
++            declare
++               Moved : Boolean;
++            begin
++               Gtk.Text_Iter.Forward_Char (First, Moved);
++               exit when not Moved;
++            end;
++         end loop;
++         return False;
++      end Has_Pixbuf;
++
++      procedure Wait_For_Worker_Raster is
++      begin
++         Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
++         while Coyote_GUI.Math_Element.Retained_Raster_Bytes = Baseline
++           and then Ada.Real_Time.Clock < Deadline
++         loop
++            delay 0.005;
++         end loop;
++         Assert
++           (Coyote_GUI.Math_Element.Retained_Raster_Bytes > Baseline,
++            "worker retains a raster before GTK polling begins");
++         Worker_Bytes :=
++           Coyote_GUI.Math_Element.Retained_Raster_Bytes - Baseline;
++      end Wait_For_Worker_Raster;
++
++      procedure Wait_For_Partial_Adoption is
++      begin
++         Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (2);
++         loop
++            exit when Coyote_GUI.Math_Element.Retained_Raster_Bytes >
++                Baseline + Worker_Bytes
++              and then not Has_Pixbuf;
++            exit when Ada.Real_Time.Clock >= Deadline;
++            if Gtk.Main.Events_Pending then
++               Quit := Gtk.Main.Main_Iteration_Do (False);
++            else
++               delay 0.005;
++            end if;
++         end loop;
++         Assert
++           (Coyote_GUI.Math_Element.Retained_Raster_Bytes >
++              Baseline + Worker_Bytes
++              and then not Has_Pixbuf,
++            "partial production adoption overlaps worker and pixbuf leases");
++      end Wait_For_Partial_Adoption;
++
++      procedure Drain_Until_Baseline is
++      begin
++         Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
++         while Coyote_GUI.Math_Element.Retained_Raster_Bytes /= Baseline
++           and then Ada.Real_Time.Clock < Deadline
++         loop
++            if Gtk.Main.Events_Pending then
++               Quit := Gtk.Main.Main_Iteration_Do (False);
++            else
++               delay 0.005;
++            end if;
++         end loop;
++         Assert
++           (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Baseline,
++            "abandoned production formula releases retained raster bytes");
++      end Drain_Until_Baseline;
++
++      function Inline_Pixbuf_Count return Natural is
++         Count : Natural := 0;
++      begin
++         Buffer.Get_Start_Iter (First);
++         while not Gtk.Text_Iter.Is_End (First) loop
++            if Gtk.Text_Iter.Get_Pixbuf (First) /= null then
++               Count := Count + 1;
++            end if;
++            declare
++               Moved : Boolean;
++            begin
++               Gtk.Text_Iter.Forward_Char (First, Moved);
++               exit when not Moved;
++            end;
++         end loop;
++         return Count;
++      end Inline_Pixbuf_Count;
++
++      procedure Insert_Formula (Source, LaTeX : String) is
++      begin
++         Rendered.Markup := To_Unbounded_String (Source);
++         Rendered.Maths.Clear;
++         Rendered.Maths.Append
++           ((Source => To_Unbounded_String (Source),
++             LaTeX => To_Unbounded_String (LaTeX),
++             Start_Char => 0,
++             End_Char => Source'Length));
++         Coyote_GUI.Rich_Text.Insert
++           (View, Rendered, "", Images_Remaining, Clear => True);
++      end Insert_Formula;
++   begin
++      if not T.Display_Available then
++         return;
++      end if;
++      Gtk.Text_View.Gtk_New (View);
++      Buffer := Gtk.Text_View.Get_Buffer (View);
++      declare
++         Font : Pango.Font.Pango_Font_Description :=
++           Pango.Font.From_String ("sans 48");
++      begin
++         View.Modify_Font (Font);
++         Pango.Font.Free (Font);
++      end;
++      Baseline := Coyote_GUI.Math_Element.Retained_Raster_Bytes;
++
++      Insert_Formula ("$\frac{a}{b}$", "\frac{a}{b}");
++      Assert
++        (Buffer_Text = "$\frac{a}{b}$",
++         "large formula source is visible before worker polling");
++      Wait_For_Worker_Raster;
++      Assert (not Has_Pixbuf, "worker result is not a committed pixbuf");
++      Wait_For_Partial_Adoption;
++      Assert
++        (Buffer_Text = "$\frac{a}{b}$",
++         "source remains visible during partial production adoption");
++
++      Buffer.Set_Text ("mutated source");
++      Drain_Until_Baseline;
++      Assert
++        (not Has_Pixbuf and then Buffer_Text = "mutated source",
++         "source mutation discards partial raster without stale image");
++
++      Insert_Formula ("$\frac{c}{d}$", "\frac{c}{d}");
++      Wait_For_Worker_Raster;
++      Wait_For_Partial_Adoption;
++      Insert_Formula ("$x$", "x");
++      Pump_Until_Inline_Pixbufs (View, 1);
++      Assert
++        (Buffer_Text = "$x$" and then Has_Pixbuf,
++         "clear replacement commits only the new formula pixbuf");
++      Assert
++        (Coyote_GUI.Math_Element.Retained_Raster_Bytes > Baseline,
++         "replacement pixbuf retains its own raster lease");
++
++      Coyote_Math_Jobs.Start;
++      Rendered.Markup := Null_Unbounded_String;
++      Rendered.Maths.Clear;
++      for Formula_Index in 1 .. 12 loop
++         declare
++            Source : constant String := "$x$";
++            Start : constant Natural := Length (Rendered.Markup)
++              + (if Formula_Index = 1 then 0 else 1);
++         begin
++            if Formula_Index > 1 then
++               Append (Rendered.Markup, " ");
++            end if;
++            Append (Rendered.Markup, Source);
++            Rendered.Maths.Append
++              ((Source => To_Unbounded_String (Source),
++                LaTeX => To_Unbounded_String ("x"),
++                Start_Char => Start,
++                End_Char => Start + Source'Length));
++         end;
++      end loop;
++      Coyote_GUI.Rich_Text.Insert
++        (View, Rendered, "", Images_Remaining, Clear => True);
++      Assert
++        (Natural (Rendered.Maths.Length) = 12
++         and then Buffer_Text = To_String (Rendered.Markup)
++         and then Inline_Pixbuf_Count = 0,
++         "twelve formulas retain source before polling the bounded queue");
++      Coyote_Math_Jobs.Resume;
++      Pump_Until_Inline_Pixbufs (View, 12);
++      Assert
++        (Inline_Pixbuf_Count = 12
++         and then Buffer_Text = To_String (Rendered.Markup),
++         "Busy submissions retry until all twelve exact pixbufs commit");
++
++      Insert_Formula ("$\frac{e}{f}$", "\frac{e}{f}");
++      Wait_For_Worker_Raster;
++      Wait_For_Partial_Adoption;
++      Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget (View));
++      View := null;
++      Drain_Until_Baseline;
++   exception
++      when others =>
++         if View /= null then
++            Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget (View));
++         end if;
++         raise;
++   end Test_Inline_Math_Partial_Adoption_Lifecycle;
++
+    procedure Test_Inline_Math_Invalid_Falls_Back_To_Source
+      (T : in out Test)
+    is
+@@ -1696,6 +2177,23 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+            (Start_Iter, End_Iter, Include_Hidden_Chars => True),
+            "\unknowncommand") > 0,
+          "failed inline math keeps original source visible and copyable");
++
++      Rendered.Markup := To_Unbounded_String ("$oversized$");
++      Rendered.Maths.Clear;
++      Rendered.Maths.Append
++        ((Source => To_Unbounded_String ("$oversized$"),
++          LaTeX => To_Unbounded_String
++            ((1 .. Math_Syntax.Max_Source_Bytes + 1 => 'x')),
++          Start_Char => 0,
++          End_Char => 11));
++      Coyote_GUI.Rich_Text.Insert
++        (Active_Text_View (T.Stack.all), Rendered, "", Images_Remaining,
++         Clear => True);
++      Buffer.Get_Start_Iter (Start_Iter);
++      Buffer.Get_End_Iter (End_Iter);
++      Assert
++        (Buffer.Get_Text (Start_Iter, End_Iter, True) = "$oversized$",
++         "over-limit inline source remains visible as fallback text");
+    end Test_Inline_Math_Invalid_Falls_Back_To_Source;
+ 
+    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test)
+@@ -4081,6 +4579,16 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+            ("Coyote.GUI.Conversation_Stack renders and copies inline LaTeX",
+             Coyote_GUI_Conversation_Stack_Tests
+               .Test_Inline_Math_Renders_And_Copies_Source'Access));
++      Result.Add_Test
++        (Coyote_GUI_Conversation_Stack_Caller.Create
++           ("Coyote.GUI.Conversation_Stack adopts inline worker rasters",
++            Coyote_GUI_Conversation_Stack_Tests
++              .Test_Inline_Math_Adoption_Lifecycle'Access));
++      Result.Add_Test
++        (Coyote_GUI_Conversation_Stack_Caller.Create
++           ("Coyote.GUI.Conversation_Stack tests partial adoption cleanup",
++            Coyote_GUI_Conversation_Stack_Tests
++              .Test_Inline_Math_Partial_Adoption_Lifecycle'Access));
+       Result.Add_Test
+         (Coyote_GUI_Conversation_Stack_Caller.Create
+            ("Coyote.GUI.Conversation_Stack keeps invalid inline LaTeX source",
+diff --git a/test/src/coyote_gui_conversation_stack_tests.ads b/test/src/coyote_gui_conversation_stack_tests.ads
+index 0716df4..9ded766 100644
+--- a/test/src/coyote_gui_conversation_stack_tests.ads
++++ b/test/src/coyote_gui_conversation_stack_tests.ads
+@@ -45,6 +45,9 @@ package Coyote_GUI_Conversation_Stack_Tests is
+    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test);
+    procedure Test_Inline_Math_Line_Boundary_Hit_Test (T : in out Test);
+    procedure Test_Inline_Math_Renders_And_Copies_Source (T : in out Test);
++   procedure Test_Inline_Math_Adoption_Lifecycle (T : in out Test);
++   procedure Test_Inline_Math_Partial_Adoption_Lifecycle
++     (T : in out Test);
+    procedure Test_Inline_Math_Invalid_Falls_Back_To_Source
+      (T : in out Test);
+    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test);
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index fdd88c6..4c2ae2a 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -44,6 +44,26 @@ procedure Math_Jobs_Probe is
+       return False;
+    end Has_Red_Ink;
+ 
++   function Matches_Raster
++     (Result : Jobs.Result_Access; Reference : Math_Raster.Image)
++      return Boolean
++   is
++      Matches : Boolean :=
++        Jobs.Raster_Width (Result.all) = Math_Raster.Width (Reference) and
++        Jobs.Raster_Height (Result.all) = Math_Raster.Height (Reference);
++   begin
++      if Matches then
++         for Y in 0 .. Math_Raster.Height (Reference) - 1 loop
++            for X in 0 .. Math_Raster.Width (Reference) - 1 loop
++               Matches := Matches and then
++                 Jobs.Raster_Pixel (Result.all, X, Y) =
++                   Math_Raster.Get_Pixel (Reference, X, Y);
++            end loop;
++         end loop;
++      end if;
++      return Matches;
++   end Matches_Raster;
++
+    Checks : Natural := 0;
+    Failures : Natural := 0;
+ 
+@@ -440,8 +460,13 @@ begin
+         Vertical_Status = Jobs.Pending,
+         "horizontal and vertical cancel raster jobs queued");
+       for Wait in 1 .. 400 loop
+-         Jobs.Poll (Horizontal_Id, 96, Horizontal_Status, Horizontal_Result);
+-         Jobs.Poll (Vertical_Id, 96, Vertical_Status, Vertical_Result);
++         if Horizontal_Status = Jobs.Pending then
++            Jobs.Poll
++              (Horizontal_Id, 96, Horizontal_Status, Horizontal_Result);
++         end if;
++         if Vertical_Status = Jobs.Pending then
++            Jobs.Poll (Vertical_Id, 96, Vertical_Status, Vertical_Result);
++         end if;
+          exit when Horizontal_Status /= Jobs.Pending and
+            Vertical_Status /= Jobs.Pending;
+          delay 0.005;
+@@ -466,6 +491,14 @@ begin
+       Check (Horizontal_Layout.Valid and Vertical_Layout.Valid,
+         "measured cancellation reference layouts are valid");
+       if Horizontal_Result /= null then
++         declare
++            Reference : constant Math_Raster.Image := Math_Raster.Render
++              (Fonts, Horizontal_Layout, 48.0,
++               (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0));
++         begin
++            Check (Matches_Raster (Horizontal_Result, Reference),
++              "double-T worker pixels exactly match direct render");
++         end;
+          Check (Jobs.Layout (Horizontal_Result.all).Width =
+            Horizontal_Layout.Width and
+            Jobs.Layout (Horizontal_Result.all).Ascent =
+@@ -491,9 +524,18 @@ begin
+            "double-T baseline uses measured Y origin and ceiled ascent");
+       end if;
+       if Vertical_Result /= null then
++         declare
++            Reference : constant Math_Raster.Image := Math_Raster.Render
++              (Fonts, Vertical_Layout, 48.0,
++               (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0));
++         begin
++            Check (Matches_Raster (Vertical_Result, Reference),
++              "single-T worker pixels exactly match direct render");
++         end;
+          Check (Jobs.Layout (Vertical_Result.all).Width =
+            Vertical_Layout.Width and
+-           Jobs.Layout (Vertical_Result.all).Ascent = Vertical_Layout.Ascent and
++           Jobs.Layout (Vertical_Result.all).Ascent =
++             Vertical_Layout.Ascent and
+            Jobs.Layout (Vertical_Result.all).Descent = Vertical_Layout.Descent,
+            "single-T returned geometry matches direct measured layout");
+          Check (Jobs.Raster_Origin_Y (Vertical_Result.all) > 0,
+@@ -538,6 +580,77 @@ begin
+          end if;
+       end if;
+    end;
++   declare
++      Color_Id : Jobs.Request_Id;
++      Color_Status : Jobs.Job_Status;
++      Color_Result : Jobs.Result_Access;
++      Fonts : aliased Math_Painter.Font_Set;
++      Settings : Math_Layout.Layout_Settings := (others => <>);
++      Layout : Math_Layout.Box;
++      Color : constant Jobs.Math_Color :=
++        (Red => 0.75, Green => 0.2, Blue => 0.1, Alpha => 0.6);
++   begin
++      Jobs.Start;
++      Jobs.Submit ("\textcolor{blue}{x+y}", Color_Id, 97,
++        Math_Layout.Text_Style, Color_Enabled => True, Color => Color,
++        Status => Color_Status, Request_Raster => True, Em_Pixels => 40.0,
++        Font_Directory => Font_Directory);
++      Check (Color_Status = Jobs.Pending,
++        "explicit-color alpha raster job queued");
++      for Wait in 1 .. 400 loop
++         if Color_Status = Jobs.Pending then
++            Jobs.Poll (Color_Id, 97, Color_Status, Color_Result);
++         end if;
++         exit when Color_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Color_Status = Jobs.Valid and Color_Result /= null,
++        "explicit-color alpha raster job completes");
++      Math_Painter.Load (Fonts, Font_Directory);
++      Settings.Pixel_Em := 40.0;
++      Settings.Advance_Source := Fonts'Unchecked_Access;
++      Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\textcolor{blue}{x+y}"),
++         Math_Layout.Text_Style, Settings);
++      for I in Layout.Commands.First_Index .. Layout.Commands.Last_Index loop
++         declare
++            Command : Math_Layout.Draw_Command := Layout.Commands (I);
++         begin
++            if not Command.Has_Color then
++               Command.Has_Color := True;
++               Command.Red := Color.Red;
++               Command.Green := Color.Green;
++               Command.Blue := Color.Blue;
++               Command.Alpha := Color.Alpha;
++               Layout.Commands.Replace_Element (I, Command);
++            end if;
++         end;
++      end loop;
++      if Color_Result /= null then
++         declare
++            Reference : constant Math_Raster.Image := Math_Raster.Render
++              (Fonts, Layout, 40.0,
++               (Red => Color.Red, Green => Color.Green, Blue => Color.Blue,
++                Alpha => Color.Alpha));
++         begin
++            Check (Layout.Valid and
++              Matches_Raster (Color_Result, Reference),
++              "colored alpha worker pixels exactly match direct render");
++         end;
++         Check (Jobs.Raster_Baseline (Color_Result.all) =
++           Jobs.Raster_Origin_Y (Color_Result.all) + Natural
++             (Long_Float'Ceiling
++                (Jobs.Layout (Color_Result.all).Ascent * 40.0)),
++           "colored alpha raster baseline includes measured top origin");
++         Check (Jobs.Raster_Retained_Bytes (Color_Result.all) > 0 and
++           Math_Raster_Budget.Used =
++             Jobs.Raster_Retained_Bytes (Color_Result.all),
++           "colored alpha raster retains its charged storage");
++         Jobs.Release (Color_Result);
++         Check (Math_Raster_Budget.Used = 0,
++           "colored alpha raster release restores empty budget");
++      end if;
++   end;
+    Jobs.Start;
+    Jobs.Submit ("x+y", Abandoned_Id, Abandoned_Generation,
+      Math_Layout.Display_Style, Status => S, Request_Raster => True,
+diff --git a/tools/map_math_coverage.py b/tools/map_math_coverage.py
+index b2c89b4..cae51dd 100644
+--- a/tools/map_math_coverage.py
++++ b/tools/map_math_coverage.py
+@@ -511,7 +511,7 @@ REQ_MATRIX = [
+     ("REQ-MATH-008", "partial-implemented-unqualified", "Diagnostics/source fallback exist; error-fragment and source-position parity unqualified."),
+     ("REQ-MATH-009", "partial-implemented-unqualified", "The core default trust=false is maintained and sensitive commands are refused; full policy equivalence unqualified."),
+     ("REQ-MATH-010", "partial-implemented-unqualified", "Cooperative polling reaches pipeline loops and phase boundaries; expired queued work is skipped before copying input. Raster_Budget shares a 64 MiB retained-raster lease across completed job vectors, display surfaces and inline Pixbufs. Whole-job ≤256 MiB accounting, complete process-cache qualification and hard queue-inclusive 250 ms completion remain open; individual native calls are not preempted."),
+-    ("REQ-MATH-011", "partial-implemented-unqualified", "Native integration exists, but inline Rich_Text still calls Render_Layout_Inline on GTK. Off-thread inline painting, complete tiling/cache/repaint reuse and compatibility/GTK timing qualification remain open."),
++    ("REQ-MATH-011", "partial-implemented-unqualified", "Display and inline rasterization run on math workers; Rich_Text incrementally adopts padded Pixbufs on GTK with separate retained leases. Scoped source/copy/reflow, pixel and partial-adoption lifecycle tests pass; complete tiling/cache/repaint reuse and compatibility/GTK timing qualification remain open. See report section 11.11."),
+     ("REQ-MATH-012", "partial-implemented-unqualified", "Semantic-tree source exists; no completed human assistive-technology review."),
+     ("REQ-MATH-013", "partial-implemented-unqualified", "Existing structured geometry and image probes are scoped evidence only. Do not infer latest geometry/pixel counts or pass status from stale map snapshots; recorded results, artifact availability and open gates are maintained in coordinator-owned parity report section 11. Full per-entry corpus, browser/platform pins, approved thresholds, and qualification remain incomplete."),
+     ("REQ-MATH-014", "partial-implemented-unqualified", "Regression-suite chronology and the latest authoritative result are recorded in the current STR; earlier run counts are historical evidence only. A green regression count is not compatibility qualification."),

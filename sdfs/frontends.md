@@ -2392,3 +2392,34 @@ acceptance. Reference glyph bearings, shaped text ink, parent clipping, inline
 worker/cache/resource/deadline/font/lifecycle/callable/human qualification remain
 open. Valgrind/resources not rerun. PCR-125 OPEN, feature NOT COMPLETE. Approved
 requirements/deviations unchanged; no release/install/commit.
+
+
+## 2026-11-15 — Worker-backed inline math rasterization (PCR-125)
+
+Rich_Text now requests measured text-style worker rasters with current GTK font
+size/foreground and trusted bundled fonts. Removed GTK-side parsed/layout caches
+and synchronous inline painting from production. Font reflow abandons old work
+and resubmits without double-applying zoom. Math_Element incrementally converts
+premultiplied ARGB to padded RGBA Pixbufs (eight rows/cooperative5ms per step),
+charging actual Pixbuf stride separately while worker storage remains leased.
+Visible source persists until fresh-result commit. Clear/reflow/mutation/reuse/
+destroy discard partial adoption and release both owners; queue-busy retries
+are distinct from over-limit-source rejection. Legacy synchronous component
+helpers remain, instrumented for regression controls.
+
+Final development full1076/1076, zero failures/errors,148.864532s cumulative;
+worker170/170, required GTK9/9, containment self-test and offline HTTP lifecycle
+pass. Two new GUI cases cover adoption conversion/budget/failure/discard and
+production partial-result lifecycle, plus12 formulas through an8-slot queue.
+Existing copy/rise/reflow and line-boundary cases now exercise the async path.
+GDK conversion RGB tolerance1 reflects integer unpremultiplication; alpha and
+padding exact. Worker fractional painting differs from legacy ceiled inline
+paint placement; baseline metadata plus padding remains used for Pango rise.
+
+Initial compile/filter failures retained; reviews prompted Busy guard and stale
+image cleanup. Final read-only review found no concrete blocker. No new browser,
+geometry/raster/resource or Valgrind run; no complete memory/deadline/cache/font/
+lifecycle/callable/human acceptance. Report §11.11 and
+`plan/evidence/native-math-2026-11-15-inline-worker/` control this checkpoint.
+Developer/agent review is not independent acceptance; PCR-125 OPEN, feature NOT
+COMPLETE. No requirement/deviation changes, release, installation or commit.

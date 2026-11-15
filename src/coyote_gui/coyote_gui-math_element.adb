@@ -65,6 +65,179 @@ package body Coyote_GUI.Math_Element is
    Inline_Pixbuf_Notify : constant Glib.Object.Weak_Notify :=
      Release_Inline_Pixbuf'Access;
    Inline_Weak_Ref_Failure_For_Test : Boolean := False;
+   Synchronous_Inline_Call_Count : Natural := 0;
+   procedure Free_Inline_Adoption is new Ada.Unchecked_Deallocation
+     (Inline_Adoption, Inline_Adoption_Access);
+
+   procedure Discard_Inline (State : in out Inline_Adoption_Access) is
+      procedure Free_Lease is new Ada.Unchecked_Deallocation
+        (Math_Raster_Budget.Lease, Charge_Addresses.Object_Pointer);
+   begin
+      if State = null then
+         return;
+      end if;
+      if State.Pixbuf /= null then
+         Glib.Object.Unref (Glib.Object.GObject (State.Pixbuf));
+         State.Pixbuf := null;
+      end if;
+      if State.Lease /= System.Null_Address then
+         declare
+            Charge : Charge_Addresses.Object_Pointer :=
+              Charge_Addresses.To_Pointer (State.Lease);
+         begin
+            Math_Raster_Budget.Release (Charge.all);
+            Free_Lease (Charge);
+            State.Lease := System.Null_Address;
+         end;
+      end if;
+      Free_Inline_Adoption (State);
+   exception
+      when others =>
+         State := null;
+   end Discard_Inline;
+
+   procedure Adopt_Inline
+     (Item     : Coyote_Math_Jobs.Job_Result;
+      State    : in out Inline_Adoption_Access;
+      Pixbuf   : out Gdk.Pixbuf.Gdk_Pixbuf;
+      Baseline : out Natural;
+      Finished : out Boolean)
+   is
+      Started : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+      Accepted : Boolean;
+      Width, Height : Natural;
+      Row_End : Natural;
+      Data : System.Address;
+      Stride : Natural;
+      Source_Pixel : Interfaces.Unsigned_32;
+      Alpha, Red, Green, Blue : Natural;
+      Target_Offset : Natural;
+      procedure Put_Byte (Offset : Natural; Value : Natural) is
+      begin
+         Raster_Bytes.To_Pointer
+           (Data + System.Storage_Elements.Storage_Offset (Offset)).all :=
+             Glib.Guchar (Value);
+      end Put_Byte;
+      function Straight (Channel : Natural) return Natural is
+      begin
+         if Alpha = 0 then
+            return 0;
+         end if;
+         return Natural'Min (255, (Channel * 255 + Alpha / 2) / Alpha);
+      end Straight;
+   begin
+      Pixbuf := null;
+      Baseline := 0;
+      Finished := False;
+      if State = null then
+         if not Coyote_Math_Jobs.Has_Raster (Item) then
+            Finished := True;
+            return;
+         end if;
+         Width := Coyote_Math_Jobs.Raster_Width (Item);
+         Height := Coyote_Math_Jobs.Raster_Height (Item);
+         if Width = 0 or else Height = 0 or else Width > 1_996
+           or else Height > 508
+         then
+            Finished := True;
+            return;
+         end if;
+         State := new Inline_Adoption;
+         State.Lease := Charge_Addresses.To_Address
+           (new Math_Raster_Budget.Lease);
+         Math_Raster_Budget.Reserve
+           ((Width + 4) * 4 * (Height + 4),
+            Charge_Addresses.To_Pointer (State.Lease).all, Accepted);
+         if not Accepted then
+            Discard_Inline (State);
+            Finished := True;
+            return;
+         end if;
+         State.Pixbuf := Gdk.Pixbuf.Gdk_New
+           (Colorspace => Gdk.Pixbuf.Colorspace_RGB,
+            Has_Alpha => True, Bits_Per_Sample => 8,
+            Width => Gint (Width + 4), Height => Gint (Height + 4));
+         if State.Pixbuf = null then
+            Discard_Inline (State);
+            Finished := True;
+            return;
+         end if;
+         Stride := Natural (Gdk.Pixbuf.Get_Rowstride (State.Pixbuf));
+         Math_Raster_Budget.Adjust
+           (Charge_Addresses.To_Pointer (State.Lease).all,
+            Stride * (Height + 4), Accepted);
+         if not Accepted then
+            Discard_Inline (State);
+            Finished := True;
+            return;
+         end if;
+         if Inline_Weak_Ref_Failure_For_Test then
+            Inline_Weak_Ref_Failure_For_Test := False;
+            raise Program_Error;
+         end if;
+         Glib.Object.Weak_Ref
+           (State.Pixbuf, Inline_Pixbuf_Notify, State.Lease);
+         State.Lease := System.Null_Address;
+         Baseline := Coyote_Math_Jobs.Raster_Baseline (Item) + 2;
+      else
+         Width := Coyote_Math_Jobs.Raster_Width (Item);
+         Height := Coyote_Math_Jobs.Raster_Height (Item);
+         Baseline := Coyote_Math_Jobs.Raster_Baseline (Item) + 2;
+      end if;
+      Data := Gdk.Pixbuf.Get_Pixels (State.Pixbuf).all'Address;
+      Stride := Natural (Gdk.Pixbuf.Get_Rowstride (State.Pixbuf));
+      Row_End := Natural'Min (Height + 4, State.Next_Row + 8);
+      Copy_Rows :
+         while State.Next_Row < Row_End loop
+            declare
+               Y : constant Natural := State.Next_Row;
+            begin
+               for X in 0 .. Width + 3 loop
+                  Target_Offset := Y * Stride + X * 4;
+                  if Y < 2 or else Y >= Height + 2
+                    or else X < 2 or else X >= Width + 2
+                  then
+                     Put_Byte (Target_Offset, 0);
+                     Put_Byte (Target_Offset + 1, 0);
+                     Put_Byte (Target_Offset + 2, 0);
+                     Put_Byte (Target_Offset + 3, 0);
+                  else
+                     Source_Pixel := Coyote_Math_Jobs.Raster_Pixel
+                       (Item, X - 2, Y - 2);
+                     Blue := Natural (Source_Pixel and 16#FF#);
+                     Green := Natural
+                       (Interfaces.Shift_Right (Source_Pixel, 8)
+                          and 16#FF#);
+                     Red := Natural
+                       (Interfaces.Shift_Right (Source_Pixel, 16)
+                          and 16#FF#);
+                     Alpha := Natural
+                       (Interfaces.Shift_Right (Source_Pixel, 24)
+                          and 16#FF#);
+                     Put_Byte (Target_Offset, Straight (Red));
+                     Put_Byte (Target_Offset + 1, Straight (Green));
+                     Put_Byte (Target_Offset + 2, Straight (Blue));
+                     Put_Byte (Target_Offset + 3, Alpha);
+                  end if;
+               end loop;
+               State.Next_Row := State.Next_Row + 1;
+            end;
+            exit Copy_Rows when
+              Ada.Real_Time.Clock - Started >= Ada.Real_Time.Milliseconds (5);
+         end loop Copy_Rows;
+      if State.Next_Row = Height + 4 then
+         Pixbuf := State.Pixbuf;
+         State.Pixbuf := null;
+         Finished := True;
+         Free_Inline_Adoption (State);
+      end if;
+   exception
+      when others =>
+         Discard_Inline (State);
+         Pixbuf := null;
+         Baseline := 0;
+         Finished := True;
+   end Adopt_Inline;
 
    procedure Release_Inline_Pixbuf
      (Data : System.Address; Object : System.Address) is
@@ -763,6 +936,8 @@ package body Coyote_GUI.Math_Element is
       Accepted : Boolean := False;
       Weak_Ref_Installed : Boolean := False;
    begin
+      Synchronous_Inline_Call_Count :=
+        Synchronous_Inline_Call_Count + 1;
       Baseline := 0;
       if not Math_Syntax.Is_Valid (Parsed) or else not Layout.Valid
         or else not Em_Pixels'Valid
@@ -1014,5 +1189,7 @@ package body Coyote_GUI.Math_Element is
       begin
          Inline_Weak_Ref_Failure_For_Test := True;
       end Fail_Next_Inline_Weak_Ref;
+      function Synchronous_Inline_Calls return Natural is
+        (Synchronous_Inline_Call_Count);
    end Raster_Testing;
 end Coyote_GUI.Math_Element;

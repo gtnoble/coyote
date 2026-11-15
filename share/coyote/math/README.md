@@ -27,14 +27,16 @@ compatibility. The approved target and current results are separate documents:
   stays visible while a formula is pending or if processing fails.
 - Inline Copy reconstructs the original delimited input rather than copying
   the raster image or exposing internal markup.
-- Two native workers compute syntax, semantics and layout. Display formulas
-  are rasterized off-thread and adopted in batches on the GTK main task. Inline
-  formulas still call `Render_Layout_Inline` on GTK and submit jobs without
-  `Request_Raster`; do not infer off-thread inline painting. GTK widget
-  operations remain on the GTK main task.
-- Zoom/reflow uses cached inline syntax/layout. Display scale changes currently
-  submit a fresh independent request; cached-AST-only display repaint is not
-  implemented.
+- Two native workers compute syntax, semantics, layout and raster pixels for
+  display and inline formulas. GTK adopts inline RGBA Pixbufs in at most eight
+  rows per step with a cooperative five-millisecond copy target. Source remains
+  visible until commit; obsolete results and partial images are discarded.
+  Pixbuf allocation and widget operations remain on GTK; this is not a hard
+  GTK-slice or whole-job timing guarantee. Legacy synchronous inline helpers
+  remain available for component tests, not the production Rich_Text path.
+- Inline font reflow and display scale changes submit fresh independent
+  requests; cached-AST-only repaint/reuse is not implemented. Inline zoom uses
+  the view font size, without applying Math_Scale a second time.
 - Display formulas have a collapsed **Math structure** expander. It presents
   source-linked semantic nodes in a native keyboard-navigable tree, populated
   incrementally. This is not completed human screen-reader qualification.
@@ -148,10 +150,9 @@ target remain unqualified; none of these facts qualify the approved targets.
 
 Current verification evidence, discrepancies, coverage and open qualification
 gates belong in coordinator-owned report §11; §10 and earlier sections are
-historical. Previously frozen full-suite results pre-date the latest changes
-and are historical regression evidence only. The §11 summary records results
-not freshly reverified for this documentation update; this summary does not
-report current qualification.
+historical. Report §11.11 records fresh inline-worker developer verification:
+full suite1076/1076 and worker probe170/170. Earlier snapshots remain historical;
+these scoped checks do not establish final qualification.
 No parity, whole-job resource/timing compliance, or human visual/accessibility
 acceptance is established. Coverage is a source crosswalk, not qualification.
 Section §10 and earlier report sections are historical snapshots.
@@ -178,8 +179,10 @@ sh test/tools/check-math-browser.sh
 sh test/tools/check-math-images.sh
 ```
 
-The last recorded image result was 28/29, with `utilde-long` at 0.9851 against
-the unchanged 0.99 threshold; this result has not been freshly reverified.
+The latest recorded expanded image result is95/95, repeated, with original
+pilot29/29 (§11.10). The prior undertilde/overline/cancellation failures were
+corrected within that corpus. Images were not rerun in the inline-worker
+increment (§11.11); this is scoped historical evidence, not full visual parity.
 Recorded geometry, structured, differential and image evidence, including the
 338-name outcome (278 scoped semantic matches and 60 explicit gaps), belongs in
 coordinator-owned report §11. Do not present recorded outcomes as fresh results

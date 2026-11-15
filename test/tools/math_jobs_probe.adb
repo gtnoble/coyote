@@ -44,6 +44,26 @@ procedure Math_Jobs_Probe is
       return False;
    end Has_Red_Ink;
 
+   function Matches_Raster
+     (Result : Jobs.Result_Access; Reference : Math_Raster.Image)
+      return Boolean
+   is
+      Matches : Boolean :=
+        Jobs.Raster_Width (Result.all) = Math_Raster.Width (Reference) and
+        Jobs.Raster_Height (Result.all) = Math_Raster.Height (Reference);
+   begin
+      if Matches then
+         for Y in 0 .. Math_Raster.Height (Reference) - 1 loop
+            for X in 0 .. Math_Raster.Width (Reference) - 1 loop
+               Matches := Matches and then
+                 Jobs.Raster_Pixel (Result.all, X, Y) =
+                   Math_Raster.Get_Pixel (Reference, X, Y);
+            end loop;
+         end loop;
+      end if;
+      return Matches;
+   end Matches_Raster;
+
    Checks : Natural := 0;
    Failures : Natural := 0;
 
@@ -440,8 +460,13 @@ begin
         Vertical_Status = Jobs.Pending,
         "horizontal and vertical cancel raster jobs queued");
       for Wait in 1 .. 400 loop
-         Jobs.Poll (Horizontal_Id, 96, Horizontal_Status, Horizontal_Result);
-         Jobs.Poll (Vertical_Id, 96, Vertical_Status, Vertical_Result);
+         if Horizontal_Status = Jobs.Pending then
+            Jobs.Poll
+              (Horizontal_Id, 96, Horizontal_Status, Horizontal_Result);
+         end if;
+         if Vertical_Status = Jobs.Pending then
+            Jobs.Poll (Vertical_Id, 96, Vertical_Status, Vertical_Result);
+         end if;
          exit when Horizontal_Status /= Jobs.Pending and
            Vertical_Status /= Jobs.Pending;
          delay 0.005;
@@ -466,6 +491,14 @@ begin
       Check (Horizontal_Layout.Valid and Vertical_Layout.Valid,
         "measured cancellation reference layouts are valid");
       if Horizontal_Result /= null then
+         declare
+            Reference : constant Math_Raster.Image := Math_Raster.Render
+              (Fonts, Horizontal_Layout, 48.0,
+               (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0));
+         begin
+            Check (Matches_Raster (Horizontal_Result, Reference),
+              "double-T worker pixels exactly match direct render");
+         end;
          Check (Jobs.Layout (Horizontal_Result.all).Width =
            Horizontal_Layout.Width and
            Jobs.Layout (Horizontal_Result.all).Ascent =
@@ -491,9 +524,18 @@ begin
            "double-T baseline uses measured Y origin and ceiled ascent");
       end if;
       if Vertical_Result /= null then
+         declare
+            Reference : constant Math_Raster.Image := Math_Raster.Render
+              (Fonts, Vertical_Layout, 48.0,
+               (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0));
+         begin
+            Check (Matches_Raster (Vertical_Result, Reference),
+              "single-T worker pixels exactly match direct render");
+         end;
          Check (Jobs.Layout (Vertical_Result.all).Width =
            Vertical_Layout.Width and
-           Jobs.Layout (Vertical_Result.all).Ascent = Vertical_Layout.Ascent and
+           Jobs.Layout (Vertical_Result.all).Ascent =
+             Vertical_Layout.Ascent and
            Jobs.Layout (Vertical_Result.all).Descent = Vertical_Layout.Descent,
            "single-T returned geometry matches direct measured layout");
          Check (Jobs.Raster_Origin_Y (Vertical_Result.all) > 0,
@@ -536,6 +578,77 @@ begin
          if Vertical_Result /= null then
             Jobs.Release (Vertical_Result);
          end if;
+      end if;
+   end;
+   declare
+      Color_Id : Jobs.Request_Id;
+      Color_Status : Jobs.Job_Status;
+      Color_Result : Jobs.Result_Access;
+      Fonts : aliased Math_Painter.Font_Set;
+      Settings : Math_Layout.Layout_Settings := (others => <>);
+      Layout : Math_Layout.Box;
+      Color : constant Jobs.Math_Color :=
+        (Red => 0.75, Green => 0.2, Blue => 0.1, Alpha => 0.6);
+   begin
+      Jobs.Start;
+      Jobs.Submit ("\textcolor{blue}{x+y}", Color_Id, 97,
+        Math_Layout.Text_Style, Color_Enabled => True, Color => Color,
+        Status => Color_Status, Request_Raster => True, Em_Pixels => 40.0,
+        Font_Directory => Font_Directory);
+      Check (Color_Status = Jobs.Pending,
+        "explicit-color alpha raster job queued");
+      for Wait in 1 .. 400 loop
+         if Color_Status = Jobs.Pending then
+            Jobs.Poll (Color_Id, 97, Color_Status, Color_Result);
+         end if;
+         exit when Color_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Color_Status = Jobs.Valid and Color_Result /= null,
+        "explicit-color alpha raster job completes");
+      Math_Painter.Load (Fonts, Font_Directory);
+      Settings.Pixel_Em := 40.0;
+      Settings.Advance_Source := Fonts'Unchecked_Access;
+      Layout := Math_Layout.Build
+        (Math_Syntax.Parse ("\textcolor{blue}{x+y}"),
+         Math_Layout.Text_Style, Settings);
+      for I in Layout.Commands.First_Index .. Layout.Commands.Last_Index loop
+         declare
+            Command : Math_Layout.Draw_Command := Layout.Commands (I);
+         begin
+            if not Command.Has_Color then
+               Command.Has_Color := True;
+               Command.Red := Color.Red;
+               Command.Green := Color.Green;
+               Command.Blue := Color.Blue;
+               Command.Alpha := Color.Alpha;
+               Layout.Commands.Replace_Element (I, Command);
+            end if;
+         end;
+      end loop;
+      if Color_Result /= null then
+         declare
+            Reference : constant Math_Raster.Image := Math_Raster.Render
+              (Fonts, Layout, 40.0,
+               (Red => Color.Red, Green => Color.Green, Blue => Color.Blue,
+                Alpha => Color.Alpha));
+         begin
+            Check (Layout.Valid and
+              Matches_Raster (Color_Result, Reference),
+              "colored alpha worker pixels exactly match direct render");
+         end;
+         Check (Jobs.Raster_Baseline (Color_Result.all) =
+           Jobs.Raster_Origin_Y (Color_Result.all) + Natural
+             (Long_Float'Ceiling
+                (Jobs.Layout (Color_Result.all).Ascent * 40.0)),
+           "colored alpha raster baseline includes measured top origin");
+         Check (Jobs.Raster_Retained_Bytes (Color_Result.all) > 0 and
+           Math_Raster_Budget.Used =
+             Jobs.Raster_Retained_Bytes (Color_Result.all),
+           "colored alpha raster retains its charged storage");
+         Jobs.Release (Color_Result);
+         Check (Math_Raster_Budget.Used = 0,
+           "colored alpha raster release restores empty budget");
       end if;
    end;
    Jobs.Start;

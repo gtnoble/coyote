@@ -8,7 +8,7 @@
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
+**Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. The source crosswalk contains 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Report §11.10 records expanded images95/95 and original29/29; images were not rerun in the inline-worker increment. Inline formulas now request worker rasters and adopt Pixbufs on GTK in bounded row batches; report §11.11 records the scoped increment, not timing qualification. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
 ---
 
@@ -100,8 +100,8 @@ This model has two key properties:
   supported input through the native Ada syntax/layout/metrics/painter/resources.
   Unsupported input and legacy MathML-shaped source remain visible as text.
   Streaming text may remain plain until completion; Plain output remains
-  line-oriented. GUI display formulas use native worker rasterization; inline
-  formulas still follow the GTK-main-task rendering path. Native Pango text
+  line-oriented. GUI display and inline formulas use native worker rasterization;
+  GTK retains widget and incremental image-adoption operations. Native Pango text
   shaping and Unicode fallback are runtime paths, but system font-family
   resolution is unpinned and this does not imply full text/math-mode parity.
   Supported common constructs include symbols, fractions, scripts, square/indexed
@@ -125,8 +125,16 @@ This model has two key properties:
   index the padded full raster; their relative logical origins can be negative.
   Worker results carry those origins and a raster-local baseline. GTK reserves
   physical paint extents separately from logical width, includes leading Y in
-  baselines, and compensates Fleqn area margin for leading X. Inline painting
-  uses the same bounds but still runs on GTK. Logical math metrics are unchanged.
+  baselines, and compensates Fleqn area margin for leading X. Inline worker
+  rasters use those bounds; GTK converts premultiplied ARGB to padded straight
+  RGBA Pixbufs in at most eight rows per step with a cooperative 5 ms target.
+  Worker-result and Pixbuf leases overlap during adoption. Clear/reflow/destroy
+  discard partial state; source marks and request identity are checked before
+  commit. Queue-busy submissions retry; over-limit source does not. Font reflow
+  resubmits at the view pixel-em and foreground without double-applying zoom.
+  Logical math metrics are unchanged; worker fractional painting replaces the
+  legacy inline helper's ceiled paint position. Pango rise uses the worker's
+  ceiled baseline plus two pixels of padding. See report §11.11.
   Native glyph bearings, shaped-run ink and parent/viewport clipping remain
   qualification limits; scoped evidence and oracle correction are in §11.10.
   Full TeX compatibility is not promised. Bundled KaTeX 0.16.22 fonts carry MIT

@@ -1,0 +1,35 @@
+Note: Building coyote=0.1.0-dev/coyote.gpr...
+Compile
+   [Ada]          coyote_gui-math_element.adb
+   [Ada]          coyote_gui-rich_text.adb
+coyote_gui-math_element.adb:8:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:11:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:15:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:16:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:18:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:19:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:24:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:27:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:28:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:29:09: warning: unit "Gtk.Bin" is not referenced [-gnatwu]
+coyote_gui-math_element.adb:30:09: warning: unit "Gtk.Container" is not referenced [-gnatwu]
+coyote_gui-math_element.adb:32:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:33:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-math_element.adb:47:04: warning: use clause for type "Gtk_Widget" defined at gtk-widget.ads:351 has no effect [-gnatwu]
+coyote_gui-math_element.adb:59:12: warning: package "Pixbuf_Pixel_Addresses" is not referenced [-gnatwu]
+coyote_gui-math_element.adb:108:07: warning: "Started" is not modified, could be declared constant [-gnatwk]
+coyote_gui-math_element.adb:540:16: warning: variable "Params" is read but never assigned [-gnatwv]
+coyote_gui-math_element.adb:686:13: warning: variable "Params" is read but never assigned [-gnatwv]
+coyote_gui-rich_text.adb:225:07: warning: use clause for type "Gdk_Pixbuf" defined at gdk-pixbuf.ads:55 has no effect [-gnatwu]
+Bind
+   [gprbind]      coyote.bexch
+   [Ada]          coyote.ali
+   [gprbind]      coyote_list_sessions.bexch
+   [Ada]          coyote_list_sessions.ali
+   [gprbind]      coyote_sqc_main.bexch
+   [Ada]          coyote_sqc_main.ali
+Link
+   [link]         coyote.adb
+   [link]         coyote_list_sessions.adb
+   [link]         coyote_sqc_main.adb
+Success: Build finished successfully in 7.20 seconds.

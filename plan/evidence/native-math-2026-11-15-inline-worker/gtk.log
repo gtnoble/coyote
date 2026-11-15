@@ -1,0 +1,11 @@
+Logs: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_
+PASS plain: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/01-plain.log
+PASS unicode: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/02-unicode.log
+PASS bidi: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/03-bidi.log
+PASS inline-math: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/04-inline-math.log
+PASS multiline: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/05-multiline.log
+PASS plain: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/06-plain.log
+PASS link-click: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/07-link-click.log
+PASS link-hover: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/08-link-hover.log
+PASS math-boundary: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-inline-worker/gtk-interactions-9ohy6g5_/09-math-boundary.log
+Summary: 9/9 passed

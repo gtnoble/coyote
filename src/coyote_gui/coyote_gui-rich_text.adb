@@ -12,6 +12,7 @@ with Coyote_GUI.Math_Element;
 with Coyote_Math_Jobs;
 with Math_Layout;
 with Math_Syntax;
+with Coyote_Math_Resources;
 with Coyote_Image_Jobs;
 with Gdk.Pixbuf;
 with Gdk.RGBA;
@@ -69,11 +70,11 @@ package body Coyote_GUI.Rich_Text is
       Image_End : Gtk.Text_Mark.Gtk_Text_Mark;
       Hidden : Gtk.Text_Tag.Gtk_Text_Tag;
       Rise : Gtk.Text_Tag.Gtk_Text_Tag;
-      Parsed_Doc : Math_Syntax.Document;
-      Layout_Box : Math_Layout.Box;
+      Raster : Coyote_Math_Jobs.Result_Access := null;
+      Adoption : Coyote_GUI.Math_Element.Inline_Adoption_Access := null;
+      Needs_Submit : Boolean := False;
       Pending_Job_Id : Coyote_Math_Jobs.Request_Id := 0;
       Generation : Coyote_Math_Jobs.View_Generation := 0;
-      Cache_Valid : Boolean := False;
    end record;
    subtype Math_Span is Coyote_Renderer.Markup.Math_Span;
 
@@ -105,12 +106,14 @@ package body Coyote_GUI.Rich_Text is
      (Buffer : not null access
         Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       Formula : Formula_State);
-   procedure Render_Formula
-     (View : not null access
-        Gtk.Text_View.Gtk_Text_View_Record'Class;
-      Buffer : not null access
-        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+   procedure Submit_Formula
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
       Formula : in out Formula_State);
+   procedure Ensure_Poll (State : Render_State_Access);
+   function Source_Matches
+     (Buffer : not null access
+        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+      Formula : Formula_State) return Boolean;
    procedure On_State_Destroy
      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
       State : Render_State_Access);
@@ -314,6 +317,9 @@ package body Coyote_GUI.Rich_Text is
            (Formula.Pending_Job_Id, Formula.Generation);
          Formula.Pending_Job_Id := 0;
       end if;
+      Coyote_GUI.Math_Element.Discard_Inline (Formula.Adoption);
+      Coyote_Math_Jobs.Release (Formula.Raster);
+      Formula.Needs_Submit := False;
    end Abandon_Formula;
 
    function Ensure_State
@@ -328,7 +334,8 @@ package body Coyote_GUI.Rich_Text is
          State.View := Gtk.Text_View.Gtk_Text_View'(View.all'Unchecked_Access);
          Render_States.Set (View, State, "coyote-inline-math-state");
          State_Destroy_Callback.Connect
-           (State.View, Gtk.Widget.Signal_Destroy, On_State_Destroy'Access, State);
+           (State.View, Gtk.Widget.Signal_Destroy,
+            On_State_Destroy'Access, State);
       end if;
       return State;
    end Ensure_State;
@@ -361,15 +368,81 @@ package body Coyote_GUI.Rich_Text is
          null;
    end On_State_Destroy;
 
+   function Source_Matches
+     (Buffer : not null access
+        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+      Formula : Formula_State) return Boolean
+   is
+      First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if Formula.Source_Start = null or else Formula.Source_End = null
+        or else Formula.Image_Start = null or else Formula.Image_End = null
+        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_Start)
+        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_End)
+        or else Gtk.Text_Mark.Get_Deleted (Formula.Image_Start)
+        or else Gtk.Text_Mark.Get_Deleted (Formula.Image_End)
+      then
+         return False;
+      end if;
+      Buffer.Get_Iter_At_Mark (First, Formula.Source_Start);
+      Buffer.Get_Iter_At_Mark (Last, Formula.Source_End);
+      return Buffer.Get_Text (First, Last, True) = To_String (Formula.Source);
+   end Source_Matches;
+
+   procedure Submit_Formula
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
+      Formula : in out Formula_State)
+   is
+      Font_Size : constant Glib.Gint := Pango.Font.Get_Size
+        (Pango.Context.Get_Font_Description (View.Get_Pango_Context));
+      Em : constant Long_Float := Long_Float (Font_Size) / 1_024.0 / 0.75;
+      Color : Gdk.RGBA.Gdk_RGBA;
+      Status : Coyote_Math_Jobs.Job_Status;
+   begin
+      if Length (Formula.LaTeX) > Math_Syntax.Max_Source_Bytes
+        or else not Source_Matches (View.Get_Buffer, Formula)
+      then
+         Formula.Needs_Submit := False;
+         return;
+      end if;
+      Gtk.Style_Context.Get_Style_Context (View).Get_Color
+        (Gtk.Enums.Gtk_State_Flag_Normal, Color);
+      Coyote_Math_Jobs.Start;
+      --  The view font already incorporates zoom; do not apply scale twice.
+      Coyote_Math_Jobs.Submit
+        (To_String (Formula.LaTeX), Formula.Pending_Job_Id,
+         Formula.Generation, Math_Layout.Text_Style,
+         Color_Enabled => True,
+         Color => (Long_Float (Color.Red), Long_Float (Color.Green),
+                   Long_Float (Color.Blue), Long_Float (Color.Alpha)),
+         Status => Status, Request_Raster => True, Em_Pixels => Em,
+         Font_Directory => Coyote_Math_Resources.Font_Directory);
+      Formula.Needs_Submit := Status = Coyote_Math_Jobs.Busy;
+      if Status /= Coyote_Math_Jobs.Pending then
+         Formula.Pending_Job_Id := 0;
+      end if;
+   end Submit_Formula;
+
+   procedure Ensure_Poll (State : Render_State_Access) is
+   begin
+      if State.Poll_Source_Id = 0
+        and then (for some Formula of State.Formulas =>
+          Formula.Needs_Submit or else Formula.Pending_Job_Id /= 0
+          or else Formula.Raster /= null)
+      then
+         State.Poll_Source_Id := State_Poll_Sources.Timeout_Add
+           (10, Poll_Formulas'Access, State);
+      end if;
+   end Ensure_Poll;
+
    function Poll_Formulas (State : Render_State_Access) return Boolean is
       Started : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
       Processed : Natural := 0;
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Elapsed : Ada.Real_Time.Time_Span;
       Count : Natural;
       Index : Positive;
-      Pending : Boolean := False;
       Item : Coyote_Math_Jobs.Result_Access := null;
+      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
    begin
       if State = null or else not State.Alive or else State.View = null then
          return False;
@@ -381,9 +454,9 @@ package body Coyote_GUI.Rich_Text is
          return False;
       end if;
       loop
-         Elapsed := Ada.Real_Time.Clock - Started;
-         exit when Processed >= 8
-           or else Elapsed >= Ada.Real_Time.Milliseconds (5);
+         exit when Processed >= Natural'Min (8, Count)
+           or else Ada.Real_Time.Clock - Started >=
+             Ada.Real_Time.Milliseconds (5);
          if State.Next_Formula > Count then
             State.Next_Formula := 1;
          end if;
@@ -391,93 +464,97 @@ package body Coyote_GUI.Rich_Text is
          State.Next_Formula := (if Index = Count then 1 else Index + 1);
          Processed := Processed + 1;
          declare
-            Formula : Formula_State := State.Formulas (Index);
+            Formula : Formula_State renames State.Formulas (Index);
+            Status : Coyote_Math_Jobs.Job_Status;
+            Current : Coyote_Math_Jobs.Request_Id;
+            Finished : Boolean;
+            Baseline : Natural;
+            First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
-            if Formula.Pending_Job_Id /= 0 then
-               Pending := True;
-               declare
-                  Status : Coyote_Math_Jobs.Job_Status;
-                  Current : constant Coyote_Math_Jobs.Request_Id :=
-                    Formula.Pending_Job_Id;
-                  First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
-                  Current_Source : Unbounded_String;
-               begin
-                  Item := null;
+            if not Source_Matches (Buffer, Formula) then
+               Abandon_Formula (Formula);
+               Remove_Formula_Image (Buffer, Formula);
+               Set_Formula_Visible (Buffer, Formula, True);
+            else
+               if Formula.Needs_Submit then
+                  Submit_Formula (State.View, Formula);
+               end if;
+               if Formula.Pending_Job_Id /= 0 then
+                  Current := Formula.Pending_Job_Id;
                   Coyote_Math_Jobs.Poll
                     (Current, Formula.Generation, Status, Item);
                   if Status /= Coyote_Math_Jobs.Pending then
                      Formula.Pending_Job_Id := 0;
-                     if Item /= null then
-                        Current_Source := To_Unbounded_String
-                          (Coyote_Math_Jobs.Source (Item.all));
-                        if Status = Coyote_Math_Jobs.Valid
-                          and then Coyote_Math_Jobs.Id (Item.all) = Current
-                          and then Coyote_Math_Jobs.Generation (Item.all) =
-                            Formula.Generation
-                          and then To_String (Current_Source) =
-                            To_String (Formula.LaTeX)
-                          and then Formula.Source_Start /= null
-                          and then Formula.Source_End /= null
-                          and then not Gtk.Text_Mark.Get_Deleted
-                            (Formula.Source_Start)
-                          and then not Gtk.Text_Mark.Get_Deleted
-                            (Formula.Source_End)
-                        then
-                           Buffer.Get_Iter_At_Mark
-                             (First, Formula.Source_Start);
-                           Buffer.Get_Iter_At_Mark (Last, Formula.Source_End);
-                           if Buffer.Get_Text (First, Last, True) =
-                             To_String (Formula.Source)
-                           then
-                              Formula.Parsed_Doc :=
-                                Coyote_Math_Jobs.Parse_Document (Item.all);
-                              Formula.Layout_Box :=
-                                Coyote_Math_Jobs.Layout (Item.all);
-                              Formula.Cache_Valid := True;
-                           end if;
-                        end if;
-                        Coyote_Math_Jobs.Release (Item);
+                     if Item /= null and then Status = Coyote_Math_Jobs.Valid
+                       and then Coyote_Math_Jobs.Id (Item.all) = Current
+                       and then Coyote_Math_Jobs.Generation (Item.all) =
+                         Formula.Generation
+                       and then Coyote_Math_Jobs.Source (Item.all) =
+                         To_String (Formula.LaTeX)
+                       and then Coyote_Math_Jobs.Has_Raster (Item.all)
+                     then
+                        Formula.Raster := Item;
+                        Item := null;
                      end if;
-                     if Formula.Cache_Valid then
-                        Remove_Formula_Image (Buffer, Formula);
-                        Set_Formula_Visible (Buffer, Formula, True);
-                        Render_Formula (State.View, Buffer, Formula);
-                     end if;
-                     State.Formulas.Replace_Element (Index, Formula);
+                     Coyote_Math_Jobs.Release (Item);
                   end if;
-               end;
+               end if;
+               if Formula.Raster /= null then
+                  Coyote_GUI.Math_Element.Adopt_Inline
+                    (Formula.Raster.all, Formula.Adoption,
+                     Pixbuf, Baseline, Finished);
+                  if Finished then
+                     Coyote_Math_Jobs.Release (Formula.Raster);
+                     --  Revalidate at commit: source may have changed while
+                     --  previous callbacks copied the worker pixels.
+                     if Pixbuf /= null and then
+                       Source_Matches (Buffer, Formula)
+                     then
+                        Buffer.Get_Iter_At_Mark (First, Formula.Source_End);
+                        Buffer.Insert_Pixbuf (First, Pixbuf);
+                        Buffer.Get_Iter_At_Mark (First, Formula.Image_Start);
+                        Buffer.Get_Iter_At_Offset
+                          (Last, Gtk.Text_Iter.Get_Offset (First) + 1);
+                        Buffer.Move_Mark (Formula.Image_End, Last);
+                        Glib.Properties.Set_Property
+                          (Formula.Rise, Gtk.Text_Tag.Rise_Property,
+                           (-(Gdk.Pixbuf.Get_Height (Pixbuf) -
+                             Glib.Gint (Baseline))) * 1_024);
+                        Buffer.Apply_Tag (Formula.Rise, First, Last);
+                        Set_Formula_Visible (Buffer, Formula, False);
+                     end if;
+                     if Pixbuf /= null then
+                        Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
+                        Pixbuf := null;
+                     end if;
+                  end if;
+               end if;
             end if;
          end;
       end loop;
-      Pending := (for some Formula of State.Formulas =>
-        Formula.Pending_Job_Id /= 0);
-      if not Pending then
+      if not (for some Formula of State.Formulas =>
+        Formula.Needs_Submit or else Formula.Pending_Job_Id /= 0
+        or else Formula.Raster /= null)
+      then
          State.Poll_Source_Id := 0;
          return False;
       end if;
       return State.Alive;
    exception
       when others =>
-         if Item /= null then
-            Coyote_Math_Jobs.Release (Item);
+         Coyote_Math_Jobs.Release (Item);
+         if Pixbuf /= null then
+            Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
          end if;
          if State /= null then
             State.Poll_Source_Id := 0;
-            if State.Alive and then State.View /= null then
-               Buffer := State.View.Get_Buffer;
-            end if;
-            for Index in State.Formulas.First_Index ..
-              State.Formulas.Last_Index
-            loop
-               declare
-                  Formula : Formula_State := State.Formulas (Index);
-               begin
-                  Abandon_Formula (Formula);
-                  if State.Alive and then State.View /= null then
-                     Set_Formula_Visible (Buffer, Formula, True);
-                  end if;
-                  State.Formulas.Replace_Element (Index, Formula);
-               end;
+            for Formula of State.Formulas loop
+               Abandon_Formula (Formula);
+               if State.Alive and then State.View /= null then
+                  Buffer := State.View.Get_Buffer;
+                  Remove_Formula_Image (Buffer, Formula);
+                  Set_Formula_Visible (Buffer, Formula, True);
+               end if;
             end loop;
          end if;
          return False;
@@ -614,76 +691,6 @@ package body Coyote_GUI.Rich_Text is
       end if;
    end Remove_Formula_Image;
 
-   procedure Render_Formula
-     (View : not null access
-        Gtk.Text_View.Gtk_Text_View_Record'Class;
-      Buffer : not null access
-        Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Formula : in out Formula_State)
-   is
-      Source_Start : Gtk.Text_Iter.Gtk_Text_Iter;
-      Source_End : Gtk.Text_Iter.Gtk_Text_Iter;
-      Image_At : Gtk.Text_Iter.Gtk_Text_Iter;
-      Image_End : Gtk.Text_Iter.Gtk_Text_Iter;
-      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
-      Baseline : Natural := 0;
-      Font_Size : Glib.Gint;
-      Em_Pixels : Long_Float;
-      Color : Gdk.RGBA.Gdk_RGBA;
-   begin
-      if Formula.Source_Start = null or else Formula.Source_End = null
-        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_Start)
-        or else Gtk.Text_Mark.Get_Deleted (Formula.Source_End)
-      then
-         return;
-      end if;
-      Buffer.Get_Iter_At_Mark (Source_Start, Formula.Source_Start);
-      Buffer.Get_Iter_At_Mark (Source_End, Formula.Source_End);
-      if Buffer.Get_Text (Source_Start, Source_End,
-                          Include_Hidden_Chars => True)
-        /= To_String (Formula.Source)
-      then
-         Set_Formula_Visible (Buffer, Formula, True);
-         return;
-      end if;
-      Font_Size := Pango.Font.Get_Size
-        (Pango.Context.Get_Font_Description (View.Get_Pango_Context));
-      Em_Pixels := Long_Float (Font_Size) / 1_024.0 / 0.75;
-      Gtk.Style_Context.Get_Style_Context (View).Get_Color
-        (Gtk.Enums.Gtk_State_Flag_Normal, Color);
-      if not Formula.Cache_Valid then
-         Set_Formula_Visible (Buffer, Formula, True);
-         return;
-      end if;
-      Pixbuf := Coyote_GUI.Math_Element.Render_Layout_Inline
-        (Formula.Parsed_Doc, Formula.Layout_Box, Baseline, 1.0,
-         Em_Pixels, Color);
-      if Pixbuf = null then
-         Set_Formula_Visible (Buffer, Formula, True);
-         return;
-      end if;
-      Set_Formula_Visible (Buffer, Formula, False);
-      Image_At := Source_End;
-      Buffer.Insert_Pixbuf (Image_At, Pixbuf);
-      Buffer.Get_Iter_At_Mark (Image_At, Formula.Image_Start);
-      Buffer.Get_Iter_At_Offset
-        (Image_End, Gtk.Text_Iter.Get_Offset (Image_At) + 1);
-      Buffer.Move_Mark (Formula.Image_End, Image_End);
-      Glib.Properties.Set_Property
-        (Formula.Rise, Gtk.Text_Tag.Rise_Property,
-         -(Glib.Gint
-           (Gdk.Pixbuf.Get_Height (Pixbuf) - Glib.Gint (Baseline))
-           * 1_024));
-      Buffer.Apply_Tag (Formula.Rise, Image_At, Image_End);
-      Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
-   exception
-      when others =>
-         if Pixbuf /= null then
-            Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
-         end if;
-         Set_Formula_Visible (Buffer, Formula, True);
-   end Render_Formula;
-
    procedure Reflow
      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
       Math_Scale : Long_Float)
@@ -695,17 +702,16 @@ package body Coyote_GUI.Rich_Text is
         State.Formulas.Last_Index
       loop
          declare
-            Formula : Formula_State := State.Formulas (Index);
+            Formula : Formula_State renames State.Formulas (Index);
          begin
+            Abandon_Formula (Formula);
             Remove_Formula_Image (Buffer, Formula);
             Set_Formula_Visible (Buffer, Formula, True);
-            if Formula.Cache_Valid then
-               Render_Formula (View, Buffer, Formula);
-            end if;
-            State.Formulas.Replace_Element (Index, Formula);
+            Submit_Formula (View, Formula);
          end;
       end loop;
       State.Scale := Math_Scale;
+      Ensure_Poll (State);
    end Reflow;
 
    procedure Insert
@@ -849,18 +855,9 @@ package body Coyote_GUI.Rich_Text is
       if First_New_Formula <= State.Formulas.Last_Index then
          for Index in First_New_Formula .. State.Formulas.Last_Index loop
             declare
-               Formula : Formula_State := State.Formulas (Index);
-               Status : Coyote_Math_Jobs.Job_Status;
+               Formula : Formula_State renames State.Formulas (Index);
             begin
-               Coyote_Math_Jobs.Start;
-               Coyote_Math_Jobs.Submit
-                 (To_String (Formula.LaTeX), Formula.Pending_Job_Id,
-                  Formula.Generation, Math_Layout.Text_Style,
-                  Status => Status);
-               if Status /= Coyote_Math_Jobs.Pending then
-                  Formula.Pending_Job_Id := 0;
-               end if;
-               State.Formulas.Replace_Element (Index, Formula);
+               Submit_Formula (View, Formula);
             end;
          end loop;
       end if;
@@ -871,13 +868,7 @@ package body Coyote_GUI.Rich_Text is
          Copy_Connected.Set (View, True, "coyote-inline-copy");
          Gtk.Text_View.On_Copy_Clipboard (View, On_Copy'Access);
       end if;
-      if State.Poll_Source_Id = 0
-        and then (for some Formula of State.Formulas =>
-          Formula.Pending_Job_Id /= 0)
-      then
-         State.Poll_Source_Id := State_Poll_Sources.Timeout_Add
-           (10, Poll_Formulas'Access, State);
-      end if;
+      Ensure_Poll (State);
       Images_Remaining := Images_Remaining - Count;
    end Insert;
 

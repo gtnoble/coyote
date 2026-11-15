@@ -21,6 +21,7 @@ with Math_Syntax;
 with Coyote_Math_Jobs;
 with Math_Raster_Budget;
 with Glib.Main;
+with System;
 
 package Coyote_GUI.Math_Element is
    type Instance is tagged limited private;
@@ -42,6 +43,8 @@ package Coyote_GUI.Math_Element is
       Color : Gdk.RGBA.Gdk_RGBA :=
         (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0))
       return Gdk.Pixbuf.Gdk_Pixbuf;
+   --  Legacy synchronous rendering is retained for tests and compatibility.
+   --  Rich_Text must use Adopt_Inline for worker-produced raster results.
    function Render_Layout_Inline
      (Parsed : Math_Syntax.Document;
       Layout : Math_Layout.Box;
@@ -51,6 +54,18 @@ package Coyote_GUI.Math_Element is
       Color : Gdk.RGBA.Gdk_RGBA :=
         (Red => 0.0, Green => 0.0, Blue => 0.0, Alpha => 1.0))
       return Gdk.Pixbuf.Gdk_Pixbuf;
+   type Inline_Adoption is limited private;
+   type Inline_Adoption_Access is access Inline_Adoption;
+   --  Item is borrowed for each GTK-only call. The caller retains and releases
+   --  it, passing the same Item until State is null. A completed Pixbuf is
+   --  transferred as an owned reference; discard State if its Item changes.
+   procedure Adopt_Inline
+     (Item     : Coyote_Math_Jobs.Job_Result;
+      State    : in out Inline_Adoption_Access;
+      Pixbuf   : out Gdk.Pixbuf.Gdk_Pixbuf;
+      Baseline : out Natural;
+      Finished : out Boolean);
+   procedure Discard_Inline (State : in out Inline_Adoption_Access);
    procedure Set_LaTeX (Element : in out Instance; LaTeX : String;
       Source : String);
    procedure Set_Scale (Element : in out Instance; Scale : Long_Float);
@@ -72,9 +87,15 @@ package Coyote_GUI.Math_Element is
 
    package Raster_Testing is
       procedure Fail_Next_Inline_Weak_Ref;
+      function Synchronous_Inline_Calls return Natural;
    end Raster_Testing;
 
 private
+   type Inline_Adoption is limited record
+      Pixbuf : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Next_Row : Natural := 0;
+      Lease : System.Address := System.Null_Address;
+   end record;
    type Instance is tagged limited record
       Root : Gtk.Box.Gtk_Box;
       Area : Gtk.Drawing_Area.Gtk_Drawing_Area;

@@ -3,6 +3,30 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-125 continuation — Inline math workers (2026-11-15)
+
+- **Category:** Code, Design, Test, Manuals
+- **Priority:** 3-Moderate
+- **Authorization:** User requested the next increment under approved native
+  port execution. Scope is inline worker rasterization; approved SRS/deviations
+  remain unchanged.
+- **Problem:** Inline math and font reflow paint synchronously on GTK despite
+  existing raster-capable workers; partial adoption needs explicit ownership.
+- **Action:** Rich_Text requests worker rasters, retries transient queue Busy,
+  validates source/identity and incrementally adopts padded Pixbufs. Separate
+  worker/Pixbuf leases overlap; all abandonment paths release partial state.
+  Source stays visible until commit. Legacy helper remains for component tests.
+- **Verification:** Final development builds/full1076/1076 (148.864532s),
+  worker170/170, GTK9/9, containment and offline HTTP lifecycle pass. New adoption
+  and partial-lifecycle tests plus extended copy/reflow/boundary cases pass.
+  Initial compiler/filter mistakes retained; final review finds no blocker.
+- **Evidence:** Report §11.11 and
+  `plan/evidence/native-math-2026-11-15-inline-worker/`.
+- **Evaluation/status:** Scoped implementation developer-verified; no human
+  acceptance. Whole-job memory, hard deadlines, cache/font/lifecycle/full parity
+  and desktop/AT acceptance gates remain OPEN. Browser/resource/Valgrind not
+  rerun. PCR-125 NOT COMPLETE; no release/install/commit.
+
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 
 - **Date reported:** 2026-11-10

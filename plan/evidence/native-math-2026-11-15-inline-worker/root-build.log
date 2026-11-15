@@ -1,0 +1,41 @@
+Note: Building coyote=0.1.0-dev/coyote.gpr...
+Compile
+   [Ada]          coyote_gui-conversation_stack.adb
+coyote_gui-conversation_stack.adb:6:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:13:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:15:06: warning: unnecessary with of ancestor [-gnatwr]
+coyote_gui-conversation_stack.adb:15:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:17:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:20:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:21:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:26:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:31:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:32:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:33:09: warning: unit "Gtk.Clipboard" is not referenced [-gnatwu]
+coyote_gui-conversation_stack.adb:35:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:36:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:37:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:38:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:39:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:40:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:41:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:43:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:44:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:50:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui-conversation_stack.adb:55:04: warning: use clause for type "Gtk_Box" defined at gtk-box.ads:95 has no effect [-gnatwu]
+coyote_gui-conversation_stack.adb:60:04: warning: use clause for type "Gtk_Text_View" defined at gtk-text_view.ads:74 has no effect [-gnatwu]
+coyote_gui-conversation_stack.adb:65:04: warning: use clause for type "Instance_Access" defined at coyote_gui-math_element.ads:28 has no effect [-gnatwu]
+coyote_gui-conversation_stack.adb:223:07: warning: use clause for type "Gint" defined at glib.ads:49 has no effect [-gnatwu]
+coyote_gui-conversation_stack.ads:13:06: warning: unnecessary with of ancestor [-gnatwr]
+   [Ada]          coyote_gui-rich_text.adb
+coyote_gui-rich_text.adb:226:07: warning: use clause for type "Gdk_Pixbuf" defined at gdk-pixbuf.ads:55 has no effect [-gnatwu]
+Bind
+   [gprbind]      coyote.bexch
+   [Ada]          coyote.ali
+   [gprbind]      coyote_sqc_main.bexch
+   [Ada]          coyote_sqc_main.ali
+Link
+   [link]         coyote.adb
+gprbuild: "coyote_list_sessions" up to date
+   [link]         coyote_sqc_main.adb
+Success: Build finished successfully in 17.40 seconds.

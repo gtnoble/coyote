@@ -24,7 +24,10 @@ package Coyote_GUI.Rich_Text is
       Clear            : Boolean := False;
       Math_Scale       : Long_Float := 1.0);
 
-   --  Re-render valid inline formulas at the requested scale.
+   --  Re-submit inline formulas using the view font size and foreground.
+   --  Parse/layout/raster work runs on math workers; GTK copies bounded row
+   --  slices before committing a Pixbuf. Source stays visible while pending.
+   --  Math_Scale is retained for API compatibility; view fonts encode zoom.
    procedure Reflow
      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
       Math_Scale : Long_Float);

@@ -1,0 +1,146 @@
+{
+  "date_utc": "2026-11-15T02:52:48.491009+00:00",
+  "base_revision": "cec6f1722eb03800d38c0e426ebb093221d39519",
+  "dirty": true,
+  "changed_paths": [
+    "AGENTS.md",
+    "design/coyote-design.md",
+    "plan/native-math-acceptance-checklist.md",
+    "plan/native-math-compatibility-tests.md",
+    "plan/native-math-coverage.json",
+    "plan/native-math-coverage.md",
+    "plan/native-math-parity-test-report.md",
+    "plan/problems.md",
+    "sdfs/frontends.md",
+    "share/coyote/math/README.md",
+    "src/coyote_gui/coyote_gui-math_element.adb",
+    "src/coyote_gui/coyote_gui-math_element.ads",
+    "src/coyote_gui/coyote_gui-rich_text.adb",
+    "src/coyote_gui/coyote_gui-rich_text.ads",
+    "test/src/coyote_gui_conversation_stack_tests.adb",
+    "test/src/coyote_gui_conversation_stack_tests.ads",
+    "test/tools/math_jobs_probe.adb",
+    "tools/map_math_coverage.py"
+  ],
+  "source_test_tools_sha256": {
+    "src/coyote_gui/coyote_gui-math_element.adb": "524e6f096ab72aad0e6bb594ed20efab9ea335c246f2963cad011451cc627278",
+    "src/coyote_gui/coyote_gui-math_element.ads": "16f3bc4d83fb05a5e02af8d03e059bc37de17ac68374278415a5163d6cc3520b",
+    "src/coyote_gui/coyote_gui-rich_text.adb": "da43c743117eb93cc45c08f9e8b43723170dee9624395aad3260e9100b052ac4",
+    "src/coyote_gui/coyote_gui-rich_text.ads": "45bf5e849a0d727954a450ee5c3e8450638ebfc8701c86caf804408c15f7e3b2",
+    "test/src/coyote_gui_conversation_stack_tests.adb": "330a1a3deb61bb40f9fc7fd9e4d74d8380d6130d1836f9010b4aaabcfd81076d",
+    "test/src/coyote_gui_conversation_stack_tests.ads": "bbdf78b69a13f2f487e0410fdda38e40d66eee29cbdbdab6f7f9c619d5926ece",
+    "test/tools/math_jobs_probe.adb": "18b98ab6d44181d69384b8a30209d5d8c59a826f653ea350bfb6a142b9487cbd",
+    "tools/map_math_coverage.py": "aa1b0f26ffbdd0f591cc4596234bec6f8ff72c906b0f7ccdbf17a6f4842f5fd1"
+  },
+  "math_source_sha256": {
+    "src/coyote_math/coyote_math_jobs.adb": "fe6dd2f85f73fe144fce6e2d9465c53ac7816b4cf7b3cf25e5d006ea3f6ca300",
+    "src/coyote_math/coyote_math_jobs.ads": "31407a9e6db4e40da4c5c1c21ada4f2e7e8a449babe5831e32a829919edd648e",
+    "src/coyote_math/coyote_math_resources.adb": "43b1a2718f5f48b2e4286bd9d6a0c13b0916cb9b2e91f766c1960bc4a4e0dd5b",
+    "src/coyote_math/coyote_math_resources.ads": "39af20bbd8702191c7ab199ac8b75bfb76ce951c6911499304b0e50c5c413614",
+    "src/coyote_math/math_builtin_macros.adb": "5ee8a153e194bf3d05ce9a0c7f03588ae18ff90bd913e1f48ac5d38bbec1666f",
+    "src/coyote_math/math_builtin_macros.ads": "475bfa14f680637247a05872f000fd74109dffb7004b756d5bb699127d44c153",
+    "src/coyote_math/math_engine.adb": "f46695f19ee0acc22b9836429819c8b0bfadc1be26e2290b9c96166307e01190",
+    "src/coyote_math/math_engine.ads": "21f57271f76d42bbeaff5c54e19a7be07f9555c58bc468d68349eaf3b7a0bdee",
+    "src/coyote_math/math_expander.adb": "d5eb4f9ff8fe07eb9e189745e0200a2b5cdcba7e75862799523c732b32082f34",
+    "src/coyote_math/math_expander.ads": "253514ed3e7d8bffa86483535115cf5816671d30f0f824333b69c757e029ebe3",
+    "src/coyote_math/math_font_data.adb": "3c252344a7240b85dccb801f05d4360c4cb500d00e738be5676ac2ea98e574b6",
+    "src/coyote_math/math_font_data.ads": "4ec548af70dbf4e9dfa2da29a723aeb5b5fbeee7f7a2627a361d8b5081d846b6",
+    "src/coyote_math/math_layout.adb": "c9c4477c6abb361b6ad2807550369941cccdfa9a4fa466d63ec70a14767c12a2",
+    "src/coyote_math/math_layout.ads": "a9b79330952f5842d0999b9d39e841b032b2ff96cffd405579c80e8abc8ae3eb",
+    "src/coyote_math/math_macros.adb": "f164ed655374fca40b72654e9764245c1c2048e169208879b23f970dd15d1fa9",
+    "src/coyote_math/math_macros.ads": "6cfde0ec8ed092bea241e3a10d83fc5e97edcef356a52a42fbc3ae360ef6cf50",
+    "src/coyote_math/math_metrics.adb": "952d31b4da7a7e841152a29aa201c3e1c13f92f77090d50069bed1ec392a48b5",
+    "src/coyote_math/math_metrics.ads": "b093d51726a41490d37d6772c3e11a6a332771d7175eda47f53c04b030500112",
+    "src/coyote_math/math_model.ads": "706eb7c18f2386ac59e38fa917788a5493738bf9917d5cae8f8070c34a7dff7e",
+    "src/coyote_math/math_painter.adb": "9f977fc4b36ec211d2c7c9bd9b816993fa95a698f4d40f3664b79e3b3888f820",
+    "src/coyote_math/math_painter.ads": "e03a8db82c0db0627f6eeaca5dc95b8bbe9568d9443f4228eb25ca9bc2fb4e20",
+    "src/coyote_math/math_paths.adb": "357aff20bcfbce9d19ab99131f6c5920fc1bcf9764343a0dacaa2e32f034dd25",
+    "src/coyote_math/math_paths.ads": "8094e90e96c41c5c8496f11cde00068780a23472babc25af6eb5e31be6e7bdfa",
+    "src/coyote_math/math_radical_paths.adb": "676139a84878dd44a4433555cb8e16b1fdb4d04c7c8b37b3635a2d5f195b8a30",
+    "src/coyote_math/math_radical_paths.ads": "9d6eb5db60c99de866994118c155881e94197426d82b2b3cd046f7c48d89171a",
+    "src/coyote_math/math_raster.adb": "bba0ac6d7719c9e624725881ac7825380daddc7b6cbedcf7d80c9c64b12ad2e5",
+    "src/coyote_math/math_raster.ads": "4df52c8456fab789a9bccee99ad63f1b471b990c6e13f60cd711dd6c945303f8",
+    "src/coyote_math/math_raster_budget.adb": "d08a6e09d9d63de5796058408bc7f222c3d6da7836bc7a3fc35bcbff2fc80e03",
+    "src/coyote_math/math_raster_budget.ads": "36466a84367a2fe8afe84854790862529ec3168b51bfb00d04a6f8ccdb8fa623",
+    "src/coyote_math/math_semantics.adb": "e02a849a017bf904b91a0cbce2e2d9b2d99f6d7f2ba90a0bb579f58fd0e7b3bc",
+    "src/coyote_math/math_semantics.ads": "c27c77002d614c3ad65fa4d5ae34cafd48ed06b650b5c0a2ebcf5f6ec18378d4",
+    "src/coyote_math/math_source.adb": "cde82636cc696fba001a46842ff89fafc3824c359a72669032393c69d1da2da2",
+    "src/coyote_math/math_source.ads": "19bf3e9b9440a75aa2e28ad5473d3344da399bdc4a297d31c885d48495beb405",
+    "src/coyote_math/math_stretchy.adb": "2d33705cfab6443e7388b1cefd32bb1135f7871964826ec8bdc22916627f2f27",
+    "src/coyote_math/math_stretchy.ads": "0a078c9602a53ad0d59fb12ecc5ab29cb2fd8b6fc46de70de83db8e1c989b801",
+    "src/coyote_math/math_symbols.adb": "116aa49efc576e32c026ca54eb9a5ba46d55394137daf975324337ced687e15d",
+    "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
+    "src/coyote_math/math_syntax.adb": "535e8289be1b62beb822c056664b39e811260a3f34ff055f83c09ca37844fc79",
+    "src/coyote_math/math_syntax.ads": "8ce0179c4359e1936e7ccce747f815b0f69bc0c4f7524cd5e73e8c99796264b9",
+    "src/coyote_math/math_text_shaping.adb": "a6d40f7d275fe747c163a2b27cd1777ed47ccfd5c1601d24cca080aa716f5e3a",
+    "src/coyote_math/math_text_shaping.ads": "bcf7e2c51e496a04222597c6a9a29daadca14d4ea222784e5cb6f5e23d0db220",
+    "src/coyote_math/math_tokens.adb": "32ff12aef12edeb5338fd59fde103e415c905608301cc1ae1ab0c62a29c8f3aa",
+    "src/coyote_math/math_tokens.ads": "e6697a4573be56ea4cfd8c960ff279def81b300ab8c476e44c4c7eb5b029f794",
+    "src/coyote_math/math_unicode.adb": "14a15a94e2cd24cac3fa3a1be2e5063a77dc94ae7cae306a261409df3abbccf2",
+    "src/coyote_math/math_unicode.ads": "cbdecbf9f6da59d0366b723c1a01cdb7fe04f7348c3cebcc79c01ed7ae620e4a",
+    "src/coyote_math/math_work_control.adb": "88232a904e03321e71fb0f42a476c97608126360f07357650a84a2dd8cd4ed64",
+    "src/coyote_math/math_work_control.ads": "d9e37e5eeb09a2029fb81fbb524092bd2341779e4cc36ed2dcbc83af2aed8597"
+  },
+  "font_sha256": {
+    "share/coyote/math/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "share/coyote/math/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "share/coyote/math/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "share/coyote/math/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "share/coyote/math/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "share/coyote/math/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "share/coyote/math/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "share/coyote/math/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "share/coyote/math/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "share/coyote/math/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "share/coyote/math/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "share/coyote/math/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "share/coyote/math/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa"
+  },
+  "executables_sha256": {
+    "bin/coyote": "6ccbbcdf5874e41e8096ff9a6b13a1491d08bd1b33ae7fb8a1818c42c899ae49",
+    "test/bin/coyote_test": "a1a40239e08ede83df55ef9f4fa91dd60b5bccea34b3c1213d522adff0225649",
+    "test/bin/gtk_interaction_worker": "bc971b5b84cdfb2b391134e5a6f756f5c7abb347d6d6f5497818b26bef348a9f",
+    "/tmp/coyote-inline-jobs/bin/math_jobs_probe": "fcdd82caf517439f6937921039d5b01322278e6845dcc4fa86068eb951609373"
+  },
+  "profiles": {
+    "config/coyote_config.gpr": "--  Configuration for coyote generated by Alire\nwith \"gnatcoll.gpr\";\nwith \"gnatcoll_core.gpr\";\nwith \"gnatcoll_minimal.gpr\";\nwith \"gnatcoll_projects.gpr\";\nwith \"gtkada.gpr\";\nwith \"sha2.gpr\";\nabstract project Coyote_Config is\n   Crate_Version := \"0.1.0-dev\";\n   Crate_Name := \"coyote\";\n\n   Alire_Host_OS := \"linux\";\n\n   Alire_Host_Arch := \"x86_64\";\n\n   Alire_Host_Distro := \"ubuntu\";\n   Ada_Compiler_Switches := External_As_List (\"ADAFLAGS\", \" \");\n   Ada_Compiler_Switches := Ada_Compiler_Switches &\n          (\n            \"-Og\" -- Optimize for debug\n           ,\"-ffunction-sections\" -- Separate ELF section for each function\n           ,\"-fdata-sections\" -- Separate ELF section for each variable\n           ,\"-g\" -- Generate debug info\n           ,\"-gnatwa\" -- Enable all warnings\n           ,\"-gnatw.X\" -- Disable warnings for No_Exception_Propagation\n           ,\"-gnatVa\" -- All validity checks\n           ,\"-gnaty3\" -- Specify indentation level of 3\n           ,\"-gnatya\" -- Check attribute casing\n           ,\"-gnatyA\" -- Use of array index numbers in array attributes\n           ,\"-gnatyB\" -- Check Boolean operators\n           ,\"-gnatyb\" -- Blanks not allowed at statement end\n           ,\"-gnatyc\" -- Check comments\n           ,\"-gnaty-d\" -- Disable check no DOS line terminators present\n           ,\"-gnatye\" -- Check end/exit labels\n           ,\"-gnatyf\" -- No form feeds or vertical tabs\n           ,\"-gnatyh\" -- No horizontal tabs\n           ,\"-gnatyi\" -- Check if-then layout\n           ,\"-gnatyI\" -- check mode IN keywords\n           ,\"-gnatyk\" -- Check keyword casing\n           ,\"-gnatyl\" -- Check layout\n           ,\"-gnatym\" -- Check maximum line length\n           ,\"-gnatyn\" -- Check casing of entities in Standard\n           ,\"-gnatyO\" -- Check that overriding subprograms are explicitly marked as such\n           ,\"-gnatyp\" -- Check pragma casing\n           ,\"-gnatyr\" -- Check identifier references casing\n           ,\"-gnatyS\" -- Check no statements after THEN/ELSE\n           ,\"-gnatyt\" -- Check token spacing\n           ,\"-gnatyu\" -- Check unnecessary blank lines\n           ,\"-gnatyx\" -- Check extra parentheses\n           ,\"-gnatW8\" -- UTF-8 encoding for wide characters\n          );\n\n   type Build_Profile_Kind is (\"release\", \"validation\", \"development\");\n   Build_Profile : Build_Profile_Kind := \"development\";\n\nend Coyote_Config;\n",
+    "test/config/coyote_test_config.gpr": "--  Configuration for coyote_test generated by Alire\nwith \"aunit.gpr\";\nwith \"coyote.gpr\";\nabstract project Coyote_Test_Config is\n   Crate_Version := \"0.1.0-dev\";\n   Crate_Name := \"coyote_test\";\n\n   Alire_Host_OS := \"linux\";\n\n   Alire_Host_Arch := \"x86_64\";\n\n   Alire_Host_Distro := \"ubuntu\";\n   Ada_Compiler_Switches := External_As_List (\"ADAFLAGS\", \" \");\n   Ada_Compiler_Switches := Ada_Compiler_Switches &\n          (\n            \"-Og\" -- Optimize for debug\n           ,\"-ffunction-sections\" -- Separate ELF section for each function\n           ,\"-fdata-sections\" -- Separate ELF section for each variable\n           ,\"-g\" -- Generate debug info\n           ,\"-gnatwa\" -- Enable all warnings\n           ,\"-gnatw.X\" -- Disable warnings for No_Exception_Propagation\n           ,\"-gnatVa\" -- All validity checks\n           ,\"-gnaty3\" -- Specify indentation level of 3\n           ,\"-gnatya\" -- Check attribute casing\n           ,\"-gnatyA\" -- Use of array index numbers in array attributes\n           ,\"-gnatyB\" -- Check Boolean operators\n           ,\"-gnatyb\" -- Blanks not allowed at statement end\n           ,\"-gnatyc\" -- Check comments\n           ,\"-gnaty-d\" -- Disable check no DOS line terminators present\n           ,\"-gnatye\" -- Check end/exit labels\n           ,\"-gnatyf\" -- No form feeds or vertical tabs\n           ,\"-gnatyh\" -- No horizontal tabs\n           ,\"-gnatyi\" -- Check if-then layout\n           ,\"-gnatyI\" -- check mode IN keywords\n           ,\"-gnatyk\" -- Check keyword casing\n           ,\"-gnatyl\" -- Check layout\n           ,\"-gnatym\" -- Check maximum line length\n           ,\"-gnatyn\" -- Check casing of entities in Standard\n           ,\"-gnatyO\" -- Check that overriding subprograms are explicitly marked as such\n           ,\"-gnatyp\" -- Check pragma casing\n           ,\"-gnatyr\" -- Check identifier references casing\n           ,\"-gnatyS\" -- Check no statements after THEN/ELSE\n           ,\"-gnatyt\" -- Check token spacing\n           ,\"-gnatyu\" -- Check unnecessary blank lines\n           ,\"-gnatyx\" -- Check extra parentheses\n           ,\"-gnatW8\" -- UTF-8 encoding for wide characters\n          );\n\n   type Build_Profile_Kind is (\"release\", \"validation\", \"development\");\n   Build_Profile : Build_Profile_Kind := \"development\";\n\nend Coyote_Test_Config;\n"
+  },
+  "environment": {
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "os_release": "PRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.5 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\n",
+    "tools": {
+      "['alr', '--version']": {
+        "exit": 0,
+        "stdout": "alr 2.1.0",
+        "stderr": ""
+      },
+      "['gnatls', '--version']": {
+        "exit": 0,
+        "stdout": "GNATLS 13.3.0\nCopyright (C) 1992-2023, Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+        "stderr": ""
+      },
+      "['gprbuild', '--version']": {
+        "error": "[Errno 2] No such file or directory: 'gprbuild'"
+      },
+      "['python3', '--version']": {
+        "exit": 0,
+        "stdout": "Python 3.12.3",
+        "stderr": ""
+      },
+      "['pkg-config', '--modversion', 'gtk+-3.0', 'pango', 'cairo', 'freetype2', 'fontconfig']": {
+        "exit": 0,
+        "stdout": "3.24.41\n1.52.1\n1.18.0\n26.1.20\n2.15.0",
+        "stderr": ""
+      }
+    }
+  },
+  "qualification_limits": "No new browser/geometry/raster/resource/Valgrind qualification. Font fallback unpinned. No human acceptance. Spec ownership comment and docs updated after full run; executable code/tests unchanged."
+}

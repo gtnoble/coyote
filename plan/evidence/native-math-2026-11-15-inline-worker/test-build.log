@@ -1,0 +1,45 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          gtk_interaction_worker.adb
+   [Ada]          coyote_help.adb
+   [Ada]          test_gui_suite.adb
+   [Ada]          coyote_help_tests.adb
+   [Ada]          gtk_interaction_worker.adb
+   [Ada]          coyote_config.ads
+   [Ada]          coyote_gui-conversation_stack-testing.adb
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+   [Ada]          coyote_app_frontend_gui_tests.adb
+   [Ada]          coyote_gui_conversation_stack_tests.adb
+   [Ada]          coyote_gui-math_element-testing.adb
+coyote_gui_conversation_stack_tests.adb:35:09: warning: unit "Gtk.Text_Child_Anchor" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:38:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:82:09: warning: unit "Gtk.Style_Context" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:83:09: warning: unit "Gdk.RGBA" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:779:18: warning: "others" choice is redundant [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:779:18: warning: previous choices cover all values [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:1367:15: warning: aspect Unreferenced specified for "Failure_Baseline_Value" [enabled by default]
+coyote_gui_conversation_stack_tests.adb:1743:56: error: operator for type "Result_Access" defined at coyote_math_jobs.ads:32 is not directly visible
+coyote_gui_conversation_stack_tests.adb:1743:56: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:1762:63: error: operator for type "Inline_Adoption_Access" defined at coyote_gui-math_element.ads:58 is not directly visible
+coyote_gui_conversation_stack_tests.adb:1762:63: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:1780:61: error: operator for type "Inline_Adoption_Access" defined at coyote_gui-math_element.ads:58 is not directly visible
+coyote_gui_conversation_stack_tests.adb:1780:61: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:1788:16: error: operator for type "Inline_Adoption_Access" defined at coyote_gui-math_element.ads:58 is not directly visible
+coyote_gui_conversation_stack_tests.adb:1788:16: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:1796:57: error: operator for type "Inline_Adoption_Access" defined at coyote_gui-math_element.ads:58 is not directly visible
+coyote_gui_conversation_stack_tests.adb:1796:57: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:1809:40: error: operator for type "Inline_Adoption_Access" defined at coyote_gui-math_element.ads:58 is not directly visible
+coyote_gui_conversation_stack_tests.adb:1809:40: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:2028:80: (style) this line is too long: 80 [-gnatyM]
+coyote_gui_conversation_stack_tests.adb:3630:23: warning: redundant conversion, "Cancel_Baseline" is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:3763:23: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:4033:35: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:4047:35: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_app_frontend_gui_tests.ads:10:25: warning: no entities of "Coyote_App.Frontend.GUI" are referenced in spec [-gnatwu]
+coyote_app_frontend_gui_tests.ads:10:25: warning: with clause might be moved to body [-gnatwu]
+
+   compilation of coyote_gui_conversation_stack_tests.adb failed
+
+gprbuild: *** compilation phase failed
+ERROR: Command ["gprbuild", "-s", "-j0", "-p", "-P", "/home/gtnoble/Projects/coyote/coyote-latex-math/test/coyote_test.gpr"] exited with code 4
+ERROR: Compilation failed.

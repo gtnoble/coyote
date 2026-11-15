@@ -17,6 +17,14 @@
 **Date:** 2026-11-06
 **Status:** In-progress draft; evidence and procedures are refreshed from the approved execution baseline. This status revision remains open for readiness review and approval.
 **Authority:** `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24; D01–D15 are approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.9 records phased status. This plan does not supersede requirements.
+**2026-11-15 continuation:** Report §11.11 supersedes earlier inline-path
+statements and runtime counts in this document. Inline rasterization now runs
+on workers, with GTK-only incremental Pixbuf adoption; final-source full suite
+1076/1076 and worker probe170/170 pass. Two new GUI cases exercise adoption and
+partial-adoption lifecycle; existing inline copy/reflow and boundary cases are
+extended. Complete corpus/readiness, timing, memory, cache and human acceptance
+gates remain open. The dated evidence below is historical, not a current rerun.
+
 ## 1. Scope and status
 
 This document specifies planned cases, preconditions, expected results, procedures

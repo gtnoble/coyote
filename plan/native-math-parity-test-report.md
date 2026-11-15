@@ -567,7 +567,11 @@ coverage, scoped regression passes, and outcome agreement are not full KaTeX
 parity, resource qualification, or product acceptance. PCR-125 remains open.
 This reconciliation does not authorize additional RD-CTX-01 context caps.
 
-**Current continuation:** §11.7 records ordinary-accent skew/span corrections,
+**Current continuation:** §11.11 records worker-backed inline rasterization and
+1076/1076 final-source regression; §11.10 records origin-aware raster correction
+and 95/95 expanded images. The dated §11.2–11.5 snapshot below is historical
+where superseded by these continuations; its broader open gates still apply.
+§11.7 records ordinary-accent skew/span corrections,
 363 raster assertions, 1063/1063 full suite, 29/29 original images and 49/53
 expanded images/repeat with four retained failures. §11.6 is the preceding
 stretchy-accent correction. Earlier
@@ -1094,3 +1098,88 @@ process cache lifetimes, hard deadlines/GTK slices, callable gaps, native
 lifecycle/Valgrind and independent visual/AT acceptance remain open. Valgrind/
 resource characterization not rerun. SRS-MATH v1.0 and D01–D15 unchanged;
 PCR-125 OPEN and feature **NOT COMPLETE**. No release, installation or commit.
+
+
+### 11.11 Fresh continuation — worker-backed inline rasterization, 2026-11-15
+
+**Scope and authority:** User authorized the next increment. This implements
+inline worker rasterization under existing PCR-125/P5, not the separate whole-
+job memory/deadline increment. SRS-MATH v1.0 and D01–D15 are unchanged; no extra
+context caps or production browser runtime are authorized.
+
+**Implementation:** Rich_Text now submits text-style raster jobs with trusted
+bundled-font directory and GTK-captured font pixel-em/foreground. Font reflow
+abandons obsolete jobs and partial adoption, reveals original source and
+submits a fresh request; view font sizing already encodes zoom. Parsed/layout
+caches are no longer copied onto GTK for synchronous repaint. Queue-busy
+requests retry through the existing fair timeout loop; over-limit source is
+rejected without permanent retries. Request ID, generation, LaTeX, live marks
+and original buffer text gate result adoption; source is rechecked before
+commit. Stale paths remove old images and retain visible source.
+
+Math_Element.Adopt_Inline borrows a retained worker result and copies at most
+eight padded rows per call with a cooperative5ms target. It allocates a GTK
+RGBA Pixbuf, separately leases actual rowstride×height, converts premultiplied
+Cairo ARGB to straight RGBA, and initializes the two-pixel transparent border
+incrementally. Worker and Pixbuf leases overlap during adoption. Clear, reflow,
+source mutation, replacement and view destruction discard partial images and
+release results. Pixbuf weak notification releases committed-image leases.
+The legacy synchronous helpers remain for component callers/tests; production
+Rich_Text no longer invokes them. GTK object allocation and buffer insertion
+remain GTK-only. Cooperative per-row checks do not preempt native allocation
+or guarantee any50ms GTK/250ms job bound.
+
+Worker pixels preserve fractional-ascent drawing from Math_Raster, rather
+than the legacy inline helper's ceiled-ascent paint position. Pango rise uses
+the worker's raster-local ceiled baseline plus two padding pixels. Origins and
+logical layout metrics are preserved; this is not bit identity with legacy
+inline images or full font/baseline qualification.
+
+**Exact-final developer verification:**
+
+- Root/test incremental development builds pass; both profiles select
+  development. Existing compiler/style/theme warnings remain; no release,
+  warning-free or clean-build qualification.
+- Full Xvfb suite **1076/1076**, zero failed assertions/unexpected errors,
+  **148.864532s** cumulative, **149.03s** wall. Initial snapshot1076/1076 also
+  passed before strengthened tests; this does not reconcile historical repeats.
+- Worker probe **170 assertions, zero failures**, including direct measured
+  text-style cancellation pixel/origin/baseline comparisons, explicit color
+  rendering and retained-byte release. The 2000 warm requests and queue
+  saturation remain scoped headless characterization only.
+- Two new registered conversation cases test partial/full Pixbuf adoption,
+  exact alpha/transparent padding, dimensions/baseline, overlapping leases,
+  capacity rejection, injected pre-weak-ref-registration failure, discard and
+  release. Independent GDK surface conversion is compared at RGB±1 for integer
+  unpremultiplication rounding, exact alpha; browser thresholds are unchanged.
+  Production tests observe lease overlap before commit, mutate source, replace,
+  destroy and recover baseline;12 formulas exceed the8-slot queue before GTK
+  polling and all12 commit after retries. Existing copy/reflow tests check the
+  synchronous-render counter stays unchanged; direct legacy control increments
+  it. Baseline expectations use measured layout/bounds, not legacy Pixbufs.
+  Line-boundary testing waits for each asynchronous reflow before hit tests.
+  Conversation registration is57; registration alone is not qualification.
+- Required GTK interactions **9/9**, runner crash/timeout containment self-test
+  and offline Plain/RPC HTTP-timeout lifecycle checks pass. Runner's intentional
+  killed/timed-out fixtures are not production failures. No live providers.
+
+**Evidence:** `plan/evidence/native-math-2026-11-15-inline-worker/` retains
+exact-final and initial build/full/focused/post-build logs, probe source/build
+logs, implementation patch, source/font/executable hashes and environment
+manifest. Initial compile failures (GtkAda buffer conversion/declaration order,
+test visibility), unmatched test filters and intermediate test changes remain
+recorded. Read-only review prompted permanent-Busy and stale-image corrections;
+final review found no concrete blocker. Developer/agent review is not independent
+visual/assistive-technology or user acceptance.
+
+**Not rerun / remaining gates:** Browser image pilot/expanded corpus, geometry,
+standalone raster, resources and Valgrind were not rerun for this increment;
+§11.10 image95/95, geometry235/235 and raster1108/1108 remain historical scoped
+evidence, not fresh outcomes. Inline worker implementation is no longer open,
+but complete tiling/cache/repaint reuse, whole-job256MiB enforcement, all process
+cache lifetimes, queue-inclusive hard deadlines, warm p95 and GTK timing
+qualification remain open. Fallback pins, native bearings/shaped ink, parent
+clipping,60 callable gaps, full corpus/component mappings, native-library
+lifecycle and independent desktop/AT/user acceptance remain open. Native calls
+are not preemptible. No full parity, resource qualification, release,
+installation or commit. PCR-125 remains OPEN; feature **NOT COMPLETE**.

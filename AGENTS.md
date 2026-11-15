@@ -24,8 +24,9 @@ System fallback-font resolution remains unpinned. Cooperative checks reach
 pipeline loops and phase boundaries but cannot preempt individual native calls
 or guarantee hard deadlines. The shared 64 MiB retained-raster ledger covers
 tracked worker results, display surfaces and inline Pixbufs, not whole-job
-allocation. Inline math painting still runs on GTK. `Conversation_Stack` has
-55 registered cases; registration is not qualification. Consult report §11,
+allocation. Inline math rasterization now runs on workers; GTK adopts Pixbufs
+in bounded row batches (report §11.11). `Conversation_Stack` has
+57 registered cases; registration is not qualification. Consult report §11,
 “Current implementation and qualification reconciliation — 2026-11-06”, for
 recorded evidence, unavailable-artifact limits and open gates. Earlier dated
 implementation checkpoints are historical.
@@ -206,7 +207,7 @@ hide negative-origin overflow with logical padding or case removal. Report
 Native cancellation SVG stroke is0.046em, independent of minRuleThickness;
 strike-through unchanged. No complete parity or acceptance; broad gates remain.
 
-The latest 2026-11-10 origin-aware continuation supersedes those scoped raster
+The 2026-11-10 origin-aware continuation supersedes those scoped raster
 failures: corrected independent browser-margin oracle baseline77/95 improves
 95/95 and repeats95/95; original29/29. The old X=0 browser viewport clipped
 negative-X reference ink, so historical89/95 is not a comparable baseline.
@@ -218,6 +219,17 @@ still runs on GTK. Report §11.10 and
 `plan/evidence/native-math-2026-11-10-raster-origin/` control current evidence.
 Native bearings/shaped-run ink, parent clipping and broader qualification gates
 remain open; no parity/resource/human acceptance, release or installation.
+
+The 2026-11-15 inline-worker continuation moves production inline parse/layout/
+rasterization off GTK; GTK adopts padded Pixbufs in eight-row steps with a
+cooperative5ms copy target. Fresh font reflow resubmits jobs, without double
+zoom. Source stays visible until commit; partial images/results release on
+mutation, clear, replacement and destruction. Final development full1076/1076
+(148.864532s cumulative), worker170/170 and required GTK9/9, containment and
+HTTP lifecycle checks pass. Two new conversation cases bring registration to57.
+Evidence: report §11.11 and `plan/evidence/native-math-2026-11-15-inline-worker/`.
+Prior browser/geometry/raster results were not rerun; no parity, whole-job memory,
+hard deadline/cache/font/lifecycle or human acceptance gate is closed.
 
 PCR-126 HTTP-timeout developer verification (2026-11-07) passes the full
 Xvfb suite 1068/1068, zero failures/errors, 138.877699 s cumulative, and the
