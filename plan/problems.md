@@ -4720,3 +4720,25 @@ are historical, not current-source qualification.
   matching6656/2183/26-byte totals. Lifecycle not resolved. Report §11.12 retains
   evidence and untested race/injection limits. Parent PCR-125 OPEN, feature
   NOT COMPLETE; whole-job/transient/cache/deadline/human gates unchanged.
+
+
+### PCR-125 — 2026-11-15 raster workspace budget increment
+
+- **Category:** Code, Design, Test.
+- **Priority:** 3-Moderate (parent classification unchanged).
+- **Authority:** user requested implementation under existing approved execution.
+- **Problem:** retained-output admission does not account overlapping transient
+  Cairo image/output storage; worker function assignment can copy pixel vectors.
+- **Affected products:** new Math_Memory_Budget, Math_Raster, Coyote_Math_Jobs,
+  focused probes/project files, design/test/report/SDF records.
+- **Action/status:** independent protected ledgers/controlled reservations,
+  full/tile raster admission, direct worker output and scoped peak reporting
+  implemented. Developer verification full1076/1076, worker194/194 twice,
+  ledger30/30 and raster1116/1116. GTK/lifecycle checks pass except strict
+  raster Valgrind (2 contexts,6656/2183/26 bytes); lifecycle gate remains open.
+- **Evaluation:** scoped implementation verified, not whole-job enforcement or
+  independent acceptance. Parser/layout/native/font/copy/cache/timing/parity
+  and human gates remain open. Parent PCR-125 OPEN, feature NOT COMPLETE.
+- **Evidence:** report §11.13 and
+  `plan/evidence/native-math-2026-11-15-workspace-budget/`.
+  No requirements/deviations changed; no release/install/commit.

@@ -714,7 +714,8 @@ begin
            not Jobs.Has_Raster (Tiny_Result.all) and
            Jobs.Raster_Width (Tiny_Result.all) = 0 and
            Jobs.Raster_Height (Tiny_Result.all) = 0 and
-           Jobs.Raster_Retained_Bytes (Tiny_Result.all) = 0,
+           Jobs.Raster_Retained_Bytes (Tiny_Result.all) = 0 and
+           Jobs.Raster_Workspace_Peak_Bytes (Tiny_Result.all) = 0,
            "rejected result publishes no pixels, dimensions, or charge");
          Check (Math_Raster_Budget.Used =
            Math_Raster_Budget.Capacity - Needed + 1,
@@ -744,6 +745,9 @@ begin
       Check (Exact_Status = Jobs.Valid and Exact_Result /= null,
         "exact-capacity raster request succeeds");
       if Exact_Result /= null then
+         Check (Jobs.Raster_Workspace_Peak_Bytes (Exact_Result.all) =
+           Needed * 2,
+           "worker accounts overlapping Cairo and exported pixels");
          Check (Jobs.Has_Raster (Exact_Result.all) and
            Jobs.Raster_Width (Exact_Result.all) = Tiny_Bounds.Width and
            Jobs.Raster_Height (Exact_Result.all) = Tiny_Bounds.Height and

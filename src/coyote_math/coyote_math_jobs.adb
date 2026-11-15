@@ -3,6 +3,7 @@ with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with Ada.Unchecked_Deallocation;
 with Math_Model;
+with Math_Memory_Budget;
 with Math_Painter;
 with Math_Raster;
 with Math_Raster_Budget;
@@ -613,9 +614,22 @@ package body Coyote_Math_Jobs is
                                        R.Raster_Charge, Accepted);
                                  end if;
                                  if Accepted then
-                                    R.Pixels := Math_Raster.Render
-                                      (Fonts, R.Geometry, Em_Pixels, Foreground,
-                                       Work_Access);
+                                    declare
+                                       Memory : aliased
+                                         Math_Memory_Budget.Budget;
+                                    begin
+                                       Math_Raster.Render_Into
+                                         (Fonts, R.Geometry, Em_Pixels,
+                                          Foreground, R.Pixels, Work_Access,
+                                          Memory'Unchecked_Access);
+                                       R.Raster_Workspace_Peak :=
+                                         Math_Memory_Budget.Peak (Memory);
+                                    exception
+                                       when others =>
+                                          R.Raster_Workspace_Peak :=
+                                            Math_Memory_Budget.Peak (Memory);
+                                          raise;
+                                    end;
                                     Math_Raster_Budget.Adjust
                                       (R.Raster_Charge,
                                        Math_Raster.Stride (R.Pixels) *
@@ -766,6 +780,8 @@ package body Coyote_Math_Jobs is
    function Error (Item : Job_Result) return String is (To_String (Item.Message));
    function Has_Raster (Item : Job_Result) return Boolean is
      (Item.Raster_Ready);
+   function Raster_Workspace_Peak_Bytes
+     (Item : Job_Result) return Natural is (Item.Raster_Workspace_Peak);
    function Raster_Retained_Bytes (Item : Job_Result) return Natural is
      (Math_Raster_Budget.Bytes (Item.Raster_Charge));
    function Raster_Width (Item : Job_Result) return Natural is

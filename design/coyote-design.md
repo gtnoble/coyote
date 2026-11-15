@@ -457,6 +457,7 @@ not wait for the complete user turn.
 | `Coyote_Math.Engine` | Native parsing, expansion, semantics, layout and rendering orchestration | `src/coyote_math/math_engine.ads/.adb` |
 | `Coyote_Math.Raster` | Offscreen raster rendering support | `src/coyote_math/math_raster.ads/.adb` |
 | `Coyote_Math.Raster_Budget` | Shared retained-raster ledger and bounded raster-retention leases | `src/coyote_math/math_raster_budget.ads/.adb` |
+| `Math_Memory_Budget` | Independent protected workspace ledgers and controlled reservations; raster-buffer overlap accounting, not whole-job enforcement | `src/coyote_math/math_memory_budget.ads/.adb` |
 | `Coyote_Math.Text_Shaping` | Native Pango text shaping through worker-local font-map/context state | `src/coyote_math/math_text_shaping.ads/.adb` |
 | `Coyote_Math.Work_Control` | Cooperative deadline/cancellation checks at math processing boundaries | `src/coyote_math/math_work_control.ads/.adb` |
 | `Coyote_Math.Jobs` | Asynchronous math job execution and completion lifecycle | `src/coyote_math/coyote_math_jobs.ads/.adb` |

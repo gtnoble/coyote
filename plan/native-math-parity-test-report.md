@@ -567,9 +567,11 @@ coverage, scoped regression passes, and outcome agreement are not full KaTeX
 parity, resource qualification, or product acceptance. PCR-125 remains open.
 This reconciliation does not authorize additional RD-CTX-01 context caps.
 
-**Current continuation:** §11.11 records worker-backed inline rasterization and
-1076/1076 final-source regression; §11.10 records origin-aware raster correction
-and 95/95 expanded images. The dated §11.2–11.5 snapshot below is historical
+**Current continuation:** §11.13 records raster workspace reservations,
+in-place worker output and1076/1076 regression; §11.12 records retained-output
+preadmission. §11.11 records worker-backed inline rasterization; §11.10 records
+origin-aware correction and95/95 expanded images.
+The dated §11.2–11.5 snapshot below is historical
 where superseded by these continuations; its broader open gates still apply.
 §11.7 records ordinary-accent skew/span corrections,
 363 raster assertions, 1063/1063 full suite, 29/29 original images and 49/53
@@ -1246,3 +1248,68 @@ results remain historical. Tiling/repaint reuse, font pins/bearings/shaped ink,
 parent clipping,60 callable gaps, full corpus, native lifecycle and independent
 visual/AT/user acceptance remain open. PCR-125 OPEN; feature **NOT COMPLETE**.
 No release, installation or commit.
+
+
+### 11.13 Fresh continuation — raster workspace reservations, 2026-11-15
+
+**Scope/authority:** User requested implementation after the remaining-work
+review. This is the first transient-memory accounting increment under PCR-125,
+REQ-MATH-010 / MATH-LIMIT-002, not closure of whole-job256MiB enforcement.
+SRS-MATH v1.0 and D01–D15 are unchanged; no additional context caps.
+
+**Implementation:** New `Math_Memory_Budget` has independent protected ledgers,
+default256MiB, and limited controlled reservations. Admission/resize arithmetic
+uses remaining capacity, rejected resize preserves ownership, and finalization
+releases charges. Account lifetime must exceed reservation lifetime; concurrent
+operations require independent reservations. Full/tile raster painting reserves
+Cairo image plus output-vector bytes before surface allocation, validates
+ARGB32 stride and reconciles actual vector capacity. GNAT empty-vector
+Reserve_Capacity allocates requested capacity in inspected runtime versions;
+post-allocation reconciliation is not portable preadmission of arbitrary
+allocator rounding/metadata. `Render_Into` clears prior output and directly
+fills worker-owned images, removing the worker's function-result assignment
+copy. Failed/cancelled/expired renders clear partial output before scope-exit
+release. Worker results report scoped raster-workspace peak bytes separately
+from the retained-output lease.
+
+**Developer verification:**
+
+- Root/test incremental development builds pass; generated profiles select
+  development. Existing warnings remain; no release/clean-build qualification.
+- Final-binary full Xvfb suite1076/1076, zero failed assertions/unexpected
+  errors,148.559544s cumulative,148.66s wall. Earlier full1076/1076 passed
+ 149.597846s cumulative before final comment/test-only updates.
+- Memory ledger probe30/30: zero/exact/overflow/rejected resize, shrink/grow,
+  independent ledgers, concurrent overlap, rebind rejection and exception
+  finalization. This uses logical charges without allocating256MiB buffers.
+- Worker194/194, repeated194/194. Existing2000 warm requests and saturation
+  pass; scoped peak equals overlapping surface/output bytes in the added check.
+  Warm timing remains headless characterization, not hard/GTK qualification.
+- Raster1116/1116 normally and1116/1116 under Valgrind. Eight added assertions
+  cover exact-fit/one-byte-short workspace, existing charge overlap, recovery,
+  unloaded-font drawing failure, cancellation/deadline after pixel-vector
+  allocation, and tile-sized workspace. Pixel hash unchanged for scoped control.
+  Encompassing raster script FAILS: Valgrind2 contexts,6656 definitely lost,
+  2183 indirectly lost,26 possibly lost bytes in native Pango/Fontconfig paths.
+  No suppressions or thresholds changed; native lifecycle gate remains OPEN.
+- Required GTK interactions9/9, abnormal-exit/timeout containment self-test and
+  offline Plain/RPC HTTP lifecycle pass. Intentional containment fixtures are
+  not production failures. Coverage refresh/check is source evidence only.
+
+**Evidence:** `plan/evidence/native-math-2026-11-15-workspace-budget/` retains
+build/full/focused/post-build logs, patches, source/font/executable hashes and
+manifest. Initial missing Count_Type operator visibility compile error retained;
+corrected before passing builds. Read-only review found no scoped blocker;
+review explicitly checked GNAT capacity behavior and post-allocation polling.
+Developer/agent self-review is not independent human acceptance.
+
+**Limits/open gates:** Workspace reservations end at render-call completion;
+returned images and caller copies are not covered beyond that point. Retained
+worker output remains separately leased. Parser/token/layout/semantic data,
+font/native drawing internals, allocator metadata and complete copy/cache
+lifetimes are not accounted. This is neither whole-job256MiB enforcement nor
+a process RSS bound. Hard250ms, GTK50ms, warm-p95, complete tiling/repaint reuse,
+font pins/bearings/shaped ink, parent clipping,60 callable gaps/full corpus,
+native lifecycle and independent visual/AT/user acceptance remain open.
+Browser/geometry/resource characterization not rerun; prior scoped evidence
+remains historical. PCR-125 OPEN; feature NOT COMPLETE. No release/install/commit.

@@ -319,3 +319,15 @@ initial-prompt, active-steering, final-response, and exit lifecycle; completed
 nodes remain reviewable but do not become persistent agents. Session lineage
 uses `COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`; recursion
 is limited by `maxRecursionDepth` and `COYOTE_RECURSION_DEPTH`.
+
+
+## Latest native-math workspace continuation — 2026-11-15
+
+Use report §11.13 and `plan/evidence/native-math-2026-11-15-workspace-budget/`
+for new transient raster reservations, independent protected ledgers, in-place
+worker output and scoped peak telemetry. Full1076/1076, worker194/194 twice,
+ledger30/30 and raster1116/1116 pass. Strict raster Valgrind still fails with
+2 contexts and6656/2183/26-byte losses. Charges end at render completion; GNAT
+empty-vector capacity admission is not portable allocator/RSS accounting.
+Whole-job parser/layout/native/font/copy/cache accounting, hard timing,
+full parity and human acceptance remain open. No release/install/commit.

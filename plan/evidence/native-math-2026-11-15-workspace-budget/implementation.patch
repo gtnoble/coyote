@@ -1,0 +1,852 @@
+diff --git a/src/coyote_math/coyote_math_jobs.adb b/src/coyote_math/coyote_math_jobs.adb
+index 5ee2158..f47ae4e 100644
+--- a/src/coyote_math/coyote_math_jobs.adb
++++ b/src/coyote_math/coyote_math_jobs.adb
+@@ -3,6 +3,7 @@ with Ada.Real_Time;
+ with Ada.Strings.Unbounded;
+ with Ada.Unchecked_Deallocation;
+ with Math_Model;
++with Math_Memory_Budget;
+ with Math_Painter;
+ with Math_Raster;
+ with Math_Raster_Budget;
+@@ -613,9 +614,22 @@ package body Coyote_Math_Jobs is
+                                        R.Raster_Charge, Accepted);
+                                  end if;
+                                  if Accepted then
+-                                    R.Pixels := Math_Raster.Render
+-                                      (Fonts, R.Geometry, Em_Pixels, Foreground,
+-                                       Work_Access);
++                                    declare
++                                       Memory : aliased
++                                         Math_Memory_Budget.Budget;
++                                    begin
++                                       Math_Raster.Render_Into
++                                         (Fonts, R.Geometry, Em_Pixels,
++                                          Foreground, R.Pixels, Work_Access,
++                                          Memory'Unchecked_Access);
++                                       R.Raster_Workspace_Peak :=
++                                         Math_Memory_Budget.Peak (Memory);
++                                    exception
++                                       when others =>
++                                          R.Raster_Workspace_Peak :=
++                                            Math_Memory_Budget.Peak (Memory);
++                                          raise;
++                                    end;
+                                     Math_Raster_Budget.Adjust
+                                       (R.Raster_Charge,
+                                        Math_Raster.Stride (R.Pixels) *
+@@ -766,6 +780,8 @@ package body Coyote_Math_Jobs is
+    function Error (Item : Job_Result) return String is (To_String (Item.Message));
+    function Has_Raster (Item : Job_Result) return Boolean is
+      (Item.Raster_Ready);
++   function Raster_Workspace_Peak_Bytes
++     (Item : Job_Result) return Natural is (Item.Raster_Workspace_Peak);
+    function Raster_Retained_Bytes (Item : Job_Result) return Natural is
+      (Math_Raster_Budget.Bytes (Item.Raster_Charge));
+    function Raster_Width (Item : Job_Result) return Natural is
+diff --git a/src/coyote_math/coyote_math_jobs.ads b/src/coyote_math/coyote_math_jobs.ads
+index f3b407b..c04c77b 100644
+--- a/src/coyote_math/coyote_math_jobs.ads
++++ b/src/coyote_math/coyote_math_jobs.ads
+@@ -76,6 +76,9 @@ package Coyote_Math_Jobs is
+    --  with actual stride. Failed results own no pixels or raster lease.
+    --  This does not account for transient Cairo/parser/layout allocations.
+    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
++   --  Peak charged Cairo image/output-vector overlap during rasterization,
++   --  not whole-job allocation, RSS or retained-result lifetime accounting.
++   function Raster_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
+    function Raster_Width (Item : Job_Result) return Natural;
+    function Raster_Height (Item : Job_Result) return Natural;
+    --  Raster origins locate the logical top-left inside the full raster.
+@@ -96,6 +99,7 @@ private
+       Pixels : Math_Raster.Image;
+       Raster_Baseline_Value : Natural := 0;
+       Raster_Ready : Boolean := False;
++      Raster_Workspace_Peak : Natural := 0;
+       Raster_Charge : Math_Raster_Budget.Lease;
+       Message : Ada.Strings.Unbounded.Unbounded_String;
+    end record;
+diff --git a/src/coyote_math/math_raster.adb b/src/coyote_math/math_raster.adb
+index eebed92..6d20d8e 100644
+--- a/src/coyote_math/math_raster.adb
++++ b/src/coyote_math/math_raster.adb
+@@ -11,10 +11,12 @@ with Math_Paths;
+ with Math_Work_Control;
+ 
+ package body Math_Raster is
++   use type Ada.Containers.Count_Type;
+    use type Cairo.Cairo_Status;
+    use type Cairo.Cairo_Context;
+    use type Cairo.Cairo_Surface;
+    use type Math_Layout.Command_Kind;
++   use type Math_Memory_Budget.Budget_Access;
+    use type System.Address;
+    use type Interfaces.Unsigned_32;
+    use type System.Storage_Elements.Storage_Offset;
+@@ -264,8 +266,15 @@ package body Math_Raster is
+       Color : Math_Model.Color_Value;
+       Left, Top, View_Width, View_Height : Natural;
+       Is_Tile : Boolean;
+-      Result : out Image;
+-      Work : Math_Work_Control.Context_Access) is
++      Result : in out Image;
++      Work : Math_Work_Control.Context_Access;
++      Memory : Math_Memory_Budget.Budget_Access) is
++      Local_Budget : aliased Math_Memory_Budget.Budget;
++      Account : constant not null Math_Memory_Budget.Budget_Access :=
++        (if Memory = null then Local_Budget'Unchecked_Access else Memory);
++      Workspace : Math_Memory_Budget.Reservation;
++      Surface_Bytes : Natural;
++      Vector_Bytes : Natural;
+       Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+       Context : Cairo.Cairo_Context := Cairo.Null_Context;
+       W : Natural := View_Width;
+@@ -274,6 +283,7 @@ package body Math_Raster is
+       S : Natural;
+       Data : System.Address;
+    begin
++      Clear (Result);
+       Math_Work_Control.Poll (Work);
+       if not Color.Red'Valid or else not Color.Green'Valid or else
+         not Color.Blue'Valid or else not Color.Alpha'Valid or else
+@@ -300,9 +310,11 @@ package body Math_Raster is
+          end if;
+       end if;
+       S := W * 4;
+-      if Long_Float (S) * Long_Float (H) * 2.0 > 268_435_456.0 then
+-         raise Raster_Error with "raster workspace exceeds 256 MiB";
+-      end if;
++      --  Bounds above make these products representable. ARGB32 stride is
++      --  four bytes per pixel; reject any unexpected native stride below.
++      Surface_Bytes := S * H;
++      Math_Memory_Budget.Reserve
++        (Workspace, Account, Surface_Bytes * 2);
+       Math_Work_Control.Poll (Work);
+       Surface := Cairo.Image_Surface.Create
+         (Cairo.Image_Surface.Cairo_Format_ARGB32,
+@@ -333,8 +345,8 @@ package body Math_Raster is
+          raise Raster_Error with "Cairo image flush failed";
+       end if;
+       S := Natural (Cairo.Image_Surface.Get_Stride (Surface));
+-      if S < W * 4 then
+-         raise Raster_Error with "invalid Cairo image stride";
++      if S /= W * 4 then
++         raise Raster_Error with "unexpected Cairo ARGB32 image stride";
+       end if;
+       Data := Cairo.Image_Surface.Get_Data_Generic (Surface);
+       if Data = System.Null_Address then
+@@ -345,7 +357,16 @@ package body Math_Raster is
+       Result.Pixel_Stride := S;
+       Result.Logical_X := Integer (Bounds.Origin_X) - Integer (Left);
+       Result.Logical_Y := Integer (Bounds.Origin_Y) - Integer (Top);
+-      Result.Pixels.Reserve_Capacity (Ada.Containers.Count_Type (S * H));
++      Result.Pixels.Reserve_Capacity
++        (Ada.Containers.Count_Type (Surface_Bytes));
++      if Result.Pixels.Capacity >
++        Ada.Containers.Count_Type (Math_Memory_Budget.Capacity)
++      then
++         raise Math_Memory_Budget.Budget_Exceeded;
++      end if;
++      Vector_Bytes := Natural (Result.Pixels.Capacity);
++      Math_Memory_Budget.Reserve
++        (Workspace, Account, Surface_Bytes + Vector_Bytes);
+       for Row in 0 .. H - 1 loop
+          Math_Work_Control.Poll (Work);
+          for Start in 0 .. (S - 1) / 128 loop
+@@ -376,19 +397,34 @@ package body Math_Raster is
+          if Surface /= Cairo.Null_Surface then
+             Cairo.Surface.Destroy (Surface);
+          end if;
++         Clear (Result);
+          raise;
+    end Paint;
+ 
++   procedure Render_Into
++     (Fonts : Math_Painter.Font_Set;
++      Layout : Math_Layout.Box;
++      Em_Scale : Long_Float;
++      Color : Math_Model.Color_Value;
++      Result : in out Image;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) is
++   begin
++      Paint (Fonts, Layout, Em_Scale, Color, 0, 0, 0, 0, False, Result,
++        Work, Memory);
++   end Render_Into;
++
+    function Render
+      (Fonts : Math_Painter.Font_Set;
+       Layout : Math_Layout.Box;
+       Em_Scale : Long_Float;
+       Color : Math_Model.Color_Value;
+-      Work : Math_Work_Control.Context_Access := null) return Image is
+-      Result : Image;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Image is
+    begin
+-      Paint (Fonts, Layout, Em_Scale, Color, 0, 0, 0, 0, False, Result, Work);
+-      return Result;
++      return Result : Image do
++         Render_Into (Fonts, Layout, Em_Scale, Color, Result, Work, Memory);
++      end return;
+    end Render;
+ 
+    function Render_Tile
+@@ -397,11 +433,12 @@ package body Math_Raster is
+       Em_Scale : Long_Float;
+       Color : Math_Model.Color_Value;
+       Viewport_X, Viewport_Y, Tile_Width, Tile_Height : Natural;
+-      Work : Math_Work_Control.Context_Access := null) return Image is
+-      Result : Image;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Image is
+    begin
+-      Paint (Fonts, Layout, Em_Scale, Color, Viewport_X, Viewport_Y,
+-        Tile_Width, Tile_Height, True, Result, Work);
+-      return Result;
++      return Result : Image do
++         Paint (Fonts, Layout, Em_Scale, Color, Viewport_X, Viewport_Y,
++           Tile_Width, Tile_Height, True, Result, Work, Memory);
++      end return;
+    end Render_Tile;
+ end Math_Raster;
+diff --git a/src/coyote_math/math_raster.ads b/src/coyote_math/math_raster.ads
+index 679f3f7..ced7fcf 100644
+--- a/src/coyote_math/math_raster.ads
++++ b/src/coyote_math/math_raster.ads
+@@ -3,6 +3,7 @@ with Ada.Containers.Vectors;
+ with Interfaces;
+ with Math_Layout;
+ with Math_Model;
++with Math_Memory_Budget;
+ with Math_Painter;
+ with Math_Work_Control;
+ 
+@@ -37,14 +38,32 @@ package Math_Raster is
+    function Get_Pixel
+      (Item : Image; X, Y : Natural) return Interfaces.Unsigned_32;
+    function Row_Data (Item : Image; Y : Natural) return Byte_Vectors.Vector;
+-   --  Work is borrowed only for this call. Polling is cooperative; native
+-   --  Cairo calls and vector capacity reservation are not interruptible.
++   --  Work and Memory are borrowed only for this call. Memory must outlive
++   --  the call; null uses an independent default workspace ledger. Charges
++   --  cover overlapping Cairo image bytes and output vector capacity only,
++   --  and end at call completion. Returned images/copies, allocator overhead,
++   --  Cairo drawing/font internals and parser/layout data are not covered.
++   --  Empty-vector preadmission uses GNAT's requested-capacity allocation;
++   --  actual capacity is reconciled afterward, not an allocator/RSS bound.
++   --  Budget_Exceeded propagates on ledger rejection. Polling does not
++   --  preempt native calls or vector allocation.
++   --  Render_Into clears previous output first and leaves it empty on failure;
++   --  use it to avoid the function return/assignment copy in worker callers.
++   procedure Render_Into
++     (Fonts : Math_Painter.Font_Set;
++      Layout : Math_Layout.Box;
++      Em_Scale : Long_Float;
++      Color : Math_Model.Color_Value;
++      Result : in out Image;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null);
+    function Render
+      (Fonts : Math_Painter.Font_Set;
+       Layout : Math_Layout.Box;
+       Em_Scale : Long_Float;
+       Color : Math_Model.Color_Value;
+-      Work : Math_Work_Control.Context_Access := null) return Image;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Image;
+    --  Tile coordinates index the padded full raster, not the logical box.
+    --  Tile Origin_X/Y locate logical top-left relative to tile pixel zero
+    --  and can be negative. Whole-tile pixels match the corresponding full
+@@ -55,7 +74,8 @@ package Math_Raster is
+       Em_Scale : Long_Float;
+       Color : Math_Model.Color_Value;
+       Viewport_X, Viewport_Y, Tile_Width, Tile_Height : Natural;
+-      Work : Math_Work_Control.Context_Access := null) return Image;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Image;
+ private
+    type Image is record
+       Pixel_Width : Natural := 0;
+diff --git a/test/native/math_image_export.gpr b/test/native/math_image_export.gpr
+index 4dd83c0..01d1e66 100644
+--- a/test/native/math_image_export.gpr
++++ b/test/native/math_image_export.gpr
+@@ -18,6 +18,7 @@ project Math_Image_Export is
+       "math_unicode.ads", "math_unicode.adb",
+       "math_tokens.ads", "math_tokens.adb", "math_macros.ads",
+       "math_macros.adb", "math_painter.ads", "math_painter.adb",
++      "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_raster.ads", "math_raster.adb",
+       "math_image_export.adb");
+    for Object_Dir use External ("MATH_IMAGE_EXPORT_ROOT") & "/obj";
+diff --git a/test/native/math_jobs.gpr b/test/native/math_jobs.gpr
+index 2c16ead..a8024c0 100644
+--- a/test/native/math_jobs.gpr
++++ b/test/native/math_jobs.gpr
+@@ -16,6 +16,7 @@ project Math_Jobs is
+       "math_layout.ads", "math_layout.adb",
+       "math_semantics.ads", "math_semantics.adb",
+       "math_painter.ads", "math_painter.adb",
++      "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_raster.ads", "math_raster.adb",
+       "math_raster_budget.ads", "math_raster_budget.adb",
+       "coyote_math_jobs.ads", "coyote_math_jobs.adb",
+diff --git a/test/native/math_raster.gpr b/test/native/math_raster.gpr
+index da62c9c..973cb02 100644
+--- a/test/native/math_raster.gpr
++++ b/test/native/math_raster.gpr
+@@ -17,6 +17,7 @@ project Math_Raster is
+       "math_unicode.adb", "math_tokens.ads", "math_tokens.adb", "math_macros.ads",
+       "math_macros.adb", "math_painter.ads",
+       "math_painter.adb", "math_raster.ads", "math_raster.adb",
++      "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_raster_probe.adb");
+    for Object_Dir use External ("MATH_RASTER_ROOT") & "/obj";
+    for Exec_Dir use External ("MATH_RASTER_ROOT") & "/bin";
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index c2d1ab8..d8fba51 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -714,7 +714,8 @@ begin
+            not Jobs.Has_Raster (Tiny_Result.all) and
+            Jobs.Raster_Width (Tiny_Result.all) = 0 and
+            Jobs.Raster_Height (Tiny_Result.all) = 0 and
+-           Jobs.Raster_Retained_Bytes (Tiny_Result.all) = 0,
++           Jobs.Raster_Retained_Bytes (Tiny_Result.all) = 0 and
++           Jobs.Raster_Workspace_Peak_Bytes (Tiny_Result.all) = 0,
+            "rejected result publishes no pixels, dimensions, or charge");
+          Check (Math_Raster_Budget.Used =
+            Math_Raster_Budget.Capacity - Needed + 1,
+@@ -744,6 +745,9 @@ begin
+       Check (Exact_Status = Jobs.Valid and Exact_Result /= null,
+         "exact-capacity raster request succeeds");
+       if Exact_Result /= null then
++         Check (Jobs.Raster_Workspace_Peak_Bytes (Exact_Result.all) =
++           Needed * 2,
++           "worker accounts overlapping Cairo and exported pixels");
+          Check (Jobs.Has_Raster (Exact_Result.all) and
+            Jobs.Raster_Width (Exact_Result.all) = Tiny_Bounds.Width and
+            Jobs.Raster_Height (Exact_Result.all) = Tiny_Bounds.Height and
+diff --git a/test/tools/math_raster_probe.adb b/test/tools/math_raster_probe.adb
+index 66a06d1..5ecf9bd 100644
+--- a/test/tools/math_raster_probe.adb
++++ b/test/tools/math_raster_probe.adb
+@@ -8,6 +8,7 @@ with Interfaces;
+ with Math_Layout;
+ with Math_Metrics;
+ with Math_Model;
++with Math_Memory_Budget;
+ with Math_Painter;
+ with Math_Paths;
+ with Math_Raster;
+@@ -829,6 +830,110 @@ begin
+       "full render background alpha is zero");
+    Check (Has_Ink (Full), "full render contains foreground ink");
+    Check (Hash (Full) /= 0, "render output hash nonzero");
++   declare
++      Bounds : constant Math_Raster.Raster_Bounds :=
++        Math_Raster.Measure (Layout, 28.0);
++      Needed : constant Natural := Bounds.Width * 4 * Bounds.Height;
++      Exact : aliased Math_Memory_Budget.Budget (Needed * 2);
++      Short : aliased Math_Memory_Budget.Budget (Needed * 2 - 1);
++      Shared : aliased Math_Memory_Budget.Budget (Needed * 2);
++      Blocker : Math_Memory_Budget.Reservation;
++      Image : Math_Raster.Image;
++      Rejected : Boolean := False;
++   begin
++      Math_Raster.Render_Into
++        (Fonts, Layout, 28.0, Foreground, Image,
++         Memory => Exact'Unchecked_Access);
++      Check (Hash (Image) = Hash (Full) and
++        Math_Memory_Budget.Used (Exact) = 0 and
++        Math_Memory_Budget.Peak (Exact) = Needed * 2,
++        "exact workspace fits surface plus output without changing pixels");
++      begin
++         Math_Raster.Render_Into
++           (Fonts, Layout, 28.0, Foreground, Image,
++            Memory => Short'Unchecked_Access);
++      exception
++         when Math_Memory_Budget.Budget_Exceeded => Rejected := True;
++      end;
++      Check (Rejected and Math_Raster.Width (Image) = 0 and
++        Math_Raster.Height (Image) = 0 and
++        Math_Memory_Budget.Used (Short) = 0 and
++        Math_Memory_Budget.Peak (Short) = 0,
++        "one-byte-short workspace rejects before allocation and clears output");
++      Math_Memory_Budget.Reserve
++        (Blocker, Shared'Unchecked_Access, 1);
++      Rejected := False;
++      begin
++         Math_Raster.Render_Into
++           (Fonts, Layout, 28.0, Foreground, Image,
++            Memory => Shared'Unchecked_Access);
++      exception
++         when Math_Memory_Budget.Budget_Exceeded => Rejected := True;
++      end;
++      Check (Rejected and Math_Memory_Budget.Used (Shared) = 1 and
++        Math_Raster.Width (Image) = 0,
++        "raster reservation includes existing workspace charges");
++      Math_Memory_Budget.Release (Blocker);
++      Math_Raster.Render_Into
++        (Fonts, Layout, 28.0, Foreground, Image,
++         Memory => Shared'Unchecked_Access);
++      Check (Hash (Image) = Hash (Full) and
++        Math_Memory_Budget.Used (Shared) = 0,
++        "raster recovers after memory rejection and releases workspace");
++      declare
++         Unloaded : Math_Painter.Font_Set;
++         Raised : Boolean := False;
++      begin
++         begin
++            Math_Raster.Render_Into
++              (Unloaded, Layout, 28.0, Foreground, Image,
++               Memory => Shared'Unchecked_Access);
++         exception
++            when Math_Painter.Font_Error => Raised := True;
++         end;
++         Check (Raised and Math_Raster.Width (Image) = 0 and
++           Math_Memory_Budget.Used (Shared) = 0 and
++           Math_Memory_Budget.Peak (Shared) = Needed * 2,
++           "native draw failure clears output and releases workspace");
++      end;
++      for Reason in Math_Work_Control.Cancel_Requested ..
++        Math_Work_Control.Deadline_Reached
++      loop
++         --  An empty box makes phase polling deterministic: nine checks
++         --  precede vector reservation; check ten follows that allocation.
++         declare
++            Empty_Box : constant Math_Layout.Box :=
++              (Valid => True, Width => 1.0, Ascent => 1.0, others => <>);
++            Raised : Boolean := False;
++         begin
++            Poll_Counter.Reset (10, Reason);
++            begin
++               Math_Raster.Render_Into
++                 (Fonts, Empty_Box, 8.0, Foreground, Image, Work,
++                  Shared'Unchecked_Access);
++            exception
++               when Math_Work_Control.Stop_Requested |
++                 Math_Work_Control.Deadline_Expired => Raised := True;
++            end;
++            Check (Raised and Math_Raster.Width (Image) = 0 and
++              Math_Raster.Height (Image) = 0 and
++              Math_Memory_Budget.Used (Shared) = 0,
++              "post-allocation interruption clears pixels and workspace " &
++              Math_Work_Control.Stop_Reason'Image (Reason));
++         end;
++      end loop;
++      declare
++         Tile_Budget : aliased Math_Memory_Budget.Budget (8 * 8 * 4 * 2);
++         Tile : constant Math_Raster.Image := Math_Raster.Render_Tile
++           (Fonts, Layout, 28.0, Foreground, 0, 0, 8, 8,
++            Memory => Tile_Budget'Unchecked_Access);
++      begin
++         Check (Math_Raster.Width (Tile) = 8 and
++           Math_Memory_Budget.Peak (Tile_Budget) = 8 * 8 * 4 * 2 and
++           Math_Memory_Budget.Used (Tile_Budget) = 0,
++           "tile uses requested tile workspace rather than full bounds");
++      end;
++   end;
+    declare
+       Box_Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+         ("\colorbox{red}{x}+y");
+diff --git a/src/coyote_math/math_memory_budget.ads b/src/coyote_math/math_memory_budget.ads
+new file mode 100644
+index 0000000..8d55ae9
+--- /dev/null
++++ b/src/coyote_math/math_memory_budget.ads
+@@ -0,0 +1,58 @@
++with Ada.Finalization;
++
++--  Transient reservation ledger for raster workspace.
++--
++--  Reserve charges a reservation before workspace allocation.  Release or
++--  finalization returns the charge.  Each Budget has independent accounting.
++--  The Account must outlive every Reservation that refers to it; callers
++--  are responsible for this lifetime relationship. Operations on one
++--  Reservation must not occur simultaneously. The protected ledger supports
++--  concurrent operations on independent Reservations, even on one Budget.
++--
++--  Reserve raises Budget_Exceeded when the requested charge cannot fit.
++--  Rebinding a live Reservation to another Budget raises Program_Error.
++--  The ledger serializes accounting for independent owners.
++package Math_Memory_Budget is
++   Capacity : constant Natural := 256 * 1024 * 1024;
++   subtype Byte_Limit is Natural range 0 .. Capacity;
++
++   Budget_Exceeded : exception;
++
++   type Budget (Limit : Byte_Limit := Capacity) is limited private;
++   type Budget_Access is access all Budget;
++   type Reservation is
++     new Ada.Finalization.Limited_Controlled with private;
++
++   procedure Reserve
++     (Owner   : in out Reservation;
++      Account : not null Budget_Access;
++      Bytes   : Natural);
++   procedure Release (Owner : in out Reservation);
++   function Used (Account : Budget) return Natural;
++   function Peak (Account : Budget) return Natural;
++   function Bytes (Owner : Reservation) return Natural;
++
++private
++   protected type Ledger (Limit : Byte_Limit) is
++      procedure Charge (Amount : Natural);
++      procedure Resize (Old_Amount : Natural; New_Amount : Natural);
++      procedure Uncharge (Amount : Natural);
++      function Current return Natural;
++      function Maximum return Natural;
++   private
++      Current_Bytes : Natural := 0;
++      Peak_Bytes    : Natural := 0;
++   end Ledger;
++
++   type Budget (Limit : Byte_Limit := Capacity) is limited record
++      Accounting : Ledger (Limit);
++   end record;
++
++   type Reservation is
++     new Ada.Finalization.Limited_Controlled with record
++      Account : Budget_Access := null;
++      Amount  : Natural := 0;
++   end record;
++
++   overriding procedure Finalize (Owner : in out Reservation);
++end Math_Memory_Budget;
+diff --git a/src/coyote_math/math_memory_budget.adb b/src/coyote_math/math_memory_budget.adb
+new file mode 100644
+index 0000000..ce8bf49
+--- /dev/null
++++ b/src/coyote_math/math_memory_budget.adb
+@@ -0,0 +1,97 @@
++package body Math_Memory_Budget is
++   protected body Ledger is
++      procedure Charge (Amount : Natural) is
++      begin
++         if Amount > Limit - Current_Bytes then
++            raise Budget_Exceeded with
++              "math workspace memory budget exceeded";
++         end if;
++         Current_Bytes := Current_Bytes + Amount;
++         if Current_Bytes > Peak_Bytes then
++            Peak_Bytes := Current_Bytes;
++         end if;
++      end Charge;
++
++      procedure Resize (Old_Amount : Natural; New_Amount : Natural) is
++         Other_Bytes : Natural;
++      begin
++         Other_Bytes := Current_Bytes - Old_Amount;
++         if New_Amount > Limit - Other_Bytes then
++            raise Budget_Exceeded with
++              "math workspace memory budget exceeded";
++         end if;
++         Current_Bytes := Other_Bytes + New_Amount;
++         if Current_Bytes > Peak_Bytes then
++            Peak_Bytes := Current_Bytes;
++         end if;
++      end Resize;
++
++      procedure Uncharge (Amount : Natural) is
++      begin
++         Current_Bytes := Current_Bytes - Amount;
++      end Uncharge;
++
++      function Current return Natural is
++      begin
++         return Current_Bytes;
++      end Current;
++
++      function Maximum return Natural is
++      begin
++         return Peak_Bytes;
++      end Maximum;
++   end Ledger;
++
++   procedure Reserve
++     (Owner   : in out Reservation;
++      Account : not null Budget_Access;
++      Bytes   : Natural) is
++   begin
++      if Owner.Account /= null then
++         if Owner.Account /= Account then
++            raise Program_Error;
++         end if;
++         if Bytes = 0 then
++            Release (Owner);
++         else
++            Account.Accounting.Resize
++              (Old_Amount => Owner.Amount,
++               New_Amount => Bytes);
++            Owner.Amount := Bytes;
++         end if;
++      elsif Bytes /= 0 then
++         Account.Accounting.Charge (Bytes);
++         Owner.Account := Account;
++         Owner.Amount := Bytes;
++      end if;
++   end Reserve;
++
++   procedure Release (Owner : in out Reservation) is
++   begin
++      if Owner.Account /= null then
++         Owner.Account.Accounting.Uncharge (Owner.Amount);
++         Owner.Account := null;
++         Owner.Amount := 0;
++      end if;
++   end Release;
++
++   function Used (Account : Budget) return Natural is
++   begin
++      return Account.Accounting.Current;
++   end Used;
++
++   function Peak (Account : Budget) return Natural is
++   begin
++      return Account.Accounting.Maximum;
++   end Peak;
++
++   function Bytes (Owner : Reservation) return Natural is
++   begin
++      return Owner.Amount;
++   end Bytes;
++
++   overriding procedure Finalize (Owner : in out Reservation) is
++   begin
++      Release (Owner);
++   end Finalize;
++end Math_Memory_Budget;
+diff --git a/test/native/math_memory_budget.gpr b/test/native/math_memory_budget.gpr
+new file mode 100644
+index 0000000..bb59631
+--- /dev/null
++++ b/test/native/math_memory_budget.gpr
+@@ -0,0 +1,18 @@
++project Math_Memory_Budget is
++   for Languages use ("Ada");
++   for Source_Dirs use ("../../src/coyote_math", "../tools");
++   for Source_Files use
++     ("math_memory_budget.ads", "math_memory_budget.adb",
++      "math_memory_budget_probe.adb");
++   for Object_Dir use
++     External ("MATH_MEMORY_BUDGET_ROOT") & "/obj";
++   for Exec_Dir use
++     External ("MATH_MEMORY_BUDGET_ROOT") & "/bin";
++   for Create_Missing_Dirs use "True";
++   for Main use ("math_memory_budget_probe.adb");
++
++   package Compiler is
++      for Default_Switches ("Ada") use
++        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
++   end Compiler;
++end Math_Memory_Budget;
+diff --git a/test/tools/check-math-memory-budget.sh b/test/tools/check-math-memory-budget.sh
+new file mode 100755
+index 0000000..73477fd
+--- /dev/null
++++ b/test/tools/check-math-memory-budget.sh
+@@ -0,0 +1,17 @@
++#!/bin/sh
++set -eu
++repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
++out=${MATH_MEMORY_BUDGET_ROOT:-${TMPDIR:-/tmp}/coyote-math-memory-budget}
++mkdir -p "$out"
++cd "$repo"
++MATH_MEMORY_BUDGET_ROOT="$out" alr exec -- gprbuild -p \
++    -P test/native/math_memory_budget.gpr > "$out/build.log" 2>&1 || {
++    cat "$out/build.log" >&2
++    exit 1
++}
++"$out/bin/math_memory_budget_probe" > "$out/probe.log" 2>&1 || {
++    cat "$out/probe.log" >&2
++    exit 1
++}
++cat "$out/probe.log"
++printf 'Build log: %s/build.log\nProbe log: %s/probe.log\n' "$out" "$out"
+diff --git a/test/tools/math_memory_budget_probe.adb b/test/tools/math_memory_budget_probe.adb
+new file mode 100644
+index 0000000..0a2ba10
+--- /dev/null
++++ b/test/tools/math_memory_budget_probe.adb
+@@ -0,0 +1,178 @@
++with Math_Memory_Budget;
++with Ada.Exceptions;
++with Ada.Strings;
++with Ada.Strings.Fixed;
++with Ada.Text_IO;
++
++procedure Math_Memory_Budget_Probe is
++   use Math_Memory_Budget;
++
++   Small          : aliased Budget (Limit => 10);
++   Zero_Budget    : aliased Budget (Limit => 0);
++   Other          : aliased Budget (Limit => 10);
++   Parallel_Budget : aliased Budget (Limit => 10);
++   Owner          : Reservation;
++   Peer           : Reservation;
++   Third          : Reservation;
++   Check_Count    : Natural := 0;
++
++   protected Gate is
++      procedure Mark;
++      entry Wait_Until_Both;
++   private
++      Count : Natural := 0;
++   end Gate;
++
++   protected body Gate is
++      procedure Mark is
++      begin
++         Count := Count + 1;
++      end Mark;
++
++      entry Wait_Until_Both when Count = 2 is
++      begin
++         null;
++      end Wait_Until_Both;
++   end Gate;
++
++   task type Parallel_Charger is
++      entry Start;
++   end Parallel_Charger;
++
++   task body Parallel_Charger is
++      Local : Reservation;
++   begin
++      accept Start;
++      Reserve (Local, Parallel_Budget'Unchecked_Access, 5);
++      Gate.Mark;
++      Gate.Wait_Until_Both;
++      Release (Local);
++   end Parallel_Charger;
++
++   procedure Check (Condition : Boolean; Label : String) is
++   begin
++      Check_Count := Check_Count + 1;
++      if not Condition then
++         raise Program_Error with Label;
++      end if;
++   end Check;
++
++   procedure Expect_Exceeded
++     (Item    : in out Reservation;
++      Account : not null Budget_Access;
++      Amount  : Natural) is
++      Rejected : Boolean := False;
++   begin
++      begin
++         Reserve (Item, Account, Amount);
++      exception
++         when Error : Budget_Exceeded =>
++            Check
++              (Ada.Exceptions.Exception_Message (Error) =
++                 "math workspace memory budget exceeded",
++               "Budget_Exceeded message");
++            Rejected := True;
++      end;
++      Check (Rejected, "expected Budget_Exceeded");
++   end Expect_Exceeded;
++
++begin
++   Reserve (Owner, Zero_Budget'Unchecked_Access, 0);
++   Check (Used (Zero_Budget) = 0, "zero-capacity zero reservation");
++   Expect_Exceeded (Owner, Zero_Budget'Unchecked_Access, 1);
++   Check (Used (Zero_Budget) = 0, "zero-capacity rejection unchanged");
++
++   Reserve (Owner, Small'Unchecked_Access, 0);
++   Check (Used (Small) = 0 and then Bytes (Owner) = 0, "zero");
++   Reserve (Owner, Small'Unchecked_Access, 10);
++   Check (Used (Small) = 10 and then Peak (Small) = 10, "exact fit");
++   Expect_Exceeded (Owner, Small'Unchecked_Access, 11);
++   Check (Used (Small) = 10 and then Bytes (Owner) = 10,
++          "failed resize preserve");
++   Expect_Exceeded (Peer, Small'Unchecked_Access, 1);
++   Expect_Exceeded (Peer, Small'Unchecked_Access, Natural'Last);
++   Check (Used (Small) = 10, "overflow-safe rejection");
++   Reserve (Owner, Small'Unchecked_Access, 4);
++   Check (Used (Small) = 4 and then Bytes (Owner) = 4,
++          "nonzero shrink preserves peak");
++   Reserve (Owner, Small'Unchecked_Access, 0);
++   Check (Used (Small) = 0 and then Bytes (Owner) = 0,
++          "same-ledger zero resize");
++   Reserve (Owner, Small'Unchecked_Access, 4);
++   Check (Used (Small) = 4 and then Bytes (Owner) = 4, "shrink");
++   Reserve (Peer, Small'Unchecked_Access, 4);
++   Reserve (Owner, Small'Unchecked_Access, 6);
++   Check (Used (Small) = 10, "overlap then grow");
++   Release (Owner);
++   Release (Owner);
++   Check (Used (Small) = 4 and then Bytes (Owner) = 0, "idempotent");
++   Release (Peer);
++   Check (Used (Small) = 0, "release peer");
++
++   Reserve (Third, Other'Unchecked_Access, 10);
++   Check (Used (Other) = 10 and then Used (Small) = 0,
++          "independent ledgers");
++   Release (Third);
++
++   begin
++      declare
++         Scoped : Reservation;
++      begin
++         Reserve (Scoped, Small'Unchecked_Access, 7);
++         raise Constraint_Error;
++      end;
++   exception
++      when Constraint_Error =>
++         null;
++   end;
++   Check (Used (Small) = 0, "exception finalization");
++
++   declare
++      First  : Parallel_Charger;
++      Second : Parallel_Charger;
++   begin
++      First.Start;
++      Second.Start;
++   end;
++   Check (Used (Parallel_Budget) = 0, "parallel overlap release");
++   Check (Peak (Parallel_Budget) = 10, "parallel peak");
++   Check (Used (Small) = 0, "separate parallel ledger");
++   Check (Peak (Small) = 10, "peak");
++
++   declare
++      Rejected : Boolean := False;
++   begin
++      Reserve (Owner, Small'Unchecked_Access, 1);
++      begin
++         Reserve (Owner, Other'Unchecked_Access, 1);
++      exception
++         when Program_Error =>
++            Rejected := True;
++      end;
++      Check (Rejected, "expected rebind failure");
++   end;
++   Check (Used (Small) = 1 and then Used (Other) = 0,
++          "rebind rejection");
++   Check (Bytes (Owner) = 1, "rebind preserves owner bytes");
++   Release (Owner);
++
++   declare
++      Default_Budget : aliased Budget;
++      Large_Owner    : Reservation;
++   begin
++      Reserve (Large_Owner, Default_Budget'Unchecked_Access, Capacity);
++      Check (Used (Default_Budget) = Capacity, "capacity exact fit");
++      Reserve (Large_Owner, Default_Budget'Unchecked_Access, 0);
++   end;
++
++   Ada.Text_IO.Put_Line
++     ("math_memory_budget_probe: " &
++      Ada.Strings.Fixed.Trim (Natural'Image (Check_Count),
++                              Ada.Strings.Both) &
++      " checks passed");
++exception
++   when Error : others =>
++      Ada.Text_IO.Put_Line
++        (Ada.Exceptions.Exception_Information (Error));
++      raise;
++end Math_Memory_Budget_Probe;

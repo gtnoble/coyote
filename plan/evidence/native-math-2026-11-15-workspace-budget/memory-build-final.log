@@ -1,0 +1,7 @@
+Compile
+   [Ada]          math_memory_budget_probe.adb
+Bind
+   [gprbind]      math_memory_budget_probe.bexch
+   [Ada]          math_memory_budget_probe.ali
+Link
+   [link]         math_memory_budget_probe.adb

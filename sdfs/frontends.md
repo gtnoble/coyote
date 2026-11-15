@@ -2447,3 +2447,26 @@ not independent acceptance. Browser/geometry/resources not rerun. Transient
 Cairo/copies/parser/layout/font allocation, whole-job/deadline/cache/tiling/
 font/callable/lifecycle/human gates remain open. PCR-125 OPEN, NOT COMPLETE;
 no release/install/commit. Requirements/deviations unchanged.
+
+
+## 2026-11-15 — Raster workspace reservations (PCR-125)
+
+New Math_Memory_Budget supplies independent protected accounting and limited
+controlled reservations with atomic overflow-safe resizing and finalization.
+Math_Raster pre-reserves overlapping Cairo ARGB32 image/output-vector bytes,
+checks stride, reconciles capacity and clears partial output on exceptions.
+Render_Into removes the worker function-result assignment copy; workers expose
+scoped peak bytes independently of retained-output charges. Account lifetime
+must exceed reservations. Charges end at render-call completion; GNAT empty-
+vector requested-capacity admission is not portable allocator/RSS accounting.
+
+Development final full1076/1076 (148.559544s), worker194/194 twice, ledger30/30,
+raster1116/1116 normally and under Valgrind. Valgrind script still FAILS with
+2 contexts and6656/2183/26-byte native losses. GTK9/9, containment and offline
+HTTP lifecycle pass. Existing warnings remain. Report §11.13/evidence directory
+`plan/evidence/native-math-2026-11-15-workspace-budget/` retain results/hashes.
+Read-only review found no scoped blocker; developer/agent review is not human
+acceptance. Whole-job parser/layout/native/font/copy/cache accounting, timing,
+full corpus/fonts/lifecycle and desktop/AT/user acceptance remain OPEN. No
+browser/geometry/resource characterization rerun. PCR-125 NOT COMPLETE; no
+requirements/deviations changed, release/install/commit.

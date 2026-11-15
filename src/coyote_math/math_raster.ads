@@ -3,6 +3,7 @@ with Ada.Containers.Vectors;
 with Interfaces;
 with Math_Layout;
 with Math_Model;
+with Math_Memory_Budget;
 with Math_Painter;
 with Math_Work_Control;
 
@@ -37,14 +38,32 @@ package Math_Raster is
    function Get_Pixel
      (Item : Image; X, Y : Natural) return Interfaces.Unsigned_32;
    function Row_Data (Item : Image; Y : Natural) return Byte_Vectors.Vector;
-   --  Work is borrowed only for this call. Polling is cooperative; native
-   --  Cairo calls and vector capacity reservation are not interruptible.
+   --  Work and Memory are borrowed only for this call. Memory must outlive
+   --  the call; null uses an independent default workspace ledger. Charges
+   --  cover overlapping Cairo image bytes and output vector capacity only,
+   --  and end at call completion. Returned images/copies, allocator overhead,
+   --  Cairo drawing/font internals and parser/layout data are not covered.
+   --  Empty-vector preadmission uses GNAT's requested-capacity allocation;
+   --  actual capacity is reconciled afterward, not an allocator/RSS bound.
+   --  Budget_Exceeded propagates on ledger rejection. Polling does not
+   --  preempt native calls or vector allocation.
+   --  Render_Into clears previous output first and leaves it empty on failure;
+   --  use it to avoid the function return/assignment copy in worker callers.
+   procedure Render_Into
+     (Fonts : Math_Painter.Font_Set;
+      Layout : Math_Layout.Box;
+      Em_Scale : Long_Float;
+      Color : Math_Model.Color_Value;
+      Result : in out Image;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null);
    function Render
      (Fonts : Math_Painter.Font_Set;
       Layout : Math_Layout.Box;
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value;
-      Work : Math_Work_Control.Context_Access := null) return Image;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Image;
    --  Tile coordinates index the padded full raster, not the logical box.
    --  Tile Origin_X/Y locate logical top-left relative to tile pixel zero
    --  and can be negative. Whole-tile pixels match the corresponding full
@@ -55,7 +74,8 @@ package Math_Raster is
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value;
       Viewport_X, Viewport_Y, Tile_Width, Tile_Height : Natural;
-      Work : Math_Work_Control.Context_Access := null) return Image;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Image;
 private
    type Image is record
       Pixel_Width : Natural := 0;

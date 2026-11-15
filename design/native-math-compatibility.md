@@ -110,9 +110,21 @@ Pixbufs through weak references. Worker ARGB32 output is reserved from measured
 bounds before Render, then reconciled to actual stride. Failed results free
 pixel vector capacity before releasing their lease; late expired/cancelled
 rasters are discarded outside protected publication. `Math_Raster.Clear` frees
-capacity and resets image metadata. This is not whole-job accounting or RSS
-enforcement: Cairo surfaces, return-value copies, native/parser/layout/font
-allocations remain outside the ledger. Worker text shaping uses local Pango
+capacity and resets image metadata. Separately, `Math_Memory_Budget` supplies
+independent protected ledgers (default256MiB) and controlled reservations with
+atomic resize/rejection and scope-exit release. Full/tile raster painting
+pre-reserves overlapping Cairo ARGB32 image bytes and output-vector bytes;
+actual stride is checked and vector capacity is reconciled. Empty-vector
+preadmission relies on the inspected GNAT requested-capacity allocation, not a
+portable allocator-overhead guarantee. `Render_Into` clears old storage, writes
+directly into worker results and clears partial output on exception. Workers
+record this scoped peak independently of retained-result leases. Workspace
+charges end at render-call completion; standalone returned images/copies are
+not charged beyond that point. Account objects must outlive reservations;
+independent reservations can concurrently use the protected ledger. This is
+not whole-job accounting or RSS enforcement: native drawing/font internals,
+parser/layout/semantic data, allocator overhead, caller copies and all process
+cache lifetimes remain unqualified. Worker text shaping uses local Pango
 font-map/context state, but resolved system font families are not pinned, and
 the FFI/global
 font-cache ownership and determinism remain unqualified.

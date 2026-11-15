@@ -76,6 +76,9 @@ package Coyote_Math_Jobs is
    --  with actual stride. Failed results own no pixels or raster lease.
    --  This does not account for transient Cairo/parser/layout allocations.
    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
+   --  Peak charged Cairo image/output-vector overlap during rasterization,
+   --  not whole-job allocation, RSS or retained-result lifetime accounting.
+   function Raster_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
    function Raster_Width (Item : Job_Result) return Natural;
    function Raster_Height (Item : Job_Result) return Natural;
    --  Raster origins locate the logical top-left inside the full raster.
@@ -96,6 +99,7 @@ private
       Pixels : Math_Raster.Image;
       Raster_Baseline_Value : Natural := 0;
       Raster_Ready : Boolean := False;
+      Raster_Workspace_Peak : Natural := 0;
       Raster_Charge : Math_Raster_Budget.Lease;
       Message : Ada.Strings.Unbounded.Unbounded_String;
    end record;

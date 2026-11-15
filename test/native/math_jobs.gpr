@@ -16,6 +16,7 @@ project Math_Jobs is
       "math_layout.ads", "math_layout.adb",
       "math_semantics.ads", "math_semantics.adb",
       "math_painter.ads", "math_painter.adb",
+      "math_memory_budget.ads", "math_memory_budget.adb",
       "math_raster.ads", "math_raster.adb",
       "math_raster_budget.ads", "math_raster_budget.adb",
       "coyote_math_jobs.ads", "coyote_math_jobs.adb",

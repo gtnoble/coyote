@@ -17,6 +17,7 @@ project Math_Raster is
       "math_unicode.adb", "math_tokens.ads", "math_tokens.adb", "math_macros.ads",
       "math_macros.adb", "math_painter.ads",
       "math_painter.adb", "math_raster.ads", "math_raster.adb",
+      "math_memory_budget.ads", "math_memory_budget.adb",
       "math_raster_probe.adb");
    for Object_Dir use External ("MATH_RASTER_ROOT") & "/obj";
    for Exec_Dir use External ("MATH_RASTER_ROOT") & "/bin";

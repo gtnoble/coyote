@@ -393,3 +393,18 @@ offline lifecycle checks pass. Raster1108/1108, but encompassing raster script
 fails Valgrind with2 leak contexts; retain failure. Race-at-publication and
 post-pixel exception injection are not newly tested. No approved bound or
 threshold changes; full resource/timing/corpus/human gates remain open.
+
+
+## 2026-11-15 scoped workspace-budget verification
+
+Report §11.13 records additional REQ-MATH-010 / MATH-LIMIT-002 component
+coverage, not final memory qualification. Run
+`sh test/tools/check-math-memory-budget.sh` for independent-ledger exact/zero/
+overflow/resize/concurrency/finalization checks. Existing raster probe adds
+workspace exact-fit/one-short/recovery, drawing failure, post-vector-allocation
+cancel/deadline and tile-capacity controls; worker probe checks scoped peak
+telemetry alongside retained admission. Full1076/1076, worker194/194 twice,
+ledger30/30 and raster1116/1116 pass. Encompassing raster script fails strict
+Valgrind with2 native contexts and6656/2183/26-byte losses. Charges end at
+render completion and exclude parser/layout/native/font overhead and returned
+copies; whole-job256MiB, cache/timing/readiness/human gates remain open.

@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-15T17:32:15.179672+00:00",
+  "revision": "a885df092b854306a626068b8df9fe5de7c20544",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "environment": {
+    "LANG": "en_US.UTF-8",
+    "LC_ALL": "",
+    "DISPLAY": ":0.0",
+    "WAYLAND_DISPLAY": "",
+    "COYOTE_FRONTEND": "gui"
+  },
+  "tools": {
+    "alr": {
+      "exit": 0,
+      "output": "alr 2.1.0\n"
+    },
+    "gnat": {
+      "exit": 0,
+      "output": "GNAT 13.3.0\nCopyright (C) 1996-2023, Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    "valgrind": {
+      "exit": 0,
+      "output": "valgrind-3.22.0\n"
+    },
+    "gtk": {
+      "exit": 0,
+      "output": "3.24.41\n"
+    },
+    "cairo": {
+      "exit": 0,
+      "output": "1.18.0\n"
+    },
+    "pango": {
+      "exit": 0,
+      "output": "1.52.1\n"
+    },
+    "fontconfig": {
+      "exit": 0,
+      "output": "2.15.0\n"
+    }
+  },
+  "hashes": {
+    "src/coyote_math/coyote_math_jobs.adb": "945a91dd1e59b5511f67662c210eb2fedaa2a97489b30b6df32fefd661d6b2e5",
+    "src/coyote_math/coyote_math_jobs.ads": "a02c5cb2e414476d5b078b5869ce552d66409303cc1795732938ce61454d9ad6",
+    "src/coyote_math/math_memory_budget.adb": "678f710e2774cd34e53fc587888e75bec64005025a54526f53501440e6155e4d",
+    "src/coyote_math/math_memory_budget.ads": "74e947d031e5460b1cc5fb37fb72b166ddf81cc863dcd32525640a252c76bc01",
+    "src/coyote_math/math_raster.adb": "153486a3efacbd534cff6b3c6be436e5725532a096669e47b406fb567cdfef15",
+    "src/coyote_math/math_raster.ads": "ee80b7696ef845e03113d2897867c407748f9536c4c13d18f69407047f7edb06",
+    "test/native/math_image_export.gpr": "01915deb5181a5da81cebc86007ee322a804b76a3748fc74a8c4b68623de1837",
+    "test/native/math_jobs.gpr": "b7951d515d5d37799ed2920ff00290b66adcbe0dd66b4dcc6b012359984cc6f0",
+    "test/native/math_memory_budget.gpr": "bccc90ef075da2f62efaf8a09e448454d916e1739db684e959da8e9d8475277e",
+    "test/native/math_raster.gpr": "818a25ef9455286ace862729022f04902d505f180ed0f183f84979bf78b40021",
+    "test/tools/check-math-memory-budget.sh": "049b0efaff10ae09675c52d3261ae98d81fe97d5a8a546b8c7a5b61edfe9e2fe",
+    "test/tools/math_jobs_probe.adb": "a52b7b490db251154b9c0c052c80f7520956e3c5226083f48ddd47335095d96e",
+    "test/tools/math_memory_budget_probe.adb": "db6e08df2cb9e4b6423ce8a2f5a91ebe616ab4c5f654ba3ae9c725b962a62f63",
+    "test/tools/math_raster_probe.adb": "3be855a3220e73168a1a171e04bf48ae374690d7c1585825183818dd2c2e757a",
+    "share/coyote/math/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "share/coyote/math/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "share/coyote/math/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "share/coyote/math/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "share/coyote/math/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "share/coyote/math/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "share/coyote/math/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "share/coyote/math/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "share/coyote/math/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "share/coyote/math/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "share/coyote/math/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "share/coyote/math/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "share/coyote/math/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa",
+    "bin/coyote": "dceafa79bab2baf52c88fd6bba7eda06000a0e7acf0d3567a19227f0ec083313",
+    "test/bin/coyote_test": "14ac7a72f1a96f186cd7549ccce3937cfff2f4f7e2f7e4a602ce12006e2984f5",
+    "/tmp/coyote-math-workspace-jobs/bin/math_jobs_probe": "034577be22657889c68cdf7c2755d39f3997658786f63005298f8465cfa5f067",
+    "/tmp/coyote-math-workspace-raster/bin/math_raster_probe": "650db3c0e7dbdf6dcd9e90c0a403ba2b3baee0627df398b8fc296de4986e08c6",
+    "/tmp/coyote-math-memory-budget/bin/math_memory_budget_probe": "b742e437c077bcb1dad98034365d1efce8419802d5ee7bf4756be8abb9a1a3a4",
+    "config/coyote_config.gpr": "45dde221207ab75b3735144790af76a81b9d69e32e9b448f460dc1c7b14797a7",
+    "test/config/coyote_test_config.gpr": "dc0160196db19276a67dda881c65279d1b9deaf1cded18b8545fcebb0d8f4f89"
+  },
+  "limits": "Scoped raster-call accounting only; no whole-job/RSS/deadline/cache qualification."
+}

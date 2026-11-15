@@ -11,10 +11,12 @@ with Math_Paths;
 with Math_Work_Control;
 
 package body Math_Raster is
+   use type Ada.Containers.Count_Type;
    use type Cairo.Cairo_Status;
    use type Cairo.Cairo_Context;
    use type Cairo.Cairo_Surface;
    use type Math_Layout.Command_Kind;
+   use type Math_Memory_Budget.Budget_Access;
    use type System.Address;
    use type Interfaces.Unsigned_32;
    use type System.Storage_Elements.Storage_Offset;
@@ -264,8 +266,15 @@ package body Math_Raster is
       Color : Math_Model.Color_Value;
       Left, Top, View_Width, View_Height : Natural;
       Is_Tile : Boolean;
-      Result : out Image;
-      Work : Math_Work_Control.Context_Access) is
+      Result : in out Image;
+      Work : Math_Work_Control.Context_Access;
+      Memory : Math_Memory_Budget.Budget_Access) is
+      Local_Budget : aliased Math_Memory_Budget.Budget;
+      Account : constant not null Math_Memory_Budget.Budget_Access :=
+        (if Memory = null then Local_Budget'Unchecked_Access else Memory);
+      Workspace : Math_Memory_Budget.Reservation;
+      Surface_Bytes : Natural;
+      Vector_Bytes : Natural;
       Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Context : Cairo.Cairo_Context := Cairo.Null_Context;
       W : Natural := View_Width;
@@ -274,6 +283,7 @@ package body Math_Raster is
       S : Natural;
       Data : System.Address;
    begin
+      Clear (Result);
       Math_Work_Control.Poll (Work);
       if not Color.Red'Valid or else not Color.Green'Valid or else
         not Color.Blue'Valid or else not Color.Alpha'Valid or else
@@ -300,9 +310,11 @@ package body Math_Raster is
          end if;
       end if;
       S := W * 4;
-      if Long_Float (S) * Long_Float (H) * 2.0 > 268_435_456.0 then
-         raise Raster_Error with "raster workspace exceeds 256 MiB";
-      end if;
+      --  Bounds above make these products representable. ARGB32 stride is
+      --  four bytes per pixel; reject any unexpected native stride below.
+      Surface_Bytes := S * H;
+      Math_Memory_Budget.Reserve
+        (Workspace, Account, Surface_Bytes * 2);
       Math_Work_Control.Poll (Work);
       Surface := Cairo.Image_Surface.Create
         (Cairo.Image_Surface.Cairo_Format_ARGB32,
@@ -333,8 +345,8 @@ package body Math_Raster is
          raise Raster_Error with "Cairo image flush failed";
       end if;
       S := Natural (Cairo.Image_Surface.Get_Stride (Surface));
-      if S < W * 4 then
-         raise Raster_Error with "invalid Cairo image stride";
+      if S /= W * 4 then
+         raise Raster_Error with "unexpected Cairo ARGB32 image stride";
       end if;
       Data := Cairo.Image_Surface.Get_Data_Generic (Surface);
       if Data = System.Null_Address then
@@ -345,7 +357,16 @@ package body Math_Raster is
       Result.Pixel_Stride := S;
       Result.Logical_X := Integer (Bounds.Origin_X) - Integer (Left);
       Result.Logical_Y := Integer (Bounds.Origin_Y) - Integer (Top);
-      Result.Pixels.Reserve_Capacity (Ada.Containers.Count_Type (S * H));
+      Result.Pixels.Reserve_Capacity
+        (Ada.Containers.Count_Type (Surface_Bytes));
+      if Result.Pixels.Capacity >
+        Ada.Containers.Count_Type (Math_Memory_Budget.Capacity)
+      then
+         raise Math_Memory_Budget.Budget_Exceeded;
+      end if;
+      Vector_Bytes := Natural (Result.Pixels.Capacity);
+      Math_Memory_Budget.Reserve
+        (Workspace, Account, Surface_Bytes + Vector_Bytes);
       for Row in 0 .. H - 1 loop
          Math_Work_Control.Poll (Work);
          for Start in 0 .. (S - 1) / 128 loop
@@ -376,19 +397,34 @@ package body Math_Raster is
          if Surface /= Cairo.Null_Surface then
             Cairo.Surface.Destroy (Surface);
          end if;
+         Clear (Result);
          raise;
    end Paint;
+
+   procedure Render_Into
+     (Fonts : Math_Painter.Font_Set;
+      Layout : Math_Layout.Box;
+      Em_Scale : Long_Float;
+      Color : Math_Model.Color_Value;
+      Result : in out Image;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) is
+   begin
+      Paint (Fonts, Layout, Em_Scale, Color, 0, 0, 0, 0, False, Result,
+        Work, Memory);
+   end Render_Into;
 
    function Render
      (Fonts : Math_Painter.Font_Set;
       Layout : Math_Layout.Box;
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value;
-      Work : Math_Work_Control.Context_Access := null) return Image is
-      Result : Image;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Image is
    begin
-      Paint (Fonts, Layout, Em_Scale, Color, 0, 0, 0, 0, False, Result, Work);
-      return Result;
+      return Result : Image do
+         Render_Into (Fonts, Layout, Em_Scale, Color, Result, Work, Memory);
+      end return;
    end Render;
 
    function Render_Tile
@@ -397,11 +433,12 @@ package body Math_Raster is
       Em_Scale : Long_Float;
       Color : Math_Model.Color_Value;
       Viewport_X, Viewport_Y, Tile_Width, Tile_Height : Natural;
-      Work : Math_Work_Control.Context_Access := null) return Image is
-      Result : Image;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Image is
    begin
-      Paint (Fonts, Layout, Em_Scale, Color, Viewport_X, Viewport_Y,
-        Tile_Width, Tile_Height, True, Result, Work);
-      return Result;
+      return Result : Image do
+         Paint (Fonts, Layout, Em_Scale, Color, Viewport_X, Viewport_Y,
+           Tile_Width, Tile_Height, True, Result, Work, Memory);
+      end return;
    end Render_Tile;
 end Math_Raster;

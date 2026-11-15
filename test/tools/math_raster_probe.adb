@@ -8,6 +8,7 @@ with Interfaces;
 with Math_Layout;
 with Math_Metrics;
 with Math_Model;
+with Math_Memory_Budget;
 with Math_Painter;
 with Math_Paths;
 with Math_Raster;
@@ -829,6 +830,110 @@ begin
       "full render background alpha is zero");
    Check (Has_Ink (Full), "full render contains foreground ink");
    Check (Hash (Full) /= 0, "render output hash nonzero");
+   declare
+      Bounds : constant Math_Raster.Raster_Bounds :=
+        Math_Raster.Measure (Layout, 28.0);
+      Needed : constant Natural := Bounds.Width * 4 * Bounds.Height;
+      Exact : aliased Math_Memory_Budget.Budget (Needed * 2);
+      Short : aliased Math_Memory_Budget.Budget (Needed * 2 - 1);
+      Shared : aliased Math_Memory_Budget.Budget (Needed * 2);
+      Blocker : Math_Memory_Budget.Reservation;
+      Image : Math_Raster.Image;
+      Rejected : Boolean := False;
+   begin
+      Math_Raster.Render_Into
+        (Fonts, Layout, 28.0, Foreground, Image,
+         Memory => Exact'Unchecked_Access);
+      Check (Hash (Image) = Hash (Full) and
+        Math_Memory_Budget.Used (Exact) = 0 and
+        Math_Memory_Budget.Peak (Exact) = Needed * 2,
+        "exact workspace fits surface plus output without changing pixels");
+      begin
+         Math_Raster.Render_Into
+           (Fonts, Layout, 28.0, Foreground, Image,
+            Memory => Short'Unchecked_Access);
+      exception
+         when Math_Memory_Budget.Budget_Exceeded => Rejected := True;
+      end;
+      Check (Rejected and Math_Raster.Width (Image) = 0 and
+        Math_Raster.Height (Image) = 0 and
+        Math_Memory_Budget.Used (Short) = 0 and
+        Math_Memory_Budget.Peak (Short) = 0,
+        "one-byte-short workspace rejects before allocation and clears output");
+      Math_Memory_Budget.Reserve
+        (Blocker, Shared'Unchecked_Access, 1);
+      Rejected := False;
+      begin
+         Math_Raster.Render_Into
+           (Fonts, Layout, 28.0, Foreground, Image,
+            Memory => Shared'Unchecked_Access);
+      exception
+         when Math_Memory_Budget.Budget_Exceeded => Rejected := True;
+      end;
+      Check (Rejected and Math_Memory_Budget.Used (Shared) = 1 and
+        Math_Raster.Width (Image) = 0,
+        "raster reservation includes existing workspace charges");
+      Math_Memory_Budget.Release (Blocker);
+      Math_Raster.Render_Into
+        (Fonts, Layout, 28.0, Foreground, Image,
+         Memory => Shared'Unchecked_Access);
+      Check (Hash (Image) = Hash (Full) and
+        Math_Memory_Budget.Used (Shared) = 0,
+        "raster recovers after memory rejection and releases workspace");
+      declare
+         Unloaded : Math_Painter.Font_Set;
+         Raised : Boolean := False;
+      begin
+         begin
+            Math_Raster.Render_Into
+              (Unloaded, Layout, 28.0, Foreground, Image,
+               Memory => Shared'Unchecked_Access);
+         exception
+            when Math_Painter.Font_Error => Raised := True;
+         end;
+         Check (Raised and Math_Raster.Width (Image) = 0 and
+           Math_Memory_Budget.Used (Shared) = 0 and
+           Math_Memory_Budget.Peak (Shared) = Needed * 2,
+           "native draw failure clears output and releases workspace");
+      end;
+      for Reason in Math_Work_Control.Cancel_Requested ..
+        Math_Work_Control.Deadline_Reached
+      loop
+         --  An empty box makes phase polling deterministic: nine checks
+         --  precede vector reservation; check ten follows that allocation.
+         declare
+            Empty_Box : constant Math_Layout.Box :=
+              (Valid => True, Width => 1.0, Ascent => 1.0, others => <>);
+            Raised : Boolean := False;
+         begin
+            Poll_Counter.Reset (10, Reason);
+            begin
+               Math_Raster.Render_Into
+                 (Fonts, Empty_Box, 8.0, Foreground, Image, Work,
+                  Shared'Unchecked_Access);
+            exception
+               when Math_Work_Control.Stop_Requested |
+                 Math_Work_Control.Deadline_Expired => Raised := True;
+            end;
+            Check (Raised and Math_Raster.Width (Image) = 0 and
+              Math_Raster.Height (Image) = 0 and
+              Math_Memory_Budget.Used (Shared) = 0,
+              "post-allocation interruption clears pixels and workspace " &
+              Math_Work_Control.Stop_Reason'Image (Reason));
+         end;
+      end loop;
+      declare
+         Tile_Budget : aliased Math_Memory_Budget.Budget (8 * 8 * 4 * 2);
+         Tile : constant Math_Raster.Image := Math_Raster.Render_Tile
+           (Fonts, Layout, 28.0, Foreground, 0, 0, 8, 8,
+            Memory => Tile_Budget'Unchecked_Access);
+      begin
+         Check (Math_Raster.Width (Tile) = 8 and
+           Math_Memory_Budget.Peak (Tile_Budget) = 8 * 8 * 4 * 2 and
+           Math_Memory_Budget.Used (Tile_Budget) = 0,
+           "tile uses requested tile workspace rather than full bounds");
+      end;
+   end;
    declare
       Box_Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
         ("\colorbox{red}{x}+y");
