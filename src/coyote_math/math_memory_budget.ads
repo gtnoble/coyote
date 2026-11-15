@@ -30,6 +30,9 @@ package Math_Memory_Budget is
    procedure Release (Owner : in out Reservation);
    function Used (Account : Budget) return Natural;
    function Peak (Account : Budget) return Natural;
+   --  Callers serialize measurement windows for a shared Budget.
+   --  Resetting the peak never changes current reservation charges.
+   procedure Reset_Peak (Account : in out Budget);
    function Bytes (Owner : Reservation) return Natural;
 
 private
@@ -39,6 +42,7 @@ private
       procedure Uncharge (Amount : Natural);
       function Current return Natural;
       function Maximum return Natural;
+      procedure Reset_Maximum;
    private
       Current_Bytes : Natural := 0;
       Peak_Bytes    : Natural := 0;

@@ -408,3 +408,37 @@ ledger30/30 and raster1116/1116 pass. Encompassing raster script fails strict
 Valgrind with2 native contexts and6656/2183/26-byte losses. Charges end at
 render completion and exclude parser/layout/native/font overhead and returned
 copies; whole-job256MiB, cache/timing/readiness/human gates remain open.
+
+
+## 2026-11-15 parser-budget continuation
+
+Report §11.14 records optional parser workspace admission and worker phase-peak
+characterization, not whole-job memory qualification. Map vectors and the three
+overlapping lexical raw/transformed/mark-record arrays are pre-admitted,
+including duplicate-map storage; vectors are preallocated and Raw borrowed /
+Expanded moved to avoid intermediate copies. A single worker account uses
+`Reset_Peak` while preserving active charge; parser/raster phase peaks report
+the maximum. GNAT requested Reserve capacity is not a portable allocator bound.
+
+Final root/test development builds pass; full suite1076/1076, zero errors,
+cumulative148.051229s (wall148.10s). Parser674/674 twice, ledger38/38,
+worker215/215 across three final runs and a repeat. Raster1116/1116 normal and
+under Valgrind, but the strict raster script FAILS with2 contexts and6656
+definitely/2183 indirectly/26 possibly lost bytes. Required GTK9/9,
+containment and offline HTTP lifecycle checks pass. A font-load failure
+regression produced one baseline worker failure; the fix passes215/215 three
+times. No GUI cases were added.
+
+The current-snapshot lifecycle matrix has18 runs: baseline6 with zero losses;
+no-teardown shaped6 retain definite/indirect6656/2183 plus variable378/730
+possible; shaped teardown6 reduce definite/indirect to0 but leave26/378
+possible. Strict all12 shaped runs therefore fail. Test-only FcFini/Cairo
+cleanup is not asserted safe for production and does not suppress those
+results. Browser/geometry/resource characterization was not rerun. Evidence:
+`plan/evidence/native-math-2026-11-15-parser-budget/`.
+
+Scope excludes unbounded strings/lexemes, expander, AST, semantics, layout,
+native/font metadata, copies and cache/retained lifetimes. Whole-job memory,
+hard timing, font, parity, lifecycle and human gates remain OPEN. No
+independent acceptance, release, install or commit is claimed. Requirements
+and deviations are unchanged.

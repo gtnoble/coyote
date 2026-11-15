@@ -76,9 +76,18 @@ package Coyote_Math_Jobs is
    --  with actual stride. Failed results own no pixels or raster lease.
    --  This does not account for transient Cairo/parser/layout allocations.
    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
-   --  Peak charged Cairo image/output-vector overlap during rasterization,
-   --  not whole-job allocation, RSS or retained-result lifetime accounting.
+   --  Peak charged Cairo image/output-vector overlap during rasterization.
+   --  The pipeline metric is max(parser, raster); no overlap is implied,
+   --  because parser reservations release when Parse returns. Neither metric
+   --  includes retained AST/semantics/layout or whole-job allocations.
    function Raster_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
+   --  Parser offset-map and token-vector record-array payload peak only.
+   --  It excludes retained AST/semantics/layout.
+   function Parse_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
+   --  Maximum parser-vector/raster-workspace peak across those phases only.
+   --  This excludes other job allocations and retained result/cache lifetime.
+   function Pipeline_Workspace_Peak_Bytes
+     (Item : Job_Result) return Natural;
    function Raster_Width (Item : Job_Result) return Natural;
    function Raster_Height (Item : Job_Result) return Natural;
    --  Raster origins locate the logical top-left inside the full raster.
@@ -100,6 +109,7 @@ private
       Raster_Baseline_Value : Natural := 0;
       Raster_Ready : Boolean := False;
       Raster_Workspace_Peak : Natural := 0;
+      Parse_Workspace_Peak : Natural := 0;
       Raster_Charge : Math_Raster_Budget.Lease;
       Message : Ada.Strings.Unbounded.Unbounded_String;
    end record;

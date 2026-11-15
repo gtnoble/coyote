@@ -86,6 +86,28 @@ begin
    Check (Used (Small) = 0 and then Bytes (Owner) = 0, "zero");
    Reserve (Owner, Small'Unchecked_Access, 10);
    Check (Used (Small) = 10 and then Peak (Small) = 10, "exact fit");
+   Reset_Peak (Small);
+   Check (Used (Small) = 10 and then Peak (Small) = 10,
+          "reset preserves active charge as baseline");
+   Expect_Exceeded (Owner, Small'Unchecked_Access, 11);
+   Reserve (Owner, Small'Unchecked_Access, 9);
+   Check (Used (Small) = 9 and then Peak (Small) = 10,
+          "rejected resize then shrink preserves reset peak");
+   Reserve (Owner, Small'Unchecked_Access, 10);
+   Check (Peak (Small) = 10, "growth records peak after reset");
+   Reset_Peak (Small);
+   Check (Used (Small) = 10 and then Peak (Small) = 10,
+          "second reset remains at active charge");
+   Release (Owner);
+   Reset_Peak (Small);
+   Check (Used (Small) = 0 and then Peak (Small) = 0,
+          "zero-current reset");
+   Reserve (Owner, Small'Unchecked_Access, 3);
+   Check (Peak (Small) = 3 and then Peak (Other) = 0,
+          "reset window and independent ledger");
+   Release (Owner);
+   Reset_Peak (Small);
+   Reserve (Owner, Small'Unchecked_Access, 10);
    Expect_Exceeded (Owner, Small'Unchecked_Access, 11);
    Check (Used (Small) = 10 and then Bytes (Owner) = 10,
           "failed resize preserve");

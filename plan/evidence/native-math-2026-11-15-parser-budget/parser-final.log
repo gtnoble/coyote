@@ -1,0 +1,675 @@
+ok precomposed U+0390 two-mark scalar source creation
+ok precomposed U+0390 two-mark scalar token count within transformation bound
+ok precomposed U+0390 two-mark scalar vector retains reserved bound capacity
+ok combining acute wrapper source creation
+ok combining acute wrapper token count within transformation bound
+ok combining acute wrapper vector retains reserved bound capacity
+ok subscript and superscript wrappers source creation
+ok subscript and superscript wrappers token count within transformation bound
+ok subscript and superscript wrappers vector retains reserved bound capacity
+ok decomposition U+ 192 source creation
+ok decomposition U+ 192 token count within transformation bound
+ok decomposition U+ 192 vector retains reserved bound capacity
+ok decomposition U+ 193 source creation
+ok decomposition U+ 193 token count within transformation bound
+ok decomposition U+ 193 vector retains reserved bound capacity
+ok decomposition U+ 194 source creation
+ok decomposition U+ 194 token count within transformation bound
+ok decomposition U+ 194 vector retains reserved bound capacity
+ok decomposition U+ 195 source creation
+ok decomposition U+ 195 token count within transformation bound
+ok decomposition U+ 195 vector retains reserved bound capacity
+ok decomposition U+ 196 source creation
+ok decomposition U+ 196 token count within transformation bound
+ok decomposition U+ 196 vector retains reserved bound capacity
+ok decomposition U+ 197 source creation
+ok decomposition U+ 197 token count within transformation bound
+ok decomposition U+ 197 vector retains reserved bound capacity
+ok decomposition U+ 199 source creation
+ok decomposition U+ 199 token count within transformation bound
+ok decomposition U+ 199 vector retains reserved bound capacity
+ok decomposition U+ 200 source creation
+ok decomposition U+ 200 token count within transformation bound
+ok decomposition U+ 200 vector retains reserved bound capacity
+ok decomposition U+ 201 source creation
+ok decomposition U+ 201 token count within transformation bound
+ok decomposition U+ 201 vector retains reserved bound capacity
+ok decomposition U+ 202 source creation
+ok decomposition U+ 202 token count within transformation bound
+ok decomposition U+ 202 vector retains reserved bound capacity
+ok decomposition U+ 203 source creation
+ok decomposition U+ 203 token count within transformation bound
+ok decomposition U+ 203 vector retains reserved bound capacity
+ok decomposition U+ 204 source creation
+ok decomposition U+ 204 token count within transformation bound
+ok decomposition U+ 204 vector retains reserved bound capacity
+ok decomposition U+ 205 source creation
+ok decomposition U+ 205 token count within transformation bound
+ok decomposition U+ 205 vector retains reserved bound capacity
+ok decomposition U+ 206 source creation
+ok decomposition U+ 206 token count within transformation bound
+ok decomposition U+ 206 vector retains reserved bound capacity
+ok decomposition U+ 207 source creation
+ok decomposition U+ 207 token count within transformation bound
+ok decomposition U+ 207 vector retains reserved bound capacity
+ok decomposition U+ 209 source creation
+ok decomposition U+ 209 token count within transformation bound
+ok decomposition U+ 209 vector retains reserved bound capacity
+ok decomposition U+ 210 source creation
+ok decomposition U+ 210 token count within transformation bound
+ok decomposition U+ 210 vector retains reserved bound capacity
+ok decomposition U+ 211 source creation
+ok decomposition U+ 211 token count within transformation bound
+ok decomposition U+ 211 vector retains reserved bound capacity
+ok decomposition U+ 212 source creation
+ok decomposition U+ 212 token count within transformation bound
+ok decomposition U+ 212 vector retains reserved bound capacity
+ok decomposition U+ 213 source creation
+ok decomposition U+ 213 token count within transformation bound
+ok decomposition U+ 213 vector retains reserved bound capacity
+ok decomposition U+ 214 source creation
+ok decomposition U+ 214 token count within transformation bound
+ok decomposition U+ 214 vector retains reserved bound capacity
+ok decomposition U+ 217 source creation
+ok decomposition U+ 217 token count within transformation bound
+ok decomposition U+ 217 vector retains reserved bound capacity
+ok decomposition U+ 218 source creation
+ok decomposition U+ 218 token count within transformation bound
+ok decomposition U+ 218 vector retains reserved bound capacity
+ok decomposition U+ 219 source creation
+ok decomposition U+ 219 token count within transformation bound
+ok decomposition U+ 219 vector retains reserved bound capacity
+ok decomposition U+ 220 source creation
+ok decomposition U+ 220 token count within transformation bound
+ok decomposition U+ 220 vector retains reserved bound capacity
+ok decomposition U+ 221 source creation
+ok decomposition U+ 221 token count within transformation bound
+ok decomposition U+ 221 vector retains reserved bound capacity
+ok decomposition U+ 224 source creation
+ok decomposition U+ 224 token count within transformation bound
+ok decomposition U+ 224 vector retains reserved bound capacity
+ok decomposition U+ 225 source creation
+ok decomposition U+ 225 token count within transformation bound
+ok decomposition U+ 225 vector retains reserved bound capacity
+ok decomposition U+ 226 source creation
+ok decomposition U+ 226 token count within transformation bound
+ok decomposition U+ 226 vector retains reserved bound capacity
+ok decomposition U+ 227 source creation
+ok decomposition U+ 227 token count within transformation bound
+ok decomposition U+ 227 vector retains reserved bound capacity
+ok decomposition U+ 228 source creation
+ok decomposition U+ 228 token count within transformation bound
+ok decomposition U+ 228 vector retains reserved bound capacity
+ok decomposition U+ 229 source creation
+ok decomposition U+ 229 token count within transformation bound
+ok decomposition U+ 229 vector retains reserved bound capacity
+ok decomposition U+ 231 source creation
+ok decomposition U+ 231 token count within transformation bound
+ok decomposition U+ 231 vector retains reserved bound capacity
+ok decomposition U+ 232 source creation
+ok decomposition U+ 232 token count within transformation bound
+ok decomposition U+ 232 vector retains reserved bound capacity
+ok decomposition U+ 233 source creation
+ok decomposition U+ 233 token count within transformation bound
+ok decomposition U+ 233 vector retains reserved bound capacity
+ok decomposition U+ 234 source creation
+ok decomposition U+ 234 token count within transformation bound
+ok decomposition U+ 234 vector retains reserved bound capacity
+ok decomposition U+ 235 source creation
+ok decomposition U+ 235 token count within transformation bound
+ok decomposition U+ 235 vector retains reserved bound capacity
+ok decomposition U+ 236 source creation
+ok decomposition U+ 236 token count within transformation bound
+ok decomposition U+ 236 vector retains reserved bound capacity
+ok decomposition U+ 237 source creation
+ok decomposition U+ 237 token count within transformation bound
+ok decomposition U+ 237 vector retains reserved bound capacity
+ok decomposition U+ 238 source creation
+ok decomposition U+ 238 token count within transformation bound
+ok decomposition U+ 238 vector retains reserved bound capacity
+ok decomposition U+ 239 source creation
+ok decomposition U+ 239 token count within transformation bound
+ok decomposition U+ 239 vector retains reserved bound capacity
+ok decomposition U+ 241 source creation
+ok decomposition U+ 241 token count within transformation bound
+ok decomposition U+ 241 vector retains reserved bound capacity
+ok decomposition U+ 242 source creation
+ok decomposition U+ 242 token count within transformation bound
+ok decomposition U+ 242 vector retains reserved bound capacity
+ok decomposition U+ 243 source creation
+ok decomposition U+ 243 token count within transformation bound
+ok decomposition U+ 243 vector retains reserved bound capacity
+ok decomposition U+ 244 source creation
+ok decomposition U+ 244 token count within transformation bound
+ok decomposition U+ 244 vector retains reserved bound capacity
+ok decomposition U+ 245 source creation
+ok decomposition U+ 245 token count within transformation bound
+ok decomposition U+ 245 vector retains reserved bound capacity
+ok decomposition U+ 246 source creation
+ok decomposition U+ 246 token count within transformation bound
+ok decomposition U+ 246 vector retains reserved bound capacity
+ok decomposition U+ 249 source creation
+ok decomposition U+ 249 token count within transformation bound
+ok decomposition U+ 249 vector retains reserved bound capacity
+ok decomposition U+ 250 source creation
+ok decomposition U+ 250 token count within transformation bound
+ok decomposition U+ 250 vector retains reserved bound capacity
+ok decomposition U+ 251 source creation
+ok decomposition U+ 251 token count within transformation bound
+ok decomposition U+ 251 vector retains reserved bound capacity
+ok decomposition U+ 252 source creation
+ok decomposition U+ 252 token count within transformation bound
+ok decomposition U+ 252 vector retains reserved bound capacity
+ok decomposition U+ 253 source creation
+ok decomposition U+ 253 token count within transformation bound
+ok decomposition U+ 253 vector retains reserved bound capacity
+ok decomposition U+ 255 source creation
+ok decomposition U+ 255 token count within transformation bound
+ok decomposition U+ 255 vector retains reserved bound capacity
+ok decomposition U+ 256 source creation
+ok decomposition U+ 256 token count within transformation bound
+ok decomposition U+ 256 vector retains reserved bound capacity
+ok decomposition U+ 257 source creation
+ok decomposition U+ 257 token count within transformation bound
+ok decomposition U+ 257 vector retains reserved bound capacity
+ok decomposition U+ 258 source creation
+ok decomposition U+ 258 token count within transformation bound
+ok decomposition U+ 258 vector retains reserved bound capacity
+ok decomposition U+ 259 source creation
+ok decomposition U+ 259 token count within transformation bound
+ok decomposition U+ 259 vector retains reserved bound capacity
+ok decomposition U+ 262 source creation
+ok decomposition U+ 262 token count within transformation bound
+ok decomposition U+ 262 vector retains reserved bound capacity
+ok decomposition U+ 263 source creation
+ok decomposition U+ 263 token count within transformation bound
+ok decomposition U+ 263 vector retains reserved bound capacity
+ok decomposition U+ 264 source creation
+ok decomposition U+ 264 token count within transformation bound
+ok decomposition U+ 264 vector retains reserved bound capacity
+ok decomposition U+ 265 source creation
+ok decomposition U+ 265 token count within transformation bound
+ok decomposition U+ 265 vector retains reserved bound capacity
+ok decomposition U+ 266 source creation
+ok decomposition U+ 266 token count within transformation bound
+ok decomposition U+ 266 vector retains reserved bound capacity
+ok decomposition U+ 267 source creation
+ok decomposition U+ 267 token count within transformation bound
+ok decomposition U+ 267 vector retains reserved bound capacity
+ok decomposition U+ 268 source creation
+ok decomposition U+ 268 token count within transformation bound
+ok decomposition U+ 268 vector retains reserved bound capacity
+ok decomposition U+ 269 source creation
+ok decomposition U+ 269 token count within transformation bound
+ok decomposition U+ 269 vector retains reserved bound capacity
+ok decomposition U+ 270 source creation
+ok decomposition U+ 270 token count within transformation bound
+ok decomposition U+ 270 vector retains reserved bound capacity
+ok decomposition U+ 271 source creation
+ok decomposition U+ 271 token count within transformation bound
+ok decomposition U+ 271 vector retains reserved bound capacity
+ok decomposition U+ 274 source creation
+ok decomposition U+ 274 token count within transformation bound
+ok decomposition U+ 274 vector retains reserved bound capacity
+ok decomposition U+ 275 source creation
+ok decomposition U+ 275 token count within transformation bound
+ok decomposition U+ 275 vector retains reserved bound capacity
+ok decomposition U+ 276 source creation
+ok decomposition U+ 276 token count within transformation bound
+ok decomposition U+ 276 vector retains reserved bound capacity
+ok decomposition U+ 277 source creation
+ok decomposition U+ 277 token count within transformation bound
+ok decomposition U+ 277 vector retains reserved bound capacity
+ok decomposition U+ 278 source creation
+ok decomposition U+ 278 token count within transformation bound
+ok decomposition U+ 278 vector retains reserved bound capacity
+ok decomposition U+ 279 source creation
+ok decomposition U+ 279 token count within transformation bound
+ok decomposition U+ 279 vector retains reserved bound capacity
+ok decomposition U+ 282 source creation
+ok decomposition U+ 282 token count within transformation bound
+ok decomposition U+ 282 vector retains reserved bound capacity
+ok decomposition U+ 283 source creation
+ok decomposition U+ 283 token count within transformation bound
+ok decomposition U+ 283 vector retains reserved bound capacity
+ok decomposition U+ 284 source creation
+ok decomposition U+ 284 token count within transformation bound
+ok decomposition U+ 284 vector retains reserved bound capacity
+ok decomposition U+ 285 source creation
+ok decomposition U+ 285 token count within transformation bound
+ok decomposition U+ 285 vector retains reserved bound capacity
+ok decomposition U+ 286 source creation
+ok decomposition U+ 286 token count within transformation bound
+ok decomposition U+ 286 vector retains reserved bound capacity
+ok decomposition U+ 287 source creation
+ok decomposition U+ 287 token count within transformation bound
+ok decomposition U+ 287 vector retains reserved bound capacity
+ok decomposition U+ 288 source creation
+ok decomposition U+ 288 token count within transformation bound
+ok decomposition U+ 288 vector retains reserved bound capacity
+ok decomposition U+ 289 source creation
+ok decomposition U+ 289 token count within transformation bound
+ok decomposition U+ 289 vector retains reserved bound capacity
+ok decomposition U+ 290 source creation
+ok decomposition U+ 290 token count within transformation bound
+ok decomposition U+ 290 vector retains reserved bound capacity
+ok decomposition U+ 291 source creation
+ok decomposition U+ 291 token count within transformation bound
+ok decomposition U+ 291 vector retains reserved bound capacity
+ok decomposition U+ 292 source creation
+ok decomposition U+ 292 token count within transformation bound
+ok decomposition U+ 292 vector retains reserved bound capacity
+ok decomposition U+ 293 source creation
+ok decomposition U+ 293 token count within transformation bound
+ok decomposition U+ 293 vector retains reserved bound capacity
+ok decomposition U+ 296 source creation
+ok decomposition U+ 296 token count within transformation bound
+ok decomposition U+ 296 vector retains reserved bound capacity
+ok decomposition U+ 297 source creation
+ok decomposition U+ 297 token count within transformation bound
+ok decomposition U+ 297 vector retains reserved bound capacity
+ok decomposition U+ 298 source creation
+ok decomposition U+ 298 token count within transformation bound
+ok decomposition U+ 298 vector retains reserved bound capacity
+ok decomposition U+ 299 source creation
+ok decomposition U+ 299 token count within transformation bound
+ok decomposition U+ 299 vector retains reserved bound capacity
+ok decomposition U+ 300 source creation
+ok decomposition U+ 300 token count within transformation bound
+ok decomposition U+ 300 vector retains reserved bound capacity
+ok decomposition U+ 301 source creation
+ok decomposition U+ 301 token count within transformation bound
+ok decomposition U+ 301 vector retains reserved bound capacity
+ok decomposition U+ 304 source creation
+ok decomposition U+ 304 token count within transformation bound
+ok decomposition U+ 304 vector retains reserved bound capacity
+ok decomposition U+ 308 source creation
+ok decomposition U+ 308 token count within transformation bound
+ok decomposition U+ 308 vector retains reserved bound capacity
+ok decomposition U+ 309 source creation
+ok decomposition U+ 309 token count within transformation bound
+ok decomposition U+ 309 vector retains reserved bound capacity
+ok decomposition U+ 310 source creation
+ok decomposition U+ 310 token count within transformation bound
+ok decomposition U+ 310 vector retains reserved bound capacity
+ok decomposition U+ 311 source creation
+ok decomposition U+ 311 token count within transformation bound
+ok decomposition U+ 311 vector retains reserved bound capacity
+ok decomposition U+ 313 source creation
+ok decomposition U+ 313 token count within transformation bound
+ok decomposition U+ 313 vector retains reserved bound capacity
+ok decomposition U+ 314 source creation
+ok decomposition U+ 314 token count within transformation bound
+ok decomposition U+ 314 vector retains reserved bound capacity
+ok decomposition U+ 315 source creation
+ok decomposition U+ 315 token count within transformation bound
+ok decomposition U+ 315 vector retains reserved bound capacity
+ok decomposition U+ 316 source creation
+ok decomposition U+ 316 token count within transformation bound
+ok decomposition U+ 316 vector retains reserved bound capacity
+ok decomposition U+ 317 source creation
+ok decomposition U+ 317 token count within transformation bound
+ok decomposition U+ 317 vector retains reserved bound capacity
+ok decomposition U+ 318 source creation
+ok decomposition U+ 318 token count within transformation bound
+ok decomposition U+ 318 vector retains reserved bound capacity
+ok decomposition U+ 323 source creation
+ok decomposition U+ 323 token count within transformation bound
+ok decomposition U+ 323 vector retains reserved bound capacity
+ok decomposition U+ 324 source creation
+ok decomposition U+ 324 token count within transformation bound
+ok decomposition U+ 324 vector retains reserved bound capacity
+ok decomposition U+ 325 source creation
+ok decomposition U+ 325 token count within transformation bound
+ok decomposition U+ 325 vector retains reserved bound capacity
+ok decomposition U+ 326 source creation
+ok decomposition U+ 326 token count within transformation bound
+ok decomposition U+ 326 vector retains reserved bound capacity
+ok decomposition U+ 327 source creation
+ok decomposition U+ 327 token count within transformation bound
+ok decomposition U+ 327 vector retains reserved bound capacity
+ok decomposition U+ 328 source creation
+ok decomposition U+ 328 token count within transformation bound
+ok decomposition U+ 328 vector retains reserved bound capacity
+ok decomposition U+ 332 source creation
+ok decomposition U+ 332 token count within transformation bound
+ok decomposition U+ 332 vector retains reserved bound capacity
+ok decomposition U+ 333 source creation
+ok decomposition U+ 333 token count within transformation bound
+ok decomposition U+ 333 vector retains reserved bound capacity
+ok decomposition U+ 334 source creation
+ok decomposition U+ 334 token count within transformation bound
+ok decomposition U+ 334 vector retains reserved bound capacity
+ok decomposition U+ 335 source creation
+ok decomposition U+ 335 token count within transformation bound
+ok decomposition U+ 335 vector retains reserved bound capacity
+ok decomposition U+ 336 source creation
+ok decomposition U+ 336 token count within transformation bound
+ok decomposition U+ 336 vector retains reserved bound capacity
+ok decomposition U+ 337 source creation
+ok decomposition U+ 337 token count within transformation bound
+ok decomposition U+ 337 vector retains reserved bound capacity
+ok decomposition U+ 340 source creation
+ok decomposition U+ 340 token count within transformation bound
+ok decomposition U+ 340 vector retains reserved bound capacity
+ok decomposition U+ 341 source creation
+ok decomposition U+ 341 token count within transformation bound
+ok decomposition U+ 341 vector retains reserved bound capacity
+ok decomposition U+ 342 source creation
+ok decomposition U+ 342 token count within transformation bound
+ok decomposition U+ 342 vector retains reserved bound capacity
+ok decomposition U+ 343 source creation
+ok decomposition U+ 343 token count within transformation bound
+ok decomposition U+ 343 vector retains reserved bound capacity
+ok decomposition U+ 344 source creation
+ok decomposition U+ 344 token count within transformation bound
+ok decomposition U+ 344 vector retains reserved bound capacity
+ok decomposition U+ 345 source creation
+ok decomposition U+ 345 token count within transformation bound
+ok decomposition U+ 345 vector retains reserved bound capacity
+ok decomposition U+ 346 source creation
+ok decomposition U+ 346 token count within transformation bound
+ok decomposition U+ 346 vector retains reserved bound capacity
+ok decomposition U+ 347 source creation
+ok decomposition U+ 347 token count within transformation bound
+ok decomposition U+ 347 vector retains reserved bound capacity
+ok decomposition U+ 348 source creation
+ok decomposition U+ 348 token count within transformation bound
+ok decomposition U+ 348 vector retains reserved bound capacity
+ok decomposition U+ 349 source creation
+ok decomposition U+ 349 token count within transformation bound
+ok decomposition U+ 349 vector retains reserved bound capacity
+ok decomposition U+ 350 source creation
+ok decomposition U+ 350 token count within transformation bound
+ok decomposition U+ 350 vector retains reserved bound capacity
+ok decomposition U+ 351 source creation
+ok decomposition U+ 351 token count within transformation bound
+ok decomposition U+ 351 vector retains reserved bound capacity
+ok decomposition U+ 352 source creation
+ok decomposition U+ 352 token count within transformation bound
+ok decomposition U+ 352 vector retains reserved bound capacity
+ok decomposition U+ 353 source creation
+ok decomposition U+ 353 token count within transformation bound
+ok decomposition U+ 353 vector retains reserved bound capacity
+ok decomposition U+ 354 source creation
+ok decomposition U+ 354 token count within transformation bound
+ok decomposition U+ 354 vector retains reserved bound capacity
+ok decomposition U+ 355 source creation
+ok decomposition U+ 355 token count within transformation bound
+ok decomposition U+ 355 vector retains reserved bound capacity
+ok decomposition U+ 356 source creation
+ok decomposition U+ 356 token count within transformation bound
+ok decomposition U+ 356 vector retains reserved bound capacity
+ok decomposition U+ 357 source creation
+ok decomposition U+ 357 token count within transformation bound
+ok decomposition U+ 357 vector retains reserved bound capacity
+ok decomposition U+ 360 source creation
+ok decomposition U+ 360 token count within transformation bound
+ok decomposition U+ 360 vector retains reserved bound capacity
+ok decomposition U+ 361 source creation
+ok decomposition U+ 361 token count within transformation bound
+ok decomposition U+ 361 vector retains reserved bound capacity
+ok decomposition U+ 362 source creation
+ok decomposition U+ 362 token count within transformation bound
+ok decomposition U+ 362 vector retains reserved bound capacity
+ok decomposition U+ 363 source creation
+ok decomposition U+ 363 token count within transformation bound
+ok decomposition U+ 363 vector retains reserved bound capacity
+ok decomposition U+ 364 source creation
+ok decomposition U+ 364 token count within transformation bound
+ok decomposition U+ 364 vector retains reserved bound capacity
+ok decomposition U+ 365 source creation
+ok decomposition U+ 365 token count within transformation bound
+ok decomposition U+ 365 vector retains reserved bound capacity
+ok decomposition U+ 366 source creation
+ok decomposition U+ 366 token count within transformation bound
+ok decomposition U+ 366 vector retains reserved bound capacity
+ok decomposition U+ 367 source creation
+ok decomposition U+ 367 token count within transformation bound
+ok decomposition U+ 367 vector retains reserved bound capacity
+ok decomposition U+ 368 source creation
+ok decomposition U+ 368 token count within transformation bound
+ok decomposition U+ 368 vector retains reserved bound capacity
+ok decomposition U+ 369 source creation
+ok decomposition U+ 369 token count within transformation bound
+ok decomposition U+ 369 vector retains reserved bound capacity
+ok decomposition U+ 372 source creation
+ok decomposition U+ 372 token count within transformation bound
+ok decomposition U+ 372 vector retains reserved bound capacity
+ok decomposition U+ 373 source creation
+ok decomposition U+ 373 token count within transformation bound
+ok decomposition U+ 373 vector retains reserved bound capacity
+ok decomposition U+ 374 source creation
+ok decomposition U+ 374 token count within transformation bound
+ok decomposition U+ 374 vector retains reserved bound capacity
+ok decomposition U+ 375 source creation
+ok decomposition U+ 375 token count within transformation bound
+ok decomposition U+ 375 vector retains reserved bound capacity
+ok decomposition U+ 376 source creation
+ok decomposition U+ 376 token count within transformation bound
+ok decomposition U+ 376 vector retains reserved bound capacity
+ok decomposition U+ 377 source creation
+ok decomposition U+ 377 token count within transformation bound
+ok decomposition U+ 377 vector retains reserved bound capacity
+ok decomposition U+ 378 source creation
+ok decomposition U+ 378 token count within transformation bound
+ok decomposition U+ 378 vector retains reserved bound capacity
+ok decomposition U+ 379 source creation
+ok decomposition U+ 379 token count within transformation bound
+ok decomposition U+ 379 vector retains reserved bound capacity
+ok decomposition U+ 380 source creation
+ok decomposition U+ 380 token count within transformation bound
+ok decomposition U+ 380 vector retains reserved bound capacity
+ok decomposition U+ 381 source creation
+ok decomposition U+ 381 token count within transformation bound
+ok decomposition U+ 381 vector retains reserved bound capacity
+ok decomposition U+ 382 source creation
+ok decomposition U+ 382 token count within transformation bound
+ok decomposition U+ 382 vector retains reserved bound capacity
+ok decomposition U+ 461 source creation
+ok decomposition U+ 461 token count within transformation bound
+ok decomposition U+ 461 vector retains reserved bound capacity
+ok decomposition U+ 462 source creation
+ok decomposition U+ 462 token count within transformation bound
+ok decomposition U+ 462 vector retains reserved bound capacity
+ok decomposition U+ 463 source creation
+ok decomposition U+ 463 token count within transformation bound
+ok decomposition U+ 463 vector retains reserved bound capacity
+ok decomposition U+ 464 source creation
+ok decomposition U+ 464 token count within transformation bound
+ok decomposition U+ 464 vector retains reserved bound capacity
+ok decomposition U+ 465 source creation
+ok decomposition U+ 465 token count within transformation bound
+ok decomposition U+ 465 vector retains reserved bound capacity
+ok decomposition U+ 466 source creation
+ok decomposition U+ 466 token count within transformation bound
+ok decomposition U+ 466 vector retains reserved bound capacity
+ok decomposition U+ 467 source creation
+ok decomposition U+ 467 token count within transformation bound
+ok decomposition U+ 467 vector retains reserved bound capacity
+ok decomposition U+ 468 source creation
+ok decomposition U+ 468 token count within transformation bound
+ok decomposition U+ 468 vector retains reserved bound capacity
+ok decomposition U+ 469 source creation
+ok decomposition U+ 469 token count within transformation bound
+ok decomposition U+ 469 vector retains reserved bound capacity
+ok decomposition U+ 470 source creation
+ok decomposition U+ 470 token count within transformation bound
+ok decomposition U+ 470 vector retains reserved bound capacity
+ok decomposition U+ 471 source creation
+ok decomposition U+ 471 token count within transformation bound
+ok decomposition U+ 471 vector retains reserved bound capacity
+ok decomposition U+ 472 source creation
+ok decomposition U+ 472 token count within transformation bound
+ok decomposition U+ 472 vector retains reserved bound capacity
+ok decomposition U+ 473 source creation
+ok decomposition U+ 473 token count within transformation bound
+ok decomposition U+ 473 vector retains reserved bound capacity
+ok decomposition U+ 474 source creation
+ok decomposition U+ 474 token count within transformation bound
+ok decomposition U+ 474 vector retains reserved bound capacity
+ok decomposition U+ 475 source creation
+ok decomposition U+ 475 token count within transformation bound
+ok decomposition U+ 475 vector retains reserved bound capacity
+ok decomposition U+ 476 source creation
+ok decomposition U+ 476 token count within transformation bound
+ok decomposition U+ 476 vector retains reserved bound capacity
+ok decomposition U+ 478 source creation
+ok decomposition U+ 478 token count within transformation bound
+ok decomposition U+ 478 vector retains reserved bound capacity
+ok decomposition U+ 479 source creation
+ok decomposition U+ 479 token count within transformation bound
+ok decomposition U+ 479 vector retains reserved bound capacity
+ok decomposition U+ 480 source creation
+ok decomposition U+ 480 token count within transformation bound
+ok decomposition U+ 480 vector retains reserved bound capacity
+ok decomposition U+ 481 source creation
+ok decomposition U+ 481 token count within transformation bound
+ok decomposition U+ 481 vector retains reserved bound capacity
+ok decomposition U+ 486 source creation
+ok decomposition U+ 486 token count within transformation bound
+ok decomposition U+ 486 vector retains reserved bound capacity
+ok decomposition U+ 487 source creation
+ok decomposition U+ 487 token count within transformation bound
+ok decomposition U+ 487 vector retains reserved bound capacity
+ok decomposition U+ 488 source creation
+ok decomposition U+ 488 token count within transformation bound
+ok decomposition U+ 488 vector retains reserved bound capacity
+ok decomposition U+ 489 source creation
+ok decomposition U+ 489 token count within transformation bound
+ok decomposition U+ 489 vector retains reserved bound capacity
+ok decomposition U+ 496 source creation
+ok decomposition U+ 496 token count within transformation bound
+ok decomposition U+ 496 vector retains reserved bound capacity
+ok decomposition U+ 500 source creation
+ok decomposition U+ 500 token count within transformation bound
+ok decomposition U+ 500 vector retains reserved bound capacity
+ok decomposition U+ 501 source creation
+ok decomposition U+ 501 token count within transformation bound
+ok decomposition U+ 501 vector retains reserved bound capacity
+ok decomposition U+ 504 source creation
+ok decomposition U+ 504 token count within transformation bound
+ok decomposition U+ 504 vector retains reserved bound capacity
+ok decomposition U+ 505 source creation
+ok decomposition U+ 505 token count within transformation bound
+ok decomposition U+ 505 vector retains reserved bound capacity
+ok decomposition U+ 506 source creation
+ok decomposition U+ 506 token count within transformation bound
+ok decomposition U+ 506 vector retains reserved bound capacity
+ok decomposition U+ 507 source creation
+ok decomposition U+ 507 token count within transformation bound
+ok decomposition U+ 507 vector retains reserved bound capacity
+ok decomposition U+ 542 source creation
+ok decomposition U+ 542 token count within transformation bound
+ok decomposition U+ 542 vector retains reserved bound capacity
+ok decomposition U+ 543 source creation
+ok decomposition U+ 543 token count within transformation bound
+ok decomposition U+ 543 vector retains reserved bound capacity
+ok decomposition U+ 550 source creation
+ok decomposition U+ 550 token count within transformation bound
+ok decomposition U+ 550 vector retains reserved bound capacity
+ok decomposition U+ 551 source creation
+ok decomposition U+ 551 token count within transformation bound
+ok decomposition U+ 551 vector retains reserved bound capacity
+ok decomposition U+ 552 source creation
+ok decomposition U+ 552 token count within transformation bound
+ok decomposition U+ 552 vector retains reserved bound capacity
+ok decomposition U+ 553 source creation
+ok decomposition U+ 553 token count within transformation bound
+ok decomposition U+ 553 vector retains reserved bound capacity
+ok decomposition U+ 554 source creation
+ok decomposition U+ 554 token count within transformation bound
+ok decomposition U+ 554 vector retains reserved bound capacity
+ok decomposition U+ 555 source creation
+ok decomposition U+ 555 token count within transformation bound
+ok decomposition U+ 555 vector retains reserved bound capacity
+ok decomposition U+ 556 source creation
+ok decomposition U+ 556 token count within transformation bound
+ok decomposition U+ 556 vector retains reserved bound capacity
+ok decomposition U+ 557 source creation
+ok decomposition U+ 557 token count within transformation bound
+ok decomposition U+ 557 vector retains reserved bound capacity
+ok decomposition U+ 558 source creation
+ok decomposition U+ 558 token count within transformation bound
+ok decomposition U+ 558 vector retains reserved bound capacity
+ok decomposition U+ 559 source creation
+ok decomposition U+ 559 token count within transformation bound
+ok decomposition U+ 559 vector retains reserved bound capacity
+ok decomposition U+ 560 source creation
+ok decomposition U+ 560 token count within transformation bound
+ok decomposition U+ 560 vector retains reserved bound capacity
+ok decomposition U+ 561 source creation
+ok decomposition U+ 561 token count within transformation bound
+ok decomposition U+ 561 vector retains reserved bound capacity
+ok decomposition U+ 562 source creation
+ok decomposition U+ 562 token count within transformation bound
+ok decomposition U+ 562 vector retains reserved bound capacity
+ok decomposition U+ 563 source creation
+ok decomposition U+ 563 token count within transformation bound
+ok decomposition U+ 563 vector retains reserved bound capacity
+ok decomposition U+ 910 source creation
+ok decomposition U+ 910 token count within transformation bound
+ok decomposition U+ 910 vector retains reserved bound capacity
+ok decomposition U+ 911 source creation
+ok decomposition U+ 911 token count within transformation bound
+ok decomposition U+ 911 vector retains reserved bound capacity
+ok decomposition U+ 912 source creation
+ok decomposition U+ 912 token count within transformation bound
+ok decomposition U+ 912 vector retains reserved bound capacity
+ok decomposition U+ 939 source creation
+ok decomposition U+ 939 token count within transformation bound
+ok decomposition U+ 939 vector retains reserved bound capacity
+ok decomposition U+ 940 source creation
+ok decomposition U+ 940 token count within transformation bound
+ok decomposition U+ 940 vector retains reserved bound capacity
+ok decomposition U+ 941 source creation
+ok decomposition U+ 941 token count within transformation bound
+ok decomposition U+ 941 vector retains reserved bound capacity
+ok decomposition U+ 942 source creation
+ok decomposition U+ 942 token count within transformation bound
+ok decomposition U+ 942 vector retains reserved bound capacity
+ok decomposition U+ 943 source creation
+ok decomposition U+ 943 token count within transformation bound
+ok decomposition U+ 943 vector retains reserved bound capacity
+ok decomposition U+ 944 source creation
+ok decomposition U+ 944 token count within transformation bound
+ok decomposition U+ 944 vector retains reserved bound capacity
+ok decomposition U+ 970 source creation
+ok decomposition U+ 970 token count within transformation bound
+ok decomposition U+ 970 vector retains reserved bound capacity
+ok decomposition U+ 971 source creation
+ok decomposition U+ 971 token count within transformation bound
+ok decomposition U+ 971 vector retains reserved bound capacity
+ok decomposition U+ 972 source creation
+ok decomposition U+ 972 token count within transformation bound
+ok decomposition U+ 972 vector retains reserved bound capacity
+ok decomposition U+ 973 source creation
+ok decomposition U+ 973 token count within transformation bound
+ok decomposition U+ 973 vector retains reserved bound capacity
+ok decomposition U+ 974 source creation
+ok decomposition U+ 974 token count within transformation bound
+ok decomposition U+ 974 vector retains reserved bound capacity
+ok Latin and Greek decomposition entries discovered
+ok known valid Unicode parse status
+ok known invalid parse status
+ok known invalid UTF-8 parse status
+ok successful stage reservations release at parser return
+ok measured peak leaves room for one-byte-short budget
+ok measured peak exact fit
+ok one-byte-short pre-admission rejects without charge leak
+ok held charge overlaps parser reservation on rejection
+ok budget reusable after overlap rejection
+ok pre-parse budget rejection leaves macro scope untouched; post-group rollback untested
+ok lexical failure releases source and token reservations
+ok syntax failure releases source and token reservations
+ok source-map stage admits exact predicted bound
+ok source-map stage rejects one byte below bound
+ok lexical cancellation after token allocation releases reservations
+ok deadline propagates and releases reservations
+ok multibyte source admission and cleanup
+ok Unicode decomposition, accent, and script expansion cleanup
+ok short worst-case Unicode expansion stays below 1 MiB
+ok worst-case Unicode expansion exact budget fit
+ok worst-case Unicode expansion one-byte-short rejection
+ok maximum-size source control
+math_parser_memory_probe:  674 checks;  0 failures; measured peak  29580 bytes

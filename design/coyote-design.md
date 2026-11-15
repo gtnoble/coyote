@@ -457,7 +457,7 @@ not wait for the complete user turn.
 | `Coyote_Math.Engine` | Native parsing, expansion, semantics, layout and rendering orchestration | `src/coyote_math/math_engine.ads/.adb` |
 | `Coyote_Math.Raster` | Offscreen raster rendering support | `src/coyote_math/math_raster.ads/.adb` |
 | `Coyote_Math.Raster_Budget` | Shared retained-raster ledger and bounded raster-retention leases | `src/coyote_math/math_raster_budget.ads/.adb` |
-| `Math_Memory_Budget` | Independent protected workspace ledgers and controlled reservations; raster-buffer overlap accounting, not whole-job enforcement | `src/coyote_math/math_memory_budget.ads/.adb` |
+| `Math_Memory_Budget` | Independent protected workspace ledgers and controlled reservations; bounded optional parser/raster phase accounting, not whole-job enforcement or portable allocator/RSS bounds | `src/coyote_math/math_memory_budget.ads/.adb` |
 | `Coyote_Math.Text_Shaping` | Native Pango text shaping through worker-local font-map/context state | `src/coyote_math/math_text_shaping.ads/.adb` |
 | `Coyote_Math.Work_Control` | Cooperative deadline/cancellation checks at math processing boundaries | `src/coyote_math/math_work_control.ads/.adb` |
 | `Coyote_Math.Jobs` | Asynchronous math job execution and completion lifecycle | `src/coyote_math/coyote_math_jobs.ads/.adb` |
@@ -466,7 +466,8 @@ not wait for the complete user turn.
 | KaTeX data generators | Development generators for metrics, macros, symbols, stretchy constructs, and source-mapped callable inventory | `tools/generate_metrics.py`, `tools/generate_katex_data.py`, `tools/generate_math_macros.py`, `tools/generate_math_symbols.py`, `tools/generate_math_stretchy.py`, `tools/generate_math_functions.py` |
 | KaTeX resource/coverage generators | Inventory and coverage mapping for pinned upstream assets | `tools/inventory_katex.cjs`, `tools/map_math_coverage.py` |
 | Native math development tooling | Inventory, reference/browser export, differential comparison, source-mapped callable audit, operator probes, fuzz, resource/accessibility checks, and pilot fixtures; partial readiness only, no parity claim | `test/tools/check-math-*.sh`, `test/tools/check-math-*.cjs`, `test/tools/check-math-callables.cjs`, `test/tools/check-math-operators.sh`, `test/tools/export-math-*.cjs`, `test/tools/compare-math-layout.cjs`, `test/tools/math_semantic_compare.cjs`, `test/fixtures/math-compatibility/`, including `callable-probes.json` |
-| Native math standalone probes and projects | Ada probes and isolated GPR projects for token, macro, engine, geometry, paths, constructs, semantics, raster, jobs, accessibility, operators and shaping lifecycle | `test/tools/math_*_probe.adb`, `test/native/math_*.gpr`, including `test/native/math_operators.gpr` and `test/native/math_shaping_lifecycle.gpr` |
+| Native math standalone probes and projects | Ada probes and isolated GPR projects for token, macro, engine, geometry, paths, constructs, semantics, raster, jobs, accessibility, operators, parser memory and shaping lifecycle | `test/tools/math_*_probe.adb`, `test/native/math_*.gpr`, including `test/native/math_operators.gpr`, `test/native/math_parser_memory.gpr`, and `test/native/math_shaping_lifecycle.gpr` |
+| Native math parser-memory check | Focused parser workspace-accounting probe and runner | `test/tools/math_parser_memory_probe.adb`, `test/tools/check-math-parser-memory.sh` |
 | Native math shaping-lifecycle check | Focused shaping worker lifecycle probe and its runner | `test/tools/math_shaping_lifecycle_probe.adb`, `test/tools/check-math-shaping-lifecycle.sh` |
 | Native math AUnit tests | Registered engine/parser/layout cases; historical frozen full-suite results are regression evidence only, not parity or acceptance; current disposition and open gaps belong in coordinator-owned §11 of `plan/native-math-parity-test-report.md` | `test/src/coyote_math_tests.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
@@ -3248,3 +3249,22 @@ integer number of seconds. The active process applies a saved value immediately;
 new coyote children inherit the setting through normal environment/settings
 startup. Only session records whose writes completed before the persistence
 freeze are retained.
+
+
+### Math workspace admission — parser-budget continuation (PCR-125, 2026-11-15)
+
+`Math_Memory_Budget` optionally accounts parser workspace as well as raster
+workspace; this is a bounded characterization mechanism, not whole-job
+admission. Parser admission pre-reserves map-vector storage and three overlapping
+lexical raw/transformed/mark-record arrays, including duplicate-map storage.
+Vectors are preallocated; Raw is borrowed and Expanded is moved to avoid
+intermediate copies. One worker account uses `Reset_Peak` without discarding its
+active charge, and parser/raster phase peaks contribute their maximum. GNAT
+requested Reserve capacity is not a portable allocator or RSS bound.
+
+The account does not cover unbounded strings or lexemes, expansion, AST,
+semantics, layout, native/font metadata, copies, or cache/retained lifetimes.
+Results and known leak/lifecycle limits are recorded in coordinator-owned
+report §11.14 and `plan/evidence/native-math-2026-11-15-parser-budget/`; see the
+compatibility plan and frontend SDF continuation. No requirement or approved
+budget changes.

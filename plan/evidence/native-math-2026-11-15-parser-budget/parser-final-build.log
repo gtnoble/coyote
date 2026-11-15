@@ -1,0 +1,12 @@
+Compile
+   [Ada]          math_parser_memory_probe.adb
+   [Ada]          math_macros.adb
+   [Ada]          math_memory_budget.adb
+   [Ada]          math_syntax.adb
+   [Ada]          math_tokens.adb
+   [Ada]          math_expander.adb
+Bind
+   [gprbind]      math_parser_memory_probe.bexch
+   [Ada]          math_parser_memory_probe.ali
+Link
+   [link]         math_parser_memory_probe.adb

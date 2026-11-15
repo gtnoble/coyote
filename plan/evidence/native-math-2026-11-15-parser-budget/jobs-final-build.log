@@ -1,0 +1,9 @@
+Compile
+   [Ada]          coyote_math_jobs.adb
+coyote_math_jobs.adb:188:12: warning: potentially unsynchronized barrier [enabled by default]
+coyote_math_jobs.adb:188:12: warning: "T173b" should be private component of type [enabled by default]
+Bind
+   [gprbind]      math_jobs_probe.bexch
+   [Ada]          math_jobs_probe.ali
+Link
+   [link]         math_jobs_probe.adb

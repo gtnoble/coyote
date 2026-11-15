@@ -2470,3 +2470,30 @@ acceptance. Whole-job parser/layout/native/font/copy/cache accounting, timing,
 full corpus/fonts/lifecycle and desktop/AT/user acceptance remain OPEN. No
 browser/geometry/resource characterization rerun. PCR-125 NOT COMPLETE; no
 requirements/deviations changed, release/install/commit.
+
+
+## 2026-11-15 — Parser workspace budget (PCR-125)
+
+The optional parser account pre-admits map vectors and three simultaneously
+live lexical raw/transformed/mark-record arrays, with duplicate-map storage
+included. Vectors are preallocated; Raw is borrowed and Expanded moved to avoid
+copies. A shared worker account resets its peak without losing active charge;
+parser/raster phase peaks are combined by maximum. This does not bound
+unbounded strings/lexemes, expansion, AST, semantics, layout, native/font
+metadata, copies or retained cache lifetimes. GNAT requested Reserve capacity
+is not portable allocator/RSS accounting.
+
+Root/test development builds and full1076/1076 (zero errors; cumulative
+148.051229s, wall148.10s) pass. Parser674/674 twice, ledger38/38, worker215/215
+three finals plus repeat. Raster1116/1116 normal/Valgrind, while the strict
+script fails2 contexts with6656/2183/26-byte losses. GTK9/9, containment and
+offline HTTP lifecycle pass. Font-load regression was fixed and worker215
+passes three times; no GUI cases added. Current lifecycle matrix18: baseline6
+zero; no-teardown shaped6 retain definite/indirect6656/2183 plus variable
+378/730 possible; shaped teardown6 definite/indirect0, possible26/378 remain.
+Strict all12 shaped runs fail; test-only FcFini/Cairo cleanup is not a
+production-safety claim. Browser/geometry/resource characterization was not
+rerun. Report §11.14 and
+`plan/evidence/native-math-2026-11-15-parser-budget/` retain the evidence.
+Broad memory, timing, font, parity, lifecycle and human acceptance gates remain
+open; no requirements change or independent acceptance.

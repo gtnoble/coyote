@@ -1,8 +1,10 @@
 with Ada.Strings.Unbounded;
 with Math_Work_Control;
+with Ada.Containers;
 
 package body Math_Source is
    use Ada.Strings.Unbounded;
+   use type Ada.Containers.Count_Type;
 
    procedure Create
      (Text       : String;
@@ -30,6 +32,10 @@ package body Math_Source is
          return;
       end if;
       Item.Value := To_Unbounded_String (Text);
+      Item.Byte_Map.Reserve_Capacity
+        (Ada.Containers.Count_Type (Text'Length + 1));
+      Item.UTF16_Map.Reserve_Capacity
+        (Ada.Containers.Count_Type (Text'Length + 1));
       Item.Byte_Map.Append (0);
       Item.UTF16_Map.Append (0);
       while Position <= Text'Last loop
@@ -102,6 +108,29 @@ package body Math_Source is
 
    function Is_Valid (Item : Source) return Boolean is (Item.Valid);
    function Text (Item : Source) return String is (To_String (Item.Value));
+
+   function Map_Storage_Bound (Byte_Length : Natural) return Natural is
+   begin
+      if Byte_Length = 0 or else
+        Byte_Length > (Natural'Last / (2 * (Natural'Size / 8))) - 1
+      then
+         raise Constraint_Error with "source map bound overflow";
+      end if;
+      return (Byte_Length + 1) * 2 * (Natural'Size / 8);
+   end Map_Storage_Bound;
+
+   function Map_Storage_Bytes (Item : Source) return Natural is
+      Capacity : constant Ada.Containers.Count_Type :=
+        Item.Byte_Map.Capacity + Item.UTF16_Map.Capacity;
+   begin
+      if Capacity > Ada.Containers.Count_Type
+        (Natural'Last / (Natural'Size / 8))
+      then
+         raise Constraint_Error with "source map capacity overflow";
+      end if;
+      return Natural (Capacity) * (Natural'Size / 8);
+   end Map_Storage_Bytes;
+
    function Byte_Length (Item : Source) return Natural is (Item.Byte_Count);
    function Scalar_Length (Item : Source) return Natural is (Item.Scalar_Count);
    function UTF16_Length (Item : Source) return Natural is (Item.UTF16_Count);

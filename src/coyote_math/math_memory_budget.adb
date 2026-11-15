@@ -40,6 +40,11 @@ package body Math_Memory_Budget is
       begin
          return Peak_Bytes;
       end Maximum;
+
+      procedure Reset_Maximum is
+      begin
+         Peak_Bytes := Current_Bytes;
+      end Reset_Maximum;
    end Ledger;
 
    procedure Reserve
@@ -84,6 +89,11 @@ package body Math_Memory_Budget is
    begin
       return Account.Accounting.Maximum;
    end Peak;
+
+   procedure Reset_Peak (Account : in out Budget) is
+   begin
+      Account.Accounting.Reset_Maximum;
+   end Reset_Peak;
 
    function Bytes (Owner : Reservation) return Natural is
    begin

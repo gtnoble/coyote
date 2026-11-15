@@ -4742,3 +4742,29 @@ are historical, not current-source qualification.
 - **Evidence:** report §11.13 and
   `plan/evidence/native-math-2026-11-15-workspace-budget/`.
   No requirements/deviations changed; no release/install/commit.
+
+
+### PCR-125 — 2026-11-15 parser-vector budget continuation
+
+- **Category:** Code, Design, Test.
+- **Priority:** 3-Moderate (parent classification unchanged).
+- **Authority:** user requested the next engineering priority following §11.13.
+- **Problem:** raster reservations exclude parser source-map and lexical-vector
+  storage; worker phase telemetry must preserve peaks through later exceptions.
+- **Action:** preadmit source offset-map and lexical/transformation record-array
+  payloads; preallocate bounded capacities, borrow raw tokens and move expanded
+  storage rather than deep-copy it. Use one worker ledger across parser/raster
+  measurement windows. Add exact/short/overlap/cleanup and Unicode-bound probes.
+- **Review correction:** a failed font load after successful parsing overwrote
+  the saved parser peak after reset. The deterministic new regression fails
+  once against unfixed code (215 assertions,1 failure), then passes215/215
+  three times after correction. Final regression evidence follows in report
+  §11.14 and `plan/evidence/native-math-2026-11-15-parser-budget/`.
+- **Native lifecycle investigation:** isolated baseline/measure/draw and optional
+  test-only global teardown distinguish fixed definite/indirect native losses
+  from possible losses. Strict checks remain failing; production teardown,
+  suppressions and threshold changes are not introduced.
+- **Limits/status:** scoped vector payload accounting, not whole-job256MiB or
+  RSS enforcement. Strings, lexemes, expander/AST/semantic/layout/native/font
+  data, allocator overhead and copy/cache lifetimes remain outside accounting.
+  No requirements/deviations changed. PCR-125 OPEN; feature NOT COMPLETE.

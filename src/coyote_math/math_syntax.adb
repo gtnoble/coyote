@@ -9,9 +9,13 @@ with Math_Macros;
 with Math_Stretchy;
 with Math_Work_Control;
 with Math_Unicode;
+with Math_Memory_Budget;
+with Ada.Containers;
 
 package body Math_Syntax is
    use Ada.Strings.Unbounded;
+   use type Math_Memory_Budget.Budget_Access;
+   use type Ada.Containers.Count_Type;
    use Math_Model;
    use type Math_Source.Diagnostic_Kind;
    use type Math_Tokens.Token_Kind;
@@ -3264,33 +3268,47 @@ package body Math_Syntax is
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
       Global_Group : Boolean := False;
-      Work : Math_Work_Control.Context_Access := null) return Document is
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document is
    begin
       return Parse
         (Source, Shared, (Strict => Strict_Warn, others => <>),
-         Global_Group, Work);
+         Global_Group, Work, Memory);
    end Parse;
 
    function Parse
      (Source : String; Settings : Options;
-      Work : Math_Work_Control.Context_Access := null) return Document is
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document is
       Shared : aliased Math_Macros.Context;
    begin
-      return Parse (Source, Shared'Access, Settings, Work => Work);
+      return Parse
+        (Source, Shared'Access, Settings, Work => Work, Memory => Memory);
    end Parse;
 
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
       Settings : Options; Global_Group : Boolean := False;
-      Work : Math_Work_Control.Context_Access := null) return Document
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document
    is
       State : Parser_State (Shared);
       Entry_Depth : constant Natural := Math_Macros.Scope_Depth (Shared.all);
+      Local_Budget : aliased Math_Memory_Budget.Budget;
+      Account : constant not null Math_Memory_Budget.Budget_Access :=
+        (if Memory = null then Local_Budget'Unchecked_Access else Memory);
+      Source_Reservation : Math_Memory_Budget.Reservation;
+      Token_Reservation : Math_Memory_Budget.Reservation;
       Validated : Math_Source.Source;
       Tokens : Math_Tokens.Stream;
       Diagnostic : Math_Source.Diagnostic_Kind;
       Lexical_Error : Math_Tokens.Diagnostic_Kind;
       Error_Byte : Natural;
+      procedure Admit (Owner : in out Math_Memory_Budget.Reservation;
+                       Amount : Natural) is
+      begin
+         Math_Memory_Budget.Reserve (Owner, Account, Amount);
+      end Admit;
    begin
       State.Settings := Settings;
       State.Work := Work;
@@ -3307,9 +3325,16 @@ package body Math_Syntax is
          return State.Item;
       end if;
       State.Item.Text := To_Unbounded_String (Source);
+      Admit (Source_Reservation,
+        Math_Source.Map_Storage_Bound
+          (Natural'Max (1, Source'Length)));
       Math_Source.Create
         ((if Source'Length = 0 then " " else Source), Validated,
          Diagnostic, Error_Byte, Work => Work);
+      if Math_Source.Is_Valid (Validated) then
+         Admit (Source_Reservation,
+           Math_Source.Map_Storage_Bytes (Validated));
+      end if;
       if Diagnostic /= Math_Source.No_Error then
          State.Item.Message := To_Unbounded_String
            (if Diagnostic = Math_Source.Invalid_UTF8
@@ -3343,8 +3368,29 @@ package body Math_Syntax is
             return State.Item;
          end if;
       end;
+      declare
+         Raw_Bound : constant Natural := Math_Tokens.Raw_Token_Bound
+           (Math_Source.Byte_Length (Validated));
+         Transform_Bound : constant Natural :=
+           Math_Tokens.Transformation_Token_Bound
+             (Math_Source.Byte_Length (Validated));
+         Token_Width : constant Positive := Math_Tokens.Token'Size / 8;
+         Original_Bytes : constant Natural :=
+           Math_Source.Map_Storage_Bytes (Validated);
+         Max_Capacity : constant Natural :=
+           Natural'Max (Raw_Bound, Transform_Bound);
+      begin
+         if Max_Capacity > Natural'Last / Token_Width / 3 then
+            raise Constraint_Error with "token storage bound overflow";
+         end if;
+         Admit (Token_Reservation,
+           3 * Max_Capacity * Token_Width + Original_Bytes);
+      end;
       Math_Tokens.Lex
         (Validated, Tokens, Lexical_Error, Error_Byte, Work => Work);
+      Admit (Token_Reservation,
+        Math_Tokens.Vector_Storage_Bytes (Tokens) +
+          Math_Tokens.Original_Map_Storage_Bytes (Tokens));
       if Lexical_Error /= Math_Tokens.No_Error then
          State.Item.Message := To_Unbounded_String
            ("invalid math token stream: " & Lexical_Error'Image);
@@ -3406,10 +3452,11 @@ package body Math_Syntax is
 
    function Parse
      (Source : String;
-      Work : Math_Work_Control.Context_Access := null) return Document is
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document is
    begin
       return Parse
-        (Source, (Strict => Strict_Warn, others => <>), Work);
+        (Source, (Strict => Strict_Warn, others => <>), Work, Memory);
    end Parse;
 
    function Is_Valid (Item : Document) return Boolean is

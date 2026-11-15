@@ -44,6 +44,17 @@ package Math_Tokens is
    function Count (Item : Stream) return Natural;
    function Element (Item : Stream; Index : Positive) return Token;
    function Source (Item : Stream) return String;
+   --  Counts only the Items vector's record-array backing capacity.
+   function Vector_Storage_Bytes (Item : Stream) return Natural;
+   function Original_Map_Storage_Bytes (Item : Stream) return Natural;
+   --  Each raw token uses at least one input byte. A two-mark decomposition
+   --  can emit eight tokens, including the additional closing groups; the
+   --  eight-times-input-bytes reservation is therefore a generous bound
+   --  that also covers script and combining-mark wrappers. Max_Tokens stays
+   --  the hard stream cap.
+   function Raw_Token_Bound (Byte_Length : Natural) return Natural;
+   function Transformation_Token_Bound
+     (Byte_Length : Natural) return Natural;
    procedure From_Tokens
      (Original : Stream; Items : Token_Sequence; Result : out Stream);
 private

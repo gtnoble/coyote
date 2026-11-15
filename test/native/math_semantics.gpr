@@ -8,7 +8,7 @@ project Math_Semantics is
       "math_unicode.ads", "math_unicode.adb", "math_tokens.ads", "math_tokens.adb", "math_macros.ads",
       "math_macros.adb", "math_expander.ads", "math_expander.adb",
       "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
-      "math_syntax.adb", "math_metrics.ads", "math_metrics.adb",
+      "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb", "math_metrics.ads", "math_metrics.adb",
       "math_font_data.ads", "math_font_data.adb",
       "math_paths.ads", "math_paths.adb",
       "math_stretchy.ads", "math_stretchy.adb",

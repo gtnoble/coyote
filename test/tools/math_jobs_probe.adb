@@ -113,6 +113,70 @@ begin
    Check (Font_Directory'Length > 0, "trusted font directory supplied");
    Jobs.Start (Paused => True);
    declare
+      Failed_Font_Id : Jobs.Request_Id;
+      Recovery_Id : Jobs.Request_Id;
+      Failed_Font_Status : Jobs.Job_Status;
+      Recovery_Status : Jobs.Job_Status;
+      Failed_Font_Result : Jobs.Result_Access;
+      Recovery_Result : Jobs.Result_Access;
+      Missing_Font_Directory : constant String :=
+        "/tmp/coyote-parser-budget-jobs-missing-fonts";
+   begin
+      Jobs.Submit ("x+y", Failed_Font_Id, 300,
+        Math_Layout.Display_Style, Status => Failed_Font_Status,
+        Request_Raster => True, Em_Pixels => 24.0,
+        Font_Directory => Missing_Font_Directory);
+      Check (Failed_Font_Status = Jobs.Pending,
+        "missing-font request queues after valid request checks");
+      Jobs.Resume;
+      for Wait in 1 .. 400 loop
+         Jobs.Poll
+           (Failed_Font_Id, 300, Failed_Font_Status, Failed_Font_Result);
+         exit when Failed_Font_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Failed_Font_Status = Jobs.Failed and
+        Failed_Font_Result /= null,
+        "post-parse font load failure returns failed result");
+      if Failed_Font_Result /= null then
+         Check (Jobs.Parse_Workspace_Peak_Bytes
+           (Failed_Font_Result.all) > 0,
+           "font-load failure preserves parser workspace peak");
+         Check (Jobs.Raster_Workspace_Peak_Bytes
+           (Failed_Font_Result.all) = 0 and
+           Jobs.Pipeline_Workspace_Peak_Bytes
+             (Failed_Font_Result.all) =
+               Jobs.Parse_Workspace_Peak_Bytes
+                 (Failed_Font_Result.all),
+           "font-load failure reports parse-only pipeline peak");
+         Check (not Jobs.Has_Raster (Failed_Font_Result.all) and
+           Jobs.Raster_Width (Failed_Font_Result.all) = 0 and
+           Jobs.Raster_Height (Failed_Font_Result.all) = 0 and
+           Jobs.Raster_Retained_Bytes (Failed_Font_Result.all) = 0 and
+           Math_Raster_Budget.Used = 0,
+           "font-load failure retains no pixels or raster charge");
+         Jobs.Release (Failed_Font_Result);
+      end if;
+      Jobs.Submit ("x+y", Recovery_Id, 300,
+        Math_Layout.Display_Style, Status => Recovery_Status,
+        Request_Raster => True, Em_Pixels => 24.0,
+        Font_Directory => Font_Directory);
+      Check (Recovery_Status = Jobs.Pending,
+        "valid font recovery request queues");
+      for Wait in 1 .. 400 loop
+         Jobs.Poll (Recovery_Id, 300, Recovery_Status, Recovery_Result);
+         exit when Recovery_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Recovery_Status = Jobs.Valid and Recovery_Result /= null,
+        "valid raster job recovers after font-load failure");
+      if Recovery_Result /= null then
+         Jobs.Release (Recovery_Result);
+      end if;
+      Check (Math_Raster_Budget.Used = 0,
+        "font failure and recovery leave raster ledger empty");
+   end;
+   declare
       Red_Id : Jobs.Request_Id;
       Bad_Id : Jobs.Request_Id;
       Plain_Id : Jobs.Request_Id;
@@ -367,6 +431,11 @@ begin
            "exact source retained");
          Check (Math_Syntax.Is_Valid (Jobs.Parse_Document (R.all)),
            "parsed document retained");
+         Check (Jobs.Parse_Workspace_Peak_Bytes (R.all) > 0,
+           "non-raster job reports parser workspace peak");
+         Check (Jobs.Pipeline_Workspace_Peak_Bytes (R.all) =
+           Jobs.Parse_Workspace_Peak_Bytes (R.all),
+           "non-raster pipeline peak equals parser-only peak");
          Check (Jobs.Layout (R.all).Valid and then
            Jobs.Layout (R.all).Commands.Length > 0,
            "layout output retained");
@@ -748,6 +817,11 @@ begin
          Check (Jobs.Raster_Workspace_Peak_Bytes (Exact_Result.all) =
            Needed * 2,
            "worker accounts overlapping Cairo and exported pixels");
+         Check (Jobs.Pipeline_Workspace_Peak_Bytes (Exact_Result.all) =
+           Natural'Max
+             (Jobs.Parse_Workspace_Peak_Bytes (Exact_Result.all),
+              Jobs.Raster_Workspace_Peak_Bytes (Exact_Result.all)),
+           "tiny raster pipeline peak is the max of isolated phase peaks");
          Check (Jobs.Has_Raster (Exact_Result.all) and
            Jobs.Raster_Width (Exact_Result.all) = Tiny_Bounds.Width and
            Jobs.Raster_Height (Exact_Result.all) = Tiny_Bounds.Height and

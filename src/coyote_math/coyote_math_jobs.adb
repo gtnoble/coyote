@@ -466,6 +466,8 @@ package body Coyote_Math_Jobs is
             Work_Access : constant Math_Work_Control.Context_Access :=
               Work_Context'Unchecked_Access;
             Fonts : aliased Math_Painter.Font_Set;
+            Memory : aliased Math_Memory_Budget.Budget;
+            Raster_Started : Boolean := False;
          begin
             Phase_Status := Worker_Control_Status (Job, View, Deadline);
             if Taken_State /= Pending then
@@ -483,7 +485,8 @@ package body Coyote_Math_Jobs is
                if Phase_Status = Pending then
                   begin
                      R.Parsed := Math_Syntax.Parse
-                       (To_String (Text), Parse_Settings, Work_Access);
+                       (To_String (Text), Parse_Settings, Work_Access,
+                        Memory'Unchecked_Access);
                   exception
                      when Math_Work_Control.Stop_Requested =>
                         State := Cancelled;
@@ -495,6 +498,9 @@ package body Coyote_Math_Jobs is
                   if State = Cancelled or State = Expired then
                      Phase_Status := State;
                   end if;
+                  R.Parse_Workspace_Peak := Math_Memory_Budget.Peak
+                    (Memory);
+                  Math_Memory_Budget.Reset_Peak (Memory);
                end if;
                if Phase_Status = Pending and then
                  Math_Syntax.Is_Valid (R.Parsed)
@@ -614,20 +620,20 @@ package body Coyote_Math_Jobs is
                                        R.Raster_Charge, Accepted);
                                  end if;
                                  if Accepted then
-                                    declare
-                                       Memory : aliased
-                                         Math_Memory_Budget.Budget;
+                                    Raster_Started := True;
                                     begin
                                        Math_Raster.Render_Into
                                          (Fonts, R.Geometry, Em_Pixels,
                                           Foreground, R.Pixels, Work_Access,
                                           Memory'Unchecked_Access);
                                        R.Raster_Workspace_Peak :=
-                                         Math_Memory_Budget.Peak (Memory);
+                                         Math_Memory_Budget.Peak
+                                           (Memory);
                                     exception
                                        when others =>
                                           R.Raster_Workspace_Peak :=
-                                            Math_Memory_Budget.Peak (Memory);
+                                            Math_Memory_Budget.Peak
+                                              (Memory);
                                           raise;
                                     end;
                                     Math_Raster_Budget.Adjust
@@ -676,11 +682,39 @@ package body Coyote_Math_Jobs is
             end if;
          exception
             when Math_Work_Control.Stop_Requested =>
+               if R /= null then
+                  if Raster_Started then
+                     R.Raster_Workspace_Peak := Math_Memory_Budget.Peak
+                       (Memory);
+                  else
+                     R.Parse_Workspace_Peak := Natural'Max
+                       (R.Parse_Workspace_Peak,
+                        Math_Memory_Budget.Peak (Memory));
+                  end if;
+               end if;
                State := Cancelled;
             when Math_Work_Control.Deadline_Expired =>
+               if R /= null then
+                  if Raster_Started then
+                     R.Raster_Workspace_Peak := Math_Memory_Budget.Peak
+                       (Memory);
+                  else
+                     R.Parse_Workspace_Peak := Natural'Max
+                       (R.Parse_Workspace_Peak,
+                        Math_Memory_Budget.Peak (Memory));
+                  end if;
+               end if;
                State := Expired;
             when E : others =>
                if R /= null then
+                  if Raster_Started then
+                     R.Raster_Workspace_Peak := Math_Memory_Budget.Peak
+                       (Memory);
+                  else
+                     R.Parse_Workspace_Peak := Natural'Max
+                       (R.Parse_Workspace_Peak,
+                        Math_Memory_Budget.Peak (Memory));
+                  end if;
                   R.Message := To_Unbounded_String
                     (Ada.Exceptions.Exception_Message (E));
                end if;
@@ -782,6 +816,12 @@ package body Coyote_Math_Jobs is
      (Item.Raster_Ready);
    function Raster_Workspace_Peak_Bytes
      (Item : Job_Result) return Natural is (Item.Raster_Workspace_Peak);
+   function Parse_Workspace_Peak_Bytes
+     (Item : Job_Result) return Natural is (Item.Parse_Workspace_Peak);
+   function Pipeline_Workspace_Peak_Bytes
+     (Item : Job_Result) return Natural is
+       (Natural'Max (Item.Parse_Workspace_Peak,
+                     Item.Raster_Workspace_Peak));
    function Raster_Retained_Bytes (Item : Job_Result) return Natural is
      (Math_Raster_Budget.Bytes (Item.Raster_Charge));
    function Raster_Width (Item : Job_Result) return Natural is

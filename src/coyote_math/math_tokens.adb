@@ -5,7 +5,23 @@ with Ada.Containers;
 
 use type Ada.Containers.Count_Type;
 
+
 package body Math_Tokens is
+   function Raw_Token_Bound (Byte_Length : Natural) return Natural is
+      Factor : constant Natural := 8;
+   begin
+      if Byte_Length >= Max_Tokens / Factor then
+         return Max_Tokens;
+      elsif Byte_Length + 1 > Natural'Last / Factor then
+         raise Constraint_Error with "raw token bound overflow";
+      end if;
+      return Natural'Min (Max_Tokens, (Byte_Length + 1) * Factor);
+   end Raw_Token_Bound;
+
+   function Transformation_Token_Bound
+     (Byte_Length : Natural) return Natural is
+     (Raw_Token_Bound (Byte_Length));
+
    procedure Lex
      (Input       : Math_Source.Source;
       Result      : out Stream;
@@ -135,6 +151,9 @@ package body Math_Tokens is
          Diagnostic := Invalid_Source;
          return;
       end if;
+      Result.Items.Reserve_Capacity
+        (Ada.Containers.Count_Type
+           (Raw_Token_Bound (Math_Source.Byte_Length (Input))));
       while Pos < Text'Length and Diagnostic = No_Error loop
          Math_Work_Control.Poll (Work);
          declare
@@ -329,7 +348,7 @@ package body Math_Tokens is
       end loop;
       if Diagnostic = No_Error and then Math_Source.Is_Valid (Input) then
          declare
-            Raw : constant Token_Vectors.Vector := Result.Items;
+            Raw : Token_Vectors.Vector renames Result.Items;
             Expanded : Token_Vectors.Vector := Token_Vectors.Empty_Vector;
             Consumed : array (1 .. Natural (Raw.Length)) of Boolean :=
               (others => False);
@@ -432,6 +451,8 @@ package body Math_Tokens is
                        Token_Vectors.Empty_Vector;
                      Last : constant Positive := Expanded.Last_Index;
                   begin
+                     Previous.Reserve_Capacity
+                       (Expanded.Length);
                      for I in Positive (First) .. Last loop
                         Previous.Append (Expanded (I));
                      end loop;
@@ -448,6 +469,9 @@ package body Math_Tokens is
                end if;
             end Apply_Mark;
          begin
+            Expanded.Reserve_Capacity
+              (Ada.Containers.Count_Type
+                 (Transformation_Token_Bound (Text'Length)));
             for I in 1 .. Natural (Raw.Length) loop
                Math_Work_Control.Poll (Work);
                exit when Diagnostic /= No_Error;
@@ -570,7 +594,7 @@ package body Math_Tokens is
                end;
             end loop;
             if Diagnostic = No_Error then
-               Result.Items := Expanded;
+               Token_Vectors.Move (Result.Items, Expanded);
                Add (End_Of_Input, Text'Length, Scalar, UTF16,
                     Text'Length, Scalar, UTF16);
             end if;
@@ -584,6 +608,22 @@ package body Math_Tokens is
      (Item.Items (Index));
    function Source (Item : Stream) return String is
      (Math_Source.Text (Item.Original));
+
+   function Vector_Storage_Bytes (Item : Stream) return Natural is
+      Capacity : constant Ada.Containers.Count_Type :=
+        Item.Items.Capacity;
+      Width : constant Positive := Token'Size / 8;
+   begin
+      if Capacity > Ada.Containers.Count_Type (Natural'Last / Width) then
+         raise Constraint_Error with "token vector capacity overflow";
+      end if;
+      return Natural (Capacity) * Width;
+   end Vector_Storage_Bytes;
+
+   function Original_Map_Storage_Bytes (Item : Stream) return Natural is
+   begin
+      return Math_Source.Map_Storage_Bytes (Item.Original);
+   end Original_Map_Storage_Bytes;
 
    procedure From_Tokens
      (Original : Stream; Items : Token_Sequence; Result : out Stream) is

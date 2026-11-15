@@ -1313,3 +1313,94 @@ font pins/bearings/shaped ink, parent clipping,60 callable gaps/full corpus,
 native lifecycle and independent visual/AT/user acceptance remain open.
 Browser/geometry/resource characterization not rerun; prior scoped evidence
 remains historical. PCR-125 OPEN; feature NOT COMPLETE. No release/install/commit.
+
+
+### 11.14 Fresh continuation — parser-vector reservations, 2026-11-15
+
+**Scope/authority:** User requested the next engineering priority after §11.13.
+This extends REQ-MATH-010 / MATH-LIMIT-002 accounting to parser-owned source
+maps and lexical vector payloads. Approved SRS-MATH v1.0 and D01–D15 are
+unchanged. This is not closure of whole-job256MiB enforcement.
+
+**Implementation:** All four Math_Syntax.Parse overloads accept a borrowed
+optional Memory account; null selects an independent default ledger. Before
+source validation, reserve two byte/UTF16 offset-vector payload arrays. Before
+lexing, reserve the copied original maps plus three overlapping raw/expanded/
+mark-work token-record arrays. Input-derived capacities are preallocated;
+actual surviving capacities reconcile at phase return. Raw tokens are borrowed
+instead of copied, and expanded output moves into the result. Reservations
+outlive validated-source/token locals and release after those locals finalize,
+including error/cancellation/deadline unwinding. Strings/lexemes are not charged.
+The eight-times-input-bytes bound (clamped to the existing token cap) covers
+current decomposition/script/accent expansion; direct probes check214 nonempty
+decomposition entries through U+03FF plus targeted two-mark/combining/script
+fixtures. This is scoped table evidence, not full semantic parity.
+
+Workers use one per-job ledger across parser and raster measurement windows.
+Reset_Peak preserves current charges and resets maximum to current usage;
+callers serialize measurement windows. Results expose parser-vector and
+pipeline peaks separately from the unchanged raster-only peak. The pipeline
+peak is the maximum of the two sequential scoped peaks, not a sum or total-job
+measurement. A review found later font-load exceptions overwrote saved parser
+telemetry after reset; all three exception handlers now preserve its maximum.
+
+**Developer verification:**
+
+- Final root/test incremental development builds pass; generated profiles select
+  development. Existing compiler/style/theme warnings remain; no release or
+  warning-free qualification. Final full Xvfb suite1076/1076, zero failed
+  assertions/unexpected errors,148.051229s cumulative,148.10s wall. Earlier
+  full1076/1076 is retained separately; an incorrect-cwd invocation ran no tests.
+- Parser probe674/674 twice, including measured exact/one-byte-short and held
+  charge overlap/recovery, invalid UTF8/lexical/syntax exits, lexical cancellation
+  after allocation, deadline propagation, multibyte/max-source inputs, and direct
+  count/capacity checks for214 decompositions and3 targeted fixtures. Small
+  representative input peak29580 bytes; this is conservative charged capacity,
+  not allocator/RSS usage. Macro test rejects before parsing; post-group budget
+  rejection rollback is not directly injected.
+- Ledger38/38 includes reset with active charges, zero/reset/resize/rejection and
+  independent ledgers, alongside existing concurrency/finalization checks.
+- Worker215/215 three corrected runs plus final repeat. The same extended probe
+  against unfixed peak handling gives215 assertions with1 failure on the
+  font-load telemetry assertion. Existing2000 warm requests and saturation pass;
+  timing remains headless characterization, not hard/GTK qualification.
+- Raster1116/1116 normally and under Valgrind. Encompassing raster script FAILS:
+  2 contexts,6656 definitely lost,2183 indirectly lost,26 possibly lost bytes;
+  native Fontconfig/Pango paths. No suppressions or threshold changes.
+- Required GTK interactions9/9, containment self-test and offline Plain/RPC HTTP
+  lifecycle pass. The containment harness intentionally kills/times out child
+  fixtures; its synthetic7/9 result is expected, not a product failure.
+  Source crosswalk refresh/check passes; mapping is not semantic qualification.
+
+**Native lifecycle diagnostic:** An isolated18-run baseline/measure/draw matrix
+uses counts1/10/100 with/without explicit test-only Cairo/Fontconfig teardown.
+All6 no-shaping baselines have zero losses. All6 shaped runs without teardown
+retain6656 definite/2183 indirect bytes, with378 or730 possible bytes. All6
+shaped runs with teardown reduce definite/indirect losses to0 but retain26 or378
+possible bytes. All12 shaped runs therefore FAIL strict Valgrind. Variable
+possible-loss totals include native thread/language initialization contexts;
+fixed definite/indirect totals across counts are not proof that all lifecycle
+causes are harmless. Global cleanup occurs only in an isolated test executable
+once Cairo/Pango owners are gone; it is not safe per-job production cleanup and
+has not been added there. The production raster gate remains unchanged/open.
+
+**Evidence/evaluation:**
+`plan/evidence/native-math-2026-11-15-parser-budget/` retains build/full/focused/
+post-build logs, lifecycle full stacks and CSV, changes, hashes and manifest.
+Read-only review caught the telemetry defect; re-review found no scoped blocker.
+Developer/agent self-review is not independent human acceptance. Intermediate
+compile visibility errors and overly conservative transformation-array sizing
+were corrected before final probes; available intermediate logs are retained.
+
+**Open gates:** Charges cover vector record-array payload capacities and raster
+workspace only, and end at the corresponding parser/render call. GNAT requested
+Reserve_Capacity behavior is inspected/tested, not portable preadmission of
+arbitrary allocator over-allocation. Unbounded strings, token lexemes, expander/
+AST/semantic/layout storage, native/font temporaries, allocator metadata and
+complete returned-copy/cache lifetimes remain unaccounted. Whole-job256MiB,
+process-cache/RSS, hard250ms, GTK50ms, warm-p95, complete tiling/repaint reuse,
+font pins/bearings/shaped ink, parent clipping,60 callable gaps/full corpus,
+native lifecycle and independent desktop/AT/user acceptance remain OPEN.
+Browser/geometry/isolated-resource characterization was not rerun; prior scoped
+results remain historical. PCR-125 OPEN; feature NOT COMPLETE. No release,
+installation or commit.

@@ -7,7 +7,7 @@ project Math_Export is
      ("math_model.ads", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
       "math_stretchy.ads", "math_stretchy.adb",
       "math_semantics.ads", "math_semantics.adb",
-      "math_syntax.ads", "math_syntax.adb",
+      "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
       "math_text_shaping.ads", "math_text_shaping.adb",
       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",

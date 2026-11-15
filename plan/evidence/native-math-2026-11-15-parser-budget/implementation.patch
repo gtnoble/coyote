@@ -1,0 +1,1592 @@
+diff --git a/src/coyote_math/coyote_math_jobs.adb b/src/coyote_math/coyote_math_jobs.adb
+index f47ae4e..f09108f 100644
+--- a/src/coyote_math/coyote_math_jobs.adb
++++ b/src/coyote_math/coyote_math_jobs.adb
+@@ -466,6 +466,8 @@ package body Coyote_Math_Jobs is
+             Work_Access : constant Math_Work_Control.Context_Access :=
+               Work_Context'Unchecked_Access;
+             Fonts : aliased Math_Painter.Font_Set;
++            Memory : aliased Math_Memory_Budget.Budget;
++            Raster_Started : Boolean := False;
+          begin
+             Phase_Status := Worker_Control_Status (Job, View, Deadline);
+             if Taken_State /= Pending then
+@@ -483,7 +485,8 @@ package body Coyote_Math_Jobs is
+                if Phase_Status = Pending then
+                   begin
+                      R.Parsed := Math_Syntax.Parse
+-                       (To_String (Text), Parse_Settings, Work_Access);
++                       (To_String (Text), Parse_Settings, Work_Access,
++                        Memory'Unchecked_Access);
+                   exception
+                      when Math_Work_Control.Stop_Requested =>
+                         State := Cancelled;
+@@ -495,6 +498,9 @@ package body Coyote_Math_Jobs is
+                   if State = Cancelled or State = Expired then
+                      Phase_Status := State;
+                   end if;
++                  R.Parse_Workspace_Peak := Math_Memory_Budget.Peak
++                    (Memory);
++                  Math_Memory_Budget.Reset_Peak (Memory);
+                end if;
+                if Phase_Status = Pending and then
+                  Math_Syntax.Is_Valid (R.Parsed)
+@@ -614,20 +620,20 @@ package body Coyote_Math_Jobs is
+                                        R.Raster_Charge, Accepted);
+                                  end if;
+                                  if Accepted then
+-                                    declare
+-                                       Memory : aliased
+-                                         Math_Memory_Budget.Budget;
++                                    Raster_Started := True;
+                                     begin
+                                        Math_Raster.Render_Into
+                                          (Fonts, R.Geometry, Em_Pixels,
+                                           Foreground, R.Pixels, Work_Access,
+                                           Memory'Unchecked_Access);
+                                        R.Raster_Workspace_Peak :=
+-                                         Math_Memory_Budget.Peak (Memory);
++                                         Math_Memory_Budget.Peak
++                                           (Memory);
+                                     exception
+                                        when others =>
+                                           R.Raster_Workspace_Peak :=
+-                                            Math_Memory_Budget.Peak (Memory);
++                                            Math_Memory_Budget.Peak
++                                              (Memory);
+                                           raise;
+                                     end;
+                                     Math_Raster_Budget.Adjust
+@@ -676,11 +682,39 @@ package body Coyote_Math_Jobs is
+             end if;
+          exception
+             when Math_Work_Control.Stop_Requested =>
++               if R /= null then
++                  if Raster_Started then
++                     R.Raster_Workspace_Peak := Math_Memory_Budget.Peak
++                       (Memory);
++                  else
++                     R.Parse_Workspace_Peak := Natural'Max
++                       (R.Parse_Workspace_Peak,
++                        Math_Memory_Budget.Peak (Memory));
++                  end if;
++               end if;
+                State := Cancelled;
+             when Math_Work_Control.Deadline_Expired =>
++               if R /= null then
++                  if Raster_Started then
++                     R.Raster_Workspace_Peak := Math_Memory_Budget.Peak
++                       (Memory);
++                  else
++                     R.Parse_Workspace_Peak := Natural'Max
++                       (R.Parse_Workspace_Peak,
++                        Math_Memory_Budget.Peak (Memory));
++                  end if;
++               end if;
+                State := Expired;
+             when E : others =>
+                if R /= null then
++                  if Raster_Started then
++                     R.Raster_Workspace_Peak := Math_Memory_Budget.Peak
++                       (Memory);
++                  else
++                     R.Parse_Workspace_Peak := Natural'Max
++                       (R.Parse_Workspace_Peak,
++                        Math_Memory_Budget.Peak (Memory));
++                  end if;
+                   R.Message := To_Unbounded_String
+                     (Ada.Exceptions.Exception_Message (E));
+                end if;
+@@ -782,6 +816,12 @@ package body Coyote_Math_Jobs is
+      (Item.Raster_Ready);
+    function Raster_Workspace_Peak_Bytes
+      (Item : Job_Result) return Natural is (Item.Raster_Workspace_Peak);
++   function Parse_Workspace_Peak_Bytes
++     (Item : Job_Result) return Natural is (Item.Parse_Workspace_Peak);
++   function Pipeline_Workspace_Peak_Bytes
++     (Item : Job_Result) return Natural is
++       (Natural'Max (Item.Parse_Workspace_Peak,
++                     Item.Raster_Workspace_Peak));
+    function Raster_Retained_Bytes (Item : Job_Result) return Natural is
+      (Math_Raster_Budget.Bytes (Item.Raster_Charge));
+    function Raster_Width (Item : Job_Result) return Natural is
+diff --git a/src/coyote_math/coyote_math_jobs.ads b/src/coyote_math/coyote_math_jobs.ads
+index c04c77b..a96690a 100644
+--- a/src/coyote_math/coyote_math_jobs.ads
++++ b/src/coyote_math/coyote_math_jobs.ads
+@@ -76,9 +76,18 @@ package Coyote_Math_Jobs is
+    --  with actual stride. Failed results own no pixels or raster lease.
+    --  This does not account for transient Cairo/parser/layout allocations.
+    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
+-   --  Peak charged Cairo image/output-vector overlap during rasterization,
+-   --  not whole-job allocation, RSS or retained-result lifetime accounting.
++   --  Peak charged Cairo image/output-vector overlap during rasterization.
++   --  The pipeline metric is max(parser, raster); no overlap is implied,
++   --  because parser reservations release when Parse returns. Neither metric
++   --  includes retained AST/semantics/layout or whole-job allocations.
+    function Raster_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
++   --  Parser offset-map and token-vector record-array payload peak only.
++   --  It excludes retained AST/semantics/layout.
++   function Parse_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
++   --  Maximum parser-vector/raster-workspace peak across those phases only.
++   --  This excludes other job allocations and retained result/cache lifetime.
++   function Pipeline_Workspace_Peak_Bytes
++     (Item : Job_Result) return Natural;
+    function Raster_Width (Item : Job_Result) return Natural;
+    function Raster_Height (Item : Job_Result) return Natural;
+    --  Raster origins locate the logical top-left inside the full raster.
+@@ -100,6 +109,7 @@ private
+       Raster_Baseline_Value : Natural := 0;
+       Raster_Ready : Boolean := False;
+       Raster_Workspace_Peak : Natural := 0;
++      Parse_Workspace_Peak : Natural := 0;
+       Raster_Charge : Math_Raster_Budget.Lease;
+       Message : Ada.Strings.Unbounded.Unbounded_String;
+    end record;
+diff --git a/src/coyote_math/math_memory_budget.adb b/src/coyote_math/math_memory_budget.adb
+index ce8bf49..f1014ae 100644
+--- a/src/coyote_math/math_memory_budget.adb
++++ b/src/coyote_math/math_memory_budget.adb
+@@ -40,6 +40,11 @@ package body Math_Memory_Budget is
+       begin
+          return Peak_Bytes;
+       end Maximum;
++
++      procedure Reset_Maximum is
++      begin
++         Peak_Bytes := Current_Bytes;
++      end Reset_Maximum;
+    end Ledger;
+ 
+    procedure Reserve
+@@ -85,6 +90,11 @@ package body Math_Memory_Budget is
+       return Account.Accounting.Maximum;
+    end Peak;
+ 
++   procedure Reset_Peak (Account : in out Budget) is
++   begin
++      Account.Accounting.Reset_Maximum;
++   end Reset_Peak;
++
+    function Bytes (Owner : Reservation) return Natural is
+    begin
+       return Owner.Amount;
+diff --git a/src/coyote_math/math_memory_budget.ads b/src/coyote_math/math_memory_budget.ads
+index 8d55ae9..a327b4b 100644
+--- a/src/coyote_math/math_memory_budget.ads
++++ b/src/coyote_math/math_memory_budget.ads
+@@ -30,6 +30,9 @@ package Math_Memory_Budget is
+    procedure Release (Owner : in out Reservation);
+    function Used (Account : Budget) return Natural;
+    function Peak (Account : Budget) return Natural;
++   --  Callers serialize measurement windows for a shared Budget.
++   --  Resetting the peak never changes current reservation charges.
++   procedure Reset_Peak (Account : in out Budget);
+    function Bytes (Owner : Reservation) return Natural;
+ 
+ private
+@@ -39,6 +42,7 @@ private
+       procedure Uncharge (Amount : Natural);
+       function Current return Natural;
+       function Maximum return Natural;
++      procedure Reset_Maximum;
+    private
+       Current_Bytes : Natural := 0;
+       Peak_Bytes    : Natural := 0;
+diff --git a/src/coyote_math/math_source.adb b/src/coyote_math/math_source.adb
+index a1a4141..d495a88 100644
+--- a/src/coyote_math/math_source.adb
++++ b/src/coyote_math/math_source.adb
+@@ -1,8 +1,10 @@
+ with Ada.Strings.Unbounded;
+ with Math_Work_Control;
++with Ada.Containers;
+ 
+ package body Math_Source is
+    use Ada.Strings.Unbounded;
++   use type Ada.Containers.Count_Type;
+ 
+    procedure Create
+      (Text       : String;
+@@ -30,6 +32,10 @@ package body Math_Source is
+          return;
+       end if;
+       Item.Value := To_Unbounded_String (Text);
++      Item.Byte_Map.Reserve_Capacity
++        (Ada.Containers.Count_Type (Text'Length + 1));
++      Item.UTF16_Map.Reserve_Capacity
++        (Ada.Containers.Count_Type (Text'Length + 1));
+       Item.Byte_Map.Append (0);
+       Item.UTF16_Map.Append (0);
+       while Position <= Text'Last loop
+@@ -102,6 +108,29 @@ package body Math_Source is
+ 
+    function Is_Valid (Item : Source) return Boolean is (Item.Valid);
+    function Text (Item : Source) return String is (To_String (Item.Value));
++
++   function Map_Storage_Bound (Byte_Length : Natural) return Natural is
++   begin
++      if Byte_Length = 0 or else
++        Byte_Length > (Natural'Last / (2 * (Natural'Size / 8))) - 1
++      then
++         raise Constraint_Error with "source map bound overflow";
++      end if;
++      return (Byte_Length + 1) * 2 * (Natural'Size / 8);
++   end Map_Storage_Bound;
++
++   function Map_Storage_Bytes (Item : Source) return Natural is
++      Capacity : constant Ada.Containers.Count_Type :=
++        Item.Byte_Map.Capacity + Item.UTF16_Map.Capacity;
++   begin
++      if Capacity > Ada.Containers.Count_Type
++        (Natural'Last / (Natural'Size / 8))
++      then
++         raise Constraint_Error with "source map capacity overflow";
++      end if;
++      return Natural (Capacity) * (Natural'Size / 8);
++   end Map_Storage_Bytes;
++
+    function Byte_Length (Item : Source) return Natural is (Item.Byte_Count);
+    function Scalar_Length (Item : Source) return Natural is (Item.Scalar_Count);
+    function UTF16_Length (Item : Source) return Natural is (Item.UTF16_Count);
+diff --git a/src/coyote_math/math_source.ads b/src/coyote_math/math_source.ads
+index 1c854a4..7ceee71 100644
+--- a/src/coyote_math/math_source.ads
++++ b/src/coyote_math/math_source.ads
+@@ -20,6 +20,9 @@ package Math_Source is
+       Work       : Math_Work_Control.Context_Access := null);
+    function Is_Valid (Item : Source) return Boolean;
+    function Text (Item : Source) return String;
++   --  Payload estimate and actual capacity cover only the two offset vectors.
++   function Map_Storage_Bound (Byte_Length : Natural) return Natural;
++   function Map_Storage_Bytes (Item : Source) return Natural;
+    function Byte_Length (Item : Source) return Natural;
+    function Scalar_Length (Item : Source) return Natural;
+    function UTF16_Length (Item : Source) return Natural;
+diff --git a/src/coyote_math/math_syntax.adb b/src/coyote_math/math_syntax.adb
+index c08b3c6..b3b46e6 100644
+--- a/src/coyote_math/math_syntax.adb
++++ b/src/coyote_math/math_syntax.adb
+@@ -9,9 +9,13 @@ with Math_Macros;
+ with Math_Stretchy;
+ with Math_Work_Control;
+ with Math_Unicode;
++with Math_Memory_Budget;
++with Ada.Containers;
+ 
+ package body Math_Syntax is
+    use Ada.Strings.Unbounded;
++   use type Math_Memory_Budget.Budget_Access;
++   use type Ada.Containers.Count_Type;
+    use Math_Model;
+    use type Math_Source.Diagnostic_Kind;
+    use type Math_Tokens.Token_Kind;
+@@ -3264,33 +3268,47 @@ package body Math_Syntax is
+    function Parse
+      (Source : String; Shared : not null access Math_Macros.Context;
+       Global_Group : Boolean := False;
+-      Work : Math_Work_Control.Context_Access := null) return Document is
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document is
+    begin
+       return Parse
+         (Source, Shared, (Strict => Strict_Warn, others => <>),
+-         Global_Group, Work);
++         Global_Group, Work, Memory);
+    end Parse;
+ 
+    function Parse
+      (Source : String; Settings : Options;
+-      Work : Math_Work_Control.Context_Access := null) return Document is
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document is
+       Shared : aliased Math_Macros.Context;
+    begin
+-      return Parse (Source, Shared'Access, Settings, Work => Work);
++      return Parse
++        (Source, Shared'Access, Settings, Work => Work, Memory => Memory);
+    end Parse;
+ 
+    function Parse
+      (Source : String; Shared : not null access Math_Macros.Context;
+       Settings : Options; Global_Group : Boolean := False;
+-      Work : Math_Work_Control.Context_Access := null) return Document
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document
+    is
+       State : Parser_State (Shared);
+       Entry_Depth : constant Natural := Math_Macros.Scope_Depth (Shared.all);
++      Local_Budget : aliased Math_Memory_Budget.Budget;
++      Account : constant not null Math_Memory_Budget.Budget_Access :=
++        (if Memory = null then Local_Budget'Unchecked_Access else Memory);
++      Source_Reservation : Math_Memory_Budget.Reservation;
++      Token_Reservation : Math_Memory_Budget.Reservation;
+       Validated : Math_Source.Source;
+       Tokens : Math_Tokens.Stream;
+       Diagnostic : Math_Source.Diagnostic_Kind;
+       Lexical_Error : Math_Tokens.Diagnostic_Kind;
+       Error_Byte : Natural;
++      procedure Admit (Owner : in out Math_Memory_Budget.Reservation;
++                       Amount : Natural) is
++      begin
++         Math_Memory_Budget.Reserve (Owner, Account, Amount);
++      end Admit;
+    begin
+       State.Settings := Settings;
+       State.Work := Work;
+@@ -3307,9 +3325,16 @@ package body Math_Syntax is
+          return State.Item;
+       end if;
+       State.Item.Text := To_Unbounded_String (Source);
++      Admit (Source_Reservation,
++        Math_Source.Map_Storage_Bound
++          (Natural'Max (1, Source'Length)));
+       Math_Source.Create
+         ((if Source'Length = 0 then " " else Source), Validated,
+          Diagnostic, Error_Byte, Work => Work);
++      if Math_Source.Is_Valid (Validated) then
++         Admit (Source_Reservation,
++           Math_Source.Map_Storage_Bytes (Validated));
++      end if;
+       if Diagnostic /= Math_Source.No_Error then
+          State.Item.Message := To_Unbounded_String
+            (if Diagnostic = Math_Source.Invalid_UTF8
+@@ -3343,8 +3368,29 @@ package body Math_Syntax is
+             return State.Item;
+          end if;
+       end;
++      declare
++         Raw_Bound : constant Natural := Math_Tokens.Raw_Token_Bound
++           (Math_Source.Byte_Length (Validated));
++         Transform_Bound : constant Natural :=
++           Math_Tokens.Transformation_Token_Bound
++             (Math_Source.Byte_Length (Validated));
++         Token_Width : constant Positive := Math_Tokens.Token'Size / 8;
++         Original_Bytes : constant Natural :=
++           Math_Source.Map_Storage_Bytes (Validated);
++         Max_Capacity : constant Natural :=
++           Natural'Max (Raw_Bound, Transform_Bound);
++      begin
++         if Max_Capacity > Natural'Last / Token_Width / 3 then
++            raise Constraint_Error with "token storage bound overflow";
++         end if;
++         Admit (Token_Reservation,
++           3 * Max_Capacity * Token_Width + Original_Bytes);
++      end;
+       Math_Tokens.Lex
+         (Validated, Tokens, Lexical_Error, Error_Byte, Work => Work);
++      Admit (Token_Reservation,
++        Math_Tokens.Vector_Storage_Bytes (Tokens) +
++          Math_Tokens.Original_Map_Storage_Bytes (Tokens));
+       if Lexical_Error /= Math_Tokens.No_Error then
+          State.Item.Message := To_Unbounded_String
+            ("invalid math token stream: " & Lexical_Error'Image);
+@@ -3406,10 +3452,11 @@ package body Math_Syntax is
+ 
+    function Parse
+      (Source : String;
+-      Work : Math_Work_Control.Context_Access := null) return Document is
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document is
+    begin
+       return Parse
+-        (Source, (Strict => Strict_Warn, others => <>), Work);
++        (Source, (Strict => Strict_Warn, others => <>), Work, Memory);
+    end Parse;
+ 
+    function Is_Valid (Item : Document) return Boolean is
+diff --git a/src/coyote_math/math_syntax.ads b/src/coyote_math/math_syntax.ads
+index 7b92c6c..8165b63 100644
+--- a/src/coyote_math/math_syntax.ads
++++ b/src/coyote_math/math_syntax.ads
+@@ -3,6 +3,7 @@ with Ada.Strings.Unbounded;
+ with Math_Model;
+ with Math_Macros;
+ with Math_Work_Control;
++with Math_Memory_Budget;
+ 
+ --  Parse bounded TeX-like input. Error positions are one-based UTF-8 byte
+ --  offsets. Raw Unicode is accepted only for registered math symbols.
+@@ -113,20 +114,27 @@ package Math_Syntax is
+    type Document is private;
+    function Parse
+      (Source : String;
+-      Work : Math_Work_Control.Context_Access := null) return Document;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
+    function Parse
+      (Source : String; Settings : Options;
+-      Work : Math_Work_Control.Context_Access := null) return Document;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
+    function Parse
+      (Source : String; Shared : not null access Math_Macros.Context;
+       Global_Group : Boolean := False;
+-      Work : Math_Work_Control.Context_Access := null) return Document;
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
+    function Parse
+      (Source : String; Shared : not null access Math_Macros.Context;
+       Settings : Options; Global_Group : Boolean := False;
+-      Work : Math_Work_Control.Context_Access := null) return Document;
+-   --  Work is borrowed only for this call; cancellation and deadline
+-   --  exceptions propagate to the caller.
++      Work : Math_Work_Control.Context_Access := null;
++      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
++   --  Work and Memory are borrowed only for this call. Memory accounts only
++   --  offset-map and token-vector record-array payload capacities, not strings,
++   --  lexemes, AST, expander storage, allocator overhead, or process memory.
++   --  Reservations are pre-admitted and released after parser locals finalize.
++   --  Cancellation, deadline, and budget exceptions propagate to the caller.
+    --  Explicit shared state follows local/global namespace semantics, even
+    --  when parsing fails. Ordinary parsing starts a fresh context.
+    function Is_Valid (Item : Document) return Boolean;
+diff --git a/src/coyote_math/math_tokens.adb b/src/coyote_math/math_tokens.adb
+index 657da4e..9f26b9e 100644
+--- a/src/coyote_math/math_tokens.adb
++++ b/src/coyote_math/math_tokens.adb
+@@ -5,7 +5,23 @@ with Ada.Containers;
+ 
+ use type Ada.Containers.Count_Type;
+ 
++
+ package body Math_Tokens is
++   function Raw_Token_Bound (Byte_Length : Natural) return Natural is
++      Factor : constant Natural := 8;
++   begin
++      if Byte_Length >= Max_Tokens / Factor then
++         return Max_Tokens;
++      elsif Byte_Length + 1 > Natural'Last / Factor then
++         raise Constraint_Error with "raw token bound overflow";
++      end if;
++      return Natural'Min (Max_Tokens, (Byte_Length + 1) * Factor);
++   end Raw_Token_Bound;
++
++   function Transformation_Token_Bound
++     (Byte_Length : Natural) return Natural is
++     (Raw_Token_Bound (Byte_Length));
++
+    procedure Lex
+      (Input       : Math_Source.Source;
+       Result      : out Stream;
+@@ -135,6 +151,9 @@ package body Math_Tokens is
+          Diagnostic := Invalid_Source;
+          return;
+       end if;
++      Result.Items.Reserve_Capacity
++        (Ada.Containers.Count_Type
++           (Raw_Token_Bound (Math_Source.Byte_Length (Input))));
+       while Pos < Text'Length and Diagnostic = No_Error loop
+          Math_Work_Control.Poll (Work);
+          declare
+@@ -329,7 +348,7 @@ package body Math_Tokens is
+       end loop;
+       if Diagnostic = No_Error and then Math_Source.Is_Valid (Input) then
+          declare
+-            Raw : constant Token_Vectors.Vector := Result.Items;
++            Raw : Token_Vectors.Vector renames Result.Items;
+             Expanded : Token_Vectors.Vector := Token_Vectors.Empty_Vector;
+             Consumed : array (1 .. Natural (Raw.Length)) of Boolean :=
+               (others => False);
+@@ -432,6 +451,8 @@ package body Math_Tokens is
+                        Token_Vectors.Empty_Vector;
+                      Last : constant Positive := Expanded.Last_Index;
+                   begin
++                     Previous.Reserve_Capacity
++                       (Expanded.Length);
+                      for I in Positive (First) .. Last loop
+                         Previous.Append (Expanded (I));
+                      end loop;
+@@ -448,6 +469,9 @@ package body Math_Tokens is
+                end if;
+             end Apply_Mark;
+          begin
++            Expanded.Reserve_Capacity
++              (Ada.Containers.Count_Type
++                 (Transformation_Token_Bound (Text'Length)));
+             for I in 1 .. Natural (Raw.Length) loop
+                Math_Work_Control.Poll (Work);
+                exit when Diagnostic /= No_Error;
+@@ -570,7 +594,7 @@ package body Math_Tokens is
+                end;
+             end loop;
+             if Diagnostic = No_Error then
+-               Result.Items := Expanded;
++               Token_Vectors.Move (Result.Items, Expanded);
+                Add (End_Of_Input, Text'Length, Scalar, UTF16,
+                     Text'Length, Scalar, UTF16);
+             end if;
+@@ -585,6 +609,22 @@ package body Math_Tokens is
+    function Source (Item : Stream) return String is
+      (Math_Source.Text (Item.Original));
+ 
++   function Vector_Storage_Bytes (Item : Stream) return Natural is
++      Capacity : constant Ada.Containers.Count_Type :=
++        Item.Items.Capacity;
++      Width : constant Positive := Token'Size / 8;
++   begin
++      if Capacity > Ada.Containers.Count_Type (Natural'Last / Width) then
++         raise Constraint_Error with "token vector capacity overflow";
++      end if;
++      return Natural (Capacity) * Width;
++   end Vector_Storage_Bytes;
++
++   function Original_Map_Storage_Bytes (Item : Stream) return Natural is
++   begin
++      return Math_Source.Map_Storage_Bytes (Item.Original);
++   end Original_Map_Storage_Bytes;
++
+    procedure From_Tokens
+      (Original : Stream; Items : Token_Sequence; Result : out Stream) is
+    begin
+diff --git a/src/coyote_math/math_tokens.ads b/src/coyote_math/math_tokens.ads
+index 99ed9cb..78a5a8c 100644
+--- a/src/coyote_math/math_tokens.ads
++++ b/src/coyote_math/math_tokens.ads
+@@ -44,6 +44,17 @@ package Math_Tokens is
+    function Count (Item : Stream) return Natural;
+    function Element (Item : Stream; Index : Positive) return Token;
+    function Source (Item : Stream) return String;
++   --  Counts only the Items vector's record-array backing capacity.
++   function Vector_Storage_Bytes (Item : Stream) return Natural;
++   function Original_Map_Storage_Bytes (Item : Stream) return Natural;
++   --  Each raw token uses at least one input byte. A two-mark decomposition
++   --  can emit eight tokens, including the additional closing groups; the
++   --  eight-times-input-bytes reservation is therefore a generous bound
++   --  that also covers script and combining-mark wrappers. Max_Tokens stays
++   --  the hard stream cap.
++   function Raw_Token_Bound (Byte_Length : Natural) return Natural;
++   function Transformation_Token_Bound
++     (Byte_Length : Natural) return Natural;
+    procedure From_Tokens
+      (Original : Stream; Items : Token_Sequence; Result : out Stream);
+ private
+diff --git a/test/native/math_additional_probe.gpr b/test/native/math_additional_probe.gpr
+index 0812f0a..2276a73 100644
+--- a/test/native/math_additional_probe.gpr
++++ b/test/native/math_additional_probe.gpr
+@@ -11,7 +11,7 @@ project Math_Additional_Probe is
+       "math_expander.ads", "math_expander.adb",
+       "math_builtin_macros.ads", "math_builtin_macros.adb",
+       "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
+-      "math_syntax.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
++      "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+       "math_stretchy.ads", "math_stretchy.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+diff --git a/test/native/math_arrays_probe.gpr b/test/native/math_arrays_probe.gpr
+index 4423b78..4e05482 100644
+--- a/test/native/math_arrays_probe.gpr
++++ b/test/native/math_arrays_probe.gpr
+@@ -4,7 +4,7 @@ project Math_Arrays_Probe is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_constructs.gpr b/test/native/math_constructs.gpr
+index a06a633..c0fe30c 100644
+--- a/test/native/math_constructs.gpr
++++ b/test/native/math_constructs.gpr
+@@ -4,7 +4,7 @@ project Math_Constructs is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_delimiter.gpr b/test/native/math_delimiter.gpr
+index 0847479..8f93df9 100644
+--- a/test/native/math_delimiter.gpr
++++ b/test/native/math_delimiter.gpr
+@@ -4,7 +4,7 @@ project Math_Delimiter is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb",
+       "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+diff --git a/test/native/math_engine.gpr b/test/native/math_engine.gpr
+index 029be76..0a6d41d 100644
+--- a/test/native/math_engine.gpr
++++ b/test/native/math_engine.gpr
+@@ -9,7 +9,7 @@ project Math_Engine is
+       "math_macros.adb", "math_expander.ads", "math_expander.adb",
+       "math_builtin_macros.ads", "math_builtin_macros.adb",
+       "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
+-      "math_syntax.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
++      "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+       "math_stretchy.ads", "math_stretchy.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+diff --git a/test/native/math_export.gpr b/test/native/math_export.gpr
+index 9989121..66b3c45 100644
+--- a/test/native/math_export.gpr
++++ b/test/native/math_export.gpr
+@@ -7,7 +7,7 @@ project Math_Export is
+      ("math_model.ads", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+       "math_stretchy.ads", "math_stretchy.adb",
+       "math_semantics.ads", "math_semantics.adb",
+-      "math_syntax.ads", "math_syntax.adb",
++      "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_geometry.gpr b/test/native/math_geometry.gpr
+index 1ec5891..4132070 100644
+--- a/test/native/math_geometry.gpr
++++ b/test/native/math_geometry.gpr
+@@ -4,7 +4,7 @@ project Math_Geometry is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_operators.gpr b/test/native/math_operators.gpr
+index d9742e5..86ff1d7 100644
+--- a/test/native/math_operators.gpr
++++ b/test/native/math_operators.gpr
+@@ -11,7 +11,7 @@ project Math_Operators is
+       "math_expander.ads", "math_expander.adb",
+       "math_builtin_macros.ads", "math_builtin_macros.adb",
+       "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
+-      "math_syntax.adb", "math_paths.ads", "math_paths.adb",
++      "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb", "math_paths.ads", "math_paths.adb",
+       "math_radical_paths.ads", "math_radical_paths.adb",
+       "math_stretchy.ads", "math_stretchy.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_primitives.gpr b/test/native/math_primitives.gpr
+index 7fb7835..5d8069e 100644
+--- a/test/native/math_primitives.gpr
++++ b/test/native/math_primitives.gpr
+@@ -4,7 +4,7 @@ project Math_Primitives is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_radical.gpr b/test/native/math_radical.gpr
+index a983a98..13f664c 100644
+--- a/test/native/math_radical.gpr
++++ b/test/native/math_radical.gpr
+@@ -4,7 +4,7 @@ project Math_Radical is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/math_semantics.gpr b/test/native/math_semantics.gpr
+index d0dd27e..64a5b06 100644
+--- a/test/native/math_semantics.gpr
++++ b/test/native/math_semantics.gpr
+@@ -8,7 +8,7 @@ project Math_Semantics is
+       "math_unicode.ads", "math_unicode.adb", "math_tokens.ads", "math_tokens.adb", "math_macros.ads",
+       "math_macros.adb", "math_expander.ads", "math_expander.adb",
+       "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
+-      "math_syntax.adb", "math_metrics.ads", "math_metrics.adb",
++      "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb", "math_metrics.ads", "math_metrics.adb",
+       "math_font_data.ads", "math_font_data.adb",
+       "math_paths.ads", "math_paths.adb",
+       "math_stretchy.ads", "math_stretchy.adb",
+diff --git a/test/native/math_tags_probe.gpr b/test/native/math_tags_probe.gpr
+index 28a9268..6d489f6 100644
+--- a/test/native/math_tags_probe.gpr
++++ b/test/native/math_tags_probe.gpr
+@@ -4,7 +4,7 @@ project Math_Tags_Probe is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
+       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
+diff --git a/test/native/native_math.gpr b/test/native/native_math.gpr
+index e7287d1..9601dd0 100644
+--- a/test/native/native_math.gpr
++++ b/test/native/native_math.gpr
+@@ -3,7 +3,7 @@ project Native_Math is
+    for Languages use ("Ada");
+    for Source_Dirs use ("../../src/coyote_math", "../tools");
+    for Source_Files use
+-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
++     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
+       "math_text_shaping.ads", "math_text_shaping.adb",
+       "math_layout.ads", "math_layout.adb",
+       "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+diff --git a/test/tools/check-math-shaping-lifecycle.sh b/test/tools/check-math-shaping-lifecycle.sh
+index 243ab76..abf5f77 100755
+--- a/test/tools/check-math-shaping-lifecycle.sh
++++ b/test/tools/check-math-shaping-lifecycle.sh
+@@ -2,53 +2,56 @@
+ set -u
+ repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ out=${MATH_SHAPING_LIFECYCLE_ROOT:-${TMPDIR:-/tmp}/coyote-math-shaping-lifecycle}
+-mkdir -p "$out"
++build_root=${MATH_SHAPING_LIFECYCLE_BUILD_ROOT:-$out/build}
++mkdir -p "$out" "$build_root"
+ cd "$repo"
+-if ! MATH_SHAPING_LIFECYCLE_ROOT="$out/build" alr exec -- gprbuild -p \
++if ! MATH_SHAPING_LIFECYCLE_ROOT="$build_root" alr exec -- gprbuild -p \
+    -P test/native/math_shaping_lifecycle.gpr > "$out/build.log" 2>&1; then
+    cat "$out/build.log" >&2
+    exit 1
+ fi
+-probe="$out/build/bin/math_shaping_lifecycle_probe"
++probe="$build_root/bin/math_shaping_lifecycle_probe"
++summary="$out/summary.csv"
++printf 'count,mode,teardown,exit_status,definitely_lost,indirectly_lost,possibly_lost,error_summary\n' > "$summary"
+ failed=0
+-baseline=
+-for mode in measure draw; do
+-   for count in 1 10 100; do
+-      log="$out/valgrind-$mode-$count.log"
+-      printf 'Valgrind %s count=%s\n' "$mode" "$count"
+-      if [ "$mode" = draw ]; then
+-         valgrind --leak-check=full --show-leak-kinds=all \
+-            --num-callers=30 --error-exitcode=1 \
+-            "$probe" "$count" draw > "$log" 2>&1
++for mode in baseline measure draw; do
++   for teardown in none teardown; do
++      for count in 1 10 100; do
++         log="$out/valgrind-$mode-$count-$teardown.log"
++         printf 'Valgrind mode=%s count=%s teardown=%s\n' \
++            "$mode" "$count" "$teardown"
++         if [ "$teardown" = teardown ]; then
++            valgrind --leak-check=full --show-leak-kinds=all \
++               --num-callers=40 --error-exitcode=1 \
++               "$probe" "$count" "$mode" teardown > "$log" 2>&1
++         else
++            valgrind --leak-check=full --show-leak-kinds=all \
++               --num-callers=40 --error-exitcode=1 \
++               "$probe" "$count" "$mode" > "$log" 2>&1
++         fi
+          status=$?
+-      else
+-         valgrind --leak-check=full --show-leak-kinds=all \
+-            --num-callers=30 --error-exitcode=1 \
+-            "$probe" "$count" > "$log" 2>&1
+-         status=$?
+-      fi
+-      grep '^iterations=' "$log" || failed=1
+-      summary=$(sed -n '/LEAK SUMMARY:/,/ERROR SUMMARY:/p' "$log" |
+-         grep -E 'definitely lost:|indirectly lost:|possibly lost:' |
+-         sed 's/^==[^=]*== //')
+-      printf '%s\n' "$summary"
+-      definite=$(printf '%s\n' "$summary" | grep 'definitely lost:' || :)
+-      indirect=$(printf '%s\n' "$summary" | grep 'indirectly lost:' || :)
+-      current="$definite|$indirect"
+-      if [ -z "$baseline" ]; then
+-         baseline=$current
+-      elif [ "$current" != "$baseline" ]; then
+-         printf 'definite/indirect leak counts changed: %s\n' "$log" >&2
+-         failed=1
+-      fi
+-      grep 'ERROR SUMMARY:' "$log" | tail -1
+-      if [ "$status" -ne 0 ]; then
+-         printf 'Strict Valgrind errors: %s\n' "$log" >&2
+-         failed=1
+-      fi
++         record=$(grep '^LIFECYCLE_SUMMARY,' "$log" | tail -1)
++         if [ -z "$record" ]; then
++            printf 'missing probe summary: %s\n' "$log" >&2
++            failed=1
++         else
++            printf '%s\n' "$record"
++         fi
++         lost=$(sed -n '/LEAK SUMMARY:/,/ERROR SUMMARY:/p' "$log" |
++            grep -E 'definitely lost:|indirectly lost:|possibly lost:' |
++            sed 's/^==[^=]*== //' | tr '\n' ';')
++         errors=$(grep 'ERROR SUMMARY:' "$log" | tail -1 | sed 's/^==[^=]*== //')
++         printf '%s,%s,%s,%s,"%s","%s","%s","%s"\n' \
++            "$count" "$mode" "$teardown" "$status" \
++            "$(printf '%s' "$lost" | sed -n 's/.*\(definitely lost:[^;]*\).*/\1/p')" \
++            "$(printf '%s' "$lost" | sed -n 's/.*\(indirectly lost:[^;]*\).*/\1/p')" \
++            "$(printf '%s' "$lost" | sed -n 's/.*\(possibly lost:[^;]*\).*/\1/p')" "$errors" >> "$summary"
++         [ "$status" -eq 0 ] || failed=1
++         grep 'ERROR SUMMARY:' "$log" | tail -1
++         printf 'Full log: %s\n' "$log"
++      done
+    done
+ done
+-printf 'Fixed definite/indirect baseline: %s\n' "$baseline"
+-printf 'Build log: %s/build.log\nValgrind logs: %s/valgrind-*.log\n' \
+-   "$out" "$out"
++printf 'Machine-readable summary: %s\n' "$summary"
++printf 'Build log: %s/build.log\nBuild root: %s\n' "$out" "$build_root"
+ exit "$failed"
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index d8fba51..667c273 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -112,6 +112,70 @@ begin
+    end;
+    Check (Font_Directory'Length > 0, "trusted font directory supplied");
+    Jobs.Start (Paused => True);
++   declare
++      Failed_Font_Id : Jobs.Request_Id;
++      Recovery_Id : Jobs.Request_Id;
++      Failed_Font_Status : Jobs.Job_Status;
++      Recovery_Status : Jobs.Job_Status;
++      Failed_Font_Result : Jobs.Result_Access;
++      Recovery_Result : Jobs.Result_Access;
++      Missing_Font_Directory : constant String :=
++        "/tmp/coyote-parser-budget-jobs-missing-fonts";
++   begin
++      Jobs.Submit ("x+y", Failed_Font_Id, 300,
++        Math_Layout.Display_Style, Status => Failed_Font_Status,
++        Request_Raster => True, Em_Pixels => 24.0,
++        Font_Directory => Missing_Font_Directory);
++      Check (Failed_Font_Status = Jobs.Pending,
++        "missing-font request queues after valid request checks");
++      Jobs.Resume;
++      for Wait in 1 .. 400 loop
++         Jobs.Poll
++           (Failed_Font_Id, 300, Failed_Font_Status, Failed_Font_Result);
++         exit when Failed_Font_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Failed_Font_Status = Jobs.Failed and
++        Failed_Font_Result /= null,
++        "post-parse font load failure returns failed result");
++      if Failed_Font_Result /= null then
++         Check (Jobs.Parse_Workspace_Peak_Bytes
++           (Failed_Font_Result.all) > 0,
++           "font-load failure preserves parser workspace peak");
++         Check (Jobs.Raster_Workspace_Peak_Bytes
++           (Failed_Font_Result.all) = 0 and
++           Jobs.Pipeline_Workspace_Peak_Bytes
++             (Failed_Font_Result.all) =
++               Jobs.Parse_Workspace_Peak_Bytes
++                 (Failed_Font_Result.all),
++           "font-load failure reports parse-only pipeline peak");
++         Check (not Jobs.Has_Raster (Failed_Font_Result.all) and
++           Jobs.Raster_Width (Failed_Font_Result.all) = 0 and
++           Jobs.Raster_Height (Failed_Font_Result.all) = 0 and
++           Jobs.Raster_Retained_Bytes (Failed_Font_Result.all) = 0 and
++           Math_Raster_Budget.Used = 0,
++           "font-load failure retains no pixels or raster charge");
++         Jobs.Release (Failed_Font_Result);
++      end if;
++      Jobs.Submit ("x+y", Recovery_Id, 300,
++        Math_Layout.Display_Style, Status => Recovery_Status,
++        Request_Raster => True, Em_Pixels => 24.0,
++        Font_Directory => Font_Directory);
++      Check (Recovery_Status = Jobs.Pending,
++        "valid font recovery request queues");
++      for Wait in 1 .. 400 loop
++         Jobs.Poll (Recovery_Id, 300, Recovery_Status, Recovery_Result);
++         exit when Recovery_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Recovery_Status = Jobs.Valid and Recovery_Result /= null,
++        "valid raster job recovers after font-load failure");
++      if Recovery_Result /= null then
++         Jobs.Release (Recovery_Result);
++      end if;
++      Check (Math_Raster_Budget.Used = 0,
++        "font failure and recovery leave raster ledger empty");
++   end;
+    declare
+       Red_Id : Jobs.Request_Id;
+       Bad_Id : Jobs.Request_Id;
+@@ -367,6 +431,11 @@ begin
+            "exact source retained");
+          Check (Math_Syntax.Is_Valid (Jobs.Parse_Document (R.all)),
+            "parsed document retained");
++         Check (Jobs.Parse_Workspace_Peak_Bytes (R.all) > 0,
++           "non-raster job reports parser workspace peak");
++         Check (Jobs.Pipeline_Workspace_Peak_Bytes (R.all) =
++           Jobs.Parse_Workspace_Peak_Bytes (R.all),
++           "non-raster pipeline peak equals parser-only peak");
+          Check (Jobs.Layout (R.all).Valid and then
+            Jobs.Layout (R.all).Commands.Length > 0,
+            "layout output retained");
+@@ -748,6 +817,11 @@ begin
+          Check (Jobs.Raster_Workspace_Peak_Bytes (Exact_Result.all) =
+            Needed * 2,
+            "worker accounts overlapping Cairo and exported pixels");
++         Check (Jobs.Pipeline_Workspace_Peak_Bytes (Exact_Result.all) =
++           Natural'Max
++             (Jobs.Parse_Workspace_Peak_Bytes (Exact_Result.all),
++              Jobs.Raster_Workspace_Peak_Bytes (Exact_Result.all)),
++           "tiny raster pipeline peak is the max of isolated phase peaks");
+          Check (Jobs.Has_Raster (Exact_Result.all) and
+            Jobs.Raster_Width (Exact_Result.all) = Tiny_Bounds.Width and
+            Jobs.Raster_Height (Exact_Result.all) = Tiny_Bounds.Height and
+diff --git a/test/tools/math_memory_budget_probe.adb b/test/tools/math_memory_budget_probe.adb
+index 0a2ba10..23c9339 100644
+--- a/test/tools/math_memory_budget_probe.adb
++++ b/test/tools/math_memory_budget_probe.adb
+@@ -86,6 +86,28 @@ begin
+    Check (Used (Small) = 0 and then Bytes (Owner) = 0, "zero");
+    Reserve (Owner, Small'Unchecked_Access, 10);
+    Check (Used (Small) = 10 and then Peak (Small) = 10, "exact fit");
++   Reset_Peak (Small);
++   Check (Used (Small) = 10 and then Peak (Small) = 10,
++          "reset preserves active charge as baseline");
++   Expect_Exceeded (Owner, Small'Unchecked_Access, 11);
++   Reserve (Owner, Small'Unchecked_Access, 9);
++   Check (Used (Small) = 9 and then Peak (Small) = 10,
++          "rejected resize then shrink preserves reset peak");
++   Reserve (Owner, Small'Unchecked_Access, 10);
++   Check (Peak (Small) = 10, "growth records peak after reset");
++   Reset_Peak (Small);
++   Check (Used (Small) = 10 and then Peak (Small) = 10,
++          "second reset remains at active charge");
++   Release (Owner);
++   Reset_Peak (Small);
++   Check (Used (Small) = 0 and then Peak (Small) = 0,
++          "zero-current reset");
++   Reserve (Owner, Small'Unchecked_Access, 3);
++   Check (Peak (Small) = 3 and then Peak (Other) = 0,
++          "reset window and independent ledger");
++   Release (Owner);
++   Reset_Peak (Small);
++   Reserve (Owner, Small'Unchecked_Access, 10);
+    Expect_Exceeded (Owner, Small'Unchecked_Access, 11);
+    Check (Used (Small) = 10 and then Bytes (Owner) = 10,
+           "failed resize preserve");
+diff --git a/test/tools/math_shaping_lifecycle_probe.adb b/test/tools/math_shaping_lifecycle_probe.adb
+index 52e5e89..1c8a5e6 100644
+--- a/test/tools/math_shaping_lifecycle_probe.adb
++++ b/test/tools/math_shaping_lifecycle_probe.adb
+@@ -8,68 +8,113 @@ with Math_Model;
+ with Math_Text_Shaping;
+ 
+ procedure Math_Shaping_Lifecycle_Probe is
++   use type Cairo.Cairo_Context;
++   use type Cairo.Cairo_Surface;
+    use type Interfaces.Unsigned_64;
+-   Count : Natural := 1;
+-   Draw_Enabled : Boolean := False;
+-   Checksum : Long_Float := 0.0;
+-   Metric_Hash : Interfaces.Unsigned_64 := 1_469_598_103_934_665_603;
+-   Last_Metrics : Math_Text_Shaping.Metrics;
+-   Surface : Cairo.Cairo_Surface := Cairo.Image_Surface.Create
+-     (Cairo.Image_Surface.Cairo_Format_ARGB32, 32, 32);
+-   Context : Cairo.Cairo_Context := Cairo.Create (Surface);
++
++   procedure Reset_Cairo_Caches
++     with Import, Convention => C,
++       External_Name => "cairo_debug_reset_static_data";
++   procedure Finish_Fontconfig
++     with Import, Convention => C, External_Name => "FcFini";
++
++   Count          : Natural := 1;
++   Mode           : constant String :=
++     (if Ada.Command_Line.Argument_Count >= 2 then
++         Ada.Command_Line.Argument (2)
++      else
++         "");
++   Draw_Enabled   : Boolean := False;
++   Teardown       : Boolean := False;
++   Checksum       : Long_Float := 0.0;
++   Metric_Hash    : Interfaces.Unsigned_64 := 1_469_598_103_934_665_603;
++   Last_Metrics   : Math_Text_Shaping.Metrics;
++   Surface        : Cairo.Cairo_Surface := Cairo.Null_Surface;
++   Context        : Cairo.Cairo_Context := Cairo.Null_Context;
++
++   procedure Release_Cairo_Owners is
++   begin
++      if Context /= Cairo.Null_Context then
++         Cairo.Destroy (Context);
++         Context := Cairo.Null_Context;
++      end if;
++      if Surface /= Cairo.Null_Surface then
++         Cairo.Surface_Destroy (Surface);
++         Surface := Cairo.Null_Surface;
++      end if;
++   end Release_Cairo_Owners;
++
++   procedure Run_Shaping is
++   begin
++      for Iteration in 1 .. Count loop
++         Last_Metrics := Math_Text_Shaping.Measure
++           ("Ж", Math_Model.Cyrillic_Fallback);
++         if Last_Metrics.Advance <= 0.0 or else
++           Last_Metrics.Ascent <= 0.0 or else Last_Metrics.Descent < 0.0
++         then
++            raise Program_Error with "unexpected Cyrillic metrics";
++         end if;
++         Checksum := Checksum + Last_Metrics.Advance +
++           Last_Metrics.Ascent + Last_Metrics.Descent;
++         Metric_Hash := Metric_Hash * 1_099_511_628_211 +
++           Interfaces.Unsigned_64 (Last_Metrics.Advance * 1_000_000.0) +
++           Interfaces.Unsigned_64 (Last_Metrics.Ascent * 1_000_000.0) * 3 +
++           Interfaces.Unsigned_64 (Last_Metrics.Descent * 1_000_000.0) * 7;
++         if Draw_Enabled then
++            Math_Text_Shaping.Draw
++              (Context, "Ж", Math_Model.Cyrillic_Fallback,
++               1.0, 20.0, 16.0, 1.0);
++         end if;
++      end loop;
++   end Run_Shaping;
++
+ begin
+-   if Ada.Command_Line.Argument_Count < 1 or else
+-     Ada.Command_Line.Argument_Count > 2
++   if Ada.Command_Line.Argument_Count < 2 or else
++     Ada.Command_Line.Argument_Count > 4
+    then
+-      raise Constraint_Error with "usage: probe COUNT [draw]";
++      raise Constraint_Error with
++        "usage: probe COUNT baseline|measure|draw [teardown]";
+    end if;
+    Count := Natural'Value (Ada.Command_Line.Argument (1));
+    if Count = 0 or else Count > 1_000 then
+       raise Constraint_Error with "COUNT must be in 1 .. 1000";
+    end if;
+-   if Ada.Command_Line.Argument_Count = 2 then
+-      if Ada.Command_Line.Argument (2) /= "draw" then
+-         raise Constraint_Error with "optional mode must be draw";
+-      end if;
+-      Draw_Enabled := True;
++   if Mode /= "baseline" and then Mode /= "measure" and then Mode /= "draw" then
++      raise Constraint_Error with "mode must be baseline, measure, or draw";
+    end if;
+-
+-   for Iteration in 1 .. Count loop
+-      Last_Metrics := Math_Text_Shaping.Measure
+-        ("Ж", Math_Model.Cyrillic_Fallback);
+-      if Last_Metrics.Advance <= 0.0 or else
+-        Last_Metrics.Ascent <= 0.0 or else Last_Metrics.Descent < 0.0
+-      then
+-         raise Program_Error with "unexpected Cyrillic metrics";
+-      end if;
+-      Checksum := Checksum + Last_Metrics.Advance + Last_Metrics.Ascent +
+-        Last_Metrics.Descent;
+-      Metric_Hash := Metric_Hash * 1_099_511_628_211 +
+-        Interfaces.Unsigned_64 (Last_Metrics.Advance * 1_000_000.0) +
+-        Interfaces.Unsigned_64 (Last_Metrics.Ascent * 1_000_000.0) * 3 +
+-        Interfaces.Unsigned_64 (Last_Metrics.Descent * 1_000_000.0) * 7;
+-      if Draw_Enabled then
+-         Math_Text_Shaping.Draw
+-           (Context, "Ж", Math_Model.Cyrillic_Fallback,
+-            1.0, 20.0, 16.0, 1.0);
++   if Ada.Command_Line.Argument_Count >= 3 then
++      if Ada.Command_Line.Argument (3) /= "teardown" then
++         raise Constraint_Error with "optional mode must be teardown";
+       end if;
+-   end loop;
+-
++      Teardown := True;
++   end if;
++   if Ada.Command_Line.Argument_Count = 4 then
++      raise Constraint_Error with "too many arguments";
++   end if;
++   Draw_Enabled := Mode = "draw";
++   if Mode /= "baseline" then
++      Surface := Cairo.Image_Surface.Create
++        (Cairo.Image_Surface.Cairo_Format_ARGB32, 32, 32);
++      Context := Cairo.Create (Surface);
++      Run_Shaping;
++   end if;
++   Release_Cairo_Owners;
++   if Teardown then
++      --  Test-only global cleanup; never use in production or concurrent clients.
++      Reset_Cairo_Caches;
++      Finish_Fontconfig;
++   end if;
+    Ada.Text_IO.Put_Line
+-     ("iterations=" & Natural'Image (Count) &
+-      " draw=" & Boolean'Image (Draw_Enabled) &
+-      " text_bytes=2 glyph_width=" & Long_Float'Image
+-        (Last_Metrics.Advance) & " ascent=" & Long_Float'Image
+-        (Last_Metrics.Ascent) & " descent=" & Long_Float'Image
+-        (Last_Metrics.Descent) & " metric_hash=" &
+-        Interfaces.Unsigned_64'Image (Metric_Hash) & " checksum=" &
+-        Long_Float'Image (Checksum));
+-   Cairo.Destroy (Context);
+-   Cairo.Surface_Destroy (Surface);
++     ("LIFECYCLE_SUMMARY,iterations=" & Natural'Image (Count) &
++      ",mode=" & Mode & ",teardown=" & Boolean'Image (Teardown) &
++      ",text_bytes=" & (if Mode = "baseline" then "0" else "2") &
++      ",metric_hash=" & Interfaces.Unsigned_64'Image (Metric_Hash) &
++      ",checksum=" & Long_Float'Image (Checksum));
+ exception
+    when Error : others =>
++      Release_Cairo_Owners;
+       Ada.Text_IO.Put_Line
+-        (Ada.Text_IO.Standard_Error, Ada.Exceptions.Exception_Information
+-           (Error));
++        (Ada.Text_IO.Standard_Error,
++         Ada.Exceptions.Exception_Information (Error));
+       Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+ end Math_Shaping_Lifecycle_Probe;
+diff --git a/test/native/math_parser_memory.gpr b/test/native/math_parser_memory.gpr
+new file mode 100644
+index 0000000..d0358d9
+--- /dev/null
++++ b/test/native/math_parser_memory.gpr
+@@ -0,0 +1,30 @@
++project Math_Parser_Memory is
++   for Languages use ("Ada");
++   for Source_Dirs use ("../../src/coyote_math", "../tools");
++   for Source_Files use
++     ("math_model.ads", "math_work_control.ads", "math_work_control.adb",
++      "math_memory_budget.ads", "math_memory_budget.adb",
++      "math_source.ads", "math_source.adb",
++      "math_unicode.ads", "math_unicode.adb",
++      "math_tokens.ads", "math_tokens.adb",
++      "math_macros.ads", "math_macros.adb",
++      "math_expander.ads", "math_expander.adb",
++      "math_builtin_macros.ads", "math_builtin_macros.adb",
++      "math_symbols.ads", "math_symbols.adb",
++      "math_metrics.ads", "math_metrics.adb",
++      "math_font_data.ads", "math_font_data.adb",
++      "math_stretchy.ads", "math_stretchy.adb",
++      "math_paths.ads", "math_paths.adb",
++      "math_radical_paths.ads", "math_radical_paths.adb",
++      "math_syntax.ads", "math_syntax.adb",
++      "math_parser_memory_probe.adb");
++   for Object_Dir use External ("MATH_PARSER_MEMORY_ROOT") & "/obj";
++   for Exec_Dir use External ("MATH_PARSER_MEMORY_ROOT") & "/bin";
++   for Create_Missing_Dirs use "True";
++   for Main use ("math_parser_memory_probe.adb");
++
++   package Compiler is
++      for Default_Switches ("Ada") use
++        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
++   end Compiler;
++end Math_Parser_Memory;
+diff --git a/test/tools/check-math-parser-memory.sh b/test/tools/check-math-parser-memory.sh
+new file mode 100755
+index 0000000..57163bb
+--- /dev/null
++++ b/test/tools/check-math-parser-memory.sh
+@@ -0,0 +1,17 @@
++#!/bin/sh
++set -eu
++repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
++out=${MATH_PARSER_MEMORY_ROOT:-${TMPDIR:-/tmp}/coyote-math-parser-memory}
++mkdir -p "$out"
++cd "$repo"
++MATH_PARSER_MEMORY_ROOT="$out" alr exec -- gprbuild -p \
++    -P test/native/math_parser_memory.gpr > "$out/build.log" 2>&1 || {
++    cat "$out/build.log" >&2
++    exit 1
++}
++"$out/bin/math_parser_memory_probe" > "$out/probe.log" 2>&1 || {
++    cat "$out/probe.log" >&2
++    exit 1
++}
++cat "$out/probe.log"
++printf 'Build log: %s/build.log\nProbe log: %s/probe.log\n' "$out" "$out"
+diff --git a/test/tools/math_parser_memory_probe.adb b/test/tools/math_parser_memory_probe.adb
+new file mode 100644
+index 0000000..eef087b
+--- /dev/null
++++ b/test/tools/math_parser_memory_probe.adb
+@@ -0,0 +1,395 @@
++with Ada.Exceptions;
++with Ada.Text_IO;
++with Math_Macros;
++with Math_Memory_Budget;
++with Math_Source;
++with Math_Syntax;
++with Math_Tokens;
++with Math_Unicode;
++with Math_Work_Control;
++
++procedure Math_Parser_Memory_Probe is
++   use Math_Memory_Budget;
++   use type Math_Source.Diagnostic_Kind;
++   use type Math_Tokens.Diagnostic_Kind;
++   use type Math_Work_Control.Stop_Reason;
++
++   Poll_Count : Natural := 0;
++   Stop_After : Natural := 0;
++   type Countdown_Work is new Math_Work_Control.Context with record
++      Reason : Math_Work_Control.Stop_Reason :=
++        Math_Work_Control.Cancel_Requested;
++   end record;
++   overriding function Check
++     (Item : Countdown_Work) return Math_Work_Control.Stop_Reason;
++   overriding function Check
++     (Item : Countdown_Work) return Math_Work_Control.Stop_Reason is
++   begin
++      Poll_Count := Poll_Count + 1;
++      if Poll_Count >= Stop_After then
++         return Item.Reason;
++      end if;
++      return Math_Work_Control.Continue_Work;
++   end Check;
++
++   type Fixed_Work is new Math_Work_Control.Context with record
++      Reason : Math_Work_Control.Stop_Reason :=
++        Math_Work_Control.Continue_Work;
++   end record;
++   overriding function Check
++     (Item : Fixed_Work) return Math_Work_Control.Stop_Reason;
++   overriding function Check
++     (Item : Fixed_Work) return Math_Work_Control.Stop_Reason is
++   begin
++      return Item.Reason;
++   end Check;
++
++   Checks : Natural := 0;
++   Failures : Natural := 0;
++
++   procedure Check (Condition : Boolean; Label : String) is
++   begin
++      Checks := Checks + 1;
++      if Condition then
++         Ada.Text_IO.Put_Line ("ok " & Label);
++      else
++         Failures := Failures + 1;
++         Ada.Text_IO.Put_Line ("FAIL " & Label);
++      end if;
++   end Check;
++
++   procedure Parse_Expect_Budget
++     (Text : String; Account : not null Budget_Access;
++      Rejected : out Boolean; Shared : access Math_Macros.Context := null) is
++   begin
++      Rejected := False;
++      begin
++         if Shared = null then
++            declare
++               Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++                 (Text, Memory => Account);
++               pragma Unreferenced (Parsed);
++            begin
++               null;
++            end;
++         else
++            declare
++               Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++                 (Text, Shared, Memory => Account);
++               pragma Unreferenced (Parsed);
++            begin
++               null;
++            end;
++         end if;
++      exception
++         when Budget_Exceeded =>
++            Rejected := True;
++      end;
++   end Parse_Expect_Budget;
++
++   function UTF8 (Code_Point : Natural) return String is
++   begin
++      if Code_Point < 16#80# then
++         return String'(1 => Character'Val (Code_Point));
++      elsif Code_Point < 16#800# then
++         return Character'Val (16#C0# + Code_Point / 64) &
++           Character'Val (16#80# + Code_Point mod 64);
++      else
++         return Character'Val (16#E0# + Code_Point / 4_096) &
++           Character'Val (16#80# + (Code_Point / 64) mod 64) &
++           Character'Val (16#80# + Code_Point mod 64);
++      end if;
++   end UTF8;
++
++   procedure Check_Lex_Bound (Text : String; Label : String) is
++      Source : Math_Source.Source;
++      Source_Diagnostic : Math_Source.Diagnostic_Kind;
++      Lexical_Diagnostic : Math_Tokens.Diagnostic_Kind;
++      Error_Byte : Natural;
++      Tokens : Math_Tokens.Stream;
++      Bound : Natural;
++   begin
++      Math_Source.Create (Text, Source, Source_Diagnostic, Error_Byte);
++      Check (Source_Diagnostic = Math_Source.No_Error,
++        Label & " source creation");
++      if Source_Diagnostic = Math_Source.No_Error then
++         Math_Tokens.Lex
++           (Source, Tokens, Lexical_Diagnostic, Error_Byte);
++         Bound := Math_Tokens.Transformation_Token_Bound (Text'Length);
++         Check (Lexical_Diagnostic = Math_Tokens.No_Error and then
++           Math_Tokens.Count (Tokens) <= Bound,
++           Label & " token count within transformation bound");
++         Check (Math_Tokens.Vector_Storage_Bytes (Tokens) =
++           Bound * (Math_Tokens.Token'Size / 8),
++           Label & " vector retains reserved bound capacity");
++      end if;
++   end Check_Lex_Bound;
++
++   procedure Check_Decomposition_Table is
++      Entries : Natural := 0;
++   begin
++      for Code_Point in 16#80# .. 16#3FF# loop
++         if Math_Unicode.Lookup_Decomposition (Code_Point)'Length > 0 then
++            Entries := Entries + 1;
++            Check_Lex_Bound (UTF8 (Code_Point),
++              "decomposition U+" & Natural'Image (Code_Point));
++         end if;
++      end loop;
++      Check (Entries > 0, "Latin and Greek decomposition entries discovered");
++   end Check_Decomposition_Table;
++
++   procedure Check_Parse_Status
++     (Text : String; Expected_Valid : Boolean; Label : String) is
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse (Text);
++   begin
++      Check (Math_Syntax.Is_Valid (Parsed) = Expected_Valid, Label);
++   end Check_Parse_Status;
++
++   Source_Text : constant String := "x + \alpha + y^2";
++   Lexical_Work_Text : constant String := (1 .. 4_096 => 'x');
++   Measured_Peak : Natural := 0;
++   Rejected : Boolean;
++   Delayed_Stop : aliased Countdown_Work;
++   Deadline_Stop : aliased Fixed_Work :=
++     (Reason => Math_Work_Control.Deadline_Reached);
++
++begin
++   Check_Lex_Bound (UTF8 (16#390#), "precomposed U+0390 two-mark scalar");
++   Check_Lex_Bound ("x" & UTF8 (16#301#), "combining acute wrapper");
++   Check_Lex_Bound ("xₓ⁺", "subscript and superscript wrappers");
++   Check_Decomposition_Table;
++   Check_Parse_Status ("x + α", True, "known valid Unicode parse status");
++   Check_Parse_Status ("{x", False, "known invalid parse status");
++   Check_Parse_Status
++     ("x" & Character'Val (16#C0#) & Character'Val (16#AF#), False,
++      "known invalid UTF-8 parse status");
++   declare
++      Measure : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Source_Text, Memory => Measure'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Measured_Peak := Peak (Measure);
++      Check (Measured_Peak > 0 and Used (Measure) = 0,
++        "successful stage reservations release at parser return");
++   end;
++   Check (Measured_Peak > 1,
++     "measured peak leaves room for one-byte-short budget");
++
++   declare
++      Exact : aliased Budget (Limit => Measured_Peak);
++      Short : aliased Budget (Limit => Measured_Peak - 1);
++      Blocked : aliased Budget (Limit => Measured_Peak);
++      Held : Reservation;
++   begin
++      Parse_Expect_Budget
++        (Source_Text, Exact'Unchecked_Access, Rejected);
++      Check (not Rejected and Used (Exact) = 0 and
++        Peak (Exact) = Measured_Peak, "measured peak exact fit");
++      Parse_Expect_Budget
++        (Source_Text, Short'Unchecked_Access, Rejected);
++      Check (Rejected and Used (Short) = 0,
++        "one-byte-short pre-admission rejects without charge leak");
++      Reserve (Held, Blocked'Unchecked_Access, 1);
++      Parse_Expect_Budget
++        (Source_Text, Blocked'Unchecked_Access, Rejected);
++      Check (Rejected and Used (Blocked) = 1,
++        "held charge overlaps parser reservation on rejection");
++      Release (Held);
++      Parse_Expect_Budget
++        (Source_Text, Blocked'Unchecked_Access, Rejected);
++      Check (not Rejected and Used (Blocked) = 0,
++        "budget reusable after overlap rejection");
++   end;
++
++   declare
++      Context : aliased Math_Macros.Context;
++      Short : aliased Budget (Limit => Measured_Peak - 1);
++      Depth : constant Natural := Math_Macros.Scope_Depth (Context);
++   begin
++      Parse_Expect_Budget
++        ("\def\localOnly{x}x", Short'Unchecked_Access,
++         Rejected, Context'Access);
++      Check (Rejected and Math_Macros.Scope_Depth (Context) = Depth and
++        not Math_Macros.Is_Defined (Context, "\localOnly"),
++        "pre-parse budget rejection leaves macro scope untouched; post-group rollback untested");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        ("\verb|x", Memory => Account'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Check (Used (Account) = 0,
++        "lexical failure releases source and token reservations");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        ("{x", Memory => Account'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Check (Used (Account) = 0,
++        "syntax failure releases source and token reservations");
++   end;
++
++   declare
++      Invalid : constant String :=
++        "x" & Character'Val (16#C0#) & Character'Val (16#AF#);
++      Map_Bound : constant Natural :=
++        Math_Source.Map_Storage_Bound (Invalid'Length);
++      Exact : aliased Budget (Limit => Map_Bound);
++      Short : aliased Budget (Limit => Map_Bound - 1);
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Invalid, Memory => Exact'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Check (Peak (Exact) = Map_Bound and Used (Exact) = 0,
++        "source-map stage admits exact predicted bound");
++      declare
++         Rejected_Source : Boolean := False;
++      begin
++         begin
++            declare
++               Failed_Parse : constant Math_Syntax.Document :=
++                 Math_Syntax.Parse (Invalid, Memory => Short'Unchecked_Access);
++               pragma Unreferenced (Failed_Parse);
++            begin
++               null;
++            end;
++         exception
++            when Budget_Exceeded => Rejected_Source := True;
++         end;
++         Check (Rejected_Source and Used (Short) = 0,
++           "source-map stage rejects one byte below bound");
++      end;
++   end;
++
++   declare
++      Account : aliased Budget;
++      Work : constant Math_Work_Control.Context_Access :=
++        Delayed_Stop'Unchecked_Access;
++      Raised : Boolean := False;
++   begin
++      Poll_Count := 0;
++      Stop_After := Lexical_Work_Text'Length + 4;
++      begin
++         declare
++            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Lexical_Work_Text, Work => Work,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Parsed);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Stop_Requested => Raised := True;
++      end;
++      Check (Raised and Poll_Count = Stop_After and Used (Account) = 0,
++        "lexical cancellation after token allocation releases reservations");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Work : constant Math_Work_Control.Context_Access :=
++        Deadline_Stop'Unchecked_Access;
++      Raised : Boolean := False;
++   begin
++      begin
++         declare
++            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Source_Text, Work => Work, Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Parsed);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Deadline_Expired => Raised := True;
++      end;
++      Check (Raised and Used (Account) = 0,
++        "deadline propagates and releases reservations");
++   end;
++
++   declare
++      Unicode : constant String := "αβ😀";
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Unicode, Memory => Account'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Check (Peak (Account) > 0 and Used (Account) = 0,
++        "multibyte source admission and cleanup");
++   end;
++
++   declare
++      Expanded_Unicode : constant String := "éx" & Character'Val (16#CC#) &
++        Character'Val (16#81#) & "ₓ⁺";
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Expanded_Unicode, Memory => Account'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Check (Peak (Account) > 0 and Used (Account) = 0,
++        "Unicode decomposition, accent, and script expansion cleanup");
++   end;
++
++   declare
++      Worst_Decomposition : constant String :=
++        Character'Val (16#CE#) & Character'Val (16#B9#) &
++        Character'Val (16#CC#) & Character'Val (16#88#) &
++        Character'Val (16#CC#) & Character'Val (16#81#);
++      Stress_Text : constant String :=
++        (1 .. 32 => 'x') & Worst_Decomposition &
++        Character'Val (16#CC#) & Character'Val (16#81#) & "ₓ⁺";
++      Peak_Bytes : Natural;
++   begin
++      declare
++         Measure : aliased Budget;
++         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++           (Stress_Text, Memory => Measure'Unchecked_Access);
++         pragma Unreferenced (Parsed);
++      begin
++         Peak_Bytes := Peak (Measure);
++         Check (Peak_Bytes < 1_048_576 and Used (Measure) = 0,
++           "short worst-case Unicode expansion stays below 1 MiB");
++      end;
++      declare
++         Exact : aliased Budget (Limit => Peak_Bytes);
++         Short : aliased Budget (Limit => Peak_Bytes - 1);
++      begin
++         Parse_Expect_Budget
++           (Stress_Text, Exact'Unchecked_Access, Rejected);
++         Check (not Rejected and Peak (Exact) = Peak_Bytes,
++           "worst-case Unicode expansion exact budget fit");
++         Parse_Expect_Budget
++           (Stress_Text, Short'Unchecked_Access, Rejected);
++         Check (Rejected and Used (Short) = 0,
++           "worst-case Unicode expansion one-byte-short rejection");
++      end;
++   end;
++
++   declare
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        ((1 .. Math_Syntax.Max_Source_Bytes => 'x'),
++         Memory => Account'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++   begin
++      Check (Peak (Account) > 0 and Used (Account) = 0,
++        "maximum-size source control");
++   end;
++
++   Ada.Text_IO.Put_Line
++     ("math_parser_memory_probe: " & Natural'Image (Checks) &
++      " checks; " & Natural'Image (Failures) & " failures; measured peak " &
++      Natural'Image (Measured_Peak) & " bytes");
++   if Failures /= 0 then
++      raise Program_Error with "parser memory checks failed";
++   end if;
++exception
++   when Error : others =>
++      Ada.Text_IO.Put_Line (Ada.Exceptions.Exception_Information (Error));
++      raise;
++end Math_Parser_Memory_Probe;

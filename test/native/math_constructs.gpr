@@ -4,7 +4,7 @@ project Math_Constructs is
    for Languages use ("Ada");
    for Source_Dirs use ("../../src/coyote_math", "../tools");
    for Source_Files use
-     ("math_model.ads", "math_syntax.ads", "math_syntax.adb",
+     ("math_model.ads", "math_syntax.ads", "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb",
       "math_text_shaping.ads", "math_text_shaping.adb",
       "math_layout.ads", "math_layout.adb", "math_metrics.ads",
       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",

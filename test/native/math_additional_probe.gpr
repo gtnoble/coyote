@@ -11,7 +11,7 @@ project Math_Additional_Probe is
       "math_expander.ads", "math_expander.adb",
       "math_builtin_macros.ads", "math_builtin_macros.adb",
       "math_symbols.ads", "math_symbols.adb", "math_syntax.ads",
-      "math_syntax.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
+      "math_syntax.adb", "math_memory_budget.ads", "math_memory_budget.adb", "math_paths.ads", "math_paths.adb", "math_radical_paths.ads", "math_radical_paths.adb",
       "math_stretchy.ads", "math_stretchy.adb", "math_metrics.ads",
       "math_metrics.adb", "math_font_data.ads", "math_font_data.adb",
       "math_text_shaping.ads", "math_text_shaping.adb",

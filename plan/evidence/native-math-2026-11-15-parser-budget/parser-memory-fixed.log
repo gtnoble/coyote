@@ -1,0 +1,20 @@
+ok successful stage reservations release at parser return
+ok measured peak leaves room for one-byte-short budget
+ok measured peak exact fit
+ok one-byte-short pre-admission rejects without charge leak
+ok held charge overlaps parser reservation on rejection
+ok budget reusable after overlap rejection
+ok pre-parse budget rejection leaves macro scope untouched; post-group rollback untested
+ok lexical failure releases source and token reservations
+ok syntax failure releases source and token reservations
+ok source-map stage admits exact predicted bound
+ok source-map stage rejects one byte below bound
+ok lexical cancellation after token allocation releases reservations
+ok deadline propagates and releases reservations
+ok multibyte source admission and cleanup
+ok Unicode decomposition, accent, and script expansion cleanup
+ok short worst-case Unicode expansion stays below 1 MiB
+ok worst-case Unicode expansion exact budget fit
+ok worst-case Unicode expansion one-byte-short rejection
+ok maximum-size source control
+math_parser_memory_probe:  19 checks;  0 failures; measured peak  29580 bytes

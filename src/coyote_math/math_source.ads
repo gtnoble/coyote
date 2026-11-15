@@ -20,6 +20,9 @@ package Math_Source is
       Work       : Math_Work_Control.Context_Access := null);
    function Is_Valid (Item : Source) return Boolean;
    function Text (Item : Source) return String;
+   --  Payload estimate and actual capacity cover only the two offset vectors.
+   function Map_Storage_Bound (Byte_Length : Natural) return Natural;
+   function Map_Storage_Bytes (Item : Source) return Natural;
    function Byte_Length (Item : Source) return Natural;
    function Scalar_Length (Item : Source) return Natural;
    function UTF16_Length (Item : Source) return Natural;

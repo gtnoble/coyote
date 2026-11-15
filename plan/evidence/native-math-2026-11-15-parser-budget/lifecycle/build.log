@@ -1,0 +1,14 @@
+Setup
+   [mkdir]        object directory for project Math_Shaping_Lifecycle
+   [mkdir]        exec directory for project Math_Shaping_Lifecycle
+Compile
+   [Ada]          math_shaping_lifecycle_probe.adb
+   [Ada]          math_model.ads
+   [Ada]          math_text_shaping.adb
+   [Ada]          math_source.adb
+   [Ada]          math_work_control.adb
+Bind
+   [gprbind]      math_shaping_lifecycle_probe.bexch
+   [Ada]          math_shaping_lifecycle_probe.ali
+Link
+   [link]         math_shaping_lifecycle_probe.adb

@@ -331,3 +331,15 @@ ledger30/30 and raster1116/1116 pass. Strict raster Valgrind still fails with
 empty-vector capacity admission is not portable allocator/RSS accounting.
 Whole-job parser/layout/native/font/copy/cache accounting, hard timing,
 full parity and human acceptance remain open. No release/install/commit.
+
+
+## Latest native-math parser-budget continuation — 2026-11-15
+
+Use coordinator report §11.14 and
+`plan/evidence/native-math-2026-11-15-parser-budget/`. Optional pre-admitted
+parser workspace and shared worker phase-peak characterization: full1076/1076;
+parser674/674 twice, ledger38/38, worker215/215 three finals plus repeat.
+Raster1116/1116 normal/Valgrind, but strict script fails with2 contexts and
+6656/2183/26-byte losses; shaped lifecycle teardown leaves possible losses.
+This is not whole-job or portable allocator accounting. Memory, timing, font,
+parity, lifecycle and human acceptance remain open. No release/install/commit.

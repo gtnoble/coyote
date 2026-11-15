@@ -3,6 +3,7 @@ with Ada.Strings.Unbounded;
 with Math_Model;
 with Math_Macros;
 with Math_Work_Control;
+with Math_Memory_Budget;
 
 --  Parse bounded TeX-like input. Error positions are one-based UTF-8 byte
 --  offsets. Raw Unicode is accepted only for registered math symbols.
@@ -113,20 +114,27 @@ package Math_Syntax is
    type Document is private;
    function Parse
      (Source : String;
-      Work : Math_Work_Control.Context_Access := null) return Document;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
    function Parse
      (Source : String; Settings : Options;
-      Work : Math_Work_Control.Context_Access := null) return Document;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
       Global_Group : Boolean := False;
-      Work : Math_Work_Control.Context_Access := null) return Document;
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
    function Parse
      (Source : String; Shared : not null access Math_Macros.Context;
       Settings : Options; Global_Group : Boolean := False;
-      Work : Math_Work_Control.Context_Access := null) return Document;
-   --  Work is borrowed only for this call; cancellation and deadline
-   --  exceptions propagate to the caller.
+      Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access := null) return Document;
+   --  Work and Memory are borrowed only for this call. Memory accounts only
+   --  offset-map and token-vector record-array payload capacities, not strings,
+   --  lexemes, AST, expander storage, allocator overhead, or process memory.
+   --  Reservations are pre-admitted and released after parser locals finalize.
+   --  Cancellation, deadline, and budget exceptions propagate to the caller.
    --  Explicit shared state follows local/global namespace semantics, even
    --  when parsing fails. Ordinary parsing starts a fresh context.
    function Is_Valid (Item : Document) return Boolean;

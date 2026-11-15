@@ -1,0 +1,5 @@
+math_memory_budget_probe: 38 checks passed
+Build log: /tmp/coyote-parser-budget-ledger/build.log
+Probe log: /tmp/coyote-parser-budget-ledger/probe.log
+
+SCRIPT_EXIT_STATUS=0
