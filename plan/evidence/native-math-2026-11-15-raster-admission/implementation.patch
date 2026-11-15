@@ -1,0 +1,356 @@
+diff --git a/src/coyote_math/coyote_math_jobs.adb b/src/coyote_math/coyote_math_jobs.adb
+index 682560e..5ee2158 100644
+--- a/src/coyote_math/coyote_math_jobs.adb
++++ b/src/coyote_math/coyote_math_jobs.adb
+@@ -259,6 +259,13 @@ package body Coyote_Math_Jobs is
+             else
+                Items (Index).Value := null;
+             end if;
++         elsif Items (Index).Raster_Requested and then
++           Items (Index).State /= Valid and then Value /= null and then
++           Value.Raster_Ready
++         then
++            --  A deadline/cancel may win after the final worker check.
++            --  Dispose completed pixels outside the protected operation.
++            Items (Index).Value := null;
+          else
+             Items (Index).Value := Value;
+             Discard := null;
+@@ -390,6 +397,7 @@ package body Coyote_Math_Jobs is
+       procedure Dealloc is new Ada.Unchecked_Deallocation (Job_Result, Result_Access);
+    begin
+       if Item /= null then
++         Math_Raster.Clear (Item.Pixels);
+          Math_Raster_Budget.Release (Item.Raster_Charge);
+          Dealloc (Item);
+       end if;
+@@ -588,27 +596,38 @@ package body Coyote_Math_Jobs is
+                            Phase_Status := Worker_Control_Status
+                              (Job, View, Deadline);
+                            if Phase_Status = Pending then
+-                              R.Pixels := Math_Raster.Render
+-                                (Fonts, R.Geometry, Em_Pixels, Foreground,
+-                                 Work_Access);
+-                              Phase_Status := Worker_Control_Status
+-                                (Job, View, Deadline);
+-                              if Phase_Status = Pending then
+-                                 declare
+-                                    Bytes : constant Natural :=
+-                                      Math_Raster.Stride (R.Pixels) *
+-                                      Math_Raster.Height (R.Pixels);
+-                                    Accepted : Boolean;
+-                                 begin
++                              declare
++                                 Bounds : constant Math_Raster.Raster_Bounds :=
++                                   Math_Raster.Measure
++                                     (R.Geometry, Em_Pixels, Work_Access);
++                                 Accepted : Boolean := False;
++                              begin
++                                 --  ARGB32 rows use four bytes per pixel.
++                                 --  Admit retained output before allocating it;
++                                 --  Cairo workspace is not covered by this lease.
++                                 if Bounds.Width <= Math_Raster_Budget.Capacity /
++                                   4 / Bounds.Height
++                                 then
+                                     Math_Raster_Budget.Reserve
+-                                      (Bytes, R.Raster_Charge, Accepted);
+-                                    if not Accepted then
+-                                       R.Message := To_Unbounded_String
+-                                         ("retained raster budget exceeded");
+-                                       State := Failed;
+-                                    end if;
+-                                 end;
+-                              end if;
++                                      (Bounds.Width * 4 * Bounds.Height,
++                                       R.Raster_Charge, Accepted);
++                                 end if;
++                                 if Accepted then
++                                    R.Pixels := Math_Raster.Render
++                                      (Fonts, R.Geometry, Em_Pixels, Foreground,
++                                       Work_Access);
++                                    Math_Raster_Budget.Adjust
++                                      (R.Raster_Charge,
++                                       Math_Raster.Stride (R.Pixels) *
++                                         Math_Raster.Height (R.Pixels),
++                                       Accepted);
++                                 end if;
++                                 if not Accepted then
++                                    R.Message := To_Unbounded_String
++                                      ("retained raster budget exceeded");
++                                    State := Failed;
++                                 end if;
++                              end;
+                               Phase_Status := Worker_Control_Status
+                                 (Job, View, Deadline);
+                               if State = Failed then
+@@ -658,6 +677,12 @@ package body Coyote_Math_Jobs is
+                Cleanup_Start : constant Ada.Real_Time.Time :=
+                  Ada.Real_Time.Clock;
+             begin
++            if R /= null and then State /= Valid then
++               Math_Raster.Clear (R.Pixels);
++               R.Raster_Ready := False;
++               R.Raster_Baseline_Value := 0;
++               Math_Raster_Budget.Release (R.Raster_Charge);
++            end if;
+             Control.Complete (Index, Job, View, State, R, Discard);
+             R := null;
+             Free_Result (Discard);
+diff --git a/src/coyote_math/coyote_math_jobs.ads b/src/coyote_math/coyote_math_jobs.ads
+index cbcd9da..f3b407b 100644
+--- a/src/coyote_math/coyote_math_jobs.ads
++++ b/src/coyote_math/coyote_math_jobs.ads
+@@ -72,6 +72,9 @@ package Coyote_Math_Jobs is
+    function Semantics (Item : Job_Result) return Math_Semantics.Document;
+    function Error (Item : Job_Result) return String;
+    function Has_Raster (Item : Job_Result) return Boolean;
++   --  Retained ARGB32 output is reserved before rendering, then reconciled
++   --  with actual stride. Failed results own no pixels or raster lease.
++   --  This does not account for transient Cairo/parser/layout allocations.
+    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
+    function Raster_Width (Item : Job_Result) return Natural;
+    function Raster_Height (Item : Job_Result) return Natural;
+diff --git a/src/coyote_math/math_raster.adb b/src/coyote_math/math_raster.adb
+index f14d022..eebed92 100644
+--- a/src/coyote_math/math_raster.adb
++++ b/src/coyote_math/math_raster.adb
+@@ -24,6 +24,18 @@ package body Math_Raster is
+    function Height (Item : Image) return Natural is (Item.Pixel_Height);
+    function Stride (Item : Image) return Natural is (Item.Pixel_Stride);
+ 
++   procedure Clear (Item : in out Image) is
++      Empty : Byte_Vectors.Vector;
++   begin
++      --  Move an empty vector to free capacity, not merely erase elements.
++      Byte_Vectors.Move (Target => Item.Pixels, Source => Empty);
++      Item.Pixel_Width := 0;
++      Item.Pixel_Height := 0;
++      Item.Pixel_Stride := 0;
++      Item.Logical_X := 0;
++      Item.Logical_Y := 0;
++   end Clear;
++
+    function Get_Pixel
+      (Item : Image; X, Y : Natural) return Interfaces.Unsigned_32 is
+       Offset : constant Natural := Y * Item.Pixel_Stride + X * 4;
+diff --git a/src/coyote_math/math_raster.ads b/src/coyote_math/math_raster.ads
+index 2119793..679f3f7 100644
+--- a/src/coyote_math/math_raster.ads
++++ b/src/coyote_math/math_raster.ads
+@@ -32,6 +32,8 @@ package Math_Raster is
+    function Width (Item : Image) return Natural;
+    function Height (Item : Image) return Natural;
+    function Stride (Item : Image) return Natural;
++   --  Free owned pixel storage and reset dimensions/origins. Idempotent.
++   procedure Clear (Item : in out Image);
+    function Get_Pixel
+      (Item : Image; X, Y : Natural) return Interfaces.Unsigned_32;
+    function Row_Data (Item : Image; Y : Natural) return Byte_Vectors.Vector;
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index 4c2ae2a..c2d1ab8 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -651,6 +651,203 @@ begin
+            "colored alpha raster release restores empty budget");
+       end if;
+    end;
++   declare
++      Tiny_Id : Jobs.Request_Id;
++      Exact_Id : Jobs.Request_Id;
++      Full_Id : Jobs.Request_Id;
++      Wide_Id : Jobs.Request_Id;
++      Recovery_Id : Jobs.Request_Id;
++      Tiny_Status : Jobs.Job_Status;
++      Exact_Status : Jobs.Job_Status;
++      Full_Status : Jobs.Job_Status;
++      Wide_Status : Jobs.Job_Status;
++      Recovery_Status : Jobs.Job_Status;
++      Tiny_Result : Jobs.Result_Access;
++      Exact_Result : Jobs.Result_Access;
++      Full_Result : Jobs.Result_Access;
++      Wide_Result : Jobs.Result_Access;
++      Recovery_Result : Jobs.Result_Access;
++      Fonts : aliased Math_Painter.Font_Set;
++      Settings : Math_Layout.Layout_Settings := (others => <>);
++      Tiny_Layout : Math_Layout.Box;
++      Tiny_Bounds : Math_Raster.Raster_Bounds;
++      Wide_Layout : Math_Layout.Box;
++      Wide_Bounds : Math_Raster.Raster_Bounds;
++      Blocking_Lease : Math_Raster_Budget.Lease;
++      Blocking_Accepted : Boolean;
++      Needed : Natural;
++   begin
++      Check (Math_Raster_Budget.Used = 0,
++        "admission tests begin with no retained raster leases");
++      Math_Painter.Load (Fonts, Font_Directory);
++      Settings.Pixel_Em := 24.0;
++      Settings.Advance_Source := Fonts'Unchecked_Access;
++      Tiny_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("x+y"), Math_Layout.Display_Style, Settings);
++      Tiny_Bounds := Math_Raster.Measure (Tiny_Layout, 24.0);
++      Needed := Tiny_Bounds.Width * 4 * Tiny_Bounds.Height;
++      Check (Tiny_Layout.Valid and Needed > 0 and
++        Needed < Math_Raster_Budget.Capacity,
++        "tiny raster request has bounded measured ARGB32 storage");
++
++      Math_Raster_Budget.Reserve
++        (Math_Raster_Budget.Capacity - Needed + 1,
++         Blocking_Lease, Blocking_Accepted);
++      Check (Blocking_Accepted and
++        Math_Raster_Budget.Used = Math_Raster_Budget.Capacity - Needed + 1,
++        "one-byte-short admission blocker fills ledger to boundary");
++      Jobs.Submit ("x+y", Tiny_Id, 401, Math_Layout.Display_Style,
++        Status => Tiny_Status, Request_Raster => True, Em_Pixels => 24.0,
++        Font_Directory => Font_Directory);
++      for Wait in 1 .. 400 loop
++         if Tiny_Status = Jobs.Pending then
++            Jobs.Poll (Tiny_Id, 401, Tiny_Status, Tiny_Result);
++         end if;
++         exit when Tiny_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Tiny_Status = Jobs.Failed and Tiny_Result /= null,
++        "one-byte-short raster admission is rejected");
++      if Tiny_Result /= null then
++         Check (Jobs.Error (Tiny_Result.all) =
++           "retained raster budget exceeded" and
++           not Jobs.Has_Raster (Tiny_Result.all) and
++           Jobs.Raster_Width (Tiny_Result.all) = 0 and
++           Jobs.Raster_Height (Tiny_Result.all) = 0 and
++           Jobs.Raster_Retained_Bytes (Tiny_Result.all) = 0,
++           "rejected result publishes no pixels, dimensions, or charge");
++         Check (Math_Raster_Budget.Used =
++           Math_Raster_Budget.Capacity - Needed + 1,
++           "rejected result adds no charge before its release");
++         Jobs.Release (Tiny_Result);
++      end if;
++      Math_Raster_Budget.Release (Blocking_Lease);
++      Check (Math_Raster_Budget.Used = 0,
++        "one-byte-short blocker releases to baseline");
++
++      Math_Raster_Budget.Reserve
++        (Math_Raster_Budget.Capacity - Needed,
++         Blocking_Lease, Blocking_Accepted);
++      Check (Blocking_Accepted and
++        Math_Raster_Budget.Used = Math_Raster_Budget.Capacity - Needed,
++        "exact-fit blocker leaves precisely measured request capacity");
++      Jobs.Submit ("x+y", Exact_Id, 402, Math_Layout.Display_Style,
++        Status => Exact_Status, Request_Raster => True, Em_Pixels => 24.0,
++        Font_Directory => Font_Directory);
++      for Wait in 1 .. 400 loop
++         if Exact_Status = Jobs.Pending then
++            Jobs.Poll (Exact_Id, 402, Exact_Status, Exact_Result);
++         end if;
++         exit when Exact_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Exact_Status = Jobs.Valid and Exact_Result /= null,
++        "exact-capacity raster request succeeds");
++      if Exact_Result /= null then
++         Check (Jobs.Has_Raster (Exact_Result.all) and
++           Jobs.Raster_Width (Exact_Result.all) = Tiny_Bounds.Width and
++           Jobs.Raster_Height (Exact_Result.all) = Tiny_Bounds.Height and
++           Jobs.Raster_Retained_Bytes (Exact_Result.all) = Needed and
++           Math_Raster_Budget.Used = Math_Raster_Budget.Capacity,
++           "exact-fit raster retains measured bytes at full capacity");
++         Jobs.Release (Exact_Result);
++      end if;
++      Check (Math_Raster_Budget.Used =
++        Math_Raster_Budget.Capacity - Needed,
++        "releasing exact-fit result leaves only blocker charge");
++      Math_Raster_Budget.Release (Blocking_Lease);
++      Check (Math_Raster_Budget.Used = 0,
++        "exact-fit blocker release restores empty budget");
++
++      Math_Raster_Budget.Reserve
++        (Math_Raster_Budget.Capacity, Blocking_Lease, Blocking_Accepted);
++      Check (Blocking_Accepted and
++        Math_Raster_Budget.Used = Math_Raster_Budget.Capacity,
++        "full-ledger blocker reserves complete capacity");
++      Jobs.Submit ("x+y", Full_Id, 403, Math_Layout.Display_Style,
++        Status => Full_Status, Request_Raster => True, Em_Pixels => 24.0,
++        Font_Directory => Font_Directory);
++      for Wait in 1 .. 400 loop
++         if Full_Status = Jobs.Pending then
++            Jobs.Poll (Full_Id, 403, Full_Status, Full_Result);
++         end if;
++         exit when Full_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Full_Status = Jobs.Failed and Full_Result /= null,
++        "full retained-raster ledger rejects raster request");
++      if Full_Result /= null then
++         Check (Jobs.Error (Full_Result.all) =
++           "retained raster budget exceeded" and
++           not Jobs.Has_Raster (Full_Result.all) and
++           Jobs.Raster_Width (Full_Result.all) = 0 and
++           Jobs.Raster_Height (Full_Result.all) = 0 and
++           Jobs.Raster_Retained_Bytes (Full_Result.all) = 0 and
++           Math_Raster_Budget.Used = Math_Raster_Budget.Capacity,
++           "full-ledger rejection keeps pixels and charge unpublished");
++         Jobs.Release (Full_Result);
++      end if;
++      Math_Raster_Budget.Release (Blocking_Lease);
++      Check (Math_Raster_Budget.Used = 0,
++        "full-ledger blocker releases to baseline");
++
++      Settings.Pixel_Em := 100.0;
++      Wide_Layout := Math_Layout.Build
++        (Math_Syntax.Parse ("\rule{100em}{1em}"),
++         Math_Layout.Display_Style, Settings);
++      Wide_Bounds := Math_Raster.Measure (Wide_Layout, 100.0);
++      Needed := Wide_Bounds.Width * 4 * Wide_Bounds.Height;
++      Check (Wide_Layout.Valid and Wide_Bounds.Width > 8192 and
++        Needed < Math_Raster_Budget.Capacity,
++        "wide valid layout reserves below capacity before raster limits");
++      Jobs.Submit ("\rule{100em}{1em}", Wide_Id, 404,
++        Math_Layout.Display_Style, Status => Wide_Status,
++        Request_Raster => True, Em_Pixels => 100.0,
++        Font_Directory => Font_Directory);
++      for Wait in 1 .. 400 loop
++         if Wide_Status = Jobs.Pending then
++            Jobs.Poll (Wide_Id, 404, Wide_Status, Wide_Result);
++         end if;
++         exit when Wide_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Wide_Status = Jobs.Failed and Wide_Result /= null,
++        "post-reservation raster dimension error fails request");
++      if Wide_Result /= null then
++         Check (not Jobs.Has_Raster (Wide_Result.all) and
++           Jobs.Raster_Width (Wide_Result.all) = 0 and
++           Jobs.Raster_Height (Wide_Result.all) = 0 and
++           Jobs.Raster_Retained_Bytes (Wide_Result.all) = 0 and
++           Math_Raster_Budget.Used = 0,
++           "failed render drops pixels and reservation before publication");
++         Jobs.Release (Wide_Result);
++      end if;
++      Check (Math_Raster_Budget.Used = 0,
++        "failed oversized render leaves budget at baseline");
++
++      Jobs.Submit ("x+y", Recovery_Id, 405, Math_Layout.Display_Style,
++        Status => Recovery_Status, Request_Raster => True, Em_Pixels => 24.0,
++        Font_Directory => Font_Directory);
++      for Wait in 1 .. 400 loop
++         if Recovery_Status = Jobs.Pending then
++            Jobs.Poll (Recovery_Id, 405, Recovery_Status, Recovery_Result);
++         end if;
++         exit when Recovery_Status /= Jobs.Pending;
++         delay 0.005;
++      end loop;
++      Check (Recovery_Status = Jobs.Valid and Recovery_Result /= null,
++        "successful raster request recovers after render failure");
++      if Recovery_Result /= null then
++         Check (Jobs.Raster_Retained_Bytes (Recovery_Result.all) =
++           Tiny_Bounds.Width * 4 * Tiny_Bounds.Height and
++           Math_Raster_Budget.Used =
++             Jobs.Raster_Retained_Bytes (Recovery_Result.all),
++           "recovery request owns exactly measured raster storage");
++         Jobs.Release (Recovery_Result);
++      end if;
++      Check (Math_Raster_Budget.Used = 0,
++        "admission and recovery tests release all raster charges");
++   end;
+    Jobs.Start;
+    Jobs.Submit ("x+y", Abandoned_Id, Abandoned_Generation,
+      Math_Layout.Display_Style, Status => S, Request_Raster => True,

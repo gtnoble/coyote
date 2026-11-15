@@ -1183,3 +1183,66 @@ clipping,60 callable gaps, full corpus/component mappings, native-library
 lifecycle and independent desktop/AT/user acceptance remain open. Native calls
 are not preemptible. No full parity, resource qualification, release,
 installation or commit. PCR-125 remains OPEN; feature **NOT COMPLETE**.
+
+
+### 11.12 Fresh continuation — retained worker-output admission, 2026-11-15
+
+**Scope/authority:** User requested the next increment under existing PCR-125.
+This bounded resource slice reserves retained worker ARGB32 output before
+rendering, rather than allocating first and rejecting retention afterward.
+It does not implement whole-job256MiB accounting, introduce a new cap, or
+change approved SRS-MATH v1.0/D01–D15.
+
+**Implementation:** Worker measures padded bounds and uses an overflow-safe
+width×4×height capacity check before acquiring its existing64MiB ledger lease.
+Only accepted requests call Render. Actual stride×height reconciles the lease.
+Failed/cancelled/expired worker outcomes free pixel vector capacity and reset
+metadata before releasing the lease and publishing diagnostics. Ready results
+that lose a deadline/cancellation race at protected publication are discarded
+outside that protected operation. `Math_Raster.Clear` moves an empty vector
+and finalizes the old capacity, resets dimensions/origins, and is idempotent;
+normal result disposal also clears pixels before releasing the charge.
+
+**Developer verification:**
+
+- Root/test incremental development builds pass; both generated profiles select
+  development. Existing warnings remain; no release/clean-build qualification.
+- Worker probe **193/193**, repeated **193/193**. Added23 assertions cover
+  one-byte-short rejection, exact-fit success at capacity, full-ledger rejection,
+  no pixels/lease on rejected published results, oversized post-reservation
+  raster failure cleanup and successful recovery. The exact new probe against
+  pre-change production reports193 assertions with2 failures: rejected results
+  exposed pixels. That baseline is retained. Existing queue/lifecycle/pixel
+  tests and2000 warm requests pass; timing is characterization, not qualification.
+- Full Xvfb suite **1076/1076**, zero failures/unexpected errors,
+  **144.235750s** cumulative,144.27s wall. Existing inline-adoption and lifecycle
+  cases remain unchanged; no new GUI registration.
+- Standalone raster assertions **1108/1108**, also1108/1108 under Valgrind.
+  The encompassing `check-math-raster.sh` **FAILS** because Valgrind reports
+  **2 error contexts**,6,656 definitely lost,2,183 indirectly lost and26 possibly
+  lost bytes. Traces include Pango/Fontconfig initialization; totals match the
+  earlier record, but this does not prove all ownership/leak causes or waive
+  the lifecycle gate. No suppression or threshold change was made.
+- Required GTK interactions **9/9**, containment self-test and offline Plain/RPC
+  HTTP-timeout lifecycle checks pass. Intentional killed/timed-out containment
+  fixtures are not production failures. Source crosswalk refresh/check passes;
+  coverage remains source evidence, not semantic qualification.
+
+**Evidence:** `plan/evidence/native-math-2026-11-15-raster-admission/` retains
+baseline/final/repeat probes, builds, full/post-build/raster-Valgrind logs,
+implementation patch, source/font/executable hashes and manifest. Read-only
+review found no scoped blocker. Publication-race cleanup and exceptions after
+pixel allocation lack new deterministic fault-injection tests; existing
+lifecycle cases are adjacent coverage, not direct race proof. Developer/agent
+self-evaluation is not independent human acceptance.
+
+**Open gates:** Cairo surfaces, return-value/deep copies, vector allocator
+metadata and parser/layout/semantic/font/native temporaries are not whole-job
+accounted. Direct standalone Render remains unleased. The existing retained
+ledger is not a complete process-cache policy. No aggregate256MiB, hard250ms,
+GTK50ms, warm-p95 or all-cache-lifetimes qualification is established. Browser
+images/geometry and isolated resource characterization were not rerun; prior
+results remain historical. Tiling/repaint reuse, font pins/bearings/shaped ink,
+parent clipping,60 callable gaps, full corpus, native lifecycle and independent
+visual/AT/user acceptance remain open. PCR-125 OPEN; feature **NOT COMPLETE**.
+No release, installation or commit.

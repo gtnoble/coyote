@@ -4690,3 +4690,33 @@ are historical, not current-source qualification.
   deadline/GTK-slice/callable/lifecycle/human acceptance gates unchanged.
   Valgrind/resources not rerun. PCR-125 OPEN, feature NOT COMPLETE; developer/
   agent review not independent acceptance; no release/install/commit.
+
+
+### PCR-125 — 2026-11-15 worker retained-raster admission
+
+- **Category:** Code, Test, Design.
+- **Priority:** 3-Moderate (unchanged parent classification).
+- **Problem:** workers allocate output before requesting its retained-raster
+  lease; a rejected or interrupted result can retain pixels without a charge.
+- **Affected products:** `coyote_math_jobs`, `math_raster`, worker probe,
+  design/report/SDF records.
+- **Action:** reserve measured ARGB32 output before Render; reconcile actual
+  stride, free failed pixels before releasing the lease, discard late expired
+  rasters at publication. Explicit Clear frees vector capacity. Boundary,
+  failure/recovery and existing lifecycle regressions are required.
+- **Authority/scope:** user requested next project increment under existing
+  PCR-125 execution. This is retained-output admission, not a new cap or whole-
+  job allocator design. SRS-MATH v1.0 and D01–D15 unchanged. Cairo surface,
+  return-value copies, parser/layout/font/native temporaries remain unaccounted;
+  whole-job256MiB, deadlines, cache and other qualification gates remain open.
+- **Initial checkpoint:** baseline193 assertions has2 failures (rejected
+  results expose pixels). Final disposition follows; evidence retained under
+  `plan/evidence/native-math-2026-11-15-raster-admission/`. No acceptance,
+  release, installation or commit.
+
+- **2026-11-15 disposition:** scoped retained-output defect resolved; final
+  worker193/193 twice, builds/full1076/1076 and GTK/lifecycle pass. Raster
+  assertions1108/1108 but script FAILS Valgrind with2 contexts and historical-
+  matching6656/2183/26-byte totals. Lifecycle not resolved. Report §11.12 retains
+  evidence and untested race/injection limits. Parent PCR-125 OPEN, feature
+  NOT COMPLETE; whole-job/transient/cache/deadline/human gates unchanged.

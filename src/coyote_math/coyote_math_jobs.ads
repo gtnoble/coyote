@@ -72,6 +72,9 @@ package Coyote_Math_Jobs is
    function Semantics (Item : Job_Result) return Math_Semantics.Document;
    function Error (Item : Job_Result) return String;
    function Has_Raster (Item : Job_Result) return Boolean;
+   --  Retained ARGB32 output is reserved before rendering, then reconciled
+   --  with actual stride. Failed results own no pixels or raster lease.
+   --  This does not account for transient Cairo/parser/layout allocations.
    function Raster_Retained_Bytes (Item : Job_Result) return Natural;
    function Raster_Width (Item : Job_Result) return Natural;
    function Raster_Height (Item : Job_Result) return Natural;

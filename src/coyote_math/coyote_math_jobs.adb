@@ -259,6 +259,13 @@ package body Coyote_Math_Jobs is
             else
                Items (Index).Value := null;
             end if;
+         elsif Items (Index).Raster_Requested and then
+           Items (Index).State /= Valid and then Value /= null and then
+           Value.Raster_Ready
+         then
+            --  A deadline/cancel may win after the final worker check.
+            --  Dispose completed pixels outside the protected operation.
+            Items (Index).Value := null;
          else
             Items (Index).Value := Value;
             Discard := null;
@@ -390,6 +397,7 @@ package body Coyote_Math_Jobs is
       procedure Dealloc is new Ada.Unchecked_Deallocation (Job_Result, Result_Access);
    begin
       if Item /= null then
+         Math_Raster.Clear (Item.Pixels);
          Math_Raster_Budget.Release (Item.Raster_Charge);
          Dealloc (Item);
       end if;
@@ -588,27 +596,38 @@ package body Coyote_Math_Jobs is
                            Phase_Status := Worker_Control_Status
                              (Job, View, Deadline);
                            if Phase_Status = Pending then
-                              R.Pixels := Math_Raster.Render
-                                (Fonts, R.Geometry, Em_Pixels, Foreground,
-                                 Work_Access);
-                              Phase_Status := Worker_Control_Status
-                                (Job, View, Deadline);
-                              if Phase_Status = Pending then
-                                 declare
-                                    Bytes : constant Natural :=
-                                      Math_Raster.Stride (R.Pixels) *
-                                      Math_Raster.Height (R.Pixels);
-                                    Accepted : Boolean;
-                                 begin
+                              declare
+                                 Bounds : constant Math_Raster.Raster_Bounds :=
+                                   Math_Raster.Measure
+                                     (R.Geometry, Em_Pixels, Work_Access);
+                                 Accepted : Boolean := False;
+                              begin
+                                 --  ARGB32 rows use four bytes per pixel.
+                                 --  Admit retained output before allocating it;
+                                 --  Cairo workspace is not covered by this lease.
+                                 if Bounds.Width <= Math_Raster_Budget.Capacity /
+                                   4 / Bounds.Height
+                                 then
                                     Math_Raster_Budget.Reserve
-                                      (Bytes, R.Raster_Charge, Accepted);
-                                    if not Accepted then
-                                       R.Message := To_Unbounded_String
-                                         ("retained raster budget exceeded");
-                                       State := Failed;
-                                    end if;
-                                 end;
-                              end if;
+                                      (Bounds.Width * 4 * Bounds.Height,
+                                       R.Raster_Charge, Accepted);
+                                 end if;
+                                 if Accepted then
+                                    R.Pixels := Math_Raster.Render
+                                      (Fonts, R.Geometry, Em_Pixels, Foreground,
+                                       Work_Access);
+                                    Math_Raster_Budget.Adjust
+                                      (R.Raster_Charge,
+                                       Math_Raster.Stride (R.Pixels) *
+                                         Math_Raster.Height (R.Pixels),
+                                       Accepted);
+                                 end if;
+                                 if not Accepted then
+                                    R.Message := To_Unbounded_String
+                                      ("retained raster budget exceeded");
+                                    State := Failed;
+                                 end if;
+                              end;
                               Phase_Status := Worker_Control_Status
                                 (Job, View, Deadline);
                               if State = Failed then
@@ -658,6 +677,12 @@ package body Coyote_Math_Jobs is
                Cleanup_Start : constant Ada.Real_Time.Time :=
                  Ada.Real_Time.Clock;
             begin
+            if R /= null and then State /= Valid then
+               Math_Raster.Clear (R.Pixels);
+               R.Raster_Ready := False;
+               R.Raster_Baseline_Value := 0;
+               Math_Raster_Budget.Release (R.Raster_Charge);
+            end if;
             Control.Complete (Index, Job, View, State, R, Discard);
             R := null;
             Free_Result (Discard);

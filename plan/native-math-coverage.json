@@ -166,8 +166,8 @@
     "generation_validation": "Generator verifies every relevant package/archive file byte-for-byte, exact instrumentation anchors, registry counts, and pinned archive/dist hashes; this map validates the pinned inventory and regenerates native symbol tables byte-identically against checked-in sources."
   },
   "evidence_source_sha256": {
-    "src/coyote_math/coyote_math_jobs.ads": "31407a9e6db4e40da4c5c1c21ada4f2e7e8a449babe5831e32a829919edd648e",
-    "src/coyote_math/coyote_math_jobs.adb": "fe6dd2f85f73fe144fce6e2d9465c53ac7816b4cf7b3cf25e5d006ea3f6ca300",
+    "src/coyote_math/coyote_math_jobs.ads": "f94c7355a29703ac9ffc45d0610432cf17588aab2542017a2c2dfbccaa9a71fd",
+    "src/coyote_math/coyote_math_jobs.adb": "b6424b59a3130c048952ae326e4c75b9a12a7eab90ca6127a09f2cd34085c6b0",
     "src/coyote_math/coyote_math_resources.ads": "39af20bbd8702191c7ab199ac8b75bfb76ce951c6911499304b0e50c5c413614",
     "src/coyote_math/coyote_math_resources.adb": "43b1a2718f5f48b2e4286bd9d6a0c13b0916cb9b2e91f766c1960bc4a4e0dd5b",
     "src/coyote_math/math_builtin_macros.ads": "475bfa14f680637247a05872f000fd74109dffb7004b756d5bb699127d44c153",
@@ -193,8 +193,8 @@
     "src/coyote_math/math_paths.adb": "357aff20bcfbce9d19ab99131f6c5920fc1bcf9764343a0dacaa2e32f034dd25",
     "src/coyote_math/math_radical_paths.ads": "9d6eb5db60c99de866994118c155881e94197426d82b2b3cd046f7c48d89171a",
     "src/coyote_math/math_radical_paths.adb": "676139a84878dd44a4433555cb8e16b1fdb4d04c7c8b37b3635a2d5f195b8a30",
-    "src/coyote_math/math_raster.ads": "4df52c8456fab789a9bccee99ad63f1b471b990c6e13f60cd711dd6c945303f8",
-    "src/coyote_math/math_raster.adb": "bba0ac6d7719c9e624725881ac7825380daddc7b6cbedcf7d80c9c64b12ad2e5",
+    "src/coyote_math/math_raster.ads": "74b2936b0723e06bc635ea7dcd2260fadc83c0cc136453c89b78f0d3ec6fbbd9",
+    "src/coyote_math/math_raster.adb": "5601be93459575d41e2d1022a20dc78bf258fd4729c60a69f7a3cac4b40b3d65",
     "src/coyote_math/math_semantics.ads": "c27c77002d614c3ad65fa4d5ae34cafd48ed06b650b5c0a2ebcf5f6ec18378d4",
     "src/coyote_math/math_semantics.adb": "e02a849a017bf904b91a0cbce2e2d9b2d99f6d7f2ba90a0bb579f58fd0e7b3bc",
     "src/coyote_math/math_source.ads": "19bf3e9b9440a75aa2e28ad5473d3344da399bdc4a297d31c885d48495beb405",

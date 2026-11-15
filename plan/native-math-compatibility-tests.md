@@ -376,3 +376,20 @@ criteria. Whole-job memory, hard deadline, GTK/cache guarantees, complete
 corpus/readiness, final qualification and independent human acceptance remain
 open. Coverage is a source crosswalk, not semantic completion. Approved targets
 remain normative; no parity or acceptance claim is made.
+
+
+## 2026-11-15 retained-output admission continuation
+
+Report §11.12 records the bounded REQ-MATH-010 / MATH-LIMIT-002 developer
+slice, not whole-job qualification. `math_jobs_probe.adb` independently measures
+x+y at24px with trusted fonts; reserve a blocker leaving needed−1 bytes and
+expect Failed/no pixels/no lease; leave exactly needed and expect Valid with
+ledger at capacity; fill ledger and expect rejection. Release each owner and
+require baseline0. A100em-wide rule at100px must fail Render's8192px cap after
+admission and release its lease before diagnostic publication; subsequent x+y
+must succeed. Run `sh test/tools/check-math-jobs.sh`;193/193 twice, pre-change
+193 with2 failures. Root/test development/full Xvfb1076/1076 and required GTK/
+offline lifecycle checks pass. Raster1108/1108, but encompassing raster script
+fails Valgrind with2 leak contexts; retain failure. Race-at-publication and
+post-pixel exception injection are not newly tested. No approved bound or
+threshold changes; full resource/timing/corpus/human gates remain open.

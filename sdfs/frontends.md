@@ -2423,3 +2423,27 @@ lifecycle/callable/human acceptance. Report §11.11 and
 `plan/evidence/native-math-2026-11-15-inline-worker/` control this checkpoint.
 Developer/agent review is not independent acceptance; PCR-125 OPEN, feature NOT
 COMPLETE. No requirement/deviation changes, release, installation or commit.
+
+
+## 2026-11-15 — Retained worker-output admission (PCR-125)
+
+Worker reserves padded measured ARGB32 output before Render, then reconciles
+actual stride. Capacity arithmetic is guarded. Failed results free pixel vector
+capacity/reset metadata before releasing leases; late invalid ready results
+are discarded outside protected publication. Explicit Math_Raster.Clear also
+orders normal result teardown. No new units, caps or requirements.
+
+Pre-change probe193 with2 failures becomes193/193 twice; added23 assertions
+exercise exact fit/one byte short/full ledger, no published rejected pixels,
+post-reservation raster failure and recovery. Development builds/full Xvfb
+1076/1076 pass (144.235750s cumulative). Raster1108/1108 normally and under
+Valgrind, but script FAILS Valgrind:2 contexts,6656 definitely/2183 indirectly/
+26 possibly lost bytes, Pango/Fontconfig traces. Lifecycle gate remains open.
+GTK9/9, containment and offline HTTP lifecycle pass; source crosswalk refreshed.
+Report §11.12 and `plan/evidence/native-math-2026-11-15-raster-admission/` retain
+logs, patch and hashes. Review found no scoped blocker; late race and post-pixel
+exception injection are not directly tested. Self-evaluation/agent review is
+not independent acceptance. Browser/geometry/resources not rerun. Transient
+Cairo/copies/parser/layout/font allocation, whole-job/deadline/cache/tiling/
+font/callable/lifecycle/human gates remain open. PCR-125 OPEN, NOT COMPLETE;
+no release/install/commit. Requirements/deviations unchanged.

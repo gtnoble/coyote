@@ -24,6 +24,18 @@ package body Math_Raster is
    function Height (Item : Image) return Natural is (Item.Pixel_Height);
    function Stride (Item : Image) return Natural is (Item.Pixel_Stride);
 
+   procedure Clear (Item : in out Image) is
+      Empty : Byte_Vectors.Vector;
+   begin
+      --  Move an empty vector to free capacity, not merely erase elements.
+      Byte_Vectors.Move (Target => Item.Pixels, Source => Empty);
+      Item.Pixel_Width := 0;
+      Item.Pixel_Height := 0;
+      Item.Pixel_Stride := 0;
+      Item.Logical_X := 0;
+      Item.Logical_Y := 0;
+   end Clear;
+
    function Get_Pixel
      (Item : Image; X, Y : Natural) return Interfaces.Unsigned_32 is
       Offset : constant Natural := Y * Item.Pixel_Stride + X * 4;

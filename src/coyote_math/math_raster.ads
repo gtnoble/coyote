@@ -32,6 +32,8 @@ package Math_Raster is
    function Width (Item : Image) return Natural;
    function Height (Item : Image) return Natural;
    function Stride (Item : Image) return Natural;
+   --  Free owned pixel storage and reset dimensions/origins. Idempotent.
+   procedure Clear (Item : in out Image);
    function Get_Pixel
      (Item : Image; X, Y : Natural) return Interfaces.Unsigned_32;
    function Row_Data (Item : Image; Y : Natural) return Byte_Vectors.Vector;

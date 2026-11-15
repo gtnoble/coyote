@@ -106,9 +106,15 @@ qualification. The implemented native units include `Math_Work_Control`,
 pipeline loops and phase boundaries; it does not preempt individual native calls
 or guarantee a hard completion deadline. The raster ledger
 leases retained completed-job vectors, display Cairo surfaces and GTK inline
-Pixbufs through weak references; it is not whole-job allocation accounting or
-process-RSS enforcement. Worker text shaping uses local Pango font-map/context
-state, but resolved system font families are not pinned, and the FFI/global
+Pixbufs through weak references. Worker ARGB32 output is reserved from measured
+bounds before Render, then reconciled to actual stride. Failed results free
+pixel vector capacity before releasing their lease; late expired/cancelled
+rasters are discarded outside protected publication. `Math_Raster.Clear` frees
+capacity and resets image metadata. This is not whole-job accounting or RSS
+enforcement: Cairo surfaces, return-value copies, native/parser/layout/font
+allocations remain outside the ledger. Worker text shaping uses local Pango
+font-map/context state, but resolved system font families are not pinned, and
+the FFI/global
 font-cache ownership and determinism remain unqualified.
 
 ### 2.1 Request/result contract
