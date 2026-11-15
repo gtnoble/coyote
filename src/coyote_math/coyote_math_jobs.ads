@@ -81,10 +81,10 @@ package Coyote_Math_Jobs is
    --  because parser reservations release when Parse returns. Neither metric
    --  includes retained AST/semantics/layout or whole-job allocations.
    function Raster_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
-   --  Parser offset-map and token-vector record-array payload peak only.
-   --  It excludes retained AST/semantics/layout.
+   --  Parser offset-map, token and AST node record-array construction peak.
+   --  It excludes nested payloads and retained AST/semantics/layout lifetime.
    function Parse_Workspace_Peak_Bytes (Item : Job_Result) return Natural;
-   --  Maximum parser-vector/raster-workspace peak across those phases only.
+   --  Maximum parser-construction/raster-workspace peak across those phases.
    --  This excludes other job allocations and retained result/cache lifetime.
    function Pipeline_Workspace_Peak_Bytes
      (Item : Job_Result) return Natural;

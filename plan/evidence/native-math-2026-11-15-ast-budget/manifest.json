@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-15T23:47:05.397088+00:00",
+  "revision": "1c33b81da20dd091cc63b8b4537dd20b2bd4cd50",
+  "status": " M AGENTS.md\n M design/coyote-design.md\n M plan/native-math-compatibility-tests.md\n M plan/native-math-coverage.json\n M plan/native-math-parity-test-report.md\n M plan/problems.md\n M sdfs/frontends.md\n M src/coyote_math/coyote_math_jobs.ads\n M src/coyote_math/math_syntax.adb\n M src/coyote_math/math_syntax.ads\n M test/tools/math_jobs_probe.adb\n M test/tools/math_parser_memory_probe.adb\n?? plan/evidence/native-math-2026-11-15-ast-budget/\n",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "tools": {
+    "compiler": {
+      "exit": 0,
+      "output": "GNAT 15.2.0\nCopyright (C) 1996-2025, Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    "alire": {
+      "exit": 0,
+      "output": "alr 2.1.0\n"
+    },
+    "valgrind": {
+      "exit": 0,
+      "output": "valgrind-3.22.0\n"
+    }
+  },
+  "hashes": {
+    "AGENTS.md": "8115dc8cdd72d759d0bb55c47127d76159a9b376a0c91134a57c2d97b3eac134",
+    "design/coyote-design.md": "ea4da75f9de291982222179a0ee648f4af0751776b860e9b4f5f5f4ff7bf4ee3",
+    "plan/native-math-compatibility-tests.md": "2c1c1cca481e30bcaf4b10450f2e80ebabc0532289ea8c7b45d30c0e82d92901",
+    "plan/native-math-coverage.json": "c59366fa32a6a795bc80dcce069a39a90a8ed7f33c10d37197e65c07ac181cb7",
+    "plan/native-math-parity-test-report.md": "c95a8fcc434384c41e7896d2123ef4e8d52ac4c95fd65e761760fd0a4767dc3d",
+    "plan/problems.md": "8fb70a5212858da7a934c47a93733dd7b68f30dc9ddc389bc0fbe8037d73882a",
+    "sdfs/frontends.md": "c6e9fe5ac05b3e759a230a37100d8dba919bd58ecaadfbff243f7a0edb46edd1",
+    "src/coyote_math/coyote_math_jobs.ads": "c5e25296b4aa756314f85755082549bbaa4eefe0afc1f6b2cd80da3a34436871",
+    "src/coyote_math/math_syntax.adb": "3e50990fed3b7a1af1c8607863a22abc26b85fccde8826a435d5af4ce77a1812",
+    "src/coyote_math/math_syntax.ads": "05b676b821337e3899de328e63a2dfb1264ae2dbcab03219bf9f8b820bcd3234",
+    "test/tools/math_jobs_probe.adb": "b5e423f47d0d01eb5bf51b48551436de475c9bc8dcee6607982f5d8d3910eb2c",
+    "test/tools/math_parser_memory_probe.adb": "cc9b07edca0a873ea437ace3ed69efaea056b651781b6211e8de02959dc14543",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Regular.ttf": "f36ea897e19f4a2e571d1e900e4e3710e438deb05a842486045ba0a3e616a4ad",
+    "share/coyote/math/fonts/KaTeX_Typewriter-Regular.ttf": "f01f3e87d9c6a61c0c081ceb577abd864eb00a612f7ac1620dd6915fad2ef5aa",
+    "share/coyote/math/fonts/KaTeX_Main-BoldItalic.ttf": "70ee1f64a20f2048c21940ef46d0144fd215baa953ca69afd1e31e98544f708f",
+    "share/coyote/math/fonts/KaTeX_Size4-Regular.ttf": "c647367d1dd4e162468717d020e1fc0f1dc5c26ebfdffbe55261713bf88c5877",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Bold.ttf": "07d8e303ce4fc12b4bb54f1004170dd190a1f3db45d400fe68060df3e0897268",
+    "share/coyote/math/fonts/KaTeX_Math-BoldItalic.ttf": "f9377ab0271cda59af24bcffbd46a4d0c8a3572ffafdbb38de2ad5ea7b0d5ee5",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Bold.ttf": "9163df9c7122432e6495b4229fa9071cf9ae86a758ae5efc4924ec2e1a6dbce1",
+    "share/coyote/math/fonts/KaTeX_Math-Italic.ttf": "08ce98e51b04d58945a301e639e02b6998af29fdfd61a7b8afdd07bbfc479d4a",
+    "share/coyote/math/fonts/KaTeX_Main-Italic.ttf": "0d85ae7cc30f23790a7f1a58c4a112fdca8aae769b6ba11429af1d98b1b6cb3a",
+    "share/coyote/math/fonts/KaTeX_Fraktur-Regular.ttf": "1e6f9579e90e2cac37f8f60a597c436e075c114385652b7cbeb0dec0421291b3",
+    "share/coyote/math/fonts/KaTeX_Script-Regular.ttf": "1c67f068fea8bb09bf099c088b1cf64bd27516a6e07f4684344873564bb66a67",
+    "share/coyote/math/fonts/KaTeX_Size2-Regular.ttf": "a6b2099fb555c60e3a0db3a08842ebf1d732c6eb4e4bf44913613bed4fc4e39b",
+    "share/coyote/math/fonts/KaTeX_Size1-Regular.ttf": "95b6d2f1a50173bfedb8c63e1d1c99b10427d0a4df4201cb44513b226951a22b",
+    "share/coyote/math/fonts/KaTeX_Size3-Regular.ttf": "500e04d54f0d51666332c9d2089aa803be22aa878eca539e59fa53c6e522b082",
+    "share/coyote/math/fonts/KaTeX_Caligraphic-Regular.ttf": "ed0b74372feefcbb9c0666b2e210da37b7e49fa7fbbf3eeb11db5f693dacfbb7",
+    "share/coyote/math/fonts/KaTeX_Main-Regular.ttf": "d0332f52868370fd83ae7fa46470f90c8f2eab2fcf12bc4f88080b340c95a830",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Italic.ttf": "3931dd81faed86ba021bb2bbdc36f5bed9a38d6b4f4077aca59b265aa1b02083",
+    "share/coyote/math/fonts/KaTeX_Main-Bold.ttf": "138ac28d1663b3037e9c5f52371fa5c63d8324f4a38d22cd573e6ea3a3fd0cf8",
+    "share/coyote/math/fonts/KaTeX_AMS-Regular.ttf": "68534840bcfdd2bffb6f0e8deb48684dd01e7f04ea2813267577afb906de1d13",
+    "share/coyote/math/fonts/KaTeX_SansSerif-Bold.ttf": "1ece03f79f95277d57dc7f6b435a74e1379b0d46104a8530286b60ff49369ea0",
+    "bin/coyote": "63536ee9b18b89e38f6b0b9cd9101d6f27cd9a0ac834b1436c467e12b1268a19",
+    "test/bin/coyote_test": "683553f2b6d43b0b2b09ac08507b48d23c18dbb5229c271b86632b228c7d5c6f",
+    "/tmp/coyote-math-parser-memory/bin/math_parser_memory_probe": "0a0d8f0504ea700e55609b08c84a19222c51e50141d63f48f31b66452b70de66",
+    "/tmp/coyote-ast-jobs-final/bin/math_jobs_probe": "a1d66e3110cc9c77966152313df1f6eb8d53d184a4855bba9b9de90434f2c3c4",
+    "/tmp/coyote-math-memory-budget/bin/math_memory_budget_probe": "ba71f7e9a5363ca6515e040ac4af070a5ee3ba61c4b1c9c6de08a50d0cf9573c",
+    "/tmp/coyote-math-raster/bin/math_raster_probe": "548dbacfba03d8b697a02b41b36262858ae1c9016d2b35e552400e840adc4a46",
+    "plan/evidence/native-math-2026-11-15-ast-budget/jobs/bin/math_jobs_probe": "78b2887558deaf703f9c3ee78f09fa35f21aaeacbc626bd27d53a931f30afe1c"
+  },
+  "scope": "AST record-array construction, source/token arrays and raster workspace; not whole-job memory or acceptance",
+  "profiles": {
+    "config/coyote_config.gpr": "--  Configuration for coyote generated by Alire\nwith \"gnatcoll.gpr\";\nwith \"gnatcoll_core.gpr\";\nwith \"gnatcoll_minimal.gpr\";\nwith \"gnatcoll_projects.gpr\";\nwith \"gtkada.gpr\";\nwith \"sha2.gpr\";\nabstract project Coyote_Config is\n   Crate_Version := \"0.1.0-dev\";\n   Crate_Name := \"coyote\";\n\n   Alire_Host_OS := \"linux\";\n\n   Alire_Host_Arch := \"x86_64\";\n\n   Alire_Host_Distro := \"ubuntu\";\n   Ada_Compiler_Switches := External_As_List (\"ADAFLAGS\", \" \");\n   Ada_Compiler_Switches := Ada_Compiler_Switches &\n          (\n            \"-Og\" -- Optimize for debug\n           ,\"-ffunction-sections\" -- Separate ELF section for each function\n           ,\"-fdata-sections\" -- Separate ELF section for each variable\n           ,\"-g\" -- Generate debug info\n           ,\"-gnatwa\" -- Enable all warnings\n           ,\"-gnatw.X\" -- Disable warnings for No_Exception_Propagation\n           ,\"-gnatVa\" -- All validity checks\n           ,\"-gnaty3\" -- Specify indentation level of 3\n           ,\"-gnatya\" -- Check attribute casing\n           ,\"-gnatyA\" -- Use of array index numbers in array attributes\n           ,\"-gnatyB\" -- Check Boolean operators\n           ,\"-gnatyb\" -- Blanks not allowed at statement end\n           ,\"-gnatyc\" -- Check comments\n           ,\"-gnaty-d\" -- Disable check no DOS line terminators present\n           ,\"-gnatye\" -- Check end/exit labels\n           ,\"-gnatyf\" -- No form feeds or vertical tabs\n           ,\"-gnatyh\" -- No horizontal tabs\n           ,\"-gnatyi\" -- Check if-then layout\n           ,\"-gnatyI\" -- check mode IN keywords\n           ,\"-gnatyk\" -- Check keyword casing\n           ,\"-gnatyl\" -- Check layout\n           ,\"-gnatym\" -- Check maximum line length\n           ,\"-gnatyn\" -- Check casing of entities in Standard\n           ,\"-gnatyO\" -- Check that overriding subprograms are explicitly marked as such\n           ,\"-gnatyp\" -- Check pragma casing\n           ,\"-gnatyr\" -- Check identifier references casing\n           ,\"-gnatyS\" -- Check no statements after THEN/ELSE\n           ,\"-gnatyt\" -- Check token spacing\n           ,\"-gnatyu\" -- Check unnecessary blank lines\n           ,\"-gnatyx\" -- Check extra parentheses\n           ,\"-gnatW8\" -- UTF-8 encoding for wide characters\n          );\n\n   type Build_Profile_Kind is (\"release\", \"validation\", \"development\");\n   Build_Profile : Build_Profile_Kind := \"development\";\n\nend Coyote_Config;\n",
+    "test/config/coyote_test_config.gpr": "--  Configuration for coyote_test generated by Alire\nwith \"aunit.gpr\";\nwith \"coyote.gpr\";\nabstract project Coyote_Test_Config is\n   Crate_Version := \"0.1.0-dev\";\n   Crate_Name := \"coyote_test\";\n\n   Alire_Host_OS := \"linux\";\n\n   Alire_Host_Arch := \"x86_64\";\n\n   Alire_Host_Distro := \"ubuntu\";\n   Ada_Compiler_Switches := External_As_List (\"ADAFLAGS\", \" \");\n   Ada_Compiler_Switches := Ada_Compiler_Switches &\n          (\n            \"-Og\" -- Optimize for debug\n           ,\"-ffunction-sections\" -- Separate ELF section for each function\n           ,\"-fdata-sections\" -- Separate ELF section for each variable\n           ,\"-g\" -- Generate debug info\n           ,\"-gnatwa\" -- Enable all warnings\n           ,\"-gnatw.X\" -- Disable warnings for No_Exception_Propagation\n           ,\"-gnatVa\" -- All validity checks\n           ,\"-gnaty3\" -- Specify indentation level of 3\n           ,\"-gnatya\" -- Check attribute casing\n           ,\"-gnatyA\" -- Use of array index numbers in array attributes\n           ,\"-gnatyB\" -- Check Boolean operators\n           ,\"-gnatyb\" -- Blanks not allowed at statement end\n           ,\"-gnatyc\" -- Check comments\n           ,\"-gnaty-d\" -- Disable check no DOS line terminators present\n           ,\"-gnatye\" -- Check end/exit labels\n           ,\"-gnatyf\" -- No form feeds or vertical tabs\n           ,\"-gnatyh\" -- No horizontal tabs\n           ,\"-gnatyi\" -- Check if-then layout\n           ,\"-gnatyI\" -- check mode IN keywords\n           ,\"-gnatyk\" -- Check keyword casing\n           ,\"-gnatyl\" -- Check layout\n           ,\"-gnatym\" -- Check maximum line length\n           ,\"-gnatyn\" -- Check casing of entities in Standard\n           ,\"-gnatyO\" -- Check that overriding subprograms are explicitly marked as such\n           ,\"-gnatyp\" -- Check pragma casing\n           ,\"-gnatyr\" -- Check identifier references casing\n           ,\"-gnatyS\" -- Check no statements after THEN/ELSE\n           ,\"-gnatyt\" -- Check token spacing\n           ,\"-gnatyu\" -- Check unnecessary blank lines\n           ,\"-gnatyx\" -- Check extra parentheses\n           ,\"-gnatW8\" -- UTF-8 encoding for wide characters\n          );\n\n   type Build_Profile_Kind is (\"release\", \"validation\", \"development\");\n   Build_Profile : Build_Profile_Kind := \"development\";\n\nend Coyote_Test_Config;\n"
+  }
+}

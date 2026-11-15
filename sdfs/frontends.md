@@ -2497,3 +2497,27 @@ rerun. Report §11.14 and
 `plan/evidence/native-math-2026-11-15-parser-budget/` retain the evidence.
 Broad memory, timing, font, parity, lifecycle and human acceptance gates remain
 open; no requirements change or independent acceptance.
+
+
+## 2026-11-15 — AST node-construction accounting (PCR-125)
+
+Parser optionally pre-admits old+new Node record arrays, seed32 doubling through
+32768, reconciles actual capacity after `Reserve_Capacity`, establishes owner
+before `State`, and moves node/diagnostic returns. Charge ends at `Parse`
+return, not at retained-node lifetime. Existing worker Parse/Pipeline peak
+includes AST; worker job body unchanged. This is transient record-array
+accounting, not whole-job memory; nested payload strings and expander/semantics/
+layout/native/font, allocator overhead, copies and cache remain unaccounted.
+
+Scoped parser688/688 twice on a2049-node fixture; peak2,443,968. HEAD baseline
+688 assertions with5 expected failures. Worker223/223, ledger38/38 and full
+1076/1076 (cumulative145.992924s; wall146.26s) pass; GTK9/9, containment and
+offline HTTP pass. Raster1116/1116 normal and under Valgrind, but strict script
+FAILS with2 contexts and6656/2183/26-byte losses. Geometry attempt BLOCKED:
+`/tmp/coyote-katex-support-check/package` absent, not a rerun pass. Browser and
+resource characterization were not rerun. Existing warnings remain.
+
+Report §11.15 and `plan/evidence/native-math-2026-11-15-ast-budget/` control.
+Whole-job, timing, font, parity, lifecycle and human acceptance gates remain
+open; self-review is not independent acceptance. No requirements/deviations
+changed; no release/install/commit.

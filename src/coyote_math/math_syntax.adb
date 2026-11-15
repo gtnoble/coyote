@@ -11,6 +11,7 @@ with Math_Work_Control;
 with Math_Unicode;
 with Math_Memory_Budget;
 with Ada.Containers;
+with System;
 
 package body Math_Syntax is
    use Ada.Strings.Unbounded;
@@ -43,6 +44,8 @@ package body Math_Syntax is
       Environment_Stop : Unbounded_String;
       CD_Mode : Boolean := False;
       Work : Math_Work_Control.Context_Access := null;
+      Memory : Math_Memory_Budget.Budget_Access;
+      Node_Reservation : access Math_Memory_Budget.Reservation;
       AMS_Row : Boolean := False;
       Pending_Tag : Node_Id := No_Node;
       Has_Tag : Boolean := False;
@@ -215,9 +218,33 @@ package body Math_Syntax is
      (State : in out Parser_State;
       Item : Node) return Node_Id is
       Fresh : Node := Item;
+      Width : constant Positive :=
+        (Node'Size + System.Storage_Unit - 1) / System.Storage_Unit;
+      Old_Capacity : constant Natural :=
+        Natural (State.Item.Nodes.Capacity);
+      New_Capacity : Natural;
    begin
+      Math_Work_Control.Poll (State.Work);
       if Natural (State.Item.Nodes.Length) >= Max_Nodes then
          Fail (State, "node limit exceeded");
+      end if;
+      if State.Item.Nodes.Length = State.Item.Nodes.Capacity then
+         New_Capacity := Natural'Min
+           (Max_Nodes, Natural'Max (32, Old_Capacity * 2));
+         if New_Capacity > Natural'Last / Width - Old_Capacity then
+            raise Constraint_Error with "node storage bound overflow";
+         end if;
+         --  Reserve_Capacity copies records before freeing the old array.
+         --  Nested controlled payloads and allocator metadata are excluded.
+         Math_Memory_Budget.Reserve
+           (State.Node_Reservation.all, State.Memory,
+            (Old_Capacity + New_Capacity) * Width);
+         State.Item.Nodes.Reserve_Capacity
+           (Ada.Containers.Count_Type (New_Capacity));
+         Math_Memory_Budget.Reserve
+           (State.Node_Reservation.all, State.Memory,
+            Natural (State.Item.Nodes.Capacity) * Width);
+         Math_Work_Control.Poll (State.Work);
       end if;
       Fresh.Position := Item.Position;
       State.Item.Nodes.Append (Fresh);
@@ -3292,13 +3319,15 @@ package body Math_Syntax is
       Work : Math_Work_Control.Context_Access := null;
       Memory : Math_Memory_Budget.Budget_Access := null) return Document
    is
-      State : Parser_State (Shared);
       Entry_Depth : constant Natural := Math_Macros.Scope_Depth (Shared.all);
       Local_Budget : aliased Math_Memory_Budget.Budget;
       Account : constant not null Math_Memory_Budget.Budget_Access :=
         (if Memory = null then Local_Budget'Unchecked_Access else Memory);
       Source_Reservation : Math_Memory_Budget.Reservation;
       Token_Reservation : Math_Memory_Budget.Reservation;
+      Node_Reservation : aliased Math_Memory_Budget.Reservation;
+      --  State and lexical/source locals finalize before their charges.
+      State : Parser_State (Shared);
       Validated : Math_Source.Source;
       Tokens : Math_Tokens.Stream;
       Diagnostic : Math_Source.Diagnostic_Kind;
@@ -3309,9 +3338,27 @@ package body Math_Syntax is
       begin
          Math_Memory_Budget.Reserve (Owner, Account, Amount);
       end Admit;
+
+      procedure Take_Result (Result : in out Document) is
+      begin
+         Result.Text := State.Item.Text;
+         Result.Message := State.Item.Message;
+         Result.Failure := State.Item.Failure;
+         Result.Root_Id := State.Item.Root_Id;
+         --  Clear on syntax failure retains capacity. Leave that empty array
+         --  with State so it is freed, not retained by the invalid document.
+         if not State.Item.Nodes.Is_Empty then
+            Node_Vectors.Move (Result.Nodes, State.Item.Nodes);
+         end if;
+         Diagnostic_Vectors.Move
+           (Result.Diagnostics, State.Item.Diagnostics);
+      end Take_Result;
    begin
       State.Settings := Settings;
       State.Work := Work;
+      State.Memory := Account;
+      --  The owner precedes State and outlives this call-local borrow.
+      State.Node_Reservation := Node_Reservation'Unchecked_Access;
       if Source'Length > Max_Source_Bytes then
          State.Item.Text := To_Unbounded_String
            (Source (Source'First .. Source'First + Max_Source_Bytes - 1));
@@ -3322,7 +3369,9 @@ package body Math_Syntax is
            (New_Item => Math_Syntax.Diagnostic'
               (Kind => Parse_Error, Message => State.Item.Message,
                Position => State.Item.Failure));
-         return State.Item;
+         return Result : Document do
+            Take_Result (Result);
+         end return;
       end if;
       State.Item.Text := To_Unbounded_String (Source);
       Admit (Source_Reservation,
@@ -3345,7 +3394,9 @@ package body Math_Syntax is
            (New_Item => Math_Syntax.Diagnostic'
               (Kind => Parse_Error, Message => State.Item.Message,
                Position => State.Item.Failure));
-         return State.Item;
+         return Result : Document do
+            Take_Result (Result);
+         end return;
       end if;
       declare
          First : Integer := Source'First;
@@ -3365,7 +3416,9 @@ package body Math_Syntax is
               (New_Item => Math_Syntax.Diagnostic'
                  (Kind => Parse_Error, Message => State.Item.Message,
                   Position => State.Item.Failure));
-            return State.Item;
+            return Result : Document do
+               Take_Result (Result);
+            end return;
          end if;
       end;
       declare
@@ -3399,7 +3452,9 @@ package body Math_Syntax is
            (New_Item => Math_Syntax.Diagnostic'
               (Kind => Parse_Error, Message => State.Item.Message,
                Position => State.Item.Failure));
-         return State.Item;
+         return Result : Document do
+            Take_Result (Result);
+         end return;
       end if;
 
       Math_Expander.Open
@@ -3443,7 +3498,9 @@ package body Math_Syntax is
             State.Item.Nodes.Clear;
       end;
       Math_Macros.Restore_To_Depth (Shared.all, Entry_Depth);
-      return State.Item;
+      return Result : Document do
+         Take_Result (Result);
+      end return;
    exception
       when others =>
          Math_Macros.Restore_To_Depth (Shared.all, Entry_Depth);

@@ -1,10 +1,14 @@
 with Ada.Command_Line;
 with Ada.Real_Time;
 with Ada.Containers;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Interfaces;
 with Math_Raster;
 with Math_Raster_Budget;
+with Math_Memory_Budget;
+with Math_Source;
+with Math_Tokens;
 with Coyote_Math_Jobs;
 with Math_Layout;
 with Math_Syntax;
@@ -19,6 +23,36 @@ procedure Math_Jobs_Probe is
    use type Ada.Containers.Count_Type;
    use type Interfaces.Unsigned_32;
    use type Ada.Real_Time.Time;
+
+   function Expansion_Request return String is
+      use Ada.Strings.Unbounded;
+      Result : Unbounded_String;
+      Previous : Character := 'a';
+   begin
+      Append (Result, "\def\a{x}");
+      for Index in 1 .. 7 loop
+         declare
+            Current : constant Character := Character'Val
+              (Character'Pos ('a') + Index);
+         begin
+            Append (Result, "\def\" & Current & "{\" & Previous &
+              "\" & Previous & "}");
+            Previous := Current;
+         end;
+      end loop;
+      Append (Result, "\" & Previous);
+      return To_String (Result);
+   end Expansion_Request;
+
+   function Lexical_Charge_Bound (Text : String) return Natural is
+      Width : constant Positive := Math_Tokens.Token'Size / 8;
+      Map_Bound : constant Natural := Math_Source.Map_Storage_Bound
+        (Natural'Max (1, Text'Length));
+      Token_Bound : constant Natural :=
+        Math_Tokens.Transformation_Token_Bound (Text'Length);
+   begin
+      return 2 * Map_Bound + (3 * Token_Bound + 1) * Width;
+   end Lexical_Charge_Bound;
 
    function Has_Red_Ink (Result : Jobs.Result_Access) return Boolean is
    begin
@@ -175,6 +209,59 @@ begin
       end if;
       Check (Math_Raster_Budget.Used = 0,
         "font failure and recovery leave raster ledger empty");
+   end;
+   declare
+      Expansion_Id : Jobs.Request_Id;
+      Expansion_Status : Jobs.Job_Status;
+      Expansion_Result : Jobs.Result_Access;
+      Expansion_Text : constant String := Expansion_Request;
+      Direct_Memory : aliased Math_Memory_Budget.Budget;
+      Direct_Options : constant Math_Syntax.Options :=
+        (Display_Mode => True, others => <>);
+      Direct_Document : constant Math_Syntax.Document := Math_Syntax.Parse
+        (Expansion_Text, Direct_Options,
+         Memory => Direct_Memory'Unchecked_Access);
+      Direct_Peak : constant Natural :=
+        Math_Memory_Budget.Peak (Direct_Memory);
+   begin
+      Check (Math_Syntax.Is_Valid (Direct_Document) and
+        Math_Syntax.Count (Direct_Document) >= 128,
+        "direct macro expansion produces a valid 128-glyph AST");
+      Check (Direct_Peak > Lexical_Charge_Bound (Expansion_Text),
+        "direct parser peak exceeds conservative lexical bound");
+      Jobs.Submit (Expansion_Text, Expansion_Id, 300,
+        Math_Layout.Display_Style, Status => Expansion_Status,
+        Request_Raster => False);
+      Check (Expansion_Status = Jobs.Pending,
+        "non-raster expansion request queues");
+      for Wait in 1 .. 400 loop
+         Jobs.Poll
+           (Expansion_Id, 300, Expansion_Status, Expansion_Result);
+         exit when Expansion_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Expansion_Status = Jobs.Valid and Expansion_Result /= null,
+        "non-raster macro expansion completes successfully");
+      if Expansion_Result /= null then
+         Check (Math_Syntax.Is_Valid
+           (Jobs.Parse_Document (Expansion_Result.all)) and
+           Math_Syntax.Count (Jobs.Parse_Document (Expansion_Result.all)) >=
+             128,
+           "worker returns valid 128-glyph AST");
+         Check (Jobs.Parse_Workspace_Peak_Bytes
+           (Expansion_Result.all) = Direct_Peak,
+           "worker parser peak matches direct parse peak");
+         Check (Jobs.Pipeline_Workspace_Peak_Bytes
+           (Expansion_Result.all) =
+             Jobs.Parse_Workspace_Peak_Bytes (Expansion_Result.all) and
+           Jobs.Raster_Workspace_Peak_Bytes (Expansion_Result.all) = 0,
+           "non-raster pipeline reports parse peak and no raster workspace");
+         Check (not Jobs.Has_Raster (Expansion_Result.all) and
+           Jobs.Raster_Retained_Bytes (Expansion_Result.all) = 0 and
+           Math_Raster_Budget.Used = 0,
+           "non-raster expansion retains no raster charge");
+         Jobs.Release (Expansion_Result);
+      end if;
    end;
    declare
       Red_Id : Jobs.Request_Id;

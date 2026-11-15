@@ -3268,3 +3268,29 @@ Results and known leak/lifecycle limits are recorded in coordinator-owned
 report §11.14 and `plan/evidence/native-math-2026-11-15-parser-budget/`; see the
 compatibility plan and frontend SDF continuation. No requirement or approved
 budget changes.
+
+
+### Math workspace admission — AST node-construction accounting (PCR-125, 2026-11-15)
+
+The optional AST account pre-admits the old and prospective new Node record
+arrays, starting at seed32 and doubling up to32768. It reconciles actual
+capacity after `Reserve_Capacity`, establishes reservation ownership before
+`State`, and moves node/diagnostic returns. Charge ends at `Parse` return, not
+retained-node lifetime. The existing worker Parse/Pipeline peak includes AST;
+the worker job body is unchanged. This accounts for transient Node records, not
+nested payload strings or whole-job memory.
+
+Scoped parser688/688 twice on the2049-node fixture, peak2,443,968; HEAD
+baseline688 assertions with5 expected failures. Worker223/223, ledger38/38,
+full1076/1076 (cumulative145.992924s, wall146.26s), GTK9/9, containment and
+offline HTTP pass. Raster1116/1116 normal/Valgrind; strict script FAILS with2
+contexts and6656/2183/26-byte losses. Geometry attempt BLOCKED because
+`/tmp/coyote-katex-support-check/package` was absent; not a rerun pass.
+Browser/resource characterization was not rerun; existing warnings remain.
+Report §11.15 and `plan/evidence/native-math-2026-11-15-ast-budget/` control.
+
+Nested strings, expander/semantics/layout/native/font data, allocator overhead,
+copies and cache remain unaccounted. Whole-job, timing, font, parity, lifecycle
+and human acceptance gates remain open; self-review is not independent
+acceptance. No requirements/deviations changed; no release, installation or
+commit.

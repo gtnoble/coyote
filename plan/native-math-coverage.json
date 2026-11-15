@@ -166,7 +166,7 @@
     "generation_validation": "Generator verifies every relevant package/archive file byte-for-byte, exact instrumentation anchors, registry counts, and pinned archive/dist hashes; this map validates the pinned inventory and regenerates native symbol tables byte-identically against checked-in sources."
   },
   "evidence_source_sha256": {
-    "src/coyote_math/coyote_math_jobs.ads": "6b3248d77798326be10fa2ea4fcffc80d8ee79ebc001354bd366b9756959d902",
+    "src/coyote_math/coyote_math_jobs.ads": "c5e25296b4aa756314f85755082549bbaa4eefe0afc1f6b2cd80da3a34436871",
     "src/coyote_math/coyote_math_jobs.adb": "1c80a82dab415e1cf9a209176fc1ab83401461939cd0f68b1c47890c04022d5f",
     "src/coyote_math/coyote_math_resources.ads": "39af20bbd8702191c7ab199ac8b75bfb76ce951c6911499304b0e50c5c413614",
     "src/coyote_math/coyote_math_resources.adb": "43b1a2718f5f48b2e4286bd9d6a0c13b0916cb9b2e91f766c1960bc4a4e0dd5b",
@@ -203,8 +203,8 @@
     "src/coyote_math/math_stretchy.adb": "2d33705cfab6443e7388b1cefd32bb1135f7871964826ec8bdc22916627f2f27",
     "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
     "src/coyote_math/math_symbols.adb": "116aa49efc576e32c026ca54eb9a5ba46d55394137daf975324337ced687e15d",
-    "src/coyote_math/math_syntax.ads": "4175a218ab50215fdce7332741a5ed803d98d98b6954445414ddaccdbc789f4b",
-    "src/coyote_math/math_syntax.adb": "52e438e38bd3cb67817c8f77baf5fc5eeb13c22eb60182c9c63d6b976c328045",
+    "src/coyote_math/math_syntax.ads": "05b676b821337e3899de328e63a2dfb1264ae2dbcab03219bf9f8b820bcd3234",
+    "src/coyote_math/math_syntax.adb": "3e50990fed3b7a1af1c8607863a22abc26b85fccde8826a435d5af4ce77a1812",
     "src/coyote_math/math_text_shaping.ads": "bcf7e2c51e496a04222597c6a9a29daadca14d4ea222784e5cb6f5e23d0db220",
     "src/coyote_math/math_text_shaping.adb": "a6d40f7d275fe747c163a2b27cd1777ed47ccfd5c1601d24cca080aa716f5e3a",
     "src/coyote_math/math_raster_budget.ads": "36466a84367a2fe8afe84854790862529ec3168b51bfb00d04a6f8ccdb8fa623",

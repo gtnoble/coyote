@@ -1,0 +1,303 @@
+/home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/lib/gcc/x86_64-pc-linux-gnu/15.2.0/adainclude/a-convec.adb
+SHA256 aabf3fd92dbaf5e03344d09b2768eda3286e9e47d0f8a74639fb701b40d12861
+   procedure Reserve_Capacity
+     (Container : in out Vector;
+      Capacity  : Count_Type)
+   is
+      N : constant Count_Type := Length (Container);
+
+      Index : Count_Type'Base;
+      Last  : Index_Type'Base;
+
+   begin
+      --  Reserve_Capacity can be used to either expand the storage available
+      --  for elements (this would be its typical use, in anticipation of
+      --  future insertion), or to trim back storage. In the latter case,
+      --  storage can only be trimmed back to the limit of the container
+      --  length. Note that Reserve_Capacity neither deletes (active) elements
+      --  nor inserts elements; it only affects container capacity, never
+      --  container length.
+
+      if Capacity = 0 then
+
+         --  This is a request to trim back storage, to the minimum amount
+         --  possible given the current state of the container.
+
+         if N = 0 then
+
+            --  The container is empty, so in this unique case we can
+            --  deallocate the entire internal array. Note that an empty
+            --  container can never be busy, so there's no need to check the
+            --  tampering bits.
+
+            declare
+               X : Elements_Access := Container.Elements;
+
+            begin
+               --  First we remove the internal array from the container, to
+               --  handle the case when the deallocation raises an exception.
+
+               Container.Elements := null;
+
+               --  Container invariants have been restored, so it is now safe
+               --  to attempt to deallocate the internal array.
+
+               Free (X);
+            end;
+
+         elsif N < Container.Elements.EA'Length then
+
+            --  The container is not empty, and the current length is less than
+            --  the current capacity, so there's storage available to trim. In
+            --  this case, we allocate a new internal array having a length
+            --  that exactly matches the number of items in the
+            --  container. (Reserve_Capacity does not delete active elements,
+            --  so this is the best we can do with respect to minimizing
+            --  storage).
+
+            TC_Check (Container.TC);
+
+            declare
+               subtype Src_Index_Subtype is Index_Type'Base range
+                 Index_Type'First .. Container.Last;
+
+               Src : Elements_Array renames
+                       Container.Elements.EA (Src_Index_Subtype);
+
+               X : Elements_Access := Container.Elements;
+
+            begin
+               --  Although we have isolated the old internal array that we're
+               --  going to deallocate, we don't deallocate it until we have
+               --  successfully allocated a new one. If there is an exception
+               --  during allocation (either because there is not enough
+               --  storage, or because initialization of the elements fails),
+               --  we let it propagate without causing any side-effect.
+
+               Container.Elements := new Elements_Type'(Container.Last, Src);
+
+               --  We have successfully allocated a new internal array (with a
+               --  smaller length than the old one, and containing a copy of
+               --  just the active elements in the container), so it is now
+               --  safe to attempt to deallocate the old array. The old array
+               --  has been isolated, and container invariants have been
+               --  restored, so if the deallocation fails (because finalization
+               --  of the elements fails), we simply let it propagate.
+
+               Free (X);
+            end;
+         end if;
+
+         return;
+      end if;
+
+      --  Reserve_Capacity can be used to expand the storage available for
+      --  elements, but we do not let the capacity grow beyond the number of
+      --  values in Index_Type'Range. (Were it otherwise, there would be no way
+      --  to refer to the elements with an index value greater than
+      --  Index_Type'Last, so that storage would be wasted.) Here we compute
+      --  the Last index value of the new internal array, in a way that avoids
+      --  any possibility of overflow.
+
+      if Index_Type'Base'Last >= Count_Type_Last then
+
+         --  We perform a two-part test. First we determine whether the
+         --  computed Last value lies in the base range of the type, and then
+         --  determine whether it lies in the range of the index (sub)type.
+
+         --  Last must satisfy this relation:
+         --    First + Length - 1 <= Last
+         --  We regroup terms:
+         --    First - 1 <= Last - Length
+         --  Which can rewrite as:
+         --    No_Index <= Last - Length
+
+         if Checks and then
+           Index_Type'Base'Last - Index_Type'Base (Capacity) < No_Index
+         then
+            raise Constraint_Error with "Capacity is out of range";
+         end if;
+
+         --  We now know that the computed value of Last is within the base
+         --  range of the type, so it is safe to compute its value:
+
+         Last := No_Index + Index_Type'Base (Capacity);
+
+         --  Finally we test whether the value is within the range of the
+         --  generic actual index subtype:
+
+         if Checks and then Last > Index_Type'Last then
+            raise Constraint_Error with "Capacity is out of range";
+         end if;
+
+      elsif Index_Type'First <= 0 then
+
+         --  Here we can compute Last directly, in the normal way. We know that
+         --  No_Index is less than 0, so there is no danger of overflow when
+         --  adding the (positive) value of Capacity.
+
+         Index := Count_Type'Base (No_Index) + Capacity;  -- Last
+
+         if Checks and then Index > Count_Type'Base (Index_Type'Last) then
+            raise Constraint_Error with "Capacity is out of range";
+         end if;
+
+         --  We know that the computed value (having type Count_Type) of Last
+         --  is within the range of the generic actual index subtype, so it is
+         --  safe to convert to Index_Type:
+
+         Last := Index_Type'Base (Index);
+
+      else
+         --  Here Index_Type'First (and Index_Type'Last) is positive, so we
+         --  must test the length indirectly (by working backwards from the
+         --  largest possible value of Last), in order to prevent overflow.
+
+         Index := Count_Type'Base (Index_Type'Last) - Capacity;  -- No_Index
+
+         if Checks and then Index < Count_Type'Base (No_Index) then
+            raise Constraint_Error with "Capacity is out of range";
+         end if;
+
+         --  We have determined that the value of Capacity would not create a
+         --  Last index value outside of the range of Index_Type, so we can now
+         --  safely compute its value.
+
+         Last := Index_Type'Base (Count_Type'Base (No_Index) + Capacity);
+      end if;
+
+      --  The requested capacity is non-zero, but we don't know yet whether
+      --  this is a request for expansion or contraction of storage.
+
+      if Container.Elements = null then
+
+         --  The container is empty (it doesn't even have an internal array),
+         --  so this represents a request to allocate (expand) storage having
+         --  the given capacity.
+
+         Container.Elements := new Elements_Type (Last);
+         return;
+      end if;
+
+      if Capacity <= N then
+
+         --  This is a request to trim back storage, but only to the limit of
+         --  what's already in the container. (Reserve_Capacity never deletes
+         --  active elements, it only reclaims excess storage.)
+
+         if N < Container.Elements.EA'Length then
+
+            --  The container is not empty (because the requested capacity is
+            --  positive, and less than or equal to the container length), and
+            --  the current length is less than the current capacity, so
+            --  there's storage available to trim. In this case, we allocate a
+            --  new internal array having a length that exactly matches the
+            --  number of items in the container.
+
+            TC_Check (Container.TC);
+
+            declare
+               subtype Src_Index_Subtype is Index_Type'Base range
+                 Index_Type'First .. Container.Last;
+
+               Src : Elements_Array renames
+                       Container.Elements.EA (Src_Index_Subtype);
+
+               X : Elements_Access := Container.Elements;
+
+            begin
+               --  Although we have isolated the old internal array that we're
+               --  going to deallocate, we don't deallocate it until we have
+               --  successfully allocated a new one. If there is an exception
+               --  during allocation (either because there is not enough
+               --  storage, or because initialization of the elements fails),
+               --  we let it propagate without causing any side-effect.
+
+               Container.Elements := new Elements_Type'(Container.Last, Src);
+
+               --  We have successfully allocated a new internal array (with a
+               --  smaller length than the old one, and containing a copy of
+               --  just the active elements in the container), so it is now
+               --  safe to attempt to deallocate the old array. The old array
+               --  has been isolated, and container invariants have been
+               --  restored, so if the deallocation fails (because finalization
+               --  of the elements fails), we simply let it propagate.
+
+               Free (X);
+            end;
+         end if;
+
+         return;
+      end if;
+
+      --  The requested capacity is larger than the container length (the
+      --  number of active elements). Whether this represents a request for
+      --  expansion or contraction of the current capacity depends on what the
+      --  current capacity is.
+
+      if Capacity = Container.Elements.EA'Length then
+
+         --  The requested capacity matches the existing capacity, so there's
+         --  nothing to do here. We treat this case as a no-op, and simply
+         --  return without checking the busy bit.
+
+         return;
+      end if;
+
+      --  There is a change in the capacity of a non-empty container, so a new
+      --  internal array will be allocated. (The length of the new internal
+      --  array could be less or greater than the old internal array. We know
+      --  only that the length of the new internal array is greater than the
+      --  number of active elements in the container.) We must check whether
+      --  the container is busy before doing anything else.
+
+      TC_Check (Container.TC);
+
+      --  We now allocate a new internal array, having a length different from
+      --  its current value.
+
+      declare
+         E : Elements_Access := new Elements_Type (Last);
+
+      begin
+         --  We have successfully allocated the new internal array. We first
+         --  attempt to copy the existing elements from the old internal array
+         --  ("src" elements) onto the new internal array ("tgt" elements).
+
+         declare
+            subtype Index_Subtype is Index_Type'Base range
+              Index_Type'First .. Container.Last;
+
+            Src : Elements_Array renames
+                    Container.Elements.EA (Index_Subtype);
+
+            Tgt : Elements_Array renames E.EA (Index_Subtype);
+
+         begin
+            Tgt := Src;
+
+         exception
+            when others =>
+               Free (E);
+               raise;
+         end;
+
+         --  We have successfully copied the existing elements onto the new
+         --  internal array, so now we can attempt to deallocate the old one.
+
+         declare
+            X : Elements_Access := Container.Elements;
+
+         begin
+            --  First we isolate the old internal array, and replace it in the
+            --  container with the new internal array.
+
+            Container.Elements := E;
+
+            --  Container invariants have been restored, so it is now safe to
+            --  attempt to deallocate the old internal array.
+
+            Free (X);
+         end;
+      end;
+   end Reserve_Capacity;

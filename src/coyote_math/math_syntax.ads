@@ -130,9 +130,11 @@ package Math_Syntax is
       Settings : Options; Global_Group : Boolean := False;
       Work : Math_Work_Control.Context_Access := null;
       Memory : Math_Memory_Budget.Budget_Access := null) return Document;
-   --  Work and Memory are borrowed only for this call. Memory accounts only
-   --  offset-map and token-vector record-array payload capacities, not strings,
-   --  lexemes, AST, expander storage, allocator overhead, or process memory.
+   --  Work and Memory are borrowed only for this call. Memory accounts for
+   --  offset-map, lexical token and AST node record-array construction capacity,
+   --  including old/new node arrays during growth. It excludes strings, nested
+   --  node payloads, expander storage, allocator overhead and process memory.
+   --  Charges end at Parse return, not at returned-document/copy destruction.
    --  Reservations are pre-admitted and released after parser locals finalize.
    --  Cancellation, deadline, and budget exceptions propagate to the caller.
    --  Explicit shared state follows local/global namespace semantics, even

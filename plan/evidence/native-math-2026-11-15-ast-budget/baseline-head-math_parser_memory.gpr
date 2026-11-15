@@ -1,0 +1,30 @@
+project Math_Parser_Memory is
+   for Languages use ("Ada");
+   for Source_Dirs use ("src", "tools");
+   for Source_Files use
+     ("math_model.ads", "math_work_control.ads", "math_work_control.adb",
+      "math_memory_budget.ads", "math_memory_budget.adb",
+      "math_source.ads", "math_source.adb",
+      "math_unicode.ads", "math_unicode.adb",
+      "math_tokens.ads", "math_tokens.adb",
+      "math_macros.ads", "math_macros.adb",
+      "math_expander.ads", "math_expander.adb",
+      "math_builtin_macros.ads", "math_builtin_macros.adb",
+      "math_symbols.ads", "math_symbols.adb",
+      "math_metrics.ads", "math_metrics.adb",
+      "math_font_data.ads", "math_font_data.adb",
+      "math_stretchy.ads", "math_stretchy.adb",
+      "math_paths.ads", "math_paths.adb",
+      "math_radical_paths.ads", "math_radical_paths.adb",
+      "math_syntax.ads", "math_syntax.adb",
+      "math_parser_memory_probe.adb");
+   for Object_Dir use External ("MATH_PARSER_MEMORY_ROOT") & "/obj";
+   for Exec_Dir use External ("MATH_PARSER_MEMORY_ROOT") & "/bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("math_parser_memory_probe.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
+   end Compiler;
+end Math_Parser_Memory;

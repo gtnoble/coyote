@@ -4768,3 +4768,32 @@ are historical, not current-source qualification.
   RSS enforcement. Strings, lexemes, expander/AST/semantic/layout/native/font
   data, allocator overhead and copy/cache lifetimes remain outside accounting.
   No requirements/deviations changed. PCR-125 OPEN; feature NOT COMPLETE.
+
+
+### PCR-125 — 2026-11-15 AST node-construction accounting continuation
+
+- **Category:** Code, Design, Test.
+- **Priority:** 3-Moderate (parent classification unchanged).
+- **Authority:** user-requested continuation under existing PCR-125 execution;
+  no new requirement, deviation, unit or approved budget.
+- **Problem:** prior parser-vector accounting excluded AST Node record-array
+  construction and its overlapping old/new capacity during growth.
+- **Action:** pre-admit old+new record arrays (seed32, doubling through32768),
+  reconcile actual capacity after `Reserve_Capacity`, establish reservation
+  ownership before `State`, and move node/diagnostic returns. Reservation
+  charge ends at `Parse` return, not retained-node lifetime. Existing worker
+  Parse/Pipeline peak includes AST; worker job body unchanged.
+- **Verification:** parser688/688 twice; 2049-node fixture peak2,443,968.
+  HEAD baseline688 assertions with5 expected failures. Worker223/223,
+  ledger38/38, full1076/1076 (cumulative145.992924s, wall146.26s), GTK9/9,
+  containment and offline HTTP pass. Raster1116/1116 normal/Valgrind; strict
+  script FAILS with2 contexts and6656/2183/26-byte losses. Geometry attempt
+  BLOCKED because `/tmp/coyote-katex-support-check/package` was absent, not a
+  rerun pass. Browser/resource characterization not rerun; existing warnings
+  remain. Report §11.15 and
+  `plan/evidence/native-math-2026-11-15-ast-budget/` control the evidence.
+- **Limits/status:** nested payload strings, expander/semantics/layout/native/
+  font, allocator overhead, copies and cache remain unaccounted; no whole-job
+  claim. Timing, font, parity, lifecycle and human acceptance remain open.
+  Self-review is not independent acceptance. Parent PCR-125 OPEN; feature NOT
+  COMPLETE. No release/install/commit.

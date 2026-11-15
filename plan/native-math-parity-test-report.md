@@ -1404,3 +1404,81 @@ native lifecycle and independent desktop/AT/user acceptance remain OPEN.
 Browser/geometry/isolated-resource characterization was not rerun; prior scoped
 results remain historical. PCR-125 OPEN; feature NOT COMPLETE. No release,
 installation or commit.
+
+
+### 11.15 Fresh continuation — AST construction reservations, 2026-11-15
+
+**Scope/authority:** User requested continued LaTeX-math work under existing
+PCR-125. This advances REQ-MATH-010 / MATH-LIMIT-002 accounting to parser AST
+node record-array construction capacity. SRS-MATH v1.0 and D01–D15 are unchanged.
+This does not close the whole-job256MiB gate.
+
+**Implementation:** The single node append site pre-admits old plus requested
+new array capacity before growth: initial32 records, doubling to the existing
+32768-node cap. Actual surviving capacity reconciles after Reserve_Capacity.
+Checked byte arithmetic uses node record size and storage unit. GNAT15.2 realizes
+requested capacity in the inspected implementation; arbitrary over-allocation,
+allocator metadata and nested controlled payloads are not pre-admitted. Polls
+before append and after growth remain cooperative, not preemptive.
+
+The reservation owner precedes Parser_State and source/token locals, so charges
+outlive cleanup. Every return transfers nonempty node and diagnostic vectors,
+avoiding the parser-local node-vector copy. Empty cleared failure capacity stays
+with State and is freed before charge release, not retained by invalid documents.
+Returned AST storage, wrapper/caller assignment copies and nested node strings/
+array-rule vectors remain outside the charge after Parse returns. Existing
+worker parser/pipeline peaks include AST construction without a worker-body
+change. Pipeline peak remains the maximum of parser and raster windows, not a
+whole-job total.
+
+**Developer verification:**
+
+- Root/test incremental development builds pass; generated profiles select
+  development. Existing warnings remain; no release/clean-build qualification.
+- Exact-final full Xvfb1076/1076, zero failed assertions/unexpected errors,
+  145.992924s cumulative,146.26s wall. Pre-final full1076/1076 passes at
+  145.382510s cumulative,145.50s wall before empty-failure cleanup correction.
+- Parser688/688 repeated and exact-final, also688/688 under Valgrind:0 errors,
+  0 definite/indirect/possible losses;113248 bytes reachable. This executable
+  does not exercise Pango or whole-application cleanup. The macro fixture
+  produces2049 nodes/2048 glyphs, charged peak2443968 bytes matching source/token
+  baseline plus2048+4096 overlapping node records. Exact/one-short/held-charge
+  tests cover admission/reuse; AST-stage cancel/deadline, post-mutation local
+  rollback/Global_Group persistence, invalid/empty returns and AST usability pass.
+- Current688-check probe against isolated HEAD syntax builds successfully and
+  reports5 expected AST-specific failures; baseline lexical peak250560 bytes.
+  Measured exact/short controls alone are not detectors because they derive
+  thresholds from the implementation; independent overlap/phase checks detect it.
+- Worker223/223, repeated exact-final223/223. Eight added checks compare a
+  nonraster macro-expanded job peak with direct parsing, validate retained AST
+  and parse-only pipeline, and verify no raster charge. Existing2000 warm
+  requests/saturation pass; headless timing is not qualification. Ledger38/38.
+- Raster1116/1116 normal and under Valgrind, but strict script FAILS:2 contexts,
+  6656 definite/2183 indirect/26 possible lost bytes in native Fontconfig/Pango
+  paths. No suppression, threshold change or production-global teardown.
+- Required GTK9/9, containment self-test and offline Plain/RPC HTTP lifecycle
+  pass after final builds. Containment intentionally produces synthetic7/9
+  before its successful self-evaluation. Crosswalk refresh/check passes; this is
+  source evidence, not semantic qualification.
+- Geometry invocation BLOCKED before cases execute: default KaTeX package
+  /tmp/coyote-katex-support-check/package is absent. Browser images, isolated
+  resources and shaping lifecycle matrix were not rerun; prior results remain
+  historical.
+
+**Evidence/evaluation:** `plan/evidence/native-math-2026-11-15-ast-budget/`
+retains builds/probes, isolated HEAD baseline, full suite, Valgrind, post-build
+checks, patch, source/font/executable hashes and reviews. Initial accessibility
+compile rejection and test-setting mistakes are retained as intermediate logs.
+Read-only final review found no scoped blocker. Developer/agent evaluation is
+not independent human acceptance. Formula tests intentionally depend on this
+growth policy and GNAT capacity behavior; allocator failures, move/finalization
+exceptions and all nested AST kinds are not fault-injected/exhaustively covered.
+
+**Open gates:** Expander storage, strings/lexemes, nested AST payloads,
+semantics/layout/native/font temporaries, allocator metadata, full return-copy
+and retained cache lifetimes remain unaccounted. Charges end at Parse/render
+return; this is not aggregate256MiB or RSS enforcement. Hard250ms, GTK50ms,
+warm-p95, complete tiling/repaint reuse, font pins/bearings/shaped ink, parent
+clipping,60 callable gaps/full corpus, native lifecycle and independent desktop/
+AT/user acceptance remain OPEN. PCR-125 OPEN; feature NOT COMPLETE. No release,
+installation or commit.

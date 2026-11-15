@@ -1,6 +1,9 @@
 with Ada.Exceptions;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with System;
 with Math_Macros;
+with Math_Model;
 with Math_Memory_Budget;
 with Math_Source;
 with Math_Syntax;
@@ -10,6 +13,7 @@ with Math_Work_Control;
 
 procedure Math_Parser_Memory_Probe is
    use Math_Memory_Budget;
+   use type Math_Model.Node_Kind;
    use type Math_Source.Diagnostic_Kind;
    use type Math_Tokens.Diagnostic_Kind;
    use type Math_Work_Control.Stop_Reason;
@@ -32,17 +36,6 @@ procedure Math_Parser_Memory_Probe is
       return Math_Work_Control.Continue_Work;
    end Check;
 
-   type Fixed_Work is new Math_Work_Control.Context with record
-      Reason : Math_Work_Control.Stop_Reason :=
-        Math_Work_Control.Continue_Work;
-   end record;
-   overriding function Check
-     (Item : Fixed_Work) return Math_Work_Control.Stop_Reason;
-   overriding function Check
-     (Item : Fixed_Work) return Math_Work_Control.Stop_Reason is
-   begin
-      return Item.Reason;
-   end Check;
 
    Checks : Natural := 0;
    Failures : Natural := 0;
@@ -60,23 +53,22 @@ procedure Math_Parser_Memory_Probe is
 
    procedure Parse_Expect_Budget
      (Text : String; Account : not null Budget_Access;
-      Rejected : out Boolean; Shared : access Math_Macros.Context := null) is
+      Rejected : out Boolean; Shared : access Math_Macros.Context := null;
+      Settings : Math_Syntax.Options := (others => <>)) is
    begin
       Rejected := False;
       begin
          if Shared = null then
             declare
                Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
-                 (Text, Memory => Account);
-               pragma Unreferenced (Parsed);
+                 (Text, Settings, Memory => Account);
             begin
                null;
             end;
          else
             declare
                Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
-                 (Text, Shared, Memory => Account);
-               pragma Unreferenced (Parsed);
+                 (Text, Shared, Settings, Memory => Account);
             begin
                null;
             end;
@@ -86,6 +78,73 @@ procedure Math_Parser_Memory_Probe is
             Rejected := True;
       end;
    end Parse_Expect_Budget;
+
+   Node_Record_Width : constant Positive :=
+     (Math_Syntax.Node'Size + System.Storage_Unit - 1) / System.Storage_Unit;
+   Saw_Accounting_Threshold : Boolean := False;
+   Capture_AST_Baseline : Boolean := False;
+   Previous_Charge : Natural := 0;
+   AST_Baseline_Charge : Natural := 0;
+
+   type Accounting_Stop_Work is new Math_Work_Control.Context with record
+      Account : Budget_Access := null;
+      Threshold : Natural := 0;
+      Reason : Math_Work_Control.Stop_Reason :=
+        Math_Work_Control.Cancel_Requested;
+   end record;
+   overriding function Check
+     (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason;
+   overriding function Check
+     (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason is
+      Current_Charge : Natural := 0;
+   begin
+      if Item.Account /= null then
+         Current_Charge := Used (Item.Account.all);
+         if Capture_AST_Baseline and then Current_Charge > Previous_Charge
+           and then Current_Charge - Previous_Charge =
+             32 * Node_Record_Width
+         then
+            AST_Baseline_Charge := Previous_Charge;
+            Capture_AST_Baseline := False;
+         end if;
+         Previous_Charge := Current_Charge;
+         if Current_Charge > Item.Threshold then
+            Saw_Accounting_Threshold := True;
+            return Item.Reason;
+         end if;
+      end if;
+      return Math_Work_Control.Continue_Work;
+   end Check;
+
+   function Expansion_Source return String is
+      use Ada.Strings.Unbounded;
+      Result : Unbounded_String;
+      Previous : Character := 'a';
+   begin
+      Append (Result, "\def\a{x}");
+      for Index in 1 .. 11 loop
+         declare
+            Current : constant Character := Character'Val
+              (Character'Pos ('a') + Index);
+         begin
+            Append (Result, "\def\" & Current & "{\" & Previous &
+              "\" & Previous & "}");
+            Previous := Current;
+         end;
+      end loop;
+      Append (Result, "\" & Previous);
+      return To_String (Result);
+   end Expansion_Source;
+
+   function Lexical_Charge_Bound (Text : String) return Natural is
+      Width : constant Positive := Math_Tokens.Token'Size / 8;
+      Map_Bound : constant Natural := Math_Source.Map_Storage_Bound
+        (Natural'Max (1, Text'Length));
+      Token_Bound : constant Natural :=
+        Math_Tokens.Transformation_Token_Bound (Text'Length);
+   begin
+      return 2 * Map_Bound + (3 * Token_Bound + 1) * Width;
+   end Lexical_Charge_Bound;
 
    function UTF8 (Code_Point : Natural) return String is
    begin
@@ -147,11 +206,18 @@ procedure Math_Parser_Memory_Probe is
 
    Source_Text : constant String := "x + \alpha + y^2";
    Lexical_Work_Text : constant String := (1 .. 4_096 => 'x');
+   Expansion_Text : constant String := Expansion_Source;
+   Expansion_Options : constant Math_Syntax.Options :=
+     (Max_Expand => 10_000, others => <>);
+   Expansion_Lexical_Bound : constant Natural :=
+     Lexical_Charge_Bound (Expansion_Text);
+   Lexical_Peak : Natural := 0;
    Measured_Peak : Natural := 0;
+   Expected_Expansion_Peak : Natural := 0;
+   Expansion_AST_Count : Natural := 0;
+   Expansion_Glyph_Count : Natural := 0;
    Rejected : Boolean;
    Delayed_Stop : aliased Countdown_Work;
-   Deadline_Stop : aliased Fixed_Work :=
-     (Reason => Math_Work_Control.Deadline_Reached);
 
 begin
    Check_Lex_Bound (UTF8 (16#390#), "precomposed U+0390 two-mark scalar");
@@ -204,15 +270,15 @@ begin
 
    declare
       Context : aliased Math_Macros.Context;
-      Short : aliased Budget (Limit => Measured_Peak - 1);
+      Short : aliased Budget (Limit => Lexical_Peak + 1);
       Depth : constant Natural := Math_Macros.Scope_Depth (Context);
    begin
       Parse_Expect_Budget
         ("\def\localOnly{x}x", Short'Unchecked_Access,
-         Rejected, Context'Access);
+         Rejected, Context'Access, Expansion_Options);
       Check (Rejected and Math_Macros.Scope_Depth (Context) = Depth and
         not Math_Macros.Is_Defined (Context, "\localOnly"),
-        "pre-parse budget rejection leaves macro scope untouched; post-group rollback untested");
+        "pre-parse budget rejection leaves macro scope untouched");
    end;
 
    declare
@@ -293,23 +359,27 @@ begin
 
    declare
       Account : aliased Budget;
-      Work : constant Math_Work_Control.Context_Access :=
-        Deadline_Stop'Unchecked_Access;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Threshold => Expansion_Lexical_Bound,
+         Reason => Math_Work_Control.Deadline_Reached);
       Raised : Boolean := False;
    begin
+      Saw_Accounting_Threshold := False;
       begin
          declare
             Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
-              (Source_Text, Work => Work, Memory => Account'Unchecked_Access);
-            pragma Unreferenced (Parsed);
+              (Expansion_Text, Expansion_Options,
+               Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
          begin
             null;
          end;
       exception
          when Math_Work_Control.Deadline_Expired => Raised := True;
       end;
-      Check (Raised and Used (Account) = 0,
-        "deadline propagates and releases reservations");
+      Check (Raised and Saw_Accounting_Threshold and Used (Account) = 0,
+        "AST-stage deadline propagates and releases reservations");
    end;
 
    declare
@@ -379,6 +449,220 @@ begin
    begin
       Check (Peak (Account) > 0 and Used (Account) = 0,
         "maximum-size source control");
+   end;
+
+   declare
+      Measure : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Measure'Unchecked_Access,
+         Threshold => Natural'Last,
+         Reason => Math_Work_Control.Cancel_Requested);
+   begin
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      declare
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           (Expansion_Text, Expansion_Options,
+            Work => Work'Unchecked_Access,
+            Memory => Measure'Unchecked_Access);
+      begin
+         Expansion_AST_Count := Math_Syntax.Count (Parsed);
+         for Node_Index in 1 .. Expansion_AST_Count loop
+            if Math_Syntax.Element (Parsed, Node_Index).Kind =
+              Math_Model.Glyph_Node
+            then
+               Expansion_Glyph_Count := Expansion_Glyph_Count + 1;
+            end if;
+         end loop;
+         Capture_AST_Baseline := False;
+         Lexical_Peak := AST_Baseline_Charge;
+         Expected_Expansion_Peak := Lexical_Peak +
+           (2_048 + 4_096) * Node_Record_Width;
+         Measured_Peak := Peak (Measure);
+         Check (Math_Syntax.Is_Valid (Parsed) and
+           Expansion_AST_Count = 2_049 and Expansion_Glyph_Count = 2_048,
+           "doubling macros return an inspectable 2048-glyph AST");
+         Check (Lexical_Peak > 0 and
+           Measured_Peak = Expected_Expansion_Peak and Used (Measure) = 0,
+           "AST growth peak (baseline " & Natural'Image (Lexical_Peak) &
+             ", measured " & Natural'Image (Measured_Peak) &
+             ", expected " & Natural'Image (Expected_Expansion_Peak) & ")");
+      end;
+   end;
+
+   declare
+      Exact : aliased Budget (Limit => Measured_Peak);
+      Short : aliased Budget (Limit => Measured_Peak - 1);
+   begin
+      Parse_Expect_Budget
+        (Expansion_Text, Exact'Unchecked_Access, Rejected,
+         Settings => Expansion_Options);
+      Check (not Rejected and Peak (Exact) = Measured_Peak and
+        Used (Exact) = 0, "AST-dominated exact measured budget");
+      Parse_Expect_Budget
+        (Expansion_Text, Short'Unchecked_Access, Rejected,
+         Settings => Expansion_Options);
+      Check (Rejected and Used (Short) = 0,
+        "AST-dominated one-byte-short budget releases charge");
+   end;
+
+   declare
+      Account : aliased Budget (Limit => Measured_Peak);
+      Held : Reservation;
+   begin
+      Reserve (Held, Account'Unchecked_Access, 1);
+      Parse_Expect_Budget
+        (Expansion_Text, Account'Unchecked_Access, Rejected,
+         Settings => Expansion_Options);
+      Check (Rejected and Used (Account) = 1,
+        "held charge rejects AST growth without disturbing owner charge");
+      Release (Held);
+      Parse_Expect_Budget
+        (Expansion_Text, Account'Unchecked_Access, Rejected,
+         Settings => Expansion_Options);
+      Check (not Rejected and Used (Account) = 0 and
+        Peak (Account) = Measured_Peak,
+        "AST budget reusable after held-charge rejection");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Threshold => Expansion_Lexical_Bound,
+         Reason => Math_Work_Control.Cancel_Requested);
+      Raised : Boolean := False;
+   begin
+      Saw_Accounting_Threshold := False;
+      begin
+         declare
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Expansion_Text, Expansion_Options,
+               Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Parsed);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Stop_Requested => Raised := True;
+      end;
+      Check (Raised and Saw_Accounting_Threshold and Used (Account) = 0,
+        "live AST charge triggers cancellation and releases reservations");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        (Expansion_Text, Expansion_Options,
+         Memory => Account'Unchecked_Access);
+      Glyph_Count : Natural := 0;
+      Has_X : Boolean := False;
+   begin
+      for Node_Index in 1 .. Math_Syntax.Count (Parsed) loop
+         declare
+            Current : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Parsed, Node_Index);
+         begin
+            if Current.Kind = Math_Model.Glyph_Node then
+               Glyph_Count := Glyph_Count + 1;
+               Has_X := Has_X or else
+                 Current.Code_Point = Character'Pos ('x');
+            end if;
+         end;
+      end loop;
+      Check (Math_Syntax.Is_Valid (Parsed) and Glyph_Count >= 2_048 and
+        Has_X and Used (Account) = 0,
+        "returned AST content remains usable after reservation release");
+   end;
+
+   declare
+      Local : aliased Math_Macros.Context;
+      Bounded : aliased Budget
+        (Limit => Expansion_Lexical_Bound + 32 * Node_Record_Width);
+      Depth : constant Natural := Math_Macros.Scope_Depth (Local);
+      Raised : Boolean := False;
+   begin
+      begin
+         declare
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Expansion_Text, Local'Access, Expansion_Options,
+               Memory => Bounded'Unchecked_Access);
+            pragma Unreferenced (Parsed);
+         begin
+            null;
+         end;
+      exception
+         when Budget_Exceeded => Raised := True;
+      end;
+      Check (Raised and Math_Macros.Scope_Depth (Local) = Depth and
+        not Math_Macros.Is_Defined (Local, "\a"),
+        "AST budget rejection rolls back local expansion definitions");
+   end;
+
+   declare
+      Global : aliased Math_Macros.Context;
+      Bounded : aliased Budget
+        (Limit => Expansion_Lexical_Bound + 32 * Node_Record_Width);
+      Raised : Boolean := False;
+   begin
+      begin
+         declare
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Expansion_Text, Global'Access, Expansion_Options,
+               Global_Group => True, Memory => Bounded'Unchecked_Access);
+            pragma Unreferenced (Parsed);
+         begin
+            null;
+         end;
+      exception
+         when Budget_Exceeded => Raised := True;
+      end;
+      Check (Raised and Math_Macros.Is_Defined (Global, "\a"),
+        "AST budget rejection retains Global_Group definitions");
+   end;
+
+   declare
+      Local : aliased Math_Macros.Context;
+      Depth : constant Natural := Math_Macros.Scope_Depth (Local);
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\def\rollbackLocal{x}x{", Local'Access);
+   begin
+      Check (not Math_Syntax.Is_Valid (Parsed) and
+        not Math_Macros.Is_Defined (Local, "\rollbackLocal") and
+        Math_Macros.Scope_Depth (Local) = Depth,
+        "syntax failure after mutation rolls back local macro group");
+   end;
+
+   declare
+      Global : aliased Math_Macros.Context;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("\def\rollbackGlobal{x}x{", Global'Access,
+         Global_Group => True);
+   begin
+      Check (not Math_Syntax.Is_Valid (Parsed) and
+        Math_Macros.Is_Defined (Global, "\rollbackGlobal"),
+        "syntax failure preserves Global_Group definition");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("", Memory => Account'Unchecked_Access);
+   begin
+      Check (Math_Syntax.Is_Valid (Parsed) and Math_Syntax.Count (Parsed) = 1
+        and Math_Syntax.Root (Parsed) = 1 and Used (Account) = 0,
+        "empty input returns valid root document and releases reservation");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        ("x+{y", Memory => Account'Unchecked_Access);
+   begin
+      Check (not Math_Syntax.Is_Valid (Parsed) and Used (Account) = 0,
+        "malformed input after AST construction releases node charge");
    end;
 
    Ada.Text_IO.Put_Line

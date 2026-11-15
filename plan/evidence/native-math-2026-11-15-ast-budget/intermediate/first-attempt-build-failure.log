@@ -1,0 +1,9 @@
+Compile
+   [Ada]          math_parser_memory_probe.adb
+math_parser_memory_probe.adb:585:40: warning: aspect Unreferenced specified for "Parsed" [enabled by default]
+math_parser_memory_probe.adb:598:40: warning: aspect Unreferenced specified for "Parsed" [enabled by default]
+math_parser_memory_probe.adb:609:40: warning: aspect Unreferenced specified for "Parsed" [enabled by default]
+   [Ada]          math_syntax.adb
+math_syntax.adb:3358:33: error: non-local pointer cannot point to local object
+gprbuild: *** compilation phase failed
+ERROR: Command ["gprbuild", "-p", "-P", "test/native/math_parser_memory.gpr"] exited with code 4

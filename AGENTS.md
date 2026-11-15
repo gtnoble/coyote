@@ -343,3 +343,29 @@ Raster1116/1116 normal/Valgrind, but strict script fails with2 contexts and
 6656/2183/26-byte losses; shaped lifecycle teardown leaves possible losses.
 This is not whole-job or portable allocator accounting. Memory, timing, font,
 parity, lifecycle and human acceptance remain open. No release/install/commit.
+
+
+## Latest native-math AST node-construction accounting continuation — 2026-11-15
+
+Use coordinator report §11.15 and
+`plan/evidence/native-math-2026-11-15-ast-budget/` as the controlling AST
+checkpoint. Parser pre-admits old+new Node record arrays from seed32, doubling
+through32768, reconciles actual capacity after `Reserve_Capacity`, establishes
+reservation ownership before `State`, and moves node/diagnostic returns. The
+charge ends at `Parse` return, not retained-node lifetime. Existing worker
+Parse/Pipeline peak includes AST; worker job body is unchanged.
+
+Scoped parser688/688 twice; fixture has2049 nodes and peak2,443,968. HEAD
+baseline688 assertions with5 expected failures. Worker223/223, ledger38/38,
+full1076/1076 (cumulative145.992924s; wall146.26s), GTK9/9, containment and
+offline HTTP checks pass. Raster1116/1116 normally and under Valgrind; strict
+script FAILS with2 contexts and6656/2183/26-byte losses. Geometry attempt is
+BLOCKED: `/tmp/coyote-katex-support-check/package` was absent; this is not a
+rerun pass. Browser/resource characterization was not rerun. Existing warnings
+remain.
+
+This is scoped transient Node-array accounting, not whole-job accounting.
+Nested payload strings, expander/semantics/layout/native/font, allocator
+overhead, copies and cache remain unaccounted. Timing, font, parity, lifecycle
+and human acceptance gates remain open; self-review is not independent
+acceptance. No release/install/commit.
