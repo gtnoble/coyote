@@ -4797,3 +4797,49 @@ are historical, not current-source qualification.
   claim. Timing, font, parity, lifecycle and human acceptance remain open.
   Self-review is not independent acceptance. Parent PCR-125 OPEN; feature NOT
   COMPLETE. No release/install/commit.
+
+
+### PCR-125 — 2026-11-15 array-rule construction accounting continuation
+
+- **Category:** Code, Design, Test.
+- **Priority:** 3-Moderate (parent classification unchanged).
+- **Authority:** user-requested continued project work under existing PCR-125;
+  SRS-MATH v1.0 and D01–D15 unchanged. No new semantic limits or units.
+- **Problem/action:** nested horizontal array-rule vectors were uncharged.
+  Pre-admit aggregate surviving capacities plus the requested replacement
+  buffer before growth. Use scoped node references for link/rule mutations;
+  reconcile surviving rule capacities after outer node-vector reallocation.
+  Review caught spare-capacity loss from copied array nodes, which caused
+  stale charges and possible false budget rejection; corrected in-place links
+  and a live-charge regression cover first-row linking followed by regrowth.
+- **Verification:** exact-final parser706/706 twice and under Valgrind (zero
+  lost bytes/errors), full Xvfb1076/1076 (142.388395s cumulative,142.48s wall),
+  worker223/223, ledger38/38, geometry235/235 using restored test-only
+  KaTeX0.16.22, required GTK9/9, containment and offline HTTP lifecycle pass.
+  Raster1116/1116 normal/Valgrind, but strict script FAILS with2 contexts and
+  6656 definite/2183 indirect/26 possible lost bytes. An isolated PangoFC map
+  shutdown experiment does not remove the fixed losses; no production global
+  cleanup, suppressions or threshold changes were introduced.
+- **Status/limits:** scoped construction accounting only; charges end at Parse
+  return. Nested temporary copies during outer node growth, strings, expander,
+  semantics/layout/native/font, allocator overhead and returned/cache lifetimes
+  remain outside accounting. Whole-job memory, timing, full parity, native
+  lifecycle and human acceptance gates remain OPEN. Developer/agent evaluation
+  is not independent acceptance. Parent PCR-125 OPEN; feature NOT COMPLETE.
+  Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
+  control evidence. No release, installation or commit.
+
+
+### PCR-125 — retained-budget ownership design gate, 2026-11-15
+
+- **Category:** Design, Code, Test. **Priority:** 3-Moderate.
+- **Problem:** Parse borrows a job-local budget while returned/copyable Documents
+  can outlive it. Extending reservation lifetime directly risks dangling access;
+  current phase-only telemetry cannot establish whole-job256MiB enforcement.
+- **Action/status:** ownership/copy crosswalk retained with §11.16 evidence;
+  draft `design/native-math-retained-budget-proposal.md` recommends stable
+  per-job owners and explicit leases/clone transfer. Awaiting user design
+  review before ownership/API migration; NOT APPROVED/NOT IMPLEMENTED.
+- **Limits:**256MiB is per job; a process-wide256MiB cap is not silently added.
+  Other scoped work remains possible. Native lifecycle and broad qualification
+  gates remain open. Developer/agent assessment is not independent acceptance.

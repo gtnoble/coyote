@@ -1,0 +1,5 @@
+Bind
+   [gprbind]      math_shaping_lifecycle_probe.bexch
+   [Ada]          math_shaping_lifecycle_probe.ali
+Link
+   [link]         math_shaping_lifecycle_probe.adb

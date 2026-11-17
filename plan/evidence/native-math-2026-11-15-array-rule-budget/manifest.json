@@ -1,0 +1,24 @@
+{
+  "project_date": "2026-11-15",
+  "head": "d2a3f2222b31319c1e55f5fc92148d9b9dce6a96",
+  "scope": "PCR-125 transient array-rule vector construction; not qualification",
+  "executable_sha256": {
+    "bin/coyote": "5ced902b51cfe2cfdd09e28140b2c038bcef14fece69e1af95d14133d8335d88",
+    "test/bin/coyote_test": "8676b6b88271500aff37bfc925ae75489cacf0d94ee9c4745d610bbf7bd48a08",
+    "plan/evidence/native-math-2026-11-15-array-rule-budget/parser-final/bin/math_parser_memory_probe": "e312bc010836d4251b830df6e8168ed4131683cd66b36f25187a2f322884f721",
+    "plan/evidence/native-math-2026-11-15-array-rule-budget/jobs-final/bin/math_jobs_probe": "56a5d94b99862045e786698baeb002d1d1ce75a77b56dc8817f2b39a24f23a6a",
+    "plan/evidence/native-math-2026-11-15-array-rule-budget/raster-final/bin/math_raster_probe": "95bd55d2d87a8bb48db68f7f4af44f24f11dbc7e4efb54eee928e552d3e21ada"
+  },
+  "results": {
+    "full": "1076/1076",
+    "parser": "706/706 twice and Valgrind",
+    "worker": "223/223",
+    "ledger": "38/38",
+    "geometry": "235/235",
+    "raster": "1116/1116; strict Valgrind FAIL 2 contexts 6656/2183/26 bytes",
+    "gtk": "9/9",
+    "containment": "pass synthetic failures expected",
+    "http": "offline pass"
+  },
+  "excluded": "whole-job/RSS, outer-growth nested temporary copies, strings/expander/layout/semantics/native/font/cache/returned lifetimes; timing/parity/lifecycle/human gates open"
+}

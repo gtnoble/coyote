@@ -466,3 +466,30 @@ This does not account for whole-job memory, nested payload strings,
 expander/semantics/layout/native/font, allocator overhead, copies or cache.
 Timing, font, parity, lifecycle and human acceptance gates remain open;
 self-review is not independent acceptance. No requirements/deviations changed.
+
+
+## 2026-11-15 — Array-rule construction accounting (PCR-125)
+
+Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
+control this continuation. A Parse-local reservation aggregates horizontal
+rule-vector capacity across arrays and pre-admits old/new growth overlap
+(seed4, doubling). Scoped node references avoid copied-node link mutations;
+outer node growth reconciles surviving nested-rule capacity. Review caught
+first-row linking compacting the vector while leaving spare capacity charged;
+in-place linking fixes that drift. References end before polls/outer mutation.
+No new units, semantic limits, SRS requirements or deviations were introduced.
+
+Exact-final parser706/706 twice and under Valgrind (zero lost bytes/errors),
+full Xvfb1076/1076 (142.388395s cumulative,142.48s wall), worker223/223,
+ledger38/38, restored pinned-KaTeX geometry235/235 and required GTK9/9,
+containment and offline HTTP checks pass. HEAD comparison fails4 rule-specific
+checks. Raster1116/1116 normally/Valgrind, but strict script FAILS with2 contexts
+and6656/2183/26-byte losses. Isolated PangoFC per-map shutdown does not remove
+fixed native losses and is not a production change. Existing warnings remain.
+
+Rule charges end at Parse return. Nested copies during outer node growth,
+other payloads/strings, expander/semantics/layout/native/font, allocator overhead
+and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
+font, full parity, native lifecycle and human acceptance gates remain OPEN.
+Developer/agent self-review is not independent acceptance. No release/install/
+commit; PCR-125 OPEN, feature NOT COMPLETE.

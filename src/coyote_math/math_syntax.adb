@@ -26,6 +26,8 @@ package body Math_Syntax is
    use type Math_Macros.Diagnostic_Kind;
 
    Parse_Failure : exception;
+   Rule_Width : constant Positive :=
+     (Array_Rule'Size + System.Storage_Unit - 1) / System.Storage_Unit;
 
    type Parser_State
      (Shared : not null access Math_Macros.Context) is limited record
@@ -46,6 +48,7 @@ package body Math_Syntax is
       Work : Math_Work_Control.Context_Access := null;
       Memory : Math_Memory_Budget.Budget_Access;
       Node_Reservation : access Math_Memory_Budget.Reservation;
+      Rule_Reservation : access Math_Memory_Budget.Reservation;
       AMS_Row : Boolean := False;
       Pending_Tag : Node_Id := No_Node;
       Has_Tag : Boolean := False;
@@ -244,6 +247,23 @@ package body Math_Syntax is
          Math_Memory_Budget.Reserve
            (State.Node_Reservation.all, State.Memory,
             Natural (State.Item.Nodes.Capacity) * Width);
+         declare
+            Rule_Capacity : Natural := 0;
+         begin
+            for Existing of State.Item.Nodes loop
+               if Existing.Array_Rules.Capacity >
+                 Ada.Containers.Count_Type
+                   ((Natural'Last - Rule_Capacity) / Rule_Width)
+               then
+                  raise Constraint_Error with
+                    "array rule storage overflow";
+               end if;
+               Rule_Capacity := Rule_Capacity +
+                 Natural (Existing.Array_Rules.Capacity) * Rule_Width;
+            end loop;
+            Math_Memory_Budget.Reserve
+              (State.Rule_Reservation.all, State.Memory, Rule_Capacity);
+         end;
          Math_Work_Control.Poll (State.Work);
       end if;
       Fresh.Position := Item.Position;
@@ -256,21 +276,26 @@ package body Math_Syntax is
       Row : Node_Id;
       Part : Node_Id) is
       Cursor : Node_Id;
-      Value : Node;
    begin
       if State.Item.Nodes (Positive (Row)).First = No_Node then
-         Value := State.Item.Nodes (Positive (Row));
-         Value.First := Part;
-         State.Item.Nodes.Replace_Element (Positive (Row), Value);
+         declare
+            Row_Ref : Node_Vectors.Reference_Type :=
+              State.Item.Nodes.Reference (Positive (Row));
+         begin
+            Row_Ref.Element.all.First := Part;
+         end;
       else
          Cursor := State.Item.Nodes (Positive (Row)).First;
          loop
-            Value := State.Item.Nodes (Positive (Cursor));
-            exit when Value.Next = No_Node;
-            Cursor := Value.Next;
+            exit when State.Item.Nodes (Positive (Cursor)).Next = No_Node;
+            Cursor := State.Item.Nodes (Positive (Cursor)).Next;
          end loop;
-         Value.Next := Part;
-         State.Item.Nodes.Replace_Element (Positive (Cursor), Value);
+         declare
+            Tail_Ref : Node_Vectors.Reference_Type :=
+              State.Item.Nodes.Reference (Positive (Cursor));
+         begin
+            Tail_Ref.Element.all.Next := Part;
+         end;
       end if;
    end Link;
 
@@ -2437,26 +2462,27 @@ package body Math_Syntax is
          return Is_Environment_End (State, Name);
       end End_Matches;
       procedure Append_Cell (Cell : Node_Id) is
-         Row_Value : Node;
-         Cell_Value : Node;
       begin
          if Cell_Tail = No_Node then
-            Row_Value := State.Item.Nodes (Positive (Row_Id));
-            Row_Value.First := Cell;
-            State.Item.Nodes.Replace_Element (Positive (Row_Id), Row_Value);
+            declare
+               Row_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Row_Id));
+            begin
+               Row_Ref.Element.all.First := Cell;
+            end;
          else
-            Cell_Value := State.Item.Nodes (Positive (Cell_Tail));
-            Cell_Value.Next := Cell;
-            State.Item.Nodes.Replace_Element
-              (Positive (Cell_Tail), Cell_Value);
+            declare
+               Cell_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Cell_Tail));
+            begin
+               Cell_Ref.Element.all.Next := Cell;
+            end;
          end if;
          Cell_Tail := Cell;
          Current_Columns := Current_Columns + 1;
          Column_Count := Natural'Max (Column_Count, Current_Columns);
       end Append_Cell;
       procedure Append_Row is
-         Array_Value : Node;
-         Row_Value : Node;
       begin
          if Row_Count >= Max_Array_Rows then
             Fail (State, "array row limit exceeded", Start);
@@ -2467,15 +2493,19 @@ package body Math_Syntax is
             Fail (State, "array row has wrong number of columns", Start);
          end if;
          if Row_Tail = No_Node then
-            Array_Value := State.Item.Nodes (Positive (Array_Id));
-            Array_Value.First := Row_Id;
-            State.Item.Nodes.Replace_Element
-              (Positive (Array_Id), Array_Value);
+            declare
+               Array_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Array_Id));
+            begin
+               Array_Ref.Element.all.First := Row_Id;
+            end;
          else
-            Row_Value := State.Item.Nodes (Positive (Row_Tail));
-            Row_Value.Next := Row_Id;
-            State.Item.Nodes.Replace_Element
-              (Positive (Row_Tail), Row_Value);
+            declare
+               Row_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Row_Tail));
+            begin
+               Row_Ref.Element.all.Next := Row_Id;
+            end;
          end if;
          Row_Tail := Row_Id;
          Row_Count := Row_Count + 1;
@@ -2489,6 +2519,76 @@ package body Math_Syntax is
          Cell_Tail := No_Node;
          Current_Columns := 0;
       end New_Row;
+      procedure Append_Rule (Rule : Array_Rule) is
+         Old_Capacity : Natural;
+         New_Capacity : Natural;
+         Aggregate : Natural;
+      begin
+         Math_Work_Control.Poll (State.Work);
+         declare
+            Node_Ref : constant Node_Vectors.Reference_Type :=
+              State.Item.Nodes.Reference (Positive (Array_Id));
+         begin
+            Old_Capacity :=
+              Natural (Node_Ref.Element.all.Array_Rules.Capacity);
+            if Node_Ref.Element.all.Array_Rules.Length =
+              Node_Ref.Element.all.Array_Rules.Capacity
+            then
+               if Old_Capacity > Natural'Last / 2 then
+                  raise Constraint_Error with
+                    "array rule capacity overflow";
+               end if;
+               New_Capacity := Natural'Max (4, Old_Capacity * 2);
+            else
+               New_Capacity := Old_Capacity;
+            end if;
+         end;
+         if New_Capacity > Natural'Last / Rule_Width then
+            raise Constraint_Error with "array rule storage overflow";
+         end if;
+         if Old_Capacity /= New_Capacity then
+            Aggregate := Math_Memory_Budget.Bytes
+              (State.Rule_Reservation.all);
+            if Aggregate > Natural'Last - New_Capacity * Rule_Width then
+               raise Constraint_Error with
+                 "array rule storage overflow";
+            end if;
+            --  Other arrays stay live during this vector's growth.
+            Math_Memory_Budget.Reserve
+              (State.Rule_Reservation.all, State.Memory,
+               Aggregate + New_Capacity * Rule_Width);
+            Math_Work_Control.Poll (State.Work);
+            declare
+               Node_Ref : constant Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Array_Id));
+               Rules : Array_Rule_Vectors.Vector renames
+                 Node_Ref.Element.all.Array_Rules;
+            begin
+               Rules.Reserve_Capacity
+                 (Ada.Containers.Count_Type (New_Capacity));
+            end;
+            declare
+               Node_Ref : constant Node_Vectors.Constant_Reference_Type :=
+                 State.Item.Nodes.Constant_Reference (Positive (Array_Id));
+               Actual_Capacity : constant Natural := Natural
+                 (Node_Ref.Element.all.Array_Rules.Capacity);
+            begin
+               Aggregate := Math_Memory_Budget.Bytes
+                 (State.Rule_Reservation.all);
+               Math_Memory_Budget.Reserve
+                 (State.Rule_Reservation.all, State.Memory,
+                  Aggregate - (Old_Capacity + New_Capacity) * Rule_Width +
+                    Actual_Capacity * Rule_Width);
+            end;
+            Math_Work_Control.Poll (State.Work);
+         end if;
+         declare
+            Node_Ref : constant Node_Vectors.Reference_Type :=
+              State.Item.Nodes.Reference (Positive (Array_Id));
+         begin
+            Node_Ref.Element.all.Array_Rules.Append (Rule);
+         end;
+      end Append_Rule;
       procedure Consume_End is
       begin
          if Read_Command (State) /= "end" then
@@ -2631,19 +2731,15 @@ package body Math_Syntax is
          then
             declare
                Rule_Name : constant String := Read_Command (State);
-               Array_Value : Node :=
-                 State.Item.Nodes (Positive (Array_Id));
             begin
                if Cell_Tail /= No_Node and then Row_Count = 0 then
                   Fail (State, "array rule is only valid between rows");
                end if;
-               Array_Value.Array_Rules.Append
-                 (New_Item => Array_Rule'
+               Append_Rule
+                 (Array_Rule'
                     (Boundary => Row_Count,
                      Kind => (if Rule_Name = "hdashline" then
                        Dashed_Array_Rule else Solid_Array_Rule)));
-               State.Item.Nodes.Replace_Element
-                 (Positive (Array_Id), Array_Value);
             end;
          elsif End_Matches then
             if Cell_Tail = No_Node and then Row_Count = 0 then
@@ -2762,20 +2858,25 @@ package body Math_Syntax is
       Old_CD_Mode : constant Boolean := State.CD_Mode;
       Macro_Error : Math_Macros.Diagnostic_Kind;
       procedure Append_Cell (Cell : Node_Id) is
-         Value : Node;
       begin
          if Columns >= Max_Array_Columns then
             Fail (State, "CD column limit exceeded", Start);
          end if;
          Columns := Columns + 1;
          if Cell_Tail = No_Node then
-            Value := State.Item.Nodes (Positive (Array_Row));
-            Value.First := Cell;
-            State.Item.Nodes.Replace_Element (Positive (Array_Row), Value);
+            declare
+               Row_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Array_Row));
+            begin
+               Row_Ref.Element.all.First := Cell;
+            end;
          else
-            Value := State.Item.Nodes (Positive (Cell_Tail));
-            Value.Next := Cell;
-            State.Item.Nodes.Replace_Element (Positive (Cell_Tail), Value);
+            declare
+               Cell_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Cell_Tail));
+            begin
+               Cell_Ref.Element.all.Next := Cell;
+            end;
          end if;
          Cell_Tail := Cell;
       end Append_Cell;
@@ -3215,13 +3316,19 @@ package body Math_Syntax is
             Infix_Tail := Tail;
          end if;
          if Tail = No_Node then
-            Row := State.Item.Nodes (Positive (Row_Id));
-            Row.First := Part;
-            State.Item.Nodes.Replace_Element (Positive (Row_Id), Row);
+            declare
+               Row_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Row_Id));
+            begin
+               Row_Ref.Element.all.First := Part;
+            end;
          else
-            Row := State.Item.Nodes (Positive (Tail));
-            Row.Next := Part;
-            State.Item.Nodes.Replace_Element (Positive (Tail), Row);
+            declare
+               Tail_Ref : Node_Vectors.Reference_Type :=
+                 State.Item.Nodes.Reference (Positive (Tail));
+            begin
+               Tail_Ref.Element.all.Next := Part;
+            end;
          end if;
          Tail := Part;
       end loop;
@@ -3326,6 +3433,7 @@ package body Math_Syntax is
       Source_Reservation : Math_Memory_Budget.Reservation;
       Token_Reservation : Math_Memory_Budget.Reservation;
       Node_Reservation : aliased Math_Memory_Budget.Reservation;
+      Rule_Reservation : aliased Math_Memory_Budget.Reservation;
       --  State and lexical/source locals finalize before their charges.
       State : Parser_State (Shared);
       Validated : Math_Source.Source;
@@ -3359,6 +3467,7 @@ package body Math_Syntax is
       State.Memory := Account;
       --  The owner precedes State and outlives this call-local borrow.
       State.Node_Reservation := Node_Reservation'Unchecked_Access;
+      State.Rule_Reservation := Rule_Reservation'Unchecked_Access;
       if Source'Length > Max_Source_Bytes then
          State.Item.Text := To_Unbounded_String
            (Source (Source'First .. Source'First + Max_Source_Bytes - 1));

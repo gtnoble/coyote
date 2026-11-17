@@ -14,7 +14,9 @@ with Math_Work_Control;
 procedure Math_Parser_Memory_Probe is
    use Math_Memory_Budget;
    use type Math_Model.Node_Kind;
+   use type Math_Model.Array_Rule_Kind;
    use type Math_Source.Diagnostic_Kind;
+   use type Math_Syntax.Diagnostic_Kind;
    use type Math_Tokens.Diagnostic_Kind;
    use type Math_Work_Control.Stop_Reason;
 
@@ -81,22 +83,34 @@ procedure Math_Parser_Memory_Probe is
 
    Node_Record_Width : constant Positive :=
      (Math_Syntax.Node'Size + System.Storage_Unit - 1) / System.Storage_Unit;
+   Rule_Width : constant Positive :=
+     (Math_Model.Array_Rule'Size + System.Storage_Unit - 1) /
+       System.Storage_Unit;
    Saw_Accounting_Threshold : Boolean := False;
    Capture_AST_Baseline : Boolean := False;
    Previous_Charge : Natural := 0;
    AST_Baseline_Charge : Natural := 0;
+   Rule_Observation_Stage : Natural := 0;
+   Rule_Observed_Charges : array (1 .. 4) of Natural := (others => 0);
+   Rule_Charge_Baseline : Natural := 0;
+   Observe_Rule_Charges : Boolean := False;
+   Observe_Drift : Boolean := False;
+   Drift_Stage : Natural := 0;
+   Drift_Slots : constant array (1 .. 5) of Natural := (4, 12, 8, 24, 16);
 
    type Accounting_Stop_Work is new Math_Work_Control.Context with record
       Account : Budget_Access := null;
-      Threshold : Natural := 0;
+      Threshold : Natural := Natural'Last;
       Reason : Math_Work_Control.Stop_Reason :=
         Math_Work_Control.Cancel_Requested;
+      Stop_On_Rule_Growth : Boolean := False;
    end record;
    overriding function Check
      (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason;
    overriding function Check
      (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason is
       Current_Charge : Natural := 0;
+      Rule_Bytes : Natural := 0;
    begin
       if Item.Account /= null then
          Current_Charge := Used (Item.Account.all);
@@ -106,9 +120,51 @@ procedure Math_Parser_Memory_Probe is
          then
             AST_Baseline_Charge := Previous_Charge;
             Capture_AST_Baseline := False;
+            if Observe_Rule_Charges then
+               Rule_Charge_Baseline :=
+                 AST_Baseline_Charge + 32 * Node_Record_Width;
+            end if;
+         end if;
+         if Observe_Rule_Charges and then Rule_Charge_Baseline > 0 and then
+           Current_Charge >= Rule_Charge_Baseline
+         then
+            Rule_Bytes := Current_Charge - Rule_Charge_Baseline;
+            if Observe_Drift and then Drift_Stage < Drift_Slots'Last
+              and then Rule_Bytes = Drift_Slots (Drift_Stage + 1) * Rule_Width
+            then
+               Drift_Stage := Drift_Stage + 1;
+            end if;
+            if Rule_Observation_Stage = 0 and then
+              Rule_Bytes = 4 * Rule_Width
+            then
+               Rule_Observation_Stage := 1;
+               Rule_Observed_Charges (1) := Rule_Bytes;
+            elsif Rule_Observation_Stage = 1 and then
+              Rule_Bytes = 12 * Rule_Width
+            then
+               Rule_Observation_Stage := 2;
+               Rule_Observed_Charges (2) := Rule_Bytes;
+               if Item.Stop_On_Rule_Growth then
+                  Saw_Accounting_Threshold := True;
+                  Previous_Charge := Current_Charge;
+                  return Item.Reason;
+               end if;
+            elsif Rule_Observation_Stage = 2 and then
+              Rule_Bytes = 8 * Rule_Width
+            then
+               Rule_Observation_Stage := 3;
+               Rule_Observed_Charges (3) := Rule_Bytes;
+            elsif Rule_Observation_Stage = 3 and then
+              Rule_Bytes = 12 * Rule_Width
+            then
+               Rule_Observation_Stage := 4;
+               Rule_Observed_Charges (4) := Rule_Bytes;
+            end if;
          end if;
          Previous_Charge := Current_Charge;
-         if Current_Charge > Item.Threshold then
+         if not Item.Stop_On_Rule_Growth and then
+           Current_Charge > Item.Threshold
+         then
             Saw_Accounting_Threshold := True;
             return Item.Reason;
          end if;
@@ -216,8 +272,57 @@ procedure Math_Parser_Memory_Probe is
    Expected_Expansion_Peak : Natural := 0;
    Expansion_AST_Count : Natural := 0;
    Expansion_Glyph_Count : Natural := 0;
+   Rule_Drift_Source : constant String :=
+     "\begin{array}{c}\hline\hdashline\hline\hdashline\hline "
+       & "a\\\hline\hdashline\hline\hdashline\hline\hdashline"
+       & "\hline b\end{array}";
+   Rule_Link_Source : constant String :=
+     "\begin{array}{c}a\\\hline b\end{array}+"
+       & "\begin{array}{c}c\\\hline d\end{array}"
+       & "+\begin{array}{c}e\\\hline f\end{array}";
+   function Rule_Growth_Source return String is
+      Result : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Index in 1 .. 20 loop
+         if Index > 1 then
+            Ada.Strings.Unbounded.Append (Result, "+");
+         end if;
+         Ada.Strings.Unbounded.Append
+           (Result, "\begin{array}{c}a\\\hline b\end{array}");
+      end loop;
+      return Ada.Strings.Unbounded.To_String (Result);
+   end Rule_Growth_Source;
+   Rule_Source : constant String :=
+     "\begin{array}{c}a\\\hline\hdashline\hline\hdashline"
+       & "\hline b\end{array}+\begin{array}{c}c\\\hline d\end{array}";
    Rejected : Boolean;
    Delayed_Stop : aliased Countdown_Work;
+
+   procedure Check_Rule_Boundary (Text : String; Label : String) is
+      Measure : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        (Text, Memory => Measure'Unchecked_Access);
+      Peak_Bytes : constant Positive := Peak (Measure);
+      Exact : aliased Budget (Limit => Peak_Bytes);
+      Short : aliased Budget (Limit => Peak_Bytes - 1);
+      Held_Account : aliased Budget (Limit => Peak_Bytes);
+      Held : Reservation;
+      Denied : Boolean;
+   begin
+      Parse_Expect_Budget (Text, Exact'Unchecked_Access, Denied);
+      Check (Math_Syntax.Is_Valid (Parsed) and not Denied and
+        Used (Exact) = 0, Label & " exact measured fit");
+      Parse_Expect_Budget (Text, Short'Unchecked_Access, Denied);
+      Check (Denied and Used (Short) = 0, Label & " one-byte-short cleanup");
+      Reserve (Held, Held_Account'Unchecked_Access, 1);
+      Parse_Expect_Budget (Text, Held_Account'Unchecked_Access, Denied);
+      Check (Denied and Used (Held_Account) = 1,
+        Label & " held charge preserved");
+      Release (Held);
+      Parse_Expect_Budget (Text, Held_Account'Unchecked_Access, Denied);
+      Check (not Denied and Used (Held_Account) = 0,
+        Label & " rejected account reusable");
+   end Check_Rule_Boundary;
 
 begin
    Check_Lex_Bound (UTF8 (16#390#), "precomposed U+0390 two-mark scalar");
@@ -362,7 +467,8 @@ begin
       Work : aliased Accounting_Stop_Work :=
         (Account => Account'Unchecked_Access,
          Threshold => Expansion_Lexical_Bound,
-         Reason => Math_Work_Control.Deadline_Reached);
+         Reason => Math_Work_Control.Deadline_Reached,
+         others => <>);
       Raised : Boolean := False;
    begin
       Saw_Accounting_Threshold := False;
@@ -456,7 +562,8 @@ begin
       Work : aliased Accounting_Stop_Work :=
         (Account => Measure'Unchecked_Access,
          Threshold => Natural'Last,
-         Reason => Math_Work_Control.Cancel_Requested);
+         Reason => Math_Work_Control.Cancel_Requested,
+         others => <>);
    begin
       Capture_AST_Baseline := True;
       Previous_Charge := 0;
@@ -531,7 +638,8 @@ begin
       Work : aliased Accounting_Stop_Work :=
         (Account => Account'Unchecked_Access,
          Threshold => Expansion_Lexical_Bound,
-         Reason => Math_Work_Control.Cancel_Requested);
+         Reason => Math_Work_Control.Cancel_Requested,
+         others => <>);
       Raised : Boolean := False;
    begin
       Saw_Accounting_Threshold := False;
@@ -550,6 +658,247 @@ begin
       end;
       Check (Raised and Saw_Accounting_Threshold and Used (Account) = 0,
         "live AST charge triggers cancellation and releases reservations");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access, others => <>);
+      Parsed : Math_Syntax.Document;
+      Rule_Count : Natural := 0;
+   begin
+      Drift_Stage := 0;
+      Observe_Drift := True;
+      Observe_Rule_Charges := True;
+      Capture_AST_Baseline := True;
+      Rule_Charge_Baseline := 0;
+      Rule_Observation_Stage := 0;
+      Previous_Charge := 0;
+      Parsed := Math_Syntax.Parse
+        (Rule_Drift_Source, Work => Work'Unchecked_Access,
+         Memory => Account'Unchecked_Access);
+      Observe_Drift := False;
+      Observe_Rule_Charges := False;
+      Check (Drift_Stage = Drift_Slots'Last,
+        "first-row regrowth live charge follows 4/12/8/24/16 slots");
+      for Index in 1 .. Math_Syntax.Count (Parsed) loop
+         declare
+            Current : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Parsed, Index);
+         begin
+            if Current.Kind = Math_Model.Array_Node then
+               Rule_Count := Rule_Count + Natural
+                 (Current.Array_Rules.Length);
+            end if;
+         end;
+      end loop;
+      Check (Math_Syntax.Is_Valid (Parsed) and Rule_Count = 12 and
+        Used (Account) = 0,
+        "first-row link preserves twelve rules through later growth");
+   end;
+
+   declare
+      Parsed : constant Math_Syntax.Document :=
+        Math_Syntax.Parse (Rule_Link_Source);
+      Array_Count : Natural := 0;
+   begin
+      for Index in 1 .. Math_Syntax.Count (Parsed) loop
+         declare
+            Current : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Parsed, Index);
+         begin
+            if Current.Kind = Math_Model.Array_Node then
+               Array_Count := Array_Count + 1;
+            end if;
+         end;
+      end loop;
+      Check (Math_Syntax.Is_Valid (Parsed) and Array_Count = 3,
+        "multiple top-level array links retain all array nodes");
+   end;
+
+   declare
+      Parsed : constant Math_Syntax.Document :=
+        Math_Syntax.Parse (Rule_Growth_Source);
+   begin
+      Check (Math_Syntax.Is_Valid (Parsed) and Math_Syntax.Count (Parsed) > 32,
+        "outer node-vector growth follows accumulated array rules");
+   end;
+
+   Check_Rule_Boundary (Rule_Drift_Source, "first-row regrowth");
+   Check_Rule_Boundary (Rule_Growth_Source, "outer-node growth");
+
+   declare
+      Measure : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Measure'Unchecked_Access,
+         Threshold => Natural'Last,
+         Reason => Math_Work_Control.Cancel_Requested,
+         others => <>);
+      Parsed : Math_Syntax.Document;
+   begin
+      Rule_Observation_Stage := 0;
+      Rule_Observed_Charges := (others => 0);
+      Rule_Charge_Baseline := 0;
+      Observe_Rule_Charges := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      Parsed := Math_Syntax.Parse
+        (Rule_Source, Work => Work'Unchecked_Access,
+         Memory => Measure'Unchecked_Access);
+      Observe_Rule_Charges := False;
+      Check (Math_Syntax.Is_Valid (Parsed) and Rule_Observation_Stage = 4 and
+        Rule_Observed_Charges (1) = 4 * Rule_Width and
+        Rule_Observed_Charges (2) = 12 * Rule_Width and
+        Rule_Observed_Charges (3) = 8 * Rule_Width and
+        Rule_Observed_Charges (4) = 12 * Rule_Width and
+        Used (Measure) = 0,
+        "rule charge stages " & Natural'Image (Rule_Observation_Stage) &
+          " [" & Natural'Image (Rule_Observed_Charges (1)) & "," &
+          Natural'Image (Rule_Observed_Charges (2)) & "," &
+          Natural'Image (Rule_Observed_Charges (3)) & "," &
+          Natural'Image (Rule_Observed_Charges (4)) & "]");
+      Check (AST_Baseline_Charge > 0 and Math_Syntax.Count (Parsed) < 32,
+        "rule fixture baseline is lexical plus initial 32-node capacity");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Threshold => Natural'Last,
+         Reason => Math_Work_Control.Cancel_Requested,
+         Stop_On_Rule_Growth => True);
+      Raised : Boolean := False;
+   begin
+      Rule_Observation_Stage := 0;
+      Rule_Observed_Charges := (others => 0);
+      Rule_Charge_Baseline := 0;
+      Observe_Rule_Charges := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      begin
+         declare
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Rule_Source, Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Parsed);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Stop_Requested => Raised := True;
+      end;
+      Observe_Rule_Charges := False;
+      Check (Raised and Saw_Accounting_Threshold and
+        Rule_Observation_Stage = 2 and
+        Rule_Observed_Charges (1) = 4 * Rule_Width and
+        Rule_Observed_Charges (2) = 12 * Rule_Width and
+        Used (Account) = 0,
+        "cancel occurs at measured old/new rule-array overlap and releases charges");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Threshold => Natural'Last,
+         Reason => Math_Work_Control.Deadline_Reached,
+         Stop_On_Rule_Growth => True);
+      Raised : Boolean := False;
+   begin
+      Rule_Observation_Stage := 0;
+      Rule_Observed_Charges := (others => 0);
+      Rule_Charge_Baseline := 0;
+      Observe_Rule_Charges := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      begin
+         declare
+            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Rule_Source, Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Parsed);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Deadline_Expired => Raised := True;
+      end;
+      Observe_Rule_Charges := False;
+      Check (Raised and Saw_Accounting_Threshold and
+        Rule_Observation_Stage = 2 and
+        Rule_Observed_Charges (1) = 4 * Rule_Width and
+        Rule_Observed_Charges (2) = 12 * Rule_Width and
+        Used (Account) = 0,
+        "deadline occurs at measured rule overlap and releases charges");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        (Rule_Source & "{", Memory => Account'Unchecked_Access);
+   begin
+      Check (not Math_Syntax.Is_Valid (Parsed) and
+        Math_Syntax.Error (Parsed)'Length > 0 and
+        Math_Syntax.Count (Parsed) = 0 and Used (Account) = 0,
+        "malformed suffix after array rules reports failure and clears partial nodes");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        (Rule_Source & "\text{\url{https://example.test}}",
+         (Strict => Math_Syntax.Strict_Warn, others => <>),
+         Memory => Account'Unchecked_Access);
+      Array_Count : Natural := 0;
+      First_Rule_Count : Natural := 0;
+      Second_Rule_Count : Natural := 0;
+      First_Kind_OK : Boolean := True;
+      Second_Kind_OK : Boolean := True;
+      First_Boundary_OK : Boolean := True;
+      Second_Boundary_OK : Boolean := True;
+   begin
+      for Node_Index in 1 .. Math_Syntax.Count (Parsed) loop
+         declare
+            Current : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Parsed, Node_Index);
+         begin
+            if Current.Kind = Math_Model.Array_Node then
+               Array_Count := Array_Count + 1;
+               if Array_Count = 1 then
+                  First_Rule_Count := Natural (Current.Array_Rules.Length);
+                  for Index in 1 .. First_Rule_Count loop
+                     First_Kind_OK := First_Kind_OK and then
+                       Current.Array_Rules (Index).Kind =
+                         (if Index mod 2 = 0 then
+                            Math_Model.Dashed_Array_Rule
+                          else Math_Model.Solid_Array_Rule);
+                     First_Boundary_OK := First_Boundary_OK and then
+                       Current.Array_Rules (Index).Boundary = 1;
+                  end loop;
+               else
+                  Second_Rule_Count := Natural (Current.Array_Rules.Length);
+                  for Rule of Current.Array_Rules loop
+                     Second_Kind_OK := Second_Kind_OK and then
+                       Rule.Kind = Math_Model.Solid_Array_Rule;
+                     Second_Boundary_OK := Second_Boundary_OK and then
+                       Rule.Boundary = 1;
+                  end loop;
+               end if;
+            end if;
+         end;
+      end loop;
+      Check (Math_Syntax.Is_Valid (Parsed) and Array_Count = 2 and
+        First_Rule_Count = 5 and Second_Rule_Count = 1 and
+        First_Kind_OK and Second_Kind_OK and First_Boundary_OK and
+        Second_Boundary_OK and Math_Syntax.Error (Parsed)'Length = 0 and
+        Math_Syntax.Diagnostic_Count (Parsed) > 0 and
+        Math_Syntax.Diagnostic_At (Parsed, 1).Kind = Math_Syntax.Warning and
+        Used (Account) = 0,
+        "post-array warning preserves all rule kinds and boundaries");
    end;
 
    declare

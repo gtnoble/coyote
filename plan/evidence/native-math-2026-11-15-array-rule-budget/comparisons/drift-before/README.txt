@@ -1,0 +1,1 @@
+Isolated mutation control: final math_syntax.adb with only first-row array linking reverted to Node copy/Replace_Element. Final probe unchanged. This is a reconstruction, not an exact historical snapshot. Expected failure: live charge 4/12/8/24/16 sequence.

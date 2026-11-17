@@ -1482,3 +1482,86 @@ warm-p95, complete tiling/repaint reuse, font pins/bearings/shaped ink, parent
 clipping,60 callable gaps/full corpus, native lifecycle and independent desktop/
 AT/user acceptance remain OPEN. PCR-125 OPEN; feature NOT COMPLETE. No release,
 installation or commit.
+
+
+### 11.16 Fresh continuation — array-rule construction reservations, 2026-11-15
+
+**Scope/authority:** User-requested continuation under PCR-125, advancing
+REQ-MATH-010 / MATH-LIMIT-002 scoped accounting. SRS-MATH v1.0 and D01–D15
+unchanged; no new units or semantic rule-count limits.
+
+**Implementation:** A Parse-local controlled reservation preceding State
+aggregates surviving horizontal-rule vector capacities across arrays. Growth
+pre-admits aggregate plus requested replacement capacity (seed4, doubling),
+then reconciles actual capacity. Checked arithmetic and cooperative polls
+bracket growth. Scoped node references avoid copied-node link mutations and
+end before polls/outer mutation. Review caught first-row linking compacting
+nested vectors while spare capacity remained charged; in-place links fix it.
+Outer node growth recomputes surviving rule capacities. GNAT15.2 vector
+semantics are inspected, not portable allocator guarantees. Temporary nested
+copies during outer node growth are excluded. Charges end at Parse return,
+not retained-document/copy lifetime; worker body is unchanged.
+
+**Exact-final developer verification:**
+
+- Root/test incremental development builds pass; both generated profiles select
+  development. Existing warnings remain; no release/clean-build qualification.
+- Full Xvfb1076/1076, zero failures/errors,142.388395s cumulative,142.48s wall
+  (`full-exact.log`). Earlier full logs are intermediate checkpoints.
+- Parser706/706 twice and under strict Valgrind: zero errors/lost bytes,
+  113248 bytes reachable. Not a native-shaping or full-app lifecycle test.
+  Independent live-charge observations cover4/12/8/24/16 slots across first-row
+  linking/regrowth and multi-array overlap. Cancellation/deadline fire at rule
+  overlap; malformed-suffix cleanup and returned kinds/boundaries pass. Drift
+  and outer-growth fixtures have measured exact/short/held/reuse controls;
+  measured thresholds alone are not independent detectors. Unchanged2049-node
+  macro fixture peak2443968 bytes.
+- Final706-check probe against isolated HEAD builds then fails4 rule-specific
+  assertions. Isolated final-source mutation reverting only first-row linking
+  to copy/Replace_Element fails exactly1 live-charge assertion. This is a
+  reconstructed defect control, not an exact historical snapshot. Historical
+  prefix695/1-failure evidence is separately retained.
+- Worker223/223; ledger38/38. Warm2000 requests/saturation are characterization,
+  not hard/GTK timing qualification.
+- Geometry235/235 passes using restored test-only KaTeX0.16.22 (writable npm
+  cache after default EROFS). This supersedes §11.15's missing-package block
+  for this run only. Browser images/resource characterization were not rerun.
+- Raster1116/1116 normally/Valgrind, but strict script FAILS:2 contexts,
+  6656 definite/2183 indirect/26 possible lost bytes in Fontconfig/Pango.
+  No suppression, threshold change or production-global teardown.
+- Required post-build GTK9/9, containment self-test and offline Plain/RPC HTTP
+  lifecycle pass. Deliberate containment7/9 is a synthetic child result, not a
+  clean interaction run or product failure. Source crosswalk refreshed/checks;
+  only hashes changed, not coverage counts.
+
+**Lifecycle diagnostic:** Copied-source A/B adds PangoFC map shutdown after
+layout/context unref and before map unref. Control and variant retain fixed
+6656/2183-byte losses at measure/draw1/10/100; metric hashes match. Possible
+losses vary; one control has additional losses, explicitly retained. All strict
+runs fail. Per-map shutdown does not establish a fix. FcFini is process-global
+and requires all GTK/Pango clients quiescent; it is not safe per-job cleanup.
+No production change follows and losses are not declared harmless.
+
+**Evidence/evaluation:**
+`plan/evidence/native-math-2026-11-15-array-rule-budget/` retains exact-final
+logs, intermediate tests, comparisons, lifecycle A/B, patch and hashes.
+Nondetecting initial tests, proposed arbitrary limit and capacity drift were
+corrected. Final source removes introduced unused local; read-only review is
+pre-polish. Developer/agent self-evaluation is not independent human acceptance.
+
+**Open gates:** Scoped vector construction only, not whole-job256MiB/RSS.
+Nested outer-growth copies, strings/lexemes, expander/semantic/layout/native/
+font temporaries, allocator overhead and returned/cache lifetimes remain
+unaccounted. Hard250ms, GTK50ms, warm-p95, tiling/repaint reuse, font pins/
+bearings/shaped ink, parent clipping,60 callable gaps/full corpus, native
+lifecycle and independent desktop/AT/user acceptance remain OPEN. PCR-125
+OPEN; feature NOT COMPLETE. No release, installation or commit.
+
+
+**Next design gate:** Retained ownership assessment identifies a dangling-account
+hazard if call-borrowed Parse reservations escape into returned Documents.
+`design/native-math-retained-budget-proposal.md` is a DRAFT, NOT APPROVED and
+NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
+retained clone/transfer leases while preserving the current Document API
+initially. User design review is required before that ownership/API migration.
+This is not a claim that all other scoped project work is technically blocked.

@@ -1,0 +1,8 @@
+comparison.gpr:1:28: warning: file name does not match project name, should be "math_parser_memory.gpr"
+Compile
+   [Ada]          math_syntax.adb
+Bind
+   [gprbind]      math_parser_memory_probe.bexch
+   [Ada]          math_parser_memory_probe.ali
+Link
+   [link]         math_parser_memory_probe.adb

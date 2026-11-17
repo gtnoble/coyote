@@ -1,0 +1,4 @@
+WARM cases=200 iterations=10 requests=2000 valid= 2000 request_ms_p95= 1 request_ms_max= 2
+WARM job_queue_ms_p95= 0 max= 0 execution_ms_p95= 0 max= 1 cleanup_ms_p95= 0 max= 0 total_ms_p95= 0 max= 1
+SATURATION accepted= 8 busy= 2 requested=10 workers= 2
+ASSERTIONS 223 failures= 0

@@ -1,0 +1,12 @@
+Logs: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3
+PASS plain: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/01-plain.log
+FAIL unicode (-9): /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/02-unicode.log
+FAIL bidi (timeout): /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/03-bidi.log
+PASS inline-math: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/04-inline-math.log
+PASS multiline: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/05-multiline.log
+PASS plain: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/06-plain.log
+PASS link-click: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/07-link-click.log
+PASS link-hover: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/08-link-hover.log
+PASS math-boundary: /tmp/gtk-runner-selftest-5r58ovxc/logs/gtk-interactions-xkz1rjy3/09-math-boundary.log
+Summary: 7/9 passed
+PASS: abnormal exit/timeout containment, continuation, private logs, invalid arguments

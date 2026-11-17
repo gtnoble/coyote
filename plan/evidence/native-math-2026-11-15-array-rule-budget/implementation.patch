@@ -1,0 +1,1100 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 79e3fc9..ae56376 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -369,3 +369,39 @@ Nested payload strings, expander/semantics/layout/native/font, allocator
+ overhead, copies and cache remain unaccounted. Timing, font, parity, lifecycle
+ and human acceptance gates remain open; self-review is not independent
+ acceptance. No release/install/commit.
++
++
++## 2026-11-15 — Array-rule construction accounting (PCR-125)
++
++Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
++control this continuation. A Parse-local reservation aggregates horizontal
++rule-vector capacity across arrays and pre-admits old/new growth overlap
++(seed4, doubling). Scoped node references avoid copied-node link mutations;
++outer node growth reconciles surviving nested-rule capacity. Review caught
++first-row linking compacting the vector while leaving spare capacity charged;
++in-place linking fixes that drift. References end before polls/outer mutation.
++No new units, semantic limits, SRS requirements or deviations were introduced.
++
++Exact-final parser706/706 twice and under Valgrind (zero lost bytes/errors),
++full Xvfb1076/1076 (142.388395s cumulative,142.48s wall), worker223/223,
++ledger38/38, restored pinned-KaTeX geometry235/235 and required GTK9/9,
++containment and offline HTTP checks pass. HEAD comparison fails4 rule-specific
++checks. Raster1116/1116 normally/Valgrind, but strict script FAILS with2 contexts
++and6656/2183/26-byte losses. Isolated PangoFC per-map shutdown does not remove
++fixed native losses and is not a production change. Existing warnings remain.
++
++Rule charges end at Parse return. Nested copies during outer node growth,
++other payloads/strings, expander/semantics/layout/native/font, allocator overhead
++and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
++font, full parity, native lifecycle and human acceptance gates remain OPEN.
++Developer/agent self-review is not independent acceptance. No release/install/
++commit; PCR-125 OPEN, feature NOT COMPLETE.
++
++
++**Next design gate:** Retained ownership assessment identifies a dangling-account
++hazard if call-borrowed Parse reservations escape into returned Documents.
++`design/native-math-retained-budget-proposal.md` is a DRAFT, NOT APPROVED and
++NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
++retained clone/transfer leases while preserving the current Document API
++initially. User design review is required before that ownership/API migration.
++This is not a claim that all other scoped project work is technically blocked.
+diff --git a/design/coyote-design.md b/design/coyote-design.md
+index 8437810..d81504e 100644
+--- a/design/coyote-design.md
++++ b/design/coyote-design.md
+@@ -3294,3 +3294,30 @@ copies and cache remain unaccounted. Whole-job, timing, font, parity, lifecycle
+ and human acceptance gates remain open; self-review is not independent
+ acceptance. No requirements/deviations changed; no release, installation or
+ commit.
++
++
++## 2026-11-15 — Array-rule construction accounting (PCR-125)
++
++Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
++control this continuation. A Parse-local reservation aggregates horizontal
++rule-vector capacity across arrays and pre-admits old/new growth overlap
++(seed4, doubling). Scoped node references avoid copied-node link mutations;
++outer node growth reconciles surviving nested-rule capacity. Review caught
++first-row linking compacting the vector while leaving spare capacity charged;
++in-place linking fixes that drift. References end before polls/outer mutation.
++No new units, semantic limits, SRS requirements or deviations were introduced.
++
++Exact-final parser706/706 twice and under Valgrind (zero lost bytes/errors),
++full Xvfb1076/1076 (142.388395s cumulative,142.48s wall), worker223/223,
++ledger38/38, restored pinned-KaTeX geometry235/235 and required GTK9/9,
++containment and offline HTTP checks pass. HEAD comparison fails4 rule-specific
++checks. Raster1116/1116 normally/Valgrind, but strict script FAILS with2 contexts
++and6656/2183/26-byte losses. Isolated PangoFC per-map shutdown does not remove
++fixed native losses and is not a production change. Existing warnings remain.
++
++Rule charges end at Parse return. Nested copies during outer node growth,
++other payloads/strings, expander/semantics/layout/native/font, allocator overhead
++and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
++font, full parity, native lifecycle and human acceptance gates remain OPEN.
++Developer/agent self-review is not independent acceptance. No release/install/
++commit; PCR-125 OPEN, feature NOT COMPLETE.
+diff --git a/plan/native-math-compatibility-tests.md b/plan/native-math-compatibility-tests.md
+index c498fa4..3ece939 100644
+--- a/plan/native-math-compatibility-tests.md
++++ b/plan/native-math-compatibility-tests.md
+@@ -466,3 +466,30 @@ This does not account for whole-job memory, nested payload strings,
+ expander/semantics/layout/native/font, allocator overhead, copies or cache.
+ Timing, font, parity, lifecycle and human acceptance gates remain open;
+ self-review is not independent acceptance. No requirements/deviations changed.
++
++
++## 2026-11-15 — Array-rule construction accounting (PCR-125)
++
++Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
++control this continuation. A Parse-local reservation aggregates horizontal
++rule-vector capacity across arrays and pre-admits old/new growth overlap
++(seed4, doubling). Scoped node references avoid copied-node link mutations;
++outer node growth reconciles surviving nested-rule capacity. Review caught
++first-row linking compacting the vector while leaving spare capacity charged;
++in-place linking fixes that drift. References end before polls/outer mutation.
++No new units, semantic limits, SRS requirements or deviations were introduced.
++
++Exact-final parser706/706 twice and under Valgrind (zero lost bytes/errors),
++full Xvfb1076/1076 (142.388395s cumulative,142.48s wall), worker223/223,
++ledger38/38, restored pinned-KaTeX geometry235/235 and required GTK9/9,
++containment and offline HTTP checks pass. HEAD comparison fails4 rule-specific
++checks. Raster1116/1116 normally/Valgrind, but strict script FAILS with2 contexts
++and6656/2183/26-byte losses. Isolated PangoFC per-map shutdown does not remove
++fixed native losses and is not a production change. Existing warnings remain.
++
++Rule charges end at Parse return. Nested copies during outer node growth,
++other payloads/strings, expander/semantics/layout/native/font, allocator overhead
++and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
++font, full parity, native lifecycle and human acceptance gates remain OPEN.
++Developer/agent self-review is not independent acceptance. No release/install/
++commit; PCR-125 OPEN, feature NOT COMPLETE.
+diff --git a/plan/native-math-coverage.json b/plan/native-math-coverage.json
+index cfe6b39..9a2f1c8 100644
+--- a/plan/native-math-coverage.json
++++ b/plan/native-math-coverage.json
+@@ -203,8 +203,8 @@
+     "src/coyote_math/math_stretchy.adb": "2d33705cfab6443e7388b1cefd32bb1135f7871964826ec8bdc22916627f2f27",
+     "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
+     "src/coyote_math/math_symbols.adb": "116aa49efc576e32c026ca54eb9a5ba46d55394137daf975324337ced687e15d",
+-    "src/coyote_math/math_syntax.ads": "05b676b821337e3899de328e63a2dfb1264ae2dbcab03219bf9f8b820bcd3234",
+-    "src/coyote_math/math_syntax.adb": "3e50990fed3b7a1af1c8607863a22abc26b85fccde8826a435d5af4ce77a1812",
++    "src/coyote_math/math_syntax.ads": "33125ba82080d94e01fba2d1fe0b8c3f13e22a8fa833e4fdfeb7bb63b0d21dc2",
++    "src/coyote_math/math_syntax.adb": "2441b5e379a7ed13d740b6876685aa8e9cc6926ba86e17e77a7cbc00469d2cfb",
+     "src/coyote_math/math_text_shaping.ads": "bcf7e2c51e496a04222597c6a9a29daadca14d4ea222784e5cb6f5e23d0db220",
+     "src/coyote_math/math_text_shaping.adb": "a6d40f7d275fe747c163a2b27cd1777ed47ccfd5c1601d24cca080aa716f5e3a",
+     "src/coyote_math/math_raster_budget.ads": "36466a84367a2fe8afe84854790862529ec3168b51bfb00d04a6f8ccdb8fa623",
+diff --git a/plan/native-math-parity-test-report.md b/plan/native-math-parity-test-report.md
+index e259551..8dc02be 100644
+--- a/plan/native-math-parity-test-report.md
++++ b/plan/native-math-parity-test-report.md
+@@ -1482,3 +1482,86 @@ warm-p95, complete tiling/repaint reuse, font pins/bearings/shaped ink, parent
+ clipping,60 callable gaps/full corpus, native lifecycle and independent desktop/
+ AT/user acceptance remain OPEN. PCR-125 OPEN; feature NOT COMPLETE. No release,
+ installation or commit.
++
++
++### 11.16 Fresh continuation — array-rule construction reservations, 2026-11-15
++
++**Scope/authority:** User-requested continuation under PCR-125, advancing
++REQ-MATH-010 / MATH-LIMIT-002 scoped accounting. SRS-MATH v1.0 and D01–D15
++unchanged; no new units or semantic rule-count limits.
++
++**Implementation:** A Parse-local controlled reservation preceding State
++aggregates surviving horizontal-rule vector capacities across arrays. Growth
++pre-admits aggregate plus requested replacement capacity (seed4, doubling),
++then reconciles actual capacity. Checked arithmetic and cooperative polls
++bracket growth. Scoped node references avoid copied-node link mutations and
++end before polls/outer mutation. Review caught first-row linking compacting
++nested vectors while spare capacity remained charged; in-place links fix it.
++Outer node growth recomputes surviving rule capacities. GNAT15.2 vector
++semantics are inspected, not portable allocator guarantees. Temporary nested
++copies during outer node growth are excluded. Charges end at Parse return,
++not retained-document/copy lifetime; worker body is unchanged.
++
++**Exact-final developer verification:**
++
++- Root/test incremental development builds pass; both generated profiles select
++  development. Existing warnings remain; no release/clean-build qualification.
++- Full Xvfb1076/1076, zero failures/errors,142.388395s cumulative,142.48s wall
++  (`full-exact.log`). Earlier full logs are intermediate checkpoints.
++- Parser706/706 twice and under strict Valgrind: zero errors/lost bytes,
++  113248 bytes reachable. Not a native-shaping or full-app lifecycle test.
++  Independent live-charge observations cover4/12/8/24/16 slots across first-row
++  linking/regrowth and multi-array overlap. Cancellation/deadline fire at rule
++  overlap; malformed-suffix cleanup and returned kinds/boundaries pass. Drift
++  and outer-growth fixtures have measured exact/short/held/reuse controls;
++  measured thresholds alone are not independent detectors. Unchanged2049-node
++  macro fixture peak2443968 bytes.
++- Final706-check probe against isolated HEAD builds then fails4 rule-specific
++  assertions. Isolated final-source mutation reverting only first-row linking
++  to copy/Replace_Element fails exactly1 live-charge assertion. This is a
++  reconstructed defect control, not an exact historical snapshot. Historical
++  prefix695/1-failure evidence is separately retained.
++- Worker223/223; ledger38/38. Warm2000 requests/saturation are characterization,
++  not hard/GTK timing qualification.
++- Geometry235/235 passes using restored test-only KaTeX0.16.22 (writable npm
++  cache after default EROFS). This supersedes §11.15's missing-package block
++  for this run only. Browser images/resource characterization were not rerun.
++- Raster1116/1116 normally/Valgrind, but strict script FAILS:2 contexts,
++  6656 definite/2183 indirect/26 possible lost bytes in Fontconfig/Pango.
++  No suppression, threshold change or production-global teardown.
++- Required post-build GTK9/9, containment self-test and offline Plain/RPC HTTP
++  lifecycle pass. Deliberate containment7/9 is a synthetic child result, not a
++  clean interaction run or product failure. Source crosswalk refreshed/checks;
++  only hashes changed, not coverage counts.
++
++**Lifecycle diagnostic:** Copied-source A/B adds PangoFC map shutdown after
++layout/context unref and before map unref. Control and variant retain fixed
++6656/2183-byte losses at measure/draw1/10/100; metric hashes match. Possible
++losses vary; one control has additional losses, explicitly retained. All strict
++runs fail. Per-map shutdown does not establish a fix. FcFini is process-global
++and requires all GTK/Pango clients quiescent; it is not safe per-job cleanup.
++No production change follows and losses are not declared harmless.
++
++**Evidence/evaluation:**
++`plan/evidence/native-math-2026-11-15-array-rule-budget/` retains exact-final
++logs, intermediate tests, comparisons, lifecycle A/B, patch and hashes.
++Nondetecting initial tests, proposed arbitrary limit and capacity drift were
++corrected. Final source removes introduced unused local; read-only review is
++pre-polish. Developer/agent self-evaluation is not independent human acceptance.
++
++**Open gates:** Scoped vector construction only, not whole-job256MiB/RSS.
++Nested outer-growth copies, strings/lexemes, expander/semantic/layout/native/
++font temporaries, allocator overhead and returned/cache lifetimes remain
++unaccounted. Hard250ms, GTK50ms, warm-p95, tiling/repaint reuse, font pins/
++bearings/shaped ink, parent clipping,60 callable gaps/full corpus, native
++lifecycle and independent desktop/AT/user acceptance remain OPEN. PCR-125
++OPEN; feature NOT COMPLETE. No release, installation or commit.
++
++
++**Next design gate:** Retained ownership assessment identifies a dangling-account
++hazard if call-borrowed Parse reservations escape into returned Documents.
++`design/native-math-retained-budget-proposal.md` is a DRAFT, NOT APPROVED and
++NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
++retained clone/transfer leases while preserving the current Document API
++initially. User design review is required before that ownership/API migration.
++This is not a claim that all other scoped project work is technically blocked.
+diff --git a/plan/problems.md b/plan/problems.md
+index 0e03a4c..7fca629 100644
+--- a/plan/problems.md
++++ b/plan/problems.md
+@@ -4797,3 +4797,49 @@ are historical, not current-source qualification.
+   claim. Timing, font, parity, lifecycle and human acceptance remain open.
+   Self-review is not independent acceptance. Parent PCR-125 OPEN; feature NOT
+   COMPLETE. No release/install/commit.
++
++
++### PCR-125 — 2026-11-15 array-rule construction accounting continuation
++
++- **Category:** Code, Design, Test.
++- **Priority:** 3-Moderate (parent classification unchanged).
++- **Authority:** user-requested continued project work under existing PCR-125;
++  SRS-MATH v1.0 and D01–D15 unchanged. No new semantic limits or units.
++- **Problem/action:** nested horizontal array-rule vectors were uncharged.
++  Pre-admit aggregate surviving capacities plus the requested replacement
++  buffer before growth. Use scoped node references for link/rule mutations;
++  reconcile surviving rule capacities after outer node-vector reallocation.
++  Review caught spare-capacity loss from copied array nodes, which caused
++  stale charges and possible false budget rejection; corrected in-place links
++  and a live-charge regression cover first-row linking followed by regrowth.
++- **Verification:** exact-final parser706/706 twice and under Valgrind (zero
++  lost bytes/errors), full Xvfb1076/1076 (142.388395s cumulative,142.48s wall),
++  worker223/223, ledger38/38, geometry235/235 using restored test-only
++  KaTeX0.16.22, required GTK9/9, containment and offline HTTP lifecycle pass.
++  Raster1116/1116 normal/Valgrind, but strict script FAILS with2 contexts and
++  6656 definite/2183 indirect/26 possible lost bytes. An isolated PangoFC map
++  shutdown experiment does not remove the fixed losses; no production global
++  cleanup, suppressions or threshold changes were introduced.
++- **Status/limits:** scoped construction accounting only; charges end at Parse
++  return. Nested temporary copies during outer node growth, strings, expander,
++  semantics/layout/native/font, allocator overhead and returned/cache lifetimes
++  remain outside accounting. Whole-job memory, timing, full parity, native
++  lifecycle and human acceptance gates remain OPEN. Developer/agent evaluation
++  is not independent acceptance. Parent PCR-125 OPEN; feature NOT COMPLETE.
++  Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
++  control evidence. No release, installation or commit.
++
++
++### PCR-125 — retained-budget ownership design gate, 2026-11-15
++
++- **Category:** Design, Code, Test. **Priority:** 3-Moderate.
++- **Problem:** Parse borrows a job-local budget while returned/copyable Documents
++  can outlive it. Extending reservation lifetime directly risks dangling access;
++  current phase-only telemetry cannot establish whole-job256MiB enforcement.
++- **Action/status:** ownership/copy crosswalk retained with §11.16 evidence;
++  draft `design/native-math-retained-budget-proposal.md` recommends stable
++  per-job owners and explicit leases/clone transfer. Awaiting user design
++  review before ownership/API migration; NOT APPROVED/NOT IMPLEMENTED.
++- **Limits:**256MiB is per job; a process-wide256MiB cap is not silently added.
++  Other scoped work remains possible. Native lifecycle and broad qualification
++  gates remain open. Developer/agent assessment is not independent acceptance.
+diff --git a/sdfs/frontends.md b/sdfs/frontends.md
+index fd3d566..098cc9d 100644
+--- a/sdfs/frontends.md
++++ b/sdfs/frontends.md
+@@ -2521,3 +2521,39 @@ Report §11.15 and `plan/evidence/native-math-2026-11-15-ast-budget/` control.
+ Whole-job, timing, font, parity, lifecycle and human acceptance gates remain
+ open; self-review is not independent acceptance. No requirements/deviations
+ changed; no release/install/commit.
++
++
++## 2026-11-15 — Array-rule construction accounting (PCR-125)
++
++Report §11.16 and `plan/evidence/native-math-2026-11-15-array-rule-budget/`
++control this continuation. A Parse-local reservation aggregates horizontal
++rule-vector capacity across arrays and pre-admits old/new growth overlap
++(seed4, doubling). Scoped node references avoid copied-node link mutations;
++outer node growth reconciles surviving nested-rule capacity. Review caught
++first-row linking compacting the vector while leaving spare capacity charged;
++in-place linking fixes that drift. References end before polls/outer mutation.
++No new units, semantic limits, SRS requirements or deviations were introduced.
++
++Exact-final parser706/706 twice and under Valgrind (zero lost bytes/errors),
++full Xvfb1076/1076 (142.388395s cumulative,142.48s wall), worker223/223,
++ledger38/38, restored pinned-KaTeX geometry235/235 and required GTK9/9,
++containment and offline HTTP checks pass. HEAD comparison fails4 rule-specific
++checks. Raster1116/1116 normally/Valgrind, but strict script FAILS with2 contexts
++and6656/2183/26-byte losses. Isolated PangoFC per-map shutdown does not remove
++fixed native losses and is not a production change. Existing warnings remain.
++
++Rule charges end at Parse return. Nested copies during outer node growth,
++other payloads/strings, expander/semantics/layout/native/font, allocator overhead
++and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
++font, full parity, native lifecycle and human acceptance gates remain OPEN.
++Developer/agent self-review is not independent acceptance. No release/install/
++commit; PCR-125 OPEN, feature NOT COMPLETE.
++
++
++**Next design gate:** Retained ownership assessment identifies a dangling-account
++hazard if call-borrowed Parse reservations escape into returned Documents.
++`design/native-math-retained-budget-proposal.md` is a DRAFT, NOT APPROVED and
++NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
++retained clone/transfer leases while preserving the current Document API
++initially. User design review is required before that ownership/API migration.
++This is not a claim that all other scoped project work is technically blocked.
+diff --git a/src/coyote_math/math_syntax.adb b/src/coyote_math/math_syntax.adb
+index 89d6e6a..03e7039 100644
+--- a/src/coyote_math/math_syntax.adb
++++ b/src/coyote_math/math_syntax.adb
+@@ -26,6 +26,8 @@ package body Math_Syntax is
+    use type Math_Macros.Diagnostic_Kind;
+ 
+    Parse_Failure : exception;
++   Rule_Width : constant Positive :=
++     (Array_Rule'Size + System.Storage_Unit - 1) / System.Storage_Unit;
+ 
+    type Parser_State
+      (Shared : not null access Math_Macros.Context) is limited record
+@@ -46,6 +48,7 @@ package body Math_Syntax is
+       Work : Math_Work_Control.Context_Access := null;
+       Memory : Math_Memory_Budget.Budget_Access;
+       Node_Reservation : access Math_Memory_Budget.Reservation;
++      Rule_Reservation : access Math_Memory_Budget.Reservation;
+       AMS_Row : Boolean := False;
+       Pending_Tag : Node_Id := No_Node;
+       Has_Tag : Boolean := False;
+@@ -244,6 +247,23 @@ package body Math_Syntax is
+          Math_Memory_Budget.Reserve
+            (State.Node_Reservation.all, State.Memory,
+             Natural (State.Item.Nodes.Capacity) * Width);
++         declare
++            Rule_Capacity : Natural := 0;
++         begin
++            for Existing of State.Item.Nodes loop
++               if Existing.Array_Rules.Capacity >
++                 Ada.Containers.Count_Type
++                   ((Natural'Last - Rule_Capacity) / Rule_Width)
++               then
++                  raise Constraint_Error with
++                    "array rule storage overflow";
++               end if;
++               Rule_Capacity := Rule_Capacity +
++                 Natural (Existing.Array_Rules.Capacity) * Rule_Width;
++            end loop;
++            Math_Memory_Budget.Reserve
++              (State.Rule_Reservation.all, State.Memory, Rule_Capacity);
++         end;
+          Math_Work_Control.Poll (State.Work);
+       end if;
+       Fresh.Position := Item.Position;
+@@ -256,21 +276,26 @@ package body Math_Syntax is
+       Row : Node_Id;
+       Part : Node_Id) is
+       Cursor : Node_Id;
+-      Value : Node;
+    begin
+       if State.Item.Nodes (Positive (Row)).First = No_Node then
+-         Value := State.Item.Nodes (Positive (Row));
+-         Value.First := Part;
+-         State.Item.Nodes.Replace_Element (Positive (Row), Value);
++         declare
++            Row_Ref : Node_Vectors.Reference_Type :=
++              State.Item.Nodes.Reference (Positive (Row));
++         begin
++            Row_Ref.Element.all.First := Part;
++         end;
+       else
+          Cursor := State.Item.Nodes (Positive (Row)).First;
+          loop
+-            Value := State.Item.Nodes (Positive (Cursor));
+-            exit when Value.Next = No_Node;
+-            Cursor := Value.Next;
++            exit when State.Item.Nodes (Positive (Cursor)).Next = No_Node;
++            Cursor := State.Item.Nodes (Positive (Cursor)).Next;
+          end loop;
+-         Value.Next := Part;
+-         State.Item.Nodes.Replace_Element (Positive (Cursor), Value);
++         declare
++            Tail_Ref : Node_Vectors.Reference_Type :=
++              State.Item.Nodes.Reference (Positive (Cursor));
++         begin
++            Tail_Ref.Element.all.Next := Part;
++         end;
+       end if;
+    end Link;
+ 
+@@ -2437,26 +2462,27 @@ package body Math_Syntax is
+          return Is_Environment_End (State, Name);
+       end End_Matches;
+       procedure Append_Cell (Cell : Node_Id) is
+-         Row_Value : Node;
+-         Cell_Value : Node;
+       begin
+          if Cell_Tail = No_Node then
+-            Row_Value := State.Item.Nodes (Positive (Row_Id));
+-            Row_Value.First := Cell;
+-            State.Item.Nodes.Replace_Element (Positive (Row_Id), Row_Value);
++            declare
++               Row_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Row_Id));
++            begin
++               Row_Ref.Element.all.First := Cell;
++            end;
+          else
+-            Cell_Value := State.Item.Nodes (Positive (Cell_Tail));
+-            Cell_Value.Next := Cell;
+-            State.Item.Nodes.Replace_Element
+-              (Positive (Cell_Tail), Cell_Value);
++            declare
++               Cell_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Cell_Tail));
++            begin
++               Cell_Ref.Element.all.Next := Cell;
++            end;
+          end if;
+          Cell_Tail := Cell;
+          Current_Columns := Current_Columns + 1;
+          Column_Count := Natural'Max (Column_Count, Current_Columns);
+       end Append_Cell;
+       procedure Append_Row is
+-         Array_Value : Node;
+-         Row_Value : Node;
+       begin
+          if Row_Count >= Max_Array_Rows then
+             Fail (State, "array row limit exceeded", Start);
+@@ -2467,15 +2493,19 @@ package body Math_Syntax is
+             Fail (State, "array row has wrong number of columns", Start);
+          end if;
+          if Row_Tail = No_Node then
+-            Array_Value := State.Item.Nodes (Positive (Array_Id));
+-            Array_Value.First := Row_Id;
+-            State.Item.Nodes.Replace_Element
+-              (Positive (Array_Id), Array_Value);
++            declare
++               Array_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Array_Id));
++            begin
++               Array_Ref.Element.all.First := Row_Id;
++            end;
+          else
+-            Row_Value := State.Item.Nodes (Positive (Row_Tail));
+-            Row_Value.Next := Row_Id;
+-            State.Item.Nodes.Replace_Element
+-              (Positive (Row_Tail), Row_Value);
++            declare
++               Row_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Row_Tail));
++            begin
++               Row_Ref.Element.all.Next := Row_Id;
++            end;
+          end if;
+          Row_Tail := Row_Id;
+          Row_Count := Row_Count + 1;
+@@ -2489,6 +2519,76 @@ package body Math_Syntax is
+          Cell_Tail := No_Node;
+          Current_Columns := 0;
+       end New_Row;
++      procedure Append_Rule (Rule : Array_Rule) is
++         Old_Capacity : Natural;
++         New_Capacity : Natural;
++         Aggregate : Natural;
++      begin
++         Math_Work_Control.Poll (State.Work);
++         declare
++            Node_Ref : constant Node_Vectors.Reference_Type :=
++              State.Item.Nodes.Reference (Positive (Array_Id));
++         begin
++            Old_Capacity :=
++              Natural (Node_Ref.Element.all.Array_Rules.Capacity);
++            if Node_Ref.Element.all.Array_Rules.Length =
++              Node_Ref.Element.all.Array_Rules.Capacity
++            then
++               if Old_Capacity > Natural'Last / 2 then
++                  raise Constraint_Error with
++                    "array rule capacity overflow";
++               end if;
++               New_Capacity := Natural'Max (4, Old_Capacity * 2);
++            else
++               New_Capacity := Old_Capacity;
++            end if;
++         end;
++         if New_Capacity > Natural'Last / Rule_Width then
++            raise Constraint_Error with "array rule storage overflow";
++         end if;
++         if Old_Capacity /= New_Capacity then
++            Aggregate := Math_Memory_Budget.Bytes
++              (State.Rule_Reservation.all);
++            if Aggregate > Natural'Last - New_Capacity * Rule_Width then
++               raise Constraint_Error with
++                 "array rule storage overflow";
++            end if;
++            --  Other arrays stay live during this vector's growth.
++            Math_Memory_Budget.Reserve
++              (State.Rule_Reservation.all, State.Memory,
++               Aggregate + New_Capacity * Rule_Width);
++            Math_Work_Control.Poll (State.Work);
++            declare
++               Node_Ref : constant Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Array_Id));
++               Rules : Array_Rule_Vectors.Vector renames
++                 Node_Ref.Element.all.Array_Rules;
++            begin
++               Rules.Reserve_Capacity
++                 (Ada.Containers.Count_Type (New_Capacity));
++            end;
++            declare
++               Node_Ref : constant Node_Vectors.Constant_Reference_Type :=
++                 State.Item.Nodes.Constant_Reference (Positive (Array_Id));
++               Actual_Capacity : constant Natural := Natural
++                 (Node_Ref.Element.all.Array_Rules.Capacity);
++            begin
++               Aggregate := Math_Memory_Budget.Bytes
++                 (State.Rule_Reservation.all);
++               Math_Memory_Budget.Reserve
++                 (State.Rule_Reservation.all, State.Memory,
++                  Aggregate - (Old_Capacity + New_Capacity) * Rule_Width +
++                    Actual_Capacity * Rule_Width);
++            end;
++            Math_Work_Control.Poll (State.Work);
++         end if;
++         declare
++            Node_Ref : constant Node_Vectors.Reference_Type :=
++              State.Item.Nodes.Reference (Positive (Array_Id));
++         begin
++            Node_Ref.Element.all.Array_Rules.Append (Rule);
++         end;
++      end Append_Rule;
+       procedure Consume_End is
+       begin
+          if Read_Command (State) /= "end" then
+@@ -2631,19 +2731,15 @@ package body Math_Syntax is
+          then
+             declare
+                Rule_Name : constant String := Read_Command (State);
+-               Array_Value : Node :=
+-                 State.Item.Nodes (Positive (Array_Id));
+             begin
+                if Cell_Tail /= No_Node and then Row_Count = 0 then
+                   Fail (State, "array rule is only valid between rows");
+                end if;
+-               Array_Value.Array_Rules.Append
+-                 (New_Item => Array_Rule'
++               Append_Rule
++                 (Array_Rule'
+                     (Boundary => Row_Count,
+                      Kind => (if Rule_Name = "hdashline" then
+                        Dashed_Array_Rule else Solid_Array_Rule)));
+-               State.Item.Nodes.Replace_Element
+-                 (Positive (Array_Id), Array_Value);
+             end;
+          elsif End_Matches then
+             if Cell_Tail = No_Node and then Row_Count = 0 then
+@@ -2762,20 +2858,25 @@ package body Math_Syntax is
+       Old_CD_Mode : constant Boolean := State.CD_Mode;
+       Macro_Error : Math_Macros.Diagnostic_Kind;
+       procedure Append_Cell (Cell : Node_Id) is
+-         Value : Node;
+       begin
+          if Columns >= Max_Array_Columns then
+             Fail (State, "CD column limit exceeded", Start);
+          end if;
+          Columns := Columns + 1;
+          if Cell_Tail = No_Node then
+-            Value := State.Item.Nodes (Positive (Array_Row));
+-            Value.First := Cell;
+-            State.Item.Nodes.Replace_Element (Positive (Array_Row), Value);
++            declare
++               Row_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Array_Row));
++            begin
++               Row_Ref.Element.all.First := Cell;
++            end;
+          else
+-            Value := State.Item.Nodes (Positive (Cell_Tail));
+-            Value.Next := Cell;
+-            State.Item.Nodes.Replace_Element (Positive (Cell_Tail), Value);
++            declare
++               Cell_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Cell_Tail));
++            begin
++               Cell_Ref.Element.all.Next := Cell;
++            end;
+          end if;
+          Cell_Tail := Cell;
+       end Append_Cell;
+@@ -3215,13 +3316,19 @@ package body Math_Syntax is
+             Infix_Tail := Tail;
+          end if;
+          if Tail = No_Node then
+-            Row := State.Item.Nodes (Positive (Row_Id));
+-            Row.First := Part;
+-            State.Item.Nodes.Replace_Element (Positive (Row_Id), Row);
++            declare
++               Row_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Row_Id));
++            begin
++               Row_Ref.Element.all.First := Part;
++            end;
+          else
+-            Row := State.Item.Nodes (Positive (Tail));
+-            Row.Next := Part;
+-            State.Item.Nodes.Replace_Element (Positive (Tail), Row);
++            declare
++               Tail_Ref : Node_Vectors.Reference_Type :=
++                 State.Item.Nodes.Reference (Positive (Tail));
++            begin
++               Tail_Ref.Element.all.Next := Part;
++            end;
+          end if;
+          Tail := Part;
+       end loop;
+@@ -3326,6 +3433,7 @@ package body Math_Syntax is
+       Source_Reservation : Math_Memory_Budget.Reservation;
+       Token_Reservation : Math_Memory_Budget.Reservation;
+       Node_Reservation : aliased Math_Memory_Budget.Reservation;
++      Rule_Reservation : aliased Math_Memory_Budget.Reservation;
+       --  State and lexical/source locals finalize before their charges.
+       State : Parser_State (Shared);
+       Validated : Math_Source.Source;
+@@ -3359,6 +3467,7 @@ package body Math_Syntax is
+       State.Memory := Account;
+       --  The owner precedes State and outlives this call-local borrow.
+       State.Node_Reservation := Node_Reservation'Unchecked_Access;
++      State.Rule_Reservation := Rule_Reservation'Unchecked_Access;
+       if Source'Length > Max_Source_Bytes then
+          State.Item.Text := To_Unbounded_String
+            (Source (Source'First .. Source'First + Max_Source_Bytes - 1));
+diff --git a/src/coyote_math/math_syntax.ads b/src/coyote_math/math_syntax.ads
+index 62c794f..4b0d739 100644
+--- a/src/coyote_math/math_syntax.ads
++++ b/src/coyote_math/math_syntax.ads
+@@ -132,9 +132,12 @@ package Math_Syntax is
+       Memory : Math_Memory_Budget.Budget_Access := null) return Document;
+    --  Work and Memory are borrowed only for this call. Memory accounts for
+    --  offset-map, lexical token and AST node record-array construction capacity,
+-   --  including old/new node arrays during growth. It excludes strings, nested
+-   --  node payloads, expander storage, allocator overhead and process memory.
+-   --  Charges end at Parse return, not at returned-document/copy destruction.
++   --  including old/new node arrays during growth, plus array-rule vector
++   --  capacity while rules are parsed (including old/new capacity overlap).
++   --  Rule charges aggregate across arrays and end at Parse return. They do not
++   --  account for nested rule storage copied during outer node-vector growth,
++   --  other nested node payloads, strings, expander storage, allocator overhead,
++   --  or process memory. Returned/copy lifetimes are not charged.
+    --  Reservations are pre-admitted and released after parser locals finalize.
+    --  Cancellation, deadline, and budget exceptions propagate to the caller.
+    --  Explicit shared state follows local/global namespace semantics, even
+diff --git a/test/tools/math_parser_memory_probe.adb b/test/tools/math_parser_memory_probe.adb
+index 9bf3479..40f08a9 100644
+--- a/test/tools/math_parser_memory_probe.adb
++++ b/test/tools/math_parser_memory_probe.adb
+@@ -14,7 +14,9 @@ with Math_Work_Control;
+ procedure Math_Parser_Memory_Probe is
+    use Math_Memory_Budget;
+    use type Math_Model.Node_Kind;
++   use type Math_Model.Array_Rule_Kind;
+    use type Math_Source.Diagnostic_Kind;
++   use type Math_Syntax.Diagnostic_Kind;
+    use type Math_Tokens.Diagnostic_Kind;
+    use type Math_Work_Control.Stop_Reason;
+ 
+@@ -81,22 +83,34 @@ procedure Math_Parser_Memory_Probe is
+ 
+    Node_Record_Width : constant Positive :=
+      (Math_Syntax.Node'Size + System.Storage_Unit - 1) / System.Storage_Unit;
++   Rule_Width : constant Positive :=
++     (Math_Model.Array_Rule'Size + System.Storage_Unit - 1) /
++       System.Storage_Unit;
+    Saw_Accounting_Threshold : Boolean := False;
+    Capture_AST_Baseline : Boolean := False;
+    Previous_Charge : Natural := 0;
+    AST_Baseline_Charge : Natural := 0;
++   Rule_Observation_Stage : Natural := 0;
++   Rule_Observed_Charges : array (1 .. 4) of Natural := (others => 0);
++   Rule_Charge_Baseline : Natural := 0;
++   Observe_Rule_Charges : Boolean := False;
++   Observe_Drift : Boolean := False;
++   Drift_Stage : Natural := 0;
++   Drift_Slots : constant array (1 .. 5) of Natural := (4, 12, 8, 24, 16);
+ 
+    type Accounting_Stop_Work is new Math_Work_Control.Context with record
+       Account : Budget_Access := null;
+-      Threshold : Natural := 0;
++      Threshold : Natural := Natural'Last;
+       Reason : Math_Work_Control.Stop_Reason :=
+         Math_Work_Control.Cancel_Requested;
++      Stop_On_Rule_Growth : Boolean := False;
+    end record;
+    overriding function Check
+      (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason;
+    overriding function Check
+      (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason is
+       Current_Charge : Natural := 0;
++      Rule_Bytes : Natural := 0;
+    begin
+       if Item.Account /= null then
+          Current_Charge := Used (Item.Account.all);
+@@ -106,9 +120,51 @@ procedure Math_Parser_Memory_Probe is
+          then
+             AST_Baseline_Charge := Previous_Charge;
+             Capture_AST_Baseline := False;
++            if Observe_Rule_Charges then
++               Rule_Charge_Baseline :=
++                 AST_Baseline_Charge + 32 * Node_Record_Width;
++            end if;
++         end if;
++         if Observe_Rule_Charges and then Rule_Charge_Baseline > 0 and then
++           Current_Charge >= Rule_Charge_Baseline
++         then
++            Rule_Bytes := Current_Charge - Rule_Charge_Baseline;
++            if Observe_Drift and then Drift_Stage < Drift_Slots'Last
++              and then Rule_Bytes = Drift_Slots (Drift_Stage + 1) * Rule_Width
++            then
++               Drift_Stage := Drift_Stage + 1;
++            end if;
++            if Rule_Observation_Stage = 0 and then
++              Rule_Bytes = 4 * Rule_Width
++            then
++               Rule_Observation_Stage := 1;
++               Rule_Observed_Charges (1) := Rule_Bytes;
++            elsif Rule_Observation_Stage = 1 and then
++              Rule_Bytes = 12 * Rule_Width
++            then
++               Rule_Observation_Stage := 2;
++               Rule_Observed_Charges (2) := Rule_Bytes;
++               if Item.Stop_On_Rule_Growth then
++                  Saw_Accounting_Threshold := True;
++                  Previous_Charge := Current_Charge;
++                  return Item.Reason;
++               end if;
++            elsif Rule_Observation_Stage = 2 and then
++              Rule_Bytes = 8 * Rule_Width
++            then
++               Rule_Observation_Stage := 3;
++               Rule_Observed_Charges (3) := Rule_Bytes;
++            elsif Rule_Observation_Stage = 3 and then
++              Rule_Bytes = 12 * Rule_Width
++            then
++               Rule_Observation_Stage := 4;
++               Rule_Observed_Charges (4) := Rule_Bytes;
++            end if;
+          end if;
+          Previous_Charge := Current_Charge;
+-         if Current_Charge > Item.Threshold then
++         if not Item.Stop_On_Rule_Growth and then
++           Current_Charge > Item.Threshold
++         then
+             Saw_Accounting_Threshold := True;
+             return Item.Reason;
+          end if;
+@@ -216,9 +272,58 @@ procedure Math_Parser_Memory_Probe is
+    Expected_Expansion_Peak : Natural := 0;
+    Expansion_AST_Count : Natural := 0;
+    Expansion_Glyph_Count : Natural := 0;
++   Rule_Drift_Source : constant String :=
++     "\begin{array}{c}\hline\hdashline\hline\hdashline\hline "
++       & "a\\\hline\hdashline\hline\hdashline\hline\hdashline"
++       & "\hline b\end{array}";
++   Rule_Link_Source : constant String :=
++     "\begin{array}{c}a\\\hline b\end{array}+"
++       & "\begin{array}{c}c\\\hline d\end{array}"
++       & "+\begin{array}{c}e\\\hline f\end{array}";
++   function Rule_Growth_Source return String is
++      Result : Ada.Strings.Unbounded.Unbounded_String;
++   begin
++      for Index in 1 .. 20 loop
++         if Index > 1 then
++            Ada.Strings.Unbounded.Append (Result, "+");
++         end if;
++         Ada.Strings.Unbounded.Append
++           (Result, "\begin{array}{c}a\\\hline b\end{array}");
++      end loop;
++      return Ada.Strings.Unbounded.To_String (Result);
++   end Rule_Growth_Source;
++   Rule_Source : constant String :=
++     "\begin{array}{c}a\\\hline\hdashline\hline\hdashline"
++       & "\hline b\end{array}+\begin{array}{c}c\\\hline d\end{array}";
+    Rejected : Boolean;
+    Delayed_Stop : aliased Countdown_Work;
+ 
++   procedure Check_Rule_Boundary (Text : String; Label : String) is
++      Measure : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Text, Memory => Measure'Unchecked_Access);
++      Peak_Bytes : constant Positive := Peak (Measure);
++      Exact : aliased Budget (Limit => Peak_Bytes);
++      Short : aliased Budget (Limit => Peak_Bytes - 1);
++      Held_Account : aliased Budget (Limit => Peak_Bytes);
++      Held : Reservation;
++      Denied : Boolean;
++   begin
++      Parse_Expect_Budget (Text, Exact'Unchecked_Access, Denied);
++      Check (Math_Syntax.Is_Valid (Parsed) and not Denied and
++        Used (Exact) = 0, Label & " exact measured fit");
++      Parse_Expect_Budget (Text, Short'Unchecked_Access, Denied);
++      Check (Denied and Used (Short) = 0, Label & " one-byte-short cleanup");
++      Reserve (Held, Held_Account'Unchecked_Access, 1);
++      Parse_Expect_Budget (Text, Held_Account'Unchecked_Access, Denied);
++      Check (Denied and Used (Held_Account) = 1,
++        Label & " held charge preserved");
++      Release (Held);
++      Parse_Expect_Budget (Text, Held_Account'Unchecked_Access, Denied);
++      Check (not Denied and Used (Held_Account) = 0,
++        Label & " rejected account reusable");
++   end Check_Rule_Boundary;
++
+ begin
+    Check_Lex_Bound (UTF8 (16#390#), "precomposed U+0390 two-mark scalar");
+    Check_Lex_Bound ("x" & UTF8 (16#301#), "combining acute wrapper");
+@@ -362,7 +467,8 @@ begin
+       Work : aliased Accounting_Stop_Work :=
+         (Account => Account'Unchecked_Access,
+          Threshold => Expansion_Lexical_Bound,
+-         Reason => Math_Work_Control.Deadline_Reached);
++         Reason => Math_Work_Control.Deadline_Reached,
++         others => <>);
+       Raised : Boolean := False;
+    begin
+       Saw_Accounting_Threshold := False;
+@@ -456,7 +562,8 @@ begin
+       Work : aliased Accounting_Stop_Work :=
+         (Account => Measure'Unchecked_Access,
+          Threshold => Natural'Last,
+-         Reason => Math_Work_Control.Cancel_Requested);
++         Reason => Math_Work_Control.Cancel_Requested,
++         others => <>);
+    begin
+       Capture_AST_Baseline := True;
+       Previous_Charge := 0;
+@@ -531,7 +638,8 @@ begin
+       Work : aliased Accounting_Stop_Work :=
+         (Account => Account'Unchecked_Access,
+          Threshold => Expansion_Lexical_Bound,
+-         Reason => Math_Work_Control.Cancel_Requested);
++         Reason => Math_Work_Control.Cancel_Requested,
++         others => <>);
+       Raised : Boolean := False;
+    begin
+       Saw_Accounting_Threshold := False;
+@@ -552,6 +660,247 @@ begin
+         "live AST charge triggers cancellation and releases reservations");
+    end;
+ 
++   declare
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access, others => <>);
++      Parsed : Math_Syntax.Document;
++      Rule_Count : Natural := 0;
++   begin
++      Drift_Stage := 0;
++      Observe_Drift := True;
++      Observe_Rule_Charges := True;
++      Capture_AST_Baseline := True;
++      Rule_Charge_Baseline := 0;
++      Rule_Observation_Stage := 0;
++      Previous_Charge := 0;
++      Parsed := Math_Syntax.Parse
++        (Rule_Drift_Source, Work => Work'Unchecked_Access,
++         Memory => Account'Unchecked_Access);
++      Observe_Drift := False;
++      Observe_Rule_Charges := False;
++      Check (Drift_Stage = Drift_Slots'Last,
++        "first-row regrowth live charge follows 4/12/8/24/16 slots");
++      for Index in 1 .. Math_Syntax.Count (Parsed) loop
++         declare
++            Current : constant Math_Syntax.Node :=
++              Math_Syntax.Element (Parsed, Index);
++         begin
++            if Current.Kind = Math_Model.Array_Node then
++               Rule_Count := Rule_Count + Natural
++                 (Current.Array_Rules.Length);
++            end if;
++         end;
++      end loop;
++      Check (Math_Syntax.Is_Valid (Parsed) and Rule_Count = 12 and
++        Used (Account) = 0,
++        "first-row link preserves twelve rules through later growth");
++   end;
++
++   declare
++      Parsed : constant Math_Syntax.Document :=
++        Math_Syntax.Parse (Rule_Link_Source);
++      Array_Count : Natural := 0;
++   begin
++      for Index in 1 .. Math_Syntax.Count (Parsed) loop
++         declare
++            Current : constant Math_Syntax.Node :=
++              Math_Syntax.Element (Parsed, Index);
++         begin
++            if Current.Kind = Math_Model.Array_Node then
++               Array_Count := Array_Count + 1;
++            end if;
++         end;
++      end loop;
++      Check (Math_Syntax.Is_Valid (Parsed) and Array_Count = 3,
++        "multiple top-level array links retain all array nodes");
++   end;
++
++   declare
++      Parsed : constant Math_Syntax.Document :=
++        Math_Syntax.Parse (Rule_Growth_Source);
++   begin
++      Check (Math_Syntax.Is_Valid (Parsed) and Math_Syntax.Count (Parsed) > 32,
++        "outer node-vector growth follows accumulated array rules");
++   end;
++
++   Check_Rule_Boundary (Rule_Drift_Source, "first-row regrowth");
++   Check_Rule_Boundary (Rule_Growth_Source, "outer-node growth");
++
++   declare
++      Measure : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Measure'Unchecked_Access,
++         Threshold => Natural'Last,
++         Reason => Math_Work_Control.Cancel_Requested,
++         others => <>);
++      Parsed : Math_Syntax.Document;
++   begin
++      Rule_Observation_Stage := 0;
++      Rule_Observed_Charges := (others => 0);
++      Rule_Charge_Baseline := 0;
++      Observe_Rule_Charges := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      Parsed := Math_Syntax.Parse
++        (Rule_Source, Work => Work'Unchecked_Access,
++         Memory => Measure'Unchecked_Access);
++      Observe_Rule_Charges := False;
++      Check (Math_Syntax.Is_Valid (Parsed) and Rule_Observation_Stage = 4 and
++        Rule_Observed_Charges (1) = 4 * Rule_Width and
++        Rule_Observed_Charges (2) = 12 * Rule_Width and
++        Rule_Observed_Charges (3) = 8 * Rule_Width and
++        Rule_Observed_Charges (4) = 12 * Rule_Width and
++        Used (Measure) = 0,
++        "rule charge stages " & Natural'Image (Rule_Observation_Stage) &
++          " [" & Natural'Image (Rule_Observed_Charges (1)) & "," &
++          Natural'Image (Rule_Observed_Charges (2)) & "," &
++          Natural'Image (Rule_Observed_Charges (3)) & "," &
++          Natural'Image (Rule_Observed_Charges (4)) & "]");
++      Check (AST_Baseline_Charge > 0 and Math_Syntax.Count (Parsed) < 32,
++        "rule fixture baseline is lexical plus initial 32-node capacity");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access,
++         Threshold => Natural'Last,
++         Reason => Math_Work_Control.Cancel_Requested,
++         Stop_On_Rule_Growth => True);
++      Raised : Boolean := False;
++   begin
++      Rule_Observation_Stage := 0;
++      Rule_Observed_Charges := (others => 0);
++      Rule_Charge_Baseline := 0;
++      Observe_Rule_Charges := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      begin
++         declare
++            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Rule_Source, Work => Work'Unchecked_Access,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Parsed);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Stop_Requested => Raised := True;
++      end;
++      Observe_Rule_Charges := False;
++      Check (Raised and Saw_Accounting_Threshold and
++        Rule_Observation_Stage = 2 and
++        Rule_Observed_Charges (1) = 4 * Rule_Width and
++        Rule_Observed_Charges (2) = 12 * Rule_Width and
++        Used (Account) = 0,
++        "cancel occurs at measured old/new rule-array overlap and releases charges");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access,
++         Threshold => Natural'Last,
++         Reason => Math_Work_Control.Deadline_Reached,
++         Stop_On_Rule_Growth => True);
++      Raised : Boolean := False;
++   begin
++      Rule_Observation_Stage := 0;
++      Rule_Observed_Charges := (others => 0);
++      Rule_Charge_Baseline := 0;
++      Observe_Rule_Charges := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      begin
++         declare
++            Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Rule_Source, Work => Work'Unchecked_Access,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Parsed);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Deadline_Expired => Raised := True;
++      end;
++      Observe_Rule_Charges := False;
++      Check (Raised and Saw_Accounting_Threshold and
++        Rule_Observation_Stage = 2 and
++        Rule_Observed_Charges (1) = 4 * Rule_Width and
++        Rule_Observed_Charges (2) = 12 * Rule_Width and
++        Used (Account) = 0,
++        "deadline occurs at measured rule overlap and releases charges");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Rule_Source & "{", Memory => Account'Unchecked_Access);
++   begin
++      Check (not Math_Syntax.Is_Valid (Parsed) and
++        Math_Syntax.Error (Parsed)'Length > 0 and
++        Math_Syntax.Count (Parsed) = 0 and Used (Account) = 0,
++        "malformed suffix after array rules reports failure and clears partial nodes");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Rule_Source & "\text{\url{https://example.test}}",
++         (Strict => Math_Syntax.Strict_Warn, others => <>),
++         Memory => Account'Unchecked_Access);
++      Array_Count : Natural := 0;
++      First_Rule_Count : Natural := 0;
++      Second_Rule_Count : Natural := 0;
++      First_Kind_OK : Boolean := True;
++      Second_Kind_OK : Boolean := True;
++      First_Boundary_OK : Boolean := True;
++      Second_Boundary_OK : Boolean := True;
++   begin
++      for Node_Index in 1 .. Math_Syntax.Count (Parsed) loop
++         declare
++            Current : constant Math_Syntax.Node :=
++              Math_Syntax.Element (Parsed, Node_Index);
++         begin
++            if Current.Kind = Math_Model.Array_Node then
++               Array_Count := Array_Count + 1;
++               if Array_Count = 1 then
++                  First_Rule_Count := Natural (Current.Array_Rules.Length);
++                  for Index in 1 .. First_Rule_Count loop
++                     First_Kind_OK := First_Kind_OK and then
++                       Current.Array_Rules (Index).Kind =
++                         (if Index mod 2 = 0 then
++                            Math_Model.Dashed_Array_Rule
++                          else Math_Model.Solid_Array_Rule);
++                     First_Boundary_OK := First_Boundary_OK and then
++                       Current.Array_Rules (Index).Boundary = 1;
++                  end loop;
++               else
++                  Second_Rule_Count := Natural (Current.Array_Rules.Length);
++                  for Rule of Current.Array_Rules loop
++                     Second_Kind_OK := Second_Kind_OK and then
++                       Rule.Kind = Math_Model.Solid_Array_Rule;
++                     Second_Boundary_OK := Second_Boundary_OK and then
++                       Rule.Boundary = 1;
++                  end loop;
++               end if;
++            end if;
++         end;
++      end loop;
++      Check (Math_Syntax.Is_Valid (Parsed) and Array_Count = 2 and
++        First_Rule_Count = 5 and Second_Rule_Count = 1 and
++        First_Kind_OK and Second_Kind_OK and First_Boundary_OK and
++        Second_Boundary_OK and Math_Syntax.Error (Parsed)'Length = 0 and
++        Math_Syntax.Diagnostic_Count (Parsed) > 0 and
++        Math_Syntax.Diagnostic_At (Parsed, 1).Kind = Math_Syntax.Warning and
++        Used (Account) = 0,
++        "post-array warning preserves all rule kinds and boundaries");
++   end;
++
+    declare
+       Account : aliased Budget;
+       Parsed : constant Math_Syntax.Document := Math_Syntax.Parse

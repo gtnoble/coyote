@@ -1,0 +1,11 @@
+Setup
+   [mkdir]        object directory for project Math_Memory_Budget
+   [mkdir]        exec directory for project Math_Memory_Budget
+Compile
+   [Ada]          math_memory_budget_probe.adb
+   [Ada]          math_memory_budget.adb
+Bind
+   [gprbind]      math_memory_budget_probe.bexch
+   [Ada]          math_memory_budget_probe.ali
+Link
+   [link]         math_memory_budget_probe.adb

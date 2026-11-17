@@ -132,9 +132,12 @@ package Math_Syntax is
       Memory : Math_Memory_Budget.Budget_Access := null) return Document;
    --  Work and Memory are borrowed only for this call. Memory accounts for
    --  offset-map, lexical token and AST node record-array construction capacity,
-   --  including old/new node arrays during growth. It excludes strings, nested
-   --  node payloads, expander storage, allocator overhead and process memory.
-   --  Charges end at Parse return, not at returned-document/copy destruction.
+   --  including old/new node arrays during growth, plus array-rule vector
+   --  capacity while rules are parsed (including old/new capacity overlap).
+   --  Rule charges aggregate across arrays and end at Parse return. They do not
+   --  account for nested rule storage copied during outer node-vector growth,
+   --  other nested node payloads, strings, expander storage, allocator overhead,
+   --  or process memory. Returned/copy lifetimes are not charged.
    --  Reservations are pre-admitted and released after parser locals finalize.
    --  Cancellation, deadline, and budget exceptions propagate to the caller.
    --  Explicit shared state follows local/global namespace semantics, even

@@ -1,0 +1,90 @@
+Note: Building coyote=0.1.0-dev/coyote.gpr...
+Compile
+   [Ada]          coyote_help.adb
+   [Ada]          math_syntax.adb
+   [Ada]          coyote_config.ads
+math_syntax.adb:1:06: warning: redundant with clause in body [-gnatwr]
+math_syntax.adb:2:06: warning: redundant with clause in body [-gnatwr]
+math_syntax.adb:8:06: warning: redundant with clause in body [-gnatwr]
+math_syntax.adb:10:06: warning: redundant with clause in body [-gnatwr]
+math_syntax.adb:12:06: warning: redundant with clause in body [-gnatwr]
+math_syntax.adb:20:08: warning: "Math_Model" is already use-visible through previous use_clause at math_syntax.ads:11 [-gnatwr]
+math_syntax.adb:282:13: warning: "Row_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:294:13: warning: "Tail_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:425:34: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:426:39: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:427:38: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:428:39: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:429:39: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:430:40: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:431:40: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:669:27: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:670:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:671:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:672:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:673:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:674:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:675:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:676:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:677:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:678:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:679:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:680:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:681:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:682:30: (style) no statements may follow "then" on same line [-gnatyS]
+math_syntax.adb:736:48: (style) misplaced "then" [-gnatyi]
+math_syntax.adb:739:48: (style) misplaced "then" [-gnatyi]
+math_syntax.adb:748:80: (style) this line is too long: 81 [-gnatyM]
+math_syntax.adb:812:19: warning: variable "Tag_Node" is assigned but never read [-gnatwm]
+math_syntax.adb:814:22: (style) redundant parentheses [-gnatyx]
+math_syntax.adb:825:80: (style) this line is too long: 85 [-gnatyM]
+math_syntax.adb:827:80: (style) this line is too long: 85 [-gnatyM]
+math_syntax.adb:851:80: (style) this line is too long: 87 [-gnatyM]
+math_syntax.adb:999:80: (style) this line is too long: 81 [-gnatyM]
+math_syntax.adb:1048:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:1156:80: (style) this line is too long: 83 [-gnatyM]
+math_syntax.adb:1562:80: (style) this line is too long: 85 [-gnatyM]
+math_syntax.adb:1572:80: (style) this line is too long: 85 [-gnatyM]
+math_syntax.adb:1652:80: (style) this line is too long: 85 [-gnatyM]
+math_syntax.adb:1655:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:1669:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:1752:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:1818:80: (style) this line is too long: 97 [-gnatyM]
+math_syntax.adb:2128:80: (style) this line is too long: 87 [-gnatyM]
+math_syntax.adb:2353:80: (style) this line is too long: 81 [-gnatyM]
+math_syntax.adb:2468:16: warning: "Row_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2475:16: warning: "Cell_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2497:16: warning: "Array_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2504:16: warning: "Row_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2526:10: warning: variable "Rule_Capacity" is assigned but never read [-gnatwm]
+math_syntax.adb:2530:13: warning: "Node_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2563:16: warning: "Node_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2590:13: warning: "Node_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2639:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:2807:80: (style) this line is too long: 85 [-gnatyM]
+math_syntax.adb:2872:16: warning: "Row_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2879:16: warning: "Cell_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:2961:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:3000:80: (style) this line is too long: 84 [-gnatyM]
+math_syntax.adb:3007:80: (style) this line is too long: 82 [-gnatyM]
+math_syntax.adb:3024:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:3209:31: (style) "or else" required [-gnatyB]
+math_syntax.adb:3234:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:3273:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.adb:3324:16: warning: "Row_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.adb:3331:16: warning: "Tail_Ref" is not modified, could be declared constant [-gnatwk]
+math_syntax.ads:134:80: (style) this line is too long: 81 [-gnatyM]
+math_syntax.ads:137:80: (style) this line is too long: 80 [-gnatyM]
+math_syntax.ads:139:80: (style) this line is too long: 81 [-gnatyM]
+Bind
+   [gprbind]      coyote.bexch
+   [Ada]          coyote.ali
+   [gprbind]      coyote_list_sessions.bexch
+   [Ada]          coyote_list_sessions.ali
+   [gprbind]      coyote_sqc_main.bexch
+   [Ada]          coyote_sqc_main.ali
+Link
+   [link]         coyote.adb
+   [link]         coyote_list_sessions.adb
+   [link]         coyote_sqc_main.adb
+Success: Build finished successfully in 5.66 seconds.
