@@ -14,4 +14,13 @@ Non-message records, including `model_change`, `session_info`, and `compaction`,
 
 Text-only legacy sessions are not rewritten merely to display them. The first image append takes the shared session writer guard, validates the legacy header and existing JSON record framing, stages the v3 log with the new record, and atomically replaces and syncs it. Compatible metadata and non-message records are preserved. Failed validation leaves the source log unchanged. A write with uncertain durability is not authorization to send. Image-bearing v3 turns are also synced before upload. A provider rejection after commit does not delete the user record.
 
+New headers and forks sync their private staged file, publish it without
+replacing an existing log, and sync its containing directory under the
+session guard. A failure before rename leaves the target log unchanged. A
+failure syncing the directory after rename reports a visible but unconfirmed
+UUID; no fork Canvas is rolled back, and the current session is not switched
+to that fork. Check the session list before retrying. This does not sync
+ancestors of a newly created project session directory or make a blanket
+power-loss guarantee for all session writes.
+
 Canvas policy: up to eight images, 8 MiB per PNG, 16 MiB of PNGs per turn, and 32 MiB of serialized image-bearing provider request. Dimensions and encoded sizes are checked; there is no resized fallback. `--no-session` keeps new turns and drawings in memory. Do not include inline PNG data in log excerpts or diagnostic reports.

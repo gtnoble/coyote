@@ -21,7 +21,9 @@ package LLM.Session_Store is
    --
    --  Returns the new session UUID.
    --
-   --  Raises Session_Error on directory-creation or file-write failure.
+   --  Raises Session_Error on directory creation or publication failure.
+   --  If rename succeeds but directory sync fails, the error names the
+   --  visible UUID; the caller must not treat it as a durable session.
    function Create_Session (Cwd : String) return String;
 
    --  Append one message line to the session file for Session_Id.

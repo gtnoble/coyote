@@ -1,5 +1,22 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Session log publication durability (PCR-130)
+
+New headers and forks sync the private stage, publish without replacing a
+log, then sync the resolved containing directory under the session guard.
+Legacy image migration uses the same helper in checked replacement mode.
+A failure before rename leaves the target unchanged. A failure after rename
+reports the visible UUID and uncertain durability; a visible fork retains
+its Canvas and the UI does not switch away from the source session.
+
+The offline publication harness verifies file-then-directory sync order,
+no-replace collisions, typed-fork rollback before rename, and preservation
+of editable pixels and the exact typed record after an uncertain fork. It
+also exercises actual v1-to-v3 migration with both sync failures. Root and
+test development builds, strict C checks, the serial Xvfb suite (1,121/1,121),
+and standalone Canvas and GTK checks passed. This is developer evidence;
+ancestor-directory durability and real power-loss behavior are not qualified.
+
 ## 2026-11-21 — Explicit Canvas reclamation (PCR-130)
 
 `canvas reclaim` previews one UUID in the current project session directory.

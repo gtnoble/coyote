@@ -77,9 +77,13 @@ package Session_Lister is
    --  fork owns a copy of those revisions, their ancestors, and required
    --  assets, published before the JSONL. Unsent drafts are never copied.
    --
-   --  Returns the new UUID on success, "" on any error (source not found,
-   --  After_Turn exceeds the number of complete turns in the source, step
-   --  not found, I/O failure, etc.).
+   --  Returns the new UUID on durable publication, "" on failure before
+   --  publication. If the new log is visible but its directory could not
+   --  be synced, keep it and any Canvas and raise with the new UUID.
+   Fork_Publication_Uncertain : exception;
+
+   --  The caller should keep the current session on this exception and
+   --  check session listing before retrying the fork.
    function Fork_Session
      (Source_UUID : String;
       After_Turn  : Positive;

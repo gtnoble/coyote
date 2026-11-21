@@ -67,7 +67,11 @@ client-controlled work product gets an entry here.
   revisions and ancestors. Local GTK attachment submission and replay are
   implemented, including the v3 writer and legacy conversion. Explicit
   Canvas reclamation inspects or removes unreferenced files and logless
-  sidecars for a single UUID. Qualification and deployment remain pending.
+  sidecars for a single UUID. New headers and forks sync the resolved log
+  directory after rename. Post-rename sync failure reports uncertainty and
+  preserves the visible JSONL and any fork Canvas. Ancestor-directory sync
+  for newly created directory hierarchies is not included. Qualification and
+  deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

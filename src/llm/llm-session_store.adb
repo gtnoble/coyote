@@ -309,11 +309,9 @@ package body LLM.Session_Store is
       Stream   : Ada.Streams.Stream_IO.Stream_Access;
       Accepted : Boolean := False;
       Stage    : Unbounded_String;
-      Status   : Tx.Result;
       Input    : Ada.Text_IO.File_Type;
       Payload  : Unbounded_String := To_Unbounded_String (Line);
       Migrate  : Boolean := False;
-      Uncertain : Boolean := False;
       procedure Put (Text : String) is
       begin
          String'Write (Stream, Text);
@@ -413,18 +411,28 @@ package body LLM.Session_Store is
       Stream := Ada.Streams.Stream_IO.Stream (File);
       Put (To_String (Payload));
       Ada.Streams.Stream_IO.Close (File);
-      if Fresh then
-         Tx.Publish (To_String (Stage), Resolved, Status);
-         if Status /= Tx.Acquired then
-            raise Session_Error with "Cannot publish session header";
-         end if;
-      elsif Migrate then
-         Tx.Replace_Log (To_String (Stage), Resolved, Status, Uncertain);
-         if Uncertain then
-            raise Session_Error with "Canvas session migration published; durability uncertain";
-         elsif Status /= Tx.Acquired then
-            raise Session_Error with "Cannot publish Canvas session migration";
-         end if;
+      if Fresh or else Migrate then
+         declare
+            Status : Tx.Publication_Result;
+            Operation : constant String :=
+              (if Fresh then "session header" else "Canvas session migration");
+         begin
+            if Fresh then
+               Tx.Publish (To_String (Stage), Resolved, Status);
+            else
+               Tx.Replace_Log (To_String (Stage), Resolved, Status);
+            end if;
+            case Status is
+               when Tx.Not_Published =>
+                  raise Session_Error with "Cannot publish " & Operation;
+               when Tx.Durable => null;
+               when Tx.Uncertain =>
+                  Stage := Null_Unbounded_String;
+                  raise Session_Error with Operation & " for "
+                    & Tx.Identity (Resolved)
+                    & " is visible; durability uncertain";
+            end case;
+         end;
       elsif Image_Turn and then not Tx.Sync_Log (Resolved) then
          raise Session_Error with "Canvas record may have been written; durability uncertain";
       end if;

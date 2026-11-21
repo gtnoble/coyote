@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.58
+**Version:** 1.59
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -558,13 +558,14 @@ not wait for the complete user turn.
 | `Coyote_Canvas.Import_Service` (`src/coyote_canvas-import_service.ads/.adb`, `src/coyote_canvas_import_c.c`) | Private same-user Unix socket, per-binding capability, bounded file intake, and receipt lookup by request ID. |
 | `Coyote_Canvas.Revisions.Recovery` (`src/coyote_canvas-revisions-recovery.ads/.adb`) | Versioned metadata codec; extract a fork subset with stable IDs, ancestry, and independent stroke storage. |
 | `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private transport, exclusive GTK editor lease, fork sidecar reservation, checked nonrecursive removal, and reclamation inventory. |
-| `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging and no-replace publication for new JSONL files. |
+| `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging, no-replace publication for new logs, checked replacement for migration, and explicit directory-sync outcomes. |
 | `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Save immutable source rasters before the manifest; full restore and selected-revision fork restore verify required rasters; live reclamation verifies the graph and assets before deriving a keep set. |
 | `Coyote_Canvas_Recovery_Tests` (`test/src/coyote_canvas_recovery_tests.ads/.adb`) | Exact raster and revision round trips, invalid-input rollback, and private sidecar behavior. |
 | `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition, attachment freezing, and display-cache misses run on GTK. |
 | `LLM.User_Images` (`src/llm/llm-user_images.ads/.adb`) | Native PNG block validation, ordered references, wire budgets, and v3 JSON encoding/decoding. |
 | `Coyote_App.Frontend` (`src/coyote_app-frontend.ads/.adb`) | Shared frontend contract; non-GTK presentation describes typed attachments without uploading or displaying extra images. |
 | Canvas reclamation regression | `test/tools/check-canvas-reclaim.py` exercises CLI inspection and apply in disposable session directories; `test/src/coyote_canvas_recovery_tests.adb` checks guarded restore. |
+| Session publication fault harness | `test/tools/session_publication_worker.adb`, `test/native/session_publication_fsync.c`, `test/tools/check-session-publication.py` exercise new headers, typed forks, and migration with controlled file- and directory-sync failures. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
@@ -3233,9 +3234,14 @@ seconds on contention; this is not a filesystem I/O deadline. Raw JSONL
 readers do not wait. GTK holds the guard from editor admission through full
 Canvas restore. Fork holds the source guard while copying the log,
 releases it before acquiring the destination guard, and publishes the
-complete destination via private staging, file sync, and no-replace rename.
-New headers use the same publication path. This does not add directory sync
-for JSONL publication or serialize whole conversation lifetimes.
+complete destination via private staging, file sync, no-replace rename, and
+sync of the resolved containing directory. New headers use the same path.
+Legacy image migration uses the same native helper in checked replacement
+mode. Both keep the session guard from staging through the directory sync.
+The result is `Durable`, `Not_Published` (rename did not occur), or `Uncertain`
+(rename occurred but directory sync failed). This covers the log entry in its
+immediate parent; it does not sync ancestors to commit newly created session
+directory hierarchies or serialize whole conversation lifetimes.
 
 **GTK autosave and reopen.** The root session update supplies the UUID and
 the resolved JSONL path, independent of the selected agent. The load worker
@@ -3268,7 +3274,10 @@ checkpoint; unrelated drawings, later revisions, and the unsent draft are
 not copied. Text-only forks do not create a sidecar. The destination guard
 protects sidecar reservation and publication before the staged JSONL becomes
 visible. A failure before JSONL publication does not expose a fork; sidecar
-rollback is best-effort. The fork does not interpret or re-encode inline PNG.
+rollback is best-effort. If the log becomes visible but its parent sync
+fails, preserve both the log and its sidecar. Raise a distinct exception
+naming the fork UUID; GTK resumes the source rather than switching to the
+unconfirmed fork. The fork does not interpret or re-encode inline PNG.
 
 Explicit session-store deletion refuses a live editor or an unsafe layout.
 It checks the requested identity, acquires the shared guard and sidecar
@@ -3301,8 +3310,8 @@ publication lock and sync the current manifest and sidecar before removal.
 In orphan mode sync the log's absence first, then sync removals from the
 sidecar and its parent. A partial removal or failed post-removal sync reports
 uncertainty, not success. The shared lock inode and JSONL are never removed.
-Maintenance is opt-in; it does not sweep projects, reclaim anonymous JSONL
-staging files, or change JSONL header/fork publication durability.
+Maintenance is opt-in; it does not sweep projects or reclaim anonymous JSONL
+staging files.
 
 **Authorized shell import.** The root GTK session publishes one private Unix
 socket endpoint and a random 256-bit capability. The shell launch copies

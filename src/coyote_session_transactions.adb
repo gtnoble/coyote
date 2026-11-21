@@ -100,19 +100,21 @@ package body Coyote_Session_Transactions is
       return To_Ada (Name);
    end Create_Stage;
 
-   procedure Publish (Stage, Resolved_Path : String; Status : out Result) is
+   procedure Publish
+     (Stage, Resolved_Path : String; Status : out Publication_Result) is
    begin
-      Status := Result'Val (Native_Publish (To_C (Stage), To_C (Resolved_Path)));
+      Status := Publication_Result'Val
+        (Native_Publish (To_C (Stage), To_C (Resolved_Path)));
    end Publish;
 
-   procedure Replace_Log (Stage, Resolved_Path : String; Status : out Result;
-                          Uncertain : out Boolean) is
+   procedure Replace_Log
+     (Stage, Resolved_Path : String; Status : out Publication_Result) is
       function Native_Replace (Stage, Target : char_array) return int
-        with Import, Convention => C, External_Name => "coyote_session_replace";
-      Code : constant int := Native_Replace (To_C (Stage), To_C (Resolved_Path));
+        with Import, Convention => C,
+             External_Name => "coyote_session_replace";
    begin
-      Uncertain := Code = 3;
-      Status := (if Code = 0 then Acquired else Unavailable);
+      Status := Publication_Result'Val
+        (Native_Replace (To_C (Stage), To_C (Resolved_Path)));
    end Replace_Log;
 
    function Sync_Log (Resolved_Path : String) return Boolean is

@@ -870,7 +870,6 @@ package body Session_Lister is
             Target     : Unbounded_String;
             Accepted   : Boolean := False;
             Reserved   : Boolean := False;
-            Published  : Boolean := False;
             Canvas_Status : Store.Result;
 
             procedure Write_Raw_Line (Line : String) is
@@ -1001,14 +1000,28 @@ package body Session_Lister is
                   end if;
                end;
             end if;
-            Tx.Publish (To_String (Stage), To_String (Target), Status);
-            if Status /= Tx.Acquired then
-               raise Ada.Text_IO.Use_Error with "Cannot publish fork";
-            end if;
-            Published := True;
-            Coyote_Process_Control.End_Persistence_Write;
-            return New_UUID;
+            declare
+               use type Tx.Publication_Result;
+               Publication : Tx.Publication_Result;
+            begin
+               Tx.Publish (To_String (Stage), To_String (Target), Publication);
+               if Publication = Tx.Not_Published then
+                  raise Ada.Text_IO.Use_Error with "Cannot publish fork";
+               end if;
+               --  Rename consumed the stage. Do not roll back Canvas.
+               Reserved := False;
+               Stage := Null_Unbounded_String;
+               Coyote_Process_Control.End_Persistence_Write;
+               Accepted := False;
+               if Publication = Tx.Uncertain then
+                  raise Fork_Publication_Uncertain with
+                    "Fork " & New_UUID & " is visible; durability uncertain. "
+                    & "Check the session list before retrying.";
+               end if;
+               return New_UUID;
+            end;
          exception
+            when Fork_Publication_Uncertain => raise;
             when Ex : others =>
                begin
                   if Ada.Streams.Stream_IO.Is_Open (Out_Str) then
@@ -1020,7 +1033,7 @@ package body Session_Lister is
                exception
                   when others => null;
                end;
-               if Reserved and then not Published then
+               if Reserved then
                   begin
                      Store.Remove_Session
                        (Ada.Directories.Containing_Directory (To_String (Target)),

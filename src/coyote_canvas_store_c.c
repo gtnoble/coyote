@@ -499,20 +499,60 @@ int coyote_session_stage(char *path)
    return mkostemp(path, O_CLOEXEC);
 }
 
-/* Stage is private and on the destination filesystem. Refuse replacement.
- * A failure before rename leaves the destination untouched. */
+enum { LOG_DURABLE = 0, LOG_NOT_PUBLISHED = 1, LOG_UNCERTAIN = 2 };
+
+/* Caller holds the target's guard. Both names must be siblings in the
+ * resolved directory. Open it before rename; a failure to open or sync the
+ * stage leaves the destination untouched. A failed sync AFTER rename does
+ * not undo publication, and the caller must keep any referenced Canvas. */
+static int publish_log(const char *stage, const char *target, int replace)
+{
+   const char *from = strrchr(stage, '/');
+   const char *to = strrchr(target, '/');
+   struct stat st;
+   int dir, fd, synced, result = LOG_NOT_PUBLISHED;
+   if (stage[0] != '/' || !from || !to || !from[1] || !to[1] ||
+       from - stage != to - target || memcmp(stage, target, (size_t)(to - target)) ||
+       strcmp(from + 1, to + 1) == 0)
+      return result;
+   if (to == target)
+      dir = open_parent("/");
+   else
+   {
+      char *parent = strndup(target, (size_t)(to - target));
+      if (!parent)
+         return result;
+      dir = open_parent(parent);
+      free(parent);
+   }
+   if (dir < 0)
+      return result;
+   if (replace && (fstatat(dir, to + 1, &st, AT_SYMLINK_NOFOLLOW) < 0 ||
+       !S_ISREG(st.st_mode) || st.st_nlink != 1 || st.st_uid != geteuid()))
+      goto done;
+   fd = open_checked(dir, from + 1, 0, &st);
+   if (fd < 0)
+      goto done;
+   synced = fsync(fd);
+   if (close(fd) < 0 || synced < 0)
+      goto done;
+   if (renameat2(dir, from + 1, dir, to + 1,
+                 replace ? 0 : RENAME_NOREPLACE) == 0)
+      result = fsync(dir) == 0 ? LOG_DURABLE : LOG_UNCERTAIN;
+
+done:
+   close(dir);
+   return result;
+}
+
 int coyote_session_publish(const char *stage, const char *target)
 {
-   int fd = open(stage, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-   int result;
-   if (fd < 0)
-      return 2;
-   result = fsync(fd);
-   if (close(fd) < 0 || result < 0)
-      return 2;
-   if (renameat2(AT_FDCWD, stage, AT_FDCWD, target, RENAME_NOREPLACE) < 0)
-      return 2;
-   return 0;
+   return publish_log(stage, target, 0);
+}
+
+int coyote_session_replace(const char *stage, const char *target)
+{
+   return publish_log(stage, target, 1);
 }
 
 /* Caller holds the existing session guard. */
@@ -524,37 +564,6 @@ int coyote_session_sync(const char *target)
    struct stat st;
    int result = fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && fsync(fd) == 0;
    return close(fd) == 0 && result ? 0 : 2;
-}
-
-/* Caller holds the existing session guard. Do not replace aliased logs. */
-int coyote_session_replace(const char *stage, const char *target)
-{
-   struct stat st;
-   if (lstat(target, &st) || !S_ISREG(st.st_mode) || st.st_nlink != 1 ||
-       st.st_uid != geteuid())
-      return 2;
-   int fd = open(stage, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-   if (fd < 0)
-      return 2;
-   int result = fsync(fd);
-   if (close(fd) < 0 || result < 0)
-      return 2;
-   char *parent = strdup(target);
-   if (parent == NULL)
-      return 2;
-   char *last = strrchr(parent, '/');
-   if (last == NULL) {
-      free(parent);
-      return 2;
-   }
-   last[1] = '\0';
-   int dir = open(parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-   free(parent);
-   if (dir < 0)
-      return 2;
-   result = rename(stage, target) < 0 ? 2 : (fsync(dir) < 0 ? 3 : 0);
-   close(dir);
-   return result;
 }
 
 /* Callers hold the session transaction guard. A new fork must not adopt or

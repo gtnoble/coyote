@@ -21,14 +21,21 @@ package Coyote_Session_Transactions is
    function Resolve (Path : String) return String;
    function Identity (Resolved_Path : String) return String;
 
-   --  Create a private sibling staging file and publish it without replacing
-   --  an existing destination. Hold the destination guard throughout.
+   --  Both publication operations sync the staged file, rename it, then
+   --  sync its directory. Not_Published leaves the destination unchanged.
+   --  Uncertain means rename succeeded, but the directory sync failed;
+   --  the caller must not roll back dependencies of the now-visible log.
+   type Publication_Result is (Durable, Not_Published, Uncertain);
+
+   --  Create and publish a private sibling stage without replacing an
+   --  existing destination. Hold the destination guard throughout.
    function Create_Stage (Resolved_Path : String) return String;
-   procedure Publish (Stage, Resolved_Path : String; Status : out Result);
+   procedure Publish
+     (Stage, Resolved_Path : String; Status : out Publication_Result);
 
    --  Replace a checked regular log under its existing guard.
-   procedure Replace_Log (Stage, Resolved_Path : String; Status : out Result;
-                          Uncertain : out Boolean);
+   procedure Replace_Log
+     (Stage, Resolved_Path : String; Status : out Publication_Result);
    function Sync_Log (Resolved_Path : String) return Boolean;
 
    --  A bounded retry for agent-task writes, not GTK callbacks.
