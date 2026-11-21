@@ -30,7 +30,8 @@ package Coyote_GUI.Canvas is
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class);
    --  An empty directory selects memory-only mode. A changed binding must
    --  follow Reset. The manifest is opened lazily when Canvas is shown.
-   procedure Bind (S : in out Instance; Parent, UUID : String);
+   procedure Bind (S : in out Instance; Parent, UUID : String;
+                   Session_File : String := "");
    function Flush (S : in out Instance) return Boolean;
    procedure Suspend (S : in out Instance; Value : Boolean);
    procedure Reset (S : in out Instance);
@@ -65,7 +66,7 @@ private
       Cancel_Crop : Gtk.Button.Gtk_Button               := null;
       Document : Coyote_Canvas.Revisions.Workspace;
       Images : Image_Array;
-      Parent, UUID : Ada.Strings.Unbounded.Unbounded_String;
+      Parent, UUID, Session_File : Ada.Strings.Unbounded.Unbounded_String;
       Disk_Pixels : Canvas_Recovery_Jobs.Disk.Raster_Set;
       Lease : Coyote_Canvas.Store.Writer_Lease;
       Job : Canvas_Recovery_Jobs.Job_Access;

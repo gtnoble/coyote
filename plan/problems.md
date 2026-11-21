@@ -60,9 +60,10 @@ client-controlled work product gets an entry here.
   PNG, JPEG, and supported static SVG are implemented. The internal workspace
   store verifies raster assets and recovers stable IDs, revisions, and drafts.
   GTK autosaves and reopens the root session workspace, with an exclusive
-  Canvas-only writer lease. Shared Canvas/JSONL writer ownership, Canvas
-  fork/deletion, CLI import, attachments, qualification, and deployment remain
-  pending.
+  Canvas-only writer lease. Canvas commits and JSONL mutations share a
+  per-session transaction guard. Text forks publish complete logs; joint
+  deletion and attachment-aware forks remain pending, as do CLI import,
+  attachments, qualification, and deployment.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

@@ -15,6 +15,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_Process_Control;
+with Coyote_Session_Transactions;
 with GNATCOLL.JSON;
 with Interfaces;
 with Session_Lister;
@@ -250,50 +251,86 @@ package body LLM.Session_Store is
         & Byte_Image (Bytes (15)) & Byte_Image (Bytes (16));
    end New_UUID;
 
+   package Tx renames Coyote_Session_Transactions;
+   use type Tx.Result;
+
+   procedure Require_Writer (Path : String; Lock : in out Tx.Guard) is
+      Status : Tx.Result;
+   begin
+      if Path'Length = 0 then
+         raise Session_Error with "Cannot resolve session file";
+      end if;
+      Tx.Wait_For_Lock (Path, Lock, Status);
+      case Status is
+         when Tx.Acquired => null;
+         when Tx.Busy => raise Session_Error with "Session writer is busy";
+         when Tx.Unavailable =>
+            raise Session_Error with "Session writer lock unavailable";
+      end case;
+   end Require_Writer;
+
    procedure Write_Raw_Line
-     (Path  : String;
-      Line  : String;
-      Mode  : Ada.Streams.Stream_IO.File_Mode;
+     (Path, Line : String; Mode : Ada.Streams.Stream_IO.File_Mode;
       Fresh : Boolean := False)
    is
-      File   : Ada.Streams.Stream_IO.File_Type;
-      Stream : Ada.Streams.Stream_IO.Stream_Access;
+      Resolved : constant String :=
+        (if Fresh then Tx.Resolve (Ada.Directories.Containing_Directory (Path))
+           & "/" & Ada.Directories.Simple_Name (Path)
+         else Tx.Resolve (Path));
+      Lock     : Tx.Guard;
+      File     : Ada.Streams.Stream_IO.File_Type;
+      Stream   : Ada.Streams.Stream_IO.Stream_Access;
+      Accepted : Boolean := False;
+      Stage    : Unbounded_String;
+      Status   : Tx.Result;
    begin
-      declare
-         Accepted : Boolean;
-      begin
-         Coyote_Process_Control.Begin_Persistence_Write (Accepted);
-         if not Accepted then
-            return;
-         end if;
-      end;
-
-      begin
+      Require_Writer (Resolved, Lock);
+      Coyote_Process_Control.Begin_Persistence_Write (Accepted);
+      if not Accepted then
          if Fresh then
-            Ada.Streams.Stream_IO.Create (File, Mode, Path);
-         else
-            Ada.Streams.Stream_IO.Open (File, Mode, Path);
+            raise Session_Error with "Session persistence is frozen";
          end if;
-
-         Stream := Ada.Streams.Stream_IO.Stream (File);
-         String'Write (Stream, Line);
-         Character'Write (Stream, ASCII.LF);
-         Ada.Streams.Stream_IO.Close (File);
-      exception
-         when others =>
-            if Ada.Streams.Stream_IO.Is_Open (File) then
-               Ada.Streams.Stream_IO.Close (File);
-            end if;
-            Coyote_Process_Control.End_Persistence_Write;
-            raise;
-      end;
+         return;
+      end if;
+      if Fresh then
+         Stage := To_Unbounded_String (Tx.Create_Stage (Resolved));
+         if Length (Stage) = 0 then
+            raise Session_Error with "Cannot stage session header";
+         end if;
+         Ada.Streams.Stream_IO.Open (File, Mode, To_String (Stage));
+      else
+         Ada.Streams.Stream_IO.Open (File, Mode, Resolved);
+      end if;
+      Stream := Ada.Streams.Stream_IO.Stream (File);
+      String'Write (Stream, Line);
+      Character'Write (Stream, ASCII.LF);
+      Ada.Streams.Stream_IO.Close (File);
+      if Fresh then
+         Tx.Publish (To_String (Stage), Resolved, Status);
+         if Status /= Tx.Acquired then
+            raise Session_Error with "Cannot publish session header";
+         end if;
+      end if;
       Coyote_Process_Control.End_Persistence_Write;
    exception
       when others =>
          if Ada.Streams.Stream_IO.Is_Open (File) then
-            Ada.Streams.Stream_IO.Close (File);
+            begin
+               Ada.Streams.Stream_IO.Close (File);
+            exception
+               when others => null;
+            end;
          end if;
-
+         if Length (Stage) /= 0 then
+            begin
+               Ada.Directories.Delete_File (To_String (Stage));
+            exception
+               when others => null;
+            end;
+         end if;
+         if Accepted then
+            Coyote_Process_Control.End_Persistence_Write;
+         end if;
          raise;
    end Write_Raw_Line;
 
@@ -865,16 +902,56 @@ package body LLM.Session_Store is
            & Ada.Exceptions.Exception_Message (Ex);
    end Create_Session;
 
-   procedure Delete_Session (Session_Id : String) is
-      Path : constant String := Session_File_Path (Session_Id);
+   procedure Delete_Session (Session_Id : String; Empty_Only : Boolean := False) is
+      use Ada.Directories;
+      Path : constant String := Tx.Resolve (Session_File_Path (Session_Id));
+      Lock : Tx.Guard;
+      Accepted : Boolean := False;
    begin
-      if Path'Length > 0 and then Ada.Directories.Exists (Path) then
-         Ada.Directories.Delete_File (Path);
+      if Path'Length = 0 then
+         return;
+      end if;
+      Require_Writer (Path, Lock);
+      if not Exists (Path) then
+         return;
+      end if;
+      --  Until joint deletion is implemented, never orphan a Canvas (even
+      --  one that is open but has not published its first manifest).
+      if Exists (Containing_Directory (Path) & "/" & Tx.Identity (Path)
+                 & ".canvas")
+      then
+         if Empty_Only then
+            return;
+         end if;
+         raise Session_Error with "Cannot delete a session with Canvas storage";
+      end if;
+      if Empty_Only then
+         declare
+            File : Ada.Text_IO.File_Type;
+            Is_Empty : Boolean;
+         begin
+            Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+            if not Ada.Text_IO.End_Of_File (File) then
+               Ada.Text_IO.Skip_Line (File);
+            end if;
+            Is_Empty := Ada.Text_IO.End_Of_File (File);
+            Ada.Text_IO.Close (File);
+            if not Is_Empty then
+               return;
+            end if;
+         end;
+      end if;
+      Coyote_Process_Control.Begin_Persistence_Write (Accepted);
+      if Accepted then
+         Delete_File (Path);
+         Coyote_Process_Control.End_Persistence_Write;
       end if;
    exception
       when Ex : others =>
-         raise Session_Error
-           with "Delete_Session failed: "
+         if Accepted then
+            Coyote_Process_Control.End_Persistence_Write;
+         end if;
+         raise Session_Error with "Delete_Session failed: "
            & Ada.Exceptions.Exception_Message (Ex);
    end Delete_Session;
 

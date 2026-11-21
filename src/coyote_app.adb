@@ -10,7 +10,7 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNAT.OS_Lib;
+with Coyote_Session_Transactions;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with GNATCOLL.OS.Process;
 with LLM.Compaction;
@@ -627,14 +627,15 @@ package body Coyote_App is
                        (if Opts.No_Session or else Session_Id'Length = 0 then ""
                         else LLM.Session_Store.Session_File_Path (Session_Id));
                      Resolved : constant String :=
-                       (if Path'Length = 0 then "" else
-                        GNAT.OS_Lib.Normalize_Pathname
-                          (Path, Resolve_Links => True));
+                       Coyote_Session_Transactions.Resolve (Path);
                   begin
                      My_Frontend.Set_Session_Identity
-                       (Session_Id, (if Resolved'Length = 0 then "" else
-                                     Ada.Directories.Containing_Directory
-                                       (Resolved)));
+                       (Session_Id, (if Resolved'Length = 0 or else
+                          Coyote_Session_Transactions.Identity (Resolved) /=
+                            Session_Id
+                        then "" else
+                          Ada.Directories.Containing_Directory (Resolved)),
+                        Canvas_File => Resolved);
                   end;
                   Dispatch_Event (Event);
                end Emit_Session_Info;
@@ -1356,21 +1357,7 @@ package body Coyote_App is
             S_Id : constant String := LLM.Agent.Session_Id (Agent_Session);
          begin
             if S_Id'Length > 0 then
-               declare
-                  Path : constant String :=
-                    LLM.Session_Store.Session_File_Path (S_Id);
-                  Resolved : constant String :=
-                    (if Path'Length = 0 then "" else
-                     GNAT.OS_Lib.Normalize_Pathname (Path, Resolve_Links => True));
-               begin
-                  --  A session with only Canvas drawings is not empty.
-                  if Resolved'Length > 0 and then not Ada.Directories.Exists
-                    (Ada.Directories.Containing_Directory (Resolved)
-                     & "/" & S_Id & ".canvas/canvas.json")
-                  then
-                     LLM.Session_Store.Delete_Session (S_Id);
-                  end if;
-               end;
+               LLM.Session_Store.Delete_Session (S_Id, Empty_Only => True);
             end if;
          exception
             when others =>

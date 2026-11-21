@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.45
+**Version:** 1.46
 **Date:** 2026-11-21
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
@@ -997,8 +997,9 @@ requirements or moving follow-on features into the first increment. Later
 implementation adds a widget-independent composite, bounded PNG encoding,
 and a cached GTK display surface, followed by internal workspace storage
 for revision UUIDs, draft metadata, and exact raster assets. The Frontends
-development log records GTK autosave and reopen evidence. Shared Canvas/JSONL
-writer ownership, Attach/Send, the authorized import service, STP §4.6
+development log records GTK autosave and reopen evidence. Canvas commits
+and JSONL mutations now share a session transaction guard. Attachment-aware
+forks, joint deletion, Attach/Send, the authorized import service, STP §4.6
 qualification, and desktop/tablet acceptance remain open.
 
 ## 9. Artifact Version Table
@@ -1016,7 +1017,7 @@ qualification, and desktop/tablet acceptance remain open.
 | Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.35 (2026-11-21) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.53 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.54 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
 | Canvas Detailed Design | SDD-CANVAS | `design/coyote-canvas-design.md` | 1.0 (2026-11-21) | Client — design accepted |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |

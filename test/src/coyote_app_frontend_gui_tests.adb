@@ -1591,7 +1591,8 @@ package body Coyote_App_Frontend_GUI_Tests is
 
       procedure Open (UUID : String; Parent : String) is
       begin
-         Frontend.Set_Session_Identity (UUID, Parent);
+         Frontend.Set_Session_Identity
+           (UUID, Parent, (if Parent = "" then "" else Parent & "/" & UUID & ".jsonl"));
          Drain_Events;
          Canvas_Item (Frontend).Activate;
          Canvas := Canvas_Window (Frontend);
@@ -1611,6 +1612,13 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (Make_Temp_Directory (Pattern'Address) /= System.Null_Address,
               "create isolated session directory");
       Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File,
+                             To_String (Root) & "/" & A & ".jsonl");
+         Ada.Text_IO.Close (File);
+      end;
       declare
          File : Ada.Text_IO.File_Type;
       begin
@@ -1709,6 +1717,12 @@ package body Coyote_App_Frontend_GUI_Tests is
               and then Rev.Revision_Key (Saved, 1) = Key
               and then Rev.Drawing_Key (Saved, 2) = Key,
               "checkpoint after reopen preserves original identity");
+      Reset_Agents_From_Task (Frontend);
+      Open (B, To_String (Root));
+      Wait_Status ("Canvas recovery unavailable; editing is disabled.");
+      Assert (not Control ("canvas-new").Get_Sensitive and then
+                not Ada.Directories.Exists (To_String (Root) & "/" & B & ".canvas"),
+              "a session removed before Canvas opens cannot get a sidecar");
       Frontend.Request_Shutdown;
       Main_Window (Frontend).Destroy;
       Ada.Directories.Delete_Tree (To_String (Root));

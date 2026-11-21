@@ -15,6 +15,8 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with GNAT.SHA256;
+with Coyote_Process_Control;
+with Coyote_Session_Transactions;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
 
 package body Session_Lister is
@@ -552,7 +554,9 @@ package body Session_Lister is
          return Native_Format;
       end Detect_Format;
 
-      Source_Path : constant String := Find_Session_File (Source_UUID);
+      package Tx renames Coyote_Session_Transactions;
+      use type Tx.Result;
+      Source_Path : constant String := Tx.Resolve (Find_Session_File (Source_UUID));
       New_UUID    : constant String := Fork_UUID;
       Orig_Name   : Unbounded_String;
 
@@ -569,7 +573,13 @@ package body Session_Lister is
 
       declare
          File : Ada.Text_IO.File_Type;
+         Lock : Tx.Guard;
+         Status : Tx.Result;
       begin
+         Tx.Wait_For_Lock (Source_Path, Lock, Status);
+         if Status /= Tx.Acquired then
+            return "";
+         end if;
          Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Source_Path);
          while not Ada.Text_IO.End_Of_File (File) loop
             Source_Lines.Append (Read_Line (File));
@@ -735,8 +745,6 @@ package body Session_Lister is
 
          declare
             Target_Dir : constant String := Sessions_Dir (Target_Cwd);
-            New_Path   : constant String :=
-              Target_Dir & "/" & New_UUID & ".jsonl";
             Fork_Name  : constant String :=
               "Fork of "
               &
@@ -757,6 +765,11 @@ package body Session_Lister is
                else "");
             Out_Str    : Ada.Streams.Stream_IO.File_Type;
             Out_S      : Ada.Streams.Stream_IO.Stream_Access;
+            Lock       : Tx.Guard;
+            Status     : Tx.Result;
+            Stage      : Unbounded_String;
+            Target     : Unbounded_String;
+            Accepted   : Boolean := False;
 
             procedure Write_Raw_Line (Line : String) is
             begin
@@ -765,8 +778,28 @@ package body Session_Lister is
 
          begin
             Ada.Directories.Create_Path (Target_Dir);
-            Ada.Streams.Stream_IO.Create
-              (Out_Str, Ada.Streams.Stream_IO.Out_File, New_Path);
+            declare
+               Parent : constant String := Tx.Resolve (Target_Dir);
+            begin
+               if Parent'Length = 0 then
+                  return "";
+               end if;
+               Target := To_Unbounded_String (Parent & "/" & New_UUID & ".jsonl");
+               Tx.Wait_For_Lock (To_String (Target), Lock, Status);
+               if Status /= Tx.Acquired then
+                  return "";
+               end if;
+               Coyote_Process_Control.Begin_Persistence_Write (Accepted);
+               if not Accepted then
+                  return "";
+               end if;
+               Stage := To_Unbounded_String (Tx.Create_Stage (To_String (Target)));
+            end;
+            if Length (Stage) = 0 then
+               raise Ada.Text_IO.Use_Error with "Cannot stage fork";
+            end if;
+            Ada.Streams.Stream_IO.Open
+              (Out_Str, Ada.Streams.Stream_IO.Out_File, To_String (Stage));
             Out_S := Ada.Streams.Stream_IO.Stream (Out_Str);
 
             if Source_Format = Native_Format then
@@ -831,11 +864,26 @@ package body Session_Lister is
             end if;
 
             Ada.Streams.Stream_IO.Close (Out_Str);
+            Tx.Publish (To_String (Stage), To_String (Target), Status);
+            if Status /= Tx.Acquired then
+               raise Ada.Text_IO.Use_Error with "Cannot publish fork";
+            end if;
+            Coyote_Process_Control.End_Persistence_Write;
             return New_UUID;
          exception
             when Ex : others =>
-               if Ada.Streams.Stream_IO.Is_Open (Out_Str) then
-                  Ada.Streams.Stream_IO.Close (Out_Str);
+               begin
+                  if Ada.Streams.Stream_IO.Is_Open (Out_Str) then
+                     Ada.Streams.Stream_IO.Close (Out_Str);
+                  end if;
+                  if Length (Stage) /= 0 then
+                     Ada.Directories.Delete_File (To_String (Stage));
+                  end if;
+               exception
+                  when others => null;
+               end;
+               if Accepted then
+                  Coyote_Process_Control.End_Persistence_Write;
                end if;
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,

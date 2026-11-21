@@ -1,5 +1,18 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas session write coordination (PCR-130)
+
+The GTK editor lease remains separate from the shared transaction guard.
+Canvas saves take the guard before publishing any assets and retain edits
+for retry on contention. The GTK load worker checks that the resolved JSONL
+still exists under the guard before opening a writable workspace.
+
+Four focused Canvas store tests and four Xvfb Canvas tests passed, the latter
+with fatal GTK criticals enabled. The GTK regression covers refusal to create
+a Canvas for a removed session. Full serial Xvfb AUnit passed 1,112/1,112
+(exit 0); standalone GTK interactions passed 9/9 and the runner containment
+self-test passed. Physical desktop qualification remains open.
+
 ## 2026-11-21 — GTK Canvas autosave and reopen (PCR-130)
 
 The local root GTK session supplies its resolved session directory and UUID.

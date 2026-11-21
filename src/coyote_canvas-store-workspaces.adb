@@ -1,3 +1,4 @@
+with Coyote_Session_Transactions;
 with Ada.Strings.Unbounded.Aux;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Images;
@@ -9,6 +10,7 @@ package body Coyote_Canvas.Store.Workspaces is
    use Ada.Strings.Unbounded;
    package Rev renames Coyote_Canvas.Revisions;
    package Recovery renames Rev.Recovery;
+   package Tx renames Coyote_Session_Transactions;
 
    function Byte_Count (E : Document.Rectangle) return Positive is
    begin
@@ -72,10 +74,22 @@ package body Coyote_Canvas.Store.Workspaces is
       end loop;
       declare
          Manifest : constant String := Recovery.Encode (W, Refs);
+         Lock : Tx.Guard;
+         Locked : Tx.Result;
       begin
          if Manifest'Length > MAX_MANIFEST_BYTES then
             return;
          end if;
+         Tx.Try_Lock (Parent, UUID, Lock, Locked);
+         case Locked is
+            when Tx.Busy =>
+               Status := Busy;
+               return;
+            when Tx.Unavailable =>
+               Status := IO_Error;
+               return;
+            when Tx.Acquired => null;
+         end case;
          for Id in 1 .. Rev.Count (W) loop
             if Refs (Id) /= Recovery.NO_ASSET then
                declare

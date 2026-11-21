@@ -7,6 +7,9 @@ with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Coyote_Canvas.Revisions;
+with Coyote_Canvas.Store.Workspaces;
+with Coyote_Session_Transactions;
 with GNATCOLL.JSON;
 with LLM.Session_Store;
 with LLM.Types;
@@ -1716,6 +1719,88 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Sandbox_Profile_Read_From_Header;
 
+   procedure Test_Shared_Session_Writer (T : in out Test) is
+      pragma Unreferenced (T);
+      package Tx renames Coyote_Session_Transactions;
+      package Canvas renames Coyote_Canvas.Store;
+      package Rev renames Coyote_Canvas.Revisions;
+      use type Tx.Result;
+      use type Canvas.Result;
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Id : constant String := LLM.Session_Store.Create_Session (Source_Cwd);
+         Other : constant String := LLM.Session_Store.Create_Session (Source_Cwd);
+         Path : constant String := LLM.Session_Store.Session_File_Path (Id);
+         Parent : constant String := Ada.Directories.Containing_Directory (Path);
+         Stamped : constant String := Parent & "/2000-01-01T00-00-00_"
+           & Id & ".jsonl";
+         W : Rev.Workspace;
+         Assets : Canvas.Workspaces.Raster_Set;
+         Guard : Tx.Guard;
+         Locked : Tx.Result;
+         Status : Canvas.Result;
+         Before : Unbounded_String;
+         Manifest : Unbounded_String;
+         Rejected : Boolean := False;
+      begin
+         Ada.Directories.Rename (Path, Stamped);
+         LLM.Session_Store.Append_Message (Id, Make_User_Message ("first"));
+         LLM.Session_Store.Append_Message (Id, Make_Assistant_Text ("answer"));
+         Before := To_Unbounded_String (Read_File (Stamped));
+         Rev.New_Drawing (W, 10, 10);
+         Tx.Try_Lock (Parent, Id, Guard, Locked);
+         Assert (Locked = Tx.Acquired, "claim shared transaction guard");
+         Canvas.Workspaces.Save (Parent, Id, W, Assets, Status);
+         Assert (Status = Canvas.Busy, "Canvas commit observes JSONL guard");
+         Canvas.Read (Parent, Id, Manifest, Status);
+         Assert (Status = Canvas.Missing, "contending Canvas publishes nothing");
+         LLM.Session_Store.Append_Message (Other, Make_User_Message ("other"));
+         Assert (LLM.Session_Store.Load_Messages (Other).Length = 1,
+                 "guard is scoped to one session");
+         begin
+            LLM.Session_Store.Append_Model_Change (Id, "test", "busy");
+         exception
+            when E : LLM.Session_Store.Session_Error =>
+               Rejected := Contains (Ada.Exceptions.Exception_Message (E),
+                                     "writer is busy");
+         end;
+         Assert (Rejected and then Read_File (Stamped) = To_String (Before),
+                 "timestamped session refuses a competing JSONL mutation");
+         Assert (Session_Lister.Fork_Session (Id, 1, Target_Cwd) = "",
+                 "fork does not read a source with an active writer");
+         Tx.Unlock (Guard);
+         Canvas.Workspaces.Save (Parent, Id, W, Assets, Status);
+         Assert (Status = Canvas.Ok, "Canvas can save after the guard is released");
+         LLM.Session_Store.Append_Model_Change (Id, "test", "released");
+         Assert (Contains (Read_File (Stamped), "released"),
+                 "JSONL mutation can resume after Canvas save");
+         LLM.Session_Store.Delete_Session (Id, Empty_Only => True);
+         Assert (Ada.Directories.Exists (Stamped), "cleanup leaves Canvas session");
+         LLM.Session_Store.Delete_Session (Other, Empty_Only => True);
+         Assert (LLM.Session_Store.Session_File_Path (Other)'Length > 0,
+                 "cleanup rechecks nonempty log under the guard");
+         declare
+            Fork_Id : constant String :=
+              Session_Lister.Fork_Session (Id, 1, Target_Cwd);
+         begin
+            Assert (Fork_Id'Length > 0, "fork can resume after contention");
+            Assert (LLM.Session_Store.Load_Messages (Fork_Id).Length = 2,
+                    "published fork keeps its complete selected turn");
+         end;
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Shared_Session_Writer;
+
    package LLM_Session_Store_Caller is new AUnit.Test_Caller
      (LLM_Session_Store_Tests.Test);
 
@@ -1723,6 +1808,10 @@ package body LLM_Session_Store_Tests is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store shares Canvas writer guard and protects forks",
+            Test_Shared_Session_Writer'Access));
       Result.Add_Test
         (LLM_Session_Store_Caller.Create
            ("LLM.Session_Store New_UUID returns RFC 4122 v4 text",

@@ -1,7 +1,7 @@
 with Coyote_Canvas.Revisions;
 
 --  Synchronous durability API for a stable workspace and its Originals.
---  The caller supplies the session directory and serializes session writers.
+--  The caller supplies the session directory and holds any editor lease.
 package Coyote_Canvas.Store.Workspaces is
    MAX_RASTER_BYTES : constant := 128 * 1_024 * 1_024;
 
@@ -11,7 +11,8 @@ package Coyote_Canvas.Store.Workspaces is
    type Raster_Set is array (Positive range 1 .. Revisions.MAX_REVISIONS)
      of Ada.Strings.Unbounded.Unbounded_String;
 
-   --  Publishes and synchronizes all assets before replacing the manifest.
+   --  Holds the shared session guard across all asset and manifest writes.
+   --  Returns Busy without writing if another session writer holds the guard.
    --  Failure can leave unreferenced assets; they are not reclaimed here.
    --  An uncertain asset write prevents manifest publication. Uncertain from
    --  Save therefore concerns the final manifest, not an unreferenced asset.

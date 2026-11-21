@@ -2176,7 +2176,8 @@ package body Coyote_App.Frontend.GUI is
             F.Canvas_Transition := False;
             F.Canvas_Item.Set_Sensitive (True);
             Coyote_GUI.Canvas.Bind
-              (F.Canvas_Window, To_String (U.Text2), To_String (U.Text));
+              (F.Canvas_Window, To_String (U.Text2), To_String (U.Text),
+               To_String (U.Text3));
             F.Win.Set_Role ("coyote-session-" & To_String (U.Text));
             declare
                Updated : Boolean;
@@ -5463,12 +5464,14 @@ package body Coyote_App.Frontend.GUI is
    end Publish_Model_Registry;
 
    procedure Set_Session_Identity
-     (F : in out Instance; Session_Id : String; Canvas_Parent : String := "") is
+     (F : in out Instance; Session_Id : String; Canvas_Parent : String := "";
+      Canvas_File : String := "") is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Session_Identity;
       U.Text := To_Unbounded_String (Session_Id);
       U.Text2 := To_Unbounded_String (Canvas_Parent);
+      U.Text3 := To_Unbounded_String (Canvas_File);
       Enqueue_Update (F, U);
    end Set_Session_Identity;
 

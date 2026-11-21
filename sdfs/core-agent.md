@@ -1,5 +1,21 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Shared session write guard (PCR-130)
+
+Canvas workspace commits and JSONL mutations now use a common per-session
+filesystem guard. Source forks copy a consistent log under the guard; new
+headers and text forks publish through private staging, file sync, and
+no-replace rename. Empty-session cleanup rechecks the log and Canvas sidecar
+under the guard, and deletion refuses to orphan Canvas data. The guard does
+not serialize whole conversation lifetimes. Attachment-aware forks, joint
+deletion, and JSONL directory-sync durability remain open.
+
+Both development builds passed. The focused session store suite passed
+27/27, including same-session contention, unrelated-session writes, resume
+after release, and cleanup checks. Serial Xvfb AUnit passed 1,112/1,112
+(exit 0), and standalone Canvas CLI compatibility passed. These are
+developer results, not end-to-end qualification.
+
 ## 2026-11-21 — Canvas CLI implementation start (PCR-130/131)
 
 Additive dispatch runs before launcher initialization. `coyote session list`

@@ -495,7 +495,7 @@ package body Coyote_App.Headless is
               LLM.Agent.Session_Id (Agent_Session);
          begin
             if Session_Id'Length > 0 then
-               LLM.Session_Store.Delete_Session (Session_Id);
+               LLM.Session_Store.Delete_Session (Session_Id, Empty_Only => True);
             end if;
          exception
             when others =>

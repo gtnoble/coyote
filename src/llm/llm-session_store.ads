@@ -90,7 +90,9 @@ package LLM.Session_Store is
    --
    --  This is a no-op when the file does not exist.
    --  Raises Session_Error on any deletion failure.
-   procedure Delete_Session (Session_Id : String);
+   --  Canvas-bearing sessions cannot be deleted by this API yet. When
+   --  Empty_Only is set, recheck that there is only a header and no Canvas.
+   procedure Delete_Session (Session_Id : String; Empty_Only : Boolean := False);
 
    Session_Error : exception;
 

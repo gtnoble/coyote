@@ -947,7 +947,8 @@ package body Coyote_GUI.Canvas is
    begin
       Recovery_Jobs.Start
         (S.Job, Recovery_Jobs.Save_Store, To_String (S.Parent),
-         To_String (S.UUID), S.Document, S.Disk_Pixels);
+         To_String (S.UUID), S.Document, S.Disk_Pixels,
+         To_String (S.Session_File));
       S.Pending_Save := False;
       S.Save_Failed := False;
       Storage_Status (S, "Saving Canvas recovery...");
@@ -997,10 +998,12 @@ package body Coyote_GUI.Canvas is
       end if;
    end Mark_Dirty;
 
-   procedure Bind (S : in out Instance; Parent, UUID : String) is
+   procedure Bind (S : in out Instance; Parent, UUID : String;
+                   Session_File : String := "") is
    begin
       S.Parent := To_Unbounded_String (Parent);
       S.UUID := To_Unbounded_String (UUID);
+      S.Session_File := To_Unbounded_String (Session_File);
       S.Suspended := False;
       Refresh (S);
    end Bind;
@@ -1048,7 +1051,8 @@ package body Coyote_GUI.Canvas is
          begin
             Recovery_Jobs.Start
               (S.Job, Recovery_Jobs.Open_Store, To_String (S.Parent),
-               To_String (S.UUID), S.Document, S.Disk_Pixels);
+               To_String (S.UUID), S.Document, S.Disk_Pixels,
+               To_String (S.Session_File));
             Wake_Recovery (S);
          exception
             when others =>
@@ -1081,6 +1085,7 @@ package body Coyote_GUI.Canvas is
       Persistence.Release (S.Lease);
       S.Parent := Null_Unbounded_String;
       S.UUID := Null_Unbounded_String;
+      S.Session_File := Null_Unbounded_String;
       S.Disk_Pixels := (others => Null_Unbounded_String);
       S.Load_Started := False;
       S.Loading := False;

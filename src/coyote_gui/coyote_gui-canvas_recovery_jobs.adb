@@ -1,11 +1,15 @@
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Unchecked_Deallocation;
+with Ada.Directories;
+with Coyote_Session_Transactions;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Process_Control;
 
 package body Coyote_GUI.Canvas_Recovery_Jobs is
    use type Store.Result;
    package Recovery renames Rev.Recovery;
+   package Tx renames Coyote_Session_Transactions;
+   use type Tx.Result;
    procedure Free is new Ada.Unchecked_Deallocation (Job, Job_Access);
    procedure Free is new Ada.Unchecked_Deallocation (Worker, Worker_Access);
 
@@ -25,13 +29,29 @@ package body Coyote_GUI.Canvas_Recovery_Jobs is
       Accepted : Boolean := False;
    begin
       if Item.Action = Open_Store then
-         Coyote_Process_Control.Begin_Persistence_Write (Accepted);
-         if Accepted then
-            Store.Claim (To_String (Item.Parent), To_String (Item.UUID),
-                         Item.Lease, Item.Claim_Status);
-            Coyote_Process_Control.End_Persistence_Write;
-            Accepted := False;
-         end if;
+         declare
+            Lock : Tx.Guard;
+            Status : Tx.Result;
+            Path : constant String := To_String (Item.Session_File);
+         begin
+            if Path'Length > 0 then
+               Tx.Wait_For_Lock (Path, Lock, Status);
+            else
+               Tx.Try_Lock (To_String (Item.Parent), To_String (Item.UUID),
+                            Lock, Status);
+            end if;
+            if Status = Tx.Acquired and then
+              (Path'Length = 0 or else Ada.Directories.Exists (Path))
+            then
+               Coyote_Process_Control.Begin_Persistence_Write (Accepted);
+               if Accepted then
+                  Store.Claim (To_String (Item.Parent), To_String (Item.UUID),
+                               Item.Lease, Item.Claim_Status);
+                  Coyote_Process_Control.End_Persistence_Write;
+                  Accepted := False;
+               end if;
+            end if;
+         end;
          if Item.Claim_Status in Store.Ok | Store.Busy then
             Disk.Load (To_String (Item.Parent), To_String (Item.UUID),
                        Item.Document, Item.Pixels, Item.Status);
@@ -57,13 +77,15 @@ package body Coyote_GUI.Canvas_Recovery_Jobs is
 
    procedure Start
      (Item : out Job_Access; Action : Operation; Parent, UUID : String;
-      Document : Rev.Workspace; Pixels : Disk.Raster_Set)
+      Document : Rev.Workspace; Pixels : Disk.Raster_Set;
+      Session_File : String)
    is
    begin
       Item := new Job;
       Item.Action := Action;
       Item.Parent := To_Unbounded_String (Parent);
       Item.UUID := To_Unbounded_String (UUID);
+      Item.Session_File := To_Unbounded_String (Session_File);
       if Action = Save_Store then
          Recovery.Copy (Item.Document, Document);
          Item.Pixels := Pixels;

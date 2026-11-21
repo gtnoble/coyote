@@ -209,7 +209,8 @@ package Coyote_App.Frontend.GUI is
    --  Update the window-manager identity for the active session.  The
    --  request is queued so the GTK window is changed only on the GTK task.
    procedure Set_Session_Identity
-     (F : in out Instance; Session_Id : String; Canvas_Parent : String := "");
+     (F : in out Instance; Session_Id : String; Canvas_Parent : String := "";
+      Canvas_File : String := "");
 
    procedure Resume_Canvas (F : in out Instance);
 

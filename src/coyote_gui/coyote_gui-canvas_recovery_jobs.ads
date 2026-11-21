@@ -13,7 +13,8 @@ package Coyote_GUI.Canvas_Recovery_Jobs is
    type Operation is (Open_Store, Save_Store);
    procedure Start
      (Item : out Job_Access; Action : Operation; Parent, UUID : String;
-      Document : Rev.Workspace; Pixels : Disk.Raster_Set);
+      Document : Rev.Workspace; Pixels : Disk.Raster_Set;
+      Session_File : String);
    function Ready (Item : Job_Access) return Boolean;
    procedure Finish
      (Item : in out Job_Access; Document : in out Rev.Workspace;
@@ -35,7 +36,7 @@ private
 
    type Job is limited record
       Action : Operation;
-      Parent, UUID : Ada.Strings.Unbounded.Unbounded_String;
+      Parent, UUID, Session_File : Ada.Strings.Unbounded.Unbounded_String;
       Document : Rev.Workspace;
       Pixels : Disk.Raster_Set;
       Lease : Store.Writer_Lease;

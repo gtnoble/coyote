@@ -461,3 +461,44 @@ int coyote_canvas_store_claim(const char *parent, const char *uuid, int *lease)
    close(dir);
    return result;
 }
+
+/* Shared with JSONL writers. Keep this inode outside the removable Canvas
+ * sidecar, and never unlink it when releasing a lock. */
+int coyote_session_transaction_lock(const char *parent, const char *id,
+                                    int *guard)
+{
+   char name[96];
+   int dir, result;
+   *guard = -1;
+   if (!valid_uuid(id) &&
+       !(strlen(id) == 64 && strspn(id, "0123456789abcdef") == 64))
+      return 2;
+   (void)snprintf(name, sizeof name, ".%s.session-writer", id);
+   dir = open_parent(parent);
+   if (dir < 0)
+      return 2;
+   result = acquire_lock(dir, name, guard);
+   close(dir);
+   return result == STORE_OK ? 0 : (result == STORE_BUSY ? 1 : 2);
+}
+
+int coyote_session_stage(char *path)
+{
+   return mkostemp(path, O_CLOEXEC);
+}
+
+/* Stage is private and on the destination filesystem. Refuse replacement.
+ * A failure before rename leaves the destination untouched. */
+int coyote_session_publish(const char *stage, const char *target)
+{
+   int fd = open(stage, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+   int result;
+   if (fd < 0)
+      return 2;
+   result = fsync(fd);
+   if (close(fd) < 0 || result < 0)
+      return 2;
+   if (renameat2(AT_FDCWD, stage, AT_FDCWD, target, RENAME_NOREPLACE) < 0)
+      return 2;
+   return 0;
+}
