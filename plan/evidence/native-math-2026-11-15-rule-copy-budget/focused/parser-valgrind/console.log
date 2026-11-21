@@ -1,0 +1,4 @@
+COMMAND: MATH_PARSER_MEMORY_ROOT=/home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-rule-copy-budget/focused/parser-valgrind/out alr exec -- gprbuild -p -P test/native/math_parser_memory.gpr
+BUILD_STATUS: 0
+COMMAND: valgrind --error-exitcode=1 --leak-check=full --show-leak-kinds=all /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-rule-copy-budget/focused/parser-valgrind/out/bin/math_parser_memory_probe
+VALGRIND_STATUS: 0

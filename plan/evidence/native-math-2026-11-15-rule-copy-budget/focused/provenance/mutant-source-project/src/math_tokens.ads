@@ -1,0 +1,67 @@
+with Math_Source;
+with Math_Work_Control;
+with Ada.Containers.Vectors;
+with Ada.Strings.Unbounded;
+
+--  Lex validated source into stable owned tokens with original byte spans.
+package Math_Tokens is
+   Max_Tokens : constant := 131_072;
+   type Token_Kind is
+     (Character_Token, Control_Word, Control_Symbol, Space_Token,
+      Verbatim_Token, Left_Group, Right_Group, Parameter, Superscript,
+      Subscript, Alignment, End_Of_Input);
+   type Token is record
+      Kind        : Token_Kind := End_Of_Input;
+      First_Byte  : Natural := 0;
+      After_Byte  : Natural := 0;
+      First_Scalar : Natural := 0;
+      After_Scalar : Natural := 0;
+      First_UTF16 : Natural := 0;
+      After_UTF16 : Natural := 0;
+      Code_Point  : Natural := 0;
+      Text_First  : Natural := 0;
+      Text_Length : Natural := 0;
+      Lexeme      : Ada.Strings.Unbounded.Unbounded_String;
+      --  Verbatim tokens carry only their exact payload in Lexeme; their
+      --  source spans cover the command, delimiter, payload, and delimiter.
+      Verbatim_Starred : Boolean := False;
+      Has_Invocation : Boolean := False;
+      Invocation_First_Byte : Natural := 0;
+      Invocation_After_Byte : Natural := 0;
+   end record;
+   type Stream is private;
+   type Token_Sequence is array (Positive range <>) of Token;
+   type Diagnostic_Kind is
+     (No_Error, Invalid_Source, Token_Limit, Trailing_Escape,
+      Verbatim_Error, Unicode_Unsupported);
+
+   procedure Lex
+     (Input       : Math_Source.Source;
+      Result      : out Stream;
+      Diagnostic  : out Diagnostic_Kind;
+      Error_Byte  : out Natural;
+      Work        : Math_Work_Control.Context_Access := null);
+   function Count (Item : Stream) return Natural;
+   function Element (Item : Stream; Index : Positive) return Token;
+   function Source (Item : Stream) return String;
+   --  Counts only the Items vector's record-array backing capacity.
+   function Vector_Storage_Bytes (Item : Stream) return Natural;
+   function Original_Map_Storage_Bytes (Item : Stream) return Natural;
+   --  Each raw token uses at least one input byte. A two-mark decomposition
+   --  can emit eight tokens, including the additional closing groups; the
+   --  eight-times-input-bytes reservation is therefore a generous bound
+   --  that also covers script and combining-mark wrappers. Max_Tokens stays
+   --  the hard stream cap.
+   function Raw_Token_Bound (Byte_Length : Natural) return Natural;
+   function Transformation_Token_Bound
+     (Byte_Length : Natural) return Natural;
+   procedure From_Tokens
+     (Original : Stream; Items : Token_Sequence; Result : out Stream);
+private
+   package Token_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Token);
+   type Stream is record
+      Original : Math_Source.Source;
+      Items    : Token_Vectors.Vector;
+   end record;
+end Math_Tokens;

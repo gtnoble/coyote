@@ -4843,3 +4843,33 @@ are historical, not current-source qualification.
 - **Limits:**256MiB is per job; a process-wide256MiB cap is not silently added.
   Other scoped work remains possible. Native lifecycle and broad qualification
   gates remain open. Developer/agent assessment is not independent acceptance.
+
+### PCR-125 — 2026-11-15 array-rule copy accounting continuation
+
+- **Category:** Code, Design, Test. **Priority:** 3-Moderate (unchanged).
+- **Authority:** continuation under existing PCR-125; no API, semantic limit,
+  unit, requirement or deviation change.
+- **Action:** before outer `Nodes.Reserve_Capacity`, Parse pre-admits current
+  aggregate rule capacity plus all active rule lengths. GNAT15.2 `Adjust`
+  copies length, not spare capacity. Scoped `Constant_Reference` scans end
+  before polls/mutation; reconcile surviving capacity afterward.
+- **Verification:** parser719/719 twice and under Valgrind (zero errors/lost
+  bytes;113248 reachable); poll-preserving remove-charge mutation719 with5
+  expected failures. Fixture56 nodes, ordered solid0/dashed1 rules; delta24586
+  versus node-only24576 (10 bytes). Exact/short budgets use measured
+  boundaries; paired cancellation/deadline share cleanup and preserve two
+  exception identities. Ledger evidence is not an independent allocator
+  oracle. Correct `cd test` full1076/1076, zero failures/errors
+  (145.197785s cumulative;145.30s wall); wrong-root invocation preserved at28
+  assertion failures,95 errors,955 successes due to relative fixtures.
+  Incremental root/test development builds pass; warnings remain. Worker223/223,
+  ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind; strict raster
+  Valgrind FAILS with2 contexts and6656 definite/2183 indirect/26 possible
+  bytes. No suppressions/global teardown. GTK9/9; containment expected
+  synthetic7/9; offline HTTP passes; crosswalk hashes only. Browser/resource
+  characterization was not rerun. See report §11.17 and
+  `plan/evidence/native-math-2026-11-15-rule-copy-budget/`.
+- **Limits/status:** retained ownership proposal remains NOT APPROVED. Whole-job,
+  strings, expander/semantics/layout/native/font, allocator and returned/cache
+  lifetime accounting; timing, parity, lifecycle and human acceptance remain
+  OPEN. Self-review is not independent acceptance. No release/install/commit.

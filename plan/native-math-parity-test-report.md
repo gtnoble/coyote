@@ -1565,3 +1565,78 @@ NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
 retained clone/transfer leases while preserving the current Document API
 initially. User design review is required before that ownership/API migration.
 This is not a claim that all other scoped project work is technically blocked.
+
+
+### 11.17 Fresh continuation — nested rule-copy admission, 2026-11-15
+
+**Scope/authority:** User-requested continued work under PCR-125 and existing
+REQ-MATH-010 / MATH-LIMIT-002 execution. SRS-MATH v1.0 and D01–D15 unchanged;
+no new unit, API, semantic limit or retained ownership migration.
+
+**Implementation:** Before outer node-vector `Reserve_Capacity`, `Add` charges
+existing aggregate rule capacity plus the sum of active rule lengths. Active
+GNAT15.2 `Vectors.Adjust` copies length, not spare capacity; old nested buffers
+remain live until replacement finishes. Separate node-array admission still
+covers old+new record arrays. A cooperative poll follows both admissions and
+precedes allocation; post-growth scans reconcile live capacity. Both scans use
+explicit, short-lived Constant_Reference objects, ending before polls/mutation.
+This is implementation-specific logical payload accounting, not allocator/RSS
+measurement. Actual-capacity reconciliation is not a portable pre-admission
+guarantee for a different runtime that allocates beyond the requested capacity.
+
+Initial review inferred that ordinary `for ... of` necessarily copied Node
+values; final review explicitly withdraws that unsupported inference because
+container indexing/reference aspects matter. Explicit references remove that
+ambiguity. Current Add callers provide empty rule vectors; a future caller
+passing populated rules would require accounting review of `Fresh := Item`.
+Parse reservations still end at return, not returned-document lifetime.
+
+**Exact-final developer verification:**
+
+- Root/test incremental development builds pass with both generated profiles
+  development; existing warnings remain. Not clean/release qualification.
+- Full suite from `test/` passes1076/1076 with zero failed assertions/errors,
+  cumulative145.197785s, wall145.30s (`full-final.log`). An earlier incorrect
+  root-directory invocation produced955 successes,28 failed assertions and95
+  unexpected errors from unresolved relative fixture paths; preserved in
+  `full-wrong-cwd.log`, not discarded or reported as a pass.
+- Parser719/719 twice and strict Valgrind719/719:0 errors/lost bytes,113248
+  reachable. Macro fixture peak2443968 bytes unchanged. Final56-node fixture
+  preserves solid boundary0 and dashed boundary1 in order through32-to64 node
+  growth. Live ledger delta24586 versus rule-free24576 isolates10 extra bytes
+  for two active rule records. This is ledger evidence, not an independent
+  allocator oracle. Exact/short/held/reuse budget controls use measured peaks.
+- Poll-preserving isolated mutation removes only the nested copy term and
+  fails5 of719 checks: live charge detector, cancellation/deadline and both
+  shared-scope stop checks. Earlier69c13ff comparison fails2 checks; earlier
+  experimental fixture logs are intermediate, not all exact-final source.
+  Paired cancellation/deadline inject two exception identities at one shared
+  cleanup branch; they do not prove separate timing paths or hard deadlines.
+- Worker223/223, ledger38/38, pinned test-only KaTeX0.16.22 geometry235/235.
+  Warm2000 requests/saturation remain characterization, not timing acceptance.
+- Raster1116/1116 normal and under Valgrind; strict raster script still FAILS
+  with2 native contexts:6656 definite/2183 indirect/26 possible lost bytes.
+  No suppressions, threshold changes or unsafe process-global teardown.
+- Post-build GTK9/9, containment self-test and offline Plain/RPC HTTP lifecycle
+  pass. Containment's deliberate synthetic7/9 child is not a clean GTK result.
+  Source crosswalk generation/check passes; only source hashes changed.
+
+**Evidence/evaluation:**
+`plan/evidence/native-math-2026-11-15-rule-copy-budget/` retains builds, exact
+full/focused results, incorrect-CWD failure, intermediate attempts, final
+poll-preserving mutation source/project/logs, reviews and hashes. Subordinate
+host-dated2026-11-18 paths/logs are preserved as recorded; this project record
+uses2026-11-15. Final read-only review checks the actual GNAT15.2 runtime,
+references, arithmetic, call sites and test limits; no scoped blocker found.
+Developer/agent evaluation is not independent human acceptance.
+
+**Open gates/next decision:** Other nested node payloads, strings/lexemes/
+diagnostics, expander/semantics/layout/native/font storage, allocator overhead,
+returned/cache lifetime and whole-job256MiB/RSS remain outside accounting.
+Hard250ms, GTK50ms, warm-p95, tiling/repaint reuse, font pins/bearings/shaped
+ink, parent clipping,60 callable gaps/full corpus, native lifecycle and
+independent desktop/AT/user acceptance remain OPEN. Browser/resource probes
+were not rerun. `design/native-math-retained-budget-proposal.md` remains DRAFT,
+NOT APPROVED and NOT IMPLEMENTED; stable ownership/API migration awaits user
+design review. Other scoped work is not claimed technically exhausted.
+PCR-125 OPEN; feature NOT COMPLETE. No release, installation or commit.

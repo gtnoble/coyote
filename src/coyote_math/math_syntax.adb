@@ -237,11 +237,39 @@ package body Math_Syntax is
          if New_Capacity > Natural'Last / Width - Old_Capacity then
             raise Constraint_Error with "node storage bound overflow";
          end if;
+         declare
+            Rule_Overlap : Natural := Math_Memory_Budget.Bytes
+              (State.Rule_Reservation.all);
+         begin
+            --  GNAT Adjust copies active nested elements, not spare capacity.
+            --  Keep the old rule buffers charged until outer growth finishes.
+            for Index in State.Item.Nodes.First_Index ..
+              State.Item.Nodes.Last_Index
+            loop
+               declare
+                  Existing : constant Node_Vectors.Constant_Reference_Type :=
+                    State.Item.Nodes.Constant_Reference (Index);
+               begin
+                  if Existing.Element.all.Array_Rules.Length >
+                    Ada.Containers.Count_Type
+                      ((Natural'Last - Rule_Overlap) / Rule_Width)
+                  then
+                     raise Constraint_Error with
+                       "array rule copy storage overflow";
+                  end if;
+                  Rule_Overlap := Rule_Overlap + Natural
+                    (Existing.Element.all.Array_Rules.Length) * Rule_Width;
+               end;
+            end loop;
+            Math_Memory_Budget.Reserve
+              (State.Rule_Reservation.all, State.Memory, Rule_Overlap);
+         end;
          --  Reserve_Capacity copies records before freeing the old array.
-         --  Nested controlled payloads and allocator metadata are excluded.
+         --  Other nested payloads and allocator metadata remain excluded.
          Math_Memory_Budget.Reserve
            (State.Node_Reservation.all, State.Memory,
             (Old_Capacity + New_Capacity) * Width);
+         Math_Work_Control.Poll (State.Work);
          State.Item.Nodes.Reserve_Capacity
            (Ada.Containers.Count_Type (New_Capacity));
          Math_Memory_Budget.Reserve
@@ -250,16 +278,23 @@ package body Math_Syntax is
          declare
             Rule_Capacity : Natural := 0;
          begin
-            for Existing of State.Item.Nodes loop
-               if Existing.Array_Rules.Capacity >
-                 Ada.Containers.Count_Type
-                   ((Natural'Last - Rule_Capacity) / Rule_Width)
-               then
-                  raise Constraint_Error with
-                    "array rule storage overflow";
-               end if;
-               Rule_Capacity := Rule_Capacity +
-                 Natural (Existing.Array_Rules.Capacity) * Rule_Width;
+            for Index in State.Item.Nodes.First_Index ..
+              State.Item.Nodes.Last_Index
+            loop
+               declare
+                  Existing : constant Node_Vectors.Constant_Reference_Type :=
+                    State.Item.Nodes.Constant_Reference (Index);
+               begin
+                  if Existing.Element.all.Array_Rules.Capacity >
+                    Ada.Containers.Count_Type
+                      ((Natural'Last - Rule_Capacity) / Rule_Width)
+                  then
+                     raise Constraint_Error with
+                       "array rule storage overflow";
+                  end if;
+                  Rule_Capacity := Rule_Capacity + Natural
+                    (Existing.Element.all.Array_Rules.Capacity) * Rule_Width;
+               end;
             end loop;
             Math_Memory_Budget.Reserve
               (State.Rule_Reservation.all, State.Memory, Rule_Capacity);

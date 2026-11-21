@@ -1,0 +1,6 @@
+COMMAND: MATH_MEMORY_BUDGET_ROOT=/home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-rule-copy-budget/focused/ledger/out test/tools/check-math-memory-budget.sh
+math_memory_budget_probe: 38 checks passed
+Build log: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-rule-copy-budget/focused/ledger/out/build.log
+Probe log: /home/gtnoble/Projects/coyote/coyote-latex-math/plan/evidence/native-math-2026-11-15-rule-copy-budget/focused/ledger/out/probe.log
+
+STATUS: 0

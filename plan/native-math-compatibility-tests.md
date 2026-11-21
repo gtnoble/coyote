@@ -493,3 +493,31 @@ and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
 font, full parity, native lifecycle and human acceptance gates remain OPEN.
 Developer/agent self-review is not independent acceptance. No release/install/
 commit; PCR-125 OPEN, feature NOT COMPLETE.
+
+## 2026-11-15 — Rule-copy accounting verification (PCR-125)
+
+Coordinator report §11.17 and
+`plan/evidence/native-math-2026-11-15-rule-copy-budget/` record this scoped
+continuation. Parse pre-admits aggregate current rule capacity plus active rule
+lengths before outer `Nodes.Reserve_Capacity`; GNAT15.2 `Adjust` copies length,
+not spare capacity. Scoped `Constant_Reference` scans end before polls/mutation;
+surviving capacity is reconciled afterward. No API, semantics, units,
+requirements or deviations changed.
+
+Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
+remove-charge mutation preserving polls719 with5 expected failures. The56-node
+fixture has ordered solid0/dashed1 rules; delta24586 vs node-only24576 (10
+bytes). Exact/short budgets use measured boundaries; paired cancellation and
+deadline tests share cleanup and retain two exception identities. This ledger
+is not an independent allocator oracle. Full suite, correctly run from `cd
+test`,1076/1076 with zero failures/errors (cumulative145.197785s; wall145.30s).
+Wrong-root attempt is retained:28 assertion failures,95 errors,955 successes
+from relative fixtures. Incremental development builds pass; warnings remain.
+
+Worker223/223, ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind.
+Strict raster Valgrind FAILS with2 contexts and6656 definite/2183 indirect/26
+possible bytes; no suppressions/global teardown. GTK9/9, containment expected
+synthetic7/9 and offline HTTP pass; crosswalk hashes only. Browser/resource
+characterization was not rerun. Retained-budget proposal is NOT APPROVED.
+Whole-job accounting, timing, parity, lifecycle and human acceptance remain
+open; no release/install/commit.

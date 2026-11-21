@@ -1,0 +1,752 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index ae56376..b830dbf 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -405,3 +405,33 @@ NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
+ retained clone/transfer leases while preserving the current Document API
+ initially. User design review is required before that ownership/API migration.
+ This is not a claim that all other scoped project work is technically blocked.
++
++## Latest native-math rule-copy accounting continuation — 2026-11-15
++
++Use coordinator report §11.17 and
++`plan/evidence/native-math-2026-11-15-rule-copy-budget/`. Before outer
++`Nodes.Reserve_Capacity`, Parse pre-admits current aggregate rule capacity plus
++all active rule lengths. GNAT15.2 `Adjust` copies vector length, not spare
++capacity; scoped `Constant_Reference` scans end before polls/mutation, then
++surviving capacity is reconciled. No API, semantic limit, unit, requirement or
++deviation changed.
++
++Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
++poll-preserving remove-charge mutation719 with5 expected failures. The56-node
++fixture has two ordered rules (solid0, dashed1); measured delta24586 versus
++node-only24576 (10 bytes). Exact/short budgets use measured boundaries; paired
++cancellation/deadline checks share cleanup and preserve two exception
++identities. Ledger evidence is not an independent allocator oracle. Full suite
++1076/1076, zero failures/errors (cumulative145.197785s; wall145.30s), correctly
++run from `cd test`; the wrong-root run is preserved:28 assertion failures,
++95 errors,955 successes from relative fixtures. Incremental root/test
++development builds pass; warnings remain.
++
++Worker223/223, ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind;
++strict raster Valgrind still FAILS (2 contexts;6656 definite,2183 indirect,26
++possible bytes). No suppressions/global teardown. GTK9/9; containment expected
++synthetic7/9; offline HTTP passes; crosswalk hashes only. Browser/resource
++characterization was not rerun. Retained-budget proposal remains NOT APPROVED.
++Whole-job memory, strings, expander/semantics/layout/native/font, allocator,
++returned/cache lifetime, timing, parity, lifecycle and human acceptance remain
++OPEN. Self-review is not independent acceptance. No release/install/commit.
+\ No newline at end of file
+diff --git a/design/coyote-design.md b/design/coyote-design.md
+index d81504e..d251160 100644
+--- a/design/coyote-design.md
++++ b/design/coyote-design.md
+@@ -3321,3 +3321,32 @@ and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
+ font, full parity, native lifecycle and human acceptance gates remain OPEN.
+ Developer/agent self-review is not independent acceptance. No release/install/
+ commit; PCR-125 OPEN, feature NOT COMPLETE.
++
++## 2026-11-15 — Array-rule copy accounting continuation (PCR-125)
++
++Report §11.17 and `plan/evidence/native-math-2026-11-15-rule-copy-budget/`
++control this scoped continuation. Before outer `Nodes.Reserve_Capacity`, Parse
++pre-admits current aggregate rule capacity plus the sum of active rule lengths.
++GNAT15.2 `Adjust` copies length, not spare capacity. Scoped
++`Constant_Reference` scans end before polls or mutation; reconcile surviving
++capacity afterward. No API, semantic limit, unit, requirement or deviation
++changed. The reservation remains Parse-local; ledger evidence is not an
++independent allocator oracle.
++
++Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
++poll-preserving remove-charge mutation719 with5 expected failures. The56-node
++fixture contains ordered solid0/dashed1 rules; delta24586 versus node-only
++24576, a10-byte rule contribution. Exact/short budgets use measured boundaries;
++paired cancellation/deadline checks share cleanup and preserve two exception
++identities. Full `cd test` suite1076/1076 (zero failures/errors; cumulative
++145.197785s, wall145.30s). Wrong-root attempt remains recorded:28 assertion
++failures,95 errors,955 successes from relative fixtures. Incremental root/test
++development builds pass; warnings remain. Worker223/223, ledger38/38,
++geometry235/235, raster1116/1116 normal/Valgrind; strict raster Valgrind FAILS
++with2 contexts and6656 definite/2183 indirect/26 possible bytes. No
++suppressions/global teardown. GTK9/9, containment expected synthetic7/9 and
++offline HTTP pass; crosswalk hashes only. Browser/resource checks were not
++rerun. Retained ownership proposal remains NOT APPROVED. Whole-job and other
++payload/phase/allocator/return/cache accounting, timing, parity, lifecycle and
++human acceptance remain open. Self-review is not independent acceptance; no
++release/install/commit.
+\ No newline at end of file
+diff --git a/plan/native-math-compatibility-tests.md b/plan/native-math-compatibility-tests.md
+index 3ece939..4632c34 100644
+--- a/plan/native-math-compatibility-tests.md
++++ b/plan/native-math-compatibility-tests.md
+@@ -493,3 +493,31 @@ and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
+ font, full parity, native lifecycle and human acceptance gates remain OPEN.
+ Developer/agent self-review is not independent acceptance. No release/install/
+ commit; PCR-125 OPEN, feature NOT COMPLETE.
++
++## 2026-11-15 — Rule-copy accounting verification (PCR-125)
++
++Coordinator report §11.17 and
++`plan/evidence/native-math-2026-11-15-rule-copy-budget/` record this scoped
++continuation. Parse pre-admits aggregate current rule capacity plus active rule
++lengths before outer `Nodes.Reserve_Capacity`; GNAT15.2 `Adjust` copies length,
++not spare capacity. Scoped `Constant_Reference` scans end before polls/mutation;
++surviving capacity is reconciled afterward. No API, semantics, units,
++requirements or deviations changed.
++
++Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
++remove-charge mutation preserving polls719 with5 expected failures. The56-node
++fixture has ordered solid0/dashed1 rules; delta24586 vs node-only24576 (10
++bytes). Exact/short budgets use measured boundaries; paired cancellation and
++deadline tests share cleanup and retain two exception identities. This ledger
++is not an independent allocator oracle. Full suite, correctly run from `cd
++test`,1076/1076 with zero failures/errors (cumulative145.197785s; wall145.30s).
++Wrong-root attempt is retained:28 assertion failures,95 errors,955 successes
++from relative fixtures. Incremental development builds pass; warnings remain.
++
++Worker223/223, ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind.
++Strict raster Valgrind FAILS with2 contexts and6656 definite/2183 indirect/26
++possible bytes; no suppressions/global teardown. GTK9/9, containment expected
++synthetic7/9 and offline HTTP pass; crosswalk hashes only. Browser/resource
++characterization was not rerun. Retained-budget proposal is NOT APPROVED.
++Whole-job accounting, timing, parity, lifecycle and human acceptance remain
++open; no release/install/commit.
+\ No newline at end of file
+diff --git a/plan/native-math-coverage.json b/plan/native-math-coverage.json
+index 9a2f1c8..d5820ba 100644
+--- a/plan/native-math-coverage.json
++++ b/plan/native-math-coverage.json
+@@ -203,8 +203,8 @@
+     "src/coyote_math/math_stretchy.adb": "2d33705cfab6443e7388b1cefd32bb1135f7871964826ec8bdc22916627f2f27",
+     "src/coyote_math/math_symbols.ads": "d9be2a78cb1210dc8f6e49adce9e18cdc263015c15381b4c9f18d8e898554bac",
+     "src/coyote_math/math_symbols.adb": "116aa49efc576e32c026ca54eb9a5ba46d55394137daf975324337ced687e15d",
+-    "src/coyote_math/math_syntax.ads": "33125ba82080d94e01fba2d1fe0b8c3f13e22a8fa833e4fdfeb7bb63b0d21dc2",
+-    "src/coyote_math/math_syntax.adb": "2441b5e379a7ed13d740b6876685aa8e9cc6926ba86e17e77a7cbc00469d2cfb",
++    "src/coyote_math/math_syntax.ads": "9e760bd38c35430b3c34b59d4e4b65b0b3a57635dd62546c60d550a7fede5c1e",
++    "src/coyote_math/math_syntax.adb": "9f1d2b5853c88f6d808855440ee224df3542687dc1e226bd5726cbfeaa450c46",
+     "src/coyote_math/math_text_shaping.ads": "bcf7e2c51e496a04222597c6a9a29daadca14d4ea222784e5cb6f5e23d0db220",
+     "src/coyote_math/math_text_shaping.adb": "a6d40f7d275fe747c163a2b27cd1777ed47ccfd5c1601d24cca080aa716f5e3a",
+     "src/coyote_math/math_raster_budget.ads": "36466a84367a2fe8afe84854790862529ec3168b51bfb00d04a6f8ccdb8fa623",
+diff --git a/plan/native-math-parity-test-report.md b/plan/native-math-parity-test-report.md
+index 8dc02be..a49b392 100644
+--- a/plan/native-math-parity-test-report.md
++++ b/plan/native-math-parity-test-report.md
+@@ -1565,3 +1565,78 @@ NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
+ retained clone/transfer leases while preserving the current Document API
+ initially. User design review is required before that ownership/API migration.
+ This is not a claim that all other scoped project work is technically blocked.
++
++
++### 11.17 Fresh continuation — nested rule-copy admission, 2026-11-15
++
++**Scope/authority:** User-requested continued work under PCR-125 and existing
++REQ-MATH-010 / MATH-LIMIT-002 execution. SRS-MATH v1.0 and D01–D15 unchanged;
++no new unit, API, semantic limit or retained ownership migration.
++
++**Implementation:** Before outer node-vector `Reserve_Capacity`, `Add` charges
++existing aggregate rule capacity plus the sum of active rule lengths. Active
++GNAT15.2 `Vectors.Adjust` copies length, not spare capacity; old nested buffers
++remain live until replacement finishes. Separate node-array admission still
++covers old+new record arrays. A cooperative poll follows both admissions and
++precedes allocation; post-growth scans reconcile live capacity. Both scans use
++explicit, short-lived Constant_Reference objects, ending before polls/mutation.
++This is implementation-specific logical payload accounting, not allocator/RSS
++measurement. Actual-capacity reconciliation is not a portable pre-admission
++guarantee for a different runtime that allocates beyond the requested capacity.
++
++Initial review inferred that ordinary `for ... of` necessarily copied Node
++values; final review explicitly withdraws that unsupported inference because
++container indexing/reference aspects matter. Explicit references remove that
++ambiguity. Current Add callers provide empty rule vectors; a future caller
++passing populated rules would require accounting review of `Fresh := Item`.
++Parse reservations still end at return, not returned-document lifetime.
++
++**Exact-final developer verification:**
++
++- Root/test incremental development builds pass with both generated profiles
++  development; existing warnings remain. Not clean/release qualification.
++- Full suite from `test/` passes1076/1076 with zero failed assertions/errors,
++  cumulative145.197785s, wall145.30s (`full-final.log`). An earlier incorrect
++  root-directory invocation produced955 successes,28 failed assertions and95
++  unexpected errors from unresolved relative fixture paths; preserved in
++  `full-wrong-cwd.log`, not discarded or reported as a pass.
++- Parser719/719 twice and strict Valgrind719/719:0 errors/lost bytes,113248
++  reachable. Macro fixture peak2443968 bytes unchanged. Final56-node fixture
++  preserves solid boundary0 and dashed boundary1 in order through32-to64 node
++  growth. Live ledger delta24586 versus rule-free24576 isolates10 extra bytes
++  for two active rule records. This is ledger evidence, not an independent
++  allocator oracle. Exact/short/held/reuse budget controls use measured peaks.
++- Poll-preserving isolated mutation removes only the nested copy term and
++  fails5 of719 checks: live charge detector, cancellation/deadline and both
++  shared-scope stop checks. Earlier69c13ff comparison fails2 checks; earlier
++  experimental fixture logs are intermediate, not all exact-final source.
++  Paired cancellation/deadline inject two exception identities at one shared
++  cleanup branch; they do not prove separate timing paths or hard deadlines.
++- Worker223/223, ledger38/38, pinned test-only KaTeX0.16.22 geometry235/235.
++  Warm2000 requests/saturation remain characterization, not timing acceptance.
++- Raster1116/1116 normal and under Valgrind; strict raster script still FAILS
++  with2 native contexts:6656 definite/2183 indirect/26 possible lost bytes.
++  No suppressions, threshold changes or unsafe process-global teardown.
++- Post-build GTK9/9, containment self-test and offline Plain/RPC HTTP lifecycle
++  pass. Containment's deliberate synthetic7/9 child is not a clean GTK result.
++  Source crosswalk generation/check passes; only source hashes changed.
++
++**Evidence/evaluation:**
++`plan/evidence/native-math-2026-11-15-rule-copy-budget/` retains builds, exact
++full/focused results, incorrect-CWD failure, intermediate attempts, final
++poll-preserving mutation source/project/logs, reviews and hashes. Subordinate
++host-dated2026-11-18 paths/logs are preserved as recorded; this project record
++uses2026-11-15. Final read-only review checks the actual GNAT15.2 runtime,
++references, arithmetic, call sites and test limits; no scoped blocker found.
++Developer/agent evaluation is not independent human acceptance.
++
++**Open gates/next decision:** Other nested node payloads, strings/lexemes/
++diagnostics, expander/semantics/layout/native/font storage, allocator overhead,
++returned/cache lifetime and whole-job256MiB/RSS remain outside accounting.
++Hard250ms, GTK50ms, warm-p95, tiling/repaint reuse, font pins/bearings/shaped
++ink, parent clipping,60 callable gaps/full corpus, native lifecycle and
++independent desktop/AT/user acceptance remain OPEN. Browser/resource probes
++were not rerun. `design/native-math-retained-budget-proposal.md` remains DRAFT,
++NOT APPROVED and NOT IMPLEMENTED; stable ownership/API migration awaits user
++design review. Other scoped work is not claimed technically exhausted.
++PCR-125 OPEN; feature NOT COMPLETE. No release, installation or commit.
+diff --git a/plan/problems.md b/plan/problems.md
+index 7fca629..64249d2 100644
+--- a/plan/problems.md
++++ b/plan/problems.md
+@@ -4843,3 +4843,33 @@ are historical, not current-source qualification.
+ - **Limits:**256MiB is per job; a process-wide256MiB cap is not silently added.
+   Other scoped work remains possible. Native lifecycle and broad qualification
+   gates remain open. Developer/agent assessment is not independent acceptance.
++
++### PCR-125 — 2026-11-15 array-rule copy accounting continuation
++
++- **Category:** Code, Design, Test. **Priority:** 3-Moderate (unchanged).
++- **Authority:** continuation under existing PCR-125; no API, semantic limit,
++  unit, requirement or deviation change.
++- **Action:** before outer `Nodes.Reserve_Capacity`, Parse pre-admits current
++  aggregate rule capacity plus all active rule lengths. GNAT15.2 `Adjust`
++  copies length, not spare capacity. Scoped `Constant_Reference` scans end
++  before polls/mutation; reconcile surviving capacity afterward.
++- **Verification:** parser719/719 twice and under Valgrind (zero errors/lost
++  bytes;113248 reachable); poll-preserving remove-charge mutation719 with5
++  expected failures. Fixture56 nodes, ordered solid0/dashed1 rules; delta24586
++  versus node-only24576 (10 bytes). Exact/short budgets use measured
++  boundaries; paired cancellation/deadline share cleanup and preserve two
++  exception identities. Ledger evidence is not an independent allocator
++  oracle. Correct `cd test` full1076/1076, zero failures/errors
++  (145.197785s cumulative;145.30s wall); wrong-root invocation preserved at28
++  assertion failures,95 errors,955 successes due to relative fixtures.
++  Incremental root/test development builds pass; warnings remain. Worker223/223,
++  ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind; strict raster
++  Valgrind FAILS with2 contexts and6656 definite/2183 indirect/26 possible
++  bytes. No suppressions/global teardown. GTK9/9; containment expected
++  synthetic7/9; offline HTTP passes; crosswalk hashes only. Browser/resource
++  characterization was not rerun. See report §11.17 and
++  `plan/evidence/native-math-2026-11-15-rule-copy-budget/`.
++- **Limits/status:** retained ownership proposal remains NOT APPROVED. Whole-job,
++  strings, expander/semantics/layout/native/font, allocator and returned/cache
++  lifetime accounting; timing, parity, lifecycle and human acceptance remain
++  OPEN. Self-review is not independent acceptance. No release/install/commit.
+diff --git a/sdfs/frontends.md b/sdfs/frontends.md
+index 098cc9d..cb6d9e5 100644
+--- a/sdfs/frontends.md
++++ b/sdfs/frontends.md
+@@ -2557,3 +2557,32 @@ NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
+ retained clone/transfer leases while preserving the current Document API
+ initially. User design review is required before that ownership/API migration.
+ This is not a claim that all other scoped project work is technically blocked.
++
++## 2026-11-15 — Array-rule copy accounting continuation (PCR-125)
++
++Before outer `Nodes.Reserve_Capacity`, Parse pre-admits current aggregate
++rule capacity plus the sum of active rule lengths. GNAT15.2 `Adjust` copies the
++vector length, not spare capacity. Scoped `Constant_Reference` scans end
++before polls or mutation; surviving capacity is reconciled afterward. No API,
++semantic limit, unit, requirement or deviation changed. Report §11.17 and
++`plan/evidence/native-math-2026-11-15-rule-copy-budget/` control the record.
++
++Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
++poll-preserving remove-charge mutation719 with5 expected failures. Fixture56
++nodes, two ordered rules (solid0/dashed1), delta24586 vs node-only24576 (10
++bytes). Exact/short budgets use measured boundaries; paired cancellation and
++deadline take same cleanup path and preserve two exception identities. Ledger
++evidence is not an independent allocator oracle. Full suite correctly run from
++`cd test`:1076/1076 zero failures/errors, cumulative145.197785s, wall145.30s.
++Wrong-root invocation remains visible:28 assertion failures,95 errors,955
++successes due to relative fixtures. Incremental development builds pass;
++warnings remain.
++
++Worker223/223, ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind;
++strict raster Valgrind FAILS (2 contexts;6656 definite,2183 indirect,26
++possible bytes). No suppressions/global teardown. GTK9/9; containment expected
++synthetic7/9; offline HTTP passes; crosswalk hashes only. Browser/resource
++characterization not rerun. Retained ownership proposal remains NOT APPROVED.
++Whole-job/payload/phase/allocator/returned-cache accounting, timing, parity,
++lifecycle and human acceptance remain open. Self-review is not independent
++acceptance; no release/install/commit.
+\ No newline at end of file
+diff --git a/src/coyote_math/math_syntax.adb b/src/coyote_math/math_syntax.adb
+index 03e7039..454292c 100644
+--- a/src/coyote_math/math_syntax.adb
++++ b/src/coyote_math/math_syntax.adb
+@@ -237,11 +237,39 @@ package body Math_Syntax is
+          if New_Capacity > Natural'Last / Width - Old_Capacity then
+             raise Constraint_Error with "node storage bound overflow";
+          end if;
++         declare
++            Rule_Overlap : Natural := Math_Memory_Budget.Bytes
++              (State.Rule_Reservation.all);
++         begin
++            --  GNAT Adjust copies active nested elements, not spare capacity.
++            --  Keep the old rule buffers charged until outer growth finishes.
++            for Index in State.Item.Nodes.First_Index ..
++              State.Item.Nodes.Last_Index
++            loop
++               declare
++                  Existing : constant Node_Vectors.Constant_Reference_Type :=
++                    State.Item.Nodes.Constant_Reference (Index);
++               begin
++                  if Existing.Element.all.Array_Rules.Length >
++                    Ada.Containers.Count_Type
++                      ((Natural'Last - Rule_Overlap) / Rule_Width)
++                  then
++                     raise Constraint_Error with
++                       "array rule copy storage overflow";
++                  end if;
++                  Rule_Overlap := Rule_Overlap + Natural
++                    (Existing.Element.all.Array_Rules.Length) * Rule_Width;
++               end;
++            end loop;
++            Math_Memory_Budget.Reserve
++              (State.Rule_Reservation.all, State.Memory, Rule_Overlap);
++         end;
+          --  Reserve_Capacity copies records before freeing the old array.
+-         --  Nested controlled payloads and allocator metadata are excluded.
++         --  Other nested payloads and allocator metadata remain excluded.
+          Math_Memory_Budget.Reserve
+            (State.Node_Reservation.all, State.Memory,
+             (Old_Capacity + New_Capacity) * Width);
++         Math_Work_Control.Poll (State.Work);
+          State.Item.Nodes.Reserve_Capacity
+            (Ada.Containers.Count_Type (New_Capacity));
+          Math_Memory_Budget.Reserve
+@@ -250,16 +278,23 @@ package body Math_Syntax is
+          declare
+             Rule_Capacity : Natural := 0;
+          begin
+-            for Existing of State.Item.Nodes loop
+-               if Existing.Array_Rules.Capacity >
+-                 Ada.Containers.Count_Type
+-                   ((Natural'Last - Rule_Capacity) / Rule_Width)
+-               then
+-                  raise Constraint_Error with
+-                    "array rule storage overflow";
+-               end if;
+-               Rule_Capacity := Rule_Capacity +
+-                 Natural (Existing.Array_Rules.Capacity) * Rule_Width;
++            for Index in State.Item.Nodes.First_Index ..
++              State.Item.Nodes.Last_Index
++            loop
++               declare
++                  Existing : constant Node_Vectors.Constant_Reference_Type :=
++                    State.Item.Nodes.Constant_Reference (Index);
++               begin
++                  if Existing.Element.all.Array_Rules.Capacity >
++                    Ada.Containers.Count_Type
++                      ((Natural'Last - Rule_Capacity) / Rule_Width)
++                  then
++                     raise Constraint_Error with
++                       "array rule storage overflow";
++                  end if;
++                  Rule_Capacity := Rule_Capacity + Natural
++                    (Existing.Element.all.Array_Rules.Capacity) * Rule_Width;
++               end;
+             end loop;
+             Math_Memory_Budget.Reserve
+               (State.Rule_Reservation.all, State.Memory, Rule_Capacity);
+diff --git a/src/coyote_math/math_syntax.ads b/src/coyote_math/math_syntax.ads
+index 4b0d739..31a48e7 100644
+--- a/src/coyote_math/math_syntax.ads
++++ b/src/coyote_math/math_syntax.ads
+@@ -134,10 +134,11 @@ package Math_Syntax is
+    --  offset-map, lexical token and AST node record-array construction capacity,
+    --  including old/new node arrays during growth, plus array-rule vector
+    --  capacity while rules are parsed (including old/new capacity overlap).
+-   --  Rule charges aggregate across arrays and end at Parse return. They do not
+-   --  account for nested rule storage copied during outer node-vector growth,
+-   --  other nested node payloads, strings, expander storage, allocator overhead,
+-   --  or process memory. Returned/copy lifetimes are not charged.
++   --  Rule charges aggregate across arrays, include temporary active-element
++   --  copies during outer node-vector growth, and end at Parse return. Copy
++   --  admission follows GNAT vector Adjust semantics (length, not capacity).
++   --  Other nested node payloads, strings, expander storage, allocator overhead,
++   --  and process memory are excluded. Returned/copy lifetimes are not charged.
+    --  Reservations are pre-admitted and released after parser locals finalize.
+    --  Cancellation, deadline, and budget exceptions propagate to the caller.
+    --  Explicit shared state follows local/global namespace semantics, even
+diff --git a/test/tools/math_parser_memory_probe.adb b/test/tools/math_parser_memory_probe.adb
+index 40f08a9..5f619b5 100644
+--- a/test/tools/math_parser_memory_probe.adb
++++ b/test/tools/math_parser_memory_probe.adb
+@@ -1,3 +1,4 @@
++with Ada.Containers;
+ with Ada.Exceptions;
+ with Ada.Strings.Unbounded;
+ with Ada.Text_IO;
+@@ -93,6 +94,15 @@ procedure Math_Parser_Memory_Probe is
+    Rule_Observation_Stage : Natural := 0;
+    Rule_Observed_Charges : array (1 .. 4) of Natural := (others => 0);
+    Rule_Charge_Baseline : Natural := 0;
++   Outer_Node_Copy_Bytes : constant Natural :=
++     64 * Node_Record_Width;
++   Outer_Rule_Copy_Bytes : constant Natural := 2 * Rule_Width;
++   Outer_Overlap_Observed : Natural := 0;
++   Node_Overlap_Observed : Natural := 0;
++   Outer_Overlap_Delta : Natural := 0;
++   Node_Overlap_Delta : Natural := 0;
++   Observe_Outer_Overlap : Boolean := False;
++   Observe_Node_Overlap : Boolean := False;
+    Observe_Rule_Charges : Boolean := False;
+    Observe_Drift : Boolean := False;
+    Drift_Stage : Natural := 0;
+@@ -104,6 +114,7 @@ procedure Math_Parser_Memory_Probe is
+       Reason : Math_Work_Control.Stop_Reason :=
+         Math_Work_Control.Cancel_Requested;
+       Stop_On_Rule_Growth : Boolean := False;
++      Stop_On_Outer_Overlap : Boolean := False;
+    end record;
+    overriding function Check
+      (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason;
+@@ -161,6 +172,27 @@ procedure Math_Parser_Memory_Probe is
+                Rule_Observed_Charges (4) := Rule_Bytes;
+             end if;
+          end if;
++         if Observe_Node_Overlap and then Current_Charge > Previous_Charge
++           and then Current_Charge - Previous_Charge = Outer_Node_Copy_Bytes
++         then
++            Node_Overlap_Observed := Current_Charge;
++            Node_Overlap_Delta := Current_Charge - Previous_Charge;
++         end if;
++         if Observe_Outer_Overlap and then Current_Charge > Previous_Charge
++           and then Current_Charge - Previous_Charge =
++             Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes
++         then
++            Outer_Overlap_Observed := Current_Charge;
++            Outer_Overlap_Delta := Current_Charge - Previous_Charge;
++            if Item.Stop_On_Outer_Overlap and then
++              Outer_Overlap_Delta =
++                Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes
++            then
++               Saw_Accounting_Threshold := True;
++               Previous_Charge := Current_Charge;
++               return Item.Reason;
++            end if;
++         end if;
+          Previous_Charge := Current_Charge;
+          if not Item.Stop_On_Rule_Growth and then
+            Current_Charge > Item.Threshold
+@@ -295,6 +327,23 @@ procedure Math_Parser_Memory_Probe is
+    Rule_Source : constant String :=
+      "\begin{array}{c}a\\\hline\hdashline\hline\hdashline"
+        & "\hline b\end{array}+\begin{array}{c}c\\\hline d\end{array}";
++   Rule_Growth_Node_Source : constant String :=
++     "\begin{array}{c}\hline a\\\hdashline b\end{array}" &
++       "+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x";
++   function Outer_Node_Control_Source return String is
++      Result : Ada.Strings.Unbounded.Unbounded_String;
++   begin
++      for Index in 1 .. 40 loop
++         if Index > 1 then
++            Ada.Strings.Unbounded.Append (Result, "+");
++         end if;
++         Ada.Strings.Unbounded.Append (Result, "x");
++      end loop;
++      return Ada.Strings.Unbounded.To_String (Result);
++   end Outer_Node_Control_Source;
++   Outer_Node_Control_Text : constant String := Outer_Node_Control_Source;
++   Outer_Copy_Shared_Source : constant String :=
++     "\def\outerCopy{x}" & Rule_Growth_Node_Source;
+    Rejected : Boolean;
+    Delayed_Stop : aliased Countdown_Work;
+ 
+@@ -726,6 +775,259 @@ begin
+ 
+    Check_Rule_Boundary (Rule_Drift_Source, "first-row regrowth");
+    Check_Rule_Boundary (Rule_Growth_Source, "outer-node growth");
++   Check_Rule_Boundary
++     (Rule_Growth_Node_Source, "outer-copy overlap fixture");
++
++   declare
++      Measure : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Measure'Unchecked_Access, others => <>);
++      Parsed : Math_Syntax.Document;
++   begin
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      Node_Overlap_Observed := 0;
++      Node_Overlap_Delta := 0;
++      Observe_Node_Overlap := True;
++      Parsed := Math_Syntax.Parse
++        (Outer_Node_Control_Text, Work => Work'Unchecked_Access,
++         Memory => Measure'Unchecked_Access);
++      Observe_Node_Overlap := False;
++      Capture_AST_Baseline := False;
++      Check (Math_Syntax.Is_Valid (Parsed) and
++        Node_Overlap_Observed > 0 and
++        Node_Overlap_Delta = Outer_Node_Copy_Bytes,
++        "rule-free observer isolates outer AST node-array overlap");
++   end;
++
++   declare
++      Measure : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Measure'Unchecked_Access, others => <>);
++      Parsed : Math_Syntax.Document;
++      Lexical_Baseline : Natural := 0;
++      Array_Count : Natural := 0;
++      Rule_Count : Natural := 0;
++      Rule_Fields_OK : Boolean := True;
++      Rule_Order_OK : Boolean := True;
++   begin
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      Outer_Overlap_Observed := 0;
++      Outer_Overlap_Delta := 0;
++      Observe_Outer_Overlap := True;
++      Parsed := Math_Syntax.Parse
++        (Rule_Growth_Node_Source, Work => Work'Unchecked_Access,
++         Memory => Measure'Unchecked_Access);
++      Lexical_Baseline := AST_Baseline_Charge;
++      Observe_Outer_Overlap := False;
++      Capture_AST_Baseline := False;
++      Check (Math_Syntax.Is_Valid (Parsed) and
++        Math_Syntax.Count (Parsed) > 32 and
++        Math_Syntax.Count (Parsed) <= 64 and Lexical_Baseline > 0 and
++        Outer_Overlap_Observed > 0 and
++        Outer_Overlap_Delta =
++          Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes and
++        Outer_Overlap_Delta - Node_Overlap_Delta = Outer_Rule_Copy_Bytes,
++        "outer node pre-allocation measured overlap equals node plus rule copies " &
++          Natural'Image (Outer_Overlap_Delta) & "/" &
++          Natural'Image (Node_Overlap_Delta) & ", nodes " &
++          Natural'Image (Math_Syntax.Count (Parsed)));
++      for Index in 1 .. Math_Syntax.Count (Parsed) loop
++         declare
++            Current : constant Math_Syntax.Node :=
++              Math_Syntax.Element (Parsed, Index);
++         begin
++            if Current.Kind = Math_Model.Array_Node then
++               Array_Count := Array_Count + 1;
++               Rule_Count := Natural (Current.Array_Rules.Length);
++               Rule_Fields_OK := Rule_Count = 2;
++               if Rule_Count = 2 then
++                  Rule_Order_OK :=
++                    Current.Array_Rules (1).Boundary = 0 and then
++                    Current.Array_Rules (1).Kind =
++                      Math_Model.Solid_Array_Rule and then
++                    Current.Array_Rules (2).Boundary = 1 and then
++                    Current.Array_Rules (2).Kind =
++                      Math_Model.Dashed_Array_Rule;
++               end if;
++            end if;
++         end;
++      end loop;
++      Check (Array_Count = 1 and Rule_Count = 2 and
++        Rule_Fields_OK and Rule_Order_OK and
++        Math_Syntax.Is_Valid (Parsed) and
++        Math_Syntax.Count (Parsed) > 32 and
++        Math_Syntax.Count (Parsed) <= 64 and Used (Measure) = 0,
++        "outer growth preserves ordered rules and releases charges " &
++          Natural'Image (Array_Count) & "/" & Natural'Image (Rule_Count));
++   end;
++
++   declare
++      Measure : aliased Budget;
++      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
++        (Rule_Growth_Node_Source, Memory => Measure'Unchecked_Access);
++      pragma Unreferenced (Parsed);
++      Peak_Bytes : constant Positive := Peak (Measure);
++      Exact : aliased Budget (Limit => Peak_Bytes);
++      Short : aliased Budget (Limit => Peak_Bytes - 1);
++   begin
++      Parse_Expect_Budget
++        (Rule_Growth_Node_Source, Exact'Unchecked_Access, Rejected);
++      Check (not Rejected and Peak (Exact) = Peak_Bytes and
++        Peak (Exact) > Outer_Overlap_Observed and Used (Exact) = 0,
++        "outer node/rule overlap measured peak boundary fit");
++      Parse_Expect_Budget
++        (Rule_Growth_Node_Source, Short'Unchecked_Access, Rejected);
++      Check (Rejected and Used (Short) = 0,
++        "outer node/rule overlap one-byte-short budget releases charges");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access,
++         Reason => Math_Work_Control.Cancel_Requested,
++         Stop_On_Outer_Overlap => True,
++         others => <>);
++      Raised : Boolean := False;
++   begin
++      Outer_Overlap_Observed := 0;
++      Outer_Overlap_Delta := 0;
++      Observe_Outer_Overlap := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      begin
++         declare
++            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Rule_Growth_Node_Source, Work => Work'Unchecked_Access,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Stopped);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Stop_Requested => Raised := True;
++      end;
++      Observe_Outer_Overlap := False;
++      Check (Raised and Outer_Overlap_Observed > 0 and
++        Outer_Overlap_Delta = Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes and
++        Used (Account) = 0,
++        "cancellation at outer rule-copy overlap releases all charges");
++   end;
++
++   declare
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access,
++         Reason => Math_Work_Control.Deadline_Reached,
++         Stop_On_Outer_Overlap => True,
++         others => <>);
++      Raised : Boolean := False;
++   begin
++      Outer_Overlap_Observed := 0;
++      Outer_Overlap_Delta := 0;
++      Observe_Outer_Overlap := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      begin
++         declare
++            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Rule_Growth_Node_Source, Work => Work'Unchecked_Access,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Stopped);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Deadline_Expired => Raised := True;
++      end;
++      Observe_Outer_Overlap := False;
++      Check (Raised and Outer_Overlap_Observed > 0 and
++        Outer_Overlap_Delta = Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes and
++        Used (Account) = 0,
++        "deadline at outer rule-copy overlap releases all charges");
++   end;
++
++   declare
++      Local : aliased Math_Macros.Context;
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access,
++         Reason => Math_Work_Control.Cancel_Requested,
++         Stop_On_Outer_Overlap => True,
++         others => <>);
++      Depth : constant Natural := Math_Macros.Scope_Depth (Local);
++      Raised : Boolean := False;
++   begin
++      Outer_Overlap_Observed := 0;
++      Outer_Overlap_Delta := 0;
++      Observe_Outer_Overlap := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      begin
++         declare
++            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Outer_Copy_Shared_Source, Local'Access,
++               Work => Work'Unchecked_Access,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Stopped);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Stop_Requested => Raised := True;
++      end;
++      Observe_Outer_Overlap := False;
++      Capture_AST_Baseline := False;
++      Check (Raised and Outer_Overlap_Observed > 0 and Used (Account) = 0 and
++        Math_Macros.Scope_Depth (Local) = Depth and
++        not Math_Macros.Is_Defined (Local, "\outerCopy"),
++        "shared macro scope restores after overlap cancellation");
++   end;
++
++   declare
++      Local : aliased Math_Macros.Context;
++      Account : aliased Budget;
++      Work : aliased Accounting_Stop_Work :=
++        (Account => Account'Unchecked_Access,
++         Reason => Math_Work_Control.Deadline_Reached,
++         Stop_On_Outer_Overlap => True,
++         others => <>);
++      Depth : constant Natural := Math_Macros.Scope_Depth (Local);
++      Raised : Boolean := False;
++   begin
++      Outer_Overlap_Observed := 0;
++      Outer_Overlap_Delta := 0;
++      Observe_Outer_Overlap := True;
++      Capture_AST_Baseline := True;
++      Previous_Charge := 0;
++      AST_Baseline_Charge := 0;
++      begin
++         declare
++            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
++              (Outer_Copy_Shared_Source, Local'Access,
++               Work => Work'Unchecked_Access,
++               Memory => Account'Unchecked_Access);
++            pragma Unreferenced (Stopped);
++         begin
++            null;
++         end;
++      exception
++         when Math_Work_Control.Deadline_Expired => Raised := True;
++      end;
++      Observe_Outer_Overlap := False;
++      Capture_AST_Baseline := False;
++      Check (Raised and Outer_Overlap_Observed > 0 and Used (Account) = 0 and
++        Math_Macros.Scope_Depth (Local) = Depth and
++        not Math_Macros.Is_Defined (Local, "\outerCopy"),
++        "shared macro scope restores after overlap deadline");
++   end;
+ 
+    declare
+       Measure : aliased Budget;
+@@ -768,7 +1070,8 @@ begin
+         (Account => Account'Unchecked_Access,
+          Threshold => Natural'Last,
+          Reason => Math_Work_Control.Cancel_Requested,
+-         Stop_On_Rule_Growth => True);
++         Stop_On_Rule_Growth => True,
++         Stop_On_Outer_Overlap => False);
+       Raised : Boolean := False;
+    begin
+       Rule_Observation_Stage := 0;
+@@ -805,7 +1108,8 @@ begin
+         (Account => Account'Unchecked_Access,
+          Threshold => Natural'Last,
+          Reason => Math_Work_Control.Deadline_Reached,
+-         Stop_On_Rule_Growth => True);
++         Stop_On_Rule_Growth => True,
++         Stop_On_Outer_Overlap => False);
+       Raised : Boolean := False;
+    begin
+       Rule_Observation_Stage := 0;

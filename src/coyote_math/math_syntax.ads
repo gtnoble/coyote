@@ -134,10 +134,11 @@ package Math_Syntax is
    --  offset-map, lexical token and AST node record-array construction capacity,
    --  including old/new node arrays during growth, plus array-rule vector
    --  capacity while rules are parsed (including old/new capacity overlap).
-   --  Rule charges aggregate across arrays and end at Parse return. They do not
-   --  account for nested rule storage copied during outer node-vector growth,
-   --  other nested node payloads, strings, expander storage, allocator overhead,
-   --  or process memory. Returned/copy lifetimes are not charged.
+   --  Rule charges aggregate across arrays, include temporary active-element
+   --  copies during outer node-vector growth, and end at Parse return. Copy
+   --  admission follows GNAT vector Adjust semantics (length, not capacity).
+   --  Other nested node payloads, strings, expander storage, allocator overhead,
+   --  and process memory are excluded. Returned/copy lifetimes are not charged.
    --  Reservations are pre-admitted and released after parser locals finalize.
    --  Cancellation, deadline, and budget exceptions propagate to the caller.
    --  Explicit shared state follows local/global namespace semantics, even

@@ -1,0 +1,9 @@
+Setup
+   [mkdir]        object directory for project Math_Parser_Memory
+   [mkdir]        exec directory for project Math_Parser_Memory
+Compile
+   [Ada]          math_parser_memory_probe.adb
+math_parser_memory_probe.adb:869:15: error: assignment to discriminant not allowed
+math_parser_memory_probe.adb:870:15: error: assignment to discriminant not allowed
+gprbuild: *** compilation phase failed
+ERROR: Command ["gprbuild", "-p", "-P", "test/native/math_parser_memory.gpr"] exited with code 4

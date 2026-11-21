@@ -1,0 +1,178 @@
+{
+  "by_registry": {
+    "builtin-macro": {
+      "partial-implemented-unqualified": 338,
+      "total": 338
+    },
+    "environment": {
+      "partial-implemented-unqualified": 33,
+      "total": 33
+    },
+    "function": {
+      "partial-implemented-unqualified": 309,
+      "total": 309
+    },
+    "setting": {
+      "approved-deviation-not-applicable": 1,
+      "partial-implemented-unqualified": 13,
+      "total": 14
+    },
+    "supplemental-font-face": {
+      "partial-implemented-unqualified": 20,
+      "total": 20
+    },
+    "supplemental-implicitCommands": {
+      "partial-implemented-unqualified": 4,
+      "total": 4
+    },
+    "supplemental-scriptData": {
+      "partial-implemented-unqualified": 7,
+      "total": 7
+    },
+    "supplemental-symbol-alias": {
+      "partial-implemented-unqualified": 1,
+      "total": 1
+    },
+    "supplemental-uSubsAndSups": {
+      "partial-implemented-unqualified": 102,
+      "total": 102
+    },
+    "supplemental-unicodeAccents": {
+      "partial-implemented-unqualified": 12,
+      "total": 12
+    },
+    "supplemental-unicodeSymbols": {
+      "partial-implemented-unqualified": 344,
+      "total": 344
+    },
+    "symbol": {
+      "partial-implemented-unqualified": 2236,
+      "total": 2236
+    }
+  },
+  "core_registry_rows": 2930,
+  "core_status": {
+    "approved-deviation-not-applicable": 1,
+    "partial-implemented-unqualified": 2929
+  },
+  "supplemental": {
+    "supplemental-font-face": {
+      "partial-implemented-unqualified": 20,
+      "total": 20
+    },
+    "supplemental-implicitCommands": {
+      "partial-implemented-unqualified": 4,
+      "total": 4
+    },
+    "supplemental-scriptData": {
+      "partial-implemented-unqualified": 7,
+      "total": 7
+    },
+    "supplemental-symbol-alias": {
+      "partial-implemented-unqualified": 1,
+      "total": 1
+    },
+    "supplemental-uSubsAndSups": {
+      "partial-implemented-unqualified": 102,
+      "total": 102
+    },
+    "supplemental-unicodeAccents": {
+      "partial-implemented-unqualified": 12,
+      "total": 12
+    },
+    "supplemental-unicodeSymbols": {
+      "partial-implemented-unqualified": 344,
+      "total": 344
+    }
+  },
+  "top_missing_families": []
+}
+{
+  "by_registry": {
+    "builtin-macro": {
+      "partial-implemented-unqualified": 338,
+      "total": 338
+    },
+    "environment": {
+      "partial-implemented-unqualified": 33,
+      "total": 33
+    },
+    "function": {
+      "partial-implemented-unqualified": 309,
+      "total": 309
+    },
+    "setting": {
+      "approved-deviation-not-applicable": 1,
+      "partial-implemented-unqualified": 13,
+      "total": 14
+    },
+    "supplemental-font-face": {
+      "partial-implemented-unqualified": 20,
+      "total": 20
+    },
+    "supplemental-implicitCommands": {
+      "partial-implemented-unqualified": 4,
+      "total": 4
+    },
+    "supplemental-scriptData": {
+      "partial-implemented-unqualified": 7,
+      "total": 7
+    },
+    "supplemental-symbol-alias": {
+      "partial-implemented-unqualified": 1,
+      "total": 1
+    },
+    "supplemental-uSubsAndSups": {
+      "partial-implemented-unqualified": 102,
+      "total": 102
+    },
+    "supplemental-unicodeAccents": {
+      "partial-implemented-unqualified": 12,
+      "total": 12
+    },
+    "supplemental-unicodeSymbols": {
+      "partial-implemented-unqualified": 344,
+      "total": 344
+    },
+    "symbol": {
+      "partial-implemented-unqualified": 2236,
+      "total": 2236
+    }
+  },
+  "core_registry_rows": 2930,
+  "core_status": {
+    "approved-deviation-not-applicable": 1,
+    "partial-implemented-unqualified": 2929
+  },
+  "supplemental": {
+    "supplemental-font-face": {
+      "partial-implemented-unqualified": 20,
+      "total": 20
+    },
+    "supplemental-implicitCommands": {
+      "partial-implemented-unqualified": 4,
+      "total": 4
+    },
+    "supplemental-scriptData": {
+      "partial-implemented-unqualified": 7,
+      "total": 7
+    },
+    "supplemental-symbol-alias": {
+      "partial-implemented-unqualified": 1,
+      "total": 1
+    },
+    "supplemental-uSubsAndSups": {
+      "partial-implemented-unqualified": 102,
+      "total": 102
+    },
+    "supplemental-unicodeAccents": {
+      "partial-implemented-unqualified": 12,
+      "total": 12
+    },
+    "supplemental-unicodeSymbols": {
+      "partial-implemented-unqualified": 344,
+      "total": 344
+    }
+  },
+  "top_missing_families": []
+}

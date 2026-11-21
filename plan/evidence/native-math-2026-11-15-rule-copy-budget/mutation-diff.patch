@@ -1,0 +1,12 @@
+--- final
++++ mutant
+@@ -257,8 +257,7 @@
+                      raise Constraint_Error with
+                        "array rule copy storage overflow";
+                   end if;
+-                  Rule_Overlap := Rule_Overlap + Natural
+-                    (Existing.Element.all.Array_Rules.Length) * Rule_Width;
++                  Rule_Overlap := Rule_Overlap + 0;
+                end;
+             end loop;
+             Math_Memory_Budget.Reserve

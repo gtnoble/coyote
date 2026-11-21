@@ -405,3 +405,33 @@ NOT IMPLEMENTED. It recommends stable per-job account ownership and explicit
 retained clone/transfer leases while preserving the current Document API
 initially. User design review is required before that ownership/API migration.
 This is not a claim that all other scoped project work is technically blocked.
+
+## Latest native-math rule-copy accounting continuation — 2026-11-15
+
+Use coordinator report §11.17 and
+`plan/evidence/native-math-2026-11-15-rule-copy-budget/`. Before outer
+`Nodes.Reserve_Capacity`, Parse pre-admits current aggregate rule capacity plus
+all active rule lengths. GNAT15.2 `Adjust` copies vector length, not spare
+capacity; scoped `Constant_Reference` scans end before polls/mutation, then
+surviving capacity is reconciled. No API, semantic limit, unit, requirement or
+deviation changed.
+
+Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
+poll-preserving remove-charge mutation719 with5 expected failures. The56-node
+fixture has two ordered rules (solid0, dashed1); measured delta24586 versus
+node-only24576 (10 bytes). Exact/short budgets use measured boundaries; paired
+cancellation/deadline checks share cleanup and preserve two exception
+identities. Ledger evidence is not an independent allocator oracle. Full suite
+1076/1076, zero failures/errors (cumulative145.197785s; wall145.30s), correctly
+run from `cd test`; the wrong-root run is preserved:28 assertion failures,
+95 errors,955 successes from relative fixtures. Incremental root/test
+development builds pass; warnings remain.
+
+Worker223/223, ledger38/38, geometry235/235, raster1116/1116 normal/Valgrind;
+strict raster Valgrind still FAILS (2 contexts;6656 definite,2183 indirect,26
+possible bytes). No suppressions/global teardown. GTK9/9; containment expected
+synthetic7/9; offline HTTP passes; crosswalk hashes only. Browser/resource
+characterization was not rerun. Retained-budget proposal remains NOT APPROVED.
+Whole-job memory, strings, expander/semantics/layout/native/font, allocator,
+returned/cache lifetime, timing, parity, lifecycle and human acceptance remain
+OPEN. Self-review is not independent acceptance. No release/install/commit.

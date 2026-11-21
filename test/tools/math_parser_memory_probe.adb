@@ -1,3 +1,4 @@
+with Ada.Containers;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -93,6 +94,15 @@ procedure Math_Parser_Memory_Probe is
    Rule_Observation_Stage : Natural := 0;
    Rule_Observed_Charges : array (1 .. 4) of Natural := (others => 0);
    Rule_Charge_Baseline : Natural := 0;
+   Outer_Node_Copy_Bytes : constant Natural :=
+     64 * Node_Record_Width;
+   Outer_Rule_Copy_Bytes : constant Natural := 2 * Rule_Width;
+   Outer_Overlap_Observed : Natural := 0;
+   Node_Overlap_Observed : Natural := 0;
+   Outer_Overlap_Delta : Natural := 0;
+   Node_Overlap_Delta : Natural := 0;
+   Observe_Outer_Overlap : Boolean := False;
+   Observe_Node_Overlap : Boolean := False;
    Observe_Rule_Charges : Boolean := False;
    Observe_Drift : Boolean := False;
    Drift_Stage : Natural := 0;
@@ -104,6 +114,7 @@ procedure Math_Parser_Memory_Probe is
       Reason : Math_Work_Control.Stop_Reason :=
         Math_Work_Control.Cancel_Requested;
       Stop_On_Rule_Growth : Boolean := False;
+      Stop_On_Outer_Overlap : Boolean := False;
    end record;
    overriding function Check
      (Item : Accounting_Stop_Work) return Math_Work_Control.Stop_Reason;
@@ -159,6 +170,27 @@ procedure Math_Parser_Memory_Probe is
             then
                Rule_Observation_Stage := 4;
                Rule_Observed_Charges (4) := Rule_Bytes;
+            end if;
+         end if;
+         if Observe_Node_Overlap and then Current_Charge > Previous_Charge
+           and then Current_Charge - Previous_Charge = Outer_Node_Copy_Bytes
+         then
+            Node_Overlap_Observed := Current_Charge;
+            Node_Overlap_Delta := Current_Charge - Previous_Charge;
+         end if;
+         if Observe_Outer_Overlap and then Current_Charge > Previous_Charge
+           and then Current_Charge - Previous_Charge =
+             Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes
+         then
+            Outer_Overlap_Observed := Current_Charge;
+            Outer_Overlap_Delta := Current_Charge - Previous_Charge;
+            if Item.Stop_On_Outer_Overlap and then
+              Outer_Overlap_Delta =
+                Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes
+            then
+               Saw_Accounting_Threshold := True;
+               Previous_Charge := Current_Charge;
+               return Item.Reason;
             end if;
          end if;
          Previous_Charge := Current_Charge;
@@ -295,6 +327,23 @@ procedure Math_Parser_Memory_Probe is
    Rule_Source : constant String :=
      "\begin{array}{c}a\\\hline\hdashline\hline\hdashline"
        & "\hline b\end{array}+\begin{array}{c}c\\\hline d\end{array}";
+   Rule_Growth_Node_Source : constant String :=
+     "\begin{array}{c}\hline a\\\hdashline b\end{array}" &
+       "+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x";
+   function Outer_Node_Control_Source return String is
+      Result : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Index in 1 .. 40 loop
+         if Index > 1 then
+            Ada.Strings.Unbounded.Append (Result, "+");
+         end if;
+         Ada.Strings.Unbounded.Append (Result, "x");
+      end loop;
+      return Ada.Strings.Unbounded.To_String (Result);
+   end Outer_Node_Control_Source;
+   Outer_Node_Control_Text : constant String := Outer_Node_Control_Source;
+   Outer_Copy_Shared_Source : constant String :=
+     "\def\outerCopy{x}" & Rule_Growth_Node_Source;
    Rejected : Boolean;
    Delayed_Stop : aliased Countdown_Work;
 
@@ -726,6 +775,259 @@ begin
 
    Check_Rule_Boundary (Rule_Drift_Source, "first-row regrowth");
    Check_Rule_Boundary (Rule_Growth_Source, "outer-node growth");
+   Check_Rule_Boundary
+     (Rule_Growth_Node_Source, "outer-copy overlap fixture");
+
+   declare
+      Measure : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Measure'Unchecked_Access, others => <>);
+      Parsed : Math_Syntax.Document;
+   begin
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      Node_Overlap_Observed := 0;
+      Node_Overlap_Delta := 0;
+      Observe_Node_Overlap := True;
+      Parsed := Math_Syntax.Parse
+        (Outer_Node_Control_Text, Work => Work'Unchecked_Access,
+         Memory => Measure'Unchecked_Access);
+      Observe_Node_Overlap := False;
+      Capture_AST_Baseline := False;
+      Check (Math_Syntax.Is_Valid (Parsed) and
+        Node_Overlap_Observed > 0 and
+        Node_Overlap_Delta = Outer_Node_Copy_Bytes,
+        "rule-free observer isolates outer AST node-array overlap");
+   end;
+
+   declare
+      Measure : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Measure'Unchecked_Access, others => <>);
+      Parsed : Math_Syntax.Document;
+      Lexical_Baseline : Natural := 0;
+      Array_Count : Natural := 0;
+      Rule_Count : Natural := 0;
+      Rule_Fields_OK : Boolean := True;
+      Rule_Order_OK : Boolean := True;
+   begin
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      Outer_Overlap_Observed := 0;
+      Outer_Overlap_Delta := 0;
+      Observe_Outer_Overlap := True;
+      Parsed := Math_Syntax.Parse
+        (Rule_Growth_Node_Source, Work => Work'Unchecked_Access,
+         Memory => Measure'Unchecked_Access);
+      Lexical_Baseline := AST_Baseline_Charge;
+      Observe_Outer_Overlap := False;
+      Capture_AST_Baseline := False;
+      Check (Math_Syntax.Is_Valid (Parsed) and
+        Math_Syntax.Count (Parsed) > 32 and
+        Math_Syntax.Count (Parsed) <= 64 and Lexical_Baseline > 0 and
+        Outer_Overlap_Observed > 0 and
+        Outer_Overlap_Delta =
+          Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes and
+        Outer_Overlap_Delta - Node_Overlap_Delta = Outer_Rule_Copy_Bytes,
+        "outer node pre-allocation measured overlap equals node plus rule copies " &
+          Natural'Image (Outer_Overlap_Delta) & "/" &
+          Natural'Image (Node_Overlap_Delta) & ", nodes " &
+          Natural'Image (Math_Syntax.Count (Parsed)));
+      for Index in 1 .. Math_Syntax.Count (Parsed) loop
+         declare
+            Current : constant Math_Syntax.Node :=
+              Math_Syntax.Element (Parsed, Index);
+         begin
+            if Current.Kind = Math_Model.Array_Node then
+               Array_Count := Array_Count + 1;
+               Rule_Count := Natural (Current.Array_Rules.Length);
+               Rule_Fields_OK := Rule_Count = 2;
+               if Rule_Count = 2 then
+                  Rule_Order_OK :=
+                    Current.Array_Rules (1).Boundary = 0 and then
+                    Current.Array_Rules (1).Kind =
+                      Math_Model.Solid_Array_Rule and then
+                    Current.Array_Rules (2).Boundary = 1 and then
+                    Current.Array_Rules (2).Kind =
+                      Math_Model.Dashed_Array_Rule;
+               end if;
+            end if;
+         end;
+      end loop;
+      Check (Array_Count = 1 and Rule_Count = 2 and
+        Rule_Fields_OK and Rule_Order_OK and
+        Math_Syntax.Is_Valid (Parsed) and
+        Math_Syntax.Count (Parsed) > 32 and
+        Math_Syntax.Count (Parsed) <= 64 and Used (Measure) = 0,
+        "outer growth preserves ordered rules and releases charges " &
+          Natural'Image (Array_Count) & "/" & Natural'Image (Rule_Count));
+   end;
+
+   declare
+      Measure : aliased Budget;
+      Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+        (Rule_Growth_Node_Source, Memory => Measure'Unchecked_Access);
+      pragma Unreferenced (Parsed);
+      Peak_Bytes : constant Positive := Peak (Measure);
+      Exact : aliased Budget (Limit => Peak_Bytes);
+      Short : aliased Budget (Limit => Peak_Bytes - 1);
+   begin
+      Parse_Expect_Budget
+        (Rule_Growth_Node_Source, Exact'Unchecked_Access, Rejected);
+      Check (not Rejected and Peak (Exact) = Peak_Bytes and
+        Peak (Exact) > Outer_Overlap_Observed and Used (Exact) = 0,
+        "outer node/rule overlap measured peak boundary fit");
+      Parse_Expect_Budget
+        (Rule_Growth_Node_Source, Short'Unchecked_Access, Rejected);
+      Check (Rejected and Used (Short) = 0,
+        "outer node/rule overlap one-byte-short budget releases charges");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Reason => Math_Work_Control.Cancel_Requested,
+         Stop_On_Outer_Overlap => True,
+         others => <>);
+      Raised : Boolean := False;
+   begin
+      Outer_Overlap_Observed := 0;
+      Outer_Overlap_Delta := 0;
+      Observe_Outer_Overlap := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      begin
+         declare
+            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Rule_Growth_Node_Source, Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Stopped);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Stop_Requested => Raised := True;
+      end;
+      Observe_Outer_Overlap := False;
+      Check (Raised and Outer_Overlap_Observed > 0 and
+        Outer_Overlap_Delta = Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes and
+        Used (Account) = 0,
+        "cancellation at outer rule-copy overlap releases all charges");
+   end;
+
+   declare
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Reason => Math_Work_Control.Deadline_Reached,
+         Stop_On_Outer_Overlap => True,
+         others => <>);
+      Raised : Boolean := False;
+   begin
+      Outer_Overlap_Observed := 0;
+      Outer_Overlap_Delta := 0;
+      Observe_Outer_Overlap := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      begin
+         declare
+            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Rule_Growth_Node_Source, Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Stopped);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Deadline_Expired => Raised := True;
+      end;
+      Observe_Outer_Overlap := False;
+      Check (Raised and Outer_Overlap_Observed > 0 and
+        Outer_Overlap_Delta = Outer_Node_Copy_Bytes + Outer_Rule_Copy_Bytes and
+        Used (Account) = 0,
+        "deadline at outer rule-copy overlap releases all charges");
+   end;
+
+   declare
+      Local : aliased Math_Macros.Context;
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Reason => Math_Work_Control.Cancel_Requested,
+         Stop_On_Outer_Overlap => True,
+         others => <>);
+      Depth : constant Natural := Math_Macros.Scope_Depth (Local);
+      Raised : Boolean := False;
+   begin
+      Outer_Overlap_Observed := 0;
+      Outer_Overlap_Delta := 0;
+      Observe_Outer_Overlap := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      begin
+         declare
+            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Outer_Copy_Shared_Source, Local'Access,
+               Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Stopped);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Stop_Requested => Raised := True;
+      end;
+      Observe_Outer_Overlap := False;
+      Capture_AST_Baseline := False;
+      Check (Raised and Outer_Overlap_Observed > 0 and Used (Account) = 0 and
+        Math_Macros.Scope_Depth (Local) = Depth and
+        not Math_Macros.Is_Defined (Local, "\outerCopy"),
+        "shared macro scope restores after overlap cancellation");
+   end;
+
+   declare
+      Local : aliased Math_Macros.Context;
+      Account : aliased Budget;
+      Work : aliased Accounting_Stop_Work :=
+        (Account => Account'Unchecked_Access,
+         Reason => Math_Work_Control.Deadline_Reached,
+         Stop_On_Outer_Overlap => True,
+         others => <>);
+      Depth : constant Natural := Math_Macros.Scope_Depth (Local);
+      Raised : Boolean := False;
+   begin
+      Outer_Overlap_Observed := 0;
+      Outer_Overlap_Delta := 0;
+      Observe_Outer_Overlap := True;
+      Capture_AST_Baseline := True;
+      Previous_Charge := 0;
+      AST_Baseline_Charge := 0;
+      begin
+         declare
+            Stopped : constant Math_Syntax.Document := Math_Syntax.Parse
+              (Outer_Copy_Shared_Source, Local'Access,
+               Work => Work'Unchecked_Access,
+               Memory => Account'Unchecked_Access);
+            pragma Unreferenced (Stopped);
+         begin
+            null;
+         end;
+      exception
+         when Math_Work_Control.Deadline_Expired => Raised := True;
+      end;
+      Observe_Outer_Overlap := False;
+      Capture_AST_Baseline := False;
+      Check (Raised and Outer_Overlap_Observed > 0 and Used (Account) = 0 and
+        Math_Macros.Scope_Depth (Local) = Depth and
+        not Math_Macros.Is_Defined (Local, "\outerCopy"),
+        "shared macro scope restores after overlap deadline");
+   end;
 
    declare
       Measure : aliased Budget;
@@ -768,7 +1070,8 @@ begin
         (Account => Account'Unchecked_Access,
          Threshold => Natural'Last,
          Reason => Math_Work_Control.Cancel_Requested,
-         Stop_On_Rule_Growth => True);
+         Stop_On_Rule_Growth => True,
+         Stop_On_Outer_Overlap => False);
       Raised : Boolean := False;
    begin
       Rule_Observation_Stage := 0;
@@ -805,7 +1108,8 @@ begin
         (Account => Account'Unchecked_Access,
          Threshold => Natural'Last,
          Reason => Math_Work_Control.Deadline_Reached,
-         Stop_On_Rule_Growth => True);
+         Stop_On_Rule_Growth => True,
+         Stop_On_Outer_Overlap => False);
       Raised : Boolean := False;
    begin
       Rule_Observation_Stage := 0;

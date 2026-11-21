@@ -3321,3 +3321,32 @@ and returned/cache lifetimes remain unaccounted. Whole-job memory, timing,
 font, full parity, native lifecycle and human acceptance gates remain OPEN.
 Developer/agent self-review is not independent acceptance. No release/install/
 commit; PCR-125 OPEN, feature NOT COMPLETE.
+
+## 2026-11-15 — Array-rule copy accounting continuation (PCR-125)
+
+Report §11.17 and `plan/evidence/native-math-2026-11-15-rule-copy-budget/`
+control this scoped continuation. Before outer `Nodes.Reserve_Capacity`, Parse
+pre-admits current aggregate rule capacity plus the sum of active rule lengths.
+GNAT15.2 `Adjust` copies length, not spare capacity. Scoped
+`Constant_Reference` scans end before polls or mutation; reconcile surviving
+capacity afterward. No API, semantic limit, unit, requirement or deviation
+changed. The reservation remains Parse-local; ledger evidence is not an
+independent allocator oracle.
+
+Parser719/719 twice and under Valgrind (zero errors/lost bytes;113248 reachable);
+poll-preserving remove-charge mutation719 with5 expected failures. The56-node
+fixture contains ordered solid0/dashed1 rules; delta24586 versus node-only
+24576, a10-byte rule contribution. Exact/short budgets use measured boundaries;
+paired cancellation/deadline checks share cleanup and preserve two exception
+identities. Full `cd test` suite1076/1076 (zero failures/errors; cumulative
+145.197785s, wall145.30s). Wrong-root attempt remains recorded:28 assertion
+failures,95 errors,955 successes from relative fixtures. Incremental root/test
+development builds pass; warnings remain. Worker223/223, ledger38/38,
+geometry235/235, raster1116/1116 normal/Valgrind; strict raster Valgrind FAILS
+with2 contexts and6656 definite/2183 indirect/26 possible bytes. No
+suppressions/global teardown. GTK9/9, containment expected synthetic7/9 and
+offline HTTP pass; crosswalk hashes only. Browser/resource checks were not
+rerun. Retained ownership proposal remains NOT APPROVED. Whole-job and other
+payload/phase/allocator/return/cache accounting, timing, parity, lifecycle and
+human acceptance remain open. Self-review is not independent acceptance; no
+release/install/commit.

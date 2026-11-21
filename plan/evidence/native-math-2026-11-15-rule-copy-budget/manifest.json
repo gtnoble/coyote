@@ -1,0 +1,15 @@
+{
+  "checkpoint_date": "2026-11-15",
+  "baseline": "69c13ffa819e90eeb12efdb0a33a6c98a314a047",
+  "report": "11.17",
+  "parser_checks": 719,
+  "full_suite": {
+    "passed": 1076,
+    "failed": 0,
+    "errors": 0,
+    "wall_seconds": 145.3
+  },
+  "native_raster_valgrind": "FAIL: 2 contexts, 6656 definite / 2183 indirect / 26 possible lost bytes",
+  "qualification": "open; developer evidence only",
+  "removed_generated_directories": 64
+}
