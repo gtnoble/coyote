@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.49
+**Version:** 1.50
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -545,13 +545,16 @@ not wait for the complete user turn.
 | `Coyote_Canvas` (`src/coyote_canvas.ads`) | Namespace for widget-independent Canvas primitives. |
 | `Coyote_Canvas.Document` (`src/coyote_canvas-document.ads/.adb`) | Half-open crop rectangles, pointer/numeric geometry and mapping to source extents. |
 | `Coyote_Canvas.Revisions` (`src/coyote_canvas-revisions.ads/.adb`) | Bounded in-memory revision tree, blank Originals, crop extents and per-draft edit history. |
-| `Coyote_Canvas.Images` (`src/coyote_canvas-images.ads/.adb`) | Checked native RGBA row copy; canonical composition and encoding remain planned. |
+| `Coyote_Canvas.Images` (`src/coyote_canvas-images.ads/.adb`) | Checked native RGBA row copy. |
+| `Coyote_Canvas.Composite` (`src/coyote_canvas-composite.ads/.adb`, `src/coyote_canvas_composite_c.c`) | Widget-independent cropped RGBA composition, premultiplied display conversion, and bounded PNG encoding. |
+| `Coyote_Canvas.Ink` (`src/coyote_canvas-ink.ads/.adb`) | Shared stroke geometry for stored and transient ink. |
+| `Coyote_Canvas_Composite_Tests` (`test/src/coyote_canvas_composite_tests.ads/.adb`) | Pixel/PNG, crop/history, partial-alpha, invalid-input, and output-limit tests. |
 | `Coyote_Canvas.Rasters` (`src/coyote_canvas-rasters.ads/.adb`) | Bounded native-size PNG/JPEG preflight and decode through `Coyote_Image_Decoder`; no Markdown thumbnail policy. |
 | `Coyote_Canvas.SVG` (`src/coyote_canvas-svg.ads/.adb`, `src/coyote_canvas_svg_c.c`) | Bounded static UTF-8 SVG preflight with libxml2 and one-time RGBA rasterization with librsvg/Cairo. |
 | `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file batches and clipboard decode on one worker; all-or-nothing GTK-main-task completion. |
 | `Coyote_Canvas.Import_Service` | Planned; accept authorized, bounded file data for one live session. |
 | `Coyote_Canvas.Store` | Planned; save and recover session-local editable revisions and assets. |
-| `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, Cairo ink, GDK input, crop, local raster imports, and request invalidation; attachment staging remains planned. |
+| `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition/cache misses run on GTK and attachment staging remains planned. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
@@ -3111,17 +3114,48 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 **`Resume (S : in out Session)`:** Clears `S.Pause_Flg`, unblocking the
 `Wait_If_Cleared` entry.
 
-### 5.51 Drawing Canvas and additive CLI (planned)
+### 5.51 Drawing Canvas and additive CLI
 
-**Implemented workspace subset.** View → Canvas opens one modeless window for
-the local conversation. File → New makes an 800 × 600 blank Original. Save
+**Implemented workspace.** View → Canvas opens one modeless window for the
+local conversation. File → New makes an 800 × 600 blank Original. Save
 checkpoints changed content in memory; Edit Revision opens a branch point and
-checkpoints the previous draft if needed. Crop changes only the source extent,
-so Cairo replays the same stored ink coordinates through the new clip. A view
-transform never edits drawing pixels. Close hides the workspace; session reset
+checkpoints the previous draft if needed. Crop changes only the source extent;
+strokes keep their original source coordinates. A view transform never edits
+drawing pixels. Close hides the workspace; session reset
 clears it. User-initiated session switches and exit warn before discarding its
 in-memory contents. The command-line import service and user-image workflow
 below are not yet available.
+
+**Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`
+rasterizes stored ink into an A8 Cairo mask on the original pixel grid and
+emits a tightly packed straight-alpha RGBA crop. Because the mask spans the
+Original, clipping never changes ink coverage at the crop edge.
+Where ink has no coverage, source RGB is preserved even for zero or low alpha.
+Covered pixels use source-over with the unrounded combined alpha for straight
+RGB; alpha is rounded for storage. Display conversion creates one cropped
+premultiplied Cairo surface. The GUI caches that surface by revision and ink
+visibility; cache misses and composition currently run on the GTK task. Zoom
+is a view-only Cairo transform and does not resample the canonical pixels.
+Guides and the in-progress stroke are painted separately over the cached
+composite; stored ink and transient ink share the same stroke painter.
+
+The renderer's per-image physical limit remains 16 Mi pixels, corresponding
+to 64 MiB for four-byte RGBA pixels. During composition, the full-source A8
+mask can add up to about 16 MiB plus small Cairo row alignment; it is destroyed
+before display conversion. The one cropped display cache can itself use up to
+64 MiB, in addition to the retained import budget. These figures describe
+separate allocations, not a qualified peak-memory bound or real-time guarantee.
+The PNG encoder reads the same straight-alpha pixels without color transforms
+and rejects output beyond 8 MiB during compression. This is a per-call cap,
+not a staging-memory budget. No user command or worker invokes the encoder
+yet. libpng is a direct build dependency.
+
+The composite suite has seven registered cases covering pixels/PNG, RGB
+strides and offsets, crop/history, partial-alpha source-over, invalid-buffer
+atomicity, PNG limits, and empty/invalid extents. Display-backed Canvas pixel
+checks cover blank output, stroke, undo/redo, ink visibility and Original
+selection. See the Frontends development log for regression evidence and
+remaining qualification gates.
 
 **Implemented local image intake.** Modeless File Selection accepts up to
 eight regular files per batch, in locale-independent filename order, with no
@@ -3145,8 +3179,8 @@ Development limits are 8 MiB encoded per file, 32 MiB encoded per batch,
 rows per batch or live workspace. SVG preflight caps tree depth at 64 and
 nodes at 50,000. There is one decode worker, with two worker slots and four
 GUI request slots. These are not process memory or execution-time limits;
-transient decoder allocations and the display cache are separate. Durable
-storage and canonical composition for prompt attachments remain pending.
+transient decoder allocations, the full-source A8 mask, and the display cache
+are separate. Durable storage and prompt-attachment staging remain pending.
 
 [SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
 interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file

@@ -29,6 +29,7 @@ with Gdk.Event;
 with Gdk.Pixbuf;
 with Gdk.Property;
 with Gtk.Box;
+with Gtk.Check_Menu_Item;
 with Gtk.Clipboard;
 with Gtk.GEntry;
 with Gtk.Tree_Selection;
@@ -989,6 +990,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       use Coyote_App.Frontend.GUI.Testing;
       use Gtk.Tree_Model;
       use type Gtk.Tree_Model.Gtk_Tree_Iter;
+      use type Gdk.Pixbuf.Rgb_Record;
       Frontend : Coyote_App.Frontend.GUI.Instance;
       Canvas : Gtk.Window.Gtk_Window;
       Tree : Gtk.Tree_View.Gtk_Tree_View;
@@ -1020,6 +1022,24 @@ package body Coyote_App_Frontend_GUI_Tests is
          Area.Get_Size_Request (W, H);
          Assert (W = Width and then H = Height, "Wrong displayed extent");
       end Size;
+
+      procedure Check_Pixel (Expected : Gdk.Pixbuf.Rgb_Record) is
+         Surface : constant Cairo.Cairo_Surface := Cairo.Image_Surface.Create
+           (Cairo.Image_Surface.Cairo_Format_RGB24, 32, 32);
+         Context : constant Cairo.Cairo_Context := Cairo.Create (Surface);
+         Sample  : Gdk.Pixbuf.Gdk_Pixbuf;
+         Actual  : Gdk.Pixbuf.Rgb_Record;
+      begin
+         Canvas.Check_Resize;
+         Drain_Events;
+         Area.Draw (Context);
+         Cairo.Destroy (Context);
+         Sample := Gdk.Pixbuf.Get_From_Surface (Surface, 30, 30, 1, 1);
+         Actual := Gdk.Pixbuf.Get_Pixels (Sample) (0);
+         Sample.Unref;
+         Cairo.Surface_Destroy (Surface);
+         Assert (Actual = Expected, "Displayed Canvas pixel is stale");
+      end Check_Pixel;
 
       procedure Pointer
         (Kind : Gdk.Event.Gdk_Event_Type; X, Y : Glib.Gdouble) is
@@ -1053,8 +1073,20 @@ package body Coyote_App_Frontend_GUI_Tests is
       Size (800, 600);
       Assert (Get_Iter_From_String (Model, "0") /= Null_Iter,
               "New creates an Original");
+      Check_Pixel ((255, 255, 255));
       Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
       Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
+      Check_Pixel ((13, 13, 13));
+      Activate ("undo");
+      Check_Pixel ((255, 255, 255));
+      Activate ("redo");
+      Check_Pixel ((13, 13, 13));
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (False);
+      Check_Pixel ((255, 255, 255));
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (True);
+      Check_Pixel ((13, 13, 13));
       Activate ("save");
       Assert (Get_Iter_From_String (Model, "0:0") /= Null_Iter,
               "Pointer stroke saves as a child of Original");
@@ -1088,6 +1120,7 @@ package body Coyote_App_Frontend_GUI_Tests is
 
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
       Size (800, 600);
+      Check_Pixel ((255, 255, 255));
       Activate ("draft");
       Size (60, 80);
       Activate ("new");

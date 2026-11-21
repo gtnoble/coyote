@@ -63,6 +63,7 @@ shared between coyote and pi.
 - [Alire](https://alire.ada.dev/) package manager (`alr`)
 - `libcurl` development headers (for example `libcurl4-openssl-dev`)
 - `libcmark-gfm` and `libcmark-gfm-extensions` development headers
+- libpng development headers and library (for example `libpng-dev`)
 - GTK3 and GtkAda development packages
 - librsvg ≥ 2.52 and libxml2 development headers (`librsvg2-dev` and
   `libxml2-dev` on Debian/Ubuntu)
@@ -180,6 +181,10 @@ Canvas accepts static SVG shapes, paths, text, and gradients with presentation
 attributes and local references. Stylesheets, `style` attributes, scripts,
 animation, and embedded or linked images are not supported. Oversized images
 are rejected rather than shrunk.
+
+Zoom changes only the view. An applied crop keeps the original pixel grid:
+the retained pixels and ink are not resampled. Canvas has a lossless PNG
+encoder internally, but there is no export or attachment command yet.
 
 Closing only the Canvas keeps its drawings in memory. They do not survive a
 session change or application exit. `canvas add`, durable revisions, and

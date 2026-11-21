@@ -1,3 +1,8 @@
+with Ada.Streams;
+with Coyote_Canvas.Composite;
+with Coyote_Canvas.Images;
+with Coyote_Canvas.Ink;
+with Interfaces.C;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
@@ -830,16 +835,20 @@ package body Coyote_GUI.Canvas is
       Refresh (S);
    end Show;
 
+   procedure Clear_Display (S : in out Instance) is
+   begin
+      if S.Image_Surface /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (S.Image_Surface);
+         S.Image_Surface := Cairo.Null_Surface;
+      end if;
+   end Clear_Display;
+
    procedure Reset (S : in out Instance) is
    begin
       S.Resetting := True;
       Invalidate (S);
       Destroy_Import_Dialogs (S);
-      if S.Image_Surface /= Cairo.Null_Surface then
-         Cairo.Surface_Destroy (S.Image_Surface);
-         S.Image_Surface := Cairo.Null_Surface;
-      end if;
-      S.Cached_Image := 0;
+      Clear_Display (S);
       for Asset of S.Images loop
          if Asset.Pixels /= null then
             Asset.Pixels.Unref;
@@ -909,6 +918,7 @@ package body Coyote_GUI.Canvas is
       end if;
       Cancel_Gesture (S.all);
       Rev.New_Drawing (S.Document, 800, 600);
+      Clear_Display (S.all);
       S.Has_Drawing := True;
       S.Drawing_Tree.Get_Selection.Unselect_All;
       S.Preview_Revision := Rev.NO_REVISION;
@@ -945,6 +955,7 @@ package body Coyote_GUI.Canvas is
       if S /= null and then S.Preview_Revision /= 0 then
          Cancel_Gesture (S.all);
          Rev.Edit (S.Document, S.Preview_Revision);
+         Clear_Display (S.all);
          S.Has_Drawing := True;
          Extend_Tree (S.all);
          S.Editing_Draft := True;
@@ -965,6 +976,7 @@ package body Coyote_GUI.Canvas is
    begin
       if S /= null and then S.Editing_Draft and then not S.Crop_Mode then
          Coyote_Canvas.Revisions.Undo (S.Document);
+         Clear_Display (S.all);
          Refresh (S.all);
       end if;
    exception
@@ -979,6 +991,7 @@ package body Coyote_GUI.Canvas is
    begin
       if S /= null and then S.Editing_Draft and then not S.Crop_Mode then
          Coyote_Canvas.Revisions.Redo (S.Document);
+         Clear_Display (S.all);
          Refresh (S.all);
       end if;
    exception
@@ -1043,6 +1056,7 @@ package body Coyote_GUI.Canvas is
          return;
       end if;
       Rev.Crop (S.Document, Pending (S.all));
+      Clear_Display (S.all);
       On_Cancel_Crop (Button, S);
       Set_Status (S.all, "Crop applied to draft");
    exception
@@ -1063,6 +1077,7 @@ package body Coyote_GUI.Canvas is
          Refresh (S.all);
          Invalidate (S.all);
          Destroy_Import_Dialogs (S.all);
+         Clear_Display (S.all);
          S.Canvas_Window.Hide;
       end if;
    end On_Close;
@@ -1151,34 +1166,6 @@ package body Coyote_GUI.Canvas is
       end if;
    end On_Action;
 
-   procedure Draw_Stroke
-     (Points : Rev.Samples.Vector; Context : Cairo.Cairo_Context)
-   is
-      Prev  : Rev.Sample := (0.0, 0.0, 1.0);
-      First : Boolean    := True;
-   begin
-      Cairo.Set_Source_Rgb (Context, 0.05, 0.05, 0.05);
-      Cairo.Set_Line_Cap (Context, Cairo.Cairo_Line_Cap_Round);
-      for Point of Points loop
-         if not First then
-            Cairo.Set_Line_Width
-              (Context, Glib.Gdouble ((Prev.Width + Point.Width) / 2.0));
-            Cairo.Move_To
-              (Context, Glib.Gdouble (Prev.X), Glib.Gdouble (Prev.Y));
-            Cairo.Line_To
-              (Context, Glib.Gdouble (Point.X), Glib.Gdouble (Point.Y));
-            Cairo.Stroke (Context);
-         else
-            Cairo.Arc
-              (Context, Glib.Gdouble (Point.X), Glib.Gdouble (Point.Y),
-               Glib.Gdouble (Point.Width / 2.0), 0.0, 6.283_185_307_179_586);
-            Cairo.Fill (Context);
-         end if;
-         Prev  := Point;
-         First := False;
-      end loop;
-   end Draw_Stroke;
-
    procedure Outline (Context : Cairo.Cairo_Context; R : Doc.Rectangle) is
    begin
       Cairo.Rectangle
@@ -1186,11 +1173,64 @@ package body Coyote_GUI.Canvas is
          Glib.Gdouble (R.Right - R.Left), Glib.Gdouble (R.Bottom - R.Top));
    end Outline;
 
-   function Surface_From_Pixbuf
-     (Pixels : System.Address; Scale : Glib.Gint; Window : System.Address)
-      return Cairo.Cairo_Surface
-     with Import, Convention => C,
-          External_Name => "gdk_cairo_surface_create_from_pixbuf";
+   procedure Update_Display (S : in out Instance; Id : Rev.Revision_Id) is
+      use Ada.Streams;
+      use type Interfaces.C.size_t;
+      package Composite renames Coyote_Canvas.Composite;
+      Background : constant Rev.Revision_Id := Rev.Background (S.Document, Id);
+      Image : Composite.Image;
+
+      function Read_Pixels (Pixbuf : System.Address) return System.Address
+        with Import, Convention => C,
+             External_Name => "gdk_pixbuf_get_pixels";
+      function Byte_Length (Pixbuf : System.Address) return Interfaces.C.size_t
+        with Import, Convention => C,
+             External_Name => "gdk_pixbuf_get_byte_length";
+   begin
+      if S.Image_Surface /= Cairo.Null_Surface
+        and then S.Cached_Revision = Id and then S.Cached_Ink = S.Show_Ink
+      then
+         return;
+      end if;
+      Clear_Display (S);
+      if Background = Rev.NO_REVISION then
+         Composite.Render (S.Document, Id, Image, S.Show_Ink);
+      else
+         declare
+            Pixbuf : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+              S.Images (Background).Pixels;
+         begin
+            if Pixbuf = null then
+               raise Composite.Render_Error with "Missing Canvas raster asset";
+            end if;
+            declare
+               Data : constant System.Address := Read_Pixels (Pixbuf.Get_Object);
+               Size : constant Interfaces.C.size_t := Byte_Length (Pixbuf.Get_Object);
+               Stride : constant Glib.Gint := Gdk.Pixbuf.Get_Rowstride (Pixbuf);
+            begin
+               if Data = System.Null_Address or else Size = 0
+                 or else Size > Interfaces.C.size_t (MAX_IMAGE_BYTES)
+                 or else Stride <= 0
+               then
+                  raise Composite.Render_Error with "Invalid Canvas raster asset";
+               end if;
+               declare
+                  --  Borrow the owned, immutable source only for Render.
+                  Bytes : Stream_Element_Array
+                    (1 .. Stream_Element_Offset (Size))
+                    with Import, Address => Data;
+               begin
+                  Composite.Render
+                    (S.Document, Id, Bytes, Positive (Stride),
+                     Gdk.Pixbuf.Get_Has_Alpha (Pixbuf), Image, S.Show_Ink);
+               end;
+            end;
+         end;
+      end if;
+      S.Image_Surface := Composite.Display_Surface (Image);
+      S.Cached_Revision := Id;
+      S.Cached_Ink := S.Show_Ink;
+   end Update_Display;
 
    function On_Draw
      (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
@@ -1201,47 +1241,35 @@ package body Coyote_GUI.Canvas is
       Region   : constant Doc.Rectangle   := Pending (S.all);
       Revision : constant Rev.Revision_Id :=
         (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision);
-      Background : constant Rev.Revision_Id := Rev.Background (S.Document, Revision);
-      procedure Draw_Points (Points : Rev.Samples.Vector) is
-      begin
-         Draw_Stroke (Points, Context);
-      end Draw_Points;
    begin
       if not Doc.Is_Nonempty (E) then
          return False;
       end if;
+      begin
+         Update_Display (S.all, Revision);
+      exception
+         when Coyote_Canvas.Composite.Render_Error
+            | Coyote_Canvas.Images.Invalid_Buffer
+            | Storage_Error =>
+            Set_Status (S.all, "Canvas display could not be rendered.");
+            return False;
+      end;
       Cairo.Save (Context);
       Cairo.Scale (Context, Glib.Gdouble (S.Zoom), Glib.Gdouble (S.Zoom));
       Outline (Context, Doc.Full_Extent (E.Right - E.Left, E.Bottom - E.Top));
       Cairo.Clip (Context);
       Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
       Cairo.Paint (Context);
-      if Background /= S.Cached_Image then
-         if S.Image_Surface /= Cairo.Null_Surface then
-            Cairo.Surface_Destroy (S.Image_Surface);
-            S.Image_Surface := Cairo.Null_Surface;
-         end if;
-         S.Cached_Image := Background;
-         if Background /= Rev.NO_REVISION then
-            S.Image_Surface := Surface_From_Pixbuf
-              (S.Images (Background).Pixels.Get_Object, 1, System.Null_Address);
-         end if;
-      end if;
-      if S.Image_Surface /= Cairo.Null_Surface then
-         Cairo.Set_Source_Surface
-           (Context, S.Image_Surface, -Glib.Gdouble (E.Left),
-            -Glib.Gdouble (E.Top));
-         Cairo.Paint (Context);
-      end if;
-      if S.Show_Ink then
-         Cairo.Save (Context);
-         Cairo.Translate
-           (Context, -Glib.Gdouble (E.Left), -Glib.Gdouble (E.Top));
-         Rev.Visit_Source (S.Document, Revision, Draw_Points'Access);
-         Cairo.Restore (Context);
-         if S.Drawing then
-            Draw_Stroke (S.Stroke_Points, Context);
-         end if;
+      Cairo.Set_Source_Surface (Context, S.Image_Surface, 0.0, 0.0);
+      Cairo.Paint (Context);
+      if S.Show_Ink and then S.Drawing then
+         declare
+            package Ink renames Coyote_Canvas.Ink;
+            Shade : constant Glib.Gdouble := Glib.Gdouble (Ink.CHANNEL) / 255.0;
+         begin
+            Cairo.Set_Source_Rgb (Context, Shade, Shade, Shade);
+            Ink.Draw (S.Stroke_Points, Context);
+         end;
       end if;
       if Doc.Is_Nonempty (Region) then
          Outline
@@ -1424,6 +1452,7 @@ package body Coyote_GUI.Canvas is
       end if;
       if S.Drawing then
          Rev.Add_Stroke (S.Document, S.Stroke_Points);
+         Clear_Display (S.all);
       elsif Read_Coords (Event, X, Y) /= 0 then
          Drag_Crop (S.all, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
       end if;

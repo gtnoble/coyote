@@ -58,7 +58,8 @@ private
       Document : Coyote_Canvas.Revisions.Workspace;
       Images : Image_Array;
       Image_Bytes : Natural := 0;
-      Cached_Image : Coyote_Canvas.Revisions.Revision_Id := 0;
+      Cached_Revision : Coyote_Canvas.Revisions.Revision_Id := 0;
+      Cached_Ink : Boolean := True;
       Image_Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
       File_Selection : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
       Import_Error : Gtk.Message_Dialog.Gtk_Message_Dialog;

@@ -1,5 +1,25 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canonical Canvas pixels and lossless PNG (PCR-130/131)
+
+The normal Canvas view uses the native-size straight-alpha composite. Cairo
+rasterizes stored ink on the Original's pixel grid, preserving the exact
+subrectangle after crop. Source-over composition leaves all bytes unchanged
+where ink has no coverage, including RGB under zero or low alpha. GTK caches
+one cropped display surface; zoom, crop guides, and live ink are display-only.
+The internal lossless PNG encoder enforces an 8 MiB output cap without resizing
+or returning partial bytes. It is not connected to a user command or worker.
+
+Root and test development builds passed. Seven focused compositor cases
+cover exact PNG round trips, partial-alpha blending, nested crop and history,
+invalid input, and output limits. Display-backed checks verify ink, history,
+markup visibility, and retained crop pixels. The final serial Xvfb suite passed
+1,103/1,103 with zero failures or errors (exit 0). Standalone GTK interaction
+checks passed 9/9, the runner containment self-test passed, and the Canvas CLI
+compatibility check passed. These are developer results, not desktop, tablet,
+or end-to-end qualification. Authorized shell import, durable recovery, and
+prompt attachments remain pending.
+
 ## 2026-11-21 — Static SVG and atomic Canvas file import (PCR-130/131)
 
 Modeless File Selection accepts up to eight mixed PNG/JPEG/static SVG files,
