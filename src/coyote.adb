@@ -46,6 +46,7 @@ with Ada.Text_IO;
 with Coyote_App;
 with Coyote_App.Plain;
 with Coyote_App.RPC;
+with Coyote_CLI;
 with Coyote_Process_Control;
 with GNAT.OS_Lib;
 with Coyote_Utils;
@@ -182,8 +183,14 @@ procedure Coyote is
         ("  -d, --debug-logging         Enable conv debug output to stderr");
       Ada.Text_IO.Put_Line
         ("  -h, --help              Print this help and exit");
+      Ada.Text_IO.New_Line;
+      Coyote_CLI.Print_Subcommands;
    end Print_Usage;
 begin
+   if Coyote_CLI.Dispatch then
+      return;
+   end if;
+
    if not Coyote_Process_Control.Install then
       Ada.Text_IO.Put_Line
         (Ada.Text_IO.Standard_Error,

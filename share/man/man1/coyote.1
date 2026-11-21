@@ -17,6 +17,11 @@ coyote \- native Ada LLM coding agent harness
 [\fB\-\-prompt\-filter\fR \fICMD\fR]
 [\fB\-\-frontend\fR \fIgui\fR|\fIplain\fR]
 [\fB\-h\fR|\fB\-\-help\fR]
+.br
+.B coyote session list
+.br
+.B coyote canvas add
+[\fB\-\-\fR] \fIFILE...\fR
 .SH DESCRIPTION
 .B coyote
 is a self-contained LLM coding agent that manages a conversation session
@@ -31,6 +36,20 @@ context compaction, skill discovery, and JSONL session persistence.
 The companion utility
 .BR coyote_list_sessions (1)
 prints sessions saved for the current working directory.
+.SH SUBCOMMANDS
+.TP
+.B session list
+List sessions for the current working directory, newest first. Output and
+exit behavior match
+.BR coyote_list_sessions (1).
+.TP
+.B canvas add
+Recognized for CLI development; the Canvas import service is not yet
+available and the command does not read files or start a session.
+.PP
+Use
+.BR \-h " or " \-\-help
+after a group or subcommand. Subcommands do not start an agent or frontend.
 .SH OPTIONS
 .TP
 \fB\-\-session\fR \fIUUID\fR

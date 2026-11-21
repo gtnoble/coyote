@@ -159,10 +159,12 @@ retrying. Very quiet legitimate responses may need a longer configured timeout.
 ## Session listing
 
 ```sh
-coyote_list_sessions
+coyote session list
 ```
 
-Prints tab-separated rows for the current working directory:
+The standalone `coyote_list_sessions` remains available with the same output
+and exit behavior. Both commands print newest-first tab-separated rows for the
+current working directory:
 
 ```text
 UUID    name    date    snippet

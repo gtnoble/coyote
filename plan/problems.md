@@ -20,7 +20,8 @@ client-controlled work product gets an entry here.
 - **Design:** SDD-CORE v1.45 §5.51 and SDD-CANVAS v1.0 §§4–6 record the
   clipboard lifetime, crop geometry, revision and send contracts accepted
   by the product owner on 2026-11-21.
-- **Status:** Open; design accepted, implementation and qualification pending.
+- **Status:** Open; exact crop geometry and RGBA-copy primitives implemented.
+  Clipboard retrieval, crop UI and end-to-end qualification remain pending.
 
 ## PCR-130 — Drawing Canvas and additive CLI subcommands
 
@@ -44,8 +45,11 @@ client-controlled work product gets an entry here.
 - **Design:** SDD-CORE v1.45 §5.51 and SDD-CANVAS v1.0 record the
   architecture and detailed local import, persistence and provider contracts
   accepted by the product owner on 2026-11-21.
-- **Status:** Open; design accepted, implementation and qualification pending.
-  No runtime tests, release or deployment are claimed.
+- **Status:** Open; the product owner authorized implementation on 2026-11-21.
+  Additive CLI dispatch and compatible session listing are implemented.
+  `canvas add` parses operands but does not read files or contact a service.
+  See the Core Agent and Frontends development logs for verification scope.
+  The Canvas workflow, end-to-end qualification and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

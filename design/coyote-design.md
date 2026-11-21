@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.45
+**Version:** 1.46
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -10,8 +10,9 @@
 
 **Canvas and subcommands (PCR-130/131):** The product owner accepted the
 Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
-The existing runtime descriptions remain the implemented baseline. Canvas
-implementation and qualification are pending.
+The initial development increment implements additive CLI dispatch, legacy
+session listing parity and exact crop geometry/RGBA copy primitives. The
+Canvas window, import service and end-to-end qualification remain pending.
 
 **Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
@@ -534,17 +535,19 @@ not wait for the complete user turn.
 | Help qualification scripts | Bounded fake-Yelp launch matrix and repeatable AUnit/Mallard/CLI workflow | `test/tools/check-help-launch.sh`, `test/check-help.sh` |
 | `*_Tests.Suite` | Leaf AUnit fixture suite functions (current retained fixtures) | `test/src/*_tests.ads/.adb` |
 
-**Planned Canvas allocation (PCR-130/131).** These units are planned, not
-present in the current source. See [SDD-CANVAS §2](coyote-canvas-design.md#2-units-and-execution).
+**Canvas allocation (PCR-130/131).** The accepted target remains
+[SDD-CANVAS §2](coyote-canvas-design.md#2-units-and-execution).
 
-| Proposed unit | Role |
+| Unit | Initial implementation or planned allocation |
 |---|---|
-| `Coyote_CLI` | Dispatch subcommands and share the session-list output path. |
-| `Coyote_Canvas.Import_Service` | Accept authorized, bounded file data for one live session. |
-| `Coyote_Canvas.Document` | Own drawing content, revision branches, working copies and crop geometry. |
-| `Coyote_Canvas.Images` | Validate, decode, rasterize, composite and encode without thumbnail scaling. |
-| `Coyote_Canvas.Store` | Save and recover session-local editable revisions and assets. |
-| `Coyote_GUI.Canvas` | Own window and input state, clipboard requests, and attachment staging on GTK. |
+| `Coyote_CLI` (`src/coyote_cli.ads/.adb`) | Dispatches subcommands before launcher initialization. `session list` uses `Session_Lister.Print_TSV`; `canvas add` validates syntax but reports unavailable. |
+| `Coyote_Canvas` (`src/coyote_canvas.ads`) | Namespace for widget-independent Canvas primitives. |
+| `Coyote_Canvas.Document` (`src/coyote_canvas-document.ads/.adb`) | Half-open crop rectangles, pointer/numeric geometry and mapping to source extents; revision model planned. |
+| `Coyote_Canvas.Images` (`src/coyote_canvas-images.ads/.adb`) | Checked native RGBA row copy; validation, decoding, rasterization, composition and encoding planned. |
+| `Coyote_Canvas.Import_Service` | Planned; accept authorized, bounded file data for one live session. |
+| `Coyote_Canvas.Store` | Planned; save and recover session-local editable revisions and assets. |
+| `Coyote_GUI.Canvas` | Planned; window and input state, clipboard requests and attachment staging on GTK. |
+| `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
 ### 4.2 Static Relationships
 
@@ -807,9 +810,10 @@ simple and auditable.*
 
 ### 5.1 `Coyote` (entry point)
 
-**Planned subcommands:** `Coyote_CLI` dispatches `session list` and `canvas add`
-before launcher/frontend initialization. Existing invocations use the path
-below. Grammar, compatibility and the import authority boundary are in
+**Subcommand dispatch:** `Coyote_CLI` dispatches `session list` and `canvas add`
+before launcher/frontend initialization. `canvas add` does not yet contact a
+service or read files. Existing invocations use the path below. Grammar,
+compatibility and the planned import authority boundary are in
 [SDD-CANVAS §3](coyote-canvas-design.md#3-cli-and-local-import-protocol).
 
 **Physical-window launch:** The GUI `Fork` action and `File → New Window`
@@ -3103,6 +3107,9 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 
 ### 5.51 Drawing Canvas and additive CLI (planned)
 
+Additive dispatch and pixel geometry are implemented; the Canvas workflow
+described below is not yet available.
+
 [SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
 interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file
 import, the Wacom Intuos and mouse input path, explicit crop, branching
@@ -3117,7 +3124,7 @@ The local workflow extends the existing typed queue, provider and replay
 contracts. Plain, virtual-agent image steering, and assistant Markdown or
 shell tool-result image handling are not changed. Comparison and explicitly
 linked agent branches are specified as follow-on design. STP §4.6 identifies
-planned qualification; no runtime implementation or acceptance is claimed.
+planned qualification; no end-to-end qualification or product acceptance is claimed.
 
 ---
 

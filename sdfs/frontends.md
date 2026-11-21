@@ -1,5 +1,14 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas crop primitives (PCR-130/131)
+
+The GTK-independent Canvas units implement integer half-open rectangles,
+pointer rounding and clamping, nested source extents, and checked RGBA row
+copy. Five focused AUnit cases passed, including exact low-alpha and
+transparent bytes, padded input rows, and invalid buffer rejection. The
+Canvas window, pen and clipboard callbacks, revision model and image
+submission remain unimplemented and unqualified.
+
 ## 2026-11-21 — Canvas interaction design (PCR-130/131)
 
 [SDD-CANVAS](../design/coyote-canvas-design.md) specifies the planned IRIX

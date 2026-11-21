@@ -44,6 +44,9 @@ package Session_Lister is
    --  Return all valid sessions for Cwd, newest first.
    function List_Sessions (Cwd : String) return Session_Vectors.Vector;
 
+   --  Print the legacy UUID, name, date and snippet columns to stdout.
+   procedure Print_TSV (Cwd : String);
+
    --  Search every subdirectory of ~/.coyote/sessions/ for a JSONL file
    --  whose filename contains UUID.  Returns the full filesystem path, or ""
    --  if no matching file is found.  Unlike Sessions_Dir / List_Sessions,

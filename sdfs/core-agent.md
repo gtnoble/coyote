@@ -1,5 +1,18 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Canvas CLI implementation start (PCR-130/131)
+
+Additive dispatch runs before launcher initialization. `coyote session list`
+and `coyote_list_sessions` share the legacy TSV writer. `canvas add` help
+and operand parsing are present; a valid invocation reports that no
+Canvas service is available and does not read files or start an agent.
+
+Root and test development builds, the isolated CLI check, and the Help
+regression check passed. Serial Xvfb AUnit: 1,079/1,079, zero failures or
+errors. An earlier run overlapping another worktree's suite had two
+provider fixture errors and one retry-count failure; it is not counted
+as a pass. No live-provider, import-service, or device qualification.
+
 ## 2026-11-21 — Canvas interfaces and additive CLI design (PCR-130/131)
 
 SDD-CORE v1.45 and [SDD-CANVAS](../design/coyote-canvas-design.md) allocate

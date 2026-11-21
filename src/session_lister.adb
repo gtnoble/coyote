@@ -403,6 +403,17 @@ package body Session_Lister is
       return Result;
    end List_Sessions;
 
+   procedure Print_TSV (Cwd : String) is
+      Sessions : constant Session_Vectors.Vector := List_Sessions (Cwd);
+   begin
+      for Item of Sessions loop
+         Ada.Text_IO.Put_Line
+           (To_String (Item.UUID) & ASCII.HT & To_String (Item.Name)
+            & ASCII.HT & To_String (Item.Date) & ASCII.HT
+            & To_String (Item.Snippet));
+      end loop;
+   end Print_TSV;
+
    --  ── Find_Session_File ─────────────────────────────────────────────────
 
    function Find_Session_File (UUID : String) return String is
