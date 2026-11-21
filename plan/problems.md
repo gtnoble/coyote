@@ -5007,3 +5007,20 @@ are historical, not current-source qualification.
 - **Status:** scoped developer-verified;PCR-125 OPEN. No hard deadline/native
   preemption,full resource/font/lifecycle/parity or acceptance;prior raster losses
   remain. No release/install/acceptance.
+
+
+### PCR-125 — Enclosure command snapshot duplication,2026-11-15
+
+- **Category:** Code,Test. **Priority:** 3-Moderate.
+- **Problem:** color/framed-color and phase rebuilding copied complete child
+  command vectors,including nested payloads,before clearing original storage.
+- **Action:** transfer children into branch-local owners after validation;
+  reserve known reconstruction capacity. Existing guards/polls remain intact.
+  Transfer-only increased some measured allocation totals,so that intermediate
+  was not selected;final reservation improves all three fixed corpora.
+- **Verification:** §11.26:134 prior/final full-record matches,allocation
+  characterization,engine3497 twice/30 stop injections,worker346,geometry235,
+  seeded replay,full1076/1076 and mandatory checks;scoped Valgrind clean.
+- **Status:** scoped developer-verified;PCR-125 remains OPEN. Not peak/RSS,
+  hard completion,full parity/lifecycle or independent acceptance. Prior strict
+  raster losses remain unresolved. No release/install/acceptance.

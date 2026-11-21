@@ -1,0 +1,42 @@
+Validation-only enclosure allocation comparison
+Timestamp UTC: 
+2026-11-21T21:23:05Z
+
+Source identity:
+Baseline: cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841  /tmp/coyote-enclosure-characterization/baseline-src/coyote_math/math_layout.adb
+Final:    317d9ccf2cbd097230869185a55495cc78fe901582b9725281665b6909b38df1  /tmp/coyote-enclosure-characterization/final-src/coyote_math/math_layout.adb
+
+Snapshot delta (expected single file):
+Files /tmp/coyote-enclosure-characterization/baseline-src/coyote_math/math_layout.adb and /tmp/coyote-enclosure-characterization/final-src/coyote_math/math_layout.adb differ
+
+Toolchain:
+alr 2.1.0
+GPRBUILD 25.0.0 (2025-05-16) (x86_64-pc-linux-gnu)
+15.2.0
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/x86_64-pc-linux-gnu/share/gpr
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/share/gpr
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/lib/gnat
+
+valgrind-3.22.0
+
+Successful build command (run from repository Alire workspace):
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && alr exec -- gprbuild -P /tmp/coyote-enclosure-characterization/final-project/math_export.gpr -XMATH_EXPORT_ROOT=/tmp/coyote-enclosure-characterization/final-build
+
+Comparator command:
+/tmp/coyote-enclosure-characterization/compare-allocation.py final /tmp/coyote-enclosure-characterization/final-build/bin/math_export
+
+Allocation results:
+final/baseline-regression: records=52 commands=352 paths=52 path_segments=888 allocations=133,054 frees=132,150 heap_bytes=21,966,280 lost=0 bytes in 0 blocks | 0 bytes in 0 blocks | 0 bytes in 0 blocks errors=0 errors from 0 contexts (suppressed: 0 from 0)
+final/allocation-heavy: records=72 commands=1848 paths=538 path_segments=8125 allocations=783,630 frees=782,726 heap_bytes=164,244,626 lost=0 bytes in 0 blocks | 0 bytes in 0 blocks | 0 bytes in 0 blocks errors=0 errors from 0 contexts (suppressed: 0 from 0)
+final/repeat-10: records=10 commands=200 paths=40 path_segments=600 allocations=79,299 frees=78,395 heap_bytes=15,180,392 lost=0 bytes in 0 blocks | 0 bytes in 0 blocks | 0 bytes in 0 blocks errors=0 errors from 0 contexts (suppressed: 0 from 0)
+
+Delta JSON and scripts:
+fd0e2476a90bbf89082caf993441d50452a4a2b7de8b962bacd2bf0bce03ac5d  /tmp/coyote-enclosure-characterization/delta.py
+b07aeeb67338bb134589f1b41dd98fd1f43f03eb33c3d18d9da3521fafd281cb  /tmp/coyote-enclosure-characterization/delta.json
+5999895c93444ab8ddfec1c617a585d5b69a2f39582ff4212db02957140ea076  /tmp/coyote-enclosure-characterization/compare-allocation.py
+60ea5c89106ce862c64a9488bbef5ccf1f122b301460f59dee049964793faf65  /tmp/coyote-enclosure-characterization/final-build/bin/math_export
+
+Repository status remained untouched by this validation:
+ M plan/native-math-coverage.json
+ M src/coyote_math/math_layout.adb
+ M test/tools/math_engine_probe.adb

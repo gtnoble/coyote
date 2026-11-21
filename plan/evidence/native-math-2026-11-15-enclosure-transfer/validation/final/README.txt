@@ -1,0 +1,64 @@
+Final native-engine enclosure validation
+All evidence generated during this turn; prior /tmp/coyote-enclosure-validation directory was not used as final evidence.
+
+src_hash_diff_exit=0
+2883dc1c0bc45c9b5938069edfb36889ccb5d4c16fa1ec426f19fca0d95e275d  /tmp/coyote-enclosure-final-validation/src-before.sha256
+2883dc1c0bc45c9b5938069edfb36889ccb5d4c16fa1ec426f19fca0d95e275d  /tmp/coyote-enclosure-final-validation/src-after.sha256
+--- current key source hashes ---
+d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36  src/coyote_math/math_layout.adb
+e3829acc6e61b7cac2f6d9d1112898a6232176e92e96ad85c351a58666bdcdec  test/tools/math_engine_probe.adb
+--- current test count ---
+Total Tests Run:   1076
+Successful Tests:  1076
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 2min. 24.475244 sec. seconds
+--- standalone assertion results ---
+/tmp/coyote-enclosure-final-validation/engine-probe-run1.log:ASSERTIONS 3497 failures= 0
+/tmp/coyote-enclosure-final-validation/engine-probe-run2.log:ASSERTIONS 3497 failures= 0
+--- all measured timings ---
+engine-probe-run1.time elapsed_seconds=1.91 user_seconds=1.87 sys_seconds=0.04 exit_status=0
+engine-probe-run2.time elapsed_seconds=1.91 user_seconds=1.87 sys_seconds=0.04 exit_status=0
+full-suite.time elapsed_seconds=144.51 user_seconds=8.87 sys_seconds=3.72 exit_status=0
+gtk-interaction-runner.time elapsed_seconds=1.48 user_seconds=0.32 sys_seconds=0.09 exit_status=0
+gtk-interactions.time elapsed_seconds=14.78 user_seconds=0.97 sys_seconds=0.40 exit_status=0
+http-timeout-lifecycle.time elapsed_seconds=65.60 user_seconds=0.41 sys_seconds=0.41 exit_status=0
+root-build.time elapsed_seconds=7.24 user_seconds=7.94 sys_seconds=1.25 exit_status=0
+test-build.time elapsed_seconds=4.67 user_seconds=6.93 sys_seconds=1.50 exit_status=0
+--- statuses ---
+engine-probe-build=0
+engine-probe-run1=0
+engine-probe-run2=0
+full-suite=0
+gtk-interaction-runner=0
+gtk-interactions=0
+http-timeout-lifecycle=0
+root-build=0
+test-build=0
+--- generated development profile config ---
+--- build warnings/style diagnostics count ---
+181
+--- tree state ---
+ M plan/native-math-coverage.json
+ M src/coyote_math/math_layout.adb
+ M test/tools/math_engine_probe.adb
+
+root config generated: obj/development/coyote_config.ads (development)
+test config generated: test/obj/development/coyote_config.ads (development)
+### obj/development/coyote_config.ads
+not materialized at this path
+### test/obj/development/coyote_config.ads
+not materialized at this path
+
+Generated development profile directories:
+obj/development
+test/obj/development
+
+Root build warnings/styles: 181
+Test build warnings/styles: 0
+
+Standalone source hashes:
+d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36  /tmp/coyote-enclosure-engine-final3/source/math_layout.adb
+d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36  /home/gtnoble/Projects/coyote/coyote-latex-math/src/coyote_math/math_layout.adb
+e3829acc6e61b7cac2f6d9d1112898a6232176e92e96ad85c351a58666bdcdec  /tmp/coyote-enclosure-engine-final3/tools/math_engine_probe.adb
+e3829acc6e61b7cac2f6d9d1112898a6232176e92e96ad85c351a58666bdcdec  /home/gtnoble/Projects/coyote/coyote-latex-math/test/tools/math_engine_probe.adb

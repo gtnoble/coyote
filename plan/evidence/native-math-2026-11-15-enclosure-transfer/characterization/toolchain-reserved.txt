@@ -1,0 +1,18 @@
+Validation-only toolchain manifest UTC 2026-11-21T21:37:12Z
+
+--- alr ---
+alr 2.1.0
+
+--- active Alire GNAT/GPR toolchain ---
+GNATMAKE 15.2.0
+GPRBUILD 25.0.0 (2025-05-16) (x86_64-pc-linux-gnu)
+Copyright (C) 2004-2025, AdaCore
+GNATBIND 15.2.0
+
+--- Valgrind ---
+valgrind-3.22.0
+
+--- runtime/compiler locations under alr ---
+/home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/bin/gnatmake
+/home/gtnoble/.local/share/alire/toolchains/gprbuild_25.0.1_9a2e6cfb/bin/gprbuild
+/home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/bin/gnatbind

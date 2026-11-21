@@ -1,0 +1,38 @@
+root object profile paths: 792
+test object profile paths: 492
+
+root generated config files:
+obj/development/coyote_config.ads.stderr
+obj/development/coyote_config.ads.stdout
+obj/development/coyote_config.ali
+obj/development/coyote_config.cswi
+obj/development/coyote_config.o
+obj/development/coyote_sqc-config.adb.stderr
+obj/development/coyote_sqc-config.adb.stdout
+obj/development/coyote_sqc-config.ali
+obj/development/coyote_sqc-config.cswi
+obj/development/coyote_sqc-config.o
+
+test generated config files:
+
+Alire build output profile indications:
+math_layout.adb:3:06: warning: redundant with clause in body [-gnatwr]
+math_layout.adb:5:06: warning: redundant with clause in body [-gnatwr]
+math_layout.adb:6:06: warning: redundant with clause in body [-gnatwr]
+math_layout.adb:7:06: warning: redundant with clause in body [-gnatwr]
+math_layout.adb:8:06: warning: redundant with clause in body [-gnatwr]
+math_layout.adb:11:06: warning: redundant with clause in body [-gnatwr]
+math_layout.adb:19:08: warning: "Math_Model" is already use-visible through previous use_clause at math_layout.ads:13 [-gnatwr]
+math_layout.adb:915:07: warning: "Denominator" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:1144:07: warning: "Radicand" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:1643:07: warning: "Base" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:2601:16: warning: "Slash" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3085:19: warning: "Left" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3087:19: warning: "Right" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3089:19: warning: "Left_Width" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3092:19: warning: "Right_Width" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3152:16: warning: constant "Base_Value" is not referenced [-gnatwu]
+math_layout.adb:3154:16: warning: "Base" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3159:16: warning: "Mark" is not modified, could be declared constant [-gnatwk]
+math_layout.adb:3218:26: warning: useless assignment of object to itself [-gnatwr]
+math_layout.adb:3620:33: warning: useless assignment of object to itself [-gnatwr]

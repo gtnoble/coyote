@@ -1950,3 +1950,43 @@ Crosswalk counts unchanged. Developer/agent self-review is not independent
 acceptance. No browser images/raster/whole-macro Valgrind rerun;prior raster
 losses and resource/timing/GTK/font/lifecycle/full parity/human gates remain open.
 PCR-125 OPEN;no release/install/commit.
+
+
+### 11.26 Enclosure child-command ownership transfer — 2026-11-15
+
+Color/framed-color and phase enclosures move child command storage into local
+owners after validation instead of cloning a full snapshot before rebuilding.
+Reconstruction pre-reserves known child-plus-decoration capacity,clamped to the
+existing command ceiling;Append_Command retains its guard. Shifted copies,
+metadata/order/geometry and all polls remain unchanged. No API,requirements,
+limit,budget accounting or retained-context architecture change.
+
+Transfer-only characterization initially increased allocations and two corpora's
+allocated-byte totals because rebuilding lost cleared capacity. Final reserve
+removes that regression. Frozen prior/final exporters match134/134 full records,
+2400 commands,for regression,nested-heavy and repeat corpora. Final cumulative
+allocated bytes fall21925408→21696752,164304506→160279682 and15082312→14704792
+(1.04%,2.45%,2.50%);allocation counts also fall. This is fixed-workload Valgrind
+allocation characterization,not peak/RSS,timing or universal memory guarantees.
+Every final corpus has zero Valgrind errors/lost bytes. Prior raster losses stay
+open. Rebuilt per-child command copies are not all eliminated.
+
+Engine3497/3497 twice and isolated prior-runtime probe pass. Five direct fixtures
+retain path payloads,complete Box equality,null-Work/Work consistency,30 calibrated
+cancel/deadline injections,rebuild and returned-path mutation isolation. Poll
+counts80/88/116/87/107 match before/after. Checkpoints span whole layout;
+not every stop is proven inside enclosure reconstruction. Color-box rejection/
+recovery is tested;phase rejection and active-worker phase interruption are not
+separately injected. Engine Valgrind3497 assertions,zero errors/lost bytes,
+216713 reachable under existing4MiB frame threshold.
+
+Root/test development builds and full Xvfb1076/1076 (144.475244s cumulative/
+144.51s wall),GTK9/9,runner containment and offline HTTP pass;warnings remain.
+Worker346/346,geometry235/235 and10000-case stratified full replay pass,unchanged
+status/output digest. Evidence retains transfer-only intermediate,reported
+Max_Commands compile mistake/correction,final logs and source/binary identities.
+Evidence:`plan/evidence/native-math-2026-11-15-enclosure-transfer/`.
+Crosswalk fingerprint refreshed,coverage counts unchanged. Developer/agent
+self-review is not independent acceptance. No browser images/raster/whole-macro
+Valgrind rerun;broader resource/GTK/cache/timing/font/lifecycle/parity/human gates
+remain open. PCR-125 OPEN;no release/install/commit.

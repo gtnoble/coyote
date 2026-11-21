@@ -1,0 +1,3 @@
+final/baseline-regression: records=52 commands=352 paths=52 path_segments=888 allocations=133,054 frees=132,150 heap_bytes=21,966,280 lost=0 bytes in 0 blocks | 0 bytes in 0 blocks | 0 bytes in 0 blocks errors=0 errors from 0 contexts (suppressed: 0 from 0)
+final/allocation-heavy: records=72 commands=1848 paths=538 path_segments=8125 allocations=783,630 frees=782,726 heap_bytes=164,244,626 lost=0 bytes in 0 blocks | 0 bytes in 0 blocks | 0 bytes in 0 blocks errors=0 errors from 0 contexts (suppressed: 0 from 0)
+final/repeat-10: records=10 commands=200 paths=40 path_segments=600 allocations=79,299 frees=78,395 heap_bytes=15,180,392 lost=0 bytes in 0 blocks | 0 bytes in 0 blocks | 0 bytes in 0 blocks errors=0 errors from 0 contexts (suppressed: 0 from 0)

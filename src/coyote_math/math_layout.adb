@@ -3476,8 +3476,7 @@ package body Math_Layout is
                        (Value.Box_Border_Thickness, Thickness.Effective)
                      else 0.0) * Scale;
                   Pad : constant Long_Float := 0.3 * Scale;
-                  Child_Commands : constant Command_Vectors.Vector :=
-                    Result.Commands;
+                  Child_Commands : Command_Vectors.Vector;
                   Background : Draw_Command;
                   Edge : Draw_Command;
                   Box_Width : constant Long_Float :=
@@ -3495,7 +3494,13 @@ package body Math_Layout is
                   then
                      Reject ("invalid color-box geometry");
                   end if;
-                  Result.Commands.Clear;
+                  --  Transfer child storage instead of cloning every payload.
+                  Command_Vectors.Move
+                    (Target => Child_Commands, Source => Result.Commands);
+                  Result.Commands.Reserve_Capacity
+                    (Ada.Containers.Count_Type'Min
+                       (Ada.Containers.Count_Type (Max_Draw_Commands),
+                        Child_Commands.Length + (if Is_Framed then 5 else 1)));
                   Background.Kind := Rule_Command;
                   Background.Width := Box_Width;
                   Background.Height := Box_Height;
@@ -3561,8 +3566,7 @@ package body Math_Layout is
                end;
             elsif Value.Enclosure = Phase_Enclosure then
                declare
-                  Content_Commands : constant Command_Vectors.Vector :=
-                    Result.Commands;
+                  Content_Commands : Command_Vectors.Vector;
                   Rule : constant Long_Float :=
                     Long_Float'Max (0.06 * Scale,
                       Thickness.Effective * Scale);
@@ -3589,7 +3593,13 @@ package body Math_Layout is
                   Scaled := Math_Paths.Transform
                     (Path, 0.001 * Scale, 0.0, 0.0,
                      Scale / 1_000.0, 0.0, 0.0);
-                  Result.Commands.Clear;
+                  --  The local owner retains children during reconstruction.
+                  Command_Vectors.Move
+                    (Target => Content_Commands, Source => Result.Commands);
+                  Result.Commands.Reserve_Capacity
+                    (Ada.Containers.Count_Type'Min
+                       (Ada.Containers.Count_Type (Max_Draw_Commands),
+                        Content_Commands.Length + 1));
                   Angle.Kind := Path_Command;
                   Angle.Width := Pad + Result.Width;
                   Angle.Height := Total_Height;

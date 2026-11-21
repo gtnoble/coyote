@@ -1,0 +1,11 @@
+READY WITH BUILD GATE BLOCKED: test/tools/math_engine_probe.adb only owned source edit.
+
+Changes: phase-only and nested-phase enclosure fixtures; checkpoint naming replaces misleading Phase terminology; successful Work result rebuilt after stop exceptions and used as the returned-path-mutation baseline.
+
+HEAD-runtime clean build plus two identical runs pass: 3497 assertions, 0 failures. Phase fixtures: phase polls=87, paths=3, path_segments=31; nested-phase polls=107, paths=3, path_segments=31. Baseline HEAD math_layout SHA-256 cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841. Probe SHA-256 e3829acc6e61b7cac2f6d9d1112898a6232176e92e96ad85c351a58666bdcdec. Repeated probe output hashes match: 28c663b68cb5ae64603f0b8d51d21eb81405fbd00a7fc752b1503f81a24e9bef.
+
+Final-source builds attempted independently in /tmp/coyote-enclosure-engine-final2 and final3. Both block before probe execution due to concurrent production change src/coyote_math/math_layout.adb:3502:52: Max_Commands is not visible; non-visible declaration at math_paths.ads:5. No production edit made. No changes after this gate marker.
+
+Final probe passed git diff --check; changed procedure has no >79-column lines. Requested source is the only file edited by this task. Existing concurrent worktree changes to plan/native-math-coverage.json and src/coyote_math/math_layout.adb are not ours.
+
+Final-source results against current production could not be obtained; HEAD-runtime pass is test behavior evidence only, not current implementation verification.

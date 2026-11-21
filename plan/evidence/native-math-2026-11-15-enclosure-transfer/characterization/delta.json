@@ -1,0 +1,124 @@
+{
+  "corpora": {
+    "allocation-heavy": {
+      "allocation_delta": {
+        "allocations": {
+          "absolute": 882,
+          "percent": 0.11267994297015131
+        },
+        "frees": {
+          "absolute": 882,
+          "percent": 0.11281022812735021
+        },
+        "heap_bytes": {
+          "absolute": -59880,
+          "percent": -0.036444526968724765
+        }
+      },
+      "baseline": {
+        "allocations": 782748,
+        "commands": 1848,
+        "frees": 781844,
+        "heap_bytes": 164304506,
+        "path_segments": 8125,
+        "paths": 538,
+        "records": 72
+      },
+      "final": {
+        "allocations": 783630,
+        "commands": 1848,
+        "frees": 782726,
+        "heap_bytes": 164244626,
+        "path_segments": 8125,
+        "paths": 538,
+        "records": 72
+      },
+      "normal_output_identical": true,
+      "output_sha256": "5ce688cd3ffbe70e51294578bc533464f9346d8edd4c8e22686c51a177005bb0",
+      "valgrind_output_identical": true
+    },
+    "baseline-regression": {
+      "allocation_delta": {
+        "allocations": {
+          "absolute": 100,
+          "percent": 0.0752139837838651
+        },
+        "frees": {
+          "absolute": 100,
+          "percent": 0.07572889057175312
+        },
+        "heap_bytes": {
+          "absolute": 40872,
+          "percent": 0.18641386285719289
+        }
+      },
+      "baseline": {
+        "allocations": 132954,
+        "commands": 352,
+        "frees": 132050,
+        "heap_bytes": 21925408,
+        "path_segments": 888,
+        "paths": 52,
+        "records": 52
+      },
+      "final": {
+        "allocations": 133054,
+        "commands": 352,
+        "frees": 132150,
+        "heap_bytes": 21966280,
+        "path_segments": 888,
+        "paths": 52,
+        "records": 52
+      },
+      "normal_output_identical": true,
+      "output_sha256": "408b5564aa53554f5df56d5f277342bc32bd731d63e5e4c6b2854d94d33ffb92",
+      "valgrind_output_identical": true
+    },
+    "repeat-10": {
+      "allocation_delta": {
+        "allocations": {
+          "absolute": 160,
+          "percent": 0.202175918320929
+        },
+        "frees": {
+          "absolute": 160,
+          "percent": 0.20451204703777082
+        },
+        "heap_bytes": {
+          "absolute": 98080,
+          "percent": 0.6502981770964558
+        }
+      },
+      "baseline": {
+        "allocations": 79139,
+        "commands": 200,
+        "frees": 78235,
+        "heap_bytes": 15082312,
+        "path_segments": 600,
+        "paths": 40,
+        "records": 10
+      },
+      "final": {
+        "allocations": 79299,
+        "commands": 200,
+        "frees": 78395,
+        "heap_bytes": 15180392,
+        "path_segments": 600,
+        "paths": 40,
+        "records": 10
+      },
+      "normal_output_identical": true,
+      "output_sha256": "d1731bf42a115fdcbfd46e4bcb4d8b69f43aab76a93c6ddc604dc50407679c5b",
+      "valgrind_output_identical": true
+    }
+  },
+  "hashes": {
+    "baseline_exporter": "5547a6b05398a0d7ed828a45f37f669ffc25e481266bf10fef0efcd832dc735f",
+    "baseline_exporter_project": "234a431cffd72a8d0dcfa0660ddd9469e29f925d7f9b91a80710ec45bdf4227c",
+    "baseline_math_layout": "cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841",
+    "final_exporter": "60ea5c89106ce862c64a9488bbef5ccf1f122b301460f59dee049964793faf65",
+    "final_exporter_project": "99542be30846bcccc6b51d4558ff1cbf4187ef9cabcef92a2b8b96f422dde8d7",
+    "final_math_layout": "317d9ccf2cbd097230869185a55495cc78fe901582b9725281665b6909b38df1"
+  },
+  "scope": "Valgrind total heap allocation counts/bytes; not RSS, peak memory, or timing"
+}

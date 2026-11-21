@@ -1,0 +1,207 @@
+{
+  "corpora": {
+    "allocation-heavy": {
+      "baseline": {
+        "allocations": 782748,
+        "commands": 1848,
+        "frees": 781844,
+        "heap_bytes": 164304506,
+        "path_segments": 8125,
+        "paths": 538,
+        "records": 72
+      },
+      "normal_output_identical_to_frozen_baseline": true,
+      "normal_output_identical_to_valgrind": true,
+      "output_sha256": "5ce688cd3ffbe70e51294578bc533464f9346d8edd4c8e22686c51a177005bb0",
+      "reserved": {
+        "allocations": 779587,
+        "commands": 1848,
+        "definitely_lost": "0 bytes in 0 blocks",
+        "errors": "0 errors from 0 contexts (suppressed: 0 from 0)",
+        "frees": 778683,
+        "heap_bytes": 160279682,
+        "indirectly_lost": "0 bytes in 0 blocks",
+        "path_segments": 8125,
+        "paths": 538,
+        "possibly_lost": "0 bytes in 0 blocks",
+        "records": 72
+      },
+      "reserved_vs_baseline": {
+        "allocations": {
+          "absolute": -3161,
+          "percent": -0.40383367316173274
+        },
+        "frees": {
+          "absolute": -3161,
+          "percent": -0.40430060216616104
+        },
+        "heap_bytes": {
+          "absolute": -4024824,
+          "percent": -2.4496126722172793
+        }
+      },
+      "reserved_vs_transfer_only": {
+        "allocations": {
+          "absolute": -4043,
+          "percent": -0.5159322639510994
+        },
+        "frees": {
+          "absolute": -4043,
+          "percent": -0.5165281337275113
+        },
+        "heap_bytes": {
+          "absolute": -3964944,
+          "percent": -2.414047933598753
+        }
+      },
+      "transfer_only": {
+        "allocations": 783630,
+        "commands": 1848,
+        "frees": 782726,
+        "heap_bytes": 164244626,
+        "path_segments": 8125,
+        "paths": 538,
+        "records": 72
+      }
+    },
+    "baseline-regression": {
+      "baseline": {
+        "allocations": 132954,
+        "commands": 352,
+        "frees": 132050,
+        "heap_bytes": 21925408,
+        "path_segments": 888,
+        "paths": 52,
+        "records": 52
+      },
+      "normal_output_identical_to_frozen_baseline": true,
+      "normal_output_identical_to_valgrind": true,
+      "output_sha256": "408b5564aa53554f5df56d5f277342bc32bd731d63e5e4c6b2854d94d33ffb92",
+      "reserved": {
+        "allocations": 132749,
+        "commands": 352,
+        "definitely_lost": "0 bytes in 0 blocks",
+        "errors": "0 errors from 0 contexts (suppressed: 0 from 0)",
+        "frees": 131845,
+        "heap_bytes": 21696752,
+        "indirectly_lost": "0 bytes in 0 blocks",
+        "path_segments": 888,
+        "paths": 52,
+        "possibly_lost": "0 bytes in 0 blocks",
+        "records": 52
+      },
+      "reserved_vs_baseline": {
+        "allocations": {
+          "absolute": -205,
+          "percent": -0.15418866675692344
+        },
+        "frees": {
+          "absolute": -205,
+          "percent": -0.1552442256720939
+        },
+        "heap_bytes": {
+          "absolute": -228656,
+          "percent": -1.0428813913063784
+        }
+      },
+      "reserved_vs_transfer_only": {
+        "allocations": {
+          "absolute": -305,
+          "percent": -0.22923023734724246
+        },
+        "frees": {
+          "absolute": -305,
+          "percent": -0.23079833522512297
+        },
+        "heap_bytes": {
+          "absolute": -269528,
+          "percent": -1.227007941262699
+        }
+      },
+      "transfer_only": {
+        "allocations": 133054,
+        "commands": 352,
+        "frees": 132150,
+        "heap_bytes": 21966280,
+        "path_segments": 888,
+        "paths": 52,
+        "records": 52
+      }
+    },
+    "repeat-10": {
+      "baseline": {
+        "allocations": 79139,
+        "commands": 200,
+        "frees": 78235,
+        "heap_bytes": 15082312,
+        "path_segments": 600,
+        "paths": 40,
+        "records": 10
+      },
+      "normal_output_identical_to_frozen_baseline": true,
+      "normal_output_identical_to_valgrind": true,
+      "output_sha256": "d1731bf42a115fdcbfd46e4bcb4d8b69f43aab76a93c6ddc604dc50407679c5b",
+      "reserved": {
+        "allocations": 78879,
+        "commands": 200,
+        "definitely_lost": "0 bytes in 0 blocks",
+        "errors": "0 errors from 0 contexts (suppressed: 0 from 0)",
+        "frees": 77975,
+        "heap_bytes": 14704792,
+        "indirectly_lost": "0 bytes in 0 blocks",
+        "path_segments": 600,
+        "paths": 40,
+        "possibly_lost": "0 bytes in 0 blocks",
+        "records": 10
+      },
+      "reserved_vs_baseline": {
+        "allocations": {
+          "absolute": -260,
+          "percent": -0.32853586727150963
+        },
+        "frees": {
+          "absolute": -260,
+          "percent": -0.3323320764363776
+        },
+        "heap_bytes": {
+          "absolute": -377520,
+          "percent": -2.5030645168990007
+        }
+      },
+      "reserved_vs_transfer_only": {
+        "allocations": {
+          "absolute": -420,
+          "percent": -0.5296409790791813
+        },
+        "frees": {
+          "absolute": -420,
+          "percent": -0.5357484533452389
+        },
+        "heap_bytes": {
+          "absolute": -475600,
+          "percent": -3.1329889241331843
+        }
+      },
+      "transfer_only": {
+        "allocations": 79299,
+        "commands": 200,
+        "frees": 78395,
+        "heap_bytes": 15180392,
+        "path_segments": 600,
+        "paths": 40,
+        "records": 10
+      }
+    }
+  },
+  "hashes": {
+    "reserved_build_log": "50934b45dd3ddcb5ec72e592c8f520ff8d6529795110bfe2099aaf5e1c8cbdca",
+    "reserved_exporter": "538e66957b560a888bf83e15f638760a36392b5397762adc5cbe5abbce99d837",
+    "reserved_exporter_project": "2418eb3f6483342a76b950474a7de2cc0803dd28b1cb5c1d804bfe547b88480a",
+    "reserved_math_layout": "d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36",
+    "reserved_source_tree_manifest": "1e1aba00f664c92aac0aa60558e2c5e05b44cf055facb1c83035183ce06183e1",
+    "transfer_only_exporter": "60ea5c89106ce862c64a9488bbef5ccf1f122b301460f59dee049964793faf65",
+    "transfer_only_math_layout": "317d9ccf2cbd097230869185a55495cc78fe901582b9725281665b6909b38df1"
+  },
+  "scope": "Valgrind total heap allocation counts/bytes; not RSS, peak memory, or timing",
+  "toolchain": "GNAT 15.2 via alr exec; GPRbuild 25.0.0; Valgrind 3.22.0"
+}

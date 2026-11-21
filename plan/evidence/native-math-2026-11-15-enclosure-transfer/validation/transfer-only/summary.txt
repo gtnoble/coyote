@@ -1,0 +1,18 @@
+Validation summary (2026-11-21)
+Root build: PASS
+elapsed_seconds=6.13 user_seconds=6.80 sys_seconds=0.98 exit_status=0
+Test development build: PASS
+elapsed_seconds=4.30 user_seconds=6.31 sys_seconds=1.36 exit_status=0
+Full Xvfb AUnit suite: PASS; 1076 run, 1076 successful, 0 failed assertions, 0 unexpected errors
+elapsed_seconds=142.22 user_seconds=8.03 sys_seconds=3.03 exit_status=0
+GTK interaction checks:
+elapsed_seconds=15.18 user_seconds=1.20 sys_seconds=0.47 exit_status=0
+GTK interaction runner/containment:
+elapsed_seconds=1.48 user_seconds=0.31 sys_seconds=0.10 exit_status=0
+Offline HTTP timeout lifecycle:
+elapsed_seconds=65.57 user_seconds=0.32 sys_seconds=0.33 exit_status=0
+Source hashes: 293/293 unchanged
+GNAT: GNATLS 15.2.0 queried only through alr exec -- gnatls -v
+Generated object paths: obj/development and test/obj/development; both requested commands explicitly select development.
+Compiler warnings: preserved in root-build.log; none silenced.
+No retries; no repository edits; no release/install/commit.

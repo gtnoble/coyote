@@ -1,0 +1,2 @@
+gprbuild: illegal option "-DMATH_ENGINE_ROOT=/tmp/coyote-enclosure-characterization/logs/engine-reserved" on the command line
+ERROR: Command ["gprbuild", "-P", "test/native/math_engine.gpr", "-DMATH_ENGINE_ROOT=/tmp/coyote-enclosure-characterization/logs/engine-reserved"] exited with code 1

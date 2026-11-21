@@ -1,0 +1,8 @@
+Compile
+   [Ada]          math_engine_probe.adb
+   [Ada]          math_layout.adb
+Bind
+   [gprbind]      math_engine_probe.bexch
+   [Ada]          math_engine_probe.ali
+Link
+   [link]         math_engine_probe.adb

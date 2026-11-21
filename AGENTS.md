@@ -565,3 +565,18 @@ Development/full1076/GTK/HTTP pass;engine Valgrind zero errors/lost bytes.
 Prior raster losses and wider qualification remain open;no hard completion or
 parity/human acceptance. Source fingerprint refreshed,coverage counts unchanged.
 No release/install/commit.
+
+
+## 2026-11-15 — Enclosure command ownership transfer (PCR-125)
+
+Report §11.26 and `plan/evidence/native-math-2026-11-15-enclosure-transfer/`
+record local command-vector transfers and pre-sized reconstruction for color,
+framed-color and phase enclosures. This removes two whole-vector snapshot sites
+without changing limits,accounting,APIs or polls. Transfer alone measured mixed
+allocation regressions;final reservation lowers allocated-byte totals1.04%,
+2.45%,2.50% on three fixed corpora and preserves134/134 full exporter records.
+These are cumulative allocation measurements,not peak/RSS/timing qualification.
+Engine3497 twice,worker346,geometry235 and stratified10000-primary replay pass;
+full1076/1076,mandatory GTK/containment/HTTP and scoped engine/exporter Valgrind
+pass. Prior raster losses and broader qualification stay open. Developer/agent
+review is not independent acceptance. No release/install/commit.

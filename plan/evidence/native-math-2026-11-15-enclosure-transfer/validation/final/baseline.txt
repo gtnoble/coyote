@@ -1,0 +1,33 @@
+2026-11-21T15:34:52-06:00
+cwd=/home/gtnoble/Projects/coyote/coyote-latex-math
+alr=alr 2.1.0
+GNATLS 15.2.0
+Copyright (C) 1992-2025, Free Software Foundation, Inc.
+
+worktree status:
+ M plan/native-math-coverage.json
+ M src/coyote_math/math_layout.adb
+ M test/tools/math_engine_probe.adb
+
+source snapshot aggregate:
+2883dc1c0bc45c9b5938069edfb36889ccb5d4c16fa1ec426f19fca0d95e275d  /tmp/coyote-enclosure-final-validation/src-before.sha256
+
+profile source:
+           ,"-gnatyu" -- Check unnecessary blank lines
+           ,"-gnatyx" -- Check extra parentheses
+           ,"-gnatW8" -- UTF-8 encoding for wide characters
+          );
+
+   type Build_Profile_Kind is ("release", "validation", "development");
+   Build_Profile : Build_Profile_Kind := "development";
+
+end Coyote_Config;
+
+   Alire_Host_Arch : constant String := "x86_64";
+
+   Alire_Host_Distro : constant String := "ubuntu";
+
+   type Build_Profile_Kind is (release, validation, development);
+   Build_Profile : constant Build_Profile_Kind := development;
+
+end Coyote_Config;

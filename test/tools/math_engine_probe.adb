@@ -1098,6 +1098,220 @@ procedure Math_Engine_Probe is
         ("SEEDED_STOPS seed=0x73746f70 cases=64 injections=128");
    end Test_Seeded_Stop_Recovery;
 
+   procedure Test_Enclosure_Transfer_Work is
+      Cancel_Work : aliased Budget_Context :=
+        (Math_Work_Control.Context with
+         Stop_At => Natural'Last,
+         Reason => Math_Work_Control.Cancel_Requested);
+      Deadline_Work : aliased Budget_Context :=
+        (Math_Work_Control.Context with
+         Stop_At => Natural'Last,
+         Reason => Math_Work_Control.Deadline_Reached);
+      Stop_Reasons : constant array (Positive range 1 .. 2) of
+        Math_Work_Control.Stop_Reason :=
+          (Math_Work_Control.Cancel_Requested,
+           Math_Work_Control.Deadline_Reached);
+
+      procedure Check_Fixture (Source, Label : String) is
+         Parsed : Math_Syntax.Document;
+         Reference : Math_Layout.Box;
+         Measured : Math_Layout.Box;
+         Fresh : Math_Layout.Box;
+         Baseline_Polls : Natural;
+         Child_Glyphs : Natural := 0;
+         Child_Paths : Natural := 0;
+         Payload_Segments : Natural := 0;
+         Last_Poll : Positive;
+      begin
+         Parsed := Math_Syntax.Parse (Source);
+         Check (Math_Syntax.Is_Valid (Parsed),
+           Label & " fixture parses directly");
+         Reference := Math_Layout.Build (Parsed, Math_Layout.Text_Style);
+         for Command of Reference.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command then
+               Child_Glyphs := Child_Glyphs + 1;
+            elsif Command.Kind = Math_Layout.Path_Command then
+               Child_Paths := Child_Paths + 1;
+               Payload_Segments := Payload_Segments +
+                 Natural (Command.Path_Data.Length);
+            end if;
+         end loop;
+         Check (Reference.Valid and then Child_Glyphs > 0 and then
+           Child_Paths > 0 and then Payload_Segments > 0,
+           Label &
+             " null-Work child has glyphs and populated path payload");
+         Poll_Count := 0;
+         Measured := Math_Layout.Build
+           (Parsed, Math_Layout.Text_Style,
+            Cancel_Work'Unchecked_Access);
+         Baseline_Polls := Poll_Count;
+         Check (Measured.Valid and then Measured = Reference and then
+           Baseline_Polls > 0,
+           Label & " exact Work build equals null-Work geometry");
+         Last_Poll := Positive (Baseline_Polls);
+         Ada.Text_IO.Put_Line
+           ("ENCLOSURE_WORK case=" & Label &
+            " polls=" & Natural'Image (Baseline_Polls) &
+            " paths=" & Natural'Image (Child_Paths) &
+            " path_segments=" & Natural'Image (Payload_Segments));
+
+         for Checkpoint in 1 .. 3 loop
+            declare
+               Target : constant Positive :=
+                 (if Checkpoint = 1 then
+                    Positive'Max (1, Baseline_Polls / 3)
+                  elsif Checkpoint = 2 then
+                    Positive'Max (1, (2 * Baseline_Polls) / 3)
+                  else Last_Poll);
+            begin
+               for Reason of Stop_Reasons loop
+                  declare
+                     Is_Cancel : constant Boolean :=
+                       Reason = Math_Work_Control.Cancel_Requested;
+                     Got_Cancel : Boolean := False;
+                     Got_Deadline : Boolean := False;
+                  begin
+                     if Is_Cancel then
+                        Cancel_Work.Stop_At := Target;
+                        Cancel_Work.Reason := Reason;
+                     else
+                        Deadline_Work.Stop_At := Target;
+                        Deadline_Work.Reason := Reason;
+                     end if;
+                     Poll_Count := 0;
+                     begin
+                        if Is_Cancel then
+                           Measured := Math_Layout.Build
+                             (Parsed, Math_Layout.Text_Style,
+                              Cancel_Work'Unchecked_Access);
+                        else
+                           Measured := Math_Layout.Build
+                             (Parsed, Math_Layout.Text_Style,
+                              Deadline_Work'Unchecked_Access);
+                        end if;
+                        Check (False,
+                          Label & " checkpoint" &
+                            Natural'Image (Checkpoint) &
+                            " unexpectedly completed");
+                     exception
+                        when Math_Work_Control.Stop_Requested =>
+                           Got_Cancel := True;
+                        when Math_Work_Control.Deadline_Expired =>
+                           Got_Deadline := True;
+                     end;
+                     Check (Poll_Count = Target and then
+                       (if Is_Cancel then Got_Cancel and then
+                          not Got_Deadline
+                        else Got_Deadline and then not Got_Cancel),
+                       Label & " checkpoint" &
+                         Natural'Image (Checkpoint) &
+                         " preserves exact stop exception identity");
+                     Cancel_Work.Stop_At := Natural'Last;
+                     Cancel_Work.Reason :=
+                       Math_Work_Control.Continue_Work;
+                     Deadline_Work.Stop_At := Natural'Last;
+                     Deadline_Work.Reason :=
+                       Math_Work_Control.Continue_Work;
+                     Poll_Count := 0;
+                     Fresh := Math_Layout.Build
+                       (Parsed, Math_Layout.Text_Style);
+                     Check (Fresh.Valid and then Fresh = Reference,
+                       Label & " recovers after checkpoint" &
+                         Natural'Image (Checkpoint) & " stop");
+                  end;
+               end loop;
+            end;
+         end loop;
+
+         Poll_Count := 0;
+         Measured := Math_Layout.Build
+           (Parsed, Math_Layout.Text_Style,
+            Cancel_Work'Unchecked_Access);
+         Check (Measured.Valid and then Measured = Reference,
+           Label & " successful Work result is mutation baseline");
+
+         declare
+            Mutated : Boolean := False;
+         begin
+            for Index_Of_Command in Reference.Commands.First_Index ..
+              Reference.Commands.Last_Index
+            loop
+               declare
+                  Command : Math_Layout.Draw_Command :=
+                    Reference.Commands (Index_Of_Command);
+               begin
+                  if Command.Kind = Math_Layout.Path_Command and then
+                    not Command.Path_Data.Is_Empty
+                  then
+                     Command.Path_Data.Clear;
+                     Reference.Commands.Replace_Element
+                       (Index_Of_Command, Command);
+                     Mutated := True;
+                     exit;
+                  end if;
+               end;
+            end loop;
+            Check (Mutated,
+              Label & " returned geometry has mutable path payload");
+            Poll_Count := 0;
+            Fresh := Math_Layout.Build
+              (Parsed, Math_Layout.Text_Style);
+            Check (Fresh.Valid and then Fresh = Measured and then
+              not Fresh.Commands.Is_Empty,
+              Label &
+                " returned path mutation cannot alter parsed child ownership");
+         end;
+      end Check_Fixture;
+   begin
+      Check_Fixture ("\colorbox{blue}{\xcancel{\widehat{x+y}}}",
+        "color");
+      Check_Fixture ("\fcolorbox{red}{blue}{\xcancel{\widehat{x+y}}}",
+        "framed");
+      Check_Fixture
+        ("\colorbox{blue}{\fcolorbox{red}{blue}" &
+         "{\xcancel{\widehat{x+y}}}}", "nested");
+      Check_Fixture ("\phase{\xcancel{\widehat{x+y}}}", "phase");
+      Check_Fixture
+        ("\colorbox{blue}{\phase{\xcancel{\widehat{x+y}}}}",
+         "nested-phase");
+
+      declare
+         Parsed : Math_Syntax.Document;
+         Rejected : Math_Layout.Box;
+         Recovered : Math_Layout.Box;
+         Source : Ada.Strings.Unbounded.Unbounded_String :=
+           Ada.Strings.Unbounded.To_Unbounded_String
+             ("\colorbox{blue}{");
+      begin
+         for Index in 1 .. 163 loop
+            Ada.Strings.Unbounded.Append (Source, "\kern{100em}");
+         end loop;
+         Ada.Strings.Unbounded.Append (Source, "\kern{84em}}");
+         Parsed := Math_Syntax.Parse
+           (Ada.Strings.Unbounded.To_String (Source));
+         Check (Math_Syntax.Is_Valid (Parsed),
+           "oversized enclosed-child fixture parses before layout");
+         Rejected := Math_Layout.Build (Parsed, Math_Layout.Text_Style);
+         Check (not Rejected.Valid and then
+           Ada.Strings.Unbounded.To_String (Rejected.Message) =
+             "invalid color-box geometry" and then
+           Rejected.Commands.Is_Empty,
+           "invalid enclosure geometry rejects before child transfer: valid=" &
+             Boolean'Image (Rejected.Valid) & " width=" &
+             Long_Float'Image (Rejected.Width) & " commands=" &
+             Ada.Containers.Count_Type'Image (Rejected.Commands.Length) &
+             " message=" &
+             Ada.Strings.Unbounded.To_String (Rejected.Message));
+         Recovered := Math_Layout.Build
+           (Math_Syntax.Parse ("x"), Math_Layout.Text_Style);
+         Check (Recovered.Valid and then
+           Recovered.Commands.Length = 1 and then
+           Recovered.Commands.First_Element.Code_Point =
+             Character'Pos ('x'),
+           "ordinary parsed layout recovers after enclosure rejection");
+      end;
+   end Test_Enclosure_Transfer_Work;
+
    procedure Test_Array_Rule_Work is
       use Ada.Strings.Unbounded;
       Counts : constant array (Positive range 1 .. 4) of Positive :=
@@ -1300,6 +1514,7 @@ procedure Math_Engine_Probe is
       Bad_Source : constant String := "\not-a-command";
    begin
       Test_Array_Rule_Work;
+      Test_Enclosure_Transfer_Work;
       Test_Foreground_Work_Control;
       Test_Seeded_Stop_Recovery;
       Test_Composed_Geometry_Recovery;

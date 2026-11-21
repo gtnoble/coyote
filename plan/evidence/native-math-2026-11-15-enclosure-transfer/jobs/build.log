@@ -1,0 +1,35 @@
+Setup
+   [mkdir]        object directory for project Math_Jobs
+   [mkdir]        exec directory for project Math_Jobs
+Compile
+   [Ada]          math_jobs_probe.adb
+   [Ada]          coyote_math_jobs.adb
+coyote_math_jobs.adb:188:12: warning: potentially unsynchronized barrier [enabled by default]
+coyote_math_jobs.adb:188:12: warning: "T173b" should be private component of type [enabled by default]
+   [Ada]          math_layout.adb
+   [Ada]          math_memory_budget.adb
+   [Ada]          math_painter.adb
+   [Ada]          math_raster.adb
+   [Ada]          math_raster_budget.adb
+   [Ada]          math_semantics.adb
+   [Ada]          math_source.adb
+   [Ada]          math_syntax.adb
+   [Ada]          math_tokens.adb
+   [Ada]          math_model.ads
+   [Ada]          math_work_control.adb
+   [Ada]          math_metrics.adb
+   [Ada]          math_paths.adb
+   [Ada]          math_radical_paths.adb
+   [Ada]          math_stretchy.adb
+   [Ada]          math_text_shaping.adb
+   [Ada]          math_expander.adb
+   [Ada]          math_macros.adb
+   [Ada]          math_symbols.adb
+   [Ada]          math_unicode.adb
+   [Ada]          math_font_data.adb
+   [Ada]          math_builtin_macros.adb
+Bind
+   [gprbind]      math_jobs_probe.bexch
+   [Ada]          math_jobs_probe.ali
+Link
+   [link]         math_jobs_probe.adb

@@ -1,0 +1,1 @@
+Files /tmp/coyote-enclosure-characterization/baseline-src/coyote_math/math_layout.adb and /tmp/coyote-enclosure-characterization/final-src/coyote_math/math_layout.adb differ

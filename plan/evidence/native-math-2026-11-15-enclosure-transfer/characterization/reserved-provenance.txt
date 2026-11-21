@@ -1,0 +1,19 @@
+Reserved enclosure allocation validation
+Timestamp UTC: 2026-11-21T21:36:54.805255+00:00
+
+Source identity:
+317d9ccf2cbd097230869185a55495cc78fe901582b9725281665b6909b38df1  /tmp/coyote-enclosure-characterization/final-src/coyote_math/math_layout.adb
+d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36  /tmp/coyote-enclosure-characterization/reserved-src/coyote_math/math_layout.adb
+538e66957b560a888bf83e15f638760a36392b5397762adc5cbe5abbce99d837  /tmp/coyote-enclosure-characterization/reserved-build/bin/math_export
+
+Snapshot check: reserved source contains 49 math source files; compare against transfer-only:
+Files /tmp/coyote-enclosure-characterization/final-src/coyote_math/math_layout.adb and /tmp/coyote-enclosure-characterization/reserved-src/coyote_math/math_layout.adb differ
+
+Toolchain: alr 2.1.0; GNAT 15.2.0 via alr exec; GPRbuild 25.0.0; Valgrind 3.22.0
+Build: alr exec -- gprbuild -P /tmp/coyote-enclosure-characterization/reserved-project/math_export.gpr -XMATH_EXPORT_ROOT=/tmp/coyote-enclosure-characterization/reserved-build
+Build log: /tmp/coyote-enclosure-characterization/logs/reserved-build.log
+Comparator: /tmp/coyote-enclosure-characterization/compare-allocation.py reserved /tmp/coyote-enclosure-characterization/reserved-build/bin/math_export
+Comparator output: /tmp/coyote-enclosure-characterization/logs/reserved-comparison.txt
+
+Engine fixtures: test/native/math_engine.gpr with MATH_ENGINE_ROOT=/tmp/coyote-enclosure-characterization/logs/engine-reserved
+Probe runs: /tmp/coyote-enclosure-characterization/logs/engine-reserved/run-1.log and run-2.log

@@ -1,0 +1,16 @@
+{
+  "parent_commit": "5c74453b047b44e7522569eeef6ad8071f006a42",
+  "project_date": "2026-11-15",
+  "sha256": {
+    "src/coyote_math/math_layout.adb": "d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36",
+    "test/tools/math_engine_probe.adb": "e3829acc6e61b7cac2f6d9d1112898a6232176e92e96ad85c351a58666bdcdec",
+    "src/coyote_math/math_layout.ads": "1c9b2aa7aa8787c1969a8b795b78a1c77e26420fdc539390ba12c5d43cb5b101",
+    "test/tools/math_export.adb": "a967be831dbe7947759163912218b0ffd99fa6f041e2e20453a652a2281d8b37",
+    "test/tools/check-math-fuzz.cjs": "b359ca9812bb2b188a8af4f9ac4d30a778e414d6b6a478eb8807ff4996b18f62",
+    "/tmp/coyote-enclosure-characterization/build/bin/math_export": "5547a6b05398a0d7ed828a45f37f669ffc25e481266bf10fef0efcd832dc735f",
+    "/tmp/coyote-enclosure-characterization/reserved-build/bin/math_export": "538e66957b560a888bf83e15f638760a36392b5397762adc5cbe5abbce99d837",
+    "/tmp/coyote-enclosure-engine-final3/bin/math_engine_probe": "4a3e767b5ed652a2a48acd5e4b472adfceddcdc83558803f46926b819e131a32",
+    "test/bin/coyote_test": "f822522716dfcf494f7b7c04e1e2e66e5ccdeb69617ed418f305fef5f21e322c",
+    "bin/coyote": "d2ec683b6cbbc8990ca190d39ebf8ce84f960bc6e4e6a3ac09d066a50eaaf75a"
+  }
+}

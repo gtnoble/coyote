@@ -1,0 +1,15 @@
+Alire generated profile inputs captured from config/:
+7fe5bd82ebd642b85437ce5fb9b604eb6b2f4a720dea323ae423aa4ded6728c1  config/coyote_config.ads
+45dde221207ab75b3735144790af76a81b9d69e32e9b448f460dc1c7b14797a7  config/coyote_config.gpr
+config/coyote_config.ads:17:   type Build_Profile_Kind is (release, validation, development);
+config/coyote_config.ads:18:   Build_Profile : constant Build_Profile_Kind := development;
+config/coyote_config.gpr:53:   type Build_Profile_Kind is ("release", "validation", "development");
+config/coyote_config.gpr:54:   Build_Profile : Build_Profile_Kind := "development";
+
+Commands invoked with development profile:
+alr build --development
+cd test && alr build --development --profiles=coyote=development
+
+Output profile object directories:
+obj/development
+test/obj/development
