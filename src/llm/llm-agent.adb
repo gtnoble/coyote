@@ -26,6 +26,7 @@ with LLM.Providers.OpenAI_Completions;
 with LLM.Providers.OpenAI_Responses;
 with LLM.Settings;
 with LLM.System_Prompt;
+with Coyote_Utils;
 with LLM.Tools;
 with LLM.Tools.Shell;
 with LLM.Tools.Temp_File;
@@ -216,7 +217,8 @@ package body LLM.Agent is
      (Store           : not null access Results_Store;
       Abort_Flg       : access LLM.Tools.Abort_Flag;
       Context_Window  : Natural;
-      Sandbox_Profile : access constant Ada.Strings.Unbounded.Unbounded_String)
+      Sandbox_Profile : access constant Ada.Strings.Unbounded.Unbounded_String;
+      Canvas_Target : not null access constant Coyote_Canvas.Import_Service.Endpoint)
    is
       entry Start (Index : Positive; Tool : Pending_Tool);
    end Worker_Task;
@@ -281,7 +283,8 @@ package body LLM.Agent is
                Is_Error        => Is_Error,
                Status          => Status,
                Abort_Flg       => Abort_Flg,
-               Sandbox_Profile => To_String (Sandbox_Profile.all));
+               Sandbox_Profile => To_String (Sandbox_Profile.all),
+               Canvas_Target   => Canvas_Target.all);
 
             --  Apply the result-size cap to plain-text results.  Image
             --  results (Media_Type non-empty) are base64-encoded binary and
@@ -1329,7 +1332,17 @@ package body LLM.Agent is
                begin
                   Provider.Send
                     (Model_Id      => To_String (S.Model_Info.Model_Id),
-                     System_Prompt => To_String (S.System_Prompt),
+                     System_Prompt => To_String (S.System_Prompt) &
+                       (if Length (S.Canvas_Target.Path) > 0 and then
+                           not S.No_Tools and then S.Model_Info.Supports_Tools
+                        then ASCII.LF & ASCII.LF &
+                          "To add local PNG, JPEG, or static SVG images to " &
+                          "the user's Canvas, use the shell tool to run " &
+                          Coyote_Utils.Shell_Quote
+                            (Coyote_Utils.Active_Executable_Path) &
+                          " canvas add -- FILE... (up to eight in order). " &
+                          "This adds drawings without submitting a prompt."
+                        else ""),
                      Messages      =>
                        Compatible_History
                          (History  => S.History,
@@ -2395,7 +2408,8 @@ package body LLM.Agent is
                                             Context_Window  =>
                                               S.Model_Info.Context_Window,
                                             Sandbox_Profile =>
-                                              S.Sandbox_Profile'Access);
+                                              S.Sandbox_Profile'Access,
+                                            Canvas_Target => S.Canvas_Target'Access);
                                        if not S.Tool_Flags (Tool_Index)
                                            .Requested
                                        then
@@ -2474,7 +2488,8 @@ package body LLM.Agent is
                                    Context_Window  =>
                                      S.Model_Info.Context_Window,
                                    Sandbox_Profile =>
-                                     S.Sandbox_Profile'Access);
+                                     S.Sandbox_Profile'Access,
+                                            Canvas_Target => S.Canvas_Target'Access);
                               declare
                                  Running_Event :
                                    constant LLM.Events
@@ -2651,6 +2666,7 @@ package body LLM.Agent is
            with "Session not found: " & UUID;
       end if;
 
+      S.Canvas_Target := (others => Null_Unbounded_String);
       S.Session_UUID := To_Unbounded_String (UUID);
       if not S.Subagent_Mode then
          S.OpenRouter_Session_UUID := S.Session_UUID;
@@ -2677,6 +2693,12 @@ package body LLM.Agent is
    begin
       S.Thinking := Level;
    end Set_Thinking;
+
+   procedure Set_Canvas_Target
+     (S : in out Session; Target : Coyote_Canvas.Import_Service.Endpoint) is
+   begin
+      S.Canvas_Target := Target;
+   end Set_Canvas_Target;
 
    procedure Set_Sandbox_Profile (S : in out Session; Profile : String) is
    begin

@@ -2177,7 +2177,13 @@ package body Coyote_App.Frontend.GUI is
             F.Canvas_Item.Set_Sensitive (True);
             Coyote_GUI.Canvas.Bind
               (F.Canvas_Window, To_String (U.Text2), To_String (U.Text),
-               To_String (U.Text3));
+               To_String (U.Text3),
+               (if U.Enabled then F.Canvas_Publication'Unchecked_Access
+                else null));
+            if not U.Enabled then
+               F.Canvas_Publication.Set
+                 (To_String (U.Text), (others => Null_Unbounded_String));
+            end if;
             F.Win.Set_Role ("coyote-session-" & To_String (U.Text));
             declare
                Updated : Boolean;
@@ -5465,15 +5471,32 @@ package body Coyote_App.Frontend.GUI is
 
    procedure Set_Session_Identity
      (F : in out Instance; Session_Id : String; Canvas_Parent : String := "";
-      Canvas_File : String := "") is
+      Canvas_File : String := ""; Enable_Canvas_Import : Boolean := False) is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Session_Identity;
       U.Text := To_Unbounded_String (Session_Id);
       U.Text2 := To_Unbounded_String (Canvas_Parent);
       U.Text3 := To_Unbounded_String (Canvas_File);
+      U.Enabled := Enable_Canvas_Import;
       Enqueue_Update (F, U);
    end Set_Session_Identity;
+
+   function Canvas_Target (F : Instance; Session_Id : String)
+      return Coyote_Canvas.Import_Service.Endpoint is
+     (F.Canvas_Publication.Get (Session_Id));
+
+   procedure Await_Canvas_Target
+     (F : in out Instance; Session_Id : String;
+      Target : out Coyote_Canvas.Import_Service.Endpoint) is
+   begin
+      select
+         F.Canvas_Publication.Await (Session_Id, Target);
+      or
+         delay 1.0;
+         Target := (others => Null_Unbounded_String);
+      end select;
+   end Await_Canvas_Target;
 
    procedure Resume_Canvas (F : in out Instance) is
       U : Coyote_GUI.Update;

@@ -30,6 +30,7 @@ with Coyote_GUI;
 with Coyote_Notify;
 with Coyote_Spawn;
 with Coyote_Utils;
+with Coyote_Canvas.Import_Service;
 with Gtk.Main;
 with Coyote_App.History;    use Coyote_App.History;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
@@ -635,7 +636,13 @@ package body Coyote_App is
                             Session_Id
                         then "" else
                           Ada.Directories.Containing_Directory (Resolved)),
-                        Canvas_File => Resolved);
+                        Canvas_File => Resolved,
+                        Enable_Canvas_Import => not Opts.No_Tools
+                          and then not Opts.Subagent
+                          and then (Opts.No_Session or else
+                            (Resolved'Length /= 0 and then
+                             Coyote_Session_Transactions.Identity (Resolved) =
+                               Session_Id)));
                   end;
                   Dispatch_Event (Event);
                end Emit_Session_Info;
@@ -736,10 +743,20 @@ package body Coyote_App is
                end Store_One_Shot_Result;
 
                procedure Run_Queued_Prompt
-                 (Prompt : String; Is_Steer : Boolean)
+                 (Prompt : String; Is_Steer : Boolean;
+                  At_Bootstrap : Boolean := False)
                is
                   pragma Unreferenced (Is_Steer);
+                  Id : constant String := LLM.Agent.Session_Id (Agent_Session);
+                  Target : Coyote_Canvas.Import_Service.Endpoint;
                begin
+                  if At_Bootstrap and then not (Opts.No_Tools or Opts.Subagent)
+                  then
+                     My_Frontend.Await_Canvas_Target (Id, Target);
+                  else
+                     Target := My_Frontend.Canvas_Target (Id);
+                  end if;
+                  LLM.Agent.Set_Canvas_Target (Agent_Session, Target);
                   LLM.Agent.Run_Prompt
                     (S        => Agent_Session,
                      Prompt   => Prompt,
@@ -897,7 +914,7 @@ package body Coyote_App is
                      Kind => Coyote_App.Frontend.Prompt);
                   Run_Queued_Prompt
                     (Prompt   => To_String (Opts.Initial_Prompt),
-                     Is_Steer => False);
+                     Is_Steer => False, At_Bootstrap => True);
                end if;
 
                --  Main input loop.

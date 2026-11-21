@@ -75,6 +75,9 @@ package body Coyote_Canvas.Revisions.Recovery is
             Append (Fields, Number (Node.Parent));
             Append (Fields, Create (Node.Key));
             Append (Fields, State_Value (Node.Content));
+            if Original_Label (W, Index) /= "" then
+               Append (Fields, Create (Original_Label (W, Index)));
+            end if;
             Append (Nodes, Create (Fields));
             Append (Refs, Create (Assets (Index)));
          end;
@@ -383,7 +386,7 @@ package body Coyote_Canvas.Revisions.Recovery is
                for I in 1 .. Length (Nodes) loop
                   declare
                      Fields : constant JSON_Array :=
-                       Array_Of (Get (Nodes, I), 3, 3);
+                       Array_Of (Get (Nodes, I), 4, 3);
                      P : constant Revision_Id :=
                        Nat (Get (Fields, 1), I - 1);
                      Key_Text : constant String := Text (Get (Fields, 2));
@@ -413,7 +416,10 @@ package body Coyote_Canvas.Revisions.Recovery is
                         Check_State (S, Roots (I));
                      end if;
                      Candidate.Revisions.Append
-                       (Revision'(P, Key, S));
+                       (Revision'(P, Key, S, others => <>));
+                     if Length (Fields) = 4 then
+                        Set_Original_Label (Candidate, I, Text (Get (Fields, 4)));
+                     end if;
                   end;
                end loop;
             end;
@@ -530,6 +536,12 @@ package body Coyote_Canvas.Revisions.Recovery is
       end if;
       Move (Target, Candidate);
    end Select_Revisions;
+
+   procedure Adopt_Added_Originals (Target, Source : in out Workspace) is
+   begin
+      --  Source is a copy extended only with new roots. Keep live undo.
+      Revision_Lists.Move (Target.Revisions, Source.Revisions);
+   end Adopt_Added_Originals;
 
    procedure Copy (Target : in out Workspace; Source : Workspace) is
       Candidate : Workspace;

@@ -7,6 +7,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Coyote_Canvas.Import_Service;
 with Ada.Strings.Unbounded;
 with LLM.Compaction;
 with LLM.Events;
@@ -122,6 +123,11 @@ package LLM.Agent is
    --  Pass "" to disable sandboxing.
    procedure Set_Sandbox_Profile (S : in out Session; Profile : String);
 
+   --  Set the root GTK import endpoint for the next prompt. This value is
+   --  passed only to shell workers, never to providers or other tools.
+   procedure Set_Canvas_Target
+     (S : in out Session; Target : Coyote_Canvas.Import_Service.Endpoint);
+
    --  Return the active sandbox profile name ("" when none).
    function Current_Sandbox (S : Session) return String;
 
@@ -231,6 +237,7 @@ private
       No_Tools                : Boolean := False;
       Thinking : LLM.Providers.Thinking_Level           := LLM.Providers.Off;
       Sandbox_Profile         : aliased Ada.Strings.Unbounded.Unbounded_String;
+      Canvas_Target           : aliased Coyote_Canvas.Import_Service.Endpoint;
       Abort_State             : aliased LLM.Tools.Abort_Flag;
       Tool_Registry : aliased Tool_Control_Registry (Max_Active_Tools);
       Tool_Flags              : Tool_Flag_Array (1 .. Max_Active_Tools);

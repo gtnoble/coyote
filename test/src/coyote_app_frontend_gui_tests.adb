@@ -14,6 +14,10 @@ with Coyote_Canvas.Store;
 with Coyote_Canvas.Store.Workspaces;
 with Coyote_Canvas.Revisions;
 with Coyote_Canvas.Document;
+with Coyote_Canvas.Import_Service;
+with Coyote_Utils;
+with GNATCOLL.JSON;
+with LLM.Tools.Shell;
 with Coyote_App.Agent_RPC.Transport;
 with Coyote_App.Frontend.GUI.Testing;
 with Coyote_GUI;
@@ -1741,6 +1745,194 @@ package body Coyote_App_Frontend_GUI_Tests is
    package Coyote_App_Frontend_GUI_Caller is new AUnit.Test_Caller
      (Coyote_App_Frontend_GUI_Tests.Test);
 
+   procedure Test_Canvas_Agent_Import (T : in out Test) is
+      use Ada.Directories;
+      use Ada.Real_Time;
+      use Ada.Strings.Unbounded;
+      use Coyote_App.Frontend.GUI.Testing;
+      use type System.Address;
+      use type Coyote_Canvas.Store.Result;
+      use type LLM.Tools.Shell.Execution_Status;
+      package Importer renames Coyote_Canvas.Import_Service;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+
+      A : constant String := "55be8400-e29b-41d4-a716-446655440000";
+      B : constant String := "55be8400-e29b-41d4-a716-446655440001";
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Target : Importer.Endpoint;
+      W : Rev.Workspace;
+      Pixels : Disk.Raster_Set;
+      Status : Coyote_Canvas.Store.Result;
+      Root : Unbounded_String;
+      Pattern : String := "/tmp/coyote-canvas-agent-XXXXXX" & ASCII.NUL;
+      Runtime_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("XDG_RUNTIME_DIR");
+      Old_Runtime : constant String :=
+        Ada.Environment_Variables.Value ("XDG_RUNTIME_DIR", "");
+      CLI : constant String := GNAT.OS_Lib.Normalize_Pathname
+        (Containing_Directory (Coyote_Utils.Active_Executable_Path)
+         & "/../../bin/coyote");
+
+      function Make_Directory (P : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+
+      procedure Put_File (Name, Text : String) is
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File,
+                             To_String (Root) & "/" & Name);
+         Ada.Text_IO.Put_Line (File, Text);
+         Ada.Text_IO.Close (File);
+      end Put_File;
+
+      function Invoke (Target : Importer.Endpoint; Operands : String;
+                       Success : Boolean) return String is
+         Args : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+         Output, Media : Unbounded_String;
+         Failed : Boolean := True;
+         Outcome : LLM.Tools.Shell.Execution_Status;
+         task Run is
+            entry Start;
+         end Run;
+         task body Run is
+         begin
+            accept Start do
+               null;
+            end Start;
+            LLM.Tools.Shell.Execute_With_Status
+              (GNATCOLL.JSON.Write (Args), Output, Media, Failed, Outcome,
+               Canvas_Target => Target);
+         end Run;
+         Deadline : constant Time := Clock + Seconds (15);
+      begin
+         Args.Set_Field ("command", "cd " & Coyote_Utils.Shell_Quote
+           (To_String (Root)) & " && " & Coyote_Utils.Shell_Quote (CLI)
+           & " canvas add -- " & Operands);
+         Args.Set_Field ("timeout", Integer (12));
+         Run.Start;
+         Await_Exit : while not Run'Terminated loop
+            Drain_Events;
+            Assert (Clock < Deadline, "shell import test deadline");
+            delay 0.01;
+         end loop Await_Exit;
+         Assert ((not Failed and then Outcome = LLM.Tools.Shell.Completed) =
+                 Success, "unexpected shell result: " & To_String (Output));
+         return To_String (Output);
+      end Invoke;
+
+      procedure Cleanup is
+      begin
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         if Runtime_Was_Set then
+            Ada.Environment_Variables.Set ("XDG_RUNTIME_DIR", Old_Runtime);
+         else
+            Ada.Environment_Variables.Clear ("XDG_RUNTIME_DIR");
+         end if;
+         if Length (Root) /= 0 then
+            Delete_Tree (To_String (Root));
+         end if;
+      end Cleanup;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Assert (Exists (CLI), "build the development CLI before running this test");
+      Assert (Make_Directory (Pattern'Address) /= System.Null_Address,
+              "create private fixture runtime directory");
+      Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      Ada.Environment_Variables.Set ("XDG_RUNTIME_DIR", To_String (Root));
+      Put_File (A & ".jsonl", "{}");
+      Put_File ("first.svg", "<svg xmlns='http://www.w3.org/2000/svg'"
+                & " width='9' height='7'><rect width='9' height='7'"
+                & " fill='blue'/></svg>");
+      Put_File ("-second.svg", "<svg xmlns='http://www.w3.org/2000/svg'"
+                & " width='4' height='3'><rect width='4' height='3'"
+                & " fill='red'/></svg>");
+      Put_File ("bad.svg", "not an image");
+      Frontend.Create ("Canvas shell import test", Pop_Under => True);
+      Frontend.Set_Session_Identity
+        (A, To_String (Root), To_String (Root) & "/" & A & ".jsonl",
+         Enable_Canvas_Import => True);
+      Drain_Events;
+      Target := Frontend.Canvas_Target (A);
+      Assert (Length (Target.Capability) = 64 and then
+              Length (Frontend.Canvas_Target (B).Path) = 0,
+              "authority bound to the current root UUID");
+      declare
+         Reply : constant String := Invoke (Target, "first.svg -second.svg", True);
+      begin
+         Disk.Load (To_String (Root), A, W, Pixels, Status);
+         Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (W) = 2,
+                 "successful shell exit requires a committed Canvas batch");
+         Assert (Reply = "first.svg" & ASCII.HT & Rev.Drawing_Key (W, 1)
+                 & ASCII.HT & Rev.Revision_Key (W, 1) & ASCII.LF
+                 & "-second.svg" & ASCII.HT & Rev.Drawing_Key (W, 2)
+                 & ASCII.HT & Rev.Revision_Key (W, 2) & ASCII.LF,
+                 "ordered labels and stable IDs match the manifest: " & Reply);
+         Assert (Rev.Original_Label (W, 1) = "first.svg" and then
+                 Rev.Original_Label (W, 2) = "-second.svg" and then
+                 Length (Pixels (1)) = 9 * 7 * 4 and then
+                 Length (Pixels (2)) = 4 * 3 * 4 and then Rev.Base (W) = 0,
+                 "native-sized Originals do not start or change the draft");
+         Assert (Canvas_Window (Frontend) = null, "import does not open Canvas");
+      end;
+      declare
+         Reply : constant String := Invoke (Target, "first.svg bad.svg", False);
+      begin
+         Assert (Reply'Length > 0, "failed decode reports an error");
+      end;
+      declare
+         Temp : constant String := To_String (Root) & "/" & A
+           & ".canvas/.canvas.tmp";
+      begin
+         Create_Directory (Temp);
+         declare
+            Reply : constant String := Invoke (Target, "first.svg", False);
+         begin
+            Assert (Reply'Length > 0, "failed persistence reports an error");
+         end;
+         Delete_Directory (Temp);
+      end;
+      Canvas_Item (Frontend).Activate;
+      Drain_Events;
+      declare
+         Tree : constant Gtk.Tree_View.Gtk_Tree_View := Gtk.Tree_View.Gtk_Tree_View
+           (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas_Window (Frontend)),
+                                "coyote-canvas-drawings"));
+      begin
+         Assert (Gtk.Tree_Model.N_Children (Tree.Get_Model) = 2,
+                 "decode and persistence failures add no live rows");
+         Assert (Gtk.Tree_Selection.Count_Selected_Rows (Tree.Get_Selection) = 0,
+                 "background import does not select a drawing");
+      end;
+      Reset_Agents_From_Task (Frontend);
+      Frontend.Set_Session_Identity (B, Enable_Canvas_Import => True);
+      Drain_Events;
+      declare
+         Reply : constant String := Invoke (Target, "first.svg", False);
+      begin
+         Assert (Reply'Length > 0 and then not Exists (To_String (Target.Path)),
+                 "previous endpoint disappears on reset");
+      end;
+      declare
+         Reply : constant String :=
+           Invoke (Frontend.Canvas_Target (B), "first.svg", True);
+      begin
+         Assert (Reply'Length > 0 and then
+                 not Exists (To_String (Root) & "/" & B & ".canvas"),
+                 "memory-only import has no durable side effects");
+      end;
+      Cleanup;
+   exception
+      when others =>
+         Cleanup;
+         raise;
+   end Test_Canvas_Agent_Import;
+
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
@@ -1817,6 +2009,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas session recovery and writer lease",
             Test_Canvas_Session_Recovery'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas authorized shell import",
+            Test_Canvas_Agent_Import'Access));
       return Result;
    end Suite;
 

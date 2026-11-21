@@ -115,7 +115,8 @@ package body Coyote_GUI.Canvas_Recovery_Jobs is
    procedure Finish
      (Item : in out Job_Access; Document : in out Rev.Workspace;
       Pixels : in out Disk.Raster_Set; Lease : in out Store.Writer_Lease;
-      Status, Claim_Status : out Store.Result)
+      Status, Claim_Status : out Store.Result;
+      Adopt_Additions : Boolean := False)
    is
    begin
       Item.Completed.Wait;
@@ -128,6 +129,10 @@ package body Coyote_GUI.Canvas_Recovery_Jobs is
             Recovery.Move (Document, Item.Document);
          end if;
          Store.Move (Lease, Item.Lease);
+      end if;
+      if Adopt_Additions and then Status in Store.Ok | Store.Uncertain then
+         Pixels := Item.Pixels;
+         Recovery.Adopt_Added_Originals (Document, Item.Document);
       end if;
       Discard (Item);
    end Finish;

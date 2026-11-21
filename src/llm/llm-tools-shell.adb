@@ -10,6 +10,7 @@ with Ada.Exceptions;
 with Ada.Real_Time;
 with Ada.Strings;
 with Ada.Strings.Fixed;
+with Coyote_Canvas.Import_Service;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Temp_Files;
 with GNATCOLL.JSON;
@@ -292,7 +293,9 @@ package body LLM.Tools.Shell is
       Is_Error        : out Boolean;
       Status          : out Execution_Status;
       Abort_Flg       :     access LLM.Tools.Abort_Flag := null;
-      Sandbox_Profile :     String                      := "")
+      Sandbox_Profile :     String := "";
+      Canvas_Target   :     Coyote_Canvas.Import_Service.Endpoint :=
+        (others => Ada.Strings.Unbounded.Null_Unbounded_String))
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args_Json);
@@ -599,7 +602,12 @@ package body LLM.Tools.Shell is
             declare
                Launch_Accepted : Boolean;
                Needs_Signal    : Boolean;
+               Env             : Environment_Dict;
+               package Importer renames Coyote_Canvas.Import_Service;
             begin
+               Env.Include (Importer.SOCKET_ENV, To_String (Canvas_Target.Path));
+               Env.Include (Importer.TOKEN_ENV,
+                            To_String (Canvas_Target.Capability));
                Coyote_Process_Control.Begin_Launch (Launch_Accepted);
                if not Launch_Accepted then
                   Set_Error
@@ -614,6 +622,8 @@ package body LLM.Tools.Shell is
                   Handle  :=
                     Start
                       (Args   => Args,
+                       Env => Env,
+                       Inherit_Env => True,
                        Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
                        Stdout => Output_W,
                        Stderr =>

@@ -26,6 +26,7 @@ with Glib;                  use Glib;
 with LLM.Agent;
 with LLM.Model_Registry;
 with Coyote_GUI.Canvas;
+with Coyote_Canvas.Import_Service;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
@@ -210,7 +211,13 @@ package Coyote_App.Frontend.GUI is
    --  request is queued so the GTK window is changed only on the GTK task.
    procedure Set_Session_Identity
      (F : in out Instance; Session_Id : String; Canvas_Parent : String := "";
-      Canvas_File : String := "");
+      Canvas_File : String := ""; Enable_Canvas_Import : Boolean := False);
+   function Canvas_Target (F : Instance; Session_Id : String)
+      return Coyote_Canvas.Import_Service.Endpoint;
+   --  Agent-task-only bootstrap wait; normal prompt dispatch is nonblocking.
+   procedure Await_Canvas_Target
+     (F : in out Instance; Session_Id : String;
+      Target : out Coyote_Canvas.Import_Service.Endpoint);
 
    procedure Resume_Canvas (F : in out Instance);
 
@@ -330,6 +337,7 @@ private
       --  State
       Win_Name                : Unbounded_String;
       Canvas_Window           : aliased Coyote_GUI.Canvas.Instance;
+      Canvas_Publication      : aliased Coyote_Canvas.Import_Service.Binding;
       Canvas_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Canvas_Transition       : Boolean := False;
       Stats_Window            : Coyote_GUI.Session_Stats_Window.Instance;

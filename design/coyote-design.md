@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.55
+**Version:** 1.56
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -13,8 +13,8 @@ Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
 Development builds include additive CLI dispatch, legacy session listing
 parity and the modeless Canvas with native-size GUI file batches, PNG/JPEG
 clipboard import, GTK autosave and reopen, shared writer exclusion, and
-Canvas-aware session-store forks and deletion (§5.51). The shell import
-service, attachment submission/replay, and desktop qualification remain
+Canvas-aware session-store forks and deletion, and scoped shell import
+(§5.51). Attachment submission/replay and desktop qualification remain
 pending.
 
 **Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
@@ -543,7 +543,7 @@ not wait for the complete user turn.
 
 | Unit | Initial implementation or planned allocation |
 |---|---|
-| `Coyote_CLI` (`src/coyote_cli.ads/.adb`) | Dispatches subcommands before launcher initialization. `session list` uses `Session_Lister.Print_TSV`; `canvas add` validates syntax but reports unavailable. |
+| `Coyote_CLI` (`src/coyote_cli.ads/.adb`) | Dispatches subcommands before launcher initialization. `session list` uses `Session_Lister.Print_TSV`; `canvas add` uploads an authorized, ordered byte batch without starting a frontend. |
 | `Coyote_Canvas` (`src/coyote_canvas.ads`) | Namespace for widget-independent Canvas primitives. |
 | `Coyote_Canvas.Document` (`src/coyote_canvas-document.ads/.adb`) | Half-open crop rectangles, pointer/numeric geometry and mapping to source extents. |
 | `Coyote_Canvas.Revisions` (`src/coyote_canvas-revisions.ads/.adb`) | Bounded in-memory revision tree, blank Originals, crop extents and per-draft edit history. |
@@ -555,7 +555,7 @@ not wait for the complete user turn.
 | `Coyote_Canvas.SVG` (`src/coyote_canvas-svg.ads/.adb`, `src/coyote_canvas_svg_c.c`) | Bounded static UTF-8 SVG preflight with libxml2 and one-time RGBA rasterization with librsvg/Cairo. |
 | `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file batches and clipboard decode on one worker; all-or-nothing GTK-main-task completion. |
 | `Coyote_GUI.Canvas_Recovery_Jobs` (`src/coyote_gui/coyote_gui-canvas_recovery_jobs.ads/.adb`) | One background recovery job per Canvas; binds each job to the resolved session, transfers validated loads and an exclusive Canvas lease, and saves owned snapshots without accessing GTK. |
-| `Coyote_Canvas.Import_Service` | Planned; accept authorized, bounded file data for one live session. |
+| `Coyote_Canvas.Import_Service` (`src/coyote_canvas-import_service.ads/.adb`, `src/coyote_canvas_import_c.c`) | Private same-user Unix socket, per-binding capability, bounded file intake, and receipt lookup by request ID. |
 | `Coyote_Canvas.Revisions.Recovery` (`src/coyote_canvas-revisions-recovery.ads/.adb`) | Versioned metadata codec; extract a fork subset with stable IDs, ancestry, and independent stroke storage. |
 | `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private transport, exclusive GTK editor lease, fork sidecar reservation, and checked nonrecursive removal. |
 | `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging and no-replace publication for new JSONL files. |
@@ -827,9 +827,9 @@ simple and auditable.*
 ### 5.1 `Coyote` (entry point)
 
 **Subcommand dispatch:** `Coyote_CLI` dispatches `session list` and `canvas add`
-before launcher/frontend initialization. `canvas add` does not yet contact a
-service or read files. Existing invocations use the path below. Grammar,
-compatibility and the planned import authority boundary are in
+before launcher/frontend initialization. `canvas add` authenticates before
+opening operands; ordinary launcher startup clears inherited Canvas authority.
+Existing invocations use the path below. Grammar and authority are in
 [SDD-CANVAS §3](coyote-canvas-design.md#3-cli-and-local-import-protocol).
 
 **Physical-window launch:** The GUI `Fork` action and `File → New Window`
@@ -3130,8 +3130,8 @@ checkpoints the previous draft if needed. Crop changes only the source extent;
 strokes keep their original source coordinates. A view transform never edits
 drawing pixels. Close hides the workspace; session reset clears the live
 model and releases its Canvas writer lease. Session switch and exit flush
-writable changes or ask before discarding them. The command-line import
-service and user-image workflow below are not yet available.
+writable changes or ask before discarding them. Authorized command-line
+import is available; attaching and sending user images are not.
 
 **Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`
 rasterizes stored ink into an A8 Cairo mask on the original pixel grid and
@@ -3271,9 +3271,38 @@ and synchronizes the JSONL entry first, then removes the flat sidecar without
 following links or descending into directories. Failure after log removal
 reports uncertainty; a crash can leave an unlisted sidecar, but a surviving
 log is not intentionally left without its Canvas. The shared lock inode stays
-in place. This increment adds no new deletion command or menu, and does not
-reclaim orphan assets in retained sessions. Provenance labels, attachment
-staging and replay, and hardware qualification remain pending.
+in place. No deletion command or menu is provided, and orphan assets in
+retained sessions are not reclaimed.
+
+**Authorized shell import.** The root GTK session publishes one private Unix
+socket endpoint and a random 256-bit capability. The shell launch copies
+these into its child environment only. Prompt text advertises the active,
+shell-quoted executable and syntax but never the endpoint or capability.
+The service checks same-user credentials and the capability before allowing
+operands to be opened. It neither changes sandbox bindings nor accepts paths
+or a target UUID. Closing Canvas leaves the binding live; a session reset
+or shutdown revokes it. Startup with no private runtime directory leaves the
+command unavailable.
+
+The v1 binary protocol uses a 16-byte request ID, network-order 32-bit file
+and response lengths, and sanitized ASCII basenames of at most 64 bytes.
+It admits one batch at a time (eight files, 8 MiB each, 32 MiB aggregate).
+Handshake and batch transfer each have a ten-second deadline; the server
+waits up to 60 seconds for the result. The 32-entry receipt cache retains
+terminal dispositions for two minutes and refuses admission if full rather
+than evicting a live receipt. A client that loses the reply can query the
+same ID, not upload again. Unknown results must be checked in Drawings.
+
+GTK routes uploaded buffers through the existing bounded decode worker, then
+packs native RGBA, checks workspace capacity, and saves a separate candidate
+on the recovery worker. A successful commit adopts only the added revisions
+and raster set, preserving the working copy, preview and selection. Labels
+are optional bounded fields on Original nodes in the recovery manifest.
+The worker can initialize recovery before any Canvas window is created.
+Failed commits publish no live additions; an uncertain manifest rename is
+adopted as visible but is not acknowledged as durable. Memory-only bindings
+never write a sidecar. Attachment staging, replay, and hardware qualification
+remain pending.
 
 [SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
 interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file
@@ -3300,7 +3329,7 @@ planned qualification; no end-to-end qualification or product acceptance is clai
 | REQ-CORE-001–005 | `Coyote` (entry point) |
 | REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
 | REQ-CORE-020a–020c, 115, 115a, 115c | `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel and reset presentation |
-| REQ-CORE-026–028 (planned) | `Coyote`, `Coyote_CLI`, `Session_Lister`, `Coyote_Canvas.Import_Service`; SDD-CANVAS §3 |
+| REQ-CORE-026–028 | `Coyote`, `Coyote_CLI`, `Session_Lister`, `Coyote_Canvas.Import_Service`; SDD-CANVAS §3 |
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |

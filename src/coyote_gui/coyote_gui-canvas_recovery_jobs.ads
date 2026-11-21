@@ -19,7 +19,8 @@ package Coyote_GUI.Canvas_Recovery_Jobs is
    procedure Finish
      (Item : in out Job_Access; Document : in out Rev.Workspace;
       Pixels : in out Disk.Raster_Set; Lease : in out Store.Writer_Lease;
-      Status, Claim_Status : out Store.Result);
+      Status, Claim_Status : out Store.Result;
+      Adopt_Additions : Boolean := False);
    procedure Discard (Item : in out Job_Access);
 
 private

@@ -54,7 +54,8 @@ client-controlled work product gets an entry here.
   accepted by the product owner on 2026-11-21.
 - **Status:** Open; the product owner authorized implementation on 2026-11-21.
   Additive CLI dispatch and compatible session listing are implemented.
-  `canvas add` parses operands but does not read files or contact a service.
+  Authorized `canvas add` transfers ordered bytes from the root shell and
+  returns stable IDs after Canvas publication.
   See the Core Agent and Frontends development logs for verification scope.
   The modeless workspace, in-memory revision tree, and atomic GUI batches of
   PNG, JPEG, and supported static SVG are implemented. The internal workspace
@@ -63,8 +64,8 @@ client-controlled work product gets an entry here.
   Canvas-only writer lease. Canvas commits and JSONL mutations share a
   per-session transaction guard. Session-store deletion removes the private
   Canvas, and forks of stored user image records preserve only the referenced
-  revisions and ancestors. CLI import, attachment submission and replay,
-  orphan reclamation, qualification, and deployment remain pending.
+  revisions and ancestors. Attachment submission and replay, orphan
+  reclamation, qualification, and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

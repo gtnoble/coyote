@@ -17,7 +17,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
    subtype Slot_Index is Positive range 1 .. Max_Outstanding;
    subtype File_Index is Positive range 1 .. MAX_FILES;
-   type Source_Kind is (Bytes_Source, Files_Source);
+   type Source_Kind is (Bytes_Source, Files_Source, Batch_Source);
    type Job_State is (Free, Queued, Running, Complete);
    type Stored_Path_List is array (File_Index) of Unbounded_String;
    type Raw_Pixbuf_List is
@@ -69,6 +69,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Token    : System.Address;
          Callback : Completion;
          Index    : out Natural);
+      procedure Add_Batch
+        (Data : Coyote_Canvas.Import_Service.Text_List;
+         Token : System.Address; Callback : Completion; Index : out Natural);
       procedure Claim (Index : out Natural; Found : out Boolean);
       procedure Restore (Index : Slot_Index);
       procedure Get
@@ -159,6 +162,27 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             end if;
          end loop;
       end Add_Files;
+
+      procedure Add_Batch
+        (Data : Coyote_Canvas.Import_Service.Text_List;
+         Token : System.Address; Callback : Completion; Index : out Natural)
+      is
+      begin
+         Index := 0;
+         for I in Items'Range loop
+            if Items (I).State = Free then
+               Items (I) :=
+                 (State => Queued, Kind => Batch_Source,
+                  Path_Count => Data'Length, Token => Token,
+                  Callback => Callback_Access (Callback), others => <>);
+               for J in Data'Range loop
+                  Items (I).Paths (J - Data'First + 1) := Data (J);
+               end loop;
+               Index := I;
+               return;
+            end if;
+         end loop;
+      end Add_Batch;
 
       procedure Claim (Index : out Natural; Found : out Boolean) is
       begin
@@ -455,6 +479,38 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end;
    end Submit_Bytes;
 
+   procedure Submit_Batch
+     (Data     : Coyote_Canvas.Import_Service.Text_List;
+      Token    : System.Address;
+      Callback : Completion;
+      Accepted : out Boolean)
+   is
+      Index : Natural;
+      Total : Natural := 0;
+   begin
+      Accepted := False;
+      if Data'Length not in 1 .. MAX_FILES then
+         return;
+      end if;
+      for Image of Data loop
+         if Length (Image) not in 1 .. Coyote_Canvas.Rasters.MAX_ENCODED_BYTES
+           or else Length (Image) > MAX_BATCH_ENCODED_BYTES - Total
+         then
+            return;
+         end if;
+         Total := Total + Length (Image);
+      end loop;
+      Queue.Add_Batch (Data, Token, Callback, Index);
+      if Index /= 0 then
+         begin
+            Start_Pump;
+            Accepted := True;
+         exception
+            when others => Queue.Release (Slot_Index (Index));
+         end;
+      end if;
+   end Submit_Batch;
+
    procedure Submit_Files
      (Paths    :        Path_List;
       Token    :        System.Address;
@@ -597,8 +653,19 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                else
                   for I in 1 .. Path_Count loop
                      Path := Paths (I);
-                     Decode_File
-                       (To_String (Path), Encoded_Total, Raw (I), Item_Error);
+                     if Kind = Files_Source then
+                        Decode_File
+                          (To_String (Path), Encoded_Total, Raw (I), Item_Error);
+                     elsif Coyote_Canvas.Rasters.Detect (To_String (Path)) =
+                       Coyote_Canvas.Rasters.Unknown
+                     then
+                        Coyote_Canvas.SVG.Decode
+                          (To_String (Path), Raw (I), Item_Error);
+                     else
+                        Coyote_Canvas.Rasters.Decode
+                          (To_String (Path), Coyote_Canvas.Rasters.Unknown,
+                           Raw (I), Width, Height, Item_Error);
+                     end if;
                      if Length (Item_Error) /= 0 then
                         Error := To_Unbounded_String
                           ("Image " & Ada.Strings.Fixed.Trim
@@ -617,6 +684,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                      end if;
                   end loop;
                end if;
+               Paths := (others => Null_Unbounded_String);
+               Path := Null_Unbounded_String;
                if Length (Error) /= 0 then
                   Release_All (Raw);
                   Pixel_Count := 0;

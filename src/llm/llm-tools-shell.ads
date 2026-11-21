@@ -7,6 +7,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Coyote_Canvas.Import_Service;
 with Ada.Strings.Unbounded;
 
 package LLM.Tools.Shell is
@@ -68,5 +69,7 @@ package LLM.Tools.Shell is
       Is_Error        : out Boolean;
       Status          : out Execution_Status;
       Abort_Flg       :     access LLM.Tools.Abort_Flag := null;
-      Sandbox_Profile :     String                      := "");
+      Sandbox_Profile :     String := "";
+      Canvas_Target   :     Coyote_Canvas.Import_Service.Endpoint :=
+        (others => Ada.Strings.Unbounded.Null_Unbounded_String));
 end LLM.Tools.Shell;

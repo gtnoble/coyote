@@ -43,9 +43,15 @@ List sessions for the current working directory, newest first. Output and
 exit behavior match
 .BR coyote_list_sessions (1).
 .TP
-.B canvas add
-Recognized for CLI development; the Canvas import service is not yet
-available and the command does not read files or start a session.
+.B canvas add [\-\-] FILE...
+Add up to eight regular PNG, JPEG, or supported static SVG files to the live
+Canvas authorized by a local root GTK shell call. Relative filenames are
+resolved in the calling shell's directory. The optional double dash ends
+option parsing. Files are added atomically in operand order, without opening
+Canvas, changing selection, or submitting a prompt. Success prints the
+sanitized basename, drawing ID, and Original revision ID separated by tabs.
+Without live authority the command fails before reading the files. If the
+outcome is unknown, inspect Drawings before resubmitting.
 .PP
 Use
 .BR \-h " or " \-\-help

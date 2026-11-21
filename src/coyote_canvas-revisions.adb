@@ -1,4 +1,5 @@
 with Interfaces.C.Strings;
+with Ada.Strings.Fixed;
 
 package body Coyote_Canvas.Revisions is
    use type Interfaces.C.Strings.chars_ptr;
@@ -121,7 +122,7 @@ package body Coyote_Canvas.Revisions is
                Content =>
                  (Extent => Document.Full_Extent (Size.Width, Size.Height),
                   Image  => Count (W) + 1,
-                  others => <>)));
+                  others => <>), others => <>));
       end loop;
       First_Id := Before + 1;
    exception
@@ -132,6 +133,23 @@ package body Coyote_Canvas.Revisions is
          end if;
          raise;
    end Add_Originals;
+
+   procedure Set_Original_Label (W : in out Workspace; Id : Revision_Id;
+                                 Label : String) is
+   begin
+      if Parent (W, Id) /= NO_REVISION or else Label'Length > 64 then
+         raise Constraint_Error;
+      end if;
+      for Ch of Label loop
+         if Ch not in 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | ' ' | '_' | '-' | '.' then
+            raise Constraint_Error;
+         end if;
+      end loop;
+      W.Revisions (Id).Label := Ada.Strings.Fixed.Head (Label, 64);
+   end Set_Original_Label;
+
+   function Original_Label (W : Workspace; Id : Revision_Id) return String is
+     (Ada.Strings.Fixed.Trim (W.Revisions (Id).Label, Ada.Strings.Right));
 
    function Background
      (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id is
@@ -145,7 +163,7 @@ package body Coyote_Canvas.Revisions is
          W.Revisions.Append
            (Revision'
               (Parent => W.Base_Id, Key => Unique_UUID (W),
-               Content => W.Draft));
+               Content => W.Draft, others => <>));
          W.Base_Id := Count (W);
       end if;
    end Save;
@@ -169,10 +187,11 @@ package body Coyote_Canvas.Revisions is
       if Save_Changed then
          W.Revisions.Append
            (Revision'(Parent => W.Base_Id, Key => Saved_Key,
-                      Content => W.Draft));
+                      Content => W.Draft, others => <>));
       end if;
       W.Revisions.Append
-        (Revision'(Parent => NO_REVISION, Key => New_Key, Content => Blank));
+        (Revision'(Parent => NO_REVISION, Key => New_Key, Content => Blank,
+                    others => <>));
       W.Draft   := Blank;
       W.Base_Id := Count (W);
       W.Past.Clear;

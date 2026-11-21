@@ -1,5 +1,19 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Authorized shell Canvas import (PCR-130)
+
+The existing shell tool supplies a child-only capability and Unix socket
+endpoint for the live local root Canvas. The CLI authenticates before
+opening operands and sends bounded, ordered bytes, not paths. A receipt
+lookup can recover a lost reply without re-uploading the batch. The model
+sees only the shell-quoted command syntax, not the endpoint or capability.
+
+Both development builds passed. The offline protocol check verified denied
+admission, bounds and malformed framing, ordered bytes, duplicate rejection,
+receipt lookup, and endpoint removal. Canvas CLI compatibility passed.
+The serial Xvfb suite passed 1,114/1,114 (exit 0). These are developer checks,
+not sandbox-profile, live-provider, or hardware qualification.
+
 ## 2026-11-21 — Canvas-aware session forks and deletion (PCR-130)
 
 Forking a retained user image record now copies its saved revision, ancestors,

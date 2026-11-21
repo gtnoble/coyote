@@ -35,6 +35,8 @@ with Gtk.Tree_Selection;
 with Gtk.Tree_View_Column;
 with Gtk.Widget;
 
+with Coyote_Canvas.Revisions.Recovery;
+
 package body Coyote_GUI.Canvas is
    use type Ada.Containers.Count_Type;
    package Doc renames Coyote_Canvas.Document;
@@ -44,6 +46,8 @@ package body Coyote_GUI.Canvas is
    package Jobs renames Coyote_GUI.Canvas_Import_Jobs;
    package Recovery_Jobs renames Coyote_GUI.Canvas_Recovery_Jobs;
    package Persistence renames Recovery_Jobs.Store;
+   package Service renames Coyote_Canvas.Import_Service;
+   use type Service.Binding_Access;
    use Ada.Strings.Unbounded;
    use type Ada.Real_Time.Time;
    use type Recovery_Jobs.Job_Access;
@@ -69,6 +73,7 @@ package body Coyote_GUI.Canvas is
    use type Gtk.Tree_Model.Gtk_Tree_Path_List.Glist;
    use type Gtk.Accel_Group.Gtk_Accel_Group;
    use type Gtk.Tree_Model.Gtk_Tree_Iter;
+   use type Gtk.Tree_Store.Gtk_Tree_Store;
    use type Gtk.Window.Gtk_Window;
    use type Glib.Gint;
    use type Glib.Gdouble;
@@ -89,11 +94,13 @@ package body Coyote_GUI.Canvas is
    Requests : array (Request_Index range 1 .. 4) of aliased Import_Request;
    MAX_IMAGE_BYTES : constant := 128 * 1_024 * 1_024;
 
-   procedure Invalidate (S : Instance; Paste_Only : Boolean := False) is
+   procedure Invalidate
+     (S : Instance; Paste_Only : Boolean := False; Keep_Agent : Boolean := False) is
    begin
       for R of Requests loop
          if R.Owner /= null and then R.Owner.all'Address = S'Address
            and then (not Paste_Only or else R.Origin = Clipboard_Image)
+           and then (not Keep_Agent or else R.Origin /= Agent_Image)
          then
             R.Owner := null;
          end if;
@@ -193,7 +200,7 @@ package body Coyote_GUI.Canvas is
    end Set_Status;
 
    function Can_Edit (S : Instance) return Boolean is
-     (not S.Suspended and then
+     (not S.Suspended and then S.Import_Count = 0 and then
         (Length (S.Parent) = 0 or else S.Writable));
 
    procedure Storage_Status (S : Instance; Text : String) is
@@ -270,6 +277,9 @@ package body Coyote_GUI.Canvas is
 
    procedure Extend_Tree (S : in out Instance) is
    begin
+      if S.Store = null then
+         return;
+      end if;
       for Id in S.Listed + 1 .. Rev.Count (S.Document) loop
          Add_Row :
          declare
@@ -282,9 +292,11 @@ package body Coyote_GUI.Canvas is
             S.Store.Set
               (S.Rows (Id), 0,
                (if Ancestor /= 0 then "Revision" & Natural'Image (Id)
+                elsif Rev.Original_Label (S.Document, Id) /= "" then
+                  Rev.Original_Label (S.Document, Id) & " (Original)"
                 else (case S.Images (Id).Origin is
                       when Clipboard_Image => "Clipboard Image",
-                      when File_Image => "Imported Image",
+                      when File_Image | Agent_Image => "Imported Image",
                       when Blank => "Blank Drawing") & Natural'Image (Id)
                   & " (Original)"));
             S.Store.Set (S.Rows (Id), 1, Glib.Gint (Id));
@@ -366,6 +378,86 @@ package body Coyote_GUI.Canvas is
 
    procedure Mark_Dirty (S : aliased in out Instance);
 
+   procedure Agent_Result
+     (S : in out Instance; Status : Service.Result; Text : String) is
+   begin
+      Service.Finish (S.Service, Status, Text);
+      S.Background_Status := To_Unbounded_String
+        ((case Status is
+          when Service.Ok => "Agent images added to Drawings at native size.",
+          when Service.Unknown => "Canvas import durability is uncertain.",
+          when Service.Rejected => "Agent image import rejected: " & Text));
+      Set_Status (S, To_String (S.Background_Status));
+   end Agent_Result;
+
+   procedure Import_Agent
+     (S : Instance_Access; Pixels : Jobs.Image_List; Error : String)
+   is
+      Candidate : Rev.Workspace;
+      Assets : Recovery_Jobs.Disk.Raster_Set;
+      Sizes : Rev.Image_Sizes (Pixels'Range);
+      First : Rev.Revision_Id;
+      Remaining : Natural := MAX_IMAGE_BYTES - S.Image_Bytes;
+      Reply : Unbounded_String;
+   begin
+      if not Can_Edit (S.all) or else S.Job /= null or else S.Drawing
+        or else S.Crop_Mode
+      then
+         Agent_Result (S.all, Service.Rejected, "Canvas is busy or read-only");
+         return;
+      elsif Pixels'Length = 0 then
+         Agent_Result (S.all, Service.Rejected, Error);
+         return;
+      end if;
+      for I in Pixels'Range loop
+         Sizes (I) := (Positive (Gdk.Pixbuf.Get_Width (Pixels (I))),
+                       Positive (Gdk.Pixbuf.Get_Height (Pixels (I))));
+         if Sizes (I).Height > Remaining / (Sizes (I).Width * 4) then
+            Agent_Result (S.all, Service.Rejected, "Canvas raster limit reached");
+            return;
+         end if;
+         Remaining := Remaining - Sizes (I).Height * Sizes (I).Width * 4;
+      end loop;
+      Rev.Recovery.Copy (Candidate, S.Document);
+      Assets := S.Disk_Pixels;
+      Rev.Add_Originals (Candidate, Sizes, First);
+      for I in Pixels'Range loop
+         declare
+            J : constant Positive := I - Pixels'First + 1;
+            Id : constant Rev.Revision_Id := First + J - 1;
+            Label : constant String := To_String (S.Import_Labels (J));
+         begin
+            Rev.Set_Original_Label (Candidate, Id, Label);
+            Assets (Id) := Packed (Pixels (I));
+            Append (Reply, Label & ASCII.HT & Rev.Drawing_Key (Candidate, Id) &
+                    ASCII.HT & Rev.Revision_Key (Candidate, Id) & ASCII.LF);
+         end;
+      end loop;
+      S.Import_Bytes := MAX_IMAGE_BYTES - Remaining;
+      if Length (S.Parent) = 0 then
+         S.Disk_Pixels := Assets;
+         Rev.Recovery.Adopt_Added_Originals (S.Document, Candidate);
+         S.Image_Bytes := S.Import_Bytes;
+         Agent_Result (S.all, Service.Ok, To_String (Reply));
+         Extend_Tree (S.all);
+         Refresh (S.all);
+      else
+         S.Import_Reply := Reply;
+         Recovery_Jobs.Start
+           (S.Job, Recovery_Jobs.Save_Store, To_String (S.Parent),
+            To_String (S.UUID), Candidate, Assets, To_String (S.Session_File));
+         S.Import_Count := Pixels'Length;
+         Refresh (S.all);
+      end if;
+   exception
+      when Rev.Capacity_Error =>
+         Agent_Result (S.all, Service.Rejected, "Canvas revision limit reached");
+      when others =>
+         if S.Import_Count = 0 then
+            Agent_Result (S.all, Service.Rejected, "Cannot prepare Canvas batch");
+         end if;
+   end Import_Agent;
+
    procedure Import_Complete
      (Token : System.Address; Pixels : Jobs.Image_List; Error : String)
    is
@@ -383,7 +475,12 @@ package body Coyote_GUI.Canvas is
       S := Requests (I).Owner;
       Origin := Requests (I).Origin;
       Requests (I) := (others => <>);
-      if S = null or else not Can_Edit (S.all) then
+      if S = null then
+         return;
+      elsif Origin = Agent_Image then
+         Import_Agent (S, Pixels, Error);
+         return;
+      elsif not Can_Edit (S.all) then
          return;
       elsif Pixels'Length = 0 then
          Report_Import_Error (S, Error);
@@ -906,8 +1003,25 @@ package body Coyote_GUI.Canvas is
       Status, Claim_Status : Persistence.Result;
    begin
       Recovery_Jobs.Finish (S.Job, S.Document, S.Disk_Pixels, S.Lease,
-                            Status, Claim_Status);
-      if S.Loading then
+                            Status, Claim_Status,
+                            Adopt_Additions => S.Import_Count /= 0);
+      if S.Import_Count /= 0 then
+         S.Import_Count := 0;
+         if Status in Persistence.Ok | Persistence.Uncertain then
+            S.Image_Bytes := S.Import_Bytes;
+            S.Pending_Save := Status = Persistence.Uncertain;
+            S.Save_Failed := S.Pending_Save;
+            Agent_Result
+              (S, (if Status = Persistence.Ok then Service.Ok else Service.Unknown),
+               (if Status = Persistence.Ok then To_String (S.Import_Reply)
+                else "Canvas import outcome unknown; inspect Drawings before resubmitting"));
+            Extend_Tree (S);
+         else
+            Agent_Result (S, Service.Rejected, "Canvas commit failed: " & Status'Image);
+         end if;
+         S.Import_Reply := Null_Unbounded_String;
+         Refresh (S);
+      elsif S.Loading then
          S.Loading := False;
          if Status in Persistence.Ok | Persistence.Missing then
             S.Writable := Claim_Status = Persistence.Ok;
@@ -998,13 +1112,97 @@ package body Coyote_GUI.Canvas is
       end if;
    end Mark_Dirty;
 
-   procedure Bind (S : in out Instance; Parent, UUID : String;
-                   Session_File : String := "") is
+   procedure Ensure_Load (S : aliased in out Instance) is
+   begin
+      if not S.Load_Started and then Length (S.Parent) /= 0 then
+         S.Load_Started := True;
+         S.Loading := True;
+         Storage_Status (S, "Opening session Canvas...");
+         Recovery_Jobs.Start
+           (S.Job, Recovery_Jobs.Open_Store, To_String (S.Parent),
+            To_String (S.UUID), S.Document, S.Disk_Pixels, To_String (S.Session_File));
+         Wake_Recovery (S);
+      end if;
+   exception
+      when others =>
+         Recovery_Jobs.Discard (S.Job);
+         S.Loading := False;
+         Storage_Status (S, "Cannot open session Canvas.");
+   end Ensure_Load;
+
+   function Poll_Import (S : Instance_Access) return Boolean is
+      Data : Service.Text_List (1 .. Service.MAX_FILES);
+      Count : Natural;
+      Slot : Request_Index;
+      Accepted : Boolean;
+   begin
+      if S.Import_Count /= 0 and then Recovery_Jobs.Ready (S.Job) then
+         Finish_Job (S.all);
+      end if;
+      if not Service.Pending (S.Service) then
+         return True;
+      end if;
+      if not S.Suspended then
+         Ensure_Load (S.all);
+         if S.Job /= null then
+            return True;
+         end if;
+      end if;
+      Service.Take (S.Service, Data, S.Import_Labels, Count);
+      if Count = 0 then
+         return True;
+      end if;
+      if not Can_Edit (S.all) then
+         Agent_Result (S.all, Service.Rejected, "Canvas is read-only or switching sessions");
+         return True;
+      end if;
+      Slot := Acquire (S, Agent_Image);
+      if Slot /= 0 then
+         Jobs.Submit_Batch (Data (1 .. Count), Requests (Slot)'Address,
+                            Import_Complete'Access, Accepted);
+         if Accepted then
+            return True;
+         end if;
+         Requests (Slot) := (others => <>);
+      end if;
+      Agent_Result (S.all, Service.Rejected, "Canvas decode queue is full");
+      return True;
+   exception
+      when others =>
+         if S.Import_Count = 0 then
+            Agent_Result (S.all, Service.Rejected, "Cannot dispatch Canvas batch");
+         end if;
+         return True;
+   end Poll_Import;
+
+   procedure Bind (S : aliased in out Instance; Parent, UUID : String;
+                   Session_File : String := "";
+                   Publication : Service.Binding_Access := null) is
+      Target : Service.Endpoint;
    begin
       S.Parent := To_Unbounded_String (Parent);
       S.UUID := To_Unbounded_String (UUID);
       S.Session_File := To_Unbounded_String (Session_File);
       S.Suspended := False;
+      if Publication /= null and then UUID /= "" then
+         S.Publication := Publication;
+         begin
+            Service.Start (S.Service, Target);
+            if Service.Running (S.Service) then
+               S.Import_Timer := Recovery_Timer.Timeout_Add
+                 (50, Poll_Import'Access, S'Unchecked_Access);
+               if S.Import_Timer = 0 then
+                  Service.Stop (S.Service);
+                  Target := (others => Null_Unbounded_String);
+               end if;
+            end if;
+         exception
+            when others =>
+               Service.Stop (S.Service);
+               Target := (others => Null_Unbounded_String);
+         end;
+         Publication.Set (UUID, Target);
+      end if;
       Refresh (S);
    end Bind;
 
@@ -1012,6 +1210,13 @@ package body Coyote_GUI.Canvas is
    begin
       S.Suspended := Value;
       if Value then
+         for R of Requests loop
+            if R.Owner /= null and then R.Owner.all'Address = S'Address
+              and then R.Origin = Agent_Image
+            then
+               Agent_Result (S, Service.Rejected, "Canvas session transition");
+            end if;
+         end loop;
          Invalidate (S);
          Destroy_Import_Dialogs (S);
          if S.Canvas_Window /= null then
@@ -1043,24 +1248,12 @@ package body Coyote_GUI.Canvas is
    begin
       if S.Canvas_Window = null then
          Build_Window (S, Parent);
+         Extend_Tree (S);
+         if Length (S.Background_Status) /= 0 then
+            Set_Status (S, To_String (S.Background_Status));
+         end if;
       end if;
-      if not S.Load_Started and then Length (S.Parent) /= 0 then
-         S.Load_Started := True;
-         S.Loading := True;
-         Storage_Status (S, "Opening session Canvas...");
-         begin
-            Recovery_Jobs.Start
-              (S.Job, Recovery_Jobs.Open_Store, To_String (S.Parent),
-               To_String (S.UUID), S.Document, S.Disk_Pixels,
-               To_String (S.Session_File));
-            Wake_Recovery (S);
-         exception
-            when others =>
-               Recovery_Jobs.Discard (S.Job);
-               S.Loading := False;
-               Storage_Status (S, "Cannot open session Canvas.");
-         end;
-      end if;
+      Ensure_Load (S);
       S.Canvas_Window.Show;
       S.Canvas_Window.Present;
       Refresh (S);
@@ -1077,6 +1270,19 @@ package body Coyote_GUI.Canvas is
    procedure Reset (S : in out Instance) is
    begin
       S.Resetting := True;
+      if S.Publication /= null then
+         S.Publication.Clear;
+         S.Publication := null;
+      end if;
+      if S.Import_Timer /= 0 then
+         Glib.Main.Remove (S.Import_Timer);
+         S.Import_Timer := 0;
+      end if;
+      if S.Import_Count /= 0 then
+         Finish_Job (S);
+      end if;
+      Service.Stop (S.Service);
+      S.Background_Status := Null_Unbounded_String;
       if S.Timer /= 0 then
          Glib.Main.Remove (S.Timer);
          S.Timer := 0;
@@ -1345,7 +1551,7 @@ package body Coyote_GUI.Canvas is
       if S /= null and then S.Canvas_Window /= null then
          Cancel_Gesture (S.all);
          Refresh (S.all);
-         Invalidate (S.all);
+         Invalidate (S.all, Keep_Agent => True);
          Destroy_Import_Dialogs (S.all);
          Clear_Display (S.all);
          S.Canvas_Window.Hide;

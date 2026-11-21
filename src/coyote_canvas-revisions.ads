@@ -31,6 +31,9 @@ package Coyote_Canvas.Revisions is
    --  or allocation failure leaves the workspace unchanged.
    procedure Add_Originals
      (W : in out Workspace; Sizes : Image_Sizes; First_Id : out Revision_Id);
+   procedure Set_Original_Label (W : in out Workspace; Id : Revision_Id;
+                                 Label : String);
+   function Original_Label (W : Workspace; Id : Revision_Id) return String;
    function Background
      (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id;
    function Revision_Key (W : Workspace; Id : Revision_Id) return Stable_Id;
@@ -90,6 +93,7 @@ private
       Parent  : Revision_Id;
       Key     : Stable_Id;
       Content : Drawing_State;
+      Label : String (1 .. 64) := (others => ' ');
    end record;
    package Revision_Lists is new Ada.Containers.Vectors (Positive, Revision);
 

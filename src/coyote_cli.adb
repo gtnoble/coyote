@@ -2,6 +2,8 @@ with Ada.Command_Line; use Ada.Command_Line;
 with Ada.Directories;
 with Ada.Text_IO; use Ada.Text_IO;
 with Session_Lister;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_Canvas.Import_Service;
 
 package body Coyote_CLI is
 
@@ -11,7 +13,7 @@ package body Coyote_CLI is
       Put_Line
         ("  session list             List sessions for this directory");
       Put_Line
-        ("  canvas add [--] FILE...   Canvas import (not yet available)");
+        ("  canvas add [--] FILE...   Import into an authorized Canvas");
       Put_Line ("  Use -h or --help after a group or command for usage.");
    end Print_Subcommands;
 
@@ -43,6 +45,23 @@ package body Coyote_CLI is
       end if;
    end Session_Command;
 
+   package Canvas_Import renames Coyote_Canvas.Import_Service;
+   use type Canvas_Import.Result;
+
+   procedure Print_Receipt (Text : String) is
+      First : Positive := Text'First;
+   begin
+      for I in Text'Range loop
+         if Text (I) = ASCII.LF then
+            Put_Line (Text (First .. I - 1));
+            First := I + 1;
+         end if;
+      end loop;
+      if First <= Text'Last then
+         Put_Line (Text (First .. Text'Last));
+      end if;
+   end Print_Receipt;
+
    procedure Canvas_Add is
       Count      : constant Natural := Argument_Count;
       First_File : Positive := 3;
@@ -51,7 +70,7 @@ package body Coyote_CLI is
       if Count = 3 and then Is_Help (Argument (3)) then
          Put_Line ("Usage: coyote canvas add [--] FILE...");
          Put_Line ("Add PNG, JPEG or SVG files to an authorized GUI session.");
-         Put_Line ("Canvas import is not available in this build.");
+         Put_Line ("Requires a live Canvas capability from the root shell tool.");
          return;
       end if;
 
@@ -78,9 +97,27 @@ package body Coyote_CLI is
          end File_Operand;
       end loop;
 
-      --  Until a scoped import endpoint exists, do not probe paths or
-      --  guess a session. This branch has no file or session side effects.
-      Fail ("Canvas import unavailable: no authorized Canvas service");
+      if Count - First_File + 1 > Canvas_Import.MAX_FILES then
+         Fail ("canvas add takes at most eight files");
+         return;
+      end if;
+      declare
+         Files : Canvas_Import.Text_List (1 .. Count - First_File + 1);
+         Status : Canvas_Import.Result;
+         Message : Unbounded_String;
+      begin
+         for I in Files'Range loop
+            Files (I) := To_Unbounded_String (Argument (First_File + I - 1));
+         end loop;
+         Canvas_Import.Add (Files, Status, Message);
+         if Status = Canvas_Import.Ok then
+            Print_Receipt (To_String (Message));
+         else
+            Fail (To_String (Message));
+         end if;
+      exception
+         when others => Fail ("Canvas import failed; inspect Drawings before retrying");
+      end;
    end Canvas_Add;
 
    procedure Canvas_Command is

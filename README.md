@@ -192,8 +192,17 @@ working copy. Undo/Redo history is not restored. **File → Save** checkpoints
 the draft and can retry a failed autosave. If another window owns the Canvas,
 this window can view its last saved state but cannot edit it.
 
-With `--no-session`, Canvas remains in memory only. `coyote canvas add` and
-prompt attachments are not yet available.
+With `--no-session`, Canvas remains in memory only. An authorized `shell`
+call from the local root GTK session can run `coyote canvas add -- FILE...`
+to import up to eight PNG, JPEG, or supported static SVG files in operand
+order. The command prints each drawing's label, drawing ID, and Original
+revision ID after the whole batch is committed (or added to memory with
+`--no-session`). It does not open Canvas, change selection, or attach images
+to a prompt. A regular terminal or a subagent without the live capability
+cannot use the command to find or target a session. If the command reports
+an unknown outcome, check Drawings before submitting the files again.
+
+Prompt attachments are not yet available.
 
 ## Session listing
 

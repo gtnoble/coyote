@@ -47,6 +47,7 @@ with Coyote_App;
 with Coyote_App.Plain;
 with Coyote_App.RPC;
 with Coyote_CLI;
+with Coyote_Canvas.Import_Service;
 with Coyote_Process_Control;
 with GNAT.OS_Lib;
 with Coyote_Utils;
@@ -190,6 +191,8 @@ begin
    if Coyote_CLI.Dispatch then
       return;
    end if;
+
+   Coyote_Canvas.Import_Service.Clear_Inherited;
 
    if not Coyote_Process_Control.Install then
       Ada.Text_IO.Put_Line

@@ -1,5 +1,19 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Background shell additions to Canvas (PCR-130)
+
+The bounded worker decodes ordered bytes for the originating Canvas. A
+persisted addition is acknowledged only after its candidate manifest commits.
+Successful additions keep the current draft and selection, retain sanitized
+Original labels, and do not open Canvas or stage a prompt. Reset revokes the
+old socket. Memory-only bindings do not publish sidecars.
+
+Five focused Canvas cases passed with fatal GTK criticals enabled, including
+the real shell/CLI import fixture and decode/storage rollback. Full serial
+Xvfb AUnit passed 1,114/1,114. Standalone GTK checks passed 9/9 and the runner
+containment self-test passed. Attachment submission and replay, tablet, and
+Wayland qualification remain open.
+
 ## 2026-11-21 — Canvas session write coordination (PCR-130)
 
 The GTK editor lease remains separate from the shared transaction guard.

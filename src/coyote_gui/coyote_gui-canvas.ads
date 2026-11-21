@@ -1,6 +1,7 @@
 with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with Coyote_Canvas.Store;
+with Coyote_Canvas.Import_Service;
 with Coyote_GUI.Canvas_Recovery_Jobs;
 with Glib.Main;
 with Coyote_Canvas.Document;
@@ -30,8 +31,9 @@ package Coyote_GUI.Canvas is
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class);
    --  An empty directory selects memory-only mode. A changed binding must
    --  follow Reset. The manifest is opened lazily when Canvas is shown.
-   procedure Bind (S : in out Instance; Parent, UUID : String;
-                   Session_File : String := "");
+   procedure Bind (S : aliased in out Instance; Parent, UUID : String;
+                   Session_File : String := "";
+                   Publication : Coyote_Canvas.Import_Service.Binding_Access := null);
    function Flush (S : in out Instance) return Boolean;
    procedure Suspend (S : in out Instance; Value : Boolean);
    procedure Reset (S : in out Instance);
@@ -44,7 +46,7 @@ private
      array (Positive range 1 .. Coyote_Canvas.Revisions.MAX_REVISIONS)
        of Gtk.Tree_Model.Gtk_Tree_Iter;
 
-   type Image_Origin is (Blank, Clipboard_Image, File_Image);
+   type Image_Origin is (Blank, Clipboard_Image, File_Image, Agent_Image);
    type Image_Asset is record
       Pixels : Gdk.Pixbuf.Gdk_Pixbuf := null;
       Origin : Image_Origin := Blank;
@@ -71,6 +73,15 @@ private
       Lease : Coyote_Canvas.Store.Writer_Lease;
       Job : Canvas_Recovery_Jobs.Job_Access;
       Timer : Glib.Main.G_Source_Id := 0;
+      Service : Coyote_Canvas.Import_Service.Listener;
+      Publication : Coyote_Canvas.Import_Service.Binding_Access;
+      Import_Timer : Glib.Main.G_Source_Id := 0;
+      Import_Count : Natural := 0;
+      Import_Bytes : Natural := 0;
+      Import_Reply : Ada.Strings.Unbounded.Unbounded_String;
+      Import_Labels : Coyote_Canvas.Import_Service.Text_List
+        (1 .. Coyote_Canvas.Import_Service.MAX_FILES);
+      Background_Status : Ada.Strings.Unbounded.Unbounded_String;
       Suspended, Loading, Load_Started, Writable : Boolean := False;
       Pending_Save, Save_Failed : Boolean := False;
       Save_After : Ada.Real_Time.Time := Ada.Real_Time.Time_First;

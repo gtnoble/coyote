@@ -38,6 +38,9 @@ package Coyote_Canvas.Revisions.Recovery is
      (Source : Workspace; Requested : References; Target : in out Workspace;
       Source_Ids : out Revision_Mapping);
 
+   --  Adopt only the revision list of a copy extended by Add_Originals.
+   procedure Adopt_Added_Originals (Target, Source : in out Workspace);
+
    --  Publish a completely validated candidate without allocating.
    procedure Move (Target, Source : in out Workspace);
 end Coyote_Canvas.Revisions.Recovery;

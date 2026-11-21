@@ -8,6 +8,7 @@
 --  Opens require regular files and reject a symlink at the final component.
 with Ada.Strings.Unbounded;
 with Coyote_Canvas.Rasters;
+with Coyote_Canvas.Import_Service;
 with Gdk.Pixbuf;
 with System;
 
@@ -36,6 +37,12 @@ package Coyote_GUI.Canvas_Import_Jobs is
       Token    :        System.Address;
       Callback :        Completion;
       Accepted :    out Boolean);
+
+   procedure Submit_Batch
+     (Data     : Coyote_Canvas.Import_Service.Text_List;
+      Token    : System.Address;
+      Callback : Completion;
+      Accepted : out Boolean);
 
    procedure Submit_Files
      (Paths    :        Path_List;
