@@ -1,11 +1,11 @@
 # Native math compatibility requirements — SRS-MATH
 
 **Component:** coyote shared native math engine and GTK integration
-**Version:** 1.0
-**Date:** 2026-10-24
-**Change:** PCR-125
-**Status:** Requirements v1.0 approved by the user on 2026-10-24; implementation partial, final qualification and product acceptance pending
-**Authority:** User approved the native route, phased plan, and this requirements annex on 2026-10-24
+**Version:** 1.1
+**Date:** 2026-11-15
+**Change:** PCR-125 — practical resource-abuse protection
+**Status:** User-authorized resource-scope revision; implementation partial, final qualification and product acceptance pending
+**Authority:** Original v1.0 approved 2026-10-24; user directed practical abuse protection and authorized this requirements update on 2026-11-15
 
 ## Contents
 
@@ -146,12 +146,20 @@ does under that policy, not misreported as unknown commands. Warnings shall
 not silently authorize trusted effects. Policy-sensitive constructs and any
 approved native equivalents shall follow §4.
 
-**REQ-MATH-010 — Resource safety (T/A).** The engine shall enforce the reviewed
-source, token/expansion, node/depth, array, output-command, dimension, memory,
-and work budgets before unsafe allocation/processing. Exceeding a budget shall
-produce bounded cleanup and visible source fallback rather than a crash or
-unbounded GTK stall. Limits and limit-induced differences shall be reported;
-limits shall not excuse semantic discrepancies for in-domain cases.
+**REQ-MATH-010 — Resource-abuse protection (T/A).** The engine shall reject
+abusive and pathological formulas using the finite source, token/expansion,
+node/depth, array, output-command, dimension/surface and work limits in §5,
+plus coarse memory admission for tracked major workspace/output buffers and
+known large copy overlaps before their allocation. The guard coverage, estimates
+and exclusions shall be documented; exhaustive allocation accounting and an
+exact whole-job or process-memory bound are not required. Exceeding a guard
+shall produce bounded cleanup and visible source fallback rather than a crash
+or unbounded GTK stall. Rejection, cancellation and failure shall leave workers
+and subsequent ordinary requests usable, without leaking request state.
+Ordinary ownership and memory safety remain mandatory. Limits and limit-induced
+differences shall be reported; limits shall not excuse semantic discrepancies
+for in-domain cases. Verification shall include deterministic pathological
+inputs, repeated submissions and post-rejection recovery, not just ledger totals.
 
 **REQ-MATH-011 — Native integration (T/D).** Existing inline/display delimiters,
 Markdown code protection, original-source copying, selection, zoom, theme
@@ -277,7 +285,7 @@ relaxed tolerances require a recorded requirements change.
 | Layout depth / draw commands | 256 / 131072 | 64 / 16384 |
 | Absolute calculated dimensions | 16384 em; user sizing capped at 100 em | 16384 em layout bound |
 | Final inline / display surface including padding | 2000×512 / 8192×4096 pixels | Existing geometry checks plus four-pixel padding |
-| Native math job additional memory | At most 256 MiB, including transient output; fonts/preexisting GUI baseline reported separately | Not measured |
+| Coarse math-job memory admission | 256 MiB per-job budget for tracked major workspace/output buffers and known large overlaps; documented estimates/exclusions, not an all-allocation or RSS cap | Scoped parser/raster guards exist; abuse-protection qualification pending |
 | Retained raster-cache growth | At most 64 MiB total per process; source/session retention measured separately | Not qualified |
 | Processing latency on qualification workstation | Warm fixed representative corpus p95 ≤50 ms; bounded jobs terminate/reject within 250 ms; no synchronous GTK math work slice over 50 ms | Not measured |
 
@@ -289,13 +297,20 @@ subject to the application's session/message limits and is not included in the
 math-workspace budget. Display rendering may use native drawing rather than
 allocate a maximum-size surface; retained rasters must respect the cache bound.
 For accounting use ARGB32 actual Cairo stride × height: a maximum 8192×4096
-surface alone occupies 128 MiB before intermediate buffers. The 256 MiB job cap
-includes owned syntax/tokens/layout, new surfaces and intermediate buffers;
-cached copies count during the job too, then against the 64 MiB process cache.
-A surface larger than the cache must not be retained there. Report accounted
-allocations and isolated-process peak RSS above a fixed warmed baseline
-separately. Shared font caches and session source retention are reported
-separately. Surface bounds do not require every output to be rasterized.
+surface alone occupies 128 MiB before intermediate buffers. The 256 MiB value
+is a coarse admission budget for tracked major workspace/output buffers and
+known large copy overlaps, not a guarantee for every live allocation. Document
+the covered phases, conservative size estimates and untracked storage; no
+per-string, allocator-metadata, native-library-cache or retained-document lease
+accounting is required merely for completeness. New large raster buffers and
+known large copied buffers shall be checked before allocation. Retained rasters
+remain subject to the separate 64 MiB process bound; a surface larger than that
+cache must not be retained there. Report guard charges separately from any
+isolated-process peak RSS characterization above a fixed warmed baseline. RSS
+is diagnostic, not a 256 MiB pass/fail criterion. Storage pools, retained-account
+leases and alternative representations are design options, not prerequisites.
+Existing safe resource ownership and cleanup remain required regardless of
+accounting coverage. Surface bounds do not require every output to be rasterized.
 
 Comparison targets (calibration/readiness conditions retained):
 
@@ -338,7 +353,15 @@ Comparison targets (calibration/readiness conditions retained):
   thresholds return to requirements review before any relaxation.
 - Robustness: require at least 10000 seeded generated/adversarial cases per
   final qualification run, plus deterministic limit/ownership/failure tests.
-  Fuzz success alone is not proof of all-input safety or complete equivalence.
+  Include recursive/explosive macros, expanded-output growth, deep nesting,
+  large arrays, excessive/nonfinite dimensions, costly layout combinations,
+  and repeated submissions. Verify guard rejection, cancellation, source
+  fallback, cleanup and subsequent ordinary-request recovery. Exercise tracked
+  major-buffer admission below/at/above its budget with documented estimates;
+  do not require complete allocation attribution. Unexpected crashes, hangs,
+  state leakage and unexplained continued growth shall be investigated, not
+  excused as untracked storage. Fuzz success alone is not proof of all-input
+  safety or complete equivalence.
 
 No new hardware procurement, deployment sites, or personnel/training obligations
 are proposed. Corpus storage and acceptance-run time will be measured in P1;
@@ -349,9 +372,10 @@ still subject to review, not preselected implementations.
 ## 6. Verification and traceability
 
 Sources: U1 = user native-route choice and plan approval; U2 = reported
-heat-balance failure and confirmed command gaps; B1 = existing core rendering,
-source fallback, session and GUI contracts. Test IDs below name planned
-families; detailed inputs/procedures belong to the reviewed Test Description.
+heat-balance failure and confirmed command gaps; U3 = user resource-scope
+clarification and authorized requirements update, 2026-11-15; B1 = existing
+core rendering, source fallback, session and GUI contracts. Test IDs name
+planned families; detailed inputs/procedures belong to the Test Description.
 
 | Requirement | Source | Verification family and expected evidence |
 |---|---|---|
@@ -364,7 +388,7 @@ families; detailed inputs/procedures belong to the reviewed Test Description.
 | REQ-MATH-007 | U1 | MATH-OPTIONS: settings/defaults/policy-mode combinations |
 | REQ-MATH-008 | U1/B1 | MATH-ERROR: source/position/error-fragment and GTK fatal fallback |
 | REQ-MATH-009 | U1/B1 | MATH-TRUST: denied effects, argument validation, no external I/O |
-| REQ-MATH-010 | U1/B1 | MATH-LIMIT: boundary, hostile-input, memory/work/cancellation evidence |
+| REQ-MATH-010 | U1/U3/B1 | MATH-LIMIT: structural boundaries, documented coarse admission, hostile-input rejection, cancellation and recovery |
 | REQ-MATH-011 | U1/B1 | MATH-GUI: inline/display, copy/zoom/theme/replay and dependency checks |
 | REQ-MATH-012 | U1/B1 | MATH-A11Y: structured content and named user desktop/tool demonstrations |
 | REQ-MATH-013 | U1/U2 | MATH-DIFF: reproducible corpus, snapshots, threshold results and gaps |
@@ -380,8 +404,11 @@ qualification and product acceptance remain pending.
 
 The user approved the version/profile, complete-core accounting, native/API
 and optional-extension boundaries, D01–D15, state behavior, resource targets and
-verification families on 2026-10-24. These approved requirements remain
-unchanged. Native design and project execution are approved; implementation is
+verification families on 2026-10-24. The user authorized the v1.1 resource
+scope correction on 2026-11-15: practical abuse protection replaces exhaustive
+whole-job memory enforcement. Structural/output limits, the 64 MiB retained
+raster bound, 50/250 ms timing targets, compatibility and D01–D15 are unchanged.
+Native design and project execution are approved; implementation is
 partial, with P1 readiness and final qualification still open. The approved
 scope must not be narrowed by implementation gaps. Geometry/visual calibration
 and independent acceptance remain pending.

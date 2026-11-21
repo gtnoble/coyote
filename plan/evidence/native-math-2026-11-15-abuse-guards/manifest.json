@@ -1,0 +1,12 @@
+{
+  "head": "d30c4e95ae25e44eff73fb0470574e07ada29caa",
+  "runtime_source_changed": false,
+  "production_scope": "SRS-MATH v1.1 practical abuse guards; no qualification or acceptance",
+  "compiler": "GNAT 15.2.0",
+  "sha256": {
+    "test/tools/math_engine_probe.adb": "06ce266fac9cb7f2c80c9088cd2b5f85c7713d3e2d0d99a27840f8f728fa7d22",
+    "test/tools/math_jobs_probe.adb": "53386fc686ed29a55e327ae2aa522d5632233b9ef0f906b06b41fcd649eb10f3",
+    "/tmp/coyote-math-abuse-engine-final/bin/math_engine_probe": "0289e4b6b8392182739d247151866322311c3f081d90fb7fc2934c8505cc21ef",
+    "/tmp/coyote-math-abuse-jobs-final/bin/math_jobs_probe": "b43b978db71e7ad4fad8bb70aa9a1db2840c902d5cd7a1b8e30b43bb1761b0db"
+  }
+}

@@ -1,26 +1,33 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.42
-**Date:** 2026-11-06
+**Version:** 1.43
+**Date:** 2026-11-15
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**PCR-125 native-math status (2026-11-06):** SRS-MATH v1.0 and D01–D15 remain
-authoritative and unchanged; the already-approved execution continues without
-reopening approval. Coordinator report §11, “Current implementation and
-qualification reconciliation — 2026-11-06”, is the latest recorded checkpoint;
-§10 and earlier sections are historical. It records 28/29 raster cases
+**PCR-125 native-math status:** SRS-MATH v1.1 is current; §11.18 of the
+coordinator report records its user-authorized resource-scope correction.
+D01–D15 remain unchanged. Report §11 contains current implementation/evidence;
+§10 and earlier sections are historical. The dated 2026-11-06 snapshot recorded
+28/29 raster cases
 (long-tilde mask 0.9851 < 0.99), 278/338 scoped semantic matches with 60 explicit
 gaps (strict comparison failed), and 235/235 geometry matches. A 1063/1063 suite
 and repeat with one prompt-filter assertion failure of unproven non-math cause
 are recorded, not a fresh pass; the failure is not waived. Temporary artifacts
-are unavailable for this documentation-only update; tests were not rerun. Queue-
-inclusive 250 ms completion, GTK ≤50 ms work, aggregate 256 MiB job memory,
-inline worker painting/tiled adoption, complete corpus/reference behavior,
-readiness and qualification remain open. Independent human visual/accessibility
-acceptance has not occurred. No parity or product acceptance is established.
+are unavailable for this documentation-only update; tests were not rerun. SRS-
+MATH v1.1 dated 2026-11-15 now governs practical resource guards: the ≤256 MiB
+budget is coarse admission for tracked major buffers/known overlaps, not all
+allocations or physical memory; RSS is diagnostic, not the pass/fail oracle.
+The separate 64 MiB retained-raster ledger and queue-inclusive 250 ms / GTK
+≤50 ms timing targets remain unchanged. Practical guard coverage and
+qualification remain open; exhaustive whole-job allocation/RSS accounting is
+not a current acceptance prerequisite. Inline worker painting is implemented;
+the 2026-11-15 checkpoint records GTK bounded-row Pixbuf adoption. Complete
+corpus/reference behavior, readiness and qualification remain open. Independent
+human visual/accessibility acceptance has not occurred. No parity or product
+acceptance is established.
 ---
 
 ## Table of Contents

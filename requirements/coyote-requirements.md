@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.33
-**Date:** 2026-10-26
+**Version:** 1.34
+**Date:** 2026-11-15
 **Status:** Session-contained local PNG/JPEG behavior is implemented and PCR-116 automated qualification is complete; DEM-060 desktop qualification remains pending
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
@@ -12,7 +12,8 @@ open gaps are recorded in `plan/native-math-parity-test-report.md`.
 **Project Plan:** `plan/project-plan.md`
 
 **Approved native-math target amendment (2026-10-24, PCR-125):**
-`requirements/native-math-compatibility.md` v1.0 extends REQ-CORE-111/124 with
+`requirements/native-math-compatibility.md` v1.1 (resource-scope revision
+authorized 2026-11-15; original v1.0 approved 2026-10-24) extends REQ-CORE-111/124 with
 the approved pinned KaTeX core/native profile, D01–D15 dispositions and resource
 targets. Existing bounded-profile descriptions below remain the implemented
 baseline, not the final approved compatibility scope. Design and execution

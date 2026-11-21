@@ -2586,3 +2586,39 @@ characterization not rerun. Retained ownership proposal remains NOT APPROVED.
 Whole-job/payload/phase/allocator/returned-cache accounting, timing, parity,
 lifecycle and human acceptance remain open. Self-review is not independent
 acceptance; no release/install/commit.
+
+## 2026-11-15 — Resource-abuse scope correction (PCR-125)
+
+The user directed practical protection against abusive/pathological LaTeX and
+explicitly authorized the requirements update. SRS-MATH v1.1 supersedes earlier
+whole-job accounting completion gates:256 MiB is a coarse admission budget for
+tracked major workspace/output buffers and known large overlaps, not an exact
+all-allocation or RSS cap. Document guard coverage, estimates and exclusions;
+verify hostile-input rejection, cleanup, visible-source fallback and ordinary
+request recovery. Source/token/expansion/node/depth/array/command/dimension/
+surface limits,64 MiB retained-raster process bound and50/250 ms timing targets
+are unchanged. Ordinary ownership safety remains mandatory.
+
+Exhaustive string/native/allocator/copy-lifetime accounting, storage pools and
+retained-account leases are not acceptance prerequisites. The retained-budget
+proposal is optional historical design exploration, not the required next gate.
+Existing implementation and evidence are preserved; no historical failure is
+converted to a pass and known native lifecycle failures remain open. Practical
+abuse-protection qualification, timing, complete compatibility and independent
+human acceptance remain pending. Documentation-only; no builds/tests rerun.
+Developer self-review is not independent acceptance. See report §11.18.
+
+
+## 2026-11-15 — Practical abuse rejection/recovery probes (PCR-125)
+
+Report §11.19 and `plan/evidence/native-math-2026-11-15-abuse-guards/` record
+standalone engine174/174 twice, worker279/279 twice, parser719/719 and ledger38/38.
+No production source changed. Tests cover structural/expansion rejection,
+same-context recovery, invalid scales, Busy retry and repeated raster recovery.
+NaN bypass hypothesis did not reproduce: GNAT15.2 validity already rejects it.
+Root/test development builds pass; full first1075/1076 socket-bind error remains
+recorded, focused1/1 and full repeat1076/1076 pass. GTK9/9, containment and offline
+HTTP checks pass. Engine Valgrind with4MiB frame threshold passes zero errors/
+lost bytes; initial default-threshold stack-frame failure retained. Existing
+raster native losses are not resolved. No complete abuse/timing/parity/GUI/font/
+lifecycle or human acceptance qualification; no release/install/commit.

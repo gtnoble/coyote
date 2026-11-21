@@ -13,10 +13,11 @@
 6. Requirements traceability
 7. Risks, blockers, and review actions
 
-**Version:** 0.9
-**Date:** 2026-11-06
+**Version:** 0.10
+**Date:** 2026-11-15
 **Status:** In-progress draft; evidence and procedures are refreshed from the approved execution baseline. This status revision remains open for readiness review and approval.
-**Authority:** `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24; D01–D15 are approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.9 records phased status. This plan does not supersede requirements.
+**Authority:** `requirements/native-math-compatibility.md` v1.1 dated 2026-11-15 is the current requirements baseline; D01–D15 remain the approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.10 records phased status. This plan does not supersede requirements.
+**Current resource-scope supersession (2026-11-15):** REQ-MATH-010 retains source, token, expansion, node, depth, array, command, finite-dimension, surface and work limits, plus safe visible-source fallback/recovery. The ≤256 MiB per-job amount is a coarse admission budget for tracked major workspace/output buffers and known large overlaps, not all allocations or physical memory. The separate 64 MiB retained-raster process ledger and 50/250 ms timing targets are unchanged. Current acceptance requires documented coverage/estimates and practical major-buffer rejection/cleanup and adversarial robustness; it does not require exhaustive whole-job allocation/RSS accounting or a storage-pool/retained-account lease redesign. RSS characterization is diagnostic, not a 256 MiB pass/fail measure. Ordinary ownership safety remains mandatory. Historical dated statements and evidence remain factual and are not retroactively qualified.
 **2026-11-15 continuation:** Report §11.11 supersedes earlier inline-path
 statements and runtime counts in this document. Inline rasterization now runs
 on workers, with GTK-only incremental Pixbuf adoption; final-source full suite
@@ -29,12 +30,14 @@ gates remain open. The dated evidence below is historical, not a current rerun.
 
 This document specifies planned cases, preconditions, expected results, procedures
 This plan records reported evidence and remaining work; it is not itself a
-complete execution record or parity/acceptance claim. Approved SRS v1.0 remains
-normative, including resource/performance targets. Design-proposed RD-CTX limits
-and other unapproved admission/ownership/scheduling caps are not SRS limits;
-visual thresholds remain provisional pending calibration. The 2026-11-06
-report §11 checkpoint is the latest recorded state; its temporary logs are
-unavailable for this documentation-only update, which performs no test reruns.
+complete execution record or parity/acceptance claim. SRS-MATH v1.1 dated
+2026-11-15 is the current normative requirements baseline, including the
+resource/performance scope summarized above. Design-proposed RD-CTX limits and
+other unapproved admission/ownership/scheduling caps are not SRS limits; visual
+thresholds remain provisional pending calibration. Current implementation and
+recorded evidence are in coordinator report §11; §10 and earlier sections are
+historical. Temporary logs referenced by historical checkpoints are unavailable
+for this documentation-only update, which performs no test reruns.
 
 The approved execution/design baseline is not pending reapproval. Test readiness,
 complete scope, matching and qualification remain open. Current checks, failures,
@@ -47,9 +50,9 @@ Levels: P1 exploratory baseline/harness readiness; increment-focused verificatio
 
 ### 2.1 Governing and supporting references
 
-- `requirements/native-math-compatibility.md` v1.0, approved 2026-10-24, especially §§3–6 and approved D01–D15 profile deviations.
-- `plan/native-math-parity-plan.md` v0.9, increments P0–P6 and gates.
-- `requirements/coyote-requirements.md` §3.1.4a, REQ-CORE-111/124; authoritative until approved change.
+- `requirements/native-math-compatibility.md` v1.1, user-authorized resource-scope update 2026-11-15; original v1.0 approved 2026-10-24. Especially §§3–6 and unchanged D01–D15.
+- `plan/native-math-parity-plan.md` v0.10, increments P0–P6 and current gates (v0.9 is historical).
+- `requirements/coyote-requirements.md` §3.1.4a, REQ-CORE-111/124, with the current SRS-MATH annex reference.
 - `plan/native-math-test-report.md`, historical PCR-123 evidence and limitations.
 - `plan/native-math-katex-0.16.22-inventory.md` and `.json`; registration census, not native coverage.
 - `share/coyote/math/README.md`, supported profile and starting limits.
@@ -62,28 +65,24 @@ Reference is KaTeX **0.16.22**, npm archive `https://registry.npmjs.org/katex/-/
 
 Each qualification snapshot must record archive, bundle/config and corpus hashes; native revision; font hashes; OS/distribution; GNAT/Alire, Node, browser and Cairo/FreeType versions; browser engine/build, viewport/device scale, locale, color profile, display scale; seeds; commands; environment; output hashes. The earlier pilot had a verified 63-member browser asset manifest and identified Chromium version, but the report does not provide a complete frozen workstation/platform/toolchain manifest or broad qualification snapshot corpus. Freeze complete corpus and expected outputs before acceptance.
 
-Current implementation and the latest recorded evidence are in coordinator-owned
-`plan/native-math-parity-test-report.md` §11, “Current implementation and
-qualification reconciliation — 2026-11-06”; §10 and earlier sections are
-historical. The recorded results include a 1063/1063 suite run and a repeat
-with one prompt-filter assertion failure whose non-math root cause is unproven;
-these logs are unavailable here, the failure is not waived, and no suite was
-rerun for this document update. Raster comparison recorded 28/29 cases, with
-the long-tilde mask at 0.9851 against the unchanged 0.99 threshold. Structured
-comparison recorded 338 outcomes: 278 scoped semantic matches and 60 explicit
-gaps; strict mode failed. Geometry recorded 235/235 matches. These are scoped
-evidence, not qualification or parity. Runtime Pango shaping and Unicode
-fallback are implemented, while system font-family resolution remains
-unpinned. Cooperative checks do not interrupt native C calls. Inline painting
-remains synchronous GTK `RenderLayoutInline`; the approved worker-inline,
-tiled adoption/cache design is not implemented. Whole-job ≤256 MiB accounting,
-hard queue-inclusive ≤250 ms, GTK ≤50 ms, full reference behavior/corpus, and
-independent human visual/accessibility acceptance remain open. Valgrind failed
-with 6,656 definitely lost, 2,183 indirectly lost and 26 possibly lost bytes;
-isolated Pango/Fontconfig setup exhibited the same definite/indirect loss
-through 1,000 calls, so no zero-leak claim is justified. Coverage is a source
-crosswalk, not semantic completion. Approved SRS targets and D01–D15 remain
-unchanged.
+The following is the dated 2026-11-06 status snapshot; its inline-path and
+resource-gate statements are historical and superseded by the current SRS-MATH
+v1.1 scope note above. Coordinator report §11 records current implementation;
+§10 and earlier report sections are historical. The snapshot's recorded results
+include a 1063/1063 suite run and a repeat with one prompt-filter assertion
+failure whose non-math root cause is unproven; these logs are unavailable here,
+the failure is not waived, and no suite was rerun for this document update.
+Raster comparison recorded 28/29 cases, with the long-tilde mask at 0.9851
+against the unchanged 0.99 threshold. Structured comparison recorded 338
+outcomes: 278 scoped semantic matches and 60 explicit gaps; strict mode failed.
+Geometry recorded 235/235 matches. These are scoped evidence, not qualification
+or parity. Runtime Pango shaping and Unicode fallback are implemented, while
+system font-family resolution remains unpinned. Cooperative checks do not
+interrupt native C calls. Valgrind failed with 6,656 definitely lost, 2,183
+indirectly lost and 26 possibly lost bytes; isolated Pango/Fontconfig setup
+exhibited the same definite/indirect loss through 1,000 calls, so no zero-leak
+claim is justified. Coverage is a source crosswalk, not semantic completion.
+Historical approved-target descriptions do not override SRS-MATH v1.1.
 - `test/tools/check-math-resources.cjs` via the recorded resource harness (10 isolated cases; not whole-GUI memory qualification).
 - Browser/reference export: `test/tools/export-math-browser.cjs`, `test/tools/export-math-reference.cjs`; comparison: `test/tools/compare-math-layout.cjs`, `test/tools/check-math-differential.sh`; image checks: `test/tools/check-math-images.sh`; inventory/accessibility: `test/tools/check-math-inventory.cjs`, `test/tools/check-math-accessibility.sh`.
 The report records actual invocations/artifact paths. Existing tooling supports a P1 pilot, not complete matching/readiness or acceptance. These results are evidence, not a substitute for complete corpus and qualification.
@@ -149,13 +148,21 @@ Progression: approved requirements, design and execution baseline are establishe
 
 P1 readiness remains open. Current scoped results and discrepancies are
 recorded in coordinator-owned report §11; §10 and earlier sections are historical. Tool availability
-and partial probes do not qualify complete matching, the corpus, budgets,
-readiness or any missing inventory entry. Whole-job memory, hard deadline,
-GTK/cache qualification, and final qualification remain open.
+and partial probes do not qualify complete matching, the corpus, practical
+guard coverage or any missing inventory entry. Documented major-buffer
+coverage/estimates, over-budget rejection, cleanup/recovery and adversarial
+robustness remain open. Exhaustive whole-job allocation/RSS accounting is not
+required for readiness. The 250 ms and 50 ms timing targets remain unchanged
+for final qualification; P1 does not waive or relax them. Retained-raster,
+cache and final qualification evidence remain open.
 P1 does not require full feature parity, calibrated final visual tolerances,
-performance compliance, 10,000-case robustness, human accessibility acceptance,
-or a passing full inventory. The recorded 10,000-case fuzz run is evidence for
-that seed/run, not full qualification. Readiness and review remain incomplete.
+final timing compliance, 10,000-case robustness, human accessibility
+acceptance, or a passing full inventory. It does require a documented account
+of current practical resource-guard coverage and known exclusions; it does not
+require exhaustive whole-job allocation/RSS accounting. The recorded
+10,000-case fuzz run is evidence for that seed/run, not full qualification.
+Timing targets remain unchanged for final qualification. Readiness and review
+remain incomplete.
 
 ### 3.3 Final acceptance targets and evaluation
 
@@ -174,26 +181,35 @@ Approved quantitative REQ-MATH-010/013 budgets:
 | Layout depth / draw commands | 256 / 131,072 | exact and over-bound |
 | Absolute dimensions / user sizing | 16,384 em / 100 em cap | computed and requested policies |
 | Final surface incl. padding | inline 2,000×512; display 8,192×4,096 px | reject/fallback safely |
-| Additional math-job memory | ≤256 MiB | owned allocations; isolated-process peak RSS separately |
-| Retained raster cache | ≤64 MiB/process | cache bytes, eviction; oversized surface not retained |
+| Additional math-job memory | ≤256 MiB coarse per-job admission budget | documented coverage/estimates for tracked major workspace/output buffers and known large overlaps; reject before major-buffer admission when budget is exceeded; cleanup/recovery; RSS diagnostic only, not pass/fail |
+| Retained raster cache | ≤64 MiB/process | retained-raster process ledger; verify documented scope and eviction/oversize behavior |
 | Warm representative latency | p95 ≤50 ms | ≥200 cases; one warm-up + 10 timed iterations; queue-inclusive |
 | Bounded job / GTK slice | terminate or reject ≤250 ms; synchronous GTK slice ≤50 ms | monotonic clock; queue and cancellation cleanup included |
 | Geometry | absolute dimension/glyph-origin/baseline/rule/path error ≤0.01 em | matched constructs/common baseline/em |
-| Robustness | ≥10,000 seeded generated/adversarial cases/final run | fixed seeds; not proof of all-input safety |
+| Robustness | ≥10,000 seeded generated/adversarial cases/final run | fixed seeds; target adversarial explosive macros, recursion/depth, large arrays/dimensions, repetition and recovery; not proof of all-input safety |
 
 These are approved SRS targets, not qualified implementation guarantees. The
-source/layout code clamps user maxSize to 1..100; layout depth and draw-command
-limits are 256 and 131,072, matching the corresponding target values. Exact-
-boundary test coverage remains incomplete. Whole-job memory has no aggregate
-allocator instrumentation; the 64 MiB ledger accounts for GUI display-math Cairo
-surfaces, not inline rasters or a process-wide cache. The 250 ms deadline check
-does not preempt a blocking native call. GTK adoption uses a 5 ms soft quantum
-and batches of at most eight operations, not a hard 50 ms bound. These controls
-do not establish REQ-MATH-010 budget compliance.
+256 MiB amount is not an exhaustive allocation or physical-memory bound: it
+covers tracked major workspace/output buffers and known large overlaps under
+the documented admission model. Record the included buffers, overlap estimates,
+known exclusions and rationale so reviewers can assess guard coverage. Reject
+before admitting a major buffer when its estimate would exceed the coarse
+budget, and verify resource cleanup, safe visible-source fallback and recovery
+on repeated and combined failures. RSS above a warmed baseline may be recorded
+for diagnostic characterization, but is not a 256 MiB pass/fail oracle. The
+separate 64 MiB retained-raster process ledger remains unchanged. Source,
+tokens, expansion, nodes, depth, arrays, commands, finite dimensions, surfaces
+and work remain bounded under REQ-MATH-010. Exact-boundary coverage remains
+required where the individual limits specify it. Timing targets remain
+unchanged: queue-inclusive 250 ms and GTK ≤50 ms; watchdog expiry is a failure,
+not compliant behavior. Cooperative checks cannot preempt a blocking native
+call. Existing native leaks remain failures. Ordinary ownership safety is
+mandatory, but whole-job allocator/RSS guarantees and a prior storage-pool or
+retained-account lease redesign are not acceptance prerequisites.
 
 Visual targets in the approved SRS remain **provisional pending calibration**: at 24 px/em, bidirectional foreground-mask distance ≤1 px for ≥99% each direction; alpha ≥0.1; semantic component count matched/reviewed; component bounds ≤0.01 em; interior RGBA channel delta ≤2/255 (>1 px from edge). These are not calibrated or achieved. P1 must calibrate using frozen fixtures and missing/extra/shifted/wrong-color/tiny-accent controls; readiness approval is required before acceptance use.
 
-For ARGB32 use Cairo stride × height. Maximum 8192×4096 surface is 128 MiB before intermediates. Include cached copies during job in 256 MiB; after completion retained rasters count against 64 MiB. Exclude/report separately warmed shared font caches, pre-existing GUI baseline, and session/source retention. Report allocated bytes, peak RSS above warmed baseline, cache growth/high-water/evictions, queue delay, execution and cleanup separately. Visual protocol: transparent background, matched colors, pinned fonts/viewport/device scale, baseline alignment without free rescaling. Compare bidirectional nearest foreground-pixel distances; empty/nonempty fails; both empty passes only if reference semantically empty. Require reviewed component count/bounds. Interior RGBA differences ≤2/255; edge-only tiny components have separate geometry/color checks; no interior pixels is not automatic pass.
+For ARGB32 use Cairo stride × height. The maximum 8192×4096 surface is 128 MiB before intermediates; include surface/output buffers and known large overlaps in the documented coarse admission estimates, not as a claim that all job allocations fit within 256 MiB. The retained-raster ledger remains ≤64 MiB/process under its documented scope. Record tracked-buffer estimates, overlap assumptions, exclusions, queue delay, execution and cleanup. RSS above a warmed baseline may be recorded diagnostically and is not the 256 MiB pass/fail measure. Visual protocol: transparent background, matched colors, pinned fonts/viewport/device scale, baseline alignment without free rescaling. Compare bidirectional nearest foreground-pixel distances; empty/nonempty fails; both empty passes only if reference semantically empty. Require reviewed component count/bounds. Interior RGBA differences ≤2/255; edge-only tiny components have separate geometry/color checks; no interior pixels is not automatic pass.
 
 Timing: specify workstation, OS, compiler, browser, warm/cold state; p95 from ≥200 cases, 10 iterations after warm-up. Separate hostile cases. Time submission through completion/rejection, including queue wait and cancellation cleanup; measure GTK slices independently. 250 ms watchdog expiry is failure, not compliant behavior. Infeasible approved limits require requirements change, not silent relaxation.
 
@@ -310,7 +326,7 @@ complete reference mapping and qualification coverage remain open.
 
 **MATH-LIMIT-001 — exact approved budget matrix** (T/A; REQ-MATH-010/013). For each §3.3 bound below/exact/above and combined interactions: source 65,535/65,536/65,537 bytes; tokens 131,071/131,072/131,073; expansion 999/1000/1001 and 9999/10000/10001; nodes 32,767/32,768/32,769; argument depth 127/128/129; rows/columns 63/64/65 independently/combined; layout depth 255/256/257; commands 131,071/131,072/131,073; dimensions below/at/above 16,384 em and requested size at/above 100 em; surface boundaries and one-pixel exceedance. Expected in-domain support; over-limit bounded rejection/fallback, cleanup, no crash/stall.
 
-**MATH-LIMIT-002 — memory, latency, cancellation** (T/A; REQ-MATH-010/014). Representative/nested/array/macro/hostile jobs, cold/warm, repeated; queued and parse/layout/paint cancellation where supported. Isolate process; record allocations, Cairo stride×height, RSS delta over warmed baseline, transient/retained cache, eviction, queue wait, work and cleanup. Verify 128 MiB max surface accounted in 256 MiB; retained rasters ≤64 MiB; oversize not cached; fonts/session source separately reported. Measure p95 ≥200 cases, one warm-up + 10 iterations; ≤250 ms includes queue/cancel; GTK slice ≤50 ms. Pass only approved budgets; watchdog kill is failure. Instrumentation requires design.
+**MATH-LIMIT-002 — practical resource guards, latency and cancellation** (T/A; REQ-MATH-010/014). Exercise representative and adversarial jobs, including explosive/nested/cyclic macros, recursion and argument/layout depth, large and ragged arrays, extreme or repeated dimensions, surface/work limits, repeated failures and recovery. For each run, record configuration, seed, limits exercised, tracked major workspace/output buffers, estimated sizes and known large-overlap assumptions/exclusions; document coverage rather than claiming exhaustive allocation accounting. Verify that a major-buffer reservation which would exceed the coarse ≤256 MiB per-job admission budget is rejected before admission, with bounded work, cleanup, visible original-source fallback and successful subsequent recovery. This budget covers tracked major buffers/known overlaps, not every allocation or physical memory. Record warmed-baseline RSS only as diagnostic characterization, not as a 256 MiB pass/fail criterion. Verify the separate ≤64 MiB retained-raster process ledger and oversize/eviction behavior within its documented scope. Retain cancellation/cleanup cases. Measure queue-inclusive p95 over ≥200 representative cases with one warm-up and 10 timed iterations; preserve the ≤250 ms job and ≤50 ms GTK-slice targets. Watchdog expiry remains failure; cooperative checks do not preempt native calls. Existing native leaks remain failures. Pass requires documented guard coverage/estimates, major-buffer rejection and cleanup/recovery, no crash/state leak/unbounded work in the adversarial set, and timing/retained-ledger results against their unchanged criteria; it does not require exhaustive whole-job allocator or RSS accounting. Ordinary ownership safety remains mandatory; no storage-pool or retained-account lease redesign is a prerequisite.
 
 **MATH-SCHED-001 — stale scheduled jobs and queue cancellation** (T/A; REQ-MATH-010/011/014). Schedule a job with generation token, then before execution invalidate by each action independently: clear, teardown, zoom change, session switch. Assert stale generation is rejected, resources/prompts/queues are cleaned, no callback touches dead/replaced state and no second side effect occurs. Exercise full queue and queue-wait cancellation, including 250 ms deadline and just-before/at/after timing; assert bounded completion/cleanup and no duplicate dispatch/render. Record queue wait separately from execution. Define deterministic scheduler/clock and cancellation ownership in design; no rollback assumption for parse mutation—review native mutation-publish policy dependency from MATH-STATE-001. Not qualified until design/harness exists.
 
@@ -327,7 +343,7 @@ human assistive-technology/desktop assessment and independent acceptance remain
 pending. The report records no such acceptance.
 
 **MATH-REGRESS-001 — build and suite** (T; REQ-MATH-014). Root/test development builds, focused `Coyote.Math`, full `cd test && alr run coyote_test` under Xvfb when needed, existing probe/inventory check. §11 records 1063/1063 and a repeat with one prompt-filter assertion failure whose non-math root cause is unproven. The artifacts are unavailable here; the failure is not waived, and this document update ran no suite. These results do not qualify the latest source snapshot. Consult coordinator report §11, “Current implementation and qualification reconciliation — 2026-11-06”; §10 and earlier sections are historical. Do not infer parity or acceptance.
-**MATH-REGRESS-002 — seeded fuzz and failure paths** (T/A; REQ-MATH-010/014). ≥10,000 fixed-seed generated/adversarial cases per final run: malformed syntax, nesting, macro cycles, dimensions, arrays, Unicode, cancellation/failure injection. Bounded isolated runner. Record seeds, failures, crashes, hangs, leaks. Pass: no unbounded work/resource breach, crash, state leak or unexplained nondeterminism; triage all failures. Existing 40 malformed AUnit samples are insufficient.
+**MATH-REGRESS-002 — seeded fuzz and failure paths** (T/A; REQ-MATH-010/014). Run ≥10,000 fixed-seed generated/adversarial cases per final run in a bounded isolated runner. Include malformed syntax, explosive and recursive/cyclic macros, excessive nesting/depth, large/ragged arrays, extreme/repeated dimensions and surfaces, Unicode, cancellation/failure injection, repeated failure and recovery. Record seeds, input classes, limits reached, major-buffer admission/rejection, documented coverage/estimates, cleanup/recovery outcomes, crashes, hangs, state leaks, and RSS diagnostic observations separately. Pass: all required classes are represented; documented coarse guards reject over-budget major-buffer admissions; no crash, unbounded work, state leak or failed cleanup/recovery occurs in the tested set; failures are triaged and retained. Do not infer exhaustive whole-job allocation/RSS safety from a finite fuzz run. Existing 40 malformed AUnit samples alone are insufficient.
 
 **MATH-PROVENANCE-001 — repeatability and maintenance** (I/T; REQ-MATH-001/015). Rerun approved offline generation/export/comparison; hashes; altered-input rejection; notices/provenance/change records. Pass: deterministic output, identified inputs, no npm/runtime dependency; upstream change separately reviewed. The browser asset manifest and pilot output artifacts exist. Broad frozen qualification
 snapshots with complete environment, corpus matching and reviewed dispositions
@@ -372,10 +388,13 @@ latest recorded status; §10 and earlier sections are historical. Its reported
 28/29 image, 278/338 scoped semantic-match, and 235/235 geometry results do not
 constitute qualification; strict comparison failed. Temporary logs are
 unavailable here and no rerun is claimed. Preserve approved thresholds and
-criteria. Whole-job memory, hard deadline, GTK/cache guarantees, complete
-corpus/readiness, final qualification and independent human acceptance remain
-open. Coverage is a source crosswalk, not semantic completion. Approved targets
-remain normative; no parity or acceptance claim is made.
+criteria. Documented practical resource-guard coverage/estimates, major-buffer
+rejection, cleanup/recovery, adversarial robustness, timing, retained-raster,
+complete corpus/readiness, final qualification and independent human acceptance
+remain open. Exhaustive whole-job allocation/RSS accounting is not a current
+acceptance prerequisite. Coverage is a source crosswalk, not semantic
+completion. Approved SRS-MATH v1.1 targets remain normative; no parity or
+acceptance claim is made.
 
 
 ## 2026-11-15 retained-output admission continuation
@@ -521,3 +540,21 @@ synthetic7/9 and offline HTTP pass; crosswalk hashes only. Browser/resource
 characterization was not rerun. Retained-budget proposal is NOT APPROVED.
 Whole-job accounting, timing, parity, lifecycle and human acceptance remain
 open; no release/install/commit.
+
+## 2026-11-15 — Practical abuse rejection/recovery probes (PCR-125)
+
+Report §11.19 and `plan/evidence/native-math-2026-11-15-abuse-guards/` record
+standalone engine174/174 twice, worker279/279 twice, parser719/719 and ledger38/38.
+No production source changed. Tests cover structural/expansion rejection,
+same-context recovery, invalid scales, Busy retry and repeated raster recovery.
+NaN bypass hypothesis did not reproduce: GNAT15.2 validity already rejects it.
+Root/test development builds pass; full first1075/1076 socket-bind error remains
+recorded, focused1/1 and full repeat1076/1076 pass. GTK9/9, containment and offline
+HTTP checks pass. Engine Valgrind with4MiB frame threshold passes zero errors/
+lost bytes; initial default-threshold stack-frame failure retained. Existing
+raster native losses are not resolved. No complete abuse/timing/parity/GUI/font/
+lifecycle or human acceptance qualification; no release/install/commit.
+
+Traceability: MATH-LIMIT-001/002, MATH-REGRESS-002 and REQ-MATH-010/014 receive
+scoped deterministic evidence, not complete requirement qualification. The
+10000-case final robustness corpus and full boundary matrix remain open.

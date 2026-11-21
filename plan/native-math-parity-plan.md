@@ -1,7 +1,7 @@
 # Native KaTeX compatibility-port plan — coyote
 
-**Version:** 0.9
-**Date:** 2026-11-06
+**Version:** 0.10
+**Date:** 2026-11-15
 **Change:** PCR-125
 **Status:** Native design and project execution approved; implementation in
 progress; P1 readiness and final qualification pending. No full parity claim.
@@ -26,12 +26,35 @@ MathML renderer, or claim that parity has already been achieved.
 
 This is a software-only extension of coyote, governed by
 [the project plan](project-plan.md). It expands the scope of PCR-123; the
-`requirements/native-math-compatibility.md` v1.0 is the approved target annex.
+`requirements/native-math-compatibility.md` v1.1 dated 2026-11-15 is the current
+requirements baseline.
 The running product remains the bounded profile until implementation is
-qualified. Plan, requirements, design, execution and approval records are in
-place; test-readiness approval and final qualification remain open. Exploratory
-and scoped checks are not acceptance results.
+qualified. SRS-MATH v1.1 (2026-11-15) is the current requirements baseline;
+REQ-MATH-010 requires practical guards against abusive/pathological input, not
+an exhaustive whole-job allocation or RSS guarantee. The current 256 MiB
+per-job admission budget is a coarse guard for tracked major workspace/output
+buffers and known large overlaps, not all allocations or physical memory. The
+separate 64 MiB retained-raster process ledger is unchanged. Timing targets
+remain unchanged. Ordinary ownership safety, bounded rejection, cleanup and
+safe source fallback/recovery remain required. Historical resource statements
+and dated evidence below are retained as history, not current acceptance
+prerequisites. Test-readiness approval, final qualification and acceptance
+remain open; no existing evidence is retroactively upgraded.
 
+### Current requirements supersession — 2026-11-15
+
+The user-authorized SRS-MATH v1.1 update supersedes earlier statements in this
+plan that made exhaustive whole-job memory accounting, aggregate physical
+memory/RSS enforcement, or a retained-account lease/storage-pool redesign
+current acceptance prerequisites. MATH-LIMIT-002 now verifies documented
+coverage and estimates for tracked major buffers, rejection before major
+buffer admission when the coarse budget is exceeded, cleanup/recovery, and
+pathological-input defenses. RSS is diagnostic characterization, not a
+256 MiB pass/fail oracle. Timing remains at the approved 50 ms and 250 ms
+targets. No prerequisite storage-pool or retained-account lease redesign is
+introduced; ordinary memory ownership safety remains mandatory. Dated results,
+including leak failures and historical open-gate statements, remain factual and
+are not reclassified as passes or qualification.
 References:
 
 - `requirements/coyote-requirements.md`: §3.1.4a, REQ-CORE-111, REQ-CORE-124.
@@ -72,8 +95,11 @@ and resource targets; design/test readiness and visual calibration remain open.
 - Define a shared finite qualification domain for size, depth, expansion count,
   and geometry. The original 4096-byte/2048-node/32-level/32-row-column
   profile was the starting point; current parser limits are 65536 bytes,
-  32768 nodes, 128 argument levels and 64 rows/columns. Layout and whole-job
-  limits still differ from approved targets; see the current profile guide.
+  32768 nodes, 128 argument levels and 64 rows/columns. REQ-MATH-010 also
+  limits emitted tokens, expansion, commands, finite dimensions, surfaces and
+  work. The 256 MiB coarse admission budget covers tracked major
+  workspace/output buffers and known large overlaps, not all allocations or
+  physical memory; see the current profile guide.
   Record limit-induced
   differences and approve any limit changes explicitly.
 - Accessibility, semantic structure, selection, clipboard behavior, and GUI
@@ -177,15 +203,18 @@ parity. Temporary artifacts referenced there are unavailable in this
 documentation-only task; no reruns or new qualification are claimed. Runtime
 Pango shaping and Unicode fallback exist, but font-family resolution is
 unpinned. Cooperative checks do not interrupt native C calls. Inline math
-remains synchronous GTK `RenderLayoutInline`; off-thread inline painting and
-tiled adoption/cache reuse remain unimplemented. Queue-inclusive ≤250 ms,
-GTK ≤50 ms, aggregate ≤256 MiB job-memory enforcement, complete reference
-behavior/corpus qualification, and independent human visual/accessibility
-acceptance remain open. Do not claim the recorded 1063/1063 suite as a fresh
-result: one repeat had a prompt-filter assertion failure of unproven non-math
-cause, not waived. Valgrind failed (6,656 definitely lost, 2,183 indirectly
-lost, 26 possibly lost bytes); isolated Pango/Fontconfig initialization showed
-the same definite/indirect loss through 1,000 calls, not zero leaks. Coverage
+rasterization now runs on workers, with GTK adopting padded Pixbufs in bounded
+row batches. The queue-inclusive 250 ms and GTK 50 ms timing targets and the
+coarse ≤256 MiB tracked major-buffer admission guard are current targets, not
+qualified guarantees. RSS is diagnostic, not the 256 MiB oracle; the separate
+64 MiB retained-raster process ledger is unchanged. Exhaustive whole-job
+accounting and a storage-pool/retained-account lease redesign are not current
+acceptance prerequisites; ordinary ownership safety, cleanup and visible
+fallback/recovery remain mandatory. Full reference behavior/corpus qualification
+and independent human visual/accessibility acceptance remain open. The
+recorded 1063/1063 suite is historical and not a fresh result; the repeat with
+a prompt-filter assertion failure of unproven non-math cause remains unwaived.
+Valgrind leak failures remain failures, not waived or reclassified. Coverage
 remains a source crosswalk, not semantic completion. No parity claim is made.
 ## 6. Resources, risks, and maintenance
 
@@ -216,21 +245,21 @@ their scope or approved D01–D15 dispositions.
 
 Phase/status summary: P0 requirements/inventory approved and produced. P1
 baseline/browser tooling exists, but full field coverage, matching and readiness
-are incomplete. P2 pilot works. P3 and P4 are partial. P5 async jobs, semantic
+are incomplete. P2 pilot works. P3 and P4 are partial.
+
 The P0–P6 execution remains authorized. P0 is approved; P1 matching/readiness
-is incomplete, P2 is scoped, P3/P4 partial, and P5 is partial. Inline painting
-remains synchronous GTK `RenderLayoutInline`; the planned worker-inline and
-tiled display adoption/cache path are not implemented. P6 checks are recorded,
-but acceptance, qualification and full corpus mapping remain open. Fleqn has
-focused GUI-option coverage, not full equivalence. The latest recorded
-checkpoint is report §11, “Current implementation and qualification
-reconciliation — 2026-11-06”; §10 and earlier sections are historical.
+is incomplete, P2 is scoped, P3/P4 partial, and P5 is partial. Inline math
+rasterization runs on workers with GTK bounded-row Pixbuf adoption. P6 checks
+are recorded, but acceptance, qualification and full corpus mapping remain
+open. Fleqn has focused GUI-option coverage, not full equivalence. Coordinator
+report §11 records current implementation and evidence; §10 and earlier
+sections are historical.
 RD-CTX-01 caps remain unauthorized. Do not mark phases complete or claim parity.
 Dates/cost remain unestimated; independent human acceptance is pending.
 
 Developer self-evaluation: current implementation and evidence are separated
 from the approved target and final acceptance gates. Existing tooling and
 approval are recorded; incomplete comparisons, resource/timing qualification,
-remaining capabilities and schedule estimates stay open. The documentation
-refresh does not change approved requirements or claim another execution run.
+remaining capabilities and schedule estimates stay open. This documentation revision records the user-authorized SRS-MATH v1.1
+resource-scope change; it does not claim another execution run.
 Developer/agent review is not independent human acceptance.

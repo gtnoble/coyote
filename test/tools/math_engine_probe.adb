@@ -1,5 +1,7 @@
 with Ada.Command_Line;
 with Ada.Containers;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Math_Engine;
 with Math_Layout;
@@ -52,6 +54,170 @@ procedure Math_Engine_Probe is
          Ada.Text_IO.Put_Line ("FAIL " & Label);
       end if;
    end Check;
+
+   procedure Expect_Abuse_Rejection
+     (Source, Expected_Error, Label : String;
+      Bounded_Source : Boolean := False)
+   is
+      Opt : Math_Engine.Request;
+      Outp : Math_Engine.Result;
+      Prior_Depth : constant Natural := Math_Macros.Scope_Depth (Shared);
+      Prefix_Matches : Boolean := False;
+   begin
+      Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        Ada.Strings.Fixed.Index
+          (Math_Engine.Error (Outp), Expected_Error) > 0,
+        Label & " reports the expected rejection category: " &
+          Math_Engine.Error (Outp));
+      Check (not Outp.Geometry.Valid and then
+        Outp.Geometry.Commands.Is_Empty,
+        Label & " publishes no fallback or successful geometry");
+      Check (not Math_Syntax.Is_Valid (Outp.Parsed),
+        Label & " does not retain a valid parsed document");
+      if Bounded_Source then
+         Prefix_Matches := Math_Syntax.Source (Outp.Parsed)'Length =
+           Math_Syntax.Max_Source_Bytes and then
+           Math_Syntax.Source (Outp.Parsed) =
+             Source (Source'First ..
+               Source'First + Math_Syntax.Max_Source_Bytes - 1);
+      else
+         Prefix_Matches := Math_Syntax.Source (Outp.Parsed) = Source;
+      end if;
+      Check (Prefix_Matches,
+        Label & " retains source or the bounded original prefix");
+      Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+        Label & " restores macro scope depth");
+      Math_Engine.Parse ("x", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then
+        not Outp.Geometry.Commands.Is_Empty,
+        Label & " is followed by a successful ordinary request");
+   end Expect_Abuse_Rejection;
+
+   procedure Test_Abuse_Rejection_Recovery is
+      use Ada.Strings.Unbounded;
+      Outp : Math_Engine.Result;
+      Depth_Source : Unbounded_String := Null_Unbounded_String;
+      Growth_Source : Unbounded_String :=
+        To_Unbounded_String ("\def\grow#1{#1#1}\grow{");
+      Row_Source : Unbounded_String :=
+        To_Unbounded_String ("\begin{matrix}");
+      Column_Source : Unbounded_String :=
+        To_Unbounded_String ("\begin{matrix}");
+      Valid_Row_Source : Unbounded_String :=
+        To_Unbounded_String ("\begin{matrix}");
+      Valid_Column_Source : Unbounded_String :=
+        To_Unbounded_String ("\begin{matrix}");
+      Moderate_Nesting : Unbounded_String := Null_Unbounded_String;
+      Oversized_Source : constant String :=
+        (1 .. Math_Syntax.Max_Source_Bytes + 1 => 'x');
+   begin
+      for Index in 1 .. Math_Syntax.Max_Depth + 2 loop
+         Append (Depth_Source, "\sqrt{");
+      end loop;
+      Append (Depth_Source, "x");
+      Append (Growth_Source, (1 .. 60_000 => 'x'));
+      Append (Growth_Source, "}");
+      for Index in 1 .. Math_Syntax.Max_Depth + 2 loop
+         Append (Depth_Source, "}");
+      end loop;
+      for Index in 1 .. Math_Syntax.Max_Array_Rows loop
+         if Index > 1 then
+            Append (Valid_Row_Source, "\\");
+         end if;
+         Append (Valid_Row_Source, "x");
+      end loop;
+      Append (Valid_Row_Source, "\end{matrix}");
+      for Index in 1 .. Math_Syntax.Max_Array_Columns loop
+         if Index > 1 then
+            Append (Valid_Column_Source, "&");
+         end if;
+         Append (Valid_Column_Source, "x");
+      end loop;
+      Append (Valid_Column_Source, "\end{matrix}");
+      for Index in 1 .. 8 loop
+         Append (Moderate_Nesting, "\sqrt{");
+      end loop;
+      Append (Moderate_Nesting, "x");
+      for Index in 1 .. 8 loop
+         Append (Moderate_Nesting, "}");
+      end loop;
+      for Index in 1 .. Math_Syntax.Max_Array_Rows + 1 loop
+         if Index > 1 then
+            Append (Row_Source, "\\");
+         end if;
+         Append (Row_Source, "x");
+      end loop;
+      Append (Row_Source, "\end{matrix}");
+      for Index in 1 .. Math_Syntax.Max_Array_Columns + 1 loop
+         if Index > 1 then
+            Append (Column_Source, "&");
+         end if;
+         Append (Column_Source, "x");
+      end loop;
+      Append (Column_Source, "\end{matrix}");
+
+      Check (Math_Syntax.Max_Array_Rows = 64 and then
+        Math_Syntax.Max_Array_Columns = 64,
+        "matrix boundary controls use 64 rows and columns");
+      Math_Engine.Parse
+        (To_String (Valid_Row_Source), Shared'Access, (others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Is_Valid (Outp.Parsed),
+        "matrix with exactly 64 rows is accepted");
+      Math_Engine.Parse
+        (To_String (Valid_Column_Source), Shared'Access,
+         (others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Is_Valid (Outp.Parsed),
+        "matrix with exactly 64 columns is accepted");
+      Math_Engine.Parse
+        (To_String (Moderate_Nesting), Shared'Access,
+         (others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Is_Valid (Outp.Parsed),
+        "eight-level nested square roots are accepted");
+
+      for Attempt in 1 .. 2 loop
+         Expect_Abuse_Rejection
+           ("\def\local{x}\def\cycle{\cycle}\cycle",
+            "macro expansion: EXPANSION_LIMIT",
+            "recursive macro cycle " & Natural'Image (Attempt));
+         Check (not Math_Macros.Is_Defined (Shared, "\local"),
+           "cycle rejection rolls back local macro definition");
+         Math_Engine.Parse ("\saved", Shared'Access,
+           (others => <>), Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           not Outp.Geometry.Commands.Is_Empty,
+           "prior global macro remains usable after cycle rejection");
+         Expect_Abuse_Rejection
+           (To_String (Growth_Source),
+            "macro expansion: TOKEN_LIMIT",
+            "single-pass macro argument duplication " &
+              Natural'Image (Attempt));
+         Expect_Abuse_Rejection
+           (To_String (Depth_Source), "nesting depth exceeded",
+            "excessive parse depth " & Natural'Image (Attempt));
+         Expect_Abuse_Rejection
+           (To_String (Row_Source), "array row limit exceeded",
+            "excessive array rows " & Natural'Image (Attempt));
+         Expect_Abuse_Rejection
+           (To_String (Column_Source), "array column limit exceeded",
+            "excessive array columns " & Natural'Image (Attempt));
+         Expect_Abuse_Rejection
+           ("x+" & (1 .. Math_Syntax.Max_Nodes => 'x'),
+            "node limit exceeded",
+            "excessive AST nodes " & Natural'Image (Attempt));
+         Expect_Abuse_Rejection
+           ("\kern{16385em}", "dimension exceeds bounded geometry",
+            "excessive source dimension " & Natural'Image (Attempt));
+         Expect_Abuse_Rejection
+           (Oversized_Source, "source byte limit exceeded",
+            "oversized source " & Natural'Image (Attempt), True);
+      end loop;
+   end Test_Abuse_Rejection_Recovery;
 
    procedure Run is
       Opt : Math_Engine.Request;
@@ -559,6 +725,7 @@ procedure Math_Engine_Probe is
         "shared macro expands with source identity preserved");
       Check (Math_Macros.Scope_Depth (Shared) = 0,
         "shared scope restored after requests");
+      Test_Abuse_Rejection_Recovery;
 
       declare
          Parsed : Math_Syntax.Document;
@@ -591,6 +758,50 @@ procedure Math_Engine_Probe is
             when Math_Work_Control.Deadline_Expired =>
                Check (True, "layout deadline propagates distinctly");
          end;
+      end;
+      declare
+         Opt : Math_Engine.Request;
+         Prior_Depth : constant Natural := Math_Macros.Scope_Depth (Shared);
+      begin
+         Opt.Work := Cancel_Context'Unchecked_Access;
+         Poll_Count := 0;
+         begin
+            Math_Engine.Parse
+              ("\begin{matrix}x\\y\end{matrix}",
+               Shared'Access, Opt, Outp);
+            Check (False, "engine cancellation propagates distinctly");
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+                 "early engine cancellation leaves scope unchanged");
+         end;
+         Math_Engine.Parse ("x", Shared'Access, (others => <>), Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+           "engine cancellation is followed by null-Work recovery");
+      end;
+      declare
+         Opt : Math_Engine.Request;
+         Prior_Depth : constant Natural := Math_Macros.Scope_Depth (Shared);
+      begin
+         Opt.Work := Deadline_Context'Unchecked_Access;
+         Poll_Count := 0;
+         begin
+            Math_Engine.Parse
+              ("\begin{matrix}x\\y\end{matrix}",
+               Shared'Access, Opt, Outp);
+            Check (False, "engine deadline propagates distinctly");
+         exception
+            when Math_Work_Control.Deadline_Expired =>
+               Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+                 "early engine deadline leaves scope unchanged");
+         end;
+         Math_Engine.Parse ("x", Shared'Access, (others => <>), Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+           "engine deadline is followed by null-Work recovery");
       end;
    end Run;
 begin

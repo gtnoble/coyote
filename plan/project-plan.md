@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.40
-**Date:** 2026-11-06
+**Version:** 1.41
+**Date:** 2026-11-15
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
 
@@ -145,18 +145,23 @@ the point of decision, not reconstructed post-hoc.
 
 **Approved native-math execution (PCR-125; user authorization recorded
 2026-10-25):** `plan/native-math-parity-plan.md` governs the staged port.
-SRS-MATH v1.0 and D01–D15 remain authoritative and unchanged; the already
-approved execution continues, without reopening approval or accepting design
-alternatives. Coordinator report §11, “Current implementation and qualification
-reconciliation — 2026-11-06”, is the latest recorded checkpoint; §10 and earlier
-sections are historical. Its 28/29 raster comparison (long-tilde mask 0.9851
-against 0.99), 278/338 scoped semantic matches with 60 explicit gaps (strict
-mode failed), and 235/235 geometry results are evidence, not qualification.
-The recorded 1063/1063 suite and its repeat with one prompt-filter assertion
-failure of unproven non-math cause are not a fresh pass or waived failure.
-Temporary logs are unavailable for this documentation-only update; no tests
-were rerun. Queue-inclusive 250 ms completion, GTK ≤50 ms work, aggregate
-256 MiB job-memory enforcement, inline worker painting/tiled adoption, complete
+SRS-MATH v1.1 dated 2026-11-15 is the current resource-guard baseline; it
+requires practical protections against abusive/pathological input, not
+exhaustive whole-job allocation or RSS guarantees. The ≤256 MiB per-job budget
+is a coarse admission guard for tracked major workspace/output buffers and
+known large overlaps, not all allocations or physical memory. The separate
+64 MiB retained-raster process ledger remains unchanged. Queue-inclusive
+250 ms completion and GTK ≤50 ms work targets remain unchanged. Ordinary
+ownership safety, cleanup and visible source fallback/recovery remain
+mandatory; no prerequisite storage-pool or retained-account lease redesign is
+introduced. Historical evidence and failures are not retroactively qualified.
+The 2026-11-15 inline-worker implementation is current; GTK adopts padded
+Pixbufs in bounded row batches. Coordinator report §11 records the latest
+implementation and evidence; §10 and earlier sections are historical. Scoped
+results are regression/development evidence, not qualification. The recorded
+1063/1063 suite and repeat with one prompt-filter assertion failure of unproven
+non-math cause are not fresh results or a waived failure. Temporary logs for
+this documentation-only update are unavailable; no tests were rerun. Full
 reference behavior/corpus, readiness, qualification and independent human
 acceptance remain open. Coverage is a source crosswalk, not semantic completion.
 RD-CTX-01 caps remain unauthorized; no parity or product acceptance is implied.

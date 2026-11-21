@@ -1,6 +1,15 @@
 # Native math retained-budget ownership — design proposal
 
-**Date:** 2026-11-15. **Status:** DRAFT — NOT APPROVED / NOT IMPLEMENTED.
+**Date:** 2026-11-15. **Status:** OPTIONAL DESIGN EXPLORATION — NOT APPROVED / NOT IMPLEMENTED.
+
+**Supersession:** SRS-MATH v1.1 replaces exhaustive whole-job memory accounting
+with practical resource-abuse protection. The proposal below is preserved as
+historical design analysis, not a required next increment or acceptance gate.
+Retained-account leases, storage pools and Document API migration are optional
+and require concrete justification before further work. Existing call-only
+budget borrows must still not escape; ordinary lifetime safety remains required.
+References below to the old 256 MiB whole-job requirement and approval gate
+describe the superseded v1.0 rationale, not current mandatory work.
 **Authority:** PCR-125 continuation, REQ-MATH-010 / MATH-LIMIT-002.
 **Current verified implementation:** report §11.16; no requirements/deviations
 changed. This proposal is not qualification or acceptance.

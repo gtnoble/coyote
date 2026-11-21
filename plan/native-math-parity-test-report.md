@@ -5,7 +5,9 @@
 **Reference:** KaTeX 0.16.22, pinned archive SHA-256 `e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365`; bundle SHA-256 `8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33`
 **Status: NOT COMPLETE — final qualification and product acceptance remain open.**
 
-This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its controlling scope is approved SRS-MATH v1.0 and D01–D15, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
+This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its current controlling scope is user-authorized SRS-MATH v1.1 (2026-11-15) and unchanged D01–D15; v1.0 resource-scope statements are historical, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
+
+**Current requirements pointer:** §11.18 records the v1.1 practical resource-abuse scope correction, superseding exhaustive-accounting completion gates without changing historical results. No new runtime verification is claimed.
 
 **Current-results pointer:** §11, “Current implementation and qualification reconciliation — 2026-11-06”, controls the present status. §§1–10 preserve historical checkpoints. §11 distinguishes the earlier documentation reconciliation from the fresh, archived accent-width implementation evidence in §11.6. Sections 11.1–11.5 retain the prior checkpoint and its unavailable-artifact limits; §11.6 supersedes the undertilde pixel disposition only within the unchanged pilot scope.
 
@@ -1640,3 +1642,81 @@ were not rerun. `design/native-math-retained-budget-proposal.md` remains DRAFT,
 NOT APPROVED and NOT IMPLEMENTED; stable ownership/API migration awaits user
 design review. Other scoped work is not claimed technically exhausted.
 PCR-125 OPEN; feature NOT COMPLETE. No release, installation or commit.
+
+
+### 11.18 Requirements correction — practical resource-abuse protection, 2026-11-15
+
+**Authority:** The user clarified that exhaustive memory accounting has limited
+benefit and explicitly authorized a requirements update to catch abusive and
+pathological LaTeX. SRS-MATH v1.1 revises REQ-MATH-010 and §5 accordingly.
+
+**Current acceptance scope:**256MiB is a coarse per-job admission budget for
+tracked major workspace/output buffers and known large overlaps. Coverage,
+estimates and exclusions must be documented, and major-buffer allocations
+checked before admission. It is not a cap on all allocations or process RSS.
+Verification targets recursive/explosive macros, token/output growth, nesting,
+arrays/dimensions, costly layout, repetition, cancellation, cleanup, source
+fallback and subsequent ordinary-request recovery. Unexplained growth, crashes,
+hangs and state leakage remain defects to investigate, not exclusions to hide.
+
+Structural/output limits,64MiB retained-raster process bound, warm-p95≤50ms,
+job≤250ms and GTK-slice≤50ms targets remain unchanged. Cooperative native-call
+limits are still unqualified. Ownership/lifetime safety remains mandatory.
+Exhaustive per-string/native/allocator/retained-copy accounting and storage
+pool/retained-account lease migrations are not prerequisites. The ownership
+proposal is optional, not approved or implemented, and no longer the next gate.
+
+**Supersession/evidence:** This scope replaces exhaustive-accounting open gates
+in §11.17 and earlier dated checkpoints; those logs/results remain historical
+facts, not retroactive passes. Existing native leaks remain failures. No runtime
+source, tests, source crosswalk or evidence artifacts changed for this revision;
+no builds, benchmarks or tests rerun. Plans, test descriptions, SRS-CORE annex
+reference, design/SDF and agent guidance now point to the corrected scope.
+Practical guard coverage/hostile-input recovery qualification, timing, native
+lifecycle, fonts/full compatibility and independent desktop/AT/user acceptance
+remain OPEN. Developer self-evaluation checks consistency/traceability, not
+independent product acceptance. PCR-125 remains OPEN; no release/install/commit.
+
+
+### 11.19 Practical abuse rejection and recovery — 2026-11-15
+
+Under SRS-MATH v1.1, two existing standalone probes now exercise deterministic
+rejection and subsequent ordinary work. No production source/API or requirement
+changed. Evidence: `plan/evidence/native-math-2026-11-15-abuse-guards/README.md`.
+
+Engine174/174 twice covers recursive expansion count, single-pass argument
+duplication token growth, depth,65-row/column,AST-node,16385em and65537-byte
+rejections, with exact64 row/column and moderate-depth valid controls. Rejections
+check diagnostic category, invalid/no geometry, retained source (bounded prefix
+for oversized source), scope restoration and same-context ordinary recovery.
+Local macro rollback and prior global definition reuse are tested. Early
+cancellation/deadline propagate distinctly; poll3 precedes macro mutation, so
+unchanged scope is not post-mutation rollback evidence.
+
+Worker279/279 twice adds synchronous invalid/nonfinite-scale rejection and
+ordinary raster recovery, identical Busy-request retry after a cancelled slot,
+and three repeated token-growth/column-limit rejection/raster-recovery cycles.
+Invalid results retain exact source without pixels/retained charges. Binary64
+fixtures are representation-gated; GNAT15.2 validity checks already reject
+NaN/infinities. The audit hypothesis of a scale bypass was not reproduced.
+Review removed a concurrent-raster ledger race and added short-circuit null
+guards. Parser719/719 and ledger38/38 remain scoped major-buffer/reuse evidence,
+not injected worker256MiB transient admission or all-input coverage.
+
+Development root/test builds pass, profiles development; existing warnings
+remain. First full1075/1076 has one unexpected fixed-port18881 bind error in
+HTTP retry fixture, zero failed assertions. Focused1/1 and one full repeat
+1076/1076 (149.023396s cumulative,149.203s elapsed) pass; initial failure remains
+recorded, not waived or causally resolved. GTK9/9, runner containment and offline
+HTTP lifecycle checks pass. Engine Valgrind174/174 with max-stackframe4194304
+has zero errors/lost bytes,216713 reachable. Default threshold first failed
+with a stack-switch warning for the existing2.6MiB semantic frame; both logs
+retained, no suppressions/leak criteria changed. This does not rerun or resolve
+strict raster native losses.
+
+Open: wider combined/output/layout/exponential/fuzz cases, GTK visible fallback,
+major-buffer coverage review, timing, cache/font/native lifecycle, full parity
+and independent desktop/AT/user acceptance. Caller-created macro scope-stack
+exhaustion is a separate unverified recovery candidate, not a source-only bypass.
+No browser/geometry/image/raster qualification rerun; no release/install/commit.
+Developer/agent review is not independent acceptance. PCR-125 remains OPEN.

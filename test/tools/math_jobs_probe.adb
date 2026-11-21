@@ -3,6 +3,7 @@ with Ada.Real_Time;
 with Ada.Containers;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Ada.Unchecked_Conversion;
 with Interfaces;
 with Math_Raster;
 with Math_Raster_Budget;
@@ -15,6 +16,8 @@ with Math_Syntax;
 with Math_Semantics;
 with Math_Painter;
 procedure Math_Jobs_Probe is
+   function Long_Float_From_Bits is new Ada.Unchecked_Conversion
+     (Interfaces.Unsigned_64, Long_Float);
    package Jobs renames Coyote_Math_Jobs;
    use type Jobs.Job_Status;
    use type Jobs.Request_Id;
@@ -365,6 +368,68 @@ begin
       Missing_Font_Id : Jobs.Request_Id;
       Missing_Font_Status : Jobs.Job_Status;
    begin
+      if Long_Float'Size = 64 and then
+        Long_Float'Machine_Radix = 2 and then
+        Long_Float'Machine_Mantissa = 53 and then
+        Long_Float'Machine_Emax = 1024
+      then
+         declare
+            Scale_Bits : constant array (Positive range 1 .. 3) of
+              Interfaces.Unsigned_64 :=
+                (16#7FF8_0000_0000_0001#,
+                 16#7FF0_0000_0000_0000#,
+                 16#FFF0_0000_0000_0000#);
+            Scale_Names : constant array (Scale_Bits'Range) of
+              String (1 .. 8) :=
+              ("NaN     ", "+Inf    ", "-Inf    ");
+         begin
+            --  IEEE-754 binary64 fixtures: quiet NaN, positive and negative
+            --  infinity. Pin GNAT validity behavior on this binary64 host.
+            for I in Scale_Bits'Range loop
+               declare
+                  Scale : constant Long_Float :=
+                    Long_Float_From_Bits (Scale_Bits (I));
+               begin
+                  Check (not Scale'Valid,
+                    "binary64 " & Scale_Names (I) & " is invalid scalar");
+                  Jobs.Submit ("x", Bad_Scale_Id, 304,
+                    Math_Layout.Text_Style, Status => Bad_Scale_Status,
+                    Request_Raster => True, Em_Pixels => Scale,
+                    Font_Directory => Font_Directory);
+                  Check (Bad_Scale_Status = Jobs.Invalid and
+                    Bad_Scale_Id = 0 and Math_Raster_Budget.Used = 0,
+                    "binary64 " & Scale_Names (I) &
+                      " rejected synchronously without reservation");
+               end;
+            end loop;
+         end;
+      else
+         Ada.Text_IO.Put_Line
+           ("SKIP IEEE binary64 scale fixtures: incompatible Long_Float");
+      end if;
+      declare
+         Boundary_Scales : constant array (Positive range 1 .. 4) of
+           Long_Float := (0.0, -1.0, 256.0001, 257.0);
+      begin
+         for Scale of Boundary_Scales loop
+            Jobs.Submit ("x", Bad_Scale_Id, 304, Math_Layout.Text_Style,
+              Status => Bad_Scale_Status, Request_Raster => True,
+              Em_Pixels => Scale, Font_Directory => Font_Directory);
+            Check (Bad_Scale_Status = Jobs.Invalid and Bad_Scale_Id = 0 and
+              Math_Raster_Budget.Used = 0,
+              "non-positive or above-256 raster scale rejected synchronously");
+         end loop;
+      end;
+      Jobs.Submit ("x", Bad_Scale_Id, 304, Math_Layout.Text_Style,
+        Status => Bad_Scale_Status, Request_Raster => True,
+        Em_Pixels => 257.0, Font_Directory => Font_Directory);
+      Check (Bad_Scale_Status = Jobs.Invalid and Bad_Scale_Id = 0,
+        "scale above 256 rejected synchronously");
+      Jobs.Submit ("x", Missing_Font_Id, 305, Math_Layout.Text_Style,
+        Status => Missing_Font_Status, Request_Raster => True,
+        Em_Pixels => 16.0);
+      Check (Missing_Font_Status = Jobs.Invalid and Missing_Font_Id = 0,
+        "raster request requires trusted font directory");
       Jobs.Submit ("x+y", Raster_Id, 303, Math_Layout.Display_Style,
         Color_Enabled => True,
         Color => (Red => 0.2, Green => 0.1, Blue => 0.05, Alpha => 1.0),
@@ -376,16 +441,6 @@ begin
         Status => Default_Status);
       Jobs.Submit ("x+y", Inline_Id, 303, Math_Layout.Text_Style,
         Status => Inline_Status, Fleqn => True);
-      Jobs.Submit ("x", Bad_Scale_Id, 304, Math_Layout.Text_Style,
-        Status => Bad_Scale_Status, Request_Raster => True,
-        Em_Pixels => 257.0, Font_Directory => Font_Directory);
-      Check (Bad_Scale_Status = Jobs.Invalid and Bad_Scale_Id = 0,
-        "scale above 256 rejected synchronously");
-      Jobs.Submit ("x", Missing_Font_Id, 305, Math_Layout.Text_Style,
-        Status => Missing_Font_Status, Request_Raster => True,
-        Em_Pixels => 16.0);
-      Check (Missing_Font_Status = Jobs.Invalid and Missing_Font_Id = 0,
-        "raster request requires trusted font directory");
       for Wait in 1 .. 400 loop
          Jobs.Poll (Raster_Id, 303, Raster_Status, Raster_Result);
          exit when Raster_Status /= Jobs.Pending;
@@ -450,6 +505,24 @@ begin
         "default display job remains valid");
       Check (Inline_Status = Jobs.Valid and Inline_Result /= null,
         "inline request remains valid with Fleqn requested");
+      Jobs.Submit ("x+y", Raster_Id, 306, Math_Layout.Display_Style,
+        Status => Raster_Status, Request_Raster => True,
+        Em_Pixels => 24.0, Font_Directory => Font_Directory);
+      for Wait in 1 .. 400 loop
+         if Raster_Status = Jobs.Pending then
+            Jobs.Poll (Raster_Id, 306, Raster_Status, Raster_Result);
+         end if;
+         exit when Raster_Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      Check (Raster_Status = Jobs.Valid and then
+        Raster_Result /= null and then Jobs.Has_Raster (Raster_Result.all),
+        "ordinary raster recovers after invalid-scale rejection");
+      if Raster_Result /= null then
+         Jobs.Release (Raster_Result);
+      end if;
+      Check (Math_Raster_Budget.Used = 0,
+        "scale rejection and valid recovery leave empty raster ledger");
       if Default_Result /= null then
          Check (not Jobs.Layout (Default_Result.all).Left_Aligned and
            Jobs.Layout (Default_Result.all).Left_Indent = 0.0,
@@ -482,6 +555,10 @@ begin
    Jobs.Poll (Ids (Ids'Last), 77, S, R);
    Check (S = Jobs.Cancelled and R = null,
      "cancel-before-resume consumes without worker result");
+   Jobs.Submit ("overflow", Overflow_Id, 77, Math_Layout.Text_Style,
+     Status => S);
+   Check (S = Jobs.Pending,
+     "exact prior Busy request retries after cancelled slot is consumed");
    Jobs.Abandon (Ids (1), 77);
    Jobs.Submit ("abandon frees queued slot", Abandoned_Id,
      Abandoned_Generation, Math_Layout.Text_Style, Status => S);
@@ -538,6 +615,19 @@ begin
       Jobs.Poll (Ids (I), 77, S, R);
       Check (S = Jobs.Unknown and R = null, "poll consumes once");
    end loop;
+   Timing_Found := False;
+   for Wait in 1 .. 400 loop
+      Jobs.Timing (Overflow_Id, 77, Timing_Value, Timing_Found);
+      exit when Timing_Found;
+      delay 0.001;
+   end loop;
+   Jobs.Poll (Overflow_Id, 77, S, R);
+   Check (Timing_Found and then S = Jobs.Valid and then R /= null and then
+     Jobs.Source (R.all) = "overflow",
+     "retried Busy request completes with exact source and timing");
+   if R /= null then
+      Jobs.Release (R);
+   end if;
 
    Jobs.Shutdown;
    Jobs.Start (Paused => True);
@@ -806,6 +896,109 @@ begin
          Check (Math_Raster_Budget.Used = 0,
            "colored alpha raster release restores empty budget");
       end if;
+   end;
+   declare
+      function Macro_Failure_Text return String is
+      begin
+         return "\def\grow#1{#1#1}\grow{" &
+           (1 .. 60_000 => 'x') & "}";
+      end Macro_Failure_Text;
+      function Array_Failure_Text return String is
+         use Ada.Strings.Unbounded;
+         Result : Unbounded_String := To_Unbounded_String
+           ("\begin{matrix}x");
+      begin
+         for Column in 2 .. 65 loop
+            Append (Result, "&x");
+         end loop;
+         Append (Result, "\end{matrix}");
+         return To_String (Result);
+      end Array_Failure_Text;
+      function Abuse_Source (Index : Positive) return String is
+      begin
+         return (if Index = 1 then Macro_Failure_Text
+                 else Array_Failure_Text);
+      end Abuse_Source;
+      Abuse_Id : Jobs.Request_Id;
+      Recovery_Id : Jobs.Request_Id;
+      Abuse_Status : Jobs.Job_Status;
+      Recovery_Status : Jobs.Job_Status;
+      Abuse_Result : Jobs.Result_Access;
+      Recovery_Result : Jobs.Result_Access;
+   begin
+      Jobs.Start;
+      for Iteration in 1 .. 3 loop
+         for Case_Index in 1 .. 2 loop
+            Jobs.Submit (Abuse_Source (Case_Index), Abuse_Id,
+              Jobs.View_Generation (500 + Iteration),
+              Math_Layout.Display_Style, Status => Abuse_Status,
+              Request_Raster => True, Em_Pixels => 24.0,
+              Font_Directory => Font_Directory);
+            Check (Abuse_Status = Jobs.Pending,
+              "pathological worker request queues" & Case_Index'Image);
+            for Wait in 1 .. 400 loop
+               if Abuse_Status = Jobs.Pending then
+                  Jobs.Poll (Abuse_Id,
+                    Jobs.View_Generation (500 + Iteration), Abuse_Status,
+                    Abuse_Result);
+               end if;
+               exit when Abuse_Status /= Jobs.Pending;
+               delay 0.005;
+            end loop;
+            Check (Abuse_Status = Jobs.Invalid and Abuse_Result /= null,
+              "pathological input returns Invalid result");
+            if Abuse_Result /= null then
+               declare
+                  Expected_Error : constant String :=
+                    (if Case_Index = 1 then
+                       "macro expansion: TOKEN_LIMIT"
+                     else "array column limit exceeded");
+               begin
+                  Check (Jobs.Error (Abuse_Result.all)'Length >=
+                    Expected_Error'Length and then
+                    Jobs.Error (Abuse_Result.all)
+                      (1 .. Expected_Error'Length) = Expected_Error,
+                    "pathological input reports specific rejection cause");
+               end;
+               Check (Jobs.Source (Abuse_Result.all) =
+                 Abuse_Source (Case_Index) and
+                 not Jobs.Has_Raster (Abuse_Result.all) and
+                 Jobs.Raster_Width (Abuse_Result.all) = 0 and
+                 Jobs.Raster_Height (Abuse_Result.all) = 0 and
+                 Jobs.Raster_Retained_Bytes (Abuse_Result.all) = 0 and
+                 Math_Raster_Budget.Used = 0,
+                 "rejected source retained without pixels or charge");
+               Jobs.Release (Abuse_Result);
+            end if;
+            Jobs.Submit ("x+y", Recovery_Id,
+              Jobs.View_Generation (500 + Iteration),
+              Math_Layout.Display_Style, Status => Recovery_Status,
+              Request_Raster => True, Em_Pixels => 24.0,
+              Font_Directory => Font_Directory);
+            Check (Recovery_Status = Jobs.Pending,
+              "normal raster recovery queues after pathological rejection");
+            for Wait in 1 .. 400 loop
+               if Recovery_Status = Jobs.Pending then
+                  Jobs.Poll (Recovery_Id,
+                    Jobs.View_Generation (500 + Iteration), Recovery_Status,
+                    Recovery_Result);
+               end if;
+               exit when Recovery_Status /= Jobs.Pending;
+               delay 0.005;
+            end loop;
+            Check (Recovery_Status = Jobs.Valid and then
+              Recovery_Result /= null and then
+              Jobs.Source (Recovery_Result.all) = "x+y" and then
+              Jobs.Has_Raster (Recovery_Result.all) and then
+              Jobs.Raster_Retained_Bytes (Recovery_Result.all) > 0,
+              "ordinary raster result follows pathological rejection");
+            if Recovery_Result /= null then
+               Jobs.Release (Recovery_Result);
+            end if;
+            Check (Math_Raster_Budget.Used = 0,
+              "pathological rejection recovery releases raster charge");
+         end loop;
+      end loop;
    end;
    declare
       Tiny_Id : Jobs.Request_Id;

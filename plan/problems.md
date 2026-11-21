@@ -4873,3 +4873,37 @@ are historical, not current-source qualification.
   strings, expander/semantics/layout/native/font, allocator and returned/cache
   lifetime accounting; timing, parity, lifecycle and human acceptance remain
   OPEN. Self-review is not independent acceptance. No release/install/commit.
+
+
+### PCR-125 — Resource-abuse requirements correction, 2026-11-15
+
+- **Category:** Requirements, Plans, Design, Test. **Priority:** 3-Moderate.
+- **Authority:** user clarified the goal as catching abusive/pathological LaTeX,
+  not perfectly accounting for memory, and explicitly requested this update.
+- **Problem:** exhaustive whole-job256MiB accounting and proposed retained
+  budget ownership migration had become disproportionate completion gates.
+- **Action:** SRS-MATH v1.1 revises REQ-MATH-010 and §5 to documented coarse
+  admission for major buffers/known large overlaps, structural/work guards,
+  safe rejection/fallback and post-failure recovery. RSS is diagnostic, not a
+  256MiB oracle. Plans/test cases and design disposition reconciled; optional
+  retained-budget proposal is no longer a prerequisite.64MiB retained-raster,
+  timing50/250ms, compatibility, D01–D15 and ordinary memory safety unchanged.
+- **Verification/status:** documentation consistency and whitespace review;
+  no runtime change or test rerun. Requirements correction recorded; practical
+  guard qualification remains pending. Existing leak/failure records preserved.
+  PCR-125 remains OPEN. Developer self-review is not independent acceptance.
+
+
+### PCR-125 — Practical guard recovery coverage, 2026-11-15
+
+- **Category:** Test. **Priority:**3-Moderate. **Authority:** user authorized
+  the practical abuse-guard increment after SRS-MATH v1.1 correction.
+- **Problem/action:** existing numeric guards lacked a coherent deterministic
+  rejection/next-request matrix. Extend existing engine and jobs probes, not
+  allocation-accounting architecture. Report §11.19 and retained evidence record
+  engine174/worker279 twice, parser719/ledger38, development builds and full repeat.
+- **Status:** scoped test coverage complete; broader guard qualification OPEN.
+  Full first1075/1076 fixed-port HTTP fixture bind error preserved; focused and
+  full repeat pass without production change. Candidate full caller-created
+  macro scope-stack diagnostic persistence needs reproduction/disposition; not
+  a fresh-source nesting bypass. No runtime change, parity or user acceptance.

@@ -1,14 +1,14 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.44
-**Date:** 2026-11-06
+**Version:** 1.45
+**Date:** 2026-11-15
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. The source crosswalk contains 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Report §11.10 records expanded images95/95 and original29/29; images were not rerun in the inline-worker increment. Inline formulas now request worker rasters and adopt Pixbufs on GTK in bounded row batches; report §11.11 records the scoped increment, not timing qualification. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
+**Native-math port (PCR-125):** SRS-MATH v1.1 is authoritative, with unchanged D01–D15. Its resource-scope correction replaces exhaustive memory accounting with practical abuse protection; see report §11.18. Coordinator report §11 contains current implementation/evidence; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. The source crosswalk contains 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Report §11.10 records expanded images95/95 and original29/29; images were not rerun in the inline-worker increment. Inline formulas now request worker rasters and adopt Pixbufs on GTK in bounded row batches; report §11.11 records the scoped increment, not timing qualification. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
 ---
 
@@ -3350,3 +3350,24 @@ rerun. Retained ownership proposal remains NOT APPROVED. Whole-job and other
 payload/phase/allocator/return/cache accounting, timing, parity, lifecycle and
 human acceptance remain open. Self-review is not independent acceptance; no
 release/install/commit.
+
+## 2026-11-15 — Resource-abuse scope correction (PCR-125)
+
+The user directed practical protection against abusive/pathological LaTeX and
+explicitly authorized the requirements update. SRS-MATH v1.1 supersedes earlier
+whole-job accounting completion gates:256 MiB is a coarse admission budget for
+tracked major workspace/output buffers and known large overlaps, not an exact
+all-allocation or RSS cap. Document guard coverage, estimates and exclusions;
+verify hostile-input rejection, cleanup, visible-source fallback and ordinary
+request recovery. Source/token/expansion/node/depth/array/command/dimension/
+surface limits,64 MiB retained-raster process bound and50/250 ms timing targets
+are unchanged. Ordinary ownership safety remains mandatory.
+
+Exhaustive string/native/allocator/copy-lifetime accounting, storage pools and
+retained-account leases are not acceptance prerequisites. The retained-budget
+proposal is optional historical design exploration, not the required next gate.
+Existing implementation and evidence are preserved; no historical failure is
+converted to a pass and known native lifecycle failures remain open. Practical
+abuse-protection qualification, timing, complete compatibility and independent
+human acceptance remain pending. Documentation-only; no builds/tests rerun.
+Developer self-review is not independent acceptance. See report §11.18.
