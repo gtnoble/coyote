@@ -1,5 +1,22 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas recovery foundation (PCR-130)
+
+The internal snapshot codec preserves saved branches, source-coordinate ink,
+crop extents, Original raster indices, and the latest draft without adding a
+revision. It validates the complete revision graph before adopting it; Undo
+and Redo history is transient. The UUID-scoped manifest transport bounds
+reads, rejects unsafe entries, and publishes a flushed private file by atomic
+rename under a nonblocking per-manifest writer lock. Readers ignore temporary
+files and can read the published version while a writer holds the lock.
+
+Both development builds and five focused tests passed. The serial Xvfb suite
+passed 1,108/1,108 (exit 0); standalone GTK checks passed 9/9, the runner
+containment self-test passed, and Canvas CLI compatibility passed. This is
+internal developer verification, not session recovery or qualification.
+Raster assets and stable public IDs are not yet persisted; shared session
+writer ownership, GTK autosave/reopen, and fork/deletion are not wired.
+
 ## 2026-11-21 — Canonical Canvas pixels and lossless PNG (PCR-130/131)
 
 The normal Canvas view uses the native-size straight-alpha composite. Cairo

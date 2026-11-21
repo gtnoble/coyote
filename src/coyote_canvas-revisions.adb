@@ -4,9 +4,7 @@ package body Coyote_Canvas.Revisions is
    use type Ada.Containers.Count_Type;
    use type Document.Rectangle;
 
-   MAX_STROKES   : constant := 512;
    MAX_EDITS     : constant := 256;
-   MAX_POINTS    : constant := 100_000;
 
    procedure Clear (W : in out Workspace) is
    begin

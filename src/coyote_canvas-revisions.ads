@@ -69,6 +69,9 @@ package Coyote_Canvas.Revisions is
       Process : not null access procedure (Points : Samples.Vector));
 
 private
+   MAX_STROKES : constant := 512;
+   MAX_POINTS  : constant := 100_000;
+
    package Stroke_Lists is new Ada.Containers.Vectors
      (Positive, Samples.Vector, Samples."=");
    package Stroke_Ids is new Ada.Containers.Vectors (Positive, Positive);

@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.42
+**Version:** 1.43
 **Date:** 2026-11-21
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
@@ -995,8 +995,9 @@ The product owner accepted SDD-CORE v1.45 §5.51 and SDD-CANVAS v1.0.
 Acceptance establishes the Canvas design baseline without changing the
 requirements or moving follow-on features into the first increment. Later
 implementation adds a widget-independent composite, bounded PNG encoding,
-and a cached GTK display surface. The Frontends development log records
-regression evidence. STP §4.6 qualification, Attach/Send, durable storage,
+and a cached GTK display surface, followed by an internal revision/draft
+snapshot codec and atomic sidecar manifest transport. The Frontends
+development log records regression evidence. STP §4.6 qualification, Attach/Send, durable storage,
 the authorized import service, and desktop/tablet acceptance remain open.
 
 ## 9. Artifact Version Table
@@ -1014,7 +1015,7 @@ the authorized import service, and desktop/tablet acceptance remain open.
 | Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.35 (2026-11-21) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.50 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.51 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
 | Canvas Detailed Design | SDD-CANVAS | `design/coyote-canvas-design.md` | 1.0 (2026-11-21) | Client — design accepted |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
