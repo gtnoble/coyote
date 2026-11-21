@@ -1,0 +1,17 @@
+{
+  "parent_commit": "9225c7f74acddc23b945f8cf92a2acf8d75d9b47",
+  "project_date": "2026-11-15",
+  "host_dates": "Host timestamps differ and are retained verbatim.",
+  "sha256": {
+    "src/coyote_math/math_layout.adb": "cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841",
+    "test/tools/math_engine_probe.adb": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148",
+    "src/coyote_math/math_layout.ads": "1c9b2aa7aa8787c1969a8b795b78a1c77e26420fdc539390ba12c5d43cb5b101",
+    "test/tools/math_export.adb": "a967be831dbe7947759163912218b0ffd99fa6f041e2e20453a652a2281d8b37",
+    "test/tools/check-math-fuzz.cjs": "b359ca9812bb2b188a8af4f9ac4d30a778e414d6b6a478eb8807ff4996b18f62",
+    "/tmp/coyote-array-engine-final2/bin/math_engine_probe": "176192801b9541d494fab3a10f7a2634cec18dae6af8797db30203cb227f523c",
+    "/tmp/coyote-array-command-compare/new-build/bin/math_export": "4a5fc231d6a17e08141944ea465c7ac60b6455de0cd1142dd84df765d85084a3",
+    "/tmp/coyote-array-command-compare/baseline-build/bin/math_export": "a23d6361a0e7dd89f612341aac5f36891bf672477137ff7808310d18b0c3d844",
+    "test/bin/coyote_test": "8d24c880cb448bd249da510b251b6337db63adfacccd8eeacfecff12a43c2e8f",
+    "bin/coyote": "b5d94af402e30846d6fd969a359180acfb64f10e2f042fe90b3d722f2db26269"
+  }
+}

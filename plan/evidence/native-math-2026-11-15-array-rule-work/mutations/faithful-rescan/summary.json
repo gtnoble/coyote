@@ -1,0 +1,23 @@
+{
+  "mutation": "mutant5-faithful-rescan",
+  "disposition": "built_and_probe_completed_expected_envelope_failures",
+  "mutation_semantics": "Replaces the entire Next_Rule lookup with a full scan of Value.Array_Rules from its first element for each stroke; increments Seen only for matching Boundary and selects the Rule_Index-th matching boundary rule.",
+  "polls_retained": "Poll (Thickness) runs once for every Array_Rules element visited by each rescan; validation and Rules_At polls are unchanged.",
+  "probe_source_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148",
+  "mutated_layout_sha256": "27c50ecbfc30bbb8a99da44cdc63d89967f0c30b7a91985ff2315af358215740",
+  "mutation_patch_sha256": "24396a7bed152114538c161df5a94352899e57400c6264972a2cdf5f15074098",
+  "build_exit": 0,
+  "array_rule_work_polls": {
+    "1": 48,
+    "16": 471,
+    "256": 37799,
+    "1024": 544319
+  },
+  "assertions": {
+    "total": 3404,
+    "failures": 3
+  },
+  "seeded_stops": "64 cases / 128 injections passed",
+  "quadratic_claim": "Not made for mutant4; mutant5 faithfully restarts traversal for each generated rule stroke. Observed large-N counts are consistent with the intended repeated-scan behavior.",
+  "source_snapshot": "src/coyote_math/math_layout.adb SHA-256 cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841"
+}

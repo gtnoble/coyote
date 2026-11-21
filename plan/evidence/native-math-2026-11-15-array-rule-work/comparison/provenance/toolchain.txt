@@ -1,0 +1,41 @@
+
+GNATLS 15.2.0
+Copyright (C) 1997-2025, Free Software Foundation, Inc.
+
+Source Search Path:
+   <Current_Directory>
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/lib/gcc/x86_64-pc-linux-gnu/15.2.0/adainclude
+
+
+Object Search Path:
+   <Current_Directory>
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/lib/gcc/x86_64-pc-linux-gnu/15.2.0/adalib
+
+
+Project Search Path:
+   <Current_Directory>
+   /home/gtnoble/.local/share/alire/builds/gnatcoll_25.0.0_d7d84483/a434996ebb8998e872e69531c137863fad7bfd45efb1e879b8f9cbeed478ad00
+   /home/gtnoble/.local/share/alire/builds/gnatcoll_25.0.0_d7d84483/a434996ebb8998e872e69531c137863fad7bfd45efb1e879b8f9cbeed478ad00/core
+   /home/gtnoble/.local/share/alire/builds/gnatcoll_25.0.0_d7d84483/a434996ebb8998e872e69531c137863fad7bfd45efb1e879b8f9cbeed478ad00/minimal
+   /home/gtnoble/.local/share/alire/builds/gnatcoll_25.0.0_d7d84483/a434996ebb8998e872e69531c137863fad7bfd45efb1e879b8f9cbeed478ad00/projects
+   /home/gtnoble/.local/share/alire/builds/gtkada_26.0.0_489d17d3/5b0a6c228d630e36e6dc7a2e55ab79e0ec87b01c42118c60761c64f4c6d5669c/src
+   /home/gtnoble/.local/share/alire/builds/libgpr_25.0.0_17669998/a1122c28401db894064869a99316ba513c8d1f56d425905cd776f42042d201ac/gpr
+   /home/gtnoble/.local/share/alire/builds/sha2_2.0.0_73c2cd73/8980dc3771b68aedd1653e3d6c7094147063cde1c8ec07d8ea512d2b1fa09e1e
+   /home/gtnoble/.local/share/alire/builds/xmlada_25.0.0_7f12fe3a/54b8410df82982d5b212b4b593da38f8a47a2b381e690b580ca8e3b2e5b32e2b/distrib
+   /home/gtnoble/.local/share/alire/builds/xmlada_25.0.0_7f12fe3a/54b8410df82982d5b212b4b593da38f8a47a2b381e690b580ca8e3b2e5b32e2b/dom
+   /home/gtnoble/.local/share/alire/builds/xmlada_25.0.0_7f12fe3a/54b8410df82982d5b212b4b593da38f8a47a2b381e690b580ca8e3b2e5b32e2b/input_sources
+   /home/gtnoble/.local/share/alire/builds/xmlada_25.0.0_7f12fe3a/54b8410df82982d5b212b4b593da38f8a47a2b381e690b580ca8e3b2e5b32e2b/sax
+   /home/gtnoble/.local/share/alire/builds/xmlada_25.0.0_7f12fe3a/54b8410df82982d5b212b4b593da38f8a47a2b381e690b580ca8e3b2e5b32e2b/schema
+   /home/gtnoble/.local/share/alire/builds/xmlada_25.0.0_7f12fe3a/54b8410df82982d5b212b4b593da38f8a47a2b381e690b580ca8e3b2e5b32e2b/unicode
+   /home/gtnoble/Projects/coyote/coyote-latex-math
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/x86_64-pc-linux-gnu/lib/gnat
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/x86_64-pc-linux-gnu/share/gpr
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/share/gpr
+   /home/gtnoble/.local/share/alire/toolchains/gnat_native_15.2.1_4640d4b3/lib/gnat
+
+
+GPRBUILD 25.0.0 (2025-05-16) (x86_64-pc-linux-gnu)
+Copyright (C) 2004-2025, AdaCore
+This is free software; see the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+

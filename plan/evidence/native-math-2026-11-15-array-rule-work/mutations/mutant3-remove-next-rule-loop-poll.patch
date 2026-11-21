@@ -1,0 +1,10 @@
+--- baseline/src/math_layout.adb
++++ mutant3-remove-next-rule-loop-poll/src/math_layout.adb
+@@ -2254,7 +2254,6 @@
+                                  while Next_Rule <=
+                                    Natural (Value.Array_Rules.Length)
+                                  loop
+-                                    Poll (Thickness);
+                                     declare
+                                        Rule : constant Array_Rule :=
+                                          Value.Array_Rules (Next_Rule);

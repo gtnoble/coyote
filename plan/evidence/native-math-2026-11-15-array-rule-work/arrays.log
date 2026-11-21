@@ -1,0 +1,26 @@
+array-rule-spacing OK
+cd-empty-column-stride OK
+cd-visible-rows 63 OK
+cd-visible-rows 64 OK
+cd-visible-rows 65 OK
+hline-top OK  1
+hline-repeated OK  2
+hline-interior OK  1
+hline-repeated-interior OK  2
+hdashline-interior OK  1
+hline-inside-cell REJECTED  0
+array-align OK  4.54701000000000E+00  0
+array-rule OK  3.37662000000000E+00  3
+nested OK  1.54908000000000E+00  0
+alignedat OK  5.06066555555556E+00  0
+bad-spec ERROR unsupported array column specification
+missing-spec ERROR missing array column specification
+wrong-columns ERROR array row has wrong number of columns
+wrong-pairs ERROR array row has wrong number of columns
+cd-horizontal OK  2.74100400000000E+00  6.48004000000000E-01  7.80868000000000E+00
+cd-vertical OK  3.14651500000000E+00  1.05351500000000E+00  2.53625000000000E+00
+cd-cr OK  2.63950000000000E+00  0.00000000000000E+00  7.50000000000000E-01
+cd-empty-label OK  1.85214600000000E+00  0.00000000000000E+00  5.55868000000000E+00
+cd-bad-marker OK invalid CD arrow marker
+cd-missing-label OK incomplete CD arrow
+cd-cr-scope OK  2.68694444444444E+00  0

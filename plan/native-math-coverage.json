@@ -181,7 +181,7 @@
     "src/coyote_math/math_unicode.ads": "cbdecbf9f6da59d0366b723c1a01cdb7fe04f7348c3cebcc79c01ed7ae620e4a",
     "src/coyote_math/math_unicode.adb": "14a15a94e2cd24cac3fa3a1be2e5063a77dc94ae7cae306a261409df3abbccf2",
     "src/coyote_math/math_layout.ads": "1c9b2aa7aa8787c1969a8b795b78a1c77e26420fdc539390ba12c5d43cb5b101",
-    "src/coyote_math/math_layout.adb": "6f929b1f7cda0883fdb6736e86a0e409231d7974234f8bc58180adb7d9556ba4",
+    "src/coyote_math/math_layout.adb": "cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841",
     "src/coyote_math/math_macros.ads": "059d115c39458a79b93f840a53f6da83498ae2a694a6667210e398260132cd91",
     "src/coyote_math/math_macros.adb": "2d4714db460962b897f77a923bc66603fc3a1b47c3eed60aa84b1b30327b02bc",
     "src/coyote_math/math_metrics.ads": "b093d51726a41490d37d6772c3e11a6a332771d7175eda47f53c04b030500112",

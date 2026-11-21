@@ -1,0 +1,10 @@
+--- baseline/src/math_layout.adb
++++ mutant1-remove-rules-at-poll/src/math_layout.adb
+@@ -1896,7 +1896,6 @@
+       begin
+          if not Value.Array_Rules.Is_Empty then
+             for Rule of Value.Array_Rules loop
+-               Poll (Thickness);
+                if Rule.Boundary = Boundary then
+                   Count := Count + 1;
+                end if;

@@ -1,0 +1,3 @@
+ M plan/native-math-coverage.json
+ M src/coyote_math/math_layout.adb
+ M test/tools/math_engine_probe.adb

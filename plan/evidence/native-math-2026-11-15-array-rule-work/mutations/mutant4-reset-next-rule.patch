@@ -1,0 +1,10 @@
+--- baseline/src/math_layout.adb
++++ mutant4-reset-next-rule/src/math_layout.adb
+@@ -2251,6 +2251,7 @@
+                               begin
+                                  --  Keep metadata order without rescanning the
+                                  --  prefix for every stroke at this boundary.
++                                 Next_Rule := 1;
+                                  while Next_Rule <=
+                                    Natural (Value.Array_Rules.Length)
+                                  loop

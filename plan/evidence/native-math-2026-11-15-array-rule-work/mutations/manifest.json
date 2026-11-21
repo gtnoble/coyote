@@ -1,0 +1,23 @@
+{
+  "baseline_layout_sha256": "cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841",
+  "probe_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148",
+  "ada_source_count": 49,
+  "variants": {
+    "mutant1-remove-rules-at-poll": {
+      "sha256": "67c4e1dbdd530f161a71bc474d7614786030e62035e19783089e7cd0444fc5e8",
+      "patch": "mutant1-remove-rules-at-poll.patch"
+    },
+    "mutant2-remove-metadata-poll": {
+      "sha256": "f565759bcc8ec6b3671d70206672e6ccb48ded5617a34ccc80f837cba602365e",
+      "patch": "mutant2-remove-metadata-poll.patch"
+    },
+    "mutant3-remove-next-rule-loop-poll": {
+      "sha256": "b525641c7fd8c02867ea0a105a667f37583f44055507911e9c117a60d8a28fc9",
+      "patch": "mutant3-remove-next-rule-loop-poll.patch"
+    },
+    "mutant4-reset-next-rule": {
+      "sha256": "e23f1dd72cab2dfb997c7925719adc076cc508d27dab56a71b5880af280429df",
+      "patch": "mutant4-reset-next-rule.patch"
+    }
+  }
+}

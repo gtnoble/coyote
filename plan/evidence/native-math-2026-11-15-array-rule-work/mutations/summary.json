@@ -1,0 +1,81 @@
+{
+  "request": "four isolated array renderer mutants against final engine probe",
+  "toolchain": "Alire default gnat_native 15.2.1 (GNAT 15.2.0; GPRbuild 25.0.0)",
+  "timeout_seconds_per_probe": 120,
+  "baseline": {
+    "source_sha256": "cc65c6e2b4202f32a74837c905dd74ee94bdf1727871d9611357f74abf98d841",
+    "probe_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148",
+    "ada_source_count": 49,
+    "build_exit": 0,
+    "probe_exit": 0,
+    "assertions": 3404,
+    "failures": 0,
+    "build_log": "/tmp/coyote-array-mutations/baseline-build.log",
+    "probe_log": "/tmp/coyote-array-mutations/baseline-probe.log"
+  },
+  "mutants": {
+    "mutant1-remove-rules-at-poll": {
+      "build_exit": 0,
+      "probe_exit": 1,
+      "assertions": 3404,
+      "failures": 2,
+      "failed_assertions": [
+        "FAIL array metadata poll envelope N= 256 polls= 1575",
+        "FAIL array metadata poll envelope N= 1024 polls= 6207"
+      ],
+      "probe_log": "/tmp/coyote-array-mutations/mutant1-remove-rules-at-poll-probe.log",
+      "build_log": "/tmp/coyote-array-mutations/mutant1-remove-rules-at-poll-build.log",
+      "patch": "/tmp/coyote-array-mutations/mutant1-remove-rules-at-poll.patch",
+      "source_sha256": "67c4e1dbdd530f161a71bc474d7614786030e62035e19783089e7cd0444fc5e8",
+      "probe_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148"
+    },
+    "mutant2-remove-metadata-poll": {
+      "build_exit": 0,
+      "probe_exit": 1,
+      "assertions": 3404,
+      "failures": 2,
+      "failed_assertions": [
+        "FAIL array metadata poll envelope N= 256 polls= 4903",
+        "FAIL array metadata poll envelope N= 1024 polls= 19519"
+      ],
+      "probe_log": "/tmp/coyote-array-mutations/mutant2-remove-metadata-poll-probe.log",
+      "build_log": "/tmp/coyote-array-mutations/mutant2-remove-metadata-poll-build.log",
+      "patch": "/tmp/coyote-array-mutations/mutant2-remove-metadata-poll.patch",
+      "source_sha256": "f565759bcc8ec6b3671d70206672e6ccb48ded5617a34ccc80f837cba602365e",
+      "probe_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148"
+    },
+    "mutant3-remove-next-rule-loop-poll": {
+      "build_exit": 0,
+      "probe_exit": 1,
+      "assertions": 3404,
+      "failures": 2,
+      "failed_assertions": [
+        "FAIL array metadata poll envelope N= 256 polls= 4903",
+        "FAIL array metadata poll envelope N= 1024 polls= 19519"
+      ],
+      "probe_log": "/tmp/coyote-array-mutations/mutant3-remove-next-rule-loop-poll-probe.log",
+      "build_log": "/tmp/coyote-array-mutations/mutant3-remove-next-rule-loop-poll-build.log",
+      "patch": "/tmp/coyote-array-mutations/mutant3-remove-next-rule-loop-poll.patch",
+      "source_sha256": "b525641c7fd8c02867ea0a105a667f37583f44055507911e9c117a60d8a28fc9",
+      "probe_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148"
+    },
+    "mutant4-reset-next-rule": {
+      "build_exit": 0,
+      "probe_exit": 1,
+      "assertions": 3404,
+      "failures": 2,
+      "failed_assertions": [
+        "FAIL array metadata poll envelope N= 256 polls= 4643",
+        "FAIL array metadata poll envelope N= 1024 polls= 18479"
+      ],
+      "probe_log": "/tmp/coyote-array-mutations/mutant4-reset-next-rule-probe.log",
+      "build_log": "/tmp/coyote-array-mutations/mutant4-reset-next-rule-build.log",
+      "patch": "/tmp/coyote-array-mutations/mutant4-reset-next-rule.patch",
+      "source_sha256": "e23f1dd72cab2dfb997c7925719adc076cc508d27dab56a71b5880af280429df",
+      "probe_sha256": "d632d132352525ac4d236a9ad683324a93cf871ed50f0bc69487847efee05148"
+    }
+  },
+  "repository_source_edits": false,
+  "subagents": false,
+  "commit": false
+}

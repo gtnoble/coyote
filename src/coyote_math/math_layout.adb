@@ -1896,6 +1896,7 @@ package body Math_Layout is
       begin
          if not Value.Array_Rules.Is_Empty then
             for Rule of Value.Array_Rules loop
+               Poll (Thickness);
                if Rule.Boundary = Boundary then
                   Count := Count + 1;
                end if;
@@ -1996,6 +1997,7 @@ package body Math_Layout is
             Reject ("array rule metadata limit exceeded");
          end if;
          for Rule of Value.Array_Rules loop
+            Poll (Thickness);
             if Rule.Boundary > Rows or else
               Rule.Kind not in Solid_Array_Rule | Dashed_Array_Rule
             then
@@ -2237,6 +2239,7 @@ package body Math_Layout is
             for Boundary in 0 .. Rows loop
                declare
                   Count : constant Natural := Rules_At (Boundary);
+                  Next_Rule : Natural := 1;
                begin
                   if Count > 0 then
                      for Rule_Index in 1 .. Count loop
@@ -2245,17 +2248,24 @@ package body Math_Layout is
                            begin
                               declare
                                  Is_Dashed : Boolean := False;
-                                 Seen : Natural := 0;
                               begin
-                                 for Rule of Value.Array_Rules loop
-                                    if Rule.Boundary = Boundary then
-                                       Seen := Seen + 1;
-                                       if Seen = Rule_Index then
+                                 --  Keep metadata order without rescanning the
+                                 --  prefix for every stroke at this boundary.
+                                 while Next_Rule <=
+                                   Natural (Value.Array_Rules.Length)
+                                 loop
+                                    Poll (Thickness);
+                                    declare
+                                       Rule : constant Array_Rule :=
+                                         Value.Array_Rules (Next_Rule);
+                                    begin
+                                       Next_Rule := Next_Rule + 1;
+                                       if Rule.Boundary = Boundary then
                                           Is_Dashed :=
                                             Rule.Kind = Dashed_Array_Rule;
                                           exit;
                                        end if;
-                                    end if;
+                                    end;
                                  end loop;
                                  Rule_Command_Value.Kind := Rule_Command;
                                  Rule_Command_Value.X := Left_Width;

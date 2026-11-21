@@ -1,0 +1,14 @@
+Logs: /tmp/gtk-interactions-w5n8i1u9
+PASS plain: /tmp/gtk-interactions-w5n8i1u9/01-plain.log
+PASS unicode: /tmp/gtk-interactions-w5n8i1u9/02-unicode.log
+PASS bidi: /tmp/gtk-interactions-w5n8i1u9/03-bidi.log
+PASS inline-math: /tmp/gtk-interactions-w5n8i1u9/04-inline-math.log
+PASS multiline: /tmp/gtk-interactions-w5n8i1u9/05-multiline.log
+PASS plain: /tmp/gtk-interactions-w5n8i1u9/06-plain.log
+PASS link-click: /tmp/gtk-interactions-w5n8i1u9/07-link-click.log
+PASS link-hover: /tmp/gtk-interactions-w5n8i1u9/08-link-hover.log
+PASS math-boundary: /tmp/gtk-interactions-w5n8i1u9/09-math-boundary.log
+Summary: 9/9 passed
+
+TIME elapsed=15.17 user=1.18 sys=0.49 exit=0
+GTK_INTERACTIONS_EXIT=0

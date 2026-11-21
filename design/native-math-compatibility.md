@@ -580,3 +580,18 @@ mandatory GTK/containment/HTTP checks pass. Exact-probe no-poll mutation fails
 active-worker color-phase stop injection or native hard-deadline guarantee;
 prior raster losses and wider qualification remain open. No requirements,
 limits or accounting policy changed. No release/install/commit.
+
+
+## 2026-11-15 — Cooperative array-rule work (PCR-125)
+
+Report §11.25 and `plan/evidence/native-math-2026-11-15-array-rule-work/`
+record per-entry metadata polls and boundary-local forward rule lookup replacing
+repeated prefix rescans. No caps/accounting/public APIs changed. Engine3404 twice,
+worker346,focused arrays,geometry groups and stratified10000-case replay pass;
+prior/new array exports match68/68 full records. Individual poll removal and
+faithful prefix-rescan mutations fail the scoped poll envelope;simple cursor
+reset is a different first-match defect,not a quadratic-rescan restoration.
+Development/full1076/GTK/HTTP pass;engine Valgrind zero errors/lost bytes.
+Prior raster losses and wider qualification remain open;no hard completion or
+parity/human acceptance. Source fingerprint refreshed,coverage counts unchanged.
+No release/install/commit.

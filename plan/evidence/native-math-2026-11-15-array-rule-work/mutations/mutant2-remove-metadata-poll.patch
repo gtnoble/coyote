@@ -1,0 +1,10 @@
+--- baseline/src/math_layout.adb
++++ mutant2-remove-metadata-poll/src/math_layout.adb
+@@ -1997,7 +1997,6 @@
+             Reject ("array rule metadata limit exceeded");
+          end if;
+          for Rule of Value.Array_Rules loop
+-            Poll (Thickness);
+             if Rule.Boundary > Rows or else
+               Rule.Kind not in Solid_Array_Rule | Dashed_Array_Rule
+             then

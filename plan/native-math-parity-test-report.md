@@ -1913,3 +1913,40 @@ font/lifecycle/parity or acceptance qualification. Existing raster losses remain
 open; browser/geometry/image/raster/whole-macro Valgrind not rerun. Developer/
 agent evaluation is not independent acceptance. PCR-125 OPEN;no release/install/
 commit.
+
+
+### 11.25 Cooperative array-rule traversal — 2026-11-15
+
+Compose_Array now polls each entry in metadata validation,Rules_At counting
+and rule-kind lookup. The latter keeps a boundary-local forward cursor instead
+of restarting from the vector beginning for every stroke. R same-boundary
+rules formerly required R(R+1)/2 lookup visits;now at most R per boundary.
+Counting scans still repeat across bounded rows. Metadata order,solid/dashed
+kind,spacing and AST ownership are unchanged;no new cap/accounting/API change.
+
+Final engine3404/3404 twice;direct-layout fixtures1/16/256/1024 rules yield
+48/351/5159/20543 polls,multi-boundary146. Scoped poll envelopes plus isolated
+mutations detect each removed poll site (two failures each). Faithful old
+prefix search with polls yields37799/544319 at256/1024 rules and three envelope
+failures. A different cursor-reset mutant selects the first match repeatedly;
+its lower counts are NOT evidence of restored quadratic traversal. All final
+mutants share byte-identical probe;the earlier3396/three-failure baseline used
+an evolving probe. Stops/rebuilds prove scoped direct-layout recovery,not each
+phase's timing or native preemption.
+
+Isolated prior/new exporters match full JSONL68/68,3448 commands,including
+multi-boundary/mixed-rule fixtures. This is prior-behavior comparison,not an
+independent browser oracle. Pinned geometry groups and focused arrays pass;
+worker346/346;10000-primary stratified fuzz with full replay passes unchanged
+status/output digest. Engine Valgrind3404 assertions,zero errors/lost bytes,
+216713 reachable under documented4MiB frame threshold. Root/test development
+builds and full Xvfb1076/1076 (143.548323s cumulative/143.63s wall),GTK9/9,
+runner containment and offline HTTP pass;warnings remain. Active build GNAT15.2
+is distinct from a host13.3 query retained in validation provenance.
+
+Evidence:`plan/evidence/native-math-2026-11-15-array-rule-work/`. Source/binary
+hashes,full array comparison,input corpus,mutations and original logs retained.
+Crosswalk counts unchanged. Developer/agent self-review is not independent
+acceptance. No browser images/raster/whole-macro Valgrind rerun;prior raster
+losses and resource/timing/GTK/font/lifecycle/full parity/human gates remain open.
+PCR-125 OPEN;no release/install/commit.

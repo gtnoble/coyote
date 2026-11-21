@@ -1,0 +1,14 @@
+{
+  "caseCount": 68,
+  "allBaselineOk": true,
+  "allNewOk": true,
+  "fullJsonIdentical": true,
+  "changedRows": 0,
+  "sourceMaxChars": 9249,
+  "largeRuleFixtureSourceChars": 9249,
+  "largeRuleCount": 1024,
+  "baselineCommandCount": 3448,
+  "newCommandCount": 3448,
+  "baselineBuildExit": 0,
+  "newBuildExit": 0
+}

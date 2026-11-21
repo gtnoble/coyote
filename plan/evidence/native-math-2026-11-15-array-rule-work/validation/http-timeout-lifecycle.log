@@ -1,0 +1,4 @@
+PASS: Plain/RPC timeout lifecycle and ZERO-disable delayed success; 4+4 stalled requests; offline fixture only
+
+TIME elapsed=65.55 user=0.27 sys=0.22 exit=0
+HTTP_TIMEOUT_LIFECYCLE_EXIT=0

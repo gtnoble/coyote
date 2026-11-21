@@ -21,6 +21,8 @@ procedure Math_Engine_Probe is
    use type Math_Work_Control.Stop_Reason;
    use type Math_Macros.Diagnostic_Kind;
    use type Math_Layout.Command_Kind;
+   use type Math_Layout.Box;
+   use type Math_Model.Array_Rule_Kind;
    use type Math_Model.Node_Kind;
    use type Math_Paths.Segment;
    use type Math_Syntax.Diagnostic_Kind;
@@ -1096,11 +1098,208 @@ procedure Math_Engine_Probe is
         ("SEEDED_STOPS seed=0x73746f70 cases=64 injections=128");
    end Test_Seeded_Stop_Recovery;
 
+   procedure Test_Array_Rule_Work is
+      use Ada.Strings.Unbounded;
+      Counts : constant array (Positive range 1 .. 4) of Positive :=
+        (1, 16, 256, 1_024);
+      Parsed : Math_Syntax.Document;
+      Reference : Math_Layout.Box;
+      Measured : Math_Layout.Box;
+      Source : Unbounded_String := Null_Unbounded_String;
+      Context : aliased Budget_Context;
+      Root_Value : Math_Syntax.Node;
+      Array_Value : Math_Syntax.Node;
+      Rules : Math_Model.Array_Rule_Vectors.Vector;
+      Solid_Count : Natural;
+      Dashed_Count : Natural;
+      Glyph_Count : Natural;
+      Baseline_Polls : Natural;
+      Stopped : Boolean;
+      Stop_Reasons : constant array (Positive range 1 .. 2) of
+        Math_Work_Control.Stop_Reason :=
+          (Math_Work_Control.Cancel_Requested,
+           Math_Work_Control.Deadline_Reached);
+
+      procedure Make_Source (Rule_Count : Positive) is
+      begin
+         Set_Unbounded_String (Source, "\begin{array}{c}");
+         for Index in 1 .. Rule_Count loop
+            Append (Source,
+              (if Index mod 2 = 0 then "\hdashline " else "\hline "));
+         end loop;
+         Append (Source, "x\\y\end{array}");
+      end Make_Source;
+
+      procedure Check_Mixed_Boundaries is
+         Source_Text : constant String :=
+           "\begin{array}{c}\hline a\\\hdashline b\\\hline\hdashline c\end{array}";
+      begin
+         Parsed := Math_Syntax.Parse (Source_Text);
+         Check (Math_Syntax.Is_Valid (Parsed),
+           "mixed-boundary array fixture parses: " &
+             Math_Syntax.Error (Parsed));
+         if not Math_Syntax.Is_Valid (Parsed) then
+            return;
+         end if;
+
+         Root_Value := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Array_Value := Math_Syntax.Element
+           (Parsed, Positive (Root_Value.First));
+         Rules := Array_Value.Array_Rules;
+         Check (Rules.Length = 4,
+           "mixed-boundary metadata retains four rules");
+         if Rules.Length = 4 then
+            Check (Rules (1).Boundary = 0 and then
+              Rules (1).Kind = Math_Model.Solid_Array_Rule,
+              "first row opening rule is solid at boundary zero");
+            Check (Rules (2).Boundary = 1 and then
+              Rules (2).Kind = Math_Model.Dashed_Array_Rule,
+              "second row opening rule is dashed at boundary one");
+            Check (Rules (3).Boundary = 2 and then
+              Rules (3).Kind = Math_Model.Solid_Array_Rule,
+              "third row opening rule is solid at boundary two");
+            Check (Rules (4).Boundary = 2 and then
+              Rules (4).Kind = Math_Model.Dashed_Array_Rule,
+              "third row keeps ordered double rule at boundary two");
+         end if;
+
+         Reference := Math_Layout.Build
+           (Parsed, Math_Layout.Text_Style);
+         Check (Reference.Valid,
+           "mixed-boundary unpolled geometry is valid");
+         Context.Stop_At := Natural'Last;
+         Context.Reason := Math_Work_Control.Continue_Work;
+         Poll_Count := 0;
+         Measured := Math_Layout.Build
+           (Parsed, Math_Layout.Text_Style,
+            Context'Unchecked_Access);
+         Check (Measured.Valid and then Measured = Reference,
+           "mixed-boundary polled geometry is exact");
+         Ada.Text_IO.Put_Line
+           ("ARRAY_RULE_BOUNDARIES rules=4 boundaries=0,1,2 polls=" &
+            Natural'Image (Poll_Count));
+      end Check_Mixed_Boundaries;
+
+      procedure Check_Size (Rule_Count : Positive) is
+         Source_Text : constant String := To_String (Source);
+      begin
+         Parsed := Math_Syntax.Parse (Source_Text);
+         Check (Math_Syntax.Is_Valid (Parsed),
+           "array work fixture parses N=" & Positive'Image (Rule_Count) &
+             " error=" & Math_Syntax.Error (Parsed));
+         if not Math_Syntax.Is_Valid (Parsed) then
+            return;
+         end if;
+         Root_Value := Math_Syntax.Element
+           (Parsed, Positive (Math_Syntax.Root (Parsed)));
+         Array_Value := Math_Syntax.Element
+           (Parsed, Positive (Root_Value.First));
+         Rules := Array_Value.Array_Rules;
+         Check (Rules.Length = Ada.Containers.Count_Type (Rule_Count),
+           "array metadata retains all rules N=" &
+             Positive'Image (Rule_Count));
+         Solid_Count := 0;
+         Dashed_Count := 0;
+         for Index in 1 .. Rule_Count loop
+            Check (Rules (Index).Boundary = 0,
+              "array rule remains at boundary zero N=" &
+                Positive'Image (Rule_Count));
+            if Index mod 2 = 0 then
+               Check (Rules (Index).Kind = Math_Model.Dashed_Array_Rule,
+                 "array metadata preserves dashed order");
+               Dashed_Count := Dashed_Count + 1;
+            else
+               Check (Rules (Index).Kind = Math_Model.Solid_Array_Rule,
+                 "array metadata preserves solid order");
+               Solid_Count := Solid_Count + 1;
+            end if;
+         end loop;
+         Check (Solid_Count + Dashed_Count = Rule_Count,
+           "mixed rule metadata counts are preserved");
+
+         Reference := Math_Layout.Build
+           (Parsed, Math_Layout.Text_Style);
+         Check (Reference.Valid,
+           "unpolled array geometry is valid N=" &
+             Positive'Image (Rule_Count));
+         Glyph_Count := 0;
+         for Command of Reference.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command then
+               Glyph_Count := Glyph_Count + 1;
+            end if;
+         end loop;
+         Check (Glyph_Count = 2,
+           "array retains exactly x and y glyphs N=" &
+             Positive'Image (Rule_Count));
+
+         Context.Stop_At := Natural'Last;
+         Context.Reason := Math_Work_Control.Continue_Work;
+         Poll_Count := 0;
+         Measured := Math_Layout.Build
+           (Parsed, Math_Layout.Text_Style,
+            Context'Unchecked_Access);
+         Baseline_Polls := Poll_Count;
+         Check (Measured.Valid and then Measured = Reference,
+           "polled array geometry is exact N=" &
+             Positive'Image (Rule_Count));
+         --  Keep the current metadata-poll relationship regression-visible;
+         --  this is not an independent geometry-work oracle.
+         Check (Baseline_Polls <= 21 * Rule_Count + 128 and then
+           (if Rule_Count >= 256 then
+              Baseline_Polls >= 20 * Rule_Count
+            else
+              Baseline_Polls >= 6 * Rule_Count),
+           "array metadata poll envelope N=" &
+             Positive'Image (Rule_Count) & " polls=" &
+             Natural'Image (Baseline_Polls));
+         Ada.Text_IO.Put_Line
+           ("ARRAY_RULE_WORK rules=" & Positive'Image (Rule_Count) &
+            " polls=" & Natural'Image (Baseline_Polls));
+
+         for Reason of Stop_Reasons loop
+            Context.Stop_At := Natural'Max (1, Baseline_Polls / 2);
+            Context.Reason := Reason;
+            Poll_Count := 0;
+            Stopped := False;
+            begin
+               Measured := Math_Layout.Build
+                 (Parsed, Math_Layout.Text_Style,
+                  Context'Unchecked_Access);
+               Check (False, "array stop request propagates");
+            exception
+               when Math_Work_Control.Stop_Requested =>
+                  Stopped :=
+                    Reason = Math_Work_Control.Cancel_Requested;
+               when Math_Work_Control.Deadline_Expired =>
+                  Stopped :=
+                    Reason = Math_Work_Control.Deadline_Reached;
+            end;
+            Check (Stopped,
+              "array cancellation/deadline identity is preserved");
+            Context.Stop_At := Natural'Last;
+            Context.Reason := Math_Work_Control.Continue_Work;
+            Poll_Count := 0;
+            Measured := Math_Layout.Build
+              (Parsed, Math_Layout.Text_Style);
+            Check (Measured.Valid and then Measured = Reference,
+              "array geometry recovers exactly after stop");
+         end loop;
+      end Check_Size;
+   begin
+      Check_Mixed_Boundaries;
+      for Rule_Count of Counts loop
+         Make_Source (Rule_Count);
+         Check_Size (Rule_Count);
+      end loop;
+   end Test_Array_Rule_Work;
+
    procedure Run is
       Opt : Math_Engine.Request;
       Outp : Math_Engine.Result;
       Bad_Source : constant String := "\not-a-command";
    begin
+      Test_Array_Rule_Work;
       Test_Foreground_Work_Control;
       Test_Seeded_Stop_Recovery;
       Test_Composed_Geometry_Recovery;

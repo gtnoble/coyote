@@ -4992,3 +4992,18 @@ are historical, not current-source qualification.
 - **Status:** scoped harness gap addressed,broader qualification and PCR-125 OPEN.
   Not complete10000-case all-limit/failure-class qualification;prior raster losses
   remain. No release/install/acceptance.
+
+
+### PCR-125 — Repeated and unpolled array-rule scans,2026-11-15
+
+- **Category:** Code,Test. **Priority:** 3-Moderate.
+- **Problem:** rule-kind selection restarted a prefix scan per stroke,quadratic
+  for many same-boundary rules;metadata validation/count/lookup lacked Work polls.
+- **Action:** poll before each entry;advance lookup cursor per boundary while
+  preserving order and geometry. Existing structural/resource limits unchanged.
+- **Verification:** §11.25:engine3404 twice,per-site and faithful-rescan mutation
+  failures,old/new68 full-record equality,geometry/arrays/worker/fuzz regressions,
+  full1076/1076 and mandatory checks pass. Engine Valgrind clean in stated scope.
+- **Status:** scoped developer-verified;PCR-125 OPEN. No hard deadline/native
+  preemption,full resource/font/lifecycle/parity or acceptance;prior raster losses
+  remain. No release/install/acceptance.

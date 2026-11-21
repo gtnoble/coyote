@@ -1,0 +1,695 @@
+{
+  "schema": "isolated-math-export-comparison.v1",
+  "baseline": "src/coyote_math/math_layout.adb from git HEAD 9225c7f74acddc23b945f8cf92a2acf8d75d9b47",
+  "new": "current workspace snapshot of src/coyote_math/math_layout.adb",
+  "independentOracle": "none; baseline is a prior implementation, not browser/KaTeX reference evidence",
+  "requests": 68,
+  "baselineOk": 68,
+  "newOk": 68,
+  "fullJsonIdenticalRows": 68,
+  "differentRows": 0,
+  "allFullJsonRowsIdentical": true,
+  "records": [
+    {
+      "id": "arr-00",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "623936400ee1b683221ccfe87d01e7c21c0a3ea09374bce0d3f5158f1ebf97aa",
+      "newSha256": "623936400ee1b683221ccfe87d01e7c21c0a3ea09374bce0d3f5158f1ebf97aa",
+      "identical": true
+    },
+    {
+      "id": "arr-01",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "6ca3d0b441a9dad9ad0eddee60dfb9e27d7bb0fd914ecb5e6e9064eb6c0fde6b",
+      "newSha256": "6ca3d0b441a9dad9ad0eddee60dfb9e27d7bb0fd914ecb5e6e9064eb6c0fde6b",
+      "identical": true
+    },
+    {
+      "id": "arr-02",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "caaa491ca3284665696ee5c1df2d850aa2cc7ce63859f647e463fc534fa51acf",
+      "newSha256": "caaa491ca3284665696ee5c1df2d850aa2cc7ce63859f647e463fc534fa51acf",
+      "identical": true
+    },
+    {
+      "id": "arr-03",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "20978fd5acfc2a5b108bd15fa0ae932d05aa5147120b2c28aa3d24ed86998066",
+      "newSha256": "20978fd5acfc2a5b108bd15fa0ae932d05aa5147120b2c28aa3d24ed86998066",
+      "identical": true
+    },
+    {
+      "id": "arr-04",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 11,
+      "newCommandCount": 11,
+      "baselineSha256": "c7ece2adf43095bcfdba63335ae57728361cdc2db39444064f0b364271db9b24",
+      "newSha256": "c7ece2adf43095bcfdba63335ae57728361cdc2db39444064f0b364271db9b24",
+      "identical": true
+    },
+    {
+      "id": "arr-05",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "1f1fdc2ad148d8ac340993de3e95d9e10347e2df36198cad17211d568576bdd2",
+      "newSha256": "1f1fdc2ad148d8ac340993de3e95d9e10347e2df36198cad17211d568576bdd2",
+      "identical": true
+    },
+    {
+      "id": "arr-06",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "802ab6fdb61e8f9397a1ca422ca13af6b31166d1bd132b79349bccd20edae924",
+      "newSha256": "802ab6fdb61e8f9397a1ca422ca13af6b31166d1bd132b79349bccd20edae924",
+      "identical": true
+    },
+    {
+      "id": "arr-07",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "1686cdc73cc48b640594775fecf948fc1b6713b253f2c90cd8aa99a2c081c5d8",
+      "newSha256": "1686cdc73cc48b640594775fecf948fc1b6713b253f2c90cd8aa99a2c081c5d8",
+      "identical": true
+    },
+    {
+      "id": "arr-08",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "750ad46313a700c4324d4eecbd0b294eecd4411a2633c3255a45d07d758cf526",
+      "newSha256": "750ad46313a700c4324d4eecbd0b294eecd4411a2633c3255a45d07d758cf526",
+      "identical": true
+    },
+    {
+      "id": "arr-09",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "86db17ab2456e0401d75ecd0304b62cadb86c626a38e6e468d7a31018caed86f",
+      "newSha256": "86db17ab2456e0401d75ecd0304b62cadb86c626a38e6e468d7a31018caed86f",
+      "identical": true
+    },
+    {
+      "id": "arr-10",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "96be531621c0b7d8f4d0115b9199729de27323b03d7f64c684dac00768c9cb88",
+      "newSha256": "96be531621c0b7d8f4d0115b9199729de27323b03d7f64c684dac00768c9cb88",
+      "identical": true
+    },
+    {
+      "id": "arr-11",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "22cc0b6aac3131b5d4267b5e5946a8cc4210b870749fc3732bb84d7d6a590148",
+      "newSha256": "22cc0b6aac3131b5d4267b5e5946a8cc4210b870749fc3732bb84d7d6a590148",
+      "identical": true
+    },
+    {
+      "id": "arr-12",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 11,
+      "newCommandCount": 11,
+      "baselineSha256": "8cd5d4cb60bfe0f063c973a718b8a19e0e0fee05c634d2fd91006cfa68224b3a",
+      "newSha256": "8cd5d4cb60bfe0f063c973a718b8a19e0e0fee05c634d2fd91006cfa68224b3a",
+      "identical": true
+    },
+    {
+      "id": "arr-13",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "46713fabe1b18bd86a8feded6586faae4dac8e0b8688cedae7defe31dd958e67",
+      "newSha256": "46713fabe1b18bd86a8feded6586faae4dac8e0b8688cedae7defe31dd958e67",
+      "identical": true
+    },
+    {
+      "id": "arr-14",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "2ea12b79d60493eb3d80195516399eb641f25829aef9e1a32e3fbd34c56a3cd4",
+      "newSha256": "2ea12b79d60493eb3d80195516399eb641f25829aef9e1a32e3fbd34c56a3cd4",
+      "identical": true
+    },
+    {
+      "id": "arr-15",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "3104de8bf1c1dc25d5c1c08972677323c4376a1796fb5bfe5e0994aaa8219380",
+      "newSha256": "3104de8bf1c1dc25d5c1c08972677323c4376a1796fb5bfe5e0994aaa8219380",
+      "identical": true
+    },
+    {
+      "id": "arr-16",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "2a6afd2bdf567795c61848a63ec4a1becd6c4d3ed0331049a144ec8ab8c5b630",
+      "newSha256": "2a6afd2bdf567795c61848a63ec4a1becd6c4d3ed0331049a144ec8ab8c5b630",
+      "identical": true
+    },
+    {
+      "id": "arr-17",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "9131657d69fa0714dbd74cfa33698ff4b87897dcc703cf47dee5b5f582a0ae47",
+      "newSha256": "9131657d69fa0714dbd74cfa33698ff4b87897dcc703cf47dee5b5f582a0ae47",
+      "identical": true
+    },
+    {
+      "id": "arr-18",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "f778aba4427318ad14e05492dd5ee3f2345af68afff579ff5e77fb62e630c648",
+      "newSha256": "f778aba4427318ad14e05492dd5ee3f2345af68afff579ff5e77fb62e630c648",
+      "identical": true
+    },
+    {
+      "id": "arr-19",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "358bda930558eb45c6a005f1a8204a7a0b14f70388d45252b7e469285734c106",
+      "newSha256": "358bda930558eb45c6a005f1a8204a7a0b14f70388d45252b7e469285734c106",
+      "identical": true
+    },
+    {
+      "id": "arr-20",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 11,
+      "newCommandCount": 11,
+      "baselineSha256": "bb1e9d0f59e2abfbe0963ba81047f7fa23d2f14aabd3332b65c37cf5d86f10af",
+      "newSha256": "bb1e9d0f59e2abfbe0963ba81047f7fa23d2f14aabd3332b65c37cf5d86f10af",
+      "identical": true
+    },
+    {
+      "id": "arr-21",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "37a9a9330ca45d2a12db05fc6817481d042663545b3d175548602ce7dcdfd938",
+      "newSha256": "37a9a9330ca45d2a12db05fc6817481d042663545b3d175548602ce7dcdfd938",
+      "identical": true
+    },
+    {
+      "id": "arr-22",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "b70329e553d85269d625a86deae4e0be607bb9883c222d6024d4ecf6e29cdf9d",
+      "newSha256": "b70329e553d85269d625a86deae4e0be607bb9883c222d6024d4ecf6e29cdf9d",
+      "identical": true
+    },
+    {
+      "id": "arr-23",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "ee1494e98fc67eb45d1379e4c899fd2f3214ec78e95aabe170305c8746dbb135",
+      "newSha256": "ee1494e98fc67eb45d1379e4c899fd2f3214ec78e95aabe170305c8746dbb135",
+      "identical": true
+    },
+    {
+      "id": "arr-24",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "96137958f751487d08befc12c1fed119471ecde7ee44100b536c801c235b6b40",
+      "newSha256": "96137958f751487d08befc12c1fed119471ecde7ee44100b536c801c235b6b40",
+      "identical": true
+    },
+    {
+      "id": "arr-25",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "dcb0e97dfe41ed50645684324b3f1d98d57de740c272fe51bd5baa609e68d645",
+      "newSha256": "dcb0e97dfe41ed50645684324b3f1d98d57de740c272fe51bd5baa609e68d645",
+      "identical": true
+    },
+    {
+      "id": "arr-26",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "03d4656e090025c9f2e9d14b1cf43a6feb696dc9540fa1e19e83fe25327cc36a",
+      "newSha256": "03d4656e090025c9f2e9d14b1cf43a6feb696dc9540fa1e19e83fe25327cc36a",
+      "identical": true
+    },
+    {
+      "id": "arr-27",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "52d18ab6848d2b043eabdab11596506292d5619e3fb2c275d192c2784f94b351",
+      "newSha256": "52d18ab6848d2b043eabdab11596506292d5619e3fb2c275d192c2784f94b351",
+      "identical": true
+    },
+    {
+      "id": "arr-28",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 11,
+      "newCommandCount": 11,
+      "baselineSha256": "26d0be9b6c4d941f3662dff7d66483cd6ae8ab431ce2c4a39298fb8c9caf507e",
+      "newSha256": "26d0be9b6c4d941f3662dff7d66483cd6ae8ab431ce2c4a39298fb8c9caf507e",
+      "identical": true
+    },
+    {
+      "id": "arr-29",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "eebe8d1e29f35b655ff13712ce8a2a85ca77f4a961a10dfbc3196595a487a3b3",
+      "newSha256": "eebe8d1e29f35b655ff13712ce8a2a85ca77f4a961a10dfbc3196595a487a3b3",
+      "identical": true
+    },
+    {
+      "id": "arr-30",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "9116bce2ae4730b32b9ff533b2220d27129539fc1b55e60c3dd2b32636d1cd99",
+      "newSha256": "9116bce2ae4730b32b9ff533b2220d27129539fc1b55e60c3dd2b32636d1cd99",
+      "identical": true
+    },
+    {
+      "id": "arr-31",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "e2e88ee0540e6cf05c1af16f721a8388e9e318074e1624ff0c432a70bf53aed9",
+      "newSha256": "e2e88ee0540e6cf05c1af16f721a8388e9e318074e1624ff0c432a70bf53aed9",
+      "identical": true
+    },
+    {
+      "id": "arr-32",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "f93de5f7a3b30317ad7e85cfdcebd472d95c13979053ab6ff3276523cb883aba",
+      "newSha256": "f93de5f7a3b30317ad7e85cfdcebd472d95c13979053ab6ff3276523cb883aba",
+      "identical": true
+    },
+    {
+      "id": "arr-33",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "634ff61c359db6337bdd028c5764fdb06a7b74943a29bf643b4d574aecfd8d93",
+      "newSha256": "634ff61c359db6337bdd028c5764fdb06a7b74943a29bf643b4d574aecfd8d93",
+      "identical": true
+    },
+    {
+      "id": "arr-34",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "03dfb6e6f9af1811b873380b1354f2a67aa0c5f5c7dc71eb54410592e9d5da88",
+      "newSha256": "03dfb6e6f9af1811b873380b1354f2a67aa0c5f5c7dc71eb54410592e9d5da88",
+      "identical": true
+    },
+    {
+      "id": "arr-35",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "e08dd5c9489ecc188cfb943c5f14c80e3f0d7d8fb1307d2e7f9b68470f446c28",
+      "newSha256": "e08dd5c9489ecc188cfb943c5f14c80e3f0d7d8fb1307d2e7f9b68470f446c28",
+      "identical": true
+    },
+    {
+      "id": "arr-36",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 11,
+      "newCommandCount": 11,
+      "baselineSha256": "711e48297c5108d04039fa704943470a4f71badeb912fb59763e5d6f99134da2",
+      "newSha256": "711e48297c5108d04039fa704943470a4f71badeb912fb59763e5d6f99134da2",
+      "identical": true
+    },
+    {
+      "id": "arr-37",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "684e0cb74cf82b799f5a98552e8eca2d706cc4c8189773c08778d50aa43978f3",
+      "newSha256": "684e0cb74cf82b799f5a98552e8eca2d706cc4c8189773c08778d50aa43978f3",
+      "identical": true
+    },
+    {
+      "id": "arr-38",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "87277186e56b16061117207414a69af0bf10725ee914b4e31eb7dadbae2f43f0",
+      "newSha256": "87277186e56b16061117207414a69af0bf10725ee914b4e31eb7dadbae2f43f0",
+      "identical": true
+    },
+    {
+      "id": "arr-39",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "7190f003cfa6108acf62e5097a56c787e0b3c6d1b2047c7911e1d5faaaeed134",
+      "newSha256": "7190f003cfa6108acf62e5097a56c787e0b3c6d1b2047c7911e1d5faaaeed134",
+      "identical": true
+    },
+    {
+      "id": "arr-40",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "a03455b161ae8edf9f949c6598d59ab03bd401baf5be15aa0685f9dff0c84a46",
+      "newSha256": "a03455b161ae8edf9f949c6598d59ab03bd401baf5be15aa0685f9dff0c84a46",
+      "identical": true
+    },
+    {
+      "id": "arr-41",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "753c1576e5018dc7a74352771c52a78474a4716f9d40d5210a398c855a73ca3a",
+      "newSha256": "753c1576e5018dc7a74352771c52a78474a4716f9d40d5210a398c855a73ca3a",
+      "identical": true
+    },
+    {
+      "id": "arr-42",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "1cdd6787bc4eba18876cbb996f05a0be71e0cac2dd0fdbe6548c12247b77c091",
+      "newSha256": "1cdd6787bc4eba18876cbb996f05a0be71e0cac2dd0fdbe6548c12247b77c091",
+      "identical": true
+    },
+    {
+      "id": "arr-43",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "23de31953973f2a5530ae746303e17fb76b91bab0c8d6d4981024a6a858fdb77",
+      "newSha256": "23de31953973f2a5530ae746303e17fb76b91bab0c8d6d4981024a6a858fdb77",
+      "identical": true
+    },
+    {
+      "id": "arr-44",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "e8b7bb62c73e7f482682082d79085436a9f30f418bff8bc3878aea53ae14b47a",
+      "newSha256": "e8b7bb62c73e7f482682082d79085436a9f30f418bff8bc3878aea53ae14b47a",
+      "identical": true
+    },
+    {
+      "id": "arr-45",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "ad0a82b5559c767c4cd274b6be0d0a698f19853c4879fe5380432b2856a853a1",
+      "newSha256": "ad0a82b5559c767c4cd274b6be0d0a698f19853c4879fe5380432b2856a853a1",
+      "identical": true
+    },
+    {
+      "id": "arr-46",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "2e9b02fb7a1da39e92619e85b107ab13d87f92cdb289387150c4776f66da19c6",
+      "newSha256": "2e9b02fb7a1da39e92619e85b107ab13d87f92cdb289387150c4776f66da19c6",
+      "identical": true
+    },
+    {
+      "id": "arr-47",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "820d8b92d9ec026fa847df7f652d73ecf8b5ef1bb79d2a9ab7bd0aa179245ac5",
+      "newSha256": "820d8b92d9ec026fa847df7f652d73ecf8b5ef1bb79d2a9ab7bd0aa179245ac5",
+      "identical": true
+    },
+    {
+      "id": "arr-48",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "70951d0ba39c7cb2bf1a4f734b373e054c6aaef2ff4cac31eedc39f26a3af91c",
+      "newSha256": "70951d0ba39c7cb2bf1a4f734b373e054c6aaef2ff4cac31eedc39f26a3af91c",
+      "identical": true
+    },
+    {
+      "id": "arr-49",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "1ebdd5da67542916fbfe516738b554bd1448f30c93492854ba78b545fce40e7a",
+      "newSha256": "1ebdd5da67542916fbfe516738b554bd1448f30c93492854ba78b545fce40e7a",
+      "identical": true
+    },
+    {
+      "id": "arr-50",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "74bb4d6b033db25771738318490d4b9958a2521ec8b652095c623eb52171333f",
+      "newSha256": "74bb4d6b033db25771738318490d4b9958a2521ec8b652095c623eb52171333f",
+      "identical": true
+    },
+    {
+      "id": "arr-51",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "932ce9b1da97189dc30a4ab031232a09a4f9331f2769d0f626e5c1d443503377",
+      "newSha256": "932ce9b1da97189dc30a4ab031232a09a4f9331f2769d0f626e5c1d443503377",
+      "identical": true
+    },
+    {
+      "id": "arr-52",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 4,
+      "newCommandCount": 4,
+      "baselineSha256": "9d9e286d27beadbc1c444ef6e49f1440091e1252eb80ffdef70d921edbdfb33d",
+      "newSha256": "9d9e286d27beadbc1c444ef6e49f1440091e1252eb80ffdef70d921edbdfb33d",
+      "identical": true
+    },
+    {
+      "id": "arr-53",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "1af7fb92bcc336df6c8ec452ddbb0296ffb9cba1254ba7367a98fdf7aff99486",
+      "newSha256": "1af7fb92bcc336df6c8ec452ddbb0296ffb9cba1254ba7367a98fdf7aff99486",
+      "identical": true
+    },
+    {
+      "id": "arr-54",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "fca1b2eff9c41a0280b03a376f1f0db27edb80982b61b92e65bbf22c1102d29a",
+      "newSha256": "fca1b2eff9c41a0280b03a376f1f0db27edb80982b61b92e65bbf22c1102d29a",
+      "identical": true
+    },
+    {
+      "id": "arr-55",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "1dc443f68f3f5399da913d9ed39a5ebb8babb0a244577edd3882a64e6debd70f",
+      "newSha256": "1dc443f68f3f5399da913d9ed39a5ebb8babb0a244577edd3882a64e6debd70f",
+      "identical": true
+    },
+    {
+      "id": "arr-56",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "bdaad1cd62cef0dce954ce55eb76e2035b45f618eb70a1db472d6ae6eaefc6e7",
+      "newSha256": "bdaad1cd62cef0dce954ce55eb76e2035b45f618eb70a1db472d6ae6eaefc6e7",
+      "identical": true
+    },
+    {
+      "id": "arr-57",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3,
+      "newCommandCount": 3,
+      "baselineSha256": "20db0a9a61ed43e0ae19e0838845f2ffb4076a3dfa078cf97260d34bbafb83b5",
+      "newSha256": "20db0a9a61ed43e0ae19e0838845f2ffb4076a3dfa078cf97260d34bbafb83b5",
+      "identical": true
+    },
+    {
+      "id": "arr-58",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "90f0baa73cb49a02bb90c84263791e1fdbedb9ea83908518374bdc1fb18a929b",
+      "newSha256": "90f0baa73cb49a02bb90c84263791e1fdbedb9ea83908518374bdc1fb18a929b",
+      "identical": true
+    },
+    {
+      "id": "arr-59",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "10476592eb0fe714e569d40db8b54a8b878eef23b3fd050c693cf8bbeefe030a",
+      "newSha256": "10476592eb0fe714e569d40db8b54a8b878eef23b3fd050c693cf8bbeefe030a",
+      "identical": true
+    },
+    {
+      "id": "arr-60",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 11,
+      "newCommandCount": 11,
+      "baselineSha256": "784e685b40cb488721a47f491f45f9508373d7de8309cd3d0b0c8be265b80c3a",
+      "newSha256": "784e685b40cb488721a47f491f45f9508373d7de8309cd3d0b0c8be265b80c3a",
+      "identical": true
+    },
+    {
+      "id": "arr-61",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 7,
+      "newCommandCount": 7,
+      "baselineSha256": "7c2e3f019903f62149a06214422a6637168598b1ea4b72161249d5139d54eecc",
+      "newSha256": "7c2e3f019903f62149a06214422a6637168598b1ea4b72161249d5139d54eecc",
+      "identical": true
+    },
+    {
+      "id": "arr-62",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "28a8ca4658a67e12a928f9f371ae8f6d70eb0f750c96593ef30f26ddd8f3f747",
+      "newSha256": "28a8ca4658a67e12a928f9f371ae8f6d70eb0f750c96593ef30f26ddd8f3f747",
+      "identical": true
+    },
+    {
+      "id": "arr-63",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 5,
+      "newCommandCount": 5,
+      "baselineSha256": "83935cd3b6510b3216e71839a293c4c7b417a4251d2864c362b5d977e13f9a8b",
+      "newSha256": "83935cd3b6510b3216e71839a293c4c7b417a4251d2864c362b5d977e13f9a8b",
+      "identical": true
+    },
+    {
+      "id": "array-empty-top-boundary",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "46a758b647c74ce314079b8f9d36144fccd56529e716ae9b16bfeb3cbdd4d8fb",
+      "newSha256": "46a758b647c74ce314079b8f9d36144fccd56529e716ae9b16bfeb3cbdd4d8fb",
+      "identical": true
+    },
+    {
+      "id": "array-empty-interior-boundary",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "a69f3d530e39dc3c1b137862fe3733e7d38e84de06938e89d16a88e67714550f",
+      "newSha256": "a69f3d530e39dc3c1b137862fe3733e7d38e84de06938e89d16a88e67714550f",
+      "identical": true
+    },
+    {
+      "id": "array-last-boundary",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 6,
+      "newCommandCount": 6,
+      "baselineSha256": "a876e3c1fcb5cc5b8ddcc46889f41cf9bd9e025d9e7dce074b5628af304b6fab",
+      "newSha256": "a876e3c1fcb5cc5b8ddcc46889f41cf9bd9e025d9e7dce074b5628af304b6fab",
+      "identical": true
+    },
+    {
+      "id": "array-1024-mixed-interior",
+      "baselineStatus": "ok",
+      "newStatus": "ok",
+      "baselineCommandCount": 3076,
+      "newCommandCount": 3076,
+      "baselineSha256": "f96264cc492dec4309ec25731b6dbb266c9059da9b7c1b5756b18bf98a590279",
+      "newSha256": "f96264cc492dec4309ec25731b6dbb266c9059da9b7c1b5756b18bf98a590279",
+      "identical": true
+    }
+  ],
+  "differences": []
+}
