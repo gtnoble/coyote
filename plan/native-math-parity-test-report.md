@@ -1791,3 +1791,39 @@ across requests; no new aggregate cap selected. New cap/policy needs requirement
 review; RD-CTX-01 remains unauthorized. Wider pathological/GUI/timing coverage,
 font/native lifecycle/full compatibility and human acceptance remain OPEN.
 PCR-125 OPEN; no release/install/commit.
+
+
+### 11.22 Cancellable foreground-color application — 2026-11-15
+
+The engine and worker duplicated unpolled command-coloring loops. Both now use
+`Math_Layout.Apply_Foreground`, polling before each command including explicit
+colors. Scoped mutable references avoid copying path/text payloads merely to
+assign fallback color; no reference spans a poll or structural mutation.
+Explicit colors and geometry/payload fields remain unchanged. Work is borrowed;
+a stop may leave earlier commands colored, and no partial success is implied.
+Engine exceptions propagate; worker status is authoritative and non-Valid jobs
+clear raster output/lease. The Poll API now documents diagnostic non-null
+results and mandatory release; both GUI consumers already gate adoption on Valid.
+
+Final engine255/255 twice, worker300/300 twice; root/test development builds
+pass with existing warnings. Exact-final full Xvfb1076/1076,zero failed
+assertions/errors,147.932737s cumulative/148.15s elapsed. GTK9/9, runner
+containment and offline HTTP lifecycle pass. Engine Valgrind255 assertions,
+zero errors/lost bytes,216713 reachable with existing4MiB frame threshold.
+
+Evidence:`plan/evidence/native-math-2026-11-15-foreground-poll/`. Evolving
+pre-poll243-assertion probe fails9 assertions; it is not byte-identical final
+baseline. Isolated mutation removes only the helper's command poll:exact final
+255-assertion probe fails13 assertions,exit1. Direct helper tests establish
+partial-stop boundary/reference release and payload preservation; facade tests
+calibrate polls per source and distinguish cancel/deadline/recovery. Worker
+integration repeats360-command mixed-color jobs, not deterministically injected
+active-worker-phase cancellation. Source/binary hashes and validation before/
+after hashes are retained; crosswalk counts unchanged.
+
+No numerical caps, requirements or accounting coverage changed. No hard/native
+preemption, all-geometry, representative timing, full GTK/fuzz/font/lifecycle/
+parity or human acceptance is established. Browser/geometry/image/raster and
+whole-macro Valgrind not rerun; existing raster loss failures remain open.
+Developer/agent review is not independent acceptance; PCR-125 OPEN.
+No release/install/commit.

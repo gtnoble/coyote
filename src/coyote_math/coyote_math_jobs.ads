@@ -56,6 +56,10 @@ package Coyote_Math_Jobs is
    --  Cancel and discard a matching request without requiring a later Poll.
    --  Completed results are freed; in-flight work is discarded on completion.
    procedure Abandon (Id : Request_Id; Generation : View_Generation);
+   --  Status is authoritative for completion. A non-null Item can also carry
+   --  source/diagnostics after a non-Valid completion; its geometry may be
+   --  incomplete and must not be adopted or painted. Release every returned
+   --  Item, regardless of Status. Raster output is cleared on non-Valid jobs.
    procedure Poll
      (Id : Request_Id; Generation : View_Generation;
       Status : out Job_Status; Item : out Result_Access);

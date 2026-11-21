@@ -1,0 +1,6 @@
+WARM cases=200 iterations=10 requests=2000 valid= 2000 request_ms_p95= 1 request_ms_max= 2
+WARM job_queue_ms_p95= 0 max= 0 execution_ms_p95= 1 max= 2 cleanup_ms_p95= 0 max= 0 total_ms_p95= 1 max= 2
+SATURATION accepted= 8 busy= 2 requested=10 workers= 2
+ASSERTIONS 300 failures= 0
+Build log: /tmp/coyote-color-jobs-final/build.log
+Probe log: /tmp/coyote-color-jobs-final/probe.log

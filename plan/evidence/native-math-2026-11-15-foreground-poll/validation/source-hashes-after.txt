@@ -1,0 +1,5 @@
+src/coyote_math/math_layout.ads: OK
+src/coyote_math/math_layout.adb: OK
+src/coyote_math/math_engine.adb: OK
+src/coyote_math/coyote_math_jobs.ads: OK
+src/coyote_math/coyote_math_jobs.adb: OK

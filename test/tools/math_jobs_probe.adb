@@ -353,6 +353,99 @@ begin
       end if;
    end;
    declare
+      Mixed_Source : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Glyph_Group in 1 .. 120 loop
+         Ada.Strings.Unbounded.Append
+           (Mixed_Source, "x+\textcolor{blue}{y}");
+      end loop;
+      for Iteration in 1 .. 3 loop
+         declare
+            Mixed_Id : Jobs.Request_Id;
+            Mixed_Status : Jobs.Job_Status;
+            Mixed_Result : Jobs.Result_Access;
+            Expected_Red : constant Long_Float :=
+              (if Iteration mod 2 = 1 then 1.0 else 0.0);
+            Expected_Green : constant Long_Float :=
+              (if Iteration mod 2 = 1 then 0.0 else 1.0);
+            Fallback_Count : Natural := 0;
+            Blue_Count : Natural := 0;
+            Uncolored_Count : Natural := 0;
+         begin
+            Jobs.Submit
+              (Ada.Strings.Unbounded.To_String (Mixed_Source), Mixed_Id,
+               Jobs.View_Generation (310 + Iteration),
+               Math_Layout.Text_Style,
+               Color_Enabled => True,
+               Color =>
+                 (Red => Expected_Red, Green => Expected_Green,
+                  Blue => 0.0, Alpha => 1.0),
+               Status => Mixed_Status, Request_Raster => False);
+            Check (Mixed_Status = Jobs.Pending,
+              "large mixed-color non-raster request queued" &
+                Iteration'Image);
+            for Wait in 1 .. 400 loop
+               if Mixed_Status = Jobs.Pending then
+                  Jobs.Poll (Mixed_Id,
+                    Jobs.View_Generation (310 + Iteration), Mixed_Status,
+                    Mixed_Result);
+               end if;
+               exit when Mixed_Status /= Jobs.Pending;
+               delay 0.005;
+            end loop;
+            Check (Mixed_Status = Jobs.Valid and Mixed_Result /= null,
+              "large mixed-color worker result valid" & Iteration'Image);
+            if Mixed_Result /= null then
+               for I in Jobs.Layout (Mixed_Result.all).Commands.First_Index ..
+                 Jobs.Layout (Mixed_Result.all).Commands.Last_Index
+               loop
+                  declare
+                     Command : constant Math_Layout.Draw_Command :=
+                       Jobs.Layout (Mixed_Result.all).Commands (I);
+                  begin
+                     if not Command.Has_Color then
+                        Uncolored_Count := Uncolored_Count + 1;
+                     elsif Command.Red = Expected_Red and then
+                       Command.Green = Expected_Green and then
+                       Command.Blue = 0.0 and then Command.Alpha = 1.0
+                     then
+                        Fallback_Count := Fallback_Count + 1;
+                     elsif Command.Red = 0.0 and then
+                       Command.Green = 0.0 and then
+                       Command.Blue = 1.0 and then Command.Alpha = 1.0
+                     then
+                        Blue_Count := Blue_Count + 1;
+                     end if;
+                  end;
+               end loop;
+               Check (Jobs.Layout (Mixed_Result.all).Commands.Length = 360 and
+                 Fallback_Count = 240 and Blue_Count = 120 and
+                 Uncolored_Count = 0,
+                 "all 360 commands retain fallback/explicit colors" &
+                   Iteration'Image);
+               Check (Jobs.Source (Mixed_Result.all) =
+                 Ada.Strings.Unbounded.To_String (Mixed_Source),
+                 "large mixed-color result preserves exact source" &
+                   Iteration'Image);
+               Check (not Jobs.Has_Raster (Mixed_Result.all) and
+                 Jobs.Raster_Width (Mixed_Result.all) = 0 and
+                 Jobs.Raster_Height (Mixed_Result.all) = 0 and
+                 Jobs.Raster_Retained_Bytes (Mixed_Result.all) = 0 and
+                 Math_Raster_Budget.Used = 0,
+                 "non-raster color integration retains no raster storage" &
+                   Iteration'Image);
+               Jobs.Release (Mixed_Result);
+               Check (Mixed_Result = null,
+                 "mixed-color result release clears access" &
+                   Iteration'Image);
+            end if;
+            Check (Math_Raster_Budget.Used = 0,
+              "repeated mixed-color request leaves raster ledger empty" &
+                Iteration'Image);
+         end;
+      end loop;
+   end;
+   declare
       Raster_Id : Jobs.Request_Id;
       Inline_Id : Jobs.Request_Id;
       Default_Id : Jobs.Request_Id;

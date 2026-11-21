@@ -563,23 +563,11 @@ package body Coyote_Math_Jobs is
                      R.Geometry.Left_Indent := 2.0;
                   end if;
                   if Color_Enabled then
-                     for I in R.Geometry.Commands.First_Index ..
-                       R.Geometry.Commands.Last_Index
-                     loop
-                        declare
-                           Command : Math_Layout.Draw_Command :=
-                             R.Geometry.Commands (I);
-                        begin
-                           if not Command.Has_Color then
-                              Command.Has_Color := True;
-                              Command.Red := Color.Red;
-                              Command.Green := Color.Green;
-                              Command.Blue := Color.Blue;
-                              Command.Alpha := Color.Alpha;
-                              R.Geometry.Commands.Replace_Element (I, Command);
-                           end if;
-                        end;
-                     end loop;
+                     Math_Layout.Apply_Foreground
+                       (R.Geometry,
+                        (Red => Color.Red, Green => Color.Green,
+                         Blue => Color.Blue, Alpha => Color.Alpha),
+                        Work_Access);
                   end if;
                   if not Math_Semantics.Is_Valid (R.Meaning) then
                      R.Message := To_Unbounded_String

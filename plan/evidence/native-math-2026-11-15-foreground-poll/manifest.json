@@ -1,0 +1,18 @@
+{
+  "baseline_commit": "1c4952fcfe81399784fe1b3eefd41e48c7af7730",
+  "project_date": "2026-11-15",
+  "host_dates": "Original logs retained verbatim; host timestamps may differ.",
+  "sha256": {
+    "src/coyote_math/math_layout.ads": "1c9b2aa7aa8787c1969a8b795b78a1c77e26420fdc539390ba12c5d43cb5b101",
+    "src/coyote_math/math_layout.adb": "6f929b1f7cda0883fdb6736e86a0e409231d7974234f8bc58180adb7d9556ba4",
+    "src/coyote_math/math_engine.adb": "242992e9a39f3d38492a256bedecd95dae9ce260d976a13eecd2644bc222d759",
+    "src/coyote_math/coyote_math_jobs.ads": "ffd2967591ca440385b62c4fe1622c65768126e3af9e281880dbd51d3dcf052d",
+    "src/coyote_math/coyote_math_jobs.adb": "c5d8a7396a1c9630548c9556db870a40dc02faeee400d7b6b8ee57e6a00839d0",
+    "test/tools/math_engine_probe.adb": "4a7e95bb8905eba61be6f848b506215c077035e435e28e09a62ae2a487d82b49",
+    "test/tools/math_jobs_probe.adb": "a2b1dec6ceccba3da5434397166d339a0f5da9c7cbe076eb3137a6312c19a1fb",
+    "/tmp/coyote-color-engine-final/bin/math_engine_probe": "5b60f9dc7d95d90cf9ad8d648763e871d67a9df58609dc830fb5554df9e939e8",
+    "/tmp/coyote-color-jobs-final/bin/math_jobs_probe": "516e5f7e849045e2abdb0d743dd2b8efa4c8594f82a9b938f032aeafc86a6010",
+    "test/bin/coyote_test": "479d479892725f12262588411ad2974787da5fadf0b8957a1fe4c956f96d1420",
+    "bin/coyote": "c06a1ef54f30caa4f9f7d2f18c5b57dc9cb176e82d410732422bbb8e5041b4b0"
+  }
+}

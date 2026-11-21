@@ -1,0 +1,10 @@
+FAIL mixed explicit-blue foreground poll delta equals command count; delta= 0 commands= 39
+FAIL mixed explicit-blue foreground cancellation propagates
+FAIL mixed explicit-blue foreground deadline propagates distinctly
+FAIL all explicit-blue foreground poll delta equals command count; delta= 0 commands= 16
+FAIL all explicit-blue foreground cancellation propagates
+FAIL all explicit-blue foreground deadline propagates distinctly
+FAIL 512 repeated glyphs foreground poll delta equals command count; delta= 0 commands= 512
+FAIL 512 repeated glyphs foreground cancellation propagates
+FAIL 512 repeated glyphs foreground deadline propagates distinctly
+ASSERTIONS 243 failures= 9

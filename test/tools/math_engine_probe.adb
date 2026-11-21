@@ -7,6 +7,7 @@ with Math_Engine;
 with Math_Layout;
 with Math_Macros;
 with Math_Model;
+with Math_Paths;
 with Math_Semantics;
 with Math_Syntax;
 with Math_Work_Control;
@@ -17,6 +18,7 @@ procedure Math_Engine_Probe is
    use type Math_Macros.Diagnostic_Kind;
    use type Math_Layout.Command_Kind;
    use type Math_Model.Node_Kind;
+   use type Math_Paths.Segment;
    use type Math_Syntax.Diagnostic_Kind;
    Checks : Natural := 0;
    Failures : Natural := 0;
@@ -435,11 +437,263 @@ procedure Math_Engine_Probe is
       end loop;
    end Test_Abuse_Rejection_Recovery;
 
+   procedure Test_Foreground_Work_Control is
+      Mixed_Source : constant String :=
+        "a+\textcolor{blue}{b}+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t";
+      Explicit_Source : constant String := "\color{blue}abcdefghijklmnop";
+      Repeated_Source : constant String := (1 .. 512 => 'x');
+      Blue : constant Math_Model.Color_Value :=
+        (Red => 0.0, Green => 0.0, Blue => 1.0, Alpha => 1.0);
+      Red : constant Math_Model.Color_Value :=
+        (Red => 1.0, Green => 0.0, Blue => 0.0, Alpha => 1.0);
+
+      procedure Test_Direct_Box_Application is
+         Item : Math_Layout.Box;
+         Empty : Math_Layout.Box;
+         First : Math_Layout.Draw_Command;
+         Second : Math_Layout.Draw_Command;
+         Third : Math_Layout.Draw_Command;
+         Segment : Math_Paths.Segment :=
+           (Kind => Math_Paths.Move_To,
+            First => (X => 1.25, Y => -2.5),
+            Second => (X => 0.0, Y => 0.0),
+            Third => (X => 0.0, Y => 0.0));
+         Cancel_Work : aliased Budget_Context :=
+           (Math_Work_Control.Context with
+            Stop_At => 2,
+            Reason => Math_Work_Control.Cancel_Requested);
+         Deadline_Work : aliased Budget_Context :=
+           (Math_Work_Control.Context with
+            Stop_At => 1,
+            Reason => Math_Work_Control.Deadline_Reached);
+         Stopped : Boolean;
+      begin
+         Poll_Count := 0;
+         Math_Layout.Apply_Foreground
+           (Empty, Red, Deadline_Work'Unchecked_Access);
+         Check (Poll_Count = 0 and then Empty.Commands.Is_Empty,
+           "empty box performs no command polls or mutation");
+         Item.Valid := True;
+         Item.Width := 8.5;
+         First.X := 1.0;
+         First.Y := 2.0;
+         First.Scale := 1.5;
+         First.Has_Clip := True;
+         First.Clip_X := -1.0;
+         First.Clip_Y := 2.25;
+         First.Clip_W := 3.5;
+         First.Clip_H := 4.75;
+         First.Has_Shadow := True;
+         First.Shadow_X := 0.25;
+         First.Shadow_Y := -0.5;
+         First.Shadow_Blur_Px := 1.75;
+         First.Path_Data.Append (Segment);
+         Item.Commands.Append (First);
+
+         Second.Has_Color := True;
+         Second.Red := Blue.Red;
+         Second.Green := Blue.Green;
+         Second.Blue := Blue.Blue;
+         Second.Alpha := Blue.Alpha;
+         Second.X := 5.0;
+         Second.Y := -3.0;
+         Second.Scale := 0.75;
+         Second.Text_Run_Text :=
+           Ada.Strings.Unbounded.To_Unbounded_String ("payload");
+         Item.Commands.Append (Second);
+
+         Third.X := 9.0;
+         Third.Y := 10.0;
+         Third.Scale := 2.0;
+         Item.Commands.Append (Third);
+
+         Poll_Count := 0;
+         Math_Layout.Apply_Foreground (Item, Red);
+         Check (Poll_Count = 0,
+           "empty-work fallback assignment performs no polls");
+         Check (Item.Valid and then Item.Commands.Length = 3,
+           "direct fallback preserves valid geometry and command count");
+         Check (Item.Commands (1).Has_Color and then
+           Item.Commands (1).Red = Red.Red and then
+           Item.Commands (2).Red = Blue.Red and then
+           Item.Commands (3).Red = Red.Red,
+           "fallback colors uncolored commands and preserves explicit blue");
+         Check (Item.Commands (1).X = 1.0 and then
+           Item.Commands (1).Y = 2.0 and then
+           Item.Commands (1).Scale = 1.5 and then
+           Item.Commands (1).Clip_X = -1.0 and then
+           Item.Commands (1).Clip_Y = 2.25 and then
+           Item.Commands (1).Clip_W = 3.5 and then
+           Item.Commands (1).Clip_H = 4.75 and then
+           Item.Commands (1).Shadow_X = 0.25 and then
+           Item.Commands (1).Shadow_Y = -0.5 and then
+           Item.Commands (1).Shadow_Blur_Px = 1.75 and then
+           Item.Commands (1).Path_Data.Length = 1 and then
+           Item.Commands (1).Path_Data (1) = Segment,
+           "fallback preserves first-command path and geometry payload");
+         Check (Ada.Strings.Unbounded.To_String
+             (Item.Commands (2).Text_Run_Text) = "payload" and then
+           Item.Commands (2).X = 5.0 and then
+           Item.Commands (2).Y = -3.0 and then
+           Item.Commands (2).Scale = 0.75 and then
+           Item.Commands (3).X = 9.0 and then
+           Item.Commands (3).Y = 10.0 and then
+           Item.Commands (3).Scale = 2.0,
+           "fallback preserves text payload and later geometry");
+
+         Poll_Count := 0;
+         Math_Layout.Apply_Foreground (Item, Blue);
+         Math_Layout.Apply_Foreground (Item, Red);
+         Check (Poll_Count = 0 and then Item.Valid and then
+           Item.Commands (1).Red = Red.Red and then
+           Item.Commands (2).Red = Blue.Red and then
+           Item.Commands (3).Red = Red.Red,
+           "successful repeats are idempotent and preserve assigned colors");
+
+         --  Start fresh: first and third must still need fallback color.
+         Item.Commands.Replace_Element (1, First);
+         Item.Commands.Replace_Element (3, Third);
+         Poll_Count := 0;
+         Stopped := False;
+         begin
+            Math_Layout.Apply_Foreground
+              (Item, Red, Cancel_Work'Unchecked_Access);
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Stopped := True;
+         end;
+         Check (Stopped and then Poll_Count = 2,
+           "cancel polls before second command");
+         Check (Item.Valid and then Item.Commands (1).Has_Color and then
+           Item.Commands (1).Red = Red.Red and then
+           Item.Commands (2).Blue = Blue.Blue and then
+           not Item.Commands (3).Has_Color,
+           "cancel colors only earlier command and leaves later one untouched");
+         Item.Commands.Append (Third);
+         Item.Commands.Delete_Last;
+         Check (Item.Commands.Length = 3,
+           "stopped helper releases scoped references before container mutation");
+         Item.Commands.Replace_Element (1, First);
+
+         Poll_Count := 0;
+         Stopped := False;
+         begin
+            Math_Layout.Apply_Foreground
+              (Item, (Red => 0.0, Green => 1.0, Blue => 0.0, Alpha => 1.0),
+               Deadline_Work'Unchecked_Access);
+         exception
+            when Math_Work_Control.Deadline_Expired =>
+               Stopped := True;
+         end;
+         Check (Stopped and then Poll_Count = 1,
+           "deadline polls before first command");
+         Check (Item.Valid and then not Item.Commands (1).Has_Color and then
+           Item.Commands (2).Blue = Blue.Blue and then
+           not Item.Commands (3).Has_Color,
+           "deadline before first command leaves fresh box unchanged");
+      end Test_Direct_Box_Application;
+
+      procedure Check_Source (Source, Label : String) is
+         Opt : Math_Engine.Request;
+         Outp : Math_Engine.Result;
+         Baseline_Polls : Natural;
+         Command_Count : Natural;
+         Prior_Depth : constant Natural := Math_Macros.Scope_Depth (Shared);
+         Cancel_Work : aliased Budget_Context :=
+           (Math_Work_Control.Context with
+            Stop_At => Natural'Last,
+            Reason => Math_Work_Control.Cancel_Requested);
+         Deadline_Work : aliased Budget_Context :=
+           (Math_Work_Control.Context with
+            Stop_At => Natural'Last,
+            Reason => Math_Work_Control.Deadline_Reached);
+         Stopped : Boolean;
+      begin
+         Opt.Work := Cancel_Work'Unchecked_Access;
+         Poll_Count := 0;
+         Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
+         Baseline_Polls := Poll_Count;
+         Command_Count := Natural (Outp.Geometry.Commands.Length);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then Command_Count > 0,
+           Label & " uncolored calibration request is ready");
+
+         Opt.Foreground_Set := True;
+         Opt.Foreground :=
+           (Red => Blue.Red, Green => Blue.Green,
+            Blue => Blue.Blue, Alpha => Blue.Alpha);
+         Poll_Count := 0;
+         Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid,
+           Label & " foreground request remains ready");
+         Check (Poll_Count >= Baseline_Polls and then
+           Poll_Count - Baseline_Polls = Command_Count,
+           Label & " foreground poll delta equals command count; delta=" &
+             Natural'Image (Poll_Count - Natural'Min
+               (Poll_Count, Baseline_Polls)) & " commands=" &
+             Natural'Image (Command_Count));
+
+         Cancel_Work.Stop_At := Baseline_Polls + 2;
+         Opt.Work := Cancel_Work'Unchecked_Access;
+         Poll_Count := 0;
+         Stopped := False;
+         begin
+            Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Stopped := True;
+         end;
+         Check (Stopped,
+           Label & " foreground cancellation propagates");
+         Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+           Label & " cancellation preserves macro scope");
+         Cancel_Work.Stop_At := Natural'Last;
+         Cancel_Work.Reason := Math_Work_Control.Continue_Work;
+         Poll_Count := 0;
+         Math_Engine.Parse ("x", Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+           Label & " cancellation context recovers on next request");
+
+         Deadline_Work.Stop_At := Baseline_Polls + 2;
+         Deadline_Work.Reason := Math_Work_Control.Deadline_Reached;
+         Opt.Work := Deadline_Work'Unchecked_Access;
+         Poll_Count := 0;
+         Stopped := False;
+         begin
+            Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
+         exception
+            when Math_Work_Control.Deadline_Expired =>
+               Stopped := True;
+         end;
+         Check (Stopped,
+           Label & " foreground deadline propagates distinctly");
+         Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+           Label & " deadline preserves macro scope");
+         Deadline_Work.Stop_At := Natural'Last;
+         Deadline_Work.Reason := Math_Work_Control.Continue_Work;
+         Poll_Count := 0;
+         Math_Engine.Parse ("x", Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           Math_Macros.Scope_Depth (Shared) = Prior_Depth,
+           Label & " deadline context recovers on next request");
+      end Check_Source;
+   begin
+      Test_Direct_Box_Application;
+      Check_Source (Mixed_Source, "mixed explicit-blue");
+      Check_Source (Explicit_Source, "all explicit-blue");
+      Check_Source (Repeated_Source, "512 repeated glyphs");
+   end Test_Foreground_Work_Control;
+
    procedure Run is
       Opt : Math_Engine.Request;
       Outp : Math_Engine.Result;
       Bad_Source : constant String := "\not-a-command";
    begin
+      Test_Foreground_Work_Control;
       Math_Engine.Parse ("x+\frac{a}{b}", Shared'Access, Opt, Outp);
       Check (Outp.Status = Math_Engine.Ready, "default request ready");
       Check (Math_Syntax.Is_Valid (Outp.Parsed) and

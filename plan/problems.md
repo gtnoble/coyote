@@ -4944,3 +4944,19 @@ are historical, not current-source qualification.
 - **Status:** scoped defects fixed/developer-verified, not full acceptance.
   Persistent shared-context aggregate admission remains a separate requirements
   decision, not silently capped here. PCR-125 remains OPEN; no release/install.
+
+
+### PCR-125 — Unpolled foreground command passes, 2026-11-15
+
+- **Category:** Code, Design, Test. **Priority:** 3-Moderate.
+- **Problem:** engine and worker could walk the admitted command output to apply
+  foreground color without cooperative cancellation/deadline checks.
+- **Action:** common Apply_Foreground polls before each command, changes only
+  missing colors via scoped references, preserves explicit colors/payloads.
+  Document borrowed work, partial mutation on stop and authoritative worker status.
+- **Verification:** §11.22/evidence:engine255 and worker300 twice, full1076/1076,
+  development/GTK/HTTP checks pass; exact255-probe no-poll mutant fails13 assertions.
+  Engine Valgrind clean within its stated scope; prior raster losses remain open.
+- **Status:** scoped defect developer-verified. Phase-controlled active-worker
+  cancellation/GUI qualification remains open; no new cap/accounting requirement.
+  PCR-125 OPEN; no release/install/acceptance.

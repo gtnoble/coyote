@@ -1,0 +1,521 @@
+diff --git a/src/coyote_math/coyote_math_jobs.adb b/src/coyote_math/coyote_math_jobs.adb
+index f09108f..3c71bb2 100644
+--- a/src/coyote_math/coyote_math_jobs.adb
++++ b/src/coyote_math/coyote_math_jobs.adb
+@@ -563,23 +563,11 @@ package body Coyote_Math_Jobs is
+                      R.Geometry.Left_Indent := 2.0;
+                   end if;
+                   if Color_Enabled then
+-                     for I in R.Geometry.Commands.First_Index ..
+-                       R.Geometry.Commands.Last_Index
+-                     loop
+-                        declare
+-                           Command : Math_Layout.Draw_Command :=
+-                             R.Geometry.Commands (I);
+-                        begin
+-                           if not Command.Has_Color then
+-                              Command.Has_Color := True;
+-                              Command.Red := Color.Red;
+-                              Command.Green := Color.Green;
+-                              Command.Blue := Color.Blue;
+-                              Command.Alpha := Color.Alpha;
+-                              R.Geometry.Commands.Replace_Element (I, Command);
+-                           end if;
+-                        end;
+-                     end loop;
++                     Math_Layout.Apply_Foreground
++                       (R.Geometry,
++                        (Red => Color.Red, Green => Color.Green,
++                         Blue => Color.Blue, Alpha => Color.Alpha),
++                        Work_Access);
+                   end if;
+                   if not Math_Semantics.Is_Valid (R.Meaning) then
+                      R.Message := To_Unbounded_String
+diff --git a/src/coyote_math/coyote_math_jobs.ads b/src/coyote_math/coyote_math_jobs.ads
+index 0acedcd..1792012 100644
+--- a/src/coyote_math/coyote_math_jobs.ads
++++ b/src/coyote_math/coyote_math_jobs.ads
+@@ -56,6 +56,10 @@ package Coyote_Math_Jobs is
+    --  Cancel and discard a matching request without requiring a later Poll.
+    --  Completed results are freed; in-flight work is discarded on completion.
+    procedure Abandon (Id : Request_Id; Generation : View_Generation);
++   --  Status is authoritative for completion. A non-null Item can also carry
++   --  source/diagnostics after a non-Valid completion; its geometry may be
++   --  incomplete and must not be adopted or painted. Release every returned
++   --  Item, regardless of Status. Raster output is cleared on non-Valid jobs.
+    procedure Poll
+      (Id : Request_Id; Generation : View_Generation;
+       Status : out Job_Status; Item : out Result_Access);
+diff --git a/src/coyote_math/math_engine.adb b/src/coyote_math/math_engine.adb
+index 7b219b3..e169369 100644
+--- a/src/coyote_math/math_engine.adb
++++ b/src/coyote_math/math_engine.adb
+@@ -167,23 +167,12 @@ package body Math_Engine is
+          Output.Geometry.Left_Indent := 2.0;
+       end if;
+       if Options.Foreground_Set then
+-         for Index in Output.Geometry.Commands.First_Index ..
+-           Output.Geometry.Commands.Last_Index
+-         loop
+-            declare
+-               Command : Math_Layout.Draw_Command :=
+-                 Output.Geometry.Commands (Index);
+-            begin
+-               if not Command.Has_Color then
+-                  Command.Has_Color := True;
+-                  Command.Red := Options.Foreground.Red;
+-                  Command.Green := Options.Foreground.Green;
+-                  Command.Blue := Options.Foreground.Blue;
+-                  Command.Alpha := Options.Foreground.Alpha;
+-                  Output.Geometry.Commands.Replace_Element (Index, Command);
+-               end if;
+-            end;
+-         end loop;
++         Math_Layout.Apply_Foreground
++           (Output.Geometry,
++            (Red => Options.Foreground.Red,
++             Green => Options.Foreground.Green,
++             Blue => Options.Foreground.Blue,
++             Alpha => Options.Foreground.Alpha), Options.Work);
+       end if;
+       Output.Status := Ready;
+       for Index in 1 .. Math_Syntax.Diagnostic_Count (Output.Parsed) loop
+diff --git a/src/coyote_math/math_layout.adb b/src/coyote_math/math_layout.adb
+index 569d2f6..95f352e 100644
+--- a/src/coyote_math/math_layout.adb
++++ b/src/coyote_math/math_layout.adb
+@@ -22,6 +22,27 @@ package body Math_Layout is
+    use type Math_Metrics.Advance_Source_Access;
+    use type Math_Stretchy.Brace_Kind;
+ 
++   procedure Apply_Foreground
++     (Item : in out Box; Color : Color_Value;
++      Work : Math_Work_Control.Context_Access := null) is
++   begin
++      for Index in Item.Commands.First_Index .. Item.Commands.Last_Index loop
++         Math_Work_Control.Poll (Work);
++         declare
++            Command : constant Command_Vectors.Reference_Type :=
++              Item.Commands.Reference (Index);
++         begin
++            if not Command.Has_Color then
++               Command.Has_Color := True;
++               Command.Red := Color.Red;
++               Command.Green := Color.Green;
++               Command.Blue := Color.Blue;
++               Command.Alpha := Color.Alpha;
++            end if;
++         end;
++      end loop;
++   end Apply_Foreground;
++
+    Layout_Failure : exception;
+    Max_Layout_Depth  : constant Natural    := 256;
+    Max_Draw_Commands : constant            := 131_072;
+diff --git a/src/coyote_math/math_layout.ads b/src/coyote_math/math_layout.ads
+index 271c724..bdf5952 100644
+--- a/src/coyote_math/math_layout.ads
++++ b/src/coyote_math/math_layout.ads
+@@ -78,6 +78,14 @@ package Math_Layout is
+    --  Alignment is presentation metadata; Width and draw coordinates describe
+    --  only the formula. Left_Indent is measured in em units.
+ 
++   --  Apply the fallback color only to commands without an explicit color.
++   --  Poll Work before each command, including already colored commands.
++   --  Work is borrowed for this call only. Stop exceptions propagate; earlier
++   --  commands may have been colored, so callers must not publish on a stop.
++   procedure Apply_Foreground
++     (Item : in out Box; Color : Color_Value;
++      Work : Math_Work_Control.Context_Access := null);
++
+    function Build
+      (Item : Math_Syntax.Document;
+       Style : Math_Style := Text_Style;
+diff --git a/test/tools/math_engine_probe.adb b/test/tools/math_engine_probe.adb
+index da76896..1d4d815 100644
+--- a/test/tools/math_engine_probe.adb
++++ b/test/tools/math_engine_probe.adb
+@@ -7,6 +7,7 @@ with Math_Engine;
+ with Math_Layout;
+ with Math_Macros;
+ with Math_Model;
++with Math_Paths;
+ with Math_Semantics;
+ with Math_Syntax;
+ with Math_Work_Control;
+@@ -17,6 +18,7 @@ procedure Math_Engine_Probe is
+    use type Math_Macros.Diagnostic_Kind;
+    use type Math_Layout.Command_Kind;
+    use type Math_Model.Node_Kind;
++   use type Math_Paths.Segment;
+    use type Math_Syntax.Diagnostic_Kind;
+    Checks : Natural := 0;
+    Failures : Natural := 0;
+@@ -435,11 +437,263 @@ procedure Math_Engine_Probe is
+       end loop;
+    end Test_Abuse_Rejection_Recovery;
+ 
++   procedure Test_Foreground_Work_Control is
++      Mixed_Source : constant String :=
++        "a+\textcolor{blue}{b}+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t";
++      Explicit_Source : constant String := "\color{blue}abcdefghijklmnop";
++      Repeated_Source : constant String := (1 .. 512 => 'x');
++      Blue : constant Math_Model.Color_Value :=
++        (Red => 0.0, Green => 0.0, Blue => 1.0, Alpha => 1.0);
++      Red : constant Math_Model.Color_Value :=
++        (Red => 1.0, Green => 0.0, Blue => 0.0, Alpha => 1.0);
++
++      procedure Test_Direct_Box_Application is
++         Item : Math_Layout.Box;
++         Empty : Math_Layout.Box;
++         First : Math_Layout.Draw_Command;
++         Second : Math_Layout.Draw_Command;
++         Third : Math_Layout.Draw_Command;
++         Segment : Math_Paths.Segment :=
++           (Kind => Math_Paths.Move_To,
++            First => (X => 1.25, Y => -2.5),
++            Second => (X => 0.0, Y => 0.0),
++            Third => (X => 0.0, Y => 0.0));
++         Cancel_Work : aliased Budget_Context :=
++           (Math_Work_Control.Context with
++            Stop_At => 2,
++            Reason => Math_Work_Control.Cancel_Requested);
++         Deadline_Work : aliased Budget_Context :=
++           (Math_Work_Control.Context with
++            Stop_At => 1,
++            Reason => Math_Work_Control.Deadline_Reached);
++         Stopped : Boolean;
++      begin
++         Poll_Count := 0;
++         Math_Layout.Apply_Foreground
++           (Empty, Red, Deadline_Work'Unchecked_Access);
++         Check (Poll_Count = 0 and then Empty.Commands.Is_Empty,
++           "empty box performs no command polls or mutation");
++         Item.Valid := True;
++         Item.Width := 8.5;
++         First.X := 1.0;
++         First.Y := 2.0;
++         First.Scale := 1.5;
++         First.Has_Clip := True;
++         First.Clip_X := -1.0;
++         First.Clip_Y := 2.25;
++         First.Clip_W := 3.5;
++         First.Clip_H := 4.75;
++         First.Has_Shadow := True;
++         First.Shadow_X := 0.25;
++         First.Shadow_Y := -0.5;
++         First.Shadow_Blur_Px := 1.75;
++         First.Path_Data.Append (Segment);
++         Item.Commands.Append (First);
++
++         Second.Has_Color := True;
++         Second.Red := Blue.Red;
++         Second.Green := Blue.Green;
++         Second.Blue := Blue.Blue;
++         Second.Alpha := Blue.Alpha;
++         Second.X := 5.0;
++         Second.Y := -3.0;
++         Second.Scale := 0.75;
++         Second.Text_Run_Text :=
++           Ada.Strings.Unbounded.To_Unbounded_String ("payload");
++         Item.Commands.Append (Second);
++
++         Third.X := 9.0;
++         Third.Y := 10.0;
++         Third.Scale := 2.0;
++         Item.Commands.Append (Third);
++
++         Poll_Count := 0;
++         Math_Layout.Apply_Foreground (Item, Red);
++         Check (Poll_Count = 0,
++           "empty-work fallback assignment performs no polls");
++         Check (Item.Valid and then Item.Commands.Length = 3,
++           "direct fallback preserves valid geometry and command count");
++         Check (Item.Commands (1).Has_Color and then
++           Item.Commands (1).Red = Red.Red and then
++           Item.Commands (2).Red = Blue.Red and then
++           Item.Commands (3).Red = Red.Red,
++           "fallback colors uncolored commands and preserves explicit blue");
++         Check (Item.Commands (1).X = 1.0 and then
++           Item.Commands (1).Y = 2.0 and then
++           Item.Commands (1).Scale = 1.5 and then
++           Item.Commands (1).Clip_X = -1.0 and then
++           Item.Commands (1).Clip_Y = 2.25 and then
++           Item.Commands (1).Clip_W = 3.5 and then
++           Item.Commands (1).Clip_H = 4.75 and then
++           Item.Commands (1).Shadow_X = 0.25 and then
++           Item.Commands (1).Shadow_Y = -0.5 and then
++           Item.Commands (1).Shadow_Blur_Px = 1.75 and then
++           Item.Commands (1).Path_Data.Length = 1 and then
++           Item.Commands (1).Path_Data (1) = Segment,
++           "fallback preserves first-command path and geometry payload");
++         Check (Ada.Strings.Unbounded.To_String
++             (Item.Commands (2).Text_Run_Text) = "payload" and then
++           Item.Commands (2).X = 5.0 and then
++           Item.Commands (2).Y = -3.0 and then
++           Item.Commands (2).Scale = 0.75 and then
++           Item.Commands (3).X = 9.0 and then
++           Item.Commands (3).Y = 10.0 and then
++           Item.Commands (3).Scale = 2.0,
++           "fallback preserves text payload and later geometry");
++
++         Poll_Count := 0;
++         Math_Layout.Apply_Foreground (Item, Blue);
++         Math_Layout.Apply_Foreground (Item, Red);
++         Check (Poll_Count = 0 and then Item.Valid and then
++           Item.Commands (1).Red = Red.Red and then
++           Item.Commands (2).Red = Blue.Red and then
++           Item.Commands (3).Red = Red.Red,
++           "successful repeats are idempotent and preserve assigned colors");
++
++         --  Start fresh: first and third must still need fallback color.
++         Item.Commands.Replace_Element (1, First);
++         Item.Commands.Replace_Element (3, Third);
++         Poll_Count := 0;
++         Stopped := False;
++         begin
++            Math_Layout.Apply_Foreground
++              (Item, Red, Cancel_Work'Unchecked_Access);
++         exception
++            when Math_Work_Control.Stop_Requested =>
++               Stopped := True;
++         end;
++         Check (Stopped and then Poll_Count = 2,
++           "cancel polls before second command");
++         Check (Item.Valid and then Item.Commands (1).Has_Color and then
++           Item.Commands (1).Red = Red.Red and then
++           Item.Commands (2).Blue = Blue.Blue and then
++           not Item.Commands (3).Has_Color,
++           "cancel colors only earlier command and leaves later one untouched");
++         Item.Commands.Append (Third);
++         Item.Commands.Delete_Last;
++         Check (Item.Commands.Length = 3,
++           "stopped helper releases scoped references before container mutation");
++         Item.Commands.Replace_Element (1, First);
++
++         Poll_Count := 0;
++         Stopped := False;
++         begin
++            Math_Layout.Apply_Foreground
++              (Item, (Red => 0.0, Green => 1.0, Blue => 0.0, Alpha => 1.0),
++               Deadline_Work'Unchecked_Access);
++         exception
++            when Math_Work_Control.Deadline_Expired =>
++               Stopped := True;
++         end;
++         Check (Stopped and then Poll_Count = 1,
++           "deadline polls before first command");
++         Check (Item.Valid and then not Item.Commands (1).Has_Color and then
++           Item.Commands (2).Blue = Blue.Blue and then
++           not Item.Commands (3).Has_Color,
++           "deadline before first command leaves fresh box unchanged");
++      end Test_Direct_Box_Application;
++
++      procedure Check_Source (Source, Label : String) is
++         Opt : Math_Engine.Request;
++         Outp : Math_Engine.Result;
++         Baseline_Polls : Natural;
++         Command_Count : Natural;
++         Prior_Depth : constant Natural := Math_Macros.Scope_Depth (Shared);
++         Cancel_Work : aliased Budget_Context :=
++           (Math_Work_Control.Context with
++            Stop_At => Natural'Last,
++            Reason => Math_Work_Control.Cancel_Requested);
++         Deadline_Work : aliased Budget_Context :=
++           (Math_Work_Control.Context with
++            Stop_At => Natural'Last,
++            Reason => Math_Work_Control.Deadline_Reached);
++         Stopped : Boolean;
++      begin
++         Opt.Work := Cancel_Work'Unchecked_Access;
++         Poll_Count := 0;
++         Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
++         Baseline_Polls := Poll_Count;
++         Command_Count := Natural (Outp.Geometry.Commands.Length);
++         Check (Outp.Status = Math_Engine.Ready and then
++           Outp.Geometry.Valid and then Command_Count > 0,
++           Label & " uncolored calibration request is ready");
++
++         Opt.Foreground_Set := True;
++         Opt.Foreground :=
++           (Red => Blue.Red, Green => Blue.Green,
++            Blue => Blue.Blue, Alpha => Blue.Alpha);
++         Poll_Count := 0;
++         Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
++         Check (Outp.Status = Math_Engine.Ready and then
++           Outp.Geometry.Valid,
++           Label & " foreground request remains ready");
++         Check (Poll_Count >= Baseline_Polls and then
++           Poll_Count - Baseline_Polls = Command_Count,
++           Label & " foreground poll delta equals command count; delta=" &
++             Natural'Image (Poll_Count - Natural'Min
++               (Poll_Count, Baseline_Polls)) & " commands=" &
++             Natural'Image (Command_Count));
++
++         Cancel_Work.Stop_At := Baseline_Polls + 2;
++         Opt.Work := Cancel_Work'Unchecked_Access;
++         Poll_Count := 0;
++         Stopped := False;
++         begin
++            Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
++         exception
++            when Math_Work_Control.Stop_Requested =>
++               Stopped := True;
++         end;
++         Check (Stopped,
++           Label & " foreground cancellation propagates");
++         Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
++           Label & " cancellation preserves macro scope");
++         Cancel_Work.Stop_At := Natural'Last;
++         Cancel_Work.Reason := Math_Work_Control.Continue_Work;
++         Poll_Count := 0;
++         Math_Engine.Parse ("x", Shared'Access, Opt, Outp);
++         Check (Outp.Status = Math_Engine.Ready and then
++           Outp.Geometry.Valid and then
++           Math_Macros.Scope_Depth (Shared) = Prior_Depth,
++           Label & " cancellation context recovers on next request");
++
++         Deadline_Work.Stop_At := Baseline_Polls + 2;
++         Deadline_Work.Reason := Math_Work_Control.Deadline_Reached;
++         Opt.Work := Deadline_Work'Unchecked_Access;
++         Poll_Count := 0;
++         Stopped := False;
++         begin
++            Math_Engine.Parse (Source, Shared'Access, Opt, Outp);
++         exception
++            when Math_Work_Control.Deadline_Expired =>
++               Stopped := True;
++         end;
++         Check (Stopped,
++           Label & " foreground deadline propagates distinctly");
++         Check (Math_Macros.Scope_Depth (Shared) = Prior_Depth,
++           Label & " deadline preserves macro scope");
++         Deadline_Work.Stop_At := Natural'Last;
++         Deadline_Work.Reason := Math_Work_Control.Continue_Work;
++         Poll_Count := 0;
++         Math_Engine.Parse ("x", Shared'Access, Opt, Outp);
++         Check (Outp.Status = Math_Engine.Ready and then
++           Outp.Geometry.Valid and then
++           Math_Macros.Scope_Depth (Shared) = Prior_Depth,
++           Label & " deadline context recovers on next request");
++      end Check_Source;
++   begin
++      Test_Direct_Box_Application;
++      Check_Source (Mixed_Source, "mixed explicit-blue");
++      Check_Source (Explicit_Source, "all explicit-blue");
++      Check_Source (Repeated_Source, "512 repeated glyphs");
++   end Test_Foreground_Work_Control;
++
+    procedure Run is
+       Opt : Math_Engine.Request;
+       Outp : Math_Engine.Result;
+       Bad_Source : constant String := "\not-a-command";
+    begin
++      Test_Foreground_Work_Control;
+       Math_Engine.Parse ("x+\frac{a}{b}", Shared'Access, Opt, Outp);
+       Check (Outp.Status = Math_Engine.Ready, "default request ready");
+       Check (Math_Syntax.Is_Valid (Outp.Parsed) and
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index fe3bdd3..7e690c6 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -352,6 +352,99 @@ begin
+          Jobs.Release (Plain_Result);
+       end if;
+    end;
++   declare
++      Mixed_Source : Ada.Strings.Unbounded.Unbounded_String;
++   begin
++      for Glyph_Group in 1 .. 120 loop
++         Ada.Strings.Unbounded.Append
++           (Mixed_Source, "x+\textcolor{blue}{y}");
++      end loop;
++      for Iteration in 1 .. 3 loop
++         declare
++            Mixed_Id : Jobs.Request_Id;
++            Mixed_Status : Jobs.Job_Status;
++            Mixed_Result : Jobs.Result_Access;
++            Expected_Red : constant Long_Float :=
++              (if Iteration mod 2 = 1 then 1.0 else 0.0);
++            Expected_Green : constant Long_Float :=
++              (if Iteration mod 2 = 1 then 0.0 else 1.0);
++            Fallback_Count : Natural := 0;
++            Blue_Count : Natural := 0;
++            Uncolored_Count : Natural := 0;
++         begin
++            Jobs.Submit
++              (Ada.Strings.Unbounded.To_String (Mixed_Source), Mixed_Id,
++               Jobs.View_Generation (310 + Iteration),
++               Math_Layout.Text_Style,
++               Color_Enabled => True,
++               Color =>
++                 (Red => Expected_Red, Green => Expected_Green,
++                  Blue => 0.0, Alpha => 1.0),
++               Status => Mixed_Status, Request_Raster => False);
++            Check (Mixed_Status = Jobs.Pending,
++              "large mixed-color non-raster request queued" &
++                Iteration'Image);
++            for Wait in 1 .. 400 loop
++               if Mixed_Status = Jobs.Pending then
++                  Jobs.Poll (Mixed_Id,
++                    Jobs.View_Generation (310 + Iteration), Mixed_Status,
++                    Mixed_Result);
++               end if;
++               exit when Mixed_Status /= Jobs.Pending;
++               delay 0.005;
++            end loop;
++            Check (Mixed_Status = Jobs.Valid and Mixed_Result /= null,
++              "large mixed-color worker result valid" & Iteration'Image);
++            if Mixed_Result /= null then
++               for I in Jobs.Layout (Mixed_Result.all).Commands.First_Index ..
++                 Jobs.Layout (Mixed_Result.all).Commands.Last_Index
++               loop
++                  declare
++                     Command : constant Math_Layout.Draw_Command :=
++                       Jobs.Layout (Mixed_Result.all).Commands (I);
++                  begin
++                     if not Command.Has_Color then
++                        Uncolored_Count := Uncolored_Count + 1;
++                     elsif Command.Red = Expected_Red and then
++                       Command.Green = Expected_Green and then
++                       Command.Blue = 0.0 and then Command.Alpha = 1.0
++                     then
++                        Fallback_Count := Fallback_Count + 1;
++                     elsif Command.Red = 0.0 and then
++                       Command.Green = 0.0 and then
++                       Command.Blue = 1.0 and then Command.Alpha = 1.0
++                     then
++                        Blue_Count := Blue_Count + 1;
++                     end if;
++                  end;
++               end loop;
++               Check (Jobs.Layout (Mixed_Result.all).Commands.Length = 360 and
++                 Fallback_Count = 240 and Blue_Count = 120 and
++                 Uncolored_Count = 0,
++                 "all 360 commands retain fallback/explicit colors" &
++                   Iteration'Image);
++               Check (Jobs.Source (Mixed_Result.all) =
++                 Ada.Strings.Unbounded.To_String (Mixed_Source),
++                 "large mixed-color result preserves exact source" &
++                   Iteration'Image);
++               Check (not Jobs.Has_Raster (Mixed_Result.all) and
++                 Jobs.Raster_Width (Mixed_Result.all) = 0 and
++                 Jobs.Raster_Height (Mixed_Result.all) = 0 and
++                 Jobs.Raster_Retained_Bytes (Mixed_Result.all) = 0 and
++                 Math_Raster_Budget.Used = 0,
++                 "non-raster color integration retains no raster storage" &
++                   Iteration'Image);
++               Jobs.Release (Mixed_Result);
++               Check (Mixed_Result = null,
++                 "mixed-color result release clears access" &
++                   Iteration'Image);
++            end if;
++            Check (Math_Raster_Budget.Used = 0,
++              "repeated mixed-color request leaves raster ledger empty" &
++                Iteration'Image);
++         end;
++      end loop;
++   end;
+    declare
+       Raster_Id : Jobs.Request_Id;
+       Inline_Id : Jobs.Request_Id;

@@ -78,6 +78,14 @@ package Math_Layout is
    --  Alignment is presentation metadata; Width and draw coordinates describe
    --  only the formula. Left_Indent is measured in em units.
 
+   --  Apply the fallback color only to commands without an explicit color.
+   --  Poll Work before each command, including already colored commands.
+   --  Work is borrowed for this call only. Stop exceptions propagate; earlier
+   --  commands may have been colored, so callers must not publish on a stop.
+   procedure Apply_Foreground
+     (Item : in out Box; Color : Color_Value;
+      Work : Math_Work_Control.Context_Access := null);
+
    function Build
      (Item : Math_Syntax.Document;
       Style : Math_Style := Text_Style;

@@ -167,23 +167,12 @@ package body Math_Engine is
          Output.Geometry.Left_Indent := 2.0;
       end if;
       if Options.Foreground_Set then
-         for Index in Output.Geometry.Commands.First_Index ..
-           Output.Geometry.Commands.Last_Index
-         loop
-            declare
-               Command : Math_Layout.Draw_Command :=
-                 Output.Geometry.Commands (Index);
-            begin
-               if not Command.Has_Color then
-                  Command.Has_Color := True;
-                  Command.Red := Options.Foreground.Red;
-                  Command.Green := Options.Foreground.Green;
-                  Command.Blue := Options.Foreground.Blue;
-                  Command.Alpha := Options.Foreground.Alpha;
-                  Output.Geometry.Commands.Replace_Element (Index, Command);
-               end if;
-            end;
-         end loop;
+         Math_Layout.Apply_Foreground
+           (Output.Geometry,
+            (Red => Options.Foreground.Red,
+             Green => Options.Foreground.Green,
+             Blue => Options.Foreground.Blue,
+             Alpha => Options.Foreground.Alpha), Options.Work);
       end if;
       Output.Status := Ready;
       for Index in 1 .. Math_Syntax.Diagnostic_Count (Output.Parsed) loop

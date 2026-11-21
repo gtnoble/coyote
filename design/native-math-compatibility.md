@@ -565,3 +565,18 @@ Ownership rule: check every scope admission before consuming further expanded
 input; restore only to actual entry depth. Scope_Limit clears on real pop,
 not a failed push; Unbalanced_Group requires Reset. Macro default/body staging
 is cancellation-safe before commit, not an all-exception transaction guarantee.
+
+
+## 2026-11-15 — Cancellable foreground application (PCR-125)
+
+Report §11.22 and `plan/evidence/native-math-2026-11-15-foreground-poll/`
+record the shared engine/worker `Math_Layout.Apply_Foreground` pass:poll before
+each command, preserve explicit colors, scope mutable references before later
+polls/container mutation. Stops can leave earlier color updates; non-Valid worker
+status is not paintable success, returned results still require release.
+Engine255/255 twice, worker300/300 twice, full1076/1076, development builds and
+mandatory GTK/containment/HTTP checks pass. Exact-probe no-poll mutation fails
+13/255 assertions. Engine Valgrind has zero errors/lost bytes. No deterministic
+active-worker color-phase stop injection or native hard-deadline guarantee;
+prior raster losses and wider qualification remain open. No requirements,
+limits or accounting policy changed. No release/install/commit.

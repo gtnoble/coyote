@@ -22,6 +22,27 @@ package body Math_Layout is
    use type Math_Metrics.Advance_Source_Access;
    use type Math_Stretchy.Brace_Kind;
 
+   procedure Apply_Foreground
+     (Item : in out Box; Color : Color_Value;
+      Work : Math_Work_Control.Context_Access := null) is
+   begin
+      for Index in Item.Commands.First_Index .. Item.Commands.Last_Index loop
+         Math_Work_Control.Poll (Work);
+         declare
+            Command : constant Command_Vectors.Reference_Type :=
+              Item.Commands.Reference (Index);
+         begin
+            if not Command.Has_Color then
+               Command.Has_Color := True;
+               Command.Red := Color.Red;
+               Command.Green := Color.Green;
+               Command.Blue := Color.Blue;
+               Command.Alpha := Color.Alpha;
+            end if;
+         end;
+      end loop;
+   end Apply_Foreground;
+
    Layout_Failure : exception;
    Max_Layout_Depth  : constant Natural    := 256;
    Max_Draw_Commands : constant            := 131_072;
