@@ -1,0 +1,4 @@
+{"id":"primary-setup","source":"\\gdef\\fuzzsentinel{z}","displayMode":false,"sequence":"primary"}
+{"id":"primary","source":"\\def\\fuzzlocal{x}y","displayMode":false,"sequence":"primary"}
+{"id":"primary-sentinel-recovery","source":"\\fuzzsentinel","displayMode":false,"sequence":"primary"}
+{"id":"primary-ordinary-recovery","source":"x+\\alpha","displayMode":false,"sequence":"primary"}

@@ -1,0 +1,9 @@
+{
+  "batch": "leak",
+  "firstCase": "primary",
+  "lastCase": "primary",
+  "message": "primary: local macro leaked into primary snapshot",
+  "inputPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-leak.input.jsonl",
+  "outputPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-leak.output.jsonl",
+  "stderr": ""
+}

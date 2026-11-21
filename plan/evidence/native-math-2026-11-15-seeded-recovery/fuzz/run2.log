@@ -1,0 +1,249 @@
+{
+  "harness": "check-math-fuzz.cjs",
+  "executable": "/tmp/coyote-math-fuzz-build/bin/math_export",
+  "seed": "0x6d617468",
+  "primaryCases": 10000,
+  "strata": {
+    "valid-grammar": 1250,
+    "malformed": 1250,
+    "unicode": 1250,
+    "scripts": 1250,
+    "macro-expansion": 1250,
+    "arrays": 1250,
+    "dimensions": 1250,
+    "comments-accents-policy": 1250
+  },
+  "distinctSources": 5007,
+  "canonicalCorpusSha256": "c2110d62da5239191f161d511206d0c52e793790e504f0c1cdb1240374298f3f",
+  "persistedCorpus": "/tmp/coyote-seeded-fuzz-exact2.json.cases.jsonl",
+  "requestsPerPrimary": 4,
+  "primaryRequestsPerPass": 10000,
+  "controlRequestsPerPass": 30000,
+  "batchesPerPass": 313,
+  "unitsPerBatch": 32,
+  "maxBatchTimeoutMs": 30000,
+  "overallCooperativeTimeoutMs": 300000,
+  "maxSourceBytesInclusive": 8192,
+  "validation": "status class; exact status and selected diagnostic for stable limit fixtures; rejection diagnostic and empty geometry; non-negative bounded box/command dimensions and positive scale; finite coordinates without bounding SVG path coordinates; policy refusal; request identity; exact shared macro state and glyph recovery; full-output repeat hash",
+  "geometryValidationScope": "Bounds box width/ascent/descent, command positions, positive scale, and non-negative width/height; path segment coordinates are checked for finiteness but not capped because valid paths may retain source-coordinate scale. Clip/shadow fields are checked for finiteness when present; no unsupported unit-bound claim is made.",
+  "stateModel": "each primary starts with a local fuzzlocal definition and shares a unique sequence with setup and controls; primary and both recoveries assert the local definition is absent; setup sentinel is exact z; recovery glyph streams are exact; four-request units are never split between process batches",
+  "coverageLimits": "Unicode coverage is a narrow invariant probe, not a full grammar oracle. Macro cycles and nested duplication have explicit EXPANSION_LIMIT expectations. Uncertain subsets assert structural/status invariants, not fabricated semantics.",
+  "memory": "No job memory/RSS measurement; source and bounded geometry fields are validation bounds, not whole-job resource qualification.",
+  "passes": [
+    {
+      "pass": 1,
+      "batchCount": 313,
+      "outputSha256": "083e07d5fd4873f8bbec5405fb63f0a4ca65820ed66da7b5f0572a5da4480caa",
+      "counts": {
+        "primary": {
+          "valid-grammar": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 1250
+            },
+            "diagnosticCategories": {}
+          },
+          "malformed": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 1250
+            },
+            "diagnosticCategories": {
+              "missing": 846,
+              "unknown": 207,
+              "expected": 197
+            }
+          },
+          "unicode": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 416,
+              "parse-error": 834
+            },
+            "diagnosticCategories": {
+              "unsupported": 511,
+              "unmatched": 168,
+              "forbidden": 155
+            }
+          },
+          "scripts": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 732,
+              "ok": 518
+            },
+            "diagnosticCategories": {
+              "missing": 349,
+              "duplicate": 383
+            }
+          },
+          "macro-expansion": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 500,
+              "ok": 750
+            },
+            "diagnosticCategories": {
+              "macro": 500
+            }
+          },
+          "arrays": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 250,
+              "ok": 1000
+            },
+            "diagnosticCategories": {
+              "array": 125,
+              "invalid": 125
+            }
+          },
+          "dimensions": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 938,
+              "parse-error": 156,
+              "layout-error": 156
+            },
+            "diagnosticCategories": {
+              "dimension": 156,
+              "layout": 156
+            }
+          },
+          "comments-accents-policy": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 870,
+              "policy-visible-command": 209,
+              "parse-error": 171
+            },
+            "diagnosticCategories": {
+              "unsupported": 108,
+              "unmatched": 52,
+              "duplicate": 11
+            }
+          }
+        },
+        "controls": {
+          "setup": 10000,
+          "sentinelRecovery": 10000,
+          "ordinaryRecovery": 10000
+        },
+        "statuses": {
+          "ok": 5742,
+          "parse-error": 3893,
+          "layout-error": 156,
+          "policy-visible-command": 209
+        }
+      }
+    },
+    {
+      "pass": 2,
+      "batchCount": 313,
+      "outputSha256": "083e07d5fd4873f8bbec5405fb63f0a4ca65820ed66da7b5f0572a5da4480caa",
+      "counts": {
+        "primary": {
+          "valid-grammar": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 1250
+            },
+            "diagnosticCategories": {}
+          },
+          "malformed": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 1250
+            },
+            "diagnosticCategories": {
+              "missing": 846,
+              "unknown": 207,
+              "expected": 197
+            }
+          },
+          "unicode": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 416,
+              "parse-error": 834
+            },
+            "diagnosticCategories": {
+              "unsupported": 511,
+              "unmatched": 168,
+              "forbidden": 155
+            }
+          },
+          "scripts": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 732,
+              "ok": 518
+            },
+            "diagnosticCategories": {
+              "missing": 349,
+              "duplicate": 383
+            }
+          },
+          "macro-expansion": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 500,
+              "ok": 750
+            },
+            "diagnosticCategories": {
+              "macro": 500
+            }
+          },
+          "arrays": {
+            "cases": 1250,
+            "statuses": {
+              "parse-error": 250,
+              "ok": 1000
+            },
+            "diagnosticCategories": {
+              "array": 125,
+              "invalid": 125
+            }
+          },
+          "dimensions": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 938,
+              "parse-error": 156,
+              "layout-error": 156
+            },
+            "diagnosticCategories": {
+              "dimension": 156,
+              "layout": 156
+            }
+          },
+          "comments-accents-policy": {
+            "cases": 1250,
+            "statuses": {
+              "ok": 870,
+              "policy-visible-command": 209,
+              "parse-error": 171
+            },
+            "diagnosticCategories": {
+              "unsupported": 108,
+              "unmatched": 52,
+              "duplicate": 11
+            }
+          }
+        },
+        "controls": {
+          "setup": 10000,
+          "sentinelRecovery": 10000,
+          "ordinaryRecovery": 10000
+        },
+        "statuses": {
+          "ok": 5742,
+          "parse-error": 3893,
+          "layout-error": 156,
+          "policy-visible-command": 209
+        }
+      }
+    }
+  ],
+  "elapsedMs": 44989
+}

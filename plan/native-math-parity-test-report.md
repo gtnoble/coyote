@@ -1867,3 +1867,49 @@ acceptance. Wider seeded/command/surface/GTK/timing/font/lifecycle/parity and
 human acceptance remain OPEN; prior raster losses are not waived. No browser/
 geometry/image/raster or whole-macro Valgrind rerun. PCR-125 OPEN.
 No release/install/commit.
+
+
+### 11.24 Stratified seeded recovery and stop injection — 2026-11-15
+
+The existing fuzz driver now runs10000 primary cases in eight1250-case strata,
+seed0x6d617468,with5007 distinct primary sources. Each has global-sentinel setup,
+a primary with local definition,sentinel and ordinary recovery in one unique
+shared-context sequence; four-request units are not split. Local definitions
+must disappear; sentinel body/recovery glyph streams are exact. Stable valid,
+macro-cycle/explosive,array/dimension and policy cases have explicit expectations;
+uncertain Unicode/exploratory cases only assert scoped structural invariants.
+Bounds cover named box/command fields; SVG source coordinates are only finite.
+Missing shared snapshots reject exporter unexpected-exception paths,not ordinary
+parse diagnostics. No independent grammar/font/geometry oracle claimed.
+
+Two final invocations each replay the complete corpus twice:40000 requests/pass,
+80000/invocation,160000 total requests but the same10000 primaries. Every pass:
+5742 ok,3893 parse errors,156 layout errors,209 policy-visible. Corpus digest
+c2110d62da5239191f161d511206d0c52e793790e504f0c1cdb1240374298f3f;
+full-output digest083e07d5fd4873f8bbec5405fb63f0a4ca65820ed66da7b5f0572a5da4480caa
+matches all passes/invocations. Final elapsed39655/44989ms is harness evidence,
+not product latency. Input corpus is retained; failing batches retain identities,
+input/output/stderr or partial output. Child30s/32MiB caps and remaining300s run
+budget bound tested execution,not native/parent hard completion guarantees.
+New runner self-test56/56 twice exercises negative controls/crash/timeout/buffer
+failure and artifact retention; synthetic child failures are not product defects.
+
+Direct engine probe now generates64 seeded valid sources,seed0x73746f70,with
+calibrated seeded poll ordinals and128 cancel/deadline injections. Logged source/
+baseline/target supports reproduction; no claim every phase or post-mutation
+point is covered. Scope/diagnostic/local/global checks and exact null-Work
+recovery pass. Engine758/758 twice; engine Valgrind758 assertions,zero errors/
+lost bytes,216713 reachable under documented4MiB frame threshold. Development
+root/test builds,full Xvfb1076/1076 (142.623192s cumulative/142.70s wall),GTK9/9,
+runner containment and offline HTTP pass; existing warnings remain. Full suite
+covers unchanged production,not standalone additions. Final probe-only refinements
+were separately rerun twice/Valgrind. Production and requirements unchanged.
+
+Evidence:`plan/evidence/native-math-2026-11-15-seeded-recovery/`. Original first
+harness failure and later synthetic runner artifacts retained; neither is an
+exact-final product regression baseline. This is scoped10000-case recovery and
+stop evidence,not full MATH-REGRESS-002/major-buffer/resource/raster/GTK/timing/
+font/lifecycle/parity or acceptance qualification. Existing raster losses remain
+open; browser/geometry/image/raster/whole-macro Valgrind not rerun. Developer/
+agent evaluation is not independent acceptance. PCR-125 OPEN;no release/install/
+commit.

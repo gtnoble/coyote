@@ -1,0 +1,9 @@
+{
+  "batch": "malformed",
+  "firstCase": "primary",
+  "lastCase": "primary",
+  "message": "row 0: invalid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+  "inputPath": "/tmp/math-fuzz-runner-qp7gqt/evidence/batch.failure-batch-malformed.input.jsonl",
+  "outputPath": "/tmp/math-fuzz-runner-qp7gqt/evidence/batch.failure-batch-malformed.output.jsonl",
+  "stderr": ""
+}

@@ -617,3 +617,18 @@ This is not independent geometry, hard timing/native preemption,10000 seeded
 cases, full font/lifecycle/parity or human acceptance. Prior raster losses remain
 open. Development fixture mistakes and wrong-cwd suite attempt are retained.
 No release/install/commit.
+
+
+## 2026-11-15 — Stratified seeded recovery (PCR-125)
+
+Report §11.24 and `plan/evidence/native-math-2026-11-15-seeded-recovery/`
+record10000 primary cases/eight strata,5007 distinct sources,shared-context
+local cleanup/sentinel recovery and full-output replay. Two invocations each
+pass two complete corpus passes; no claim160000 unique inputs. New native stop
+subset64 cases/128 injections brings engine to758/758 twice; engine Valgrind
+zero errors/lost bytes. New `test/tools/check-math-fuzz-runner.cjs` passes56
+negative/containment checks twice. Full1076/1076,development/GTK/HTTP checks pass.
+Product/requirements/limits unchanged. No independent parity,whole-memory,
+full raster/GTK/timing/font/lifecycle or human acceptance; prior raster losses
+remain open. Details include containment limits and original development failure.
+No release/install/commit.

@@ -1,0 +1,9 @@
+{
+  "batch": "wrongid",
+  "firstCase": "primary",
+  "lastCase": "primary",
+  "message": "wrongid/primary-setup: id/source/display mismatch",
+  "inputPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-wrongid.input.jsonl",
+  "outputPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-wrongid.output.jsonl",
+  "stderr": ""
+}

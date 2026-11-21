@@ -1,0 +1,2 @@
+ M test/tools/check-math-fuzz.cjs
+ M test/tools/math_engine_probe.adb

@@ -1,0 +1,9 @@
+{
+  "batch": "truncate",
+  "firstCase": "primary",
+  "lastCase": "primary",
+  "message": "batch truncate: expected 4 rows, got 0",
+  "inputPath": "/tmp/math-fuzz-runner-qp7gqt/evidence/batch.failure-batch-truncate.input.jsonl",
+  "outputPath": "/tmp/math-fuzz-runner-qp7gqt/evidence/batch.failure-batch-truncate.output.jsonl",
+  "stderr": ""
+}

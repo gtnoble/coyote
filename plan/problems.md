@@ -4976,3 +4976,19 @@ are historical, not current-source qualification.
   errors and wrong-cwd non-run retained. No10000-case/independent parity claim.
 - **Status:** scoped coverage implemented; PCR-125 and broader qualification
   remain OPEN. Existing raster losses remain; no release/install/acceptance.
+
+
+### PCR-125 — Seeded state and rejection-oracle coverage,2026-11-15
+
+- **Category:** Test. **Priority:** 3-Moderate.
+- **Gap:** former10000-case driver mixed a small template pool,accepted broad
+  statuses without state cleanup,replayed only32 inputs and omitted stop injection.
+- **Action:** stratified generated corpus,exact selected status/diagnostic/policy
+  and recovery oracles,full replay/artifact retention,runner negative/child failure
+  self-test; existing engine hook supplies64 seeded/128 stop samples.
+- **Verification:** report§11.24:two complete passes in each of two invocations;
+  10000 primaries/5007 distinct sources,engine758 twice,runner56 twice,full1076,
+  required builds/GTK/HTTP pass. Engine Valgrind clean; no product edits.
+- **Status:** scoped harness gap addressed,broader qualification and PCR-125 OPEN.
+  Not complete10000-case all-limit/failure-class qualification;prior raster losses
+  remain. No release/install/acceptance.

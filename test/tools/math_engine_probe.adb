@@ -1,6 +1,8 @@
 with Ada.Command_Line;
 with Ada.Containers;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
+with Interfaces;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Math_Engine;
@@ -14,7 +16,9 @@ with Math_Work_Control;
 
 procedure Math_Engine_Probe is
    use type Ada.Containers.Count_Type;
+   use type Interfaces.Unsigned_32;
    use type Math_Engine.Status_Kind;
+   use type Math_Work_Control.Stop_Reason;
    use type Math_Macros.Diagnostic_Kind;
    use type Math_Layout.Command_Kind;
    use type Math_Model.Node_Kind;
@@ -29,6 +33,7 @@ procedure Math_Engine_Probe is
       Reason : Math_Work_Control.Stop_Reason :=
         Math_Work_Control.Continue_Work;
    end record;
+   type Budget_Context_Access is access all Budget_Context;
 
    overriding function Check
      (Item : Budget_Context) return Math_Work_Control.Stop_Reason;
@@ -924,12 +929,180 @@ procedure Math_Engine_Probe is
       Check_Source (Repeated_Source, "512 repeated glyphs");
    end Test_Foreground_Work_Control;
 
+   procedure Test_Seeded_Stop_Recovery is
+      Seed : constant Interfaces.Unsigned_32 := 16#7374_6F70#;
+      State : Interfaces.Unsigned_32 := Seed;
+      Local_Name : constant String := "\fuzzlocal";
+      Saved_Name : constant String := "\fuzzsaved";
+      Case_Count : constant Positive := 64;
+      Opt : Math_Engine.Request;
+      Outp : Math_Engine.Result;
+      Baseline : Natural;
+      Target : Natural;
+      Source : Ada.Strings.Unbounded.Unbounded_String;
+      Label : Ada.Strings.Unbounded.Unbounded_String;
+      Cancel_Work : aliased Budget_Context;
+      Deadline_Work : aliased Budget_Context;
+
+      function Next_Value return Interfaces.Unsigned_32 is
+      begin
+         State := State xor Interfaces.Shift_Left (State, 13);
+         State := State xor Interfaces.Shift_Right (State, 17);
+         State := State xor Interfaces.Shift_Left (State, 5);
+         return State;
+      end Next_Value;
+
+      function Make_Source (Case_Number : Positive) return String is
+         Choice : constant Natural :=
+           Natural (Next_Value mod Interfaces.Unsigned_32 (4));
+         Atom : constant Character :=
+           Character'Val (Character'Pos ('a') + Case_Number mod 26);
+         Numerator : constant String :=
+           (if Case_Number mod 2 = 0 then "a+b" else "x-y");
+         Denominator : constant String :=
+           (if Case_Number mod 3 = 0 then "c+d" else "m+n");
+         Fragment : constant String :=
+           (case Choice is
+               when 0 => "\sqrt{\frac{" & Numerator &
+                 "}{" & Denominator & "}}+\fuzzlocal",
+               when 1 => "\textcolor{blue}{\fuzzlocal+" &
+                 Atom & "}+\frac{p}{q}",
+               when 2 => "\begin{matrix}\fuzzlocal&" &
+                 Atom & "\\x&y\end{matrix}",
+               when others => "\hat{\fuzzlocal}+\sqrt{" &
+                 Atom & "}");
+      begin
+         return "\def\fuzzlocal{" & Atom & "}" & Fragment;
+      end Make_Source;
+
+      procedure Run_Stop (Reason : Math_Work_Control.Stop_Reason) is
+         Context : Budget_Context_Access;
+         Expected_Cancel : constant Boolean :=
+           Reason = Math_Work_Control.Cancel_Requested;
+         Got_Cancel : Boolean := False;
+         Got_Deadline : Boolean := False;
+         Tag : constant String :=
+           (if Expected_Cancel then "cancel" else "deadline");
+      begin
+         if Expected_Cancel then
+            Context := Cancel_Work'Unchecked_Access;
+         else
+            Context := Deadline_Work'Unchecked_Access;
+         end if;
+         Context.Stop_At := Target;
+         Context.Reason := Reason;
+         if Expected_Cancel then
+            Opt.Work := Cancel_Work'Unchecked_Access;
+         else
+            Opt.Work := Deadline_Work'Unchecked_Access;
+         end if;
+         Poll_Count := 0;
+         begin
+            Math_Engine.Parse
+              (Ada.Strings.Unbounded.To_String (Source),
+               Shared'Access, Opt, Outp);
+            Check (False, Ada.Strings.Unbounded.To_String (Label) &
+              " poll=" & Natural'Image (Target) & " " & Tag &
+              " unexpectedly completed");
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Got_Cancel := True;
+            when Math_Work_Control.Deadline_Expired =>
+               Got_Deadline := True;
+            when Error : others =>
+               Check (False, Ada.Strings.Unbounded.To_String (Label) &
+                 " poll=" & Natural'Image (Target) & " " & Tag &
+                 " wrong exception=" &
+                 Ada.Exceptions.Exception_Name (Error));
+         end;
+         if Expected_Cancel then
+            Check (Got_Cancel and then not Got_Deadline,
+              Ada.Strings.Unbounded.To_String (Label) &
+              " poll=" & Natural'Image (Target) &
+              " cancellation exception identity");
+         else
+            Check (Got_Deadline and then not Got_Cancel,
+              Ada.Strings.Unbounded.To_String (Label) &
+              " poll=" & Natural'Image (Target) &
+              " deadline exception identity");
+         end if;
+         Check (Math_Macros.Scope_Depth (Shared) = 0 and then
+           Math_Macros.Diagnostic (Shared) = Math_Macros.No_Error and then
+           not Math_Macros.Is_Defined (Shared, Local_Name) and then
+           Math_Macros.Is_Defined (Shared, Saved_Name),
+           Ada.Strings.Unbounded.To_String (Label) & " poll=" &
+           Natural'Image (Target) & " " & Tag &
+           " restores local scope and global sentinel");
+         Context.Stop_At := Natural'Last;
+         Context.Reason := Math_Work_Control.Continue_Work;
+         Opt.Work := null;
+         Math_Engine.Parse ("\fuzzsaved+x", Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           Outp.Geometry.Commands.Length = 3 and then
+           Outp.Geometry.Commands (1).Code_Point = Character'Pos ('z') and then
+           Outp.Geometry.Commands (2).Code_Point = Character'Pos ('+') and then
+           Outp.Geometry.Commands (3).Code_Point = Character'Pos ('x') and then
+           Math_Macros.Scope_Depth (Shared) = 0 and then
+           Math_Macros.Diagnostic (Shared) = Math_Macros.No_Error and then
+           not Math_Macros.Is_Defined (Shared, Local_Name) and then
+           Math_Macros.Is_Defined (Shared, Saved_Name),
+           Ada.Strings.Unbounded.To_String (Label) & " poll=" &
+           Natural'Image (Target) & " " & Tag &
+           " null-Work recovery renders exact sentinel and ordinary glyphs");
+      end Run_Stop;
+   begin
+      Math_Macros.Reset (Shared);
+      Opt.Work := null;
+      Math_Engine.Parse ("\gdef\fuzzsaved{z}", Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Macros.Is_Defined (Shared, Saved_Name) and then
+        Math_Macros.Scope_Depth (Shared) = 0,
+        "seeded stop harness installs shared global sentinel");
+      for Case_Index in 1 .. Case_Count loop
+         Ada.Strings.Unbounded.Set_Unbounded_String
+           (Source, Make_Source (Case_Index));
+         Ada.Strings.Unbounded.Set_Unbounded_String
+           (Label, "seed=0x73746f70 case=" &
+             Positive'Image (Case_Index));
+         Cancel_Work.Stop_At := Natural'Last;
+         Cancel_Work.Reason := Math_Work_Control.Continue_Work;
+         Opt.Work := Cancel_Work'Unchecked_Access;
+         Poll_Count := 0;
+         Math_Engine.Parse
+           (Ada.Strings.Unbounded.To_String (Source),
+            Shared'Access, Opt, Outp);
+         Baseline := Poll_Count;
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then Baseline > 0 and then
+           Math_Macros.Scope_Depth (Shared) = 0 and then
+           Math_Macros.Diagnostic (Shared) = Math_Macros.No_Error and then
+           not Math_Macros.Is_Defined (Shared, Local_Name) and then
+           Math_Macros.Is_Defined (Shared, Saved_Name),
+           Ada.Strings.Unbounded.To_String (Label) &
+           " uncancelled baseline ready; source=" &
+           Ada.Strings.Unbounded.To_String (Source));
+         Target := 1 + Natural (Next_Value mod
+           Interfaces.Unsigned_32 (Baseline));
+         Ada.Text_IO.Put_Line
+           ("SEEDED_STOP case=" & Positive'Image (Case_Index) &
+            " baseline_polls=" & Natural'Image (Baseline) &
+            " target_poll=" & Natural'Image (Target) & " source=" &
+            Ada.Strings.Unbounded.To_String (Source));
+         Run_Stop (Math_Work_Control.Cancel_Requested);
+         Run_Stop (Math_Work_Control.Deadline_Reached);
+      end loop;
+      Ada.Text_IO.Put_Line
+        ("SEEDED_STOPS seed=0x73746f70 cases=64 injections=128");
+   end Test_Seeded_Stop_Recovery;
+
    procedure Run is
       Opt : Math_Engine.Request;
       Outp : Math_Engine.Result;
       Bad_Source : constant String := "\not-a-command";
    begin
       Test_Foreground_Work_Control;
+      Test_Seeded_Stop_Recovery;
       Test_Composed_Geometry_Recovery;
       Math_Engine.Parse ("x+\frac{a}{b}", Shared'Access, Opt, Outp);
       Check (Outp.Status = Math_Engine.Ready, "default request ready");

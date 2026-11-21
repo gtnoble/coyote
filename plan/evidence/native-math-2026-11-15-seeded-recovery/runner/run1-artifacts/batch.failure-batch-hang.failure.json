@@ -1,0 +1,35 @@
+{
+  "batch": "hang",
+  "firstCase": "primary",
+  "lastCase": "primary",
+  "requests": [
+    {
+      "id": "primary-setup",
+      "role": "setup",
+      "source": "\\gdef\\fuzzsentinel{z}"
+    },
+    {
+      "id": "primary",
+      "role": "primary",
+      "source": "\\def\\fuzzlocal{x}y"
+    },
+    {
+      "id": "primary-sentinel-recovery",
+      "role": "sentinel-recovery",
+      "source": "\\fuzzsentinel"
+    },
+    {
+      "id": "primary-ordinary-recovery",
+      "role": "ordinary-recovery",
+      "source": "x+\\alpha"
+    }
+  ],
+  "reason": "ETIMEDOUT",
+  "stderr": "",
+  "stdout": "",
+  "timeoutMs": 100,
+  "maxBuffer": 33554432,
+  "inputPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-hang.input.jsonl",
+  "outputPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-hang.partial.stdout",
+  "stderrPath": "/tmp/math-fuzz-runner-xXbl3i/evidence/batch.failure-batch-hang.stderr"
+}

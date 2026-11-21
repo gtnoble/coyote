@@ -1,0 +1,15 @@
+{
+  "result": "PASS",
+  "checks": 56,
+  "families": {
+    "valid-grammar": 1250,
+    "malformed": 1250,
+    "unicode": 1250,
+    "scripts": 1250,
+    "macro-expansion": 1250,
+    "arrays": 1250,
+    "dimensions": 1250,
+    "comments-accents-policy": 1250
+  },
+  "evidenceDirectory": "/tmp/math-fuzz-runner-qp7gqt/evidence"
+}

@@ -1,0 +1,9 @@
+{
+  "batch": "p1-0",
+  "firstCase": "fuzz-00000",
+  "lastCase": "fuzz-00031",
+  "message": "fuzz-00000-setup: setup macro definitions absent",
+  "inputPath": "/tmp/coyote-math-fuzz-run1.json.failure-batch-p1-0.input.jsonl",
+  "outputPath": "/tmp/coyote-math-fuzz-run1.json.failure-batch-p1-0.output.jsonl",
+  "stderr": "math_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: duplicate script marker\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: duplicate script marker\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: unknown command: \\fuzzlocal\nmath_export: duplicate script marker\nmath_export: unknown command: \\fuzzlocal\n"
+}
