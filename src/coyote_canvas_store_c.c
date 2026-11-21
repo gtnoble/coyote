@@ -125,9 +125,10 @@ static int acquire_lock(int dir, int *lock_fd)
    return STORE_OK;
 }
 
-static int open_checked_manifest(int dir_fd, struct stat *st)
+static int open_checked(int dir_fd, const char *name, int manifest,
+                        struct stat *st)
 {
-   int fd = openat(dir_fd, "canvas.json",
+   int fd = openat(dir_fd, name,
                    O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
    if (fd < 0)
       return -1;
@@ -139,7 +140,7 @@ static int open_checked_manifest(int dir_fd, struct stat *st)
       return -1;
    }
    /* Atomic replacement may have unlinked this already-open inode. */
-   if (!valid_private_stat(st, 0, 1))
+   if (!valid_private_stat(st, 0, manifest))
    {
       close(fd);
       errno = EINVAL;
@@ -192,10 +193,11 @@ static int read_fd(int fd, size_t max, const struct stat *st,
    return STORE_OK;
 }
 
-static int read_manifest(int dir_fd, size_t max, char **data, size_t *len)
+static int read_entry(int dir_fd, const char *name, int manifest,
+                      size_t max, char **data, size_t *len)
 {
    struct stat st;
-   int fd = open_checked_manifest(dir_fd, &st);
+   int fd = open_checked(dir_fd, name, manifest, &st);
    int result;
    if (fd < 0)
       return classify_errno(errno);
@@ -210,8 +212,9 @@ static int read_manifest(int dir_fd, size_t max, char **data, size_t *len)
    return result;
 }
 
-int coyote_canvas_store_read(const char *parent, const char *uuid, size_t max,
-                            char **data, size_t *len)
+static int read_sidecar(const char *parent, const char *uuid,
+                        const char *name, int manifest, size_t max,
+                        char **data, size_t *len)
 {
    char sidecar[64];
    int parent_fd, side_fd, result;
@@ -235,7 +238,7 @@ int coyote_canvas_store_read(const char *parent, const char *uuid, size_t max,
       else if (!valid_private_stat(&st, 1, 0))
          result = STORE_INVALID;
       else
-         result = read_manifest(side_fd, max, data, len);
+         result = read_entry(side_fd, name, manifest, max, data, len);
       close(side_fd);
    }
    close(parent_fd);
@@ -285,8 +288,42 @@ static int open_or_create_sidecar(int parent_fd, const char *sidecar,
    return STORE_OK;
 }
 
-int coyote_canvas_store_write(const char *parent, const char *uuid,
-                             const char *data, size_t len)
+/* Existing content-addressed files are never rewritten, even if corrupt. */
+static int verify_asset(int dir, const char *name, const char *data, size_t len)
+{
+   struct stat st;
+   int fd = open_checked(dir, name, 0, &st);
+   int result = STORE_INVALID;
+   size_t done = 0;
+   char buffer[8192];
+   if (fd < 0)
+      return classify_errno(errno);
+   if (st.st_size < 0 || (uintmax_t)st.st_size != (uintmax_t)len)
+      goto done;
+   while (done < len)
+   {
+      size_t want = len - done < sizeof buffer ? len - done : sizeof buffer;
+      ssize_t n = read(fd, buffer, want);
+      if (n < 0 && errno == EINTR)
+         continue;
+      if (n < 0)
+      {
+         result = STORE_IO;
+         goto done;
+      }
+      if (n == 0 || memcmp(buffer, data + done, (size_t)n) != 0)
+         goto done;
+      done += (size_t)n;
+   }
+   result = fsync(fd) == 0 && fsync(dir) == 0 ? STORE_OK : STORE_IO;
+done:
+   close(fd);
+   return result;
+}
+
+static int write_sidecar(const char *parent, const char *uuid,
+                         const char *name, int manifest,
+                         const char *data, size_t len)
 {
    char sidecar[64];
    int parent_fd, side_fd = -1, lock_fd = -1, temp_fd = -1;
@@ -308,11 +345,16 @@ int coyote_canvas_store_write(const char *parent, const char *uuid,
    if (result != STORE_OK)
       goto done;
    result = STORE_IO;
-   if (fstatat(side_fd, "canvas.json", &st, AT_SYMLINK_NOFOLLOW) == 0)
+   if (fstatat(side_fd, name, &st, AT_SYMLINK_NOFOLLOW) == 0)
    {
       if (!valid_private_stat(&st, 0, 0))
       {
          result = STORE_INVALID;
+         goto done;
+      }
+      if (!manifest)
+      {
+         result = verify_asset(side_fd, name, data, len);
          goto done;
       }
    }
@@ -335,7 +377,8 @@ int coyote_canvas_store_write(const char *parent, const char *uuid,
       goto done;
    }
    temp_fd = -1;
-   if (renameat(side_fd, temp_name, side_fd, "canvas.json") < 0)
+   if ((manifest ? renameat(side_fd, temp_name, side_fd, name) :
+        renameat2(side_fd, temp_name, side_fd, name, RENAME_NOREPLACE)) < 0)
       goto done;
    owns_temp = 0;
    result = fsync(side_fd) < 0 ? STORE_UNCERTAIN : STORE_OK;
@@ -351,4 +394,48 @@ done:
       close(side_fd);
    close(parent_fd);
    return result == STORE_MISSING ? STORE_IO : result;
+}
+
+static int asset_name(const char *digest, char name[70])
+{
+   if (strlen(digest) != 64 ||
+       strspn(digest, "0123456789abcdef") != 64)
+      return 0;
+   memcpy(name, digest, 64);
+   memcpy(name + 64, ".rgba", 6);
+   return 1;
+}
+
+int coyote_canvas_store_read(const char *parent, const char *uuid, size_t max,
+                             char **data, size_t *len)
+{
+   return read_sidecar(parent, uuid, "canvas.json", 1, max, data, len);
+}
+
+int coyote_canvas_store_write(const char *parent, const char *uuid,
+                              const char *data, size_t len)
+{
+   return write_sidecar(parent, uuid, "canvas.json", 1, data, len);
+}
+
+int coyote_canvas_store_read_asset(const char *parent, const char *uuid,
+                                   const char *digest, size_t max,
+                                   char **data, size_t *len)
+{
+   char name[70];
+   *data = NULL;
+   *len = 0;
+   if (!asset_name(digest, name))
+      return STORE_INVALID;
+   return read_sidecar(parent, uuid, name, 0, max, data, len);
+}
+
+int coyote_canvas_store_write_asset(const char *parent, const char *uuid,
+                                    const char *digest,
+                                    const char *data, size_t len)
+{
+   char name[70];
+   if (!asset_name(digest, name))
+      return STORE_INVALID;
+   return write_sidecar(parent, uuid, name, 0, data, len);
 }

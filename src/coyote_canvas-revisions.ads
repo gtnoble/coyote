@@ -17,6 +17,7 @@ package Coyote_Canvas.Revisions is
    subtype Revision_Id is Natural;
    NO_REVISION : constant Revision_Id := 0;
    MAX_REVISIONS : constant := 256;
+   subtype Stable_Id is String (1 .. 36);
 
    type Workspace is limited private;
 
@@ -32,6 +33,8 @@ package Coyote_Canvas.Revisions is
      (W : in out Workspace; Sizes : Image_Sizes; First_Id : out Revision_Id);
    function Background
      (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id;
+   function Revision_Key (W : Workspace; Id : Revision_Id) return Stable_Id;
+   function Drawing_Key (W : Workspace; Id : Revision_Id) return Stable_Id;
 
    type Sample is record
       X, Y, Width : Long_Float;
@@ -85,6 +88,7 @@ private
 
    type Revision is record
       Parent  : Revision_Id;
+      Key     : Stable_Id;
       Content : Drawing_State;
    end record;
    package Revision_Lists is new Ada.Containers.Vectors (Positive, Revision);

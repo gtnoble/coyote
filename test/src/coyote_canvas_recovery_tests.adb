@@ -7,6 +7,7 @@ with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Store;
+with Coyote_Canvas.Store.Workspaces;
 with GNAT.OS_Lib;
 with Interfaces.C;
 with System;
@@ -16,6 +17,7 @@ package body Coyote_Canvas_Recovery_Tests is
    use Coyote_Canvas.Revisions;
    use Coyote_Canvas.Revisions.Recovery;
    use Coyote_Canvas.Store;
+   package Disk renames Coyote_Canvas.Store.Workspaces;
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
    UUID_A : constant String := "550e8400-e29b-41d4-a716-446655440000";
@@ -164,38 +166,35 @@ package body Coyote_Canvas_Recovery_Tests is
       Crop (Target, (1, 2, 10, 11));
       Baseline := To_Unbounded_String (Encode (Target));
       Bad_Data := To_Unbounded_String ("{}");
-      for Index in 1 .. 11 loop
+      for Index in 1 .. 10 loop
          case Index is
             when 1 => Bad_Data := To_Unbounded_String ("{");
-            when 2 => Bad_Data := To_Unbounded_String ("{""version"":1");
+            when 2 => Bad_Data := To_Unbounded_String
+              (Replace_First (To_String (Baseline), """version"":2",
+                              """version"":1"));
             when 3 => Bad_Data := To_Unbounded_String
-              (Replace_First (To_String (Baseline), """version"":1",
-                              """version"":2"));
+              (Replace_First (To_String (Baseline), """base"":1",
+                              """base"":99"));
             when 4 => Bad_Data := To_Unbounded_String
-              ("{""version"":1,""strokes"":[],""revisions"":[[99,[]]],"
-               & """base"":1,""draft"":[]}");
+              (Replace_First (To_String (Baseline), "[[0,", "[[1,"));
             when 5 => Bad_Data := To_Unbounded_String
-              ("{""version"":1,""strokes"":[],""revisions"":[[]],"
-               & """base"":0,""draft"":[0,0,1,1,9,[]]}");
-            when 6 => Bad_Data := To_Unbounded_String
-              ("{""version"":1,""strokes"":[],""revisions"":[[]],"
-               & """base"":99,""draft"":[0,0,1,1,0,[]]}");
+              (Replace_First (To_String (Baseline), """draft"":",
+                              """draft"":[[[[[[[0]]]]]]],""unused"":"));
+            when 6 => Bad_Data := Baseline & " {}";
             when 7 => Bad_Data := To_Unbounded_String
-              ("{""version"":1,""strokes"":[[[1,1,1]]],"
-               & """revisions"":[[0,[0,0,10,10,0,[99]]]],"
-               & """base"":1,""draft"":[0,0,10,10,0,[]]}");
+              (Replace_First (To_String (Baseline), """version"":2",
+                              """version"":1,""version"":2"));
             when 8 => Bad_Data := To_Unbounded_String
-              ("{""version"":1,""strokes"":[],""revisions"":[],"
-               & """base"":0,""draft"":[[[[[[[0]]]]]]]}");
-            when 9 => Bad_Data := Baseline & " {}";
-            when 10 => Bad_Data := To_Unbounded_String
-              (Replace_First (To_String (Baseline), """version"":1",
-                              """version"":2,""version"":1"));
+              (Replace_First (To_String (Baseline),
+                              '"' & Revision_Key (Target, 1) & '"', "0"));
+            when 9 => Bad_Data := To_Unbounded_String
+              (Replace_First (To_String (Baseline), Revision_Key (Target, 1),
+                              UUID_A (1 .. 14) & "1" & UUID_A (16 .. 36)));
             when others => Bad_Data := To_Unbounded_String
-              ("{""version"":1,""strokes"":[],""revisions"":["
-               & "[0,[0,0,10,10,1,[]]],[1,[0,0,10,10,0,[]]]],"
-               & """base"":0,""draft"":[0,0,0,0,0,[]]}");
+              (Replace_First (To_String (Baseline), """draft"":[1,2,10,11,0,[]]",
+                              """draft"":[1,2,10,11,0,[1]]"));
          end case;
+         Assert (Bad_Data /= Baseline, "fixture modifies the snapshot");
          Rejected := False;
          begin
             Decode (To_String (Bad_Data), Target);
@@ -326,6 +325,118 @@ package body Coyote_Canvas_Recovery_Tests is
          raise;
    end Disk_Rollback_And_Unsafe_Entries;
 
+   procedure Complete_Workspace_Roundtrip (T : in out Test) is
+      pragma Unreferenced (T);
+      use type Disk.Raster_Set;
+      Root, Manifest : Unbounded_String;
+      W, Loaded : Workspace;
+      A, Got : Disk.Raster_Set;
+      Refs : Asset_References;
+      First : Revision_Id;
+      Status : Result;
+      Data : constant String :=
+        ASCII.NUL & Character'Val (201) & "X" & ASCII.NUL &
+        "ABC" & Character'Val (1) & "DEF" & Character'Val (255) &
+        "GHI" & Character'Val (127);
+   begin
+      Set_Up_Directory (Root);
+      New_Drawing (W, 12, 11);
+      Add_Originals (W, (1 => (2, 2), 2 => (2, 2), 3 => (4, 1)), First);
+      A (First) := To_Unbounded_String (Data);
+      A (First + 1) := A (First);
+      A (First + 2) := A (First);
+      Edit (W, First);
+      Crop (W, (0, 0, 1, 2));
+      Save (W);
+      Crop (W, (0, 1, 1, 2));
+      Disk.Save (To_String (Root), UUID_A, W, A, Status);
+      Assert (Status = Ok, "persist complete workspace");
+      Disk.Save (To_String (Root), UUID_A, W, A, Status);
+      Assert (Status = Ok, "repeat save reuses verified immutable assets");
+      Disk.Load (To_String (Root), UUID_A, Loaded, Got, Status);
+      Assert (Status = Ok and then A = Got, "exact RGBA8 recovery");
+      Assert (Encode (Loaded) = Encode (W), "recover branches and dirty draft");
+      Assert (not Can_Undo (Loaded), "restore does not synthesize edit history");
+      for Id in 1 .. Count (W) loop
+         Assert (Revision_Key (W, Id) = Revision_Key (Loaded, Id),
+                 "revision keys survive recovery");
+         Assert (Drawing_Key (W, Id) = Drawing_Key (Loaded, Id),
+                 "drawing keys survive recovery");
+      end loop;
+      Assert (Drawing_Key (Loaded, Base (Loaded)) = Revision_Key (W, First)
+              and then Revision_Key (Loaded, Base (Loaded)) /=
+                Revision_Key (W, First) and then
+                Drawing_Key (Loaded, First) /= Drawing_Key (Loaded, First + 1),
+              "descendants keep drawing identity; duplicate pixels do not merge roots");
+      Read (To_String (Root), UUID_A, Manifest, Status);
+      Assert (Status = Ok, "read committed manifest");
+      Decode (To_String (Manifest), Loaded, Refs);
+      Assert (Refs (1) = NO_ASSET and then Refs (Base (W)) = NO_ASSET,
+              "blank Original and checkpoint need no asset");
+      Assert (Refs (First) = Refs (First + 1)
+              and then Refs (First) /= Refs (First + 2),
+              "deduplicate equal layout; bind digest to dimensions");
+      Remove_Directory (Root);
+   exception
+      when others =>
+         Remove_Directory (Root);
+         raise;
+   end Complete_Workspace_Roundtrip;
+
+   procedure Asset_Failures_Are_Atomic (T : in out Test) is
+      pragma Unreferenced (T);
+      Root, Previous, Current, Bytes : Unbounded_String;
+      W, Loaded : Workspace;
+      A, Got : Disk.Raster_Set;
+      Refs : Asset_References;
+      First : Revision_Id;
+      Status : Result;
+      Valid : constant String := "ABC" & ASCII.NUL;
+      Bad   : constant String := "ABD" & ASCII.NUL;
+   begin
+      Set_Up_Directory (Root);
+      Add_Originals (W, (1 => (1, 1)), First);
+      A (First) := To_Unbounded_String (Valid);
+      Disk.Save (To_String (Root), UUID_A, W, A, Status);
+      Assert (Status = Ok, "publish valid workspace");
+      Read (To_String (Root), UUID_A, Previous, Status);
+      Assert (Status = Ok, "read valid manifest");
+      Decode (To_String (Previous), Loaded, Refs);
+      Write_Asset (To_String (Root), UUID_A, Refs (First), Bad, Status);
+      Assert (Status = Invalid, "immutable asset cannot be overwritten");
+      New_Drawing (Loaded, 8, 9);
+      declare
+         Baseline : constant String := Encode (Loaded);
+         Asset_Path : constant String := To_String (Root) & "/" & UUID_A &
+           ".canvas/" & Refs (First) & ".rgba";
+      begin
+         Got (First) := To_Unbounded_String ("sentinel");
+         Ada.Directories.Delete_File (Asset_Path);
+         Disk.Load (To_String (Root), UUID_A, Loaded, Got, Status);
+         Assert (Status = Invalid and then Encode (Loaded) = Baseline
+                 and then Got (First) = "sentinel", "missing asset is atomic");
+         Write_Asset (To_String (Root), UUID_A, Refs (First), Bad, Status);
+         Assert (Status = Ok, "install same-length corrupted asset fixture");
+         Disk.Load (To_String (Root), UUID_A, Loaded, Got, Status);
+         Assert (Status = Invalid and then Encode (Loaded) = Baseline
+                 and then Got (First) = "sentinel", "digest failure is atomic");
+         Edit (W, First);
+         Disk.Save (To_String (Root), UUID_A, W, A, Status);
+         Assert (Status = Invalid, "save detects a corrupted referenced asset");
+         Read (To_String (Root), UUID_A, Current, Status);
+         Assert (Status = Ok and then Current = Previous,
+                 "failed asset publication does not replace the manifest");
+         Read_Asset (To_String (Root), UUID_A, Refs (First), 4, Bytes, Status);
+         Assert (Status = Ok and then Bytes = Bad,
+                 "failed asset publication does not mutate the existing file");
+      end;
+      Remove_Directory (Root);
+   exception
+      when others =>
+         Remove_Directory (Root);
+         raise;
+   end Asset_Failures_Are_Atomic;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -352,6 +463,12 @@ package body Coyote_Canvas_Recovery_Tests is
         (Caller.Create
            ("Canvas store preserves published bytes and refuses aliases",
             Disk_Rollback_And_Unsafe_Entries'Access));
+      Result.Add_Test
+        (Caller.Create ("Canvas store complete workspace and stable IDs",
+                        Complete_Workspace_Roundtrip'Access));
+      Result.Add_Test
+        (Caller.Create ("Canvas store asset failures are atomic",
+                        Asset_Failures_Are_Atomic'Access));
       return Result;
    end Suite;
 end Coyote_Canvas_Recovery_Tests;

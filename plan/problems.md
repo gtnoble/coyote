@@ -57,11 +57,10 @@ client-controlled work product gets an entry here.
   `canvas add` parses operands but does not read files or contact a service.
   See the Core Agent and Frontends development logs for verification scope.
   The modeless workspace, in-memory revision tree, and atomic GUI batches of
-  PNG, JPEG, and supported static SVG are implemented. A revision/draft
-  snapshot codec and private manifest transport are available internally.
-  Raster assets, stable IDs, session ownership and GUI recovery are not wired.
-  The CLI import service, attachments, qualification, and deployment remain
-  pending.
+  PNG, JPEG, and supported static SVG are implemented. The internal workspace
+  store verifies raster assets and recovers stable IDs, revisions, and drafts.
+  Shared session writer ownership, GTK autosave/reopen, fork/deletion, the CLI
+  import service, attachments, qualification, and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

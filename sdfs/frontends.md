@@ -1,5 +1,22 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas raster assets and stable identities (PCR-130)
+
+The internal workspace store now preserves revisions, the latest draft,
+and exact straight-alpha source RGBA8, including RGB under zero alpha.
+Revision UUIDs survive reload; descendants share their Original's drawing
+identity. SHA-256 asset names bind the format, dimensions, and pixels. Save
+synchronizes immutable assets before replacing the manifest; Load checks
+all referenced assets before replacing the workspace. Failed saves can leave
+unreferenced blobs but do not replace the manifest on an asset failure.
+
+Both development builds and all seven focused recovery/store tests passed.
+Serial Xvfb AUnit passed 1,110/1,110 (exit 0). Standalone GTK checks passed
+9/9, the runner containment self-test passed, and the Canvas CLI compatibility
+check passed. This is developer evidence, not end-to-end qualification. The
+store is not yet connected to live sessions or GTK; session writer ownership,
+autosave/reopen, provenance labels, and fork/deletion remain pending.
+
 ## 2026-11-21 — Canvas recovery foundation (PCR-130)
 
 The internal snapshot codec preserves saved branches, source-coordinate ink,

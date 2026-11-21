@@ -1,10 +1,55 @@
-with Ada.Containers;
+with Interfaces.C.Strings;
 
 package body Coyote_Canvas.Revisions is
+   use type Interfaces.C.Strings.chars_ptr;
    use type Ada.Containers.Count_Type;
    use type Document.Rectangle;
 
-   MAX_EDITS     : constant := 256;
+   function G_UUID_String_Random return Interfaces.C.Strings.chars_ptr
+     with Import, Convention => C, External_Name => "g_uuid_string_random";
+   procedure G_Free (Pointer : Interfaces.C.Strings.chars_ptr)
+     with Import, Convention => C, External_Name => "g_free";
+
+   MAX_EDITS : constant := 256;
+
+   function New_UUID return Stable_Id is
+      Pointer : Interfaces.C.Strings.chars_ptr := G_UUID_String_Random;
+   begin
+      if Pointer = Interfaces.C.Strings.Null_Ptr then
+         raise Storage_Error with "UUID generation failed";
+      end if;
+      declare
+         Text : constant String := Interfaces.C.Strings.Value (Pointer);
+      begin
+         G_Free (Pointer);
+         Pointer := Interfaces.C.Strings.Null_Ptr;
+         return Stable_Id (Text);
+      exception
+         when others =>
+            if Pointer /= Interfaces.C.Strings.Null_Ptr then
+               G_Free (Pointer);
+            end if;
+            raise;
+      end;
+   end New_UUID;
+
+   function Unique_UUID (W : Workspace) return Stable_Id is
+      Key : Stable_Id;
+   begin
+      loop
+         Key := New_UUID;
+         declare
+            Found : Boolean := False;
+         begin
+            for Node of W.Revisions loop
+               Found := Found or else Node.Key = Key;
+            end loop;
+            if not Found then
+               return Key;
+            end if;
+         end;
+      end loop;
+   end Unique_UUID;
 
    procedure Clear (W : in out Workspace) is
    begin
@@ -22,6 +67,18 @@ package body Coyote_Canvas.Revisions is
 
    function Parent (W : Workspace; Id : Revision_Id) return Revision_Id is
      (W.Revisions (Id).Parent);
+
+   function Revision_Key (W : Workspace; Id : Revision_Id) return Stable_Id is
+     (W.Revisions (Id).Key);
+
+   function Drawing_Key (W : Workspace; Id : Revision_Id) return Stable_Id is
+      Root : Revision_Id := Id;
+   begin
+      while W.Revisions (Root).Parent /= NO_REVISION loop
+         Root := W.Revisions (Root).Parent;
+      end loop;
+      return W.Revisions (Root).Key;
+   end Drawing_Key;
 
    function Extent
      (W : Workspace; Id : Revision_Id := NO_REVISION)
@@ -60,6 +117,7 @@ package body Coyote_Canvas.Revisions is
          W.Revisions.Append
            (Revision'
               (Parent  => NO_REVISION,
+               Key     => Unique_UUID (W),
                Content =>
                  (Extent => Document.Full_Extent (Size.Width, Size.Height),
                   Image  => Count (W) + 1,
@@ -68,7 +126,10 @@ package body Coyote_Canvas.Revisions is
       First_Id := Before + 1;
    exception
       when others =>
-         W.Revisions.Delete_Last (Ada.Containers.Count_Type (Count (W) - Before));
+         if Count (W) > Before then
+            W.Revisions.Delete_Last
+              (Ada.Containers.Count_Type (Count (W) - Before));
+         end if;
          raise;
    end Add_Originals;
 
@@ -82,7 +143,9 @@ package body Coyote_Canvas.Revisions is
       if Changed (W) then
          Reserve_Revisions (W, 1);
          W.Revisions.Append
-           (Revision'(Parent => W.Base_Id, Content => W.Draft));
+           (Revision'
+              (Parent => W.Base_Id, Key => Unique_UUID (W),
+               Content => W.Draft));
          W.Base_Id := Count (W);
       end if;
    end Save;
@@ -90,14 +153,37 @@ package body Coyote_Canvas.Revisions is
    procedure New_Drawing (W : in out Workspace; Width, Height : Positive) is
       Blank : constant Drawing_State :=
         (Extent => Document.Full_Extent (Width, Height), others => <>);
+      Save_Changed : constant Boolean := Changed (W);
+      Before       : constant Natural := Count (W);
+      Saved_Key    : Stable_Id := (others => ' ');
+      New_Key      : Stable_Id := (others => ' ');
    begin
-      Reserve_Revisions (W, (if Changed (W) then 2 else 1));
-      Save (W);
-      W.Revisions.Append (Revision'(Parent => NO_REVISION, Content => Blank));
+      Reserve_Revisions (W, (if Save_Changed then 2 else 1));
+      if Save_Changed then
+         Saved_Key := Unique_UUID (W);
+      end if;
+      loop
+         New_Key := Unique_UUID (W);
+         exit when not Save_Changed or else New_Key /= Saved_Key;
+      end loop;
+      if Save_Changed then
+         W.Revisions.Append
+           (Revision'(Parent => W.Base_Id, Key => Saved_Key,
+                      Content => W.Draft));
+      end if;
+      W.Revisions.Append
+        (Revision'(Parent => NO_REVISION, Key => New_Key, Content => Blank));
       W.Draft   := Blank;
       W.Base_Id := Count (W);
       W.Past.Clear;
       W.Future.Clear;
+   exception
+      when others =>
+         if Count (W) > Before then
+            W.Revisions.Delete_Last
+              (Ada.Containers.Count_Type (Count (W) - Before));
+         end if;
+         raise;
    end New_Drawing;
 
    procedure Edit (W : in out Workspace; Id : Revision_Id) is
