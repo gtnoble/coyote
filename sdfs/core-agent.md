@@ -1,5 +1,23 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Canvas-aware session forks and deletion (PCR-130)
+
+Forking a retained user image record now copies its saved revision, ancestors,
+and verified rasters before publishing the destination JSONL. The fork keeps
+stable IDs and does not copy unrelated drawings or unsent drafts. Explicit
+session-store deletion checks identity and private entries, rejects an active
+Canvas editor, and removes and syncs the log before removing the sidecar.
+Automatic empty-session cleanup still preserves Canvas storage. This adds no
+delete command or menu and does not reclaim interrupted-operation orphans.
+
+The lifecycle fixture checks the exact inline record and rendered pixels,
+required and unrelated missing assets, editor contention, unsafe sidecar
+entries, and fork recovery after source deletion. Both development builds
+passed, as did the focused session and fork tests, full serial Xvfb AUnit
+(1,113/1,113, exit 0), CLI compatibility, standalone GTK interactions (9/9),
+and the runner containment self-test. These are developer results; typed
+Attach/Send and replay, physical Intuos, and Wayland remain unqualified.
+
 ## 2026-11-21 — Shared session write guard (PCR-130)
 
 Canvas workspace commits and JSONL mutations now use a common per-session

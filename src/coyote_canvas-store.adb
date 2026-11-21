@@ -27,15 +27,23 @@ package body Coyote_Canvas.Store is
      with Import, Convention => C,
           External_Name => "coyote_canvas_store_write_asset";
 
+   function Native_Reserve_Fork (Parent, UUID : char_array) return int
+     with Import, Convention => C,
+          External_Name => "coyote_canvas_reserve_fork";
+
+   function Native_Remove_Session
+     (Parent, UUID, Log_Name : char_array) return int
+     with Import, Convention => C,
+          External_Name => "coyote_canvas_remove_session";
+
    procedure Release (Data : System.Address)
      with Import, Convention => C, External_Name => "free";
 
-   function Safe_Arguments (Parent, UUID : String) return Boolean is
+   function Safe_Parent (Parent : String) return Boolean is
    begin
       if Parent'Length = 0 or else Parent'Length > 4_095
         or else Parent (Parent'First) /= '/'
         or else (Parent'Length > 1 and then Parent (Parent'Last) = '/')
-        or else UUID'Length /= 36
       then
          return False;
       end if;
@@ -45,7 +53,10 @@ package body Coyote_Canvas.Store is
          end if;
       end loop;
       return True;
-   end Safe_Arguments;
+   end Safe_Parent;
+
+   function Safe_Arguments (Parent, UUID : String) return Boolean is
+     (Safe_Parent (Parent) and then UUID'Length = 36);
 
    procedure Read
      (Parent, UUID : String; Data : out Unbounded_String; Status : out Result)
@@ -171,4 +182,28 @@ package body Coyote_Canvas.Store is
            (Native_Claim (To_C (Parent), To_C (UUID), Lease.FD));
       end if;
    end Claim;
+   procedure Reserve_Fork (Parent, UUID : String; Status : out Result) is
+   begin
+      Status := Invalid;
+      if Safe_Arguments (Parent, UUID) then
+         Status := Result'Val (Native_Reserve_Fork (To_C (Parent), To_C (UUID)));
+      end if;
+   end Reserve_Fork;
+
+   procedure Remove_Session
+     (Parent, UUID, Log_Name : String; Status : out Result)
+   is
+   begin
+      Status := Invalid;
+      if not Safe_Parent (Parent) or else UUID'Length not in 0 | 36 then
+         return;
+      end if;
+      for Ch of Log_Name loop
+         if Ch = ASCII.NUL then
+            return;
+         end if;
+      end loop;
+      Status := Result'Val
+        (Native_Remove_Session (To_C (Parent), To_C (UUID), To_C (Log_Name)));
+   end Remove_Session;
 end Coyote_Canvas.Store;

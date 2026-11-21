@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -501,4 +502,164 @@ int coyote_session_publish(const char *stage, const char *target)
    if (renameat2(AT_FDCWD, stage, AT_FDCWD, target, RENAME_NOREPLACE) < 0)
       return 2;
    return 0;
+}
+
+/* Callers hold the session transaction guard. A new fork must not adopt or
+ * overwrite an existing sidecar, even if its JSONL does not exist. */
+int coyote_canvas_reserve_fork(const char *parent, const char *uuid)
+{
+   char sidecar[64], log[64];
+   struct stat st;
+   int dir, result;
+   if (!valid_uuid(uuid))
+      return STORE_INVALID;
+   (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
+   (void)snprintf(log, sizeof log, "%s.jsonl", uuid);
+   dir = open_parent(parent);
+   if (dir < 0)
+      return classify_parent_errno(errno);
+   if (fstatat(dir, log, &st, AT_SYMLINK_NOFOLLOW) == 0)
+      result = STORE_INVALID;
+   else if (errno != ENOENT)
+      result = STORE_IO;
+   else if (mkdirat(dir, sidecar, 0700) < 0)
+      result = errno == EEXIST ? STORE_INVALID : classify_errno(errno);
+   else
+      /* The first workspace write syncs this directory entry. */
+      result = STORE_OK;
+   close(dir);
+   return result;
+}
+
+static int known_canvas_entry(const char *name)
+{
+   if (strcmp(name, "canvas.json") == 0 || strcmp(name, ".canvas.tmp") == 0 ||
+       strcmp(name, ".gtk-writer") == 0 || strcmp(name, ".writer") == 0)
+      return 1;
+   return strlen(name) == 69 && strcmp(name + 64, ".rgba") == 0 &&
+      strspn(name, "0123456789abcdef") == 64;
+}
+
+/* No recursion and no symlink traversal. Inspect every entry before the
+ * visible deletion, so an unfamiliar layout does not cause data loss. */
+static int scan_canvas(DIR *stream, int remove)
+{
+   int fd = dirfd(stream);
+   for (;;)
+   {
+      struct dirent *entry;
+      struct stat st;
+      errno = 0;
+      entry = readdir(stream);
+      if (entry == NULL)
+         return errno == 0 ? STORE_OK : STORE_IO;
+      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+         continue;
+      if (!known_canvas_entry(entry->d_name))
+         return STORE_INVALID;
+      if (fstatat(fd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
+         return STORE_IO;
+      if (!valid_private_stat(&st, 0, 0))
+         return STORE_INVALID;
+      if (remove && unlinkat(fd, entry->d_name, 0) < 0)
+         return STORE_IO;
+   }
+}
+
+/* A null sidecar key (empty string) denotes a non-Canvas legacy log.
+ * An empty log denotes rollback of a freshly reserved, unpublished fork. */
+int coyote_canvas_remove_session(const char *parent, const char *uuid,
+                                 const char *log)
+{
+   char sidecar[64];
+   struct stat st;
+   DIR *stream = NULL;
+   int dir, side = -1, editor = -1, writer = -1;
+   int result = STORE_INVALID;
+   int has_log = log[0] != '\0';
+   if ((uuid[0] != '\0' && !valid_uuid(uuid)) ||
+       (has_log && (strchr(log, '/') || strlen(log) < 7 ||
+        strcmp(log + strlen(log) - 6, ".jsonl") != 0)) ||
+       (!has_log && !valid_uuid(uuid)))
+      return STORE_INVALID;
+   dir = open_parent(parent);
+   if (dir < 0)
+      return classify_parent_errno(errno);
+   if (has_log)
+   {
+      if (fstatat(dir, log, &st, AT_SYMLINK_NOFOLLOW) < 0)
+      {
+         result = classify_errno(errno);
+         goto done;
+      }
+      if (!S_ISREG(st.st_mode) || st.st_uid != geteuid() || st.st_nlink != 1)
+         goto done;
+   }
+   if (uuid[0] != '\0')
+   {
+      (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
+      side = openat(dir, sidecar, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+      if (side < 0 && errno != ENOENT)
+      {
+         result = classify_errno(errno);
+         goto done;
+      }
+      if (side >= 0)
+      {
+         if (fstat(side, &st) < 0)
+         {
+            result = STORE_IO;
+            goto done;
+         }
+         if (!valid_private_stat(&st, 1, 0))
+            goto done;
+         result = acquire_lock(side, ".gtk-writer", &editor);
+         if (result != STORE_OK)
+            goto done;
+         result = acquire_lock(side, ".writer", &writer);
+         if (result != STORE_OK)
+            goto done;
+         stream = fdopendir(side);
+         if (stream == NULL)
+         {
+            result = STORE_IO;
+            goto done;
+         }
+         side = -1; /* stream owns the descriptor */
+         result = scan_canvas(stream, 0);
+         if (result != STORE_OK)
+            goto done;
+      }
+   }
+   /* Remove and sync the log first. After a crash a hidden-by-absence
+    * sidecar may remain, but a surviving log never loses its Canvas. */
+   if (has_log && unlinkat(dir, log, 0) < 0)
+   {
+      result = STORE_IO;
+      goto done;
+   }
+   if (has_log && fsync(dir) < 0)
+   {
+      result = STORE_UNCERTAIN;
+      goto done;
+   }
+   result = STORE_OK;
+   if (stream != NULL)
+   {
+      rewinddir(stream);
+      if (scan_canvas(stream, 1) != STORE_OK ||
+          unlinkat(dir, sidecar, AT_REMOVEDIR) < 0 || fsync(dir) < 0)
+         result = has_log ? STORE_UNCERTAIN : STORE_IO;
+   }
+done:
+   if (stream != NULL)
+      closedir(stream);
+   if (writer >= 0)
+      close(writer);
+   if (editor >= 0)
+      close(editor);
+   if (side >= 0)
+      close(side);
+   close(dir);
+   return result;
 }

@@ -24,6 +24,20 @@ package Coyote_Canvas.Revisions.Recovery is
    --  history. Allocation or validation failure leaves Target unchanged.
    procedure Copy (Target : in out Workspace; Source : Workspace);
 
+   type Revision_Mapping is array (Positive range 1 .. MAX_REVISIONS)
+     of Revision_Id;
+   type Reference is record
+      Drawing, Revision : Stable_Id;
+   end record;
+   type References is array (Positive range <>) of Reference;
+
+   --  Keep the requested checkpoints and their ancestors, preserving their
+   --  stable keys. Map destination indices to source indices. The new draft
+   --  starts unmodified at the newest retained checkpoint.
+   procedure Select_Revisions
+     (Source : Workspace; Requested : References; Target : in out Workspace;
+      Source_Ids : out Revision_Mapping);
+
    --  Publish a completely validated candidate without allocating.
    procedure Move (Target, Source : in out Workspace);
 end Coyote_Canvas.Revisions.Recovery;

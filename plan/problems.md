@@ -61,9 +61,10 @@ client-controlled work product gets an entry here.
   store verifies raster assets and recovers stable IDs, revisions, and drafts.
   GTK autosaves and reopens the root session workspace, with an exclusive
   Canvas-only writer lease. Canvas commits and JSONL mutations share a
-  per-session transaction guard. Text forks publish complete logs; joint
-  deletion and attachment-aware forks remain pending, as do CLI import,
-  attachments, qualification, and deployment.
+  per-session transaction guard. Session-store deletion removes the private
+  Canvas, and forks of stored user image records preserve only the referenced
+  revisions and ancestors. CLI import, attachment submission and replay,
+  orphan reclamation, qualification, and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

@@ -73,6 +73,10 @@ package Session_Lister is
    --  current timestamp; a session_info line names it
    --  "Fork of <original-name> @<After_Turn>[/<After_Step>]".
    --
+   --  Copied user image records require their saved Canvas revisions. The
+   --  fork owns a copy of those revisions, their ancestors, and required
+   --  assets, published before the JSONL. Unsent drafts are never copied.
+   --
    --  Returns the new UUID on success, "" on any error (source not found,
    --  After_Turn exceeds the number of complete turns in the source, step
    --  not found, I/O failure, etc.).

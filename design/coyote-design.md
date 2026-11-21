@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.54
+**Version:** 1.55
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -12,9 +12,10 @@
 Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
 Development builds include additive CLI dispatch, legacy session listing
 parity and the modeless Canvas with native-size GUI file batches, PNG/JPEG
-clipboard import, session-bound GTK autosave and reopen, and shared session
-write exclusion (§5.51). The shell import service, Canvas-aware fork and
-deletion, attachments, and desktop qualification remain pending.
+clipboard import, GTK autosave and reopen, shared writer exclusion, and
+Canvas-aware session-store forks and deletion (§5.51). The shell import
+service, attachment submission/replay, and desktop qualification remain
+pending.
 
 **Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
@@ -555,10 +556,10 @@ not wait for the complete user turn.
 | `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file batches and clipboard decode on one worker; all-or-nothing GTK-main-task completion. |
 | `Coyote_GUI.Canvas_Recovery_Jobs` (`src/coyote_gui/coyote_gui-canvas_recovery_jobs.ads/.adb`) | One background recovery job per Canvas; binds each job to the resolved session, transfers validated loads and an exclusive Canvas lease, and saves owned snapshots without accessing GTK. |
 | `Coyote_Canvas.Import_Service` | Planned; accept authorized, bounded file data for one live session. |
-| `Coyote_Canvas.Revisions.Recovery` (`src/coyote_canvas-revisions-recovery.ads/.adb`) | Versioned metadata codec for stable revision identities, saved revisions, the latest draft, and raster references. |
-| `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private file transport with atomic manifest replacement, immutable asset publication, and an exclusive GTK editor lease. |
+| `Coyote_Canvas.Revisions.Recovery` (`src/coyote_canvas-revisions-recovery.ads/.adb`) | Versioned metadata codec; extract a fork subset with stable IDs, ancestry, and independent stroke storage. |
+| `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private transport, exclusive GTK editor lease, fork sidecar reservation, and checked nonrecursive removal. |
 | `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging and no-replace publication for new JSONL files. |
-| `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Save immutable source rasters before the manifest; verify all references before adopting a restored workspace. |
+| `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Save immutable source rasters before the manifest; full restore and selected-revision fork restore verify the rasters they need. |
 | `Coyote_Canvas_Recovery_Tests` (`test/src/coyote_canvas_recovery_tests.ads/.adb`) | Exact raster and revision round trips, invalid-input rollback, and private sidecar behavior. |
 | `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition/cache misses run on GTK and attachment staging remains planned. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
@@ -3249,10 +3250,30 @@ stop new Canvas edits and drain pending saves without a nested GTK loop;
 reset drains and drops old results before binding a different session. These
 waits are not hard time limits. Abrupt termination can lose uncommitted
 changes. Empty-session cleanup rechecks the JSONL contents and sidecar under
-the shared guard. Deletion refuses sessions with a Canvas sidecar rather
-than orphaning drawings; text forks do not copy Canvas data. Provenance
-labels, attachment-aware forks, joint deletion, attachment staging, and
-hardware qualification remain pending.
+the shared guard and never removes Canvas storage.
+
+**Session fork and deletion.** The fork uses the existing turn/step cut and
+copies retained JSONL records unchanged. For saved user image blocks, it
+collects and validates the drawing/revision ID pairs in the retained prefix.
+Under the source guard it selects the referenced checkpoints and their
+ancestors, verifies only their required raster blobs, and remaps workspace
+indices without changing stable IDs. The destination starts at an unmodified
+checkpoint; unrelated drawings, later revisions, and the unsent draft are
+not copied. Text-only forks do not create a sidecar. The destination guard
+protects sidecar reservation and publication before the staged JSONL becomes
+visible. A failure before JSONL publication does not expose a fork; sidecar
+rollback is best-effort. The fork does not interpret or re-encode inline PNG.
+
+Explicit session-store deletion refuses a live editor or an unsafe layout.
+It checks the requested identity, acquires the shared guard and sidecar
+leases, and validates the private entries before removing anything. It removes
+and synchronizes the JSONL entry first, then removes the flat sidecar without
+following links or descending into directories. Failure after log removal
+reports uncertainty; a crash can leave an unlisted sidecar, but a surviving
+log is not intentionally left without its Canvas. The shared lock inode stays
+in place. This increment adds no new deletion command or menu, and does not
+reclaim orphan assets in retained sessions. Provenance labels, attachment
+staging and replay, and hardware qualification remain pending.
 
 [SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
 interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file

@@ -2,7 +2,7 @@ with Ada.Finalization;
 with Ada.Strings.Unbounded;
 private with Interfaces.C;
 
---  Private manifest and asset transport. No session lifecycle hooks.
+--  Private Canvas transport and checked session lifecycle operations.
 package Coyote_Canvas.Store is
    MAX_MANIFEST_BYTES : constant := 12 * 1_024 * 1_024;
    MAX_ASSET_BYTES    : constant := 64 * 1_024 * 1_024;
@@ -36,6 +36,13 @@ package Coyote_Canvas.Store is
                     Status : out Result);
    procedure Release (Lease : in out Writer_Lease);
    procedure Move (Target, Source : in out Writer_Lease);
+
+   --  Lifecycle operations require the corresponding session guard. An
+   --  empty Log_Name is only for rollback of a newly reserved fork. An
+   --  empty UUID removes a legacy JSONL file with no Canvas binding.
+   procedure Reserve_Fork (Parent, UUID : String; Status : out Result);
+   procedure Remove_Session
+     (Parent, UUID, Log_Name : String; Status : out Result);
 
 private
    type Writer_Lease is new Ada.Finalization.Limited_Controlled with record

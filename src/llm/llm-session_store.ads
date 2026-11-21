@@ -86,12 +86,11 @@ package LLM.Session_Store is
    --  Delegates to Session_Lister.Find_Session_File.
    function Session_File_Path (Session_Id : String) return String;
 
-   --  Delete the session JSONL file for Session_Id.
-   --
-   --  This is a no-op when the file does not exist.
-   --  Raises Session_Error on any deletion failure.
-   --  Canvas-bearing sessions cannot be deleted by this API yet. When
-   --  Empty_Only is set, recheck that there is only a header and no Canvas.
+   --  Delete the session log and its private Canvas under the session guard.
+   --  This is a no-op when the file does not exist. An active Canvas editor
+   --  blocks deletion. Session_Error also reports unsafe entries, storage
+   --  failures, and uncertainty after the log was removed.
+   --  Empty_Only rechecks for a header-only log and no Canvas sidecar.
    procedure Delete_Session (Session_Id : String; Empty_Only : Boolean := False);
 
    Session_Error : exception;

@@ -3,14 +3,19 @@ with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
+with Ada.Streams;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with Coyote_Canvas.Revisions;
+with Coyote_Canvas.Composite;
+with Coyote_Canvas.Document;
+with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Store.Workspaces;
 with Coyote_Session_Transactions;
+with GNATCOLL.Coders.Base64;
 with GNATCOLL.JSON;
+with Interfaces.C;
 with LLM.Session_Store;
 with LLM.Types;
 with Session_Fixture;
@@ -1790,6 +1795,10 @@ package body LLM_Session_Store_Tests is
             Assert (Fork_Id'Length > 0, "fork can resume after contention");
             Assert (LLM.Session_Store.Load_Messages (Fork_Id).Length = 2,
                     "published fork keeps its complete selected turn");
+            Assert (not Ada.Directories.Exists
+                      (Session_Lister.Sessions_Dir (Target_Cwd) & "/"
+                       & Fork_Id & ".canvas"),
+                    "a text-only fork never copies unsent Canvas drawings");
          end;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1801,6 +1810,212 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Shared_Session_Writer;
 
+   procedure Test_Canvas_Fork_And_Delete (T : in out Test) is
+      pragma Unreferenced (T);
+      use Ada.Directories;
+      use Ada.Streams;
+      use type Interfaces.C.int;
+      package Store renames Coyote_Canvas.Store;
+      package Disk renames Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+      package Composite renames Coyote_Canvas.Composite;
+      package Recovery renames Rev.Recovery;
+      use type Store.Result;
+      use type Coyote_Canvas.Document.Rectangle;
+      Home_Was_Set : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Id : constant String := LLM.Session_Store.Create_Session (Source_Cwd);
+         Path : constant String := LLM.Session_Store.Session_File_Path (Id);
+         Parent : constant String := Containing_Directory (Path);
+         Sidecar : constant String := Parent & "/" & Id & ".canvas";
+         Fork_Parent : constant String := Session_Lister.Sessions_Dir (Target_Cwd);
+         W, Forked : Rev.Workspace;
+         Assets, Fork_Assets : Disk.Raster_Set;
+         Source_Image, Result_Image : Composite.Image;
+         Ink : Rev.Samples.Vector;
+         First : Rev.Revision_Id;
+         Status : Store.Result;
+         Lease : Store.Writer_Lease;
+         Log : Ada.Text_IO.File_Type;
+         Pixels : constant String := (1 => 'Q', 2 .. 64 => ASCII.NUL);
+         Before : Unbounded_String;
+         First_Fork : Unbounded_String;
+         Image_Line : Unbounded_String;
+         Manifest : Unbounded_String;
+         Refs : Recovery.Asset_References;
+
+         function Symlink (Target, Name : Interfaces.C.char_array)
+           return Interfaces.C.int
+           with Import, Convention => C, External_Name => "symlink";
+
+         function Unlink (Path : Interfaces.C.char_array)
+           return Interfaces.C.int
+           with Import, Convention => C, External_Name => "unlink";
+
+         function Bytes (Buffer : String) return Stream_Element_Array is
+            Data : Stream_Element_Array (1 .. Buffer'Length);
+         begin
+            for I in Data'Range loop
+               Data (I) := Stream_Element
+                 (Character'Pos (Buffer (Buffer'First + Integer (I) - 1)));
+            end loop;
+            return Data;
+         end Bytes;
+
+         function Base64 (Data : String) return String is
+            package Codec renames GNATCOLL.Coders.Base64;
+            Encoder : Codec.Encoder_Type;
+            Input : constant Stream_Element_Array := Bytes (Data);
+            Output : Stream_Element_Array (1 .. 4 * ((Input'Length + 2) / 3));
+            In_Last, Out_Last : Stream_Element_Offset;
+         begin
+            Codec.Initialize (Encoder);
+            Codec.Transcode (Encoder, Input, In_Last, Output, Out_Last,
+                             GNATCOLL.Coders.Finish);
+            Assert (In_Last = Input'Last and then Out_Last = Output'Last,
+                    "PNG encoded entirely");
+            return Result : String (1 .. Integer (Out_Last)) do
+               for I in Result'Range loop
+                  Result (I) := Character'Val (Output (Stream_Element_Offset (I)));
+               end loop;
+            end return;
+         end Base64;
+
+         procedure Put (Line : String) is
+         begin
+            Ada.Text_IO.Put_Line (Log, Line);
+         end Put;
+
+         function User_Turn (Drawing, Revision, Data : String) return String is
+         begin
+            return "{""type"":""message"",""message"":{""role"":""user"",""content"":["
+              & "{""type"":""image"",""media_type"":""image/png"",""width"":3,"
+              & """height"":3,""drawingId"":""" & Drawing & """,""revisionId"":"""
+              & Revision & """,""label"":""fixture"",""data"":""" & Data
+              & """}]}}";
+         end User_Turn;
+
+         Assistant : constant String :=
+           "{""type"":""message"",""message"":{""role"":""assistant"",""content"":"
+           & "[{""type"":""text"",""text"":""answer""}]}}";
+
+         procedure Expect_Delete_Refusal (Reason : String) is
+            Rejected : Boolean := False;
+         begin
+            begin
+               LLM.Session_Store.Delete_Session (Id);
+            exception
+               when E : LLM.Session_Store.Session_Error =>
+                  Rejected := Contains (Ada.Exceptions.Exception_Message (E), Reason);
+            end;
+            Assert (Rejected and then Read_File (Path) = To_String (Before)
+                    and then Exists (Sidecar & "/canvas.json"),
+                    "deletion refusal preserves log and manifest: " & Reason);
+         end Expect_Delete_Refusal;
+      begin
+         Rev.New_Drawing (W, 10, 10);
+         Ink.Append (Rev.Sample'(2.0, 2.0, 1.0));
+         Rev.Add_Stroke (W, Ink);
+         Rev.Save (W);  --  unrelated Original + checkpoint + stroke
+         Rev.Add_Originals (W, (1 => (4, 4), 2 => (1, 1)), First);
+         Assert (First = 3, "fixture requires remapping Original index");
+         Assets (3) := To_Unbounded_String (Pixels);
+         Assets (4) := To_Unbounded_String ("RGBA");
+         Rev.Edit (W, 3);
+         Rev.Add_Stroke (W, Ink);
+         Rev.Save (W);  --  attachment's immediate parent
+         Rev.Crop (W, (0, 0, 3, 3));
+         Rev.Save (W);  --  attached revision
+         Rev.Crop (W, (1, 1, 3, 3));  --  unsent draft
+         Disk.Save (Parent, Id, W, Assets, Status);
+         Assert (Status = Store.Ok, "publish source Canvas");
+         Store.Read (Parent, Id, Manifest, Status);
+         Assert (Status = Store.Ok, "read source manifest");
+         Recovery.Decode (To_String (Manifest), Forked, Refs);
+         Composite.Render (W, 6, Bytes (Pixels), 16, True, Source_Image);
+         Image_Line := To_Unbounded_String
+           (User_Turn (Rev.Drawing_Key (W, 6), Rev.Revision_Key (W, 6),
+                       Base64 (To_String (Composite.Encode_PNG (Source_Image)))));
+         Ada.Text_IO.Open (Log, Ada.Text_IO.Out_File, Path);
+         Put ("{""type"":""session"",""version"":3,""id"":""" & Id
+              & """,""timestamp"":""2026-11-21T12:00:00Z""}");
+         Put (To_String (Image_Line));
+         Put (Assistant);
+         Put (User_Turn (Rev.Drawing_Key (W, 4), Rev.Revision_Key (W, 4), "AQ=="));
+         Put (Assistant);
+         Ada.Text_IO.Close (Log);
+         Before := To_Unbounded_String (Read_File (Path));
+
+         Delete_File (Sidecar & "/" & Refs (3) & ".rgba");
+         Assert (Session_Lister.Fork_Session (Id, 1, Target_Cwd) = "" and then
+                   Session_Lister.List_Sessions (Target_Cwd).Is_Empty,
+                 "missing required asset prevents fork publication");
+         Store.Write_Asset (Parent, Id, Refs (3), Pixels, Status);
+         Assert (Status = Store.Ok, "restore required asset");
+         Delete_File (Sidecar & "/" & Refs (4) & ".rgba");
+
+         Store.Claim (Parent, Id, Lease, Status);
+         Assert (Status = Store.Ok, "open simulated Canvas editor");
+         Expect_Delete_Refusal ("still open");
+         First_Fork := To_Unbounded_String (Session_Lister.Fork_Session (Id, 1, Target_Cwd));
+         Assert (Length (First_Fork) > 0, "fork can read the committed source while its editor is open");
+         Store.Release (Lease);
+         declare
+            Fork_Id : constant String := To_String (First_Fork);
+            Fork_Path : constant String := LLM.Session_Store.Session_File_Path (Fork_Id);
+            Fork_Log : constant String := Read_File (Fork_Path);
+            Unrelated : constant String := Sidecar & "/unrecognized";
+            Alias_Path : constant String := Sidecar & "/.canvas.tmp";
+         begin
+            Assert (Contains (Fork_Log, To_String (Image_Line)) and then
+                    not Contains (Fork_Log, Rev.Revision_Key (W, 4)) and then
+                    Contains (Read_First_Line (Fork_Path), """version"":3"),
+                    "fork preserves the selected v3 image record verbatim");
+            Assert (Session_Lister.Fork_Session (Id, 2, Target_Cwd) = "",
+                    "extending the cut requires the second attachment's asset");
+            Assert (Symlink (Interfaces.C.To_C (Fork_Path),
+                             Interfaces.C.To_C (Alias_Path)) = 0,
+                    "install unsafe alias in the source sidecar");
+            Expect_Delete_Refusal ("INVALID");
+            Assert (Read_File (Fork_Path) = Fork_Log,
+                    "unsafe sidecar entry does not affect its target");
+            Assert (Unlink (Interfaces.C.To_C (Alias_Path)) = 0,
+                    "remove the unsafe fixture without following it");
+            Create_Directory (Unrelated);
+            Expect_Delete_Refusal ("INVALID");
+            Delete_Directory (Unrelated);
+            LLM.Session_Store.Delete_Session (Id);
+            Assert (not Exists (Path) and then not Exists (Sidecar),
+                    "explicit deletion removes both log and private sidecar");
+            Disk.Load (Fork_Parent, Fork_Id, Forked, Fork_Assets, Status);
+            Assert (Status = Store.Ok and then Rev.Count (Forked) = 3 and then
+                    Rev.Parent (Forked, 3) = 2 and then Rev.Parent (Forked, 2) = 1
+                    and then Rev.Background (Forked, 3) = 1,
+                    "fork retains only the checkpoint and remapped ancestors");
+            Assert (Rev.Revision_Key (Forked, 3) = Rev.Revision_Key (W, 6) and then
+                    Rev.Drawing_Key (Forked, 3) = Rev.Drawing_Key (W, 6) and then
+                    not Rev.Changed (Forked) and then Rev.Base (Forked) = 3
+                    and then Rev.Extent (Forked) = Rev.Extent (W, 6),
+                    "fork keeps stable keys and does not copy the dirty draft");
+            Composite.Render (Forked, 3, Bytes (To_String (Fork_Assets (1))),
+                              16, True, Result_Image);
+            Assert (Fork_Assets (1) = To_Unbounded_String (Pixels) and then
+                    Composite.Pixels (Result_Image) = Composite.Pixels (Source_Image),
+                    "fork retains exact source and rendered pixels after source deletion");
+         end;
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Canvas_Fork_And_Delete;
+
    package LLM_Session_Store_Caller is new AUnit.Test_Caller
      (LLM_Session_Store_Tests.Test);
 
@@ -1808,6 +2023,10 @@ package body LLM_Session_Store_Tests is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store Canvas forks survive source deletion",
+            Test_Canvas_Fork_And_Delete'Access));
       Result.Add_Test
         (LLM_Session_Store_Caller.Create
            ("LLM.Session_Store shares Canvas writer guard and protects forks",

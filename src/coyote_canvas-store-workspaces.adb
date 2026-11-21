@@ -37,9 +37,9 @@ package body Coyote_Canvas.Store.Workspaces is
       return GNAT.SHA256.Digest (Ctx);
    end Key;
 
-   procedure Save
+   procedure Save_Internal
      (Parent, UUID : String; W : Rev.Workspace; Assets : Raster_Set;
-      Status : out Result)
+      Status : out Result; Already_Locked : Boolean)
    is
       Refs : Recovery.Asset_References := (others => Recovery.NO_ASSET);
       Used : Natural := 0;
@@ -80,16 +80,18 @@ package body Coyote_Canvas.Store.Workspaces is
          if Manifest'Length > MAX_MANIFEST_BYTES then
             return;
          end if;
-         Tx.Try_Lock (Parent, UUID, Lock, Locked);
-         case Locked is
-            when Tx.Busy =>
-               Status := Busy;
-               return;
-            when Tx.Unavailable =>
-               Status := IO_Error;
-               return;
-            when Tx.Acquired => null;
-         end case;
+         if not Already_Locked then
+            Tx.Try_Lock (Parent, UUID, Lock, Locked);
+            case Locked is
+               when Tx.Busy =>
+                  Status := Busy;
+                  return;
+               when Tx.Unavailable =>
+                  Status := IO_Error;
+                  return;
+               when Tx.Acquired => null;
+            end case;
+         end if;
          for Id in 1 .. Rev.Count (W) loop
             if Refs (Id) /= Recovery.NO_ASSET then
                declare
@@ -112,16 +114,34 @@ package body Coyote_Canvas.Store.Workspaces is
    exception
       when Recovery.Invalid_Snapshot =>
          Status := Invalid;
+   end Save_Internal;
+
+   procedure Save
+     (Parent, UUID : String; W : Rev.Workspace; Assets : Raster_Set;
+      Status : out Result)
+   is
+   begin
+      Save_Internal (Parent, UUID, W, Assets, Status, Already_Locked => False);
    end Save;
 
-   procedure Load
+   procedure Save_Locked
+     (Parent, UUID : String; W : Rev.Workspace; Assets : Raster_Set;
+      Status : out Result)
+   is
+   begin
+      Save_Internal (Parent, UUID, W, Assets, Status, Already_Locked => True);
+   end Save_Locked;
+
+   procedure Load_Internal
      (Parent, UUID : String; W : in out Rev.Workspace;
-      Assets : in out Raster_Set; Status : out Result)
+      Assets : in out Raster_Set; Status : out Result;
+      Requested : Recovery.References; Select_Only : Boolean)
    is
       Manifest  : Unbounded_String;
       Candidate : Rev.Workspace;
       Pixels    : Raster_Set;
       Refs      : Recovery.Asset_References;
+      Source_Ids : Recovery.Revision_Mapping;
       Used      : Natural := 0;
    begin
       Read (Parent, UUID, Manifest, Status);
@@ -129,9 +149,24 @@ package body Coyote_Canvas.Store.Workspaces is
          return;
       end if;
       Recovery.Decode (To_String (Manifest), Candidate, Refs);
+      if Select_Only then
+         declare
+            Subset : Rev.Workspace;
+         begin
+            Recovery.Select_Revisions
+              (Candidate, Requested, Subset, Source_Ids);
+            Recovery.Move (Candidate, Subset);
+         end;
+      else
+         for Id in Source_Ids'Range loop
+            Source_Ids (Id) := Id;
+         end loop;
+      end if;
       for Id in 1 .. Rev.Count (Candidate) loop
-         if Refs (Id) /= Recovery.NO_ASSET then
+         if Refs (Source_Ids (Id)) /= Recovery.NO_ASSET then
             declare
+               Digest : constant Recovery.Asset_Digest :=
+                 Refs (Source_Ids (Id));
                E : constant Document.Rectangle := Rev.Extent (Candidate, Id);
                N : constant Positive := Byte_Count (E);
                Bytes : Aux.Big_String_Access;
@@ -142,7 +177,7 @@ package body Coyote_Canvas.Store.Workspaces is
                   return;
                end if;
                Used := Used + N;
-               Read_Asset (Parent, UUID, Refs (Id), N, Pixels (Id), Status);
+               Read_Asset (Parent, UUID, Digest, N, Pixels (Id), Status);
                if Status /= Ok then
                   if Status = Missing then
                      Status := Invalid;
@@ -150,7 +185,7 @@ package body Coyote_Canvas.Store.Workspaces is
                   return;
                end if;
                Aux.Get_String (Pixels (Id), Bytes, Size);
-               if Key (E, Bytes (1 .. Size)) /= Refs (Id) then
+               if Key (E, Bytes (1 .. Size)) /= Digest then
                   Status := Invalid;
                   return;
                end if;
@@ -162,5 +197,24 @@ package body Coyote_Canvas.Store.Workspaces is
    exception
       when Recovery.Invalid_Snapshot =>
          Status := Invalid;
+   end Load_Internal;
+
+   procedure Load
+     (Parent, UUID : String; W : in out Rev.Workspace;
+      Assets : in out Raster_Set; Status : out Result)
+   is
+   begin
+      Load_Internal (Parent, UUID, W, Assets, Status,
+                     (1 .. 0 => <>), Select_Only => False);
    end Load;
+
+   procedure Load_Selection
+     (Parent, UUID : String; Requested : Recovery.References;
+      W : in out Rev.Workspace; Assets : in out Raster_Set;
+      Status : out Result)
+   is
+   begin
+      Load_Internal (Parent, UUID, W, Assets, Status,
+                     Requested, Select_Only => True);
+   end Load_Selection;
 end Coyote_Canvas.Store.Workspaces;

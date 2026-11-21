@@ -14,8 +14,10 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Coyote_Canvas.Store;
 with Coyote_Process_Control;
 with Coyote_Session_Transactions;
+with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with Interfaces;
 with Session_Lister;
@@ -902,50 +904,76 @@ package body LLM.Session_Store is
            & Ada.Exceptions.Exception_Message (Ex);
    end Create_Session;
 
-   procedure Delete_Session (Session_Id : String; Empty_Only : Boolean := False) is
+   procedure Delete_Session
+     (Session_Id : String; Empty_Only : Boolean := False)
+   is
       use Ada.Directories;
-      Path : constant String := Tx.Resolve (Session_File_Path (Session_Id));
+      package Store renames Coyote_Canvas.Store;
+      Found : constant String := Session_File_Path (Session_Id);
+      Path : constant String := Tx.Resolve (Found);
       Lock : Tx.Guard;
       Accepted : Boolean := False;
+      Status : Store.Result;
    begin
-      if Path'Length = 0 then
+      if Session_Id = "" or else Path = "" then
          return;
+      end if;
+      if GNAT.OS_Lib.Is_Symbolic_Link (Found) then
+         raise Session_Error with "Refusing to delete a session through an alias";
       end if;
       Require_Writer (Path, Lock);
       if not Exists (Path) then
          return;
       end if;
-      --  Until joint deletion is implemented, never orphan a Canvas (even
-      --  one that is open but has not published its first manifest).
-      if Exists (Containing_Directory (Path) & "/" & Tx.Identity (Path)
-                 & ".canvas")
-      then
-         if Empty_Only then
-            return;
-         end if;
-         raise Session_Error with "Cannot delete a session with Canvas storage";
-      end if;
-      if Empty_Only then
+      declare
+         Parent : constant String := Containing_Directory (Path);
+         Identity : constant String := Tx.Identity (Path);
+         UUID : constant String := (if Identity'Length = 36 then Identity else "");
+         File : Ada.Text_IO.File_Type;
+      begin
+         --  Lookup historically permits substring matches. Never delete a
+         --  different session, even if its filename matched the lookup.
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
          declare
-            File : Ada.Text_IO.File_Type;
-            Is_Empty : Boolean;
+            Header : constant GNATCOLL.JSON.Read_Result :=
+              GNATCOLL.JSON.Read (To_String (Read_Line (File)));
+            Is_Empty : constant Boolean := Ada.Text_IO.End_Of_File (File);
          begin
-            Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
-            if not Ada.Text_IO.End_Of_File (File) then
-               Ada.Text_IO.Skip_Line (File);
-            end if;
-            Is_Empty := Ada.Text_IO.End_Of_File (File);
             Ada.Text_IO.Close (File);
-            if not Is_Empty then
+            if not Header.Success or else
+              Get_String_Field (Header.Value, "id") /= Session_Id or else
+              (UUID /= "" and then UUID /= Session_Id)
+            then
+               raise Session_Error with "Session identity does not match";
+            end if;
+            if Empty_Only and then
+              (not Is_Empty or else
+               (UUID /= "" and then
+                (Exists (Parent & "/" & UUID & ".canvas") or else
+                 GNAT.OS_Lib.Is_Symbolic_Link (Parent & "/" & UUID & ".canvas"))))
+            then
                return;
             end if;
          end;
-      end if;
-      Coyote_Process_Control.Begin_Persistence_Write (Accepted);
-      if Accepted then
-         Delete_File (Path);
+         Coyote_Process_Control.Begin_Persistence_Write (Accepted);
+         if not Accepted then
+            return;
+         end if;
+         --  In empty-only mode never authorize removal of a sidecar.
+         Store.Remove_Session (Parent, (if Empty_Only then "" else UUID),
+                               Simple_Name (Path), Status);
          Coyote_Process_Control.End_Persistence_Write;
-      end if;
+         Accepted := False;
+      end;
+      case Status is
+         when Store.Ok | Store.Missing => null;
+         when Store.Busy =>
+            raise Session_Error with "Canvas is still open for editing";
+         when Store.Uncertain =>
+            raise Session_Error with "Session removed; cleanup or durability uncertain";
+         when others =>
+            raise Session_Error with "Cannot remove session storage: " & Status'Image;
+      end case;
    exception
       when Ex : others =>
          if Accepted then

@@ -15,6 +15,8 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with GNAT.SHA256;
+with Coyote_Canvas.Revisions.Recovery;
+with Coyote_Canvas.Store.Workspaces;
 with Coyote_Process_Control;
 with Coyote_Session_Transactions;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
@@ -554,6 +556,12 @@ package body Session_Lister is
          return Native_Format;
       end Detect_Format;
 
+      package Rev renames Coyote_Canvas.Revisions;
+      package Recovery renames Rev.Recovery;
+      package Store renames Coyote_Canvas.Store;
+      package Disk renames Store.Workspaces;
+      use type Store.Result;
+
       package Tx renames Coyote_Session_Transactions;
       use type Tx.Result;
       Source_Path : constant String := Tx.Resolve (Find_Session_File (Source_UUID));
@@ -563,6 +571,70 @@ package body Session_Lister is
       package String_Vectors is new Ada.Containers.Vectors
         (Index_Type => Natural, Element_Type => Unbounded_String);
       Source_Lines : String_Vectors.Vector;
+      Source_Lock  : Tx.Guard;
+      Fork_Canvas  : Rev.Workspace;
+      Fork_Assets  : Disk.Raster_Set;
+
+      procedure Read_Canvas_References
+        (Last : Natural; Refs : out Recovery.References; Count : out Natural)
+      is
+         procedure Include (Drawing, Revision : String) is
+         begin
+            if Drawing'Length /= Rev.Stable_Id'Length or else
+              Revision'Length /= Rev.Stable_Id'Length
+            then
+               raise Recovery.Invalid_Snapshot with "Invalid user image IDs";
+            end if;
+            for I in 1 .. Count loop
+               if Refs (I).Revision = Revision then
+                  if Refs (I).Drawing /= Drawing then
+                     raise Recovery.Invalid_Snapshot with "Conflicting drawing IDs";
+                  end if;
+                  return;
+               end if;
+            end loop;
+            if Count = Refs'Length then
+               raise Recovery.Invalid_Snapshot with "Too many forked revisions";
+            end if;
+            Count := Count + 1;
+            Refs (Count) := (Drawing, Revision);
+         end Include;
+      begin
+         Count := 0;
+         for I in Source_Lines.First_Index + 1 .. Last loop
+            declare
+               Parsed : constant Read_Result := Read (To_String (Source_Lines (I)));
+            begin
+               if Parsed.Success then
+                  declare
+                     Msg : constant JSON_Value := Message_Object (Parsed.Value);
+                  begin
+                     if Msg.Kind = JSON_Object_Type and then
+                       Get_String (Msg, "role") = "user" and then
+                       Msg.Get ("content").Kind = JSON_Array_Type
+                     then
+                        declare
+                           Content : constant JSON_Array := Msg.Get ("content");
+                        begin
+                           for J in 1 .. Length (Content) loop
+                              declare
+                                 Block : constant JSON_Value := Get (Content, J);
+                              begin
+                                 if Block.Kind = JSON_Object_Type and then
+                                   Get_String (Block, "type") = "image"
+                                 then
+                                    Include (Get_String (Block, "drawingId"),
+                                             Get_String (Block, "revisionId"));
+                                 end if;
+                              end;
+                           end loop;
+                        end;
+                     end if;
+                  end;
+               end if;
+            end;
+         end loop;
+      end Read_Canvas_References;
 
    begin
       if Source_Path'Length = 0 then
@@ -573,10 +645,9 @@ package body Session_Lister is
 
       declare
          File : Ada.Text_IO.File_Type;
-         Lock : Tx.Guard;
          Status : Tx.Result;
       begin
-         Tx.Wait_For_Lock (Source_Path, Lock, Status);
+         Tx.Wait_For_Lock (Source_Path, Source_Lock, Status);
          if Status /= Tx.Acquired then
             return "";
          end if;
@@ -741,7 +812,35 @@ package body Session_Lister is
             return "";
          end if;
 
-         --  ── Write forked session file ──────────────────────────────────
+         declare
+            Refs : Recovery.References (1 .. Rev.MAX_REVISIONS);
+            Count : Natural;
+            Status : Store.Result;
+         begin
+            Read_Canvas_References (Natural (Cut_Index), Refs, Count);
+            if Count /= 0 then
+               if Tx.Identity (Source_Path) /= Source_UUID then
+                  raise Recovery.Invalid_Snapshot with "Source has no Canvas binding";
+               end if;
+               Disk.Load_Selection
+                 (Ada.Directories.Containing_Directory (Source_Path),
+                  Source_UUID, Refs (1 .. Count), Fork_Canvas, Fork_Assets,
+                  Status);
+               if Status /= Store.Ok then
+                  raise Recovery.Invalid_Snapshot with
+                    "Cannot recover required Canvas revisions: " & Status'Image;
+               end if;
+            end if;
+         exception
+            when Ex : Recovery.Invalid_Snapshot =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "Fork_Session: " & Ada.Exceptions.Exception_Message (Ex));
+               return "";
+         end;
+         Tx.Unlock (Source_Lock);
+
+         --  Publish the Canvas before making the new JSONL visible.
 
          declare
             Target_Dir : constant String := Sessions_Dir (Target_Cwd);
@@ -770,6 +869,9 @@ package body Session_Lister is
             Stage      : Unbounded_String;
             Target     : Unbounded_String;
             Accepted   : Boolean := False;
+            Reserved   : Boolean := False;
+            Published  : Boolean := False;
+            Canvas_Status : Store.Result;
 
             procedure Write_Raw_Line (Line : String) is
             begin
@@ -830,6 +932,22 @@ package body Session_Lister is
                   Session_Obj.Set_Field ("timestamp", Now_Timestamp);
                   Session_Obj.Set_Field ("parentSession", Source_UUID);
                   Session_Obj.Set_Field ("parentRelation", "fork");
+                  declare
+                     Original : constant Read_Result := Read
+                       (To_String (Source_Lines (Source_Lines.First_Index)));
+                  begin
+                     if Original.Success and then
+                       Original.Value.Get ("version").Kind = JSON_Int_Type
+                     then
+                        declare
+                           Version : constant JSON_Value :=
+                             Original.Value.Get ("version");
+                        begin
+                           Session_Obj.Set_Field ("version", Version);
+                        end;
+                        Session_Obj.Set_Field ("cwd", Target_Cwd);
+                     end if;
+                  end;
                   Write_Raw_Line (Write (Session_Obj));
 
                   Info_Obj.Set_Field ("type", "session_info");
@@ -864,10 +982,30 @@ package body Session_Lister is
             end if;
 
             Ada.Streams.Stream_IO.Close (Out_Str);
+            if Rev.Count (Fork_Canvas) /= 0 then
+               declare
+                  Parent : constant String := Ada.Directories.Containing_Directory
+                    (To_String (Target));
+               begin
+                  Store.Reserve_Fork (Parent, New_UUID, Canvas_Status);
+                  if Canvas_Status /= Store.Ok then
+                     raise Ada.Text_IO.Use_Error with
+                       "Cannot reserve fork Canvas: " & Canvas_Status'Image;
+                  end if;
+                  Reserved := True;
+                  Disk.Save_Locked
+                    (Parent, New_UUID, Fork_Canvas, Fork_Assets, Canvas_Status);
+                  if Canvas_Status /= Store.Ok then
+                     raise Ada.Text_IO.Use_Error with
+                       "Cannot save fork Canvas: " & Canvas_Status'Image;
+                  end if;
+               end;
+            end if;
             Tx.Publish (To_String (Stage), To_String (Target), Status);
             if Status /= Tx.Acquired then
                raise Ada.Text_IO.Use_Error with "Cannot publish fork";
             end if;
+            Published := True;
             Coyote_Process_Control.End_Persistence_Write;
             return New_UUID;
          exception
@@ -882,6 +1020,15 @@ package body Session_Lister is
                exception
                   when others => null;
                end;
+               if Reserved and then not Published then
+                  begin
+                     Store.Remove_Session
+                       (Ada.Directories.Containing_Directory (To_String (Target)),
+                        New_UUID, "", Canvas_Status);
+                  exception
+                     when others => null;
+                  end;
+               end if;
                if Accepted then
                   Coyote_Process_Control.End_Persistence_Write;
                end if;

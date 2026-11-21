@@ -457,6 +457,80 @@ package body Coyote_Canvas.Revisions.Recovery is
       Source.Future.Clear;
    end Move;
 
+   procedure Select_Revisions
+     (Source : Workspace; Requested : References; Target : in out Workspace;
+      Source_Ids : out Revision_Mapping)
+   is
+      type Revision_Flags is array (Positive range 1 .. MAX_REVISIONS)
+        of Boolean;
+      type Ink_Flags is array (Positive range 1 .. MAX_STROKES) of Boolean;
+      type Ink_Mapping is array (Positive range 1 .. MAX_STROKES) of Natural;
+      Keep : Revision_Flags := (others => False);
+      Keep_Ink : Ink_Flags := (others => False);
+      New_Id : Revision_Mapping := (others => NO_REVISION);
+      New_Ink : Ink_Mapping := (others => 0);
+      Candidate : Workspace;
+   begin
+      Source_Ids := (others => NO_REVISION);
+      for Ref of Requested loop
+         declare
+            Id : Revision_Id := NO_REVISION;
+         begin
+            Find_Revision : for I in 1 .. Count (Source) loop
+               if Revision_Key (Source, I) = Ref.Revision then
+                  Id := I;
+                  exit Find_Revision;
+               end if;
+            end loop Find_Revision;
+            Require (Id /= NO_REVISION and then
+                       Drawing_Key (Source, Id) = Ref.Drawing,
+                     "Canvas fork references an unknown revision or drawing");
+            Ancestors : while Id /= NO_REVISION and then not Keep (Id) loop
+               Keep (Id) := True;
+               for Stroke of Source.Revisions (Id).Content.Ink loop
+                  Keep_Ink (Stroke) := True;
+               end loop;
+               Id := Parent (Source, Id);
+            end loop Ancestors;
+         end;
+      end loop;
+      --  Preserve ascending stroke IDs independent of traversal order.
+      for Id in 1 .. Natural (Source.Strokes.Length) loop
+         if Keep_Ink (Id) then
+            Candidate.Strokes.Append (Source.Strokes (Id));
+            Candidate.Points := Candidate.Points +
+              Natural (Source.Strokes (Id).Length);
+            New_Ink (Id) := Candidate.Strokes.Last_Index;
+         end if;
+      end loop;
+      for Id in 1 .. Count (Source) loop
+         if Keep (Id) then
+            declare
+               Node : Revision := Source.Revisions (Id);
+               Next : constant Revision_Id := Count (Candidate) + 1;
+            begin
+               New_Id (Id) := Next;
+               Source_Ids (Next) := Id;
+               if Node.Parent /= NO_REVISION then
+                  Node.Parent := New_Id (Node.Parent);
+               end if;
+               if Node.Content.Image /= NO_REVISION then
+                  Node.Content.Image := New_Id (Node.Content.Image);
+               end if;
+               for Stroke of Node.Content.Ink loop
+                  Stroke := New_Ink (Stroke);
+               end loop;
+               Candidate.Revisions.Append (Node);
+            end;
+         end if;
+      end loop;
+      Candidate.Base_Id := Count (Candidate);
+      if Candidate.Base_Id /= NO_REVISION then
+         Candidate.Draft := Candidate.Revisions (Candidate.Base_Id).Content;
+      end if;
+      Move (Target, Candidate);
+   end Select_Revisions;
+
    procedure Copy (Target : in out Workspace; Source : Workspace) is
       Candidate : Workspace;
    begin
