@@ -20,6 +20,10 @@ package Coyote_Canvas.Revisions.Recovery is
    procedure Decode
      (Data : String; W : in out Workspace; Assets : out Asset_References);
 
+   --  Deep-copy saved revisions and the current draft, dropping transient
+   --  history. Allocation or validation failure leaves Target unchanged.
+   procedure Copy (Target : in out Workspace; Source : Workspace);
+
    --  Publish a completely validated candidate without allocating.
    procedure Move (Target, Source : in out Workspace);
 end Coyote_Canvas.Revisions.Recovery;

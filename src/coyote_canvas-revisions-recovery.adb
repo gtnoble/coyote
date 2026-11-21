@@ -457,6 +457,17 @@ package body Coyote_Canvas.Revisions.Recovery is
       Source.Future.Clear;
    end Move;
 
+   procedure Copy (Target : in out Workspace; Source : Workspace) is
+      Candidate : Workspace;
+   begin
+      Candidate.Revisions := Source.Revisions;
+      Candidate.Strokes := Source.Strokes;
+      Candidate.Draft := Source.Draft;
+      Candidate.Points := Source.Points;
+      Candidate.Base_Id := Source.Base_Id;
+      Move (Target, Candidate);
+   end Copy;
+
    procedure Decode (Data : String; W : in out Workspace) is
       Ignored : Asset_References;
    begin

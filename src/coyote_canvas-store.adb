@@ -136,4 +136,39 @@ package body Coyote_Canvas.Store is
                                 size_t (Data'Length)));
       end if;
    end Write_Asset;
+   function Native_Claim (Parent, UUID : char_array; FD : out int) return int
+     with Import, Convention => C, External_Name => "coyote_canvas_store_claim";
+   function Close (FD : int) return int
+     with Import, Convention => C, External_Name => "close";
+
+   procedure Release (Lease : in out Writer_Lease) is
+      Ignored : int;
+   begin
+      if Lease.FD >= 0 then
+         Ignored := Close (Lease.FD);
+         Lease.FD := -1;
+      end if;
+   end Release;
+
+   procedure Move (Target, Source : in out Writer_Lease) is
+   begin
+      Release (Target);
+      Target.FD := Source.FD;
+      Source.FD := -1;
+   end Move;
+
+   overriding procedure Finalize (Lease : in out Writer_Lease) is
+   begin
+      Release (Lease);
+   end Finalize;
+
+   procedure Claim (Parent, UUID : String; Lease : in out Writer_Lease;
+                    Status : out Result) is
+   begin
+      Status := Invalid;
+      if Lease.FD < 0 and then Safe_Arguments (Parent, UUID) then
+         Status := Result'Val
+           (Native_Claim (To_C (Parent), To_C (UUID), Lease.FD));
+      end if;
+   end Claim;
 end Coyote_Canvas.Store;

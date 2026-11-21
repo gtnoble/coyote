@@ -186,8 +186,13 @@ Zoom changes only the view. An applied crop keeps the original pixel grid:
 the retained pixels and ink are not resampled. Canvas has a lossless PNG
 encoder internally, but there is no export or attachment command yet.
 
-Closing only the Canvas keeps its drawings in memory. They do not survive a
-session change or application exit. `canvas add`, durable revisions, and
+Canvas autosaves completed edits and saved revisions to the local session.
+Reopen the session and choose **View → Canvas** to recover the drawings and
+working copy. Undo/Redo history is not restored. **File → Save** checkpoints
+the draft and can retry a failed autosave. If another window owns the Canvas,
+this window can view its last saved state but cannot edit it.
+
+With `--no-session`, Canvas remains in memory only. `coyote canvas add` and
 prompt attachments are not yet available.
 
 ## Session listing

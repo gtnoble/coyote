@@ -10,6 +10,7 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with GNAT.OS_Lib;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with GNATCOLL.OS.Process;
 with LLM.Compaction;
@@ -621,9 +622,20 @@ package body Coyote_App is
                        To_Unbounded_String
                          (LLM.Session_Store.Session_Created_At (Session_Id)));
                begin
-                  if Session_Id'Length > 0 then
-                     My_Frontend.Set_Session_Identity (Session_Id);
-                  end if;
+                  declare
+                     Path : constant String :=
+                       (if Opts.No_Session or else Session_Id'Length = 0 then ""
+                        else LLM.Session_Store.Session_File_Path (Session_Id));
+                     Resolved : constant String :=
+                       (if Path'Length = 0 then "" else
+                        GNAT.OS_Lib.Normalize_Pathname
+                          (Path, Resolve_Links => True));
+                  begin
+                     My_Frontend.Set_Session_Identity
+                       (Session_Id, (if Resolved'Length = 0 then "" else
+                                     Ada.Directories.Containing_Directory
+                                       (Resolved)));
+                  end;
                   Dispatch_Event (Event);
                end Emit_Session_Info;
 
@@ -1041,6 +1053,7 @@ package body Coyote_App is
                                  "New session" & UC_ELLIP);
                            exception
                               when Ex : others =>
+                                 My_Frontend.Resume_Canvas;
                                  Append_Task_Warning
                                    ("new session failed: "
                                     & Ada.Exceptions.Exception_Message (Ex));
@@ -1154,6 +1167,7 @@ package body Coyote_App is
                                    After_Step  => It.Fork_Step);
                            begin
                               if New_UUID'Length = 0 then
+                                 My_Frontend.Resume_Canvas;
                                  Append_Task_Warning
                                    ("Unable to create the forked session.");
                               else
@@ -1178,6 +1192,7 @@ package body Coyote_App is
                               end if;
                            exception
                               when Ex : others =>
+                                 My_Frontend.Resume_Canvas;
                                  Append_Task_Warning
                                    ("session fork failed: "
                                     & Ada.Exceptions.Exception_Message (Ex));
@@ -1210,6 +1225,7 @@ package body Coyote_App is
                               Emit_Bootstrap;
                            exception
                               when Ex : others =>
+                                 My_Frontend.Resume_Canvas;
                                  Append_Task_Warning
                                    ("session switch failed: "
                                     & Ada.Exceptions.Exception_Message (Ex));
@@ -1291,7 +1307,8 @@ package body Coyote_App is
          Win_Name              => Win_Name,
          Pop_Under             => Opts.Subagent,
          Notifications_Allowed => not Opts.One_Shot and then not Opts.Subagent,
-         Notifications_Enabled => Startup_Settings.Completion_Notifications);
+         Notifications_Enabled => Startup_Settings.Completion_Notifications,
+         Canvas_Waits_For_Session => True);
       State.Set_Frontend_Ready (True);
       if Coyote_Process_Control.Shutdown_Requested then
          My_Frontend.Shutdown;
@@ -1339,7 +1356,21 @@ package body Coyote_App is
             S_Id : constant String := LLM.Agent.Session_Id (Agent_Session);
          begin
             if S_Id'Length > 0 then
-               LLM.Session_Store.Delete_Session (S_Id);
+               declare
+                  Path : constant String :=
+                    LLM.Session_Store.Session_File_Path (S_Id);
+                  Resolved : constant String :=
+                    (if Path'Length = 0 then "" else
+                     GNAT.OS_Lib.Normalize_Pathname (Path, Resolve_Links => True));
+               begin
+                  --  A session with only Canvas drawings is not empty.
+                  if Resolved'Length > 0 and then not Ada.Directories.Exists
+                    (Ada.Directories.Containing_Directory (Resolved)
+                     & "/" & S_Id & ".canvas/canvas.json")
+                  then
+                     LLM.Session_Store.Delete_Session (S_Id);
+                  end if;
+               end;
             end if;
          exception
             when others =>

@@ -59,8 +59,10 @@ client-controlled work product gets an entry here.
   The modeless workspace, in-memory revision tree, and atomic GUI batches of
   PNG, JPEG, and supported static SVG are implemented. The internal workspace
   store verifies raster assets and recovers stable IDs, revisions, and drafts.
-  Shared session writer ownership, GTK autosave/reopen, fork/deletion, the CLI
-  import service, attachments, qualification, and deployment remain pending.
+  GTK autosaves and reopens the root session workspace, with an exclusive
+  Canvas-only writer lease. Shared Canvas/JSONL writer ownership, Canvas
+  fork/deletion, CLI import, attachments, qualification, and deployment remain
+  pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

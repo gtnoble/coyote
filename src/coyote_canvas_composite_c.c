@@ -219,3 +219,23 @@ int coyote_canvas_encode_png(const unsigned char *pixels, int width, int height,
    *size = output.size;
    return 0;
 }
+
+/* Called only with native 8-bit RGB(A) Pixbuf rows and checked dimensions. */
+void coyote_canvas_pack_rgba(const unsigned char *src, size_t stride,
+                            int channels, size_t width, size_t height,
+                            unsigned char *dst)
+{
+   for (size_t y = 0; y < height; ++y)
+   {
+      const unsigned char *row = src + y * stride;
+      unsigned char *out = dst + y * width * 4;
+      if (channels == 4)
+         memcpy(out, row, width * 4);
+      else
+         for (size_t x = 0; x < width; ++x)
+         {
+            memcpy(out + x * 4, row + x * 3, 3);
+            out[x * 4 + 3] = 255;
+         }
+   }
+}

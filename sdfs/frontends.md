@@ -1,5 +1,23 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — GTK Canvas autosave and reopen (PCR-130)
+
+The local root GTK session supplies its resolved session directory and UUID.
+Canvas opens its workspace lazily, saves independent revision snapshots and
+immutable native-size rasters off GTK, and restores the draft without creating
+revision nodes. A competing Canvas opens read-only. Session transitions drain
+pending saves or ask before discarding; `--no-session` stays memory-only.
+The storage status reports failure and File → Save can retry publication.
+
+Root and test development builds passed. The four focused Xvfb Canvas tests
+passed with fatal GTK criticals enabled. The recovery case verifies native
+raster bytes, dirty crop recovery, session isolation, Canvas lease contention,
+stable IDs and retry after a blocked publication. The final serial regression
+passed 1,111/1,111 (exit 0). Standalone GTK checks passed 9/9, the runner
+containment self-test passed, and CLI compatibility passed. These are
+developer results; shared JSONL writer ownership, Canvas fork/deletion,
+agent import, attachments, and physical desktop qualification remain open.
+
 ## 2026-11-21 — Canvas raster assets and stable identities (PCR-130)
 
 The internal workspace store now preserves revisions, the latest draft,

@@ -1,4 +1,6 @@
+with Ada.Finalization;
 with Ada.Strings.Unbounded;
+private with Interfaces.C;
 
 --  Private manifest and asset transport. No session lifecycle hooks.
 package Coyote_Canvas.Store is
@@ -27,4 +29,17 @@ package Coyote_Canvas.Store is
    --  Never replaces a different file at the same digest name.
    procedure Write_Asset
      (Parent, UUID, Digest, Data : String; Status : out Result);
+   --  Exclusive GTK ownership, independent of the per-write lock. Reads
+   --  remain possible without a lease. This does not lock the JSONL writer.
+   type Writer_Lease is limited private;
+   procedure Claim (Parent, UUID : String; Lease : in out Writer_Lease;
+                    Status : out Result);
+   procedure Release (Lease : in out Writer_Lease);
+   procedure Move (Target, Source : in out Writer_Lease);
+
+private
+   type Writer_Lease is new Ada.Finalization.Limited_Controlled with record
+      FD : Interfaces.C.int := Interfaces.C.int'First;
+   end record;
+   overriding procedure Finalize (Lease : in out Writer_Lease);
 end Coyote_Canvas.Store;

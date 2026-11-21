@@ -88,11 +88,11 @@ static int classify_parent_errno(int error)
    return STORE_IO;
 }
 
-static int acquire_lock(int dir, int *lock_fd)
+static int acquire_lock(int dir, const char *name, int *lock_fd)
 {
    const int flags = O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK | O_RDWR;
    struct stat st;
-   int fd = openat(dir, ".writer", flags | O_CREAT | O_EXCL, 0600);
+   int fd = openat(dir, name, flags | O_CREAT | O_EXCL, 0600);
    if (fd >= 0)
    {
       if (fchmod(fd, 0600) < 0)
@@ -102,7 +102,7 @@ static int acquire_lock(int dir, int *lock_fd)
       }
    }
    else if (errno == EEXIST)
-      fd = openat(dir, ".writer", flags);
+      fd = openat(dir, name, flags);
    if (fd < 0)
       return classify_parent_errno(errno);
    if (fstat(fd, &st) < 0)
@@ -341,7 +341,7 @@ static int write_sidecar(const char *parent, const char *uuid,
    result = open_or_create_sidecar(parent_fd, sidecar, &side_fd);
    if (result != STORE_OK)
       goto done;
-   result = acquire_lock(side_fd, &lock_fd);
+   result = acquire_lock(side_fd, ".writer", &lock_fd);
    if (result != STORE_OK)
       goto done;
    result = STORE_IO;
@@ -438,4 +438,26 @@ int coyote_canvas_store_write_asset(const char *parent, const char *uuid,
    if (!asset_name(digest, name))
       return STORE_INVALID;
    return write_sidecar(parent, uuid, name, 0, data, len);
+}
+
+/* Long-lived lease for GTK Canvas owners. The short publication lock
+ * remains independent. This lease does not authorize JSONL writes. */
+int coyote_canvas_store_claim(const char *parent, const char *uuid, int *lease)
+{
+   char sidecar[64];
+   int dir, side = -1, result;
+   *lease = -1;
+   if (!valid_uuid(uuid))
+      return STORE_INVALID;
+   (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
+   dir = open_parent(parent);
+   if (dir < 0)
+      return classify_parent_errno(errno);
+   result = open_or_create_sidecar(dir, sidecar, &side);
+   if (result == STORE_OK)
+      result = acquire_lock(side, ".gtk-writer", lease);
+   if (side >= 0)
+      close(side);
+   close(dir);
+   return result;
 }

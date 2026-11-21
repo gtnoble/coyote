@@ -10,6 +10,10 @@ with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
+with Coyote_Canvas.Store;
+with Coyote_Canvas.Store.Workspaces;
+with Coyote_Canvas.Revisions;
+with Coyote_Canvas.Document;
 with Coyote_App.Agent_RPC.Transport;
 with Coyote_App.Frontend.GUI.Testing;
 with Coyote_GUI;
@@ -40,6 +44,7 @@ with Gtk.Enums;
 with Gtk.Image;
 with Gtk.Icon_Theme;
 with Gtk.Main;
+with Gtk.Label;
 with Gtk.Menu_Item;
 with Gtk.Progress_Bar;
 with Gtk.Separator;
@@ -1535,6 +1540,190 @@ package body Coyote_App_Frontend_GUI_Tests is
          raise;
    end Test_Canvas_File_Import;
 
+   procedure Test_Canvas_Session_Recovery (T : in out Test) is
+      use Ada.Strings.Unbounded;
+      use Ada.Real_Time;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use type System.Address;
+      use type Coyote_Canvas.Store.Result;
+      use type Coyote_Canvas.Document.Rectangle;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+
+      A : constant String := "55be8400-e29b-41d4-a716-446655440000";
+      B : constant String := "55be8400-e29b-41d4-a716-446655440001";
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Canvas   : Gtk.Window.Gtk_Window;
+      Model    : Gtk_Tree_Model;
+      Tree     : Gtk.Tree_View.Gtk_Tree_View;
+      Root     : Unbounded_String;
+      W, H     : Glib.Gint;
+      Status   : Coyote_Canvas.Store.Result;
+      Other    : Coyote_Canvas.Store.Writer_Lease;
+      Saved    : Rev.Workspace;
+      Pixels   : Disk.Raster_Set;
+      Key      : Rev.Stable_Id;
+      Pattern  : String := "/tmp/coyote-canvas-live-XXXXXX" & ASCII.NUL;
+
+      function Make_Temp_Directory (P : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name));
+
+      procedure Activate (Name : String) is
+      begin
+         Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-" & Name)).Activate;
+      end Activate;
+
+      procedure Wait_Status (Expected : String) is
+         By : constant Time := Clock + Seconds (5);
+      begin
+         Wait_Loop : loop
+            Drain_Events;
+            exit Wait_Loop when Gtk.Label.Gtk_Label
+              (Control ("coyote-canvas-storage-status")).Get_Text = Expected;
+            Assert (Clock < By, "Canvas status did not reach: " & Expected);
+            delay 0.01;
+         end loop Wait_Loop;
+      end Wait_Status;
+
+      procedure Open (UUID : String; Parent : String) is
+      begin
+         Frontend.Set_Session_Identity (UUID, Parent);
+         Drain_Events;
+         Canvas_Item (Frontend).Activate;
+         Canvas := Canvas_Window (Frontend);
+         Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
+         Model := Tree.Get_Model;
+      end Open;
+
+      procedure Field (Name, Value : String) is
+      begin
+         Gtk.GEntry.Gtk_Entry
+           (Control ("coyote-canvas-crop-" & Name)).Set_Text (Value);
+      end Field;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Assert (Make_Temp_Directory (Pattern'Address) /= System.Null_Address,
+              "create isolated session directory");
+      Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File,
+                             To_String (Root) & "/blue.svg");
+         Ada.Text_IO.Put_Line
+           (File, "<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6'>"
+            & "<rect width='8' height='6' fill='blue'/></svg>");
+         Ada.Text_IO.Close (File);
+      end;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "Canvas recovery test", Pop_Under => True);
+      Open (A, To_String (Root));
+      Wait_Status ("Canvas autosave enabled.");
+      Coyote_Canvas.Store.Claim (To_String (Root), A, Other, Status);
+      Assert (Status = Coyote_Canvas.Store.Busy, "live GTK Canvas owns lease");
+      Activate ("import");
+      declare
+         Dialog : constant Gtk.Window.Gtk_Window :=
+           Canvas_Toplevel ("coyote-canvas-file-selection");
+         Chooser : constant Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog :=
+           Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog (Dialog);
+         File : constant String := To_String (Root) & "/blue.svg";
+         By : constant Time := Clock + Seconds (3);
+      begin
+         Assert (Chooser.Select_Filename (File), "select SVG recovery fixture");
+         Wait_File : loop
+            Drain_Events;
+            exit Wait_File when Chooser.Get_Filename = File;
+            Assert (Clock < By, "file selection timed out");
+            delay 0.01;
+         end loop Wait_File;
+         Gtk.Dialog.Gtk_Dialog (Dialog).Response (Gtk.Dialog.Gtk_Response_OK);
+      end;
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 1, "one imported Original");
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      Activate ("edit");
+      Activate ("crop");
+      Field ("x", "1");
+      Field ("y", "2");
+      Field ("width", "4");
+      Field ("height", "3");
+      Activate ("apply");
+      Activate ("close");
+      Wait_Status ("Canvas recovery saved.");
+      Disk.Load (To_String (Root), A, Saved, Pixels, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Changed (Saved)
+              and then Rev.Count (Saved) = 1
+              and then Rev.Extent (Saved) = (1, 2, 5, 5),
+              "autosave preserves dirty crop without creating a revision");
+      Assert (Length (Pixels (1)) = 8 * 6 * 4
+              and then Slice (Pixels (1), 1, 4) =
+                (ASCII.NUL & ASCII.NUL & Character'Val (255) & Character'Val (255)),
+              "autosave preserves native source pixels");
+      Key := Rev.Revision_Key (Saved, 1);
+      Reset_Agents_From_Task (Frontend);
+      Open (B, "");
+      Assert (N_Children (Model) = 0, "no stale rows after session change");
+      Activate ("new");
+      Assert (N_Children (Model) = 1 and then not Ada.Directories.Exists
+                (To_String (Root) & "/" & B & ".canvas"),
+              "memory-only binding does not create a sidecar");
+      Reset_Agents_From_Task (Frontend);
+      Coyote_Canvas.Store.Claim (To_String (Root), A, Other, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok, "switch releases Canvas lease");
+      Open (A, To_String (Root));
+      Wait_Status ("Read-only: another window owns this Canvas.");
+      Assert (N_Children (Model) = 1 and then not Control ("canvas-new").Get_Sensitive,
+              "competing Canvas restores but cannot edit");
+      Coyote_Canvas.Store.Release (Other);
+      Reset_Agents_From_Task (Frontend);
+      Open (A, To_String (Root));
+      Wait_Status ("Session Canvas restored.");
+      Control ("coyote-canvas-drawing-area").Get_Size_Request (W, H);
+      Assert (W = 4 and then H = 3 and then N_Children (Model) = 1,
+              "reopened GTK Canvas shows recovered dirty crop");
+      declare
+         --  A directory cannot be removed as an abandoned temporary file.
+         Temp : constant String := To_String (Root) & "/" & A
+           & ".canvas/.canvas.tmp";
+      begin
+         Ada.Directories.Create_Directory (Temp);
+         Activate ("save");
+         Wait_Status ("Canvas autosave failed. Changes are still in memory.");
+         Disk.Load (To_String (Root), A, Saved, Pixels, Status);
+         Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (Saved) = 1
+                 and then Control ("canvas-save").Get_Sensitive,
+                 "failed commit retains manifest and enables retry");
+         Ada.Directories.Delete_Directory (Temp);
+         Activate ("save");
+         Wait_Status ("Canvas recovery saved.");
+      end;
+      Disk.Load (To_String (Root), A, Saved, Pixels, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (Saved) = 2
+              and then Rev.Revision_Key (Saved, 1) = Key
+              and then Rev.Drawing_Key (Saved, 2) = Key,
+              "checkpoint after reopen preserves original identity");
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+      Ada.Directories.Delete_Tree (To_String (Root));
+   exception
+      when others =>
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         if Length (Root) > 0 then
+            Ada.Directories.Delete_Tree (To_String (Root));
+         end if;
+         raise;
+   end Test_Canvas_Session_Recovery;
+
    package Coyote_App_Frontend_GUI_Caller is new AUnit.Test_Caller
      (Coyote_App_Frontend_GUI_Tests.Test);
 
@@ -1610,6 +1799,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas file import and session reset",
             Test_Canvas_File_Import'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas session recovery and writer lease",
+            Test_Canvas_Session_Recovery'Access));
       return Result;
    end Suite;
 

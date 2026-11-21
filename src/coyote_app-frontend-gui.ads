@@ -66,7 +66,8 @@ package Coyote_App.Frontend.GUI is
       Win_Name              :        String;
       Pop_Under             :        Boolean := False;
       Notifications_Allowed :        Boolean := True;
-      Notifications_Enabled :        Boolean := True);
+      Notifications_Enabled :        Boolean := True;
+      Canvas_Waits_For_Session :     Boolean := False);
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
@@ -207,7 +208,10 @@ package Coyote_App.Frontend.GUI is
 
    --  Update the window-manager identity for the active session.  The
    --  request is queued so the GTK window is changed only on the GTK task.
-   procedure Set_Session_Identity (F : in out Instance; Session_Id : String);
+   procedure Set_Session_Identity
+     (F : in out Instance; Session_Id : String; Canvas_Parent : String := "");
+
+   procedure Resume_Canvas (F : in out Instance);
 
    --  Request a forced model catalogue refresh from the Agent_Task.
    procedure Request_Model_Refresh (F : in out Instance);
@@ -326,6 +330,7 @@ private
       Win_Name                : Unbounded_String;
       Canvas_Window           : aliased Coyote_GUI.Canvas.Instance;
       Canvas_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
+      Canvas_Transition       : Boolean := False;
       Stats_Window            : Coyote_GUI.Session_Stats_Window.Instance;
       Sandbox_Profile_Window  : aliased Coyote_GUI.Sandbox_Profile_Window
         .Instance;

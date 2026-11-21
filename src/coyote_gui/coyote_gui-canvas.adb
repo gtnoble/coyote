@@ -1,4 +1,6 @@
 with Ada.Streams;
+with Ada.Real_Time;
+with Ada.Strings.Unbounded.Aux;
 with Coyote_Canvas.Composite;
 with Coyote_Canvas.Images;
 with Coyote_Canvas.Ink;
@@ -40,6 +42,13 @@ package body Coyote_GUI.Canvas is
    package TM renames Gtk.Tree_Model;
    package Raster renames Coyote_Canvas.Rasters;
    package Jobs renames Coyote_GUI.Canvas_Import_Jobs;
+   package Recovery_Jobs renames Coyote_GUI.Canvas_Recovery_Jobs;
+   package Persistence renames Recovery_Jobs.Store;
+   use Ada.Strings.Unbounded;
+   use type Ada.Real_Time.Time;
+   use type Recovery_Jobs.Job_Access;
+   use type Glib.Main.G_Source_Id;
+   use type Persistence.Result;
    use type Cairo.Cairo_Surface;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
    use type Gdk.Types.Gdk_Atom;
@@ -183,6 +192,17 @@ package body Coyote_GUI.Canvas is
       end if;
    end Set_Status;
 
+   function Can_Edit (S : Instance) return Boolean is
+     (not S.Suspended and then
+        (Length (S.Parent) = 0 or else S.Writable));
+
+   procedure Storage_Status (S : Instance; Text : String) is
+   begin
+      if S.Storage_Label /= null then
+         S.Storage_Label.Set_Text (Text);
+      end if;
+   end Storage_Status;
+
    function Display_Extent (S : Instance) return Doc.Rectangle is
      (Rev.Extent
         (S.Document,
@@ -209,7 +229,8 @@ package body Coyote_GUI.Canvas is
    procedure Refresh (S : in out Instance) is
       E          : constant Doc.Rectangle := Display_Extent (S);
       Editing    : constant Boolean       :=
-        S.Has_Drawing and S.Editing_Draft and not S.Crop_Mode and
+        Can_Edit (S) and S.Has_Drawing and S.Editing_Draft
+        and not S.Crop_Mode and
         not S.Drawing;
       Valid_Crop : constant Boolean       :=
         not S.Crop_Drag and then Doc.Is_Nonempty (Pending (S));
@@ -217,8 +238,14 @@ package body Coyote_GUI.Canvas is
       if S.Drawing_Area = null then
          return;
       end if;
-      S.Save_Item.Set_Sensitive (Editing and then Rev.Changed (S.Document));
-      S.Edit_Item.Set_Sensitive (S.Preview_Revision /= 0);
+      S.Save_Item.Set_Sensitive
+        (Can_Edit (S) and then not S.Crop_Mode and then not S.Drawing
+         and then ((Editing and then Rev.Changed (S.Document))
+                   or else S.Save_Failed));
+      S.Edit_Item.Set_Sensitive (Can_Edit (S) and S.Preview_Revision /= 0);
+      S.New_Item.Set_Sensitive (Can_Edit (S));
+      S.Import_Item.Set_Sensitive (Can_Edit (S));
+      S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
       S.Crop_Item.Set_Sensitive (Editing and S.Show_Ink);
       S.Undo_Item.Set_Sensitive (Editing and then Rev.Can_Undo (S.Document));
@@ -310,6 +337,35 @@ package body Coyote_GUI.Canvas is
       S.Import_Error.Show;
    end Report_Import_Error;
 
+   function Read_Pixels (Pixbuf : System.Address) return System.Address
+     with Import, Convention => C, External_Name => "gdk_pixbuf_get_pixels";
+
+   procedure Pack
+     (Src : System.Address; Stride : Interfaces.C.size_t;
+      Channels : Interfaces.C.int; W, H : Interfaces.C.size_t;
+      Dest : System.Address)
+     with Import, Convention => C, External_Name => "coyote_canvas_pack_rgba";
+
+   function Packed (P : Gdk.Pixbuf.Gdk_Pixbuf) return Unbounded_String is
+      use Interfaces.C;
+      W : constant Positive := Positive (Gdk.Pixbuf.Get_Width (P));
+      H : constant Positive := Positive (Gdk.Pixbuf.Get_Height (P));
+      N : constant Positive := Coyote_Canvas.Images.Packed_Byte_Count (W, H);
+      Result : Unbounded_String;
+      procedure Fill (Pixels : out String) is
+      begin
+         Pack (Read_Pixels (P.Get_Object),
+               size_t (Gdk.Pixbuf.Get_Rowstride (P)),
+               int (Gdk.Pixbuf.Get_N_Channels (P)), size_t (W), size_t (H),
+               Pixels (Pixels'First)'Address);
+      end Fill;
+   begin
+      Ada.Strings.Unbounded.Aux.Set_String (Result, N, Fill'Access);
+      return Result;
+   end Packed;
+
+   procedure Mark_Dirty (S : aliased in out Instance);
+
    procedure Import_Complete
      (Token : System.Address; Pixels : Jobs.Image_List; Error : String)
    is
@@ -319,6 +375,7 @@ package body Coyote_GUI.Canvas is
       Sizes : Rev.Image_Sizes (Pixels'Range);
       First : Rev.Revision_Id;
       Remaining : Natural;
+      Raster_Data : array (Pixels'Range) of Unbounded_String;
    begin
       if I = 0 then
          return;
@@ -326,7 +383,7 @@ package body Coyote_GUI.Canvas is
       S := Requests (I).Owner;
       Origin := Requests (I).Origin;
       Requests (I) := (others => <>);
-      if S = null then
+      if S = null or else not Can_Edit (S.all) then
          return;
       elsif Pixels'Length = 0 then
          Report_Import_Error (S, Error);
@@ -338,23 +395,38 @@ package body Coyote_GUI.Canvas is
             Image : constant Gdk.Pixbuf.Gdk_Pixbuf := Pixels (J);
             Width : constant Positive := Positive (Gdk.Pixbuf.Get_Width (Image));
             Height : constant Positive := Positive (Gdk.Pixbuf.Get_Height (Image));
-            Stride : constant Positive := Positive (Gdk.Pixbuf.Get_Rowstride (Image));
+            Stride : Positive := Positive (Gdk.Pixbuf.Get_Rowstride (Image));
          begin
+            if Length (S.Parent) /= 0 then
+               Stride := Width * 4;
+            end if;
             if Height > Remaining / Stride then
                Report_Import_Error (S, "Canvas image memory limit reached.");
                return;
             end if;
             Remaining := Remaining - Height * Stride;
             Sizes (J) := (Width, Height);
+            if Length (S.Parent) /= 0 then
+               Raster_Data (J) := Packed (Image);
+            end if;
          end;
       end loop;
       Rev.Add_Originals (S.Document, Sizes, First);
       for J in Pixels'Range loop
-         Pixels (J).Ref;
-         S.Images (First + (J - Pixels'First)) :=
-           (Pixels => Pixels (J), Origin => Origin);
+         declare
+            Id : constant Rev.Revision_Id := First + (J - Pixels'First);
+         begin
+            S.Images (Id).Origin := Origin;
+            if Length (S.Parent) = 0 then
+               Pixels (J).Ref;
+               S.Images (Id).Pixels := Pixels (J);
+            else
+               S.Disk_Pixels (Id) := Raster_Data (J);
+            end if;
+         end;
       end loop;
       S.Image_Bytes := MAX_IMAGE_BYTES - Remaining;
+      Mark_Dirty (S.all);
       Extend_Tree (S.all);
       Refresh (S.all);
       Set_Status
@@ -363,6 +435,8 @@ package body Coyote_GUI.Canvas is
    exception
       when Rev.Capacity_Error =>
          Report_Import_Error (S, "Canvas revision limit reached.");
+      when Storage_Error =>
+         Report_Import_Error (S, "Not enough memory for the Canvas import.");
    end Import_Complete;
 
    procedure Import_Failed (Token : System.Address; Error : String) is
@@ -706,8 +780,8 @@ package body Coyote_GUI.Canvas is
       Gtk.Accel_Group.Gtk_New (Accels);
       S.Canvas_Window.Add_Accel_Group (Accels);
       Group ("_File");
-      Item        := Action ("_New", "new", Gdk.Types.Keysyms.GDK_LC_n);
-      Item        := Action ("_Import...", "import");
+      S.New_Item := Action ("_New", "new", Gdk.Types.Keysyms.GDK_LC_n);
+      S.Import_Item := Action ("_Import...", "import");
       S.Save_Item := Action ("_Save", "save", Gdk.Types.Keysyms.GDK_LC_s);
       Item        := Action ("_Close", "close", Gdk.Types.Keysyms.GDK_LC_w);
       Group ("_Selected");
@@ -718,7 +792,7 @@ package body Coyote_GUI.Canvas is
         Action
           ("_Redo", "redo", Gdk.Types.Keysyms.GDK_LC_z,
            Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask);
-      Item          := Action ("_Paste", "paste", Gdk.Types.Keysyms.GDK_LC_v);
+      S.Paste_Item := Action ("_Paste", "paste", Gdk.Types.Keysyms.GDK_LC_v);
       S.Crop_Item   := Action ("_Crop...", "crop");
       S.Apply_Item  := Action ("_Apply Crop", "apply");
       S.Cancel_Item := Action ("Ca_ncel Crop", "cancel");
@@ -818,9 +892,146 @@ package body Coyote_GUI.Canvas is
       S.Status.Set_Name ("coyote-canvas-status");
       S.Status.Set_Halign (Gtk.Widget.Align_Start);
       Outer.Pack_Start (S.Status, False, False, 4);
+      Gtk.Label.Gtk_New (S.Storage_Label, "Drawings are in memory only.");
+      S.Storage_Label.Set_Name ("coyote-canvas-storage-status");
+      S.Storage_Label.Set_Halign (Gtk.Widget.Align_Start);
+      Outer.Pack_Start (S.Storage_Label, False, False, 4);
       Outer.Show_All;
       S.Crop_Grid.Hide;
    end Build_Window;
+
+   package Recovery_Timer is new Glib.Main.Generic_Sources (Instance_Access);
+
+   procedure Finish_Job (S : in out Instance) is
+      Status, Claim_Status : Persistence.Result;
+   begin
+      Recovery_Jobs.Finish (S.Job, S.Document, S.Disk_Pixels, S.Lease,
+                            Status, Claim_Status);
+      if S.Loading then
+         S.Loading := False;
+         if Status in Persistence.Ok | Persistence.Missing then
+            S.Writable := Claim_Status = Persistence.Ok;
+            if Status = Persistence.Ok then
+               for Id in 1 .. Rev.Count (S.Document) loop
+                  if Length (S.Disk_Pixels (Id)) /= 0 then
+                     S.Images (Id).Origin := File_Image;
+                     S.Image_Bytes := S.Image_Bytes + Length (S.Disk_Pixels (Id));
+                  end if;
+               end loop;
+               S.Has_Drawing := Rev.Base (S.Document) /= Rev.NO_REVISION;
+               Extend_Tree (S);
+            end if;
+            if S.Writable then
+               Storage_Status (S, (if Status = Persistence.Ok then
+                 "Session Canvas restored." else "Canvas autosave enabled."));
+            else
+               Storage_Status (S, "Read-only: another window owns this Canvas.");
+            end if;
+         else
+            Storage_Status (S, "Canvas recovery unavailable; editing is disabled.");
+         end if;
+         Refresh (S);
+      else
+         S.Save_Failed := Status /= Persistence.Ok;
+         if S.Save_Failed then
+            S.Pending_Save := True;
+            Storage_Status (S, "Canvas autosave failed. Changes are still in memory.");
+         elsif not S.Pending_Save then
+            Storage_Status (S, "Canvas recovery saved.");
+         end if;
+         Refresh (S);
+      end if;
+   end Finish_Job;
+
+   procedure Start_Save (S : in out Instance) is
+   begin
+      Recovery_Jobs.Start
+        (S.Job, Recovery_Jobs.Save_Store, To_String (S.Parent),
+         To_String (S.UUID), S.Document, S.Disk_Pixels);
+      S.Pending_Save := False;
+      S.Save_Failed := False;
+      Storage_Status (S, "Saving Canvas recovery...");
+   exception
+      when others =>
+         S.Save_Failed := True;
+         Storage_Status (S, "Cannot start Canvas autosave.");
+         Refresh (S);
+   end Start_Save;
+
+   function Poll_Recovery (S : Instance_Access) return Boolean is
+   begin
+      if Recovery_Jobs.Ready (S.Job) then
+         Finish_Job (S.all);
+      end if;
+      if S.Job = null and then S.Writable and then S.Pending_Save
+        and then not S.Save_Failed and then not S.Suspended
+        and then Ada.Real_Time.Clock >= S.Save_After
+      then
+         Start_Save (S.all);
+      end if;
+      if S.Job = null and then (not S.Pending_Save or else S.Save_Failed
+                              or else not S.Writable or else S.Suspended)
+      then
+         S.Timer := 0;
+         return False;
+      end if;
+      return True;
+   end Poll_Recovery;
+
+   procedure Wake_Recovery (S : aliased in out Instance) is
+   begin
+      if S.Timer = 0 then
+         S.Timer := Recovery_Timer.Timeout_Add
+           (50, Poll_Recovery'Access, S'Unchecked_Access);
+      end if;
+   end Wake_Recovery;
+
+   procedure Mark_Dirty (S : aliased in out Instance) is
+   begin
+      if S.Writable then
+         S.Pending_Save := True;
+         S.Save_Failed := False;
+         S.Save_After := Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (350);
+         Storage_Status (S, "Canvas recovery pending.");
+         Wake_Recovery (S);
+      end if;
+   end Mark_Dirty;
+
+   procedure Bind (S : in out Instance; Parent, UUID : String) is
+   begin
+      S.Parent := To_Unbounded_String (Parent);
+      S.UUID := To_Unbounded_String (UUID);
+      S.Suspended := False;
+      Refresh (S);
+   end Bind;
+
+   procedure Suspend (S : in out Instance; Value : Boolean) is
+   begin
+      S.Suspended := Value;
+      if Value then
+         Invalidate (S);
+         Destroy_Import_Dialogs (S);
+         if S.Canvas_Window /= null then
+            Cancel_Gesture (S);
+         end if;
+      end if;
+      Refresh (S);
+   end Suspend;
+
+   function Flush (S : in out Instance) return Boolean is
+   begin
+      if S.Job /= null and then not S.Loading then
+         Finish_Job (S);
+      end if;
+      if S.Pending_Save and then S.Writable then
+         Start_Save (S);
+         if S.Job /= null then
+            Finish_Job (S);
+         end if;
+      end if;
+      return not S.Pending_Save and then not S.Save_Failed
+        and then (Length (S.Parent) /= 0 or else Rev.Count (S.Document) = 0);
+   end Flush;
 
    procedure Show
      (S      : aliased in out Instance;
@@ -829,6 +1040,22 @@ package body Coyote_GUI.Canvas is
    begin
       if S.Canvas_Window = null then
          Build_Window (S, Parent);
+      end if;
+      if not S.Load_Started and then Length (S.Parent) /= 0 then
+         S.Load_Started := True;
+         S.Loading := True;
+         Storage_Status (S, "Opening session Canvas...");
+         begin
+            Recovery_Jobs.Start
+              (S.Job, Recovery_Jobs.Open_Store, To_String (S.Parent),
+               To_String (S.UUID), S.Document, S.Disk_Pixels);
+            Wake_Recovery (S);
+         exception
+            when others =>
+               Recovery_Jobs.Discard (S.Job);
+               S.Loading := False;
+               Storage_Status (S, "Cannot open session Canvas.");
+         end;
       end if;
       S.Canvas_Window.Show;
       S.Canvas_Window.Present;
@@ -846,14 +1073,30 @@ package body Coyote_GUI.Canvas is
    procedure Reset (S : in out Instance) is
    begin
       S.Resetting := True;
+      if S.Timer /= 0 then
+         Glib.Main.Remove (S.Timer);
+         S.Timer := 0;
+      end if;
+      Recovery_Jobs.Discard (S.Job);
+      Persistence.Release (S.Lease);
+      S.Parent := Null_Unbounded_String;
+      S.UUID := Null_Unbounded_String;
+      S.Disk_Pixels := (others => Null_Unbounded_String);
+      S.Load_Started := False;
+      S.Loading := False;
+      S.Writable := False;
+      S.Pending_Save := False;
+      S.Save_Failed := False;
+      S.Suspended := False;
+      Storage_Status (S, "Drawings are in memory only.");
       Invalidate (S);
       Destroy_Import_Dialogs (S);
       Clear_Display (S);
       for Asset of S.Images loop
          if Asset.Pixels /= null then
             Asset.Pixels.Unref;
-            Asset := (others => <>);
          end if;
+         Asset := (others => <>);
       end loop;
       S.Image_Bytes := 0;
       S.Drawing := False;
@@ -889,6 +1132,7 @@ package body Coyote_GUI.Canvas is
       S.Store        := null;
       S.Drawing_Tree := null;
       S.Status       := null;
+      S.Storage_Label := null;
       S.Crop_Grid    := null;
       S.X_Field      := null;
       S.Y_Field      := null;
@@ -913,11 +1157,12 @@ package body Coyote_GUI.Canvas is
    is
       pragma Unreferenced (Button);
    begin
-      if S = null then
+      if S = null or else not Can_Edit (S.all) then
          return;
       end if;
       Cancel_Gesture (S.all);
       Rev.New_Drawing (S.Document, 800, 600);
+      Mark_Dirty (S.all);
       Clear_Display (S.all);
       S.Has_Drawing := True;
       S.Drawing_Tree.Get_Selection.Unselect_All;
@@ -936,12 +1181,22 @@ package body Coyote_GUI.Canvas is
    is
       pragma Unreferenced (Button);
    begin
-      if S /= null and then S.Editing_Draft and then not S.Crop_Mode then
-         Coyote_Canvas.Revisions.Save (S.Document);
-         Extend_Tree (S.all);
-         Set_Status (S.all, "Working copy checkpointed in memory");
-         Refresh (S.all);
+      if S = null or else not Can_Edit (S.all) or else S.Crop_Mode
+        or else S.Drawing
+      then
+         return;
       end if;
+      if S.Editing_Draft and then Rev.Changed (S.Document) then
+         Rev.Save (S.Document);
+         Mark_Dirty (S.all);
+         Extend_Tree (S.all);
+         Set_Status
+           (S.all, (if S.Writable then "Working copy checkpointed; autosave pending."
+                    else "Working copy checkpointed in memory"));
+      elsif S.Save_Failed then
+         Mark_Dirty (S.all);
+      end if;
+      Refresh (S.all);
    exception
       when Coyote_Canvas.Revisions.Capacity_Error =>
          Set_Status (S.all, "Revision capacity reached; draft retained");
@@ -952,9 +1207,10 @@ package body Coyote_GUI.Canvas is
    is
       pragma Unreferenced (Button);
    begin
-      if S /= null and then S.Preview_Revision /= 0 then
+      if S /= null and then Can_Edit (S.all) and then S.Preview_Revision /= 0 then
          Cancel_Gesture (S.all);
          Rev.Edit (S.Document, S.Preview_Revision);
+         Mark_Dirty (S.all);
          Clear_Display (S.all);
          S.Has_Drawing := True;
          Extend_Tree (S.all);
@@ -974,8 +1230,11 @@ package body Coyote_GUI.Canvas is
    is
       pragma Unreferenced (Button);
    begin
-      if S /= null and then S.Editing_Draft and then not S.Crop_Mode then
+      if S /= null and then Can_Edit (S.all) and then S.Editing_Draft
+        and then not S.Crop_Mode
+      then
          Coyote_Canvas.Revisions.Undo (S.Document);
+         Mark_Dirty (S.all);
          Clear_Display (S.all);
          Refresh (S.all);
       end if;
@@ -989,8 +1248,11 @@ package body Coyote_GUI.Canvas is
    is
       pragma Unreferenced (Button);
    begin
-      if S /= null and then S.Editing_Draft and then not S.Crop_Mode then
+      if S /= null and then Can_Edit (S.all) and then S.Editing_Draft
+        and then not S.Crop_Mode
+      then
          Coyote_Canvas.Revisions.Redo (S.Document);
+         Mark_Dirty (S.all);
          Clear_Display (S.all);
          Refresh (S.all);
       end if;
@@ -1016,7 +1278,7 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Button);
       Current : Coyote_Canvas.Document.Rectangle;
    begin
-      if S = null then
+      if S = null or else not Can_Edit (S.all) then
          return;
       end if;
       Current := Coyote_Canvas.Revisions.Extent (S.Document);
@@ -1052,10 +1314,13 @@ package body Coyote_GUI.Canvas is
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
    is
    begin
-      if S = null or else not S.Crop_Mode or else S.Crop_Drag then
+      if S = null or else not Can_Edit (S.all) or else not S.Crop_Mode
+        or else S.Crop_Drag
+      then
          return;
       end if;
       Rev.Crop (S.Document, Pending (S.all));
+      Mark_Dirty (S.all);
       Clear_Display (S.all);
       On_Cancel_Crop (Button, S);
       Set_Status (S.all, "Crop applied to draft");
@@ -1128,9 +1393,13 @@ package body Coyote_GUI.Canvas is
       if Name = "canvas-new" then
          On_New (null, S);
       elsif Name = "canvas-import" then
-         Choose_File (S);
+         if Can_Edit (S.all) then
+            Choose_File (S);
+         end if;
       elsif Name = "canvas-paste" then
-         Paste (S);
+         if Can_Edit (S.all) then
+            Paste (S);
+         end if;
       elsif Name = "canvas-save" then
          On_Save (null, S);
       elsif Name = "canvas-edit" then
@@ -1180,9 +1449,6 @@ package body Coyote_GUI.Canvas is
       Background : constant Rev.Revision_Id := Rev.Background (S.Document, Id);
       Image : Composite.Image;
 
-      function Read_Pixels (Pixbuf : System.Address) return System.Address
-        with Import, Convention => C,
-             External_Name => "gdk_pixbuf_get_pixels";
       function Byte_Length (Pixbuf : System.Address) return Interfaces.C.size_t
         with Import, Convention => C,
              External_Name => "gdk_pixbuf_get_byte_length";
@@ -1195,6 +1461,22 @@ package body Coyote_GUI.Canvas is
       Clear_Display (S);
       if Background = Rev.NO_REVISION then
          Composite.Render (S.Document, Id, Image, S.Show_Ink);
+      elsif Length (S.Disk_Pixels (Background)) /= 0 then
+         declare
+            E : constant Doc.Rectangle := Rev.Extent (S.Document, Background);
+            Data : Ada.Strings.Unbounded.Aux.Big_String_Access;
+            Size : Natural;
+         begin
+            Ada.Strings.Unbounded.Aux.Get_String
+              (S.Disk_Pixels (Background), Data, Size);
+            declare
+               Bytes : Stream_Element_Array (1 .. Stream_Element_Offset (Size))
+                 with Import, Address => Data (1)'Address;
+            begin
+               Composite.Render (S.Document, Id, Bytes, E.Right * 4, True,
+                                 Image, S.Show_Ink);
+            end;
+         end;
       else
          declare
             Pixbuf : constant Gdk.Pixbuf.Gdk_Pixbuf :=
@@ -1356,7 +1638,8 @@ package body Coyote_GUI.Canvas is
    is
       X, Y : Glib.Gdouble;
    begin
-      if not S.Has_Drawing or else not S.Editing_Draft or else not S.Show_Ink
+      if not Can_Edit (S.all) or else not S.Has_Drawing
+        or else not S.Editing_Draft or else not S.Show_Ink
         or else S.Drawing or else S.Crop_Drag
         or else Gdk.Event.Get_Pointer_Emulated (Event)
         or else Gdk.Event.Get_Event_Type (Event) /= Gdk.Event.Button_Press
@@ -1452,6 +1735,7 @@ package body Coyote_GUI.Canvas is
       end if;
       if S.Drawing then
          Rev.Add_Stroke (S.Document, S.Stroke_Points);
+         Mark_Dirty (S.all);
          Clear_Display (S.all);
       elsif Read_Coords (Event, X, Y) /= 0 then
          Drag_Crop (S.all, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);

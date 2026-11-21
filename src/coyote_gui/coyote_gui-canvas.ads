@@ -1,3 +1,8 @@
+with Ada.Real_Time;
+with Ada.Strings.Unbounded;
+with Coyote_Canvas.Store;
+with Coyote_GUI.Canvas_Recovery_Jobs;
+with Glib.Main;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
 with Cairo;
@@ -16,15 +21,18 @@ with Gtk.Tree_Model;
 with Gtk.Menu_Item;
 with Gtk.Window;
 
---  A modeless, in-memory drawing workspace. Show creates the window
---  lazily and reuses it; Reset discards the document and hides it. GTK
---  operations belong to the GTK main task. Imports are not persisted.
+--  A modeless workspace. Only the GTK task accesses the instance.
 package Coyote_GUI.Canvas is
    type Instance is limited private;
 
    procedure Show
      (S      : aliased in out Instance;
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class);
+   --  An empty directory selects memory-only mode. A changed binding must
+   --  follow Reset. The manifest is opened lazily when Canvas is shown.
+   procedure Bind (S : in out Instance; Parent, UUID : String);
+   function Flush (S : in out Instance) return Boolean;
+   procedure Suspend (S : in out Instance; Value : Boolean);
    procedure Reset (S : in out Instance);
    procedure Destroy (S : in out Instance);
    function Window (S : Instance) return Gtk.Window.Gtk_Window;
@@ -57,6 +65,16 @@ private
       Cancel_Crop : Gtk.Button.Gtk_Button               := null;
       Document : Coyote_Canvas.Revisions.Workspace;
       Images : Image_Array;
+      Parent, UUID : Ada.Strings.Unbounded.Unbounded_String;
+      Disk_Pixels : Canvas_Recovery_Jobs.Disk.Raster_Set;
+      Lease : Coyote_Canvas.Store.Writer_Lease;
+      Job : Canvas_Recovery_Jobs.Job_Access;
+      Timer : Glib.Main.G_Source_Id := 0;
+      Suspended, Loading, Load_Started, Writable : Boolean := False;
+      Pending_Save, Save_Failed : Boolean := False;
+      Save_After : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
+      Storage_Label : Gtk.Label.Gtk_Label := null;
+      New_Item, Import_Item, Paste_Item : Gtk.Menu_Item.Gtk_Menu_Item := null;
       Image_Bytes : Natural := 0;
       Cached_Revision : Coyote_Canvas.Revisions.Revision_Id := 0;
       Cached_Ink : Boolean := True;

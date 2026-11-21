@@ -207,6 +207,7 @@ package Coyote_GUI is
       Clear_Conversation,
       Reset_Agents,
       Set_Session_Identity,
+      Resume_Canvas,
       Set_Completion_Notifications,
       Completion_Notification,
       Show_Detail,

@@ -1883,6 +1883,8 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Native_Tool_Action;
 
+   function Confirm_Canvas_Discard (F : in out Instance) return Boolean;
+
    procedure On_Native_Fork
      (UUID : String; Turn_N : Positive; Step_N : Natural)
    is
@@ -1892,6 +1894,9 @@ package body Coyote_App.Frontend.GUI is
          return;
       end if;
 
+      if not Confirm_Canvas_Discard (Current_Frontend.all) then
+         return;
+      end if;
       Current_Frontend.PQ.Enqueue
         ((Kind            => Fork_Session,
           Target_Agent_Id => Current_Frontend.Root_Agent_Id,
@@ -1903,6 +1908,8 @@ package body Coyote_App.Frontend.GUI is
          Accepted);
 
       if not Accepted then
+         Current_Frontend.Canvas_Transition := False;
+         Coyote_GUI.Canvas.Suspend (Current_Frontend.Canvas_Window, False);
          Current_Frontend.Append_Notice
            (Coyote_App.Frontend.Error,
             "Unable to fork session: the agent request queue is full.");
@@ -2126,6 +2133,9 @@ package body Coyote_App.Frontend.GUI is
 
          when Reset_Agents =>
             Coyote_GUI.Canvas.Reset (F.Canvas_Window);
+            if F.Canvas_Transition then
+               Coyote_GUI.Canvas.Suspend (F.Canvas_Window, True);
+            end if;
             declare
                Registered : Boolean;
                pragma Unreferenced (Registered);
@@ -2158,7 +2168,15 @@ package body Coyote_App.Frontend.GUI is
                Apply_Agent_Menu_Sensitivity (F);
             end;
 
+         when Resume_Canvas =>
+            F.Canvas_Transition := False;
+            Coyote_GUI.Canvas.Suspend (F.Canvas_Window, False);
+
          when Set_Session_Identity =>
+            F.Canvas_Transition := False;
+            F.Canvas_Item.Set_Sensitive (True);
+            Coyote_GUI.Canvas.Bind
+              (F.Canvas_Window, To_String (U.Text2), To_String (U.Text));
             F.Win.Set_Role ("coyote-session-" & To_String (U.Text));
             declare
                Updated : Boolean;
@@ -2203,6 +2221,10 @@ package body Coyote_App.Frontend.GUI is
             Apply_RPC_Frame (F, U);
 
          when Shutdown =>
+            if not Coyote_GUI.Canvas.Flush (F.Canvas_Window) then
+               Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error,
+                                     "Unsaved Canvas changes at shutdown.");
+            end if;
             Coyote_GUI.Canvas.Destroy (F.Canvas_Window);
             --  Finalize response handles while their GTK parent is alive.
             F.Stack.Clear;
@@ -2221,7 +2243,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if U.Kind = Coyote_GUI.Rpc_Frame then
          Apply_RPC_Frame (F, U);
-      elsif U.Kind = Coyote_GUI.Reset_Agents then
+      elsif U.Kind in Coyote_GUI.Reset_Agents | Coyote_GUI.Set_Session_Identity
+        | Coyote_GUI.Resume_Canvas | Coyote_GUI.Shutdown
+      then
          --  Session boundaries must not depend on the selected worker or be
          --  replayed as part of any agent's retained conversation.
          Apply_Update_Visible (F, U);
@@ -2287,17 +2311,20 @@ package body Coyote_App.Frontend.GUI is
 
    --  ── Signal handlers ───────────────────────────────────────────────────
 
-   function Confirm_Canvas_Discard (F : Instance) return Boolean is
+   function Confirm_Canvas_Discard (F : in out Instance) return Boolean is
       use Gtk.Dialog;
       Dialog : Gtk_Dialog;
       Button : Gtk.Widget.Gtk_Widget;
       pragma Unreferenced (Button);
       Label  : Gtk.Label.Gtk_Label;
-      Count  : constant Natural := Coyote_GUI.Canvas.Revision_Count
-        (F.Canvas_Window);
       Answer : Gtk_Response_Type;
    begin
-      if Count = 0 then
+      if F.Canvas_Transition then
+         return False;
+      end if;
+      F.Canvas_Transition := True;
+      Coyote_GUI.Canvas.Suspend (F.Canvas_Window, True);
+      if Coyote_GUI.Canvas.Flush (F.Canvas_Window) then
          return True;
       end if;
       Gtk.Dialog.Gtk_New (Dialog);
@@ -2305,8 +2332,8 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Set_Transient_For (F.Win);
       Dialog.Set_Modal (True);
       Gtk.Label.Gtk_New
-        (Label, "Discard all drawings in this conversation's Canvas?"
-         & ASCII.LF & "Its working copy and saved revisions exist only in memory.");
+        (Label, "Leave without saving the latest Canvas changes?"
+         & ASCII.LF & "Unsaved drawings or edits will be lost.");
       Dialog.Get_Content_Area.Pack_Start (Label, False, False, 12);
       Button := Dialog.Add_Button ("_Discard", Gtk_Response_OK);
       Button := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
@@ -2314,6 +2341,10 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Show_All;
       Answer := Dialog.Run;
       Dialog.Destroy;
+      if Answer /= Gtk_Response_OK then
+         F.Canvas_Transition := False;
+         Coyote_GUI.Canvas.Suspend (F.Canvas_Window, False);
+      end if;
       return Answer = Gtk_Response_OK;
    end Confirm_Canvas_Discard;
 
@@ -2422,13 +2453,18 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Self);
+      Accepted : Boolean;
    begin
       if Current_Frontend /= null
         and then Confirm_Canvas_Discard (Current_Frontend.all)
       then
          Current_Frontend.PQ.Enqueue
            ((Kind            => New_Session,
-             Target_Agent_Id => Current_Frontend.Root_Agent_Id));
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id), Accepted);
+         if not Accepted then
+            Current_Frontend.Canvas_Transition := False;
+            Coyote_GUI.Canvas.Suspend (Current_Frontend.Canvas_Window, False);
+         end if;
       end if;
    end On_New_Session_Activate;
 
@@ -2929,6 +2965,7 @@ package body Coyote_App.Frontend.GUI is
             Gtk.Tree_Model.Get_Value (Model, Iter, Glib.Gint (Col_UUID), Val);
             declare
                UUID : constant String := Glib.Values.Get_String (Val);
+               Accepted : Boolean;
             begin
                Glib.Values.Unset (Val);
                if UUID'Length > 0
@@ -2937,7 +2974,12 @@ package body Coyote_App.Frontend.GUI is
                   Current_Frontend.PQ.Enqueue
                     ((Switch_Session,
                       Target_Agent_Id => Current_Frontend.Root_Agent_Id,
-                      Session_UUID    => To_Unbounded_String (UUID)));
+                      Session_UUID    => To_Unbounded_String (UUID)), Accepted);
+                  if not Accepted then
+                     Current_Frontend.Canvas_Transition := False;
+                     Coyote_GUI.Canvas.Suspend
+                       (Current_Frontend.Canvas_Window, False);
+                  end if;
                end if;
             end;
          end if;
@@ -4383,7 +4425,8 @@ package body Coyote_App.Frontend.GUI is
       Win_Name              :        String;
       Pop_Under             :        Boolean := False;
       Notifications_Allowed :        Boolean := True;
-      Notifications_Enabled :        Boolean := True)
+      Notifications_Enabled :        Boolean := True;
+      Canvas_Waits_For_Session :     Boolean := False)
    is
       use Gtk.Box;
       use Gtk.Button;
@@ -4825,6 +4868,8 @@ package body Coyote_App.Frontend.GUI is
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu), F.Agents_Window_Item);
          Add_Sep (View_Menu);
          F.Canvas_Item := Make_Item ("_Canvas", View_Menu, View_Mnemonics);
+         Coyote_GUI.Canvas.Suspend (F.Canvas_Window, Canvas_Waits_For_Session);
+         F.Canvas_Item.Set_Sensitive (not Canvas_Waits_For_Session);
          F.Canvas_Item.On_Activate (On_Canvas_Activate'Access);
          Add_Sep (View_Menu);
          Item := Make_Item ("Zoom _In", View_Menu, View_Mnemonics);
@@ -5417,13 +5462,22 @@ package body Coyote_App.Frontend.GUI is
       Enqueue_Update (F, U);
    end Publish_Model_Registry;
 
-   procedure Set_Session_Identity (F : in out Instance; Session_Id : String) is
+   procedure Set_Session_Identity
+     (F : in out Instance; Session_Id : String; Canvas_Parent : String := "") is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Session_Identity;
       U.Text := To_Unbounded_String (Session_Id);
+      U.Text2 := To_Unbounded_String (Canvas_Parent);
       Enqueue_Update (F, U);
    end Set_Session_Identity;
+
+   procedure Resume_Canvas (F : in out Instance) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Resume_Canvas;
+      Enqueue_Update (F, U);
+   end Resume_Canvas;
 
    procedure Clear_Stats (F : in out Instance) is
       U : Coyote_GUI.Update;
