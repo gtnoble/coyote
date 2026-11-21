@@ -15,6 +15,10 @@ with LLM.Providers.OpenAI_Completions.Testing;
 with LLM.Types;
 with Test_HTTP_Server;
 
+with Coyote_Canvas.Composite;
+with Coyote_Canvas.Revisions;
+with LLM.User_Images;
+
 package body LLM_OpenAI_Completions_Tests is
 
    use AUnit.Assertions;
@@ -2085,6 +2089,87 @@ package body LLM_OpenAI_Completions_Tests is
          raise;
    end Test_Tool_Result_Image_Serialised;
 
+   procedure Test_User_Canvas_Wire (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.JSON;
+      package Rev renames Coyote_Canvas.Revisions;
+      package Composite renames Coyote_Canvas.Composite;
+      Port : constant := 19120;
+      Provider : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:19120", Api_Key => "test-key");
+      Expected : array (1 .. 2) of Unbounded_String;
+      Captured : Unbounded_String;
+      Messages : LLM.Types.Message_Vectors.Vector;
+      Msg : LLM.Types.Message;
+      Stopped : Boolean := False;
+
+      function Field (V : JSON_Value; Key : String) return String is
+        (Get (V.Get (Key)));
+
+      procedure Capture
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response) is
+      begin
+         Captured := Req.Body_Data;
+         Res.Status := 200;
+         Append (Res.Body_Data, Build_Text_SSE ("seen", 1, 1));
+      end Capture;
+      Srv : Test_HTTP_Server.Server (Capture'Unrestricted_Access);
+   begin
+      Msg.Content.Append ((Kind => LLM.Types.Text_Block,
+                           Text => To_Unbounded_String ("compare")));
+      for I in Expected'Range loop
+         declare
+            W : Rev.Workspace;
+            Rendered : Composite.Image;
+            Image : LLM.Types.User_Image;
+         begin
+            Rev.New_Drawing (W, 5 + I, 3);
+            Composite.Render (W, 1, Rendered);
+            Image := (PNG => Composite.Encode_PNG (Rendered),
+                      Label => To_Unbounded_String ("fixture"),
+                      Drawing_Id => To_Unbounded_String (Rev.Drawing_Key (W, 1)),
+                      Revision_Id => To_Unbounded_String (Rev.Revision_Key (W, 1)),
+                      Width => 5 + I, Height => 3);
+            Expected (I) := To_Unbounded_String (LLM.User_Images.Base64 (Image));
+            Msg.Content.Append ((Kind => LLM.Types.User_Image_Block, Image => Image));
+         end;
+      end loop;
+      Messages.Append (Msg);
+      Srv.Bind (Port);
+      Send_With_Retry (Provider, "test-model", "", Messages, "[]",
+                       Max_Tokens => 32, Handler => null);
+      Srv.Stop;
+      Stopped := True;
+      declare
+         Parsed : constant Read_Result := Read (To_String (Captured));
+         Items : constant JSON_Array := Parsed.Value.Get ("messages");
+         Parts : constant JSON_Array := Get (Items, 1).Get ("content");
+      begin
+         Assert (Length (Items) = 1 and then Field (Get (Items, 1), "role") = "user"
+                 and then Length (Parts) = 5, "one ordered multimodal user message");
+         Assert (Field (Get (Parts, 1), "text") = "compare", "original prompt text");
+         for I in Expected'Range loop
+            declare
+               Mark : constant JSON_Value := Get (Parts, I * 2);
+               Part : constant JSON_Value := Get (Parts, I * 2 + 1);
+            begin
+               Assert (Field (Mark, "type") = "text" and then
+                       Field (Mark, "text") = LLM.User_Images.Ordinal (I), "image ordinal");
+               Assert (Field (Part, "type") = "image_url" and then
+                       Field (Part.Get ("image_url"), "url") = "data:image/png;base64," & To_String (Expected (I)),
+                       "wire uses exact frozen native PNG bytes");
+            end;
+         end loop;
+      end;
+   exception
+      when others =>
+         if not Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_User_Canvas_Wire;
+
    package LLM_OpenAI_Completions_Caller is new AUnit.Test_Caller
      (LLM_OpenAI_Completions_Tests.Test);
 
@@ -2162,6 +2247,9 @@ package body LLM_OpenAI_Completions_Tests is
             LLM_OpenAI_Completions_Tests.Test_Tool_Result_Image_Serialised'
               Access));
 
+      Result.Add_Test
+        (LLM_OpenAI_Completions_Caller.Create
+           ("LLM.OpenAI_Completions sends ordered Canvas user images", Test_User_Canvas_Wire'Access));
       return Result;
    end Suite;
 

@@ -36,6 +36,7 @@ with Gtk.Tree_View_Column;
 with Gtk.Widget;
 
 with Coyote_Canvas.Revisions.Recovery;
+with LLM.User_Images;
 
 package body Coyote_GUI.Canvas is
    use type Ada.Containers.Count_Type;
@@ -249,6 +250,11 @@ package body Coyote_GUI.Canvas is
         (Can_Edit (S) and then not S.Crop_Mode and then not S.Drawing
          and then ((Editing and then Rev.Changed (S.Document))
                    or else S.Save_Failed));
+      S.Attach_Item.Set_Sensitive
+        (Can_Edit (S) and then not S.Crop_Mode and then not S.Drawing
+         and then S.Show_Ink and then S.On_Attach /= null
+         and then ((S.Editing_Draft and then S.Has_Drawing)
+           or else S.Drawing_Tree.Get_Selection.Count_Selected_Rows > 0));
       S.Edit_Item.Set_Sensitive (Can_Edit (S) and S.Preview_Revision /= 0);
       S.New_Item.Set_Sensitive (Can_Edit (S));
       S.Import_Item.Set_Sensitive (Can_Edit (S));
@@ -791,6 +797,10 @@ package body Coyote_GUI.Canvas is
       Refresh (S.all);
    end On_Markup;
 
+   procedure Freeze_Attachments (S : aliased in out Instance);
+   procedure Apply_Reveal (S : in out Instance);
+   procedure Clear_Display (S : in out Instance);
+
    procedure On_Action
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class;
       S    : Instance_Access);
@@ -883,6 +893,7 @@ package body Coyote_GUI.Canvas is
       Item        := Action ("_Close", "close", Gdk.Types.Keysyms.GDK_LC_w);
       Group ("_Selected");
       S.Edit_Item := Action ("_Edit Revision", "edit");
+      S.Attach_Item := Action ("_Attach", "attach");
       Group ("_Edit");
       S.Undo_Item   := Action ("_Undo", "undo", Gdk.Types.Keysyms.GDK_LC_z);
       S.Redo_Item   :=
@@ -1044,6 +1055,7 @@ package body Coyote_GUI.Canvas is
          else
             Storage_Status (S, "Canvas recovery unavailable; editing is disabled.");
          end if;
+         Apply_Reveal (S);
          Refresh (S);
       else
          S.Save_Failed := Status /= Persistence.Ok;
@@ -1259,6 +1271,54 @@ package body Coyote_GUI.Canvas is
       Refresh (S);
    end Show;
 
+   procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler) is
+   begin
+      S.On_Attach := Handler;
+      Refresh (S);
+   end Set_Attach_Handler;
+
+   procedure Apply_Reveal (S : in out Instance) is
+   begin
+      if Length (S.Reveal_Revision) = 0 or else S.Loading then
+         return;
+      end if;
+      for Id in 1 .. Rev.Count (S.Document) loop
+         if Rev.Revision_Key (S.Document, Id) = S.Reveal_Revision and then
+           Rev.Drawing_Key (S.Document, Id) = S.Reveal_Drawing
+         then
+            declare
+               Path : constant TM.Gtk_Tree_Path := S.Store.Get_Path (S.Rows (Id));
+            begin
+               S.Drawing_Tree.Expand_To_Path (Path);
+               S.Drawing_Tree.Get_Selection.Unselect_All;
+               S.Drawing_Tree.Get_Selection.Select_Path (Path);
+               S.Editing_Draft := False;
+               S.Preview_Revision := Id;
+               Clear_Display (S);
+               Refresh (S);
+               TM.Path_Free (Path);
+            end;
+            S.Reveal_Drawing := Null_Unbounded_String;
+            S.Reveal_Revision := Null_Unbounded_String;
+            return;
+         end if;
+      end loop;
+      S.Reveal_Drawing := Null_Unbounded_String;
+      S.Reveal_Revision := Null_Unbounded_String;
+      Set_Status (S, "The recorded revision is not available in this Canvas.");
+   end Apply_Reveal;
+
+   procedure Reveal
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Drawing_Id, Revision_Id : String) is
+   begin
+      Show (S, Parent);
+      S.Reveal_Drawing := To_Unbounded_String (Drawing_Id);
+      S.Reveal_Revision := To_Unbounded_String (Revision_Id);
+      Apply_Reveal (S);
+   end Reveal;
+
    procedure Clear_Display (S : in out Instance) is
    begin
       if S.Image_Surface /= Cairo.Null_Surface then
@@ -1270,6 +1330,8 @@ package body Coyote_GUI.Canvas is
    procedure Reset (S : in out Instance) is
    begin
       S.Resetting := True;
+      S.Reveal_Drawing := Null_Unbounded_String;
+      S.Reveal_Revision := Null_Unbounded_String;
       if S.Publication /= null then
          S.Publication.Clear;
          S.Publication := null;
@@ -1615,6 +1677,8 @@ package body Coyote_GUI.Canvas is
          On_Save (null, S);
       elsif Name = "canvas-edit" then
          On_Edit (null, S);
+      elsif Name = "canvas-attach" then
+         Freeze_Attachments (S.all);
       elsif Name = "canvas-undo" then
          On_Undo (null, S);
       elsif Name = "canvas-redo" then
@@ -1653,25 +1717,20 @@ package body Coyote_GUI.Canvas is
          Glib.Gdouble (R.Right - R.Left), Glib.Gdouble (R.Bottom - R.Top));
    end Outline;
 
-   procedure Update_Display (S : in out Instance; Id : Rev.Revision_Id) is
+   procedure Compose
+     (S : Instance; Id : Rev.Revision_Id;
+      Image : in out Coyote_Canvas.Composite.Image; Include_Ink : Boolean)
+   is
       use Ada.Streams;
       use type Interfaces.C.size_t;
       package Composite renames Coyote_Canvas.Composite;
       Background : constant Rev.Revision_Id := Rev.Background (S.Document, Id);
-      Image : Composite.Image;
-
       function Byte_Length (Pixbuf : System.Address) return Interfaces.C.size_t
         with Import, Convention => C,
              External_Name => "gdk_pixbuf_get_byte_length";
    begin
-      if S.Image_Surface /= Cairo.Null_Surface
-        and then S.Cached_Revision = Id and then S.Cached_Ink = S.Show_Ink
-      then
-         return;
-      end if;
-      Clear_Display (S);
       if Background = Rev.NO_REVISION then
-         Composite.Render (S.Document, Id, Image, S.Show_Ink);
+         Composite.Render (S.Document, Id, Image, Include_Ink);
       elsif Length (S.Disk_Pixels (Background)) /= 0 then
          declare
             E : constant Doc.Rectangle := Rev.Extent (S.Document, Background);
@@ -1685,7 +1744,7 @@ package body Coyote_GUI.Canvas is
                  with Import, Address => Data (1)'Address;
             begin
                Composite.Render (S.Document, Id, Bytes, E.Right * 4, True,
-                                 Image, S.Show_Ink);
+                                 Image, Include_Ink);
             end;
          end;
       else
@@ -1715,11 +1774,129 @@ package body Coyote_GUI.Canvas is
                begin
                   Composite.Render
                     (S.Document, Id, Bytes, Positive (Stride),
-                     Gdk.Pixbuf.Get_Has_Alpha (Pixbuf), Image, S.Show_Ink);
+                     Gdk.Pixbuf.Get_Has_Alpha (Pixbuf), Image, Include_Ink);
                end;
             end;
          end;
       end if;
+   end Compose;
+
+   procedure Freeze_Attachments (S : aliased in out Instance) is
+      package Composite renames Coyote_Canvas.Composite;
+      Images : LLM.Types.User_Images.Vector;
+      Ids : array (1 .. LLM.User_Images.Max_Count) of Rev.Revision_Id;
+      Count : Natural := 0;
+      Total : Natural := 0;
+      Selection : constant Gtk.Tree_Selection.Gtk_Tree_Selection :=
+        S.Drawing_Tree.Get_Selection;
+      Is_Draft : constant Boolean := S.Editing_Draft and then
+        (Selection.Count_Selected_Rows = 0 or else
+         S.Canvas_Window.Get_Focus = Gtk.Widget.Gtk_Widget (S.Drawing_Area));
+   begin
+      if not Can_Edit (S) or else S.Crop_Mode or else S.Drawing
+        or else not S.Show_Ink or else S.On_Attach = null
+      then
+         return;
+      end if;
+      if Is_Draft then
+         if not S.Has_Drawing then
+            return;
+         end if;
+         Rev.Save (S.Document);
+         Mark_Dirty (S);
+         Extend_Tree (S);
+         Refresh (S);
+         Count := 1;
+         Ids (Count) := Rev.Base (S.Document);
+      else
+         --  Rows are appended in sibling order, not traversal order.
+         --  GTK supplies paths in tree order, independent of click order.
+         declare
+            Model : TM.Gtk_Tree_Model;
+            use TM.Gtk_Tree_Path_List;
+            Paths, Cursor : Glist;
+         begin
+            if Selection.Count_Selected_Rows > Glib.Gint (Ids'Length) then
+               Set_Status (S, "Attach at most eight revisions at a time.");
+               return;
+            end if;
+            Selection.Get_Selected_Rows (Model, Paths);
+            Cursor := Paths;
+            while Cursor /= Null_List loop
+               declare
+                  Path : constant TM.Gtk_Tree_Path := Get_Data (Cursor);
+                  Iter : constant TM.Gtk_Tree_Iter := TM.Get_Iter (Model, Path);
+               begin
+                  Count := Count + 1;
+                  Ids (Count) := Rev.Revision_Id (TM.Get_Int (Model, Iter, 1));
+                  TM.Path_Free (Path);
+                  Cursor := Next (Cursor);
+               end;
+            end loop;
+            Free (Paths);
+         end;
+      end if;
+      for I in 1 .. Count loop
+         declare
+            Id : constant Rev.Revision_Id := Ids (I);
+            Original : Rev.Revision_Id := Id;
+            Image : Composite.Image;
+            Snapshot : LLM.Types.User_Image;
+         begin
+            while Rev.Parent (S.Document, Original) /= Rev.NO_REVISION loop
+               Original := Rev.Parent (S.Document, Original);
+            end loop;
+            declare
+               Label : constant String := Rev.Original_Label (S.Document, Original);
+            begin
+               Snapshot.Label := To_Unbounded_String
+                 ((if Label /= "" then Label else "Drawing" &
+                   Rev.Revision_Id'Image (Original)) &
+                  (if Id = Original then " (Original)" else
+                   " / Revision" & Rev.Revision_Id'Image (Id)));
+            end;
+            if Total >= LLM.User_Images.Max_Turn then
+               raise Composite.PNG_Limit_Error;
+            end if;
+            Compose (S, Id, Image, Include_Ink => True);
+            Snapshot.PNG := Composite.Encode_PNG
+              (Image, Positive'Min (Composite.MAX_PNG_BYTES,
+                                    LLM.User_Images.Max_Turn - Total));
+            Total := Total + Length (Snapshot.PNG);
+            Snapshot.Width := Composite.Width (Image);
+            Snapshot.Height := Composite.Height (Image);
+            Snapshot.Drawing_Id := To_Unbounded_String (Rev.Drawing_Key (S.Document, Id));
+            Snapshot.Revision_Id := To_Unbounded_String (Rev.Revision_Key (S.Document, Id));
+            Images.Append (Snapshot);
+         end;
+      end loop;
+      if not Images.Is_Empty then
+         if Length (S.Parent) /= 0 and then not Flush (S) then
+            Set_Status (S, "Cannot save the attachment revisions; retry Canvas Save.");
+         elsif not S.On_Attach (Images) then
+            Set_Status (S, "Could not stage this batch in the prompt composer.");
+         else
+            Set_Status (S, "Native-size images attached to the prompt draft.");
+         end if;
+      end if;
+   exception
+      when Composite.PNG_Limit_Error =>
+         Set_Status (S, "Canvas PNG limit reached; no images attached.");
+      when others =>
+         Set_Status (S, "Could not freeze Canvas images; no images attached.");
+   end Freeze_Attachments;
+
+   procedure Update_Display (S : in out Instance; Id : Rev.Revision_Id) is
+      package Composite renames Coyote_Canvas.Composite;
+      Image : Composite.Image;
+   begin
+      if S.Image_Surface /= Cairo.Null_Surface
+        and then S.Cached_Revision = Id and then S.Cached_Ink = S.Show_Ink
+      then
+         return;
+      end if;
+      Clear_Display (S);
+      Compose (S, Id, Image, S.Show_Ink);
       S.Image_Surface := Composite.Display_Surface (Image);
       S.Cached_Revision := Id;
       S.Cached_Ink := S.Show_Ink;

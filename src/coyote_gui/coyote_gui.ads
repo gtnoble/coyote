@@ -11,6 +11,8 @@ with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with LLM.Model_Registry;
 
+with LLM.Types;
+
 package Coyote_GUI is
 
    --  Tool status shared by native cards and the GTK update queue.
@@ -208,6 +210,8 @@ package Coyote_GUI is
       Reset_Agents,
       Set_Session_Identity,
       Resume_Canvas,
+      Canvas_Prompt_Result,
+      Canvas_Model,
       Set_Completion_Notifications,
       Completion_Notification,
       Show_Detail,
@@ -230,6 +234,8 @@ package Coyote_GUI is
       Text5            : Ada.Strings.Unbounded.Unbounded_String;
       Text6            : Ada.Strings.Unbounded.Unbounded_String;
       Text7            : Ada.Strings.Unbounded.Unbounded_String;
+      Images           : LLM.Types.User_Images.Vector;
+      Request_Id       : Natural := 0;
       Tool_Turn        : Natural           := 0;
       Tool_Call        : Natural           := 0;
       Context_Tokens   : Natural           := 0;

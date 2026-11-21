@@ -7,6 +7,8 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 
+with LLM.User_Images;
+
 package body LLM.Compaction is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
@@ -247,6 +249,10 @@ package body LLM.Compaction is
          case Block.Kind is
             when LLM.Types.Text_Block =>
                Characters := Characters + Length (Block.Text);
+            when LLM.Types.User_Image_Block =>
+               Characters := Characters + 4 *
+                 (85 + 170 * ((Block.Image.Width + 511) / 512) *
+                              ((Block.Image.Height + 511) / 512));
             when LLM.Types.Thinking_Block =>
                Characters := Characters + Length (Block.Thinking);
             when LLM.Types.Tool_Call_Block =>
@@ -366,16 +372,19 @@ package body LLM.Compaction is
             if Msg.Role = LLM.Types.User then
                declare
                   Text : Unbounded_String;
+                  Number : Natural := 0;
                begin
                   for Block of Msg.Content loop
                      if Block.Kind = LLM.Types.Text_Block then
                         Append_With_Separator
-                          (Target    => Text,
-                           Fragment  => To_String (Block.Text),
-                           Separator => "" & ASCII.LF);
+                          (Text, To_String (Block.Text), "" & ASCII.LF);
+                     elsif Block.Kind = LLM.Types.User_Image_Block then
+                        Number := Number + 1;
+                        Append_With_Separator
+                          (Text, LLM.User_Images.Marker (Block.Image, Number),
+                           "" & ASCII.LF);
                      end if;
                   end loop;
-
                   Append_Line (Serialized, "[User]: " & To_String (Text));
                end;
             elsif Msg.Role = LLM.Types.Assistant then

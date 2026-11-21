@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.56
+**Version:** 1.57
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -13,9 +13,9 @@ Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
 Development builds include additive CLI dispatch, legacy session listing
 parity and the modeless Canvas with native-size GUI file batches, PNG/JPEG
 clipboard import, GTK autosave and reopen, shared writer exclusion, and
-Canvas-aware session-store forks and deletion, and scoped shell import
-(§5.51). Attachment submission/replay and desktop qualification remain
-pending.
+Canvas-aware forks and deletion, scoped shell import, and typed native-size
+attachment submission and replay (§5.51). Desktop and live-provider
+qualification remain pending.
 
 **Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
@@ -561,7 +561,9 @@ not wait for the complete user turn.
 | `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging and no-replace publication for new JSONL files. |
 | `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Save immutable source rasters before the manifest; full restore and selected-revision fork restore verify the rasters they need. |
 | `Coyote_Canvas_Recovery_Tests` (`test/src/coyote_canvas_recovery_tests.ads/.adb`) | Exact raster and revision round trips, invalid-input rollback, and private sidecar behavior. |
-| `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition/cache misses run on GTK and attachment staging remains planned. |
+| `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition, attachment freezing, and display-cache misses run on GTK. |
+| `LLM.User_Images` (`src/llm/llm-user_images.ads/.adb`) | Native PNG block validation, ordered references, wire budgets, and v3 JSON encoding/decoding. |
+| `Coyote_App.Frontend` (`src/coyote_app-frontend.ads/.adb`) | Shared frontend contract; non-GTK presentation describes typed attachments without uploading or displaying extra images. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
@@ -1427,10 +1429,10 @@ process-group leader used by `kill(-pid, SIGKILL)` for the complete tree.
 
 ### 5.11 `LLM.Session_Store`
 
-**Planned Canvas extension:** Preserve exact user-image blocks in v3 and
-retain editable revision assets separately. The existing writer still creates
-legacy v1 headers; the v3 transition, retained bytes, and legacy-read policy
-are specified in [SDD-CANVAS §5.2](coyote-canvas-design.md#52-persistence-and-recovery).
+**Canvas user images:** New sessions use v3. Under the session writer guard,
+the first image append to a v1 log validates and stages a v3 replacement with
+the image turn included. Existing editable revision assets remain separate.
+See [JSONL session format](../docs/session-format.md) for the block schema.
 
 **Purpose:** JSONL session file creation, append, and reload.
 
@@ -3131,7 +3133,7 @@ strokes keep their original source coordinates. A view transform never edits
 drawing pixels. Close hides the workspace; session reset clears the live
 model and releases its Canvas writer lease. Session switch and exit flush
 writable changes or ask before discarding them. Authorized command-line
-import is available; attaching and sending user images are not.
+import and local GTK attachment submission are available.
 
 **Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`
 rasterizes stored ink into an A8 Cairo mask on the original pixel grid and
@@ -3301,8 +3303,28 @@ are optional bounded fields on Original nodes in the recovery manifest.
 The worker can initialize recovery before any Canvas window is created.
 Failed commits publish no live additions; an uncertain manifest rename is
 adopted as visible but is not acknowledged as durable. Memory-only bindings
-never write a sidecar. Attachment staging, replay, and hardware qualification
-remain pending.
+never write a sidecar.
+
+**Native-size user attachments.** Attach checkpoints a changed working copy
+or uses the selected saved rows in tree order. It freezes lossless PNGs from
+the canonical composite, separate from the display surface and zoom; durable
+Canvas revisions are saved before staging. The composer holds at most eight
+PNGs, 8 MiB each and 16 MiB total. A complete typed item, bound to its session
+and request ID, queues for the local root agent. The prompt filter sees text
+only. Unsupported models, queue refusal, and provider rejection do not
+silently discard image content. A rejected draft can be restored separately
+from newer text. Only one image prompt per composer may await its outcome.
+
+The agent checks model support and retained history. The three wire builders
+keep user-image blocks distinct from tool results, add numbered markers, and
+reject image-bearing requests beyond 32 MiB of serialized JSON before sending.
+After payload checks and before HTTP, the first provider-start event commits
+and syncs the image turn. Provider rejection does not remove a committed turn
+or fall back to text-only. Compaction sends descriptive markers to the
+summarizer and retains the exact blocks inside each keep boundary. Replay
+uses inline PNG bytes, with display-only thumbnails and stable revision links.
+Attachment encoding and replay thumbnail decode still execute on GTK;
+large-batch responsiveness and provider-specific limits are not qualified.
 
 [SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
 interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file
@@ -3343,7 +3365,7 @@ planned qualification; no end-to-end qualification or product acceptance is clai
 | REQ-CORE-113f–113i | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Sandbox_Profile_Window`, `Coyote_GUI.Prompt_Queue`, `LLM.Tools.Sandbox` |
 | REQ-CORE-235 | `LLM.Tools.Sandbox`, `LLM.Settings`, `LLM.Tools.Shell` |
 | REQ-CORE-260–262, 270–271 (planned) | `Coyote_GUI.Canvas`, `Coyote_Canvas.Document`, `Images`, `Store`; SDD-CANVAS §§4–5 |
-| REQ-CORE-263–266 (planned) | `Coyote_GUI.Canvas`, `Prompt_Queue`, `Coyote_App`, `LLM.Agent`, `LLM.Types`, adapter delegates, `Session_Store`, `History`, `Compaction`, Canvas `Store`; SDD-CANVAS §§5–6 |
+| REQ-CORE-263–266 | `Coyote_GUI.Canvas`, `Prompt_Queue`, `Coyote_App`, `LLM.Agent`, `LLM.Types`, adapter delegates, `Session_Store`, `History`, `Compaction`, Canvas `Store`; SDD-CANVAS §§5–6 |
 | REQ-CORE-267 (planned) | Canvas `Import_Service`, `Images`, `LLM.Tools.Shell`; SDD-CANVAS §§2–3, 5 |
 | REQ-CORE-268–269 (planned follow-on) | `Coyote_GUI.Canvas`, Canvas `Import_Service`, `Document`, `Store`; SDD-CANVAS §8 |
 

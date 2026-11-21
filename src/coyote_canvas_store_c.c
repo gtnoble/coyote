@@ -504,6 +504,48 @@ int coyote_session_publish(const char *stage, const char *target)
    return 0;
 }
 
+/* Caller holds the existing session guard. */
+int coyote_session_sync(const char *target)
+{
+   int fd = open(target, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+   if (fd < 0)
+      return 2;
+   struct stat st;
+   int result = fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && fsync(fd) == 0;
+   return close(fd) == 0 && result ? 0 : 2;
+}
+
+/* Caller holds the existing session guard. Do not replace aliased logs. */
+int coyote_session_replace(const char *stage, const char *target)
+{
+   struct stat st;
+   if (lstat(target, &st) || !S_ISREG(st.st_mode) || st.st_nlink != 1 ||
+       st.st_uid != geteuid())
+      return 2;
+   int fd = open(stage, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+   if (fd < 0)
+      return 2;
+   int result = fsync(fd);
+   if (close(fd) < 0 || result < 0)
+      return 2;
+   char *parent = strdup(target);
+   if (parent == NULL)
+      return 2;
+   char *last = strrchr(parent, '/');
+   if (last == NULL) {
+      free(parent);
+      return 2;
+   }
+   last[1] = '\0';
+   int dir = open(parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+   free(parent);
+   if (dir < 0)
+      return 2;
+   result = rename(stage, target) < 0 ? 2 : (fsync(dir) < 0 ? 3 : 0);
+   close(dir);
+   return result;
+}
+
 /* Callers hold the session transaction guard. A new fork must not adopt or
  * overwrite an existing sidecar, even if its JSONL does not exist. */
 int coyote_canvas_reserve_fork(const char *parent, const char *uuid)

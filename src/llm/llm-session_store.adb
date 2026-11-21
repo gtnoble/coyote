@@ -21,11 +21,13 @@ with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with Interfaces;
 with Session_Lister;
+with LLM.User_Images;
 
 package body LLM.Session_Store is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
+   use type LLM.Types.Role;
 
    subtype Byte is Interfaces.Unsigned_8;
    use type Byte;
@@ -271,9 +273,32 @@ package body LLM.Session_Store is
       end case;
    end Require_Writer;
 
+   function Read_Line (File : Ada.Text_IO.File_Type) return Unbounded_String;
+
+   function Wrap_Message (Msg : GNATCOLL.JSON.JSON_Value)
+      return GNATCOLL.JSON.JSON_Value is
+      use GNATCOLL.JSON;
+      Envelope : constant JSON_Value := Create_Object;
+   begin
+      Envelope.Set_Field ("type", "message");
+      Envelope.Set_Field ("message", Msg);
+      return Envelope;
+   end Wrap_Message;
+
+   function ISO_Date (Ms : Long_Long_Integer) return String is
+      use Ada.Calendar;
+      Result : String := Ada.Calendar.Formatting.Image
+        (Time_Of (1970, 1, 1) + Duration (Long_Long_Float (Ms) / 1_000.0),
+         Include_Time_Fraction => True);
+   begin
+      Result (11) := 'T';
+      return Result & "Z";
+   end ISO_Date;
+
    procedure Write_Raw_Line
      (Path, Line : String; Mode : Ada.Streams.Stream_IO.File_Mode;
-      Fresh : Boolean := False)
+      Fresh : Boolean := False; Message : Boolean := False;
+      Image_Turn : Boolean := False; Session_Id : String := "")
    is
       Resolved : constant String :=
         (if Fresh then Tx.Resolve (Ada.Directories.Containing_Directory (Path))
@@ -285,14 +310,96 @@ package body LLM.Session_Store is
       Accepted : Boolean := False;
       Stage    : Unbounded_String;
       Status   : Tx.Result;
+      Input    : Ada.Text_IO.File_Type;
+      Payload  : Unbounded_String := To_Unbounded_String (Line);
+      Migrate  : Boolean := False;
+      Uncertain : Boolean := False;
+      procedure Put (Text : String) is
+      begin
+         String'Write (Stream, Text);
+         Character'Write (Stream, ASCII.LF);
+      end Put;
    begin
       Require_Writer (Resolved, Lock);
       Coyote_Process_Control.Begin_Persistence_Write (Accepted);
       if not Accepted then
-         if Fresh then
+         if Fresh or else Image_Turn then
             raise Session_Error with "Session persistence is frozen";
          end if;
          return;
+      end if;
+      if Message then
+         declare
+            use GNATCOLL.JSON;
+         begin
+            Ada.Text_IO.Open (Input, Ada.Text_IO.In_File, Resolved);
+            declare
+               Header : constant Read_Result := Read (To_String (Read_Line (Input)));
+               V : constant Natural :=
+                 (if Header.Success then Get_Natural_Field (Header.Value, "version")
+                  else 0);
+               Is_V3 : constant Boolean := V = 3 and then
+                 Get_String_Field (Header.Value, "type") = "session";
+            begin
+               if Image_Turn and then (not Header.Success or else
+                  Get_String_Field (Header.Value, "id") /= Session_Id or else
+                  Tx.Identity (Resolved) /= Session_Id or else Path /= Resolved or else
+                  (not Is_V3 and then V /= 1))
+               then
+                  raise Session_Error with "Cannot validate session for Canvas images";
+               end if;
+               Migrate := Image_Turn and then not Is_V3;
+               if Migrate or else Is_V3 then
+                  Payload := To_Unbounded_String (Write (Wrap_Message (Read (Line))));
+               end if;
+               if Migrate then
+                  declare
+                     H : constant JSON_Value := Header.Value;
+                     Ms : constant Long_Long_Integer := Get (H.Get ("createdAt"));
+                     Work : constant String := Get_String_Field (H, "workDir");
+                  begin
+                     if Work = "" or else Ms <= 0 then
+                        raise Session_Error with "Invalid legacy session header";
+                     end if;
+                     H.Set_Field ("version", Integer (3));
+                     H.Set_Field ("type", "session");
+                     H.Set_Field ("timestamp", ISO_Date (Ms));
+                     H.Set_Field ("cwd", Work);
+                     Stage := To_Unbounded_String (Tx.Create_Stage (Resolved));
+                     if Length (Stage) = 0 then
+                        raise Session_Error with "Cannot stage Canvas session migration";
+                     end if;
+                     Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.Out_File,
+                                                 To_String (Stage));
+                     Stream := Ada.Streams.Stream_IO.Stream (File);
+                     Put (Write (H));
+                     while not Ada.Text_IO.End_Of_File (Input) loop
+                        declare
+                           Raw : constant String := To_String (Read_Line (Input));
+                        begin
+                           if Raw'Length > 0 then
+                              declare
+                                 Rec : constant JSON_Value := Read (Raw);
+                                 Role : constant String := Get_String_Field (Rec, "role");
+                              begin
+                                 if Rec.Kind /= JSON_Object_Type then
+                                    raise Session_Error with "Invalid legacy session record";
+                                 elsif Role = "user" or else Role = "assistant"
+                                   or else Role = "toolResult"
+                                 then
+                                    Put (Write (Wrap_Message (Rec)));
+                                 else
+                                    Put (Raw);
+                                 end if;
+                              end;
+                           end if;
+                        end;
+                     end loop;
+                  end;
+               end if;
+            end;
+            Ada.Text_IO.Close (Input);
+         end;
       end if;
       if Fresh then
          Stage := To_Unbounded_String (Tx.Create_Stage (Resolved));
@@ -300,22 +407,33 @@ package body LLM.Session_Store is
             raise Session_Error with "Cannot stage session header";
          end if;
          Ada.Streams.Stream_IO.Open (File, Mode, To_String (Stage));
-      else
+      elsif not Migrate then
          Ada.Streams.Stream_IO.Open (File, Mode, Resolved);
       end if;
       Stream := Ada.Streams.Stream_IO.Stream (File);
-      String'Write (Stream, Line);
-      Character'Write (Stream, ASCII.LF);
+      Put (To_String (Payload));
       Ada.Streams.Stream_IO.Close (File);
       if Fresh then
          Tx.Publish (To_String (Stage), Resolved, Status);
          if Status /= Tx.Acquired then
             raise Session_Error with "Cannot publish session header";
          end if;
+      elsif Migrate then
+         Tx.Replace_Log (To_String (Stage), Resolved, Status, Uncertain);
+         if Uncertain then
+            raise Session_Error with "Canvas session migration published; durability uncertain";
+         elsif Status /= Tx.Acquired then
+            raise Session_Error with "Cannot publish Canvas session migration";
+         end if;
+      elsif Image_Turn and then not Tx.Sync_Log (Resolved) then
+         raise Session_Error with "Canvas record may have been written; durability uncertain";
       end if;
       Coyote_Process_Control.End_Persistence_Write;
    exception
       when others =>
+         if Ada.Text_IO.Is_Open (Input) then
+            Ada.Text_IO.Close (Input);
+         end if;
          if Ada.Streams.Stream_IO.Is_Open (File) then
             begin
                Ada.Streams.Stream_IO.Close (File);
@@ -366,16 +484,6 @@ package body LLM.Session_Store is
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => To_Unbounded_String (""));
    end Compaction_Summary_Message;
-
-   procedure Append_Vector
-     (Target : in out LLM.Types.Message_Vectors.Vector;
-      Source :        LLM.Types.Message_Vectors.Vector)
-   is
-   begin
-      for Msg of Source loop
-         Target.Append (Msg);
-      end loop;
-   end Append_Vector;
 
    procedure Append_Kept_Messages
      (Target           : in out LLM.Types.Message_Vectors.Vector;
@@ -448,6 +556,8 @@ package body LLM.Session_Store is
                      Item.Set_Field ("text", To_String (Block.Text));
                      GNATCOLL.JSON.Append (Result, Item);
                   end;
+               elsif Block.Kind = LLM.Types.User_Image_Block then
+                  GNATCOLL.JSON.Append (Result, LLM.User_Images.To_JSON (Block.Image));
                end if;
 
             when LLM.Types.Assistant =>
@@ -653,6 +763,8 @@ package body LLM.Session_Store is
       Content : LLM.Types.Content_Block_Vectors.Vector;
       Blocks  : constant GNATCOLL.JSON.JSON_Array :=
         Get_Array_Field (Msg, "content");
+      Images : LLM.Types.User_Images.Vector;
+      Total : Natural := 0;
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
@@ -664,6 +776,20 @@ package body LLM.Session_Store is
                  ((Kind => LLM.Types.Text_Block,
                    Text =>
                      To_Unbounded_String (Get_String_Field (Block, "text"))));
+            elsif Get_String_Field (Block, "type") = "image" then
+               if Natural (Images.Length) >= LLM.User_Images.Max_Count then
+                  raise LLM.User_Images.Invalid_Image with "Too many stored Canvas images";
+               end if;
+               declare
+                  Image : constant LLM.Types.User_Image := LLM.User_Images.From_JSON (Block);
+               begin
+                  Total := Total + Length (Image.PNG);
+                  if Total > LLM.User_Images.Max_Turn then
+                     raise LLM.User_Images.Invalid_Image with "Stored Canvas turn exceeds byte limit";
+                  end if;
+                  Images.Append (Image);
+                  Content.Append ((Kind => LLM.Types.User_Image_Block, Image => Image));
+               end;
             end if;
          end;
       end loop;
@@ -849,7 +975,10 @@ package body LLM.Session_Store is
               Long_Integer (Current_Unix_Milliseconds);
          begin
             if not Ada.Directories.Exists (Path) then
-               Header.Set_Field ("version", Integer (1));
+               Header.Set_Field ("version", Integer (3));
+               Header.Set_Field ("type", "session");
+               Header.Set_Field ("timestamp", ISO_Date (Long_Long_Integer (Created_At)));
+               Header.Set_Field ("cwd", Cwd);
                Header.Set_Field ("id", Session_Id);
                Header.Set_Field ("createdAt", Created_At);
                Header.Set_Field ("workDir", Cwd);
@@ -986,6 +1115,14 @@ package body LLM.Session_Store is
    procedure Append_Message (Session_Id : String; Msg : LLM.Types.Message) is
       Path : constant String := Session_File_Path (Session_Id);
    begin
+      if LLM.User_Images.Has_Images (Msg) then
+         declare
+            Messages : LLM.Types.Message_Vectors.Vector;
+         begin
+            Messages.Append (Msg);
+            LLM.User_Images.Check_History (Messages);
+         end;
+      end if;
       if Path'Length = 0 then
          raise Session_Error
            with "Append_Message: session file not found for " & Session_Id;
@@ -994,7 +1131,8 @@ package body LLM.Session_Store is
       Write_Raw_Line
         (Path => Path,
          Line => Message_To_Json (Msg),
-         Mode => Ada.Streams.Stream_IO.Append_File);
+         Mode => Ada.Streams.Stream_IO.Append_File, Message => True,
+         Image_Turn => LLM.User_Images.Has_Images (Msg), Session_Id => Session_Id);
    exception
       when Session_Error =>
          raise;
@@ -1086,7 +1224,8 @@ package body LLM.Session_Store is
          Ada.Text_IO.Close (File);
 
          if Parsed.Success then
-            return Get_String_Field (Parsed.Value, "workDir");
+            return Get_String_Field (Parsed.Value, "workDir",
+                                     Get_String_Field (Parsed.Value, "cwd"));
          end if;
       end;
 
@@ -1133,6 +1272,8 @@ package body LLM.Session_Store is
                  Ada.Calendar.Formatting.Local_Image
                    (Created, Include_Time_Fraction => False);
             end;
+         elsif Parsed.Success then
+            return Get_String_Field (Parsed.Value, "timestamp");
          end if;
       end;
       return "";
@@ -1181,15 +1322,11 @@ package body LLM.Session_Store is
    is
       Path               : constant String := Session_File_Path (Session_Id);
       Result             : LLM.Types.Message_Vectors.Vector;
-      Pre_Messages       : LLM.Types.Message_Vectors.Vector;
-      Post_Messages      : LLM.Types.Message_Vectors.Vector;
       File               : Ada.Text_IO.File_Type;
       Line_N             : Natural         := 0;
-      Compaction_Found   : Boolean         := False;
-      Compaction_Summary : Unbounded_String;
-      First_Kept         : Natural         := 0;
       Current_Provider   : Unbounded_String;
       Current_Model      : Unbounded_String;
+      Strict             : Boolean := False;
    begin
       if Path'Length = 0 or else not Ada.Directories.Exists (Path) then
          return Result;
@@ -1203,7 +1340,16 @@ package body LLM.Session_Store is
          begin
             Line_N := Line_N + 1;
 
-            if Line_N = 1 or else Line'Length = 0 then
+            if Line_N = 1 then
+               declare
+                  Header : constant GNATCOLL.JSON.Read_Result := GNATCOLL.JSON.Read (Line);
+               begin
+                  --  A legacy reader may skip malformed historical lines.
+                  --  Coyote-written v3 logs must never silently lose a turn.
+                  Strict := Header.Success and then
+                    Get_Natural_Field (Header.Value, "version") = 3;
+               end;
+            elsif Line'Length = 0 then
                null;
             else
                declare
@@ -1222,18 +1368,21 @@ package body LLM.Session_Store is
                           Get_String_Field (Msg, "role");
                      begin
                         if Record_Type = "compaction" then
-                           if Compaction_Found then
-                              Pre_Messages.Clear;
-                              Post_Messages.Clear;
-                           end if;
-
-                           Compaction_Found   := True;
-                           Compaction_Summary :=
-                             To_Unbounded_String
-                               (Get_String_Field (Envelope, "summary"));
-                           First_Kept         :=
-                             Get_Natural_Field
-                               (Envelope, "firstKeptMessageIndex");
+                           declare
+                              Tail : LLM.Types.Message_Vectors.Vector;
+                              First_Kept : Natural := Get_Natural_Field
+                                (Envelope, "firstKeptMessageIndex");
+                           begin
+                              if First_Kept = 0 and then not Result.Is_Empty
+                                and then Result.First_Element.Role = LLM.Types.Compaction_Summary
+                              then
+                                 First_Kept := 1;
+                              end if;
+                              Tail.Append (Compaction_Summary_Message
+                                (Get_String_Field (Envelope, "summary")));
+                              Append_Kept_Messages (Tail, Result, First_Kept);
+                              LLM.Types.Message_Vectors.Move (Result, Tail);
+                           end;
                         elsif Record_Type = "model_change" then
                            Current_Provider :=
                              To_Unbounded_String
@@ -1272,15 +1421,13 @@ package body LLM.Session_Store is
                               if Role = "user" or else Role = "assistant"
                                 or else Role = "toolResult"
                               then
-                                 if Compaction_Found then
-                                    Post_Messages.Append (Parsed_Message);
-                                 else
-                                    Pre_Messages.Append (Parsed_Message);
-                                 end if;
+                                 Result.Append (Parsed_Message);
                               end if;
                            end;
                         end if;
                      end;
+                  elsif Strict then
+                     raise Session_Error with "Invalid JSONL line in Canvas session";
                   end if;
                end;
             end if;
@@ -1289,23 +1436,13 @@ package body LLM.Session_Store is
 
       Ada.Text_IO.Close (File);
 
-      if Compaction_Found then
-         Result.Append
-           (Compaction_Summary_Message (To_String (Compaction_Summary)));
-         Append_Kept_Messages (Result, Pre_Messages, First_Kept);
-         Append_Vector (Result, Post_Messages);
-      else
-         Append_Vector (Result, Pre_Messages);
-      end if;
-
       return Result;
    exception
-      when others =>
+      when Ex : others =>
          if Ada.Text_IO.Is_Open (File) then
             Ada.Text_IO.Close (File);
          end if;
-
-         return Result;
+         raise Session_Error with "Cannot replay session: " & Ada.Exceptions.Exception_Message (Ex);
    end Load_Messages;
 
 end LLM.Session_Store;

@@ -1,5 +1,20 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Local Canvas attachment composer and replay (PCR-130)
+
+Attach freezes saved revisions or the working copy in native-size PNGs. The
+composer supports image-only turns, ordering, removal, and revision links.
+A failed request can restore its text and attachments without overwriting
+newer text. Conversation thumbnails use the frozen PNG but never alter the
+submitted bytes; there is no outgoing preview.
+
+The display-backed case verifies disabled Attach during crop, tree order,
+manual reorder, preservation through Undo, unsupported-model retention,
+image-only handoff, rejected-draft restoration, and Show in Canvas. The serial
+Xvfb suite passed 1,120/1,120; standalone GTK checks passed 9/9 and the runner
+containment self-test passed. Intuos, Wayland, and large-batch responsiveness
+remain unqualified.
+
 ## 2026-11-21 — Background shell additions to Canvas (PCR-130)
 
 The bounded worker decodes ordered bytes for the originating Canvas. A

@@ -24,6 +24,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Glib;                  use Glib;
 with LLM.Agent;
+with LLM.Types;
 with LLM.Model_Registry;
 with Coyote_GUI.Canvas;
 with Coyote_Canvas.Import_Service;
@@ -36,6 +37,7 @@ with Coyote_GUI.Updates;
 with Coyote_App.Agent_Registry;
 with Coyote_App.Agent_RPC.Service;
 with Gtk.Accel_Group;
+with Gtk.Combo_Box_Text;
 with Gtk.Box;
 with Gtk.Tree_Model;
 with Gtk.Tree_Store;
@@ -220,6 +222,12 @@ package Coyote_App.Frontend.GUI is
       Target : out Coyote_Canvas.Import_Service.Endpoint);
 
    procedure Resume_Canvas (F : in out Instance);
+   procedure Canvas_Model (F : in out Instance; Supported : Boolean);
+   procedure Canvas_Prompt_Result
+     (F : in out Instance; Session : String; Request_Id : Natural;
+      Accepted : Boolean);
+   overriding procedure Begin_Image_Request
+     (F : in out Instance; Text : String; Images : LLM.Types.User_Images.Vector);
 
    --  Request a forced model catalogue refresh from the Agent_Task.
    procedure Request_Model_Refresh (F : in out Instance);
@@ -340,6 +348,19 @@ private
       Canvas_Publication      : aliased Coyote_Canvas.Import_Service.Binding;
       Canvas_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Canvas_Transition       : Boolean := False;
+      Canvas_Session          : Unbounded_String;
+      Canvas_Model_OK         : Boolean := False;
+      Attachments             : LLM.Types.User_Images.Vector;
+      Attachment_Text         : Unbounded_String;
+      Attachment_Serial       : Natural := 0;
+      Attachment_Pending      : Boolean := False;
+      Attachment_Rejected     : Boolean := False;
+      Attachment_Panel        : Gtk.Box.Gtk_Box;
+      Attachment_Label        : Gtk.Label.Gtk_Label;
+      Attachment_Choice       : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Attachment_Note         : Gtk.Label.Gtk_Label;
+      Attachment_Up, Attachment_Down, Attachment_Remove,
+        Attachment_Show, Attachment_Restore : Gtk.Button.Gtk_Button;
       Stats_Window            : Coyote_GUI.Session_Stats_Window.Instance;
       Sandbox_Profile_Window  : aliased Coyote_GUI.Sandbox_Profile_Window
         .Instance;

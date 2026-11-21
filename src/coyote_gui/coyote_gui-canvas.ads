@@ -21,6 +21,7 @@ with Gtk.Tree_Store;
 with Gtk.Tree_Model;
 with Gtk.Menu_Item;
 with Gtk.Window;
+with LLM.Types;
 
 --  A modeless workspace. Only the GTK task accesses the instance.
 package Coyote_GUI.Canvas is
@@ -29,6 +30,13 @@ package Coyote_GUI.Canvas is
    procedure Show
      (S      : aliased in out Instance;
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class);
+   type Attach_Handler is access function
+     (Images : LLM.Types.User_Images.Vector) return Boolean;
+   procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler);
+   procedure Reveal
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Drawing_Id, Revision_Id : String);
    --  An empty directory selects memory-only mode. A changed binding must
    --  follow Reset. The manifest is opened lazily when Canvas is shown.
    procedure Bind (S : aliased in out Instance; Parent, UUID : String;
@@ -77,6 +85,9 @@ private
       Publication : Coyote_Canvas.Import_Service.Binding_Access;
       Import_Timer : Glib.Main.G_Source_Id := 0;
       Import_Count : Natural := 0;
+      Attach_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      On_Attach : Attach_Handler;
+      Reveal_Drawing, Reveal_Revision : Ada.Strings.Unbounded.Unbounded_String;
       Import_Bytes : Natural := 0;
       Import_Reply : Ada.Strings.Unbounded.Unbounded_String;
       Import_Labels : Coyote_Canvas.Import_Service.Text_List

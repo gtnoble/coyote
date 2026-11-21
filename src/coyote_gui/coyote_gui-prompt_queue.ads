@@ -10,6 +10,7 @@ with Ada.Strings.Unbounded;
 with LLM.Compaction;
 with LLM.Providers;
 with LLM.Settings;
+with LLM.Types;
 
 package Coyote_GUI.Prompt_Queue is
 
@@ -39,6 +40,7 @@ package Coyote_GUI.Prompt_Queue is
 
    type Item_Kind is
      (User_Prompt,       --  text typed by the user; forward to LLM
+      Canvas_Prompt,     --  local root only; frozen ordered images
       Stop,              --  abort the current response
       Pause,             --  pause after the current tool call
       Resume,            --  resume from pause
@@ -69,6 +71,10 @@ package Coyote_GUI.Prompt_Queue is
       case Kind is
          when User_Prompt =>
             Text : Ada.Strings.Unbounded.Unbounded_String;
+         when Canvas_Prompt =>
+            Canvas_Text, Canvas_Session : Ada.Strings.Unbounded.Unbounded_String;
+            Request_Id : Natural;
+            Images : LLM.Types.User_Images.Vector;
          when Set_Model =>
             Model_Spec : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Subagent_Model =>
@@ -114,6 +120,7 @@ package Coyote_GUI.Prompt_Queue is
       Head    : Natural := 1;
       Count   : Natural := 0;
       Stopped : Boolean := False;
+      Image_Bytes : Natural := 0;
    end Queue;
 
 end Coyote_GUI.Prompt_Queue;

@@ -26,9 +26,16 @@ package LLM.Types is
       Result_Timed_Out,
       Result_Cancelled);
 
+   type User_Image is record
+      PNG, Label, Drawing_Id, Revision_Id : Ada.Strings.Unbounded.Unbounded_String;
+      Width, Height : Natural := 0;
+   end record;
+   package User_Images is new Ada.Containers.Vectors (Positive, User_Image);
+
    --  Variant kind for one content block inside a message.
    type Content_Block_Kind is
      (Text_Block,
+      User_Image_Block,
       Thinking_Block,
       Tool_Call_Block,
       Tool_Result_Block);
@@ -38,6 +45,8 @@ package LLM.Types is
       case Kind is
          when Text_Block =>
             Text : Ada.Strings.Unbounded.Unbounded_String;
+         when User_Image_Block =>
+            Image : User_Image;
          when Thinking_Block =>
             Thinking        : Ada.Strings.Unbounded.Unbounded_String;
             Signature       : Ada.Strings.Unbounded.Unbounded_String;

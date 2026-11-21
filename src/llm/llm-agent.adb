@@ -26,6 +26,7 @@ with LLM.Providers.OpenAI_Completions;
 with LLM.Providers.OpenAI_Responses;
 with LLM.Settings;
 with LLM.System_Prompt;
+with LLM.User_Images;
 with Coyote_Utils;
 with LLM.Tools;
 with LLM.Tools.Shell;
@@ -1155,6 +1156,19 @@ package body LLM.Agent is
       Emit (On_Event, Event);
    end Emit_Context_Update;
 
+   function Supports_User_Images (Info : LLM.Model_Registry.Model_Info)
+      return Boolean is
+      P : constant String := Lowercase (To_String (Info.Provider));
+   begin
+      return Info.Supports_Images and then
+        (P = "openai" or else P = "codex" or else P = "openrouter" or else
+         P = "ollama" or else P = "github-copilot" or else P = "opencode-go"
+         or else P = "anthropic");
+   end Supports_User_Images;
+
+   function Supports_User_Images (S : Session) return Boolean is
+     (Supports_User_Images (S.Model_Info));
+
    procedure Set_Model_Internal (S : in out Session; Spec : String) is
    begin
       S.Model_Info := Resolved_Model_Info (Spec);
@@ -1209,7 +1223,8 @@ package body LLM.Agent is
       Tools_Json    :        String;
       Builder       : in out Assistant_Builder;
       Pending_Tools : in out Pending_Tool_Vectors.Vector;
-      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class))
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class);
+      Before_Send : not null access procedure)
    is
       Delays_Ms                   : constant array (Positive range 1 .. 3)
         of Natural :=
@@ -1265,9 +1280,9 @@ package body LLM.Agent is
          if S.Abort_State.Requested then
             raise LLM.HTTP.Curl_Error with "aborted";
          end if;
-         if E in LLM.Events.Agent_Start_Event
-           or else E in LLM.Events.Agent_End_Event
-         then
+         if E in LLM.Events.Agent_Start_Event then
+            Before_Send.all;
+         elsif E in LLM.Events.Agent_End_Event then
             null;
          elsif E in LLM.Events.Message_Update_Event then
             declare
@@ -1390,6 +1405,7 @@ package body LLM.Agent is
                         end if;
                         exit Attempt_Loop;
                      elsif Is_Context_Overflow_Error (Error_Text (Occurrence))
+                       and then not LLM.User_Images.Has_Images (S.History)
                      then
                         if Overflow_Recovery_Attempted then
                            declare
@@ -1604,9 +1620,10 @@ package body LLM.Agent is
            LLM.Compaction.Estimate_Context_Tokens (S.History);
          S.Has_Submitted_Prompts := True;
       else
-         S.Session_UUID          :=
-           To_Unbounded_String
-             (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
+         S.Session_UUID := To_Unbounded_String
+           ((if Ada.Environment_Variables.Value ("COYOTE_NO_SESSION", "") = "1"
+             then LLM.Session_Store.New_UUID
+             else LLM.Session_Store.Create_Session (To_String (S.Cwd))));
          S.Has_Submitted_Prompts := False;
       end if;
 
@@ -1703,6 +1720,10 @@ package body LLM.Agent is
       then
          Previous_Summary :=
            To_Unbounded_String (Message_Text (S.History.First_Element));
+      end if;
+
+      if Cut = 0 and then Length (Previous_Summary) /= 0 then
+         Cut := 1;
       end if;
 
       if Cut > 0 then
@@ -1872,11 +1893,13 @@ package body LLM.Agent is
            (if S.Last_Context_Tokens > 0 then S.Last_Context_Tokens
             else LLM.Compaction.Estimate_Context_Tokens (S.History));
       begin
-         LLM.Session_Store.Append_Compaction
-           (Session_Id       => To_String (S.Session_UUID),
-            Summary          => Stripped_Summary,
-            First_Kept_Index => Cut,
-            Tokens_Before    => Tokens_Before);
+         if Ada.Environment_Variables.Value ("COYOTE_NO_SESSION", "") /= "1" then
+            LLM.Session_Store.Append_Compaction
+              (Session_Id       => To_String (S.Session_UUID),
+               Summary          => Stripped_Summary,
+               First_Kept_Index => Cut,
+               Tokens_Before    => Tokens_Before);
+         end if;
       end;
 
       declare
@@ -1916,9 +1939,10 @@ package body LLM.Agent is
                 (Ada.Exceptions.Exception_Message (Occurrence)));
    end Compact;
 
-   procedure Run_Prompt
+   procedure Run_Image_Prompt
      (S        : in out Session;
-      Prompt   :        String;
+      Prompt   : String;
+      Images   : LLM.Types.User_Images.Vector;
       On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class))
    is
       Builder                 : Assistant_Builder;
@@ -1930,12 +1954,23 @@ package body LLM.Agent is
         Prompt & ASCII.LF & ASCII.LF
         & LLM.System_Prompt.Build_Reminder_Instructions
           (Has_Tools => not S.No_Tools);
-      Prompt_Msg              : constant LLM.Types.Message :=
-        User_Message (Prompt_With_Reminder);
+      function Make_Message return LLM.Types.Message is
+         Msg : LLM.Types.Message := User_Message
+           ((if Images.Is_Empty then Prompt_With_Reminder else Prompt));
+      begin
+         for Image of Images loop
+            Msg.Content.Append
+              ((Kind => LLM.Types.User_Image_Block, Image => Image));
+         end loop;
+         return Msg;
+      end Make_Message;
+      Prompt_Msg : constant LLM.Types.Message := Make_Message;
       Was_Aborted             : Boolean                    := False;
       Turn_Completed_Normally : Boolean                    := False;
       Compact_OK              : Boolean                    := False;
       Had_Submitted_Prompts   : constant Boolean := S.Has_Submitted_Prompts;
+      Persist : constant Boolean :=
+        Ada.Environment_Variables.Value ("COYOTE_NO_SESSION", "") /= "1";
 
       procedure Append_Pending_Message (Msg : LLM.Types.Message) is
       begin
@@ -1962,11 +1997,24 @@ package body LLM.Agent is
       procedure Flush_Pending_Messages is
       begin
          while not Messages_To_Persist.Is_Empty loop
-            LLM.Session_Store.Append_Message
-              (To_String (S.Session_UUID), Messages_To_Persist.First_Element);
+            if Persist then
+               LLM.Session_Store.Append_Message
+                 (To_String (S.Session_UUID), Messages_To_Persist.First_Element);
+            end if;
             Messages_To_Persist.Delete_First;
          end loop;
       end Flush_Pending_Messages;
+
+      procedure Commit_Image_Prompt is
+      begin
+         --  The wire adapter emits Start after building and checking the
+         --  payload but before sending it. Retries must not append again.
+         if not Images.Is_Empty and then not Messages_To_Persist.Is_Empty
+           and then Messages_To_Persist.First_Element.Role = LLM.Types.User
+         then
+            Flush_Pending_Messages;
+         end if;
+      end Commit_Image_Prompt;
 
       procedure Roll_Back_Pending_Messages is
          Pending_Count : constant Ada.Containers.Count_Type :=
@@ -2010,15 +2058,30 @@ package body LLM.Agent is
          end if;
       end Maybe_Auto_Compact;
    begin
+      if not Images.Is_Empty or else LLM.User_Images.Has_Images (S.History) then
+         if not Supports_User_Images (S) then
+            raise LLM.User_Images.Invalid_Image with
+              "This model cannot receive Canvas images in this conversation";
+         end if;
+         LLM.User_Images.Check_Turn (Images);
+         declare
+            Candidate : LLM.Types.Message_Vectors.Vector := S.History;
+         begin
+            Candidate.Append (Prompt_Msg);
+            LLM.User_Images.Check_History (Candidate);
+         end;
+      end if;
+      if Persist then
+         LLM.Session_Store.Append_Model_Change
+           (Session_Id => To_String (S.Session_UUID),
+            Provider   => To_String (S.Model_Info.Provider),
+            Model_Id   => To_String (S.Model_Info.Model_Id));
+      end if;
       S.History.Append (Prompt_Msg);
       S.Has_Submitted_Prompts := True;
       Messages_To_Persist.Append (Prompt_Msg);
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);
-      LLM.Session_Store.Append_Model_Change
-        (Session_Id => To_String (S.Session_UUID),
-         Provider   => To_String (S.Model_Info.Provider),
-         Model_Id   => To_String (S.Model_Info.Model_Id));
 
       declare
          Model_Event : constant LLM.Events.Model_Select_Event :=
@@ -2088,7 +2151,8 @@ package body LLM.Agent is
                      Tools_Json    => Tools_Json,
                      Builder       => Builder,
                      Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
+                     On_Event      => On_Event,
+                     Before_Send   => Commit_Image_Prompt'Access);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) = "openrouter"
             then
@@ -2103,7 +2167,8 @@ package body LLM.Agent is
                      Tools_Json    => Tools_Json,
                      Builder       => Builder,
                      Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
+                     On_Event      => On_Event,
+                     Before_Send   => Commit_Image_Prompt'Access);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go"
             then
@@ -2118,7 +2183,8 @@ package body LLM.Agent is
                      Tools_Json    => Tools_Json,
                      Builder       => Builder,
                      Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
+                     On_Event      => On_Event,
+                     Before_Send   => Commit_Image_Prompt'Access);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
                declare
@@ -2134,7 +2200,19 @@ package body LLM.Agent is
                      Tools_Json    => Tools_Json,
                      Builder       => Builder,
                      Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
+                     On_Event      => On_Event,
+                     Before_Send   => Commit_Image_Prompt'Access);
+               end;
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "anthropic"
+            then
+               declare
+                  Provider : LLM.Providers.Anthropic_Messages.Provider :=
+                    LLM.Providers.Anthropic_Messages.Create
+                      ("https://api.anthropic.com",
+                       LLM.Settings.Resolve_Api_Key ("anthropic"));
+               begin
+                  Send_With_Retry (S, Provider, Tools_Json, Builder,
+                                   Pending_Tools, On_Event, Commit_Image_Prompt'Access);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) = "openai" then
                declare
@@ -2150,7 +2228,8 @@ package body LLM.Agent is
                      Tools_Json    => Tools_Json,
                      Builder       => Builder,
                      Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
+                     On_Event      => On_Event,
+                     Before_Send   => Commit_Image_Prompt'Access);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) = "codex" then
                declare
@@ -2164,7 +2243,8 @@ package body LLM.Agent is
                      Tools_Json    => Tools_Json,
                      Builder       => Builder,
                      Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
+                     On_Event      => On_Event,
+                     Before_Send   => Commit_Image_Prompt'Access);
                end;
             else
                raise Constraint_Error
@@ -2578,6 +2658,12 @@ package body LLM.Agent is
          if not S.Abort_State.Requested and then Turn_Completed_Normally then
             Flush_Pending_Messages;
             Maybe_Auto_Compact (Another_Request => False);
+         elsif not Images.Is_Empty then
+            if S.Abort_State.Requested then
+               Roll_Back_Pending_Messages;
+            else
+               raise LLM.User_Images.Invalid_Image with "Canvas turn did not complete";
+            end if;
          end if;
       exception
          when Occurrence : others =>
@@ -2618,6 +2704,14 @@ package body LLM.Agent is
       Emit (On_Event, Session_Stats (S));
       S.Abort_State.Clear;
       S.Pause_State.Release;
+   end Run_Image_Prompt;
+
+   procedure Run_Prompt
+     (S        : in out Session;
+      Prompt   : String;
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class)) is
+   begin
+      Run_Image_Prompt (S, Prompt, LLM.Types.User_Images.Empty_Vector, On_Event);
    end Run_Prompt;
 
    procedure Request_Abort (S : in out Session) is
@@ -2666,15 +2760,21 @@ package body LLM.Agent is
            with "Session not found: " & UUID;
       end if;
 
-      S.Canvas_Target := (others => Null_Unbounded_String);
-      S.Session_UUID := To_Unbounded_String (UUID);
-      if not S.Subagent_Mode then
-         S.OpenRouter_Session_UUID := S.Session_UUID;
-      end if;
-      S.Sandbox_Profile     :=
-        Ada.Strings.Unbounded.To_Unbounded_String
-          (LLM.Session_Store.Session_Sandbox_Profile (UUID));
-      S.History             := LLM.Session_Store.Load_Messages (UUID);
+      --  Validate the complete target before changing the live session.
+      declare
+         History : LLM.Types.Message_Vectors.Vector :=
+           LLM.Session_Store.Load_Messages (UUID);
+         Sandbox : constant Unbounded_String := To_Unbounded_String
+           (LLM.Session_Store.Session_Sandbox_Profile (UUID));
+      begin
+         S.Canvas_Target := (others => Null_Unbounded_String);
+         S.Session_UUID := To_Unbounded_String (UUID);
+         if not S.Subagent_Mode then
+            S.OpenRouter_Session_UUID := S.Session_UUID;
+         end if;
+         S.Sandbox_Profile := Sandbox;
+         LLM.Types.Message_Vectors.Move (S.History, History);
+      end;
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);
       S.Abort_State.Clear;

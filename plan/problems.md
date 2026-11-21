@@ -64,7 +64,8 @@ client-controlled work product gets an entry here.
   Canvas-only writer lease. Canvas commits and JSONL mutations share a
   per-session transaction guard. Session-store deletion removes the private
   Canvas, and forks of stored user image records preserve only the referenced
-  revisions and ancestors. Attachment submission and replay, orphan
+  revisions and ancestors. Local GTK attachment submission and replay are
+  implemented, including the v3 writer and legacy conversion. Orphan
   reclamation, qualification, and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt

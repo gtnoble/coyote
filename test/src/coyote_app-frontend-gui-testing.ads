@@ -22,6 +22,9 @@ package Coyote_App.Frontend.GUI.Testing is
    function Main_Window
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window;
 
+   procedure Click_Send (F : in out Instance);
+   function Attachment_Count (F : Instance) return Natural;
+
    function Canvas_Window
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window;
 

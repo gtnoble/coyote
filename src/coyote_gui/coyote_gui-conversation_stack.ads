@@ -9,6 +9,7 @@ with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Real_Time;
 with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
+with LLM.Types;
 with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
@@ -114,6 +115,11 @@ package Coyote_GUI.Conversation_Stack is
       Text    :        String;
       Kind    :        Coyote_GUI.Footer_Kind;
       Summary :        String := "");
+
+   type Show_Revision_Handler is access procedure (Drawing_Id, Revision_Id : String);
+   procedure Append_User_Image
+     (C : in out Instance; Image : LLM.Types.User_Image; Number : Positive;
+      Handler : Show_Revision_Handler);
 
    procedure Append_Fork_Action
      (C      : in out Instance;

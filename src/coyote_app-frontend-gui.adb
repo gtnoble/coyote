@@ -21,6 +21,8 @@ with Gtk.Adjustment;
 with Glib.Properties; use Glib.Properties;
 with Gtk.Accel_Group;
 with Gtk.Box;
+with Gtk.Combo_Box_Text;
+with LLM.User_Images;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Clipboard;
@@ -171,6 +173,115 @@ package body Coyote_App.Frontend.GUI is
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    function Drain_Idle return Boolean;
+   function Selected_Is_Local return Boolean;
+
+   procedure Update_Attachments (F : in out Instance; Select_Index : Natural := 1) is
+      N : constant Natural := Natural (F.Attachments.Length);
+      Editable : constant Boolean := not F.Attachment_Pending and then
+        not F.Attachment_Rejected;
+   begin
+      F.Attachment_Choice.Remove_All;
+      for I in 1 .. N loop
+         F.Attachment_Choice.Append_Text
+           (LLM.User_Images.Marker (F.Attachments (I), I) & "  " &
+            To_String (F.Attachments (I).Revision_Id));
+      end loop;
+      if N /= 0 then
+         F.Attachment_Choice.Set_Active (Gint'Max (0, Gint (Natural'Min (Select_Index, N)) - 1));
+      end if;
+      F.Attachment_Up.Set_Sensitive (Editable and then N > 1);
+      F.Attachment_Down.Set_Sensitive (Editable and then N > 1);
+      F.Attachment_Remove.Set_Sensitive (Editable and then N > 0);
+      F.Attachment_Show.Set_Sensitive (N > 0);
+      F.Attachment_Restore.Set_Visible (F.Attachment_Rejected);
+      F.Attachment_Note.Set_Text
+        ((if F.Attachment_Pending then "Image prompt queued or running."
+          elsif F.Attachment_Rejected then "Image prompt retained. Clear any newer text before restoring."
+          else "Send uploads these images to the selected provider and records them in the session."));
+      F.Attachment_Panel.Set_Visible (N /= 0);
+   end Update_Attachments;
+
+   function Stage_Attachments (Images : LLM.Types.User_Images.Vector)
+      return Boolean is
+   begin
+      if Current_Frontend = null or else not Selected_Is_Local then
+         return False;
+      end if;
+      declare
+         F : Instance renames Current_Frontend.all;
+         Candidate : LLM.Types.User_Images.Vector := F.Attachments;
+      begin
+         if F.Canvas_Transition or else F.Attachment_Pending or else
+           F.Attachment_Rejected or else Length (F.Canvas_Session) = 0
+         then
+            return False;
+         end if;
+         for Image of Images loop
+            Candidate.Append (Image);
+         end loop;
+         LLM.User_Images.Check_Turn (Candidate);
+         LLM.Types.User_Images.Move (F.Attachments, Candidate);
+         Update_Attachments (F, Natural (F.Attachments.Length));
+         return True;
+      end;
+   exception
+      when LLM.User_Images.Invalid_Image => return False;
+   end Stage_Attachments;
+
+   procedure On_Attachment_Button (Self : access Gtk.Button.Gtk_Button_Record'Class) is
+      use Gtk.Text_Iter;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      declare
+         F : Instance renames Current_Frontend.all;
+         N : constant Natural := Natural (F.Attachments.Length);
+         I : constant Natural := Natural (F.Attachment_Choice.Get_Active + 1);
+         Action : constant String := Self.Get_Name;
+         Start_Iter, End_Iter : Gtk_Text_Iter;
+      begin
+         if Action = "canvas-attachment-restore" and then F.Attachment_Rejected then
+            F.Prompt_Buf.Get_Start_Iter (Start_Iter);
+            F.Prompt_Buf.Get_End_Iter (End_Iter);
+            if F.Prompt_Buf.Get_Text (Start_Iter, End_Iter) = "" then
+               F.Prompt_Buf.Set_Text (To_String (F.Attachment_Text));
+               F.Attachment_Text := Null_Unbounded_String;
+               F.Attachment_Rejected := False;
+               Update_Attachments (F, I);
+            end if;
+         elsif I in 1 .. N and then Action = "canvas-attachment-show" then
+            Coyote_GUI.Canvas.Reveal
+              (F.Canvas_Window, F.Win.all'Access,
+               To_String (F.Attachments (I).Drawing_Id),
+               To_String (F.Attachments (I).Revision_Id));
+         elsif I in 1 .. N and then not F.Attachment_Pending and then
+           not F.Attachment_Rejected
+         then
+            if Action = "canvas-attachment-up" and then I > 1 then
+               F.Attachments.Swap (I, I - 1);
+               Update_Attachments (F, I - 1);
+            elsif Action = "canvas-attachment-down" and then I < N then
+               F.Attachments.Swap (I, I + 1);
+               Update_Attachments (F, I + 1);
+            elsif Action = "canvas-attachment-remove" then
+               F.Attachments.Delete (I);
+               Update_Attachments (F, I);
+            end if;
+         end if;
+      end;
+   end On_Attachment_Button;
+
+   procedure Reveal_Recorded_Revision (Drawing_Id, Revision_Id : String) is
+   begin
+      if Current_Frontend /= null and then Selected_Is_Local and then
+        not Current_Frontend.Canvas_Transition
+      then
+         Coyote_GUI.Canvas.Reveal
+           (Current_Frontend.Canvas_Window, Current_Frontend.Win.all'Access,
+            Drawing_Id, Revision_Id);
+      end if;
+   end Reveal_Recorded_Revision;
 
    procedure Apply_Update_Visible (F : in out Instance; U : Coyote_GUI.Update);
    procedure Apply_Agent_Menu_Sensitivity (F : in out Instance);
@@ -1968,6 +2079,10 @@ package body Coyote_App.Frontend.GUI is
             F.Stack.Begin_Request
               (Text => To_String (U.Text),
                Kind => Coyote_GUI.Request_Kind (U.R_Kind));
+            for I in U.Images.First_Index .. U.Images.Last_Index loop
+               F.Stack.Append_User_Image
+                 (U.Images (I), I, Reveal_Recorded_Revision'Access);
+            end loop;
             if F.Search_Row.Get_Visible then
                Update_Search (F);
             end if;
@@ -2132,6 +2247,12 @@ package body Coyote_App.Frontend.GUI is
             Apply_Agent_Menu_Sensitivity (F);
 
          when Reset_Agents =>
+            F.Canvas_Session := Null_Unbounded_String;
+            F.Attachments.Clear;
+            F.Attachment_Pending := False;
+            F.Attachment_Rejected := False;
+            F.Attachment_Text := Null_Unbounded_String;
+            Update_Attachments (F);
             Coyote_GUI.Canvas.Reset (F.Canvas_Window);
             if F.Canvas_Transition then
                Coyote_GUI.Canvas.Suspend (F.Canvas_Window, True);
@@ -2168,6 +2289,22 @@ package body Coyote_App.Frontend.GUI is
                Apply_Agent_Menu_Sensitivity (F);
             end;
 
+         when Canvas_Model =>
+            F.Canvas_Model_OK := U.Enabled;
+
+         when Canvas_Prompt_Result =>
+            if F.Attachment_Pending and then U.Text = F.Canvas_Session
+              and then U.Request_Id = F.Attachment_Serial
+            then
+               F.Attachment_Pending := False;
+               F.Attachment_Rejected := not U.Enabled;
+               if U.Enabled then
+                  F.Attachments.Clear;
+                  F.Attachment_Text := Null_Unbounded_String;
+               end if;
+               Update_Attachments (F);
+            end if;
+
          when Resume_Canvas =>
             F.Canvas_Transition := False;
             Coyote_GUI.Canvas.Suspend (F.Canvas_Window, False);
@@ -2175,6 +2312,7 @@ package body Coyote_App.Frontend.GUI is
          when Set_Session_Identity =>
             F.Canvas_Transition := False;
             F.Canvas_Item.Set_Sensitive (True);
+            F.Canvas_Session := U.Text;
             Coyote_GUI.Canvas.Bind
               (F.Canvas_Window, To_String (U.Text2), To_String (U.Text),
                To_String (U.Text3),
@@ -2251,7 +2389,8 @@ package body Coyote_App.Frontend.GUI is
       if U.Kind = Coyote_GUI.Rpc_Frame then
          Apply_RPC_Frame (F, U);
       elsif U.Kind in Coyote_GUI.Reset_Agents | Coyote_GUI.Set_Session_Identity
-        | Coyote_GUI.Resume_Canvas | Coyote_GUI.Shutdown
+        | Coyote_GUI.Resume_Canvas | Coyote_GUI.Canvas_Model
+        | Coyote_GUI.Canvas_Prompt_Result | Coyote_GUI.Shutdown
       then
          --  Session boundaries must not depend on the selected worker or be
          --  replayed as part of any agent's retained conversation.
@@ -2331,7 +2470,7 @@ package body Coyote_App.Frontend.GUI is
       end if;
       F.Canvas_Transition := True;
       Coyote_GUI.Canvas.Suspend (F.Canvas_Window, True);
-      if Coyote_GUI.Canvas.Flush (F.Canvas_Window) then
+      if Coyote_GUI.Canvas.Flush (F.Canvas_Window) and then F.Attachments.Is_Empty then
          return True;
       end if;
       Gtk.Dialog.Gtk_New (Dialog);
@@ -2339,8 +2478,8 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Set_Transient_For (F.Win);
       Dialog.Set_Modal (True);
       Gtk.Label.Gtk_New
-        (Label, "Leave without saving the latest Canvas changes?"
-         & ASCII.LF & "Unsaved drawings or edits will be lost.");
+        (Label, "Leave this Canvas session?" & ASCII.LF &
+         "Unsent attachments or unsaved drawings may be lost.");
       Dialog.Get_Content_Area.Pack_Start (Label, False, False, 12);
       Button := Dialog.Add_Button ("_Discard", Gtk_Response_OK);
       Button := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
@@ -2390,7 +2529,35 @@ package body Coyote_App.Frontend.GUI is
            Current_Frontend.Prompt_Buf.Get_Text (SI, EI);
          Accepted : Boolean;
       begin
-         if Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both)'Length = 0 then
+         if not Current_Frontend.Attachments.Is_Empty then
+            declare
+               F : Instance renames Current_Frontend.all;
+            begin
+               if not Selected_Is_Local or else not F.Canvas_Model_OK or else
+                 F.Canvas_Transition or else F.Attachment_Pending or else
+                 F.Attachment_Rejected
+               then
+                  F.Append_Notice (Coyote_App.Frontend.Warning,
+                    "Canvas prompt retained: select a supported local model and restore any rejected draft.");
+                  return;
+               end if;
+               F.Attachment_Serial := F.Attachment_Serial + 1;
+               F.PQ.Enqueue
+                 ((Kind => Canvas_Prompt, Target_Agent_Id => F.Root_Agent_Id,
+                   Canvas_Text => To_Unbounded_String (Text), Canvas_Session => F.Canvas_Session,
+                   Request_Id => F.Attachment_Serial, Images => F.Attachments), Accepted);
+               if Accepted then
+                  F.Attachment_Text := To_Unbounded_String (Text);
+                  F.Attachment_Pending := True;
+                  F.Prompt_Buf.Set_Text ("");
+                  Update_Attachments (F);
+               else
+                  F.Append_Notice (Coyote_App.Frontend.Warning,
+                    "Image prompt queue is full; complete draft retained.");
+               end if;
+               return;
+            end;
+         elsif Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both)'Length = 0 then
             return;
          end if;
          if Selected_Is_Local then
@@ -5057,6 +5224,40 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Box.Gtk_New_Vbox (Prompt_Box, Homogeneous => False, Spacing => 2);
       Prompt_Box.Set_Border_Width (4);
       F.Prompt_Box := Prompt_Box;
+      declare
+         Actions : Gtk.Box.Gtk_Box;
+         procedure Add (Button : out Gtk.Button.Gtk_Button; Label, Name : String) is
+         begin
+            Gtk.Button.Gtk_New_With_Mnemonic (Button, Label);
+            Button.Set_Name ("canvas-attachment-" & Name);
+            Button.On_Clicked (On_Attachment_Button'Access);
+            Actions.Pack_Start (Button, False, False, 0);
+         end Add;
+      begin
+         Gtk.Box.Gtk_New_Vbox (F.Attachment_Panel, False, 2);
+         F.Attachment_Panel.Set_No_Show_All (True);
+         Gtk.Box.Gtk_New_Hbox (Actions, False, 4);
+         Gtk.Label.Gtk_New_With_Mnemonic (F.Attachment_Label, "_Attachments:");
+         Gtk.Combo_Box_Text.Gtk_New (F.Attachment_Choice);
+         F.Attachment_Choice.Set_Name ("canvas-attachment-choice");
+         F.Attachment_Label.Set_Mnemonic_Widget (F.Attachment_Choice);
+         Actions.Pack_Start (F.Attachment_Label, False, False, 0);
+         Actions.Pack_Start (F.Attachment_Choice, True, True, 0);
+         Add (F.Attachment_Up, "Move _Up", "up");
+         Add (F.Attachment_Down, "Move _Down", "down");
+         Add (F.Attachment_Remove, "_Remove", "remove");
+         Add (F.Attachment_Show, "Sho_w in Canvas", "show");
+         Add (F.Attachment_Restore, "Res_tore Draft", "restore");
+         F.Attachment_Panel.Pack_Start (Actions, False, False, 0);
+         Gtk.Label.Gtk_New (F.Attachment_Note);
+         F.Attachment_Note.Set_Xalign (0.0);
+         F.Attachment_Panel.Pack_Start (F.Attachment_Note, False, False, 0);
+         Actions.Show_All;
+         F.Attachment_Note.Show;
+         Prompt_Box.Pack_Start (F.Attachment_Panel, False, False, 0);
+         Update_Attachments (F);
+         Coyote_GUI.Canvas.Set_Attach_Handler (F.Canvas_Window, Stage_Attachments'Access);
+      end;
 
       Gtk.Text_View.Gtk_New (F.Prompt_View);
       F.Prompt_View.Set_Name ("coyote-help-prompt");
@@ -5225,6 +5426,36 @@ package body Coyote_App.Frontend.GUI is
           (Coyote_App.Frontend.Request_Kind'Pos (Kind));
       Enqueue_Update (F, U);
    end Begin_Request;
+
+   overriding procedure Begin_Image_Request
+     (F : in out Instance; Text : String; Images : LLM.Types.User_Images.Vector) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Begin_Request;
+      U.Text := To_Unbounded_String (Text);
+      U.Images := Images;
+      Enqueue_Update (F, U);
+   end Begin_Image_Request;
+
+   procedure Canvas_Model (F : in out Instance; Supported : Boolean) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Canvas_Model;
+      U.Enabled := Supported;
+      Enqueue_Update (F, U);
+   end Canvas_Model;
+
+   procedure Canvas_Prompt_Result
+     (F : in out Instance; Session : String; Request_Id : Natural;
+      Accepted : Boolean) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Canvas_Prompt_Result;
+      U.Text := To_Unbounded_String (Session);
+      U.Request_Id := Request_Id;
+      U.Enabled := Accepted;
+      Enqueue_Update (F, U);
+   end Canvas_Prompt_Result;
 
    overriding procedure Append_Text (F : in out Instance; Text : String) is
       U : Coyote_GUI.Update;

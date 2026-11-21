@@ -24,6 +24,11 @@ package Coyote_Session_Transactions is
    function Create_Stage (Resolved_Path : String) return String;
    procedure Publish (Stage, Resolved_Path : String; Status : out Result);
 
+   --  Replace a checked regular log under its existing guard.
+   procedure Replace_Log (Stage, Resolved_Path : String; Status : out Result;
+                          Uncertain : out Boolean);
+   function Sync_Log (Resolved_Path : String) return Boolean;
+
    --  A bounded retry for agent-task writes, not GTK callbacks.
    procedure Wait_For_Lock (Resolved_Path : String; Lock : in out Guard;
                             Status : out Result);

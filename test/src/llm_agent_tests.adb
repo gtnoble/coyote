@@ -20,6 +20,10 @@ with LLM.HTTP;
 with LLM.Session_Store;
 with LLM.System_Prompt;
 with LLM.Types;
+with LLM.User_Images;
+with LLM.Model_Registry;
+with Coyote_Canvas.Composite;
+with Coyote_Canvas.Revisions;
 
 package body LLM_Agent_Tests is
 
@@ -7281,12 +7285,135 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Sandbox_Profile_Restored_And_Cleared_On_Switch;
 
+   procedure Test_Canvas_Record_Before_HTTP (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.JSON;
+      package Rev renames Coyote_Canvas.Revisions;
+      package Composite renames Coyote_Canvas.Composite;
+      package Store renames LLM.Session_Store;
+      package Env renames Ada.Environment_Variables;
+      Home : constant String := "/tmp/coyote_llm_agent_canvas_commit";
+      Port : constant := 19_122;
+      Url : constant String := "COYOTE_OPENROUTER_BASE_URL";
+      Key : constant String := "OPENROUTER_API_KEY";
+      Home_Was_Set : constant Boolean := Env.Exists ("HOME");
+      Old_Home : constant String := Env.Value ("HOME", "");
+      Url_Was_Set : constant Boolean := Env.Exists (Url);
+      Old_Url : constant String := Env.Value (Url, "");
+      Key_Was_Set : constant Boolean := Env.Exists (Key);
+      Old_Key : constant String := Env.Value (Key, "");
+      S : LLM.Agent.Session;
+      Id : Unbounded_String;
+      W : Rev.Workspace;
+      Rendered : Composite.Image;
+      Image : LLM.Types.User_Image;
+      Images : LLM.Types.User_Images.Vector;
+      Requests : Natural := 0;
+      Saw_Committed, Saw_PNG, Refused, Stopped : Boolean := False;
+
+      procedure Handle_Request
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response) is
+         Loaded : constant LLM.Types.Message_Vectors.Vector :=
+           Store.Load_Messages (To_String (Id));
+         Parsed : constant Read_Result := Read (To_String (Req.Body_Data));
+         Items : constant JSON_Array := Parsed.Value.Get ("input");
+         Parts : constant JSON_Array := Get (Items, 1).Get ("content");
+      begin
+         Requests := Requests + 1;
+         Saw_Committed := Loaded.Length = 1 and then
+           Loaded (0).Content (1).Image.PNG = Image.PNG;
+         Saw_PNG := Length (Parts) = 3 and then
+           String'(Get (Parts, 3).Get ("image_url").Get) =
+             "data:image/png;base64," & LLM.User_Images.Base64 (Image);
+         Res.Status := 400;
+         Res.Body_Data := To_Unbounded_String ("{""error"":{""message"":""image rejected""}}");
+      end Handle_Request;
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      procedure Cleanup is
+      begin
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Restore_Env (Url, Url_Was_Set, Old_Url);
+         Restore_Env (Key, Key_Was_Set, Old_Key);
+         Cleanup_Test_Home (Home);
+      end Cleanup;
+      Server : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_File (Home & "/.coyote/openrouter_models_cache.json",
+        "{""fetched_at"":" & Long_Long_Image (Current_Unix_S) &
+        ",""data"":[{""id"":""canvas/vision"",""name"":""Canvas Vision""," &
+        """architecture"":{""input_modalities"":[""text"",""image""]}," &
+        """context_length"":128000,""top_provider"":{""max_completion_tokens"":4096}}]}");
+      Env.Set ("HOME", Home);
+      Env.Set (Key, "test-key");
+      Env.Set (Url, "http://127.0.0.1:19122/api/v1");
+      LLM.Model_Registry.Refresh_OpenRouter;
+      LLM.Agent.Create (S, Model_Spec => "openrouter/canvas/vision", No_Tools => True);
+      Id := To_Unbounded_String (LLM.Agent.Session_Id (S));
+      Assert (LLM.Agent.Supports_User_Images (S), "fixture advertises image input");
+      Rev.New_Drawing (W, 9, 7);
+      Composite.Render (W, 1, Rendered);
+      Image := (PNG => Composite.Encode_PNG (Rendered),
+                Label => To_Unbounded_String ("agent fixture"),
+                Drawing_Id => To_Unbounded_String (Rev.Drawing_Key (W, 1)),
+                Revision_Id => To_Unbounded_String (Rev.Revision_Key (W, 1)),
+                Width => 9, Height => 7);
+      Images.Append (Image);
+      Server.Bind (Port);
+      begin
+         LLM.Agent.Run_Image_Prompt (S, "inspect", Images, Ignore_Event'Access);
+      exception
+         when others => Refused := True;
+      end;
+      Server.Stop;
+      Stopped := True;
+      Assert (Refused and then Requests = 1 and then Saw_Committed and then Saw_PNG,
+              "provider receives exact PNG only after commit; rejects without fallback");
+      declare
+         Loaded : constant LLM.Types.Message_Vectors.Vector :=
+           Store.Load_Messages (To_String (Id));
+      begin
+         Assert (Loaded.Length = 1 and then Loaded (0).Content (1).Image.PNG = Image.PNG,
+                 "provider rejection preserves the committed user turn");
+      end;
+      LLM.Agent.Set_Model (S, "openrouter/canvas/text-only");
+      Refused := False;
+      begin
+         LLM.Agent.Run_Prompt (S, "next", Ignore_Event'Access);
+      exception
+         when LLM.User_Images.Invalid_Image => Refused := True;
+      end;
+      Assert (Refused, "a text-only target cannot drop retained images");
+      Cleanup;
+   exception
+      when others =>
+         if not Stopped then
+            begin
+               Server.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Cleanup;
+         raise;
+   end Test_Canvas_Record_Before_HTTP;
+
    package LLM_Agent_Caller is new AUnit.Test_Caller (LLM_Agent_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent commits a typed Canvas prompt before HTTP",
+            Test_Canvas_Record_Before_HTTP'Access));
       Result.Add_Test
         (LLM_Agent_Caller.Create
            ("LLM.Agent runs a single-turn prompt and persists it",

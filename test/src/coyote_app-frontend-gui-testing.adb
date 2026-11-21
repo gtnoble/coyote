@@ -33,6 +33,14 @@ package body Coyote_App.Frontend.GUI.Testing is
       return F.Win;
    end Main_Window;
 
+   procedure Click_Send (F : in out Instance) is
+   begin
+      F.Send_Btn.Clicked;
+   end Click_Send;
+
+   function Attachment_Count (F : Instance) return Natural is
+     (Natural (F.Attachments.Length));
+
    function Canvas_Window
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window is
      (Coyote_GUI.Canvas.Window (F.Canvas_Window));

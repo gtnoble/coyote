@@ -312,7 +312,7 @@ package body LLM.Model_Registry is
           Max_Tokens          => Max_Tokens,
           Reasoning           => Reasoning,
           Supports_Tools      => True,
-          Supports_Images     => False,
+          Supports_Images     => True,
           Max_Thinking_Budget => 0,
           Min_Thinking_Budget => 0,
           Wire_Format         => To_Unbounded_String ("anthropic-messages"),

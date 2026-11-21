@@ -55,6 +55,15 @@ package LLM.Agent is
       Prompt   :        String;
       On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class));
 
+   procedure Run_Image_Prompt
+     (S        : in out Session;
+      Prompt   : String;
+      Images   : LLM.Types.User_Images.Vector;
+      On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class));
+   function Supports_User_Images (Info : LLM.Model_Registry.Model_Info)
+      return Boolean;
+   function Supports_User_Images (S : Session) return Boolean;
+
    --  Compact the session context by summarising older messages.
    --
    --  Calls the active model once with a compaction-specific system prompt,

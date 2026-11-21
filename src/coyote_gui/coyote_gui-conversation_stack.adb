@@ -49,6 +49,11 @@ with Gtk.Style_Context;
 with Gtk.Style_Provider;
 with Pango.Font;
 
+with LLM.User_Images;
+with Coyote_Image_Decoder;
+with Coyote_Canvas.Rasters;
+with Ada.Strings.Unbounded.Aux;
+
 package body Coyote_GUI.Conversation_Stack is
 
    use type Gtk.Adjustment.Gtk_Adjustment;
@@ -1657,6 +1662,89 @@ package body Coyote_GUI.Conversation_Stack is
       Show_Contents (C);
       C.Footer_Pending := True;
    end Append_Turn_Footer;
+
+   type Revision_Action is record
+      Drawing_Id, Revision_Id : Unbounded_String;
+      Handler : Show_Revision_Handler;
+   end record;
+   package Revision_Buttons is new Gtk.Handlers.User_Callback
+     (Gtk.Button.Gtk_Button_Record, Revision_Action);
+
+   procedure Show_Revision
+     (Button : access Gtk.Button.Gtk_Button_Record'Class; Action : Revision_Action) is
+      pragma Unreferenced (Button);
+   begin
+      Action.Handler (To_String (Action.Drawing_Id), To_String (Action.Revision_Id));
+   end Show_Revision;
+
+   procedure Add_User_Thumbnail (Row : Gtk.Box.Gtk_Box;
+                                 Image : LLM.Types.User_Image) is
+      use Coyote_Image_Decoder;
+      Raw : Pixbuf_Handle := Null_Pixbuf;
+      Source, Scaled : Gdk.Pixbuf.Gdk_Pixbuf;
+      Error : Unbounded_String;
+      Bytes : Ada.Strings.Unbounded.Aux.Big_String_Access;
+      N, W, H : Natural;
+      Widget : Gtk.Image.Gtk_Image;
+   begin
+      Ada.Strings.Unbounded.Aux.Get_String (Image.PNG, Bytes, N);
+      Coyote_Canvas.Rasters.Decode
+        (Bytes (1 .. N), Coyote_Canvas.Rasters.PNG, Raw, W, H, Error);
+      if not Is_Null (Raw) then
+         Source := Adopt (Raw);
+         declare
+            Larger : constant Positive := Natural'Max (W, H);
+         begin
+            if Larger > 320 then
+               Scaled := Gdk.Pixbuf.Scale_Simple
+                 (Source, Gint (Natural'Max (1, W * 320 / Larger)),
+                  Gint (Natural'Max (1, H * 320 / Larger)),
+                  Gdk.Pixbuf.Interp_Bilinear);
+            else
+               Scaled := Source;
+               Scaled.Ref;
+            end if;
+         end;
+         Source.Unref;
+         Source := null;
+         if Scaled /= null then
+            Gtk.Image.Gtk_New (Widget, Scaled);
+            Widget.Set_Name ("coyote-user-image-thumbnail");
+            Row.Pack_Start (Widget, False, False, 0);
+            Scaled.Unref;
+         end if;
+      end if;
+   exception
+      when others =>
+         Release (Raw);
+         if Source /= null then
+            Source.Unref;
+         end if;
+         if Scaled /= null then
+            Scaled.Unref;
+         end if;
+   end Add_User_Thumbnail;
+
+   procedure Append_User_Image
+     (C : in out Instance; Image : LLM.Types.User_Image; Number : Positive;
+      Handler : Show_Revision_Handler) is
+      Row : Gtk.Box.Gtk_Box;
+      Label : Gtk.Label.Gtk_Label;
+      Button : Gtk.Button.Gtk_Button;
+   begin
+      Gtk.Box.Gtk_New_Hbox (Row, False, 4);
+      Add_User_Thumbnail (Row, Image);
+      Gtk.Label.Gtk_New (Label, LLM.User_Images.Marker (Image, Number));
+      Label.Set_Xalign (0.0);
+      Row.Pack_Start (Label, False, False, 0);
+      Gtk.Button.Gtk_New_With_Mnemonic (Button, "Show in _Canvas");
+      Button.Set_Name ("coyote-user-image-show");
+      Revision_Buttons.Connect (Button, "clicked", Show_Revision'Access,
+        (Image.Drawing_Id, Image.Revision_Id, Handler));
+      Row.Pack_Start (Button, False, False, 0);
+      C.Exchange.Pack_Start (Row, False, False, 2);
+      Row.Show_All;
+   end Append_User_Image;
 
    procedure Append_Fork_Action
      (C      : in out Instance;

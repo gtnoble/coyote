@@ -18,6 +18,8 @@ with GNATCOLL.JSON;
 with Interfaces.C;
 with LLM.Session_Store;
 with LLM.Types;
+with LLM.User_Images;
+with LLM.Compaction;
 with Session_Fixture;
 with Session_Lister;
 
@@ -447,8 +449,8 @@ package body LLM_Session_Store_Tests is
            (To_String (Info.UUID) = Session_Id,
             "Parse_Session_File should recover the new UUID");
          Assert
-           (Get_Integer_Field (Parsed.Value, "version") = 1,
-            "Header version should be 1");
+           (Get_Integer_Field (Parsed.Value, "version") = 3,
+            "Header version should be 3");
          Assert
            (Get_String_Field (Parsed.Value, "id") = Session_Id,
             "Header id should match the returned UUID");
@@ -749,7 +751,13 @@ package body LLM_Session_Store_Tests is
       declare
          Source_Id : constant String :=
            LLM.Session_Store.Create_Session (Source_Cwd);
+         Legacy : Ada.Text_IO.File_Type;
       begin
+         Ada.Text_IO.Open (Legacy, Ada.Text_IO.Out_File,
+                           LLM.Session_Store.Session_File_Path (Source_Id));
+         Ada.Text_IO.Put_Line (Legacy, "{""version"":1,""id"":""" & Source_Id &
+           """,""createdAt"":1000,""workDir"":""" & Source_Cwd & """}");
+         Ada.Text_IO.Close (Legacy);
          LLM.Session_Store.Append_Message
            (Source_Id, Make_User_Message ("Hello"));
          LLM.Session_Store.Append_Message
@@ -2016,6 +2024,134 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Canvas_Fork_And_Delete;
 
+   procedure Test_Typed_Canvas_Turn (T : in out Test) is
+      pragma Unreferenced (T);
+      use Ada.Directories;
+      package Store renames LLM.Session_Store;
+      package Rev renames Coyote_Canvas.Revisions;
+      package Composite renames Coyote_Canvas.Composite;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      use type Coyote_Canvas.Store.Result;
+      Home_Was_Set : constant Boolean := Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+      W : Rev.Workspace;
+      Rendered : Composite.Image;
+      Assets : Disk.Raster_Set;
+      Status : Coyote_Canvas.Store.Result;
+      Msg : LLM.Types.Message := Make_User_Message ("inspect");
+      Image : LLM.Types.User_Image;
+      File : Ada.Text_IO.File_Type;
+   begin
+      Prepare_Test_Home;
+      declare
+         Id : constant String := Store.Create_Session (Source_Cwd);
+         Path : constant String := Store.Session_File_Path (Id);
+         procedure Legacy (Bad : Boolean) is
+         begin
+            Ada.Text_IO.Open (File, Ada.Text_IO.Out_File, Path);
+            Ada.Text_IO.Put_Line (File, "{""version"":1,""id"":""" & Id &
+              """,""createdAt"":1000,""workDir"":""" & Source_Cwd & """}");
+            if Bad then
+               Ada.Text_IO.Put_Line (File, "invalid JSON");
+            end if;
+            Ada.Text_IO.Close (File);
+         end Legacy;
+      begin
+         Rev.New_Drawing (W, 9, 7);
+         Rev.Crop (W, (2, 2, 7, 5));
+         Rev.Save (W);
+         Disk.Save (Containing_Directory (Path), Id, W, Assets, Status);
+         Assert (Status = Coyote_Canvas.Store.Ok, "save referenced revision");
+         Composite.Render (W, 2, Rendered);
+         Image := (PNG => Composite.Encode_PNG (Rendered),
+                   Label => To_Unbounded_String ("cropped blank"),
+                   Drawing_Id => To_Unbounded_String (Rev.Drawing_Key (W, 2)),
+                   Revision_Id => To_Unbounded_String (Rev.Revision_Key (W, 2)),
+                   Width => 5, Height => 3);
+         Msg.Content.Append ((Kind => LLM.Types.User_Image_Block, Image => Image));
+         Legacy (True);
+         declare
+            Before : constant String := Read_File (Path);
+            Refused : Boolean := False;
+         begin
+            begin
+               Store.Append_Message (Id, Msg);
+            exception
+               when Store.Session_Error => Refused := True;
+            end;
+            Assert (Refused and then Read_File (Path) = Before,
+                    "failed migration leaves legacy bytes unchanged");
+         end;
+         Legacy (False);
+         Store.Append_Message (Id, Make_User_Message ("legacy"));
+         Store.Append_Message (Id, Make_Assistant_Text ("prior answer"));
+         Store.Append_Message (Id, Msg);
+         Store.Append_Message (Id, Make_Assistant_Text ("image answer"));
+         Assert (Contains (Read_First_Line (Path), """version"":3"), "migrate to v3");
+         declare
+            Loaded : constant LLM.Types.Message_Vectors.Vector := Store.Load_Messages (Id);
+            Summary : constant String := LLM.Compaction.Serialize_Conversation (Loaded);
+         begin
+            Assert (Loaded.Length = 4 and then Loaded (2).Content (1).Image.PNG = Image.PNG,
+                    "v3 restores ordered original PNG bytes");
+            Assert (Contains (Summary, "Image 1: cropped blank") and then
+                    not Contains (Summary, LLM.User_Images.Base64 (Image)),
+                    "summary receives numbered marker, not PNG base64");
+         end;
+         declare
+            Fork : constant String := Session_Lister.Fork_Session (Id, 2, Target_Cwd);
+            Loaded : constant LLM.Types.Message_Vectors.Vector := Store.Load_Messages (Fork);
+         begin
+            Assert (Fork /= "" and then Loaded.Length = 4 and then
+                    Loaded (2).Content (1).Image.PNG = Image.PNG and then
+                    Loaded (2).Content (1).Image.Revision_Id = Image.Revision_Id,
+                    "fork retains exact typed snapshot and revision ID");
+         end;
+         Store.Append_Compaction (Id, "older conversation", 2, 512);
+         declare
+            Loaded : constant LLM.Types.Message_Vectors.Vector := Store.Load_Messages (Id);
+         begin
+            Assert (Loaded.Length = 3 and then Loaded (1).Content (1).Image.PNG = Image.PNG,
+                    "compaction preserves typed images inside the retained tail");
+         end;
+         Store.Append_Compaction (Id, "second summary", 1, 256);
+         declare
+            Loaded : constant LLM.Types.Message_Vectors.Vector :=
+              Store.Load_Messages (Id);
+         begin
+            Assert (Loaded.Length = 3 and then Loaded (1).Content (1).Image.PNG = Image.PNG,
+                    "a second compaction retains the same image and reply");
+         end;
+         Append_Raw_Line (Path, "{""type"":""message"",""message"":{""role"":""user""," &
+                               """content"":[{""type"":""image""}]}}");
+         declare
+            Refused : Boolean := False;
+         begin
+            begin
+               declare
+                  Dropped : constant LLM.Types.Message_Vectors.Vector := Store.Load_Messages (Id);
+                  pragma Unreferenced (Dropped);
+               begin
+                  null;
+               end;
+            exception
+               when Store.Session_Error => Refused := True;
+            end;
+            Assert (Refused, "corrupt stored images cannot silently become text prompts");
+         end;
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Typed_Canvas_Turn;
+
    package LLM_Session_Store_Caller is new AUnit.Test_Caller
      (LLM_Session_Store_Tests.Test);
 
@@ -2023,6 +2159,10 @@ package body LLM_Session_Store_Tests is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
+      Result.Add_Test
+        (LLM_Session_Store_Caller.Create
+           ("LLM.Session_Store typed Canvas migration and replay",
+            Test_Typed_Canvas_Turn'Access));
       Result.Add_Test
         (LLM_Session_Store_Caller.Create
            ("LLM.Session_Store Canvas forks survive source deletion",

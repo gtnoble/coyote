@@ -13,6 +13,8 @@ with LLM.HTTP;
 with LLM.SSE;
 with LLM.Tools;
 
+with LLM.User_Images;
+
 package body LLM.Providers.OpenAI_Responses is
 
    use type Ada.Containers.Count_Type;
@@ -452,12 +454,37 @@ package body LLM.Providers.OpenAI_Responses is
    begin
       Item.Set_Field ("type", "message");
       Item.Set_Field ("role", "user");
-      Append_Text_Part
-        (Content,
-         "input_text",
-         Message_Text (Msg),
-         Breakpoint,
-         Inline_Cache_Hints);
+      if LLM.User_Images.Has_Images (Msg) then
+         declare
+            Number : Natural := 0;
+         begin
+            for Block of Msg.Content loop
+               if Block.Kind = LLM.Types.Text_Block then
+                  Append_Text_Part
+                    (Content, "input_text", To_String (Block.Text), False, False);
+               elsif Block.Kind = LLM.Types.User_Image_Block then
+                  Number := Number + 1;
+                  Append_Text_Part
+                    (Content, "input_text", LLM.User_Images.Ordinal (Number),
+                     False, False);
+                  declare
+                     Part : constant GNATCOLL.JSON.JSON_Value :=
+                       GNATCOLL.JSON.Create_Object;
+                  begin
+                     Part.Set_Field ("type", "input_image");
+                     Part.Set_Field ("image_url", "data:image/png;base64," &
+                       LLM.User_Images.Base64 (Block.Image));
+                     Part.Set_Field ("detail", "high");
+                     GNATCOLL.JSON.Append (Content, Part);
+                  end;
+               end if;
+            end loop;
+         end;
+      else
+         Append_Text_Part
+           (Content, "input_text", Message_Text (Msg), Breakpoint,
+            Inline_Cache_Hints);
+      end if;
       Item.Set_Field ("content", Content);
       GNATCOLL.JSON.Append (Input, Item);
    end Append_User_Item;
@@ -1301,8 +1328,10 @@ package body LLM.Providers.OpenAI_Responses is
       Status         : Natural         := 0;
       State          : Response_State;
       End_Event_Sent : Boolean         := False;
-      Request_Body   : constant String :=
-        Build_Request_Body
+      function Checked_Body return String is
+      begin
+         LLM.User_Images.Check_History (Messages);
+         return Build_Request_Body
           (P             => P,
            Model_Id      => Model_Id,
            System_Prompt => System_Prompt,
@@ -1310,6 +1339,8 @@ package body LLM.Providers.OpenAI_Responses is
            Tools_Json    => Tools_Json,
            Thinking      => Thinking,
            Max_Tokens    => Max_Tokens);
+      end Checked_Body;
+      Request_Body : constant String := Checked_Body;
 
       procedure On_Chunk (Data : String; Status : Natural) is
       begin
@@ -1328,6 +1359,11 @@ package body LLM.Providers.OpenAI_Responses is
          end if;
       end Check_Cancelled;
    begin
+      if LLM.User_Images.Has_Images (Messages) and then
+        Request_Body'Length > LLM.User_Images.Max_Request
+      then
+         raise LLM.User_Images.Invalid_Image with "Canvas request exceeds 32 MiB";
+      end if;
       Emit_Agent_Start (Handler);
       Emit_Message_Start (Handler);
 

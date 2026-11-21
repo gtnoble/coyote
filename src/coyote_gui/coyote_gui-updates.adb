@@ -39,7 +39,8 @@ package body Coyote_GUI.Updates is
       begin
          Got := Count > 0;
          if Got then
-            U     := Items (Head);
+            U := Items (Head);
+            Items (Head) := (others => <>);
             Head  := Head mod Max_Depth + 1;
             Count := Count - 1;
          end if;

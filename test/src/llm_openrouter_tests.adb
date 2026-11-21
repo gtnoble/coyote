@@ -984,6 +984,7 @@ package body LLM_OpenRouter_Tests is
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Delete_If_Exists (Capture_Path);
+      Write_Cache (Home, Current_Unix_S, Fixture_Data_Array);
       Write_File
         (Home & "/.coyote/models.json",
          "{""providers"":{""openrouter"":{"

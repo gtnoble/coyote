@@ -105,6 +105,23 @@ package body Coyote_Session_Transactions is
       Status := Result'Val (Native_Publish (To_C (Stage), To_C (Resolved_Path)));
    end Publish;
 
+   procedure Replace_Log (Stage, Resolved_Path : String; Status : out Result;
+                          Uncertain : out Boolean) is
+      function Native_Replace (Stage, Target : char_array) return int
+        with Import, Convention => C, External_Name => "coyote_session_replace";
+      Code : constant int := Native_Replace (To_C (Stage), To_C (Resolved_Path));
+   begin
+      Uncertain := Code = 3;
+      Status := (if Code = 0 then Acquired else Unavailable);
+   end Replace_Log;
+
+   function Sync_Log (Resolved_Path : String) return Boolean is
+      function Native_Sync (Path : char_array) return int
+        with Import, Convention => C, External_Name => "coyote_session_sync";
+   begin
+      return Native_Sync (To_C (Resolved_Path)) = 0;
+   end Sync_Log;
+
    procedure Wait_For_Lock (Resolved_Path : String; Lock : in out Guard;
                             Status : out Result) is
       Parent : constant String := Ada.Directories.Containing_Directory

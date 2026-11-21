@@ -12,6 +12,8 @@ with LLM.Events;
 with LLM.HTTP;
 with LLM.SSE;
 
+with LLM.User_Images;
+
 package body LLM.Providers.Anthropic_Messages is
 
    use type Ada.Containers.Count_Type;
@@ -381,6 +383,7 @@ package body LLM.Providers.Anthropic_Messages is
       Message : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
       Content : GNATCOLL.JSON.JSON_Array          := GNATCOLL.JSON.Empty_Array;
+      Number : Natural := 0;
    begin
       case Msg.Role is
          when LLM.Types.User
@@ -393,6 +396,22 @@ package body LLM.Providers.Anthropic_Messages is
                      if Block.Text /= Null_Unbounded_String then
                         Append_Text_Content (Content, To_String (Block.Text));
                      end if;
+                  when LLM.Types.User_Image_Block =>
+                     Number := Number + 1;
+                     Append_Text_Content (Content, LLM.User_Images.Ordinal (Number));
+                     declare
+                        Item : constant GNATCOLL.JSON.JSON_Value :=
+                          GNATCOLL.JSON.Create_Object;
+                        Source : constant GNATCOLL.JSON.JSON_Value :=
+                          GNATCOLL.JSON.Create_Object;
+                     begin
+                        Source.Set_Field ("type", "base64");
+                        Source.Set_Field ("media_type", "image/png");
+                        Source.Set_Field ("data", LLM.User_Images.Base64 (Block.Image));
+                        Item.Set_Field ("type", "image");
+                        Item.Set_Field ("source", Source);
+                        GNATCOLL.JSON.Append (Content, Item);
+                     end;
                   when others =>
                      null;
                end case;
@@ -894,8 +913,10 @@ package body LLM.Providers.Anthropic_Messages is
       Status         : Natural         := 0;
       State          : Response_State;
       End_Event_Sent : Boolean         := False;
-      Request_Body   : constant String :=
-        Build_Request_Body
+      function Checked_Body return String is
+      begin
+         LLM.User_Images.Check_History (Messages);
+         return Build_Request_Body
           (P             => P,
            Model_Id      => Model_Id,
            System_Prompt => System_Prompt,
@@ -903,6 +924,8 @@ package body LLM.Providers.Anthropic_Messages is
            Tools_Json    => Tools_Json,
            Thinking      => Thinking,
            Max_Tokens    => Max_Tokens);
+      end Checked_Body;
+      Request_Body : constant String := Checked_Body;
 
       procedure On_Chunk (Data : String) is
       begin
@@ -910,6 +933,11 @@ package body LLM.Providers.Anthropic_Messages is
          Process_Stream_Data (Data, State, Handler);
       end On_Chunk;
    begin
+      if LLM.User_Images.Has_Images (Messages) and then
+        Request_Body'Length > LLM.User_Images.Max_Request
+      then
+         raise LLM.User_Images.Invalid_Image with "Canvas request exceeds 32 MiB";
+      end if;
       Emit_Agent_Start (Handler);
 
       LLM.HTTP.Add_Header (Headers, "Content-Type", "application/json");

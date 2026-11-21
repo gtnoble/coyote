@@ -202,7 +202,21 @@ to a prompt. A regular terminal or a subagent without the live capability
 cannot use the command to find or target a session. If the command reports
 an unknown outcome, check Drawings before submitting the files again.
 
-Prompt attachments are not yet available.
+Use **Selected → Attach** in Canvas to add the selected revisions, or the
+working copy, to the prompt composer. The composer lists images in send order
+and offers **Move Up**, **Move Down**, **Remove**, and **Show in Canvas**.
+**Send** accepts an image-only prompt when the selected local model supports
+images. Coyote sends lossless PNGs of the frozen revisions at their exact pixel
+size, including any crop you already applied. It does not crop or rescale them
+again and has no separate outgoing preview. The limits are eight images,
+8 MiB per PNG, and 16 MiB of PNGs per turn; oversized requests are refused.
+
+Send uploads the images to the provider. Saved sessions also store the exact
+PNGs in the local conversation log; `--no-session` does not. Conversation
+thumbnails are display-only. **Show in Canvas** opens the recorded revision
+when its editable storage is available. If a turn fails, **Restore Draft**
+recovers its text and attachments without overwriting newer text. If the
+provider rejected a turn after it was saved, the original remains in history.
 
 ## Session listing
 

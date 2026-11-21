@@ -13,6 +13,7 @@ with Coyote_App.Utils;      use Coyote_App.Utils;
 with LLM.Compaction;
 with LLM.Session_Store;
 with LLM.Types;
+with LLM.User_Images;
 with Session_Lister;        use Session_Lister;
 
 package body Coyote_App.History is
@@ -380,43 +381,60 @@ package body Coyote_App.History is
                            Call_In_Turn  := 0;
                            Turn_Step     := 0;
                            Turn_Stop     := Null_Unbounded_String;
-                           if Msg.Has_Field ("content")
-                             and then Msg.Get ("content").Kind
-                               = JSON_Array_Type
-                           then
-                              declare
-                                 Content : constant JSON_Array :=
-                                   Msg.Get ("content");
-                              begin
-                                 for I in 1 .. Length (Content) loop
-                                    declare
-                                       Block : constant JSON_Value :=
-                                         Get (Content, I);
-                                    begin
-                                       if Block.Kind = JSON_Object_Type
-                                         and then Get_String (Block, "type")
-                                           = "text"
-                                       then
-                                          declare
-                                             Text    : constant String :=
-                                               Get_String (Block, "text");
-                                             Trimmed : constant String :=
-                                               Ada.Strings.Fixed.Trim
-                                                 (Text, Ada.Strings.Both);
-                                          begin
-                                             if Trimmed'Length > 0 then
-                                                Frontend.Begin_Request
-                                                  (Text => Trimmed,
-                                                   Kind =>
-                                                     Coyote_App.Frontend
-                                                       .Prompt);
+                           declare
+                              Text : Unbounded_String;
+                              Images : LLM.Types.User_Images.Vector;
+                              Total : Natural := 0;
+                           begin
+                              if Msg.Has_Field ("content") and then
+                                Msg.Get ("content").Kind = JSON_Array_Type
+                              then
+                                 declare
+                                    Content : constant JSON_Array := Msg.Get ("content");
+                                 begin
+                                    for I in 1 .. Length (Content) loop
+                                       declare
+                                          Block : constant JSON_Value := Get (Content, I);
+                                          Kind : constant String := Get_String (Block, "type");
+                                       begin
+                                          if Kind = "text" then
+                                             if Length (Text) /= 0 then
+                                                Append (Text, ASCII.LF);
                                              end if;
-                                          end;
-                                       end if;
-                                    end;
-                                 end loop;
+                                             Append (Text, Get_String (Block, "text"));
+                                          elsif Kind = "image" then
+                                             if Natural (Images.Length) >= LLM.User_Images.Max_Count then
+                                                raise LLM.User_Images.Invalid_Image;
+                                             end if;
+                                             declare
+                                                Image : constant LLM.Types.User_Image :=
+                                                  LLM.User_Images.From_JSON (Block);
+                                             begin
+                                                Total := Total + Length (Image.PNG);
+                                                if Total > LLM.User_Images.Max_Turn then
+                                                   raise LLM.User_Images.Invalid_Image;
+                                                end if;
+                                                Images.Append (Image);
+                                             end;
+                                          end if;
+                                       end;
+                                    end loop;
+                                 end;
+                              end if;
+                              declare
+                                 Trimmed : constant String := Ada.Strings.Fixed.Trim
+                                   (To_String (Text), Ada.Strings.Both);
+                              begin
+                                 if not Images.Is_Empty then
+                                    Frontend.Begin_Image_Request (Trimmed, Images);
+                                 elsif Trimmed /= "" then
+                                    Frontend.Begin_Request (Trimmed);
+                                 end if;
                               end;
-                           end if;
+                           exception
+                              when LLM.User_Images.Invalid_Image =>
+                                 Frontend.Begin_Request ("[Stored Canvas prompt is invalid]");
+                           end;
 
                            --  Assistant turn
                         elsif Role = "assistant" then

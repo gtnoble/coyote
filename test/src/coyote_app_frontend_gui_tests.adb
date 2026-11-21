@@ -37,6 +37,9 @@ with Gdk.Event;
 with Gdk.Pixbuf;
 with Gdk.Property;
 with Gtk.Box;
+with Gtk.Button;
+with Gtk.Combo_Box_Text;
+with LLM.User_Images;
 with Gtk.Check_Menu_Item;
 with Gtk.Clipboard;
 with Gtk.GEntry;
@@ -1933,6 +1936,112 @@ package body Coyote_App_Frontend_GUI_Tests is
          raise;
    end Test_Canvas_Agent_Import;
 
+   procedure Test_Canvas_Attachments (T : in out Test) is
+      use Ada.Strings.Unbounded;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use Coyote_GUI.Prompt_Queue;
+      Id : constant String := "55be8400-e29b-41d4-a716-446655440000";
+      F : Coyote_App.Frontend.GUI.Instance;
+      Canvas : Gtk.Window.Gtk_Window;
+      Tree : Gtk.Tree_View.Gtk_Tree_View;
+      Model : Gtk_Tree_Model;
+      It : Item;
+      PNG : Unbounded_String;
+
+      function Widget (Name : String; In_Canvas : Boolean := True)
+        return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget
+           (Gtk.Widget.Gtk_Widget ((if In_Canvas then Canvas else Main_Window (F))),
+            Name));
+
+      procedure Activate (Name : String) is
+      begin
+         Gtk.Menu_Item.Gtk_Menu_Item (Widget ("canvas-" & Name)).Activate;
+      end Activate;
+
+      procedure Field (Name, Value : String) is
+      begin
+         Gtk.GEntry.Gtk_Entry (Widget ("coyote-canvas-crop-" & Name)).Set_Text (Value);
+      end Field;
+
+      procedure Click (Name : String) is
+      begin
+         Gtk.Button.Gtk_Button (Widget (Name, False)).Clicked;
+         Drain_Events;
+      end Click;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      F.Create ("Canvas attachment test", Pop_Under => True);
+      F.Set_Session_Identity (Id);
+      Drain_Events;
+      Canvas_Item (F).Activate;
+      Canvas := Canvas_Window (F);
+      Tree := Gtk.Tree_View.Gtk_Tree_View (Widget ("coyote-canvas-drawings"));
+      Model := Tree.Get_Model;
+      Activate ("new");
+      Activate ("crop");
+      Assert (not Widget ("canvas-attach").Get_Sensitive,
+              "pending crop dims Attach");
+      Field ("x", "3");
+      Field ("y", "4");
+      Field ("width", "7");
+      Field ("height", "5");
+      Activate ("apply");
+      Activate ("attach");
+      Assert (Attachment_Count (F) = 1, "working copy is checkpointed and staged");
+      Activate ("undo");
+      Activate ("new");
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "1"));
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Activate ("attach");
+      Assert (Attachment_Count (F) = 3, "multi-selection stages one ordered batch");
+      Gtk.Combo_Box_Text.Gtk_Combo_Box_Text
+        (Widget ("canvas-attachment-choice", False)).Set_Active (0);
+      Click ("canvas-attachment-down");
+      Click_Send (F);
+      Drain_Events;
+      Assert (Attachment_Count (F) = 3, "unsupported model retains draft");
+      F.Canvas_Model (True);
+      Drain_Events;
+      Click_Send (F);
+      It := F.Read_Item;
+      Assert (It.Kind = Canvas_Prompt and then Length (It.Canvas_Text) = 0
+             and then Natural (It.Images.Length) = 3 and then It.Canvas_Session = Id,
+              "image-only Send hands off a complete, session-scoped prompt");
+      Assert (It.Images (1).Width = 800 and then It.Images (2).Width = 7
+              and then It.Images (2).Height = 5 and then It.Images (3).Width = 800
+              and then It.Images (1).Drawing_Id = It.Images (2).Drawing_Id
+              and then It.Images (3).Drawing_Id /= It.Images (1).Drawing_Id,
+              "tree order, manual reorder and frozen pre-undo crop are preserved");
+      PNG := It.Images (2).PNG;
+      F.Canvas_Prompt_Result (Id, It.Request_Id, False);
+      Drain_Events;
+      Click ("canvas-attachment-restore");
+      Click_Send (F);
+      It := F.Read_Item;
+      Assert (It.Images (2).PNG = PNG, "rejected prompt restores exact PNG bytes");
+      F.Begin_Image_Request ("", It.Images);
+      F.Canvas_Prompt_Result (Id, It.Request_Id, True);
+      Drain_Events;
+      Assert (Attachment_Count (F) = 0 and then
+              Widget ("coyote-user-image-show", False) /= null,
+              "successful send clears staging and presents a revision action");
+      Click ("coyote-user-image-show");
+      Assert (Canvas.Get_Visible, "recorded revision can be opened in Canvas");
+      F.Request_Shutdown;
+      Main_Window (F).Destroy;
+   exception
+      when others =>
+         if Main_Window (F) /= null then
+            F.Request_Shutdown;
+            Main_Window (F).Destroy;
+         end if;
+         raise;
+   end Test_Canvas_Attachments;
+
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
@@ -2013,6 +2122,9 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas authorized shell import",
             Test_Canvas_Agent_Import'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas typed attachments", Test_Canvas_Attachments'Access));
       return Result;
    end Suite;
 

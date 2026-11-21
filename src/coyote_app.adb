@@ -21,6 +21,7 @@ with LLM.Model_Registry;
 with LLM.Session_Store;
 with LLM.Settings;
 with LLM.Types;
+with LLM.User_Images;
 with Session_Lister;
 with Coyote_App.Frontend.GUI;
 with Coyote_Process_Control;
@@ -586,6 +587,8 @@ package body Coyote_App is
                   if Model_Spec'Length = 0 then
                      return;
                   end if;
+                  My_Frontend.Canvas_Model
+                    (LLM.Agent.Supports_User_Images (Agent_Session));
                   Split_Model_Spec (Model_Spec, Provider, Model_Id);
                   declare
                      Event : constant LLM.Events.Model_Select_Event :=
@@ -942,6 +945,53 @@ package body Coyote_App is
                                    (if Is_Steer then Coyote_App.Frontend.Steer
                                     else Coyote_App.Frontend.Prompt));
                               Run_Queued_Prompt (Prompt, Is_Steer);
+                           end;
+
+                        when Coyote_GUI.Prompt_Queue.Canvas_Prompt =>
+                           declare
+                              Id : constant String := To_String (It.Canvas_Session);
+                              Warning : Unbounded_String;
+                              Failed : Boolean := False;
+                              procedure On_Image_Event (E : LLM.Events.Agent_Event'Class) is
+                              begin
+                                 if E in LLM.Events.Agent_End_Event then
+                                    declare
+                                       Ended : constant LLM.Events.Agent_End_Event :=
+                                         LLM.Events.Agent_End_Event (E);
+                                    begin
+                                       Failed := Ended.Was_Aborted or else Length (Ended.Error_Msg) /= 0;
+                                    end;
+                                 end if;
+                                 Dispatch_Event (E);
+                              end On_Image_Event;
+                           begin
+                              if Id /= LLM.Agent.Session_Id (Agent_Session) or else
+                                not LLM.Agent.Supports_User_Images (Agent_Session)
+                              then
+                                 raise LLM.User_Images.Invalid_Image with
+                                   "The queued Canvas prompt no longer has a compatible local target";
+                              end if;
+                              declare
+                                 Text : constant String := Apply_Prompt_Filter
+                                   (To_String (It.Canvas_Text), State.Prompt_Filter, Warning);
+                              begin
+                                 if Length (Warning) /= 0 then
+                                    My_Frontend.Append_Notice
+                                      (Coyote_App.Frontend.Warning, To_String (Warning));
+                                 end if;
+                                 LLM.Agent.Set_Canvas_Target
+                                   (Agent_Session, My_Frontend.Canvas_Target (Id));
+                                 My_Frontend.Begin_Image_Request (Text, It.Images);
+                                 LLM.Agent.Run_Image_Prompt
+                                   (Agent_Session, Text, It.Images, On_Image_Event'Access);
+                              end;
+                              My_Frontend.Canvas_Prompt_Result (Id, It.Request_Id, not Failed);
+                           exception
+                              when Ex : others =>
+                                 My_Frontend.Canvas_Prompt_Result (Id, It.Request_Id, False);
+                                 My_Frontend.Append_Notice
+                                   (Coyote_App.Frontend.Warning, "Image draft retained: " &
+                                    Ada.Exceptions.Exception_Message (Ex));
                            end;
 
                         when Coyote_GUI.Prompt_Queue.Stop =>

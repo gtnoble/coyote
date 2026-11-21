@@ -1,5 +1,21 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Typed Canvas turns and v3 persistence (PCR-130)
+
+Typed user image blocks preserve native PNG bytes, order, and stable revision
+IDs separately from tool images. New JSONL sessions use v3; legacy sessions
+migrate under the shared guard on their first image append. The image turn is
+committed and synced after wire validation and before upload. Retained images
+survive repeated compaction, and its summarizer receives descriptive markers.
+
+The loopback fixtures verify exact ordered bytes on all three wire formats,
+commit before upload, and provider rejection without a text-only fallback.
+Store coverage verifies legacy migration rollback, corrupt-record refusal,
+forking typed records, and exact retained PNGs through repeated compaction.
+Root and test development builds passed; the serial Xvfb suite passed
+1,120/1,120 (exit 0). CLI and import protocol checks passed. These results are
+not live-provider qualification.
+
 ## 2026-11-21 — Authorized shell Canvas import (PCR-130)
 
 The existing shell tool supplies a child-only capability and Unix socket
