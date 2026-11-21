@@ -18,6 +18,7 @@ with Coyote_Image_Jobs_Tests;
 with Coyote_Canvas_Tests;
 with Coyote_Canvas_Revisions_Tests;
 with Coyote_Canvas_Raster_Tests;
+with Coyote_Canvas_SVG_Tests;
 
 package body Test_Core_Suite is
 
@@ -45,6 +46,7 @@ package body Test_Core_Suite is
       Result.Add_Test (Coyote_Canvas_Tests.Suite);
       Result.Add_Test (Coyote_Canvas_Revisions_Tests.Suite);
       Result.Add_Test (Coyote_Canvas_Raster_Tests.Suite);
+      Result.Add_Test (Coyote_Canvas_SVG_Tests.Suite);
 
       return Result;
    end Suite;

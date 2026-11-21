@@ -306,12 +306,14 @@ package body Coyote_GUI.Canvas is
    end Report_Import_Error;
 
    procedure Import_Complete
-     (Token : System.Address; Pixels : Gdk.Pixbuf.Gdk_Pixbuf; Error : String)
+     (Token : System.Address; Pixels : Jobs.Image_List; Error : String)
    is
       I : constant Request_Index := Find_Request (Token);
       S : Instance_Access;
       Origin : Image_Origin;
-      Id : Rev.Revision_Id;
+      Sizes : Rev.Image_Sizes (Pixels'Range);
+      First : Rev.Revision_Id;
+      Remaining : Natural;
    begin
       if I = 0 then
          return;
@@ -321,31 +323,47 @@ package body Coyote_GUI.Canvas is
       Requests (I) := (others => <>);
       if S = null then
          return;
-      elsif Pixels = null then
+      elsif Pixels'Length = 0 then
          Report_Import_Error (S, Error);
          return;
       end if;
-      declare
-         Bytes : constant Natural := Natural (Gdk.Pixbuf.Get_Rowstride (Pixels))
-           * Natural (Gdk.Pixbuf.Get_Height (Pixels));
-      begin
-         if Bytes > MAX_IMAGE_BYTES - S.Image_Bytes then
-            Report_Import_Error (S, "Canvas image memory limit reached.");
-            return;
-         end if;
-         Rev.Add_Original (S.Document, Positive (Gdk.Pixbuf.Get_Width (Pixels)),
-                           Positive (Gdk.Pixbuf.Get_Height (Pixels)), Id);
-         Pixels.Ref;
-         S.Images (Id) := (Pixels => Pixels, Origin => Origin);
-         S.Image_Bytes := S.Image_Bytes + Bytes;
-      end;
+      Remaining := MAX_IMAGE_BYTES - S.Image_Bytes;
+      for J in Pixels'Range loop
+         declare
+            Image : constant Gdk.Pixbuf.Gdk_Pixbuf := Pixels (J);
+            Width : constant Positive := Positive (Gdk.Pixbuf.Get_Width (Image));
+            Height : constant Positive := Positive (Gdk.Pixbuf.Get_Height (Image));
+            Stride : constant Positive := Positive (Gdk.Pixbuf.Get_Rowstride (Image));
+         begin
+            if Height > Remaining / Stride then
+               Report_Import_Error (S, "Canvas image memory limit reached.");
+               return;
+            end if;
+            Remaining := Remaining - Height * Stride;
+            Sizes (J) := (Width, Height);
+         end;
+      end loop;
+      Rev.Add_Originals (S.Document, Sizes, First);
+      for J in Pixels'Range loop
+         Pixels (J).Ref;
+         S.Images (First + (J - Pixels'First)) :=
+           (Pixels => Pixels (J), Origin => Origin);
+      end loop;
+      S.Image_Bytes := MAX_IMAGE_BYTES - Remaining;
       Extend_Tree (S.all);
       Refresh (S.all);
-      Set_Status (S.all, "Image added to Drawings at its original size.");
+      Set_Status
+        (S.all, (if Pixels'Length = 1 then "Image added to Drawings at its original size."
+                 else "Images added to Drawings at their original sizes."));
    exception
       when Rev.Capacity_Error =>
          Report_Import_Error (S, "Canvas revision limit reached.");
    end Import_Complete;
+
+   procedure Import_Failed (Token : System.Address; Error : String) is
+   begin
+      Import_Complete (Token, (1 .. 0 => null), Error);
+   end Import_Failed;
 
    --  GtkAda's Request_Contents binding omits per-request user data.
    --  The native form lets the callback carry the leased slot instead of a
@@ -394,7 +412,7 @@ package body Coyote_GUI.Canvas is
            or else Get_Target (Selection) /= Target
            or else Address = System.Null_Address
          then
-            Import_Complete (Token, null,
+            Import_Failed (Token,
                              "Clipboard image is invalid or exceeds 8 MiB.");
             return;
          end if;
@@ -404,7 +422,7 @@ package body Coyote_GUI.Canvas is
             Accepted : Boolean;
          begin
             if Raster.Detect (Bytes) /= Expected then
-               Import_Complete (Token, null,
+               Import_Failed (Token,
                                 "Clipboard data does not match its image type.");
                return;
             end if;
@@ -412,14 +430,14 @@ package body Coyote_GUI.Canvas is
             Jobs.Submit_Bytes (Copy, Expected, Token,
                                Import_Complete'Access, Accepted);
             if not Accepted then
-               Import_Complete (Token, null, "Image import queue is full.");
+               Import_Failed (Token, "Image import queue is full.");
             end if;
          end;
       end;
    exception
       when others =>
          --  Do not propagate Ada exceptions across the GTK C callback.
-         Import_Complete (Token, null, "Could not read clipboard image.");
+         Import_Failed (Token, "Could not read clipboard image.");
    end Clipboard_Data;
 
    procedure Clipboard_Targets (Clipboard, Data, Token : System.Address) is
@@ -450,7 +468,7 @@ package body Coyote_GUI.Canvas is
          end if;
       end;
       if Choice = Raster.Unknown then
-         Import_Complete (Token, null,
+         Import_Failed (Token,
                           "The clipboard does not offer a PNG or JPEG image.");
       else
          Requests (I).Expected := Choice;
@@ -460,7 +478,7 @@ package body Coyote_GUI.Canvas is
       end if;
    exception
       when others =>
-         Import_Complete (Token, null, "Could not read clipboard formats.");
+         Import_Failed (Token, "Could not read clipboard formats.");
    end Clipboard_Targets;
 
    procedure Paste (S : Instance_Access) is
@@ -492,28 +510,67 @@ package body Coyote_GUI.Canvas is
       Response : Glib.Gint; S : Instance_Access)
    is
       pragma Unreferenced (Dialog);
-      Path : constant String := (if Gtk.Dialog.Gtk_Response_Type (Response)
-        = Gtk.Dialog.Gtk_Response_OK then S.File_Selection.Get_Filename else "");
-      I : Request_Index;
+      use Ada.Strings.Unbounded;
+      use Gtk.Enums.String_SList;
+      Files : GSlist := Null_List;
+      Cursor : GSlist;
+      Paths : Jobs.Path_List (1 .. Jobs.MAX_FILES);
+      Count : Natural := 0;
+      I : Request_Index := 0;
       Accepted : Boolean;
    begin
+      if Gtk.Dialog.Gtk_Response_Type (Response) = Gtk.Dialog.Gtk_Response_OK
+      then
+         Files := S.File_Selection.Get_Filenames;
+      end if;
       S.File_Selection.Destroy;
       S.File_Selection := null;
-      if Path'Length = 0 then
+      if Length (Files) > Glib.Guint (Jobs.MAX_FILES) then
+         Gtk.Enums.Free_String_List (Files);
+         Report_Import_Error (S, "Select at most eight images per import.");
          return;
       end if;
+      Cursor := Files;
+      while Cursor /= Null_List loop
+         Count := Count + 1;
+         Paths (Count) := To_Unbounded_String (Get_Data (Cursor));
+         Cursor := Next (Cursor);
+      end loop;
+      Gtk.Enums.Free_String_List (Files);
+      if Count = 0 then
+         return;
+      end if;
+      --  GTK does not promise click order or visual sort order here.
+      for J in 2 .. Count loop
+         declare
+            Key : constant Unbounded_String := Paths (J);
+            K   : Positive := J;
+         begin
+            while K > 1 and then Key < Paths (K - 1) loop
+               Paths (K) := Paths (K - 1);
+               K := K - 1;
+            end loop;
+            Paths (K) := Key;
+         end;
+      end loop;
       I := Acquire (S, File_Image);
       if I = 0 then
          Report_Import_Error (S, "Too many pending image requests.");
       else
-         Set_Status (S.all, "Reading image file...");
-         Jobs.Submit_File (Path, Requests (I)'Address,
-                           Import_Complete'Access, Accepted);
+         Set_Status (S.all, "Reading selected images...");
+         Jobs.Submit_Files (Paths (1 .. Count), Requests (I)'Address,
+                            Import_Complete'Access, Accepted);
          if not Accepted then
-            Import_Complete
-              (Requests (I)'Address, null, "Image import queue is full.");
+            Import_Failed (Requests (I)'Address, "Image import queue is full.");
          end if;
       end if;
+   exception
+      when others =>
+         Gtk.Enums.Free_String_List (Files);
+         if I /= 0 then
+            Requests (I) := (others => <>);
+         end if;
+         Report_Import_Error (S, "Could not import the selected images.");
    end File_Response;
 
    procedure Choose_File (S : Instance_Access) is
@@ -526,6 +583,7 @@ package body Coyote_GUI.Canvas is
             Gtk.File_Chooser.Action_Open);
          S.File_Selection.Set_Name ("coyote-canvas-file-selection");
          S.File_Selection.Set_Local_Only (True);
+         S.File_Selection.Set_Select_Multiple (True);
          Button := S.File_Selection.Add_Button
            ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
          Button := S.File_Selection.Add_Button

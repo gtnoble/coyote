@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.48
+**Version:** 1.49
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -11,9 +11,9 @@
 **Canvas and subcommands (PCR-130/131):** The product owner accepted the
 Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
 Development builds include additive CLI dispatch, legacy session listing
-parity and the modeless in-memory Canvas with native PNG/JPEG file and
-clipboard import (§5.51). SVG, shell import, persistence, attachments, and
-desktop qualification remain pending.
+parity and the modeless in-memory Canvas with native-size GUI file batches
+and PNG/JPEG clipboard import (§5.51). The shell import service, persistence,
+attachments, and desktop qualification remain pending.
 
 **Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
@@ -547,11 +547,12 @@ not wait for the complete user turn.
 | `Coyote_Canvas.Revisions` (`src/coyote_canvas-revisions.ads/.adb`) | Bounded in-memory revision tree, blank Originals, crop extents and per-draft edit history. |
 | `Coyote_Canvas.Images` (`src/coyote_canvas-images.ads/.adb`) | Checked native RGBA row copy; canonical composition and encoding remain planned. |
 | `Coyote_Canvas.Rasters` (`src/coyote_canvas-rasters.ads/.adb`) | Bounded native-size PNG/JPEG preflight and decode through `Coyote_Image_Decoder`; no Markdown thumbnail policy. |
-| `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file reads, a single decode worker, and GTK-main-task completion. |
+| `Coyote_Canvas.SVG` (`src/coyote_canvas-svg.ads/.adb`, `src/coyote_canvas_svg_c.c`) | Bounded static UTF-8 SVG preflight with libxml2 and one-time RGBA rasterization with librsvg/Cairo. |
+| `Coyote_GUI.Canvas_Import_Jobs` (`src/coyote_gui/coyote_gui-canvas_import_jobs.ads/.adb`) | Bounded regular-file batches and clipboard decode on one worker; all-or-nothing GTK-main-task completion. |
 | `Coyote_Canvas.Import_Service` | Planned; accept authorized, bounded file data for one live session. |
 | `Coyote_Canvas.Store` | Planned; save and recover session-local editable revisions and assets. |
 | `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, Cairo ink, GDK input, crop, local raster imports, and request invalidation; attachment staging remains planned. |
-| Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
+| Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
 ### 4.2 Static Relationships
@@ -3122,19 +3123,30 @@ clears it. User-initiated session switches and exit warn before discarding its
 in-memory contents. The command-line import service and user-image workflow
 below are not yet available.
 
-**Implemented raster intake.** A modeless File Selection accepts one local
-regular PNG or JPEG file per import. The final path component must not be a
-symlink. Canvas Paste requests desktop CLIPBOARD targets asynchronously and
-requests PNG in preference to JPEG. Newer Paste, Close, and session reset
-invalidate the applicable pending requests. The GTK completion path adds a
-read-only Original without changing the displayed draft or selection. Its
-owned straight-alpha raster is independent of the source and Cairo display
-cache. Current development limits are 8 MiB encoded, 8192 pixels per side,
-16 Mi pixels per image, 128 MiB of retained raster rows per workspace, one
-decode worker, two worker slots, and four GUI request slots. The row budget
-excludes the display surface cache and transient decoder allocations; it is
-not a process memory limit. SVG, multi-file selection and native-size
-composition for attachments remain pending.
+**Implemented local image intake.** Modeless File Selection accepts up to
+eight regular files per batch, in locale-independent filename order, with no
+final-component symlinks. The worker reads and decodes the entire batch before
+GTK checks the remaining revision and raster budgets and adds independent
+Originals without changing the displayed drawing, draft, or selection. Canvas
+Paste still requests desktop CLIPBOARD asynchronously, preferring PNG to JPEG.
+Newer Paste, Close, and session reset invalidate applicable pending requests.
+
+PNG/JPEG keep native dimensions. Static UTF-8 SVGs are checked against an
+allowlist before librsvg receives reserialized XML with no base URI. The
+subset includes common shapes, paths, text, gradients, and local fragment
+references; CSS stylesheets and `style` attributes, embedded or remote
+resources, scripting, animation, DTDs, and processing instructions are
+excluded. SVGs render once to straight-alpha RGBA at their intrinsic pixel
+size at 96 DPI or at the positive `viewBox` size, rounded up. Raster assets
+are independent of the source bytes and Cairo display cache.
+
+Development limits are 8 MiB encoded per file, 32 MiB encoded per batch,
+8192 pixels per side, 16 Mi pixels per image, and 128 MiB of retained raster
+rows per batch or live workspace. SVG preflight caps tree depth at 64 and
+nodes at 50,000. There is one decode worker, with two worker slots and four
+GUI request slots. These are not process memory or execution-time limits;
+transient decoder allocations and the display cache are separate. Durable
+storage and canonical composition for prompt attachments remain pending.
 
 [SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
 interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file

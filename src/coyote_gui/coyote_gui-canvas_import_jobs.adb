@@ -1,36 +1,59 @@
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Coyote_Canvas.SVG;
 with Coyote_Image_Decoder;
 with Coyote_Image_IO;
 with Glib.Main;
 with Glib.Object;
+with Interfaces.C;
 
 package body Coyote_GUI.Canvas_Import_Jobs is
    use Ada.Strings.Unbounded;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
+   use type Coyote_Canvas.Rasters.Format;
    use type Glib.Main.G_Source_Id;
+   use type Interfaces.C.int;
    use type System.Address;
 
    subtype Slot_Index is Positive range 1 .. Max_Outstanding;
-   type Source_Kind is (Bytes_Source, File_Source);
+   subtype File_Index is Positive range 1 .. MAX_FILES;
+   type Source_Kind is (Bytes_Source, Files_Source);
    type Job_State is (Free, Queued, Running, Complete);
+   type Stored_Path_List is array (File_Index) of Unbounded_String;
+   type Raw_Pixbuf_List is
+     array (File_Index) of Coyote_Image_Decoder.Pixbuf_Handle;
+
+   function Raw_Width (Pixbuf : Coyote_Image_Decoder.Pixbuf_Handle)
+      return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "gdk_pixbuf_get_width";
+   function Raw_Height (Pixbuf : Coyote_Image_Decoder.Pixbuf_Handle)
+      return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "gdk_pixbuf_get_height";
+   function Raw_Rowstride (Pixbuf : Coyote_Image_Decoder.Pixbuf_Handle)
+      return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "gdk_pixbuf_get_rowstride";
 
    type Callback_Access is access procedure
      (Token : System.Address;
-      Pixels : Gdk.Pixbuf.Gdk_Pixbuf;
+      Pixels : Image_List;
       Error : String);
    type Job_Record is record
-      State    : Job_State := Free;
-      Kind     : Source_Kind := Bytes_Source;
-      Data     : Unbounded_String;
-      Path     : Unbounded_String;
-      Expected : Coyote_Canvas.Rasters.Format :=
+      State       : Job_State := Free;
+      Kind        : Source_Kind := Bytes_Source;
+      Data        : Unbounded_String;
+      Paths       : Stored_Path_List := (others => Null_Unbounded_String);
+      Path_Count  : Natural := 0;
+      Expected    : Coyote_Canvas.Rasters.Format :=
         Coyote_Canvas.Rasters.Unknown;
-      Token    : System.Address := System.Null_Address;
-      Callback : Callback_Access := null;
-      Pixels   : Coyote_Image_Decoder.Pixbuf_Handle :=
-        Coyote_Image_Decoder.Null_Pixbuf;
-      Error    : Unbounded_String;
+      Token       : System.Address := System.Null_Address;
+      Callback    : Callback_Access := null;
+      Pixels      : Raw_Pixbuf_List :=
+        (others => Coyote_Image_Decoder.Null_Pixbuf);
+      Pixel_Count : Natural := 0;
+      Error       : Unbounded_String;
    end record;
    type Job_Array is array (Slot_Index) of Job_Record;
 
@@ -41,8 +64,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Token    : System.Address;
          Callback : Completion;
          Index    : out Natural);
-      procedure Add_File
-        (Path     : String;
+      procedure Add_Files
+        (Paths    : Path_List;
          Token    : System.Address;
          Callback : Completion;
          Index    : out Natural);
@@ -52,19 +75,22 @@ package body Coyote_GUI.Canvas_Import_Jobs is
         (Index    : Slot_Index;
          Kind     : out Source_Kind;
          Data     : out Unbounded_String;
-         Path     : out Unbounded_String;
+         Paths    : out Stored_Path_List;
+         Path_Count : out Natural;
          Expected : out Coyote_Canvas.Rasters.Format);
       procedure Finish
         (Index  : Slot_Index;
-         Pixels : Coyote_Image_Decoder.Pixbuf_Handle;
+         Pixels : Raw_Pixbuf_List;
+         Count  : Natural;
          Error  : String);
       procedure Next_Complete (Index : out Natural; Found : out Boolean);
-      procedure Read_Complete
-        (Index    : Slot_Index;
-         Token    : out System.Address;
-         Callback : out Callback_Access;
-         Pixels   : out Coyote_Image_Decoder.Pixbuf_Handle;
-         Error    : out Unbounded_String);
+      procedure Take_Complete
+        (Index      : Slot_Index;
+         Token      : out System.Address;
+         Callback   : out Callback_Access;
+         Pixels     : out Raw_Pixbuf_List;
+         Pixel_Count : out Natural;
+         Error      : out Unbounded_String);
       procedure Release (Index : Slot_Index);
       function Count return Natural;
    private
@@ -84,23 +110,26 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          for I in Items'Range loop
             if Items (I).State = Free then
                Items (I) :=
-                 (State    => Queued,
-                  Kind     => Bytes_Source,
-                  Data     => Data,
-                  Path     => Null_Unbounded_String,
-                  Expected => Expected,
-                  Token    => Token,
-                  Callback => Callback_Access (Callback),
-                  Pixels   => Coyote_Image_Decoder.Null_Pixbuf,
-                  Error    => Null_Unbounded_String);
+                 (State       => Queued,
+                  Kind        => Bytes_Source,
+                  Data        => Data,
+                  Paths       => (others => Null_Unbounded_String),
+                  Path_Count  => 0,
+                  Expected    => Expected,
+                  Token       => Token,
+                  Callback    => Callback_Access (Callback),
+                  Pixels      =>
+                    (others => Coyote_Image_Decoder.Null_Pixbuf),
+                  Pixel_Count => 0,
+                  Error       => Null_Unbounded_String);
                Index := I;
                return;
             end if;
          end loop;
       end Add_Bytes;
 
-      procedure Add_File
-        (Path     : String;
+      procedure Add_Files
+        (Paths    : Path_List;
          Token    : System.Address;
          Callback : Completion;
          Index    : out Natural)
@@ -110,20 +139,26 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          for I in Items'Range loop
             if Items (I).State = Free then
                Items (I) :=
-                 (State    => Queued,
-                  Kind     => File_Source,
-                  Data     => Null_Unbounded_String,
-                  Path     => To_Unbounded_String (Path),
-                  Expected => Coyote_Canvas.Rasters.Unknown,
-                  Token    => Token,
-                  Callback => Callback_Access (Callback),
-                  Pixels   => Coyote_Image_Decoder.Null_Pixbuf,
-                  Error    => Null_Unbounded_String);
+                 (State       => Queued,
+                  Kind        => Files_Source,
+                  Data        => Null_Unbounded_String,
+                  Paths       => (others => Null_Unbounded_String),
+                  Path_Count  => Paths'Length,
+                  Expected    => Coyote_Canvas.Rasters.Unknown,
+                  Token       => Token,
+                  Callback    => Callback_Access (Callback),
+                  Pixels      =>
+                    (others => Coyote_Image_Decoder.Null_Pixbuf),
+                  Pixel_Count => 0,
+                  Error       => Null_Unbounded_String);
+               for J in Paths'Range loop
+                  Items (I).Paths (J - Paths'First + 1) := Paths (J);
+               end loop;
                Index := I;
                return;
             end if;
          end loop;
-      end Add_File;
+      end Add_Files;
 
       procedure Claim (Index : out Natural; Found : out Boolean) is
       begin
@@ -147,29 +182,33 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end Restore;
 
       procedure Get
-        (Index    : Slot_Index;
-         Kind     : out Source_Kind;
-         Data     : out Unbounded_String;
-         Path     : out Unbounded_String;
-         Expected : out Coyote_Canvas.Rasters.Format)
+        (Index      : Slot_Index;
+         Kind       : out Source_Kind;
+         Data       : out Unbounded_String;
+         Paths      : out Stored_Path_List;
+         Path_Count : out Natural;
+         Expected   : out Coyote_Canvas.Rasters.Format)
       is
       begin
          Kind := Items (Index).Kind;
          Data := Items (Index).Data;
-         Path := Items (Index).Path;
+         Paths := Items (Index).Paths;
+         Path_Count := Items (Index).Path_Count;
          Expected := Items (Index).Expected;
       end Get;
 
       procedure Finish
         (Index  : Slot_Index;
-         Pixels : Coyote_Image_Decoder.Pixbuf_Handle;
+         Pixels : Raw_Pixbuf_List;
+         Count  : Natural;
          Error  : String)
       is
       begin
          Items (Index).Pixels := Pixels;
+         Items (Index).Pixel_Count := Count;
          Items (Index).Error := To_Unbounded_String (Error);
          Items (Index).Data := Null_Unbounded_String;
-         Items (Index).Path := Null_Unbounded_String;
+         Items (Index).Paths := (others => Null_Unbounded_String);
          Items (Index).State := Complete;
       end Finish;
 
@@ -187,19 +226,22 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          end loop;
       end Next_Complete;
 
-      procedure Read_Complete
-        (Index    : Slot_Index;
-         Token    : out System.Address;
-         Callback : out Callback_Access;
-         Pixels   : out Coyote_Image_Decoder.Pixbuf_Handle;
-         Error    : out Unbounded_String)
+      procedure Take_Complete
+        (Index       : Slot_Index;
+         Token       : out System.Address;
+         Callback    : out Callback_Access;
+         Pixels      : out Raw_Pixbuf_List;
+         Pixel_Count : out Natural;
+         Error       : out Unbounded_String)
       is
       begin
          Token := Items (Index).Token;
          Callback := Items (Index).Callback;
-         Pixels := Items (Index).Pixels;
          Error := Items (Index).Error;
-      end Read_Complete;
+         Pixel_Count := Items (Index).Pixel_Count;
+         Pixels := Items (Index).Pixels;
+         Items (Index).Pixels := (others => Coyote_Image_Decoder.Null_Pixbuf);
+      end Take_Complete;
 
       procedure Release (Index : Slot_Index) is
       begin
@@ -230,14 +272,48 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    function Pump return Boolean;
    procedure Start_Pump;
    procedure Decode_File
-     (Path   : String;
-      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
-      Error  : out Unbounded_String);
+     (Path          : String;
+      Encoded_Total : in out Natural;
+      Pixels        : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Error         : out Unbounded_String);
+   function Pixel_Bytes
+     (Pixels : Coyote_Image_Decoder.Pixbuf_Handle) return Natural;
+   procedure Release_All (Pixels : in out Raw_Pixbuf_List);
+
+   function Pixel_Bytes
+     (Pixels : Coyote_Image_Decoder.Pixbuf_Handle) return Natural
+   is
+      Width, Height, Rowstride : Interfaces.C.int;
+      Total : Long_Long_Integer;
+   begin
+      if Coyote_Image_Decoder.Is_Null (Pixels) then
+         return MAX_BATCH_DECODED_BYTES + 1;
+      end if;
+      Width := Raw_Width (Pixels);
+      Height := Raw_Height (Pixels);
+      Rowstride := Raw_Rowstride (Pixels);
+      if Width <= 0 or else Height <= 0 or else Rowstride <= 0 then
+         return MAX_BATCH_DECODED_BYTES + 1;
+      end if;
+      Total := Long_Long_Integer (Rowstride) * Long_Long_Integer (Height);
+      if Total > Long_Long_Integer (MAX_BATCH_DECODED_BYTES) then
+         return MAX_BATCH_DECODED_BYTES + 1;
+      end if;
+      return Natural (Total);
+   end Pixel_Bytes;
+
+   procedure Release_All (Pixels : in out Raw_Pixbuf_List) is
+   begin
+      for I in Pixels'Range loop
+         Coyote_Image_Decoder.Release (Pixels (I));
+      end loop;
+   end Release_All;
 
    procedure Decode_File
-     (Path   : String;
-      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
-      Error  : out Unbounded_String)
+     (Path          : String;
+      Encoded_Total : in out Natural;
+      Pixels        : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Error         : out Unbounded_String)
    is
       use Coyote_Image_IO;
       Separator : constant Natural := Ada.Strings.Fixed.Index
@@ -271,7 +347,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Leaf := To_Unbounded_String (Path (Separator + 1 .. Path'Last));
       Open_Root (To_String (Parent_Path), Root);
       if Root = Invalid_Descriptor then
-         Error := To_Unbounded_String ("Image import failed");
+         Error := To_Unbounded_String ("Could not open the selected image.");
          return;
       end if;
       Open_File (Root, To_String (Leaf), File);
@@ -285,27 +361,48 @@ package body Coyote_GUI.Canvas_Import_Jobs is
            Coyote_Canvas.Rasters.MAX_ENCODED_BYTES
          then
             Error := To_Unbounded_String ("Encoded image exceeds 8 MiB.");
+         elsif Encoded_Total > MAX_BATCH_ENCODED_BYTES -
+           Natural (Attributes_Result.Size)
+         then
+            Error := To_Unbounded_String
+              ("Encoded image batch exceeds 32 MiB.");
          else
             loop
                Count_Read := Read (File, Buffer);
                exit when Count_Read = 0;
                if Count_Read < 0 then
-                  Error := To_Unbounded_String ("Could not read the image file.");
+                  Error := To_Unbounded_String
+                    ("Could not read the image file.");
                   exit;
                end if;
                Source_Size := Length (Contents);
                if Source_Size + Natural (Count_Read) >
                  Coyote_Canvas.Rasters.MAX_ENCODED_BYTES
                then
-                  Error := To_Unbounded_String ("Encoded image exceeds 8 MiB.");
+                  Error := To_Unbounded_String
+                    ("Encoded image exceeds 8 MiB.");
+                  exit;
+               elsif Encoded_Total > MAX_BATCH_ENCODED_BYTES -
+                 Source_Size - Natural (Count_Read)
+               then
+                  Error := To_Unbounded_String
+                    ("Encoded image batch exceeds 32 MiB.");
                   exit;
                end if;
                Append (Contents, Buffer (1 .. Count_Read));
             end loop;
             if Length (Error) = 0 then
-               Coyote_Canvas.Rasters.Decode
-                 (To_String (Contents), Coyote_Canvas.Rasters.Unknown,
-                  Pixels, Width, Height, Error);
+               Encoded_Total := Encoded_Total + Length (Contents);
+               if Coyote_Canvas.Rasters.Detect
+                 (To_String (Contents)) = Coyote_Canvas.Rasters.Unknown
+               then
+                  Coyote_Canvas.SVG.Decode
+                    (To_String (Contents), Pixels, Error);
+               else
+                  Coyote_Canvas.Rasters.Decode
+                    (To_String (Contents), Coyote_Canvas.Rasters.Unknown,
+                     Pixels, Width, Height, Error);
+               end if;
             end if;
          end if;
       end if;
@@ -358,19 +455,24 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end;
    end Submit_Bytes;
 
-   procedure Submit_File
-     (Path     : String;
-      Token    : System.Address;
-      Callback : Completion;
-      Accepted : out Boolean)
+   procedure Submit_Files
+     (Paths    :        Path_List;
+      Token    :        System.Address;
+      Callback :        Completion;
+      Accepted :    out Boolean)
    is
       Index : Natural;
    begin
       Accepted := False;
-      if Path'Length = 0 then
+      if Paths'Length = 0 or else Paths'Length > MAX_FILES then
          return;
       end if;
-      Queue.Add_File (Path, Token, Callback, Index);
+      for Path of Paths loop
+         if Length (Path) = 0 then
+            return;
+         end if;
+      end loop;
+      Queue.Add_Files (Paths, Token, Callback, Index);
       if Index = 0 then
          return;
       end if;
@@ -381,16 +483,18 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          when others =>
             Queue.Release (Slot_Index (Index));
       end;
-   end Submit_File;
+   end Submit_Files;
 
    function Pump return Boolean is
       Index : Natural;
       Found : Boolean;
       Token : System.Address;
       Callback : Callback_Access;
-      Raw : Coyote_Image_Decoder.Pixbuf_Handle;
+      Raw : Raw_Pixbuf_List :=
+        (others => Coyote_Image_Decoder.Null_Pixbuf);
+      Pixel_Count : Natural;
       Error : Unbounded_String;
-      Image : Gdk.Pixbuf.Gdk_Pixbuf;
+      Images : Image_List (1 .. MAX_FILES) := (others => null);
    begin
       Queue.Claim (Index, Found);
       if Found then
@@ -403,26 +507,36 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       loop
          Queue.Next_Complete (Index, Found);
          exit when not Found;
-         Queue.Read_Complete
-           (Slot_Index (Index), Token, Callback, Raw, Error);
+         Queue.Take_Complete
+           (Slot_Index (Index), Token, Callback, Raw, Pixel_Count, Error);
+         if Length (Error) = 0 then
+            begin
+               for I in 1 .. Pixel_Count loop
+                  Images (I) := Coyote_Image_Decoder.Adopt (Raw (I));
+               end loop;
+            exception
+               when others =>
+                  Error := To_Unbounded_String ("Image import failed");
+            end;
+         end if;
          begin
-            Image := Coyote_Image_Decoder.Adopt (Raw);
-         exception
-            when others =>
-               Image := null;
-               Coyote_Image_Decoder.Release (Raw);
-               Error := To_Unbounded_String ("Image import failed");
-         end;
-         begin
-            Callback.all (Token, Image, To_String (Error));
+            if Length (Error) = 0 then
+               Callback.all (Token, Images (1 .. Pixel_Count), "");
+            else
+               Callback.all (Token, Image_List'(1 .. 0 => null),
+                             To_String (Error));
+            end if;
          exception
             when others =>
                null;
          end;
-         if Image /= null then
-            Glib.Object.Unref (Glib.Object.GObject (Image));
-         end if;
-         Coyote_Image_Decoder.Release (Raw);
+         for I in Images'Range loop
+            if Images (I) /= null then
+               Glib.Object.Unref (Glib.Object.GObject (Images (I)));
+               Images (I) := null;
+            end if;
+         end loop;
+         Release_All (Raw);
          Queue.Release (Slot_Index (Index));
       end loop;
       if Queue.Count = 0 then
@@ -433,6 +547,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       return True;
    exception
       when others =>
+         Release_All (Raw);
          return Queue.Count > 0;
    end Pump;
 
@@ -440,13 +555,19 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Index : Slot_Index;
       Kind : Source_Kind;
       Data : Unbounded_String;
-      Path : Unbounded_String;
+      Paths : Stored_Path_List;
+      Path_Count : Natural;
       Expected : Coyote_Canvas.Rasters.Format;
-      Raw : Coyote_Image_Decoder.Pixbuf_Handle :=
-        Coyote_Image_Decoder.Null_Pixbuf;
+      Raw : Raw_Pixbuf_List :=
+        (others => Coyote_Image_Decoder.Null_Pixbuf);
+      Pixel_Count : Natural := 0;
+      Decoded_Total : Natural := 0;
+      Encoded_Total : Natural := 0;
       Width : Natural;
       Height : Natural;
       Error : Unbounded_String;
+      Item_Error : Unbounded_String;
+      Path : Unbounded_String;
    begin
       loop
          select
@@ -454,31 +575,65 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                Index := Job_Index;
             end Start;
             begin
-               Queue.Get (Index, Kind, Data, Path, Expected);
-               Raw := Coyote_Image_Decoder.Null_Pixbuf;
+               Queue.Get
+                 (Index, Kind, Data, Paths, Path_Count, Expected);
+               Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
+               Pixel_Count := 0;
+               Decoded_Total := 0;
+               Encoded_Total := 0;
                Error := Null_Unbounded_String;
                if Kind = Bytes_Source then
                   Coyote_Canvas.Rasters.Decode
-                    (To_String (Data), Expected, Raw, Width, Height, Error);
+                    (To_String (Data), Expected, Raw (1), Width, Height,
+                     Error);
+                  if Length (Error) = 0 then
+                     Pixel_Count := 1;
+                     Decoded_Total := Pixel_Bytes (Raw (1));
+                     if Decoded_Total > MAX_BATCH_DECODED_BYTES then
+                        Error := To_Unbounded_String
+                          ("Decoded image exceeds 128 MiB.");
+                     end if;
+                  end if;
                else
-                  Decode_File (To_String (Path), Raw, Error);
+                  for I in 1 .. Path_Count loop
+                     Path := Paths (I);
+                     Decode_File
+                       (To_String (Path), Encoded_Total, Raw (I), Item_Error);
+                     if Length (Item_Error) /= 0 then
+                        Error := To_Unbounded_String
+                          ("Image " & Ada.Strings.Fixed.Trim
+                             (Positive'Image (I), Ada.Strings.Both) &
+                           ": " & To_String (Item_Error));
+                        exit;
+                     end if;
+                     Pixel_Count := I;
+                     Decoded_Total := Decoded_Total + Pixel_Bytes (Raw (I));
+                     if Decoded_Total > MAX_BATCH_DECODED_BYTES then
+                        Error := To_Unbounded_String
+                          ("Image " & Ada.Strings.Fixed.Trim
+                             (Positive'Image (I), Ada.Strings.Both) &
+                           ": decoded image batch exceeds 128 MiB.");
+                        exit;
+                     end if;
+                  end loop;
                end if;
-               if not Coyote_Image_Decoder.Is_Null (Raw)
-                 and then Length (Error) /= 0
-               then
-                  Coyote_Image_Decoder.Release (Raw);
+               if Length (Error) /= 0 then
+                  Release_All (Raw);
+                  Pixel_Count := 0;
                end if;
-               Queue.Finish (Index, Raw, To_String (Error));
-               Raw := Coyote_Image_Decoder.Null_Pixbuf;
+               Queue.Finish (Index, Raw, Pixel_Count, To_String (Error));
+               Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
             exception
                when others =>
-                  Coyote_Image_Decoder.Release (Raw);
+                  Release_All (Raw);
                   Queue.Finish
-                    (Index, Coyote_Image_Decoder.Null_Pixbuf,
+                    (Index, (others => Coyote_Image_Decoder.Null_Pixbuf), 0,
                      "Image import failed");
             end;
             Data := Null_Unbounded_String;
+            Paths := (others => Null_Unbounded_String);
             Path := Null_Unbounded_String;
+            Item_Error := Null_Unbounded_String;
             Error := Null_Unbounded_String;
          or
             terminate;

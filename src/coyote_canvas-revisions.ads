@@ -1,7 +1,7 @@
 with Ada.Containers.Vectors;
 with Coyote_Canvas.Document;
 
---  In-memory blank-canvas revision history and draft editing.
+--  In-memory Canvas revision history and draft editing.
 --  Project: coyote
 --  Revision identifiers are stable only within one Workspace lifetime.
 --
@@ -20,10 +20,16 @@ package Coyote_Canvas.Revisions is
 
    type Workspace is limited private;
 
-   --  Add a read-only Original without switching the draft or its edit log.
-   --  The caller owns pixels keyed by Id; descendants share that background.
-   procedure Add_Original
-     (W : in out Workspace; Width, Height : Positive; Id : out Revision_Id);
+   type Image_Size is record
+      Width, Height : Positive;
+   end record;
+   type Image_Sizes is array (Positive range <>) of Image_Size;
+
+   --  Append all Originals in order, without switching or editing the draft.
+   --  First_Id identifies the first consecutive background asset. Capacity
+   --  or allocation failure leaves the workspace unchanged.
+   procedure Add_Originals
+     (W : in out Workspace; Sizes : Image_Sizes; First_Id : out Revision_Id);
    function Background
      (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id;
 

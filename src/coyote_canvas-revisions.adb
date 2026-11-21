@@ -46,17 +46,33 @@ package body Coyote_Canvas.Revisions is
         (Ada.Containers.Count_Type (Count (W) + Need));
    end Reserve_Revisions;
 
-   procedure Add_Original
-     (W : in out Workspace; Width, Height : Positive; Id : out Revision_Id)
+   procedure Add_Originals
+     (W : in out Workspace; Sizes : Image_Sizes; First_Id : out Revision_Id)
    is
+      Before : constant Natural := Count (W);
    begin
-      Reserve_Revisions (W, 1);
-      W.Revisions.Append
-        (Revision'(Parent => NO_REVISION,
-          Content => (Extent => Document.Full_Extent (Width, Height),
-                      Image => Count (W) + 1, others => <>)));
-      Id := Count (W);
-   end Add_Original;
+      First_Id := NO_REVISION;
+      if Sizes'Length = 0 then
+         return;
+      elsif Sizes'Length > MAX_REVISIONS - Before then
+         raise Capacity_Error with "Canvas revision limit reached";
+      end if;
+      Reserve_Revisions (W, Sizes'Length);
+      for Size of Sizes loop
+         W.Revisions.Append
+           (Revision'
+              (Parent  => NO_REVISION,
+               Content =>
+                 (Extent => Document.Full_Extent (Size.Width, Size.Height),
+                  Image  => Count (W) + 1,
+                  others => <>)));
+      end loop;
+      First_Id := Before + 1;
+   exception
+      when others =>
+         W.Revisions.Delete_Last (Ada.Containers.Count_Type (Count (W) - Before));
+         raise;
+   end Add_Originals;
 
    function Background
      (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id is

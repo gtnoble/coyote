@@ -72,6 +72,82 @@ package body Coyote_Canvas_Revisions_Tests is
          "checkpoint parent is the prior base");
    end Checkpoint_Dirty_Draft;
 
+   procedure Add_Originals_Preserve_Draft (T : in out Test) is
+      pragma Unreferenced (T);
+      W             : Workspace;
+      First         : Revision_Id;
+      Capacity      : Workspace;
+      Capacity_First : Revision_Id;
+      Rejected      : Boolean := False;
+      Sizes         : constant Image_Sizes :=
+        (1 => (Width => 40, Height => 30),
+         2 => (Width => 90, Height => 70));
+      Full          : Image_Sizes (1 .. 254) :=
+        (others => (Width => 1, Height => 1));
+      Batch         : constant Image_Sizes :=
+        (1 => (Width => 5, Height => 6),
+         2 => (Width => 7, Height => 8));
+   begin
+      New_Drawing (W, 20, 16);
+      Crop (W, (1, 1, 19, 15));
+      Crop (W, (2, 2, 18, 14));
+      Undo (W);
+      Assert
+        (Can_Undo (W) and then Can_Redo (W),
+         "setup retains both undo and redo history");
+
+      Add_Originals (W, Sizes, First);
+      Assert
+        (First = 2 and then Count (W) = 3,
+         "batch publishes two consecutive revisions in order");
+      Assert
+        (Parent (W, First) = NO_REVISION
+         and then Parent (W, First + 1) = NO_REVISION,
+         "each Original is an independent root");
+      Assert
+        (Extent (W, First) = Full_Extent (40, 30)
+         and then Extent (W, First + 1) = Full_Extent (90, 70),
+         "Original backgrounds retain their ordered dimensions");
+      Assert
+        (Background (W, First) = First
+         and then Background (W, First + 1) = First + 1,
+         "each Original retains its own background identity");
+      Assert
+        (Base (W) = 1 and then Changed (W)
+         and then Extent (W) = (1, 1, 19, 15),
+         "adding Originals neither checkpoints nor switches draft");
+      Assert
+        (Can_Undo (W) and then Can_Redo (W),
+         "adding Originals preserves draft undo and redo history");
+
+      Add_Originals (Capacity, Full, Capacity_First);
+      New_Drawing (Capacity, 20, 16);
+      Crop (Capacity, (1, 1, 19, 15));
+      Crop (Capacity, (2, 2, 18, 14));
+      Undo (Capacity);
+      Assert
+        (Count (Capacity) = MAX_REVISIONS - 1
+         and then Can_Undo (Capacity) and then Can_Redo (Capacity),
+         "capacity setup leaves one slot with undo and redo history");
+      begin
+         Add_Originals (Capacity, Batch, Capacity_First);
+      exception
+         when Capacity_Error =>
+            Rejected := True;
+      end;
+      Assert (Rejected, "two-item batch exceeds remaining capacity");
+      Assert
+        (Count (Capacity) = MAX_REVISIONS - 1
+         and then Base (Capacity) = 255
+         and then Changed (Capacity)
+         and then Background (Capacity) = NO_REVISION
+         and then Extent (Capacity) = (1, 1, 19, 15),
+         "rejected batch leaves revision count and draft unchanged");
+      Assert
+        (Can_Undo (Capacity) and then Can_Redo (Capacity),
+         "rejected batch leaves undo and redo history unchanged");
+   end Add_Originals_Preserve_Draft;
+
    procedure Undo_Redo_Crop (T : in out Test) is
       pragma Unreferenced (T);
       W : Workspace;
@@ -132,6 +208,10 @@ package body Coyote_Canvas_Revisions_Tests is
         (Caller.Create
            ("Canvas edit checkpoints dirty draft",
             Checkpoint_Dirty_Draft'Access));
+      Result.Add_Test
+        (Caller.Create
+           ("Canvas Add_Originals preserves draft and capacity state",
+            Add_Originals_Preserve_Draft'Access));
       Result.Add_Test
         (Caller.Create ("Canvas crop undo and redo", Undo_Redo_Crop'Access));
       Result.Add_Test

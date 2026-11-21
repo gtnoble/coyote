@@ -3,9 +3,11 @@ with AUnit.Test_Caller;
 --
 --  Project: coyote
 
+with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
 with Coyote_App.Agent_RPC.Transport;
@@ -13,7 +15,6 @@ with Coyote_App.Frontend.GUI.Testing;
 with Coyote_GUI;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Canvas_Import_Jobs;
-with Coyote_Temp_Files;
 with Glib.Error;
 with Gtk.File_Chooser_Dialog;
 with Coyote_Process_Control;
@@ -1313,23 +1314,38 @@ package body Coyote_App_Frontend_GUI_Tests is
       use Ada.Real_Time;
       use Coyote_App.Frontend.GUI.Testing;
       use Gtk.Tree_Model;
+      use Gtk.Enums.String_SList;
       use type Glib.Error.GError;
       Frontend : Coyote_App.Frontend.GUI.Instance;
       Canvas   : Gtk.Window.Gtk_Window;
       Tree     : Gtk.Tree_View.Gtk_Tree_View;
       Model    : Gtk_Tree_Model;
       Area     : Gtk.Widget.Gtk_Widget;
-      Row      : Gtk_Tree_Iter;
-      Path     : Unbounded_String;
-      FD       : GNAT.OS_Lib.File_Descriptor;
+      Folder   : Unbounded_String;
+      Paths    : array (1 .. 3) of Unbounded_String;
+
+      function Make_Temp_Directory
+        (Template : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
       W, H     : Glib.Gint;
+      Selected_Count : Glib.Gint;
+      Draft_Sensitive : Boolean;
 
       function Control (Name : String) return Gtk.Widget.Gtk_Widget is
         (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name));
 
-      procedure Choose is
-         Top : Gtk.Window.Gtk_Window;
-         Chooser : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
+      procedure Write_Fixture (Index : Positive; Content : String) is
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create
+           (File, Ada.Text_IO.Out_File, To_String (Paths (Index)));
+         Ada.Text_IO.Put (File, Content);
+         Ada.Text_IO.Close (File);
+      end Write_Fixture;
+
+      procedure Choose (First_Path : String; File_Count : Positive) is
+         Top      : Gtk.Window.Gtk_Window;
+         Chooser  : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
          Deadline : constant Time := Clock + Seconds (3);
       begin
          Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-import")).Activate;
@@ -1337,32 +1353,96 @@ package body Coyote_App_Frontend_GUI_Tests is
          Assert (Top /= null and then not Top.Get_Modal,
                  "Import opens a modeless File Selection");
          Chooser := Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog (Top);
-         Assert (Chooser.Set_Filename (To_String (Path)),
-                 "GTK accepts the fixture path");
-         Poll : loop
+         Assert (Chooser.Get_Select_Multiple,
+                 "File Selection permits multiple files");
+         Assert (Chooser.Select_Filename (First_Path),
+                 "GTK selects the first fixture");
+         Await_First : loop
             Drain_Events;
-            exit Poll when Chooser.Get_Filename = To_String (Path);
-            Assert (Clock < Deadline, "File Selection did not resolve path");
+            exit Await_First when Chooser.Get_Filename = First_Path;
+            Assert (Clock < Deadline, "First file did not resolve");
             delay 0.01;
-         end loop Poll;
+         end loop Await_First;
+         if File_Count > 1 then
+            Chooser.Select_All;
+         end if;
+         declare
+            Files : GSlist := Chooser.Get_Filenames;
+            Selected : constant Glib.Guint := Length (Files);
+         begin
+            Gtk.Enums.Free_String_List (Files);
+            Assert (Selected = Glib.Guint (File_Count),
+                    "All fixture files selected");
+         end;
          Gtk.Dialog.Gtk_Dialog (Chooser).Response (Gtk.Dialog.Gtk_Response_OK);
       end Choose;
+
+      procedure Check_Original (Index : Positive; Width, Height : Glib.Gint) is
+         Iter  : constant Gtk_Tree_Iter :=
+           Nth_Child (Model, Null_Iter, Glib.Gint (Index - 1));
+         Label : Glib.Values.GValue;
+      begin
+         Assert (Iter /= Null_Iter, "Missing imported Original row");
+         Get_Value (Model, Iter, 0, Label);
+         declare
+            Value : constant String := Glib.Values.Get_String (Label);
+         begin
+            Glib.Values.Unset (Label);
+            Assert
+              (Value'Length >= 14 and then Value (1 .. 14) = "Imported Image",
+               "Batch row is an imported Original");
+         end;
+         Tree.Get_Selection.Unselect_All;
+         Tree.Get_Selection.Select_Iter (Iter);
+         Area.Get_Size_Request (W, H);
+         Assert (W = Width and then H = Height,
+                 "Imported Original retains its native dimensions");
+      end Check_Original;
+
+      procedure Read_Import_Error is
+         Dialog   : Gtk.Window.Gtk_Window := null;
+         Deadline : constant Time := Clock + Seconds (3);
+      begin
+         Poll : loop
+            Drain_Events;
+            Dialog := Canvas_Toplevel ("coyote-canvas-import-error");
+            exit Poll when Dialog /= null;
+            Assert (Clock < Deadline, "Invalid batch did not report an error");
+            delay 0.01;
+         end loop Poll;
+         Gtk.Dialog.Gtk_Dialog (Dialog).Response (Gtk.Dialog.Gtk_Response_Close);
+      end Read_Import_Error;
    begin
       if not T.Display_Available then
          return;
       end if;
-      Coyote_Temp_Files.Create (FD, Path);
-      GNAT.OS_Lib.Close (FD);
+      declare
+         use type System.Address;
+         Template : String := "/tmp/coyote-canvas-batch-XXXXXX" & ASCII.NUL;
+         Found : constant System.Address := Make_Temp_Directory (Template'Address);
+      begin
+         Assert (Found /= System.Null_Address, "Made private fixture folder");
+         Folder := To_Unbounded_String (Template (1 .. Template'Last - 1));
+      end;
+      Paths (1) := Folder & "/a.svg";
+      Paths (2) := Folder & "/b.jpeg";
+      Paths (3) := Folder & "/z-invalid";
+      Write_Fixture
+        (1, "<svg xmlns=""http://www.w3.org/2000/svg"" "
+         & "width=""31"" height=""17"" viewBox=""0 0 31 17"">"
+         & "<rect width=""31"" height=""17"" fill=""red""/>"
+         & "</svg>");
       declare
          Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
            Gdk.Pixbuf.Gdk_New (Width => 675, Height => 44);
          Error : Glib.Error.GError;
       begin
          Gdk.Pixbuf.Fill (Image, 16#336699FF#);
-         Gdk.Pixbuf.Save (Image, To_String (Path), Gdk.Pixbuf.JPEG, Error);
+         Gdk.Pixbuf.Save (Image, To_String (Paths (2)), Gdk.Pixbuf.JPEG, Error);
          Image.Unref;
          Assert (Error = null, "Generated JPEG fixture");
       end;
+
       Coyote_App.Frontend.GUI.Create
         (Frontend, "Canvas file import test", Pop_Under => True);
       Canvas_Item (Frontend).Activate;
@@ -1370,39 +1450,55 @@ package body Coyote_App_Frontend_GUI_Tests is
       Area := Control ("coyote-canvas-drawing-area");
       Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
       Model := Tree.Get_Model;
-      Choose;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-new")).Activate;
+      Selected_Count := Tree.Get_Selection.Count_Selected_Rows;
+      Draft_Sensitive := Control ("canvas-draft").Get_Sensitive;
+
+      Choose (To_String (Paths (1)), 2);
       Finish_Canvas_Jobs;
-      Assert (N_Children (Model) = 1, "File import adds one Original");
-      Row := Get_Iter_First (Model);
-      Check_Label : declare
-         V : Glib.Values.GValue;
-      begin
-         Get_Value (Model, Row, 0, V);
-         declare
-            Value : constant String := Glib.Values.Get_String (V);
-         begin
-            Glib.Values.Unset (V);
-            Assert (Value'Length >= 14 and then Value (1 .. 14) = "Imported Image",
-                    "File Original has an imported label");
-         end;
-      end Check_Label;
-      Tree.Get_Selection.Select_Iter (Row);
+      Assert (N_Children (Model) = 3,
+              "Batch import adds two Originals beside the working copy");
+      Assert
+        (Tree.Get_Selection.Count_Selected_Rows = Selected_Count
+         and then Control ("canvas-draft").Get_Sensitive = Draft_Sensitive,
+         "Batch import leaves draft and selection unchanged");
       Area.Get_Size_Request (W, H);
-      Assert (W = 675 and then H = 44, "File import is not thumbnailed");
-      Choose;
+      Assert (W = 800 and then H = 600, "Batch leaves the displayed draft");
+      Check_Original (2, 31, 17);
+      Check_Original (3, 675, 44);
+
+      Tree.Get_Selection.Unselect_All;
+      Selected_Count := Tree.Get_Selection.Count_Selected_Rows;
+      Draft_Sensitive := Control ("canvas-draft").Get_Sensitive;
+      Write_Fixture (3, "not an image");
+      Choose (To_String (Paths (1)), 3);
+      Finish_Canvas_Jobs;
+      Read_Import_Error;
+      Assert (N_Children (Model) = 3,
+              "Failed batch adds no partial Original");
+      Assert
+        (Tree.Get_Selection.Count_Selected_Rows = Selected_Count
+         and then Control ("canvas-draft").Get_Sensitive = Draft_Sensitive,
+         "Failed batch leaves draft and selection unchanged");
+
+      Choose (To_String (Paths (1)), 1);
+      Assert (Coyote_GUI.Canvas_Import_Jobs.Pending_Count > 0,
+              "File import is pending before session reset");
       Reset_Agents_From_Task (Frontend);
       Finish_Canvas_Jobs;
-      Assert (N_Children (Model) = 0, "Session reset drops the pending image");
+      Assert (N_Children (Model) = 0, "Session reset drops pending imports");
       Frontend.Request_Shutdown;
       Main_Window (Frontend).Destroy;
-      Coyote_Temp_Files.Delete (To_String (Path));
+      Ada.Directories.Delete_Tree (To_String (Folder));
    exception
       when others =>
          if Main_Window (Frontend) /= null then
             Frontend.Request_Shutdown;
             Main_Window (Frontend).Destroy;
          end if;
-         Coyote_Temp_Files.Delete (To_String (Path));
+         if Length (Folder) > 0 then
+            Ada.Directories.Delete_Tree (To_String (Folder));
+         end if;
          raise;
    end Test_Canvas_File_Import;
 

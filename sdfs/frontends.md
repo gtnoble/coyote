@@ -1,5 +1,24 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Static SVG and atomic Canvas file import (PCR-130/131)
+
+Modeless File Selection accepts up to eight mixed PNG/JPEG/static SVG files,
+in filename order. The single worker validates the entire batch before GTK
+checks revision and retained raster capacity and adds Originals. Failure adds
+no roots and leaves the current draft, preview and selection unchanged. The
+SVG path validates a restricted UTF-8 XML tree and renders once at intrinsic
+96 DPI size or rounded-up positive viewBox dimensions. Clipboard format and
+lifetime rules are unchanged.
+
+Root and test development builds passed. Focused checks verified the SVG
+size and pixel policies, rejection of unsupported and external content,
+revision-limit rejection, and display-backed mixed import, rollback and
+session reset. Full serial Xvfb AUnit passed 1,096/1,096 with no failures or
+errors; standalone GTK checks passed 9/9, the runner self-test passed, and
+Canvas CLI compatibility passed. No desktop, tablet or end-to-end product
+qualification was performed. The authorized shell import service, durable
+recovery, and prompt attachments remain pending.
+
 ## 2026-11-21 — Native Canvas raster imports (PCR-130/131)
 
 Modeless File Selection accepts one local PNG or JPEG; Edit → Paste requests

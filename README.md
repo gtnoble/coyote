@@ -64,6 +64,8 @@ shared between coyote and pi.
 - `libcurl` development headers (for example `libcurl4-openssl-dev`)
 - `libcmark-gfm` and `libcmark-gfm-extensions` development headers
 - GTK3 and GtkAda development packages
+- librsvg ≥ 2.52 and libxml2 development headers (`librsvg2-dev` and
+  `libxml2-dev` on Debian/Ubuntu)
 - Bundled KaTeX 0.16.22 math fonts under `share/coyote/math/fonts/` and their
   retained MIT notices under `share/coyote/math/licenses/` (no Lasem runtime
   dependency)
@@ -165,15 +167,23 @@ the Drawings tree. Select a saved revision to preview it, or choose
 accepts a pointer drag or exact pixel fields; the drawing changes only after
 **Apply Crop**. Use **Undo** or **Redo** to step through edits.
 
-Use **File → Import…** for a local PNG or JPEG file, or **Edit → Paste**
-(`Ctrl+V` outside a text field) for a PNG or JPEG on the clipboard. Each
-import adds a separate Original at its native size without switching the
-working copy. Select the Original to see it, or use **Edit Revision** to
-annotate or crop it. Oversized images are rejected rather than shrunk.
+Use **File → Import…** to select up to eight local PNG, JPEG, or supported
+SVG files. A batch adds a separate Original for each file in filename order;
+if any file fails, none are added. The displayed drawing, selection, and
+working copy stay unchanged. **Edit → Paste** (`Ctrl+V` outside text fields)
+accepts a PNG or JPEG from the clipboard. Select an Original to preview it,
+or use **Edit Revision** to annotate or crop it.
+
+PNG and JPEG keep their native dimensions. SVGs render once at their intrinsic
+size (96 DPI for physical units), or at their rounded-up `viewBox` size.
+Canvas accepts static SVG shapes, paths, text, and gradients with presentation
+attributes and local references. Stylesheets, `style` attributes, scripts,
+animation, and embedded or linked images are not supported. Oversized images
+are rejected rather than shrunk.
 
 Closing only the Canvas keeps its drawings in memory. They do not survive a
-session change or application exit. SVG and multi-file import, `canvas add`,
-durable revisions, and prompt attachments are not yet available.
+session change or application exit. `canvas add`, durable revisions, and
+prompt attachments are not yet available.
 
 ## Session listing
 

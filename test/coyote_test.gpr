@@ -19,7 +19,7 @@ project Coyote_Test is
    end Binder;
 
    package Linker is
-      for Switches ("Ada") use ("-lcurl", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread");
+      for Switches ("Ada") use ("-lcurl", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lrsvg-2", "-lxml2", "-lm", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread");
    end Linker;
 
    package Install is
