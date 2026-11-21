@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.35
+**Version:** 1.36
 **Date:** 2026-11-21
 **Status:** PCR-130 and PCR-131 Canvas and CLI design accepted; implementation and qualification pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
@@ -1570,7 +1570,7 @@ for New, `Ctrl+S` for Save, `Ctrl+W` for Close, `Ctrl+Z` for Undo and
 its drawings. Agent additions shall update the status area without taking
 focus, switching the active drawing, or posting a modal confirmation.
 
-**REQ-CORE-261** (D/T) — Drawing and tablet input
+**REQ-CORE-261** (D/T) — Drawing, tablet input, and editing tools
 
 The user shall be able to create a blank drawing or import one or more local
 PNG, JPEG or self-contained SVG files through a modeless File Selection
@@ -1585,6 +1585,20 @@ that cannot be supported at those dimensions shall be rejected, not resized.
 Imported files shall not be overwritten. Pan and zoom shall not alter the
 drawing. **View → Show Markup** shall hide or show ink without changing the
 drawing or any attachment.
+
+The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, and
+**Crop** radio choices in a toolbar below the menu bar and matching radio
+choices in the **Edit** menu. The two controls shall stay synchronized, with
+Pencil selected by default. The toolbar and Edit menu shall remain available
+to switch away from a pending crop when the displayed working copy is
+editable, and shall be disabled when no editable working copy is available
+or **Show Markup** is off. Only **Apply Crop** shall commit a pending crop;
+switching to a drawing tool shall discard it. Apply Crop, Cancel, and Escape
+shall return to the drawing tool selected before Crop. A pen eraser override
+shall erase for that gesture without changing the selected tool; selected
+Crop shall take precedence. No new shortcuts shall be assigned to these tool
+choices; Tab and arrow keys shall use native toolbar navigation, and Edit
+menu mnemonics shall remain available.
 
 **REQ-CORE-262** (D/T) — Drawing tree and revisions
 

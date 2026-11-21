@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.53
+**Version:** 1.54
 **Date:** 2026-11-21
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
@@ -1015,7 +1015,7 @@ remain open.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.41 (2026-11-21) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.54 (2026-11-21) | Project |
 | Native math port plan | PLAN-MATH | `plan/native-math-parity-plan.md` | 0.9 (2026-11-06) | Client — plan approved |
 | Native math requirements | SRS-MATH | `requirements/native-math-compatibility.md` | 1.0 (2026-10-24) | Client — requirements approved |
 | Native math design | SDD-MATH | `design/native-math-compatibility.md` | 0.9 (2026-11-06) | Client — approved design/execution; parity/qualification open |
@@ -1024,10 +1024,10 @@ remain open.
 | Native math human acceptance checklist | CHECK-MATH | `plan/native-math-acceptance-checklist.md` | 0.6 (2026-11-06) | Author — not executed |
 | Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.35 (2026-11-21) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.61 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
-| Canvas Detailed Design | SDD-CANVAS | `design/coyote-canvas-design.md` | 1.0 (2026-11-21) | Client — design accepted |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.36 (2026-11-21) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.62 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
+| Canvas Detailed Design | SDD-CANVAS | `design/coyote-canvas-design.md` | 1.1 (2026-11-21) | Client — design accepted; tool-interaction documentation revised |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.44 (2026-11-21) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.45 (2026-11-21) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

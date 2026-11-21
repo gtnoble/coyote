@@ -164,9 +164,15 @@ retrying. Very quiet legitimate responses may need a longer configured timeout.
 In the GTK conversation choose **View → Canvas**, then **File → New** to draw
 on a blank 800 × 600 image. **File → Save** checkpoints the current edits in
 the Drawings tree. Select a saved revision to preview it, or choose
-**Selected → Edit Revision** to edit from that revision. **Edit → Crop…**
-accepts a pointer drag or exact pixel fields; the drawing changes only after
-**Apply Crop**. Use **Undo** or **Redo** to step through edits.
+**Selected → Edit Revision** to edit from that revision. Use the toolbar
+below the menu bar or the matching **Edit** menu to select **Pencil**,
+**Eraser**, or **Crop**. Pencil is the default. Tab to the toolbar and use
+arrow keys to switch tools.
+
+In **Crop**, drag a rectangle or enter exact pixel bounds. Only **Apply Crop**
+changes the drawing. Apply, Cancel, and `Esc` return to the previous drawing
+tool; selecting a different tool discards the pending crop. Use **Undo** or
+**Redo** to step through edits.
 
 Use **File → Import…** to select up to eight local PNG, JPEG, or supported
 SVG files. A batch adds a separate Original for each file in filename order;

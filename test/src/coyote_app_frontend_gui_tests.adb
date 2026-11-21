@@ -34,10 +34,13 @@ with Glib.Object;
 with Cairo;
 with Cairo.Image_Surface;
 with Gdk.Event;
+with Gdk.Types.Keysyms;
 with Gdk.Pixbuf;
 with Gdk.Property;
 with Gtk.Box;
 with Gtk.Button;
+with Gtk.Radio_Button;
+with Gtkada.Types;
 with Gtk.Combo_Box_Text;
 with LLM.User_Images;
 with Gtk.Check_Menu_Item;
@@ -1024,6 +1027,43 @@ package body Coyote_App_Frontend_GUI_Tests is
          Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-" & Name)).Activate;
       end Activate;
 
+      function Tool_Button
+        (Name : String) return Gtk.Radio_Button.Gtk_Radio_Button
+      is (Gtk.Radio_Button.Gtk_Radio_Button (Control ("canvas-tool-" & Name)));
+
+      procedure Check_Tool (Expected : String; Enabled : Boolean := True) is
+         procedure Check (Name : String) is
+            Item : constant Gtk.Check_Menu_Item.Gtk_Check_Menu_Item :=
+              Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+                (Control ("canvas-" & Name));
+         begin
+            Assert
+              (Tool_Button (Name).Get_Active = (Name = Expected) and then
+               Item.Get_Active = (Name = Expected),
+               "Toolbar and Edit show only " & Expected & " active: " & Name);
+            Assert
+              (Tool_Button (Name).Get_Sensitive = Enabled and then
+               Item.Get_Sensitive = Enabled,
+               "Tool sensitivity matches in toolbar and Edit: " & Name);
+         end Check;
+      begin
+         Check ("pencil");
+         Check ("eraser");
+         Check ("crop");
+      end Check_Tool;
+
+      procedure Press_Escape is
+         Event : aliased Gdk.Event.Gdk_Event_Key :=
+           (The_Type => Gdk.Event.Key_Press, Window => Canvas.Get_Window,
+            Send_Event => 1, Time => 0, State => 0,
+            Keyval => Gdk.Types.Keysyms.GDK_Escape, Length => 0,
+            String => Gtkada.Types.Null_Ptr, Hardware_Keycode => 0,
+            Group => 0, Is_Modifier => 0);
+      begin
+         Assert (Canvas.Event (Gdk.Event.To_Event (Event'Access)),
+                 "Escape cancels the pending crop");
+      end Press_Escape;
+
       procedure Field (Name, Value : String) is
       begin
          Gtk.GEntry.Gtk_Entry
@@ -1081,8 +1121,23 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
       Model := Tree.Get_Model;
       Area := Control ("coyote-canvas-drawing-area");
+      Assert (Control ("coyote-canvas-toolbar").Get_Visible,
+              "Canvas displays a tool strip");
+      Check_Tool ("pencil", Enabled => False);
       Activate ("new");
       Drain_Events;
+      Check_Tool ("pencil");
+      Assert
+        (Control ("coyote-canvas-toolbar").Child_Focus
+           (Gtk.Enums.Dir_Tab_Forward) and then
+         Canvas.Get_Focus = Gtk.Widget.Gtk_Widget (Tool_Button ("pencil")),
+         "Tab enters the tool group at the selected tool");
+      Assert (Tool_Button ("pencil").Child_Focus (Gtk.Enums.Dir_Right),
+              "Right arrow navigates the tool group");
+      Check_Tool ("eraser");
+      Assert (Tool_Button ("eraser").Child_Focus (Gtk.Enums.Dir_Left),
+              "Left arrow returns to Pencil");
+      Check_Tool ("pencil");
       Size (800, 600);
       Assert (Get_Iter_From_String (Model, "0") /= Null_Iter,
               "New creates an Original");
@@ -1096,12 +1151,13 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Pixel ((13, 13, 13));
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (False);
+      Check_Tool ("pencil", Enabled => False);
       Check_Pixel ((255, 255, 255));
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (True);
       Check_Pixel ((13, 13, 13));
-      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
-        (Control ("canvas-eraser")).Set_Active (True);
+      Tool_Button ("eraser").Clicked;
+      Check_Tool ("eraser");
       Assert (Gtk.Label.Get_Text (Gtk.Label.Gtk_Label
                 (Control ("coyote-canvas-tool"))) = "Tool: Eraser (16 px)",
               "eraser mode is indicated in text");
@@ -1115,17 +1171,24 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("redo");
       Check_Pixel ((255, 255, 255));
       Activate ("undo");
-      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
-        (Control ("canvas-eraser")).Set_Active (False);
+      Activate ("pencil");
+      Check_Tool ("pencil");
       Check_Pixel ((13, 13, 13));
       Activate ("save");
       Assert (Get_Iter_From_String (Model, "0:0") /= Null_Iter,
               "Pointer stroke saves as a child of Original");
 
-      Activate ("crop");
+      Activate ("eraser");
+      Check_Tool ("eraser");
+      Tool_Button ("crop").Clicked;
+      Check_Tool ("crop");
       Pointer (Gdk.Event.Button_Press, 40.0, 50.0);
       Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
+      Check_Tool ("crop");
+      Assert (Control ("canvas-apply").Get_Sensitive,
+              "Toolbar Crop enables Apply for a valid drag");
       Activate ("apply");
+      Check_Tool ("eraser");
       Size (60, 80);
       Activate ("undo");
       Size (800, 600);
@@ -1143,16 +1206,39 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Valid fields enable Apply");
       Activate ("save");
       Size (60, 80);
+      Tool_Button ("pencil").Clicked;
+      Check_Tool ("pencil");
+      Assert (not Control ("canvas-apply-button").Is_Visible,
+              "Switching tools closes the pending crop controls");
+      Size (60, 80);
+
+      Activate ("eraser");
+      Activate ("crop");
+      Check_Tool ("crop");
+      Assert (not Control ("canvas-apply").Get_Sensitive,
+              "Crop starts with fresh bounds after switching tools");
+      Pointer (Gdk.Event.Button_Press, 4.0, 7.0);
+      Pointer (Gdk.Event.Button_Release, 19.0, 29.0);
+      Press_Escape;
+      Check_Tool ("eraser");
+      Size (60, 80);
+      Activate ("crop");
       Activate ("cancel");
+      Check_Tool ("eraser");
       Size (60, 80);
       Activate ("save");
       Assert (Get_Iter_From_String (Model, "0:0:0") /= Null_Iter,
               "Only the applied crop was checkpointed");
 
+      Activate ("crop");
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Check_Tool ("eraser", Enabled => False);
+      Assert (not Control ("canvas-apply-button").Is_Visible,
+              "Read-only preview cancels pending crop");
       Size (800, 600);
       Check_Pixel ((255, 255, 255));
       Activate ("draft");
+      Check_Tool ("eraser");
       Size (60, 80);
       Activate ("new");
       Assert (Get_Iter_From_String (Model, "1") /= Null_Iter,
@@ -1171,6 +1257,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Drain_Events;
       Assert (not Canvas.Get_Visible and then Get_Iter_First (Model) = Null_Iter,
               "Session reset clears and hides the workspace");
+      Check_Tool ("pencil", Enabled => False);
       Frontend.Request_Shutdown;
       Main_Window (Frontend).Destroy;
       Assert (Canvas_Window (Frontend) = null,
@@ -2059,6 +2146,29 @@ package body Coyote_App_Frontend_GUI_Tests is
          Assert (not Area.Event (Gdk.Event.To_Event (Raw'Access)) and then
                    not Control ("canvas-undo").Get_Sensitive,
                  "the Help click did not start an ink gesture");
+      end;
+      Activate ("help-click");
+      declare
+         Eraser : constant Gtk.Radio_Button.Gtk_Radio_Button :=
+           Gtk.Radio_Button.Gtk_Radio_Button (Control ("canvas-tool-eraser"));
+         Raw : aliased Gdk.Event.Gdk_Event_Button :=
+           (The_Type => Gdk.Event.Button_Press, Window => Eraser.Get_Window,
+            Send_Event => 1, Time => 0, X => 5.0, Y => 5.0, Axes => null,
+            State => 0, Button => 1, Device => System.Null_Address,
+            X_Root => 5.0, Y_Root => 5.0);
+      begin
+         Assert (Eraser.Event (Gdk.Event.To_Event (Raw'Access)),
+                 "Click for Help consumes a toolbar press");
+         Check_Target ("help:coyote/canvas-editing");
+         Raw.The_Type := Gdk.Event.Button_Release;
+         declare
+            Handled : constant Boolean :=
+              Eraser.Event (Gdk.Event.To_Event (Raw'Access));
+            pragma Unreferenced (Handled);
+         begin
+            Assert (not Eraser.Get_Active,
+                    "Help does not select a different tool");
+         end;
       end;
       Env.Set ("PATH", "/dev/null");
       Activate ("help-revisions");

@@ -71,6 +71,8 @@ package body Coyote_GUI.Canvas is
    use type Gdk.Device_Tool.Gdk_Device_Tool;
    use type Gdk.Device_Tool.Gdk_Device_Tool_Type;
    use type Rev.Ink_Operation;
+   use type Gtk.Radio_Button.Gtk_Radio_Button;
+   use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
    ERASER_DIAMETER : constant Long_Float := 16.0;
    use type Gdk.Types.Gdk_Key_Type;
    use type Gdk.Types.Gdk_Modifier_Type;
@@ -151,6 +153,8 @@ package body Coyote_GUI.Canvas is
      (Gtk.Tree_Selection.Gtk_Tree_Selection_Record, Instance_Access);
    package Button_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Button.Gtk_Button_Record, Instance_Access);
+   package Tool_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Radio_Button.Gtk_Radio_Button_Record, Instance_Access);
    package Entry_Callback is new Gtk.Handlers.User_Callback
      (Gtk.GEntry.Gtk_Entry_Record, Instance_Access);
    package Check_Callback is new Gtk.Handlers.User_Callback
@@ -189,8 +193,8 @@ package body Coyote_GUI.Canvas is
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
    procedure On_Redo
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
-   procedure On_Crop
-     (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
+   procedure Select_Tool
+     (S : in out Instance; Tool : Tool_Kind; Focus_Fields : Boolean);
    procedure On_Cancel_Crop
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
    procedure On_Apply_Crop
@@ -210,6 +214,12 @@ package body Coyote_GUI.Canvas is
      (not S.Suspended and then S.Import_Count = 0 and then
         (Length (S.Parent) = 0 or else S.Writable));
 
+   function Cropping (S : Instance) return Boolean is (S.Tool = Crop);
+
+   function Can_Select_Tool (S : Instance) return Boolean is
+     (Can_Edit (S) and then S.Has_Drawing and then S.Editing_Draft
+      and then S.Show_Ink and then not (S.Drawing or else S.Crop_Drag));
+
    procedure Storage_Status (S : Instance; Text : String) is
    begin
       if S.Storage_Label /= null then
@@ -225,7 +235,7 @@ package body Coyote_GUI.Canvas is
    function Pending (S : Instance) return Doc.Rectangle is
       E : constant Doc.Rectangle := Rev.Extent (S.Document);
    begin
-      if not S.Crop_Mode or else not Doc.Is_Nonempty (E) then
+      if not Cropping (S) or else not Doc.Is_Nonempty (E) then
          return Doc.EMPTY_RECTANGLE;
       end if;
       return
@@ -243,9 +253,9 @@ package body Coyote_GUI.Canvas is
    procedure Refresh (S : in out Instance) is
       E          : constant Doc.Rectangle := Display_Extent (S);
       Editing    : constant Boolean       :=
-        Can_Edit (S) and S.Has_Drawing and S.Editing_Draft
-        and not S.Crop_Mode and
-        not S.Drawing;
+        Can_Edit (S) and then S.Has_Drawing and then S.Editing_Draft
+        and then not (Cropping (S) or else S.Drawing);
+      Tools_Enabled : constant Boolean := Can_Select_Tool (S);
       Valid_Crop : constant Boolean       :=
         not S.Crop_Drag and then Doc.Is_Nonempty (Pending (S));
    begin
@@ -253,11 +263,11 @@ package body Coyote_GUI.Canvas is
          return;
       end if;
       S.Save_Item.Set_Sensitive
-        (Can_Edit (S) and then not S.Crop_Mode and then not S.Drawing
+        (Can_Edit (S) and then not Cropping (S) and then not S.Drawing
          and then ((Editing and then Rev.Changed (S.Document))
                    or else S.Save_Failed));
       S.Attach_Item.Set_Sensitive
-        (Can_Edit (S) and then not S.Crop_Mode and then not S.Drawing
+        (Can_Edit (S) and then not Cropping (S) and then not S.Drawing
          and then S.Show_Ink and then S.On_Attach /= null
          and then ((S.Editing_Draft and then S.Has_Drawing)
            or else S.Drawing_Tree.Get_Selection.Count_Selected_Rows > 0));
@@ -266,18 +276,26 @@ package body Coyote_GUI.Canvas is
       S.Import_Item.Set_Sensitive (Can_Edit (S));
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
-      S.Crop_Item.Set_Sensitive (Editing and S.Show_Ink);
-      S.Eraser_Item.Set_Sensitive (Editing and S.Show_Ink);
+      --  Reflect model state without re-entering either toggled handler.
+      S.Syncing_Tools := True;
+      S.Buttons (S.Tool).Set_Active (True);
+      S.Tool_Menu (S.Tool).Set_Active (True);
+      S.Syncing_Tools := False;
+      for Tool in Tool_Kind loop
+         S.Buttons (Tool).Set_Sensitive (Tools_Enabled);
+         S.Tool_Menu (Tool).Set_Sensitive (Tools_Enabled);
+      end loop;
       S.Tool_Label.Set_Text
         (if S.Drawing and then S.Gesture_Operation = Rev.Erase then
             "Tool: Eraser (16 px)"
-         elsif S.Crop_Mode then "Tool: Crop"
-         elsif S.Eraser_Mode then "Tool: Eraser (16 px)" else "Tool: Pen");
+         elsif Cropping (S) then "Tool: Crop"
+         elsif S.Tool = Eraser then "Tool: Eraser (16 px)"
+         else "Tool: Pencil");
       S.Undo_Item.Set_Sensitive (Editing and then Rev.Can_Undo (S.Document));
       S.Redo_Item.Set_Sensitive (Editing and then Rev.Can_Redo (S.Document));
       S.Apply_Crop.Set_Sensitive (Valid_Crop);
       S.Apply_Item.Set_Sensitive (Valid_Crop);
-      S.Cancel_Item.Set_Sensitive (S.Crop_Mode);
+      S.Cancel_Item.Set_Sensitive (Cropping (S));
       S.Drawing_Area.Set_Size_Request
         (Glib.Gint (Long_Float (E.Right - E.Left) * S.Zoom),
          Glib.Gint (Long_Float (E.Bottom - E.Top) * S.Zoom));
@@ -289,7 +307,9 @@ package body Coyote_GUI.Canvas is
       S.Drawing := False;
       S.Stroke_Points.Clear;
       S.Crop_Drag := False;
-      S.Crop_Mode := False;
+      if Cropping (S) then
+         S.Tool := S.Previous_Ink_Tool;
+      end if;
       S.Crop_Grid.Hide;
    end Cancel_Gesture;
 
@@ -419,7 +439,7 @@ package body Coyote_GUI.Canvas is
       Reply : Unbounded_String;
    begin
       if not Can_Edit (S.all) or else S.Job /= null or else S.Drawing
-        or else S.Crop_Mode
+        or else Cropping (S.all)
       then
          Agent_Result (S.all, Service.Rejected, "Canvas is busy or read-only");
          return;
@@ -831,15 +851,36 @@ package body Coyote_GUI.Canvas is
       return True;
    end On_Help_Click;
 
-   procedure On_Eraser
+   procedure On_Tool_Button
+     (Button : access Gtk.Radio_Button.Gtk_Radio_Button_Record'Class;
+      S      : Instance_Access)
+   is
+   begin
+      if not S.Syncing_Tools and then Button.Get_Active then
+         Find_Button : for Tool in Tool_Kind loop
+            if S.Buttons (Tool) = Button then
+               Select_Tool (S.all, Tool, Focus_Fields => False);
+               exit Find_Button;
+            end if;
+         end loop Find_Button;
+      end if;
+   end On_Tool_Button;
+
+   procedure On_Tool_Menu
      (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class;
       S    : Instance_Access)
    is
+      use Gtk.Check_Menu_Item;
    begin
-      Cancel_Gesture (S.all);
-      S.Eraser_Mode := Item.Get_Active;
-      Refresh (S.all);
-   end On_Eraser;
+      if not S.Syncing_Tools and then Item.Get_Active then
+         Find_Item : for Tool in Tool_Kind loop
+            if Gtk_Check_Menu_Item (S.Tool_Menu (Tool)) = Item then
+               Select_Tool (S.all, Tool, Focus_Fields => True);
+               exit Find_Item;
+            end if;
+         end loop Find_Item;
+      end if;
+   end On_Tool_Menu;
 
    procedure On_Markup
      (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class;
@@ -859,11 +900,19 @@ package body Coyote_GUI.Canvas is
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class;
       S    : Instance_Access);
 
+   function Tool_Name (Tool : Tool_Kind) return String is
+     (case Tool is when Pencil => "pencil", when Eraser => "eraser",
+                   when Crop => "crop");
+
+   function Tool_Text (Tool : Tool_Kind) return String is
+     (case Tool is when Pencil => "Pencil", when Eraser => "Eraser",
+                   when Crop => "Crop");
+
    procedure Build_Window
      (S      : aliased in out Instance;
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class)
    is
-      Outer, Body_Box, Side : Gtk.Box.Gtk_Box;
+      Outer, Toolbar, Body_Box, Side : Gtk.Box.Gtk_Box;
       Bar                   : Gtk.Menu_Bar.Gtk_Menu_Bar;
       Menu                  : Gtk.Menu.Gtk_Menu;
       Scroll                : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
@@ -903,6 +952,47 @@ package body Coyote_GUI.Canvas is
          end if;
          return Entry_Item;
       end Action;
+
+      procedure Build_Tool_Menu is
+         Members : Gtk.Widget.Widget_SList.GSlist :=
+           Gtk.Widget.Widget_SList.Null_List;
+      begin
+         for Tool in Tool_Kind loop
+            Gtk.Radio_Menu_Item.Gtk_New_With_Mnemonic
+              (S.Tool_Menu (Tool), Members,
+               (if Tool = Pencil then "Penci_l" else "_" & Tool_Text (Tool)));
+            Members := S.Tool_Menu (Tool).Get_Group;
+            S.Tool_Menu (Tool).Set_Name ("canvas-" & Tool_Name (Tool));
+            Menu.Append (S.Tool_Menu (Tool));
+            Check_Callback.Connect
+              (S.Tool_Menu (Tool), "toggled", On_Tool_Menu'Access, State);
+         end loop;
+      end Build_Tool_Menu;
+
+      procedure Build_Toolbar is
+         Members : Gtk.Widget.Widget_SList.GSlist :=
+           Gtk.Widget.Widget_SList.Null_List;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Toolbar, False, 8);
+         Toolbar.Set_Name ("coyote-canvas-toolbar");
+         Toolbar.Set_Margin_Start (6);
+         Toolbar.Set_Margin_End (6);
+         Gtk.Label.Gtk_New (Label, "Tool:");
+         Toolbar.Pack_Start (Label, False, False, 0);
+         for Tool in Tool_Kind loop
+            Gtk.Radio_Button.Gtk_New
+              (S.Buttons (Tool), Members, Tool_Text (Tool));
+            Members := S.Buttons (Tool).Get_Group;
+            S.Buttons (Tool).Set_Name ("canvas-tool-" & Tool_Name (Tool));
+            Toolbar.Pack_Start (S.Buttons (Tool), False, False, 0);
+            Event_Callback.Connect
+              (S.Buttons (Tool), "button-press-event",
+               Event_Marshaller.To_Marshaller (On_Help_Click'Access), State);
+            Tool_Callback.Connect
+              (S.Buttons (Tool), "toggled", On_Tool_Button'Access, State);
+         end loop;
+         Outer.Pack_Start (Toolbar, False, False, 3);
+      end Build_Toolbar;
 
       procedure Field
         (Control : out Gtk.GEntry.Gtk_Entry; Title, Name : String;
@@ -955,16 +1045,7 @@ package body Coyote_GUI.Canvas is
           ("_Redo", "redo", Gdk.Types.Keysyms.GDK_LC_z,
            Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask);
       S.Paste_Item := Action ("_Paste", "paste", Gdk.Types.Keysyms.GDK_LC_v);
-      declare
-         Eraser : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
-      begin
-         Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic (Eraser, "_Eraser");
-         Eraser.Set_Name ("canvas-eraser");
-         S.Eraser_Item := Gtk.Menu_Item.Gtk_Menu_Item (Eraser);
-         Menu.Append (Eraser);
-         Check_Callback.Connect (Eraser, "toggled", On_Eraser'Access, State);
-      end;
-      S.Crop_Item   := Action ("_Crop...", "crop");
+      Build_Tool_Menu;
       S.Apply_Item  := Action ("_Apply Crop", "apply");
       S.Cancel_Item := Action ("Ca_ncel Crop", "cancel");
       Group ("_View");
@@ -989,6 +1070,7 @@ package body Coyote_GUI.Canvas is
       Item.Set_Sensitive (S.On_Product /= null);
       Outer.Pack_Start (Bar, False, False, 0);
       Accels.Unref;
+      Build_Toolbar;
       Gtk.Box.Gtk_New_Hbox (Body_Box, False, 4);
       Outer.Pack_Start (Body_Box, True, True, 0);
       Gtk.Box.Gtk_New_Vbox (Side, False, 3);
@@ -1073,7 +1155,7 @@ package body Coyote_GUI.Canvas is
       S.Crop_Grid.Attach (S.Apply_Crop, 8, 0, 1, 1);
       S.Crop_Grid.Attach (S.Cancel_Crop, 9, 0, 1, 1);
       Outer.Pack_Start (S.Crop_Grid, False, False, 2);
-      Gtk.Label.Gtk_New (S.Tool_Label, "Tool: Pen");
+      Gtk.Label.Gtk_New (S.Tool_Label, "Tool: Pencil");
       S.Tool_Label.Set_Name ("coyote-canvas-tool");
       S.Tool_Label.Set_Halign (Gtk.Widget.Align_Start);
       Outer.Pack_Start (S.Tool_Label, False, False, 4);
@@ -1463,7 +1545,8 @@ package body Coyote_GUI.Canvas is
       S.Drawing := False;
       S.Stroke_Points.Clear;
       S.Crop_Drag   := False;
-      S.Crop_Mode   := False;
+      S.Tool := Pencil;
+      S.Previous_Ink_Tool := Pencil;
       S.Has_Drawing := False;
       Coyote_Canvas.Revisions.Clear (S.Document);
       S.Preview_Revision := Coyote_Canvas.Revisions.NO_REVISION;
@@ -1504,8 +1587,8 @@ package body Coyote_GUI.Canvas is
       S.Zoom         := 1.0;
       S.Show_Ink     := True;
       S.Tool_Label  := null;
-      S.Eraser_Item := null;
-      S.Eraser_Mode := False;
+      S.Buttons     := (others => null);
+      S.Tool_Menu   := (others => null);
    end Destroy;
 
    function Window (S : Instance) return Gtk.Window.Gtk_Window is
@@ -1545,7 +1628,7 @@ package body Coyote_GUI.Canvas is
    is
       pragma Unreferenced (Button);
    begin
-      if S = null or else not Can_Edit (S.all) or else S.Crop_Mode
+      if S = null or else not Can_Edit (S.all) or else Cropping (S.all)
         or else S.Drawing
       then
          return;
@@ -1595,7 +1678,7 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Button);
    begin
       if S /= null and then Can_Edit (S.all) and then S.Editing_Draft
-        and then not S.Crop_Mode
+        and then not Cropping (S.all)
       then
          Coyote_Canvas.Revisions.Undo (S.Document);
          Mark_Dirty (S.all);
@@ -1613,7 +1696,7 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Button);
    begin
       if S /= null and then Can_Edit (S.all) and then S.Editing_Draft
-        and then not S.Crop_Mode
+        and then not Cropping (S.all)
       then
          Coyote_Canvas.Revisions.Redo (S.Document);
          Mark_Dirty (S.all);
@@ -1636,32 +1719,32 @@ package body Coyote_GUI.Canvas is
       S.Height_Field.Set_Text (Pixel_Text (R.Bottom - R.Top));
    end Set_Crop_Fields;
 
-   procedure On_Crop
-     (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
+   procedure Select_Tool
+     (S : in out Instance; Tool : Tool_Kind; Focus_Fields : Boolean)
    is
-      pragma Unreferenced (Button);
-      Current : Coyote_Canvas.Document.Rectangle;
+      Abandoned_Crop : constant Boolean := Cropping (S);
    begin
-      if S = null or else not Can_Edit (S.all) then
+      if not Can_Select_Tool (S) or else S.Tool = Tool then
+         Refresh (S);
          return;
       end if;
-      Current := Coyote_Canvas.Revisions.Extent (S.Document);
-      if not Coyote_Canvas.Document.Is_Nonempty (Current) then
-         Set_Status (S.all, "Create a drawing before cropping");
-         return;
+      Cancel_Gesture (S);
+      if Tool = Crop then
+         S.Previous_Ink_Tool := S.Tool;
       end if;
-      if not S.Editing_Draft then
-         Set_Status (S.all, "Edit a revision before cropping");
-         return;
+      S.Tool := Tool;
+      if Cropping (S) then
+         Set_Crop_Fields (S, Doc.EMPTY_RECTANGLE);
+         S.Crop_Grid.Show;
+         if Focus_Fields then
+            S.X_Field.Grab_Focus;
+         end if;
+         Set_Status (S, "Drag a crop region or enter exact pixel bounds");
+      elsif Abandoned_Crop then
+         Set_Status (S, "Pending crop discarded.");
       end if;
-      Cancel_Gesture (S.all);
-      S.Crop_Mode := True;
-      Set_Crop_Fields (S.all, Doc.EMPTY_RECTANGLE);
-      S.Crop_Grid.Show;
-      S.X_Field.Grab_Focus;
-      Refresh (S.all);
-      Set_Status (S.all, "Drag a crop region or enter exact pixel bounds");
-   end On_Crop;
+      Refresh (S);
+   end Select_Tool;
 
    procedure On_Cancel_Crop
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
@@ -1678,7 +1761,7 @@ package body Coyote_GUI.Canvas is
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
    is
    begin
-      if S = null or else not Can_Edit (S.all) or else not S.Crop_Mode
+      if S = null or else not Can_Edit (S.all) or else not Cropping (S.all)
         or else S.Crop_Drag
       then
          return;
@@ -1775,8 +1858,6 @@ package body Coyote_GUI.Canvas is
          On_Undo (null, S);
       elsif Name = "canvas-redo" then
          On_Redo (null, S);
-      elsif Name = "canvas-crop" then
-         On_Crop (null, S);
       elsif Name = "canvas-cancel" then
          On_Cancel_Crop (null, S);
       elsif Name = "canvas-apply" then
@@ -1794,7 +1875,8 @@ package body Coyote_GUI.Canvas is
             Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, Cursor);
             Gdk.Cursor.Unref (Cursor);
          end;
-         Set_Status (S.all, "Click the drawing or Drawings list for Help.");
+         Set_Status
+           (S.all, "Click the toolbar, drawing or Drawings list for Help.");
       elsif Name = "canvas-help-product" then
          if S.On_Product /= null then
             S.On_Product (S.Canvas_Window);
@@ -1909,7 +1991,7 @@ package body Coyote_GUI.Canvas is
         (Selection.Count_Selected_Rows = 0 or else
          S.Canvas_Window.Get_Focus = Gtk.Widget.Gtk_Widget (S.Drawing_Area));
    begin
-      if not Can_Edit (S) or else S.Crop_Mode or else S.Drawing
+      if not Can_Edit (S) or else Cropping (S) or else S.Drawing
         or else not S.Show_Ink or else S.On_Attach = null
       then
          return;
@@ -2180,7 +2262,7 @@ package body Coyote_GUI.Canvas is
          return False;
       end if;
       Widget.Grab_Focus;
-      if S.Crop_Mode then
+      if Cropping (S.all) then
          Begin_Crop_Drag :
          declare
             PX       : constant Long_Float    := Long_Float (X) / S.Zoom;
@@ -2219,7 +2301,7 @@ package body Coyote_GUI.Canvas is
               Gdk.Event.Get_Device_Tool (Event);
          begin
             S.Gesture_Operation :=
-              (if S.Eraser_Mode or else
+              (if S.Tool = Eraser or else
                  (Tool /= null and then Tool.Get_Tool_Type =
                     Gdk.Device_Tool.Gdk_Device_Tool_Type_Eraser)
                then Rev.Erase else Rev.Paint);
@@ -2315,7 +2397,8 @@ package body Coyote_GUI.Canvas is
          Disable_Click_Help (S.all);
          return Is_Key;
       end if;
-      if (S.Crop_Drag or else S.Drawing or else (Is_Key and then S.Crop_Mode))
+      if (S.Crop_Drag or else S.Drawing
+          or else (Is_Key and then Cropping (S.all)))
         and then
         (not Is_Key
          or else Gdk.Event.Get_Key_Val (Event) = Gdk.Types.Keysyms.GDK_Escape)

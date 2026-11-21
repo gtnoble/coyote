@@ -1,6 +1,6 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.0
+- **Version:** 1.1
 - **Date:** 2026-11-21
 - **Status:** Accepted by the product owner on 2026-11-21; not implemented or qualified.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
@@ -50,28 +50,31 @@ The v1 request has one `add` operation, a request ID and an ordered file count. 
 |---|---|
 | File | **New** (`Ctrl+N`), **Import…** (modeless File Selection), **Save** (`Ctrl+S` checkpoints the active draft; unchanged is a no-op), **Close** (`Ctrl+W`; hides the Canvas without discarding drawings). |
 | Selected | **Edit Revision** for one selected revision; **Attach** for selected revisions in visible tree order or the active draft when acting in the drawing area. Dim unavailable actions, do not remove them. |
-| Edit | **Eraser** (ink only), **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), **Paste** (`Ctrl+V`) in drawing context, **Crop…**, **Apply Crop** and **Cancel Crop** when applicable. The in-place controls duplicate the latter actions. Focused editable text fields retain ordinary text editing and paste. |
+| Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, mirrored identically in the toolbar below the menu bar and this menu; **Pencil** is the default. The toolbar and menu stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
 | View | Fit, Zoom In/Out, and a stable checkbox **Show Markup**; all display-only. |
 | Help | Canvas Overview, tasks, Index, Keys & Shortcuts, Product Information and Click for Help using the existing desktop Help path. |
 
-Give entries mnemonics, preserve native Tab/tree traversal, use the primary action button or pen tip for drawing/crop, and keep the right button for a shortcut menu that duplicates menu actions. Do not change pointer mapping or force focus across windows. Indicate editable/draft/read-only/sent state in text, not color alone. Scope text paste and standard accelerators to the focused context. Use the status area for successful background work, an explanatory dialog for empty or invalid clipboard paste, and a cancellable Warning before discarding edits. Agent additions use only the status area and never change focus or selection.
+Give entries mnemonics, preserve native Tab/tree traversal, use the primary action button or pen tip for drawing/crop, and keep the right button for a shortcut menu that duplicates menu actions. Do not change pointer mapping or force focus across windows. Indicate editable/draft/read-only/sent state in text, not color alone. Scope text paste and standard accelerators to the focused context. Use the status area for successful background work, an explanatory dialog for empty or invalid clipboard paste, and a cancellable Warning before discarding draft edits; switching from a pending crop to a drawing tool discards that pending crop without applying it. Agent additions use only the status area and never change focus or selection. No new tool shortcuts are assigned; native Tab and arrow navigation operate the toolbar, and Edit mnemonics remain in effect.
 
 ### 4.2 Input and clipboard
 
 Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen and mouse, test pressure-axis availability at runtime, and map valid pressure to bounded stroke width. A missing axis, or mouse input, uses fixed width. Each tip-down/up stroke is one edit. Lost capture, device removal, and window/session change end the in-progress gesture without applying another edit; suppress double delivery through emulated mouse events. Pen side-button features and tilt are not required. Physical pressure, drag capture and scaling still need Intuos verification.
 
-**Edit → Eraser** selects a fixed 16-source-pixel round brush, independent of
-pressure and view zoom. A recognized GDK eraser tip selects it for that
-gesture. The guide is display-only until release; commit as one ordered
-operation, Undo/Redo as one edit. Erasing removes ink coverage without
-changing the background or older checkpoints. See SDD-CORE §5.51 for the
-compatible v2/v3 manifest encoding.
+**Eraser** selects a fixed 16-source-pixel round brush, independent of
+pressure and view zoom. A recognized GDK eraser tip temporarily erases for
+that gesture without changing the selected toolbar/menu choice; selected Crop
+takes precedence. The guide is display-only until release; commit as one
+ordered operation, Undo/Redo as one edit. Erasing removes ink coverage
+without changing the background or older checkpoints. See SDD-CORE §5.51
+for the compatible v2/v3 manifest encoding.
 
 On an explicit Canvas image Paste, asynchronously request desktop `CLIPBOARD` targets, taking PNG when offered, otherwise JPEG. Do not fall back to text, paths, URLs or `PRIMARY`, and do not change either selection. Use GtkAda `Request_Contents`, not `Wait_For_Image` or GTK's already-decoded image callback. Validate status, MIME/signature and encoded length before copying callback-owned bytes; preflight decoded dimensions before full worker decode. This bounds application-owned buffers and decode work; it does not claim to cap buffering already performed by GTK's clipboard transport. On success, create exactly one new **Clipboard Image** root with its own Original and owned pixels. On failure, leave the document and composer unchanged and report the reason. Bind the request to a Canvas-window generation, session generation and request serial; replacement by a newer paste, Canvas close, or session switch invalidates the request even if the same session reopens. Do not read the clipboard on focus, polling, or agent request. Never include clipboard bytes in diagnostics or debug logs. The ordinary local drawing store is distinct from diagnostics; the model receives no pasted data unless the user separately attaches and sends it.
 
 ### 4.3 Crop operation
 
-**Edit → Crop…** starts a transaction bound to the draft ID and content generation in the normal editing view. Draw a rectangle with pen tip or mouse, move it from the interior, and resize with edge/corner handles. Ignore pressure; use crosshair, move and resize pointers as appropriate. Draw the border and excluded-area dimmer as overlays and show resulting pixel dimensions. Labeled `X`, `Y`, `Width` and `Height` integer fields permit exact keyboard input, with separate **Apply Crop** and **Cancel** buttons. Keyboard entry and pointer changes share the same validation; invalid or empty bounds disable Apply.
+**Crop** in the synchronized toolbar or Edit radio group starts a transaction bound to the draft ID and content generation in the normal editing view. Draw a rectangle with pen tip or mouse, move it from the interior, and resize with edge/corner handles. Ignore pressure; use crosshair, move and resize pointers as appropriate. Draw the border and excluded-area dimmer as overlays and show resulting pixel dimensions. Labeled `X`, `Y`, `Width` and `Height` integer fields permit exact keyboard input, with separate **Apply Crop** and **Cancel** buttons. Keyboard entry and pointer changes share the same validation; invalid or empty bounds disable Apply.
+
+Use the menu or toolbar to switch away from a pending crop; selecting Pencil or Eraser discards the pending rectangle without applying it. Only **Apply Crop** commits the crop. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. The toolbar and Edit radio group remain enabled during pending crop only while the displayed working copy is editable and **Show Markup** is on; otherwise both are disabled. There are no Crop/tool shortcuts. Native Tab and arrow keys navigate the toolbar; Edit menu mnemonics are retained.
 
 Represent the rectangle by half-open pixel edges `[left, right) × [top, bottom)` in the pre-crop draft. Invert the display transform exactly once, including pan and zoom (convert device pixels to widget coordinates first only when applicable). Round pointer edges to the nearest pixel edge, ties toward the larger coordinate, then normalize reverse drags and clamp to the current image. Moving preserves size and clamps the origin; exact numeric entries outside the image are rejected rather than rounded. Zero-area and identity crops do not create edits. On Apply, recheck the bound draft and generation, clip the background and ink together and translate the retained region to origin without resampling. Implement clipping as a stored source-coordinate extent, not a destructive rewrite of background or strokes; rasterize with the original pixel-grid phase so the retained composite equals the source subrectangle. Undo restores the prior extent and Redo reapplies the same rectangle. Escape, Cancel, lost capture during an unfinished drag, selection that changes the displayed drawing, and closing or switching the session cannot apply a crop. Save or Attach never applies a pending crop; block those actions during the crop transaction. An applied crop is one working-copy edit, not its own revision until checkpointed.
 

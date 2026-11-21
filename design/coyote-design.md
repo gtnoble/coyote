@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.61
+**Version:** 1.62
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -3138,12 +3138,20 @@ model and releases its Canvas writer lease. Session switch and exit flush
 writable changes or ask before discarding them. Authorized command-line
 import and local GTK attachment submission are available.
 
-**Eraser and Help.** Edit → Eraser selects a fixed 16-source-pixel brush for
-pen or mouse; a GDK eraser tip also works when the backend identifies it.
-Release records one undoable edit. The live outline is a view-only guide;
-saved revisions and frozen attachments do not change. Canvas Help uses Yelp
-for Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click
-for Help targets the drawing area or Drawings list without editing or selecting.
+**Eraser, editing tools, and Help.** The toolbar below the menu bar and Edit
+menu expose synchronized mutually exclusive Pencil, Eraser, and Crop choices,
+with Pencil as default. The same controls remain available to switch away from
+a pending crop only when an editable working copy exists and Show Markup is on;
+otherwise they are disabled. Only Apply Crop commits, while selecting a drawing
+tool discards a pending crop. Apply, Cancel, and Escape restore the drawing
+tool selected before Crop. A GDK eraser tip temporarily erases without changing
+the selection; selected Crop takes precedence. Tool choices add no shortcuts;
+native Tab and arrow toolbar navigation and Edit mnemonics remain. Release
+records one undoable edit. The live outline is a view-only guide; saved
+revisions and frozen attachments do not change. Canvas Help uses Yelp for
+Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click for
+Help targets the toolbar, drawing area, or Drawings list without changing
+the tool, drawing, or selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
 
 **Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`

@@ -1,5 +1,20 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas tool toolbar (PCR-130)
+
+The toolbar below the menu bar and the Edit radio group share one active
+Pencil, Eraser, or Crop selection. Pencil is the session default. Crop
+applies only through Apply Crop; switching tools discards the pending
+rectangle, and Apply, Cancel, and Escape restore the prior drawing tool.
+Read-only previews and hidden markup disable both groups. Toolbar focus
+and arrow navigation use the native GTK radio controls.
+
+Development builds and the serial Xvfb suite passed (1,123/1,123). Focused
+checks verified tool synchronization, Pencil and Eraser pixels, pending
+crop cancellation, keyboard navigation, read-only state, and Click for
+Help without changing tools. Help validation and standalone GTK checks
+(9/9) passed. Physical Intuos and Wayland qualification remain open.
+
 ## 2026-11-21 — Canvas ink eraser and desktop Help (PCR-130)
 
 Edit → Eraser and recognized tablet eraser tips commit one undoable ink

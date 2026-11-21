@@ -20,6 +20,8 @@ with Gtk.Tree_View;
 with Gtk.Tree_Store;
 with Gtk.Tree_Model;
 with Gtk.Menu_Item;
+with Gtk.Radio_Button;
+with Gtk.Radio_Menu_Item;
 with Gtk.Window;
 with LLM.Types;
 
@@ -63,12 +65,20 @@ private
    end record;
    type Image_Array is array (Iter_Array'Range) of Image_Asset;
 
+   type Tool_Kind is (Pencil, Eraser, Crop);
+   subtype Ink_Tool is Tool_Kind range Pencil .. Eraser;
+   type Tool_Buttons is array (Tool_Kind) of Gtk.Radio_Button.Gtk_Radio_Button;
+   type Tool_Items is array (Tool_Kind) of Gtk.Radio_Menu_Item.Gtk_Radio_Menu_Item;
+
    type Instance is limited record
       On_Product : Product_Handler := null;
       Help_Mode : Boolean := False;
-      Eraser_Item : Gtk.Menu_Item.Gtk_Menu_Item := null;
-      Tool_Label : Gtk.Label.Gtk_Label := null;
-      Eraser_Mode : Boolean := False;
+      Tool              : Tool_Kind := Pencil;
+      Previous_Ink_Tool : Ink_Tool := Pencil;
+      Buttons           : Tool_Buttons := (others => null);
+      Tool_Menu         : Tool_Items := (others => null);
+      Syncing_Tools     : Boolean := False;
+      Tool_Label        : Gtk.Label.Gtk_Label := null;
       Gesture_Operation : Coyote_Canvas.Revisions.Ink_Operation :=
         Coyote_Canvas.Revisions.Paint;
       Canvas_Window : Gtk.Window.Gtk_Window               := null;
@@ -117,7 +127,7 @@ private
       Rows                                         : Iter_Array;
       Resetting : Boolean := False;
       Listed                                       : Natural := 0;
-      Save_Item, Edit_Item, Draft_Item, Crop_Item, Undo_Item,
+      Save_Item, Edit_Item, Draft_Item, Undo_Item,
       Redo_Item : Gtk.Menu_Item.Gtk_Menu_Item         := null;
       Apply_Item, Cancel_Item : Gtk.Menu_Item.Gtk_Menu_Item         := null;
       Preview_Revision : Coyote_Canvas.Revisions.Revision_Id := 0;
@@ -126,7 +136,6 @@ private
       Show_Ink                                     : Boolean := True;
       Zoom                                         : Long_Float := 1.0;
       Drawing                                      : Boolean := False;
-      Crop_Mode                                    : Boolean := False;
       Crop_Drag                                    : Boolean := False;
       Crop_X1                                      : Long_Float := 0.0;
       Crop_Y1                                      : Long_Float := 0.0;
