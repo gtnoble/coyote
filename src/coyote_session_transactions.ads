@@ -13,6 +13,8 @@ package Coyote_Session_Transactions is
                        Status : out Result);
    procedure Unlock (Lock : in out Guard);
 
+   function Canonical_UUID (Id : String) return Boolean;
+
    --  Resolve the actual JSONL path so different names for one file use the
    --  same guard. Standard UUID filenames, including timestamped names, use
    --  the UUID; other legacy filenames use a digest of the full basename.

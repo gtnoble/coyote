@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.57
+**Version:** 1.58
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -543,7 +543,7 @@ not wait for the complete user turn.
 
 | Unit | Initial implementation or planned allocation |
 |---|---|
-| `Coyote_CLI` (`src/coyote_cli.ads/.adb`) | Dispatches subcommands before launcher initialization. `session list` uses `Session_Lister.Print_TSV`; `canvas add` uploads an authorized, ordered byte batch without starting a frontend. |
+| `Coyote_CLI` (`src/coyote_cli.ads/.adb`) | Dispatches subcommands before launcher initialization. `session list` uses `Session_Lister.Print_TSV`; `canvas add` uploads an authorized, ordered byte batch; `canvas reclaim` inspects or removes unreferenced storage for one UUID. Neither starts a frontend. |
 | `Coyote_Canvas` (`src/coyote_canvas.ads`) | Namespace for widget-independent Canvas primitives. |
 | `Coyote_Canvas.Document` (`src/coyote_canvas-document.ads/.adb`) | Half-open crop rectangles, pointer/numeric geometry and mapping to source extents. |
 | `Coyote_Canvas.Revisions` (`src/coyote_canvas-revisions.ads/.adb`) | Bounded in-memory revision tree, blank Originals, crop extents and per-draft edit history. |
@@ -557,13 +557,14 @@ not wait for the complete user turn.
 | `Coyote_GUI.Canvas_Recovery_Jobs` (`src/coyote_gui/coyote_gui-canvas_recovery_jobs.ads/.adb`) | One background recovery job per Canvas; binds each job to the resolved session, transfers validated loads and an exclusive Canvas lease, and saves owned snapshots without accessing GTK. |
 | `Coyote_Canvas.Import_Service` (`src/coyote_canvas-import_service.ads/.adb`, `src/coyote_canvas_import_c.c`) | Private same-user Unix socket, per-binding capability, bounded file intake, and receipt lookup by request ID. |
 | `Coyote_Canvas.Revisions.Recovery` (`src/coyote_canvas-revisions-recovery.ads/.adb`) | Versioned metadata codec; extract a fork subset with stable IDs, ancestry, and independent stroke storage. |
-| `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private transport, exclusive GTK editor lease, fork sidecar reservation, and checked nonrecursive removal. |
+| `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private transport, exclusive GTK editor lease, fork sidecar reservation, checked nonrecursive removal, and reclamation inventory. |
 | `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging and no-replace publication for new JSONL files. |
-| `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Save immutable source rasters before the manifest; full restore and selected-revision fork restore verify the rasters they need. |
+| `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Save immutable source rasters before the manifest; full restore and selected-revision fork restore verify required rasters; live reclamation verifies the graph and assets before deriving a keep set. |
 | `Coyote_Canvas_Recovery_Tests` (`test/src/coyote_canvas_recovery_tests.ads/.adb`) | Exact raster and revision round trips, invalid-input rollback, and private sidecar behavior. |
 | `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition, attachment freezing, and display-cache misses run on GTK. |
 | `LLM.User_Images` (`src/llm/llm-user_images.ads/.adb`) | Native PNG block validation, ordered references, wire budgets, and v3 JSON encoding/decoding. |
 | `Coyote_App.Frontend` (`src/coyote_app-frontend.ads/.adb`) | Shared frontend contract; non-GTK presentation describes typed attachments without uploading or displaying extra images. |
+| Canvas reclamation regression | `test/tools/check-canvas-reclaim.py` exercises CLI inspection and apply in disposable session directories; `test/src/coyote_canvas_recovery_tests.adb` checks guarded restore. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
@@ -828,7 +829,7 @@ simple and auditable.*
 
 ### 5.1 `Coyote` (entry point)
 
-**Subcommand dispatch:** `Coyote_CLI` dispatches `session list` and `canvas add`
+**Subcommand dispatch:** `Coyote_CLI` dispatches `session list`, `canvas add`, and `canvas reclaim`
 before launcher/frontend initialization. `canvas add` authenticates before
 opening operands; ordinary launcher startup clears inherited Canvas authority.
 Existing invocations use the path below. Grammar and authority are in
@@ -3214,7 +3215,9 @@ The files live inside a private UUID-named sidecar beneath the caller's
 trusted, resolved session directory. Transport rejects unsafe entries, writes
 through a private temporary file, and synchronizes the directory after rename.
 A directory-sync failure after manifest rename reports uncertain durability.
-Readers need no lock; unreferenced assets are ignored, not reclaimed.
+Raw single-entry reads take no lock. Workspace restores hold the shared
+session guard through manifest and asset reads so explicit reclamation cannot
+remove a raster needed by a reader of an older manifest.
 
 **Shared session write guard.** A private, close-on-exec lock file in the
 resolved session directory coordinates Canvas workspace commits and JSONL
@@ -3226,8 +3229,9 @@ manifest replacement, after encoding the manifest; if the guard is busy,
 no asset is published and the current workspace remains available for
 retry. JSONL creation, append, compaction records, model changes, and
 cleanup use the same guard. Agent-side acquisition retries for up to two
-seconds on contention; this is not a filesystem I/O deadline. Regular
-readers do not wait. Fork holds the source guard while copying the log,
+seconds on contention; this is not a filesystem I/O deadline. Raw JSONL
+readers do not wait. GTK holds the guard from editor admission through full
+Canvas restore. Fork holds the source guard while copying the log,
 releases it before acquiring the destination guard, and publishes the
 complete destination via private staging, file sync, and no-replace rename.
 New headers use the same publication path. This does not add directory sync
@@ -3273,8 +3277,32 @@ and synchronizes the JSONL entry first, then removes the flat sidecar without
 following links or descending into directories. Failure after log removal
 reports uncertainty; a crash can leave an unlisted sidecar, but a surviving
 log is not intentionally left without its Canvas. The shared lock inode stays
-in place. No deletion command or menu is provided, and orphan assets in
-retained sessions are not reclaimed.
+in place. No session deletion command or menu is provided.
+
+**Explicit Canvas reclamation.** `coyote canvas reclaim UUID` reports the
+number and logical bytes of reclaimable files for one exact UUID under the
+current project's session directory. `--apply` revalidates and unlinks them.
+For a live log, require a unique eligible same-owner regular JSONL entry and a
+matching v1/v3 header. Verify the entire committed manifest and every
+referenced raster, including the revision graph and working-copy base. Keep
+the manifest, guards, and all referenced assets. Only unreferenced digest
+files and `.canvas.tmp` can be removed. A missing or invalid manifest is not
+an empty keep set. `--orphan` is a distinct mode: any JSONL name containing
+the UUID in that directory blocks removal, including timestamped names,
+legacy aliases and dangling links. Otherwise the entire known flat sidecar
+is eligible, including an incomplete or empty fork reservation.
+
+Both modes try the session guard, existing GTK lease and publication lock
+without waiting. The guard covers log checks, verification and removal. A
+flat descriptor-relative inventory (at most 16,384 entries) refuses unknown
+entries, directories, symlinks, hardlinks, and unsafe ownership or modes
+before unlinking. In live mode recheck the manifest bytes under the native
+publication lock and sync the current manifest and sidecar before removal.
+In orphan mode sync the log's absence first, then sync removals from the
+sidecar and its parent. A partial removal or failed post-removal sync reports
+uncertainty, not success. The shared lock inode and JSONL are never removed.
+Maintenance is opt-in; it does not sweep projects, reclaim anonymous JSONL
+staging files, or change JSONL header/fork publication durability.
 
 **Authorized shell import.** The root GTK session publishes one private Unix
 socket endpoint and a random 256-bit capability. The shell launch copies

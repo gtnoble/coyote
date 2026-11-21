@@ -57,8 +57,8 @@ def main():
         # Dispatch must finish before startup even when GUI is requested.
         env = dict(PATH=os.defpath, HOME=str(home), LC_ALL="C",
                    COYOTE_FRONTEND="gui", COYOTE_RECURSION_DEPTH="invalid")
-        for scope in ([], ["canvas"], ["canvas", "add"], ["session"],
-                      ["session", "list"]):
+        for scope in ([], ["canvas"], ["canvas", "add"], ["canvas", "reclaim"],
+                      ["session"], ["session", "list"]):
             short = run(COYOTE, [*scope, "-h"], work, env, success=True)
             long = run(COYOTE, [*scope, "--help"], work, env, success=True)
             assert short.stdout == long.stdout and b"Usage: coyote" in long.stdout

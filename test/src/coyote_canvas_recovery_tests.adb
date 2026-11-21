@@ -8,6 +8,7 @@ with Coyote_Canvas.Revisions;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Store;
 with Coyote_Canvas.Store.Workspaces;
+with Coyote_Session_Transactions;
 with GNAT.OS_Lib;
 with Interfaces.C;
 with System;
@@ -437,6 +438,50 @@ package body Coyote_Canvas_Recovery_Tests is
          raise;
    end Asset_Failures_Are_Atomic;
 
+   procedure Workspace_Read_Holds_Session_Guard (T : in out Test) is
+      pragma Unreferenced (T);
+      package Tx renames Coyote_Session_Transactions;
+      use type Tx.Result;
+      Root : Unbounded_String;
+      Stored, Loaded : Workspace;
+      Rasters, Loaded_Rasters : Disk.Raster_Set;
+      First : Revision_Id;
+      Status : Result;
+      Pixels : constant String := "rgb" & ASCII.NUL;
+   begin
+      Set_Up_Directory (Root);
+      Add_Originals (Stored, (1 => (1, 1)), First);
+      Rasters (First) := To_Unbounded_String (Pixels);
+      Disk.Save (To_String (Root), UUID_A, Stored, Rasters, Status);
+      Assert (Status = Ok, "store raster before testing read exclusion");
+      New_Drawing (Loaded, 8, 9);
+      Loaded_Rasters (First) := To_Unbounded_String ("sentinel");
+      declare
+         Lock : Tx.Guard;
+         Locked : Tx.Result;
+         Parent : constant String := To_String (Root);
+      begin
+         Tx.Try_Lock (Parent, UUID_A, Lock, Locked);
+         Assert (Locked = Tx.Acquired, "hold session transaction guard");
+         Disk.Load (Parent, UUID_A, Loaded, Loaded_Rasters, Status);
+         Assert (Status = Busy and then Extent (Loaded) = (0, 0, 8, 9)
+                 and then Loaded_Rasters (First) = "sentinel",
+                 "unguarded load cannot adopt a competing snapshot");
+         Disk.Load_Locked (Parent, UUID_A, Loaded, Loaded_Rasters, Status);
+         Assert (Status = Ok and then Loaded_Rasters (First) = Pixels
+                 and then Revision_Key (Loaded, First) =
+                   Revision_Key (Stored, First),
+                 "guard owner restores the exact graph and original pixels");
+      end;
+      Disk.Load (To_String (Root), UUID_A, Loaded, Loaded_Rasters, Status);
+      Assert (Status = Ok, "restore can retry after guard is released");
+      Remove_Directory (Root);
+   exception
+      when others =>
+         Remove_Directory (Root);
+         raise;
+   end Workspace_Read_Holds_Session_Guard;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -469,6 +514,9 @@ package body Coyote_Canvas_Recovery_Tests is
       Result.Add_Test
         (Caller.Create ("Canvas store asset failures are atomic",
                         Asset_Failures_Are_Atomic'Access));
+      Result.Add_Test
+        (Caller.Create ("Canvas store guards the entire workspace restore",
+                        Workspace_Read_Holds_Session_Guard'Access));
       return Result;
    end Suite;
 end Coyote_Canvas_Recovery_Tests;

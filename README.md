@@ -183,8 +183,8 @@ animation, and embedded or linked images are not supported. Oversized images
 are rejected rather than shrunk.
 
 Zoom changes only the view. An applied crop keeps the original pixel grid:
-the retained pixels and ink are not resampled. Canvas has a lossless PNG
-encoder internally, but there is no export or attachment command yet.
+the retained pixels and ink are not resampled. Canvas encodes attachments as
+lossless PNG; it does not offer a separate file export command.
 
 Canvas autosaves completed edits and saved revisions to the local session.
 Reopen the session and choose **View → Canvas** to recover the drawings and
@@ -217,6 +217,30 @@ thumbnails are display-only. **Show in Canvas** opens the recorded revision
 when its editable storage is available. If a turn fails, **Restore Draft**
 recovers its text and attachments without overwriting newer text. If the
 provider rejected a turn after it was saved, the original remains in history.
+
+### Reclaim interrupted Canvas files
+
+Run from the project directory that owns the session, with its Canvas editor
+closed (closing the Canvas window alone does not release the editor lease):
+
+```sh
+coyote canvas reclaim UUID
+coyote canvas reclaim --apply UUID
+```
+
+The first command reports the files and logical bytes eligible for removal.
+The second rechecks everything and removes only unreferenced raster files and
+an abandoned Canvas temporary file. The session log, committed manifest,
+revisions, and referenced rasters stay intact. Inspection may create the
+shared session lock file, but does not remove anything.
+
+For a sidecar left by an interrupted fork or deletion, use `--orphan` with
+either command. This mode refuses if a matching session log still exists in
+the project session directory, and `--orphan --apply` removes the entire
+logless sidecar. Both modes refuse active writers and unsafe layouts; live
+cleanup also refuses a missing or corrupt manifest or referenced raster.
+There is no automatic cleanup. If removal is reported as incomplete or
+uncertain, inspect again before retrying.
 
 ## Session listing
 

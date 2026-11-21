@@ -1,5 +1,16 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Guarded Canvas recovery reads (PCR-130)
+
+The GTK recovery worker holds the session guard through lease admission,
+manifest verification, and reads of all referenced raster files. A competing
+editor can still see the last committed Canvas read-only. Reclamation does
+not run automatically during open, save, or exit.
+
+The serial Xvfb suite passed 1,121/1,121, including guarded restore and
+existing GTK Canvas cases. Standalone GTK checks passed 9/9; the containment
+self-test passed. Physical tablet and Wayland qualification remain open.
+
 ## 2026-11-21 — Local Canvas attachment composer and replay (PCR-130)
 
 Attach freezes saved revisions or the working copy in native-size PNGs. The

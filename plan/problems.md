@@ -65,8 +65,9 @@ client-controlled work product gets an entry here.
   per-session transaction guard. Session-store deletion removes the private
   Canvas, and forks of stored user image records preserve only the referenced
   revisions and ancestors. Local GTK attachment submission and replay are
-  implemented, including the v3 writer and legacy conversion. Orphan
-  reclamation, qualification, and deployment remain pending.
+  implemented, including the v3 writer and legacy conversion. Explicit
+  Canvas reclamation inspects or removes unreferenced files and logless
+  sidecars for a single UUID. Qualification and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

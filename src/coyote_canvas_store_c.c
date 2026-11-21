@@ -89,23 +89,29 @@ static int classify_parent_errno(int error)
    return STORE_IO;
 }
 
-static int acquire_lock(int dir, const char *name, int *lock_fd)
+static int lock_entry(int dir, const char *name, int *lock_fd, int create)
 {
    const int flags = O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK | O_RDWR;
    struct stat st;
-   int fd = openat(dir, name, flags | O_CREAT | O_EXCL, 0600);
-   if (fd >= 0)
+   int fd;
+   if (create)
    {
-      if (fchmod(fd, 0600) < 0)
+      fd = openat(dir, name, flags | O_CREAT | O_EXCL, 0600);
+      if (fd >= 0)
       {
-         close(fd);
-         return STORE_IO;
+         if (fchmod(fd, 0600) < 0)
+         {
+            close(fd);
+            return STORE_IO;
+         }
       }
+      else if (errno == EEXIST)
+         fd = openat(dir, name, flags);
    }
-   else if (errno == EEXIST)
+   else
       fd = openat(dir, name, flags);
    if (fd < 0)
-      return classify_parent_errno(errno);
+      return !create && errno == ENOENT ? STORE_OK : classify_parent_errno(errno);
    if (fstat(fd, &st) < 0)
    {
       close(fd);
@@ -124,6 +130,11 @@ static int acquire_lock(int dir, const char *name, int *lock_fd)
    }
    *lock_fd = fd;
    return STORE_OK;
+}
+
+static int acquire_lock(int dir, const char *name, int *lock_fd)
+{
+   return lock_entry(dir, name, lock_fd, 1);
 }
 
 static int open_checked(int dir_fd, const char *name, int manifest,
@@ -573,13 +584,18 @@ int coyote_canvas_reserve_fork(const char *parent, const char *uuid)
    return result;
 }
 
+static int raster_entry(const char *name)
+{
+   return strlen(name) == 69 && strcmp(name + 64, ".rgba") == 0 &&
+      strspn(name, "0123456789abcdef") == 64;
+}
+
 static int known_canvas_entry(const char *name)
 {
    if (strcmp(name, "canvas.json") == 0 || strcmp(name, ".canvas.tmp") == 0 ||
        strcmp(name, ".gtk-writer") == 0 || strcmp(name, ".writer") == 0)
       return 1;
-   return strlen(name) == 69 && strcmp(name + 64, ".rgba") == 0 &&
-      strspn(name, "0123456789abcdef") == 64;
+   return raster_entry(name);
 }
 
 /* No recursion and no symlink traversal. Inspect every entry before the
@@ -701,6 +717,291 @@ done:
    if (editor >= 0)
       close(editor);
    if (side >= 0)
+      close(side);
+   close(dir);
+   return result;
+}
+
+/* Cooperating callers hold the session guard throughout inspection and
+ * reclamation. Match exact names and UUID suffixes accepted by Identity.
+ * Also block substring matches: legacy session lookup could select one. */
+int coyote_canvas_reclaim_header(const char *parent, const char *uuid,
+                                 int orphan, size_t max, char **header,
+                                 size_t *len)
+{
+   DIR *stream;
+   int dir, fd = -1, result = STORE_MISSING;
+   char *buffer = NULL;
+   struct stat st;
+   *header = NULL;
+   *len = 0;
+   if (!valid_uuid(uuid) || max == 0)
+      return STORE_INVALID;
+   dir = open_parent(parent);
+   if (dir < 0)
+      return classify_parent_errno(errno);
+   stream = fdopendir(dir);
+   if (stream == NULL)
+   {
+      close(dir);
+      return STORE_IO;
+   }
+   for (;;)
+   {
+      errno = 0;
+      struct dirent *entry = readdir(stream);
+      if (entry == NULL)
+      {
+         if (errno != 0)
+            result = STORE_IO;
+         break;
+      }
+      const char *name = entry->d_name;
+      size_t n = strlen(name);
+      if (n < 42 || strcmp(name + n - 6, ".jsonl") != 0 ||
+          strstr(name, uuid) == NULL)
+         continue;
+      if (orphan || fd >= 0 || memcmp(name + n - 42, uuid, 36) != 0 ||
+          (n != 42 && name[n - 43] != '_'))
+      {
+         result = STORE_INVALID;
+         goto done;
+      }
+      fd = openat(dir, name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+      if (fd < 0 || fstat(fd, &st) < 0 || !S_ISREG(st.st_mode) ||
+          st.st_uid != geteuid() || st.st_nlink != 1)
+      {
+         result = STORE_INVALID;
+         goto done;
+      }
+   }
+   if (result == STORE_IO)
+      goto done;
+   if (fd < 0)
+   {
+      result = orphan ? STORE_OK : STORE_MISSING;
+      goto done;
+   }
+   buffer = malloc(max);
+   result = STORE_IO;
+   if (buffer == NULL)
+      goto done;
+   size_t used = 0;
+   while (used < max)
+   {
+      ssize_t n = read(fd, buffer + used, max - used);
+      if (n < 0 && errno == EINTR)
+         continue;
+      if (n < 0)
+         goto done;
+      if (n == 0)
+         break;
+      char *end = memchr(buffer + used, '\n', (size_t)n);
+      if (end != NULL)
+      {
+         size_t size = (size_t)(end - buffer);
+         if (size == 0)
+            break;
+         *header = buffer;
+         *len = size;
+         buffer = NULL;
+         result = STORE_OK;
+         goto done;
+      }
+      used += (size_t)n;
+   }
+   result = STORE_INVALID;
+
+done:
+   free(buffer);
+   if (fd >= 0)
+      close(fd);
+   closedir(stream);
+   return result;
+}
+
+#define MAX_RECLAIM_ENTRIES 16384
+
+struct reclaim_entry
+{
+   char name[70];
+   dev_t device;
+   ino_t inode;
+};
+
+static int kept_raster(const char *name, const char *keep, size_t count)
+{
+   for (size_t i = 0; i < count; ++i)
+      if (memcmp(name, keep + 64 * i, 64) == 0)
+         return 1;
+   return 0;
+}
+
+/* The Ada layer validates the entire live graph and every referenced raster.
+ * Check the exact manifest again under the publication lock before using
+ * that keep set. Without a log only the explicit orphan mode can remove the
+ * whole flat sidecar. No session log or session lock inode is unlinked. */
+int coyote_canvas_reclaim(const char *parent, const char *uuid,
+                          const char *manifest, size_t manifest_size,
+                          const char *keep, size_t keep_count,
+                          int orphan, int apply, size_t *files, uint64_t *bytes)
+{
+   char sidecar[64];
+   struct stat st, side_st;
+   int dir, side = -1, editor = -1, writer = -1, manifest_fd = -1;
+   int result, changed = 0;
+   DIR *stream = NULL;
+   struct reclaim_entry *entries = NULL;
+   size_t seen = 0;
+   *files = 0;
+   *bytes = 0;
+   if (!valid_uuid(uuid) || (!orphan && manifest_size == 0) || keep_count > 256)
+      return STORE_INVALID;
+   (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
+   dir = open_parent(parent);
+   if (dir < 0)
+      return classify_parent_errno(errno);
+   side = openat(dir, sidecar, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+   if (side < 0)
+   {
+      result = classify_errno(errno);
+      goto done;
+   }
+   result = STORE_IO;
+   if (fstat(side, &side_st) < 0)
+      goto done;
+   result = STORE_INVALID;
+   if (!valid_private_stat(&side_st, 1, 0))
+      goto done;
+   /* Do not create lease files for inspection or for an abandoned fork. */
+   result = lock_entry(side, ".gtk-writer", &editor, 0);
+   if (result != STORE_OK)
+      goto done;
+   result = lock_entry(side, ".writer", &writer, 0);
+   if (result != STORE_OK)
+      goto done;
+   if (!orphan)
+   {
+      char *current = NULL;
+      size_t length = 0;
+      manifest_fd = open_checked(side, "canvas.json", 0, &st);
+      if (manifest_fd < 0)
+      {
+         result = classify_errno(errno);
+         goto done;
+      }
+      result = read_fd(manifest_fd, manifest_size, &st, &current, &length);
+      if (result == STORE_OK &&
+          (length != manifest_size || memcmp(current, manifest, length) != 0))
+         result = STORE_INVALID;
+      free(current);
+      if (result != STORE_OK)
+         goto done;
+   }
+   stream = fdopendir(side);
+   if (stream == NULL)
+   {
+      result = STORE_IO;
+      goto done;
+   }
+   /* fdopendir now owns side; use the descriptor until closedir. */
+   if (apply)
+   {
+      entries = malloc(MAX_RECLAIM_ENTRIES * sizeof *entries);
+      if (entries == NULL)
+      {
+         result = STORE_IO;
+         goto done;
+      }
+   }
+   for (;;)
+   {
+      errno = 0;
+      struct dirent *entry = readdir(stream);
+      if (entry == NULL)
+      {
+         if (errno != 0)
+         {
+            result = STORE_IO;
+            goto done;
+         }
+         break;
+      }
+      const char *name = entry->d_name;
+      if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+         continue;
+      result = STORE_INVALID;
+      if (++seen > MAX_RECLAIM_ENTRIES || !known_canvas_entry(name))
+         goto done;
+      result = STORE_IO;
+      if (fstatat(side, name, &st, AT_SYMLINK_NOFOLLOW) < 0)
+         goto done;
+      result = STORE_INVALID;
+      if (!valid_private_stat(&st, 0, 0) || st.st_size < 0)
+         goto done;
+      if (!orphan && strcmp(name, ".canvas.tmp") != 0 &&
+          (!raster_entry(name) || kept_raster(name, keep, keep_count)))
+         continue;
+      if ((uintmax_t)st.st_size > UINT64_MAX - *bytes)
+         goto done;
+      *bytes += (uint64_t)st.st_size;
+      if (entries != NULL)
+      {
+         strcpy(entries[*files].name, name);
+         entries[*files].device = st.st_dev;
+         entries[*files].inode = st.st_ino;
+      }
+      ++*files;
+   }
+   result = STORE_OK;
+   if (!apply || (!orphan && *files == 0))
+      goto done;
+   /* Persist the current live manifest (including a previously uncertain
+    * rename), or persist the log's absence, before removing any files. */
+   result = STORE_IO;
+   if ((orphan && fsync(dir) < 0) ||
+       (!orphan && (fsync(manifest_fd) < 0 || fsync(side) < 0)))
+      goto done;
+   for (size_t i = 0; i < *files; ++i)
+   {
+      if (fstatat(side, entries[i].name, &st, AT_SYMLINK_NOFOLLOW) < 0 ||
+          !valid_private_stat(&st, 0, 0) || st.st_dev != entries[i].device ||
+          st.st_ino != entries[i].inode || unlinkat(side, entries[i].name, 0) < 0)
+         goto done;
+      changed = 1;
+   }
+   if (fsync(side) < 0)
+      goto done;
+   if (orphan)
+   {
+      if (fstatat(dir, sidecar, &st, AT_SYMLINK_NOFOLLOW) < 0 ||
+          st.st_dev != side_st.st_dev || st.st_ino != side_st.st_ino ||
+          unlinkat(dir, sidecar, AT_REMOVEDIR) < 0)
+         goto done;
+      changed = 1;
+      if (fsync(dir) < 0)
+         goto done;
+   }
+   result = STORE_OK;
+
+done:
+   if (result != STORE_OK)
+   {
+      *files = 0;
+      *bytes = 0;
+      if (changed)
+         result = STORE_UNCERTAIN;
+   }
+   free(entries);
+   if (manifest_fd >= 0)
+      close(manifest_fd);
+   if (writer >= 0)
+      close(writer);
+   if (editor >= 0)
+      close(editor);
+   if (stream != NULL)
+      closedir(stream);
+   else if (side >= 0)
       close(side);
    close(dir);
    return result;

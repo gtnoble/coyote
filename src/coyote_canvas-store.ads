@@ -1,5 +1,6 @@
 with Ada.Finalization;
 with Ada.Strings.Unbounded;
+with Interfaces;
 private with Interfaces.C;
 
 --  Private Canvas transport and checked session lifecycle operations.
@@ -44,7 +45,21 @@ package Coyote_Canvas.Store is
    procedure Remove_Session
      (Parent, UUID, Log_Name : String; Status : out Result);
 
+   type Reclaim_Report is record
+      Files : Natural := 0;
+      Bytes : Interfaces.Unsigned_64 := 0;
+   end record;
+
 private
+   --  Only Workspaces may supply a validated keep set. The shared session
+   --  guard covers both calls and verification of the committed workspace.
+   procedure Reclaim_Header
+     (Parent, UUID : String; Orphan : Boolean;
+      Header : out Ada.Strings.Unbounded.Unbounded_String; Status : out Result);
+   procedure Reclaim_Checked
+     (Parent, UUID, Manifest, Keep : String; Orphan, Apply : Boolean;
+      Report : out Reclaim_Report; Status : out Result);
+
    type Writer_Lease is new Ada.Finalization.Limited_Controlled with record
       FD : Interfaces.C.int := Interfaces.C.int'First;
    end record;

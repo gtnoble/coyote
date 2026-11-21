@@ -51,11 +51,11 @@ package body Coyote_GUI.Canvas_Recovery_Jobs is
                   Accepted := False;
                end if;
             end if;
+            if Item.Claim_Status in Store.Ok | Store.Busy then
+               Disk.Load_Locked (To_String (Item.Parent), To_String (Item.UUID),
+                                 Item.Document, Item.Pixels, Item.Status);
+            end if;
          end;
-         if Item.Claim_Status in Store.Ok | Store.Busy then
-            Disk.Load (To_String (Item.Parent), To_String (Item.UUID),
-                       Item.Document, Item.Pixels, Item.Status);
-         end if;
       else
          Coyote_Process_Control.Begin_Persistence_Write (Accepted);
          if Accepted then

@@ -32,10 +32,25 @@ package Coyote_Canvas.Store.Workspaces is
       W : in out Revisions.Workspace; Assets : in out Raster_Set;
       Status : out Result);
 
+   --  Inspect a single UUID in the resolved session directory. A live log
+   --  requires a matching header and a fully verified manifest and rasters.
+   --  Orphan requires no matching log and can remove its flat sidecar.
+   --  Apply=False is inspection only (may create the shared lock entry).
+   --  Busy changes no data. Uncertain may have removed some/all candidates.
+   procedure Reclaim
+     (Parent, UUID : String; Orphan, Apply : Boolean;
+      Report : out Reclaim_Report; Status : out Result);
+
+   --  Tries the shared session guard once for the entire restore.
    --  A missing manifest returns Missing. Missing or invalid referenced
    --  assets return Invalid, with W and Assets unchanged. Restore drops
    --  transient Undo/Redo; it neither edits nor appends a revision.
    procedure Load
+     (Parent, UUID : String; W : in out Revisions.Workspace;
+      Assets : in out Raster_Set; Status : out Result);
+
+   --  Caller already holds the shared session guard (e.g. editor admission).
+   procedure Load_Locked
      (Parent, UUID : String; W : in out Revisions.Workspace;
       Assets : in out Raster_Set; Status : out Result);
 end Coyote_Canvas.Store.Workspaces;

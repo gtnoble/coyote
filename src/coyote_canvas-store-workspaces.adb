@@ -5,12 +5,28 @@ with Coyote_Canvas.Images;
 with Coyote_Canvas.Rasters;
 with Coyote_Canvas.Revisions.Recovery;
 with GNAT.SHA256;
+with GNATCOLL.JSON;
+with Coyote_Process_Control;
 
 package body Coyote_Canvas.Store.Workspaces is
    use Ada.Strings.Unbounded;
    package Rev renames Coyote_Canvas.Revisions;
    package Recovery renames Rev.Recovery;
    package Tx renames Coyote_Session_Transactions;
+
+   procedure Try_Guard
+     (Parent, UUID : String; Lock : in out Tx.Guard; Status : out Result)
+   is
+      Locked : Tx.Result;
+   begin
+      if not Tx.Canonical_UUID (UUID) then
+         Status := Invalid;
+         return;
+      end if;
+      Tx.Try_Lock (Parent, UUID, Lock, Locked);
+      Status := (case Locked is when Tx.Acquired => Ok,
+                 when Tx.Busy => Busy, when Tx.Unavailable => IO_Error);
+   end Try_Guard;
 
    function Byte_Count (E : Document.Rectangle) return Positive is
    begin
@@ -135,12 +151,11 @@ package body Coyote_Canvas.Store.Workspaces is
    procedure Load_Internal
      (Parent, UUID : String; W : in out Rev.Workspace;
       Assets : in out Raster_Set; Status : out Result;
-      Requested : Recovery.References; Select_Only : Boolean)
+      Requested : Recovery.References; Select_Only : Boolean;
+      Manifest : out Unbounded_String; Refs : out Recovery.Asset_References)
    is
-      Manifest  : Unbounded_String;
       Candidate : Rev.Workspace;
       Pixels    : Raster_Set;
-      Refs      : Recovery.Asset_References;
       Source_Ids : Recovery.Revision_Mapping;
       Used      : Natural := 0;
    begin
@@ -203,18 +218,147 @@ package body Coyote_Canvas.Store.Workspaces is
      (Parent, UUID : String; W : in out Rev.Workspace;
       Assets : in out Raster_Set; Status : out Result)
    is
+      Lock : Tx.Guard;
    begin
-      Load_Internal (Parent, UUID, W, Assets, Status,
-                     (1 .. 0 => <>), Select_Only => False);
+      Try_Guard (Parent, UUID, Lock, Status);
+      if Status = Ok then
+         Load_Locked (Parent, UUID, W, Assets, Status);
+      end if;
    end Load;
+
+   procedure Load_Locked
+     (Parent, UUID : String; W : in out Rev.Workspace;
+      Assets : in out Raster_Set; Status : out Result)
+   is
+      Manifest : Unbounded_String;
+      Refs : Recovery.Asset_References;
+   begin
+      Load_Internal (Parent, UUID, W, Assets, Status, (1 .. 0 => <>),
+                     Select_Only => False, Manifest => Manifest, Refs => Refs);
+   end Load_Locked;
 
    procedure Load_Selection
      (Parent, UUID : String; Requested : Recovery.References;
       W : in out Rev.Workspace; Assets : in out Raster_Set;
       Status : out Result)
    is
+      Manifest : Unbounded_String;
+      Refs : Recovery.Asset_References;
    begin
-      Load_Internal (Parent, UUID, W, Assets, Status,
-                     Requested, Select_Only => True);
+      Load_Internal (Parent, UUID, W, Assets, Status, Requested,
+                     Select_Only => True, Manifest => Manifest, Refs => Refs);
    end Load_Selection;
+
+   function Matching_Header (Header, UUID : String) return Boolean is
+      use GNATCOLL.JSON;
+      --  Headers have no deep structure. Avoid passing unbounded nesting
+      --  from an invalid file to the general JSON parser.
+      Depth : Natural := 0;
+      Quoted, Escaped : Boolean := False;
+   begin
+      for Ch of Header loop
+         if Escaped then
+            Escaped := False;
+         elsif Quoted then
+            case Ch is
+               when '\' => Escaped := True;
+               when '"' => Quoted := False;
+               when others => null;
+            end case;
+         else
+            case Ch is
+               when '"' => Quoted := True;
+               when '{' | '[' =>
+                  Depth := Depth + 1;
+                  if Depth > 16 then
+                     return False;
+                  end if;
+               when '}' | ']' =>
+                  if Depth = 0 then
+                     return False;
+                  end if;
+                  Depth := Depth - 1;
+               when others => null;
+            end case;
+         end if;
+      end loop;
+      declare
+         Parsed : constant Read_Result := Read (Header);
+      begin
+         if not Parsed.Success or else Parsed.Value.Kind /= JSON_Object_Type
+           or else Parsed.Value.Get ("id").Kind /= JSON_String_Type
+           or else Parsed.Value.Get ("version").Kind /= JSON_Int_Type
+         then
+            return False;
+         end if;
+         declare
+            Id : constant String := Parsed.Value.Get ("id").Get;
+            Version : constant Long_Long_Integer :=
+              Parsed.Value.Get ("version").Get;
+         begin
+            return Id = UUID and then Version in 1 | 3;
+         end;
+      end;
+   end Matching_Header;
+
+   procedure Reclaim
+     (Parent, UUID : String; Orphan, Apply : Boolean;
+      Report : out Reclaim_Report; Status : out Result)
+   is
+      use Coyote_Process_Control;
+      Lock : Tx.Guard;
+      Header, Manifest, Keep : Unbounded_String;
+      Accepted : Boolean := False;
+   begin
+      Report := (Files => 0, Bytes => 0);
+      Try_Guard (Parent, UUID, Lock, Status);
+      if Status /= Ok then
+         return;
+      end if;
+      Reclaim_Header (Parent, UUID, Orphan, Header, Status);
+      if Status /= Ok then
+         return;
+      end if;
+      if not Orphan then
+         if not Matching_Header (To_String (Header), UUID) then
+            Status := Invalid;
+            return;
+         end if;
+         declare
+            W : Rev.Workspace;
+            Assets : Raster_Set;
+            Refs : Recovery.Asset_References;
+         begin
+            Load_Internal (Parent, UUID, W, Assets, Status, (1 .. 0 => <>),
+                           Select_Only => False, Manifest => Manifest,
+                           Refs => Refs);
+            if Status /= Ok then
+               return;
+            end if;
+            for Digest of Refs loop
+               if Digest /= Recovery.NO_ASSET then
+                  Append (Keep, Digest);
+               end if;
+            end loop;
+         end;
+      end if;
+      if Apply then
+         Begin_Persistence_Write (Accepted);
+         if not Accepted then
+            Status := Busy;
+            return;
+         end if;
+      end if;
+      Reclaim_Checked (Parent, UUID, To_String (Manifest), To_String (Keep),
+                       Orphan, Apply, Report, Status);
+      if Accepted then
+         End_Persistence_Write;
+      end if;
+   exception
+      when others =>
+         if Accepted then
+            End_Persistence_Write;
+         end if;
+         raise;
+   end Reclaim;
 end Coyote_Canvas.Store.Workspaces;

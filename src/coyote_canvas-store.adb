@@ -206,4 +206,65 @@ package body Coyote_Canvas.Store is
       Status := Result'Val
         (Native_Remove_Session (To_C (Parent), To_C (UUID), To_C (Log_Name)));
    end Remove_Session;
+   procedure Reclaim_Header
+     (Parent, UUID : String; Orphan : Boolean;
+      Header : out Unbounded_String; Status : out Result)
+   is
+      function Inspect
+        (Parent, UUID : char_array; Orphan : int; Limit : size_t;
+         Data : out System.Address; Length : out size_t) return int
+        with Import, Convention => C,
+             External_Name => "coyote_canvas_reclaim_header";
+      Buffer : System.Address := System.Null_Address;
+      Size   : size_t;
+   begin
+      Header := Null_Unbounded_String;
+      Status := Invalid;
+      if not Safe_Arguments (Parent, UUID) then
+         return;
+      end if;
+      Status := Result'Val
+        (Inspect (To_C (Parent), To_C (UUID), Boolean'Pos (Orphan),
+                  16 * 1_024, Buffer, Size));
+      if Status = Ok and then Size > 0 then
+         declare
+            Text : String (1 .. Natural (Size)) with Import, Address => Buffer;
+         begin
+            Header := To_Unbounded_String (Text);
+         end;
+      end if;
+      Release (Buffer);
+   exception
+      when others =>
+         Release (Buffer);
+         raise;
+   end Reclaim_Header;
+
+   procedure Reclaim_Checked
+     (Parent, UUID, Manifest, Keep : String; Orphan, Apply : Boolean;
+      Report : out Reclaim_Report; Status : out Result)
+   is
+      function Reclaim
+        (Parent, UUID : char_array; Manifest : System.Address;
+         Manifest_Size : size_t; Keep : System.Address; Keep_Count : size_t;
+         Orphan, Apply : int; Files : out size_t;
+         Bytes : out Interfaces.Unsigned_64) return int
+        with Import, Convention => C, External_Name => "coyote_canvas_reclaim";
+      Files : size_t;
+      Bytes : Interfaces.Unsigned_64;
+   begin
+      Report := (Files => 0, Bytes => 0);
+      Status := Invalid;
+      if not Safe_Arguments (Parent, UUID) or else Keep'Length mod 64 /= 0 then
+         return;
+      end if;
+      Status := Result'Val
+        (Reclaim (To_C (Parent), To_C (UUID), Manifest'Address,
+                  size_t (Manifest'Length), Keep'Address,
+                  size_t (Keep'Length / 64), Boolean'Pos (Orphan),
+                  Boolean'Pos (Apply), Files, Bytes));
+      if Status = Ok then
+         Report := (Files => Natural (Files), Bytes => Bytes);
+      end if;
+   end Reclaim_Checked;
 end Coyote_Canvas.Store;

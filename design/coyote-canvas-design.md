@@ -93,6 +93,12 @@ implemented schema and compatibility boundaries.
 
 Fork keeps the existing conversation cut semantics. If it copies image-bearing turns, it also copies each referenced editable revision, its ancestors and needed assets into the destination store before publishing the fork. IDs are interpreted in the destination session; subsequent edits do not change the source. Do not copy unsent drafts or unrelated drawings into the fork. Fail the fork before publication if required assets are unavailable, rather than leaving broken links. Deleting a session removes its private Canvas sidecar as well as its session file under the same writer ownership; it cannot remove a different session's fork assets. Closing Canvas or compaction is not deletion.
 
+Explicit maintenance can inspect or reclaim unreferenced raster files in a
+validated Canvas store, or remove a logless sidecar in a separate mode. It
+serializes with workspace recovery, publication and fork/deletion and never
+runs on ordinary Open or Save. See [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli)
+for the validation and durability boundary.
+
 ## 6. Attach, queue, provider and replay
 
 1. **Attach:** Resolve selected revision IDs in visible tree order, or checkpoint the changed displayed draft first. Validate that the pane is in the normal view (no pending crop, comparison or markup hiding). Encode the canonical composite losslessly to PNG with original resulting dimensions and stage each batch atomically. Staging copies or retains immutable bytes, label, dimensions and exact IDs. The composer presents numbered names and IDs with keyboard-accessible Move Up, Move Down, Remove and Show in Canvas; numbers reflect the current order. It states provider upload and applicable retention on Send. Later edits, Undo, or model selection cannot mutate staged bytes.

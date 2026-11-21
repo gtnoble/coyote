@@ -1,9 +1,14 @@
 with Ada.Command_Line; use Ada.Command_Line;
 with Ada.Directories;
+with Ada.Environment_Variables;
+with GNAT.OS_Lib;
 with Ada.Text_IO; use Ada.Text_IO;
 with Session_Lister;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Canvas.Import_Service;
+with Coyote_Canvas.Store.Workspaces;
+with Coyote_Session_Transactions;
+with Ada.Strings.Fixed;
 
 package body Coyote_CLI is
 
@@ -14,6 +19,8 @@ package body Coyote_CLI is
         ("  session list             List sessions for this directory");
       Put_Line
         ("  canvas add [--] FILE...   Import into an authorized Canvas");
+      Put_Line
+        ("  canvas reclaim [--apply] [--orphan] UUID   Inspect Canvas storage");
       Put_Line ("  Use -h or --help after a group or command for usage.");
    end Print_Subcommands;
 
@@ -120,14 +127,95 @@ package body Coyote_CLI is
       end;
    end Canvas_Add;
 
+   procedure Canvas_Reclaim is
+      package Store renames Coyote_Canvas.Store;
+      package Tx renames Coyote_Session_Transactions;
+      use Ada.Strings;
+      Apply, Orphan : Boolean := False;
+      Status : Store.Result;
+      Report : Store.Reclaim_Report;
+   begin
+      if Argument_Count = 3 and then Is_Help (Argument (3)) then
+         Put_Line ("Usage: coyote canvas reclaim [--apply] [--orphan] UUID");
+         Put_Line ("Inspect one UUID in this directory's session storage.");
+         Put_Line ("Use --apply to remove unreferenced files; "
+                   & "--orphan requires no matching log.");
+         return;
+      end if;
+      if Argument_Count < 3
+        or else not Tx.Canonical_UUID (Argument (Argument_Count))
+      then
+         Fail ("canvas reclaim requires one full lowercase session UUID");
+         return;
+      end if;
+      for I in 3 .. Argument_Count - 1 loop
+         if Argument (I) = "--apply" and then not Apply then
+            Apply := True;
+         elsif Argument (I) = "--orphan" and then not Orphan then
+            Orphan := True;
+         else
+            Fail ("invalid or repeated canvas reclaim option");
+            return;
+         end if;
+      end loop;
+      if Ada.Environment_Variables.Value ("HOME", "") = "" then
+         Fail ("canvas reclaim requires HOME");
+         return;
+      end if;
+      declare
+         use Ada.Directories;
+         Path : constant String :=
+           Session_Lister.Sessions_Dir (Current_Directory);
+         Root : constant String := Tx.Resolve (Containing_Directory (Path));
+         Parent : constant String := Compose (Root, Simple_Name (Path));
+      begin
+         if GNAT.OS_Lib.Is_Symbolic_Link (Parent) then
+            Fail ("refusing a symlinked project session directory");
+            return;
+         elsif not Exists (Parent) then
+            Fail ("no session storage for this directory");
+            return;
+         end if;
+         --  The native store also opens the final entry with O_NOFOLLOW.
+         Store.Workspaces.Reclaim (Parent, Argument (Argument_Count), Orphan,
+                                   Apply, Report, Status);
+      end;
+      case Status is
+         when Store.Ok =>
+            Put_Line
+              ((if Apply then "Removed " else "Would remove ")
+               & Fixed.Trim (Report.Files'Image, Both) & " file(s), "
+               & Fixed.Trim (Report.Bytes'Image, Both) & " byte(s)"
+               & (if Orphan then " and the logless Canvas directory." else "."));
+         when Store.Missing =>
+            Fail ("no matching session log, Canvas directory, "
+                  & "or committed manifest");
+         when Store.Busy =>
+            Fail ("Canvas or session writer is busy; "
+                  & "close the editor and retry");
+         when Store.Invalid =>
+            Fail ("refusing unsafe, ambiguous, or invalid Canvas storage");
+         when Store.Uncertain =>
+            Fail ("Canvas cleanup incomplete or durability uncertain; "
+                  & "inspect again before retrying");
+         when Store.IO_Error =>
+            Fail ("cannot inspect or reclaim Canvas storage");
+      end case;
+   exception
+      when others => Fail ("cannot inspect or reclaim Canvas storage");
+   end Canvas_Reclaim;
+
    procedure Canvas_Command is
    begin
       if Argument_Count = 1 then
-         Fail ("missing canvas command (expected add)");
+         Fail ("missing canvas command (expected add or reclaim)");
       elsif Argument_Count = 2 and then Is_Help (Argument (2)) then
          Put_Line ("Usage: coyote canvas add [--] FILE...");
+         Put_Line ("       coyote canvas reclaim [--apply] [--orphan] UUID");
       elsif Argument (2) = "add" then
          Canvas_Add;
+      elsif Argument (2) = "reclaim" then
+         Canvas_Reclaim;
       else
          Fail ("unknown canvas command: " & Argument (2));
       end if;

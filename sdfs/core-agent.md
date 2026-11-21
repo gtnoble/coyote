@@ -1,5 +1,21 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Explicit Canvas reclamation (PCR-130)
+
+`canvas reclaim` previews one UUID in the current project session directory.
+Apply verifies the committed graph and required rasters before pruning stray
+blobs or the interrupted-write temp file. Explicit orphan mode requires the
+absence of a matching log. The session guard, existing editor lease, and
+publication lock exclude cooperating mutations. No maintenance path unlinks
+a session log or its transaction lock.
+
+Development builds and strict C syntax checks passed. The serial Xvfb suite
+passed 1,121/1,121. Offline fixtures covered inspection, exact removals,
+repeat apply, invalid graphs/assets, locks, timestamped and ambiguous logs,
+unsafe entries, project isolation, and incomplete logless sidecars. CLI and
+import protocol checks passed. This is developer evidence, not filesystem
+power-loss qualification or desktop acceptance.
+
 ## 2026-11-21 — Typed Canvas turns and v3 persistence (PCR-130)
 
 Typed user image blocks preserve native PNG bytes, order, and stable revision

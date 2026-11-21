@@ -22,6 +22,9 @@ coyote \- native Ada LLM coding agent harness
 .br
 .B coyote canvas add
 [\fB\-\-\fR] \fIFILE...\fR
+.br
+.B coyote canvas reclaim
+[\fB\-\-apply\fR] [\fB\-\-orphan\fR] \fIUUID\fR
 .SH DESCRIPTION
 .B coyote
 is a self-contained LLM coding agent that manages a conversation session
@@ -52,6 +55,16 @@ Canvas, changing selection, or submitting a prompt. Success prints the
 sanitized basename, drawing ID, and Original revision ID separated by tabs.
 Without live authority the command fails before reading the files. If the
 outcome is unknown, inspect Drawings before resubmitting.
+.TP
+.B canvas reclaim [\-\-apply] [\-\-orphan] UUID
+Inspect one Canvas in the current project's session directory. Without
+.B \-\-apply
+no files are removed. With it, remove only unreferenced rasters and an
+abandoned Canvas temporary file after verifying the committed workspace.
+.B \-\-orphan
+instead requires the absence of a matching session log and permits removal of
+the entire logless sidecar. Close the owning editor session first. The command
+refuses busy, ambiguous, or unsafe storage; it never deletes a session log.
 .PP
 Use
 .BR \-h " or " \-\-help
