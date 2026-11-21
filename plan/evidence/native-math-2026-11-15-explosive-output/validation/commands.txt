@@ -1,0 +1,10 @@
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && /usr/bin/time -f "wall=%e user=%U sys=%S exit=%x" -o /tmp/coyote-abuse-validation/root-build.time alr build --development > /tmp/coyote-abuse-validation/root-build.log 2>&1
+cd /home/gtnoble/Projects/coyote/coyote-latex-math/test && /usr/bin/time -f "wall=%e user=%U sys=%S exit=%x" -o /tmp/coyote-abuse-validation/test-build.time alr build --development --profiles=coyote=development > /tmp/coyote-abuse-validation/test-build.log 2>&1
+cd /home/gtnoble/Projects/coyote/coyote-latex-math/test && /usr/bin/time -f "wall=%e user=%U sys=%S exit=%x" -o /tmp/coyote-abuse-validation/full-suite.time timeout 300 xvfb-run -a ./bin/coyote_test > /tmp/coyote-abuse-validation/full-suite.log 2>&1
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && python3 test/tools/check-gtk-interactions.py > /tmp/coyote-abuse-validation/gtk-interactions.log 2>&1
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && python3 test/tools/check-gtk-interaction-runner.py > /tmp/coyote-abuse-validation/gtk-interaction-runner.log 2>&1
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && python3 test/tools/check-http-timeout-lifecycle.py > /tmp/coyote-abuse-validation/http-timeout-lifecycle.log 2>&1
+ACTUALLY EXECUTED (failure preserved): cwd=/home/gtnoble/Projects/coyote/coyote-latex-math; timeout 300 xvfb-run -a ./bin/coyote_test (exit 127; wrong cwd; no retry)
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && python3 test/tools/check-gtk-interactions.py
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && python3 test/tools/check-gtk-interaction-runner.py
+cd /home/gtnoble/Projects/coyote/coyote-latex-math && python3 test/tools/check-http-timeout-lifecycle.py

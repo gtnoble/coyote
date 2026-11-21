@@ -1,0 +1,2 @@
+/usr/bin/xvfb-run: 184: ./bin/coyote_test: not found
+Full-suite attempt: invoked from root in error; expected working directory is test. No retry per instruction.

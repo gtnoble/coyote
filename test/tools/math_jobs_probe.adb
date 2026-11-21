@@ -1094,6 +1094,162 @@ begin
       end loop;
    end;
    declare
+      Fonts : aliased Math_Painter.Font_Set;
+      Settings : Math_Layout.Layout_Settings := (others => <>);
+      Wide_Source : constant String :=
+        "\fcolorbox{red}{blue}{\xcancel{\rule{40em}{1em}}}";
+      Tall_Source : constant String :=
+        "\fcolorbox{red}{blue}{\xcancel{\rule{1em}{20em}}}";
+
+      procedure Exercise
+        (Source : String; Wide : Boolean; Generation : Natural) is
+         Options : constant Math_Syntax.Options :=
+           (Display_Mode => True, others => <>);
+         Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           (Source, Options);
+         Geometry : constant Math_Layout.Box := Math_Layout.Build
+           (Parsed, Math_Layout.Display_Style, Settings);
+         Bounds : constant Math_Raster.Raster_Bounds :=
+           Math_Raster.Measure (Geometry, 256.0);
+         Needed : constant Natural := Bounds.Width * 4 * Bounds.Height;
+         Failure_Id : Jobs.Request_Id;
+         Failure_Status : Jobs.Job_Status;
+         Failure_Result : Jobs.Result_Access;
+         Recovery_Id : Jobs.Request_Id;
+         Recovery_Status : Jobs.Job_Status;
+         Recovery_Result : Jobs.Result_Access;
+         Control_Parsed : constant Math_Syntax.Document := Math_Syntax.Parse
+           (Source, Options);
+         Control_Settings : Math_Layout.Layout_Settings := Settings;
+         Control_Geometry : Math_Layout.Box;
+         Control_Bounds : Math_Raster.Raster_Bounds;
+      begin
+         Control_Settings.Pixel_Em := 24.0;
+         Control_Geometry := Math_Layout.Build
+           (Control_Parsed, Math_Layout.Display_Style, Control_Settings);
+         Control_Bounds := Math_Raster.Measure (Control_Geometry, 24.0);
+         Check (Source'Length < 256 and Math_Syntax.Is_Valid (Parsed) and
+           Geometry.Valid,
+           "composed dimension fixture parses and lays out: " & Source);
+         Check
+           ((if Wide
+             then Bounds.Width > 8192 and Bounds.Height < 4096
+             else Bounds.Height > 4096 and Bounds.Width < 8192) and
+            Needed > 0 and Needed < Math_Raster_Budget.Capacity,
+            "composed fixture crosses only requested raster dimension: " &
+              Source);
+         Check (Math_Syntax.Is_Valid (Control_Parsed) and
+           Control_Geometry.Valid and
+           Control_Bounds.Width <= 8192 and
+           Control_Bounds.Height <= 4096,
+           "composed fixture has valid 24px recovery geometry: " & Source);
+
+         Jobs.Submit (Source, Failure_Id, Jobs.View_Generation (Generation),
+           Math_Layout.Display_Style, Status => Failure_Status,
+           Request_Raster => True, Em_Pixels => 256.0,
+           Font_Directory => Font_Directory);
+         Check (Failure_Status = Jobs.Pending,
+           "composed oversized request queues: " & Source);
+         Ada.Text_IO.Put_Line
+           ("COMPOSED_BOUNDS width=" & Bounds.Width'Image &
+            " height=" & Bounds.Height'Image &
+            " needed=" & Needed'Image & " source=" & Source);
+         for Wait in 1 .. 400 loop
+            if Failure_Status = Jobs.Pending then
+               Jobs.Poll
+                 (Failure_Id, Jobs.View_Generation (Generation),
+                  Failure_Status, Failure_Result);
+            end if;
+            exit when Failure_Status /= Jobs.Pending;
+            delay 0.005;
+         end loop;
+         if Failure_Status = Jobs.Pending then
+            Jobs.Abandon
+              (Failure_Id, Jobs.View_Generation (Generation));
+            Check (False,
+              "composed request poll watchdog expired: " & Source);
+            return;
+         end if;
+         Check (Failure_Status = Jobs.Failed and Failure_Result /= null,
+           "composed oversized raster fails after worker request: " & Source);
+         if Failure_Result /= null then
+            Check (Jobs.Error (Failure_Result.all) =
+              "full raster dimension limit exceeded" and
+              Jobs.Source (Failure_Result.all) = Source and
+              Math_Syntax.Is_Valid
+                (Jobs.Parse_Document (Failure_Result.all)) and
+              Jobs.Layout (Failure_Result.all).Valid and
+              not Jobs.Has_Raster (Failure_Result.all) and
+              Jobs.Raster_Width (Failure_Result.all) = 0 and
+              Jobs.Raster_Height (Failure_Result.all) = 0 and
+              Jobs.Raster_Retained_Bytes (Failure_Result.all) = 0 and
+              Jobs.Raster_Workspace_Peak_Bytes (Failure_Result.all) = 0 and
+              Math_Raster_Budget.Used = 0,
+              "dimension failure diagnostic and output cleanup: " & Source);
+            Jobs.Release (Failure_Result);
+         end if;
+         Check (Math_Raster_Budget.Used = 0,
+           "composed dimension failure releases reservation: " & Source);
+
+         Jobs.Submit (Source, Recovery_Id,
+           Jobs.View_Generation (Generation + 1),
+           Math_Layout.Display_Style, Status => Recovery_Status,
+           Request_Raster => True, Em_Pixels => 24.0,
+           Font_Directory => Font_Directory);
+         Check (Recovery_Status = Jobs.Pending,
+           "composed low-scale recovery request queues: " & Source);
+         for Wait in 1 .. 400 loop
+            if Recovery_Status = Jobs.Pending then
+               Jobs.Poll
+                 (Recovery_Id, Jobs.View_Generation (Generation + 1),
+                  Recovery_Status, Recovery_Result);
+            end if;
+            exit when Recovery_Status /= Jobs.Pending;
+            delay 0.005;
+         end loop;
+         if Recovery_Status = Jobs.Pending then
+            Jobs.Abandon
+              (Recovery_Id, Jobs.View_Generation (Generation + 1));
+            Check (False,
+              "composed recovery poll watchdog expired: " & Source);
+            return;
+         end if;
+         Check (Recovery_Status = Jobs.Valid and Recovery_Result /= null,
+           "same-source low-scale raster recovers after dimension failure: " &
+             Source);
+         if Recovery_Result /= null then
+            Check (Jobs.Source (Recovery_Result.all) = Source and
+              Jobs.Has_Raster (Recovery_Result.all) and
+              Jobs.Raster_Width (Recovery_Result.all) =
+                Control_Bounds.Width and
+              Jobs.Raster_Height (Recovery_Result.all) =
+                Control_Bounds.Height and
+              Jobs.Raster_Width (Recovery_Result.all) <= 8192 and
+              Jobs.Raster_Height (Recovery_Result.all) <= 4096 and
+              Jobs.Raster_Retained_Bytes (Recovery_Result.all) > 0 and
+              Math_Raster_Budget.Used =
+                Jobs.Raster_Retained_Bytes (Recovery_Result.all),
+              "same-source recovery returns bounded retained raster: " &
+                Source);
+            Jobs.Release (Recovery_Result);
+         end if;
+         Check (Math_Raster_Budget.Used = 0,
+           "composed recovery returns raster ledger to baseline: " & Source);
+      end Exercise;
+   begin
+      Check (Math_Raster_Budget.Used = 0,
+        "composed dimension probes begin with empty raster ledger");
+      Math_Painter.Load (Fonts, Font_Directory);
+      Settings.Pixel_Em := 256.0;
+      Settings.Advance_Source := Fonts'Unchecked_Access;
+      for Iteration in 1 .. 2 loop
+         Exercise (Wide_Source, True, 410 + 2 * Iteration);
+         Exercise (Tall_Source, False, 411 + 2 * Iteration);
+      end loop;
+      Check (Math_Raster_Budget.Used = 0,
+        "repeated composed probes leave raster ledger empty");
+   end;
+   declare
       Tiny_Id : Jobs.Request_Id;
       Exact_Id : Jobs.Request_Id;
       Full_Id : Jobs.Request_Id;

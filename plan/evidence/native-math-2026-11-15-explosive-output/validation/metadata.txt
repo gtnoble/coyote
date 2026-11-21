@@ -1,0 +1,12 @@
+cwd=/home/gtnoble/Projects/coyote/coyote-latex-math
+HEAD=4b11c5dc4d645e9492d9ddac122f02ea390568ee
+workspace=only modified test/tools/math_engine_probe.adb and test/tools/math_jobs_probe.adb; no production-source changes
+policy=no edits; no subagents; sequential checks; failures are recorded without automatic rerun
+ M test/tools/math_engine_probe.adb
+ M test/tools/math_jobs_probe.adb
+
+post-validation git status:
+ M test/tools/math_engine_probe.adb
+ M test/tools/math_jobs_probe.adb
+
+production source diff:

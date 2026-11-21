@@ -313,6 +313,104 @@ procedure Math_Engine_Probe is
         "reset retains explicit diagnostic-clearing semantics");
    end Test_Scope_Limit_Recovery;
 
+   procedure Test_Composed_Geometry_Recovery is
+      Local_Shared : aliased Math_Macros.Context;
+      Opt : Math_Engine.Request;
+      Outp : Math_Engine.Result;
+      At_Limit : constant String :=
+        "\geometryh\geometryf\geometryb\geometrya\geometryi";
+      Below_Limit : constant String :=
+        "\geometryh\geometryf\geometryb\geometrya\geometryj x";
+      Over_Limit : constant String :=
+        "\geometryh\geometryf\geometryb\geometrya\geometryk x";
+   begin
+      Check (At_Limit'Length < 128 and then
+        Below_Limit'Length < 128 and then Over_Limit'Length < 128,
+        "composed width fixtures remain short and bounded");
+      Math_Engine.Parse
+        ("\gdef\geometryprobe{g}\gdef\geometrya{\kern{100em}}" &
+         "\gdef\geometryb{\geometrya\geometrya}" &
+         "\gdef\geometryc{\geometryb\geometryb}" &
+         "\gdef\geometryd{\geometryc\geometryc}" &
+         "\gdef\geometrye{\geometryd\geometryd}" &
+         "\gdef\geometryf{\geometrye\geometrye}" &
+         "\gdef\geometryg{\geometryf\geometryf}" &
+         "\gdef\geometryh{\geometryg\geometryg}" &
+         "\gdef\geometryi{\kern{84em}}" &
+         "\gdef\geometryj{\kern{83em}}" &
+         "\gdef\geometryk{\kern{85em}}",
+         Local_Shared'Access, (Global_Group => True, others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Macros.Is_Defined (Local_Shared, "\geometryprobe") and then
+        Math_Macros.Scope_Depth (Local_Shared) = 0,
+        "geometry recovery fixture establishes global sentinel baseline");
+
+      Math_Engine.Parse (At_Limit, Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Is_Valid (Outp.Parsed) and then
+        Math_Semantics.Is_Valid (Outp.Meaning) and then
+        Outp.Geometry.Valid and then Outp.Geometry.Width = 16_384.0 and then
+        Outp.Geometry.Commands.Is_Empty,
+        "individually legal kern pieces compose to exact valid limit");
+      Math_Engine.Parse (Below_Limit, Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Syntax.Is_Valid (Outp.Parsed) and then
+        Math_Semantics.Is_Valid (Outp.Meaning) and then
+        Outp.Geometry.Valid and then Outp.Geometry.Width < 16_384.0 and then
+        Outp.Geometry.Commands.Length = 1 and then
+        Outp.Geometry.Commands.First_Element.Kind =
+          Math_Layout.Glyph_Command and then
+        Outp.Geometry.Commands.First_Element.Code_Point = Character'Pos ('x'),
+        "composed kern pieces plus glyph render below geometry limit");
+      for Command of Outp.Geometry.Commands loop
+         Check (Command.X >= 0.0,
+           "short below-limit glyph has no negative coordinate");
+      end loop;
+
+      for Setting in 1 .. 2 loop
+         Opt.Settings.Throw_On_Error := Setting = 1;
+         for Attempt in 1 .. 2 loop
+            Math_Engine.Parse
+              (Over_Limit, Local_Shared'Access, Opt, Outp);
+            Check (Outp.Status = Math_Engine.Layout_Error and then
+              Math_Engine.Error (Outp) = "layout geometry limit exceeded" and then
+              Math_Syntax.Is_Valid (Outp.Parsed) and then
+              Math_Syntax.Source (Outp.Parsed) = Over_Limit and then
+              Math_Semantics.Is_Valid (Outp.Meaning),
+              "composed over-limit layout rejected with valid views, throw=" &
+                Boolean'Image (Opt.Settings.Throw_On_Error) & " attempt=" &
+                Natural'Image (Attempt));
+            Check (not Outp.Geometry.Valid and then
+              Outp.Geometry.Width = 0.0 and then
+              Outp.Geometry.Ascent = 0.0 and then
+              Outp.Geometry.Descent = 0.0 and then
+              Outp.Geometry.Commands.Is_Empty,
+              "layout rejection publishes empty zero-width geometry");
+            Check (Math_Macros.Scope_Depth (Local_Shared) = 0 and then
+              Math_Macros.Is_Defined (Local_Shared, "\geometryprobe"),
+              "layout rejection preserves exact global-sentinel scope");
+            Math_Engine.Parse
+              ("\geometryprobe", Local_Shared'Access, Opt, Outp);
+            Check (Outp.Status = Math_Engine.Ready and then
+              Outp.Geometry.Valid and then
+              Outp.Geometry.Commands.Length = 1 and then
+              Outp.Geometry.Commands.First_Element.Code_Point =
+                Character'Pos ('g') and then
+              Math_Macros.Scope_Depth (Local_Shared) = 0,
+              "sentinel immediately survives layout rejection");
+            Math_Engine.Parse ("x", Local_Shared'Access, Opt, Outp);
+            Check (Outp.Status = Math_Engine.Ready and then
+              Outp.Geometry.Valid and then
+              Outp.Geometry.Width < 16_384.0 and then
+              Outp.Geometry.Commands.Length = 1 and then
+              Outp.Geometry.Commands.First_Element.Code_Point =
+                Character'Pos ('x') and then
+              Math_Macros.Scope_Depth (Local_Shared) = 0,
+              "default same-context request recovers after layout rejection");
+         end loop;
+      end loop;
+   end Test_Composed_Geometry_Recovery;
+
    procedure Test_Abuse_Rejection_Recovery is
       use Ada.Strings.Unbounded;
       Outp : Math_Engine.Result;
@@ -328,9 +426,48 @@ procedure Math_Engine_Probe is
       Valid_Column_Source : Unbounded_String :=
         To_Unbounded_String ("\begin{matrix}");
       Moderate_Nesting : Unbounded_String := Null_Unbounded_String;
+      Moderate_Duplicate : Unbounded_String := Null_Unbounded_String;
+      Nested_Duplication : Unbounded_String :=
+        To_Unbounded_String ("\def\dup#1{#1#1}");
+      Expansion_Limits : constant array (1 .. 2) of Positive :=
+        (1_000, 10_000);
+      Doubling_Chain : Unbounded_String :=
+        To_Unbounded_String ("\def\a{x}");
       Oversized_Source : constant String :=
         (1 .. Math_Syntax.Max_Source_Bytes + 1 => 'x');
    begin
+      Append (Moderate_Duplicate, "\def\dup#1{#1#1}");
+      for Index in 1 .. 6 loop
+         Append (Moderate_Duplicate, "\dup{");
+      end loop;
+      Append (Moderate_Duplicate, "x");
+      for Index in 1 .. 6 loop
+         Append (Moderate_Duplicate, "}");
+      end loop;
+      Append (Nested_Duplication, "\dup{");
+      for Index in 1 .. 18 loop
+         Append (Nested_Duplication, "\dup{");
+      end loop;
+      Append (Nested_Duplication, "x");
+      for Index in 1 .. 19 loop
+         Append (Nested_Duplication, "}");
+      end loop;
+      for Index in 1 .. 9 loop
+         declare
+            Letter : constant Character := Character'Val
+              (Character'Pos ('a') + Index);
+            Previous : constant Character := Character'Val
+              (Character'Pos ('a') + Index - 1);
+         begin
+            Append (Doubling_Chain, "\def\" & Letter & "{\" &
+              Previous & "\" & Previous & "}");
+         end;
+      end loop;
+      Append (Doubling_Chain, "\j");
+      Check (Length (Nested_Duplication) < 1_024 and then
+        Length (Doubling_Chain) < 1_024,
+        "exponential duplication sources stay structurally small");
+
       for Index in 1 .. Math_Syntax.Max_Depth + 2 loop
          Append (Depth_Source, "\sqrt{");
       end loop;
@@ -396,6 +533,26 @@ procedure Math_Engine_Probe is
       Check (Outp.Status = Math_Engine.Ready and then
         Math_Syntax.Is_Valid (Outp.Parsed),
         "eight-level nested square roots are accepted");
+      Math_Engine.Parse
+        (To_String (Moderate_Duplicate), Shared'Access,
+         (others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then
+        Outp.Geometry.Commands.Length = 64,
+        "six-level nested duplication renders 64 glyphs");
+      declare
+         X_Glyphs : Natural := 0;
+      begin
+         for Command of Outp.Geometry.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command and then
+              Command.Code_Point = Character'Pos ('x')
+            then
+               X_Glyphs := X_Glyphs + 1;
+            end if;
+         end loop;
+         Check (X_Glyphs = 64,
+           "moderate nested duplication contains 64 x glyphs");
+      end;
 
       for Attempt in 1 .. 2 loop
          Expect_Abuse_Rejection
@@ -415,6 +572,85 @@ procedure Math_Engine_Probe is
             "macro expansion: TOKEN_LIMIT",
             "single-pass macro argument duplication " &
               Natural'Image (Attempt));
+         for Limit of Expansion_Limits loop
+            declare
+               Opt : Math_Engine.Request;
+               Result : Math_Engine.Result;
+            begin
+               Opt.Settings.Max_Expand := Limit;
+               Math_Engine.Parse
+                 (To_String (Nested_Duplication), Shared'Access,
+                  Opt, Result);
+               Check (Result.Status = Math_Engine.Parse_Error and then
+                 Ada.Strings.Fixed.Index
+                   (Math_Engine.Error (Result),
+                    "macro expansion: EXPANSION_LIMIT") > 0 and then
+                 not Result.Geometry.Valid and then
+                 Result.Geometry.Commands.Is_Empty,
+                 "nested duplication rejected at expansion limit" &
+                   Natural'Image (Limit));
+               Check (Math_Syntax.Source (Result.Parsed) =
+                   To_String (Nested_Duplication) and then
+                 not Math_Syntax.Is_Valid (Result.Parsed) and then
+                 Math_Macros.Scope_Depth (Shared) = 0,
+                 "nested duplication rejection preserves source and scope");
+               Math_Engine.Parse ("\saved", Shared'Access, Opt, Result);
+               Check (Result.Status = Math_Engine.Ready and then
+                 Result.Geometry.Valid and then
+                 not Result.Geometry.Commands.Is_Empty,
+                 "global sentinel survives nested duplication rejection");
+               Math_Engine.Parse ("x", Shared'Access, Opt, Result);
+               Check (Result.Status = Math_Engine.Ready and then
+                 Result.Geometry.Valid and then
+                 not Result.Geometry.Commands.Is_Empty,
+                 "same-context request recovers after nested duplication");
+            end;
+         end loop;
+         declare
+            Opt : Math_Engine.Request;
+            Result : Math_Engine.Result;
+         begin
+            Opt.Settings.Max_Expand := 1_000;
+            Math_Engine.Parse
+              (To_String (Doubling_Chain), Shared'Access, Opt, Result);
+            Check (Result.Status = Math_Engine.Parse_Error and then
+              Ada.Strings.Fixed.Index
+                (Math_Engine.Error (Result),
+                 "macro expansion: EXPANSION_LIMIT") > 0 and then
+              not Result.Geometry.Valid and then
+              Result.Geometry.Commands.Is_Empty,
+              "nine-level doubling chain hits 1000 invocation limit");
+            Math_Engine.Parse ("\saved", Shared'Access, Opt, Result);
+            Check (Result.Status = Math_Engine.Ready and then
+              Result.Geometry.Valid and then
+              not Result.Geometry.Commands.Is_Empty,
+              "global sentinel immediately survives doubling rejection");
+            Math_Engine.Parse ("x", Shared'Access, Opt, Result);
+            Check (Result.Status = Math_Engine.Ready and then
+              Result.Geometry.Valid and then
+              not Result.Geometry.Commands.Is_Empty,
+              "default request immediately recovers from doubling rejection");
+            Opt.Settings.Max_Expand := 10_000;
+            Math_Engine.Parse
+              (To_String (Doubling_Chain), Shared'Access, Opt, Result);
+            Check (Result.Status = Math_Engine.Ready and then
+              Result.Geometry.Valid and then
+              Result.Geometry.Commands.Length = 512,
+              "nine-level doubling chain renders 512 commands at 10000");
+            declare
+               Glyphs : Natural := 0;
+            begin
+               for Command of Result.Geometry.Commands loop
+                  if Command.Kind = Math_Layout.Glyph_Command and then
+                    Command.Code_Point = Character'Pos ('x')
+                  then
+                     Glyphs := Glyphs + 1;
+                  end if;
+               end loop;
+               Check (Glyphs = 512,
+                 "nine-level doubling chain emits 512 x glyph commands");
+            end;
+         end;
          Expect_Abuse_Rejection
            (To_String (Depth_Source), "nesting depth exceeded",
             "excessive parse depth " & Natural'Image (Attempt));
@@ -694,6 +930,7 @@ procedure Math_Engine_Probe is
       Bad_Source : constant String := "\not-a-command";
    begin
       Test_Foreground_Work_Control;
+      Test_Composed_Geometry_Recovery;
       Math_Engine.Parse ("x+\frac{a}{b}", Shared'Access, Opt, Outp);
       Check (Outp.Status = Math_Engine.Ready, "default request ready");
       Check (Math_Syntax.Is_Valid (Outp.Parsed) and

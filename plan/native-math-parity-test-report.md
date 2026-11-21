@@ -1827,3 +1827,43 @@ parity or human acceptance is established. Browser/geometry/image/raster and
 whole-macro Valgrind not rerun; existing raster loss failures remain open.
 Developer/agent review is not independent acceptance; PCR-125 OPEN.
 No release/install/commit.
+
+
+### 11.23 Explosive expansion and composed-output rejection — 2026-11-15
+
+Test-only continuation of the practical abuse objective; production source,
+requirements, numerical limits and accounting policy are unchanged. New engine
+fixtures exercise genuine nested duplication (moderate64 x glyphs;19 nested
+calls rejected at expansion1000 and10000), a512-glyph doubling chain rejected
+at1000/accepted at10000, sentinel/source/scope and immediate request recovery.
+Nominal exponential outputs are fixture derivations, not allocation measurements.
+
+Compact macros compose individually legal kern pieces into exact16384em width,
+below-limit glyph output and above-limit Layout_Error. Both Throw_On_Error
+settings retain valid syntax/semantics/source, clear invalid geometry and recover
+in the same context. Composed framed-color/cancellation/rule worker fixtures
+cross width only10415×431 and height only431×5295 at256px/em, fail with the
+specific dimension diagnostic, clear raster/lease, then render the same source
+at24px/em. Requests share a worker pool, not a pinned physical worker. Local
+Measure is an integration expectation, not independent geometry parity. Worker
+lease reservation precedes Paint's dimension rejection; Cairo workspace has not
+been admitted and cleanup releases the lease. No whole-allocation claim.
+
+Final engine309/309 twice, worker346/346 twice; engine Valgrind309 assertions,
+zero errors/lost bytes,216713 reachable with documented4MiB frame threshold.
+Root/test development builds and mandatory GTK9/9/runner containment/offline HTTP
+pass. Full Xvfb1076/1076,zero failures/errors,147.796068s cumulative/147.94s wall.
+The first full-suite invocation used root cwd and exited127 before any tests;
+that log is retained alongside the corrected test-cwd run. Standalone additions
+are separate from AUnit registrations; no new full-suite cases claimed.
+
+Evidence:`plan/evidence/native-math-2026-11-15-explosive-output/`. Evolving
+fixture failures from maxSize clamping/control-name/total mistakes are retained
+as reconstructed summaries, not exact-source baselines. Final sources/binaries
+and unchanged production are hashed. Poll watchdog expiry abandons matching
+requests but is a test failure, not proof of completed native cleanup. No new
+runtime defect was found; developer/agent self-review is not independent
+acceptance. Wider seeded/command/surface/GTK/timing/font/lifecycle/parity and
+human acceptance remain OPEN; prior raster losses are not waived. No browser/
+geometry/image/raster or whole-macro Valgrind rerun. PCR-125 OPEN.
+No release/install/commit.

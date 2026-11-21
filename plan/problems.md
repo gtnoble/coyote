@@ -4960,3 +4960,19 @@ are historical, not current-source qualification.
 - **Status:** scoped defect developer-verified. Phase-controlled active-worker
   cancellation/GUI qualification remains open; no new cap/accounting requirement.
   PCR-125 OPEN; no release/install/acceptance.
+
+
+### PCR-125 — Practical explosive/composed-output evidence,2026-11-15
+
+- **Category:** Test. **Priority:** 3-Moderate.
+- **Gap:** prior duplicated-argument fixture was one pass, not genuine nested
+  exponential expansion; composed layout and raster-dimension recovery needed
+  distinct controls.
+- **Action:** new small-source exponential cases, exact/below/above combined
+  legal dimensions, composed width/height raster failures and same-source
+  low-scale recovery; no production change or new limit selected.
+- **Evidence:** report §11.23:engine309/worker346 twice,engine Valgrind clean,
+  full1076/1076; required development/GTK/HTTP checks pass. Fixture-development
+  errors and wrong-cwd non-run retained. No10000-case/independent parity claim.
+- **Status:** scoped coverage implemented; PCR-125 and broader qualification
+  remain OPEN. Existing raster losses remain; no release/install/acceptance.

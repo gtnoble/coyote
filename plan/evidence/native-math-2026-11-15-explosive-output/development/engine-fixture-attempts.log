@@ -1,0 +1,35 @@
+Failed attempts while developing test/tools/math_engine_probe.adb; source limits were not changed.
+
+Attempt 1, /tmp/coyote-exponential-engine-final1 (initial literal 8192em fixtures):
+FAIL two individually legal kerns compose to exact valid limit
+FAIL composed over-limit layout rejected with valid views, throw=TRUE attempt= 1
+FAIL layout rejection publishes empty zero-width geometry
+FAIL composed over-limit layout rejected with valid views, throw=TRUE attempt= 2
+FAIL layout rejection publishes empty zero-width geometry
+FAIL composed over-limit layout rejected with valid views, throw=FALSE attempt= 1
+FAIL layout rejection publishes empty zero-width geometry
+FAIL composed over-limit layout rejected with valid views, throw=FALSE attempt= 2
+FAIL layout rejection publishes empty zero-width geometry
+ASSERTIONS 309 failures= 9
+Cause established by source inspection: Math_Syntax.Parse_Dimension_String clamps positive dimensions to Settings.Max_Size (default 100em), so 8192em was not a valid 8192em fixture.
+
+Attempt 2, /tmp/coyote-exponential-engine-final1 (first macro-composed fixture):
+FAIL two individually legal kerns compose to exact valid limit
+FAIL two below-limit kerns plus glyph render within geometry limit
+FAIL composed over-limit layout rejected with valid views, throw=TRUE attempt= 1
+FAIL composed over-limit layout rejected with valid views, throw=TRUE attempt= 2
+FAIL composed over-limit layout rejected with valid views, throw=FALSE attempt= 1
+FAIL layout rejection publishes empty zero-width geometry
+FAIL composed over-limit layout rejected with valid views, throw=FALSE attempt= 2
+FAIL layout rejection publishes empty zero-width geometry
+ASSERTIONS 308 failures= 8
+Cause: numeric suffixes were consumed as part of TeX control words (e.g. geometryd4); subsequent correction used alphabetic macro names.
+
+Attempt 3, /tmp/coyote-exponential-engine-final1 (correct control names, incorrect below/over totals):
+FAIL two below-limit kerns plus glyph render within geometry limit
+ASSERTIONS 308 failures= 1
+Diagnostic: below fixture returned Layout_Error, width 0, commands 0, error "layout geometry limit exceeded". Cause: an extra 100em macro made the total exceed 16384; removing it produced 16383em plus glyph and 16385em plus glyph.
+
+Final fresh root runs:
+/tmp/coyote-exponential-engine-final1/probe.log: ASSERTIONS 309 failures= 0
+/tmp/coyote-exponential-engine-final2/probe.log: ASSERTIONS 309 failures= 0

@@ -2670,3 +2670,19 @@ mandatory GTK/containment/HTTP checks pass. Exact-probe no-poll mutation fails
 active-worker color-phase stop injection or native hard-deadline guarantee;
 prior raster losses and wider qualification remain open. No requirements,
 limits or accounting policy changed. No release/install/commit.
+
+
+## 2026-11-15 — Explosive expansion and composed output (PCR-125)
+
+Report §11.23 and `plan/evidence/native-math-2026-11-15-explosive-output/`
+record test-only abuse coverage: genuine nested duplication, configured
+expansion-limit control, exact/below/above composed layout width, composed
+raster width/height rejection and same-source worker-pool recovery. Engine309
+and worker346 assertions pass twice; engine Valgrind has zero errors/lost bytes;
+full1076/1076 and required development/GTK/HTTP checks pass. Source/diagnostics,
+status, scope, empty failure output and raster-charge recovery are checked.
+Production/requirements/numerical limits unchanged; no new guard defect found.
+This is not independent geometry, hard timing/native preemption,10000 seeded
+cases, full font/lifecycle/parity or human acceptance. Prior raster losses remain
+open. Development fixture mistakes and wrong-cwd suite attempt are retained.
+No release/install/commit.
