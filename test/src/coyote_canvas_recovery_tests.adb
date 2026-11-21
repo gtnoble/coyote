@@ -103,12 +103,16 @@ package body Coyote_Canvas_Recovery_Tests is
       Before_Count : Natural;
       Original_Ink, Recovered_Ink : Samples.Vector;
 
-      procedure Capture_Original (Points : Samples.Vector) is
+      procedure Capture_Original
+        (Points : Samples.Vector; Operation : Ink_Operation) is
+         pragma Unreferenced (Operation);
       begin
          Original_Ink := Points;
       end Capture_Original;
 
-      procedure Capture_Recovered (Points : Samples.Vector) is
+      procedure Capture_Recovered
+        (Points : Samples.Vector; Operation : Ink_Operation) is
+         pragma Unreferenced (Operation);
       begin
          Recovered_Ink := Points;
       end Capture_Recovered;
@@ -335,6 +339,7 @@ package body Coyote_Canvas_Recovery_Tests is
       Refs : Asset_References;
       First : Revision_Id;
       Status : Result;
+      Points : Samples.Vector;
       Data : constant String :=
         ASCII.NUL & Character'Val (201) & "X" & ASCII.NUL &
         "ABC" & Character'Val (1) & "DEF" & Character'Val (255) &
@@ -350,6 +355,9 @@ package body Coyote_Canvas_Recovery_Tests is
       Crop (W, (0, 0, 1, 2));
       Save (W);
       Crop (W, (0, 1, 1, 2));
+      Points.Append ((0.5, 0.5, 1.0));
+      Add_Stroke (W, Points);
+      Add_Stroke (W, Points, Erase);
       Disk.Save (To_String (Root), UUID_A, W, A, Status);
       Assert (Status = Ok, "persist complete workspace");
       Disk.Save (To_String (Root), UUID_A, W, A, Status);

@@ -11,6 +11,9 @@ with Ada.Strings.Unbounded;
 with Coyote_Canvas.Rasters;
 with Coyote_GUI.Canvas_Import_Jobs;
 with Gdk.Property;
+with Gdk.Cursor;
+with Gdk.Window;
+with Coyote_Help;
 with Glib.Object;
 with Gtk.Clipboard;
 with Gtk.Dialog;
@@ -66,6 +69,9 @@ package body Coyote_GUI.Canvas is
    use type Gdk.Event.Gdk_Event_Mask;
    use type Gdk.Event.Gdk_Event_Type;
    use type Gdk.Device_Tool.Gdk_Device_Tool;
+   use type Gdk.Device_Tool.Gdk_Device_Tool_Type;
+   use type Rev.Ink_Operation;
+   ERASER_DIAMETER : constant Long_Float := 16.0;
    use type Gdk.Types.Gdk_Key_Type;
    use type Gdk.Types.Gdk_Modifier_Type;
    use type Gtk.Label.Gtk_Label;
@@ -261,6 +267,12 @@ package body Coyote_GUI.Canvas is
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
       S.Crop_Item.Set_Sensitive (Editing and S.Show_Ink);
+      S.Eraser_Item.Set_Sensitive (Editing and S.Show_Ink);
+      S.Tool_Label.Set_Text
+        (if S.Drawing and then S.Gesture_Operation = Rev.Erase then
+            "Tool: Eraser (16 px)"
+         elsif S.Crop_Mode then "Tool: Crop"
+         elsif S.Eraser_Mode then "Tool: Eraser (16 px)" else "Tool: Pen");
       S.Undo_Item.Set_Sensitive (Editing and then Rev.Can_Undo (S.Document));
       S.Redo_Item.Set_Sensitive (Editing and then Rev.Can_Redo (S.Document));
       S.Apply_Crop.Set_Sensitive (Valid_Crop);
@@ -787,6 +799,48 @@ package body Coyote_GUI.Canvas is
       Refresh (S.all);
    end On_Field;
 
+   procedure Open_Help (S : in out Instance; Topic : String) is
+   begin
+      if not Coyote_Help.Open (Topic) then
+         Set_Status (S, "Unable to open Help: Yelp is not available.");
+      end if;
+   end Open_Help;
+
+   procedure Disable_Click_Help (S : in out Instance) is
+   begin
+      if S.Help_Mode then
+         S.Help_Mode := False;
+         Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, null);
+         Set_Status (S, "Click for Help ended.");
+      end if;
+   end Disable_Click_Help;
+
+   function On_Help_Click
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean
+   is
+   begin
+      if not S.Help_Mode or else Gdk.Event.Get_Event_Type (Event) /=
+        Gdk.Event.Button_Press or else Gdk.Event.Get_Button (Event) /= 1
+      then
+         return False;
+      end if;
+      Disable_Click_Help (S.all);
+      Open_Help (S.all, (if Widget.Get_Name = "coyote-canvas-drawings"
+                        then "canvas-revisions" else "canvas-editing"));
+      return True;
+   end On_Help_Click;
+
+   procedure On_Eraser
+     (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class;
+      S    : Instance_Access)
+   is
+   begin
+      Cancel_Gesture (S.all);
+      S.Eraser_Mode := Item.Get_Active;
+      Refresh (S.all);
+   end On_Eraser;
+
    procedure On_Markup
      (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class;
       S    : Instance_Access)
@@ -901,6 +955,15 @@ package body Coyote_GUI.Canvas is
           ("_Redo", "redo", Gdk.Types.Keysyms.GDK_LC_z,
            Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask);
       S.Paste_Item := Action ("_Paste", "paste", Gdk.Types.Keysyms.GDK_LC_v);
+      declare
+         Eraser : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      begin
+         Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic (Eraser, "_Eraser");
+         Eraser.Set_Name ("canvas-eraser");
+         S.Eraser_Item := Gtk.Menu_Item.Gtk_Menu_Item (Eraser);
+         Menu.Append (Eraser);
+         Check_Callback.Connect (Eraser, "toggled", On_Eraser'Access, State);
+      end;
       S.Crop_Item   := Action ("_Crop...", "crop");
       S.Apply_Item  := Action ("_Apply Crop", "apply");
       S.Cancel_Item := Action ("Ca_ncel Crop", "cancel");
@@ -915,7 +978,15 @@ package body Coyote_GUI.Canvas is
       Menu.Append (Markup);
       Check_Callback.Connect (Markup, "toggled", On_Markup'Access, State);
       Group ("_Help");
+      Item := Action ("_Click for Help", "help-click", Gdk.Types.Keysyms.GDK_F1,
+                      Gdk.Types.Shift_Mask);
       Item := Action ("_Overview", "help", Gdk.Types.Keysyms.GDK_F1, 0);
+      Item := Action ("_Drawing and Editing", "help-editing");
+      Item := Action ("_Revisions and Attachments", "help-revisions");
+      Item := Action ("_Index", "help-index");
+      Item := Action ("_Keys & Shortcuts", "help-keys");
+      Item := Action ("_Product Information", "help-product");
+      Item.Set_Sensitive (S.On_Product /= null);
       Outer.Pack_Start (Bar, False, False, 0);
       Accels.Unref;
       Gtk.Box.Gtk_New_Hbox (Body_Box, False, 4);
@@ -942,6 +1013,9 @@ package body Coyote_GUI.Canvas is
       begin
          null;
       end;
+      Event_Callback.Connect
+        (S.Drawing_Tree, "button-press-event",
+         Event_Marshaller.To_Marshaller (On_Help_Click'Access), State);
       S.Drawing_Tree.Get_Selection.Set_Mode (Gtk.Enums.Selection_Multiple);
       Selection_Callback.Connect
         (S.Drawing_Tree.Get_Selection, "changed", On_Selection'Access, State);
@@ -959,6 +1033,9 @@ package body Coyote_GUI.Canvas is
       Draw_Callback.Connect
         (S.Drawing_Area, "draw",
          Draw_Context_Marshaller.To_Marshaller (On_Draw'Access), State);
+      Event_Callback.Connect
+        (S.Drawing_Area, "button-press-event",
+         Event_Marshaller.To_Marshaller (On_Help_Click'Access), State);
       Event_Callback.Connect
         (S.Drawing_Area, "button-press-event",
          Event_Marshaller.To_Marshaller (On_Press'Access), S'Unchecked_Access);
@@ -996,6 +1073,10 @@ package body Coyote_GUI.Canvas is
       S.Crop_Grid.Attach (S.Apply_Crop, 8, 0, 1, 1);
       S.Crop_Grid.Attach (S.Cancel_Crop, 9, 0, 1, 1);
       Outer.Pack_Start (S.Crop_Grid, False, False, 2);
+      Gtk.Label.Gtk_New (S.Tool_Label, "Tool: Pen");
+      S.Tool_Label.Set_Name ("coyote-canvas-tool");
+      S.Tool_Label.Set_Halign (Gtk.Widget.Align_Start);
+      Outer.Pack_Start (S.Tool_Label, False, False, 4);
       Gtk.Label.Gtk_New (S.Status, "Blank drawing workspace");
       S.Status.Set_Name ("coyote-canvas-status");
       S.Status.Set_Halign (Gtk.Widget.Align_Start);
@@ -1277,6 +1358,12 @@ package body Coyote_GUI.Canvas is
       Refresh (S);
    end Set_Attach_Handler;
 
+   procedure Set_Product_Handler
+     (S : in out Instance; Handler : Product_Handler) is
+   begin
+      S.On_Product := Handler;
+   end Set_Product_Handler;
+
    procedure Apply_Reveal (S : in out Instance) is
    begin
       if Length (S.Reveal_Revision) = 0 or else S.Loading then
@@ -1329,6 +1416,7 @@ package body Coyote_GUI.Canvas is
 
    procedure Reset (S : in out Instance) is
    begin
+      Disable_Click_Help (S);
       S.Resetting := True;
       S.Reveal_Drawing := Null_Unbounded_String;
       S.Reveal_Revision := Null_Unbounded_String;
@@ -1415,6 +1503,9 @@ package body Coyote_GUI.Canvas is
       S.Cancel_Crop  := null;
       S.Zoom         := 1.0;
       S.Show_Ink     := True;
+      S.Tool_Label  := null;
+      S.Eraser_Item := null;
+      S.Eraser_Mode := False;
    end Destroy;
 
    function Window (S : Instance) return Gtk.Window.Gtk_Window is
@@ -1611,6 +1702,7 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Item);
    begin
       if S /= null and then S.Canvas_Window /= null then
+         Disable_Click_Help (S.all);
          Cancel_Gesture (S.all);
          Refresh (S.all);
          Invalidate (S.all, Keep_Agent => True);
@@ -1691,9 +1783,33 @@ package body Coyote_GUI.Canvas is
          On_Apply_Crop (null, S);
       elsif Name = "canvas-close" then
          On_Close (Item, S);
-      elsif Name = "canvas-help" then
-         Set_Status
-           (S.all, "Use File > New to draw; Save checkpoints in memory.");
+      elsif Name = "canvas-help-click" then
+         Cancel_Gesture (S.all);
+         Refresh (S.all);
+         declare
+            Cursor : constant Gdk.Gdk_Cursor :=
+              Gdk.Cursor.Gdk_Cursor_New (Gdk.Cursor.Question_Arrow);
+         begin
+            S.Help_Mode := True;
+            Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, Cursor);
+            Gdk.Cursor.Unref (Cursor);
+         end;
+         Set_Status (S.all, "Click the drawing or Drawings list for Help.");
+      elsif Name = "canvas-help-product" then
+         if S.On_Product /= null then
+            S.On_Product (S.Canvas_Window);
+         end if;
+      elsif Name in "canvas-help" | "canvas-help-editing" |
+                    "canvas-help-revisions" | "canvas-help-index" |
+                    "canvas-help-keys"
+      then
+         Disable_Click_Help (S.all);
+         Open_Help (S.all,
+           (if Name = "canvas-help" then "canvas"
+            elsif Name = "canvas-help-editing" then "canvas-editing"
+            elsif Name = "canvas-help-revisions" then "canvas-revisions"
+            elsif Name = "canvas-help-keys" then "keyboard-shortcuts#canvas"
+            else ""));
       else
          Cancel_Gesture (S.all);
          if Name = "canvas-draft" then
@@ -1937,8 +2053,26 @@ package body Coyote_GUI.Canvas is
             package Ink renames Coyote_Canvas.Ink;
             Shade : constant Glib.Gdouble := Glib.Gdouble (Ink.CHANNEL) / 255.0;
          begin
-            Cairo.Set_Source_Rgb (Context, Shade, Shade, Shade);
-            Ink.Draw (S.Stroke_Points, Context);
+            if S.Gesture_Operation = Rev.Paint then
+               Cairo.Set_Source_Rgb (Context, Shade, Shade, Shade);
+               Ink.Draw (S.Stroke_Points, Context);
+            else
+               --  A cursor guide, not part of the canonical pixels.
+               declare
+                  Point : constant Rev.Sample := S.Stroke_Points.Last_Element;
+               begin
+                  Cairo.Arc (Context, Glib.Gdouble (Point.X),
+                             Glib.Gdouble (Point.Y),
+                             Glib.Gdouble (Point.Width / 2.0),
+                             0.0, 6.283_185_307_179_586);
+                  Cairo.Set_Line_Width (Context, Glib.Gdouble (2.0 / S.Zoom));
+                  Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
+                  Cairo.Stroke_Preserve (Context);
+                  Cairo.Set_Line_Width (Context, Glib.Gdouble (1.0 / S.Zoom));
+                  Cairo.Set_Source_Rgb (Context, 0.15, 0.32, 0.70);
+                  Cairo.Stroke (Context);
+               end;
+            end if;
          end;
       end if;
       if Doc.Is_Nonempty (Region) then
@@ -1975,24 +2109,33 @@ package body Coyote_GUI.Canvas is
       Pressure : Glib.Gdouble;
       Width    : Long_Float             := 3.0;
    begin
-      if S.Stroke_Points.Length >= 4_096 then
-         raise Rev.Capacity_Error with "Canvas gesture sample limit reached";
-      end if;
-      if Gdk.Event.Get_Device_Tool (Event) /= null
+      if S.Gesture_Operation = Rev.Erase then
+         Width := ERASER_DIAMETER;
+      elsif Gdk.Event.Get_Device_Tool (Event) /= null
         and then Read_Axis (Event, Gdk.Types.Axis_Pressure, Pressure) /= 0
         and then Pressure >= 0.0 and then Pressure <= 1.0
       then
          Width := 1.0 + 7.0 * Long_Float (Pressure);
       end if;
-      S.Stroke_Points.Append
-        (Rev.Sample'
-           (X     =>
-              Long_Float'Max
-                (0.0, Long_Float'Min (X, Long_Float (E.Right - E.Left))),
-            Y     =>
-              Long_Float'Max
-                (0.0, Long_Float'Min (Y, Long_Float (E.Bottom - E.Top))),
-            Width => Width));
+      declare
+         Point : constant Rev.Sample :=
+           (X => Long_Float'Max
+              (0.0, Long_Float'Min (X, Long_Float (E.Right - E.Left))),
+            Y => Long_Float'Max
+              (0.0, Long_Float'Min (Y, Long_Float (E.Bottom - E.Top))),
+            Width => Width);
+         use type Rev.Sample;
+      begin
+         if not S.Stroke_Points.Is_Empty
+           and then S.Stroke_Points.Last_Element = Point
+         then
+            return;
+         end if;
+         if S.Stroke_Points.Length >= 4_096 then
+            raise Rev.Capacity_Error with "Canvas gesture sample limit reached";
+         end if;
+         S.Stroke_Points.Append (Point);
+      end;
    end Add_Point;
 
    procedure Drag_Crop (S : in out Instance; X, Y : Long_Float) is
@@ -2071,6 +2214,16 @@ package body Coyote_GUI.Canvas is
               not (S.Drag_Left or S.Drag_Right or S.Drag_Top or S.Drag_Bottom);
          end Begin_Crop_Drag;
       else
+         declare
+            Tool : constant Gdk.Device_Tool.Gdk_Device_Tool :=
+              Gdk.Event.Get_Device_Tool (Event);
+         begin
+            S.Gesture_Operation :=
+              (if S.Eraser_Mode or else
+                 (Tool /= null and then Tool.Get_Tool_Type =
+                    Gdk.Device_Tool.Gdk_Device_Tool_Type_Eraser)
+               then Rev.Erase else Rev.Paint);
+         end;
          Add_Point
            (S.all, Event, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
          S.Drawing := True;
@@ -2122,7 +2275,13 @@ package body Coyote_GUI.Canvas is
          return False;
       end if;
       if S.Drawing then
-         Rev.Add_Stroke (S.Document, S.Stroke_Points);
+         if S.Gesture_Operation = Rev.Erase
+           and then Read_Coords (Event, X, Y) /= 0
+         then
+            Add_Point
+              (S.all, Event, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
+         end if;
+         Rev.Add_Stroke (S.Document, S.Stroke_Points, S.Gesture_Operation);
          Mark_Dirty (S.all);
          Clear_Display (S.all);
       elsif Read_Coords (Event, X, Y) /= 0 then
@@ -2149,6 +2308,13 @@ package body Coyote_GUI.Canvas is
       Is_Key : constant Boolean :=
         Gdk.Event.Get_Event_Type (Event) = Gdk.Event.Key_Press;
    begin
+      if S.Help_Mode and then
+        (not Is_Key or else
+         Gdk.Event.Get_Key_Val (Event) = Gdk.Types.Keysyms.GDK_Escape)
+      then
+         Disable_Click_Help (S.all);
+         return Is_Key;
+      end if;
       if (S.Crop_Drag or else S.Drawing or else (Is_Key and then S.Crop_Mode))
         and then
         (not Is_Key

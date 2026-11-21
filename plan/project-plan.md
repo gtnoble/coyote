@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.52
+**Version:** 1.53
 **Date:** 2026-11-21
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
@@ -1006,7 +1006,8 @@ explicit `canvas reclaim` command covers validated live stores and logless
 sidecars. New logs and forks now sync their containing directory after
 publication; a visible but unconfirmed typed fork keeps its Canvas. New
 sessions and forks also sync the fixed storage hierarchy beneath an existing
-`HOME` before staging. STP §4.6 qualification and desktop/tablet acceptance
+`HOME` before staging. Canvas supports undoable ink erasing and installed
+Mallard Help topics. STP §4.6 qualification and desktop/tablet acceptance
 remain open.
 
 ## 9. Artifact Version Table
@@ -1024,7 +1025,7 @@ remain open.
 | Pinned KaTeX inventory | INV-MATH | `plan/native-math-katex-0.16.22-inventory.md` and `.json` | Generated v2 (2026-10-24) | Author — review evidence |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.35 (2026-11-21) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.60 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.61 (2026-11-21) | Project implementation status update; v1.45 Canvas amendment accepted |
 | Canvas Detailed Design | SDD-CANVAS | `design/coyote-canvas-design.md` | 1.0 (2026-11-21) | Client — design accepted |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |

@@ -33,6 +33,8 @@ package Coyote_GUI.Canvas is
    type Attach_Handler is access function
      (Images : LLM.Types.User_Images.Vector) return Boolean;
    procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler);
+   type Product_Handler is access procedure (Parent : Gtk.Window.Gtk_Window);
+   procedure Set_Product_Handler (S : in out Instance; Handler : Product_Handler);
    procedure Reveal
      (S : aliased in out Instance;
       Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
@@ -62,6 +64,13 @@ private
    type Image_Array is array (Iter_Array'Range) of Image_Asset;
 
    type Instance is limited record
+      On_Product : Product_Handler := null;
+      Help_Mode : Boolean := False;
+      Eraser_Item : Gtk.Menu_Item.Gtk_Menu_Item := null;
+      Tool_Label : Gtk.Label.Gtk_Label := null;
+      Eraser_Mode : Boolean := False;
+      Gesture_Operation : Coyote_Canvas.Revisions.Ink_Operation :=
+        Coyote_Canvas.Revisions.Paint;
       Canvas_Window : Gtk.Window.Gtk_Window               := null;
       Root                                         : Gtk.Box.Gtk_Box := null;
       Drawing_Area : Gtk.Drawing_Area.Gtk_Drawing_Area   := null;

@@ -2897,21 +2897,25 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Show_All;
    end Build_Product_Information;
 
-   procedure On_Product_Information_Activate
-     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
-   is
-      pragma Unreferenced (Self);
+   procedure Show_Product_Information (Parent : Gtk.Window.Gtk_Window) is
       Dialog : Gtk.Dialog.Gtk_Dialog;
       Image  : Gtk.Image.Gtk_Image;
       Resp   : Gtk.Dialog.Gtk_Response_Type;
       pragma Unreferenced (Resp);
    begin
-      if Current_Frontend = null then
-         return;
-      end if;
-      Build_Product_Information (Current_Frontend.Win, Dialog, Image);
+      Build_Product_Information (Parent, Dialog, Image);
       Resp := Dialog.Run;
       Dialog.Destroy;
+   end Show_Product_Information;
+
+   procedure On_Product_Information_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Show_Product_Information (Current_Frontend.Win);
+      end if;
    end On_Product_Information_Activate;
 
    procedure On_Index_Activate
@@ -5257,6 +5261,8 @@ package body Coyote_App.Frontend.GUI is
          Prompt_Box.Pack_Start (F.Attachment_Panel, False, False, 0);
          Update_Attachments (F);
          Coyote_GUI.Canvas.Set_Attach_Handler (F.Canvas_Window, Stage_Attachments'Access);
+         Coyote_GUI.Canvas.Set_Product_Handler
+           (F.Canvas_Window, Show_Product_Information'Access);
       end;
 
       Gtk.Text_View.Gtk_New (F.Prompt_View);

@@ -22,13 +22,10 @@ client-controlled work product gets an entry here.
   by the product owner on 2026-11-21.
 - **Status:** Open; the workspace supports native PNG/JPEG clipboard paste and
   pointer or exact-field crop with Apply/Cancel and undo/redo. Physical Intuos,
-  cross-application clipboard qualification, and image submission remain pending.
-- **Implementation update (2026-11-21):** Added the widget-independent Canvas
-  composite and shared ink units, Cairo A8 coverage/source-over pixel pipeline,
-  cropped display cache, and native PNG encoder with a hard 8 MiB output cap.
-  Developer verification is recorded in the Frontends log. PNG encoding is
-  not connected to a Canvas command or worker. Attach/Send, durable storage,
-  the authorized import service, and desktop/tablet qualification remain open.
+  cross-application clipboard qualification, and the formal crop-to-send and
+  replay demonstration remain pending. Native PNG Attach/Send, durable Canvas
+  recovery, and authorized import are implemented under PCR-130. See the
+  Frontends log for developer evidence; no desktop/tablet acceptance is implied.
 
 ## PCR-130 — Drawing Canvas and additive CLI subcommands
 
@@ -73,7 +70,8 @@ client-controlled work product gets an entry here.
   also syncs the fixed hierarchy under an existing `HOME` before staging;
   failed preparation is safe to retry, and concurrent creators use random
   UUIDv4 IDs. Power-loss qualification, desktop qualification and deployment
-  remain pending.
+  remain pending. Edit → Eraser and Canvas desktop Help are implemented;
+  view Fit, the shortcut menu, and sent revision indicators remain open.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

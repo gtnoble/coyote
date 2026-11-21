@@ -182,6 +182,10 @@ attributes and local references. Stylesheets, `style` attributes, scripts,
 animation, and embedded or linked images are not supported. Oversized images
 are rejected rather than shrunk.
 
+Choose **Edit → Eraser** to remove ink with the pen or mouse. The background
+stays unchanged, and Undo/Redo acts on the whole gesture. **Help → Overview**
+or `F1` opens Canvas Help in Yelp.
+
 Zoom changes only the view. An applied crop keeps the original pixel grid:
 the retained pixels and ink are not resampled. Canvas encodes attachments as
 lossless PNG; it does not offer a separate file export command.

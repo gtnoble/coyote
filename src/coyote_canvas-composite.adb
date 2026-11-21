@@ -71,8 +71,14 @@ package body Coyote_Canvas.Composite is
       Context : Cairo.Cairo_Context := Cairo.Null_Context;
       Buffer : Pixel_Buffer;
 
-      procedure Draw (Points : Revisions.Samples.Vector) is
+      procedure Draw
+        (Points : Revisions.Samples.Vector; Operation : Revisions.Ink_Operation)
+      is
+         use type Revisions.Ink_Operation;
       begin
+         if Context = Cairo.Null_Context and then Operation = Revisions.Erase then
+            return;
+         end if;
          if Context = Cairo.Null_Context then
             Mask := Cairo.Image_Surface.Create
               (Cairo.Image_Surface.Cairo_Format_A8,
@@ -84,6 +90,10 @@ package body Coyote_Canvas.Composite is
             Context := Cairo.Create (Mask);
             Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
          end if;
+         Cairo.Set_Operator
+           (Context, (if Operation = Revisions.Erase
+                      then Cairo.Cairo_Operator_Dest_Out
+                      else Cairo.Cairo_Operator_Over));
          Ink.Draw (Points, Context);
       end Draw;
    begin

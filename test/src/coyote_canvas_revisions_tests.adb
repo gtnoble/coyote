@@ -13,7 +13,8 @@ package body Coyote_Canvas_Revisions_Tests is
    Seen_Count : Natural := 0;
    Seen_Point : Sample;
 
-   procedure Collect (Points : Samples.Vector) is
+   procedure Collect (Points : Samples.Vector; Operation : Ink_Operation) is
+      pragma Unreferenced (Operation);
    begin
       Seen_Count := Seen_Count + 1;
       Seen_Point := Points.First_Element;

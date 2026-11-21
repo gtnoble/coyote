@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="guide" id="canvas">
+  <info><link type="guide" xref="index"/><desc>Drawing Canvas in coyote.</desc></info>
+  <title>Drawing Canvas</title>
+  <p>Choose <gui>View</gui> → <gui>Canvas</gui> to open a modeless drawing window beside the conversation. Closing it leaves drawings in the session.</p>
+  <links type="topic"/>
+</page>

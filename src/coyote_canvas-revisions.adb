@@ -224,7 +224,9 @@ package body Coyote_Canvas.Revisions is
       W.Future.Clear;
    end Remember;
 
-   procedure Add_Stroke (W : in out Workspace; Points : Samples.Vector) is
+   procedure Add_Stroke
+     (W : in out Workspace; Points : Samples.Vector;
+      Operation : Ink_Operation := Paint) is
    begin
       if W.Base_Id = NO_REVISION then
          raise Constraint_Error with "Cannot draw without an Original";
@@ -262,7 +264,7 @@ package body Coyote_Canvas.Revisions is
          W.Draft.Ink.Reserve_Capacity (W.Draft.Ink.Length + 1);
          W.Strokes.Reserve_Capacity (W.Strokes.Length + 1);
          Remember (W);
-         W.Strokes.Append (Stored);
+         W.Strokes.Append (Stroke'(Stored, Operation));
          W.Draft.Ink.Append (W.Strokes.Last_Index);
          W.Points := W.Points + Natural (Points.Length);
       end Collect;
@@ -303,16 +305,17 @@ package body Coyote_Canvas.Revisions is
 
    procedure Visit_Source
      (W       : Workspace; Id : Revision_Id;
-      Process : not null access procedure (Points : Samples.Vector))
+      Process : not null access procedure
+        (Points : Samples.Vector; Operation : Ink_Operation))
    is
    begin
       if Id = NO_REVISION then
          for Index of W.Draft.Ink loop
-            Process (W.Strokes (Index));
+            Process (W.Strokes (Index).Points, W.Strokes (Index).Operation);
          end loop;
       else
          for Index of W.Revisions (Id).Content.Ink loop
-            Process (W.Strokes (Index));
+            Process (W.Strokes (Index).Points, W.Strokes (Index).Operation);
          end loop;
       end if;
    end Visit_Source;

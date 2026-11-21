@@ -1,5 +1,21 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas ink eraser and desktop Help (PCR-130)
+
+Edit → Eraser and recognized tablet eraser tips commit one undoable ink
+operation on release. Cairo removes coverage only from the original-grid
+ink mask, leaving background bytes and saved revisions intact. Erase-aware
+Canvas manifests use v3; paint-only v2 manifests remain readable and writable.
+The Canvas Help menu provides Mallard topics via Yelp, contextual drawing
+and tree clicks, and the existing in-app Product Information dialog.
+
+Development builds and the serial Xvfb suite passed (1,123/1,123). Focused
+checks cover exact restored RGBA, Undo/Redo, crop, recovery, forks, and PNG
+encoding, and fake-Yelp routing without drawing on a Help click. Mallard
+validation and link checks, standalone Canvas checks, and GTK checks (9/9)
+passed. Actual Intuos eraser-tip detection, Wayland behavior, and desktop
+Help navigation remain to be qualified.
+
 ## 2026-11-21 — Guarded Canvas recovery reads (PCR-130)
 
 The GTK recovery worker holds the session guard through lease admission,

@@ -45,6 +45,7 @@ with Gtk.Clipboard;
 with Gtk.GEntry;
 with Gtk.Tree_Selection;
 with System;
+with Interfaces.C;
 with Gtk.Container;
 with Gtk.Dialog;
 with Gtk.Enums;
@@ -1099,6 +1100,24 @@ package body Coyote_App_Frontend_GUI_Tests is
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (True);
       Check_Pixel ((13, 13, 13));
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-eraser")).Set_Active (True);
+      Assert (Gtk.Label.Get_Text (Gtk.Label.Gtk_Label
+                (Control ("coyote-canvas-tool"))) = "Tool: Eraser (16 px)",
+              "eraser mode is indicated in text");
+      Pointer (Gdk.Event.Button_Press, 15.0, 30.0);
+      Assert (not Control ("canvas-attach").Get_Sensitive,
+              "cannot attach during an erase gesture");
+      Pointer (Gdk.Event.Button_Release, 45.0, 30.0);
+      Check_Pixel ((255, 255, 255));
+      Activate ("undo");
+      Check_Pixel ((13, 13, 13));
+      Activate ("redo");
+      Check_Pixel ((255, 255, 255));
+      Activate ("undo");
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-eraser")).Set_Active (False);
+      Check_Pixel ((13, 13, 13));
       Activate ("save");
       Assert (Get_Iter_From_String (Model, "0:0") /= Null_Iter,
               "Pointer stroke saves as a child of Original");
@@ -1936,6 +1955,124 @@ package body Coyote_App_Frontend_GUI_Tests is
          raise;
    end Test_Canvas_Agent_Import;
 
+   procedure Test_Canvas_Help (T : in out Test) is
+      use Ada.Real_Time;
+      use Coyote_App.Frontend.GUI.Testing;
+      package Env renames Ada.Environment_Variables;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Canvas : Gtk.Window.Gtk_Window;
+      Template : aliased String := "/tmp/coyote-canvas-help-XXXXXX" & ASCII.NUL;
+      Root : String renames Template (1 .. Template'Last - 1);
+      File : Ada.Text_IO.File_Type;
+      Had_Path : constant Boolean := Env.Exists ("PATH");
+      Old_Path : constant String := Env.Value ("PATH", "");
+      Have_Root, Have_Window : Boolean := False;
+      use type System.Address;
+      use type Interfaces.C.int;
+
+      function Make_Temp_Directory (Name : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+      function Chmod (Name : Interfaces.C.char_array; Mode : Interfaces.C.unsigned)
+        return Interfaces.C.int
+        with Import, Convention => C, External_Name => "chmod";
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name));
+
+      procedure Activate (Name : String) is
+         Item : constant Gtk.Widget.Gtk_Widget := Control ("canvas-" & Name);
+      begin
+         Assert (Item /= null, "missing Canvas Help action " & Name);
+         Gtk.Menu_Item.Gtk_Menu_Item (Item).Activate;
+      end Activate;
+
+      procedure Check_Target (Topic : String) is
+         By : constant Time := Clock + Seconds (3);
+      begin
+         while not Ada.Directories.Exists (Root & "/topic") loop
+            Assert (Clock < By, "Yelp was not launched for " & Topic);
+            delay 0.01;
+         end loop;
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Root & "/topic");
+         Assert (Ada.Text_IO.Get_Line (File) = Topic, "Yelp URI: " & Topic);
+         Ada.Text_IO.Close (File);
+         Ada.Directories.Delete_File (Root & "/topic");
+      end Check_Target;
+
+      procedure Cleanup is
+      begin
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         if Had_Path then
+            Env.Set ("PATH", Old_Path);
+         else
+            Env.Clear ("PATH");
+         end if;
+         if Have_Window then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         if Have_Root then
+            Ada.Directories.Delete_Tree (Root);
+         end if;
+      end Cleanup;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Have_Root := Make_Temp_Directory (Template'Address) /= System.Null_Address;
+      Assert (Have_Root, "create private Yelp fixture");
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Root & "/yelp");
+      Ada.Text_IO.Put_Line (File, "#!/bin/sh");
+      Ada.Text_IO.Put_Line (File, "printf '%s\n' ""$1"" > '" & Root & "/pending'");
+      Ada.Text_IO.Put_Line (File, "/bin/mv '" & Root & "/pending' '" & Root & "/topic'");
+      Ada.Text_IO.Close (File);
+      Assert (Chmod (Interfaces.C.To_C (Root & "/yelp"), 8#700#) = 0,
+              "make isolated Yelp fixture executable");
+      Env.Set ("PATH", Root);
+      Coyote_App.Frontend.GUI.Create (Frontend, "Canvas Help", Pop_Under => True);
+      Have_Window := True;
+      Canvas_Item (Frontend).Activate;
+      Canvas := Canvas_Window (Frontend);
+      Activate ("help");
+      Check_Target ("help:coyote/canvas");
+      Activate ("help-keys");
+      Check_Target ("help:coyote/keyboard-shortcuts#canvas");
+      Activate ("help-index");
+      Check_Target ("help:coyote");
+      Activate ("new");
+      Activate ("help-click");
+      declare
+         Area : constant Gtk.Widget.Gtk_Widget :=
+           Control ("coyote-canvas-drawing-area");
+         Raw : aliased Gdk.Event.Gdk_Event_Button :=
+           (The_Type => Gdk.Event.Button_Press, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => 20.0, Y => 20.0, Axes => null,
+            State => 0, Button => 1, Device => System.Null_Address,
+            X_Root => 20.0, Y_Root => 20.0);
+      begin
+         Assert (Area.Event (Gdk.Event.To_Event (Raw'Access)),
+                 "Click for Help consumes a drawing press");
+         Check_Target ("help:coyote/canvas-editing");
+         Raw.The_Type := Gdk.Event.Button_Release;
+         Assert (not Area.Event (Gdk.Event.To_Event (Raw'Access)) and then
+                   not Control ("canvas-undo").Get_Sensitive,
+                 "the Help click did not start an ink gesture");
+      end;
+      Env.Set ("PATH", "/dev/null");
+      Activate ("help-revisions");
+      Assert (Gtk.Label.Get_Text (Gtk.Label.Gtk_Label
+                (Control ("coyote-canvas-status"))) =
+                  "Unable to open Help: Yelp is not available.",
+              "Canvas reports missing Yelp locally");
+      Cleanup;
+   exception
+      when others =>
+         Cleanup;
+         raise;
+   end Test_Canvas_Help;
+
    procedure Test_Canvas_Attachments (T : in out Test) is
       use Ada.Strings.Unbounded;
       use Coyote_App.Frontend.GUI.Testing;
@@ -2125,6 +2262,10 @@ package body Coyote_App_Frontend_GUI_Tests is
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas typed attachments", Test_Canvas_Attachments'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Help Canvas topics and contextual click",
+            Test_Canvas_Help'Access));
       return Result;
    end Suite;
 

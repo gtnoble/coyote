@@ -8,6 +8,7 @@ with Coyote_Canvas.Document;
 with Coyote_Canvas.Images;
 with Coyote_Canvas.Rasters;
 with Coyote_Canvas.Revisions;
+with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Image_Decoder;
 with Interfaces.C;
 with System;
@@ -238,6 +239,89 @@ package body Coyote_Canvas_Composite_Tests is
               "redo restores nested crop pixel grid");
    end Crop_And_History;
 
+   procedure Erase_Ink (T : in out Test) is
+      pragma Unreferenced (T);
+      package Recovery renames Coyote_Canvas.Revisions.Recovery;
+      W, Restored, Forked : Workspace;
+      Original, Before, After : Revision_Id;
+      Stroke, Eraser : Samples.Vector;
+      Source : Stream_Element_Array (1 .. 12 * 8 * 4);
+      Painted, Erased, Actual : Image;
+      Mapping : Recovery.Revision_Mapping;
+      Rejected : Boolean := False;
+      Left : constant Stream_Element_Offset := (4 * 12 + 2) * 4 + 1;
+      Right : constant Stream_Element_Offset := (4 * 12 + 9) * 4 + 1;
+   begin
+      for I in Source'Range loop
+         Source (I) := (if I mod 4 = 0 then 0 else Stream_Element (I mod 199));
+      end loop;
+      Add_Originals (W, (1 => (12, 8)), Original);
+      Edit (W, Original);
+      Stroke.Append ((2.5, 4.5, 3.0));
+      Stroke.Append ((9.5, 4.5, 3.0));
+      Add_Stroke (W, Stroke);
+      Save (W);
+      Before := Base (W);
+      Render (W, Before, Source, 48, True, Painted);
+      Eraser.Append ((2.5, 4.5, 5.0));
+      Add_Stroke (W, Eraser, Erase);
+      Render (W, NO_REVISION, Source, 48, True, Erased);
+      Assert (Pixels (Erased) (Left .. Left + 3) = Source (Left .. Left + 3),
+              "erase restores all four source bytes including hidden RGB");
+      Assert (Pixels (Erased) (Right .. Right + 3) =
+                Pixels (Painted) (Right .. Right + 3),
+              "uncovered ink remains bit-exact");
+      Undo (W);
+      Render (W, NO_REVISION, Source, 48, True, Actual);
+      Assert (Pixels (Actual) = Pixels (Painted), "undo restores prior ink");
+      Redo (W);
+      Render (W, NO_REVISION, Source, 48, True, Actual);
+      Assert (Pixels (Actual) = Pixels (Erased), "redo restores erasure");
+      Save (W);
+      After := Base (W);
+      Assert (Parent (W, After) = Before, "erase checkpoint is a child");
+      Render (W, Before, Source, 48, True, Actual);
+      Assert (Pixels (Actual) = Pixels (Painted), "parent remains immutable");
+      Recovery.Decode (Recovery.Encode (W), Restored);
+      Render (Restored, After, Source, 48, True, Actual);
+      Assert (Pixels (Actual) = Pixels (Erased), "recovery preserves erasure");
+      Recovery.Select_Revisions
+        (Restored, (1 => (Drawing_Key (W, After), Revision_Key (W, After))),
+         Forked, Mapping);
+      Render (Forked, Base (Forked), Source, 48, True, Actual);
+      Assert (Pixels (Actual) = Pixels (Erased), "fork preserves erasure");
+      Check_PNG (To_String (Encode_PNG (Actual)), 12, 8, Pixels (Erased));
+      declare
+         Cropped : Stream_Element_Array (1 .. 7 * 5 * 4);
+      begin
+         Crop (W, (2, 1, 9, 6));
+         Render (W, NO_REVISION, Source, 48, True, Actual);
+         Copy_RGBA (Pixels (Erased), 12, 8, 48, (2, 1, 9, 6), Cropped);
+         Assert (Pixels (Actual) = Cropped, "crop keeps erase edge phase");
+      end;
+      Add_Stroke (W, Eraser);
+      Render (W, NO_REVISION, Source, 48, True, Actual);
+      Undo (W);
+      Render (W, NO_REVISION, Source, 48, True, Erased);
+      Assert (Pixels (Actual) /= Pixels (Erased), "paint after erase remains");
+      declare
+         Text : String := Recovery.Encode (W);
+      begin
+         for I in Text'First .. Text'Last - 10 loop
+            if Text (I .. I + 10) = """version"":3" then
+               Text (I + 10) := '2';
+               exit;
+            end if;
+         end loop;
+         begin
+            Recovery.Decode (Text, Restored);
+         exception
+            when Recovery.Invalid_Snapshot => Rejected := True;
+         end;
+      end;
+      Assert (Rejected, "legacy v2 must reject an erase marker");
+   end Erase_Ink;
+
    procedure Partial_Alpha_Source_Over (T : in out Test) is
       pragma Unreferenced (T);
       W          : Workspace;
@@ -437,6 +521,9 @@ package body Coyote_Canvas_Composite_Tests is
       Result.Add_Test (Caller.Create
         ("Canvas composite crop grid and history",
          Crop_And_History'Access));
+      Result.Add_Test (Caller.Create
+        ("Canvas composite erases ink only across recovery and forks",
+         Erase_Ink'Access));
       Result.Add_Test (Caller.Create
         ("Canvas composite partial-alpha source-over",
          Partial_Alpha_Source_Over'Access));

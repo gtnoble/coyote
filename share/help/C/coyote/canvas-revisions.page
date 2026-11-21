@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="canvas-revisions">
+  <info><link type="guide" xref="canvas"/><desc>Revisions and Attachments in coyote.</desc></info>
+  <title>Revisions and Attachments</title>
+  <p>Select a revision in <gui>Drawings and revisions</gui> to view it. Choose <gui>Selected</gui> → <gui>Edit Revision</gui> to edit from that point; saving changed content makes a child without changing existing revisions.</p>
+  <p>Use <gui>Selected</gui> → <gui>Attach</gui> to freeze selected revisions or the working copy. Reorder or remove attachments in the composer. <gui>Send</gui> uploads the exact native-size PNGs in that order; it does not crop or resize them. In replay, <gui>Show in Canvas</gui> opens the recorded revision when its editable data is available.</p>
+</page>

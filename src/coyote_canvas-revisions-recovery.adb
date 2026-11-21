@@ -8,10 +8,12 @@ package body Coyote_Canvas.Revisions.Recovery is
    use GNATCOLL.JSON;
    use type Document.Rectangle;
 
-   FORMAT_VERSION : constant := 2;
+   PAINT_VERSION : constant := 2;
+   ERASE_VERSION : constant := 3;
    MAX_JSON_DEPTH : constant := 6;
    MAX_SEPARATORS : constant :=
-     6 * MAX_POINTS + MAX_REVISIONS * MAX_STROKES + MAX_REVISIONS;
+     6 * MAX_POINTS + MAX_REVISIONS * MAX_STROKES + MAX_REVISIONS
+     + MAX_STROKES;
    package Real_IO is new Ada.Text_IO.Float_IO (Long_Float);
 
    procedure Require (Valid : Boolean; Reason : String);
@@ -49,12 +51,19 @@ package body Coyote_Canvas.Revisions.Recovery is
    is
       Root : constant JSON_Value := Create_Object;
       Ink, Nodes, Refs : JSON_Array;
+      Version : Natural := PAINT_VERSION;
    begin
       for Stroke of W.Strokes loop
          declare
             Entries : JSON_Array;
          begin
-            for Point of Stroke loop
+            --  The leading integer 0 marks an erase operation in v3;
+            --  paint retains its v2 array-of-triples representation.
+            if Stroke.Operation = Erase then
+               Version := ERASE_VERSION;
+               Append (Entries, Number (Natural'(0)));
+            end if;
+            for Point of Stroke.Points loop
                declare
                   Triple : JSON_Array;
                begin
@@ -82,7 +91,7 @@ package body Coyote_Canvas.Revisions.Recovery is
             Append (Refs, Create (Assets (Index)));
          end;
       end loop;
-      Set_Field (Root, "version", Integer (FORMAT_VERSION));
+      Set_Field (Root, "version", Integer (Version));
       Set_Field (Root, "strokes", Ink);
       Set_Field (Root, "revisions", Nodes);
       Set_Field (Root, "base", Integer (W.Base_Id));
@@ -343,23 +352,36 @@ package body Coyote_Canvas.Revisions.Recovery is
             Obj : constant JSON_Value := Parsed.Value;
          begin
             Require (Obj.Kind = JSON_Object_Type, "Expected Canvas manifest");
-            Require (Nat (Get (Obj, "version"), FORMAT_VERSION) = FORMAT_VERSION,
-                     "Unsupported Canvas snapshot version");
             declare
+               Version : constant Natural :=
+                 Nat (Get (Obj, "version"), ERASE_VERSION);
                Ink : constant JSON_Array :=
                  Array_Of (Get (Obj, "strokes"), MAX_STROKES);
                Nodes : constant JSON_Array :=
                  Array_Of (Get (Obj, "revisions"), MAX_REVISIONS);
             begin
+               Require (Version in PAINT_VERSION | ERASE_VERSION,
+                        "Unsupported Canvas snapshot version");
                for I in 1 .. Length (Ink) loop
                   declare
                      Entries : constant JSON_Array := Array_Of
-                       (Get (Ink, I), MAX_POINTS - Candidate.Points, 1);
-                     Stroke : Samples.Vector;
+                       (Get (Ink, I), MAX_POINTS - Candidate.Points + 1, 1);
+                     Is_Erase : constant Boolean :=
+                       Get (Entries, 1).Kind = JSON_Int_Type;
+                     Start : constant Positive := (if Is_Erase then 2 else 1);
+                     N : constant Natural := Length (Entries) - Start + 1;
+                     Op : Stroke;
                   begin
-                     Stroke.Reserve_Capacity
-                       (Ada.Containers.Count_Type (Length (Entries)));
-                     for J in 1 .. Length (Entries) loop
+                     if Is_Erase then
+                        Require (Version = ERASE_VERSION and then
+                                   Nat (Get (Entries, 1), 0) = 0,
+                                 "Invalid Canvas ink operation");
+                        Op.Operation := Erase;
+                     end if;
+                     Require (N in 1 .. MAX_POINTS - Candidate.Points,
+                              "Invalid Canvas sample count");
+                     Op.Points.Reserve_Capacity (Ada.Containers.Count_Type (N));
+                     for J in Start .. Length (Entries) loop
                         declare
                            Triple : constant JSON_Array :=
                              Array_Of (Get (Entries, J), 3, 3);
@@ -376,11 +398,11 @@ package body Coyote_Canvas.Revisions.Recovery is
                               "Canvas ink point is out of bounds");
                            Max_X (I) := Long_Float'Max (Max_X (I), Point.X);
                            Max_Y (I) := Long_Float'Max (Max_Y (I), Point.Y);
-                           Stroke.Append (Point);
+                           Op.Points.Append (Point);
                         end;
                      end loop;
-                     Candidate.Points := Candidate.Points + Length (Entries);
-                     Candidate.Strokes.Append (Stroke);
+                     Candidate.Points := Candidate.Points + N;
+                     Candidate.Strokes.Append (Op);
                   end;
                end loop;
                for I in 1 .. Length (Nodes) loop
@@ -505,7 +527,7 @@ package body Coyote_Canvas.Revisions.Recovery is
          if Keep_Ink (Id) then
             Candidate.Strokes.Append (Source.Strokes (Id));
             Candidate.Points := Candidate.Points +
-              Natural (Source.Strokes (Id).Length);
+              Natural (Source.Strokes (Id).Points.Length);
             New_Ink (Id) := Candidate.Strokes.Last_Index;
          end if;
       end loop;

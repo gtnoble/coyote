@@ -51,6 +51,11 @@
       <item><title><key>Ctrl</key>+<key>A</key> / <key>Ctrl</key>+<key>C</key></title><p>Select all or copy in the focused area. Conversation selection commands remain local to the focused or retained conversation component.</p></item>
     </terms>
   </section>
+  <section id="canvas">
+    <title>Drawing Canvas</title>
+    <p><key>Ctrl</key>+<key>N</key> creates a drawing, <key>Ctrl</key>+<key>S</key> saves a revision, and <key>Ctrl</key>+<key>W</key> hides Canvas. <key>Ctrl</key>+<key>Z</key> undoes an edit; add <key>Shift</key> to redo. In the drawing context <key>Ctrl</key>+<key>V</key> pastes an image. <key>Escape</key> cancels a pending gesture or crop. <key>F1</key> opens Canvas Help; add <key>Shift</key> to arm Click for Help.</p>
+    <p>See <link xref="canvas">Drawing Canvas</link> for editing and attachments.</p>
+  </section>
   <section id="dialogs">
     <title>Dialogs and support windows</title>
     <p>Open Session and Sandbox Profile select their first available row and accept the selected row with Enter, keypad Enter, Space, or row activation. Change Model selects the first visible model; its search field receives initial focus, and Escape clears a non-empty query before cancelling an empty-query dialog.</p>

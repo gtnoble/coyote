@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="canvas-editing">
+  <info><link type="guide" xref="canvas"/><desc>Draw, Erase, and Crop in coyote.</desc></info>
+  <title>Draw, Erase, and Crop</title>
+  <p>Choose <gui>File</gui> → <gui>New</gui> for a blank drawing, <gui>Import...</gui> for PNG, JPEG, or static SVG, or <gui>Edit</gui> → <gui>Paste</gui> for a PNG or JPEG offered by the clipboard.</p>
+  <p>Draw with the pen tip or mouse. Choose <gui>Edit</gui> → <gui>Eraser</gui> to remove ink with a 16-pixel brush without changing the background. A tablet tool recognized as an eraser also erases. Release to apply the stroke; <gui>Undo</gui> and <gui>Redo</gui> act on the whole gesture. Press <key>Escape</key> to cancel a gesture in progress.</p>
+  <p>Choose <gui>Edit</gui> → <gui>Crop...</gui>, drag the rectangle with the pen or mouse or enter exact pixel bounds, then choose <gui>Apply Crop</gui> or <gui>Cancel</gui>. Crop does not resample pixels, and zoom changes only the view.</p>
+</page>

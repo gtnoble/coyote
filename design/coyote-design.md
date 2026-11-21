@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.60
+**Version:** 1.61
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -566,6 +566,7 @@ not wait for the complete user turn.
 | `Coyote_App.Frontend` (`src/coyote_app-frontend.ads/.adb`) | Shared frontend contract; non-GTK presentation describes typed attachments without uploading or displaying extra images. |
 | Canvas reclamation regression | `test/tools/check-canvas-reclaim.py` exercises CLI inspection and apply in disposable session directories; `test/src/coyote_canvas_recovery_tests.adb` checks guarded restore. |
 | Session publication fault harness | `test/tools/session_publication_worker.adb`, `test/native/session_publication_fsync.c`, `test/tools/check-session-publication.py` exercise new headers, typed forks, and migration with controlled ancestor-, file-, and directory-sync failures and concurrent first use. |
+| Canvas Help topics | `share/help/C/coyote/canvas*.page` and `keyboard-shortcuts.page`: installed Mallard guide, editing and revision tasks, and Canvas shortcuts. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
@@ -3137,10 +3138,20 @@ model and releases its Canvas writer lease. Session switch and exit flush
 writable changes or ask before discarding them. Authorized command-line
 import and local GTK attachment submission are available.
 
+**Eraser and Help.** Edit → Eraser selects a fixed 16-source-pixel brush for
+pen or mouse; a GDK eraser tip also works when the backend identifies it.
+Release records one undoable edit. The live outline is a view-only guide;
+saved revisions and frozen attachments do not change. Canvas Help uses Yelp
+for Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click
+for Help targets the drawing area or Drawings list without editing or selecting.
+Product Information uses the existing in-app dialog, parented to Canvas.
+
 **Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`
 rasterizes stored ink into an A8 Cairo mask on the original pixel grid and
 emits a tightly packed straight-alpha RGBA crop. Because the mask spans the
-Original, clipping never changes ink coverage at the crop edge.
+Original, clipping never changes ink coverage at the crop edge. Replay
+operations in source order: paint uses Cairo OVER and erase uses DEST_OUT
+on the A8 mask, never on the background. Later paint can cover erased ink.
 Where ink has no coverage, source RGB is preserved even for zero or low alpha.
 Covered pixels use source-over with the unrounded combined alpha for straight
 RGB; alpha is rounded for storage. Display conversion creates one cropped
@@ -3195,12 +3206,17 @@ are separate.
 
 **Internal workspace storage.** Each revision has a UUIDv4 assigned at
 creation. Descendants use their Original's UUID as the drawing identity;
-numeric revision indices remain internal. The version 2 manifest records
-those keys, source-coordinate strokes, crop extents, the latest draft, and
-asset references without creating a revision. Decode checks bounds,
-ancestry, stroke ownership, and identity uniqueness. Undo and Redo are
-transient. The earlier version 1 metadata format was not used by running
-sessions and is rejected by this codec.
+numeric revision indices remain internal. The manifest records those keys,
+source-coordinate ink operations, crop extents, the latest draft, and asset
+references without creating a revision. Paint-only workspaces continue to
+write v2. If retained operations include an erase, write v3: in the `strokes`
+array an erase entry begins with integer `0` followed by one or more sample
+triples; paint entries remain arrays of sample triples. Bounds, sample and
+operation counts, ancestry, ownership, and identity checks apply to both.
+Existing v2 workspaces reopen without conversion; older builds reject v3
+rather than replaying erased content as paint. This is the private Canvas
+manifest version, not a change to JSONL. Undo and Redo are transient. The
+undeployed v1 metadata format remains rejected.
 
 Imported Originals have immutable tightly packed straight-alpha RGBA8
 rasters. Their SHA-256 file names bind the storage format, dimensions, and

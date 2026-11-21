@@ -59,7 +59,12 @@ package Coyote_Canvas.Revisions is
    procedure New_Drawing (W : in out Workspace; Width, Height : Positive);
    procedure Edit (W : in out Workspace; Id : Revision_Id);
    procedure Save (W : in out Workspace);
-   procedure Add_Stroke (W : in out Workspace; Points : Samples.Vector);
+   type Ink_Operation is (Paint, Erase);
+   --  Both operations take draft-local samples; they are retained in source
+   --  coordinates and replayed in order. Erase never changes the background.
+   procedure Add_Stroke
+     (W : in out Workspace; Points : Samples.Vector;
+      Operation : Ink_Operation := Paint);
    procedure Crop
      (W : in out Workspace; Region : Coyote_Canvas.Document.Rectangle);
    procedure Undo (W : in out Workspace);
@@ -72,14 +77,19 @@ package Coyote_Canvas.Revisions is
    --  before translating, preserving segments crossing either crop edge.
    procedure Visit_Source
      (W       : Workspace; Id : Revision_Id;
-      Process : not null access procedure (Points : Samples.Vector));
+      Process : not null access procedure
+        (Points : Samples.Vector; Operation : Ink_Operation));
 
 private
    MAX_STROKES : constant := 512;
    MAX_POINTS  : constant := 100_000;
 
-   package Stroke_Lists is new Ada.Containers.Vectors
-     (Positive, Samples.Vector, Samples."=");
+   use type Samples.Vector;
+   type Stroke is record
+      Points : Samples.Vector;
+      Operation : Ink_Operation := Paint;
+   end record;
+   package Stroke_Lists is new Ada.Containers.Vectors (Positive, Stroke);
    package Stroke_Ids is new Ada.Containers.Vectors (Positive, Positive);
 
    type Drawing_State is record
