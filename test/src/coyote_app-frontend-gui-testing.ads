@@ -22,6 +22,12 @@ package Coyote_App.Frontend.GUI.Testing is
    function Main_Window
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window;
 
+   function Canvas_Window
+     (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window;
+
+   function Canvas_Item
+     (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Menu_Item.Gtk_Menu_Item;
+
    function Outer_Box
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Box.Gtk_Box;
 

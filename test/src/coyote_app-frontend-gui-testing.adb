@@ -33,6 +33,13 @@ package body Coyote_App.Frontend.GUI.Testing is
       return F.Win;
    end Main_Window;
 
+   function Canvas_Window
+     (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Window.Gtk_Window is
+     (Coyote_GUI.Canvas.Window (F.Canvas_Window));
+
+   function Canvas_Item
+     (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Menu_Item.Gtk_Menu_Item is (F.Canvas_Item);
+
    function Outer_Box
      (F : Coyote_App.Frontend.GUI.Instance) return Gtk.Box.Gtk_Box
    is

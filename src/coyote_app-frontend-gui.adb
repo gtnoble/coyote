@@ -2125,6 +2125,7 @@ package body Coyote_App.Frontend.GUI is
             Apply_Agent_Menu_Sensitivity (F);
 
          when Reset_Agents =>
+            Coyote_GUI.Canvas.Reset (F.Canvas_Window);
             declare
                Registered : Boolean;
                pragma Unreferenced (Registered);
@@ -2202,6 +2203,7 @@ package body Coyote_App.Frontend.GUI is
             Apply_RPC_Frame (F, U);
 
          when Shutdown =>
+            Coyote_GUI.Canvas.Destroy (F.Canvas_Window);
             --  Finalize response handles while their GTK parent is alive.
             F.Stack.Clear;
             F.PQ.Shutdown;
@@ -2285,6 +2287,36 @@ package body Coyote_App.Frontend.GUI is
 
    --  ── Signal handlers ───────────────────────────────────────────────────
 
+   function Confirm_Canvas_Discard (F : Instance) return Boolean is
+      use Gtk.Dialog;
+      Dialog : Gtk_Dialog;
+      Button : Gtk.Widget.Gtk_Widget;
+      pragma Unreferenced (Button);
+      Label  : Gtk.Label.Gtk_Label;
+      Count  : constant Natural := Coyote_GUI.Canvas.Revision_Count
+        (F.Canvas_Window);
+      Answer : Gtk_Response_Type;
+   begin
+      if Count = 0 then
+         return True;
+      end if;
+      Gtk.Dialog.Gtk_New (Dialog);
+      Dialog.Set_Title ("coyote : Warning");
+      Dialog.Set_Transient_For (F.Win);
+      Dialog.Set_Modal (True);
+      Gtk.Label.Gtk_New
+        (Label, "Discard all drawings in this conversation's Canvas?"
+         & ASCII.LF & "Its working copy and saved revisions exist only in memory.");
+      Dialog.Get_Content_Area.Pack_Start (Label, False, False, 12);
+      Button := Dialog.Add_Button ("_Discard", Gtk_Response_OK);
+      Button := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
+      Dialog.Set_Default_Response (Gtk_Response_Cancel);
+      Dialog.Show_All;
+      Answer := Dialog.Run;
+      Dialog.Destroy;
+      return Answer = Gtk_Response_OK;
+   end Confirm_Canvas_Discard;
+
    function On_Window_Delete
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event : Gdk.Event.Gdk_Event)
@@ -2293,6 +2325,10 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self, Event);
    begin
       if Current_Frontend /= null then
+         if not Confirm_Canvas_Discard (Current_Frontend.all) then
+            return True;
+         end if;
+         Coyote_GUI.Canvas.Destroy (Current_Frontend.Canvas_Window);
          Current_Frontend.Stack.Clear;
          Current_Frontend.Request_Shutdown;
       end if;
@@ -2387,7 +2423,9 @@ package body Coyote_App.Frontend.GUI is
    is
       pragma Unreferenced (Self);
    begin
-      if Current_Frontend /= null then
+      if Current_Frontend /= null
+        and then Confirm_Canvas_Discard (Current_Frontend.all)
+      then
          Current_Frontend.PQ.Enqueue
            ((Kind            => New_Session,
              Target_Agent_Id => Current_Frontend.Root_Agent_Id));
@@ -2422,6 +2460,10 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
+         if not Confirm_Canvas_Discard (Current_Frontend.all) then
+            return;
+         end if;
+         Coyote_GUI.Canvas.Destroy (Current_Frontend.Canvas_Window);
          Current_Frontend.Stack.Clear;
          Current_Frontend.Request_Shutdown;
       end if;
@@ -2499,6 +2541,29 @@ package body Coyote_App.Frontend.GUI is
              Target_Agent_Id => Current_Frontend.Root_Agent_Id));
       end if;
    end On_Compact_Activate;
+
+   procedure On_Canvas_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Coyote_GUI.Canvas.Show
+           (Current_Frontend.Canvas_Window, Current_Frontend.Win.all'Access);
+      end if;
+   end On_Canvas_Activate;
+
+   procedure On_Main_Destroy
+     (Self : access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+      use type Gtk.Widget.Gtk_Widget;
+   begin
+      if Current_Frontend /= null and then
+        Gtk.Widget.Gtk_Widget (Current_Frontend.Win) = Gtk.Widget.Gtk_Widget (Self)
+      then
+         Coyote_GUI.Canvas.Destroy (Current_Frontend.Canvas_Window);
+      end if;
+   end On_Main_Destroy;
 
    procedure On_Stats_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
@@ -2866,7 +2931,9 @@ package body Coyote_App.Frontend.GUI is
                UUID : constant String := Glib.Values.Get_String (Val);
             begin
                Glib.Values.Unset (Val);
-               if UUID'Length > 0 then
+               if UUID'Length > 0
+                 and then Confirm_Canvas_Discard (Current_Frontend.all)
+               then
                   Current_Frontend.PQ.Enqueue
                     ((Switch_Session,
                       Target_Agent_Id => Current_Frontend.Root_Agent_Id,
@@ -4389,6 +4456,7 @@ package body Coyote_App.Frontend.GUI is
       F.Win.Set_Icon_Name ("coyote");
       F.Win.Set_Role ("coyote-main");
       F.Win.On_Delete_Event (On_Window_Delete'Access);
+      F.Win.On_Destroy (On_Main_Destroy'Access);
       Coyote_GUI.Session_Stats_Window.Create
         (F.Stats_Window, F.Win.all'Access);
       F.Win.On_Key_Press_Event (On_Window_Key_Press'Access);
@@ -4755,6 +4823,9 @@ package body Coyote_App.Frontend.GUI is
          F.Agents_Window_Item.On_Toggled (On_Agents_Window_Toggled'Access);
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu), F.Agents_Window_Item);
+         Add_Sep (View_Menu);
+         F.Canvas_Item := Make_Item ("_Canvas", View_Menu, View_Mnemonics);
+         F.Canvas_Item.On_Activate (On_Canvas_Activate'Access);
          Add_Sep (View_Menu);
          Item := Make_Item ("Zoom _In", View_Menu, View_Mnemonics);
          Item.On_Activate (On_Zoom_In_Activate'Access);

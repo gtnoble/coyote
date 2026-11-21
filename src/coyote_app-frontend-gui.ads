@@ -25,6 +25,7 @@ with Coyote_GUI;
 with Glib;                  use Glib;
 with LLM.Agent;
 with LLM.Model_Registry;
+with Coyote_GUI.Canvas;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
@@ -323,6 +324,8 @@ private
       Outer_Box               : Gtk.Box.Gtk_Box;
       --  State
       Win_Name                : Unbounded_String;
+      Canvas_Window           : aliased Coyote_GUI.Canvas.Instance;
+      Canvas_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Stats_Window            : Coyote_GUI.Session_Stats_Window.Instance;
       Sandbox_Profile_Window  : aliased Coyote_GUI.Sandbox_Profile_Window
         .Instance;

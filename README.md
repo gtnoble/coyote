@@ -156,6 +156,19 @@ heartbeat traffic may keep a stalled generation connected. If necessary, select
 the affected agent in the Agents Window and choose **Agent → Stop** before
 retrying. Very quiet legitimate responses may need a longer configured timeout.
 
+## Canvas (development)
+
+In the GTK conversation choose **View → Canvas**, then **File → New** to draw
+on a blank 800 × 600 image. **File → Save** checkpoints the current edits in
+the Drawings tree. Select a saved revision to preview it, or choose
+**Selected → Edit Revision** to edit from that revision. **Edit → Crop…**
+accepts a pointer drag or exact pixel fields; the drawing changes only after
+**Apply Crop**. Use **Undo** or **Redo** to step through edits.
+
+Closing only the Canvas keeps its drawings in memory. They do not survive a
+session change or application exit. Image import (file, clipboard and
+`canvas add`), durable revisions and prompt attachments are not yet available.
+
 ## Session listing
 
 ```sh

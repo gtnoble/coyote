@@ -17,7 +17,11 @@ with GNAT.OS_Lib;
 with GNAT.Strings;
 with Glib;
 with Glib.Values;
+with Gdk.Event;
 with Gtk.Box;
+with Gtk.GEntry;
+with Gtk.Tree_Selection;
+with System;
 with Gtk.Container;
 with Gtk.Dialog;
 with Gtk.Enums;
@@ -936,6 +940,167 @@ package body Coyote_App_Frontend_GUI_Tests is
       Main_Window (Frontend).Destroy;
    end Test_Sandbox_Profiles_Menu;
 
+   function Find_Canvas_Widget
+     (Root : Gtk.Widget.Gtk_Widget; Name : String)
+      return Gtk.Widget.Gtk_Widget
+   is
+      use Gtk.Widget.Widget_List;
+      use type Gtk.Widget.Widget_List.Glist;
+      Children, Node : Glist;
+      Found : Gtk.Widget.Gtk_Widget;
+   begin
+      if Root = null or else Root.Get_Name = Name then
+         return Root;
+      end if;
+      if Root.all in Gtk.Menu_Item.Gtk_Menu_Item_Record'Class then
+         Found := Find_Canvas_Widget
+           (Gtk.Menu_Item.Gtk_Menu_Item (Root).Get_Submenu, Name);
+         if Found /= null then
+            return Found;
+         end if;
+      end if;
+      if Root.all not in Gtk.Container.Gtk_Container_Record'Class then
+         return null;
+      end if;
+      Children := Gtk.Container.Gtk_Container (Root).Get_Children;
+      Node := First (Children);
+      Walk : while Node /= Null_List loop
+         Found := Find_Canvas_Widget (Get_Data (Node), Name);
+         exit Walk when Found /= null;
+         Node := Next (Node);
+      end loop Walk;
+      Free (Children);
+      return Found;
+   end Find_Canvas_Widget;
+
+   procedure Test_Canvas_Workspace (T : in out Test) is
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use type Gtk.Tree_Model.Gtk_Tree_Iter;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Canvas : Gtk.Window.Gtk_Window;
+      Tree : Gtk.Tree_View.Gtk_Tree_View;
+      Area : Gtk.Widget.Gtk_Widget;
+      Model : Gtk_Tree_Model;
+      W, H : Glib.Gint;
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+         Item : constant Gtk.Widget.Gtk_Widget :=
+           Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name);
+      begin
+         Assert (Item /= null, "Missing Canvas control: " & Name);
+         return Item;
+      end Control;
+
+      procedure Activate (Name : String) is
+      begin
+         Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-" & Name)).Activate;
+      end Activate;
+
+      procedure Field (Name, Value : String) is
+      begin
+         Gtk.GEntry.Gtk_Entry
+           (Control ("coyote-canvas-crop-" & Name)).Set_Text (Value);
+      end Field;
+
+      procedure Size (Width, Height : Glib.Gint) is
+      begin
+         Area.Get_Size_Request (W, H);
+         Assert (W = Width and then H = Height, "Wrong displayed extent");
+      end Size;
+
+      procedure Pointer
+        (Kind : Gdk.Event.Gdk_Event_Type; X, Y : Glib.Gdouble) is
+         Raw : aliased Gdk.Event.Gdk_Event_Button :=
+           (The_Type => Kind, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => X, Y => Y, Axes => null,
+            State => 0, Button => 1, Device => System.Null_Address,
+            X_Root => X, Y_Root => Y);
+      begin
+         Assert (Area.Event (Gdk.Event.To_Event (Raw'Access)),
+                 "Canvas did not handle pointer event");
+      end Pointer;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "Canvas workspace test", Pop_Under => True);
+      Assert (Canvas_Window (Frontend) = null, "Canvas is lazy");
+      Canvas_Item (Frontend).Activate;
+      Canvas := Canvas_Window (Frontend);
+      Assert (Canvas /= null and then Canvas.Get_Visible,
+              "View > Canvas opens the workspace");
+      Assert (Canvas.Get_Title = "coyote : Canvas" and not Canvas.Get_Modal,
+              "Canvas is modeless and has the documented title");
+      Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
+      Model := Tree.Get_Model;
+      Area := Control ("coyote-canvas-drawing-area");
+      Activate ("new");
+      Drain_Events;
+      Size (800, 600);
+      Assert (Get_Iter_From_String (Model, "0") /= Null_Iter,
+              "New creates an Original");
+      Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
+      Activate ("save");
+      Assert (Get_Iter_From_String (Model, "0:0") /= Null_Iter,
+              "Pointer stroke saves as a child of Original");
+
+      Activate ("crop");
+      Pointer (Gdk.Event.Button_Press, 40.0, 50.0);
+      Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
+      Activate ("apply");
+      Size (60, 80);
+      Activate ("undo");
+      Size (800, 600);
+      Activate ("redo");
+      Size (60, 80);
+      Activate ("crop");
+      Field ("x", "-3");
+      Field ("y", "4");
+      Field ("width", "16");
+      Field ("height", "20");
+      Assert (not Control ("canvas-apply").Get_Sensitive,
+              "Negative origin disables Apply");
+      Field ("x", "3");
+      Assert (Control ("canvas-apply").Get_Sensitive,
+              "Valid fields enable Apply");
+      Activate ("save");
+      Size (60, 80);
+      Activate ("cancel");
+      Size (60, 80);
+      Activate ("save");
+      Assert (Get_Iter_From_String (Model, "0:0:0") /= Null_Iter,
+              "Only the applied crop was checkpointed");
+
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Size (800, 600);
+      Activate ("draft");
+      Size (60, 80);
+      Activate ("new");
+      Assert (Get_Iter_From_String (Model, "1") /= Null_Iter,
+              "New retains the first drawing and its revisions");
+      Activate ("close");
+      Assert (not Canvas.Get_Visible, "Close hides without losing the tree");
+      Canvas_Item (Frontend).Activate;
+      Assert (Canvas_Window (Frontend) = Canvas and then Canvas.Get_Visible,
+              "Reopening reuses the workspace");
+      Assert (Get_Iter_From_String (Model, "0:0:0") /= Null_Iter,
+              "Close preserves the first drawing history");
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Size (800, 600);
+
+      Reset_Agents_From_Task (Frontend);
+      Drain_Events;
+      Assert (not Canvas.Get_Visible and then Get_Iter_First (Model) = Null_Iter,
+              "Session reset clears and hides the workspace");
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+      Assert (Canvas_Window (Frontend) = null,
+              "Destroying the conversation tears down its Canvas");
+   end Test_Canvas_Workspace;
+
    package Coyote_App_Frontend_GUI_Caller is new AUnit.Test_Caller
      (Coyote_App_Frontend_GUI_Tests.Test);
 
@@ -999,6 +1164,10 @@ package body Coyote_App_Frontend_GUI_Tests is
             Coyote_App_Frontend_GUI_Tests
               .Test_Clear_Conversation_Preserves_Agents'Access));
 
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas workspace lifecycle and crop",
+            Test_Canvas_Workspace'Access));
       return Result;
    end Suite;
 

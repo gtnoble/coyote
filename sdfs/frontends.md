@@ -1,5 +1,25 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — GTK Canvas workspace (PCR-130/131)
+
+View → Canvas opens a modeless blank workspace. Multiple Originals and
+immutable in-memory checkpoints support branching, read-only previews,
+working-copy undo/redo, Cairo ink, and explicit pointer or numeric crop.
+Close retains drawings in the current session; a session reset clears them.
+User-initiated session changes and exit warn before discarding drawings.
+The GDK pressure path is implemented with a fixed-width fallback; it has
+not been exercised on an Intuos.
+
+Root and test development builds passed. The focused crop primitives,
+revision model and GTK workspace cases passed (5, 4 and 1 respectively).
+The GTK case was repeated with fatal GTK criticals and its log checked for
+Ada callback exceptions after fixing reset-time reentrant selection. Full
+Xvfb AUnit: 1,084/1,084, zero failures or errors. CLI compatibility and the
+standalone GTK interaction suite (9/9) and runner self-test also passed.
+This is developer verification, not desktop or product qualification.
+Clipboard and file import, durable recovery and image submission remain
+pending; no installed binary or running instance was updated.
+
 ## 2026-11-21 — Canvas crop primitives (PCR-130/131)
 
 The GTK-independent Canvas units implement integer half-open rectangles,
