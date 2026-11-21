@@ -2622,3 +2622,36 @@ HTTP checks pass. Engine Valgrind with4MiB frame threshold passes zero errors/
 lost bytes; initial default-threshold stack-frame failure retained. Existing
 raster native losses are not resolved. No complete abuse/timing/parity/GUI/font/
 lifecycle or human acceptance qualification; no release/install/commit.
+
+
+## 2026-11-15 — Accepted memory-guard maintenance policy (PCR-125)
+
+The user accepted the port plan §6 policy: stop extending fine-grained memory
+accounting, retain working guards, and simplify selectively for a concrete
+maintenance benefit rather than undertake wholesale removal. Preserve scoped
+references, reduced deep copies and lifetime/finalization safety independently
+of tiny-payload accounting. Keep structural/work limits, coarse major-buffer/
+large-overlap admission, the 64 MiB retained-raster bound and rejection/cleanup/
+source-fallback/recovery tests. Prefer conservative estimates to exact bytes.
+GNAT-specific accounting tests may change with a justified simplification;
+safety tests are not weakened merely to pass. Storage pools and retained-account
+leases are optional only for demonstrated need; their design is not approved.
+No implementation or tests removed; no runtime checks rerun. SRS-MATH v1.1,
+numeric/timing targets and known qualification gaps remain unchanged. Report
+§11.20 records the decision; product acceptance remains pending.
+
+
+## 2026-11-15 — Scope admission and macro capture recovery (PCR-125)
+
+Report §11.21 and `plan/evidence/native-math-2026-11-15-scope-cancellation/`
+record immediate checked parser scope pushes and clearing Scope_Limit only
+on actual undo/pop. Empty/admission failure cannot expand gdef; earlier genuine
+global assignments still persist. Cancellable newcommand capture/copy stages
+body+default before mutation; no claim of allocation-exception transactionality.
+Engine216/216 twice, macros873/873 twice, worker279/279, parser719/719 and full
+Xvfb1076/1076 pass; root/test development builds and mandatory GTK9/9,
+containment/offline HTTP checks pass. Engine Valgrind zero errors/lost bytes;
+whole macro Valgrind timed out before new cases, INCOMPLETE. Existing warnings
+and strict raster losses remain. Shared-context cumulative admission needs
+separate policy review; no new cap or fine-grained accounting. No full timing/
+GUI/font/lifecycle/parity/human qualification, release/install/commit.

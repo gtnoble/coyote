@@ -15,8 +15,12 @@ package Math_Macros is
    type Context is limited private;
    type Diagnostic_Kind is
      (No_Error, Definition_Limit, Scope_Limit, Unbalanced_Group);
+   --  Reset clears all definitions, scopes, and diagnostics.
    procedure Reset (Item : in out Context);
+   --  A failed push records Scope_Limit until a successful End_Group;
+   --  other diagnostic kinds remain sticky until Reset.
    procedure Begin_Group (Item : in out Context);
+   --  Replay the top frame's undo records, pop it, then clear Scope_Limit.
    procedure End_Group (Item : in out Context);
    --  Restore the scope stack to Depth; an impossible depth records
    --  Unbalanced_Group without changing definitions.

@@ -4,6 +4,7 @@ with Ada.Containers;
 package body Math_Macros is
    use type Ada.Containers.Count_Type;
    use type Math_Tokens.Token_Kind;
+
    Max_Scopes : constant := 256;
 
    function Find (Item : Context; Name : String) return Natural is
@@ -54,6 +55,9 @@ package body Math_Macros is
             end if;
          end;
       end loop;
+      if Item.Status = Scope_Limit then
+         Item.Status := No_Error;
+      end if;
    end End_Group;
 
    procedure Restore_To_Depth (Item : in out Context; Depth : Natural) is

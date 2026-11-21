@@ -1,0 +1,260 @@
+==244649== Memcheck, a memory error detector
+==244649== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==244649== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==244649== Command: /tmp/coyote-math-poll-final-exact/bin/math_macros_probe
+==244649== 
+ok expander loop polls cancellation
+ok fresh Open ignores the cursor's canceled prior context
+ok source constructed
+ok source lexed
+ok \def parses successfully
+ok \def installs name
+ok \def records one parameter
+ok replacement stores parameter marker and digit
+ok source constructed
+ok source lexed
+ok single argument substituted
+ok peek observes EOF without consuming
+ok empty input EOF
+ok source constructed
+ok source lexed
+ok substituted argument retains invocation provenance
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok unicode actual argument retains exact invocation span
+ok source constructed
+ok source lexed
+ok multi-token prefix matches actual tokens and expands its argument
+ok source constructed
+ok source lexed
+ok mismatched prefix is diagnosed
+ok source constructed
+ok source lexed
+ok EOF in prefix is diagnosed
+ok source constructed
+ok source lexed
+ok let preserves prefix metadata
+ok source constructed
+ok source lexed
+ok comma and semicolon delimit two raw arguments
+ok source constructed
+ok source lexed
+ok grouped comma is data and complete outer group is stripped
+ok source constructed
+ok source lexed
+ok multitoken literal delimiter ends argument
+ok source constructed
+ok source lexed
+ok literal delimiter followed by brace matches and reinserts opener
+ok source constructed
+ok source lexed
+ok group resets partial delimiter before matching outer brace
+ok source constructed
+ok source lexed
+ok overlapping delimiter prefixes use linear fallback matching
+ok source constructed
+ok source lexed
+ok grouped tokens reset delimiter matching and remain argument data
+ok source constructed
+ok source lexed
+ok trailing parameter hash reinserts consumed opening brace
+ok source constructed
+ok source lexed
+ok brace delimiter matches before nested groups and preserves provenance
+ok source constructed
+ok source lexed
+ok brace delimiter follows matched literal prefix
+ok source constructed
+ok source lexed
+ok let alias preserves brace delimiter and inserted replacement opener
+ok source constructed
+ok source lexed
+ok later definitions preserve brace delimiter metadata
+ok source constructed
+ok source lexed
+ok zero-parameter special hash brace is matched as a prefix
+ok source constructed
+ok source lexed
+ok multi-token prefix matches actual tokens and expands its argument
+ok source constructed
+ok source lexed
+ok leading spaces are matched as part of the delimiter
+ok source constructed
+ok source lexed
+ok a trailing parameter delimiter is accepted
+ok source constructed
+ok source lexed
+ok special brace definition consumes no expansion budget
+ok source constructed
+ok source lexed
+ok EOF before special brace delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok EOF after literal prefix before brace delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok edef preserves parameter delimiter metadata
+ok source constructed
+ok source lexed
+ok xdef preserves parameter delimiter metadata
+ok source constructed
+ok source lexed
+ok control token delimiter matches by token identity
+ok source constructed
+ok source lexed
+ok prefix and delimiter are both consumed
+ok source constructed
+ok source lexed
+ok adjacent delimiters capture empty arguments
+ok source constructed
+ok source lexed
+ok let copies delimiter metadata
+ok source constructed
+ok source lexed
+ok global definition accepts actual delimiters
+ok source constructed
+ok source lexed
+ok scoped delimiter definition parses
+ok scoped delimiter definition unwinds with definition
+ok source constructed
+ok source lexed
+ok EOF before delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok unbalanced group before delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok delimited raw argument respects shared token ceiling
+ok source constructed
+ok source lexed
+ok nested macro expands within max-expand
+ok source constructed
+ok source lexed
+ok nested macro expansions exceed max-expand one
+ok source constructed
+ok source lexed
+ok two sequential parameters parsed
+ok source constructed
+ok source lexed
+ok parameter nine is accepted
+ok source constructed
+ok source lexed
+ok ninth argument substituted
+ok source constructed
+ok source lexed
+ok first reordered argument
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok nested argument replacement prefix
+ok nested argument opening brace retained
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok nested control words resolve from owned lexemes
+ok unicode literal retains definition span and stamps invocation span
+ok nested definition closes after cross-source expansion
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok inner shadow visible
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok inner scope restores enclosing shadow
+ok source constructed
+ok source lexed
+ok outer scope restores original definition
+ok source constructed
+ok source lexed
+ok local definition visible in group
+ok local definition restored
+ok source constructed
+ok source lexed
+ok nested global survives unwinds
+ok source constructed
+ok source lexed
+ok shadow definition parsed
+ok source constructed
+ok source lexed
+ok definition replaces prior binding
+ok source constructed
+ok source lexed
+ok undefined control word does not error
+ok undefined control word passes through
+ok source constructed
+ok source lexed
+ok global error macro definition persists
+ok source constructed
+ok source lexed
+ok persisted macro keeps raw definition bytes and invocation bounds
+ok persisted macro expansion reaches EOF
+ok source constructed
+ok source lexed
+ok reused global macro retains current invocation provenance
+ok reused macro expansion reaches EOF
+ok source constructed
+ok source lexed
+ok lexer-consumed spaces do not corrupt names
+ok source constructed
+ok source lexed
+ok peek returns next token
+ok peek does not consume token
+ok source constructed
+ok source lexed
+ok one-token suppression bypasses macro expansion
+ok source constructed
+ok source lexed
+ok pushback replays prior token
+ok source constructed
+ok source lexed
+ok initial token stream over ceiling is diagnosed during Open
+ok source constructed
+ok source lexed
+ok nonsequential parameter is rejected
+ok source constructed
+ok source lexed
+ok unterminated replacement is rejected
+ok source constructed
+ok source lexed
+ok missing argument reported
+ok source constructed
+ok source lexed
+ok recursive expansion bounded
+ok recursive budget diagnostic stable after exhaustion
+ok source constructed
+ok source lexed
+ok unsupported doubled parameter marker is malformed, not an exception
+ok source constructed
+ok source lexed
+ok 10,000-step recursive expansion budget terminates without stack growth
+ok 10,000-link single-chain expansion completes without stack growth
+==244649== 
+==244649== Process terminating with default action of signal 15 (SIGTERM)
+==244649==    at 0x1FC263: math_macros__definition_vectors__constant_reference__2 (a-convec.adb:339)
+==244649==    by 0x23CA21: math_macros__find (math_macros.adb:13)
+==244649==    by 0x23E0DD: math_macros__define_tokens (math_macros.adb:89)
+==244649==    by 0x1289FD: _ada_math_macros_probe (math_macros_probe.adb:792)
+==244649==    by 0x155A42: main (b__math_macros_probe.adb:360)
+==244649== 
+==244649== HEAP SUMMARY:
+==244649==     in use at exit: 4,751,744 bytes in 27,846 blocks
+==244649==   total heap usage: 238,806 allocs, 210,960 frees, 149,306,160 bytes allocated
+==244649== 
+==244649== LEAK SUMMARY:
+==244649==    definitely lost: 0 bytes in 0 blocks
+==244649==    indirectly lost: 0 bytes in 0 blocks
+==244649==      possibly lost: 0 bytes in 0 blocks
+==244649==    still reachable: 4,751,744 bytes in 27,846 blocks
+==244649==         suppressed: 0 bytes in 0 blocks
+==244649== Reachable blocks (those to which a pointer was found) are not shown.
+==244649== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==244649== 
+==244649== For lists of detected and suppressed errors, rerun with: -s
+==244649== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

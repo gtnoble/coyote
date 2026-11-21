@@ -1,0 +1,17 @@
+{
+  "head": "42e463f4d01186250f5dded6d19ab5fdc8bd1ec9",
+  "source_date": "2026-11-15",
+  "host_log_dates": "Preserved verbatim; may differ from project checkpoint date.",
+  "sha256": {
+    "src/coyote_math/math_macros.ads": "059d115c39458a79b93f840a53f6da83498ae2a694a6667210e398260132cd91",
+    "src/coyote_math/math_macros.adb": "2d4714db460962b897f77a923bc66603fc3a1b47c3eed60aa84b1b30327b02bc",
+    "src/coyote_math/math_syntax.adb": "ef56f5c78c0f4bff1f9fe76bbef1cccd7e046d1f08c440bcf3817acc7eaa1f6b",
+    "src/coyote_math/math_expander.adb": "5b882ad911e1498081392eca3829a3763c843c609c243890637a4e41e2561a5d",
+    "test/tools/math_engine_probe.adb": "bfe8c397e8092d014e578252b4078fa73d4b9a155e06c32916082dfe23b13b0b",
+    "test/tools/math_macros_probe.adb": "8dbf68830f10ea62382fa5d282917463a20c348944494f24fd1c781461284eae",
+    "/tmp/coyote-math-scope-final-exact/bin/math_engine_probe": "ab70064cdef299734402d51f15d4f9a3d3a32306de173d03e4f929163976aa4a",
+    "/tmp/coyote-math-poll-final-exact/bin/math_macros_probe": "09e01fb2d076aab127ce98d6080a62101cd422f016eca0266a0d66b9d5364abf",
+    "test/bin/coyote_test": "0fdb767fa47d3046f38321856e2357c2e8161a33ea0da95d83bde30b5d3b76c8",
+    "bin/coyote": "1f574c76d2fd57601f797300a31c1d065d670d955576307a3386452a2ba7d19d"
+  }
+}

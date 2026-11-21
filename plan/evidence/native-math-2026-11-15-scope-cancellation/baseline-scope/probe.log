@@ -1,0 +1,5 @@
+FAIL caller pop clears only recovered scope-limit diagnostic
+FAIL default parse recovers using scoped sentinel
+FAIL global-group parse recovers in same context
+FAIL unwinding caller scopes restores global sentinel
+ASSERTIONS 187 failures= 4

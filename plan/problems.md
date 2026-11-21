@@ -4907,3 +4907,40 @@ are historical, not current-source qualification.
   full repeat pass without production change. Candidate full caller-created
   macro scope-stack diagnostic persistence needs reproduction/disposition; not
   a fresh-source nesting bypass. No runtime change, parity or user acceptance.
+
+
+### PCR-125 — Accepted accounting-maintenance disposition, 2026-11-15
+
+- **Category:** Plans, Design, Test. **Priority:** 3-Moderate.
+- **Authority:** user accepted selective simplification and requested the
+  documentation update after reviewing memory-constraint over-engineering.
+- **Problem:** fine-grained nested-payload/GNAT allocation accounting carried
+  disproportionate maintenance cost; stale design text still prescribed exact
+  growth/native-temporary accounting despite SRS-MATH v1.1.
+- **Action:** port plan §6 records the accepted policy; active resource design,
+  test guidance, optional proposal disposition and agent/SDF guidance align.
+  Keep working guards; no wholesale removal. Simplify only for concrete benefit,
+  preserving ownership corrections and practical safety/recovery regression.
+- **Status/evaluation:** documentation decision recorded; consistency/whitespace
+  review only, no code/test change or runtime rerun. SRS budgets and acceptance
+  gates unchanged; optional ownership redesign remains unapproved. See report
+  §11.20. Developer self-review is not independent acceptance. PCR-125 OPEN.
+
+
+### PCR-125 — Scope failure and macro capture cancellation, 2026-11-15
+
+- **Category:** Code, Design, Test. **Priority:** 3-Moderate.
+- **Problem:** caller-exhausted scope stacks left stale diagnostics; parser
+  could accept empty input or expand global assignments after failed push.
+  Long newcommand capture lacked polling; optional-default copy could stop
+  after body mutation and leave a partial definition.
+- **Action:** successful End_Group clears only Scope_Limit; all parser pushes
+  check admission before expansion. Stage default/body copies before commit and
+  poll capture loops. Preserve real earlier global assignments and caller scope.
+- **Verification:** report §11.21/evidence retain pre-fix failures and final
+  engine216/macros873 twice, worker279/parser719, full1076/1076 and required
+  development/GTK/HTTP checks. Macro Valgrind INCOMPLETE on timed-out existing
+  large fixture; engine native checks pass. Existing raster loss gate remains.
+- **Status:** scoped defects fixed/developer-verified, not full acceptance.
+  Persistent shared-context aggregate admission remains a separate requirements
+  decision, not silently capped here. PCR-125 remains OPEN; no release/install.

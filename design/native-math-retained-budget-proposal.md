@@ -14,13 +14,20 @@ describe the superseded v1.0 rationale, not current mandatory work.
 **Current verified implementation:** report §11.16; no requirements/deviations
 changed. This proposal is not qualification or acceptance.
 
-## Decision requested
+## Current disposition — no approval requested
 
-Approve a bounded design increment for stable per-job accounts and explicit
-retained-result leases before extending any borrowed Parse reservation beyond
-its call. Prefer preserving Math_Syntax.Document's existing value API for now;
-place initial retained ownership at job/result boundaries, then explicitly
-cover clones and GUI adoption. This is a recommendation, not an approved design.
+The user accepted retaining working guards and simplifying fine-grained
+accounting selectively when there is a concrete maintenance benefit. This is
+not approval of the ownership architecture below. No storage-pool, stable
+job-account, retained-lease or Document API migration is scheduled or required.
+Revisit only for a demonstrated practical problem, not accounting completeness;
+see the port plan §6 accepted memory-guard maintenance policy. Call-only budget
+borrows must still not escape, irrespective of accounting coverage.
+
+## Historical proposal — not selected
+
+The remaining analysis records alternatives considered under the earlier
+whole-job accounting objective. It does not prescribe the next increment.
 
 ## Problem and verified constraints
 

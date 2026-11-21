@@ -14,6 +14,7 @@ with Math_Work_Control;
 procedure Math_Engine_Probe is
    use type Ada.Containers.Count_Type;
    use type Math_Engine.Status_Kind;
+   use type Math_Macros.Diagnostic_Kind;
    use type Math_Layout.Command_Kind;
    use type Math_Model.Node_Kind;
    use type Math_Syntax.Diagnostic_Kind;
@@ -94,6 +95,221 @@ procedure Math_Engine_Probe is
         not Outp.Geometry.Commands.Is_Empty,
         Label & " is followed by a successful ordinary request");
    end Expect_Abuse_Rejection;
+
+   procedure Test_Scope_Limit_Recovery is
+      Local_Shared : aliased Math_Macros.Context;
+      Opt : Math_Engine.Request;
+      Outp : Math_Engine.Result;
+
+      procedure Check_Nested_Boundary
+        (Caller_Depth : Natural; Source, Label : String) is
+         Nested_Shared : aliased Math_Macros.Context;
+         Entry_Depth : constant Natural := Caller_Depth;
+      begin
+         for Index in 1 .. Caller_Depth loop
+            Math_Macros.Begin_Group (Nested_Shared);
+         end loop;
+         Check (Math_Macros.Scope_Depth (Nested_Shared) = Entry_Depth,
+           Label & " starts at caller-created depth" &
+             Natural'Image (Entry_Depth));
+         Math_Engine.Parse (Source, Nested_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Parse_Error and then
+           Math_Engine.Error (Outp) = "macro scope error" and then
+           Math_Syntax.Source (Outp.Parsed) = Source and then
+           not Math_Syntax.Is_Valid (Outp.Parsed) and then
+           not Outp.Geometry.Valid and then
+           Outp.Geometry.Commands.Is_Empty,
+           Label & " rejects nested scope push visibly without geometry");
+         Check (not Math_Macros.Is_Defined
+             (Nested_Shared, "\scopeleak"),
+           Label & " prevents nested gdef expansion after rejected push");
+         Check (Math_Macros.Scope_Depth (Nested_Shared) = Entry_Depth,
+           Label & " restores exact entry depth; actual=" &
+             Natural'Image (Math_Macros.Scope_Depth (Nested_Shared)));
+         Check (Math_Macros.Diagnostic (Nested_Shared) =
+             Math_Macros.No_Error,
+           Label & " cleanup clears scope-limit diagnostic");
+         Math_Engine.Parse ("x", Nested_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           not Outp.Geometry.Commands.Is_Empty and then
+           Math_Macros.Scope_Depth (Nested_Shared) = Entry_Depth and then
+           Math_Macros.Diagnostic (Nested_Shared) =
+             Math_Macros.No_Error,
+           Label & " recovers on ordinary default request at entry depth");
+      end Check_Nested_Boundary;
+   begin
+      Check_Nested_Boundary
+        (255, "\sqrt{\gdef\scopeleak{x}}",
+         "caller-depth-255 root-plus-square-root argument");
+      Check_Nested_Boundary
+        (255, "\begin{matrix}\gdef\scopeleak{x}\end{matrix}",
+         "caller-depth-255 root-plus-matrix environment");
+      Check_Nested_Boundary
+        (254, "\begin{CD}x\gdef\scopeleak{x}\end{CD}",
+         "caller-depth-254 root-environment-plus-CD row");
+      declare
+         CD_Shared : aliased Math_Macros.Context;
+      begin
+         for Index in 1 .. 254 loop
+            Math_Macros.Begin_Group (CD_Shared);
+         end loop;
+         Math_Engine.Parse
+           ("\gdef\scopeleak{x}\begin{CD}x\end{CD}",
+            CD_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Parse_Error and then
+           Math_Engine.Error (Outp) = "macro scope error" and then
+           Math_Macros.Is_Defined (CD_Shared, "\scopeleak") and then
+           Math_Macros.Scope_Depth (CD_Shared) = 254,
+           "leading CD gdef persists before later row scope failure");
+         Math_Macros.Restore_To_Depth (CD_Shared, 0);
+         Math_Engine.Parse ("\scopeleak", CD_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           not Outp.Geometry.Commands.Is_Empty,
+           "CD failed request recovers with persistent global sentinel");
+      end;
+      declare
+         Empty_Shared : aliased Math_Macros.Context;
+      begin
+         for Index in 1 .. 256 loop
+            Math_Macros.Begin_Group (Empty_Shared);
+         end loop;
+         Check (Math_Macros.Diagnostic (Empty_Shared) =
+             Math_Macros.No_Error,
+           "clean empty-input boundary starts without pending diagnostic");
+         Math_Engine.Parse ("", Empty_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Parse_Error and then
+           Math_Engine.Error (Outp) = "macro scope error" and then
+           not Outp.Geometry.Valid and then
+           Math_Macros.Scope_Depth (Empty_Shared) = 256,
+           "empty default request immediately rejects root scope push");
+         Math_Macros.End_Group (Empty_Shared);
+         Math_Engine.Parse ("x", Empty_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           not Outp.Geometry.Commands.Is_Empty and then
+           Math_Macros.Diagnostic (Empty_Shared) =
+             Math_Macros.No_Error,
+           "empty-input admission failure recovers after caller unwind");
+      end;
+      declare
+         Full_Shared : aliased Math_Macros.Context;
+      begin
+         for Index in 1 .. 256 loop
+            Math_Macros.Begin_Group (Full_Shared);
+         end loop;
+         Check (Math_Macros.Scope_Depth (Full_Shared) = 256 and then
+           Math_Macros.Diagnostic (Full_Shared) = Math_Macros.No_Error,
+           "caller-created full stack starts without pending diagnostic");
+         Math_Engine.Parse
+           ("x", Full_Shared'Access,
+            (Global_Group => True, others => <>), Outp);
+         Check (Outp.Status = Math_Engine.Ready and then
+           Outp.Geometry.Valid and then
+           not Outp.Geometry.Commands.Is_Empty and then
+           Math_Macros.Scope_Depth (Full_Shared) = 256 and then
+           Math_Macros.Diagnostic (Full_Shared) = Math_Macros.No_Error,
+           "full-stack Global_Group request succeeds without stack change");
+         Math_Engine.Parse ("x", Full_Shared'Access, Opt, Outp);
+         Check (Outp.Status = Math_Engine.Parse_Error and then
+           Math_Engine.Error (Outp) = "macro scope error" and then
+           Math_Syntax.Source (Outp.Parsed) = "x" and then
+           not Math_Syntax.Is_Valid (Outp.Parsed) and then
+           not Outp.Geometry.Valid and then
+           Outp.Geometry.Commands.Is_Empty and then
+           Math_Macros.Scope_Depth (Full_Shared) = 256,
+           "full-stack default request rejects root scope push");
+         Math_Macros.End_Group (Full_Shared);
+         Check (Math_Macros.Scope_Depth (Full_Shared) = 255 and then
+           Math_Macros.Diagnostic (Full_Shared) = Math_Macros.No_Error,
+           "full-stack caller pop clears rejected root diagnostic");
+      end;
+      Math_Engine.Parse
+        ("\gdef\scopeprobe{g}", Local_Shared'Access,
+         (Global_Group => True, others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Macros.Is_Defined (Local_Shared, "\scopeprobe"),
+        "scope recovery fixture installs global sentinel");
+      for Index in 1 .. 255 loop
+         Math_Macros.Begin_Group (Local_Shared);
+      end loop;
+      Math_Engine.Parse
+        ("\def\scopeprobe{l}", Local_Shared'Access,
+         (Global_Group => True, others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Macros.Scope_Depth (Local_Shared) = 255,
+        "parser shadows global sentinel in caller scope 255");
+      Math_Macros.Begin_Group (Local_Shared);
+      Check (Math_Macros.Scope_Depth (Local_Shared) = 256,
+        "caller fills scope stack to its bound");
+      Math_Macros.Begin_Group (Local_Shared);
+      Check (Math_Macros.Scope_Depth (Local_Shared) = 256 and then
+        Math_Macros.Diagnostic (Local_Shared) = Math_Macros.Scope_Limit,
+        "failed scope push records limit without a phantom frame");
+      Math_Engine.Parse ("\scopeprobe", Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        Math_Engine.Error (Outp) = "macro scope error" and then
+        Math_Syntax.Source (Outp.Parsed) = "\scopeprobe" and then
+        not Math_Syntax.Is_Valid (Outp.Parsed) and then
+        not Outp.Geometry.Valid and then
+        Outp.Geometry.Commands.Is_Empty,
+        "full-scope nonempty parse fails visibly without geometry");
+      Math_Engine.Parse ("", Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        Math_Engine.Error (Outp) = "macro scope error" and then
+        not Outp.Geometry.Valid and then
+        Math_Macros.Scope_Depth (Local_Shared) = 256,
+        "full-scope empty parse rejects failed scope admission");
+      Math_Engine.Parse
+        ("\gdef\scopeleak{x}", Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Parse_Error and then
+        not Math_Macros.Is_Defined (Local_Shared, "\scopeleak") and then
+        Math_Macros.Scope_Depth (Local_Shared) = 256,
+        "failed scope admission prevents global expansion side effects");
+      Math_Macros.End_Group (Local_Shared);
+      Check (Math_Macros.Scope_Depth (Local_Shared) = 255 and then
+        Math_Macros.Diagnostic (Local_Shared) = Math_Macros.No_Error,
+        "caller pop clears only recovered scope-limit diagnostic");
+      Math_Engine.Parse ("\scopeprobe", Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then
+        not Outp.Geometry.Commands.Is_Empty,
+        "default parse recovers using scoped sentinel");
+      Math_Engine.Parse
+        ("\scopeprobe", Local_Shared'Access,
+         (Global_Group => True, others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Valid and then
+        not Outp.Geometry.Commands.Is_Empty,
+        "global-group parse recovers in same context");
+      Math_Macros.Restore_To_Depth (Local_Shared, 0);
+      Check (Math_Macros.Scope_Depth (Local_Shared) = 0 and then
+        Math_Macros.Is_Defined (Local_Shared, "\scopeprobe") and then
+        Math_Macros.Diagnostic (Local_Shared) = Math_Macros.No_Error,
+        "unwinding caller scopes restores global sentinel");
+      Math_Engine.Parse ("\scopeprobe", Local_Shared'Access, Opt, Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Outp.Geometry.Commands.Length = 1 and then
+        Outp.Geometry.Commands.First_Element.Code_Point =
+          Character'Pos ('g'),
+        "restored global sentinel expands to its original value");
+      Math_Macros.Reset (Local_Shared);
+      Math_Macros.Begin_Group (Local_Shared);
+      Math_Macros.Restore_To_Depth (Local_Shared, 2);
+      Check (Math_Macros.Scope_Depth (Local_Shared) = 1 and then
+        Math_Macros.Diagnostic (Local_Shared) =
+          Math_Macros.Unbalanced_Group,
+        "impossible restore records unbalanced group without phantom pop");
+      Math_Macros.End_Group (Local_Shared);
+      Check (Math_Macros.Scope_Depth (Local_Shared) = 0 and then
+        Math_Macros.Diagnostic (Local_Shared) =
+          Math_Macros.Unbalanced_Group,
+        "successful pop preserves sticky unbalanced-group diagnostic");
+      Math_Macros.Reset (Local_Shared);
+      Check (Math_Macros.Diagnostic (Local_Shared) = Math_Macros.No_Error,
+        "reset retains explicit diagnostic-clearing semantics");
+   end Test_Scope_Limit_Recovery;
 
    procedure Test_Abuse_Rejection_Recovery is
       use Ada.Strings.Unbounded;
@@ -725,6 +941,7 @@ procedure Math_Engine_Probe is
         "shared macro expands with source identity preserved");
       Check (Math_Macros.Scope_Depth (Shared) = 0,
         "shared scope restored after requests");
+      Test_Scope_Limit_Recovery;
       Test_Abuse_Rejection_Recovery;
 
       declare

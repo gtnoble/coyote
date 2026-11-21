@@ -1,6 +1,6 @@
 # Native KaTeX compatibility-port plan — coyote
 
-**Version:** 0.10
+**Version:** 0.11
 **Date:** 2026-11-15
 **Change:** PCR-125
 **Status:** Native design and project execution approved; implementation in
@@ -217,6 +217,42 @@ a prompt-filter assertion failure of unproven non-math cause remains unwaived.
 Valgrind leak failures remain failures, not waived or reclassified. Coverage
 remains a source crosswalk, not semantic completion. No parity claim is made.
 ## 6. Resources, risks, and maintenance
+
+### Accepted memory-guard maintenance policy — 2026-11-15
+
+The user accepted selective simplification under SRS-MATH v1.1, not another
+memory-management redesign. Fine-grained parser accounting and GNAT-specific
+capacity/copy verification went beyond the practical abuse-resistance goal.
+Apply the following policy to future increments:
+
+- Stop extending tiny nested-payload, per-string and exact allocator/capacity
+  accounting merely to make coverage exhaustive. Prioritize adversarial
+  rejection/recovery tests and observed responsiveness problems instead.
+- Keep working guards for now; do not undertake wholesale removal without a
+  concrete benefit. Simplify a particular accounting path when its maintenance
+  burden justifies it, especially tiny nested array-rule charges or tests tied
+  to GNAT vector growth, copying and compaction details.
+- Preserve structural, expansion, dimension/surface and work limits; coarse
+  admission for major buffers and known large overlaps; the separate 64 MiB
+  retained-raster bound; cancellation, bounded cleanup and source fallback.
+  Prefer documented conservative major-buffer estimates over exact live bytes.
+- Preserve ownership corrections independently of accounting: scoped references,
+  elimination of unnecessary deep copies, valid borrowed-budget lifetimes and
+  safe release/finalization order. Simplification is not permission to restore
+  unsafe copies or dangling borrows, or to waive leaks and unexplained growth.
+- For a specific simplification, record the benefit and retained protection;
+  rerun relevant boundary, rejection, cleanup and next-request recovery tests.
+  GNAT-specific byte-exact tests may be revised or retired when their accounting
+  mechanism changes, not merely because they fail. Keep safety and abuse tests
+  and historical evidence; a ledger total alone is not the objective.
+- Storage pools and retained-account leases require a demonstrated practical
+  need before new design work. The optional proposal is not a pending approval
+  gate or the next required increment.
+
+This policy changes maintenance priorities, not SRS-MATH v1.1, numeric budgets,
+50/250 ms targets, compatibility, D01–D15 or qualification obligations. No guard
+or test was removed by this documentation-only decision; product acceptance
+remains pending. See report §11.20 for the decision record.
 
 Use the existing GNAT/Alire/AUnit/GTK/Cairo/FreeType environment, development-only
 KaTeX/Node oracle, reference browser, and generated comparison artifacts.

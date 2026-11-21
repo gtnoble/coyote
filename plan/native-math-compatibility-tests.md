@@ -13,11 +13,20 @@
 6. Requirements traceability
 7. Risks, blockers, and review actions
 
-**Version:** 0.10
+**Version:** 0.11
 **Date:** 2026-11-15
 **Status:** In-progress draft; evidence and procedures are refreshed from the approved execution baseline. This status revision remains open for readiness review and approval.
-**Authority:** `requirements/native-math-compatibility.md` v1.1 dated 2026-11-15 is the current requirements baseline; D01–D15 remain the approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.10 records phased status. This plan does not supersede requirements.
+**Authority:** `requirements/native-math-compatibility.md` v1.1 dated 2026-11-15 is the current requirements baseline; D01–D15 remain the approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.11 records phased status. This plan does not supersede requirements.
 **Current resource-scope supersession (2026-11-15):** REQ-MATH-010 retains source, token, expansion, node, depth, array, command, finite-dimension, surface and work limits, plus safe visible-source fallback/recovery. The ≤256 MiB per-job amount is a coarse admission budget for tracked major workspace/output buffers and known large overlaps, not all allocations or physical memory. The separate 64 MiB retained-raster process ledger and 50/250 ms timing targets are unchanged. Current acceptance requires documented coverage/estimates and practical major-buffer rejection/cleanup and adversarial robustness; it does not require exhaustive whole-job allocation/RSS accounting or a storage-pool/retained-account lease redesign. RSS characterization is diagnostic, not a 256 MiB pass/fail measure. Ordinary ownership safety remains mandatory. Historical dated statements and evidence remain factual and are not retroactively qualified.
+**Accepted maintenance policy (2026-11-15):** Port plan §6 governs selective
+simplification. Keep working guards and safety/abuse tests; do not extend tiny
+payload or GNAT-specific exact-capacity/copy accounting for completeness.
+When a particular accounting mechanism is simplified for a concrete benefit,
+its byte-exact tests may be revised or retired with rationale and relevant
+boundary/rejection/cleanup/recovery regression evidence. Do not weaken tests
+merely to obtain a pass. Preserve ownership fixes and archived evidence. No
+code/test removal or runtime rerun is claimed by this documentation update.
+
 **2026-11-15 continuation:** Report §11.11 supersedes earlier inline-path
 statements and runtime counts in this document. Inline rasterization now runs
 on workers, with GTK-only incremental Pixbuf adoption; final-source full suite
@@ -51,7 +60,7 @@ Levels: P1 exploratory baseline/harness readiness; increment-focused verificatio
 ### 2.1 Governing and supporting references
 
 - `requirements/native-math-compatibility.md` v1.1, user-authorized resource-scope update 2026-11-15; original v1.0 approved 2026-10-24. Especially §§3–6 and unchanged D01–D15.
-- `plan/native-math-parity-plan.md` v0.10, increments P0–P6 and current gates (v0.9 is historical).
+- `plan/native-math-parity-plan.md` v0.11, increments P0–P6 and current gates (v0.9 is historical).
 - `requirements/coyote-requirements.md` §3.1.4a, REQ-CORE-111/124, with the current SRS-MATH annex reference.
 - `plan/native-math-test-report.md`, historical PCR-123 evidence and limitations.
 - `plan/native-math-katex-0.16.22-inventory.md` and `.json`; registration census, not native coverage.
@@ -374,7 +383,7 @@ Trace source: approved REQ-MATH-001–015 and U1/U2/B1 sources in SRS §6. D01�
 ## 7. Risks, blockers, review actions
 
 1. **Readiness:** execution/design approval is complete; P1 matching/readiness, field coverage, complete corpus, calibration and final qualification remain open.
-2. **Harness:** exporters, comparators, pilots, fuzz, resource/performance and accessibility tools exist. Current partial results and gaps are documented in §§2.2–3.2 and the parity report; complete fields, matching/accounting, broad snapshots and qualification evidence remain to be closed. Do not describe existing tools as absent or invent tool paths.
+2. **Harness:** exporters, comparators, pilots, fuzz, resource/performance and accessibility tools exist. Current partial results and gaps are documented in §§2.2–3.2 and the parity report; complete comparison fields, matching, documented practical guard coverage, broad snapshots and qualification evidence remain to be closed. Do not describe existing tools as absent or invent tool paths.
 3. **Visual readiness:** visual criteria are provisional pending calibration; no calibration or achievement claimed. Quantitative budgets are approved targets, not evidence of compliance.
 4. **Fixture:** `heat-balance-001` source and display-delimited hashes are preserved and match the pinned pilot. Its exact-source native export is valid; the scoped differential/image results do not provide qualified math/origin/width effects or calibrated visual acceptance. Complete per-entry corpus and qualification platform manifest remain pending.
 5. **Security/resource:** no broad offline trace, full cancellation/failure, cache/RSS, fuzz or runtime dependency qualification is claimed. Formula input performs no I/O; known bundled-font reads and native runtime housekeeping are allowed and must not be misreported as formula-triggered I/O. Never assert absolute zero filesystem access.
@@ -558,3 +567,22 @@ lifecycle or human acceptance qualification; no release/install/commit.
 Traceability: MATH-LIMIT-001/002, MATH-REGRESS-002 and REQ-MATH-010/014 receive
 scoped deterministic evidence, not complete requirement qualification. The
 10000-case final robustness corpus and full boundary matrix remain open.
+
+
+## 2026-11-15 — Scope admission and macro capture recovery (PCR-125)
+
+Report §11.21 and `plan/evidence/native-math-2026-11-15-scope-cancellation/`
+record immediate checked parser scope pushes and clearing Scope_Limit only
+on actual undo/pop. Empty/admission failure cannot expand gdef; earlier genuine
+global assignments still persist. Cancellable newcommand capture/copy stages
+body+default before mutation; no claim of allocation-exception transactionality.
+Engine216/216 twice, macros873/873 twice, worker279/279, parser719/719 and full
+Xvfb1076/1076 pass; root/test development builds and mandatory GTK9/9,
+containment/offline HTTP checks pass. Engine Valgrind zero errors/lost bytes;
+whole macro Valgrind timed out before new cases, INCOMPLETE. Existing warnings
+and strict raster losses remain. Shared-context cumulative admission needs
+separate policy review; no new cap or fine-grained accounting. No full timing/
+GUI/font/lifecycle/parity/human qualification, release/install/commit.
+
+Traceability: REQ-MATH-003/010/014, MATH-STATE-001, MATH-LIMIT-002 and
+MATH-REGRESS-002 receive scoped evidence; budgets/qualification unchanged.

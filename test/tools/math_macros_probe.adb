@@ -12,6 +12,47 @@ with Math_Work_Control;
 
 
 procedure Math_Macros_Probe is
+   protected Poll_Counter is
+      procedure Reset
+        (Threshold : Positive; Reason : Math_Work_Control.Stop_Reason);
+      procedure Check (Result : out Math_Work_Control.Stop_Reason);
+      function Count return Natural;
+   private
+      Limit : Positive := 1;
+      Current : Natural := 0;
+      Stop_Reason : Math_Work_Control.Stop_Reason :=
+        Math_Work_Control.Cancel_Requested;
+   end Poll_Counter;
+   protected body Poll_Counter is
+      procedure Reset
+        (Threshold : Positive; Reason : Math_Work_Control.Stop_Reason) is
+      begin
+         Limit := Threshold;
+         Current := 0;
+         Stop_Reason := Reason;
+      end Reset;
+      procedure Check (Result : out Math_Work_Control.Stop_Reason) is
+      begin
+         Current := Current + 1;
+         Result := (if Current >= Limit then Stop_Reason
+                    else Math_Work_Control.Continue_Work);
+      end Check;
+      function Count return Natural is (Current);
+   end Poll_Counter;
+   type Counted_Context is new Math_Work_Control.Context with null record;
+   overriding function Check
+     (Item : Counted_Context) return Math_Work_Control.Stop_Reason;
+   overriding function Check
+     (Item : Counted_Context) return Math_Work_Control.Stop_Reason is
+      pragma Unreferenced (Item);
+      Result : Math_Work_Control.Stop_Reason;
+   begin
+      Poll_Counter.Check (Result);
+      return Result;
+   end Check;
+   Counted : aliased Counted_Context;
+   Counted_Work : constant Math_Work_Control.Context_Access :=
+     Counted'Unchecked_Access;
    type Stopped_Context is new Math_Work_Control.Context with null record;
    overriding function Check
      (Item : Stopped_Context) return Math_Work_Control.Stop_Reason;
@@ -30,6 +71,7 @@ procedure Math_Macros_Probe is
    use type Math_Expander.Diagnostic_Kind;
    use type Math_Expander.Diagnostic_Severity;
    use type Math_Expander.Diagnostic_Record;
+   use type Math_Work_Control.Stop_Reason;
    Checks : Natural := 0;
    Failures : Natural := 0;
    Ctx : Math_Macros.Context;
@@ -59,6 +101,45 @@ procedure Math_Macros_Probe is
       Check (TD = Math_Tokens.No_Error, "source lexed");
       Math_Expander.Open (Stream, Cur, Limit, Token_Ceiling);
    end Open_Text;
+   function Long_Tokens (Count : Positive) return String is
+      Result : String (1 .. Count) := (others => 'x');
+   begin
+      return Result;
+   end Long_Tokens;
+
+   procedure Check_Definition_Poll
+     (Command, Expected_Name : String;
+      Reason : Math_Work_Control.Stop_Reason;
+      Label : String) is
+      Local_Cursor : Math_Expander.Cursor;
+      Local_Token : Math_Tokens.Token;
+      Stopped : Boolean := False;
+   begin
+      Math_Macros.Reset (Ctx);
+      Open_Text (Command & Long_Tokens (10_000) & "}", Local_Cursor);
+      Poll_Counter.Reset (32, Reason);
+      begin
+         Local_Token := Math_Expander.Next
+           (Local_Cursor, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Stop_Requested =>
+            Stopped := Reason = Math_Work_Control.Cancel_Requested;
+         when Math_Work_Control.Deadline_Expired =>
+            Stopped := Reason = Math_Work_Control.Deadline_Reached;
+      end;
+      Check (Stopped, Label & " interrupts capture");
+      Check (Poll_Counter.Count = 32,
+        Label & " stops at configured work poll threshold");
+      Check (not Math_Macros.Is_Defined (Ctx, Expected_Name),
+        Label & " leaves target undefined before commit");
+      Open_Text ("q", Local_Cursor);
+      Local_Token := Math_Expander.Next (Local_Cursor, Ctx);
+      Check (Local_Token.Kind = Math_Tokens.Character_Token and then
+        Local_Token.Code_Point = Character'Pos ('q') and then
+        Math_Expander.Diagnostic (Local_Cursor) = Math_Expander.No_Error,
+        Label & " permits fresh-cursor expansion after stop");
+   end Check_Definition_Poll;
+
    procedure Expect_Code
      (Text : String; Expected : Natural; Label : String;
       Limit : Positive := Math_Expander.Default_Max_Expand) is
@@ -949,6 +1030,207 @@ begin
    Open_Text ("\newcommand{\foo}[10]{x}", Cur);
    loop T := Math_Expander.Next (Cur, Ctx); exit when T.Kind = Math_Tokens.End_Of_Input; end loop;
    Check (Math_Expander.Diagnostic (Cur) = Math_Expander.Malformed_Definition, "argument count above nine rejected");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\pollDefault}[1][" & Long_Tokens (10_000)
+     & "]{x}", Cur);
+   Poll_Counter.Reset (32, Math_Work_Control.Deadline_Reached);
+   declare
+      Stopped : Boolean := False;
+   begin
+      begin
+         T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Deadline_Expired => Stopped := True;
+      end;
+      Check (Stopped, "deadline interrupts optional default capture");
+      Check (Poll_Counter.Count = 32,
+        "optional default stops at configured work poll threshold");
+      Check (not Math_Macros.Is_Defined (Ctx, "\pollDefault"),
+        "optional-default deadline leaves target undefined");
+   end;
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\pollDefaultCancel}[1][" &
+     Long_Tokens (10_000) & "]{x}", Cur);
+   Poll_Counter.Reset (32, Math_Work_Control.Cancel_Requested);
+   declare
+      Stopped : Boolean := False;
+   begin
+      begin
+         T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Stop_Requested => Stopped := True;
+      end;
+      Check (Stopped, "cancellation interrupts optional default capture");
+      Check (Poll_Counter.Count = 32,
+        "optional-default cancellation stops at configured poll threshold");
+      Check (not Math_Macros.Is_Defined (Ctx, "\pollDefaultCancel"),
+        "optional-default cancellation leaves target undefined");
+      Open_Text ("q", Cur);
+      T := Math_Expander.Next (Cur, Ctx);
+      Check (T.Kind = Math_Tokens.Character_Token and then
+        T.Code_Point = Character'Pos ('q') and then
+        Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+        "fresh cursor recovers after optional-default cancellation");
+   end;
+   Math_Macros.Reset (Ctx);
+   Open_Text
+     ("\newcommand{\pollCopy}{" & Long_Tokens (10_000) & "}", Cur);
+   Poll_Counter.Reset (10_050, Math_Work_Control.Cancel_Requested);
+   declare
+      Stopped : Boolean := False;
+   begin
+      begin
+         T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Stop_Requested => Stopped := True;
+      end;
+      Check (Stopped, "cancellation interrupts replacement sequence copy");
+      Check (Poll_Counter.Count = 10_050,
+        "replacement sequence copy stops at configured poll threshold");
+      Check (not Math_Macros.Is_Defined (Ctx, "\pollCopy"),
+        "replacement-copy cancellation precedes definition mutation");
+      Open_Text ("q", Cur);
+      T := Math_Expander.Next (Cur, Ctx);
+      Check (T.Kind = Math_Tokens.Character_Token and then
+        T.Code_Point = Character'Pos ('q') and then
+        Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+        "fresh cursor recovers after replacement-copy cancellation");
+   end;
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\pollDefaultCopy}[1][" &
+     Long_Tokens (10_000) & "]{#1}", Cur);
+   Poll_Counter.Reset (10_050, Math_Work_Control.Cancel_Requested);
+   declare
+      Stopped : Boolean := False;
+   begin
+      begin
+         T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Stop_Requested => Stopped := True;
+      end;
+      Check (Stopped, "cancellation interrupts optional-default sequence copy");
+      Check (not Math_Macros.Is_Defined (Ctx, "\pollDefaultCopy"),
+        "default-copy cancellation cannot publish partial definition");
+      Open_Text ("q", Cur);
+      T := Math_Expander.Next (Cur, Ctx);
+      Check (T.Kind = Math_Tokens.Character_Token and then
+        T.Code_Point = Character'Pos ('q'),
+        "fresh cursor recovers after default-copy cancellation");
+   end;
+   Check_Definition_Poll
+     ("\newcommand{\pollReplacement}{", "\pollReplacement",
+      Math_Work_Control.Cancel_Requested,
+      "newcommand replacement cancellation");
+   Check_Definition_Poll
+     ("\providecommand{\pollProvide}{", "\pollProvide",
+      Math_Work_Control.Cancel_Requested,
+      "providecommand replacement cancellation");
+   Check_Definition_Poll
+     ("\newcommand{\pollReplacementDeadline}{",
+      "\pollReplacementDeadline",
+      Math_Work_Control.Deadline_Reached,
+      "newcommand replacement deadline");
+   Check_Definition_Poll
+     ("\providecommand{\pollProvideDeadline}{",
+      "\pollProvideDeadline",
+      Math_Work_Control.Deadline_Reached,
+      "providecommand replacement deadline");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\pollRenew}{old}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Open_Text ("\newcommand{\pollSentinel}{s}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Open_Text ("\renewcommand{\pollRenew}{" & Long_Tokens (10_000) & "}", Cur);
+   Poll_Counter.Reset (32, Math_Work_Control.Cancel_Requested);
+   declare
+      Stopped : Boolean := False;
+   begin
+      begin
+         T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Stop_Requested => Stopped := True;
+      end;
+      Check (Stopped, "renewcommand cancellation interrupts replacement");
+      Check (Poll_Counter.Count = 32,
+        "renewcommand stops at configured work poll threshold");
+      Check (Math_Macros.Token_Count
+        (Math_Macros.Lookup (Ctx, "\pollRenew")) = 3,
+        "renewcommand cancellation preserves prior replacement");
+      Expect_Scoped_Text ("\pollRenew", "old",
+        "renewcommand cancellation preserves prior replacement content");
+      Open_Text ("q", Cur);
+      T := Math_Expander.Next (Cur, Ctx);
+      Check (T.Kind = Math_Tokens.Character_Token and then
+        T.Code_Point = Character'Pos ('q') and then
+        Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+        "fresh cursor recovers after renewal cancellation");
+      Check (Math_Macros.Is_Defined (Ctx, "\pollSentinel"),
+        "prior global sentinel remains defined after renewal cancellation");
+      Open_Text ("\pollSentinel", Cur);
+      T := Math_Expander.Next (Cur, Ctx);
+      Check (T.Kind = Math_Tokens.Character_Token and then
+        T.Code_Point = Character'Pos ('s') and then
+        Math_Expander.Diagnostic (Cur) = Math_Expander.No_Error,
+        "prior global sentinel expands after renewal cancellation");
+   end;
+   Math_Macros.Reset (Ctx);
+   Open_Text
+     ("\newcommand{\pollRenewDefault}[1][old]{#1}", Cur);
+   loop
+      T := Math_Expander.Next (Cur, Ctx);
+      exit when T.Kind = Math_Tokens.End_Of_Input;
+   end loop;
+   Open_Text
+     ("\renewcommand{\pollRenewDefault}[1][" &
+      Long_Tokens (10_000) & "]{#1}", Cur);
+   --  The threshold identifies a cooperative poll phase, not elapsed time.
+   Poll_Counter.Reset (10_050, Math_Work_Control.Deadline_Reached);
+   declare
+      Deadline_Stopped : Boolean := False;
+      Cancellation_Stopped : Boolean := False;
+   begin
+      begin
+         T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+      exception
+         when Math_Work_Control.Deadline_Expired =>
+            Deadline_Stopped := True;
+         when Math_Work_Control.Stop_Requested =>
+            Cancellation_Stopped := True;
+      end;
+      Check (Deadline_Stopped and then not Cancellation_Stopped,
+        "renewcommand default-copy deadline is distinct from cancellation");
+      Check (Poll_Counter.Count = 10_050,
+        "renewcommand default copy stops at configured poll threshold");
+      Check (Math_Macros.Has_Optional_Default
+        (Math_Macros.Lookup (Ctx, "\pollRenewDefault")),
+        "renewcommand default-copy deadline preserves optional default");
+      Expect_Scoped_Text ("\pollRenewDefault", "old",
+        "renewcommand default-copy deadline preserves prior default content");
+   end;
+   Math_Macros.Reset (Ctx);
+   Open_Text
+     ("\newcommand{\pollSmallOptional}[1][d]{#1}", Cur);
+   Poll_Counter.Reset (100, Math_Work_Control.Cancel_Requested);
+   T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+   Check (Math_Macros.Has_Optional_Default
+     (Math_Macros.Lookup (Ctx, "\pollSmallOptional")) and then
+     Poll_Counter.Count < 100,
+     "small optional definition completes below cancellation threshold");
+   Expect_Scoped_Text ("\pollSmallOptional", "d",
+     "small optional definition default expands after completion");
+   Math_Macros.Reset (Ctx);
+   Open_Text ("\newcommand{\pollControl}{ok}", Cur);
+   Poll_Counter.Reset (100, Math_Work_Control.Cancel_Requested);
+   T := Math_Expander.Next (Cur, Ctx, Counted_Work);
+   Check (Math_Macros.Is_Defined (Ctx, "\pollControl") and then
+     Poll_Counter.Count < 100,
+     "small valid macro definition completes below cancellation threshold");
    Expect_Output ("\newcommand{\foo}[1][d]{#1}\foo", "d",
      "optional default is used when first argument is absent");
    Expect_Output ("\newcommand{\foo}[1][d]{#1}\foo[x]", "x",

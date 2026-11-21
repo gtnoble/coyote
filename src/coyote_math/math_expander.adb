@@ -1934,12 +1934,17 @@ package body Math_Expander is
                         Tok := Read_Raw (Item);
                         if Tok.Kind /= Math_Tokens.Character_Token or else Tok.Code_Point /= 93 then Failed := True; end if;
                      end if;
-                     while not Failed loop Tok := Read_Raw (Item); exit when Tok.Kind /= Math_Tokens.Space_Token; end loop;
+                     while not Failed loop
+                        Math_Work_Control.Poll (Item.Work);
+                        Tok := Read_Raw (Item);
+                        exit when Tok.Kind /= Math_Tokens.Space_Token;
+                     end loop;
                   end if;
                   if not Failed and then Tok.Kind = Math_Tokens.Character_Token and then Tok.Code_Point = 91 then
                      Has_Default := True;
                      Depth := 0;
                      loop
+                        Math_Work_Control.Poll (Item.Work);
                         Tok := Read_Raw (Item);
                         if Tok.Kind = Math_Tokens.End_Of_Input then
                            Failed := True;
@@ -1958,7 +1963,7 @@ package body Math_Expander is
                         Default.Append (Tok);
                      end loop;
                      while not Failed loop
-                     Math_Work_Control.Poll (Item.Work);
+                        Math_Work_Control.Poll (Item.Work);
                         Tok := Read_Raw (Item);
                         exit when Tok.Kind /= Math_Tokens.Space_Token;
                      end loop;
@@ -1971,6 +1976,7 @@ package body Math_Expander is
                   end if;
                   if not Failed then
                      loop
+                        Math_Work_Control.Poll (Item.Work);
                         Tok := Read_Raw (Item);
                         if Tok.Kind = Math_Tokens.End_Of_Input then Failed := True; exit;
                         elsif Tok.Kind = Math_Tokens.Left_Group then Depth := Depth + 1;
@@ -1994,23 +2000,33 @@ package body Math_Expander is
                         then Item.Status := Malformed_Definition;
                         elsif Name = "\providecommand" and Existing then null;
                         else
-                           declare Seq : Math_Macros.Token_Sequence (1 .. Natural (Rep.Length)); begin
-                              for I in Seq'Range loop Seq (I) := Rep (Positive (I)); end loop;
-                              Math_Macros.Define_Tokens (Shared, M, Params, Seq, False, D);
-                              if D = Math_Macros.No_Error and then Has_Default then
-                                 declare
-                                    Default_Seq : Math_Macros.Token_Sequence
-                                      (1 .. Natural (Default.Length));
-                                 begin
-                                    for I in Default_Seq'Range loop
-                                    Math_Work_Control.Poll (Item.Work);
-                                       Default_Seq (I) := Default (I);
-                                    end loop;
-                                    Math_Macros.Set_Optional_Default
-                                      (Shared, M, Default_Seq, D);
-                                 end;
+                           declare
+                              Seq : Math_Macros.Token_Sequence
+                                (1 .. Natural (Rep.Length));
+                              Default_Seq : Math_Macros.Token_Sequence
+                                (1 .. Natural (Default.Length));
+                           begin
+                              for I in Seq'Range loop
+                                 Math_Work_Control.Poll (Item.Work);
+                                 Seq (I) := Rep (Positive (I));
+                              end loop;
+                              for I in Default_Seq'Range loop
+                                 Math_Work_Control.Poll (Item.Work);
+                                 Default_Seq (I) := Default (I);
+                              end loop;
+                              --  Stage all pollable copies before mutation.
+                              Math_Work_Control.Poll (Item.Work);
+                              Math_Macros.Define_Tokens
+                                (Shared, M, Params, Seq, False, D);
+                              if D = Math_Macros.No_Error and then
+                                Has_Default
+                              then
+                                 Math_Macros.Set_Optional_Default
+                                   (Shared, M, Default_Seq, D);
                               end if;
-                              if D /= Math_Macros.No_Error then Item.Status := Malformed_Definition; end if;
+                              if D /= Math_Macros.No_Error then
+                                 Item.Status := Malformed_Definition;
+                              end if;
                            end;
                         end if;
                      end;

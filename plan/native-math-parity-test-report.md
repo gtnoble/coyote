@@ -7,7 +7,7 @@
 
 This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its current controlling scope is user-authorized SRS-MATH v1.1 (2026-11-15) and unchanged D01–D15; v1.0 resource-scope statements are historical, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
 
-**Current requirements pointer:** §11.18 records the v1.1 practical resource-abuse scope correction, superseding exhaustive-accounting completion gates without changing historical results. No new runtime verification is claimed.
+**Current requirements pointer:** §11.18 records the v1.1 practical resource-abuse scope correction, superseding exhaustive-accounting completion gates without changing historical results. No new runtime verification is claimed. The user-accepted maintenance policy is recorded in §11.20; it does not remove code or approve the optional ownership redesign.
 
 **Current-results pointer:** §11, “Current implementation and qualification reconciliation — 2026-11-06”, controls the present status. §§1–10 preserve historical checkpoints. §11 distinguishes the earlier documentation reconciliation from the fresh, archived accent-width implementation evidence in §11.6. Sections 11.1–11.5 retain the prior checkpoint and its unavailable-artifact limits; §11.6 supersedes the undertilde pixel disposition only within the unchanged pilot scope.
 
@@ -1720,3 +1720,74 @@ and independent desktop/AT/user acceptance. Caller-created macro scope-stack
 exhaustion is a separate unverified recovery candidate, not a source-only bypass.
 No browser/geometry/image/raster qualification rerun; no release/install/commit.
 Developer/agent review is not independent acceptance. PCR-125 remains OPEN.
+
+
+### 11.20 Accepted memory-guard maintenance policy — 2026-11-15
+
+The user accepted the proposal to stop extending fine-grained accounting,
+retain working guards rather than remove them wholesale, and simplify specific
+paths only when there is a concrete maintenance benefit. The port plan §6 is
+the governing maintenance policy; SRS-MATH v1.1 remains unchanged.
+
+Tiny nested array-rule charges and GNAT-specific exact-capacity/copy tests are
+candidates for selective simplification, not scheduled removals. Preserve
+ownership fixes (scoped references, reduced deep copies, valid borrows and safe
+finalization), structural/expansion/work/dimension guards, coarse major-buffer
+admission and known large overlaps, the 64 MiB retained-raster bound, and
+cancellation/cleanup/source fallback/recovery. Conservative estimates suffice
+for major-buffer admission; exact live-byte coverage is not the objective.
+
+Any later simplification must record its benefit and retained protection, with
+relevant boundary/rejection/cleanup/recovery regression evidence. Accounting-
+specific tests can change with the mechanism; do not weaken safety tests merely
+to obtain passes or erase historical evidence. Storage pools/retained-account
+leases require demonstrated practical need; the optional proposal has no active
+approval request and the user's acceptance does not approve that architecture.
+
+This is a documentation-only decision, not an implementation removal or a new
+runtime test result. Numerical budgets, timing targets, compatibility and
+D01–D15 are unchanged. Known failures and open qualification gates remain;
+developer documentation self-review is not independent product acceptance.
+PCR-125 remains OPEN; no release/install/commit.
+
+
+### 11.21 Scope admission and cancellable macro capture — 2026-11-15
+
+This increment implements practical rejection/recovery, not more memory
+accounting. `End_Group` clears `Scope_Limit` only after successful undo/pop;
+`Unbalanced_Group` stays sticky. Parser entry and all nested pushes check scope
+admission immediately, before empty-input success or further expansion. This
+fixes empty Ready and gdef side effects after failed admission. Caller scopes
+are preserved; Global_Group still skips the root push, and global definitions
+executed before a later genuine parse error retain their specified effects.
+
+`newcommand`/`renewcommand`/`providecommand` capture/copy loops now poll.
+Replacement and optional-default token staging precede a final precommit poll,
+so cancellation during staging cannot leave a partial new/replacement definition.
+This does not make allocation exceptions transactional or preempt native calls.
+No budgets, new shared-context admission caps or public signatures changed.
+
+Final engine216/216 twice, macros873/873 twice, worker279/279, parser719/719;
+root/test development builds pass, warnings remain. Full Xvfb1076/1076, zero
+failures/errors,146.169067s cumulative/146.33s elapsed. GTK9/9, runner containment
+and offline HTTP lifecycle pass. Engine Valgrind216 assertions has zero errors/
+lost bytes,216713 reachable with documented4MiB frame classification threshold.
+Whole-macro Valgrind was terminated by the180s outer batch during an existing
+large-definition fixture before new cases; INCOMPLETE, not a pass. No raster/
+image/browser/geometry/fuzz qualification rerun; prior native losses remain open.
+
+Evidence:`plan/evidence/native-math-2026-11-15-scope-cancellation/`. Evolving
+pre-fix probes record187/4 scope,189/2 entry,800/8 polling and857/2 default-copy
+failures; macro counts include a failing final summary check. These are not
+byte-identical final-probe baselines. An intermediate211/1 CD assertion wrongly
+expected rollback of an already executed leading gdef; final tests distinguish
+pre-admission failure from legitimate earlier assignment. Failed log preserved.
+Read-only source review finds no blocking defect; developer/agent evaluation is
+not independent acceptance. Prior scope-stack candidate is resolved within this
+caller-created-stack domain, not claimed as a fresh-source nesting bypass.
+
+Persistent global definitions across a shared context can accumulate tokens
+across requests; no new aggregate cap selected. New cap/policy needs requirements
+review; RD-CTX-01 remains unauthorized. Wider pathological/GUI/timing coverage,
+font/native lifecycle/full compatibility and human acceptance remain OPEN.
+PCR-125 OPEN; no release/install/commit.

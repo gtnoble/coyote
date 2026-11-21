@@ -1,0 +1,2 @@
+FAIL caller-depth-254 root-environment-plus-CD row rolls back nested gdef
+ASSERTIONS 211 failures= 1

@@ -1,0 +1,13 @@
+Logs: /tmp/gtk-interactions-awx47w82
+PASS plain: /tmp/gtk-interactions-awx47w82/01-plain.log
+PASS unicode: /tmp/gtk-interactions-awx47w82/02-unicode.log
+PASS bidi: /tmp/gtk-interactions-awx47w82/03-bidi.log
+PASS inline-math: /tmp/gtk-interactions-awx47w82/04-inline-math.log
+PASS multiline: /tmp/gtk-interactions-awx47w82/05-multiline.log
+PASS plain: /tmp/gtk-interactions-awx47w82/06-plain.log
+PASS link-click: /tmp/gtk-interactions-awx47w82/07-link-click.log
+PASS link-hover: /tmp/gtk-interactions-awx47w82/08-link-hover.log
+PASS math-boundary: /tmp/gtk-interactions-awx47w82/09-math-boundary.log
+Summary: 9/9 passed
+exit_status=0
+line_count=12

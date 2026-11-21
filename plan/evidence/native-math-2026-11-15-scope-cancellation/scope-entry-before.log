@@ -1,0 +1,3 @@
+FAIL full-scope empty parse rejects failed scope admission
+FAIL failed scope admission prevents global expansion side effects
+ASSERTIONS 189 failures= 2

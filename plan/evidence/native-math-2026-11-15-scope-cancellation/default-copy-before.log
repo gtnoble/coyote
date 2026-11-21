@@ -1,0 +1,858 @@
+ok expander loop polls cancellation
+ok fresh Open ignores the cursor's canceled prior context
+ok source constructed
+ok source lexed
+ok \def parses successfully
+ok \def installs name
+ok \def records one parameter
+ok replacement stores parameter marker and digit
+ok source constructed
+ok source lexed
+ok single argument substituted
+ok peek observes EOF without consuming
+ok empty input EOF
+ok source constructed
+ok source lexed
+ok substituted argument retains invocation provenance
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok unicode actual argument retains exact invocation span
+ok source constructed
+ok source lexed
+ok multi-token prefix matches actual tokens and expands its argument
+ok source constructed
+ok source lexed
+ok mismatched prefix is diagnosed
+ok source constructed
+ok source lexed
+ok EOF in prefix is diagnosed
+ok source constructed
+ok source lexed
+ok let preserves prefix metadata
+ok source constructed
+ok source lexed
+ok comma and semicolon delimit two raw arguments
+ok source constructed
+ok source lexed
+ok grouped comma is data and complete outer group is stripped
+ok source constructed
+ok source lexed
+ok multitoken literal delimiter ends argument
+ok source constructed
+ok source lexed
+ok literal delimiter followed by brace matches and reinserts opener
+ok source constructed
+ok source lexed
+ok group resets partial delimiter before matching outer brace
+ok source constructed
+ok source lexed
+ok overlapping delimiter prefixes use linear fallback matching
+ok source constructed
+ok source lexed
+ok grouped tokens reset delimiter matching and remain argument data
+ok source constructed
+ok source lexed
+ok trailing parameter hash reinserts consumed opening brace
+ok source constructed
+ok source lexed
+ok brace delimiter matches before nested groups and preserves provenance
+ok source constructed
+ok source lexed
+ok brace delimiter follows matched literal prefix
+ok source constructed
+ok source lexed
+ok let alias preserves brace delimiter and inserted replacement opener
+ok source constructed
+ok source lexed
+ok later definitions preserve brace delimiter metadata
+ok source constructed
+ok source lexed
+ok zero-parameter special hash brace is matched as a prefix
+ok source constructed
+ok source lexed
+ok multi-token prefix matches actual tokens and expands its argument
+ok source constructed
+ok source lexed
+ok leading spaces are matched as part of the delimiter
+ok source constructed
+ok source lexed
+ok a trailing parameter delimiter is accepted
+ok source constructed
+ok source lexed
+ok special brace definition consumes no expansion budget
+ok source constructed
+ok source lexed
+ok EOF before special brace delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok EOF after literal prefix before brace delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok edef preserves parameter delimiter metadata
+ok source constructed
+ok source lexed
+ok xdef preserves parameter delimiter metadata
+ok source constructed
+ok source lexed
+ok control token delimiter matches by token identity
+ok source constructed
+ok source lexed
+ok prefix and delimiter are both consumed
+ok source constructed
+ok source lexed
+ok adjacent delimiters capture empty arguments
+ok source constructed
+ok source lexed
+ok let copies delimiter metadata
+ok source constructed
+ok source lexed
+ok global definition accepts actual delimiters
+ok source constructed
+ok source lexed
+ok scoped delimiter definition parses
+ok scoped delimiter definition unwinds with definition
+ok source constructed
+ok source lexed
+ok EOF before delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok unbalanced group before delimiter is diagnosed
+ok source constructed
+ok source lexed
+ok delimited raw argument respects shared token ceiling
+ok source constructed
+ok source lexed
+ok nested macro expands within max-expand
+ok source constructed
+ok source lexed
+ok nested macro expansions exceed max-expand one
+ok source constructed
+ok source lexed
+ok two sequential parameters parsed
+ok source constructed
+ok source lexed
+ok parameter nine is accepted
+ok source constructed
+ok source lexed
+ok ninth argument substituted
+ok source constructed
+ok source lexed
+ok first reordered argument
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok nested argument replacement prefix
+ok nested argument opening brace retained
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok nested control words resolve from owned lexemes
+ok unicode literal retains definition span and stamps invocation span
+ok nested definition closes after cross-source expansion
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok inner shadow visible
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok inner scope restores enclosing shadow
+ok source constructed
+ok source lexed
+ok outer scope restores original definition
+ok source constructed
+ok source lexed
+ok local definition visible in group
+ok local definition restored
+ok source constructed
+ok source lexed
+ok nested global survives unwinds
+ok source constructed
+ok source lexed
+ok shadow definition parsed
+ok source constructed
+ok source lexed
+ok definition replaces prior binding
+ok source constructed
+ok source lexed
+ok undefined control word does not error
+ok undefined control word passes through
+ok source constructed
+ok source lexed
+ok global error macro definition persists
+ok source constructed
+ok source lexed
+ok persisted macro keeps raw definition bytes and invocation bounds
+ok persisted macro expansion reaches EOF
+ok source constructed
+ok source lexed
+ok reused global macro retains current invocation provenance
+ok reused macro expansion reaches EOF
+ok source constructed
+ok source lexed
+ok lexer-consumed spaces do not corrupt names
+ok source constructed
+ok source lexed
+ok peek returns next token
+ok peek does not consume token
+ok source constructed
+ok source lexed
+ok one-token suppression bypasses macro expansion
+ok source constructed
+ok source lexed
+ok pushback replays prior token
+ok source constructed
+ok source lexed
+ok initial token stream over ceiling is diagnosed during Open
+ok source constructed
+ok source lexed
+ok nonsequential parameter is rejected
+ok source constructed
+ok source lexed
+ok unterminated replacement is rejected
+ok source constructed
+ok source lexed
+ok missing argument reported
+ok source constructed
+ok source lexed
+ok recursive expansion bounded
+ok recursive budget diagnostic stable after exhaustion
+ok source constructed
+ok source lexed
+ok unsupported doubled parameter marker is malformed, not an exception
+ok source constructed
+ok source lexed
+ok 10,000-step recursive expansion budget terminates without stack growth
+ok 10,000-link single-chain expansion completes without stack growth
+ok sequential definitions reach configured bound
+ok definitions beyond configured bound report resource limit
+ok context diagnostic accessor remains clear for rejected definition
+ok source constructed
+ok source lexed
+ok limit allows configured expansion
+ok one expansion terminates at EOF
+ok source constructed
+ok source lexed
+ok expanded token queue enforces token ceiling
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok balanced argument scanning succeeds
+ok balanced argument retains inner braces and tokens
+ok scope operations remain defined
+ok reset clears definitions and scopes
+ok invalid slice rejected without mutation
+ok source constructed
+ok source lexed
+ok newcommand braced name expands
+ok source constructed
+ok source lexed
+ok newcommand control-word name expands
+ok source constructed
+ok source lexed
+ok newcommand accepts explicit zero arguments
+ok source constructed
+ok source lexed
+ok newcommand substitutes one argument
+ok source constructed
+ok source lexed
+ok newcommand reorders two arguments
+ok source constructed
+ok source lexed
+ok newcommand accepts nine arguments
+ok source constructed
+ok source lexed
+ok providecommand defines absent macro
+ok source constructed
+ok source lexed
+ok ifstar selects starred branch and preserves lookahead
+ok source constructed
+ok source lexed
+ok ifstar selects unstarred branch and preserves its lookahead
+ok source constructed
+ok source lexed
+ok ifstar preserves the star token for following input
+ok source constructed
+ok source lexed
+ok ifstar selects unstarred branch at end of input
+ok source constructed
+ok source lexed
+ok ifnextchar selects matching character and preserves it
+ok source constructed
+ok source lexed
+ok ifnextchar selects nonmatch and preserves token
+ok source constructed
+ok source lexed
+ok ifnextchar preserves exact control-token identity
+ok source constructed
+ok source lexed
+ok ifnextchar preserves exact character-token identity
+ok source constructed
+ok source lexed
+ok ifnextchar selects nonmatch at end of input
+ok source constructed
+ok source lexed
+ok ifnextchar does not treat a group as a matching character
+ok source constructed
+ok source lexed
+ok firstoftwo leaves unchosen definition inert
+ok unselected conditional branch has no definition side effect
+ok source constructed
+ok source lexed
+ok secondoftwo skips nested unchosen group
+ok source constructed
+ok source lexed
+ok noexpand returns its token without expanding it
+ok source constructed
+ok source lexed
+ok let copies a primitive control token alias
+ok source constructed
+ok source lexed
+ok expandafter processes second macro before first macro
+ok source constructed
+ok source lexed
+ok providecommand preserves existing binding
+ok source constructed
+ok source lexed
+ok renewcommand replaces existing binding
+ok source constructed
+ok source lexed
+ok let alias freezes prior replacement
+ok source constructed
+ok source lexed
+ok let alias copies parameter count
+ok source constructed
+ok source lexed
+ok let source remains callable
+ok source constructed
+ok source lexed
+ok global def installs macro
+ok source constructed
+ok source lexed
+ok global let snapshots a definition
+ok source constructed
+ok source lexed
+ok global let aliases an undefined control token
+ok source constructed
+ok source lexed
+ok futurelet aliases second lookahead and replays both tokens
+ok internal input lexed
+ok internal globalfuture handles raw lookahead input
+ok internal globalfuture binding is globally defined
+ok internal input lexed
+ok internal globalfuture executes in nested scopes
+ok internal globalfuture survives nested scope unwinds
+ok internal input lexed
+ok internal globallet installs a global control-token alias
+ok internal globallet binding is available to subsequent input
+ok internal input lexed
+ok internal globallet executes inside nested scopes
+ok internal globallet survives all nested scope unwinds
+ok source constructed
+ok source lexed
+ok long prefix accepts def using bounded macro semantics
+ok source constructed
+ok source lexed
+ok standalone long prefix accepts a local grouped definition
+ok standalone long definition is visible in its group
+ok standalone long definition is removed at group end
+ok source constructed
+ok source lexed
+ok long prefix leaves a local def in its current group
+ok standalone long definition unwinds with its group
+ok source constructed
+ok source lexed
+ok global-long prefix chain maps to global definition
+ok global-long definition survives scope unwind
+ok source constructed
+ok source lexed
+ok long-global prefix order forwards to global assignment
+ok long-global definition survives scope unwind
+ok source constructed
+ok source lexed
+ok global prefix converts long to the global-long sentinel repeatedly
+ok repeated global-long prefix remains global
+ok source constructed
+ok source lexed
+ok standalone long edef remains local
+ok standalone long edef unwinds with its group
+ok source constructed
+ok source lexed
+ok xdef remains global independently of long
+ok xdef remains global after group unwind
+ok source constructed
+ok source lexed
+ok standalone long let remains local and snapshots its alias
+ok standalone long let unwinds with its group
+ok source constructed
+ok source lexed
+ok standalone long futurelet remains local and replays lookahead
+ok standalone long futurelet unwinds with its group
+ok source constructed
+ok source lexed
+ok long prefix rejects unsupported assignment operand
+ok source constructed
+ok source lexed
+ok long prefix rejects non-control operand
+ok source constructed
+ok source lexed
+ok newcommand and renewcommand shadow
+ok source constructed
+ok source lexed
+ok declarations coexist
+ok source constructed
+ok source lexed
+ok replacement literals and parameters expand
+ok source constructed
+ok source lexed
+ok expanded definition directives execute
+ok source constructed
+ok source lexed
+ok let accepts optional equals
+ok source constructed
+ok source lexed
+ok provide existing branch has no output
+ok source constructed
+ok source lexed
+ok renew identical body succeeds
+ok source constructed
+ok source lexed
+ok zero parameter invocation works
+ok source constructed
+ok source lexed
+ok parameter may be duplicated
+ok source constructed
+ok source lexed
+ok let copies an alias snapshot
+ok source constructed
+ok source lexed
+ok newcommand rejects duplicate declaration
+ok source constructed
+ok source lexed
+ok renewcommand rejects missing declaration
+ok source constructed
+ok source lexed
+ok argument count above nine rejected
+ok source constructed
+ok source lexed
+ok deadline interrupts optional default capture
+ok optional default stops at configured work poll threshold
+ok optional-default deadline leaves target undefined
+ok source constructed
+ok source lexed
+ok cancellation interrupts optional default capture
+ok optional-default cancellation stops at configured poll threshold
+ok optional-default cancellation leaves target undefined
+ok source constructed
+ok source lexed
+ok fresh cursor recovers after optional-default cancellation
+ok source constructed
+ok source lexed
+ok cancellation interrupts replacement sequence copy
+ok replacement sequence copy stops at configured poll threshold
+ok replacement-copy cancellation precedes definition mutation
+ok source constructed
+ok source lexed
+ok fresh cursor recovers after replacement-copy cancellation
+ok source constructed
+ok source lexed
+ok cancellation interrupts optional-default sequence copy
+FAIL default-copy cancellation cannot publish partial definition
+ok source constructed
+ok source lexed
+ok fresh cursor recovers after default-copy cancellation
+ok source constructed
+ok source lexed
+ok newcommand replacement cancellation interrupts capture
+ok newcommand replacement cancellation stops at configured work poll threshold
+ok newcommand replacement cancellation leaves target undefined before commit
+ok source constructed
+ok source lexed
+ok newcommand replacement cancellation permits fresh-cursor expansion after stop
+ok source constructed
+ok source lexed
+ok providecommand replacement cancellation interrupts capture
+ok providecommand replacement cancellation stops at configured work poll threshold
+ok providecommand replacement cancellation leaves target undefined before commit
+ok source constructed
+ok source lexed
+ok providecommand replacement cancellation permits fresh-cursor expansion after stop
+ok source constructed
+ok source lexed
+ok newcommand replacement deadline interrupts capture
+ok newcommand replacement deadline stops at configured work poll threshold
+ok newcommand replacement deadline leaves target undefined before commit
+ok source constructed
+ok source lexed
+ok newcommand replacement deadline permits fresh-cursor expansion after stop
+ok source constructed
+ok source lexed
+ok providecommand replacement deadline interrupts capture
+ok providecommand replacement deadline stops at configured work poll threshold
+ok providecommand replacement deadline leaves target undefined before commit
+ok source constructed
+ok source lexed
+ok providecommand replacement deadline permits fresh-cursor expansion after stop
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok source constructed
+ok source lexed
+ok renewcommand cancellation interrupts replacement
+ok renewcommand stops at configured work poll threshold
+ok renewcommand cancellation preserves prior replacement
+ok source constructed
+ok source lexed
+ok renewcommand cancellation preserves prior replacement content
+ok source constructed
+ok source lexed
+ok fresh cursor recovers after renewal cancellation
+ok prior global sentinel remains defined after renewal cancellation
+ok source constructed
+ok source lexed
+ok prior global sentinel expands after renewal cancellation
+ok source constructed
+ok source lexed
+ok small valid macro definition completes below cancellation threshold
+ok source constructed
+ok source lexed
+ok optional default is used when first argument is absent
+ok source constructed
+ok source lexed
+ok optional bracket argument overrides default
+ok source constructed
+ok source lexed
+ok optional argument closing bracket inside braces is data
+ok source constructed
+ok source lexed
+ok optional default leaves following required arguments available
+ok source constructed
+ok source lexed
+ok grouped optional default preserves its opening brace
+ok grouped optional default preserves content
+ok source constructed
+ok source lexed
+ok unterminated optional default is rejected
+ok source constructed
+ok source lexed
+ok out-of-range parameter rejected
+ok source constructed
+ok source lexed
+ok local declarations and let aliases unwind
+ok reset clears scope error status and definitions
+ok source constructed
+ok source lexed
+ok let snapshots an undefined control token
+ok source constructed
+ok source lexed
+ok edef expands replacement when definition is made
+ok source constructed
+ok source lexed
+ok xdef expands and globally stores replacement
+ok source constructed
+ok source lexed
+ok edef preserves unexpandable control words in replacement
+ok source constructed
+ok source lexed
+ok edef does not execute assignment in its replacement
+ok source constructed
+ok source lexed
+ok deferred edef assignment executes only when invoked
+ok source constructed
+ok source lexed
+ok builtin newline expands to literal control-symbol linebreak
+ok builtin newline retains relax lookahead barrier
+ok builtin newline leaves optional-looking bracket literal
+ok newline suffix dot retained
+ok newline suffix digit retained
+ok newline suffix unit retained
+ok newline suffix unit fully retained
+ok builtin newline leaves closing bracket literal
+ok newline token sequence terminates without diagnostics
+ok source constructed
+ok source lexed
+ok user newline definition overrides builtin expansion
+ok source constructed
+ok source lexed
+ok xdef does not execute global assignment in its replacement
+ok source constructed
+ok source lexed
+ok multiple edef temporaries share parent expansion budget
+ok source constructed
+ok source lexed
+ok recursive edef expansion remains bounded
+ok source constructed
+ok source lexed
+ok noexpand accepts an undefined control token
+ok builtin equivalence alias is registered
+ok builtin implication alias is registered
+ok builtin inequality alias is registered
+ok builtin inequality target is registered
+ok builtin lookup preserves exact UTF-8 template bytes
+ok parameterized builtin arity is derived around escaped hashes
+ok zero-argument builtin arity is derived
+ok callable builtin is intentionally excluded
+ok copyright builtin contains its mode-selected template branches
+ok source constructed
+ok source lexed
+ok char parses decimal code point
+ok source constructed
+ok source lexed
+ok char parses hexadecimal code point
+ok source constructed
+ok source lexed
+ok char parses octal code point
+ok source constructed
+ok source lexed
+ok char parses quoted character
+ok source constructed
+ok source lexed
+ok char quoted control word uses its first name character
+ok source constructed
+ok source lexed
+ok char accepts code point zero
+ok source constructed
+ok source lexed
+ok char preserves numeric surrogate code points
+ok source constructed
+ok source lexed
+ok char rejects KaTeX exclusive maximum code point
+ok source constructed
+ok source lexed
+ok char rejects values above Unicode maximum
+ok source constructed
+ok source lexed
+ok char rejects out-of-range Unicode scalar
+ok source constructed
+ok source lexed
+ok dots uses its glyph lexeme after binary-operator lookahead
+ok dots preserves its unexpanded lookahead token
+ok source constructed
+ok source lexed
+ok TextOrMath selects its text argument in regular mode
+ok source constructed
+ok source lexed
+ok TextOrMath selects its math argument outside regular mode
+ok source constructed
+ok source lexed
+ok TextOrMath argument scanning respects the token ceiling
+ok source constructed
+ok source lexed
+ok dots uses ellipsis for ordinary math symbols
+ok source constructed
+ok source lexed
+ok TextOrMath selects its text argument in regular mode
+ok source constructed
+ok source lexed
+ok TextOrMath selects its math argument outside regular mode
+ok source constructed
+ok source lexed
+ok cdots emits the centered ellipsis glyph
+ok source constructed
+ok source lexed
+ok dots classifies punctuation as standard ellipsis
+ok source constructed
+ok source lexed
+ok dotso emits standard ellipsis
+ok source constructed
+ok source lexed
+ok dotsc emits standard ellipsis
+ok source constructed
+ok source lexed
+ok dotsb emits centered ellipsis
+ok source constructed
+ok source lexed
+ok dotsi emits centered ellipsis
+ok source constructed
+ok source lexed
+ok dotsm emits centered ellipsis
+ok source constructed
+ok source lexed
+ok dotsx emits standard ellipsis
+ok source constructed
+ok source lexed
+ok message consumes its argument without output tokens
+ok source constructed
+ok source lexed
+ok errmessage consumes balanced argument without output tokens
+ok source constructed
+ok source lexed
+ok show consumes one token without output tokens
+ok source constructed
+ok source lexed
+ok message is available from cursor diagnostics
+ok single primitive message has one owned history record
+ok indexed diagnostic matches compatibility accessor
+ok source constructed
+ok source lexed
+ok opening cursor clears prior message history
+ok source constructed
+ok source lexed
+ok errmessage records error severity and text
+ok single primitive message has one owned history record
+ok indexed diagnostic matches compatibility accessor
+ok source constructed
+ok source lexed
+ok opening cursor clears prior message history
+ok source constructed
+ok source lexed
+ok show preserves token detail in diagnostics
+ok single primitive message has one owned history record
+ok indexed diagnostic matches compatibility accessor
+ok source constructed
+ok source lexed
+ok opening cursor clears prior message history
+ok unknown macro is absent from builtin table
+ok unregistered arrow alias remains absent
+ok raw tilde expands to its active builtin
+ok source constructed
+ok source lexed
+ok synthetic char tilde remains literal rather than active
+ok source constructed
+ok source lexed
+ok noexpand preserves a raw Unicode builtin token
+ok source constructed
+ok source lexed
+ok raw Unicode macro expansion retains multibyte invocation provenance
+ok raw Unicode © matches builtin expansion
+ok raw Unicode ® matches builtin expansion
+ok raw FE0F matches its pinned builtin expansion
+ok FE0F builtin template is the pinned textregistered alias
+ok source constructed
+ok source lexed
+ok synthetic char FE0F remains a character and is not a raw macro key
+ok raw Unicode · matches builtin expansion
+ok raw Unicode ‼ matches builtin expansion
+ok raw Unicode ℋ matches builtin expansion
+ok raw Unicode ℌ matches builtin expansion
+ok raw Unicode ℐ matches builtin expansion
+ok raw Unicode ℒ matches builtin expansion
+ok raw Unicode ℛ matches builtin expansion
+ok raw Unicode ℨ matches builtin expansion
+ok raw Unicode ℬ matches builtin expansion
+ok raw Unicode ℭ matches builtin expansion
+ok raw Unicode ℰ matches builtin expansion
+ok raw Unicode ℱ matches builtin expansion
+ok raw Unicode ℳ matches builtin expansion
+ok raw Unicode ∌ matches builtin expansion
+ok raw Unicode ∷ matches builtin expansion
+ok raw Unicode ∹ matches builtin expansion
+ok raw Unicode ≔ matches builtin expansion
+ok raw Unicode ≕ matches builtin expansion
+ok raw Unicode ≘ matches builtin expansion
+ok raw Unicode ≙ matches builtin expansion
+ok raw Unicode ≚ matches builtin expansion
+ok raw Unicode ≛ matches builtin expansion
+ok raw Unicode ≝ matches builtin expansion
+ok raw Unicode ≞ matches builtin expansion
+ok raw Unicode ≟ matches builtin expansion
+ok raw Unicode ⋮ matches builtin expansion
+ok raw Unicode ⌜ matches builtin expansion
+ok raw Unicode ⌝ matches builtin expansion
+ok raw Unicode ⌞ matches builtin expansion
+ok raw Unicode ⌟ matches builtin expansion
+ok raw Unicode ⟂ matches builtin expansion
+ok raw Unicode ⟦ matches builtin expansion
+ok raw Unicode ⟧ matches builtin expansion
+ok raw Unicode ⦃ matches builtin expansion
+ok raw Unicode ⦄ matches builtin expansion
+ok raw Unicode ⦵ matches builtin expansion
+ok raw Unicode ⩴ matches builtin expansion
+ok source constructed
+ok source lexed
+ok parameterized builtin expands without diagnostics
+ok parameterized builtin never registers in context
+ok source constructed
+ok source lexed
+ok builtin #1 marker substitutes argument text
+ok builtin expansion does not mutate user macro context
+ok source constructed
+ok source lexed
+ok zero-argument builtin expands without diagnostics
+ok zero-argument expansion does not install definitions
+ok source constructed
+ok source lexed
+ok newcommand rejects builtin name
+ok source constructed
+ok source lexed
+ok renewcommand overrides builtin
+ok user override is the only context definition
+ok source constructed
+ok source lexed
+ok def overrides builtin
+ok def override remains user-owned
+ok source constructed
+ok source lexed
+ok newcommand recognizes builtin name
+ok builtin names are never preloaded into shared context
+ok source constructed
+ok source lexed
+ok renewcommand recognizes math-symbol names
+ok renewcommand stores math-symbol override in user context
+ok source constructed
+ok source lexed
+ok newcommand rejects existing math-symbol name
+ok source constructed
+ok source lexed
+ok renewcommand recognizes registered function name
+ok source constructed
+ok source lexed
+ok newcommand rejects registered function name
+ok source constructed
+ok source lexed
+ok renewcommand rejects unknown name
+ok source constructed
+ok source lexed
+ok newcommand accepts unknown name
+ok source constructed
+ok source lexed
+ok bra-ket custom middle binding expands character token stream
+ok source constructed
+ok source lexed
+ok bra-ket double middle binding consumes the pair once
+ok source constructed
+ok source lexed
+ok bra-set applies its middle binding to only the first bar
+ok source constructed
+ok source lexed
+ok nested grouping preserves braces and inherits the binding
+ok source constructed
+ok source lexed
+ok a macro-produced bar triggers the helper binding
+ok source constructed
+ok source lexed
+ok helper binding scope ends before following bar
+ok source constructed
+ok source lexed
+ok user definition of helper takes precedence
+ok source constructed
+ok source lexed
+ok empty double-middle argument leaves single binding functional
+ok source constructed
+ok source lexed
+ok nested token groups retain visible group delimiters
+ok source constructed
+ok source lexed
+ok nested helper inherits scoped binding and restores outer binding
+ok source constructed
+ok source lexed
+ok malformed helper argument reports failure
+ok source constructed
+ok source lexed
+ok malformed helper does not leak cursor bar binding
+ok source constructed
+ok source lexed
+ok helper and nested expansion share configured expansion budget
+ok source constructed
+ok source lexed
+ok helper expansion completes at the exact minimum budget
+FAIL all prior checks passed
+Checks: 857 Failures: 2

@@ -75,6 +75,15 @@ package body Math_Syntax is
       raise Parse_Failure;
    end Fail;
 
+   procedure Push_Group (State : in out Parser_State) is
+   begin
+      Math_Macros.Begin_Group (State.Shared.all);
+      if Math_Macros.Diagnostic (State.Shared.all) /= Math_Macros.No_Error then
+         Fail (State, "macro scope error");
+      end if;
+   end Push_Group;
+
+
    function Peek (State : Parser_State) return Character is
       Text : constant String := To_String (State.Current.Lexeme);
    begin
@@ -1317,7 +1326,7 @@ package body Math_Syntax is
                   if Peek (State) /= '}' or else Length (Env_Name) = 0 then
                      Fail (State, "invalid environment name", Start);
                   end if;
-                  Math_Macros.Begin_Group (State.Shared.all);
+                  Push_Group (State);
                   Advance (State);
                   declare
                      Result : constant Node_Id :=
@@ -3101,7 +3110,7 @@ package body Math_Syntax is
       end if;
       loop
          Math_Work_Control.Poll (State.Work);
-         Math_Macros.Begin_Group (State.Shared.all);
+         Push_Group (State);
          declare
             Parsed : constant Node_Id := Parse_Expression
               (State, False, "CD", Stop_Separators => True);
@@ -3157,7 +3166,7 @@ package body Math_Syntax is
             Old_Font : constant Font_Kind := State.Font_Mode;
             Old_Has_Font : constant Boolean := State.Has_Font_Mode;
          begin
-            Math_Macros.Begin_Group (State.Shared.all);
+            Push_Group (State);
             Advance (State);
             Result := Parse_Expression (State, True, "", False);
             if Peek (State) /= '}' then
@@ -3604,11 +3613,14 @@ package body Math_Syntax is
       Math_Expander.Open
         (Tokens, State.Cursor, Max_Expand => Settings.Max_Expand,
          Work => Work);
-      if not Global_Group then
-         Math_Macros.Begin_Group (Shared.all);
-      end if;
       begin
-
+         --  Scope admission must precede expansion, even for empty input.
+         if Math_Macros.Diagnostic (Shared.all) /= Math_Macros.No_Error then
+            Fail (State, "macro scope error");
+         end if;
+         if not Global_Group then
+            Push_Group (State);
+         end if;
          if Source'Length = 0 then
             State.Current := (Kind => Math_Tokens.End_Of_Input, others => <>);
             State.Item.Root_Id := Add

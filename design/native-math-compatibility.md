@@ -1,11 +1,11 @@
 # Native math compatibility design — SDD-MATH
 
 **Component:** coyote shared math engine and GTK presentation
-**Version:** 0.9
-**Date:** 2026-11-06
+**Version:** 0.10
+**Date:** 2026-11-15
 **Change:** PCR-125
-**Status:** User-approved design v0.3 and execution basis; this document is a v0.9 status revision dated 2026-11-06, not a new approval. Implementation is partial and qualification incomplete.
-**Requirements:** `requirements/native-math-compatibility.md` v1.0 (approved)
+**Status:** User-approved design v0.3 and execution basis; this status revision records the user-accepted selective-simplification policy, not approval of the optional ownership redesign. Implementation and qualification remain incomplete.
+**Requirements:** `requirements/native-math-compatibility.md` v1.1 (current)
 
 ## Contents
 
@@ -28,17 +28,21 @@ compatibility result or product acceptance. The approved target is KaTeX 0.16.22
 core mathematical behavior in the finite native/untrusted profile, with
 individually approved D01–D15 deviations. General trusted browser/API behavior
 is not silently reintroduced. Requirements resource budgets are normative
-targets; whole-job allocator/memory instrumentation, visual calibration and
-final test readiness remain open. The current project is NOT COMPLETE.
-Implemented source ledgers and deadline checks do not bound all REQ-MATH-010
-allocations or preempt blocking native calls. Do not wait for another P1
-approval to continue the already approved execution, do not mark P1–P6 complete,
+targets. Practical guard coverage, visual calibration and final test readiness
+remain open. Exhaustive whole-job allocation/RSS accounting is not required.
+The current project is NOT COMPLETE. Coarse admission and deadline checks do
+not bound every allocation or preempt blocking native calls. The accepted
+memory-guard maintenance policy in `plan/native-math-parity-plan.md` §6 applies:
+keep working guards, stop extending fine-grained accounting, simplify only for
+concrete maintenance benefit, and preserve ownership/safety corrections.
+Do not wait for another P1 approval to continue the already approved execution,
+do not mark P1–P6 complete,
 and do not claim full KaTeX parity or acceptance. Current results and open blockers are recorded in
 coordinator-owned §11 of `plan/native-math-parity-test-report.md`; §10 and
 earlier sections are historical.
 
 References: SRS-MATH above; `design/coyote-design.md`; approved
-`plan/native-math-parity-plan.md` v0.9; updated combined STP/STD v0.9
+`plan/native-math-parity-plan.md` v0.11; updated combined STP/STD v0.11
 (readiness review and approval open): `plan/native-math-compatibility-tests.md`;
 generated pinned inventory;
 
@@ -330,37 +334,36 @@ acceptance or permit dropped content. Composite/update batches are time-sliced.
 
 ## 5. Resources, scheduling, and security
 
-Use checked capacities and IDs, bounded arenas for tokens/nodes/journals and draw
-payload, and charged surface stride × height. Container growth must charge new
-capacity while old storage still exists, then release old charge; estimates of
-logical length alone are insufficient. Native temporary buffers and Pango/Cairo
-objects are charged conservatively and checked against isolated peak RSS during
-qualification. Font caches/source retention are reported separately as required;
-this is not permission to hide per-job buffers there. Shared contexts have an additional process-wide retained-storage ledger:
-propose at most 16 live explicit contexts and 64 MiB total context/snapshot/
-journal retention, with ≤4 MiB committed definitions per context and the SRS
-token/node ceilings. These are **proposed additional shared-context admission boundaries**, not
-approved SRS limits or reasons to reject an approved in-domain request. Decision
-RD-CTX-01 must be explicitly dispositioned at requirements review before P3
-shared-context implementation: approve the caps and resource-rejection behavior
-as a bounded-context requirement, or redesign admission without narrowing
-REQ-MATH-003. Design approval alone does not authorize those rejections. P1
-exports and measurements do not depend on selecting these values. Before cloning/staging a shared context reserve
-both the job and global retained-storage charges; in-flight copies count in
-both ledgers where applicable, not just logical committed bytes. If RD-CTX-01 is approved, reject new
-contexts/requests explicitly on capacity exhaustion; never evict live definitions
-silently. Reset releases definitions after outstanding handles drain; destruction
-invalidates epochs/cancels queued work and releases storage after worker tickets
-return. Completed contexts remain charged until explicit release/session teardown;
-no hidden process-global macro cache. All charged ownership transfers and old
-snapshot reclamation are tested at exhaustion and teardown. Native allocator/
-font-cache measurements still need qualification; ledger values are not RSS.
+Use checked sizes, bounded source/expansion/structural/work limits and coarse
+pre-admission estimates for tracked major workspace/output buffers and known
+large overlaps. Raster estimates use actual stride × height where available.
+Document guard coverage and exclusions; RSS characterization is diagnostic,
+not a 256 MiB pass/fail oracle. Do not require per-container growth, tiny nested
+payload or native-object accounting merely for completeness. Existing scoped
+reservations may remain; selectively simplify them only with a concrete
+maintenance benefit and relevant rejection/cleanup/recovery regression checks.
+Preserve scoped references, reduced deep copies and safe lifetime/finalization
+ordering independently of accounting. No wholesale removal is planned.
+
+Shared-context caps (RD-CTX-01: 16 contexts, 4 MiB committed definitions each,
+64 MiB aggregate context/snapshot/journal retention) remain unapproved proposals,
+not requirements or grounds to reject an approved in-domain request. Any such
+new caps require a separate requirements disposition; otherwise admission must
+preserve REQ-MATH-003. Dual job/context ledgers and exact snapshot-copy charges
+are optional historical design approaches, not prerequisite implementation work.
+Regardless of accounting, never silently evict live definitions; reset/teardown
+must respect outstanding owners and worker tickets, invalidate stale work and
+release partial products safely. No hidden process-global macro state is allowed.
+Storage pools or retained-account leases need demonstrated practical benefit
+before new design work; no such migration is selected by this revision.
 
 Job caps are the SRS values, not current constants: source 65536 bytes, emitted
 tokens 131072, expansion default 1000/configurable ≤10000, nodes 32768, argument
 depth 128, arrays ≤64×64, layout depth 256, draw commands 131072, calculated
-extent ≤16384 em and user maxSize=100 em baseline. Additional job memory ≤256 MiB;
-retained rasters ≤64 MiB/process; final surfaces inline 2000×512/display 8192×4096.
+extent ≤16384 em and user maxSize=100 em baseline. The 256 MiB per-job budget
+is coarse admission for tracked major buffers/known large overlaps, not an
+all-allocation or physical-memory cap. Retained rasters remain ≤64 MiB/process;
+final surfaces inline 2000×512/display 8192×4096.
 All bounds apply conjunctively. A large accepted layout is not automatically a
 permitted giant persistent raster; 8192×4096 ARGB32 alone is 128 MiB.
 
@@ -513,9 +516,10 @@ comparator recorded 338 outcomes: 278 scoped semantic matches and 60 explicit
 gaps; strict mode fails. Geometry recorded 235/235 matches. Gaussian shadow is
 an approximation. Cooperative checks do not interrupt native C calls or
 establish a hard deadline. Runtime Pango shaping and Unicode fallback are
-implemented; system font-family resolution remains unpinned. Whole-job
-memory/cache, GTK guarantees, full reference behavior, readiness, remaining
-core behavior and independent human acceptance remain open. No parity or
+implemented; system font-family resolution remains unpinned. Practical guard
+coverage, retained-raster/cache qualification, GTK guarantees, full reference
+behavior, readiness, remaining core behavior and independent human acceptance
+remain open. No parity or
 acceptance claim is made.
 Risks requiring later evidence: worker-local native font/shaping thread safety,
 worst-case native-call latency and cleanup, bounded publication, context aggregate
@@ -540,3 +544,24 @@ acceptance and does not complete a phase. Current-source status and gates belong
 and earlier sections are historical. RD-CTX-01
 additional context caps remain unauthorized. Do not claim full KaTeX parity,
 project completion, or product acceptance.
+
+
+## 2026-11-15 — Scope admission and macro capture recovery (PCR-125)
+
+Report §11.21 and `plan/evidence/native-math-2026-11-15-scope-cancellation/`
+record immediate checked parser scope pushes and clearing Scope_Limit only
+on actual undo/pop. Empty/admission failure cannot expand gdef; earlier genuine
+global assignments still persist. Cancellable newcommand capture/copy stages
+body+default before mutation; no claim of allocation-exception transactionality.
+Engine216/216 twice, macros873/873 twice, worker279/279, parser719/719 and full
+Xvfb1076/1076 pass; root/test development builds and mandatory GTK9/9,
+containment/offline HTTP checks pass. Engine Valgrind zero errors/lost bytes;
+whole macro Valgrind timed out before new cases, INCOMPLETE. Existing warnings
+and strict raster losses remain. Shared-context cumulative admission needs
+separate policy review; no new cap or fine-grained accounting. No full timing/
+GUI/font/lifecycle/parity/human qualification, release/install/commit.
+
+Ownership rule: check every scope admission before consuming further expanded
+input; restore only to actual entry depth. Scope_Limit clears on real pop,
+not a failed push; Unbalanced_Group requires Reset. Macro default/body staging
+is cancellation-safe before commit, not an all-exception transaction guarantee.
