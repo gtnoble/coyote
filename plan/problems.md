@@ -5024,3 +5024,20 @@ are historical, not current-source qualification.
 - **Status:** scoped developer-verified;PCR-125 remains OPEN. Not peak/RSS,
   hard completion,full parity/lifecycle or independent acceptance. Prior strict
   raster losses remain unresolved. No release/install/acceptance.
+
+
+### PCR-125 — Command-count boundary evidence,2026-11-15
+
+- **Category:** Test. **Priority:** 3-Moderate.
+- **Problem:** existing131072 draw-command guard lacked compact exact-boundary,
+  decoration reconstruction and worker-pool cleanup/recovery fixtures.
+- **Action:** add direct engine and non-raster worker controls;retain original
+  expired-worker false-oracle failure and use authoritative Status. Watchdog
+  expiry abandons matching pending requests and stops the block. No runtime
+  budget,command cap or accounting change.
+- **Verification:** §11.27:engine3553 twice,guard+1 mutation8 expected failures,
+  worker380 twice,full1076/mandatory checks and scoped engine Valgrind pass.
+- **Status:** scoped developer-verified;PCR-125 OPEN. Exact worker may expire;
+  final expiry branch not deterministically injected,overflow-worker tests can
+  be deadline-sensitive. No full timing/parity/lifecycle/human acceptance and
+  no waiver of existing strict raster losses. No release/install/acceptance.

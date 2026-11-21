@@ -662,3 +662,18 @@ Engine3497 twice,worker346,geometry235 and stratified10000-primary replay pass;
 full1076/1076,mandatory GTK/containment/HTTP and scoped engine/exporter Valgrind
 pass. Prior raster losses and broader qualification stay open. Developer/agent
 review is not independent acceptance. No release/install/commit.
+
+
+## 2026-11-15 — Exact command-limit recovery (PCR-125)
+
+Report §11.27 and `plan/evidence/native-math-2026-11-15-command-limit/` record
+compact sources reaching131071/131072/overflow commands,including dashed-rule
+construction and color/framed/phase child-plus-decoration boundaries. Production,
+requirements,limits and budgets unchanged. Engine3553 twice,isolated guard+1
+mutation8 expected failures,worker380 twice and full1076/1076/mandatory checks
+pass. Original exact-worker Expired draft failure is retained;corrected oracle
+respects authoritative Status without extending250ms budget. Final expiry branch
+is not deterministically injected;Invalid-only overflow worker tests retain a
+load-sensitive deadline risk. Engine Valgrind clean in scoped headless checks;
+prior raster losses and wider qualification remain open. No parity or independent
+acceptance;no release/install/commit.

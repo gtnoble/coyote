@@ -1312,6 +1312,183 @@ procedure Math_Engine_Probe is
       end;
    end Test_Enclosure_Transfer_Work;
 
+   procedure Test_Command_Limit_Recovery is
+      use Ada.Strings.Unbounded;
+      Command_Limit : constant Natural := Math_Paths.Max_Draw_Commands;
+      Local_Shared : aliased Math_Macros.Context;
+      Opt : Math_Engine.Request;
+      Outp : Math_Engine.Result;
+
+      function Array_Source
+        (Rule_Count, Extra_Glyphs : Natural;
+         Prefix : String := "") return String
+      is
+         Source : Unbounded_String := To_Unbounded_String
+           (Prefix & "\begin{array}{c}");
+      begin
+         for Index in 1 .. Rule_Count loop
+            Append (Source, "\hdashline ");
+         end loop;
+         Append (Source, "\kern{100em}\end{array}");
+         if Extra_Glyphs > 0 then
+            Append (Source, (1 .. Extra_Glyphs => 'x'));
+         end if;
+         return To_String (Source);
+      end Array_Source;
+
+      function Enclosed_Source
+        (Kind : String; Extra_Glyphs : Natural) return String
+      is
+         Prefix : constant String :=
+           (if Kind = "color" then "\colorbox{blue}{"
+            elsif Kind = "framed" then
+              "\fcolorbox{red}{blue}{"
+            else "\phase{");
+      begin
+         return Prefix & Array_Source (314, Extra_Glyphs) & "}";
+      end Enclosed_Source;
+
+      procedure Check_Source_Bounds (Source, Label : String) is
+         Parsed : Math_Syntax.Document;
+      begin
+         Parsed := Math_Syntax.Parse (Source);
+         Check (Math_Syntax.Is_Valid (Parsed) and then
+           Source'Length <= Math_Syntax.Max_Source_Bytes and then
+           Math_Syntax.Count (Parsed) <= Math_Syntax.Max_Nodes,
+           Label & " fixture stays valid and within source and AST limits");
+      end Check_Source_Bounds;
+
+      procedure Check_Valid
+        (Source : String; Expected_Commands, Expected_X : Natural;
+         Label : String)
+      is
+         Glyph_Count : Natural := 0;
+         Parsed_Nodes : Natural;
+      begin
+         Check_Source_Bounds (Source, Label);
+         Math_Engine.Parse (Source, Local_Shared'Access, Opt, Outp);
+         Parsed_Nodes := Math_Syntax.Count (Outp.Parsed);
+         for Command of Outp.Geometry.Commands loop
+            if Command.Kind = Math_Layout.Glyph_Command and then
+              Command.Code_Point = Character'Pos ('x')
+            then
+               Glyph_Count := Glyph_Count + 1;
+            end if;
+         end loop;
+         Check (Outp.Status = Math_Engine.Ready and then
+           Math_Syntax.Is_Valid (Outp.Parsed) and then
+           Math_Semantics.Is_Valid (Outp.Meaning) and then
+           Math_Syntax.Source (Outp.Parsed) = Source and then
+           Outp.Geometry.Valid and then
+           Outp.Geometry.Commands.Length =
+             Ada.Containers.Count_Type (Expected_Commands) and then
+           Glyph_Count = Expected_X,
+           Label & " preserves valid views and exact command/glyph counts");
+         Ada.Text_IO.Put_Line
+           ("COMMAND_LIMIT case=" & Label &
+            " expected=" & Natural'Image (Expected_Commands) &
+            " actual=" & Ada.Containers.Count_Type'Image
+              (Outp.Geometry.Commands.Length) &
+            " source_bytes=" & Natural'Image (Source'Length) &
+            " nodes=" & Natural'Image (Parsed_Nodes) &
+            " status=" & Math_Engine.Status_Kind'Image (Outp.Status));
+      end Check_Valid;
+
+      procedure Check_Failure
+        (Source, Label, Expected_Error : String; Repeat : Positive := 1)
+      is
+         Sentinel : constant Math_Macros.Definition :=
+           Math_Macros.Lookup (Local_Shared, "\commandsaved");
+         Sentinel_Is_Z : constant Boolean :=
+           Math_Macros.Token_Count (Sentinel) = 1 and then
+           Math_Macros.Token_At (Sentinel, 1).Code_Point =
+             Character'Pos ('z');
+         Prefix : constant String := "\def\commandlocal{y}";
+         Full_Source : constant String := Prefix & Source;
+      begin
+         Check_Source_Bounds (Full_Source, Label);
+         for Attempt in 1 .. Repeat loop
+            Opt.Settings.Throw_On_Error := Attempt mod 2 = 1;
+            Math_Engine.Parse
+              (Full_Source, Local_Shared'Access, Opt, Outp);
+            Check (Outp.Status = Math_Engine.Layout_Error and then
+              Math_Engine.Error (Outp) = Expected_Error and then
+              Math_Syntax.Is_Valid (Outp.Parsed) and then
+              Math_Semantics.Is_Valid (Outp.Meaning) and then
+              Math_Syntax.Source (Outp.Parsed) = Full_Source and then
+              Outp.Geometry.Commands.Is_Empty and then
+              not Outp.Geometry.Valid and then Outp.Geometry.Width = 0.0,
+              Label & " retains parsed views and empty failed geometry; " &
+              "attempt=" & Natural'Image (Attempt));
+            Ada.Text_IO.Put_Line
+              ("COMMAND_LIMIT case=" & Label &
+               " guard=" & Natural'Image (Command_Limit) &
+               " published=0 actual=" & Ada.Containers.Count_Type'Image
+                 (Outp.Geometry.Commands.Length) &
+               " source_bytes=" & Natural'Image (Full_Source'Length) &
+               " nodes=" & Natural'Image (Math_Syntax.Count (Outp.Parsed)) &
+               " status=" & Math_Engine.Status_Kind'Image (Outp.Status));
+            Check (Math_Macros.Scope_Depth (Local_Shared) = 0 and then
+              Math_Macros.Diagnostic (Local_Shared) =
+                Math_Macros.No_Error and then
+              not Math_Macros.Is_Defined
+                (Local_Shared, "\commandlocal") and then
+              Math_Macros.Is_Defined
+                (Local_Shared, "\commandsaved") and then Sentinel_Is_Z,
+              Label & " rolls back local state and preserves z sentinel");
+            Math_Engine.Parse
+              ("\commandsaved", Local_Shared'Access, Opt, Outp);
+            Check (Outp.Status = Math_Engine.Ready and then
+              Outp.Geometry.Valid and then
+              Outp.Geometry.Commands.Length = 1 and then
+              Outp.Geometry.Commands.First_Element.Code_Point =
+                Character'Pos ('z') and then
+              Math_Macros.Scope_Depth (Local_Shared) = 0 and then
+              Math_Macros.Diagnostic (Local_Shared) =
+                Math_Macros.No_Error,
+              Label & " immediately recovers saved sentinel");
+            Math_Engine.Parse ("x+y", Local_Shared'Access, Opt, Outp);
+            Check (Outp.Status = Math_Engine.Ready and then
+              Outp.Geometry.Valid and then
+              Outp.Geometry.Commands.Length = 3 and then
+              Math_Macros.Scope_Depth (Local_Shared) = 0 and then
+              Math_Macros.Diagnostic (Local_Shared) =
+                Math_Macros.No_Error,
+              Label & " recovers ordinary same-context request");
+         end loop;
+      end Check_Failure;
+   begin
+      Math_Engine.Parse
+        ("\gdef\commandsaved{z}", Local_Shared'Access,
+         (Global_Group => True, others => <>), Outp);
+      Check (Outp.Status = Math_Engine.Ready and then
+        Math_Macros.Is_Defined (Local_Shared, "\commandsaved") and then
+        Math_Macros.Scope_Depth (Local_Shared) = 0,
+        "command-limit local context installs global sentinel");
+
+      Check_Valid (Array_Source (314, 133), Command_Limit - 1, 133,
+        "plain-one-below");
+      Check_Valid (Array_Source (314, 134), Command_Limit, 134,
+        "plain-exact");
+      Check_Failure (Array_Source (314, 135),
+        "plain-one-above", "draw-command limit exceeded", 2);
+      Check_Failure (Array_Source (315, 0),
+        "array-rule-overflow", "draw-command limit exceeded", 2);
+
+      Check_Valid (Enclosed_Source ("color", 133), Command_Limit, 133,
+        "color-exact");
+      Check_Failure (Enclosed_Source ("color", 134),
+        "color-one-above", "draw-command limit exceeded", 2);
+      Check_Valid (Enclosed_Source ("framed", 129), Command_Limit, 129,
+        "framed-exact");
+      Check_Failure (Enclosed_Source ("framed", 130),
+        "framed-one-above", "draw-command limit exceeded", 2);
+      Check_Valid (Enclosed_Source ("phase", 133), Command_Limit, 133,
+        "phase-exact");
+      Check_Failure (Enclosed_Source ("phase", 134),
+        "phase-one-above", "draw-command limit exceeded", 2);
+   end Test_Command_Limit_Recovery;
+
    procedure Test_Array_Rule_Work is
       use Ada.Strings.Unbounded;
       Counts : constant array (Positive range 1 .. 4) of Positive :=
@@ -1513,6 +1690,7 @@ procedure Math_Engine_Probe is
       Outp : Math_Engine.Result;
       Bad_Source : constant String := "\not-a-command";
    begin
+      Test_Command_Limit_Recovery;
       Test_Array_Rule_Work;
       Test_Enclosure_Transfer_Work;
       Test_Foreground_Work_Control;

@@ -1,0 +1,5 @@
+rules= 312 extra= 0 bytes= 3471 valid=TRUE nodes= 5 status=READY commands= 130104 error=
+rules= 314 extra= 0 bytes= 3493 valid=TRUE nodes= 5 status=READY commands= 130938 error=
+rules= 315 extra= 0 bytes= 3504 valid=TRUE nodes= 5 status=LAYOUT_ERROR commands= 0 error=draw-command limit exceeded
+rules= 314 extra= 134 bytes= 3627 valid=TRUE nodes= 139 status=READY commands= 131072 error=
+rules= 314 extra= 135 bytes= 3628 valid=TRUE nodes= 140 status=LAYOUT_ERROR commands= 0 error=draw-command limit exceeded

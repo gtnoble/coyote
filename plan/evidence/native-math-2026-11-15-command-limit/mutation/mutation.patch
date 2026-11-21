@@ -1,0 +1,13 @@
+diff --git a/src/coyote_math/math_layout.adb b/tmp/coyote-command-guard-mutation/src/coyote_math/math_layout.adb
+index 9df34a2..80a83dc 100644
+--- a/src/coyote_math/math_layout.adb
++++ b/tmp/coyote-command-guard-mutation/src/coyote_math/math_layout.adb
+@@ -45,7 +45,7 @@ package body Math_Layout is
+ 
+    Layout_Failure : exception;
+    Max_Layout_Depth  : constant Natural    := 256;
+-   Max_Draw_Commands : constant            := 131_072;
++   Max_Draw_Commands : constant            := 131_073;
+    Max_Geometry      : constant Long_Float := 16_384.0;
+    Default_Rule_Thickness : constant Long_Float := 0.04;
+    Fraction_Axis     : constant Long_Float := 0.25;

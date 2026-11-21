@@ -1,0 +1,37 @@
+{
+  "classification": "isolated negative-control mutation; not a product-limit change",
+  "baseline_head": "acf1cf1c48aad9596fb779eddb82226d4b2cace7",
+  "source_snapshot_files": 49,
+  "production_source_mutation_count": 1,
+  "production_source_mutation": {
+    "file": "src/coyote_math/math_layout.adb",
+    "baseline_private_limit": 131072,
+    "mutant_private_limit": 131073,
+    "changed_lines": 1
+  },
+  "unchanged_public_limit": 131072,
+  "probe": "tools/math_engine_probe.adb",
+  "probe_sha256": "4dc2a749d3e7d0664144fa2561a60bb44e73227ef76f19a70f113ec66a77015c",
+  "probe_assertions": 3553,
+  "probe_failures": 8,
+  "probe_exit_status": 1,
+  "probe_result": "NEGATIVE CONTROL DETECTED MUTANT",
+  "failures": [
+    {"case": "plain-one-above", "attempts": 2, "observed": "READY with 131073 commands", "expected": "LAYOUT_ERROR with empty invalid geometry"},
+    {"case": "color-one-above", "attempts": 2, "observed": "READY with 131073 commands", "expected": "LAYOUT_ERROR with empty invalid geometry"},
+    {"case": "framed-one-above", "attempts": 2, "observed": "READY with 131073 commands", "expected": "LAYOUT_ERROR with empty invalid geometry"},
+    {"case": "phase-one-above", "attempts": 2, "observed": "READY with 131073 commands", "expected": "LAYOUT_ERROR with empty invalid geometry"}
+  ],
+  "boundary_observations": {
+    "plain_one_below": "READY, 131071 commands",
+    "plain_exact": "READY, 131072 commands",
+    "color_exact": "READY, 131072 commands",
+    "framed_exact": "READY, 131072 commands",
+    "phase_exact": "READY, 131072 commands",
+    "array_rule_overflow": "LAYOUT_ERROR, zero published commands"
+  },
+  "repository_edits": false,
+  "production_limit_change_proposed": false,
+  "build_log": "evidence/build.log",
+  "probe_log": "evidence/probe.log"
+}

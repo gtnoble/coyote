@@ -1,0 +1,509 @@
+diff --git a/test/tools/math_engine_probe.adb b/test/tools/math_engine_probe.adb
+index b54168e..2f78806 100644
+--- a/test/tools/math_engine_probe.adb
++++ b/test/tools/math_engine_probe.adb
+@@ -1312,6 +1312,183 @@ procedure Math_Engine_Probe is
+       end;
+    end Test_Enclosure_Transfer_Work;
+ 
++   procedure Test_Command_Limit_Recovery is
++      use Ada.Strings.Unbounded;
++      Command_Limit : constant Natural := Math_Paths.Max_Draw_Commands;
++      Local_Shared : aliased Math_Macros.Context;
++      Opt : Math_Engine.Request;
++      Outp : Math_Engine.Result;
++
++      function Array_Source
++        (Rule_Count, Extra_Glyphs : Natural;
++         Prefix : String := "") return String
++      is
++         Source : Unbounded_String := To_Unbounded_String
++           (Prefix & "\begin{array}{c}");
++      begin
++         for Index in 1 .. Rule_Count loop
++            Append (Source, "\hdashline ");
++         end loop;
++         Append (Source, "\kern{100em}\end{array}");
++         if Extra_Glyphs > 0 then
++            Append (Source, (1 .. Extra_Glyphs => 'x'));
++         end if;
++         return To_String (Source);
++      end Array_Source;
++
++      function Enclosed_Source
++        (Kind : String; Extra_Glyphs : Natural) return String
++      is
++         Prefix : constant String :=
++           (if Kind = "color" then "\colorbox{blue}{"
++            elsif Kind = "framed" then
++              "\fcolorbox{red}{blue}{"
++            else "\phase{");
++      begin
++         return Prefix & Array_Source (314, Extra_Glyphs) & "}";
++      end Enclosed_Source;
++
++      procedure Check_Source_Bounds (Source, Label : String) is
++         Parsed : Math_Syntax.Document;
++      begin
++         Parsed := Math_Syntax.Parse (Source);
++         Check (Math_Syntax.Is_Valid (Parsed) and then
++           Source'Length <= Math_Syntax.Max_Source_Bytes and then
++           Math_Syntax.Count (Parsed) <= Math_Syntax.Max_Nodes,
++           Label & " fixture stays valid and within source and AST limits");
++      end Check_Source_Bounds;
++
++      procedure Check_Valid
++        (Source : String; Expected_Commands, Expected_X : Natural;
++         Label : String)
++      is
++         Glyph_Count : Natural := 0;
++         Parsed_Nodes : Natural;
++      begin
++         Check_Source_Bounds (Source, Label);
++         Math_Engine.Parse (Source, Local_Shared'Access, Opt, Outp);
++         Parsed_Nodes := Math_Syntax.Count (Outp.Parsed);
++         for Command of Outp.Geometry.Commands loop
++            if Command.Kind = Math_Layout.Glyph_Command and then
++              Command.Code_Point = Character'Pos ('x')
++            then
++               Glyph_Count := Glyph_Count + 1;
++            end if;
++         end loop;
++         Check (Outp.Status = Math_Engine.Ready and then
++           Math_Syntax.Is_Valid (Outp.Parsed) and then
++           Math_Semantics.Is_Valid (Outp.Meaning) and then
++           Math_Syntax.Source (Outp.Parsed) = Source and then
++           Outp.Geometry.Valid and then
++           Outp.Geometry.Commands.Length =
++             Ada.Containers.Count_Type (Expected_Commands) and then
++           Glyph_Count = Expected_X,
++           Label & " preserves valid views and exact command/glyph counts");
++         Ada.Text_IO.Put_Line
++           ("COMMAND_LIMIT case=" & Label &
++            " expected=" & Natural'Image (Expected_Commands) &
++            " actual=" & Ada.Containers.Count_Type'Image
++              (Outp.Geometry.Commands.Length) &
++            " source_bytes=" & Natural'Image (Source'Length) &
++            " nodes=" & Natural'Image (Parsed_Nodes) &
++            " status=" & Math_Engine.Status_Kind'Image (Outp.Status));
++      end Check_Valid;
++
++      procedure Check_Failure
++        (Source, Label, Expected_Error : String; Repeat : Positive := 1)
++      is
++         Sentinel : constant Math_Macros.Definition :=
++           Math_Macros.Lookup (Local_Shared, "\commandsaved");
++         Sentinel_Is_Z : constant Boolean :=
++           Math_Macros.Token_Count (Sentinel) = 1 and then
++           Math_Macros.Token_At (Sentinel, 1).Code_Point =
++             Character'Pos ('z');
++         Prefix : constant String := "\def\commandlocal{y}";
++         Full_Source : constant String := Prefix & Source;
++      begin
++         Check_Source_Bounds (Full_Source, Label);
++         for Attempt in 1 .. Repeat loop
++            Opt.Settings.Throw_On_Error := Attempt mod 2 = 1;
++            Math_Engine.Parse
++              (Full_Source, Local_Shared'Access, Opt, Outp);
++            Check (Outp.Status = Math_Engine.Layout_Error and then
++              Math_Engine.Error (Outp) = Expected_Error and then
++              Math_Syntax.Is_Valid (Outp.Parsed) and then
++              Math_Semantics.Is_Valid (Outp.Meaning) and then
++              Math_Syntax.Source (Outp.Parsed) = Full_Source and then
++              Outp.Geometry.Commands.Is_Empty and then
++              not Outp.Geometry.Valid and then Outp.Geometry.Width = 0.0,
++              Label & " retains parsed views and empty failed geometry; " &
++              "attempt=" & Natural'Image (Attempt));
++            Ada.Text_IO.Put_Line
++              ("COMMAND_LIMIT case=" & Label &
++               " guard=" & Natural'Image (Command_Limit) &
++               " published=0 actual=" & Ada.Containers.Count_Type'Image
++                 (Outp.Geometry.Commands.Length) &
++               " source_bytes=" & Natural'Image (Full_Source'Length) &
++               " nodes=" & Natural'Image (Math_Syntax.Count (Outp.Parsed)) &
++               " status=" & Math_Engine.Status_Kind'Image (Outp.Status));
++            Check (Math_Macros.Scope_Depth (Local_Shared) = 0 and then
++              Math_Macros.Diagnostic (Local_Shared) =
++                Math_Macros.No_Error and then
++              not Math_Macros.Is_Defined
++                (Local_Shared, "\commandlocal") and then
++              Math_Macros.Is_Defined
++                (Local_Shared, "\commandsaved") and then Sentinel_Is_Z,
++              Label & " rolls back local state and preserves z sentinel");
++            Math_Engine.Parse
++              ("\commandsaved", Local_Shared'Access, Opt, Outp);
++            Check (Outp.Status = Math_Engine.Ready and then
++              Outp.Geometry.Valid and then
++              Outp.Geometry.Commands.Length = 1 and then
++              Outp.Geometry.Commands.First_Element.Code_Point =
++                Character'Pos ('z') and then
++              Math_Macros.Scope_Depth (Local_Shared) = 0 and then
++              Math_Macros.Diagnostic (Local_Shared) =
++                Math_Macros.No_Error,
++              Label & " immediately recovers saved sentinel");
++            Math_Engine.Parse ("x+y", Local_Shared'Access, Opt, Outp);
++            Check (Outp.Status = Math_Engine.Ready and then
++              Outp.Geometry.Valid and then
++              Outp.Geometry.Commands.Length = 3 and then
++              Math_Macros.Scope_Depth (Local_Shared) = 0 and then
++              Math_Macros.Diagnostic (Local_Shared) =
++                Math_Macros.No_Error,
++              Label & " recovers ordinary same-context request");
++         end loop;
++      end Check_Failure;
++   begin
++      Math_Engine.Parse
++        ("\gdef\commandsaved{z}", Local_Shared'Access,
++         (Global_Group => True, others => <>), Outp);
++      Check (Outp.Status = Math_Engine.Ready and then
++        Math_Macros.Is_Defined (Local_Shared, "\commandsaved") and then
++        Math_Macros.Scope_Depth (Local_Shared) = 0,
++        "command-limit local context installs global sentinel");
++
++      Check_Valid (Array_Source (314, 133), Command_Limit - 1, 133,
++        "plain-one-below");
++      Check_Valid (Array_Source (314, 134), Command_Limit, 134,
++        "plain-exact");
++      Check_Failure (Array_Source (314, 135),
++        "plain-one-above", "draw-command limit exceeded", 2);
++      Check_Failure (Array_Source (315, 0),
++        "array-rule-overflow", "draw-command limit exceeded", 2);
++
++      Check_Valid (Enclosed_Source ("color", 133), Command_Limit, 133,
++        "color-exact");
++      Check_Failure (Enclosed_Source ("color", 134),
++        "color-one-above", "draw-command limit exceeded", 2);
++      Check_Valid (Enclosed_Source ("framed", 129), Command_Limit, 129,
++        "framed-exact");
++      Check_Failure (Enclosed_Source ("framed", 130),
++        "framed-one-above", "draw-command limit exceeded", 2);
++      Check_Valid (Enclosed_Source ("phase", 133), Command_Limit, 133,
++        "phase-exact");
++      Check_Failure (Enclosed_Source ("phase", 134),
++        "phase-one-above", "draw-command limit exceeded", 2);
++   end Test_Command_Limit_Recovery;
++
+    procedure Test_Array_Rule_Work is
+       use Ada.Strings.Unbounded;
+       Counts : constant array (Positive range 1 .. 4) of Positive :=
+@@ -1513,6 +1690,7 @@ procedure Math_Engine_Probe is
+       Outp : Math_Engine.Result;
+       Bad_Source : constant String := "\not-a-command";
+    begin
++      Test_Command_Limit_Recovery;
+       Test_Array_Rule_Work;
+       Test_Enclosure_Transfer_Work;
+       Test_Foreground_Work_Control;
+diff --git a/test/tools/math_jobs_probe.adb b/test/tools/math_jobs_probe.adb
+index 3ce880b..af8149d 100644
+--- a/test/tools/math_jobs_probe.adb
++++ b/test/tools/math_jobs_probe.adb
+@@ -1093,6 +1093,308 @@ begin
+          end loop;
+       end loop;
+    end;
++   declare
++      use Ada.Strings.Unbounded;
++      function Command_Source
++        (Rule_Count : Positive; Glyph_Count : Natural) return String is
++         Result : Unbounded_String := To_Unbounded_String
++           ("\begin{array}{c}");
++      begin
++         for Rule in 1 .. Rule_Count loop
++            Append (Result, "\hdashline ");
++         end loop;
++         Append (Result, "\kern{100em}\end{array}");
++         Append (Result, (1 .. Glyph_Count => 'x'));
++         return To_String (Result);
++      end Command_Source;
++      Accepted_Options : constant Math_Syntax.Options :=
++        (Display_Mode => True, others => <>);
++      Accepted_Source : constant String := Command_Source (314, 134);
++      Rejected_Source : constant String := Command_Source (314, 135);
++      Rule_Overflow_Source : constant String := Command_Source (315, 0);
++
++      procedure Check_Command_Boundary is
++         Accepted_Document : constant Math_Syntax.Document :=
++           Math_Syntax.Parse (Accepted_Source, Accepted_Options);
++         Accepted_Layout : constant Math_Layout.Box := Math_Layout.Build
++           (Accepted_Document, Math_Layout.Display_Style);
++         Rejected_Document : constant Math_Syntax.Document :=
++           Math_Syntax.Parse (Rejected_Source, Accepted_Options);
++         Rejected_Layout : constant Math_Layout.Box := Math_Layout.Build
++           (Rejected_Document, Math_Layout.Display_Style);
++         Rule_Overflow_Document : constant Math_Syntax.Document :=
++           Math_Syntax.Parse (Rule_Overflow_Source, Accepted_Options);
++         Rule_Overflow_Layout : constant Math_Layout.Box := Math_Layout.Build
++           (Rule_Overflow_Document, Math_Layout.Display_Style);
++         Accepted_Id : Jobs.Request_Id;
++         Accepted_Status : Jobs.Job_Status;
++         Accepted_Result : Jobs.Result_Access;
++         Overflow_Id : Jobs.Request_Id;
++         Overflow_Status : Jobs.Job_Status;
++         Overflow_Result : Jobs.Result_Access;
++         Recovery_Id : Jobs.Request_Id;
++         Recovery_Status : Jobs.Job_Status;
++         Recovery_Result : Jobs.Result_Access;
++
++         procedure Await_Result
++           (Id         : Jobs.Request_Id;
++            Generation : Jobs.View_Generation;
++            Status     : in out Jobs.Job_Status;
++            Result     : in out Jobs.Result_Access;
++            Completed  : out Boolean) is
++         begin
++            Completed := False;
++            for Wait in 1 .. 400 loop
++               if Status = Jobs.Pending then
++                  Jobs.Poll (Id, Generation, Status, Result);
++               end if;
++               exit when Status /= Jobs.Pending;
++               delay 0.005;
++            end loop;
++            Completed := Status /= Jobs.Pending;
++            if not Completed then
++               Jobs.Abandon (Id, Generation);
++               Check (False,
++                 "command worker watchdog expired; request abandoned");
++            end if;
++         end Await_Result;
++
++         procedure Submit_Recovery (Generation : Jobs.View_Generation) is
++            Completed : Boolean;
++         begin
++            Jobs.Submit ("x+y", Recovery_Id, Generation,
++              Math_Layout.Display_Style, Status => Recovery_Status,
++              Request_Raster => False);
++            Check (Recovery_Status = Jobs.Pending,
++              "ordinary recovery request queues");
++            if Recovery_Status /= Jobs.Pending then
++               return;
++            end if;
++            Await_Result (Recovery_Id, Generation, Recovery_Status,
++              Recovery_Result, Completed);
++            if not Completed then
++               return;
++            end if;
++            Ada.Text_IO.Put_Line
++              ("COMMAND_WORKER recovery status=" &
++               Jobs.Job_Status'Image (Recovery_Status));
++            declare
++               use type Math_Layout.Command_Kind;
++               Exact_Glyphs : Boolean := False;
++            begin
++               Check (Recovery_Status = Jobs.Valid and then
++                 Recovery_Result /= null and then
++                 Jobs.Source (Recovery_Result.all) = "x+y" and then
++                 Jobs.Layout (Recovery_Result.all).Valid and then
++                 Jobs.Layout (Recovery_Result.all).Commands.Length = 3 and then
++                 not Jobs.Has_Raster (Recovery_Result.all) and then
++                 Jobs.Raster_Retained_Bytes (Recovery_Result.all) = 0,
++                 "ordinary recovery returns exact three-glyph x+y");
++               if Recovery_Status = Jobs.Valid and then
++                 Recovery_Result /= null and then
++                 Jobs.Layout (Recovery_Result.all).Commands.Length = 3
++               then
++                  declare
++                     Commands : constant Math_Layout.Command_Vectors.Vector :=
++                       Jobs.Layout (Recovery_Result.all).Commands;
++                     First : constant Positive := Commands.First_Index;
++                  begin
++                     Exact_Glyphs :=
++                       Commands (First).Kind = Math_Layout.Glyph_Command and then
++                       Commands (First).Code_Point = Character'Pos ('x') and then
++                       Commands (First + 1).Kind = Math_Layout.Glyph_Command and then
++                       Commands (First + 1).Code_Point = Character'Pos ('+') and then
++                       Commands (First + 2).Kind = Math_Layout.Glyph_Command and then
++                       Commands (First + 2).Code_Point = Character'Pos ('y');
++                  end;
++               end if;
++               Check (Exact_Glyphs,
++                 "recovery layout contains glyphs x, plus, y in order");
++            end;
++            if Recovery_Result /= null then
++               Jobs.Release (Recovery_Result);
++            end if;
++            Check (Recovery_Result = null and Math_Raster_Budget.Used = 0,
++              "ordinary recovery result released with empty raster ledger");
++         end Submit_Recovery;
++         Completed : Boolean;
++      begin
++         Check (Math_Syntax.Is_Valid (Accepted_Document) and
++           Accepted_Layout.Valid and
++           Accepted_Layout.Commands.Length = 131_072,
++           "134-glyph array fixture reaches exact draw-command cap");
++         Check (Math_Syntax.Is_Valid (Rejected_Document) and
++           not Rejected_Layout.Valid and
++           Ada.Strings.Unbounded.To_String (Rejected_Layout.Message) =
++             "draw-command limit exceeded" and
++           Rejected_Layout.Commands.Is_Empty,
++           "135-glyph array fixture exceeds draw-command cap only");
++         Check (Math_Syntax.Is_Valid (Rule_Overflow_Document) and
++           not Rule_Overflow_Layout.Valid and
++           Ada.Strings.Unbounded.To_String (Rule_Overflow_Layout.Message) =
++             "draw-command limit exceeded" and
++           Rule_Overflow_Layout.Commands.Is_Empty,
++           "315-rule array fixture exceeds draw-command cap");
++
++         Jobs.Submit (Accepted_Source, Accepted_Id, 699,
++           Math_Layout.Display_Style, Status => Accepted_Status,
++           Request_Raster => False);
++         Ada.Text_IO.Put_Line
++           ("COMMAND_WORKER exact-cap submitted status=" &
++            Jobs.Job_Status'Image (Accepted_Status));
++         Check (Accepted_Status = Jobs.Pending,
++           "exact-cap command worker request queues");
++         if Accepted_Status /= Jobs.Pending then
++            return;
++         end if;
++         Await_Result (Accepted_Id, 699, Accepted_Status, Accepted_Result,
++           Completed);
++         if not Completed then
++            return;
++         end if;
++         Ada.Text_IO.Put_Line
++           ("COMMAND_WORKER exact-cap status=" &
++            Jobs.Job_Status'Image (Accepted_Status));
++         case Accepted_Status is
++            when Jobs.Valid =>
++               Check (Accepted_Result /= null and then
++                 Jobs.Source (Accepted_Result.all) = Accepted_Source and then
++                 Math_Syntax.Is_Valid
++                   (Jobs.Parse_Document (Accepted_Result.all)) and then
++                 Jobs.Layout (Accepted_Result.all).Valid and then
++                 Jobs.Layout (Accepted_Result.all).Commands.Length =
++                   131_072 and then
++                 not Jobs.Has_Raster (Accepted_Result.all) and then
++                 Jobs.Raster_Retained_Bytes (Accepted_Result.all) = 0,
++                 "Valid exact-cap result has source and 131072 valid commands");
++            when Jobs.Expired =>
++               Check (Accepted_Result /= null and then
++                 Jobs.Source (Accepted_Result.all) = Accepted_Source and then
++                 not Jobs.Has_Raster (Accepted_Result.all) and then
++                 Jobs.Raster_Retained_Bytes (Accepted_Result.all) = 0 and then
++                 Math_Raster_Budget.Used = 0,
++                 "Expired exact-cap result retains source and no raster bytes");
++            when others =>
++               Check (False,
++                 "exact-cap status must be Valid or Expired");
++         end case;
++         if Accepted_Result /= null then
++            Jobs.Release (Accepted_Result);
++         end if;
++         Check (Accepted_Result = null and Math_Raster_Budget.Used = 0,
++           "exact-cap completion releases result and clears raster ledger");
++         Submit_Recovery (699);
++         if Recovery_Status /= Jobs.Valid then
++            return;
++         end if;
++
++         for Iteration in 1 .. 2 loop
++            Jobs.Submit (Rejected_Source, Overflow_Id,
++              Jobs.View_Generation (700 + Iteration),
++              Math_Layout.Display_Style, Status => Overflow_Status,
++              Request_Raster => False);
++            Check (Overflow_Status = Jobs.Pending,
++              "over-limit command request queues" & Iteration'Image);
++            if Overflow_Status /= Jobs.Pending then
++               return;
++            end if;
++            Await_Result (Overflow_Id,
++              Jobs.View_Generation (700 + Iteration), Overflow_Status,
++              Overflow_Result, Completed);
++            if not Completed then
++               return;
++            end if;
++            Ada.Text_IO.Put_Line
++              ("COMMAND_WORKER over-cap status=" &
++               Jobs.Job_Status'Image (Overflow_Status) & " error=" &
++               (if Overflow_Result = null then "none" else
++                  Jobs.Error (Overflow_Result.all)));
++            Check (Overflow_Status = Jobs.Invalid and
++              Overflow_Result /= null,
++              "over-limit layout returns worker Invalid" & Iteration'Image);
++            if Overflow_Result /= null then
++               if Overflow_Status = Jobs.Invalid then
++                  Check (Jobs.Source (Overflow_Result.all) = Rejected_Source and
++                    Math_Syntax.Is_Valid
++                      (Jobs.Parse_Document (Overflow_Result.all)) and
++                    not Jobs.Layout (Overflow_Result.all).Valid and
++                    Ada.Strings.Unbounded.To_String
++                      (Jobs.Layout (Overflow_Result.all).Message) =
++                        "draw-command limit exceeded" and
++                    Jobs.Layout (Overflow_Result.all).Commands.Is_Empty and
++                    not Jobs.Has_Raster (Overflow_Result.all) and
++                    Jobs.Raster_Retained_Bytes (Overflow_Result.all) = 0,
++                    "worker preserves command-limit diagnostic without raster");
++               else
++                  Check (Jobs.Source (Overflow_Result.all) = Rejected_Source and
++                    not Jobs.Has_Raster (Overflow_Result.all) and
++                    Jobs.Raster_Retained_Bytes (Overflow_Result.all) = 0,
++                    "non-Invalid over-cap result retains source without raster");
++               end if;
++               Jobs.Release (Overflow_Result);
++            end if;
++            Check (Overflow_Result = null,
++              "over-limit worker result released");
++            Submit_Recovery (Jobs.View_Generation (700 + Iteration));
++            if Recovery_Status /= Jobs.Valid then
++               return;
++            end if;
++         end loop;
++
++         Jobs.Submit (Rule_Overflow_Source, Overflow_Id, 703,
++           Math_Layout.Display_Style, Status => Overflow_Status,
++           Request_Raster => False);
++         Check (Overflow_Status = Jobs.Pending,
++           "315-rule worker request queues");
++         if Overflow_Status /= Jobs.Pending then
++            return;
++         end if;
++         Await_Result (Overflow_Id, 703, Overflow_Status, Overflow_Result,
++           Completed);
++         if not Completed then
++            return;
++         end if;
++         Ada.Text_IO.Put_Line
++           ("COMMAND_WORKER rule-overflow status=" &
++            Jobs.Job_Status'Image (Overflow_Status) & " error=" &
++            (if Overflow_Result = null then "none" else
++               Jobs.Error (Overflow_Result.all)));
++         Check (Overflow_Status = Jobs.Invalid and
++           Overflow_Result /= null,
++           "315-rule request returns worker Invalid");
++         if Overflow_Result /= null then
++            if Overflow_Status = Jobs.Invalid then
++               Check (Jobs.Source (Overflow_Result.all) =
++                 Rule_Overflow_Source and then
++                 Math_Syntax.Is_Valid
++                   (Jobs.Parse_Document (Overflow_Result.all)) and then
++                 not Jobs.Layout (Overflow_Result.all).Valid and then
++                 Ada.Strings.Unbounded.To_String
++                   (Jobs.Layout (Overflow_Result.all).Message) =
++                     "draw-command limit exceeded" and then
++                 Jobs.Layout (Overflow_Result.all).Commands.Is_Empty and then
++                 not Jobs.Has_Raster (Overflow_Result.all) and then
++                 Jobs.Raster_Retained_Bytes (Overflow_Result.all) = 0,
++                 "315-rule rejection preserves source and diagnostic");
++            else
++               Check (Jobs.Source (Overflow_Result.all) =
++                 Rule_Overflow_Source and then
++                 not Jobs.Has_Raster (Overflow_Result.all) and then
++                 Jobs.Raster_Retained_Bytes (Overflow_Result.all) = 0,
++                 "non-Invalid 315-rule result retains source without raster");
++            end if;
++            Jobs.Release (Overflow_Result);
++         end if;
++         Check (Overflow_Result = null,
++           "315-rule worker result released");
++         Submit_Recovery (703);
++         if Recovery_Status /= Jobs.Valid then
++            return;
++         end if;
++      end Check_Command_Boundary;
++   begin
++      Check_Command_Boundary;
++   end;
+    declare
+       Fonts : aliased Math_Painter.Font_Set;
+       Settings : Math_Layout.Layout_Settings := (others => <>);

@@ -1,0 +1,19 @@
+HEAD acf1cf1c48aad9596fb779eddb82226d4b2cace7
+probe 4dc2a749d3e7d0664144fa2561a60bb44e73227ef76f19a70f113ec66a77015c  /tmp/coyote-command-guard-mutation/tools/math_engine_probe.adb
+private-limit 48:   Max_Draw_Commands : constant            := 131_073;
+public-limit 6:   Max_Draw_Commands : constant := 131_072;
+
+Mutation patch sha256: a44b174addd54fb312b205f501d611875cbee43a1dc41bea3f4f2cbab202c995  /tmp/coyote-command-guard-mutation/mutation.patch
+Summary sha256: ba72caa8ed482ae4939e2e9447e583ead9cff75a8f483043bad85ffaed75e32e  /tmp/coyote-command-guard-mutation/evidence/summary.json
+Build log sha256: 33c39181bcebb271fbbb7e1b2740c28bd6ced2b5feeea46f4a8cbfa600b0dd6d  /tmp/coyote-command-guard-mutation/evidence/build.log
+Probe log sha256: 77af50b0ae2f5b1fd755a8cc0cc03e9d44d885aac00b3ba95a367337114d69a9  /tmp/coyote-command-guard-mutation/evidence/probe.log
+Mutant source sha256: 6cf5650d864a3073a91c6113036b98f1827e5098c776f4b8bea1b1bb3d62d079  /tmp/coyote-command-guard-mutation/src/coyote_math/math_layout.adb
+
+Build/probe exit statuses: build=0 probe=1 (8/3553 assertions failed)
+
+Mutation patch sha256: a44b174addd54fb312b205f501d611875cbee43a1dc41bea3f4f2cbab202c995  /tmp/coyote-command-guard-mutation/mutation.patch
+Summary sha256: ba72caa8ed482ae4939e2e9447e583ead9cff75a8f483043bad85ffaed75e32e  /tmp/coyote-command-guard-mutation/evidence/summary.json
+Build log sha256: 33c39181bcebb271fbbb7e1b2740c28bd6ced2b5feeea46f4a8cbfa600b0dd6d  /tmp/coyote-command-guard-mutation/evidence/build.log
+Probe log sha256: 77af50b0ae2f5b1fd755a8cc0cc03e9d44d885aac00b3ba95a367337114d69a9  /tmp/coyote-command-guard-mutation/evidence/probe.log
+Mutant source sha256: 6cf5650d864a3073a91c6113036b98f1827e5098c776f4b8bea1b1bb3d62d079  /tmp/coyote-command-guard-mutation/src/coyote_math/math_layout.adb
+Build/probe exit statuses: build=0 probe=1 (8/3553 assertions failed)

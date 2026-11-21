@@ -1,0 +1,24 @@
+scope: oracle correction only; no worker/job budget changes
+source: test/tools/math_jobs_probe.adb
+source_sha256: 56a7c6b1d0c1a7b4551fa514bd950d5021abcb7b1f52577378a42cb5f1b9a61b
+run1: /tmp/coyote-command-jobs-contract1/probe.log
+run1_sha256: f5c3d8b62a8c2872397fc979b441d3beb16e1b12c5a5e8d496821a2a569f0837
+run1_assertions: 380
+run1_failures: 0
+run1_exact_cap_terminal: VALID
+run1_over_cap_terminal: INVALID, INVALID
+run1_315_rule_terminal: INVALID
+run2: /tmp/coyote-command-jobs-contract2/probe.log
+run2_sha256: ed9f86cde54872af7f868a54589d6235b646c081f57bc734835720c531c0c2a8
+run2_assertions: 380
+run2_failures: 0
+run2_exact_cap_terminal: VALID
+run2_over_cap_terminal: INVALID, INVALID
+run2_315_rule_terminal: INVALID
+preserved_prior_exact_run: /tmp/coyote-command-jobs-exact1/probe.log
+prior_sha256: eb252b6e763769568f49d5aac6f8ea5aaf16cc1fe77e1add010404006d252bf2
+prior_assertions: 373
+prior_failures: 1
+prior_exact_cap_terminal: EXPIRED
+prior_exact_cap_completed_commands: 131072
+note: corrected status oracle; both current exact-cap runs were Valid. Prior Expired result with completed 131072-command geometry was the false assertion being corrected. This is not a raised budget or same-physical-worker proof.

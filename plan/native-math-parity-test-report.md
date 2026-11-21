@@ -1990,3 +1990,49 @@ Crosswalk fingerprint refreshed,coverage counts unchanged. Developer/agent
 self-review is not independent acceptance. No browser images/raster/whole-macro
 Valgrind rerun;broader resource/GTK/cache/timing/font/lifecycle/parity/human gates
 remain open. PCR-125 OPEN;no release/install/commit.
+
+
+### 11.27 Exact command-limit rejection and recovery — 2026-11-15
+
+Test-only continuation reaches the existing131072-command ceiling with compact
+sources,without changing production,requirements,limits,accounting or budgets.
+314 dashed array rules plus100em kern emit130938 commands from3493 bytes/5 nodes;
+134 trailing glyphs reach131072,133 give131071,and135 overflow.315 rules overflow
+inside rule generation. Color/framed/phase fixtures enclose all child glyphs and
+exercise child-plus1/5/1 decoration reconstruction at exact and one-above counts.
+Both Throw_On_Error settings retain source/valid syntax/semantics,clear failed
+geometry and recover local/global state and subsequent same-context requests.
+
+Final engine3553/3553 twice. Byte-identical probe against isolated private guard
+131073 mutation fails8 assertions,detecting plain/color/framed/phase one-above
+successes under both settings. This is a negative control,not a selected limit
+increase. Source/node bounds remain well below independent caps;fixture counts
+are scoped regression controls,not independent geometry parity.
+
+Worker380/380 twice. Exact-cap final requests return Valid;135-glyph and315-rule
+overflows return Invalid with exact layout diagnostic and no raster. Every result
+releases and immediate x+y recovery passes in the same pool,not a pinned worker.
+An earlier373-assertion draft fails1 because exact-cap Status Expired despite
+complete geometry. Corrected oracle follows existing authoritative Status:
+Valid requires exact layout;Expired checks source/no raster,never adopts geometry,
+releases and recovers. Final Expired branch is not deterministically injected.
+No250ms budget extension. Overflow-worker assertions remain Invalid-only and can
+fail if the existing deadline wins under load;direct engine supplies untimed
+structural boundary evidence. Watchdog expiry Abandons pending request and returns,
+not a guarantee that native cleanup completed within the watchdog.
+
+Root/test development builds and full Xvfb1076/1076 (145.918966s cumulative/
+146.05s wall),GTK9/9,runner containment and offline HTTP pass. Production hashes
+match;full registration unchanged. Final test-only refinements rerun standalone,
+not another full suite. Engine Valgrind3553 assertions,zero errors/lost bytes,
+216713 reachable with existing4MiB frame threshold. An auxiliary nonexistent
+containment-script attempt exits2 and is retained,not claimed passing. Required
+GTK runner containment passes,including its expected synthetic child failures.
+
+Evidence:`plan/evidence/native-math-2026-11-15-command-limit/`:exact sources/binary
+identities,mutation,expiry failure/correction and validation logs. No runtime
+defect found. Prior strict raster losses remain unresolved;worker Valgrind,
+images/raster/reference geometry/seeded fuzz/whole-macro Valgrind not rerun.
+Developer/agent self-review is not independent acceptance. Resource/timing/font/
+GTK/cache/lifecycle/parity/human gates and PCR-125 remain OPEN.
+No release/install/commit.

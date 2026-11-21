@@ -1,0 +1,12 @@
+with "gtkada";
+project Probe is
+   for Languages use ("Ada");
+   for Source_Dirs use ("/home/gtnoble/Projects/coyote/coyote-latex-math/src/coyote_math", "src");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Create_Missing_Dirs use "True";
+   for Main use ("math_command_limit_probe.adb");
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
+   end Compiler;
+end Probe;

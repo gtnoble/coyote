@@ -1,0 +1,91 @@
+COMMAND_LIMIT case=plain-one-below expected= 131071 actual= 131071 source_bytes= 3626 nodes= 138 status=READY
+COMMAND_LIMIT case=plain-exact expected= 131072 actual= 131072 source_bytes= 3627 nodes= 139 status=READY
+COMMAND_LIMIT case=plain-one-above guard= 131072 published=0 actual= 0 source_bytes= 3648 nodes= 140 status=LAYOUT_ERROR
+COMMAND_LIMIT case=plain-one-above guard= 131072 published=0 actual= 0 source_bytes= 3648 nodes= 140 status=LAYOUT_ERROR
+COMMAND_LIMIT case=array-rule-overflow guard= 131072 published=0 actual= 0 source_bytes= 3524 nodes= 5 status=LAYOUT_ERROR
+COMMAND_LIMIT case=array-rule-overflow guard= 131072 published=0 actual= 0 source_bytes= 3524 nodes= 5 status=LAYOUT_ERROR
+COMMAND_LIMIT case=color-exact expected= 131072 actual= 131072 source_bytes= 3643 nodes= 140 status=READY
+COMMAND_LIMIT case=color-one-above guard= 131072 published=0 actual= 0 source_bytes= 3664 nodes= 141 status=LAYOUT_ERROR
+COMMAND_LIMIT case=color-one-above guard= 131072 published=0 actual= 0 source_bytes= 3664 nodes= 141 status=LAYOUT_ERROR
+COMMAND_LIMIT case=framed-exact expected= 131072 actual= 131072 source_bytes= 3645 nodes= 136 status=READY
+COMMAND_LIMIT case=framed-one-above guard= 131072 published=0 actual= 0 source_bytes= 3666 nodes= 137 status=LAYOUT_ERROR
+COMMAND_LIMIT case=framed-one-above guard= 131072 published=0 actual= 0 source_bytes= 3666 nodes= 137 status=LAYOUT_ERROR
+COMMAND_LIMIT case=phase-exact expected= 131072 actual= 131072 source_bytes= 3634 nodes= 140 status=READY
+COMMAND_LIMIT case=phase-one-above guard= 131072 published=0 actual= 0 source_bytes= 3655 nodes= 141 status=LAYOUT_ERROR
+COMMAND_LIMIT case=phase-one-above guard= 131072 published=0 actual= 0 source_bytes= 3655 nodes= 141 status=LAYOUT_ERROR
+ARRAY_RULE_BOUNDARIES rules=4 boundaries=0,1,2 polls= 146
+ARRAY_RULE_WORK rules= 1 polls= 48
+ARRAY_RULE_WORK rules= 16 polls= 351
+ARRAY_RULE_WORK rules= 256 polls= 5159
+ARRAY_RULE_WORK rules= 1024 polls= 20543
+ENCLOSURE_WORK case=color polls= 80 paths= 2 path_segments= 24
+ENCLOSURE_WORK case=framed polls= 88 paths= 2 path_segments= 24
+ENCLOSURE_WORK case=nested polls= 116 paths= 2 path_segments= 24
+ENCLOSURE_WORK case=phase polls= 87 paths= 3 path_segments= 31
+ENCLOSURE_WORK case=nested-phase polls= 107 paths= 3 path_segments= 31
+SEEDED_STOP case= 1 baseline_polls= 298 target_poll= 287 source=\def\fuzzlocal{b}\textcolor{blue}{\fuzzlocal+b}+\frac{p}{q}
+SEEDED_STOP case= 2 baseline_polls= 226 target_poll= 61 source=\def\fuzzlocal{c}\hat{\fuzzlocal}+\sqrt{c}
+SEEDED_STOP case= 3 baseline_polls= 334 target_poll= 294 source=\def\fuzzlocal{d}\sqrt{\frac{x-y}{c+d}}+\fuzzlocal
+SEEDED_STOP case= 4 baseline_polls= 226 target_poll= 129 source=\def\fuzzlocal{e}\hat{\fuzzlocal}+\sqrt{e}
+SEEDED_STOP case= 5 baseline_polls= 226 target_poll= 123 source=\def\fuzzlocal{f}\hat{\fuzzlocal}+\sqrt{f}
+SEEDED_STOP case= 6 baseline_polls= 226 target_poll= 220 source=\def\fuzzlocal{g}\hat{\fuzzlocal}+\sqrt{g}
+SEEDED_STOP case= 7 baseline_polls= 304 target_poll= 289 source=\def\fuzzlocal{h}\begin{matrix}\fuzzlocal&h\\x&y\end{matrix}
+SEEDED_STOP case= 8 baseline_polls= 304 target_poll= 291 source=\def\fuzzlocal{i}\begin{matrix}\fuzzlocal&i\\x&y\end{matrix}
+SEEDED_STOP case= 9 baseline_polls= 298 target_poll= 120 source=\def\fuzzlocal{j}\textcolor{blue}{\fuzzlocal+j}+\frac{p}{q}
+SEEDED_STOP case= 10 baseline_polls= 334 target_poll= 26 source=\def\fuzzlocal{k}\sqrt{\frac{a+b}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 11 baseline_polls= 226 target_poll= 67 source=\def\fuzzlocal{l}\hat{\fuzzlocal}+\sqrt{l}
+SEEDED_STOP case= 12 baseline_polls= 304 target_poll= 290 source=\def\fuzzlocal{m}\begin{matrix}\fuzzlocal&m\\x&y\end{matrix}
+SEEDED_STOP case= 13 baseline_polls= 304 target_poll= 265 source=\def\fuzzlocal{n}\begin{matrix}\fuzzlocal&n\\x&y\end{matrix}
+SEEDED_STOP case= 14 baseline_polls= 226 target_poll= 157 source=\def\fuzzlocal{o}\hat{\fuzzlocal}+\sqrt{o}
+SEEDED_STOP case= 15 baseline_polls= 226 target_poll= 17 source=\def\fuzzlocal{p}\hat{\fuzzlocal}+\sqrt{p}
+SEEDED_STOP case= 16 baseline_polls= 226 target_poll= 137 source=\def\fuzzlocal{q}\hat{\fuzzlocal}+\sqrt{q}
+SEEDED_STOP case= 17 baseline_polls= 298 target_poll= 175 source=\def\fuzzlocal{r}\textcolor{blue}{\fuzzlocal+r}+\frac{p}{q}
+SEEDED_STOP case= 18 baseline_polls= 304 target_poll= 106 source=\def\fuzzlocal{s}\begin{matrix}\fuzzlocal&s\\x&y\end{matrix}
+SEEDED_STOP case= 19 baseline_polls= 226 target_poll= 191 source=\def\fuzzlocal{t}\hat{\fuzzlocal}+\sqrt{t}
+SEEDED_STOP case= 20 baseline_polls= 334 target_poll= 110 source=\def\fuzzlocal{u}\sqrt{\frac{a+b}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 21 baseline_polls= 226 target_poll= 133 source=\def\fuzzlocal{v}\hat{\fuzzlocal}+\sqrt{v}
+SEEDED_STOP case= 22 baseline_polls= 298 target_poll= 116 source=\def\fuzzlocal{w}\textcolor{blue}{\fuzzlocal+w}+\frac{p}{q}
+SEEDED_STOP case= 23 baseline_polls= 298 target_poll= 269 source=\def\fuzzlocal{x}\textcolor{blue}{\fuzzlocal+x}+\frac{p}{q}
+SEEDED_STOP case= 24 baseline_polls= 226 target_poll= 21 source=\def\fuzzlocal{y}\hat{\fuzzlocal}+\sqrt{y}
+SEEDED_STOP case= 25 baseline_polls= 334 target_poll= 217 source=\def\fuzzlocal{z}\sqrt{\frac{x-y}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 26 baseline_polls= 304 target_poll= 148 source=\def\fuzzlocal{a}\begin{matrix}\fuzzlocal&a\\x&y\end{matrix}
+SEEDED_STOP case= 27 baseline_polls= 226 target_poll= 175 source=\def\fuzzlocal{b}\hat{\fuzzlocal}+\sqrt{b}
+SEEDED_STOP case= 28 baseline_polls= 334 target_poll= 183 source=\def\fuzzlocal{c}\sqrt{\frac{a+b}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 29 baseline_polls= 298 target_poll= 253 source=\def\fuzzlocal{d}\textcolor{blue}{\fuzzlocal+d}+\frac{p}{q}
+SEEDED_STOP case= 30 baseline_polls= 226 target_poll= 123 source=\def\fuzzlocal{e}\hat{\fuzzlocal}+\sqrt{e}
+SEEDED_STOP case= 31 baseline_polls= 334 target_poll= 299 source=\def\fuzzlocal{f}\sqrt{\frac{x-y}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 32 baseline_polls= 226 target_poll= 93 source=\def\fuzzlocal{g}\hat{\fuzzlocal}+\sqrt{g}
+SEEDED_STOP case= 33 baseline_polls= 334 target_poll= 7 source=\def\fuzzlocal{h}\sqrt{\frac{x-y}{c+d}}+\fuzzlocal
+SEEDED_STOP case= 34 baseline_polls= 334 target_poll= 171 source=\def\fuzzlocal{i}\sqrt{\frac{a+b}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 35 baseline_polls= 334 target_poll= 47 source=\def\fuzzlocal{j}\sqrt{\frac{x-y}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 36 baseline_polls= 334 target_poll= 276 source=\def\fuzzlocal{k}\sqrt{\frac{a+b}{c+d}}+\fuzzlocal
+SEEDED_STOP case= 37 baseline_polls= 298 target_poll= 168 source=\def\fuzzlocal{l}\textcolor{blue}{\fuzzlocal+l}+\frac{p}{q}
+SEEDED_STOP case= 38 baseline_polls= 304 target_poll= 157 source=\def\fuzzlocal{m}\begin{matrix}\fuzzlocal&m\\x&y\end{matrix}
+SEEDED_STOP case= 39 baseline_polls= 226 target_poll= 193 source=\def\fuzzlocal{n}\hat{\fuzzlocal}+\sqrt{n}
+SEEDED_STOP case= 40 baseline_polls= 334 target_poll= 147 source=\def\fuzzlocal{o}\sqrt{\frac{a+b}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 41 baseline_polls= 298 target_poll= 250 source=\def\fuzzlocal{p}\textcolor{blue}{\fuzzlocal+p}+\frac{p}{q}
+SEEDED_STOP case= 42 baseline_polls= 304 target_poll= 186 source=\def\fuzzlocal{q}\begin{matrix}\fuzzlocal&q\\x&y\end{matrix}
+SEEDED_STOP case= 43 baseline_polls= 298 target_poll= 281 source=\def\fuzzlocal{r}\textcolor{blue}{\fuzzlocal+r}+\frac{p}{q}
+SEEDED_STOP case= 44 baseline_polls= 226 target_poll= 158 source=\def\fuzzlocal{s}\hat{\fuzzlocal}+\sqrt{s}
+SEEDED_STOP case= 45 baseline_polls= 226 target_poll= 72 source=\def\fuzzlocal{t}\hat{\fuzzlocal}+\sqrt{t}
+SEEDED_STOP case= 46 baseline_polls= 334 target_poll= 212 source=\def\fuzzlocal{u}\sqrt{\frac{a+b}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 47 baseline_polls= 304 target_poll= 198 source=\def\fuzzlocal{v}\begin{matrix}\fuzzlocal&v\\x&y\end{matrix}
+SEEDED_STOP case= 48 baseline_polls= 334 target_poll= 14 source=\def\fuzzlocal{w}\sqrt{\frac{a+b}{c+d}}+\fuzzlocal
+SEEDED_STOP case= 49 baseline_polls= 304 target_poll= 98 source=\def\fuzzlocal{x}\begin{matrix}\fuzzlocal&x\\x&y\end{matrix}
+SEEDED_STOP case= 50 baseline_polls= 298 target_poll= 82 source=\def\fuzzlocal{y}\textcolor{blue}{\fuzzlocal+y}+\frac{p}{q}
+SEEDED_STOP case= 51 baseline_polls= 226 target_poll= 131 source=\def\fuzzlocal{z}\hat{\fuzzlocal}+\sqrt{z}
+SEEDED_STOP case= 52 baseline_polls= 304 target_poll= 55 source=\def\fuzzlocal{a}\begin{matrix}\fuzzlocal&a\\x&y\end{matrix}
+SEEDED_STOP case= 53 baseline_polls= 298 target_poll= 182 source=\def\fuzzlocal{b}\textcolor{blue}{\fuzzlocal+b}+\frac{p}{q}
+SEEDED_STOP case= 54 baseline_polls= 298 target_poll= 222 source=\def\fuzzlocal{c}\textcolor{blue}{\fuzzlocal+c}+\frac{p}{q}
+SEEDED_STOP case= 55 baseline_polls= 298 target_poll= 87 source=\def\fuzzlocal{d}\textcolor{blue}{\fuzzlocal+d}+\frac{p}{q}
+SEEDED_STOP case= 56 baseline_polls= 226 target_poll= 145 source=\def\fuzzlocal{e}\hat{\fuzzlocal}+\sqrt{e}
+SEEDED_STOP case= 57 baseline_polls= 334 target_poll= 143 source=\def\fuzzlocal{f}\sqrt{\frac{x-y}{c+d}}+\fuzzlocal
+SEEDED_STOP case= 58 baseline_polls= 226 target_poll= 101 source=\def\fuzzlocal{g}\hat{\fuzzlocal}+\sqrt{g}
+SEEDED_STOP case= 59 baseline_polls= 304 target_poll= 125 source=\def\fuzzlocal{h}\begin{matrix}\fuzzlocal&h\\x&y\end{matrix}
+SEEDED_STOP case= 60 baseline_polls= 298 target_poll= 196 source=\def\fuzzlocal{i}\textcolor{blue}{\fuzzlocal+i}+\frac{p}{q}
+SEEDED_STOP case= 61 baseline_polls= 334 target_poll= 185 source=\def\fuzzlocal{j}\sqrt{\frac{x-y}{m+n}}+\fuzzlocal
+SEEDED_STOP case= 62 baseline_polls= 304 target_poll= 154 source=\def\fuzzlocal{k}\begin{matrix}\fuzzlocal&k\\x&y\end{matrix}
+SEEDED_STOP case= 63 baseline_polls= 334 target_poll= 323 source=\def\fuzzlocal{l}\sqrt{\frac{x-y}{c+d}}+\fuzzlocal
+SEEDED_STOP case= 64 baseline_polls= 298 target_poll= 131 source=\def\fuzzlocal{m}\textcolor{blue}{\fuzzlocal+m}+\frac{p}{q}
+SEEDED_STOPS seed=0x73746f70 cases=64 injections=128
+ASSERTIONS 3553 failures= 0

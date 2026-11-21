@@ -1,0 +1,18 @@
+{
+  "parent_commit": "acf1cf1c48aad9596fb779eddb82226d4b2cace7",
+  "project_date": "2026-11-15",
+  "sha256": {
+    "test/tools/math_engine_probe.adb": "4dc2a749d3e7d0664144fa2561a60bb44e73227ef76f19a70f113ec66a77015c",
+    "test/tools/math_jobs_probe.adb": "56a7c6b1d0c1a7b4551fa514bd950d5021abcb7b1f52577378a42cb5f1b9a61b",
+    "src/coyote_math/math_layout.adb": "d0f14f0cee1ce6a302841203380ac764bc75b237c32f62df4920d533f41e7c36",
+    "src/coyote_math/math_paths.ads": "8094e90e96c41c5c8496f11cde00068780a23472babc25af6eb5e31be6e7bdfa",
+    "src/coyote_math/coyote_math_jobs.adb": "c5d8a7396a1c9630548c9556db870a40dc02faeee400d7b6b8ee57e6a00839d0",
+    "src/coyote_math/coyote_math_jobs.ads": "ffd2967591ca440385b62c4fe1622c65768126e3af9e281880dbd51d3dcf052d",
+    "src/coyote_math/math_engine.adb": "242992e9a39f3d38492a256bedecd95dae9ce260d976a13eecd2644bc222d759",
+    "/tmp/coyote-command-engine-exact2/bin/math_engine_probe": "3bbc857df8f0f8dc1fe6d3095e61877b77f913733a1510bde858e6a8986cb85f",
+    "/tmp/coyote-command-jobs-contract2/bin/math_jobs_probe": "6a94f2ee5e289d430435014ccbdb20141c225a267f764c3b7c0b6e3a4908c6b7",
+    "/tmp/coyote-command-guard-mutation/build/bin/math_engine_probe": "e2c5e771b67e1395b73cb3ab6c7abb0b9917677c2bd2f9435a22618a8bd8b7f9",
+    "test/bin/coyote_test": "4b8583353258ec42ad424dff7b3a182b3840037d7159c5106d6ffb720680c945",
+    "bin/coyote": "6c65a67c91fc202d1ea311dee25b2a138061ff9cdc13a79206c6eff69b1a697e"
+  }
+}
