@@ -1,12 +1,17 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.44
-**Date:** 2026-11-06
+**Version:** 1.45
+**Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
+
+**Canvas and subcommands (PCR-130/131):** The product owner accepted the
+Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
+The existing runtime descriptions remain the implemented baseline. Canvas
+implementation and qualification are pending.
 
 **Native-math port (PCR-125):** SRS-MATH v1.0 and D01–D15 remain authoritative; this design does not change their scope. The coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the current checkpoint; §10 and earlier sections are historical. Runtime Pango shaping and Unicode fallback are available, but system font-family resolution remains unpinned. Current evidence is recorded, not freshly reverified: 2,930 coverage rows comprise 2,929 partial, one approved deviation, zero qualified and zero missing; this source crosswalk does not show all behaviors complete. Recorded image comparison is 28/29 with `utilde-long` 0.9851 against the unchanged 0.99 threshold. Inline formulas still render through the GTK-main-task path; do not infer off-thread inline painting. Cooperative polling does not preempt native C calls or guarantee queue-inclusive 250 ms completion; the 50 ms representative warm p95 and separate 50 ms GTK work-slice targets remain open. The shared 64 MiB `Math_Raster_Budget` accounts for retained leases, not whole-job 256 MiB or process-wide memory. Full width/origin/options equivalence, complete-corpus readiness and human visual/accessibility acceptance remain open. No acceptance is implied.
 
@@ -56,6 +61,8 @@ Acme/Nine_P sections below are retained for traceability only.
 | PLAN | Project Plan | `plan/project-plan.md` |
 | AGENTS | Agent Working Instructions | `AGENTS.md` |
 | SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
+| SDD-CANVAS | Planned Canvas, user-image, and CLI detailed design | [`design/coyote-canvas-design.md`](coyote-canvas-design.md) |
+| STP | Core Test Plan; planned Canvas qualification §4.6 | [`plan/test-plan.md`](../plan/test-plan.md) |
 
 ---
 
@@ -527,6 +534,18 @@ not wait for the complete user turn.
 | Help qualification scripts | Bounded fake-Yelp launch matrix and repeatable AUnit/Mallard/CLI workflow | `test/tools/check-help-launch.sh`, `test/check-help.sh` |
 | `*_Tests.Suite` | Leaf AUnit fixture suite functions (current retained fixtures) | `test/src/*_tests.ads/.adb` |
 
+**Planned Canvas allocation (PCR-130/131).** These units are planned, not
+present in the current source. See [SDD-CANVAS §2](coyote-canvas-design.md#2-units-and-execution).
+
+| Proposed unit | Role |
+|---|---|
+| `Coyote_CLI` | Dispatch subcommands and share the session-list output path. |
+| `Coyote_Canvas.Import_Service` | Accept authorized, bounded file data for one live session. |
+| `Coyote_Canvas.Document` | Own drawing content, revision branches, working copies and crop geometry. |
+| `Coyote_Canvas.Images` | Validate, decode, rasterize, composite and encode without thumbnail scaling. |
+| `Coyote_Canvas.Store` | Save and recover session-local editable revisions and assets. |
+| `Coyote_GUI.Canvas` | Own window and input state, clipboard requests, and attachment staging on GTK. |
+
 ### 4.2 Static Relationships
 
 The dependency hierarchy flows from the application entry points down through
@@ -787,6 +806,11 @@ simple and auditable.*
 ## 5. Detailed Design
 
 ### 5.1 `Coyote` (entry point)
+
+**Planned subcommands:** `Coyote_CLI` dispatches `session list` and `canvas add`
+before launcher/frontend initialization. Existing invocations use the path
+below. Grammar, compatibility and the import authority boundary are in
+[SDD-CANVAS §3](coyote-canvas-design.md#3-cli-and-local-import-protocol).
 
 **Physical-window launch:** The GUI `Fork` action and `File → New Window`
 launches use the active executable with explicit `--frontend gui` and the
@@ -1382,6 +1406,11 @@ process-group leader used by `kill(-pid, SIGKILL)` for the complete tree.
 ---
 
 ### 5.11 `LLM.Session_Store`
+
+**Planned Canvas extension:** Preserve exact user-image blocks in v3 and
+retain editable revision assets separately. The existing writer still creates
+legacy v1 headers; the v3 transition, retained bytes, and legacy-read policy
+are specified in [SDD-CANVAS §5.2](coyote-canvas-design.md#52-persistence-and-recovery).
 
 **Purpose:** JSONL session file creation, append, and reload.
 
@@ -2801,6 +2830,11 @@ a callback is completing.
 
 ### 5.40 `Coyote_GUI.Prompt_Queue`
 
+**Planned Canvas extension:** `User_Prompt` gains an ordered immutable image
+payload, byte accounting and a session-bound submission identity. The table
+below describes the current text-only item. See
+[SDD-CANVAS §6](coyote-canvas-design.md#6-attach-queue-provider-and-replay).
+
 **Purpose:** Thread-safe bounded queue from the GTK main loop to `Agent_Task`,
 carrying typed command payloads via a discriminated `Item` type.
 
@@ -3067,6 +3101,26 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 **`Resume (S : in out Session)`:** Clears `S.Pause_Flg`, unblocking the
 `Wait_If_Cleared` entry.
 
+### 5.51 Drawing Canvas and additive CLI (planned)
+
+[SDD-CANVAS](coyote-canvas-design.md) defines the architecture and detailed
+interfaces for an IRIX-style local GTK Canvas, native-size clipboard and file
+import, the Wacom Intuos and mouse input path, explicit crop, branching
+revision storage, and exact multi-image user turns. The GUI binds drawing,
+import and clipboard state to the originating session rather than to the
+currently selected conversation widget. Disk image import stays in `shell`'s
+file authority, and no new model-facing tool is exposed. Keep native drawing
+pixels separate from display transforms, and keep normal Canvas composition,
+editable history, and frozen attachment lifetimes distinct.
+
+The local workflow extends the existing typed queue, provider and replay
+contracts. Plain, virtual-agent image steering, and assistant Markdown or
+shell tool-result image handling are not changed. Comparison and explicitly
+linked agent branches are specified as follow-on design. STP §4.6 identifies
+planned qualification; no runtime implementation or acceptance is claimed.
+
+---
+
 ## 6. Requirements Traceability
 
 | Requirement ID | Implementing unit(s) |
@@ -3074,6 +3128,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-001–005 | `Coyote` (entry point) |
 | REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
 | REQ-CORE-020a–020c, 115, 115a, 115c | `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel and reset presentation |
+| REQ-CORE-026–028 (planned) | `Coyote`, `Coyote_CLI`, `Session_Lister`, `Coyote_Canvas.Import_Service`; SDD-CANVAS §3 |
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
@@ -3086,6 +3141,10 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-080–089 | `LLM.Session_Store`, `LLM.Agent`, `Coyote_App`, `Session_Lister` |
 | REQ-CORE-113f–113i | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Sandbox_Profile_Window`, `Coyote_GUI.Prompt_Queue`, `LLM.Tools.Sandbox` |
 | REQ-CORE-235 | `LLM.Tools.Sandbox`, `LLM.Settings`, `LLM.Tools.Shell` |
+| REQ-CORE-260–262, 270–271 (planned) | `Coyote_GUI.Canvas`, `Coyote_Canvas.Document`, `Images`, `Store`; SDD-CANVAS §§4–5 |
+| REQ-CORE-263–266 (planned) | `Coyote_GUI.Canvas`, `Prompt_Queue`, `Coyote_App`, `LLM.Agent`, `LLM.Types`, adapter delegates, `Session_Store`, `History`, `Compaction`, Canvas `Store`; SDD-CANVAS §§5–6 |
+| REQ-CORE-267 (planned) | Canvas `Import_Service`, `Images`, `LLM.Tools.Shell`; SDD-CANVAS §§2–3, 5 |
+| REQ-CORE-268–269 (planned follow-on) | `Coyote_GUI.Canvas`, Canvas `Import_Service`, `Document`, `Store`; SDD-CANVAS §8 |
 
 **PCR-044 synchronization design:** `Coyote_App` calls its local
 `Synchronize_Sandbox` operation after agent creation and after every session

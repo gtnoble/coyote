@@ -1,5 +1,14 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas interaction design (PCR-130/131)
+
+[SDD-CANVAS](../design/coyote-canvas-design.md) specifies the planned IRIX
+co-primary, revision tree, immutable composer attachments, generation-bound
+clipboard paste and pixel-grid crop interaction. Keep native-size drawing
+composition separate from zoom, crop preview and other view transforms.
+Qualify pressure and crop on a physical Intuos; document review and earlier
+synthetic Xvfb probes are not hardware or user acceptance.
+
 ## 2026-11-07 — Text boundary and isolated interactions (PCR-128)
 
 First robustness increment adds shared `Text_Safety` configuration, NUL-safe

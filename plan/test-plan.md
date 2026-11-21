@@ -1,11 +1,14 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.42
-**Date:** 2026-11-06
+**Version:** 1.44
+**Date:** 2026-11-21
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
+
+**PCR-130 and PCR-131:** Canvas, additive CLI, clipboard-image import and
+interactive crop qualification are planned in §4.6; no cases have been executed.
 
 **PCR-125 native-math status (2026-11-06):** SRS-MATH v1.0 and D01–D15 remain
 authoritative and unchanged; the already-approved execution continues without
@@ -29,6 +32,7 @@ acceptance has not occurred. No parity or product acceptance is established.
 2. [Referenced Documents](#2-referenced-documents)
 3. [Test Environment](#3-test-environment)
 4. [Test Identification](#4-test-identification)
+   - [4.6 Drawing Canvas and Subcommands](#46-planned-qualification--drawing-canvas-and-subcommands-pcr-130)
 5. [Test Schedule](#5-test-schedule)
 6. [Requirements Traceability](#6-requirements-traceability)
 7. [Notes](#7-notes)
@@ -62,6 +66,7 @@ owner) is invited to independently review test results before accepting them.
 |---|---|---|
 | SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
+| SDD-CANVAS | Accepted Canvas and CLI detailed design | [`design/coyote-canvas-design.md`](../design/coyote-canvas-design.md) |
 | PLAN | Project Plan | `plan/project-plan.md` |
 | TEST-GUIDE | Integration Test Guide | `plan/integration-test-guide.md` |
 
@@ -415,6 +420,33 @@ live-provider, signal, and preferences demonstrations listed above.
 
 ---
 
+### 4.6 Planned Qualification — Drawing Canvas and Subcommands (PCR-130)
+
+The cases below are planned, not executed. The first GUI increment requires
+an end-to-end local-session demonstration with a physical Wacom Intuos. Record
+the exact tablet model, connection and Linux display backend in the report.
+In that demonstration, have the agent add an SVG and a raster image using
+the shell command, mark up an import with the Intuos and create a blank
+drawing. Also paste a screenshot from the desktop clipboard, apply a pen
+crop, and send one cropped and one uncropped revision in deliberate order
+with one prompt. Reopen the session and follow the recorded attachments back
+to their exact revisions.
+Xvfb counts for automated UI behavior only, not for hardware qualification.
+Use synthetic local image fixtures and a capture endpoint for automated
+provider-payload tests. Run live provider checks only as separately authorized.
+
+| Test ID | Requirement | Planned verification |
+|---|---|---|
+| CAN-CLI-01 | REQ-CORE-026–028 | In an isolated HOME, compare `coyote session list` stdout and status with the legacy utility for empty and populated directories; compare distinct projects and newest-first order. Exercise help at each command level, missing and unknown operands, names containing spaces and leading dashes after `--`, and unavailable/stale Canvas targets. Confirm maintenance invocations do not launch a frontend, create a session or send a provider request, and launcher and child-process invocations remain compatible. |
+| CAN-GUI-01 | REQ-CORE-260–263, 266 | Open the Canvas without replacing the conversation; verify modeless behavior, IRIX menu order, mnemonics, standard shortcuts, keyboard traversal and discontiguous selection, text state indicators, modeless file selection, and close/reopen. Use an Intuos to vary stroke pressure, verify pen-up and continued alignment after zoom/pan, and repeat with the mouse. Import PNG, JPEG and SVG, draw on a blank Canvas, undo/redo strokes and erase only ink. Check read-only preview and markup toggle, recovery after restart, revision branching, and no duplicate nodes on unchanged saves. Inspect Help and non-destructive agent-add behavior. |
+| CAN-DATA-01 | REQ-CORE-262–266 | Save and reopen old and branched revisions; verify ancestry and identifiers survive source removal. Attach two versions of one drawing and another drawing, reorder them, edit the working copy, and verify that staging remains unchanged. Capture user-message requests on all three adapter wires; decode each attachment and compare its full dimensions and pixel values with its corresponding normal Canvas composite. Include a raster larger than the inline Markdown thumbnail limit and verify that the import retains its source dimensions. Include SVG, fine text, edge pixels, independently numbered images, and an image-only turn. Replay the same payload and follow Show in Canvas to the stable revision. Verify compaction/replay integrity, legacy session compatibility and no Canvas session data with `--no-session`. |
+| CAN-LIMIT-01 | REQ-CORE-263–265 | Exercise unsupported model/frontend, individual and cumulative image limits, queue rejection, and busy submissions. Confirm rejection retains text and every attachment without sending a partial request, an accepted busy turn is delivered once and intact, and a text filter does not alter image bytes. Verify that the composer indicates provider submission and applicable retention, without a separate outgoing preview. |
+| CAN-IMPORT-01 | REQ-CORE-028, 260, 261, 267 | Have the local agent add mixed SVG/raster files in order to one of two GUI sessions. Verify ordered IDs, unchanged selection/focus and no auto-attachment. Exercise denied reads, a session switch or stale target, malformed and oversized inputs, a batch with one invalid file, and an SVG with external references. Verify no boundary crossing, external reads, or partial additions, and observe responsive interaction during import. |
+| CAN-CLIP-01 | REQ-CORE-270 | Paste cross-process PNG and JPEG fixtures, including a PNG with alpha and an offer containing both formats. Check dimensions and pixels, PNG preference, new Original nodes, unchanged existing drafts, and no implicit attachment or submission. Verify CLIPBOARD is read only on Paste, PRIMARY and conversation text paste are unaffected, and changing the clipboard does not change a pasted image. Exercise empty, unsupported, path or URL text, malformed, oversized and lost-owner offers; simulate a delayed reply after close/reopen and session switch; verify failure feedback and no unintended drawing. Reopen a persisted session after the source exits and verify rejection leaves no drawing data and `--no-session` leaves no persisted Canvas data. |
+| CAN-CROP-01 | REQ-CORE-271 | With a physical Intuos, draw, move and resize a crop on an inked drawing using different zoom, pan and display scale settings; use a mouse and then keyboard alone to set the same rectangle. Verify bounds, displayed dimensions, dimming, rejection of empty or invalid rectangles, and geometry independent of pressure. Verify Esc and Cancel leave the drawing unchanged, pending crop cannot be attached, and switching drawings doesn't apply it. Apply once and verify Undo and Redo restore the prior and cropped composites, including ink. |
+| CAN-CROP-02 | REQ-CORE-262–264, 266, 271 | Stage the original, apply a crop, and attach the changed draft. Verify parentage, exact dimensions and pixels of the rectangular region, independence of the staged original, and continued editability of retained ink. Capture the ordered payloads and compare against the normal Canvas composites, including edge pixels and alpha. Verify the cropped image contains no out-of-crop pixels, the uncropped revision is unchanged, and replay reopens both exact revisions after session restart. |
+| CAN-FOLLOW-01 | REQ-CORE-268–269 | After the follow-on increment, compare two revisions with synchronized navigation and no state changes. Add an explicitly linked agent proposal; confirm correct parent and provenance, rejection of invalid/foreign IDs, and no change to working or staged content. |
+
 ## 5. Test Schedule
 
 | Activity | Milestone | Status |
@@ -441,6 +473,7 @@ live-provider, signal, and preferences demonstrations listed above.
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |
 | REQ-CORE-024 | D | TC-024 (DEM-019) |
+| REQ-CORE-026–028 | T/D | CAN-CLI-01, CAN-IMPORT-01 (planned) |
 | REQ-CORE-030–032 | T/I | `coyote_app_tests.adb`, code inspection |
 | REQ-CORE-219 | T/I | `llm_agent_tests.adb`, code inspection |
 | REQ-CORE-040–046 | T/D | `llm_agent_tests.adb`, DEM-006 |
@@ -497,6 +530,9 @@ live-provider, signal, and preferences demonstrations listed above.
 | REQ-CORE-220–221 | I | Code inspection (GTK call sites) |
 | REQ-CORE-025, 230–234 | T | `llm_settings_tests.adb`, `subagent_integration_tests.adb`, `llm_auth_tests.adb`, DEM-034, DEM-045 |
 | REQ-CORE-240–241 | T | `llm_session_store_tests.adb`, `coyote_app_history_tests.adb`, `coyote_sqc_parser_tests.adb`; legacy `format`/`formatVersion` fields are ignored during Markdown replay |
+| REQ-CORE-260–267 | D/T/I | CAN-GUI-01, CAN-DATA-01, CAN-LIMIT-01, CAN-IMPORT-01 (planned) |
+| REQ-CORE-268–269 | D/T | CAN-FOLLOW-01 (planned follow-on) |
+| REQ-CORE-270–271 | D/T | CAN-CLIP-01, CAN-CROP-01, CAN-CROP-02 (planned) |
 | REQ-CORE-300–302 | I | Code inspection |
 | REQ-CORE-400–402 | T/I | `llm_types_tests.adb`, code inspection |
 | REQ-CORE-500–505 | I | Build artefact inspection |

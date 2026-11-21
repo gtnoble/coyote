@@ -1,5 +1,15 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Canvas interfaces and additive CLI design (PCR-130/131)
+
+SDD-CORE v1.45 and [SDD-CANVAS](../design/coyote-canvas-design.md) allocate
+CLI dispatch, session-bound bounded-byte import, revision assets and ordered
+user-image prompts across the agent, provider and session units. Inspection
+found legacy headers in the current session writer; the v3 transition is an
+implementation dependency, not an existing feature. No source changes,
+runtime qualification or release. The product owner accepted the design
+on 2026-11-21.
+
 ## 2026-11-10 — Supported Markdown semantics in the system prompt (PCR-129)
 
 Added a concise Supported Markdown subsection to the runtime prompt resource:

@@ -3,6 +3,50 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-131 — Canvas clipboard import and interactive crop
+
+- **Date reported:** 2026-11-21
+- **Category:** Requirements, Plans
+- **Priority:** 4-Minor (additive Canvas operations).
+- **Authorization:** User requested adding the investigated clipboard and crop
+  features to the requirements; no implementation was requested.
+- **Affected work products:** SRS-CORE v1.35 §3.1.20 and STP v1.44 §4.6.
+- **Change:** Specify native-size clipboard-image import into a new drawing
+  and explicit, undoable Intuos crop with mouse and keyboard alternatives.
+  Clarify that attachment and submission never crop or resample; only the
+  user's applied edit changes the drawing's bounds.
+- **Actions:** Added REQ-CORE-270 and REQ-CORE-271, clarified REQ-CORE-263 and
+  REQ-CORE-264, and traced the change to CAN-CLIP-01 and CAN-CROP-01/02.
+- **Design:** SDD-CORE v1.45 §5.51 and SDD-CANVAS v1.0 §§4–6 record the
+  clipboard lifetime, crop geometry, revision and send contracts accepted
+  by the product owner on 2026-11-21.
+- **Status:** Open; design accepted, implementation and qualification pending.
+
+## PCR-130 — Drawing Canvas and additive CLI subcommands
+
+- **Date reported:** 2026-11-21
+- **Category:** Requirements, Plans
+- **Priority:** 4-Minor (additive capability; existing CLI and conversation
+  remain available).
+- **Authorization:** User asked to update the agreed requirements. This change
+  records the requirements and planned qualification, not implementation or
+  product acceptance.
+- **Affected work products:** SRS-CORE v1.34 and STP v1.43 §4.6.
+- **Change:** Specify an IRIX-style, session-scoped Canvas with Wacom Intuos
+  support, branching drawing revisions, and ordered exact-image attachments.
+  Preserve the single `shell` tool through `coyote canvas add` and introduce
+  `coyote session list` compatibly. Sending shall neither downsize images nor
+  require a separate outgoing preview. Record comparison and explicitly linked
+  agent branches separately from the initial increment.
+- **Actions and evaluation:** Added requirement IDs, source and qualification
+  traceability, and planned CLI, GUI/hardware, payload, failure and isolation
+  checks. Developer review is not independent acceptance.
+- **Design:** SDD-CORE v1.45 §5.51 and SDD-CANVAS v1.0 record the
+  architecture and detailed local import, persistence and provider contracts
+  accepted by the product owner on 2026-11-21.
+- **Status:** Open; design accepted, implementation and qualification pending.
+  No runtime tests, release or deployment are claimed.
+
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 
 - **Date reported:** 2026-11-10

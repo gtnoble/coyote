@@ -1,13 +1,14 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.33
-**Date:** 2026-10-26
-**Status:** Session-contained local PNG/JPEG behavior is implemented and PCR-116 automated qualification is complete; DEM-060 desktop qualification remains pending
+**Version:** 1.35
+**Date:** 2026-11-21
+**Status:** PCR-130 and PCR-131 Canvas and CLI design accepted; implementation and qualification pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
-revision records the scoped local-image contract and PCR-116 evidence; DEM-060
-desktop qualification remains pending. The native-math checkpoint status and
+revision records the Canvas and CLI amendment, including clipboard-image
+import and user-applied crop, without changing the scoped local-image
+contract or PCR-116 evidence. The native-math checkpoint status and
 open gaps are recorded in `plan/native-math-parity-test-report.md`.
 **Project Plan:** `plan/project-plan.md`
 
@@ -30,6 +31,7 @@ test readiness, qualification and product acceptance remain open.
      - 3.1.17 Enhanced System Prompt (REQ-CORE-170)
      - 3.1.18 Structured Memory System (REQ-CORE-180)
      - 3.1.19 Coordinator Subagent Orchestration (REQ-CORE-190)
+     - [3.1.20 Drawing Canvas and Image Attachments](#3120-drawing-canvas-and-image-attachments-pcr-130)
    - 3.2 External Interface Requirements
    - 3.3 Internal Interface Requirements
    - 3.4 Internal Data Requirements
@@ -69,6 +71,8 @@ a conversation session with a large language model, executes tool calls on
 behalf of the model, and presents streaming output to the user via a GTK3
 graphical window or Plain text output. A companion utility
 `coyote_list_sessions` lists sessions saved for the current working directory.
+PCR-130 adds requirements for a GTK drawing workspace, multi-image user
+prompts and additive CLI subcommands; the existing launch interface remains.
 
 **Document overview:** This specification states the capability, interface,
 data, environment, resource, quality, and constraint requirements for the
@@ -91,6 +95,7 @@ coyote component. Each requirement carries a unique identifier
 | AGENTS | Agent Working Instructions | `AGENTS.md` |
 | SKILL-FORMAT | Skills file format reference | `docs/skills.md` |
 | SESSION-FORMAT | coyote-session-format skill | `~/.coyote/skills/coyote-session-format/SKILL.md` |
+| IRIX-UI | IRIX Interactive Desktop User Interface Guidelines, SGI 007-2167-005 | Windows, menus, interactions, controls, dialogs, and desktop Help |
 
 ---
 
@@ -252,6 +257,40 @@ The executable shall accept `-h` and `--help` command-line arguments.
 When either is given, the executable shall write a summary of all accepted
 arguments and their meanings to standard output and exit with a success
 status, without starting a session or opening a frontend window.
+
+**REQ-CORE-026** (T) — Additive subcommand dispatch
+
+The executable shall accept `canvas` and `session` as first-argument command
+names while retaining the existing launcher and flags, including `--one-shot`,
+`--subagent` and `--physical-window`. Top-level help shall list subcommands;
+`-h` and `--help` shall be supported at group and leaf command levels.
+Subcommand help and execution shall not start an agent, open a new window,
+create a conversation or contact a model provider. Unknown subcommands and
+invalid operands shall produce a diagnostic on stderr and a nonzero status
+without falling through to normal launch. This amendment does not migrate
+launcher callers or change the separate `coyote_sqc` executable.
+
+**REQ-CORE-027** (T) — Session listing compatibility
+
+`coyote session list` shall list saved sessions for the current working
+directory, newest first, using the legacy tab-separated UUID, name, date and
+snippet columns. With no sessions it shall succeed with no rows.
+`coyote_list_sessions` shall remain available and retain equivalent stdout
+and exit behavior for existing callers (REQ-CORE-084).
+
+**REQ-CORE-028** (T/D) — Adding drawings by command
+
+`coyote canvas add [--] FILE...` shall accept one or more PNG, JPEG or
+self-contained SVG file operands, including names with spaces and names
+beginning with a dash after `--`. It shall add one drawing with an Original
+revision per file, in argument order, to the authorized live GUI session.
+Success shall report the added names and stable identifiers in order. An
+unavailable or stale target, or failure of any file in the batch, shall
+produce an explanatory stderr diagnostic and a nonzero exit, with no partial
+addition. The command shall not guess a target, raise or open a window,
+replace an existing drawing, attach an image or send a prompt. Repeated
+filenames shall not imply revision ancestry. REQ-CORE-267 governs import
+authority; REQ-CORE-269 is a separate follow-on for explicit ancestry.
 
 ---
 
@@ -1511,6 +1550,190 @@ without guessing at findings.
 
 ---
 
+#### 3.1.20 Drawing Canvas and Image Attachments (PCR-130)
+
+Initial scope is the local agent in the GTK frontend. Plain and headless
+frontends and virtual-agent image steering are outside this increment.
+These requirements do not change assistant Markdown image presentation
+(REQ-CORE-111) or shell image tool results (REQ-CORE-051 and REQ-CORE-053).
+
+**REQ-CORE-260** (D/I) — Canvas window and desktop conventions
+
+The conversation window shall offer **View → Canvas**, opening one resizable,
+modeless `coyote : Canvas` co-primary for the current conversation. Its menus
+shall follow IRIX order: File, Selected, Edit, View, Help. Core actions shall
+be discoverable in menus with mnemonics and keyboard access, without requiring
+drag-and-drop or pen buttons. The Canvas shall follow the IRIX focus,
+selection, help, dialog and accelerator conventions in §2, including `Ctrl+N`
+for New, `Ctrl+S` for Save, `Ctrl+W` for Close, `Ctrl+Z` for Undo and
+`Shift+Ctrl+Z` for Redo. Closing the Canvas shall not exit Coyote or discard
+its drawings. Agent additions shall update the status area without taking
+focus, switching the active drawing, or posting a modal confirmation.
+
+**REQ-CORE-261** (D/T) — Drawing and tablet input
+
+The user shall be able to create a blank drawing or import one or more local
+PNG, JPEG or self-contained SVG files through a modeless File Selection
+dialog. The Canvas shall support Wacom Intuos freehand input on Linux, with
+variable stroke width when pressure is available and fixed-width drawing with
+a mouse or when pressure is unavailable. REQ-CORE-270 specifies clipboard
+import, and REQ-CORE-271 specifies user-applied crop. A working copy shall retain its
+background separately from editable ink. Erasing shall not erase the
+background, and Undo and Redo shall operate by completed stroke or edit.
+PNG and JPEG imports shall retain the source pixel dimensions; an import
+that cannot be supported at those dimensions shall be rejected, not resized.
+Imported files shall not be overwritten. Pan and zoom shall not alter the
+drawing. **View → Show Markup** shall hide or show ink without changing the
+drawing or any attachment.
+
+**REQ-CORE-262** (D/T) — Drawing tree and revisions
+
+The labeled Drawings tree shall group each drawing under its own root with an
+Original revision. Saving changes shall create an immutable child revision
+under the revision the working copy was based on, with a stable identifier.
+Saving unchanged content shall not create a node. Selecting a revision shall
+preview it without changing the working copy or staging an attachment.
+**Selected → Edit Revision** shall start editing from one selected revision
+without losing existing draft edits. Editing an older revision and saving
+shall create a branch without modifying its descendants. Undo and Redo shall
+act on the current working copy, not on saved nodes or other drawings. The
+tree and Canvas shall distinguish selection, the displayed revision or draft,
+and read-only or sent state with text, not color alone. Any operation that
+would discard edits shall identify the affected drawing and allow cancellation.
+
+**REQ-CORE-263** (D/T) — Multi-image staging
+
+The tree shall support keyboard-accessible discontiguous selection.
+**Selected → Attach** shall stage the selected revisions, including multiple
+revisions of one drawing, in visible tree order within each batch. Attaching
+a changed working copy shall first checkpoint it so the staged image refers to
+an exact revision. The composer shall list numbered attachment names and
+revision identifiers and allow keyboard-accessible reordering and removal
+without altering the tree. The composer shall indicate that attached images go
+to the selected provider on Send and are retained when session persistence is
+enabled. Staged images shall remain frozen despite later edits or selection
+changes. Selecting, importing, pasting, cropping or viewing a drawing shall
+not stage or send it. Attaching shall require the normal Canvas view, not the
+markup-hidden or comparison view or an unapplied crop. There shall be no separate outgoing preview:
+the Canvas shall display the same composite used for attachment, subject only
+to display transforms such as zoom and pan.
+
+**REQ-CORE-264** (T/D) — Exact image submission
+
+Send shall submit the prompt text and ordered images, or the image set alone,
+as one user message. Each submitted image shall match the drawing's complete
+normal Canvas composite at native pixel dimensions and decoded pixel values.
+Coyote shall encode the composite losslessly. Attach and Send shall not
+resize, crop, add lossy recompression, substitute thumbnails or combine
+separate images. An explicit crop applied before attachment (REQ-CORE-271)
+changes the drawing itself; the resulting full composite shall be submitted
+at its resulting native dimensions without further cropping or resampling.
+For SVG, display and submission shall use the same raster rendering at the
+drawing's defined pixel dimensions. This guarantee applies to the payload
+Coyote submits, not provider preprocessing. The composer, model input and
+replay shall preserve the same image numbering and order.
+
+**REQ-CORE-265** (T/D) — Capability, limits and queue behavior
+
+Coyote shall check the selected model and adapter for user-image support and
+enforce known per-image and total submission limits, including image count.
+The OpenAI Responses, OpenAI Chat Completions and Anthropic Messages adapters
+shall preserve ordered user images on supported models. For an unsupported
+target, exceeded limit, full queue or other submission rejection, Coyote shall
+identify the reason, retain the complete draft and not send a partial or
+text-only turn. An accepted busy submission shall queue as one intact turn,
+not modify an already streaming request. The configured prompt filter
+(REQ-CORE-022) shall affect only the text, not the images or their order.
+
+**REQ-CORE-266** (T/D) — Recovery, replay and traceability
+
+For persisted sessions, reopening shall restore the drawing tree, revision
+identifiers, parentage and recoverable working drafts without requiring the
+original files. Recovery autosaves shall not create visible revision nodes.
+Coyote shall retain the exact submitted images and their order and revision
+references with each recorded turn. Replay shall display the images and offer
+**Show in Canvas**, selecting the exact revision rather than its latest
+descendant. Sending or replaying shall not duplicate revision nodes.
+Compaction shall not alter persisted images or their replay. It shall preserve
+images in the retained tail and indicate older omitted images as attachments
+in the summarization input. Older v1 and v3 sessions without attachments shall
+remain readable (REQ-CORE-241). With `--no-session`, Canvas history, drafts
+and attachments shall not be persisted as session data.
+
+**REQ-CORE-267** (T/I) — Scoped and bounded imports
+
+The agent shall use the existing `shell` tool to run `coyote canvas add`
+(REQ-CORE-028); Canvas shall not introduce another model-facing tool. The
+command shall access only its authorized live Canvas session. File reads shall
+have no authority beyond that of the calling shell. Concurrent windows and
+session switches shall not deliver data to a different session. SVG imports
+shall not execute scripts or resolve external file or network references.
+Invalid, unsupported or over-limit inputs shall be rejected without changing
+the collection. Decoding and rendering shall not block normal Canvas interaction.
+
+**REQ-CORE-270** (D/T) — New drawing from a clipboard image (PCR-131)
+
+In the Canvas drawing context, **Edit → Paste** (`Ctrl+V`) shall request an
+image from the desktop clipboard only in response to the user's action. It
+shall use `CLIPBOARD`, not `PRIMARY`, without changing either selection or
+ordinary text paste in editable fields and the conversation composer. It
+shall accept PNG and JPEG image data, preferring PNG when both are offered;
+clipboard text, URLs and file references shall not be followed as images.
+A successful paste shall create a separate drawing labeled **Clipboard Image**
+with its own Original revision, preserving the decoded pixels and source
+pixel dimensions, including alpha when present. It shall not replace an
+existing drawing or stage or send an attachment. The pasted drawing shall
+follow the same session persistence and recovery rules as other drawings
+(REQ-CORE-266), and shall not depend on the clipboard after creation.
+
+Clipboard retrieval and decoding shall not block normal Canvas interaction.
+Coyote shall enforce encoded-size and decoded-dimension limits before full
+image decoding and shall reject over-limit images rather than resize them.
+If the clipboard is empty, unsupported, invalid, over limit or unavailable,
+Coyote shall explain the failure and leave the drawings and staged images
+unchanged. An outstanding request shall not create a drawing after its Canvas
+closes or its session changes, even if that same session is reopened.
+
+**REQ-CORE-271** (D/T) — Interactive, undoable Canvas crop (PCR-131)
+
+**Edit → Crop…** shall enter an in-place rectangular crop mode for an editable
+working copy. The user shall be able to draw, move and resize the selection
+with the Wacom Intuos pen tip or mouse; pen pressure shall not affect crop
+geometry. Keyboard-accessible position and size fields shall support exact
+adjustment and keyboard-only application or cancellation. While the crop is
+pending, the Canvas shall show its boundary and resulting pixel dimensions
+and dim the excluded area. No drawing changes shall occur until **Apply Crop**.
+**Cancel** and `Esc` shall leave the drawing unchanged; closing the Canvas or
+switching drawings or sessions shall not implicitly apply the crop.
+
+The rectangle shall select a nonempty, in-bounds region on integer pixel
+boundaries in drawing coordinates, independent of zoom, pan and display
+scaling. Applying the crop shall clip the background and editable ink to that
+region without resampling, retaining the composite pixel values within it.
+Each applied crop shall be one Undo/Redo edit. Saving or attaching the changed
+working copy shall create a child revision under its base (REQ-CORE-262 and
+REQ-CORE-263), leaving the original, prior revisions and frozen attachments
+unchanged. Neither crop mode nor applying a crop shall attach or send an image.
+
+**Follow-on scope:** REQ-CORE-268 and REQ-CORE-269 are not initial-release
+qualification gates.
+
+**REQ-CORE-268** (D/T) — Revision comparison
+
+**Selected → Compare** shall display exactly two selected revisions side by
+side with synchronized pan and zoom. Comparing shall not modify a revision,
+working copy or staged attachment.
+
+**REQ-CORE-269** (T/D) — Explicit agent-proposed branches
+
+A later `canvas add` extension shall accept an explicit base revision ID and
+add an agent-labeled child to that revision in the authorized session. An
+invalid or foreign ID shall be rejected without changes. Filename matching
+shall not infer ancestry, and the addition shall not replace a user draft or
+stage an attachment.
+
+---
+
 ### 3.2 External Interface Requirements
 
 #### 3.2.1 LLM Provider APIs
@@ -1877,9 +2100,11 @@ safety-critical hazards have been identified.
 
 ### 3.11 Security and Privacy Requirements
 
-Deferred per the Project Plan (§5.19.3 waived). No sensitive user data is
-handled beyond API keys stored in user-controlled configuration files. This
-section will be activated if a relevant deployment scenario is identified.
+The Project Plan defers a separate security and privacy activity (§5.19.3).
+Canvas image data may be sensitive: REQ-CORE-263 and REQ-CORE-264 govern
+explicit attachment and submission, REQ-CORE-266 governs local retention,
+REQ-CORE-267 governs file-import authority and session isolation, and
+REQ-CORE-270 governs user-initiated clipboard access and stale results.
 
 ---
 
@@ -1900,8 +2125,10 @@ native thin-shim checks, and GTK presentation regressions; focused and full
 suite results are recorded in the Test Plan. DEM-060 desktop qualification
 remains pending. PCR-101, PCR-103, and PCR-104 qualification matrices remain
 historical and superseded. The table below retains historical `TC-*`
-identifiers.
-| Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
+identifiers. PCR-130 and PCR-131 case IDs refer to planned, unexecuted qualification in
+STP §4.6.
+
+| Requirement ID | Description (abbreviated) | Verification | Test Case |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |
 | REQ-CORE-002 | Retired Acme frontend selection (historical) | D | TC-002 |
@@ -1928,6 +2155,7 @@ identifiers.
 | REQ-CORE-022 | --prompt-filter applied to prompts | D | TC-022 |
 | REQ-CORE-023 | Unknown arg → error + non-zero exit | D | TC-023 |
 | REQ-CORE-024 | -h/--help prints usage and exits | D | TC-024 |
+| REQ-CORE-026–028 | Additive CLI dispatch, legacy-compatible session listing and ordered Canvas imports | T/D | CAN-CLI-01, CAN-IMPORT-01 (planned) |
 | REQ-CORE-030 | COYOTE_SESSION_ID exported | I | TC-030 |
 | REQ-CORE-031 | Parent session lineage recorded | I | TC-031 |
 | REQ-CORE-032 | COYOTE_NO_SESSION propagated | T | TC-032 |
@@ -2025,6 +2253,12 @@ identifiers.
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
 | REQ-CORE-090a, 230..234 | Configuration file interface, including skillPaths, sandbox default, and priceDisplay | T | TC-090a, TC-230..234 |
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
+| REQ-CORE-260–263 | IRIX Canvas, Intuos and mouse input, branching revisions, multi-image staging | D/T/I | CAN-GUI-01, CAN-DATA-01, CAN-LIMIT-01, CAN-IMPORT-01 (planned) |
+| REQ-CORE-264–266 | Exact image submission, rejection/queue behavior, recovery and replay | T/D | CAN-DATA-01, CAN-LIMIT-01, CAN-GUI-01 (planned) |
+| REQ-CORE-267 | Bounded imports, shell authority and session isolation | T/I | CAN-IMPORT-01 (planned) |
+| REQ-CORE-268–269 | Revision comparison and explicit agent branches | D/T | CAN-FOLLOW-01 (follow-on; planned) |
+| REQ-CORE-270 | User-initiated clipboard import at native dimensions, with failure and session isolation | D/T | CAN-CLIP-01 (planned) |
+| REQ-CORE-271, REQ-CORE-264 | Explicit Intuos crop, revision behavior, and lossless submission of the resulting composite | D/T | CAN-CROP-01, CAN-CROP-02 (planned) |
 | REQ-CORE-300..302 | Internal interfaces | I | TC-300..302 |
 | REQ-CORE-400..402 | Internal data | I | TC-400..402 |
 | REQ-CORE-500..505 | Environment requirements | I | TC-500..505 |
@@ -2038,8 +2272,8 @@ identifiers.
 
 ## 5. Requirements Traceability
 
-All requirements in this specification derive from the following project
-objectives stated in the Project Plan (PLAN §1 and §3):
+Requirements in this specification derive from the Project Plan (PLAN §1 and
+§3) or from subsequent product-owner amendments in `plan/problems.md`:
 
 | Objective | Derived Requirements |
 |---|---|
@@ -2060,6 +2294,9 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Coordinator subagent orchestration | REQ-CORE-190–192 |
 | Sandbox profile management and GTK profile administration | REQ-CORE-080–089, REQ-CORE-113f–113i, REQ-CORE-234–235 |
 | Compaction quality and robustness | REQ-CORE-065–068 |
+| PCR-130: graphical interaction with the agent, editable drawing history, and exact native-size multi-image prompts | REQ-CORE-260–269 |
+| PCR-130: single-tool Canvas CLI and compatible migration of session listing | REQ-CORE-026–028, REQ-CORE-267 |
+| PCR-131: create drawings from the clipboard and crop interactively without changing exact-image submission | REQ-CORE-270–271, REQ-CORE-263–264 |
 
 ---
 
