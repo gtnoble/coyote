@@ -14,12 +14,19 @@ package Coyote_Session_Transactions is
    procedure Unlock (Lock : in out Guard);
 
    function Canonical_UUID (Id : String) return Boolean;
+   --  Lowercase UUIDv4; independent of the wall clock and process start.
+   function New_UUID return String;
 
    --  Resolve the actual JSONL path so different names for one file use the
    --  same guard. Standard UUID filenames, including timestamped names, use
    --  the UUID; other legacy filenames use a digest of the full basename.
    function Resolve (Path : String) return String;
    function Identity (Resolved_Path : String) return String;
+
+   --  Make the fixed session hierarchy beneath an existing, resolved Home
+   --  and sync the parent entries before any new log is staged. A failure
+   --  may leave directories; the next attempt syncs all parents again.
+   function Prepare_Directory (Home, Project : String) return Boolean;
 
    --  Both publication operations sync the staged file, rename it, then
    --  sync its directory. Not_Published leaves the destination unchanged.

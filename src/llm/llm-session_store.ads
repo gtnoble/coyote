@@ -16,7 +16,8 @@ package LLM.Session_Store is
 
    --  Create a new session file under Session_Lister.Sessions_Dir (Cwd).
    --
-   --  The target directory is created when it does not already exist.
+   --  The storage directories below the existing HOME are created as
+   --  needed and their parent entries synced before staging the log.
    --  The new file contains only the JSONL header line.
    --
    --  Returns the new session UUID.

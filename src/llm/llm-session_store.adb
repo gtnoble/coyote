@@ -9,7 +9,6 @@ with Ada.Calendar.Time_Zones;
 with Ada.Environment_Variables;
 with Ada.Directories;
 with Ada.Exceptions;
-with Ada.Numerics.Discrete_Random;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -19,7 +18,6 @@ with Coyote_Process_Control;
 with Coyote_Session_Transactions;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
-with Interfaces;
 with Session_Lister;
 with LLM.User_Images;
 
@@ -28,11 +26,6 @@ package body LLM.Session_Store is
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
-
-   subtype Byte is Interfaces.Unsigned_8;
-   use type Byte;
-
-   package Byte_Random is new Ada.Numerics.Discrete_Random (Byte);
 
    function Current_Unix_Milliseconds return Long_Long_Integer is
       use Ada.Calendar;
@@ -216,47 +209,10 @@ package body LLM.Session_Store is
       end case;
    end Stop_Reason_Image;
 
-   function Hex_Digit (Value : Natural) return Character is
-      Hex_Table : constant String := "0123456789abcdef";
-   begin
-      return Hex_Table (Value + 1);
-   end Hex_Digit;
-
-   function Byte_Image (Value : Byte) return String is
-      Uns : constant Natural := Natural (Value);
-   begin
-      return "" & Hex_Digit (Uns / 16) & Hex_Digit (Uns mod 16);
-   end Byte_Image;
-
-   function New_UUID return String is
-      Generator : Byte_Random.Generator;
-      Bytes     : array (Positive range 1 .. 16)
-        of Byte;
-   begin
-      Byte_Random.Reset (Generator);
-
-      for I in Bytes'Range loop
-         Bytes (I) := Byte_Random.Random (Generator);
-      end loop;
-
-      --  RFC 4122 UUIDv4: byte 7 carries the version nibble and byte 9
-      --  carries the variant bits.
-      Bytes (7) := (Bytes (7) and 16#0F#) or 16#40#;
-      Bytes (9) := (Bytes (9) and 16#3F#) or 16#80#;
-
-      return
-        Byte_Image (Bytes (1)) & Byte_Image (Bytes (2))
-        & Byte_Image (Bytes (3)) & Byte_Image (Bytes (4)) & "-"
-        & Byte_Image (Bytes (5)) & Byte_Image (Bytes (6)) & "-"
-        & Byte_Image (Bytes (7)) & Byte_Image (Bytes (8)) & "-"
-        & Byte_Image (Bytes (9)) & Byte_Image (Bytes (10)) & "-"
-        & Byte_Image (Bytes (11)) & Byte_Image (Bytes (12))
-        & Byte_Image (Bytes (13)) & Byte_Image (Bytes (14))
-        & Byte_Image (Bytes (15)) & Byte_Image (Bytes (16));
-   end New_UUID;
-
    package Tx renames Coyote_Session_Transactions;
    use type Tx.Result;
+
+   function New_UUID return String renames Tx.New_UUID;
 
    procedure Require_Writer (Path : String; Lock : in out Tx.Guard) is
       Status : Tx.Result;
@@ -300,10 +256,10 @@ package body LLM.Session_Store is
       Fresh : Boolean := False; Message : Boolean := False;
       Image_Turn : Boolean := False; Session_Id : String := "")
    is
+      --  Fresh callers already resolved the prepared parent. Never resolve
+      --  the final name when publishing a new log without replacement.
       Resolved : constant String :=
-        (if Fresh then Tx.Resolve (Ada.Directories.Containing_Directory (Path))
-           & "/" & Ada.Directories.Simple_Name (Path)
-         else Tx.Resolve (Path));
+        (if Fresh then Path else Tx.Resolve (Path));
       Lock     : Tx.Guard;
       File     : Ada.Streams.Stream_IO.File_Type;
       Stream   : Ada.Streams.Stream_IO.Stream_Access;
@@ -969,14 +925,16 @@ package body LLM.Session_Store is
    end Session_File_Path;
 
    function Create_Session (Cwd : String) return String is
-      Dir_Path : constant String := Session_Lister.Sessions_Dir (Cwd);
+      Dir_Path : Unbounded_String;
    begin
-      Ada.Directories.Create_Path (Dir_Path);
+      Dir_Path :=
+        To_Unbounded_String (Session_Lister.Prepare_Sessions_Dir (Cwd));
 
       loop
          declare
             Session_Id : constant String                   := New_UUID;
-            Path : constant String := Dir_Path & "/" & Session_Id & ".jsonl";
+            Path : constant String :=
+              To_String (Dir_Path) & "/" & Session_Id & ".jsonl";
             Header     : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Create_Object;
             Created_At : constant Long_Integer             :=

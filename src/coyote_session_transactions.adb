@@ -2,6 +2,7 @@ with Ada.Directories;
 with Ada.Real_Time;
 with GNAT.OS_Lib;
 with GNAT.SHA256;
+with Interfaces.C.Strings;
 
 package body Coyote_Session_Transactions is
    use Interfaces.C;
@@ -35,6 +36,32 @@ package body Coyote_Session_Transactions is
       end loop;
       return True;
    end Canonical_UUID;
+
+   function New_UUID return String is
+      use Interfaces.C.Strings;
+      function Random_UUID return chars_ptr
+        with Import, Convention => C, External_Name => "g_uuid_string_random";
+      procedure Free_UUID (Pointer : chars_ptr)
+        with Import, Convention => C, External_Name => "g_free";
+      Pointer : chars_ptr := Random_UUID;
+   begin
+      if Pointer = Null_Ptr then
+         raise Storage_Error with "Session UUID generation failed";
+      end if;
+      declare
+         Text : constant String := Value (Pointer);
+      begin
+         Free_UUID (Pointer);
+         Pointer := Null_Ptr;
+         return Text;
+      end;
+   exception
+      when others =>
+         if Pointer /= Null_Ptr then
+            Free_UUID (Pointer);
+         end if;
+         raise;
+   end New_UUID;
 
    procedure Try_Lock (Parent, Id : String; Lock : in out Guard;
                        Status : out Result) is
@@ -85,6 +112,24 @@ package body Coyote_Session_Transactions is
       end if;
       return GNAT.SHA256.Digest (Leaf);
    end Identity;
+
+   function Prepare_Directory (Home, Project : String) return Boolean is
+      function Prepare (Home, Project : char_array) return int
+        with Import, Convention => C,
+             External_Name => "coyote_session_prepare_directory";
+   begin
+      for Ch of Home loop
+         if Ch = ASCII.NUL then
+            return False;
+         end if;
+      end loop;
+      for Ch of Project loop
+         if Ch = ASCII.NUL then
+            return False;
+         end if;
+      end loop;
+      return Prepare (To_C (Home), To_C (Project)) = 0;
+   end Prepare_Directory;
 
    function Create_Stage (Resolved_Path : String) return String is
       Name : char_array := To_C

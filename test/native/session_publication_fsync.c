@@ -14,6 +14,12 @@ int fsync(int fd)
    const char *dir = getenv("COYOTE_PUBLICATION_TEST_DIR");
    const char *fault = getenv("COYOTE_PUBLICATION_TEST_FAULT");
    char fd_path[64], path[PATH_MAX];
+   const char *parents[] = {
+      getenv("COYOTE_PUBLICATION_TEST_SESSIONS"),
+      getenv("COYOTE_PUBLICATION_TEST_COYOTE"),
+      getenv("COYOTE_PUBLICATION_TEST_HOME")
+   };
+   const char *labels[] = { "sessions", "coyote", "home" };
    const char *step = NULL;
    ssize_t n;
 
@@ -33,6 +39,13 @@ int fsync(int fd)
          }
          else if (saw_stage && strcmp(path, dir) == 0)
             step = "directory";
+         else if (!saw_stage)
+            for (size_t i = 0; i < sizeof parents / sizeof *parents; ++i)
+               if (parents[i] && strcmp(path, parents[i]) == 0)
+               {
+                  step = labels[i];
+                  break;
+               }
       }
    }
    if (step)

@@ -19,8 +19,14 @@ replacing an existing log, and sync its containing directory under the
 session guard. A failure before rename leaves the target log unchanged. A
 failure syncing the directory after rename reports a visible but unconfirmed
 UUID; no fork Canvas is rolled back, and the current session is not switched
-to that fork. Check the session list before retrying. This does not sync
-ancestors of a newly created project session directory or make a blanket
-power-loss guarantee for all session writes.
+to that fork. Check the session list before retrying.
+
+Before staging a new header or fork, Coyote prepares the directories below
+an existing `HOME` and syncs `sessions`, `.coyote`, and `HOME` in that order.
+An error here prevents staging a log or creating a fork sidecar. It can leave
+new directories visible; retrying syncs the entire fixed chain again.
+Existing directory aliases still resolve to their targets. Their external
+ancestors and ancestors of `HOME` are assumed to exist durably; this is not a
+blanket power-loss guarantee for all session writes.
 
 Canvas policy: up to eight images, 8 MiB per PNG, 16 MiB of PNGs per turn, and 32 MiB of serialized image-bearing provider request. Dimensions and encoded sizes are checked; there is no resized fallback. `--no-session` keeps new turns and drawings in memory. Do not include inline PNG data in log excerpts or diagnostic reports.

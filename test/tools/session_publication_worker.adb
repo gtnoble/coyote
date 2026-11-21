@@ -1,7 +1,7 @@
 with Ada.Command_Line; use Ada.Command_Line;
 with Ada.Exceptions;
-
 with Ada.Text_IO; use Ada.Text_IO;
+with Coyote_Process_Control;
 with Coyote_Session_Transactions;
 with LLM.Session_Store;
 with LLM.Types;
@@ -32,7 +32,10 @@ procedure Session_Publication_Worker is
       Put_Line (Result'Image);
    end Publish_Stage;
 begin
-   if Argument (1) = "create" then
+   if Argument (1) in "create" | "frozen-create" then
+      if Argument (1) = "frozen-create" then
+         Coyote_Process_Control.Freeze_Persistence;
+      end if;
       Put_Line (LLM.Session_Store.Create_Session (Argument (2)));
    elsif Argument (1) = "fork" then
       declare

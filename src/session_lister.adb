@@ -14,7 +14,6 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
-with GNAT.SHA256;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Store.Workspaces;
 with Coyote_Process_Control;
@@ -47,6 +46,41 @@ package body Session_Lister is
    begin
       return Home & "/.coyote/sessions/" & Encode_Cwd (Cwd);
    end Sessions_Dir;
+
+   function Prepare_Sessions_Dir (Cwd : String) return String is
+      package Tx renames Coyote_Session_Transactions;
+      use Coyote_Process_Control;
+      Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+      Root : constant String := Tx.Resolve (Home);
+      Project : constant String := Encode_Cwd (Cwd);
+      Accepted : Boolean := False;
+   begin
+      Begin_Persistence_Write (Accepted);
+      if not Accepted then
+         raise Ada.Text_IO.Use_Error with "Session persistence is frozen";
+      end if;
+      if not Tx.Prepare_Directory (Root, Project) then
+         raise Ada.Text_IO.Use_Error with
+           "Cannot prepare or sync the session hierarchy under HOME";
+      end if;
+      declare
+         Parent : constant String := Tx.Resolve
+           (Root & "/.coyote/sessions/" & Project);
+      begin
+         if Parent'Length = 0 then
+            raise Ada.Text_IO.Use_Error with "Cannot resolve session path";
+         end if;
+         End_Persistence_Write;
+         Accepted := False;
+         return Parent;
+      end;
+   exception
+      when others =>
+         if Accepted then
+            End_Persistence_Write;
+         end if;
+         raise;
+   end Prepare_Sessions_Dir;
 
    --  ── Format_Timestamp ─────────────────────────────────────────────────
 
@@ -497,29 +531,6 @@ package body Session_Lister is
         (Legacy_Format,
          Native_Format);
 
-      --  ── Fork_UUID helper ──────────────────────────────────────────────
-      --
-      --  Derive a UUID from the SHA-256 of (source UUID / turn / clock).
-      --  The first 32 hex characters are formatted as an 8-4-4-4-12 UUID
-      --  with the version nibble forced to '4'.  Pi treats session UUIDs
-      --  as opaque filename stems, so RFC 4122 variant bits are not set.
-
-      function Fork_UUID return String is
-         use Ada.Calendar;
-         Seed : constant String :=
-           Source_UUID & "/" & Positive'Image (After_Turn) & "/"
-           & Natural'Image (After_Step) & "/"
-           & Duration'Image (Seconds (Clock));
-         Hash : constant String := GNAT.SHA256.Digest (Seed);
-         H    : constant String := Hash (Hash'First .. Hash'First + 31);
-      begin
-         return
-           H (H'First .. H'First + 7) & "-" & H (H'First + 8 .. H'First + 11)
-           & "-4" & H (H'First + 13 .. H'First + 15) & "-"
-           & H (H'First + 16 .. H'First + 19) & "-"
-           & H (H'First + 20 .. H'First + 31);
-      end Fork_UUID;
-
       --  ── ISO-8601 timestamp helper ─────────────────────────────────────
 
       function Now_Timestamp return String is
@@ -565,7 +576,7 @@ package body Session_Lister is
       package Tx renames Coyote_Session_Transactions;
       use type Tx.Result;
       Source_Path : constant String := Tx.Resolve (Find_Session_File (Source_UUID));
-      New_UUID    : constant String := Fork_UUID;
+      New_UUID    : constant String := Tx.New_UUID;
       Orig_Name   : Unbounded_String;
 
       package String_Vectors is new Ada.Containers.Vectors
@@ -843,7 +854,6 @@ package body Session_Lister is
          --  Publish the Canvas before making the new JSONL visible.
 
          declare
-            Target_Dir : constant String := Sessions_Dir (Target_Cwd);
             Fork_Name  : constant String :=
               "Fork of "
               &
@@ -878,13 +888,9 @@ package body Session_Lister is
             end Write_Raw_Line;
 
          begin
-            Ada.Directories.Create_Path (Target_Dir);
             declare
-               Parent : constant String := Tx.Resolve (Target_Dir);
+               Parent : constant String := Prepare_Sessions_Dir (Target_Cwd);
             begin
-               if Parent'Length = 0 then
-                  return "";
-               end if;
                Target := To_Unbounded_String (Parent & "/" & New_UUID & ".jsonl");
                Tx.Wait_For_Lock (To_String (Target), Lock, Status);
                if Status /= Tx.Acquired then

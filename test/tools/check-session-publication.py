@@ -2,6 +2,7 @@
 """Offline fault injection for guarded JSONL publication and fork rollback."""
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -47,26 +48,91 @@ def run(scratch):
     home = scratch / 'home'
     home.mkdir()
 
-    def project(name):
+    def project(name, session_home=home):
         cwd = scratch / name
         cwd.mkdir()
-        return str(cwd), home / '.coyote' / 'sessions' / (
+        return str(cwd), session_home / '.coyote' / 'sessions' / (
             '--' + str(cwd).strip('/').replace('/', '-') + '--')
 
-    def invoke(parent, fault, status, *args, trace=None):
-        env = dict(HOME=str(home), PATH=os.defpath, LC_ALL='C', LD_PRELOAD=str(shim),
-                   COYOTE_PUBLICATION_TEST_DIR=str(parent),
+    def invoke(parent, fault, status, *args, trace=None, session_home=home):
+        env = dict(HOME=str(session_home), PATH=os.defpath, LC_ALL='C', LD_PRELOAD=str(shim),
+                   COYOTE_PUBLICATION_TEST_DIR=str(parent.resolve()),
                    COYOTE_PUBLICATION_TEST_FAULT=fault)
-        process = subprocess.run([str(WORKER), *args], env=env, capture_output=True,
-                                 stdin=subprocess.DEVNULL, timeout=10)
-        assert process.returncode == status, (args, process)
-        traces = [row for row in process.stderr.splitlines() if row.startswith(b'fsync ')]
-        assert traces == (trace if trace is not None else {
+        before = []
+        if args[0] in ('create', 'fork') and session_home:
+            dirs = [('sessions', session_home / '.coyote' / 'sessions'),
+                    ('coyote', session_home / '.coyote'), ('home', session_home)]
+            for label, path in dirs:
+                env['COYOTE_PUBLICATION_TEST_' + label.upper()] = str(path.resolve())
+            for label, _ in dirs:
+                before.append(f'fsync {label} {"fail" if fault == label else "pass"}'.encode())
+                if fault == label:
+                    break
+        remaining = {
             'stage': [b'fsync stage fail'],
             'directory': [b'fsync stage pass', b'fsync directory fail'],
             'none': [b'fsync stage pass', b'fsync directory pass'],
-        }[fault]), (args, process)
+        }
+        process = subprocess.run([str(WORKER), *args], env=env, capture_output=True,
+                                 stdin=subprocess.DEVNULL, timeout=10, umask=0o022)
+        assert process.returncode == status, (args, process)
+        traces = [row for row in process.stderr.splitlines() if row.startswith(b'fsync ')]
+        expected = trace if trace is not None else before + remaining.get(fault, [])
+        assert traces == expected, (args, expected, process)
         return process.stdout.strip(), process.stderr
+
+    for fault in ('sessions', 'coyote', 'home'):
+        fresh = scratch / ('home-' + fault)
+        fresh.mkdir()
+        cwd, parent = project('hierarchy-' + fault, fresh)
+        out, err = invoke(parent, fault, 1, 'create', cwd, session_home=fresh)
+        assert not out and b'Cannot prepare or sync the session hierarchy' in err
+        assert parent.is_dir() and not list(parent.iterdir())
+        for path in (fresh / '.coyote', parent.parent, parent):
+            assert path.stat().st_mode & 0o777 == 0o700
+        out, _ = invoke(parent, 'none', 0, 'create', cwd, session_home=fresh)
+        assert (parent / (out.decode() + '.jsonl')).is_file()
+
+    aliased_home = scratch / 'aliased-home'
+    alias_target = scratch / 'home-target'
+    alias_target.mkdir()
+    aliased_home.symlink_to(alias_target, target_is_directory=True)
+    storage = scratch / 'separate-storage'
+    storage.mkdir()
+    (alias_target / '.coyote').symlink_to(storage, target_is_directory=True)
+    cwd, linked_parent = project('aliased', aliased_home)
+    out, _ = invoke(linked_parent, 'none', 0, 'create', cwd, session_home=aliased_home)
+    assert (storage / 'sessions' / linked_parent.name / (out.decode() + '.jsonl')).is_file()
+    assert (alias_target / '.coyote').is_symlink()
+
+    invalid_home = scratch / 'missing-home'
+    cwd, invalid_parent = project('no-home', invalid_home)
+    for bad_home in ('', invalid_home):
+        out, err = invoke(invalid_parent, 'none', 1, 'create', cwd,
+                          trace=[], session_home=bad_home)
+        assert not out and b'Cannot prepare or sync the session hierarchy' in err
+        assert not invalid_home.exists()
+    invalid_home.mkdir()
+    (invalid_home / '.coyote').symlink_to(scratch / 'absent-storage', target_is_directory=True)
+    out, err = invoke(invalid_parent, 'none', 1, 'create', cwd,
+                      trace=[], session_home=invalid_home)
+    assert not out and b'Cannot prepare or sync the session hierarchy' in err
+    assert (invalid_home / '.coyote').is_symlink() and not (scratch / 'absent-storage').exists()
+    (invalid_home / '.coyote').unlink()
+    out, err = invoke(invalid_parent, 'none', 1, 'frozen-create', cwd,
+                      trace=[], session_home=invalid_home)
+    assert not out and b'Session persistence is frozen' in err
+    assert not list(invalid_home.iterdir())
+
+    shared = scratch / 'concurrent-home'
+    shared.mkdir()
+    cwd, shared_parent = project('concurrent', shared)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        jobs = [pool.submit(invoke, shared_parent, 'none', 0, 'create', cwd,
+                            session_home=shared) for _ in range(4)]
+        ids = {job.result()[0].decode() for job in jobs}
+    assert len(ids) == 4 and {p.stem for p in shared_parent.glob('*.jsonl')} == ids
+    assert not list(shared_parent.glob('.coyote-session-*'))
 
     for fault in ('stage', 'directory', 'none'):
         cwd, parent = project('create-' + fault)
@@ -104,6 +170,25 @@ def run(scratch):
     original = encode(dict(type='session', version=3, id=SOURCE, cwd=cwd)) + user + assistant
     private(log, original)
     original_manifest = manifest.read_bytes()
+    cwd, target = project('fork-ancestor')
+    out, err = invoke(target, 'home', 1, 'fork', SOURCE, cwd)
+    assert not out and b'Cannot prepare or sync the session hierarchy' in err
+    assert target.is_dir() and not list(target.iterdir())
+    assert log.read_bytes() == original and manifest.read_bytes() == original_manifest
+    out, _ = invoke(target, 'none', 0, 'fork', SOURCE, cwd)
+    assert (target / (out.decode() + '.jsonl')).read_bytes().endswith(user + assistant)
+    assert (target / (out.decode() + '.canvas') / asset).read_bytes() == PIXELS
+
+    cwd, shared_target = project('concurrent-forks')
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        jobs = [pool.submit(invoke, shared_target, 'none', 0, 'fork', SOURCE, cwd)
+                for _ in range(4)]
+        ids = {job.result()[0].decode() for job in jobs}
+    assert len(ids) == 4 and {p.stem for p in shared_target.glob('*.jsonl')} == ids
+    for uuid in ids:
+        assert (shared_target / (uuid + '.jsonl')).read_bytes().endswith(user + assistant)
+        assert (shared_target / (uuid + '.canvas') / asset).read_bytes() == PIXELS
+
     for fault, status in [('stage', 1), ('directory', 2), ('none', 0)]:
         cwd, target = project('fork-' + fault)
         out, err = invoke(target, fault, status, 'fork', SOURCE, cwd)
@@ -179,4 +264,4 @@ def run(scratch):
 if __name__ == '__main__':
     with tempfile.TemporaryDirectory(prefix='coyote-publication-') as path:
         run(Path(path).resolve())
-    print('Session publication: sync ordering, no replacement, and Canvas rollback verified.')
+    print('Session publication: hierarchy retry, sync ordering, and Canvas rollback verified.')

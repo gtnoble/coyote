@@ -33,6 +33,11 @@ package Session_Lister is
    --  Uses $HOME/.coyote/sessions/<Encode_Cwd(Cwd)>.
    function Sessions_Dir (Cwd : String) return String;
 
+   --  Prepare and sync the hierarchy for a new log, returning the resolved
+   --  project session directory. HOME must designate an existing directory.
+   --  Raises Use_Error on preparation failure or frozen persistence.
+   function Prepare_Sessions_Dir (Cwd : String) return String;
+
    --  Format an ISO-8601 timestamp into "YYYY-MM-DD HH:MM".
    --  Falls back to the raw string if it is too short.
    function Format_Timestamp (Ts : String) return String;

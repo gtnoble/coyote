@@ -69,9 +69,11 @@ client-controlled work product gets an entry here.
   Canvas reclamation inspects or removes unreferenced files and logless
   sidecars for a single UUID. New headers and forks sync the resolved log
   directory after rename. Post-rename sync failure reports uncertainty and
-  preserves the visible JSONL and any fork Canvas. Ancestor-directory sync
-  for newly created directory hierarchies is not included. Qualification and
-  deployment remain pending.
+  preserves the visible JSONL and any fork Canvas. Directory preparation now
+  also syncs the fixed hierarchy under an existing `HOME` before staging;
+  failed preparation is safe to retry, and concurrent creators use random
+  UUIDv4 IDs. Power-loss qualification, desktop qualification and deployment
+  remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.59
+**Version:** 1.60
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -565,7 +565,7 @@ not wait for the complete user turn.
 | `LLM.User_Images` (`src/llm/llm-user_images.ads/.adb`) | Native PNG block validation, ordered references, wire budgets, and v3 JSON encoding/decoding. |
 | `Coyote_App.Frontend` (`src/coyote_app-frontend.ads/.adb`) | Shared frontend contract; non-GTK presentation describes typed attachments without uploading or displaying extra images. |
 | Canvas reclamation regression | `test/tools/check-canvas-reclaim.py` exercises CLI inspection and apply in disposable session directories; `test/src/coyote_canvas_recovery_tests.adb` checks guarded restore. |
-| Session publication fault harness | `test/tools/session_publication_worker.adb`, `test/native/session_publication_fsync.c`, `test/tools/check-session-publication.py` exercise new headers, typed forks, and migration with controlled file- and directory-sync failures. |
+| Session publication fault harness | `test/tools/session_publication_worker.adb`, `test/native/session_publication_fsync.c`, `test/tools/check-session-publication.py` exercise new headers, typed forks, and migration with controlled ancestor-, file-, and directory-sync failures and concurrent first use. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |
 | `Coyote_Canvas_Tests`, CLI integration harness | `test/src/coyote_canvas_tests.ads/.adb`, `test/tools/check-canvas-cli.py`; focused geometry, pixel and CLI regression. |
 
@@ -3239,9 +3239,22 @@ sync of the resolved containing directory. New headers use the same path.
 Legacy image migration uses the same native helper in checked replacement
 mode. Both keep the session guard from staging through the directory sync.
 The result is `Durable`, `Not_Published` (rename did not occur), or `Uncertain`
-(rename occurred but directory sync failed). This covers the log entry in its
-immediate parent; it does not sync ancestors to commit newly created session
-directory hierarchies or serialize whole conversation lifetimes.
+(rename occurred but directory sync failed).
+
+Before acquiring the destination session guard, creation and fork prepare the
+fixed hierarchy beneath an existing `HOME`, while persistence admits writes.
+Missing `.coyote`, `sessions`, and project directories are created privately
+(mode 0700 before umask); existing modes are unchanged. Sync the `sessions`,
+`.coyote`, and `HOME` descriptors bottom-up, even if the entries already
+exist: another creator or a failed attempt may have left visible but unsynced
+directories. Native preparation tolerates concurrent `mkdirat` via `EEXIST`
+and reopening the entry as a directory. Failure leaves existing data and any
+new directories in place but does not reach staging or sidecar reservation.
+A retry rechecks and syncs all three parents. Existing directory aliases are
+supported; durability above `HOME` or above pre-existing external alias
+targets is assumed, and concurrent external path replacement is unsupported.
+New session and fork IDs use GLib UUIDv4 instead of clock-derived values;
+existing IDs and no-replace publication rules are unchanged.
 
 **GTK autosave and reopen.** The root session update supplies the UUID and
 the resolved JSONL path, independent of the selected agent. The load worker

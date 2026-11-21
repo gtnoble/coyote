@@ -1,5 +1,22 @@
 # Component Development Log — Core Agent
 
+## 2026-11-21 — Session directory hierarchy durability (PCR-130)
+
+Session creation and fork prepare the fixed hierarchy under an existing
+`HOME` and sync `sessions`, `.coyote`, and `HOME` before staging. A failed
+parent sync leaves no staged log or fork sidecar; retry syncs all three
+parents again. Existing directory aliases remain supported. Concurrent
+creation exposed collisions in the old session ID generator; both new
+sessions and forks now use GLib UUIDv4 with no-replace publication.
+
+Development builds and strict C checks passed. The publication harness
+covers faults at every parent, retries, existing aliases, frozen writes,
+and concurrent session and typed fork creation. A separate stress probe
+published 192 distinct UUIDv4 logs. The serial Xvfb suite passed 1,121/1,121;
+standalone Canvas and GTK checks passed. This is developer evidence, not
+qualification against real power loss or failure above the existing storage
+roots.
+
 ## 2026-11-21 — Session log publication durability (PCR-130)
 
 New headers and forks sync the private stage, publish without replacing a

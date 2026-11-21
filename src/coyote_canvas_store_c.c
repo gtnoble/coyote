@@ -494,6 +494,52 @@ int coyote_session_transaction_lock(const char *parent, const char *id,
    return result == STORE_OK ? 0 : (result == STORE_BUSY ? 1 : 2);
 }
 
+/* Existing storage aliases are supported. mkdirat never replaces an
+ * entry: if the name is a dangling link, open still fails after EEXIST. */
+static int open_session_child(int dir, const char *name)
+{
+   int flags = O_RDONLY | O_DIRECTORY | O_CLOEXEC;
+   int child = openat(dir, name, flags);
+   if (child >= 0 || errno != ENOENT)
+      return child;
+   if (mkdirat(dir, name, 0700) < 0 && errno != EEXIST)
+      return -1;
+   return openat(dir, name, flags);
+}
+
+/* Prepare exactly HOME/.coyote/sessions/<project>. Sync the three parents
+ * bottom-up even when they already existed: a prior attempt or concurrent
+ * creator may have made a directory visible without syncing its parent.
+ * The project directory itself is synced after publishing the log. */
+int coyote_session_prepare_directory(const char *home, const char *project)
+{
+   const char *names[] = { ".coyote", "sessions", project };
+   int fds[] = { -1, -1, -1, -1 };
+   int result = -1;
+   if (!project[0] || strchr(project, '/') || strcmp(project, ".") == 0 ||
+       strcmp(project, "..") == 0)
+      return -1;
+   fds[0] = open_parent(home);
+   if (fds[0] < 0)
+      return -1;
+   for (size_t i = 0; i < 3; ++i)
+   {
+      fds[i + 1] = open_session_child(fds[i], names[i]);
+      if (fds[i + 1] < 0)
+         goto done;
+   }
+   for (int i = 2; i >= 0; --i)
+      if (fsync(fds[i]) < 0)
+         goto done;
+   result = 0;
+
+done:
+   for (int i = 3; i >= 0; --i)
+      if (fds[i] >= 0)
+         close(fds[i]);
+   return result;
+}
+
 int coyote_session_stage(char *path)
 {
    return mkostemp(path, O_CLOEXEC);
