@@ -1,5 +1,24 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Native Canvas raster imports (PCR-130/131)
+
+Modeless File Selection accepts one local PNG or JPEG; Edit → Paste requests
+raw CLIPBOARD image targets, preferring PNG. Bounded worker decoding retains
+native dimensions and PNG alpha. GTK publishes a separate Original without
+switching the working copy or selection. Close, session reset, and newer
+paste requests invalidate the applicable callbacks. Crop clips and translates
+the shared source background without rewriting it.
+
+Root and test development builds passed. Focused verification exercised native
+dimensions beyond the thumbnail policy, hidden transparent RGB, mismatched
+and oversized input, file import, clipboard lifecycle, and display of a
+retained source pixel after crop. Full serial Xvfb AUnit passed 1,088/1,088;
+standalone GTK interaction checks passed 9/9, the runner self-test passed,
+and the Canvas CLI compatibility check passed. This is developer verification,
+not physical Intuos, Wayland, cross-application clipboard, or end-to-end
+qualification. SVG, batch import, the authorized CLI service, durable recovery,
+and prompt attachment submission remain pending.
+
 ## 2026-11-21 — GTK Canvas workspace (PCR-130/131)
 
 View → Canvas opens a modeless blank workspace. Multiple Originals and

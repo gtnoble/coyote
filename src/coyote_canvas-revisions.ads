@@ -16,14 +16,22 @@ with Coyote_Canvas.Document;
 package Coyote_Canvas.Revisions is
    subtype Revision_Id is Natural;
    NO_REVISION : constant Revision_Id := 0;
+   MAX_REVISIONS : constant := 256;
+
+   type Workspace is limited private;
+
+   --  Add a read-only Original without switching the draft or its edit log.
+   --  The caller owns pixels keyed by Id; descendants share that background.
+   procedure Add_Original
+     (W : in out Workspace; Width, Height : Positive; Id : out Revision_Id);
+   function Background
+     (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id;
 
    type Sample is record
       X, Y, Width : Long_Float;
    end record;
 
    package Samples is new Ada.Containers.Vectors (Positive, Sample);
-
-   type Workspace is limited private;
 
    Capacity_Error : exception;
 
@@ -61,6 +69,7 @@ private
 
    type Drawing_State is record
       Extent : Document.Rectangle := Document.EMPTY_RECTANGLE;
+      Image  : Revision_Id := NO_REVISION;
       Ink    : Stroke_Ids.Vector;
    end record;
    package States is new Ada.Containers.Vectors (Positive, Drawing_State);

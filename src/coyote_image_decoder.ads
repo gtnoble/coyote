@@ -10,6 +10,7 @@ package Coyote_Image_Decoder is
    type Decode_State is record
       Invalid   : Boolean  := False;
       Max_Width : Positive := 640;
+      Expected_Width, Expected_Height : Natural := 0;
    end record;
    type State_Access is access all Decode_State;
    type Size_Callback is
@@ -22,6 +23,8 @@ package Coyote_Image_Decoder is
 
    function Null_Loader return Loader_Handle;
    function New_Loader return Loader_Handle;
+   --  Restrict the loader to the named GdkPixbuf format.
+   function New_Loader (Format : String) return Loader_Handle;
    function Is_Null (Loader : Loader_Handle) return Boolean;
    procedure Connect_Size_Prepared
      (Loader : Loader_Handle; Callback : Size_Callback; State : State_Access);

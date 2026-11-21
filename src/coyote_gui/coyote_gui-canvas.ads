@@ -1,6 +1,10 @@
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
+with Cairo;
+with Gdk.Pixbuf;
 with Gtk.Box;
+with Gtk.File_Chooser_Dialog;
+with Gtk.Message_Dialog;
 with Gtk.Button;
 with Gtk.Drawing_Area;
 with Gtk.Grid;
@@ -12,9 +16,9 @@ with Gtk.Tree_Model;
 with Gtk.Menu_Item;
 with Gtk.Window;
 
---  A modeless, in-memory blank drawing workspace. Show creates the window
+--  A modeless, in-memory drawing workspace. Show creates the window
 --  lazily and reuses it; Reset discards the document and hides it. GTK
---  operations belong to the GTK main task. No import or persistence occurs.
+--  operations belong to the GTK main task. Imports are not persisted.
 package Coyote_GUI.Canvas is
    type Instance is limited private;
 
@@ -28,7 +32,15 @@ package Coyote_GUI.Canvas is
 
 private
    type Iter_Array is
-     array (Positive range 1 .. 256) of Gtk.Tree_Model.Gtk_Tree_Iter;
+     array (Positive range 1 .. Coyote_Canvas.Revisions.MAX_REVISIONS)
+       of Gtk.Tree_Model.Gtk_Tree_Iter;
+
+   type Image_Origin is (Blank, Clipboard_Image, File_Image);
+   type Image_Asset is record
+      Pixels : Gdk.Pixbuf.Gdk_Pixbuf := null;
+      Origin : Image_Origin := Blank;
+   end record;
+   type Image_Array is array (Iter_Array'Range) of Image_Asset;
 
    type Instance is limited record
       Canvas_Window : Gtk.Window.Gtk_Window               := null;
@@ -44,6 +56,12 @@ private
       Apply_Crop : Gtk.Button.Gtk_Button               := null;
       Cancel_Crop : Gtk.Button.Gtk_Button               := null;
       Document : Coyote_Canvas.Revisions.Workspace;
+      Images : Image_Array;
+      Image_Bytes : Natural := 0;
+      Cached_Image : Coyote_Canvas.Revisions.Revision_Id := 0;
+      Image_Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      File_Selection : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
+      Import_Error : Gtk.Message_Dialog.Gtk_Message_Dialog;
       Store : Gtk.Tree_Store.Gtk_Tree_Store       := null;
       Rows                                         : Iter_Array;
       Resetting : Boolean := False;

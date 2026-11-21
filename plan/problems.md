@@ -20,9 +20,9 @@ client-controlled work product gets an entry here.
 - **Design:** SDD-CORE v1.45 §5.51 and SDD-CANVAS v1.0 §§4–6 record the
   clipboard lifetime, crop geometry, revision and send contracts accepted
   by the product owner on 2026-11-21.
-- **Status:** Open; the blank workspace supports pointer and exact-field crop,
-  Apply/Cancel, and undo/redo. Clipboard retrieval, crop on imported images,
-  physical Intuos and end-to-end qualification remain pending.
+- **Status:** Open; the workspace supports native PNG/JPEG clipboard paste and
+  pointer or exact-field crop with Apply/Cancel and undo/redo. Physical Intuos,
+  cross-application clipboard qualification, and image submission remain pending.
 
 ## PCR-130 — Drawing Canvas and additive CLI subcommands
 
@@ -50,9 +50,9 @@ client-controlled work product gets an entry here.
   Additive CLI dispatch and compatible session listing are implemented.
   `canvas add` parses operands but does not read files or contact a service.
   See the Core Agent and Frontends development logs for verification scope.
-  The modeless blank workspace and in-memory revision tree are implemented.
-  Image import, durable recovery, attachments, end-to-end qualification and
-  deployment remain pending.
+  The modeless workspace, in-memory revision tree, and single-file PNG/JPEG
+  import are implemented. SVG and batch import, the CLI import service, durable
+  recovery, attachments, end-to-end qualification, and deployment remain pending.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

@@ -1,7 +1,16 @@
 with Ada.Strings;
 with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
+with Coyote_Canvas.Rasters;
+with Coyote_GUI.Canvas_Import_Jobs;
+with Gdk.Property;
+with Glib.Object;
+with Gtk.Clipboard;
+with Gtk.Dialog;
+with Gtk.File_Chooser;
+with Gtk.Selection_Data;
+with System;
 with Ada.Containers;
-with Cairo;
 with Gdk.Device_Tool;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
@@ -24,6 +33,17 @@ package body Coyote_GUI.Canvas is
    package Doc renames Coyote_Canvas.Document;
    package Rev renames Coyote_Canvas.Revisions;
    package TM renames Gtk.Tree_Model;
+   package Raster renames Coyote_Canvas.Rasters;
+   package Jobs renames Coyote_GUI.Canvas_Import_Jobs;
+   use type Cairo.Cairo_Surface;
+   use type Gdk.Pixbuf.Gdk_Pixbuf;
+   use type Gdk.Types.Gdk_Atom;
+   use type Gtk.Dialog.Gtk_Response_Type;
+   use type Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
+   use type Gtk.Message_Dialog.Gtk_Message_Dialog;
+   use type Gtk.Widget.Gtk_Widget;
+   use type Raster.Format;
+   use type System.Address;
    use type Gdk.Event.Gdk_Event_Mask;
    use type Gdk.Event.Gdk_Event_Type;
    use type Gdk.Device_Tool.Gdk_Device_Tool;
@@ -41,6 +61,53 @@ package body Coyote_GUI.Canvas is
    use type Glib.Guint;
 
    type Instance_Access is access all Instance;
+
+   --  Each outstanding C callback owns a slot until its last notification.
+   --  Invalidation detaches the owner, never reuses a still-borrowed slot.
+   --  Bounds apply even if an external clipboard owner does not respond.
+   type Import_Request is record
+      Busy     : Boolean := False;
+      Owner    : Instance_Access;
+      Origin   : Image_Origin := Blank;
+      Expected : Raster.Format := Raster.Unknown;
+   end record;
+   subtype Request_Index is Natural range 0 .. 4;
+   Requests : array (Request_Index range 1 .. 4) of aliased Import_Request;
+   MAX_IMAGE_BYTES : constant := 128 * 1_024 * 1_024;
+
+   procedure Invalidate (S : Instance; Paste_Only : Boolean := False) is
+   begin
+      for R of Requests loop
+         if R.Owner /= null and then R.Owner.all'Address = S'Address
+           and then (not Paste_Only or else R.Origin = Clipboard_Image)
+         then
+            R.Owner := null;
+         end if;
+      end loop;
+   end Invalidate;
+
+   function Acquire (S : Instance_Access; Origin : Image_Origin)
+      return Request_Index is
+   begin
+      for I in Requests'Range loop
+         if not Requests (I).Busy then
+            Requests (I) := (Busy => True, Owner => S, Origin => Origin,
+                             Expected => Raster.Unknown);
+            return I;
+         end if;
+      end loop;
+      return 0;
+   end Acquire;
+
+   function Find_Request (Token : System.Address) return Request_Index is
+   begin
+      for I in Requests'Range loop
+         if Requests (I)'Address = Token and then Requests (I).Busy then
+            return I;
+         end if;
+      end loop;
+      return 0;
+   end Find_Request;
 
    package Draw_Callback is new Gtk.Handlers.User_Return_Callback
      (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Boolean, Instance_Access);
@@ -182,8 +249,12 @@ package body Coyote_GUI.Canvas is
                (if Ancestor = 0 then TM.Null_Iter else S.Rows (Ancestor)));
             S.Store.Set
               (S.Rows (Id), 0,
-               (if Ancestor = 0 then "Original (drawing" else "Revision") &
-               Natural'Image (Id) & (if Ancestor = 0 then ")" else ""));
+               (if Ancestor /= 0 then "Revision" & Natural'Image (Id)
+                else (case S.Images (Id).Origin is
+                      when Clipboard_Image => "Clipboard Image",
+                      when File_Image => "Imported Image",
+                      when Blank => "Blank Drawing") & Natural'Image (Id)
+                  & " (Original)"));
             S.Store.Set (S.Rows (Id), 1, Glib.Gint (Id));
             Path := S.Store.Get_Path (S.Rows (Id));
             S.Drawing_Tree.Expand_To_Path (Path);
@@ -192,6 +263,281 @@ package body Coyote_GUI.Canvas is
          end Add_Row;
       end loop;
    end Extend_Tree;
+
+   procedure Destroy_Import_Dialogs (S : in out Instance) is
+   begin
+      if S.File_Selection /= null then
+         S.File_Selection.Destroy;
+         S.File_Selection := null;
+      end if;
+      if S.Import_Error /= null then
+         S.Import_Error.Destroy;
+         S.Import_Error := null;
+      end if;
+   end Destroy_Import_Dialogs;
+
+   package Dialog_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Dialog.Gtk_Dialog_Record, Instance_Access);
+
+   procedure Dismiss_Error
+     (Dialog : access Gtk.Dialog.Gtk_Dialog_Record'Class;
+      Response : Glib.Gint; S : Instance_Access)
+   is
+      pragma Unreferenced (Response);
+   begin
+      S.Import_Error := null;
+      Dialog.Destroy;
+   end Dismiss_Error;
+
+   procedure Report_Import_Error (S : Instance_Access; Text : String) is
+   begin
+      if S.Import_Error /= null then
+         S.Import_Error.Destroy;
+      end if;
+      Gtk.Message_Dialog.Gtk_New
+        (S.Import_Error, S.Canvas_Window, Gtk.Dialog.Destroy_With_Parent,
+         Gtk.Message_Dialog.Message_Error, Gtk.Message_Dialog.Buttons_Close, Text);
+      S.Import_Error.Set_Title ("coyote : Image Import");
+      S.Import_Error.Set_Name ("coyote-canvas-import-error");
+      Dialog_Callback.Connect
+        (S.Import_Error, "response",
+         Dialog_Callback.To_Marshaller (Dismiss_Error'Access), S);
+      S.Import_Error.Show;
+   end Report_Import_Error;
+
+   procedure Import_Complete
+     (Token : System.Address; Pixels : Gdk.Pixbuf.Gdk_Pixbuf; Error : String)
+   is
+      I : constant Request_Index := Find_Request (Token);
+      S : Instance_Access;
+      Origin : Image_Origin;
+      Id : Rev.Revision_Id;
+   begin
+      if I = 0 then
+         return;
+      end if;
+      S := Requests (I).Owner;
+      Origin := Requests (I).Origin;
+      Requests (I) := (others => <>);
+      if S = null then
+         return;
+      elsif Pixels = null then
+         Report_Import_Error (S, Error);
+         return;
+      end if;
+      declare
+         Bytes : constant Natural := Natural (Gdk.Pixbuf.Get_Rowstride (Pixels))
+           * Natural (Gdk.Pixbuf.Get_Height (Pixels));
+      begin
+         if Bytes > MAX_IMAGE_BYTES - S.Image_Bytes then
+            Report_Import_Error (S, "Canvas image memory limit reached.");
+            return;
+         end if;
+         Rev.Add_Original (S.Document, Positive (Gdk.Pixbuf.Get_Width (Pixels)),
+                           Positive (Gdk.Pixbuf.Get_Height (Pixels)), Id);
+         Pixels.Ref;
+         S.Images (Id) := (Pixels => Pixels, Origin => Origin);
+         S.Image_Bytes := S.Image_Bytes + Bytes;
+      end;
+      Extend_Tree (S.all);
+      Refresh (S.all);
+      Set_Status (S.all, "Image added to Drawings at its original size.");
+   exception
+      when Rev.Capacity_Error =>
+         Report_Import_Error (S, "Canvas revision limit reached.");
+   end Import_Complete;
+
+   --  GtkAda's Request_Contents binding omits per-request user data.
+   --  The native form lets the callback carry the leased slot instead of a
+   --  frontend address that could outlive its session or window.
+   type Clipboard_Callback is access procedure
+     (Clipboard, Data, Token : System.Address) with Convention => C;
+   procedure Request_Contents
+     (Clipboard : System.Address;
+      Target : Gdk.Types.Gdk_Atom;
+      Callback : not null Clipboard_Callback;
+      Token : System.Address)
+     with Import, Convention => C,
+          External_Name => "gtk_clipboard_request_contents";
+
+   function Atom (Name : String) return Gdk.Types.Gdk_Atom is
+     (Gdk.Property.Atom_Intern (Name, Only_If_Exists => False));
+
+   procedure Clipboard_Data (Clipboard, Data, Token : System.Address)
+     with Convention => C;
+   procedure Clipboard_Targets (Clipboard, Data, Token : System.Address)
+     with Convention => C;
+
+   procedure Clipboard_Data (Clipboard, Data, Token : System.Address) is
+      pragma Unreferenced (Clipboard);
+      use Gtk.Selection_Data;
+      use Ada.Strings.Unbounded;
+      I : constant Request_Index := Find_Request (Token);
+   begin
+      if I = 0 then
+         return;
+      elsif Requests (I).Owner = null then
+         Requests (I) := (others => <>);
+         return;
+      end if;
+      declare
+         Selection : constant Gtk_Selection_Data := From_Object (Data);
+         Size : constant Glib.Gint := Get_Length (Selection);
+         Expected : constant Raster.Format := Requests (I).Expected;
+         Target : constant Gdk.Types.Gdk_Atom :=
+           Atom ((if Expected = Raster.PNG then "image/png" else "image/jpeg"));
+         Address : constant System.Address := Get_Data (Selection);
+      begin
+         if Size < 3 or else Size > Raster.MAX_ENCODED_BYTES
+           or else Get_Format (Selection) /= 8
+           or else Get_Data_Type (Selection) /= Target
+           or else Get_Target (Selection) /= Target
+           or else Address = System.Null_Address
+         then
+            Import_Complete (Token, null,
+                             "Clipboard image is invalid or exceeds 8 MiB.");
+            return;
+         end if;
+         declare
+            Bytes : String (1 .. Natural (Size)) with Import, Address => Address;
+            Copy : Unbounded_String;
+            Accepted : Boolean;
+         begin
+            if Raster.Detect (Bytes) /= Expected then
+               Import_Complete (Token, null,
+                                "Clipboard data does not match its image type.");
+               return;
+            end if;
+            Copy := To_Unbounded_String (Bytes);
+            Jobs.Submit_Bytes (Copy, Expected, Token,
+                               Import_Complete'Access, Accepted);
+            if not Accepted then
+               Import_Complete (Token, null, "Image import queue is full.");
+            end if;
+         end;
+      end;
+   exception
+      when others =>
+         --  Do not propagate Ada exceptions across the GTK C callback.
+         Import_Complete (Token, null, "Could not read clipboard image.");
+   end Clipboard_Data;
+
+   procedure Clipboard_Targets (Clipboard, Data, Token : System.Address) is
+      use Gtk.Selection_Data;
+      I : constant Request_Index := Find_Request (Token);
+      PNG : constant Gdk.Types.Gdk_Atom := Atom ("image/png");
+      JPEG : constant Gdk.Types.Gdk_Atom := Atom ("image/jpeg");
+      Choice : Raster.Format := Raster.Unknown;
+   begin
+      if I = 0 then
+         return;
+      elsif Requests (I).Owner = null then
+         Requests (I) := (others => <>);
+         return;
+      end if;
+      declare
+         Selection : constant Gtk_Selection_Data := From_Object (Data);
+      begin
+         if Get_Length (Selection) in 1 .. 4_096 then
+            for Offered of Get_Targets (Selection) loop
+               if Offered = PNG then
+                  Choice := Raster.PNG;
+                  exit;
+               elsif Offered = JPEG then
+                  Choice := Raster.JPEG;
+               end if;
+            end loop;
+         end if;
+      end;
+      if Choice = Raster.Unknown then
+         Import_Complete (Token, null,
+                          "The clipboard does not offer a PNG or JPEG image.");
+      else
+         Requests (I).Expected := Choice;
+         Request_Contents
+           (Clipboard, (if Choice = Raster.PNG then PNG else JPEG),
+            Clipboard_Data'Access, Token);
+      end if;
+   exception
+      when others =>
+         Import_Complete (Token, null, "Could not read clipboard formats.");
+   end Clipboard_Targets;
+
+   procedure Paste (S : Instance_Access) is
+      Focus : constant Gtk.Widget.Gtk_Widget := S.Canvas_Window.Get_Focus;
+      Clip : Gtk.Clipboard.Gtk_Clipboard;
+      I : Request_Index;
+   begin
+      if Focus /= null and then Focus.all in Gtk.GEntry.Gtk_Entry_Record'Class
+      then
+         Gtk.GEntry.Gtk_Entry (Focus).Paste_Clipboard;
+         return;
+      end if;
+      Invalidate (S.all, Paste_Only => True);
+      I := Acquire (S, Clipboard_Image);
+      if I = 0 then
+         Report_Import_Error (S, "Too many pending image requests.");
+      else
+         Clip := Gtk.Clipboard.Get_For_Display
+           (S.Canvas_Window.Get_Display, Atom ("CLIPBOARD"));
+         Set_Status (S.all, "Reading clipboard image...");
+         Request_Contents
+           (Clip.Get_Object, Atom ("TARGETS"), Clipboard_Targets'Access,
+            Requests (I)'Address);
+      end if;
+   end Paste;
+
+   procedure File_Response
+     (Dialog : access Gtk.Dialog.Gtk_Dialog_Record'Class;
+      Response : Glib.Gint; S : Instance_Access)
+   is
+      pragma Unreferenced (Dialog);
+      Path : constant String := (if Gtk.Dialog.Gtk_Response_Type (Response)
+        = Gtk.Dialog.Gtk_Response_OK then S.File_Selection.Get_Filename else "");
+      I : Request_Index;
+      Accepted : Boolean;
+   begin
+      S.File_Selection.Destroy;
+      S.File_Selection := null;
+      if Path'Length = 0 then
+         return;
+      end if;
+      I := Acquire (S, File_Image);
+      if I = 0 then
+         Report_Import_Error (S, "Too many pending image requests.");
+      else
+         Set_Status (S.all, "Reading image file...");
+         Jobs.Submit_File (Path, Requests (I)'Address,
+                           Import_Complete'Access, Accepted);
+         if not Accepted then
+            Import_Complete
+              (Requests (I)'Address, null, "Image import queue is full.");
+         end if;
+      end if;
+   end File_Response;
+
+   procedure Choose_File (S : Instance_Access) is
+      Button : Gtk.Widget.Gtk_Widget;
+      pragma Unreferenced (Button);
+   begin
+      if S.File_Selection = null then
+         Gtk.File_Chooser_Dialog.Gtk_New
+           (S.File_Selection, "coyote : File Selection", S.Canvas_Window,
+            Gtk.File_Chooser.Action_Open);
+         S.File_Selection.Set_Name ("coyote-canvas-file-selection");
+         S.File_Selection.Set_Local_Only (True);
+         Button := S.File_Selection.Add_Button
+           ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
+         Button := S.File_Selection.Add_Button
+           ("_Import", Gtk.Dialog.Gtk_Response_OK);
+         S.File_Selection.Set_Default_Response (Gtk.Dialog.Gtk_Response_OK);
+         Dialog_Callback.Connect
+           (S.File_Selection, "response",
+            Dialog_Callback.To_Marshaller (File_Response'Access), S);
+         S.File_Selection.Show;
+      end if;
+      S.File_Selection.Present;
+   end Choose_File;
 
    procedure On_Field
      (Field : access Gtk.GEntry.Gtk_Entry_Record'Class; S : Instance_Access)
@@ -298,6 +644,7 @@ package body Coyote_GUI.Canvas is
       S.Canvas_Window.Add_Accel_Group (Accels);
       Group ("_File");
       Item        := Action ("_New", "new", Gdk.Types.Keysyms.GDK_LC_n);
+      Item        := Action ("_Import...", "import");
       S.Save_Item := Action ("_Save", "save", Gdk.Types.Keysyms.GDK_LC_s);
       Item        := Action ("_Close", "close", Gdk.Types.Keysyms.GDK_LC_w);
       Group ("_Selected");
@@ -308,6 +655,7 @@ package body Coyote_GUI.Canvas is
         Action
           ("_Redo", "redo", Gdk.Types.Keysyms.GDK_LC_z,
            Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask);
+      Item          := Action ("_Paste", "paste", Gdk.Types.Keysyms.GDK_LC_v);
       S.Crop_Item   := Action ("_Crop...", "crop");
       S.Apply_Item  := Action ("_Apply Crop", "apply");
       S.Cancel_Item := Action ("Ca_ncel Crop", "cancel");
@@ -427,6 +775,20 @@ package body Coyote_GUI.Canvas is
    procedure Reset (S : in out Instance) is
    begin
       S.Resetting := True;
+      Invalidate (S);
+      Destroy_Import_Dialogs (S);
+      if S.Image_Surface /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (S.Image_Surface);
+         S.Image_Surface := Cairo.Null_Surface;
+      end if;
+      S.Cached_Image := 0;
+      for Asset of S.Images loop
+         if Asset.Pixels /= null then
+            Asset.Pixels.Unref;
+            Asset := (others => <>);
+         end if;
+      end loop;
+      S.Image_Bytes := 0;
       S.Drawing := False;
       S.Stroke_Points.Clear;
       S.Crop_Drag   := False;
@@ -525,6 +887,7 @@ package body Coyote_GUI.Canvas is
       if S /= null and then S.Preview_Revision /= 0 then
          Cancel_Gesture (S.all);
          Rev.Edit (S.Document, S.Preview_Revision);
+         S.Has_Drawing := True;
          Extend_Tree (S.all);
          S.Editing_Draft := True;
          Set_Status (S.all, "Editing selected revision draft");
@@ -640,6 +1003,8 @@ package body Coyote_GUI.Canvas is
       if S /= null and then S.Canvas_Window /= null then
          Cancel_Gesture (S.all);
          Refresh (S.all);
+         Invalidate (S.all);
+         Destroy_Import_Dialogs (S.all);
          S.Canvas_Window.Hide;
       end if;
    end On_Close;
@@ -689,6 +1054,10 @@ package body Coyote_GUI.Canvas is
    begin
       if Name = "canvas-new" then
          On_New (null, S);
+      elsif Name = "canvas-import" then
+         Choose_File (S);
+      elsif Name = "canvas-paste" then
+         Paste (S);
       elsif Name = "canvas-save" then
          On_Save (null, S);
       elsif Name = "canvas-edit" then
@@ -759,6 +1128,12 @@ package body Coyote_GUI.Canvas is
          Glib.Gdouble (R.Right - R.Left), Glib.Gdouble (R.Bottom - R.Top));
    end Outline;
 
+   function Surface_From_Pixbuf
+     (Pixels : System.Address; Scale : Glib.Gint; Window : System.Address)
+      return Cairo.Cairo_Surface
+     with Import, Convention => C,
+          External_Name => "gdk_cairo_surface_create_from_pixbuf";
+
    function On_Draw
      (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
       Context : Cairo.Cairo_Context; S : Instance_Access) return Boolean
@@ -768,6 +1143,7 @@ package body Coyote_GUI.Canvas is
       Region   : constant Doc.Rectangle   := Pending (S.all);
       Revision : constant Rev.Revision_Id :=
         (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision);
+      Background : constant Rev.Revision_Id := Rev.Background (S.Document, Revision);
       procedure Draw_Points (Points : Rev.Samples.Vector) is
       begin
          Draw_Stroke (Points, Context);
@@ -782,6 +1158,23 @@ package body Coyote_GUI.Canvas is
       Cairo.Clip (Context);
       Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
       Cairo.Paint (Context);
+      if Background /= S.Cached_Image then
+         if S.Image_Surface /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (S.Image_Surface);
+            S.Image_Surface := Cairo.Null_Surface;
+         end if;
+         S.Cached_Image := Background;
+         if Background /= Rev.NO_REVISION then
+            S.Image_Surface := Surface_From_Pixbuf
+              (S.Images (Background).Pixels.Get_Object, 1, System.Null_Address);
+         end if;
+      end if;
+      if S.Image_Surface /= Cairo.Null_Surface then
+         Cairo.Set_Source_Surface
+           (Context, S.Image_Surface, -Glib.Gdouble (E.Left),
+            -Glib.Gdouble (E.Top));
+         Cairo.Paint (Context);
+      end if;
       if S.Show_Ink then
          Cairo.Save (Context);
          Cairo.Translate

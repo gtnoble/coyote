@@ -165,9 +165,15 @@ the Drawings tree. Select a saved revision to preview it, or choose
 accepts a pointer drag or exact pixel fields; the drawing changes only after
 **Apply Crop**. Use **Undo** or **Redo** to step through edits.
 
+Use **File → Import…** for a local PNG or JPEG file, or **Edit → Paste**
+(`Ctrl+V` outside a text field) for a PNG or JPEG on the clipboard. Each
+import adds a separate Original at its native size without switching the
+working copy. Select the Original to see it, or use **Edit Revision** to
+annotate or crop it. Oversized images are rejected rather than shrunk.
+
 Closing only the Canvas keeps its drawings in memory. They do not survive a
-session change or application exit. Image import (file, clipboard and
-`canvas add`), durable revisions and prompt attachments are not yet available.
+session change or application exit. SVG and multi-file import, `canvas add`,
+durable revisions, and prompt attachments are not yet available.
 
 ## Session listing
 

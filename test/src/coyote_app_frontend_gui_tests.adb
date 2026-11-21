@@ -12,13 +12,23 @@ with Coyote_App.Agent_RPC.Transport;
 with Coyote_App.Frontend.GUI.Testing;
 with Coyote_GUI;
 with Coyote_GUI.Prompt_Queue;
+with Coyote_GUI.Canvas_Import_Jobs;
+with Coyote_Temp_Files;
+with Glib.Error;
+with Gtk.File_Chooser_Dialog;
 with Coyote_Process_Control;
 with GNAT.OS_Lib;
 with GNAT.Strings;
 with Glib;
 with Glib.Values;
+with Glib.Object;
+with Cairo;
+with Cairo.Image_Surface;
 with Gdk.Event;
+with Gdk.Pixbuf;
+with Gdk.Property;
 with Gtk.Box;
+with Gtk.Clipboard;
 with Gtk.GEntry;
 with Gtk.Tree_Selection;
 with System;
@@ -42,6 +52,7 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Glib.Gint;
    use type Glib.Guint;
    use type Glib.Gdouble;
+   use type Glib.Object.GObject;
    use type Gtk.Enums.Gtk_Orientation;
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Dialog.Gtk_Dialog;
@@ -1101,6 +1112,300 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Destroying the conversation tears down its Canvas");
    end Test_Canvas_Workspace;
 
+   function Canvas_Toplevel (Name : String) return Gtk.Window.Gtk_Window is
+      use Gtk.Widget.Widget_List;
+      use type Gtk.Widget.Widget_List.Glist;
+      Windows : Glist := Gtk.Window.List_Toplevels;
+      Cursor  : Glist := First (Windows);
+      Result  : Gtk.Window.Gtk_Window := null;
+   begin
+      Scan : while Cursor /= Null_List loop
+         if Get_Data (Cursor).Get_Name = Name then
+            Result := Gtk.Window.Gtk_Window (Get_Data (Cursor));
+            exit Scan;
+         end if;
+         Cursor := Next (Cursor);
+      end loop Scan;
+      Free (Windows);
+      return Result;
+   end Canvas_Toplevel;
+
+   procedure Finish_Canvas_Jobs is
+      use Ada.Real_Time;
+      Deadline : constant Time := Clock + Seconds (3);
+   begin
+      Poll : loop
+         Drain_Events;
+         exit Poll when Coyote_GUI.Canvas_Import_Jobs.Pending_Count = 0;
+         Assert (Clock < Deadline, "Canvas worker did not complete");
+         delay 0.01;
+      end loop Poll;
+   end Finish_Canvas_Jobs;
+
+   procedure Test_Canvas_Clipboard_Import (T : in out Test) is
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use Ada.Real_Time;
+      use type Gdk.Pixbuf.Rgb_Record;
+      Frontend  : Coyote_App.Frontend.GUI.Instance;
+      Canvas    : Gtk.Window.Gtk_Window;
+      Tree      : Gtk.Tree_View.Gtk_Tree_View;
+      Area      : Gtk.Widget.Gtk_Widget;
+      Model     : Gtk_Tree_Model;
+      Width     : Glib.Gint;
+      Height    : Glib.Gint;
+      Clipboard : Gtk.Clipboard.Gtk_Clipboard;
+      Pixbuf    : Gdk.Pixbuf.Gdk_Pixbuf;
+      Failure   : Gtk.Window.Gtk_Window;
+      Row       : Gtk_Tree_Iter;
+      Value     : Glib.Values.GValue;
+      Started   : Time;
+      Imported  : Boolean := False;
+      Owns_Clipboard : Boolean := False;
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+         Item : constant Gtk.Widget.Gtk_Widget :=
+           Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name);
+      begin
+         Assert (Item /= null, "Missing Canvas control: " & Name);
+         return Item;
+      end Control;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "Canvas clipboard import test", Pop_Under => True);
+      Canvas_Item (Frontend).Activate;
+      Canvas := Canvas_Window (Frontend);
+      Assert (Canvas /= null and then Canvas.Get_Visible,
+              "Canvas opens for clipboard import");
+      Tree := Gtk.Tree_View.Gtk_Tree_View
+        (Control ("coyote-canvas-drawings"));
+      Model := Tree.Get_Model;
+      Area := Control ("coyote-canvas-drawing-area");
+      Clipboard := Gtk.Clipboard.Get;
+      --  Do not replace any selection advertised by an existing owner.
+      if Gtk.Clipboard.Get_Owner (Clipboard) /= null
+        or else Gtk.Clipboard.Wait_Is_Target_Available
+          (Clipboard, Gdk.Property.Atom_Intern ("TARGETS", False))
+      then
+         Frontend.Request_Shutdown;
+         Main_Window (Frontend).Destroy;
+         return;
+      end if;
+
+      Pixbuf := Gdk.Pixbuf.Gdk_New (Width => 37, Height => 23);
+      Gdk.Pixbuf.Fill (Pixbuf, 16#FF0000FF#);
+      declare
+         Right_Half : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New_Subpixbuf (Pixbuf, 20, 0, 17, 23);
+      begin
+         Gdk.Pixbuf.Fill (Right_Half, 16#0000FFFF#);
+         Right_Half.Unref;
+      end;
+      Gtk.Clipboard.Set_Image (Clipboard, Pixbuf);
+      Owns_Clipboard := True;
+      Pixbuf.Unref;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-paste")).Activate;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-close")).Activate;
+      Canvas_Item (Frontend).Activate;
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 0, "Close invalidates pending paste");
+
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-new")).Activate;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-paste")).Activate;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-paste")).Activate;
+
+      Started := Clock;
+      Poll_Import : loop
+         Drain_Events;
+         if N_Children (Model) > 1 then
+            Row := Get_Iter_From_String (Model, "1");
+            Get_Value (Model, Row, 0, Value);
+            declare
+               Label : constant String := Glib.Values.Get_String (Value);
+            begin
+               Imported := Label'Length >= 15
+                 and then Label (1 .. 15) = "Clipboard Image";
+            end;
+            Glib.Values.Unset (Value);
+            exit Poll_Import when Imported;
+         end if;
+         exit Poll_Import when Clock - Started >= Seconds (2);
+         delay 0.01;
+      end loop Poll_Import;
+
+      Assert (Imported,
+              "Clipboard paste adds a root named Clipboard Image");
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 2,
+              "Superseded paste did not publish a duplicate");
+      Area.Get_Size_Request (Width, Height);
+      Assert (Width = 800 and then Height = 600,
+              "Paste does not replace the displayed working copy");
+      Assert (Tree.Get_Selection.Count_Selected_Rows = 0,
+              "Paste does not change the selection");
+      Assert (N_Children (Model, Row) = 0,
+              "Imported clipboard image is a read-only root");
+      Gtk.Tree_View.Get_Selection (Tree).Select_Iter (Row);
+      Drain_Events;
+      Area.Get_Size_Request (Width, Height);
+      Assert (Width = 37 and then Height = 23,
+              "Selecting clipboard image shows native dimensions");
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-edit")).Activate;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-crop")).Activate;
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-x")).Set_Text ("21");
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-width")).Set_Text ("8");
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-height")).Set_Text ("6");
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-apply")).Activate;
+      Area.Get_Size_Request (Width, Height);
+      Assert (Width = 8 and then Height = 6, "Crop has exact native bounds");
+      Crop_Pixel : declare
+         Surface : constant Cairo.Cairo_Surface := Cairo.Image_Surface.Create
+           (Cairo.Image_Surface.Cairo_Format_RGB24, Width, Height);
+         Context : constant Cairo.Cairo_Context := Cairo.Create (Surface);
+         Sample : Gdk.Pixbuf.Gdk_Pixbuf;
+         RGB : Gdk.Pixbuf.Rgb_Record;
+      begin
+         --  Process the pending resize before drawing to the test surface.
+         Canvas.Check_Resize;
+         Drain_Events;
+         Area.Draw (Context);
+         Cairo.Destroy (Context);
+         Sample := Gdk.Pixbuf.Get_From_Surface (Surface, 0, 0, 1, 1);
+         RGB := Gdk.Pixbuf.Get_Pixels (Sample) (0);
+         Sample.Unref;
+         Cairo.Surface_Destroy (Surface);
+         Assert (RGB = (0, 0, 255), "Crop displays the retained source pixel");
+      end Crop_Pixel;
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-undo")).Activate;
+      Area.Get_Size_Request (Width, Height);
+      Assert (Width = 37 and then Height = 23, "Undo restores image extent");
+      Canvas.Set_Focus (Area);
+      Gtk.Clipboard.Set_Text (Clipboard, "/tmp/a-file-not-an-image-offer");
+      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-paste")).Activate;
+      Drain_Events;
+      Failure := Canvas_Toplevel ("coyote-canvas-import-error");
+      Assert (Failure /= null and then N_Children (Model) = 2,
+              "Text-only clipboard offers explain failure and add no root");
+      Gtk.Dialog.Gtk_Dialog (Failure).Response (Gtk.Dialog.Gtk_Response_Close);
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+      if Owns_Clipboard then
+         Gtk.Clipboard.Clear (Clipboard);
+      end if;
+   exception
+      when others =>
+         if Owns_Clipboard then
+            Gtk.Clipboard.Clear (Clipboard);
+         end if;
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         raise;
+   end Test_Canvas_Clipboard_Import;
+
+   procedure Test_Canvas_File_Import (T : in out Test) is
+      use Ada.Strings.Unbounded;
+      use Ada.Real_Time;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use type Glib.Error.GError;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Canvas   : Gtk.Window.Gtk_Window;
+      Tree     : Gtk.Tree_View.Gtk_Tree_View;
+      Model    : Gtk_Tree_Model;
+      Area     : Gtk.Widget.Gtk_Widget;
+      Row      : Gtk_Tree_Iter;
+      Path     : Unbounded_String;
+      FD       : GNAT.OS_Lib.File_Descriptor;
+      W, H     : Glib.Gint;
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name));
+
+      procedure Choose is
+         Top : Gtk.Window.Gtk_Window;
+         Chooser : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
+         Deadline : constant Time := Clock + Seconds (3);
+      begin
+         Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-import")).Activate;
+         Top := Canvas_Toplevel ("coyote-canvas-file-selection");
+         Assert (Top /= null and then not Top.Get_Modal,
+                 "Import opens a modeless File Selection");
+         Chooser := Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog (Top);
+         Assert (Chooser.Set_Filename (To_String (Path)),
+                 "GTK accepts the fixture path");
+         Poll : loop
+            Drain_Events;
+            exit Poll when Chooser.Get_Filename = To_String (Path);
+            Assert (Clock < Deadline, "File Selection did not resolve path");
+            delay 0.01;
+         end loop Poll;
+         Gtk.Dialog.Gtk_Dialog (Chooser).Response (Gtk.Dialog.Gtk_Response_OK);
+      end Choose;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Coyote_Temp_Files.Create (FD, Path);
+      GNAT.OS_Lib.Close (FD);
+      declare
+         Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New (Width => 675, Height => 44);
+         Error : Glib.Error.GError;
+      begin
+         Gdk.Pixbuf.Fill (Image, 16#336699FF#);
+         Gdk.Pixbuf.Save (Image, To_String (Path), Gdk.Pixbuf.JPEG, Error);
+         Image.Unref;
+         Assert (Error = null, "Generated JPEG fixture");
+      end;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "Canvas file import test", Pop_Under => True);
+      Canvas_Item (Frontend).Activate;
+      Canvas := Canvas_Window (Frontend);
+      Area := Control ("coyote-canvas-drawing-area");
+      Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
+      Model := Tree.Get_Model;
+      Choose;
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 1, "File import adds one Original");
+      Row := Get_Iter_First (Model);
+      Check_Label : declare
+         V : Glib.Values.GValue;
+      begin
+         Get_Value (Model, Row, 0, V);
+         declare
+            Value : constant String := Glib.Values.Get_String (V);
+         begin
+            Glib.Values.Unset (V);
+            Assert (Value'Length >= 14 and then Value (1 .. 14) = "Imported Image",
+                    "File Original has an imported label");
+         end;
+      end Check_Label;
+      Tree.Get_Selection.Select_Iter (Row);
+      Area.Get_Size_Request (W, H);
+      Assert (W = 675 and then H = 44, "File import is not thumbnailed");
+      Choose;
+      Reset_Agents_From_Task (Frontend);
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 0, "Session reset drops the pending image");
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+      Coyote_Temp_Files.Delete (To_String (Path));
+   exception
+      when others =>
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Path));
+         raise;
+   end Test_Canvas_File_Import;
+
    package Coyote_App_Frontend_GUI_Caller is new AUnit.Test_Caller
      (Coyote_App_Frontend_GUI_Tests.Test);
 
@@ -1168,6 +1473,14 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas workspace lifecycle and crop",
             Test_Canvas_Workspace'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas clipboard image import",
+            Test_Canvas_Clipboard_Import'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas file import and session reset",
+            Test_Canvas_File_Import'Access));
       return Result;
    end Suite;
 

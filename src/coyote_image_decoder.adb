@@ -10,6 +10,11 @@ package body Coyote_Image_Decoder is
 
    function Pixbuf_Loader_New return Loader_Handle with
      Import, Convention => C, External_Name => "gdk_pixbuf_loader_new";
+   function Pixbuf_Loader_New_With_Type
+     (Format : Interfaces.C.char_array; Error : access System.Address)
+      return Loader_Handle with
+     Import, Convention => C,
+     External_Name => "gdk_pixbuf_loader_new_with_type";
    function Pixbuf_Loader_Write
      (Loader : Loader_Handle;
       Data   : System.Address;
@@ -62,6 +67,17 @@ package body Coyote_Image_Decoder is
      (System.Address (Loader) = System.Null_Address);
 
    function New_Loader return Loader_Handle is (Pixbuf_Loader_New);
+
+   function New_Loader (Format : String) return Loader_Handle is
+      Error  : aliased System.Address := System.Null_Address;
+      Loader : constant Loader_Handle := Pixbuf_Loader_New_With_Type
+        (Interfaces.C.To_C (Format), Error'Access);
+   begin
+      if Error /= System.Null_Address then
+         Error_Free (Error);
+      end if;
+      return Loader;
+   end New_Loader;
 
    procedure Connect_Size_Prepared
      (Loader : Loader_Handle; Callback : Size_Callback; State : State_Access)

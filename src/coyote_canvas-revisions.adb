@@ -4,7 +4,6 @@ package body Coyote_Canvas.Revisions is
    use type Ada.Containers.Count_Type;
    use type Document.Rectangle;
 
-   MAX_REVISIONS : constant := 256;
    MAX_STROKES   : constant := 512;
    MAX_EDITS     : constant := 256;
    MAX_POINTS    : constant := 100_000;
@@ -46,6 +45,23 @@ package body Coyote_Canvas.Revisions is
       W.Revisions.Reserve_Capacity
         (Ada.Containers.Count_Type (Count (W) + Need));
    end Reserve_Revisions;
+
+   procedure Add_Original
+     (W : in out Workspace; Width, Height : Positive; Id : out Revision_Id)
+   is
+   begin
+      Reserve_Revisions (W, 1);
+      W.Revisions.Append
+        (Revision'(Parent => NO_REVISION,
+          Content => (Extent => Document.Full_Extent (Width, Height),
+                      Image => Count (W) + 1, others => <>)));
+      Id := Count (W);
+   end Add_Original;
+
+   function Background
+     (W : Workspace; Id : Revision_Id := NO_REVISION) return Revision_Id is
+     (if Id = NO_REVISION then W.Draft.Image
+      else W.Revisions (Id).Content.Image);
 
    procedure Save (W : in out Workspace) is
    begin
