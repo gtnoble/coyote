@@ -11,9 +11,11 @@ package body Coyote_Canvas.Revisions.Recovery is
    PAINT_VERSION : constant := 2;
    ERASE_VERSION : constant := 3;
    COLOR_VERSION : constant := 4;
+   DEPOSITED_VERSION : constant := 5;
+   COLOR_MARKER_COUNT : constant := Natural (Ink_Color'Last) + 1;
    MAX_JSON_DEPTH : constant := 6;
    MAX_SEPARATORS : constant :=
-     6 * MAX_POINTS + MAX_REVISIONS * MAX_STROKES + MAX_REVISIONS
+     7 * MAX_POINTS + MAX_REVISIONS * MAX_STROKES + MAX_REVISIONS
      + MAX_STROKES;
    package Real_IO is new Ada.Text_IO.Float_IO (Long_Float);
 
@@ -55,17 +57,34 @@ package body Coyote_Canvas.Revisions.Recovery is
       Version : Natural := PAINT_VERSION;
    begin
       for Stroke of W.Strokes loop
-         if Stroke.Operation = Paint
+         if Stroke.Rendering = Deposited
+           or else (for some Point of Stroke.Points => Point.Alpha /= 1.0)
+         then
+            Version := DEPOSITED_VERSION;
+         elsif Version /= DEPOSITED_VERSION
+           and then Stroke.Operation = Paint
            and then Stroke.Color /= DEFAULT_INK_COLOR
          then
             Version := COLOR_VERSION;
-         elsif Stroke.Operation = Erase and then Version /= COLOR_VERSION then
+         elsif Version not in COLOR_VERSION | DEPOSITED_VERSION
+           and then Stroke.Operation = Erase
+         then
             Version := ERASE_VERSION;
          end if;
+      end loop;
+      for Stroke of W.Strokes loop
          declare
             Entries : JSON_Array;
          begin
-            if Stroke.Operation = Erase then
+            if Version = DEPOSITED_VERSION then
+               Append
+                 (Entries,
+                  Number
+                    (if Stroke.Operation = Erase then COLOR_MARKER_COUNT + 1
+                     elsif Stroke.Rendering = Deposited then
+                       COLOR_MARKER_COUNT + 2 + Natural (Stroke.Color)
+                     else Natural (Stroke.Color) + 1));
+            elsif Stroke.Operation = Erase then
                Append (Entries, Number (Natural'(0)));
             elsif Stroke.Color /= DEFAULT_INK_COLOR then
                Append
@@ -79,6 +98,9 @@ package body Coyote_Canvas.Revisions.Recovery is
                   Append (Triple, Number (Point.X));
                   Append (Triple, Number (Point.Y));
                   Append (Triple, Number (Point.Width));
+                  if Version = DEPOSITED_VERSION then
+                     Append (Triple, Number (Long_Float (Point.Alpha)));
+                  end if;
                   Append (Entries, Create (Triple));
                end;
             end loop;
@@ -363,14 +385,15 @@ package body Coyote_Canvas.Revisions.Recovery is
             Require (Obj.Kind = JSON_Object_Type, "Expected Canvas manifest");
             declare
                Version : constant Natural :=
-                 Nat (Get (Obj, "version"), COLOR_VERSION);
+                 Nat (Get (Obj, "version"), DEPOSITED_VERSION);
                Ink : constant JSON_Array :=
                  Array_Of (Get (Obj, "strokes"), MAX_STROKES);
                Nodes : constant JSON_Array :=
                  Array_Of (Get (Obj, "revisions"), MAX_REVISIONS);
             begin
                Require
-                 (Version in PAINT_VERSION | ERASE_VERSION | COLOR_VERSION,
+                 (Version in PAINT_VERSION | ERASE_VERSION | COLOR_VERSION
+                    | DEPOSITED_VERSION,
                   "Unsupported Canvas snapshot version");
                for I in 1 .. Length (Ink) loop
                   declare
@@ -383,19 +406,38 @@ package body Coyote_Canvas.Revisions.Recovery is
                      N : Natural;
                      Op : Stroke;
                   begin
+                     if Version = DEPOSITED_VERSION then
+                        Require (Marker, "Missing v5 stroke marker");
+                     end if;
                      if Marker then
                         Marker_Value := Nat
                           (Get (Entries, 1),
-                           (if Version = COLOR_VERSION
-                            then Natural (Ink_Color'Last) + 1 else 0));
+                           (if Version = DEPOSITED_VERSION
+                            then 2 * COLOR_MARKER_COUNT + 1
+                            elsif Version = COLOR_VERSION
+                            then COLOR_MARKER_COUNT else 0));
                         Require
-                          (Version = COLOR_VERSION
-                           or else
-                             (Version = ERASE_VERSION
-                              and then Marker_Value = 0),
+                          ((if Version = DEPOSITED_VERSION then
+                               Marker_Value in 1 .. 2 * COLOR_MARKER_COUNT + 1
+                            else
+                               Version = COLOR_VERSION
+                               or else
+                                 (Version = ERASE_VERSION
+                                  and then Marker_Value = 0)),
                            "Invalid Canvas ink operation");
                         Start := 2;
-                        if Marker_Value = 0 then
+                        if Version = DEPOSITED_VERSION then
+                           if Marker_Value = COLOR_MARKER_COUNT + 1 then
+                              Op.Operation := Erase;
+                              Op.Color := DEFAULT_INK_COLOR;
+                           elsif Marker_Value > COLOR_MARKER_COUNT + 1 then
+                              Op.Rendering := Deposited;
+                              Op.Color := Ink_Color
+                                (Marker_Value - COLOR_MARKER_COUNT - 2);
+                           else
+                              Op.Color := Ink_Color (Marker_Value - 1);
+                           end if;
+                        elsif Marker_Value = 0 then
                            Op.Operation := Erase;
                            Op.Color := DEFAULT_INK_COLOR;
                         else
@@ -409,17 +451,28 @@ package body Coyote_Canvas.Revisions.Recovery is
                      for J in Start .. Length (Entries) loop
                         declare
                            Triple : constant JSON_Array :=
-                             Array_Of (Get (Entries, J), 3, 3);
+                             Array_Of (Get (Entries, J),
+                               (if Version = DEPOSITED_VERSION then 4 else 3),
+                               (if Version = DEPOSITED_VERSION then 4 else 3));
+                           Alpha_Value : constant Long_Float :=
+                             (if Version = DEPOSITED_VERSION
+                              then Real (Get (Triple, 4)) else 1.0);
                            Point : constant Sample :=
-                             (Real (Get (Triple, 1)), Real (Get (Triple, 2)),
-                              Real (Get (Triple, 3)));
+                             (X => Real (Get (Triple, 1)),
+                              Y => Real (Get (Triple, 2)),
+                              Width => Real (Get (Triple, 3)),
+                              Alpha => Ink_Alpha (Alpha_Value));
                         begin
                            Require
                              (Point.X in 0.0 .. Long_Float (Rasters.MAX_SIDE)
                               and then Point.Y in
                                 0.0 .. Long_Float (Rasters.MAX_SIDE)
                               and then Point.Width > 0.0
-                              and then Point.Width <= 64.0,
+                              and then Point.Width <= 64.0
+                              and then Alpha_Value in 0.0 .. 1.0
+                              and then (Op.Operation = Erase
+                                or else Op.Rendering = Deposited
+                                or else Alpha_Value = 1.0),
                               "Canvas ink point is out of bounds");
                            Max_X (I) := Long_Float'Max (Max_X (I), Point.X);
                            Max_Y (I) := Long_Float'Max (Max_Y (I), Point.Y);

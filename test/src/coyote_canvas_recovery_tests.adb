@@ -1,4 +1,5 @@
 with Ada.Directories;
+with Ada.Text_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with AUnit.Assertions; use AUnit.Assertions;
 with AUnit.Test_Caller;
@@ -63,8 +64,9 @@ package body Coyote_Canvas_Recovery_Tests is
              2 => (Width => 90, Height => 70)), First_Original);
       Edit (W, First_Original + 1);
       Points.Append
-        ((X => Long_Float'Adjacent (3.25, 4.0), Y => 4.5, Width => 1.75));
-      Points.Append ((X => 8.0, Y => 9.125, Width => 2.5));
+        ((X => Long_Float'Adjacent (3.25, 4.0), Y => 4.5, Width => 1.75,
+          Alpha => 1.0));
+      Points.Append ((X => 8.0, Y => 9.125, Width => 2.5, Alpha => 1.0));
       Add_Stroke (W, Points);
       Save (W);
       Crop (W, (2, 3, 45, 50));
@@ -104,23 +106,26 @@ package body Coyote_Canvas_Recovery_Tests is
       Original_Ink, Recovered_Ink : Samples.Vector;
 
       Original_Color, Recovered_Color : Ink_Color := DEFAULT_INK_COLOR;
+      Original_Rendering, Recovered_Rendering : Stroke_Rendering := Classic;
 
       procedure Capture_Original
         (Points : Samples.Vector; Operation : Ink_Operation;
-         Color : Ink_Color) is
+         Color : Ink_Color; Rendering : Stroke_Rendering) is
          pragma Unreferenced (Operation);
       begin
          Original_Ink := Points;
          Original_Color := Color;
+         Original_Rendering := Rendering;
       end Capture_Original;
 
       procedure Capture_Recovered
         (Points : Samples.Vector; Operation : Ink_Operation;
-         Color : Ink_Color) is
+         Color : Ink_Color; Rendering : Stroke_Rendering) is
          pragma Unreferenced (Operation);
       begin
          Recovered_Ink := Points;
          Recovered_Color := Color;
+         Recovered_Rendering := Rendering;
       end Capture_Recovered;
    begin
       Make_Workspace (Source);
@@ -142,10 +147,13 @@ package body Coyote_Canvas_Recovery_Tests is
       Visit_Source (Source, 3, Capture_Original'Access);
       Visit_Source (Restored, 3, Capture_Recovered'Access);
       Assert (not Original_Ink.Is_Empty
-              and then Samples."=" (Original_Ink, Recovered_Ink),
+              and then Samples."=" (Original_Ink, Recovered_Ink)
+              and then Original_Ink (1).Alpha = Recovered_Ink (1).Alpha,
               "source sample coordinates round-trip without rounding");
       Assert (Original_Color = DEFAULT_INK_COLOR
-              and then Recovered_Color = DEFAULT_INK_COLOR,
+              and then Recovered_Color = DEFAULT_INK_COLOR
+              and then Original_Rendering = Classic
+              and then Recovered_Rendering = Classic,
               "legacy/default paint uses the default ink color");
       Assert (Encode (Restored) = To_String (Encoded),
               "strokes, exact samples, assets and states roundtrip");
@@ -164,7 +172,8 @@ package body Coyote_Canvas_Recovery_Tests is
 
       procedure Capture
         (Samples_In : Samples.Vector; Ink : Ink_Operation;
-         Ink_Color_Value : Ink_Color) is
+         Ink_Color_Value : Ink_Color; Rendering : Stroke_Rendering) is
+         pragma Unreferenced (Rendering);
          pragma Unreferenced (Samples_In);
       begin
          Operation := Ink;
@@ -174,7 +183,7 @@ package body Coyote_Canvas_Recovery_Tests is
       Add_Originals (Source, (1 => (Width => 8, Height => 8)),
                      First_Id => First);
       Edit (Source, First);
-      Points.Append ((X => 1.0, Y => 2.0, Width => 1.0));
+      Points.Append ((X => 1.0, Y => 2.0, Width => 1.0, Alpha => 1.0));
       Add_Stroke (Source, Points, Color => 0);
       Save (Source);
       Data := To_Unbounded_String (Encode (Source));
@@ -220,7 +229,7 @@ package body Coyote_Canvas_Recovery_Tests is
       Clear (Source);
       New_Drawing (Source, 8, 8);
       Points.Clear;
-      Points.Append ((X => 1.0, Y => 2.0, Width => 1.0));
+      Points.Append ((X => 1.0, Y => 2.0, Width => 1.0, Alpha => 1.0));
       Add_Stroke (Source, Points);
       Save (Source);
       Data := To_Unbounded_String (Encode (Source));
@@ -241,6 +250,80 @@ package body Coyote_Canvas_Recovery_Tests is
       Assert (Operation = Erase and then Color = DEFAULT_INK_COLOR,
               "v3 erase recovers with default color");
    end Color_Version_And_Legacy_Recovery;
+
+   procedure Deposited_Version_Recovery (T : in out Test) is
+      pragma Unreferenced (T);
+      Source, Restored : Workspace;
+      Points : Samples.Vector;
+      First : Revision_Id;
+      Data, Bad_Data, Baseline : Unbounded_String;
+      Got_Points : Samples.Vector;
+      Got_Rendering : Stroke_Rendering := Classic;
+      Got_Operation : Ink_Operation := Erase;
+      Rejected : Boolean := False;
+      package Real_IO is new Ada.Text_IO.Float_IO (Long_Float);
+      Alpha_Text, Invalid_Alpha_Text : String (1 .. 32);
+
+      procedure Capture
+        (Samples_In : Samples.Vector; Operation : Ink_Operation;
+         Color : Ink_Color; Rendering : Stroke_Rendering) is
+         pragma Unreferenced (Color);
+      begin
+         if Rendering = Deposited then
+            Got_Points := Samples_In;
+            Got_Operation := Operation;
+            Got_Rendering := Rendering;
+         end if;
+      end Capture;
+   begin
+      Add_Originals (Source, (1 => (Width => 8, Height => 8)), First);
+      Edit (Source, First);
+      Points.Append ((X => 1.0, Y => 2.0, Width => 1.5, Alpha => 0.25));
+      Add_Stroke (Source, Points, Color => 16#123456#,
+                  Rendering => Deposited);
+      Points.Clear;
+      Points.Append ((X => 3.0, Y => 4.0, Width => 2.0, Alpha => 1.0));
+      Add_Stroke (Source, Points, Color => 16#010203#);
+      Save (Source);
+      Data := To_Unbounded_String (Encode (Source));
+      Assert (Index (Data, """version"":5") /= 0,
+              "deposited paint selects snapshot v5");
+      Decode (To_String (Data), Restored);
+      Visit_Source (Restored, Base (Restored), Capture'Access);
+      Assert (Got_Operation = Paint and then Got_Rendering = Deposited
+              and then Got_Points (1).X = 1.0
+              and then Got_Points (1).Y = 2.0
+              and then Got_Points (1).Width = 1.5
+              and then Got_Points (1).Alpha = 0.25,
+              "v5 preserves source coordinates, alpha, and rendering");
+      Baseline := To_Unbounded_String (Encode (Restored));
+      Assert (Index (Data, "[66052,[") /= 0 and then Baseline = Data,
+              "v5 preserves the classic stroke and color marker");
+      Real_IO.Put (Alpha_Text, 0.25, Aft => 17, Exp => 4);
+      Real_IO.Put (Invalid_Alpha_Text, 1.25, Aft => 17, Exp => 4);
+      Bad_Data := To_Unbounded_String
+        (Replace_First (To_String (Data), Alpha_Text, Invalid_Alpha_Text));
+      Assert (Bad_Data /= Data, "invalid-alpha fixture changes snapshot");
+      Rejected := False;
+      begin
+         Decode (To_String (Bad_Data), Restored);
+      exception
+         when Invalid_Snapshot =>
+            Rejected := True;
+      end;
+      Assert (Rejected and then Encode (Restored) = To_String (Baseline),
+              "v5 rejects out-of-range alpha atomically");
+      Bad_Data := To_Unbounded_String
+        (Replace_First (To_String (Data), "17970264", "33554434"));
+      Rejected := False;
+      begin
+         Decode (To_String (Bad_Data), Restored);
+      exception
+         when Invalid_Snapshot =>
+            Rejected := True;
+      end;
+      Assert (Rejected, "v5 rejects out-of-range rendering/color marker");
+   end Deposited_Version_Recovery;
 
    procedure Recovery_Clears_Undo_Redo (T : in out Test) is
       pragma Unreferenced (T);
@@ -455,7 +538,7 @@ package body Coyote_Canvas_Recovery_Tests is
       Crop (W, (0, 0, 1, 2));
       Save (W);
       Crop (W, (0, 1, 1, 2));
-      Points.Append ((0.5, 0.5, 1.0));
+      Points.Append ((0.5, 0.5, 1.0, 1.0));
       Add_Stroke (W, Points);
       Add_Stroke (W, Points, Erase);
       Disk.Save (To_String (Root), UUID_A, W, A, Status);
@@ -604,6 +687,9 @@ package body Coyote_Canvas_Recovery_Tests is
         (Caller.Create
            ("Canvas color versions and legacy recovery",
             Color_Version_And_Legacy_Recovery'Access));
+      Result.Add_Test
+        (Caller.Create
+           ("Canvas deposited v5 recovery", Deposited_Version_Recovery'Access));
       Result.Add_Test
         (Caller.Create
            ("Canvas recovery resets undo and redo",

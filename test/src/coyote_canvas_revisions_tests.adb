@@ -16,7 +16,8 @@ package body Coyote_Canvas_Revisions_Tests is
 
    procedure Collect
      (Points : Samples.Vector; Operation : Ink_Operation;
-      Color : Ink_Color) is
+      Color : Ink_Color; Rendering : Stroke_Rendering) is
+      pragma Unreferenced (Rendering);
       pragma Unreferenced (Operation);
    begin
       Seen_Count := Seen_Count + 1;
@@ -31,7 +32,7 @@ package body Coyote_Canvas_Revisions_Tests is
       Stroke : Samples.Vector;
    begin
       New_Drawing (W, 40, 30);
-      Stroke.Append ((X => 3.0, Y => 4.0, Width => 1.5));
+      Stroke.Append ((X => 3.0, Y => 4.0, Width => 1.5, Alpha => 1.0));
       Add_Stroke (W, Stroke);
       Save (W);
       A := Base (W);
@@ -57,7 +58,7 @@ package body Coyote_Canvas_Revisions_Tests is
       Assert (Seen_Color = DEFAULT_INK_COLOR,
               "default paint retains the default color");
       Stroke.Clear;
-      Stroke.Append ((X => 1.0, Y => 1.0, Width => 1.0));
+      Stroke.Append ((X => 1.0, Y => 1.0, Width => 1.0, Alpha => 1.0));
       Add_Stroke (W, Stroke, Color => 16#FF_00_00#);
       Save (W);
       Visit_Source (W, Base (W), Collect'Access);

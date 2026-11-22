@@ -227,7 +227,8 @@ package body Coyote_Canvas.Revisions is
    procedure Add_Stroke
      (W : in out Workspace; Points : Samples.Vector;
       Operation : Ink_Operation := Paint;
-      Color : Ink_Color := DEFAULT_INK_COLOR) is
+      Color : Ink_Color := DEFAULT_INK_COLOR;
+      Rendering : Stroke_Rendering := Classic) is
    begin
       if W.Base_Id = NO_REVISION then
          raise Constraint_Error with "Cannot draw without an Original";
@@ -252,7 +253,9 @@ package body Coyote_Canvas.Revisions is
                  Long_Float (W.Draft.Extent.Right - W.Draft.Extent.Left)
                and then Point.Y <=
                  Long_Float (W.Draft.Extent.Bottom - W.Draft.Extent.Top)
-               and then Point.Width > 0.0 and then Point.Width <= 64.0)
+               and then Point.Width > 0.0 and then Point.Width <= 64.0
+               and then (Operation = Erase or else Rendering = Deposited
+                         or else Point.Alpha = 1.0))
             then
                raise Constraint_Error with "Invalid Canvas sample";
             end if;
@@ -260,7 +263,8 @@ package body Coyote_Canvas.Revisions is
               (Sample'
                  (X     => Point.X + Long_Float (W.Draft.Extent.Left),
                   Y     => Point.Y + Long_Float (W.Draft.Extent.Top),
-                  Width => Point.Width));
+                  Width => Point.Width,
+                  Alpha => Point.Alpha));
          end loop;
          W.Draft.Ink.Reserve_Capacity (W.Draft.Ink.Length + 1);
          W.Strokes.Reserve_Capacity (W.Strokes.Length + 1);
@@ -268,7 +272,9 @@ package body Coyote_Canvas.Revisions is
          W.Strokes.Append
            (Stroke'(Points => Stored, Operation => Operation,
                     Color => (if Operation = Erase
-                              then DEFAULT_INK_COLOR else Color)));
+                              then DEFAULT_INK_COLOR else Color),
+                    Rendering => (if Operation = Erase
+                                  then Classic else Rendering)));
          W.Draft.Ink.Append (W.Strokes.Last_Index);
          W.Points := W.Points + Natural (Points.Length);
       end Collect;
@@ -311,18 +317,20 @@ package body Coyote_Canvas.Revisions is
      (W       : Workspace; Id : Revision_Id;
       Process : not null access procedure
         (Points : Samples.Vector; Operation : Ink_Operation;
-         Color : Ink_Color))
+         Color : Ink_Color; Rendering : Stroke_Rendering))
    is
    begin
       if Id = NO_REVISION then
          for Index of W.Draft.Ink loop
             Process (W.Strokes (Index).Points, W.Strokes (Index).Operation,
-                     W.Strokes (Index).Color);
+                     W.Strokes (Index).Color,
+                     W.Strokes (Index).Rendering);
          end loop;
       else
          for Index of W.Revisions (Id).Content.Ink loop
             Process (W.Strokes (Index).Points, W.Strokes (Index).Operation,
-                     W.Strokes (Index).Color);
+                     W.Strokes (Index).Color,
+                     W.Strokes (Index).Rendering);
          end loop;
       end if;
    end Visit_Source;

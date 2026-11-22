@@ -73,7 +73,7 @@ private
       Width, Height : Natural := 0;
       Source_Stride, Channels : Positive := 1;
       Point_Count : Natural := 0;
-      Previous : Revisions.Sample := (0.0, 0.0, 1.0);
+      Previous : Revisions.Sample := (0.0, 0.0, 1.0, 1.0);
       Ready : Boolean := False;
    end record;
    overriding procedure Finalize (P : in out Erase_Preview);

@@ -5,7 +5,8 @@ private with Interfaces.C;
 
 --  Private Canvas transport and checked session lifecycle operations.
 package Coyote_Canvas.Store is
-   MAX_MANIFEST_BYTES : constant := 12 * 1_024 * 1_024;
+   --  Allow all retained samples even with four v5 round-trip fields.
+   MAX_MANIFEST_BYTES : constant := 16 * 1_024 * 1_024;
    MAX_ASSET_BYTES    : constant := 64 * 1_024 * 1_024;
    type Result is (Ok, Missing, Busy, Invalid, IO_Error, Uncertain);
 

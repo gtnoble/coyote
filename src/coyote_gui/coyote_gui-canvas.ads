@@ -16,6 +16,7 @@ with Gtk.File_Chooser_Dialog;
 with Gtk.Message_Dialog;
 with Gtk.Button;
 with Gtk.Color_Button;
+with Gtk.Spin_Button;
 with Gtk.Drawing_Area;
 with Gtk.Grid;
 with Gtk.Label;
@@ -74,6 +75,8 @@ private
    subtype Editing_Tool is Tool_Kind range Pencil .. Crop;
    subtype Ink_Tool is Editing_Tool range Pencil .. Eraser;
    type Zoom_Mode is (No_Zoom, Magnify, Reduce);
+   type Brush_Controls is array (Ink_Tool) of Gtk.Spin_Button.Gtk_Spin_Button;
+
    type Tool_Buttons is array (Tool_Kind) of Gtk.Radio_Button.Gtk_Radio_Button;
    type Tool_Items is array (Editing_Tool) of
      Gtk.Radio_Menu_Item.Gtk_Radio_Menu_Item;
@@ -89,6 +92,8 @@ private
       Syncing_Tools     : Boolean := False;
       Tool_Label        : Gtk.Label.Gtk_Label := null;
       Pencil_Color      : Gtk.Color_Button.Gtk_Color_Button := null;
+      Brush_Size        : Brush_Controls := (others => null);
+      Gesture_Width     : Long_Float := 3.0;
       Ink_Color         : Coyote_Canvas.Revisions.Ink_Color :=
         Coyote_Canvas.Revisions.DEFAULT_INK_COLOR;
       Gesture_Color     : Coyote_Canvas.Revisions.Ink_Color :=

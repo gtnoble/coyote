@@ -1925,7 +1925,7 @@ package body LLM_Session_Store_Tests is
          end Expect_Delete_Refusal;
       begin
          Rev.New_Drawing (W, 10, 10);
-         Ink.Append (Rev.Sample'(2.0, 2.0, 1.0));
+         Ink.Append (Rev.Sample'(2.0, 2.0, 1.0, 1.0));
          Rev.Add_Stroke (W, Ink);
          Rev.Save (W);  --  unrelated Original + checkpoint + stroke
          Rev.Add_Originals (W, (1 => (4, 4), 2 => (1, 1)), First);

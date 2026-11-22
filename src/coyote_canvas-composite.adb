@@ -99,7 +99,8 @@ package body Coyote_Canvas.Composite is
      (Context   : Cairo.Cairo_Context;
       Points    : Revisions.Samples.Vector;
       Operation : Revisions.Ink_Operation;
-      Color     : Revisions.Ink_Color)
+      Color     : Revisions.Ink_Color;
+      Rendering : Revisions.Stroke_Rendering)
    is
       use type Revisions.Ink_Operation;
    begin
@@ -110,7 +111,10 @@ package body Coyote_Canvas.Composite is
          Ink.Set_Color (Context, Color);
          Cairo.Set_Operator (Context, Cairo.Cairo_Operator_Over);
       end if;
-      Ink.Draw (Points, Context);
+      Ink.Draw
+        (Points, Context,
+         (if Operation = Revisions.Erase then Revisions.Classic
+          else Rendering));
    end Replay_Stroke;
 
    procedure Render_Internal
@@ -129,7 +133,8 @@ package body Coyote_Canvas.Composite is
       procedure Draw
         (Points : Revisions.Samples.Vector;
          Operation : Revisions.Ink_Operation;
-         Color : Revisions.Ink_Color)
+         Color : Revisions.Ink_Color;
+         Rendering : Revisions.Stroke_Rendering)
       is
          use type Revisions.Ink_Operation;
       begin
@@ -148,7 +153,7 @@ package body Coyote_Canvas.Composite is
             end if;
             Context := Cairo.Create (Ink_Layer);
          end if;
-         Replay_Stroke (Context, Points, Operation, Color);
+         Replay_Stroke (Context, Points, Operation, Color, Rendering);
       end Draw;
    begin
       if Id > Revisions.Count (W) then
@@ -282,10 +287,11 @@ package body Coyote_Canvas.Composite is
       procedure Replay
         (Ink_Points : Revisions.Samples.Vector;
          Operation : Revisions.Ink_Operation;
-         Color : Revisions.Ink_Color)
+         Color : Revisions.Ink_Color;
+         Rendering : Revisions.Stroke_Rendering)
       is
       begin
-         Replay_Stroke (P.Context, Ink_Points, Operation, Color);
+         Replay_Stroke (P.Context, Ink_Points, Operation, Color, Rendering);
       end Replay;
 
       procedure Include_Bounds
@@ -461,7 +467,7 @@ package body Coyote_Canvas.Composite is
       Cairo.Set_Line_Cap (P.Context, Cairo.Cairo_Line_Cap_Round);
       Cairo.Set_Operator (P.Context, Cairo.Cairo_Operator_Dest_Out);
       Start_Index := P.Point_Count + 1;
-      Previous := (if P.Point_Count = 0 then (0.0, 0.0, 1.0)
+      Previous := (if P.Point_Count = 0 then (0.0, 0.0, 1.0, 1.0)
                    else P.Previous);
       Dirty_Left := Out_W;
       Dirty_Top := Out_H;
@@ -473,11 +479,11 @@ package body Coyote_Canvas.Composite is
             Source_Point : constant Revisions.Sample :=
               (X => Local_Point.X + Long_Float (R.Left),
                Y => Local_Point.Y + Long_Float (R.Top),
-               Width => Local_Point.Width);
+               Width => Local_Point.Width, Alpha => Local_Point.Alpha);
             Previous_Source : constant Revisions.Sample :=
               (X => Previous.X + Long_Float (R.Left),
                Y => Previous.Y + Long_Float (R.Top),
-               Width => Previous.Width);
+               Width => Previous.Width, Alpha => Previous.Alpha);
             Is_Dot : constant Boolean := I = 1;
          begin
             if Is_Dot then

@@ -72,54 +72,58 @@ Give entries mnemonics, preserve native Tab/tree traversal, use the primary acti
 
 ### 4.2 Input and clipboard
 
-Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen and mouse, test pressure-axis availability at runtime, and map valid pressure to bounded stroke width. A missing axis, or mouse input, uses fixed width. Each tip-down/up stroke is one edit. Lost capture, device removal, and window/session change end the in-progress gesture without applying another edit; suppress double delivery through emulated mouse events. Tilt is not required. Physical pressure, drag capture and scaling still need Intuos verification.
+Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen
+and mouse; test pressure-axis availability at runtime. Keep separate
+session-local Pencil and Eraser sizes, each 1–64 source pixels, defaulting to
+3 and 16 at session start. Capture the active size at mouse, pen, or eligible
+finger gesture begin and keep it fixed through the gesture. Pen pressure, if
+available, changes only alpha deposited by Pencil marks, never width. Mouse,
+finger, and pen without usable pressure deposit opaque Pencil marks. Eraser
+removes ink only, independent of pressure. A recognized GDK eraser tip
+overrides the selected tool for the gesture, using captured Eraser size
+without changing selection; Crop takes precedence. Place Pencil marks at
+fixed distance intervals along the path and interpolate opacity. Retracing
+within a gesture deposits ink again; one complete gesture is one ordered
+undoable edit. Use the same stroke rasterizer for preview, committed
+rendering, and replay. Lost capture, device removal, or window/session change cancels an
+unfinished pointer gesture. Suppress duplicate emulated mouse delivery.
+Physical-device and performance qualification remain pending.
 
 **Edit with Finger** is session-local and off by default. Use the drawing
-area's GTK `touch-event` with `Touch_Mask` and the existing first-contact
-sequence handling. Determine eligibility at touch begin: the option is on,
-the contact begins in the drawing area, the displayed drawing is writable,
-**Show Markup** is on, and the selected tool is **Pencil** or **Eraser**.
-Capture the operation at begin and retain it through end/cancel; ignore all
-additional contacts and do not transfer the active sequence. For Pencil,
-feed the shared stroke path using the inverse view transform and a fixed
-three-source-pixel width. For Eraser, use the same transform and the existing
-fixed sixteen-source-pixel erase path, removing ink only and preserving the
-background. Do not use contact size or pressure. A touch begun while Crop,
-Zoom, read-only, markup-hidden, or otherwise ineligible must not become a
-later drawing gesture if state changes during that contact.
+area's GTK `touch-event` with `Touch_Mask` and existing first-contact sequence
+handling. Eligibility is determined at touch begin: option on, contact begins
+in the drawing area, displayed drawing writable, Show Markup on, and selected
+tool Pencil or Eraser. Capture the operation and corresponding session size at
+begin, retain through end/cancel, ignore additional contacts, and do not
+transfer the sequence. Finger Pencil uses the captured size and opaque alpha;
+Finger Eraser uses the captured Eraser size, removes ink only, preserves the
+background, and ignores pressure/contact size. Ineligible contacts cannot
+become later drawing gestures. Disable GTK kinetic scrolling while finger
+Pencil/Eraser input is available; otherwise leave ordinary touch panning
+available. Consume touch events to prevent emulated pointer input. Do not
+change mouse/pen handling or scroller behavior for mouse, pen, Crop, or Zoom.
+Lift commits one undoable edit. Cancellation, lost capture, option disable,
+window close, or session change discards the unfinished operation through
+shared gesture cancellation. Add no persisted preference, raw-device access,
+permissions, input model, or device dependency.
 
-Disable GTK kinetic scrolling while finger Pencil/Eraser input is available,
-before the first contact can be captured by the scroller. Otherwise leave
-ordinary touch panning available. The drawing area consumes touch events to
-prevent GTK from also acting on them as emulated pointer input. Do not change mouse/pen event handling or
-scroller behavior for mouse, pen, Crop, or Zoom. Commit one undoable edit on
-the tracked contact's lift. Cancellation, lost capture, option disable,
-window close, or session change discards the unfinished operation through the
-shared Pencil gesture-cancellation path. Keep the option session-local; add
-no persisted preference, raw-device access, permissions, input model, or
-device dependency.
-
-**Eraser** selects a fixed 16-source-pixel round brush, independent of
-pressure and view zoom. A recognized GDK eraser tip temporarily erases for
-that gesture without changing the selected toolbar/menu choice; selected Crop
-takes precedence. During mouse, pen, or eligible finger erasing, show ink
-removal immediately in a transient preview with the same brush and cursor
-guide. Replay existing ink into a full-source premultiplied ARGB32 ink layer
-once per gesture, using the same renderer for every stroke, including legacy
-near-black strokes.
-Create a separate preview surface for the displayed extent and update only
-the dirty rectangle on subsequent redraws. Use the same stroke segments
-and pixel math as the canonical compositor. Keep the canonical surface, saved revisions,
-staged attachments, and authoritative PNG unchanged until release commits
-one ordered, undoable edit. Cancellation or lost eligibility discards the
-transient state and restores ink without an edit or revision switch. If the
-preview is unavailable, show the canonical surface and brush guide rather
-than a partial result. Erasing removes ink coverage without changing the
-background or older checkpoints. The toolbar Pencil color swatch selects
-opaque RGB for future strokes; the color is captured at gesture start for
-mouse, pen, and finger. Changing the swatch is not a drawing edit. See
-SDD-CORE §5.51 for the v2/v3/v4 manifest encoding. Physical-device and performance qualification remain
-pending.
+**Eraser preview and composition.** For mouse, pen (including recognized
+eraser override), and eligible finger erasing, show immediate ink-only
+removal in a transient preview with the captured round brush and matching
+cursor guide. Use the same round eraser segments and pixel rules for
+preview, committed composition, and replay. Cache a premultiplied ARGB32
+ink layer, keep the background separate, and never erase it. A separate
+transient surface represents the displayed extent; update dirty rectangles on
+subsequent redraws. Canonical output, saved revisions, staged attachments and
+authoritative PNG remain unchanged until release commits one ordered,
+undoable edit. Cancel or lost eligibility discards preview and restores ink
+without an edit or revision switch; if preview is unavailable, show the
+canonical surface and guide rather than partial output. Legacy strokes replay
+exactly as encoded in Canvas manifest versions v2–v4; v5 stroke markers
+identify color and rendering mode, and samples are `[X,Y,Width,Alpha]`.
+The toolbar Pencil swatch sets RGB for future strokes; changing it is not
+an edit. See SDD-CORE §5.51 for
+manifest serialization.
 
 On an explicit Canvas image Paste, asynchronously request desktop `CLIPBOARD` targets, taking PNG when offered, otherwise JPEG. Do not fall back to text, paths, URLs or `PRIMARY`, and do not change either selection. Use GtkAda `Request_Contents`, not `Wait_For_Image` or GTK's already-decoded image callback. Validate status, MIME/signature and encoded length before copying callback-owned bytes; preflight decoded dimensions before full worker decode. This bounds application-owned buffers and decode work; it does not claim to cap buffering already performed by GTK's clipboard transport. On success, create exactly one new **Clipboard Image** root with its own Original and owned pixels. On failure, leave the document and composer unchanged and report the reason. Bind the request to a Canvas-window generation, session generation and request serial; replacement by a newer paste, Canvas close, or session switch invalidates the request even if the same session reopens. Do not read the clipboard on focus, polling, or agent request. Never include clipboard bytes in diagnostics or debug logs. The ordinary local drawing store is distinct from diagnostics; the model receives no pasted data unless the user separately attaches and sends it.
 

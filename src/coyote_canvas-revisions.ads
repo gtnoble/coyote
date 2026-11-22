@@ -39,8 +39,10 @@ package Coyote_Canvas.Revisions is
    function Revision_Key (W : Workspace; Id : Revision_Id) return Stable_Id;
    function Drawing_Key (W : Workspace; Id : Revision_Id) return Stable_Id;
 
+   subtype Ink_Alpha is Long_Float range 0.0 .. 1.0;
    type Sample is record
       X, Y, Width : Long_Float;
+      Alpha : Ink_Alpha := 1.0;
    end record;
 
    package Samples is new Ada.Containers.Vectors (Positive, Sample);
@@ -62,12 +64,14 @@ package Coyote_Canvas.Revisions is
    type Ink_Color is range 0 .. 16#FF_FF_FF#;
    DEFAULT_INK_COLOR : constant Ink_Color := 16#0D_0D_0D#;
    type Ink_Operation is (Paint, Erase);
+   type Stroke_Rendering is (Classic, Deposited);
    --  Both operations take draft-local samples; they are retained in source
    --  coordinates and replayed in order. Erase never changes the background.
    procedure Add_Stroke
      (W : in out Workspace; Points : Samples.Vector;
       Operation : Ink_Operation := Paint;
-      Color : Ink_Color := DEFAULT_INK_COLOR);
+      Color : Ink_Color := DEFAULT_INK_COLOR;
+      Rendering : Stroke_Rendering := Classic);
    procedure Crop
      (W : in out Workspace; Region : Coyote_Canvas.Document.Rectangle);
    procedure Undo (W : in out Workspace);
@@ -82,7 +86,7 @@ package Coyote_Canvas.Revisions is
      (W       : Workspace; Id : Revision_Id;
       Process : not null access procedure
         (Points : Samples.Vector; Operation : Ink_Operation;
-         Color : Ink_Color));
+         Color : Ink_Color; Rendering : Stroke_Rendering));
 
 private
    MAX_STROKES : constant := 512;
@@ -93,6 +97,7 @@ private
       Points : Samples.Vector;
       Operation : Ink_Operation := Paint;
       Color : Ink_Color := DEFAULT_INK_COLOR;
+      Rendering : Stroke_Rendering := Classic;
    end record;
    package Stroke_Lists is new Ada.Containers.Vectors (Positive, Stroke);
    package Stroke_Ids is new Ada.Containers.Vectors (Positive, Positive);

@@ -1,5 +1,23 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Canvas brush sizes and pen-pressure opacity
+
+Separate Pencil and Eraser toolbar controls select 1–64 source pixels,
+with session defaults of 3 and 16. Pointer and eligible touch gestures
+capture the size at start, including recognized eraser tips. Pen pressure
+changes Pencil opacity only. Marks are spaced by distance traveled and
+can build up when the same gesture crosses or retraces its path. Eraser
+size drives both ink removal and its live guide; pressure does not affect
+it. The v5 manifest retains editable opacity and rendering mode alongside
+legacy replay; the larger bounded manifest accommodates the sample limit.
+
+Development builds and the full Xvfb suite passed (1,128/1,128). Added
+coverage for toolbar defaults and focus, brush size, synthetic pen
+pressure and eraser routing, spacing and retracing, and v5 recovery.
+Help, GTK interactions (9/9), and runner fault-handling checks passed.
+Physical Intuos feel, touchscreen operation, Wayland, and long-stroke
+performance were not qualified.
+
 ## 2026-11-22 — Canvas stylus-button zoom
 
 Pen buttons 2 and 3 take one anchored zoom-in or zoom-out step over the

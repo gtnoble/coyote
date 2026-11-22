@@ -4,7 +4,7 @@
 **Version:** 1.69
 **Date:** 2026-11-22
 
-**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing and PCR-134 finger editing developer-tested; PCR-135 live Eraser developer-tested; physical-device and performance qualification pending; physical qualification pending
+**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing and PCR-134 finger editing developer-tested; PCR-135 live Eraser developer-tested; physical-device and performance qualification pending.
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -13,17 +13,17 @@
 **Finger editing amendment (PCR-134, 2026-11-22):** The session-local,
 default-off **Options → Edit with Finger** control enables one-contact
 Pencil and Eraser gestures only on a writable displayed drawing with Show
-Markup on. Pencil uses three source pixels; Eraser removes ink only with a
-sixteen-source-pixel brush. The operation is fixed at contact begin and lift
-commits one undoable edit; cancellation follows the existing Pencil path.
-Scroller capture is disabled only for eligible finger Pencil/Eraser input.
+Markup on. Each gesture captures the selected tool and its session-local size
+at contact begin; finger Pencil deposits opaque marks and finger Eraser removes
+ink only. Lift commits one undoable edit; cancellation follows shared gesture
+cancellation. Scroller capture is disabled while finger editing is available.
 Mouse/pen and Crop/Zoom behavior remain unchanged; no raw-device or input-model
-changes were needed. See the Frontends development log for automated evidence;
-physical qualification remains pending.
+changes were needed. Automated evidence is recorded in the Frontends
+development log; physical qualification remains pending.
 
 **Live Eraser amendment (PCR-135, 2026-11-22):** Specify immediate transient
 ink-only preview for mouse, pen (including recognized eraser override), and
-eligible finger input. The cached A8 mask, separate transient surface, shared
+eligible finger input. The cached ARGB32 ink layer, separate surface, shared
 canonical stroke segments, and dirty-rectangle recomposition keep the
 canonical surface and authoritative PNG unchanged until one release commit;
 cancellation restores ink without an edit or revision switch. CAN-GUI-01 and
@@ -3168,43 +3168,45 @@ Pencil, Eraser, and Crop icons with tooltips and accessible names. Cairo
 paints the icons in GTK theme colors without requiring an icon pack. The
 active button has a shaded background and underline. Toolbar styling hides
 the radio indicators without changing GTK keyboard selection; the labeled
-Edit radio group remains synchronized. Pencil is the default. Both controls
-remain available to switch away from
-a pending crop only when the displayed drawing is writable and Show Markup is on;
-otherwise they are disabled. On a saved revision, the first completed stroke
-or Apply Crop starts a working copy based on that revision. Only Apply Crop
-commits, while selecting a drawing tool discards a pending crop. Apply, Cancel,
-and Escape restore the drawing tool selected before Crop. A GDK eraser tip temporarily erases without changing
-the selection; selected Crop takes precedence. During mouse, pen (including
-recognized eraser override), and eligible finger erasing, display ink
-removal immediately in a transient ink-only preview using the fixed 16-source-
-pixel brush and matching cursor guide. Construct the preview from the same
-canonical stroke segments as the final edit, using a cached ARGB32 ink layer,
-separate transient surface, and dirty-rectangle recomposition. Keep the
-canonical surface, saved revisions, staged attachments, and authoritative PNG
-unchanged until release commits one ordered undoable edit. Cancellation
-restores original ink without an edit or revision switch. If a live preview
-is unavailable, show the canonical surface and brush guide, not a partial
-preview. Physical-device and performance qualification remain pending. Tool
-choices add no shortcuts; native Tab and arrow toolbar navigation and Edit
-mnemonics remain. Canvas Help uses Yelp for Overview, editing and revision
-tasks, Index, and Keys & Shortcuts. Click for Help targets the toolbar,
-drawing area, or Drawings list without changing the tool, drawing, or
-selection.
+Edit radio group remains synchronized. Pencil is the default. Session-local
+Pencil size and Eraser size controls each span 1–64 source pixels and default
+to 3 and 16 at session start. Capture the active tool's size at gesture begin
+and retain it for that gesture. Only Apply Crop commits; switching to a
+drawing tool discards a pending crop. Apply, Cancel, and Escape restore the
+previous drawing tool. A recognized eraser tip overrides the selected tool
+for that gesture without changing selection; selected Crop takes precedence.
+
+Pen pressure affects only alpha deposited by Pencil marks, not size. Mouse,
+eligible finger, and pen without usable pressure deposit opaque Pencil marks.
+Erasing removes ink only and ignores pressure. Pencil marks are
+distance-spaced; retracing during one gesture deposits ink again, and
+each completed gesture is one ordered undoable edit. For mouse, pen and
+eligible finger erasing, show immediate ink-only preview using the captured
+round Eraser brush and matching guide. Preview, commit, and replay share
+stroke rasterization, with premultiplied ARGB32 ink separate from the
+background. The transient surface and dirty-rectangle
+recomposition leave canonical output, saved revisions, staged attachments
+and authoritative PNG unchanged until release commits one undoable edit.
+Cancellation restores ink; preview failure shows canonical output and guide,
+not partial output. Physical-device and performance qualification remain
+pending. Tool choices add no shortcuts; native Tab/arrow toolbar navigation
+and Edit mnemonics remain. Canvas Help uses Yelp for Overview, editing and
+revision tasks, Index, and Keys & Shortcuts. Click for Help targets toolbar,
+drawing area or Drawings list without changing tool, drawing or selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
 
 **Finger editing.** The session-local, default-off **Options → Edit with
-Finger** toggle enables touch editing with the selected Pencil or Eraser on a
-writable drawing while Show Markup is on. One contact is tracked from begin
-through lift or cancellation; its operation is fixed at begin and additional
-contacts are ignored. Pencil paints three source pixels; Eraser removes only
-ink at sixteen source pixels. Scroller capture is disabled while finger
-editing is available; otherwise ordinary touch panning remains available. Mouse/pen and
-Crop/Zoom input remain unaffected. Cancellation uses the shared Pencil gesture
-path, and no raw touchscreen device is opened.
+Finger** toggle enables one-contact editing on writable drawings with Show
+Markup on. Capture operation and session size at contact begin and retain
+through lift or cancellation; ignore additional contacts. Pencil uses its
+captured size and opaque alpha; Eraser uses its captured size and removes ink
+only. Lift commits one undoable edit; cancellation uses shared gesture
+cancellation. Scroller capture is disabled while finger editing is available;
+otherwise ordinary touch panning remains. Mouse/pen and Crop/Zoom behavior are
+unchanged; no raw touchscreen device is opened.
 
-**Zoom tools.** The toolbar adds plus/minus magnifiers to the existing
-radio group and uses a zoom cursor over the drawing. A magnifier suspends
+**Zoom tools.** Plus/minus magnifiers are added to the existing
+radio group and use a zoom cursor over the drawing. A magnifier suspends
 the selected editing tool and preserves any pending crop. Escape restores
 that tool without reversing zoom. View menu steps act immediately around
 the viewport center and do not select a magnifier. Click zoom uses local
@@ -3288,15 +3290,17 @@ are separate.
 creation. Descendants use their Original's UUID as the drawing identity;
 numeric revision indices remain internal. The manifest records those keys,
 source-coordinate ink operations, crop extents, the latest draft, and asset
-references without creating a revision. Default-color paint-only workspaces
-write v2. Default-color workspaces with retained erases write v3: in the
-`strokes` array an erase entry begins with integer `0` followed by one or
-more sample triples. Any retained non-default paint color requires v4, which
-also permits a positive marker of packed RGB plus one. Unmarked paint always
-uses near-black (`#0D0D0D`). Bounds, sample and operation counts, ancestry,
-ownership, and identity checks apply to all three versions. Older readers
-reject unsupported versions rather than silently dropping colors or erases.
-This is the private Canvas manifest version, not a change to JSONL. Undo and Redo are transient. The
+references without creating a revision. Canvas manifest versions encode editable strokes as follows. Default-color
+paint-only workspaces write v2. Default-color workspaces with retained erases
+write v3; non-default paint color requires v4, which permits a positive marker
+of packed RGB plus one. V5 records distance-spaced Pencil strokes with
+editable opacity. Its markers distinguish classic paint (`RGB + 1`), erase
+(`16,777,217`), and deposited Pencil (`16,777,218 + RGB`); sample arrays are
+`[X,Y,Width,Alpha]`. Versions v2–v4 replay exactly according to their legacy encodings.
+Bounds, sample and operation counts, ancestry, ownership, and identity checks
+apply across versions; readers reject unsupported versions rather than
+silently dropping data. These are private Canvas manifest versions, distinct
+from session JSONL format versions. Undo and Redo are transient. The
 undeployed v1 metadata format remains rejected.
 
 Imported Originals have immutable tightly packed straight-alpha RGBA8
@@ -3306,7 +3310,7 @@ merging drawing identities. Blank Originals need no blob. Save publishes and
 synchronizes assets before the manifest; an asset conflict or failure does
 not replace an existing manifest. Load checks the manifest and each raster's
 length and digest before adopting either metadata or pixels. The limits are
-12 MiB per manifest, 64 MiB per asset, and 128 MiB of raster data per
+16 MiB per manifest, 64 MiB per asset, and 128 MiB of raster data per
 workspace, counting shared assets once per Original against that limit.
 
 The files live inside a private UUID-named sidecar beneath the caller's

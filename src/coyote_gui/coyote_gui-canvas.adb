@@ -82,10 +82,11 @@ package body Coyote_GUI.Canvas is
    use type Rev.Ink_Operation;
    use type Rev.Ink_Color;
    use type Gtk.Color_Button.Gtk_Color_Button;
+   use type Gtk.Spin_Button.Gtk_Spin_Button;
    use type Gtk.Radio_Button.Gtk_Radio_Button;
    use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
-   PENCIL_WIDTH    : constant Long_Float := 3.0;
-   ERASER_DIAMETER : constant Long_Float := 16.0;
+   DEFAULT_BRUSH_SIZE : constant array (Ink_Tool) of Glib.Gdouble :=
+     (Pencil => 3.0, Eraser => 16.0);
    use type Gdk.Types.Gdk_Key_Type;
    use type Gdk.Types.Gdk_Modifier_Type;
    use type Gtk.Label.Gtk_Label;
@@ -380,15 +381,18 @@ package body Coyote_GUI.Canvas is
       end loop;
       S.Pencil_Color.Set_Sensitive
         (Tools_Enabled and then not Cropping (S));
+      for Control of S.Brush_Size loop
+         Control.Set_Sensitive (Tools_Enabled and then not Cropping (S));
+      end loop;
       S.Buttons (Zoom_In).Set_Sensitive (Zoom_Enabled);
       S.Buttons (Zoom_Out).Set_Sensitive (Zoom_Enabled);
       S.Tool_Label.Set_Text
         (if S.Zoom_Tool = Magnify then "Tool: Zoom In"
          elsif S.Zoom_Tool = Reduce then "Tool: Zoom Out"
          elsif S.Drawing and then S.Gesture_Operation = Rev.Erase then
-            "Tool: Eraser (16 px)"
+            "Tool: Eraser"
          elsif Cropping (S) then "Tool: Crop"
-         elsif S.Tool = Eraser then "Tool: Eraser (16 px)"
+         elsif S.Tool = Eraser then "Tool: Eraser"
          else "Tool: Pencil");
       S.Undo_Item.Set_Sensitive (Editing and then Rev.Can_Undo (S.Document));
       S.Redo_Item.Set_Sensitive (Editing and then Rev.Can_Redo (S.Document));
@@ -1370,6 +1374,37 @@ package body Coyote_GUI.Canvas is
            & "padding: 0; border: 0; box-shadow: none; background: none; "
            & "-gtk-icon-source: none; -gtk-icon-shadow: none; }";
          Style_Loaded : Boolean;
+
+         procedure Build_Brush_Size (Tool : Ink_Tool) is
+            Group : Gtk.Box.Gtk_Box;
+            Caption, Units : Gtk.Label.Gtk_Label;
+            Control : Gtk.Spin_Button.Gtk_Spin_Button renames
+              S.Brush_Size (Tool);
+            Title : constant String := Tool_Text (Tool) & " size";
+         begin
+            Gtk.Box.Gtk_New_Hbox (Group, False, 4);
+            Gtk.Spin_Button.Gtk_New (Control, Min => 1.0, Max => 64.0,
+                                     Step => 1.0);
+            Control.Set_Name ("canvas-" & Tool_Name (Tool) & "-size");
+            Control.Set_Numeric (True);
+            Control.Set_Snap_To_Ticks (True);
+            Control.Set_Update_Policy (Gtk.Spin_Button.Update_If_Valid);
+            Control.Set_Value (DEFAULT_BRUSH_SIZE (Tool));
+            Control.Set_Width_Chars (2);
+            Control.Set_Tooltip_Text (Title & " in source pixels");
+            Set_Accessible_Name
+              (Accessible (Control.Get_Object), Interfaces.C.To_C (Title));
+            Gtk.Label.Gtk_New (Caption, Title & ":");
+            Caption.Set_Mnemonic_Widget (Control);
+            Gtk.Label.Gtk_New (Units, "px");
+            Group.Pack_Start (Caption, False, False, 0);
+            Group.Pack_Start (Control, False, False, 0);
+            Group.Pack_Start (Units, False, False, 0);
+            Toolbar.Pack_Start (Group, False, False, 3);
+            Event_Callback.Connect
+              (Control, "button-press-event",
+               Event_Marshaller.To_Marshaller (On_Help_Click'Access), State);
+         end Build_Brush_Size;
       begin
          Gtk.Css_Provider.Gtk_New (Style);
          Style_Loaded := Style.Load_From_Data (CSS, null);
@@ -1427,6 +1462,9 @@ package body Coyote_GUI.Canvas is
             Event_Marshaller.To_Marshaller (On_Help_Click'Access), State);
          Color_Callback.Connect
            (S.Pencil_Color, "color-set", On_Pencil_Color_Set'Access, State);
+         for Tool in Ink_Tool loop
+            Build_Brush_Size (Tool);
+         end loop;
          Style.Unref;
          Toolbar_Callback.Connect
            (Toolbar, "focus", On_Toolbar_Focus'Access, State, After => True);
@@ -2026,6 +2064,11 @@ package body Coyote_GUI.Canvas is
            ((Red => 13.0 / 255.0, Green => 13.0 / 255.0,
              Blue => 13.0 / 255.0, Alpha => 1.0));
       end if;
+      for Tool in Ink_Tool loop
+         if S.Brush_Size (Tool) /= null then
+            S.Brush_Size (Tool).Set_Value (DEFAULT_BRUSH_SIZE (Tool));
+         end if;
+      end loop;
       S.Ink_Color := Rev.DEFAULT_INK_COLOR;
       S.Gesture_Color := Rev.DEFAULT_INK_COLOR;
       Leave_Zoom_Tool (S);
@@ -2080,6 +2123,7 @@ package body Coyote_GUI.Canvas is
       S.Show_Ink     := True;
       S.Tool_Label  := null;
       S.Pencil_Color := null;
+      S.Brush_Size   := (others => null);
       S.Buttons     := (others => null);
       S.Tool_Menu   := (others => null);
    end Destroy;
@@ -2743,7 +2787,7 @@ package body Coyote_GUI.Canvas is
          begin
             if S.Gesture_Operation = Rev.Paint then
                Ink.Set_Color (Context, S.Gesture_Color);
-               Ink.Draw (S.Stroke_Points, Context);
+               Ink.Draw (S.Stroke_Points, Context, Rev.Deposited);
             else
                --  A cursor guide, not part of the canonical pixels.
                declare
@@ -2793,48 +2837,54 @@ package body Coyote_GUI.Canvas is
    STYLUS_ZOOM_IN  : constant Glib.Guint := 2;
    STYLUS_ZOOM_OUT : constant Glib.Guint := 3;
 
-   function Is_Stylus_Zoom_Button
-     (Event : Gdk.Event.Gdk_Event; Button : Glib.Guint) return Boolean
+   function Has_Input_Source
+     (Event : Gdk.Event.Gdk_Event; Kind : Gdk.Types.Gdk_Input_Source)
+      return Boolean
    is
-      use type Gdk.Types.Gdk_Input_Source;
       --  The event's master pointer can be a mouse even when a pen sent it.
       function Source_Device (E : Gdk.Event.Gdk_Event) return System.Address
         with Import, Convention => C,
           External_Name => "gdk_event_get_source_device";
-      function Input_Source (Device : System.Address)
-        return Gdk.Types.Gdk_Input_Source
+      --  GTK 3 has source values (e.g. tablet-pad) absent from GtkAda's enum.
+      function Input_Source (Device : System.Address) return Glib.Gint
         with Import, Convention => C, External_Name => "gdk_device_get_source";
-      Source : System.Address;
+      Source : constant System.Address := Source_Device (Event);
    begin
-      if Button not in STYLUS_ZOOM_IN | STYLUS_ZOOM_OUT
-        or else Gdk.Event.Get_Pointer_Emulated (Event)
-      then
-         return False;
-      end if;
-      Source := Source_Device (Event);
       return Source /= System.Null_Address
-        and then Input_Source (Source) = Gdk.Types.Source_Pen;
-   end Is_Stylus_Zoom_Button;
+        and then Input_Source (Source) = Gdk.Types.Gdk_Input_Source'Pos (Kind);
+   end Has_Input_Source;
 
-   function Pointer_Width (S : Instance; Event : Gdk.Event.Gdk_Event)
-     return Long_Float
+   function Is_Stylus_Zoom_Button
+     (Event : Gdk.Event.Gdk_Event; Button : Glib.Guint) return Boolean is
+     (Button in STYLUS_ZOOM_IN | STYLUS_ZOOM_OUT
+      and then not Gdk.Event.Get_Pointer_Emulated (Event)
+      and then Has_Input_Source (Event, Gdk.Types.Source_Pen));
+
+   function Pointer_Alpha (S : Instance; Event : Gdk.Event.Gdk_Event)
+     return Rev.Ink_Alpha
    is
       Pressure : Glib.Gdouble;
    begin
-      if S.Gesture_Operation = Rev.Erase then
-         return ERASER_DIAMETER;
-      elsif Gdk.Event.Get_Device_Tool (Event) /= null
+      if S.Gesture_Operation = Rev.Paint
+        and then Has_Input_Source (Event, Gdk.Types.Source_Pen)
         and then Read_Axis (Event, Gdk.Types.Axis_Pressure, Pressure) /= 0
-        and then Pressure >= 0.0 and then Pressure <= 1.0
+        and then Pressure in 0.0 .. 1.0
       then
-         return 1.0 + 7.0 * Long_Float (Pressure);
-      else
-         return PENCIL_WIDTH;
+         return Rev.Ink_Alpha (Pressure);
       end if;
-   end Pointer_Width;
+      return 1.0;
+   end Pointer_Alpha;
+
+   procedure Begin_Ink (S : in out Instance; Tool : Ink_Tool) is
+      Control : constant Gtk.Spin_Button.Gtk_Spin_Button := S.Brush_Size (Tool);
+   begin
+      S.Gesture_Color := S.Ink_Color;
+      S.Gesture_Operation := (if Tool = Eraser then Rev.Erase else Rev.Paint);
+      S.Gesture_Width := Long_Float (Control.Get_Value_As_Int);
+   end Begin_Ink;
 
    procedure Add_Point
-     (S : in out Instance; X, Y : Glib.Gdouble; Width : Long_Float)
+     (S : in out Instance; X, Y : Glib.Gdouble; Alpha : Rev.Ink_Alpha := 1.0)
    is
       E : constant Doc.Rectangle := Display_Extent (S);
       PX : constant Long_Float := Long_Float (X) / S.Zoom;
@@ -2846,7 +2896,7 @@ package body Coyote_GUI.Canvas is
               (0.0, Long_Float'Min (PX, Long_Float (E.Right - E.Left))),
             Y => Long_Float'Max
               (0.0, Long_Float'Min (PY, Long_Float (E.Bottom - E.Top))),
-            Width => Width);
+            Width => S.Gesture_Width, Alpha => Alpha);
          use type Rev.Sample;
       begin
          if not S.Stroke_Points.Is_Empty
@@ -2863,17 +2913,18 @@ package body Coyote_GUI.Canvas is
 
    procedure Commit_Stroke (S : aliased in out Instance) is
    begin
-      if Prepare_Working_Copy (S) then
+      if (for some Point of S.Stroke_Points => Point.Alpha > 0.0)
+        and then Prepare_Working_Copy (S)
+      then
          Rev.Add_Stroke
            (S.Document, S.Stroke_Points, S.Gesture_Operation,
-            S.Gesture_Color);
+            S.Gesture_Color,
+            (if S.Gesture_Operation = Rev.Paint then Rev.Deposited
+             else Rev.Classic));
          Mark_Dirty (S);
          Clear_Display (S);
       end if;
    end Commit_Stroke;
-
-   function Finger_Width (Operation : Rev.Ink_Operation) return Long_Float is
-     (if Operation = Rev.Erase then ERASER_DIAMETER else PENCIL_WIDTH);
 
    function On_Touch
      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -2897,8 +2948,7 @@ package body Coyote_GUI.Canvas is
             Cancel_Gesture (S.all);
          elsif Kind in Gdk.Event.Touch_Update | Gdk.Event.Touch_End then
             if Read_Coords (Event, X, Y) /= 0 then
-               Add_Point
-                 (S.all, X, Y, Width => Finger_Width (S.Gesture_Operation));
+               Add_Point (S.all, X, Y);
             end if;
             if Kind = Gdk.Event.Touch_End then
                Commit_Stroke (S.all);
@@ -2915,11 +2965,8 @@ package body Coyote_GUI.Canvas is
         and then Read_Coords (Event, X, Y) /= 0
       then
          Widget.Grab_Focus;
-         S.Gesture_Color := S.Ink_Color;
-         S.Gesture_Operation :=
-           (if S.Tool = Eraser then Rev.Erase else Rev.Paint);
-         Add_Point
-           (S.all, X, Y, Width => Finger_Width (S.Gesture_Operation));
+         Begin_Ink (S.all, Ink_Tool (S.Tool));
+         Add_Point (S.all, X, Y);
          S.Finger_Sequence := Sequence;
          S.Drawing := True;
          Refresh (S.all);
@@ -3034,15 +3081,14 @@ package body Coyote_GUI.Canvas is
             Tool : constant Gdk.Device_Tool.Gdk_Device_Tool :=
               Gdk.Event.Get_Device_Tool (Event);
          begin
-            S.Gesture_Color := S.Ink_Color;
-            S.Gesture_Operation :=
-              (if S.Tool = Eraser or else
-                 (Tool /= null and then Tool.Get_Tool_Type =
+            Begin_Ink
+              (S.all, (if S.Tool = Eraser
+                 or else Has_Input_Source (Event, Gdk.Types.Source_Eraser)
+                 or else (Tool /= null and then Tool.Get_Tool_Type =
                     Gdk.Device_Tool.Gdk_Device_Tool_Type_Eraser)
-               then Rev.Erase else Rev.Paint);
+               then Eraser else Pencil));
          end;
-         Add_Point
-           (S.all, X, Y, Width => Pointer_Width (S.all, Event));
+         Add_Point (S.all, X, Y, Alpha => Pointer_Alpha (S.all, Event));
          S.Drawing := True;
       end if;
       Refresh (S.all);
@@ -3066,8 +3112,7 @@ package body Coyote_GUI.Canvas is
       if S.Crop_Drag then
          Drag_Crop (S.all, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
       else
-         Add_Point
-           (S.all, X, Y, Width => Pointer_Width (S.all, Event));
+         Add_Point (S.all, X, Y, Alpha => Pointer_Alpha (S.all, Event));
       end if;
       Refresh (S.all);
       return True;
@@ -3100,8 +3145,7 @@ package body Coyote_GUI.Canvas is
          if S.Gesture_Operation = Rev.Erase
            and then Read_Coords (Event, X, Y) /= 0
          then
-            Add_Point
-              (S.all, X, Y, Width => Pointer_Width (S.all, Event));
+            Add_Point (S.all, X, Y);
          end if;
          Commit_Stroke (S.all);
       elsif Read_Coords (Event, X, Y) /= 0 then

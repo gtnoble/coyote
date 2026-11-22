@@ -47,6 +47,7 @@ with Gtk.Adjustment;
 with Gtk.Bin;
 with Gtk.Button;
 with Gtk.Color_Button;
+with Gtk.Spin_Button;
 with Gtk.Handlers;
 with Gtk.Drawing_Area;
 with Gtk.Radio_Button;
@@ -1037,6 +1038,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Area : Gtk.Widget.Gtk_Widget;
       Model : Gtk_Tree_Model;
       Swatch : Gtk.Color_Button.Gtk_Color_Button;
+      Pencil_Size : Gtk.Spin_Button.Gtk_Spin_Button;
+      Eraser_Size : Gtk.Spin_Button.Gtk_Spin_Button;
       W, H : Glib.Gint;
 
       function Control (Name : String) return Gtk.Widget.Gtk_Widget is
@@ -1055,6 +1058,18 @@ package body Coyote_App_Frontend_GUI_Tests is
       function Tool_Button
         (Name : String) return Gtk.Radio_Button.Gtk_Radio_Button
       is (Gtk.Radio_Button.Gtk_Radio_Button (Control ("canvas-tool-" & Name)));
+
+      function Brush_Size
+        (Name : String) return Gtk.Spin_Button.Gtk_Spin_Button is
+        (Gtk.Spin_Button.Gtk_Spin_Button
+           (Control ("canvas-" & Name & "-size")));
+
+      procedure Check_Brush_Controls (Enabled : Boolean) is
+      begin
+         Assert (Pencil_Size.Get_Sensitive = Enabled and then
+                   Eraser_Size.Get_Sensitive = Enabled,
+                 "Brush sizes follow Canvas editing sensitivity");
+      end Check_Brush_Controls;
 
       procedure Check_Icon (Name, Title : String) is
          use Interfaces.C.Strings;
@@ -1168,9 +1183,14 @@ package body Coyote_App_Frontend_GUI_Tests is
                  "Fit returns to the origin and clears both scroll ranges");
       end Check_Fit;
 
-      procedure Check_Pixel (Expected : Gdk.Pixbuf.Rgb_Record) is
+      procedure Check_Pixel
+        (Expected : Gdk.Pixbuf.Rgb_Record;
+         X : Glib.Gint := 30;
+         Y : Glib.Gint := 30;
+         Tolerance : Natural := 0)
+      is
          Surface : constant Cairo.Cairo_Surface := Cairo.Image_Surface.Create
-           (Cairo.Image_Surface.Cairo_Format_RGB24, 32, 32);
+           (Cairo.Image_Surface.Cairo_Format_RGB24, 64, 64);
          Context : constant Cairo.Cairo_Context := Cairo.Create (Surface);
          Sample  : Gdk.Pixbuf.Gdk_Pixbuf;
          Actual  : Gdk.Pixbuf.Rgb_Record;
@@ -1179,11 +1199,18 @@ package body Coyote_App_Frontend_GUI_Tests is
          Drain_Events;
          Area.Draw (Context);
          Cairo.Destroy (Context);
-         Sample := Gdk.Pixbuf.Get_From_Surface (Surface, 30, 30, 1, 1);
+         Sample := Gdk.Pixbuf.Get_From_Surface (Surface, X, Y, 1, 1);
          Actual := Gdk.Pixbuf.Get_Pixels (Sample) (0);
          Sample.Unref;
          Cairo.Surface_Destroy (Surface);
-         Assert (Actual = Expected, "Displayed Canvas pixel is stale");
+         Assert (abs (Integer (Actual.Red) - Integer (Expected.Red)) <=
+                   Tolerance and then
+                 abs (Integer (Actual.Green) - Integer (Expected.Green)) <=
+                   Tolerance and then
+                 abs (Integer (Actual.Blue) - Integer (Expected.Blue)) <=
+                   Tolerance,
+                 "Canvas pixel at" & X'Image & Y'Image & ": expected red"
+                 & Expected.Red'Image & ", got" & Actual.Red'Image);
       end Check_Pixel;
 
       procedure Pointer
@@ -1267,7 +1294,7 @@ package body Coyote_App_Frontend_GUI_Tests is
          Size (800, 600);
       end Check_Zoom_Clicks;
 
-      procedure Check_Stylus_Zoom is
+      procedure Check_Stylus_Input is
          use Interfaces.C.Strings;
          use type System.Address;
          Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
@@ -1282,6 +1309,8 @@ package body Coyote_App_Frontend_GUI_Tests is
            Gdk.Device.Gdk_Device (Seat.Get_Pointer);
          Focus : constant Gtk.Widget.Gtk_Widget := Canvas.Get_Focus;
          Pen : System.Address := System.Null_Address;
+         Tip_Eraser : System.Address := System.Null_Address;
+         Saved_Axis : constant Gdk.Types.Gdk_Axis_Use := Mouse.Get_Axis_Use (0);
 
          function New_Device
            (Typ : Glib.GType; Count : Glib.Guint; Names, Values : System.Address)
@@ -1294,7 +1323,9 @@ package body Coyote_App_Frontend_GUI_Tests is
          procedure Unref_Device (Device : System.Address)
            with Import, Convention => C, External_Name => "g_object_unref";
 
-         function Test_Pen return System.Address is
+         function Test_Device (Source : Gdk.Types.Gdk_Input_Source)
+           return System.Address
+         is
             type Property_Names is array (1 .. 3) of chars_ptr;
             Names : Property_Names :=
               (New_String ("display"), New_String ("name"),
@@ -1308,8 +1339,7 @@ package body Coyote_App_Frontend_GUI_Tests is
             Glib.Values.Init_Set_String (Values (2), "Canvas test pen");
             Glib.Values.Init (Values (3), Source_Type);
             Glib.Values.Set_Enum
-              (Values (3), Gdk.Types.Gdk_Input_Source'Pos
-                 (Gdk.Types.Source_Pen));
+              (Values (3), Gdk.Types.Gdk_Input_Source'Pos (Source));
             Result := New_Device
               (Glib.Object.Get_Type (Glib.Object.GObject (Mouse)),
                3, Names'Address, Values'Address);
@@ -1320,11 +1350,12 @@ package body Coyote_App_Frontend_GUI_Tests is
                Free (Name);
             end loop;
             return Result;
-         end Test_Pen;
+         end Test_Device;
 
-         procedure Side_Button
+         procedure Send_Button
            (Kind : Gdk.Event.Gdk_Event_Type; Button : Glib.Guint;
-            At_X, At_Y : Glib.Gdouble; Use_Pen : Boolean := True)
+            At_X, At_Y : Glib.Gdouble; Source : System.Address;
+            Pressure : Glib.Gdouble := -1.0; Expected : Boolean := True)
          is
             function New_Event (Event_Kind : Gdk.Event.Gdk_Event_Type)
               return Gdk.Event.Gdk_Event
@@ -1336,6 +1367,8 @@ package body Coyote_App_Frontend_GUI_Tests is
             Event : constant Gdk.Event.Gdk_Event := New_Event (Kind);
             Raw : Gdk.Event.Gdk_Event_Button
               with Import, Address => Gdk.Event.To_Address (Event);
+            Axes : array (0 .. Mouse.Get_N_Axes - 1) of aliased Glib.Gdouble :=
+              (0 => Pressure, others => 0.0);
             Handled : Boolean;
          begin
             Gdk.Window.Ref (Area.Get_Window);
@@ -1344,13 +1377,35 @@ package body Coyote_App_Frontend_GUI_Tests is
                     Axes => null, State => 0, Button => Button,
                     Device => Mouse.Get_Object, X_Root => At_X, Y_Root => At_Y);
             Gdk.Device.Set_Device (Event, Mouse);
-            Set_Source (Event, (if Use_Pen then Pen else Mouse.Get_Object));
+            Set_Source (Event, Source);
+            if Pressure >= 0.0 then
+               --  GDK reads the supplied axes using the event device's
+               --  local axis mapping; the X server is not changed.
+               Mouse.Set_Axis_Use (0, Gdk.Types.Axis_Pressure);
+               Raw.Axes := Axes (0)'Unchecked_Access;
+            end if;
             Handled := Area.Event (Event);
+            Mouse.Set_Axis_Use (0, Saved_Axis);
+            Raw.Axes := null;
             Gdk.Event.Free (Event);
-            Assert (Handled = Use_Pen, "Only pen side buttons are consumed");
+            Assert (Handled = Expected, "Canvas handles the expected input");
+         exception
+            when others =>
+               Mouse.Set_Axis_Use (0, Saved_Axis);
+               raise;
+         end Send_Button;
+
+         procedure Side_Button
+           (Kind : Gdk.Event.Gdk_Event_Type; Button : Glib.Guint;
+            At_X, At_Y : Glib.Gdouble; Use_Pen : Boolean := True)
+         is
+         begin
+            Send_Button (Kind, Button, At_X, At_Y,
+                         (if Use_Pen then Pen else Mouse.Get_Object),
+                         Expected => Use_Pen);
          end Side_Button;
       begin
-         Pen := Test_Pen;
+         Pen := Test_Device (Gdk.Types.Source_Pen);
          Assert (Pen /= System.Null_Address, "Created test pen source");
          Activate ("zoom-in");
          Activate ("zoom-in");
@@ -1414,14 +1469,47 @@ package body Coyote_App_Frontend_GUI_Tests is
          Press_Escape;
          Activate ("actual");
          Size (800, 600);
+
+         Pencil_Size.Set_Value (9.0);
+         Send_Button (Gdk.Event.Button_Press, 1, 48.0, 48.0, Pen, 0.0);
+         Check_Pixel ((255, 255, 255), 48, 48);
+         Send_Button (Gdk.Event.Button_Release, 1, 48.0, 48.0, Pen);
+         Send_Button (Gdk.Event.Button_Press, 1, 48.0, 48.0, Pen, 0.5);
+         Check_Pixel ((134, 134, 134), 51, 48, Tolerance => 1);
+         Send_Button (Gdk.Event.Button_Release, 1, 48.0, 48.0, Pen);
+         Check_Pixel ((134, 134, 134), 51, 48, Tolerance => 1);
+         Activate ("undo");
+         Check_Pixel ((255, 255, 255), 51, 48);
+         Send_Button (Gdk.Event.Button_Press, 1, 48.0, 48.0, Pen, 1.0);
+         Check_Pixel ((13, 13, 13), 51, 48);
+         Press_Escape;
+         Send_Button (Gdk.Event.Button_Press, 1, 48.0, 48.0, Pen);
+         Check_Pixel ((13, 13, 13), 51, 48);
+         Press_Escape;
+         Pencil_Size.Set_Value (3.0);
+
+         Tip_Eraser := Test_Device (Gdk.Types.Source_Eraser);
+         Eraser_Size.Set_Value (40.0);
+         Send_Button (Gdk.Event.Button_Press, 1, 47.0, 30.0, Tip_Eraser);
+         Check_Pixel ((255, 255, 255));
+         Send_Button (Gdk.Event.Button_Release, 1, 47.0, 30.0, Tip_Eraser);
+         Check_Pixel ((255, 255, 255));
+         Check_Tool ("pencil");
+         Activate ("undo");
+         Check_Pixel ((13, 13, 13));
+         Eraser_Size.Set_Value (16.0);
+         Unref_Device (Tip_Eraser);
          Unref_Device (Pen);
       exception
          when others =>
+            if Tip_Eraser /= System.Null_Address then
+               Unref_Device (Tip_Eraser);
+            end if;
             if Pen /= System.Null_Address then
                Unref_Device (Pen);
             end if;
             raise;
-      end Check_Stylus_Zoom;
+      end Check_Stylus_Input;
    begin
       if not T.Display_Available then
          return;
@@ -1447,6 +1535,12 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Icon ("zoom-out", "Zoom Out");
       Swatch := Gtk.Color_Button.Gtk_Color_Button
         (Control ("canvas-pencil-color"));
+      Pencil_Size := Brush_Size ("pencil");
+      Eraser_Size := Brush_Size ("eraser");
+      Assert (Pencil_Size.Get_Value_As_Int = 3 and then
+                Eraser_Size.Get_Value_As_Int = 16,
+              "Pencil and Eraser have independent default sizes");
+      Check_Brush_Controls (Enabled => False);
       Assert (not Swatch.Get_Sensitive and then not Swatch.Get_Use_Alpha
               and then Swatch.Get_Tooltip_Text = "Pencil color",
               "Opaque Pencil color is unavailable on an empty Canvas");
@@ -1459,6 +1553,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("new");
       Drain_Events;
       Check_Tool ("pencil");
+      Check_Brush_Controls (Enabled => True);
       Assert
         (Control ("coyote-canvas-toolbar").Child_Focus
            (Gtk.Enums.Dir_Tab_Forward) and then
@@ -1475,8 +1570,23 @@ package body Coyote_App_Frontend_GUI_Tests is
                 Canvas.Get_Focus = Gtk.Widget.Gtk_Widget (Swatch),
               "Tab from the tool group reaches the color swatch");
       Assert (Swatch.Get_Sensitive, "Pencil color is available on a drawing");
+      Assert (Control ("coyote-canvas-toolbar").Child_Focus
+                (Gtk.Enums.Dir_Tab_Forward) and then
+                Canvas.Get_Focus = Gtk.Widget.Gtk_Widget (Pencil_Size),
+              "Tab from the color swatch reaches Pencil size");
+      Assert (Control ("coyote-canvas-toolbar").Child_Focus
+                (Gtk.Enums.Dir_Tab_Forward) and then
+                Canvas.Get_Focus = Gtk.Widget.Gtk_Widget (Eraser_Size),
+              "Tab from Pencil size reaches Eraser size");
       Choose_Pencil_Color (Swatch, (1.0, 0.0, 0.0, 1.0));
       Check_Tool ("pencil");
+      Pencil_Size.Set_Value (9.0);
+      Eraser_Size.Set_Value (24.0);
+      Assert (Pencil_Size.Get_Value_As_Int = 9 and then
+                Eraser_Size.Get_Value_As_Int = 24,
+              "Pencil and Eraser size changes remain independent");
+      Pencil_Size.Set_Value (3.0);
+      Eraser_Size.Set_Value (16.0);
       Assert (not Control ("canvas-save").Get_Sensitive
               and then not Control ("canvas-undo").Get_Sensitive,
               "Choosing a color is not a drawing edit");
@@ -1491,12 +1601,14 @@ package body Coyote_App_Frontend_GUI_Tests is
               "No zoom control can interrupt an ink gesture");
       Assert (not Swatch.Get_Sensitive,
               "Pencil color cannot change during a stroke");
+      Check_Brush_Controls (Enabled => False);
       Activate ("fit");
       Size (800, 600);
       Check_Pixel ((255, 0, 0));
       Choose_Pencil_Color (Swatch, (0.0, 0.0, 1.0, 1.0));
       Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
       Check_Pixel ((255, 0, 0));
+      Check_Brush_Controls (Enabled => True);
       Choose_Pencil_Color
         (Swatch, (13.0 / 255.0, 13.0 / 255.0, 13.0 / 255.0, 1.0));
       Check_Pixel ((255, 0, 0));
@@ -1505,6 +1617,27 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("redo");
       Check_Pixel ((255, 0, 0));
       Activate ("undo");
+      Pencil_Size.Set_Value (9.0);
+      Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Assert (not Pencil_Size.Get_Sensitive and then
+                Pencil_Size.Get_Value_As_Int = 9,
+              "Active stroke retains its snapshotted Pencil width");
+      Check_Pixel ((13, 13, 13), 33, 30);
+      Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
+      Check_Pixel ((13, 13, 13), 33, 30);
+      Activate ("undo");
+      Check_Pixel ((255, 255, 255), 33, 30);
+      Activate ("redo");
+      Check_Pixel ((13, 13, 13), 33, 30);
+      Activate ("undo");
+      Pencil_Size.Set_Value (3.0);
+      Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Assert (not Pencil_Size.Get_Sensitive and then
+                Pencil_Size.Get_Value_As_Int = 3,
+              "Next Pencil stroke snapshots the updated width");
+      Press_Escape;
+      Assert (Pencil_Size.Get_Sensitive,
+              "Canceling a stroke unlocks its brush-size control");
       Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
       Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
       Check_Pixel ((13, 13, 13));
@@ -1518,13 +1651,14 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tool_Button ("eraser").Clicked;
       Check_Tool ("eraser");
       Assert (Gtk.Label.Get_Text (Gtk.Label.Gtk_Label
-                (Control ("coyote-canvas-tool"))) = "Tool: Eraser (16 px)",
+                (Control ("coyote-canvas-tool"))) = "Tool: Eraser",
               "eraser mode is indicated in text");
       Pointer (Gdk.Event.Button_Press, 15.0, 30.0);
       Assert (not Control ("canvas-attach-button").Get_Sensitive and then
                 not Control ("canvas-attach").Get_Sensitive and then
                 not Control ("canvas-save").Get_Sensitive,
               "Save and Attach stay unavailable during an erase gesture");
+      Check_Brush_Controls (Enabled => False);
       Motion (30.0, 30.0);
       Check_Pixel ((255, 255, 255));
       Motion (40.0, 30.0);
@@ -1533,6 +1667,7 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Live erasure is not published as a revision");
       Pointer (Gdk.Event.Button_Release, 45.0, 30.0);
       Check_Pixel ((255, 255, 255));
+      Check_Brush_Controls (Enabled => True);
       Activate ("undo");
       Check_Pixel ((13, 13, 13));
       Activate ("redo");
@@ -1542,7 +1677,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Tool ("pencil");
       Check_Pixel ((13, 13, 13));
       Check_Zoom_Clicks;
-      Check_Stylus_Zoom;
+      Check_Stylus_Input;
       Check_Pixel ((13, 13, 13));
       Check_Fit (Pan_First => True);
       Activate ("actual");
@@ -1569,6 +1704,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (not Control ("canvas-fit").Get_Sensitive and then
                 not Tool_Button ("zoom-out").Get_Sensitive,
               "No zoom control can interrupt a crop drag");
+      Check_Brush_Controls (Enabled => False);
       Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
       Tool_Button ("zoom-in").Clicked;
       Tap_Zoom (60.0, 70.0);
@@ -1638,6 +1774,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (False);
       Check_Tool ("eraser", Enabled => False);
+      Check_Brush_Controls (Enabled => False);
       Canvas.Set_Focus (null);
       Assert (Control ("coyote-canvas-toolbar").Child_Focus
                 (Gtk.Enums.Dir_Tab_Forward) and then
@@ -1656,6 +1793,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (True);
       Press_Escape;
+      Check_Brush_Controls (Enabled => True);
       Check_Fit;
       Check_Tool ("eraser");
       Activate ("actual");
@@ -1707,6 +1845,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (not Canvas.Get_Visible and then Get_Iter_First (Model) = Null_Iter,
               "Session reset clears and hides the workspace");
       Check_Tool ("pencil", Enabled => False);
+      Check_Brush_Controls (Enabled => False);
       Frontend.Request_Shutdown;
       Main_Window (Frontend).Destroy;
       Assert (Canvas_Window (Frontend) = null,

@@ -147,9 +147,9 @@ package body Coyote_Canvas_Composite_Tests is
       Paint, Eraser : Samples.Vector;
       Preview : Erase_Preview;
       Canonical : Image;
-      First_Point : constant Sample := (1.4, 2.2, 3.5);
-      Second_Point : constant Sample := (6.9, 3.6, 4.0);
-      Third_Point : constant Sample := (6.0, 5.8, 2.7);
+      First_Point : constant Sample := (1.4, 2.2, 3.5, 1.0);
+      Second_Point : constant Sample := (6.9, 3.6, 4.0, 1.0);
+      Third_Point : constant Sample := (6.0, 5.8, 2.7, 1.0);
    begin
       for I in Source'Range loop
          Source (I) := (if I mod 12 = 0 then 0
@@ -157,14 +157,14 @@ package body Coyote_Canvas_Composite_Tests is
       end loop;
       Add_Originals (W, (1 => (10, 8)), Original);
       Edit (W, Original);
-      Paint.Append ((0.5, 3.0, 3.8));
-      Paint.Append ((8.8, 3.0, 4.2));
+      Paint.Append ((0.5, 3.0, 3.8, 1.0));
+      Paint.Append ((8.8, 3.0, 4.2, 1.0));
       Add_Stroke (W, Paint, Color => 16#E0_20_40#);
       declare
          Overlap : Samples.Vector;
       begin
-         Overlap.Append ((3.0, 3.1, 2.8));
-         Overlap.Append ((7.0, 3.4, 2.8));
+         Overlap.Append ((3.0, 3.1, 2.8, 1.0));
+         Overlap.Append ((7.0, 3.4, 2.8, 1.0));
          Add_Stroke (W, Overlap, Color => 16#20_70_E0#);
       end;
       Crop (W, (2, 1, 9, 7));
@@ -310,8 +310,8 @@ package body Coyote_Canvas_Composite_Tests is
       declare
          Stroke : Samples.Vector;
       begin
-         Stroke.Append ((X => 0.35, Y => 2.4, Width => 2.5));
-         Stroke.Append ((X => 7.7, Y => 3.4, Width => 4.0));
+         Stroke.Append ((X => 0.35, Y => 2.4, Width => 2.5, Alpha => 1.0));
+         Stroke.Append ((X => 7.7, Y => 3.4, Width => 4.0, Alpha => 1.0));
          Add_Stroke (W, Stroke);
          Save (W);
       end;
@@ -375,13 +375,13 @@ package body Coyote_Canvas_Composite_Tests is
       end loop;
       Add_Originals (W, (1 => (12, 8)), Original);
       Edit (W, Original);
-      Stroke.Append ((2.5, 4.5, 3.0));
-      Stroke.Append ((9.5, 4.5, 3.0));
+      Stroke.Append ((2.5, 4.5, 3.0, 1.0));
+      Stroke.Append ((9.5, 4.5, 3.0, 1.0));
       Add_Stroke (W, Stroke);
       Save (W);
       Before := Base (W);
       Render (W, Before, Source, 48, True, Painted);
-      Eraser.Append ((2.5, 4.5, 5.0));
+      Eraser.Append ((2.5, 4.5, 5.0, 1.0));
       Add_Stroke (W, Eraser, Erase);
       Render (W, NO_REVISION, Source, 48, True, Erased);
       Assert (Pixels (Erased) (Left .. Left + 3) = Source (Left .. Left + 3),
@@ -440,6 +440,99 @@ package body Coyote_Canvas_Composite_Tests is
       Assert (Rejected, "legacy v2 must reject an erase marker");
    end Erase_Ink;
 
+   procedure Deposited_Stroke_Pixels (T : in out Test) is
+      pragma Unreferenced (T);
+      Sparse_W, Dense_W, Double_W, Zero_W : Workspace;
+      Ramp_W, Ramp_Dense_W : Workspace;
+      Sparse_Id, Dense_Id, Double_Id, Zero_Id : Revision_Id;
+      Ramp_Id, Ramp_Dense_Id : Revision_Id;
+      Sizes : constant Image_Sizes := (1 => (32, 12));
+      Sparse, Dense, Single, Repeated, Zero, Ramp, Ramp_Dense : Image;
+      Sparse_Points, Dense_Points : Samples.Vector;
+      Partial_Pressure, Zero_Pressure : Samples.Vector;
+      Ramp_Points, Ramp_Dense_Points : Samples.Vector;
+      Source : Stream_Element_Array (1 .. 32 * 12 * 4) := (others => 0);
+      Sparse_Center, Dense_Center, Repeated_Center, Zero_Center : Natural;
+   begin
+      Add_Originals (Sparse_W, Sizes, Sparse_Id);
+      Add_Originals (Dense_W, Sizes, Dense_Id);
+      Add_Originals (Double_W, Sizes, Double_Id);
+      Add_Originals (Zero_W, Sizes, Zero_Id);
+      Add_Originals (Ramp_W, Sizes, Ramp_Id);
+      Add_Originals (Ramp_Dense_W, Sizes, Ramp_Dense_Id);
+      Edit (Sparse_W, Sparse_Id);
+      Edit (Dense_W, Dense_Id);
+      Edit (Double_W, Double_Id);
+      Edit (Zero_W, Zero_Id);
+      Edit (Ramp_W, Ramp_Id);
+      Edit (Ramp_Dense_W, Ramp_Dense_Id);
+      Sparse_Points.Append ((X => 2.0, Y => 6.0, Width => 8.0, Alpha => 1.0));
+      Sparse_Points.Append ((X => 30.0, Y => 6.0, Width => 8.0, Alpha => 1.0));
+      for X in 2 .. 30 loop
+         Dense_Points.Append
+           ((X => Long_Float (X), Y => 6.0, Width => 8.0, Alpha => 1.0));
+      end loop;
+      Partial_Pressure.Append
+        ((X => 2.0, Y => 6.0, Width => 8.0, Alpha => 0.25));
+      Partial_Pressure.Append
+        ((X => 30.0, Y => 6.0, Width => 8.0, Alpha => 0.25));
+      Zero_Pressure.Append
+        ((X => 2.0, Y => 6.0, Width => 8.0, Alpha => 0.0));
+      Zero_Pressure.Append
+        ((X => 30.0, Y => 6.0, Width => 8.0, Alpha => 0.0));
+      Ramp_Points.Append
+        ((X => 2.0, Y => 6.0, Width => 8.0, Alpha => 0.0));
+      Ramp_Points.Append
+        ((X => 30.0, Y => 6.0, Width => 8.0, Alpha => 1.0));
+      for X in 2 .. 30 loop
+         Ramp_Dense_Points.Append
+           ((X => Long_Float (X), Y => 6.0, Width => 8.0,
+             Alpha => Ink_Alpha
+               (Long_Float (X - 2) / 28.0)));
+      end loop;
+      Add_Stroke (Sparse_W, Sparse_Points, Color => 0,
+                  Rendering => Deposited);
+      Add_Stroke (Dense_W, Dense_Points, Color => 0,
+                  Rendering => Deposited);
+      Add_Stroke (Double_W, Partial_Pressure, Color => 0,
+                  Rendering => Deposited);
+      Render (Double_W, NO_REVISION, Source, 32 * 4, True, Single);
+      Undo (Double_W);
+      Partial_Pressure.Append (Partial_Pressure.First_Element);
+      Add_Stroke (Double_W, Partial_Pressure, Color => 0,
+                  Rendering => Deposited);
+      Add_Stroke (Zero_W, Zero_Pressure, Color => 0,
+                  Rendering => Deposited);
+      Add_Stroke (Ramp_W, Ramp_Points, Color => 0,
+                  Rendering => Deposited);
+      Add_Stroke (Ramp_Dense_W, Ramp_Dense_Points, Color => 0,
+                  Rendering => Deposited);
+      Render (Sparse_W, NO_REVISION, Source, 32 * 4, True, Sparse);
+      Render (Dense_W, NO_REVISION, Source, 32 * 4, True, Dense);
+      Render (Double_W, NO_REVISION, Source, 32 * 4, True, Repeated);
+      Render (Zero_W, NO_REVISION, Source, 32 * 4, True, Zero);
+      Render (Ramp_W, NO_REVISION, Source, 32 * 4, True, Ramp);
+      Render (Ramp_Dense_W, NO_REVISION, Source, 32 * 4, True, Ramp_Dense);
+      Assert (Pixels (Sparse) = Pixels (Dense),
+              "constant pressure is independent of sample density");
+      Assert (Pixels (Ramp) = Pixels (Ramp_Dense),
+              "interpolated pressure ramp is independent of density");
+      Sparse_Center := Natural (Pixels (Sparse) ((6 * 32 + 16) * 4 + 4));
+      Repeated_Center := Natural
+        (Pixels (Repeated) ((6 * 32 + 16) * 4 + 4));
+      Dense_Center := Natural (Pixels (Single) ((6 * 32 + 16) * 4 + 4));
+      Zero_Center := Natural (Pixels (Zero) ((6 * 32 + 16) * 4 + 4));
+      Assert (Sparse_Center > 240,
+              "full pressure deposited stroke is opaque along its path");
+      Assert (Repeated_Center > Dense_Center,
+              "retracing within the same gesture builds darkness");
+      Undo (Double_W);
+      Render (Double_W, NO_REVISION, Source, 32 * 4, True, Repeated);
+      Assert (Pixels (Repeated) = Pixels (Zero),
+              "one Undo removes the entire retraced gesture");
+      Assert (Zero_Center = 0, "zero pressure remains invisible");
+   end Deposited_Stroke_Pixels;
+
    procedure Partial_Alpha_Source_Over (T : in out Test) is
       pragma Unreferenced (T);
       W          : Workspace;
@@ -453,7 +546,7 @@ package body Coyote_Canvas_Composite_Tests is
    begin
       Add_Originals (W, Sizes, Original);
       Edit (W, Original);
-      Stroke.Append ((2.6, 2.25, 2.7));
+      Stroke.Append ((2.6, 2.25, 2.7, 1.0));
       Add_Stroke (W, Stroke);
       Background := (others => 0);
       Render (W, NO_REVISION, Background, 24, True, Clear_Ink);
@@ -649,6 +742,9 @@ package body Coyote_Canvas_Composite_Tests is
       Result.Add_Test (Caller.Create
         ("Canvas composite incremental erase preview",
          Erase_Preview_Incremental'Access));
+      Result.Add_Test (Caller.Create
+        ("Canvas composite deposited pressure and spacing",
+         Deposited_Stroke_Pixels'Access));
       Result.Add_Test (Caller.Create
         ("Canvas composite partial-alpha source-over",
          Partial_Alpha_Source_Over'Access));

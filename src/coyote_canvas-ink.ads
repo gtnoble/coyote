@@ -16,5 +16,6 @@ package Coyote_Canvas.Ink is
 
    --  Paint a stored stroke using the caller's source color and transform.
    procedure Draw
-     (Points : Revisions.Samples.Vector; Context : Cairo.Cairo_Context);
+     (Points : Revisions.Samples.Vector; Context : Cairo.Cairo_Context;
+      Rendering : Revisions.Stroke_Rendering := Revisions.Classic);
 end Coyote_Canvas.Ink;

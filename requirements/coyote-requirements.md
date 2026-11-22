@@ -3,7 +3,7 @@
 **Component:** coyote (core agent executable and shared libraries)
 **Version:** 1.42
 **Date:** 2026-11-22
-**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior and PCR-134 finger Pencil/Eraser behavior implemented and developer-tested; PCR-135 live Eraser implemented and developer-tested. Formal qualification remains pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
+**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior, PCR-134 finger Pencil/Eraser behavior, and PCR-135 live Eraser implemented and developer-tested. Formal and physical-device/performance qualification remain pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
 revision records the Canvas and CLI amendments, including clipboard-image
@@ -1575,58 +1575,66 @@ focus, switching the active drawing, or posting a modal confirmation.
 
 The user shall be able to create a blank drawing or import one or more local
 PNG, JPEG or self-contained SVG files through a modeless File Selection
-dialog. The Canvas shall support Wacom Intuos freehand input on Linux, with
-variable stroke width when pressure is available and fixed-width drawing with
-a mouse or when pressure is unavailable. REQ-CORE-270 specifies clipboard
-import, and REQ-CORE-271 specifies user-applied crop. A working copy shall retain its
-background separately from editable ink. Erasing shall not erase the
-background, and Undo and Redo shall operate by completed stroke or edit.
-Eraser interaction shall show ink removal immediately while the pointer or
-eligible finger is dragged, including when a recognized tablet eraser
-overrides the selected tool. The transient preview shall use the same fixed
-16-source-pixel round brush and cursor guide as committed erasing, independent
-of zoom and pressure. It shall remove ink only; the background, saved
-revisions, staged attachments, and authoritative PNG shall remain unchanged
-until release. Release shall commit exactly one ordered, undoable edit from
-the gesture's canonical stroke segments. Escape, loss of capture, option
-disable, window close, or session change shall discard the preview and restore
-the original ink without creating an edit, switching the working revision, or
-changing revision state. If preview is unavailable, show the canonical
-surface and brush guide, not a partial preview. Use a cached A8 ink mask, a
-separate transient surface, and dirty-rectangle recomposition. Physical-device
-and performance qualification remain pending.
-PNG and JPEG imports shall retain the source pixel dimensions; an import
-that cannot be supported at those dimensions shall be rejected, not resized.
-Imported files shall not be overwritten. Pan and zoom shall not alter the
-drawing. **View → Show Markup** shall hide or show ink without changing the
-drawing or any attachment.
+dialog. REQ-CORE-270 specifies clipboard import, and REQ-CORE-271 specifies
+user-applied crop. A working copy shall retain its background separately
+from editable ink. Undo and Redo shall operate by completed gesture or edit.
+
+The Canvas shall provide separate session-local **Pencil size** and **Eraser
+size** settings, each an integer number of source pixels from 1 through 64,
+with defaults of 3 and 16 respectively at the start of each session. The
+setting for the active tool shall be captured when a mouse, pen, or eligible
+finger gesture begins and remain fixed through that gesture. Widths and brush
+diameters shall be measured in source-image pixels, independent of zoom.
+
+Pencil shall deposit marks at the captured size. Pen pressure, when usable,
+shall affect only the alpha of deposited Pencil marks, not their width.
+Mouse, eligible finger, and pen input without usable pressure shall deposit
+opaque Pencil marks. A recognized tablet eraser tip shall override the
+selected tool for that gesture and use the captured Eraser size without
+changing the selected tool; selected Crop takes precedence. Erasing shall
+remove ink only, never background, and shall be independent of pressure.
+
+Pencil marks shall be placed using distance-based spacing, independent of
+input report frequency. Retracing a path within one gesture deposits ink
+again, so repeated Pencil coverage can darken according to its alpha. Each
+completed gesture that deposits or erases ink is one ordered, undoable edit. Eraser interaction shall show ink removal immediately while
+the pointer or eligible finger is dragged, including when a recognized tablet
+eraser overrides the selected tool. Its transient preview shall use the
+captured Eraser size and same round brush and cursor guide as committed
+erasing. It shall remove ink only; background, saved revisions, staged
+attachments, and authoritative PNG remain unchanged until release. Release
+shall commit exactly one ordered edit from the gesture's canonical stroke
+segments. Escape, loss of capture, option disable, window close, or session
+change shall discard preview and restore original ink without an edit,
+working-revision switch, or revision-state change. If preview is unavailable,
+show the canonical surface and brush guide, not a partial preview. Use one
+stroke rasterizer for preview, committed rendering, and replay. The Eraser
+preview uses a cached ARGB32 ink layer, a separate transient surface, and
+dirty-rectangle recomposition.
+Physical-device and performance qualification remain pending.
+
+PNG and JPEG imports shall retain source pixel dimensions; unsupported
+native-size imports shall be rejected, not resized. Imported files shall not
+be overwritten. Pan and zoom shall not alter the drawing. **View → Show
+Markup** shall hide or show ink without changing the drawing or attachments.
 
 **Options → Edit with Finger** shall enable touchscreen editing only when
-checked, default off for each session, and apply only to that session. For one
-eligible touchscreen contact at a time, the selected **Pencil** shall paint a
-three-source-pixel-wide stroke and the selected **Eraser** shall remove ink
-with a sixteen-source-pixel brush without changing the separately stored
-background. Widths shall be measured in source-image pixels and remain
-independent of zoom, pressure, and contact size. The operation shall be fixed
-when the eligible contact begins; additional contacts shall neither mark nor
-take over the gesture. Lifting the tracked contact shall commit exactly one
-undoable edit. Cancellation, loss of capture, option disable, window close, or
-session change shall discard the unfinished touch operation using the existing
-Pencil gesture-cancellation behavior and shall not switch or mutate drafts.
-
-Touch editing shall be eligible only when the option is on, exactly one
-contact begins in the drawing area, the displayed drawing is writable,
-**Show Markup** is on, and **Pencil** or **Eraser** is selected. A completed
-edit on a saved revision shall start a working copy from that exact revision,
-subject to the existing checkpoint-before-switch rule. Read-only drawings,
-hidden markup, and **Crop** or **Zoom In/Out** modes shall not accept finger
-edits. GTK kinetic scrolling shall be disabled while finger Pencil/Eraser
-input is available, including before contact begins; ordinary touch panning
-and scrolling remain available otherwise. Mouse and pen behavior, and Crop/Zoom pointer
-behavior, shall remain unchanged. Touch input shall use the existing GTK touch
-sequence path; raw-device access, new device permissions, and input-model
-changes are not permitted. This option shall not alter mouse or pen pressure
-or stroke width.
+checked, default off for each session, and apply only to that session. For
+one eligible contact at a time, the selected Pencil or Eraser shall use the
+corresponding captured session size. Width/diameter shall be independent of
+zoom and contact size; pressure shall not affect finger input. The operation
+shall be fixed at contact begin; additional contacts shall neither mark nor
+take over. Lifting the tracked contact shall commit exactly one undoable edit.
+Cancellation, loss of capture, option disable, window close, or session
+change shall discard the unfinished operation without switching or mutating
+drafts. Eligibility requires the option on, one contact beginning in the
+drawing area, a writable displayed drawing, Show Markup on, and Pencil or
+Eraser selected. Read-only drawings, hidden markup, and Crop or Zoom modes
+shall not accept finger edits. Disable GTK kinetic scrolling while finger
+editing is available; ordinary touch panning/scrolling remains available
+otherwise. Mouse/pen behavior shall be unchanged. Use the existing GTK touch
+sequence path, without raw-device access, new permissions, or input-model
+changes.
 
 The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, **Crop**,
 **Zoom In**, and **Zoom Out** icon buttons below the menu bar. The active
