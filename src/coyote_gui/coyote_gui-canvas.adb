@@ -480,6 +480,21 @@ package body Coyote_GUI.Canvas is
       end if;
    end Zoom_At;
 
+   procedure Zoom_Over_Drawing
+     (S : in out Instance; X, Y : Glib.Gdouble; Increase : Boolean)
+   is
+      E : constant Doc.Rectangle := Display_Extent (S);
+      Input_Scale : constant Long_Float :=
+        (if S.Anchor_Pending then S.Anchor_Scale else S.Zoom);
+   begin
+      if Can_Zoom (S, E) and then X >= 0.0 and then Y >= 0.0
+        and then Long_Float (X) / Input_Scale < Long_Float (E.Right - E.Left)
+        and then Long_Float (Y) / Input_Scale < Long_Float (E.Bottom - E.Top)
+      then
+         Zoom_At (S, X, Y, Increase);
+      end if;
+   end Zoom_Over_Drawing;
+
    procedure Cancel_Gesture
      (S : in out Instance; Keep_Zoom : Boolean := False)
    is
@@ -2775,6 +2790,32 @@ package body Coyote_GUI.Canvas is
      Import, Convention => C, External_Name => "gdk_event_get_coords";
    use type Glib.Gboolean;
 
+   STYLUS_ZOOM_IN  : constant Glib.Guint := 2;
+   STYLUS_ZOOM_OUT : constant Glib.Guint := 3;
+
+   function Is_Stylus_Zoom_Button
+     (Event : Gdk.Event.Gdk_Event; Button : Glib.Guint) return Boolean
+   is
+      use type Gdk.Types.Gdk_Input_Source;
+      --  The event's master pointer can be a mouse even when a pen sent it.
+      function Source_Device (E : Gdk.Event.Gdk_Event) return System.Address
+        with Import, Convention => C,
+          External_Name => "gdk_event_get_source_device";
+      function Input_Source (Device : System.Address)
+        return Gdk.Types.Gdk_Input_Source
+        with Import, Convention => C, External_Name => "gdk_device_get_source";
+      Source : System.Address;
+   begin
+      if Button not in STYLUS_ZOOM_IN | STYLUS_ZOOM_OUT
+        or else Gdk.Event.Get_Pointer_Emulated (Event)
+      then
+         return False;
+      end if;
+      Source := Source_Device (Event);
+      return Source /= System.Null_Address
+        and then Input_Source (Source) = Gdk.Types.Source_Pen;
+   end Is_Stylus_Zoom_Button;
+
    function Pointer_Width (S : Instance; Event : Gdk.Event.Gdk_Event)
      return Long_Float
    is
@@ -2924,31 +2965,31 @@ package body Coyote_GUI.Canvas is
      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event  : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean
    is
+      Button : constant Glib.Guint := Gdk.Event.Get_Button (Event);
+      Kind : constant Gdk.Event.Gdk_Event_Type :=
+        Gdk.Event.Get_Event_Type (Event);
       X, Y : Glib.Gdouble;
    begin
+      if Is_Stylus_Zoom_Button (Event, Button) then
+         --  GTK can emit a double/triple-click event after the actual press.
+         if Kind = Gdk.Event.Button_Press and then not S.Help_Mode
+           and then Read_Coords (Event, X, Y) /= 0
+         then
+            Zoom_Over_Drawing (S.all, X, Y,
+                               Increase => Button = STYLUS_ZOOM_IN);
+         end if;
+         return True;
+      end if;
       if S.Drawing or else S.Crop_Drag
         or else Gdk.Event.Get_Pointer_Emulated (Event)
-        or else Gdk.Event.Get_Event_Type (Event) /= Gdk.Event.Button_Press
-        or else Gdk.Event.Get_Button (Event) /= 1
+        or else Kind /= Gdk.Event.Button_Press
+        or else Button /= 1
         or else Read_Coords (Event, X, Y) = 0
       then
          return False;
       end if;
       if S.Zoom_Tool /= No_Zoom then
-         declare
-            E : constant Doc.Rectangle := Display_Extent (S.all);
-            Input_Scale : constant Long_Float :=
-              (if S.Anchor_Pending then S.Anchor_Scale else S.Zoom);
-         begin
-            if Can_Zoom (S.all, E) and then X >= 0.0 and then Y >= 0.0
-              and then Long_Float (X) / Input_Scale <
-                Long_Float (E.Right - E.Left)
-              and then Long_Float (Y) / Input_Scale <
-                Long_Float (E.Bottom - E.Top)
-            then
-               Zoom_At (S.all, X, Y, Increase => S.Zoom_Tool = Magnify);
-            end if;
-         end;
+         Zoom_Over_Drawing (S.all, X, Y, Increase => S.Zoom_Tool = Magnify);
          return True;
       end if;
       if not Can_Draw (S.all) then
@@ -3043,10 +3084,13 @@ package body Coyote_GUI.Canvas is
       Event  : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean
    is
       pragma Unreferenced (Widget);
+      Button : constant Glib.Guint := Gdk.Event.Get_Button (Event);
       X, Y : Glib.Gdouble;
    begin
-      if Gdk.Event.Get_Button (Event) /= 1
-        or else S.Finger_Sequence /= null
+      if Is_Stylus_Zoom_Button (Event, Button) then
+         return True;
+      end if;
+      if Button /= 1 or else S.Finger_Sequence /= null
         or else Gdk.Event.Get_Pointer_Emulated (Event)
         or else not (S.Drawing or else S.Crop_Drag)
       then

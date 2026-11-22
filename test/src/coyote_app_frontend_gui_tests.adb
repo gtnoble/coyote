@@ -33,6 +33,7 @@ with Glib.Values;
 with Glib.Object;
 with Cairo;
 with Cairo.Image_Surface;
+with Gdk.Device;
 with Gdk.Display;
 with Gdk.Event;
 with Gdk.Seat;
@@ -1265,6 +1266,162 @@ package body Coyote_App_Frontend_GUI_Tests is
          Activate ("actual");
          Size (800, 600);
       end Check_Zoom_Clicks;
+
+      procedure Check_Stylus_Zoom is
+         use Interfaces.C.Strings;
+         use type System.Address;
+         Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
+           Gtk.Scrolled_Window.Gtk_Scrolled_Window
+             (Control ("coyote-canvas-viewport"));
+         X : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Hadjustment;
+         Y : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Vadjustment;
+         Display : constant Gdk.Display.Gdk_Display := Area.Get_Display;
+         Seat : constant Gdk.Seat.Gdk_Seat := Gdk.Seat.Gdk_Seat
+           (Display.Get_Default_Seat);
+         Mouse : constant Gdk.Device.Gdk_Device :=
+           Gdk.Device.Gdk_Device (Seat.Get_Pointer);
+         Focus : constant Gtk.Widget.Gtk_Widget := Canvas.Get_Focus;
+         Pen : System.Address := System.Null_Address;
+
+         function New_Device
+           (Typ : Glib.GType; Count : Glib.Guint; Names, Values : System.Address)
+            return System.Address
+           with Import, Convention => C,
+             External_Name => "g_object_new_with_properties";
+         function Source_Type return Glib.GType
+           with Import, Convention => C,
+             External_Name => "gdk_input_source_get_type";
+         procedure Unref_Device (Device : System.Address)
+           with Import, Convention => C, External_Name => "g_object_unref";
+
+         function Test_Pen return System.Address is
+            type Property_Names is array (1 .. 3) of chars_ptr;
+            Names : Property_Names :=
+              (New_String ("display"), New_String ("name"),
+               New_String ("input-source"));
+            Values : Glib.Values.GValue_Array (1 .. 3);
+            Result : System.Address;
+         begin
+            --  Construct a separate device of the backend's concrete type.
+            Glib.Values.Init (Values (1), Gdk.Display.Get_Type);
+            Glib.Values.Set_Object (Values (1), Display);
+            Glib.Values.Init_Set_String (Values (2), "Canvas test pen");
+            Glib.Values.Init (Values (3), Source_Type);
+            Glib.Values.Set_Enum
+              (Values (3), Gdk.Types.Gdk_Input_Source'Pos
+                 (Gdk.Types.Source_Pen));
+            Result := New_Device
+              (Glib.Object.Get_Type (Glib.Object.GObject (Mouse)),
+               3, Names'Address, Values'Address);
+            for Value of Values loop
+               Glib.Values.Unset (Value);
+            end loop;
+            for Name of Names loop
+               Free (Name);
+            end loop;
+            return Result;
+         end Test_Pen;
+
+         procedure Side_Button
+           (Kind : Gdk.Event.Gdk_Event_Type; Button : Glib.Guint;
+            At_X, At_Y : Glib.Gdouble; Use_Pen : Boolean := True)
+         is
+            function New_Event (Event_Kind : Gdk.Event.Gdk_Event_Type)
+              return Gdk.Event.Gdk_Event
+              with Import, Convention => C, External_Name => "gdk_event_new";
+            procedure Set_Source
+              (Event : Gdk.Event.Gdk_Event; Device : System.Address)
+              with Import, Convention => C,
+                External_Name => "gdk_event_set_source_device";
+            Event : constant Gdk.Event.Gdk_Event := New_Event (Kind);
+            Raw : Gdk.Event.Gdk_Event_Button
+              with Import, Address => Gdk.Event.To_Address (Event);
+            Handled : Boolean;
+         begin
+            Gdk.Window.Ref (Area.Get_Window);
+            Raw := (The_Type => Kind, Window => Area.Get_Window,
+                    Send_Event => 1, Time => 0, X => At_X, Y => At_Y,
+                    Axes => null, State => 0, Button => Button,
+                    Device => Mouse.Get_Object, X_Root => At_X, Y_Root => At_Y);
+            Gdk.Device.Set_Device (Event, Mouse);
+            Set_Source (Event, (if Use_Pen then Pen else Mouse.Get_Object));
+            Handled := Area.Event (Event);
+            Gdk.Event.Free (Event);
+            Assert (Handled = Use_Pen, "Only pen side buttons are consumed");
+         end Side_Button;
+      begin
+         Pen := Test_Pen;
+         Assert (Pen /= System.Null_Address, "Created test pen source");
+         Activate ("zoom-in");
+         Activate ("zoom-in");
+         Canvas.Check_Resize;
+         Drain_Events;
+         X.Set_Value (100.0);
+         Y.Set_Value (120.0);
+         Side_Button (Gdk.Event.Button_Press, 2, 300.0, 320.0,
+                      Use_Pen => False);
+         Side_Button (Gdk.Event.Button_Press, 3, 300.0, 320.0,
+                      Use_Pen => False);
+         Side_Button (Gdk.Event.Button_Press, 2, -1.0, 320.0);
+         Size (1250, 938);
+         Side_Button (Gdk.Event.Button_Press, 2, 300.0, 320.0);
+         Side_Button (Gdk.Event.Double_Button_Press, 2, 300.0, 320.0);
+         Side_Button (Gdk.Event.Button_Release, 2, 300.0, 320.0);
+         Canvas.Check_Resize;
+         Drain_Events;
+         Size (1563, 1172);
+         Assert (abs (X.Get_Value - 175.0) < 1.0 and then
+                 abs (Y.Get_Value - 200.0) < 1.0,
+                 "Pen zoom-in preserves the panned anchor in one step");
+         Side_Button (Gdk.Event.Button_Press, 3, 375.0, 400.0);
+         Side_Button (Gdk.Event.Button_Release, 3, 300.0, 320.0);
+         Canvas.Check_Resize;
+         Drain_Events;
+         Size (1250, 938);
+         Assert (abs (X.Get_Value - 100.0) < 1.0 and then
+                 abs (Y.Get_Value - 120.0) < 1.0 and then
+                 Canvas.Get_Focus = Focus,
+                 "Pen zoom-out preserves the anchor and keyboard focus");
+         Check_Tool ("pencil");
+         Activate ("actual");
+         Canvas.Check_Resize;
+         Drain_Events;
+         Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+         Side_Button (Gdk.Event.Button_Press, 2, 30.0, 30.0);
+         Side_Button (Gdk.Event.Button_Release, 2, 30.0, 30.0);
+         Size (800, 600);
+         Assert (not Control ("canvas-fit").Get_Sensitive,
+                 "Side buttons do not end an active stroke");
+         Press_Escape;
+         Activate ("crop");
+         Pointer (Gdk.Event.Button_Press, 40.0, 50.0);
+         Side_Button (Gdk.Event.Button_Press, 2, 40.0, 50.0);
+         Side_Button (Gdk.Event.Button_Release, 2, 40.0, 50.0);
+         Size (800, 600);
+         Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
+         Side_Button (Gdk.Event.Button_Press, 2, 40.0, 50.0);
+         Side_Button (Gdk.Event.Button_Release, 2, 40.0, 50.0);
+         Canvas.Check_Resize;
+         Drain_Events;
+         Size (1000, 750);
+         Check_Tool ("crop");
+         Assert (Control ("canvas-apply").Get_Sensitive and then
+                 Gtk.GEntry.Gtk_Entry
+                   (Control ("coyote-canvas-crop-width")).Get_Text = "60" and then
+                 Gtk.GEntry.Gtk_Entry
+                   (Control ("coyote-canvas-crop-height")).Get_Text = "80",
+                 "Pen zoom leaves the pending crop in source coordinates");
+         Press_Escape;
+         Activate ("actual");
+         Size (800, 600);
+         Unref_Device (Pen);
+      exception
+         when others =>
+            if Pen /= System.Null_Address then
+               Unref_Device (Pen);
+            end if;
+            raise;
+      end Check_Stylus_Zoom;
    begin
       if not T.Display_Available then
          return;
@@ -1385,6 +1542,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Tool ("pencil");
       Check_Pixel ((13, 13, 13));
       Check_Zoom_Clicks;
+      Check_Stylus_Zoom;
       Check_Pixel ((13, 13, 13));
       Check_Fit (Pan_First => True);
       Activate ("actual");

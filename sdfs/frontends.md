@@ -1,5 +1,16 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Canvas stylus-button zoom
+
+Pen buttons 2 and 3 take one anchored zoom-in or zoom-out step over the
+drawing without switching tools, moving focus, changing a pending crop,
+or remapping the desktop. Canvas checks the event source rather than the
+master pointer; mouse buttons retain their existing behavior.
+
+The Xvfb Canvas tests exercise panned anchors, duplicate press events,
+mouse pass-through, active stroke/crop protection, and pending crop
+bounds. Physical Intuos button presses and Wayland remain unverified.
+
 ## 2026-11-22 — Canvas Pencil color
 
 The toolbar swatch selects opaque RGB for future Pencil strokes without

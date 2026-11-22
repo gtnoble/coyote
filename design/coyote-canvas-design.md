@@ -62,13 +62,17 @@ and keeps that point under the pointer where the scroll bounds permit. The
 keyboard-accessible alternative. A magnifier suspends the editing tool and
 any pending crop; `Escape` resumes it without reverting the zoom. The zoom
 controls also work on saved previews and with **Show Markup** off, but are
-unavailable during a live ink stroke or crop drag.
+unavailable during a live ink stroke or crop drag. Over the drawing, pen
+side buttons reported by GTK as buttons 2 and 3 take one anchored zoom-in
+or zoom-out step on press. This always-available shortcut does not select
+a magnifier, take focus, or change a pending crop. It has no effect while
+Click for Help is armed and does not consume mouse buttons.
 
-Give entries mnemonics, preserve native Tab/tree traversal, use the primary action button or pen tip for drawing/crop, and keep the right button for a shortcut menu that duplicates menu actions. Do not change pointer mapping or force focus across windows. Indicate editable/draft/read-only/sent state in text, not color alone. Scope text paste and standard accelerators to the focused context. Use the status area for successful background work, an explanatory dialog for empty or invalid clipboard paste, and a cancellable Warning before discarding draft edits; switching from a pending crop to a drawing tool discards that pending crop without applying it. Agent additions use only the status area and never change focus or selection. No new tool shortcuts are assigned; native Tab and arrow navigation operate the toolbar, and Edit mnemonics remain in effect.
+Give entries mnemonics, preserve native Tab/tree traversal, use the primary action button or pen tip for drawing/crop, and keep the right button for a shortcut menu that duplicates menu actions. Do not change pointer mapping or force focus across windows. Indicate editable/draft/read-only/sent state in text, not color alone. Scope text paste and standard accelerators to the focused context. Use the status area for successful background work, an explanatory dialog for empty or invalid clipboard paste, and a cancellable Warning before discarding draft edits; switching from a pending crop to a drawing tool discards that pending crop without applying it. Agent additions use only the status area and never change focus or selection. No tool keyboard shortcuts are assigned; native Tab and arrow navigation operate the toolbar, and Edit mnemonics remain in effect.
 
 ### 4.2 Input and clipboard
 
-Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen and mouse, test pressure-axis availability at runtime, and map valid pressure to bounded stroke width. A missing axis, or mouse input, uses fixed width. Each tip-down/up stroke is one edit. Lost capture, device removal, and window/session change end the in-progress gesture without applying another edit; suppress double delivery through emulated mouse events. Pen side-button features and tilt are not required. Physical pressure, drag capture and scaling still need Intuos verification.
+Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen and mouse, test pressure-axis availability at runtime, and map valid pressure to bounded stroke width. A missing axis, or mouse input, uses fixed width. Each tip-down/up stroke is one edit. Lost capture, device removal, and window/session change end the in-progress gesture without applying another edit; suppress double delivery through emulated mouse events. Tilt is not required. Physical pressure, drag capture and scaling still need Intuos verification.
 
 **Edit with Finger** is session-local and off by default. Use the drawing
 area's GTK `touch-event` with `Touch_Mask` and the existing first-contact

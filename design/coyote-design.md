@@ -3211,6 +3211,9 @@ the viewport center and do not select a magnifier. Click zoom uses local
 image widget coordinates and restores the scroll anchor after GTK allocates
 the new scroll ranges; rapid input before allocation uses the last allocated
 scale to calculate the new target. GTK clamps the anchor at image edges.
+Pen side buttons 2 and 3 use the same anchor for one zoom-in or zoom-out
+step without changing tools, focus, or crop. Canvas checks the event source,
+not the master pointer, and does not change desktop mappings.
 Zoom does not change the composite, revisions, or attachment payload.
 
 **Fit view.** View → Fit uses the unframed scroller's current allocation,
