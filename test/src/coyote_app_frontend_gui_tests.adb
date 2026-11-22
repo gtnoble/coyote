@@ -33,7 +33,10 @@ with Glib.Values;
 with Glib.Object;
 with Cairo;
 with Cairo.Image_Surface;
+with Gdk.Display;
 with Gdk.Event;
+with Gdk.Seat;
+with Gdk.Window;
 with Gdk.Types.Keysyms;
 with Gdk.Pixbuf;
 with Gdk.Property;
@@ -2519,6 +2522,197 @@ package body Coyote_App_Frontend_GUI_Tests is
          raise;
    end Test_Canvas_Attachments;
 
+   procedure Test_Canvas_Finger_Drawing (T : in out Test) is
+      use Coyote_App.Frontend.GUI.Testing;
+      use type Gdk.Pixbuf.Rgb_Record;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Canvas : Gtk.Window.Gtk_Window;
+      Area : Gtk.Widget.Gtk_Widget;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Toggle : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      First_Contact, Second_Contact : aliased Integer := 0;
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+         Item : constant Gtk.Widget.Gtk_Widget :=
+           Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name);
+      begin
+         Assert (Item /= null, "Missing Canvas control: " & Name);
+         return Item;
+      end Control;
+
+      procedure Activate (Name : String) is
+      begin
+         Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-" & Name)).Activate;
+      end Activate;
+
+      procedure Touch
+        (Kind : Gdk.Event.Gdk_Event_Type; X, Y : Glib.Gdouble;
+         Contact : System.Address)
+      is
+         Seat : constant Gdk.Seat.Gdk_Seat := Gdk.Seat.Gdk_Seat
+           (Area.Get_Display.Get_Default_Seat);
+         function New_Event (Kind : Gdk.Event.Gdk_Event_Type)
+           return Gdk.Event.Gdk_Event
+           with Import, Convention => C, External_Name => "gdk_event_new";
+         procedure Set_Device (Event : Gdk.Event.Gdk_Event;
+                               Device : System.Address)
+           with Import, Convention => C, External_Name => "gdk_event_set_device";
+         procedure Set_Source_Device (Event : Gdk.Event.Gdk_Event;
+                                      Device : System.Address)
+           with Import, Convention => C,
+             External_Name => "gdk_event_set_source_device";
+         Event : constant Gdk.Event.Gdk_Event := New_Event (Kind);
+         Raw : Gdk.Event.Gdk_Event_Touch
+           with Import, Address => Gdk.Event.To_Address (Event);
+         Device : constant System.Address := Seat.Get_Pointer.Get_Object;
+         Actual : Boolean;
+      begin
+         Gdk.Window.Ref (Area.Get_Window);
+         Raw := (The_Type => Kind, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => X, Y => Y, Axes => null,
+            State => 0, Sequence => Gdk.Event.Gdk_Event_Sequence
+              (Glib.C_Proxy'(Glib.To_Proxy (Contact))),
+            Emulating_Pointer => False, Device => Device,
+            X_Root => X, Y_Root => Y);
+         Set_Device (Event, Device);
+         Set_Source_Device (Event, Device);
+         Actual := Area.Event (Event);
+         Gdk.Event.Free (Event);
+         Assert (Actual, "Canvas consumes touch event: " & Kind'Image);
+      end Touch;
+
+      procedure Foreign_Release is
+         Raw : aliased Gdk.Event.Gdk_Event_Button :=
+           (The_Type => Gdk.Event.Button_Release, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => 80.0, Y => 80.0, Axes => null,
+            State => 0, Button => 1, Device => System.Null_Address,
+            X_Root => 80.0, Y_Root => 80.0);
+      begin
+         Assert (not Area.Event (Gdk.Event.To_Event (Raw'Access)),
+                 "A pointer release cannot finish a finger stroke");
+      end Foreign_Release;
+
+      procedure Check_Pixel
+        (X, Y : Glib.Gint; Expected : Gdk.Pixbuf.Rgb_Record)
+      is
+         Surface : constant Cairo.Cairo_Surface := Cairo.Image_Surface.Create
+           (Cairo.Image_Surface.Cairo_Format_RGB24, 96, 96);
+         Context : constant Cairo.Cairo_Context := Cairo.Create (Surface);
+         Sample : Gdk.Pixbuf.Gdk_Pixbuf;
+         Actual : Gdk.Pixbuf.Rgb_Record;
+      begin
+         Canvas.Check_Resize;
+         Drain_Events;
+         Area.Draw (Context);
+         Cairo.Destroy (Context);
+         Sample := Gdk.Pixbuf.Get_From_Surface (Surface, X, Y, 1, 1);
+         Actual := Gdk.Pixbuf.Get_Pixels (Sample) (0);
+         Sample.Unref;
+         Cairo.Surface_Destroy (Surface);
+         Assert (Actual = Expected, "Finger ink pixel:" & X'Image & Y'Image);
+      end Check_Pixel;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Frontend.Create ("Canvas finger drawing", Pop_Under => True);
+      Canvas_Item (Frontend).Activate;
+      Canvas := Canvas_Window (Frontend);
+      Area := Control ("coyote-canvas-drawing-area");
+      Scroll := Gtk.Scrolled_Window.Gtk_Scrolled_Window
+        (Control ("coyote-canvas-viewport"));
+      Toggle := Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-draw-with-finger"));
+      Activate ("new");
+      Drain_Events;
+      Assert (not Toggle.Get_Active and then Scroll.Get_Kinetic_Scrolling,
+              "Finger mode defaults off with touch scrolling available");
+      Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 60.0, 30.5, First_Contact'Address);
+      Assert (not Control ("canvas-undo").Get_Sensitive,
+              "An opted-out touch doesn't add ink");
+
+      Toggle.Set_Active (True);
+      Assert (not Scroll.Get_Kinetic_Scrolling,
+              "Finger Pencil suppresses scroller gesture capture");
+      Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 45.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Begin, 20.0, 65.5, Second_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 50.0, 65.5, Second_Contact'Address);
+      Foreign_Release;
+      Assert (not Control ("canvas-save").Get_Sensitive and then
+                not Control ("canvas-undo").Get_Sensitive and then
+                not Control ("canvas-fit").Get_Sensitive,
+              "Live finger ink is only a view overlay");
+      Check_Pixel (40, 30, (13, 13, 13));
+      Touch (Gdk.Event.Touch_End, 60.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 55.0, 65.5, Second_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 65.0, 65.5, Second_Contact'Address);
+      Check_Pixel (55, 30, (13, 13, 13));
+      Check_Pixel (55, 29, (13, 13, 13));
+      Check_Pixel (55, 31, (13, 13, 13));
+      Check_Pixel (55, 28, (255, 255, 255));
+      Check_Pixel (55, 32, (255, 255, 255));
+      Check_Pixel (45, 65, (255, 255, 255));
+      Activate ("undo");
+      Assert (not Control ("canvas-undo").Get_Sensitive,
+              "One touch stroke is one undo operation");
+      Check_Pixel (55, 30, (255, 255, 255));
+      Activate ("redo");
+      Check_Pixel (55, 30, (13, 13, 13));
+
+      Activate ("zoom-in");
+      Canvas.Check_Resize;
+      Drain_Events;
+      Touch (Gdk.Event.Touch_Begin, 37.5, 63.125, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 75.0, 63.125, First_Contact'Address);
+      Activate ("actual");
+      Check_Pixel (55, 50, (13, 13, 13));
+      Check_Pixel (55, 49, (13, 13, 13));
+      Check_Pixel (55, 48, (255, 255, 255));
+
+      Touch (Gdk.Event.Touch_Begin, 30.0, 70.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 60.0, 70.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Cancel, 60.0, 70.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 60.0, 70.5, First_Contact'Address);
+      Check_Pixel (55, 70, (255, 255, 255));
+      Touch (Gdk.Event.Touch_Begin, 55.0, 70.5, First_Contact'Address);
+      Toggle.Set_Active (False);
+      Toggle.Set_Active (True);
+      Touch (Gdk.Event.Touch_End, 60.0, 70.5, First_Contact'Address);
+      Check_Pixel (55, 70, (255, 255, 255));
+      Activate ("eraser");
+      Assert (Scroll.Get_Kinetic_Scrolling, "Eraser isn't a finger tool");
+      Touch (Gdk.Event.Touch_Begin, 55.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 55.0, 30.5, First_Contact'Address);
+      Check_Pixel (55, 30, (13, 13, 13));
+      Activate ("pencil");
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (False);
+      Assert (Scroll.Get_Kinetic_Scrolling, "Hidden markup doesn't draw");
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (True);
+      Touch (Gdk.Event.Touch_Begin, 55.0, 70.5, First_Contact'Address);
+      Activate ("close");
+      Canvas_Item (Frontend).Activate;
+      Assert (Toggle.Get_Active, "Hiding Canvas keeps the session setting");
+      Touch (Gdk.Event.Touch_End, 60.0, 70.5, First_Contact'Address);
+      Check_Pixel (55, 70, (255, 255, 255));
+      Reset_Agents_From_Task (Frontend);
+      Drain_Events;
+      Assert (not Toggle.Get_Active and then Scroll.Get_Kinetic_Scrolling,
+              "Session reset clears the opt-in");
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+   exception
+      when others =>
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         raise;
+   end Test_Canvas_Finger_Drawing;
+
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
@@ -2583,6 +2777,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas workspace lifecycle and crop",
             Test_Canvas_Workspace'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas finger drawing",
+            Test_Canvas_Finger_Drawing'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas clipboard image import",

@@ -1,6 +1,6 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.48
+**Version:** 1.49
 **Date:** 2026-11-21
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -445,6 +445,7 @@ provider-payload tests. Run live provider checks only as separately authorized.
 | CAN-CLIP-01 | REQ-CORE-270 | Paste cross-process PNG and JPEG fixtures, including a PNG with alpha and an offer containing both formats. Check dimensions and pixels, PNG preference, new Original nodes, unchanged existing drafts, and no implicit attachment or submission. Verify CLIPBOARD is read only on Paste, PRIMARY and conversation text paste are unaffected, and changing the clipboard does not change a pasted image. Exercise empty, unsupported, path or URL text, malformed, oversized and lost-owner offers; simulate a delayed reply after close/reopen and session switch; verify failure feedback and no unintended drawing. Reopen a persisted session after the source exits and verify rejection leaves no drawing data and `--no-session` leaves no persisted Canvas data. |
 | CAN-CROP-01 | REQ-CORE-261, 271 | With a physical Intuos, draw, move and resize a crop on an inked drawing using different zoom, pan and display scale settings; use a mouse and then keyboard alone to set the same rectangle. Verify bounds, displayed dimensions, dimming, rejection of empty or invalid rectangles, and geometry independent of pressure. Verify the synchronized toolbar icons and Edit choices and default Pencil. During pending crop, verify tool-switch controls stay available only for an editable working copy with Show Markup on; switch to Pencil and Eraser and confirm each discards the pending crop, while the pen eraser override preserves the selected choice and Crop precedence applies. Verify only Apply Crop commits; Apply Crop, Cancel, and Escape return to the prior drawing tool; Cancel and Escape leave the drawing unchanged. Confirm Save and Attach are blocked during a pending crop and switching drawings does not apply it. Verify native Tab/arrow toolbar navigation and Edit mnemonics. Apply once and verify Undo and Redo restore the prior and cropped composites, including ink. |
 | CAN-CROP-02 | REQ-CORE-262–264, 266, 271 | Stage the original, apply a crop, and attach the changed draft. Verify parentage, exact dimensions and pixels of the rectangular region, independence of the staged original, and continued editability of retained ink. Capture the ordered payloads and compare against the normal Canvas composites, including edge pixels and alpha. Verify the cropped image contains no out-of-crop pixels, the uncropped revision is unchanged, and replay reopens both exact revisions after session restart. |
+| CAN-TOUCH-01 | REQ-CORE-261 | On the Dell XPS 13 9305 ELAN touchscreen, record the build and display backend. Verify the option is off by default, finger drags pan rather than mark an oversized drawing while off, and opting in with Pencil selected draws aligned three-source-pixel strokes at different zoom and pan settings without moving the viewport. Check that an extra contact cannot mark or take over, each lift is one Undo/Redo operation, and Escape, toggle-off, close and session change discard unfinished strokes. Verify no finger ink with markup hidden, on a saved preview, or under Eraser, Crop or Zoom. Confirm mouse and pen behavior is unchanged and session reset disables finger drawing. Synthetic GTK events are developer evidence, not hardware qualification. |
 | CAN-FOLLOW-01 | REQ-CORE-268–269 | After the follow-on increment, compare two revisions with synchronized navigation and no state changes. Add an explicitly linked agent proposal; confirm correct parent and provenance, rejection of invalid/foreign IDs, and no change to working or staged content. |
 
 ## 5. Test Schedule
@@ -530,7 +531,7 @@ provider-payload tests. Run live provider checks only as separately authorized.
 | REQ-CORE-220–221 | I | Code inspection (GTK call sites) |
 | REQ-CORE-025, 230–234 | T | `llm_settings_tests.adb`, `subagent_integration_tests.adb`, `llm_auth_tests.adb`, DEM-034, DEM-045 |
 | REQ-CORE-240–241 | T | `llm_session_store_tests.adb`, `coyote_app_history_tests.adb`, `coyote_sqc_parser_tests.adb`; legacy `format`/`formatVersion` fields are ignored during Markdown replay |
-| REQ-CORE-260–267 | D/T/I | CAN-GUI-01, CAN-DATA-01, CAN-LIMIT-01, CAN-IMPORT-01 (planned) |
+| REQ-CORE-260–267 | D/T/I | CAN-GUI-01, CAN-DATA-01, CAN-LIMIT-01, CAN-IMPORT-01, CAN-TOUCH-01 (planned) |
 | REQ-CORE-268–269 | D/T | CAN-FOLLOW-01 (planned follow-on) |
 | REQ-CORE-270–271 | D/T | CAN-CLIP-01, CAN-CROP-01, CAN-CROP-02 (planned) |
 | REQ-CORE-300–302 | I | Code inspection |

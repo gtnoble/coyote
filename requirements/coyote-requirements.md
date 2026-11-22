@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.38
+**Version:** 1.39
 **Date:** 2026-11-21
 **Status:** PCR-130 and PCR-131 Canvas and CLI design accepted; implementation and qualification pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
@@ -1585,6 +1585,14 @@ that cannot be supported at those dimensions shall be rejected, not resized.
 Imported files shall not be overwritten. Pan and zoom shall not alter the
 drawing. **View → Show Markup** shall hide or show ink without changing the
 drawing or any attachment.
+
+**Options → Draw with Finger** shall opt into fixed-width Pencil input
+from one touchscreen contact at a time. It shall default to off in each
+session. It shall draw only on the editable working copy with markup shown
+and Pencil selected. A completed contact shall commit one undoable stroke;
+canceling a contact shall discard its unfinished ink. Finger drawing shall
+not use pressure or contact size, change mouse or pen input widths, or
+require access to raw device files.
 
 The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, **Crop**,
 **Zoom In**, and **Zoom Out** icon buttons below the menu bar. The active

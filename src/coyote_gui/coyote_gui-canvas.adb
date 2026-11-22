@@ -76,11 +76,13 @@ package body Coyote_GUI.Canvas is
    use type System.Address;
    use type Gdk.Event.Gdk_Event_Mask;
    use type Gdk.Event.Gdk_Event_Type;
+   use type Gdk.Event.Gdk_Event_Sequence;
    use type Gdk.Device_Tool.Gdk_Device_Tool;
    use type Gdk.Device_Tool.Gdk_Device_Tool_Type;
    use type Rev.Ink_Operation;
    use type Gtk.Radio_Button.Gtk_Radio_Button;
    use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+   PENCIL_WIDTH    : constant Long_Float := 3.0;
    ERASER_DIAMETER : constant Long_Float := 16.0;
    use type Gdk.Types.Gdk_Key_Type;
    use type Gdk.Types.Gdk_Modifier_Type;
@@ -181,6 +183,9 @@ package body Coyote_GUI.Canvas is
    function On_Draw
      (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
       Context : Cairo.Cairo_Context; S : Instance_Access) return Boolean;
+   function On_Touch
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event  : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean;
    function On_Press
      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event  : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean;
@@ -232,9 +237,16 @@ package body Coyote_GUI.Canvas is
 
    function Cropping (S : Instance) return Boolean is (S.Tool = Crop);
 
-   function Can_Select_Tool (S : Instance) return Boolean is
+   function Can_Draw (S : Instance) return Boolean is
      (Can_Edit (S) and then S.Has_Drawing and then S.Editing_Draft
-      and then S.Show_Ink and then not (S.Drawing or else S.Crop_Drag));
+      and then S.Show_Ink);
+
+   function Can_Select_Tool (S : Instance) return Boolean is
+     (Can_Draw (S) and then not (S.Drawing or else S.Crop_Drag));
+
+   function Finger_Pencil (S : Instance) return Boolean is
+     (S.Draw_With_Finger and then S.Tool = Pencil
+      and then S.Zoom_Tool = No_Zoom and then Can_Draw (S));
 
    procedure Storage_Status (S : Instance; Text : String) is
    begin
@@ -329,6 +341,8 @@ package body Coyote_GUI.Canvas is
       S.Import_Item.Set_Sensitive (Can_Edit (S));
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
+      --  GTK's scroller can capture a touch before it reaches the canvas.
+      S.Viewport.Set_Kinetic_Scrolling (not Finger_Pencil (S));
       S.Fit_Item.Set_Sensitive (Zoom_Enabled);
       S.Zoom_In_Item.Set_Sensitive (Zoom_Enabled);
       S.Zoom_Out_Item.Set_Sensitive (Zoom_Enabled);
@@ -451,6 +465,7 @@ package body Coyote_GUI.Canvas is
          S.Anchor_Pending := False;
       end if;
       S.Drawing := False;
+      S.Finger_Sequence := null;
       S.Stroke_Points.Clear;
       S.Crop_Drag := False;
       if Cropping (S) then
@@ -1064,6 +1079,18 @@ package body Coyote_GUI.Canvas is
       Refresh (S.all);
    end On_Markup;
 
+   procedure On_Draw_With_Finger
+     (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class;
+      S    : Instance_Access)
+   is
+   begin
+      S.Draw_With_Finger := Item.Get_Active;
+      if not S.Draw_With_Finger and then S.Finger_Sequence /= null then
+         Cancel_Gesture (S.all);
+      end if;
+      Refresh (S.all);
+   end On_Draw_With_Finger;
+
    procedure Freeze_Attachments (S : aliased in out Instance);
    procedure Apply_Reveal (S : in out Instance);
    procedure Clear_Display (S : in out Instance);
@@ -1345,6 +1372,13 @@ package body Coyote_GUI.Canvas is
       Markup.Set_Name ("canvas-markup");
       Menu.Append (Markup);
       Check_Callback.Connect (Markup, "toggled", On_Markup'Access, State);
+      Group ("_Options");
+      Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic
+        (S.Finger_Item, "Draw with _Finger");
+      S.Finger_Item.Set_Name ("canvas-draw-with-finger");
+      Menu.Append (S.Finger_Item);
+      Check_Callback.Connect
+        (S.Finger_Item, "toggled", On_Draw_With_Finger'Access, State);
       Group ("_Help");
       Item := Action ("_Click for Help", "help-click", Gdk.Types.Keysyms.GDK_F1,
                       Gdk.Types.Shift_Mask);
@@ -1398,7 +1432,11 @@ package body Coyote_GUI.Canvas is
       S.Drawing_Area.Set_Can_Focus (True);
       S.Drawing_Area.Add_Events
         (Gdk.Event.Button_Press_Mask or Gdk.Event.Button_Release_Mask or
-         Gdk.Event.Pointer_Motion_Mask or Gdk.Event.Button_Motion_Mask);
+         Gdk.Event.Pointer_Motion_Mask or Gdk.Event.Button_Motion_Mask or
+         Gdk.Event.Touch_Mask);
+      Event_Callback.Connect
+        (S.Drawing_Area, "touch-event",
+         Event_Marshaller.To_Marshaller (On_Touch'Access), State);
       Draw_Callback.Connect
         (S.Drawing_Area, "draw",
          Draw_Context_Marshaller.To_Marshaller (On_Draw'Access), State);
@@ -1837,6 +1875,7 @@ package body Coyote_GUI.Canvas is
       end loop;
       S.Image_Bytes := 0;
       S.Drawing := False;
+      S.Finger_Sequence := null;
       S.Stroke_Points.Clear;
       S.Crop_Drag   := False;
       S.Tool := Pencil;
@@ -1855,6 +1894,10 @@ package body Coyote_GUI.Canvas is
          Cancel_Gesture (S);
       end if;
       S.Editing_Draft := True;
+      S.Draw_With_Finger := False;
+      if S.Finger_Item /= null then
+         S.Finger_Item.Set_Active (False);
+      end if;
       S.Resetting := False;
       Refresh (S);
       Set_Status (S, "Canvas cleared");
@@ -1871,6 +1914,7 @@ package body Coyote_GUI.Canvas is
       S.Drawing_Area := null;
       S.Viewport    := null;
       S.Fit_Item    := null;
+      S.Finger_Item := null;
       S.Store        := null;
       S.Drawing_Tree := null;
       S.Status       := null;
@@ -1976,7 +2020,7 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Button);
    begin
       if S /= null and then Can_Edit (S.all) and then S.Editing_Draft
-        and then not Cropping (S.all)
+        and then not (Cropping (S.all) or else S.Drawing)
       then
          Coyote_Canvas.Revisions.Undo (S.Document);
          Mark_Dirty (S.all);
@@ -1994,7 +2038,7 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Button);
    begin
       if S /= null and then Can_Edit (S.all) and then S.Editing_Draft
-        and then not Cropping (S.all)
+        and then not (Cropping (S.all) or else S.Drawing)
       then
          Coyote_Canvas.Revisions.Redo (S.Document);
          Mark_Dirty (S.all);
@@ -2518,27 +2562,36 @@ package body Coyote_GUI.Canvas is
      Import, Convention => C, External_Name => "gdk_event_get_coords";
    use type Glib.Gboolean;
 
-   procedure Add_Point
-     (S : in out Instance; Event : Gdk.Event.Gdk_Event; X, Y : Long_Float)
+   function Pointer_Width (S : Instance; Event : Gdk.Event.Gdk_Event)
+     return Long_Float
    is
-      E        : constant Doc.Rectangle := Rev.Extent (S.Document);
       Pressure : Glib.Gdouble;
-      Width    : Long_Float             := 3.0;
    begin
       if S.Gesture_Operation = Rev.Erase then
-         Width := ERASER_DIAMETER;
+         return ERASER_DIAMETER;
       elsif Gdk.Event.Get_Device_Tool (Event) /= null
         and then Read_Axis (Event, Gdk.Types.Axis_Pressure, Pressure) /= 0
         and then Pressure >= 0.0 and then Pressure <= 1.0
       then
-         Width := 1.0 + 7.0 * Long_Float (Pressure);
+         return 1.0 + 7.0 * Long_Float (Pressure);
+      else
+         return PENCIL_WIDTH;
       end if;
+   end Pointer_Width;
+
+   procedure Add_Point
+     (S : in out Instance; X, Y : Glib.Gdouble; Width : Long_Float)
+   is
+      E : constant Doc.Rectangle := Rev.Extent (S.Document);
+      PX : constant Long_Float := Long_Float (X) / S.Zoom;
+      PY : constant Long_Float := Long_Float (Y) / S.Zoom;
+   begin
       declare
          Point : constant Rev.Sample :=
            (X => Long_Float'Max
-              (0.0, Long_Float'Min (X, Long_Float (E.Right - E.Left))),
+              (0.0, Long_Float'Min (PX, Long_Float (E.Right - E.Left))),
             Y => Long_Float'Max
-              (0.0, Long_Float'Min (Y, Long_Float (E.Bottom - E.Top))),
+              (0.0, Long_Float'Min (PY, Long_Float (E.Bottom - E.Top))),
             Width => Width);
          use type Rev.Sample;
       begin
@@ -2553,6 +2606,70 @@ package body Coyote_GUI.Canvas is
          S.Stroke_Points.Append (Point);
       end;
    end Add_Point;
+
+   procedure Commit_Stroke (S : aliased in out Instance) is
+   begin
+      Rev.Add_Stroke (S.Document, S.Stroke_Points, S.Gesture_Operation);
+      Mark_Dirty (S);
+      Clear_Display (S);
+   end Commit_Stroke;
+
+   function On_Touch
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event  : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean
+   is
+      Kind : constant Gdk.Event.Gdk_Event_Type :=
+        Gdk.Event.Get_Event_Type (Event);
+      Sequence : constant Gdk.Event.Gdk_Event_Sequence :=
+        Gdk.Event.Get_Event_Sequence (Event);
+      X, Y : Glib.Gdouble;
+   begin
+      if Kind = Gdk.Event.Touch_Begin and then S.Help_Mode then
+         Disable_Click_Help (S.all);
+         Open_Help (S.all, "canvas-editing");
+         return True;
+      end if;
+      if S.Finger_Sequence /= null and then Sequence = S.Finger_Sequence then
+         if not Finger_Pencil (S.all)
+           or else Kind = Gdk.Event.Touch_Cancel
+         then
+            Cancel_Gesture (S.all);
+         elsif Kind in Gdk.Event.Touch_Update | Gdk.Event.Touch_End then
+            if Read_Coords (Event, X, Y) /= 0 then
+               Add_Point (S.all, X, Y, Width => PENCIL_WIDTH);
+            end if;
+            if Kind = Gdk.Event.Touch_End then
+               Commit_Stroke (S.all);
+               Cancel_Gesture (S.all);
+            end if;
+         end if;
+         Refresh (S.all);
+         return True;
+      end if;
+      --  Extra contacts cannot take over an existing or canceled stroke.
+      if Finger_Pencil (S.all)
+        and then Kind = Gdk.Event.Touch_Begin and then Sequence /= null
+        and then not (S.Drawing or else S.Crop_Drag or else S.Anchor_Pending)
+        and then Read_Coords (Event, X, Y) /= 0
+      then
+         Widget.Grab_Focus;
+         S.Gesture_Operation := Rev.Paint;
+         Add_Point (S.all, X, Y, Width => PENCIL_WIDTH);
+         S.Finger_Sequence := Sequence;
+         S.Drawing := True;
+         Refresh (S.all);
+      end if;
+      --  A declined touch would otherwise reach GTK's default handler,
+      --  which can synthesize mouse events. The scroller has already had
+      --  its capture-phase opportunity when kinetic scrolling is enabled.
+      return True;
+   exception
+      when Rev.Capacity_Error =>
+         Cancel_Gesture (S.all);
+         Set_Status (S.all, "Canvas capacity reached; stroke discarded");
+         Refresh (S.all);
+         return True;
+   end On_Touch;
 
    procedure Drag_Crop (S : in out Instance; X, Y : Long_Float) is
       E    : constant Doc.Rectangle := Rev.Extent (S.Document);
@@ -2610,9 +2727,7 @@ package body Coyote_GUI.Canvas is
          end;
          return True;
       end if;
-      if not Can_Edit (S.all) or else not S.Has_Drawing
-        or else not S.Editing_Draft or else not S.Show_Ink
-      then
+      if not Can_Draw (S.all) then
          return False;
       end if;
       Widget.Grab_Focus;
@@ -2661,7 +2776,7 @@ package body Coyote_GUI.Canvas is
                then Rev.Erase else Rev.Paint);
          end;
          Add_Point
-           (S.all, Event, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
+           (S.all, X, Y, Width => Pointer_Width (S.all, Event));
          S.Drawing := True;
       end if;
       Refresh (S.all);
@@ -2676,6 +2791,7 @@ package body Coyote_GUI.Canvas is
       X, Y : Glib.Gdouble;
    begin
       if not (S.Crop_Drag or else S.Drawing)
+        or else S.Finger_Sequence /= null
         or else Gdk.Event.Get_Pointer_Emulated (Event)
         or else Read_Coords (Event, X, Y) = 0
       then
@@ -2685,7 +2801,7 @@ package body Coyote_GUI.Canvas is
          Drag_Crop (S.all, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
       else
          Add_Point
-           (S.all, Event, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
+           (S.all, X, Y, Width => Pointer_Width (S.all, Event));
       end if;
       Refresh (S.all);
       return True;
@@ -2705,6 +2821,7 @@ package body Coyote_GUI.Canvas is
       X, Y : Glib.Gdouble;
    begin
       if Gdk.Event.Get_Button (Event) /= 1
+        or else S.Finger_Sequence /= null
         or else Gdk.Event.Get_Pointer_Emulated (Event)
         or else not (S.Drawing or else S.Crop_Drag)
       then
@@ -2715,11 +2832,9 @@ package body Coyote_GUI.Canvas is
            and then Read_Coords (Event, X, Y) /= 0
          then
             Add_Point
-              (S.all, Event, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
+              (S.all, X, Y, Width => Pointer_Width (S.all, Event));
          end if;
-         Rev.Add_Stroke (S.Document, S.Stroke_Points, S.Gesture_Operation);
-         Mark_Dirty (S.all);
-         Clear_Display (S.all);
+         Commit_Stroke (S.all);
       elsif Read_Coords (Event, X, Y) /= 0 then
          Drag_Crop (S.all, Long_Float (X) / S.Zoom, Long_Float (Y) / S.Zoom);
       end if;

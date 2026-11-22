@@ -174,6 +174,12 @@ chosen point under the pointer where scrolling allows. Press `Esc` to
 return to the previous editing tool. **View → Fit** shows the full drawing;
 **View → Actual Size** returns to 100%. Zoom changes only the view.
 
+On a touchscreen, turn on **Options → Draw with Finger** and select
+**Pencil** on an editable drawing. Drag one finger to draw a fixed
+3-pixel stroke; lift to commit it or press `Esc` to discard it. Turn the
+option off to pan by touch with Pencil selected, or use the scrollbars.
+The option starts off in each session and does not change pen pressure.
+
 In **Crop**, drag a rectangle or enter exact pixel bounds. Only **Apply Crop**
 changes the drawing. Apply, Cancel, and `Esc` return to the previous drawing
 tool; selecting a different tool discards the pending crop. Use **Undo** or

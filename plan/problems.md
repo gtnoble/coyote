@@ -3,6 +3,19 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-132 — Fixed-width Canvas finger drawing
+
+- **Date reported:** 2026-11-21
+- **Category:** Requirements, Software, Test
+- **Priority:** 4-Minor (opt-in Canvas input).
+- **Authorization:** User requested implementation of fixed-width finger
+  drawing. Contact-size or pressure input from fingers is not in scope.
+- **Change:** REQ-CORE-261 adds an opt-in Pencil mode using GTK touch events
+  without raw device access. CAN-TOUCH-01 defines physical verification.
+- **Status:** Implemented in the development build with synthetic GTK
+  regression tests. Physical ELAN touchscreen and Wayland qualification
+  remain open; see the Frontends development log.
+
 ## PCR-131 — Canvas clipboard import and interactive crop
 
 - **Date reported:** 2026-11-21

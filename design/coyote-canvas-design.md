@@ -1,6 +1,6 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.4
+- **Version:** 1.5
 - **Date:** 2026-11-21
 - **Status:** Baseline accepted by the product owner on 2026-11-21; implementation is in progress and qualification is pending.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
@@ -52,6 +52,7 @@ The v1 request has one `add` operation, a request ID and an ordered file count. 
 | Selected | **Edit Revision** for one selected revision; **Attach** for selected revisions in visible tree order or the active draft when acting in the drawing area. Dim unavailable actions, do not remove them. |
 | Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, synchronized with the icon buttons below the menu bar; **Pencil** is the default. The three editing icons and matching menu items stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
 | View | **Fit**, **Zoom In/Out**, **Actual Size**, and a stable checkbox **Show Markup**; all display-only. **Fit** selects a uniform zoom for the current viewport and displayed draft or revision, up to 400%. It clears panning, preserves a pending crop, and is disabled without a drawing or during an active gesture. |
+| Options | **Draw with Finger** toggles touchscreen Pencil input for the current session; off by default. |
 | Help | Canvas Overview, tasks, Index, Keys & Shortcuts, Product Information and Click for Help using the existing desktop Help path. |
 
 The **Zoom In** and **Zoom Out** magnifier icons select display-only modes.
@@ -68,6 +69,18 @@ Give entries mnemonics, preserve native Tab/tree traversal, use the primary acti
 ### 4.2 Input and clipboard
 
 Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen and mouse, test pressure-axis availability at runtime, and map valid pressure to bounded stroke width. A missing axis, or mouse input, uses fixed width. Each tip-down/up stroke is one edit. Lost capture, device removal, and window/session change end the in-progress gesture without applying another edit; suppress double delivery through emulated mouse events. Pen side-button features and tilt are not required. Physical pressure, drag capture and scaling still need Intuos verification.
+
+Finger drawing uses the drawing area's GTK `touch-event` with
+`Touch_Mask`. While enabled on an editable Pencil draft with markup shown,
+disable kinetic scrolling in that viewport so GTK cannot capture the touch
+for panning. Track the first sequence from begin through end or cancel;
+ignore other fingers. Use widget coordinates and the existing inverse zoom
+and stroke path at three source pixels, regardless of finger contact size.
+Suppress GTK's touch-to-mouse fallback in the drawing area so a touch cannot
+also draw, erase, crop or zoom via synthesized pointer input. When finger
+Pencil is inactive, normal scroller handling is available. Close preserves
+the setting but cancels unfinished ink; reset clears both. No new storage
+format, device permissions or dependencies are needed.
 
 **Eraser** selects a fixed 16-source-pixel round brush, independent of
 pressure and view zoom. A recognized GDK eraser tip temporarily erases for

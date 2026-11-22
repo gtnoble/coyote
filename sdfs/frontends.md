@@ -1,5 +1,22 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas finger drawing (PCR-132)
+
+Options → Draw with Finger is a default-off, session-local checkbox.
+Native GTK touch events feed one contact into the shared Pencil stroke
+buffer at three source pixels. A lift commits one undoable stroke;
+cancellation discards the unfinished stroke. Other contacts do not take
+over. The viewport's kinetic scrolling is disabled while finger Pencil
+is available, and the drawing area consumes touch events to prevent GTK
+from synthesizing another pointer gesture. Mouse and stylus width rules,
+revision storage and exact PNG composition are unchanged.
+
+Development builds passed. Synthetic GDK tests verified exact width,
+zoom mapping, undo/redo, cancellation, extra-contact rejection and no
+finger erasing. All 1,124 Xvfb tests passed, as did Help validation and
+standalone GTK checks (9/9) with runner containment. Physical ELAN
+and Wayland verification remain open in CAN-TOUCH-01.
+
 ## 2026-11-21 — Canvas toolbar magnifiers (PCR-130)
 
 Zoom In and Zoom Out magnifiers change the scale one step at the clicked

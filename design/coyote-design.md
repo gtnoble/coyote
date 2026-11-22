@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.65
+**Version:** 1.66
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -3157,6 +3157,14 @@ Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click for
 Help targets the toolbar, drawing area, or Drawings list without changing
 the tool, drawing, or selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
+
+**Finger Pencil input.** The session-local, default-off Options toggle
+routes one native GDK touch sequence into the shared stroke buffer at the
+mouse Pencil width (three source pixels), without sampling pressure. GTK
+kinetic scrolling is disabled only while finger Pencil is available; the
+drawing area consumes touch events to prevent GTK's pointer fallback. The
+existing gesture cancellation and stroke commit paths protect undo history,
+draft recovery and frozen attachments. No raw touchscreen input is opened.
 
 **Zoom tools.** The toolbar adds plus/minus magnifiers to the existing
 radio group and uses a zoom cursor over the drawing. A magnifier suspends
