@@ -1,12 +1,15 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.66
-**Date:** 2026-11-21
+**Version:** 1.67
+**Date:** 2026-11-22
 
-**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
+**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing developer-tested
+
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
+
+**Canvas revision and draft amendment (PCR-133, 2026-11-22):** SRS and SDD-CANVAS now specify exact-revision display without working-copy replacement, editing a writable displayed revision directly through Pencil/Eraser/Crop, automatic child-revision checkpoint before replacing a dirty working copy, and immutable changed-only Save. Automated developer evidence is recorded in the Frontends development log; formal qualification remains pending.
 
 **Canvas and subcommands (PCR-130/131):** The product owner accepted the
 Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
@@ -3128,15 +3131,17 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 
 ### 5.51 Drawing Canvas and additive CLI
 
-**Implemented workspace.** View → Canvas opens one modeless window for the
-local conversation. File → New makes an 800 × 600 blank Original. Save
-checkpoints changed content in memory; Edit Revision opens a branch point and
-checkpoints the previous draft if needed. Crop changes only the source extent;
-strokes keep their original source coordinates. A view transform never edits
-drawing pixels. Close hides the workspace; session reset clears the live
-model and releases its Canvas writer lease. Session switch and exit flush
-writable changes or ask before discarding them. Authorized command-line
-import and local GTK attachment submission are available.
+**Canvas revision and draft behavior (PCR-133).** View → Canvas opens the session workspace. Single-row revision
+selection and **Show in Canvas** display the exact saved revision without
+replacing the working draft. There is no separate Edit Revision action. Pencil,
+Eraser, and Crop are enabled on a displayed writable revision when Show Markup
+is on. A completed pointer/finger stroke or Apply Crop starts a working copy
+based on that displayed revision; before switching from another dirty working
+copy, checkpoint it as a child revision of its own base, and do not proceed
+if checkpointing fails. Canceled gestures/crops and browsing, zoom, pan, or Fit do not change
+drafts. Save creates an immutable child only for changed content; unchanged
+Save creates no duplicate. Existing revisions, originals, and staged
+attachments remain immutable.
 
 **Eraser, editing tools, and Help.** The toolbar below the menu bar shows
 Pencil, Eraser, and Crop icons with tooltips and accessible names. Cairo
@@ -3145,10 +3150,11 @@ active button has a shaded background and underline. Toolbar styling hides
 the radio indicators without changing GTK keyboard selection; the labeled
 Edit radio group remains synchronized. Pencil is the default. Both controls
 remain available to switch away from
-a pending crop only when an editable working copy exists and Show Markup is on;
-otherwise they are disabled. Only Apply Crop commits, while selecting a drawing
-tool discards a pending crop. Apply, Cancel, and Escape restore the drawing
-tool selected before Crop. A GDK eraser tip temporarily erases without changing
+a pending crop only when the displayed drawing is writable and Show Markup is on;
+otherwise they are disabled. On a saved revision, the first completed stroke
+or Apply Crop starts a working copy based on that revision. Only Apply Crop
+commits, while selecting a drawing tool discards a pending crop. Apply, Cancel,
+and Escape restore the drawing tool selected before Crop. A GDK eraser tip temporarily erases without changing
 the selection; selected Crop takes precedence. Tool choices add no shortcuts;
 native Tab and arrow toolbar navigation and Edit mnemonics remain. Release
 records one undoable edit. The live outline is a view-only guide; saved
@@ -3323,9 +3329,11 @@ short shared session guard.
 
 GTK packs imported rasters as immutable RGBA and takes independent revision
 snapshots. A single job per Canvas performs storage work off GTK; completed
-edits coalesce after 350 ms, including while the Canvas is hidden. Autosave
-adds no revision nodes. File → Save checkpoints a changed draft or retries
-failed storage; errors leave live edits available. User-initiated transitions
+edits coalesce after 350 ms, including while the Canvas is hidden. Recovery
+autosave checkpoints draft data and adds no revision nodes. File → Save creates
+an immutable child revision for changed content and is a no-op when unchanged;
+errors leave live edits available. Before an edit switches away from a different
+dirty draft, checkpoint it as a child revision. User-initiated transitions
 stop new Canvas edits and drain pending saves without a nested GTK loop;
 reset drains and drops old results before binding a different session. These
 waits are not hard time limits. Abrupt termination can lose uncommitted

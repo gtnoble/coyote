@@ -3,6 +3,29 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-133 — Canvas revision display and draft-preserving editing
+
+- **Date reported:** 2026-11-22
+- **Category:** Requirements, Design, Software, Test, Help
+- **Priority:** 4-Minor (Canvas revision workflow).
+- **Authorization:** User requested editing open Canvas drawings directly
+  and saving changes as new revisions.
+- **Affected work products:** SRS-CORE §3.1.20; SDD-CORE §5.51;
+  SDD-CANVAS §§4–6; STP §4.6; Canvas Help topics.
+- **Change:** Single-row revision selection and Show in Canvas display the exact
+  saved revision without replacing a draft. Writable displayed revisions offer
+  Pencil/Eraser/Crop when Show Markup is on; no separate Edit Revision action
+  exists. A completed pointer/finger stroke or Apply Crop begins a working copy
+  from the displayed revision. Before switching from a different dirty working
+  copy, checkpoint it as a child under its own base. Canceled interactions,
+  browsing, and zoom do not change drafts. Save creates an immutable child only for
+  changed content; unchanged saves create no duplicate. Originals, prior
+  revisions, and attachments remain immutable; multi-select behavior is
+  unchanged.
+- **Status:** Implemented and developer-tested. Both development builds and
+  all 1,124 Xvfb tests passed. Help and standalone GTK checks passed. Physical
+  device and desktop qualification remain open; see the Frontends log.
+
 ## PCR-132 — Fixed-width Canvas finger drawing
 
 - **Date reported:** 2026-11-21

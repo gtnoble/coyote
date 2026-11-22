@@ -1,15 +1,15 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.39
-**Date:** 2026-11-21
-**Status:** PCR-130 and PCR-131 Canvas and CLI design accepted; implementation and qualification pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
+**Version:** 1.40
+**Date:** 2026-11-22
+**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior implemented and developer-tested; formal qualification remains pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
-revision records the Canvas and CLI amendment, including clipboard-image
-import and user-applied crop, without changing the scoped local-image
-contract or PCR-116 evidence. The native-math checkpoint status and
-open gaps are recorded in `plan/native-math-parity-test-report.md`.
+revision records the Canvas and CLI amendments, including clipboard-image
+import, user-applied crop, and PCR-133 draft/revision behavior, without changing
+the scoped local-image contract or PCR-116 evidence. The native-math
+checkpoint status and open gaps are recorded in `plan/native-math-parity-test-report.md`.
 **Project Plan:** `plan/project-plan.md`
 
 **Approved native-math target amendment (2026-10-24, PCR-125):**
@@ -1588,9 +1588,10 @@ drawing or any attachment.
 
 **Options → Draw with Finger** shall opt into fixed-width Pencil input
 from one touchscreen contact at a time. It shall default to off in each
-session. It shall draw only on the editable working copy with markup shown
-and Pencil selected. A completed contact shall commit one undoable stroke;
-canceling a contact shall discard its unfinished ink. Finger drawing shall
+session. It shall draw with Pencil on a displayed writable revision or working copy
+when markup is shown. A completed contact on a saved revision shall start a
+working copy from that revision and commit one undoable stroke; canceling a
+contact shall discard its unfinished ink without changing drafts. Finger drawing shall
 not use pressure or contact size, change mouse or pen input widths, or
 require access to raw device files.
 
@@ -1599,11 +1600,12 @@ The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, **Crop**,
 button shall be visibly marked, and each icon shall have a tooltip and
 accessible name. Pencil is the default. The **Edit** radio choices shall
 reflect the current or suspended editing tool. The three editing choices
-shall remain available to leave a pending crop on an editable working copy
-and shall be disabled without one or when **Show Markup** is off. Only
-**Apply Crop** shall commit a pending crop; switching to an ink tool shall
-discard it. Apply Crop, Cancel, and Escape from Crop shall return to the
-previous ink tool. A pen eraser override applies to an ink gesture only.
+shall remain available for a displayed writable revision or working copy
+when **Show Markup** is on, including to leave a pending crop; they shall be
+disabled when no drawing is displayed, it is not writable, or **Show Markup**
+is off. Only **Apply Crop** shall commit a pending crop; switching to an ink
+tool shall discard it. Apply Crop, Cancel, and Escape from Crop shall return to
+the previous ink tool. A pen eraser override applies to an ink gesture only.
 
 The zoom tools shall zoom one step around a mouse click or pen tap on the
 displayed drawing, including in a read-only revision, without changing
@@ -1616,17 +1618,25 @@ toolbar navigation, and Edit and View mnemonics shall remain available.
 **REQ-CORE-262** (D/T) — Drawing tree and revisions
 
 The labeled Drawings tree shall group each drawing under its own root with an
-Original revision. Saving changes shall create an immutable child revision
-under the revision the working copy was based on, with a stable identifier.
-Saving unchanged content shall not create a node. Selecting a revision shall
-preview it without changing the working copy or staging an attachment.
-**Selected → Edit Revision** shall start editing from one selected revision
-without losing existing draft edits. Editing an older revision and saving
-shall create a branch without modifying its descendants. Undo and Redo shall
-act on the current working copy, not on saved nodes or other drawings. The
-tree and Canvas shall distinguish selection, the displayed revision or draft,
-and read-only or sent state with text, not color alone. Any operation that
-would discard edits shall identify the affected drawing and allow cancellation.
+Original revision. Saving changed content shall create an immutable child
+revision under the working copy's exact base revision, with a stable
+identifier. Saving unchanged content shall not create a node. Selecting one
+revision or using **Show in Canvas** shall display that exact saved revision
+without replacing the working copy or staging an attachment. There shall be
+no separate **Selected → Edit Revision** action. When a displayed revision is
+writable and **Show Markup** is on, Pencil, Eraser, and Crop shall be enabled.
+A completed pointer or finger stroke, or **Apply Crop**, shall begin a working
+copy based on the displayed revision. Beginning an unfinished gesture,
+canceling a gesture or pending crop, browsing revisions, and zooming shall not
+change or switch drafts. Before an edit switches from a different dirty
+working copy, checkpoint that copy as a child revision of its own base.
+If checkpointing fails, the requested edit shall not proceed. Editing an older
+revision and saving shall create a branch without modifying that revision's
+descendants. Undo and Redo shall act on the active working copy, not on saved
+nodes or other drawings. The tree and Canvas shall distinguish selection, the
+displayed revision or draft, and read-only or sent state with text, not color
+alone. Any operation that would discard edits shall identify the affected
+drawing and allow cancellation.
 
 **REQ-CORE-263** (D/T) — Multi-image staging
 

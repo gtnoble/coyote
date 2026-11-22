@@ -208,8 +208,6 @@ package body Coyote_GUI.Canvas is
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
    procedure On_Save
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
-   procedure On_Edit
-     (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
    procedure On_Undo
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
    procedure On_Redo
@@ -238,8 +236,9 @@ package body Coyote_GUI.Canvas is
    function Cropping (S : Instance) return Boolean is (S.Tool = Crop);
 
    function Can_Draw (S : Instance) return Boolean is
-     (Can_Edit (S) and then S.Has_Drawing and then S.Editing_Draft
-      and then S.Show_Ink);
+     (Can_Edit (S) and then S.Show_Ink and then
+        (if S.Editing_Draft then S.Has_Drawing
+         else S.Preview_Revision /= Rev.NO_REVISION));
 
    function Can_Select_Tool (S : Instance) return Boolean is
      (Can_Draw (S) and then not (S.Drawing or else S.Crop_Drag));
@@ -297,7 +296,7 @@ package body Coyote_GUI.Canvas is
    end Leave_Zoom_Tool;
 
    function Pending (S : Instance) return Doc.Rectangle is
-      E : constant Doc.Rectangle := Rev.Extent (S.Document);
+      E : constant Doc.Rectangle := Display_Extent (S);
    begin
       if not Cropping (S) or else not Doc.Is_Nonempty (E) then
          return Doc.EMPTY_RECTANGLE;
@@ -322,7 +321,8 @@ package body Coyote_GUI.Canvas is
       Tools_Enabled : constant Boolean := Can_Select_Tool (S);
       Zoom_Enabled  : constant Boolean := Can_Zoom (S, E);
       Valid_Crop : constant Boolean       :=
-        not S.Crop_Drag and then Doc.Is_Nonempty (Pending (S));
+        Can_Draw (S) and then not S.Crop_Drag
+        and then Doc.Is_Nonempty (Pending (S));
    begin
       if S.Drawing_Area = null then
          return;
@@ -336,7 +336,6 @@ package body Coyote_GUI.Canvas is
          and then S.Show_Ink and then S.On_Attach /= null
          and then ((S.Editing_Draft and then S.Has_Drawing)
            or else S.Drawing_Tree.Get_Selection.Count_Selected_Rows > 0));
-      S.Edit_Item.Set_Sensitive (Can_Edit (S) and S.Preview_Revision /= 0);
       S.New_Item.Set_Sensitive (Can_Edit (S));
       S.Import_Item.Set_Sensitive (Can_Edit (S));
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
@@ -1349,7 +1348,6 @@ package body Coyote_GUI.Canvas is
       S.Save_Item := Action ("_Save", "save", Gdk.Types.Keysyms.GDK_LC_s);
       Item        := Action ("_Close", "close", Gdk.Types.Keysyms.GDK_LC_w);
       Group ("_Selected");
-      S.Edit_Item := Action ("_Edit Revision", "edit");
       S.Attach_Item := Action ("_Attach", "attach");
       Group ("_Edit");
       S.Undo_Item   := Action ("_Undo", "undo", Gdk.Types.Keysyms.GDK_LC_z);
@@ -1991,28 +1989,31 @@ package body Coyote_GUI.Canvas is
          Set_Status (S.all, "Revision capacity reached; draft retained");
    end On_Save;
 
-   procedure On_Edit
-     (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
+   function Prepare_Working_Copy (S : aliased in out Instance)
+     return Boolean
    is
-      pragma Unreferenced (Button);
    begin
-      if S /= null and then Can_Edit (S.all) and then S.Preview_Revision /= 0 then
-         Cancel_Gesture (S.all);
+      if not Can_Draw (S) then
+         return False;
+      elsif not S.Editing_Draft then
+         --  Browsing and canceled gestures leave the previous draft alone.
+         --  Edit checkpoints it if dirty before taking the selected base.
          Rev.Edit (S.Document, S.Preview_Revision);
-         Mark_Dirty (S.all);
-         Clear_Display (S.all);
+         Mark_Dirty (S);
+         Clear_Display (S);
          S.Has_Drawing := True;
-         Extend_Tree (S.all);
          S.Editing_Draft := True;
-         Set_Status (S.all, "Editing selected revision draft");
-         Refresh (S.all);
+         Extend_Tree (S);
+         Set_Status
+           (S, "Working copy from revision" &
+              Rev.Revision_Id'Image (S.Preview_Revision));
       end if;
+      return True;
    exception
-      when Coyote_Canvas.Revisions.Capacity_Error =>
-         Set_Status (S.all, "Cannot checkpoint current draft");
-      when Constraint_Error                       =>
-         Set_Status (S.all, "Selected revision is unavailable");
-   end On_Edit;
+      when Rev.Capacity_Error =>
+         Set_Status (S, "Cannot checkpoint current draft; edit not applied.");
+         return False;
+   end Prepare_Working_Copy;
 
    procedure On_Undo
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
@@ -2120,13 +2121,29 @@ package body Coyote_GUI.Canvas is
    procedure On_Apply_Crop
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
    is
+      Region : Doc.Rectangle;
+      E      : Doc.Rectangle;
+      use type Doc.Rectangle;
    begin
-      if S = null or else not Can_Edit (S.all) or else not Cropping (S.all)
+      if S = null or else not Can_Draw (S.all) or else not Cropping (S.all)
         or else S.Crop_Drag
       then
          return;
       end if;
-      Rev.Crop (S.Document, Pending (S.all));
+      Region := Pending (S.all);
+      if not Doc.Is_Nonempty (Region) then
+         Set_Status (S.all, "Crop must be non-empty and within the drawing");
+         return;
+      end if;
+      E := Display_Extent (S.all);
+      if Region = Doc.Full_Extent (E.Right - E.Left, E.Bottom - E.Top) then
+         On_Cancel_Crop (Button, S);
+         Set_Status (S.all, "Crop leaves the drawing unchanged");
+         return;
+      elsif not Prepare_Working_Copy (S.all) then
+         return;
+      end if;
+      Rev.Crop (S.Document, Region);
       Mark_Dirty (S.all);
       Clear_Display (S.all);
       On_Cancel_Crop (Button, S);
@@ -2181,7 +2198,7 @@ package body Coyote_GUI.Canvas is
                S.Editing_Draft := False;
                Set_Status
                  (S.all,
-                  "Read-only revision" &
+                  "Saved revision" &
                   Rev.Revision_Id'Image (S.Preview_Revision));
             end if;
          end if;
@@ -2211,8 +2228,6 @@ package body Coyote_GUI.Canvas is
          end if;
       elsif Name = "canvas-save" then
          On_Save (null, S);
-      elsif Name = "canvas-edit" then
-         On_Edit (null, S);
       elsif Name = "canvas-attach" then
          Freeze_Attachments (S.all);
       elsif Name = "canvas-undo" then
@@ -2582,7 +2597,7 @@ package body Coyote_GUI.Canvas is
    procedure Add_Point
      (S : in out Instance; X, Y : Glib.Gdouble; Width : Long_Float)
    is
-      E : constant Doc.Rectangle := Rev.Extent (S.Document);
+      E : constant Doc.Rectangle := Display_Extent (S);
       PX : constant Long_Float := Long_Float (X) / S.Zoom;
       PY : constant Long_Float := Long_Float (Y) / S.Zoom;
    begin
@@ -2609,9 +2624,11 @@ package body Coyote_GUI.Canvas is
 
    procedure Commit_Stroke (S : aliased in out Instance) is
    begin
-      Rev.Add_Stroke (S.Document, S.Stroke_Points, S.Gesture_Operation);
-      Mark_Dirty (S);
-      Clear_Display (S);
+      if Prepare_Working_Copy (S) then
+         Rev.Add_Stroke (S.Document, S.Stroke_Points, S.Gesture_Operation);
+         Mark_Dirty (S);
+         Clear_Display (S);
+      end if;
    end Commit_Stroke;
 
    function On_Touch
@@ -2672,7 +2689,7 @@ package body Coyote_GUI.Canvas is
    end On_Touch;
 
    procedure Drag_Crop (S : in out Instance; X, Y : Long_Float) is
-      E    : constant Doc.Rectangle := Rev.Extent (S.Document);
+      E    : constant Doc.Rectangle := Display_Extent (S);
       W    : constant Positive      := E.Right - E.Left;
       H    : constant Positive      := E.Bottom - E.Top;
       R    : constant Doc.Rectangle := S.Crop_Start;

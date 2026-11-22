@@ -135,7 +135,7 @@ private
       Rows                                         : Iter_Array;
       Resetting : Boolean := False;
       Listed                                       : Natural := 0;
-      Save_Item, Edit_Item, Draft_Item, Undo_Item,
+      Save_Item, Draft_Item, Undo_Item,
       Redo_Item : Gtk.Menu_Item.Gtk_Menu_Item         := null;
       Apply_Item, Cancel_Item, Fit_Item : Gtk.Menu_Item.Gtk_Menu_Item := null;
       Zoom_In_Item, Zoom_Out_Item, Actual_Item : Gtk.Menu_Item.Gtk_Menu_Item;

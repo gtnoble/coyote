@@ -1398,10 +1398,18 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Only the applied crop was checkpointed");
 
       Activate ("crop");
+      Pointer (Gdk.Event.Button_Press, 3.0, 4.0);
+      Pointer (Gdk.Event.Button_Release, 19.0, 24.0);
+      Activate ("apply");
+      Size (16, 20);
+      Activate ("crop");
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
-      Check_Tool ("eraser", Enabled => False);
+      Check_Tool ("eraser");
       Assert (not Control ("canvas-apply-button").Is_Visible,
-              "Read-only preview cancels pending crop");
+              "Selecting a revision cancels the previous pending crop");
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (False);
+      Check_Tool ("eraser", Enabled => False);
       Canvas.Set_Focus (null);
       Assert (Control ("coyote-canvas-toolbar").Child_Focus
                 (Gtk.Enums.Dir_Tab_Forward) and then
@@ -1421,13 +1429,38 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Control ("canvas-markup")).Set_Active (True);
       Press_Escape;
       Check_Fit;
-      Check_Tool ("eraser", Enabled => False);
+      Check_Tool ("eraser");
       Activate ("actual");
       Size (800, 600);
       Check_Pixel ((255, 255, 255));
+      Activate ("pencil");
+      Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Press_Escape;
+      Check_Pixel ((255, 255, 255));
+      Assert (Get_Iter_From_String (Model, "0:0:0:0") = Null_Iter,
+              "Browsing, zoom and canceled ink don't checkpoint a draft");
       Activate ("draft");
-      Check_Tool ("eraser");
-      Size (60, 80);
+      Size (16, 20);
+      Tree.Get_Selection.Unselect_All;
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
+      Check_Pixel ((13, 13, 13));
+      Assert (Get_Iter_From_String (Model, "0:0:0:0") /= Null_Iter and then
+                Get_Iter_From_String (Model, "0:1") = Null_Iter,
+              "Direct ink checkpoints only the previous dirty draft");
+      Activate ("undo");
+      Check_Pixel ((255, 255, 255));
+      Activate ("redo");
+      Check_Pixel ((13, 13, 13));
+      Activate ("save");
+      Activate ("save");
+      Assert (Get_Iter_From_String (Model, "0:1") /= Null_Iter and then
+                Get_Iter_From_String (Model, "0:1:0") = Null_Iter,
+              "Save creates exactly one child of the selected Original");
+      Tree.Get_Selection.Unselect_All;
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Check_Pixel ((255, 255, 255));
       Activate ("new");
       Assert (Get_Iter_From_String (Model, "1") /= Null_Iter,
               "New retains the first drawing and its revisions");
@@ -1595,13 +1628,12 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (Tree.Get_Selection.Count_Selected_Rows = 0,
               "Paste does not change the selection");
       Assert (N_Children (Model, Row) = 0,
-              "Imported clipboard image is a read-only root");
+              "Imported clipboard image has an immutable Original");
       Gtk.Tree_View.Get_Selection (Tree).Select_Iter (Row);
       Drain_Events;
       Area.Get_Size_Request (Width, Height);
       Assert (Width = 37 and then Height = 23,
               "Selecting clipboard image shows native dimensions");
-      Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-edit")).Activate;
       Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-crop")).Activate;
       Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-x")).Set_Text ("21");
       Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-width")).Set_Text ("8");
@@ -1964,7 +1996,6 @@ package body Coyote_App_Frontend_GUI_Tests is
       Finish_Canvas_Jobs;
       Assert (N_Children (Model) = 1, "one imported Original");
       Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
-      Activate ("edit");
       Activate ("crop");
       Field ("x", "1");
       Field ("y", "2");
@@ -1997,6 +2028,10 @@ package body Coyote_App_Frontend_GUI_Tests is
       Wait_Status ("Read-only: another window owns this Canvas.");
       Assert (N_Children (Model) = 1 and then not Control ("canvas-new").Get_Sensitive,
               "competing Canvas restores but cannot edit");
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      Assert (not Control ("canvas-pencil").Get_Sensitive and then
+                not Control ("canvas-crop").Get_Sensitive,
+              "A selected revision cannot bypass the Canvas writer lease");
       Coyote_Canvas.Store.Release (Other);
       Reset_Agents_From_Task (Frontend);
       Open (A, To_String (Root));
@@ -2511,6 +2546,18 @@ package body Coyote_App_Frontend_GUI_Tests is
               "successful send clears staging and presents a revision action");
       Click ("coyote-user-image-show");
       Assert (Canvas.Get_Visible, "recorded revision can be opened in Canvas");
+      Assert (Widget ("canvas-crop").Get_Sensitive and then
+                not Widget ("canvas-save").Get_Sensitive,
+              "A revealed revision can be edited but is not yet dirty");
+      Activate ("crop");
+      Field ("x", "10");
+      Field ("width", "12");
+      Field ("height", "13");
+      Activate ("apply");
+      Activate ("save");
+      Assert (Get_Iter_From_String (Model, "0:1") /= Null_Iter and then
+                Attachment_Count (F) = 0,
+              "Direct crop of the revealed Original saves a new branch");
       F.Request_Shutdown;
       Main_Window (F).Destroy;
    exception
@@ -2524,10 +2571,12 @@ package body Coyote_App_Frontend_GUI_Tests is
 
    procedure Test_Canvas_Finger_Drawing (T : in out Test) is
       use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
       use type Gdk.Pixbuf.Rgb_Record;
       Frontend : Coyote_App.Frontend.GUI.Instance;
       Canvas : Gtk.Window.Gtk_Window;
       Area : Gtk.Widget.Gtk_Widget;
+      Tree : Gtk.Tree_View.Gtk_Tree_View;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Toggle : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       First_Contact, Second_Contact : aliased Integer := 0;
@@ -2623,7 +2672,9 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Control ("coyote-canvas-viewport"));
       Toggle := Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-draw-with-finger"));
+      Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
       Activate ("new");
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Tree.Get_Model));
       Drain_Events;
       Assert (not Toggle.Get_Active and then Scroll.Get_Kinetic_Scrolling,
               "Finger mode defaults off with touch scrolling available");
@@ -2698,6 +2749,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (Toggle.Get_Active, "Hiding Canvas keeps the session setting");
       Touch (Gdk.Event.Touch_End, 60.0, 70.5, First_Contact'Address);
       Check_Pixel (55, 70, (255, 255, 255));
+      Activate ("save");
+      Assert (Get_Iter_From_String (Tree.Get_Model, "0:0") /= Null_Iter,
+              "Direct finger drawing on the Original saves a child");
       Reset_Agents_From_Task (Frontend);
       Drain_Events;
       Assert (not Toggle.Get_Active and then Scroll.Get_Kinetic_Scrolling,

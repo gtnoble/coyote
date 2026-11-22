@@ -1,5 +1,24 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Edit Canvas revisions directly (PCR-133)
+
+Selecting one revision or opening it from replay displays the exact
+saved image without replacing the working copy. Pencil, Eraser, and
+Crop work directly on that image when edits are allowed. Committing a
+stroke or applying a non-identity crop starts a working copy from the
+shown revision and checkpoints any prior dirty copy under its own base.
+Save appends a child only for changed content. Browsing, zoom, and
+canceled gestures do not checkpoint or switch the working copy. Existing
+revisions, attachment ordering, and frozen PNGs are unchanged.
+
+Development builds passed. All seven focused Canvas GUI cases and the
+full Xvfb suite (1,124/1,124) passed, including direct pointer and finger
+edits, crop from replay, original pixels, dirty-copy checkpointing,
+unchanged Save, and writer lease gating. Help/Mallard checks, standalone
+GTK (9/9), and the runner containment self-test passed. Logs are under
+`/tmp/coyote-pcr133/`. Physical device and desktop qualification remain
+open.
+
 ## 2026-11-21 — Canvas finger drawing (PCR-132)
 
 Options → Draw with Finger is a default-off, session-local checkbox.
