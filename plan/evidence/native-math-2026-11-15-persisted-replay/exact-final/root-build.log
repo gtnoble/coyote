@@ -1,0 +1,17 @@
+Note: Building coyote=0.1.0-dev/coyote.gpr...
+Compile
+   [Ada]          coyote_help.adb
+   [Ada]          coyote_config.ads
+Bind
+   [gprbind]      coyote.bexch
+   [Ada]          coyote.ali
+   [gprbind]      coyote_list_sessions.bexch
+   [Ada]          coyote_list_sessions.ali
+   [gprbind]      coyote_sqc_main.bexch
+   [Ada]          coyote_sqc_main.ali
+Link
+   [link]         coyote.adb
+   [link]         coyote_list_sessions.adb
+   [link]         coyote_sqc_main.adb
+Success: Build finished successfully in 1.93 seconds.
+root_build wall=1.95 user=2.50 sys=0.85 exit=0

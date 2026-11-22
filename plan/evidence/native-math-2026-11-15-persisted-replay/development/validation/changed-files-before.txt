@@ -1,0 +1,4 @@
+test/src/coyote_app-frontend-gui-testing.adb
+test/src/coyote_app-frontend-gui-testing.ads
+test/src/coyote_app_frontend_gui_tests.adb
+test/src/coyote_app_frontend_gui_tests.ads

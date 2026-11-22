@@ -5125,3 +5125,17 @@ are historical, not current-source qualification.
   owner not independently traced despite current instrumented baseline0.
   Historical and reported desktop allocation failures remain unclassified;
   native lifecycle/Valgrind/parity/timing/replay/human gates remain open.
+
+
+### PCR-125 — Persisted math replay integration coverage, 2026-11-15
+
+- **Category:** Test. **Priority:** 3-Moderate.
+- **Action:** native Session_Store file round-trip and History-to-GUI replay
+  twice, exact source/visibility/copy, queued clear and net raster cleanup.
+  Read-only test observers; no product API, limit or requirement change.
+- **Verification:** exact focused1 twice/full1081 twice, GTK/layout/containment
+  and offline HTTP pass. Wrong-cwd960/1081 execution and incomplete65-second
+  HTTP outer timeout retained, not passing evidence; report §11.33.
+- **Status:** scoped developer-verified; PCR-125 OPEN. Native-writer ordinary
+  session only; format/compaction/branch/tool-interleaving, native lifecycle,
+  font/parity/timing and human acceptance gates remain open.

@@ -2357,3 +2357,77 @@ blocker; not independent acceptance. No browser/reference, geometry, raster,
 fuzz or Valgrind rerun. Forced in-flight cancellation, persisted replay,
 cache/repaint, timing, font/parity, strict native lifecycle and human gates
 remain open. PCR-125 OPEN. No release, installation or commit.
+
+
+### 11.33 Persisted-session mixed math GUI replay — 2026-11-15
+
+Test-only increment on e61fd43 adds one frontend case, full registry1081;
+Conversation_Stack remains61 cases. Four existing test files change, with
+read-only frontend forwarding observers confined to test/src. No product API,
+runtime, requirements, limits, budget or coverage fingerprint changes.
+
+The fixture creates a unique temporary HOME and writes user/assistant messages
+through LLM.Session_Store.Create_Session/Append_Message. This HEAD's native writer
+emits version1 header/bare message records; this is not version3-envelope
+qualification. Load_Messages round-trips the exact assistant source. The actual
+History.Render_Session_History reads that saved UUID twice and dispatches through
+GUI frontend queues into the conversation renderer. No direct Append_Text or
+in-memory event replacement stands in for disk replay. GTK waits require replay
+completion plus both display elements terminal; State.Turn_Count remains1 on
+both passes. Source directory matches the saved working directory. Exact display
+source/delimiters survive, supported fraction renders, unsupported display keeps
+source fallback and hidden drawing area. One inline Pixbuf is adopted in the
+closing paragraph; exact hidden-inclusive/visible line assertions distinguish
+rendered hidden source from visible unsupported source. Actual copy-clipboard
+signal returns the exact selected source line. This is paragraph copy, not
+cross-widget whole-response selection or pixel correctness.
+
+Each replay clears through the queued frontend update, waits for no exchange
+and zero math elements, shuts down math jobs and returns retained raster bytes
+to the captured entry baseline. Adoption must increase bytes above entry.
+These are scoped net ledger checks, not ownership isolation or native leak
+freedom. The same saved UUID is reloaded, with no duplicate math elements.
+Cleanup stops the local RPC service/frontend, destroys its window, restores
+HOME and all four frontend-mutated COYOTE environment variables (prior presence
+and value), and removes only the owned unique fixture directory. Inherited
+values are not logged. This process-global HOME fixture is sequential AUnit
+coverage, not concurrent environment isolation. No agent/live provider starts.
+
+Root/test development builds pass, active Alire GNAT15.2/GPRbuild25. Exact final
+focused1/1 twice, full1081/1081 twice, zero assertion failures/unexpected errors;
+cumulative144.235521s/144.221978s, wall144.35s/144.33s. Fresh private WM-free
+1280×1024 Xvfb, X11, preserved XAUTHORITY, fatal GTK criticals. GTK9/9,
+containment (expected synthetic7/9 children), tool layout3/3 and runner36 pass.
+Offline Plain/RPC HTTP lifecycle passes in a coordinator run with a sufficient
+110-second outer allowance; reused across final test-only refinement because
+product source is unchanged. This does not make the earlier incomplete attempt
+pass. Existing warnings remain, including an existing unused with-clause.
+
+Intermediate source4c161... passes preceded source-directory and both-cycle
+raster assertions. Exact final test body SHA25421f65... governs final results.
+One final-gate full attempt ran from ROOT instead of test/:960/1081 successes,
+28 failures/95 errors, mostly fixture-path issues, exit1, cumulative79.251966s.
+Raw failed execution is retained, not discarded or called no execution; it is
+not a valid product qualification run. Correct-cwd planned pair then passes.
+An earlier validation worker imposed an insufficient65-second outer timeout on
+the entire HTTP harness:exit124, empty output, incomplete. Its diagnostic stopped
+an observed child; no proven application hang follows. Coordinator's110-second
+run passes. zsh reserved-variable/quote wrapper errors remain setup issues.
+
+Evidence: `plan/evidence/native-math-2026-11-15-persisted-replay/` retains final
+and evolving raw logs, failure provenance, source/binary hashes and checksums.
+The per-run generated native fixture is deleted by the test and not archived;
+fixture construction/source are retained. Final tests/source hashes and all
+tracked product/src/tools/requirements identity checks pass. Agent/coordinator
+review found no material blocker after environment restoration/source-oracle
+refinement; developer review is not independent acceptance.
+
+This closes only the stated ordinary native-writer persisted math replay case.
+Compaction, branching/forked sessions, tool-interleaved math, legacy-envelope
+matrix, malformed/large sessions, font reflow/cache/repaint, forced active-worker
+interruption, reference parity and human acceptance remain unqualified. Visible
+unsupported inline source is not an independent terminal-status observation.
+Five-second fixture waits and suite timings are not product hard deadlines.
+No browser, geometry, raster, fuzz or Valgrind rerun; native lifecycle and other
+qualification gates remain open. Historical GTK allocation failures unwaived.
+PCR-125 OPEN. No release, installation or commit.

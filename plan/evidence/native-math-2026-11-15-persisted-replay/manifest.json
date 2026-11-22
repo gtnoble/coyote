@@ -1,0 +1,16 @@
+{
+  "parent_commit": "e61fd4346dd5614fbbf6ec69a5fc1ecf096d1e76",
+  "project_date": "2026-11-15",
+  "test_sha256": {
+    "test/src/coyote_app_frontend_gui_tests.adb": "25421f65c0968de634503acd3a1736ef0be7801e84f1538b30cd7539ef0e8f9b",
+    "test/src/coyote_app_frontend_gui_tests.ads": "1a2f3b6a418d4b87547560cf5f2a011d653216fcf79a342ce873b819357ab755",
+    "test/src/coyote_app-frontend-gui-testing.adb": "2cd24d96f9e58be8b586034fe0b0274f1450e0f3e54b06d7c6af5b2b31cc9462",
+    "test/src/coyote_app-frontend-gui-testing.ads": "2447edd323c9d2a7faf10d45b89fdca08450f7af1de86885d0c1b19f83579e40"
+  },
+  "binary_sha256": {
+    "bin/coyote": "3a8bd0c3fc5b8bb6aca70cb808b864803d79a4545bc5f5227dfca80e4637ae74",
+    "test/bin/coyote_test": "7f244b68869b16c54b92eab3e08ce0b12c9b47adbc084b93ea113beb0455a5eb"
+  },
+  "conversation_stack_registration_unchanged": 61,
+  "new_frontend_cases": 1
+}

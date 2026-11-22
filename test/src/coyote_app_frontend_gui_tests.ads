@@ -39,6 +39,9 @@ package Coyote_App_Frontend_GUI_Tests is
    procedure Test_Clear_Conversation_Preserves_Agents
      (T : in out Test);
 
+   procedure Test_Replays_Persisted_Mixed_Math
+     (T : in out Test);
+
    procedure Test_Product_Information_Icon (T : in out Test);
 
    procedure Test_Sandbox_Profiles_Menu (T : in out Test);

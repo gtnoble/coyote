@@ -674,3 +674,19 @@ native losses. Previous uncommitted §11.31 component tests remain unchanged.
 No persisted-session replay, cross-widget whole-response copy, pixel, forced
 in-flight, timing/parity or human acceptance claim. PCR-125 OPEN; no release,
 installation or commit.
+
+
+## 2026-11-15 — Persisted mixed-math replay
+
+Report §11.33 and `plan/evidence/native-math-2026-11-15-persisted-replay/`:
+new frontend regression writes a native session through Session_Store, verifies
+saved source, replays through History and queued GTK twice, checks exact math
+source/fallback/paragraph copy and returns raster charges to baseline after both
+clears. Unique HOME and four GUI-mutated environment values are restored.
+Four test files only; no product/API/requirements/limit changes. Conversation
+registration remains61; full1081 twice and focused1 twice pass on exact-final
+source. GTK/layout/containment and offline HTTP pass. A wrong-cwd failed full
+execution and an insufficient65-second HTTP outer-timeout attempt are retained
+separately, not passing evidence. Ordinary native-writer replay only: no legacy
+format/compaction/branch/tool-interleaving matrix, parity/lifecycle/timing or human
+acceptance closure. PCR-125 OPEN; no release, installation or commit.

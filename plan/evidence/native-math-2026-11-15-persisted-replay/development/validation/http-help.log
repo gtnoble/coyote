@@ -1,0 +1,8 @@
+usage: check-http-timeout-lifecycle.py [-h] [--binary BINARY]
+
+Offline subprocess regression for coyote's HTTP low-speed timeout lifecycle.
+
+options:
+  -h, --help       show this help message and exit
+  --binary BINARY  repository coyote executable (default:
+                   /home/gtnoble/Projects/coyote/coyote-latex-math/bin/coyote)

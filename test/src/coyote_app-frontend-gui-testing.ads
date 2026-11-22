@@ -12,6 +12,7 @@ with Gtk.Menu_Item;
 with Gtk.Progress_Bar;
 with Gtk.Separator;
 with Gtk.Tree_View;
+with Gtk.Text_View;
 with Gtk.Window;
 
 package Coyote_App.Frontend.GUI.Testing is
@@ -144,6 +145,36 @@ package Coyote_App.Frontend.GUI.Testing is
 
    function Conversation_Has_Exchange
      (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
+
+   function Conversation_Is_Completed
+     (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
+   function Conversation_Math_Count
+     (F : Coyote_App.Frontend.GUI.Instance) return Natural;
+
+   function Conversation_Math_Source
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return String;
+
+   function Conversation_Math_Is_Valid
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean;
+
+   function Conversation_Math_Is_Pending
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean;
+
+   function Conversation_Math_Area_Visible
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean;
+
+   function Conversation_Math_Fallback_Visible
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean;
+
+   --  This view is borrowed; do not retain it across clear.
+   function Conversation_Active_View
+     (F : Coyote_App.Frontend.GUI.Instance)
+      return Gtk.Text_View.Gtk_Text_View;
 
    function Conversation_Active_Text
      (F : Coyote_App.Frontend.GUI.Instance) return String;

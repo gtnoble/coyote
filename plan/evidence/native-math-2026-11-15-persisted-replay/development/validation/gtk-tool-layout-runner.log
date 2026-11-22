@@ -1,0 +1,5 @@
+Logs: /tmp/coyote-persisted-math-validation/gtk-tool-layout/gtk-tool-layout-qoct389a
+PASS repeat 1 (0); cleanup_ok=True: /tmp/coyote-persisted-math-validation/gtk-tool-layout/gtk-tool-layout-qoct389a/repeat-01.log
+PASS repeat 2 (0); cleanup_ok=True: /tmp/coyote-persisted-math-validation/gtk-tool-layout/gtk-tool-layout-qoct389a/repeat-02.log
+PASS repeat 3 (0); cleanup_ok=True: /tmp/coyote-persisted-math-validation/gtk-tool-layout/gtk-tool-layout-qoct389a/repeat-03.log
+Summary: 3/3 passed; metadata: /tmp/coyote-persisted-math-validation/gtk-tool-layout/gtk-tool-layout-qoct389a/summary.json

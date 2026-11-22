@@ -424,6 +424,72 @@ package body Coyote_App.Frontend.GUI.Testing is
       return Coyote_GUI.Conversation_Stack.Testing.Has_Exchange (F.Stack);
    end Conversation_Has_Exchange;
 
+   function Conversation_Is_Completed
+     (F : Coyote_App.Frontend.GUI.Instance) return Boolean is
+   begin
+      return Coyote_GUI.Conversation_Stack.Testing.Is_Completed (F.Stack);
+   end Conversation_Is_Completed;
+   function Conversation_Math_Count
+     (F : Coyote_App.Frontend.GUI.Instance) return Natural is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Math_Element_Count
+          (F.Stack);
+   end Conversation_Math_Count;
+
+   function Conversation_Math_Source
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return String is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Math_Source
+          (F.Stack, Index);
+   end Conversation_Math_Source;
+
+   function Conversation_Math_Is_Valid
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Math_Is_Valid
+          (F.Stack, Index);
+   end Conversation_Math_Is_Valid;
+
+   function Conversation_Math_Is_Pending
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Math_Is_Pending
+          (F.Stack, Index);
+   end Conversation_Math_Is_Pending;
+
+   function Conversation_Math_Area_Visible
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Math_Area_Visible
+          (F.Stack, Index);
+   end Conversation_Math_Area_Visible;
+
+   function Conversation_Math_Fallback_Visible
+     (F     : Coyote_App.Frontend.GUI.Instance;
+      Index : Positive) return Boolean is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Math_Fallback_Visible
+          (F.Stack, Index);
+   end Conversation_Math_Fallback_Visible;
+
+   function Conversation_Active_View
+     (F : Coyote_App.Frontend.GUI.Instance)
+      return Gtk.Text_View.Gtk_Text_View is
+   begin
+      return
+        Coyote_GUI.Conversation_Stack.Testing.Active_Text_View (F.Stack);
+   end Conversation_Active_View;
+
    function Conversation_Active_Text
      (F : Coyote_App.Frontend.GUI.Instance) return String is
    begin

@@ -1,0 +1,590 @@
+diff --git a/test/src/coyote_app-frontend-gui-testing.adb b/test/src/coyote_app-frontend-gui-testing.adb
+index aeba066..c13a80a 100644
+--- a/test/src/coyote_app-frontend-gui-testing.adb
++++ b/test/src/coyote_app-frontend-gui-testing.adb
+@@ -424,6 +424,72 @@ package body Coyote_App.Frontend.GUI.Testing is
+       return Coyote_GUI.Conversation_Stack.Testing.Has_Exchange (F.Stack);
+    end Conversation_Has_Exchange;
+ 
++   function Conversation_Is_Completed
++     (F : Coyote_App.Frontend.GUI.Instance) return Boolean is
++   begin
++      return Coyote_GUI.Conversation_Stack.Testing.Is_Completed (F.Stack);
++   end Conversation_Is_Completed;
++   function Conversation_Math_Count
++     (F : Coyote_App.Frontend.GUI.Instance) return Natural is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Math_Element_Count
++          (F.Stack);
++   end Conversation_Math_Count;
++
++   function Conversation_Math_Source
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return String is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Math_Source
++          (F.Stack, Index);
++   end Conversation_Math_Source;
++
++   function Conversation_Math_Is_Valid
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Math_Is_Valid
++          (F.Stack, Index);
++   end Conversation_Math_Is_Valid;
++
++   function Conversation_Math_Is_Pending
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Math_Is_Pending
++          (F.Stack, Index);
++   end Conversation_Math_Is_Pending;
++
++   function Conversation_Math_Area_Visible
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Math_Area_Visible
++          (F.Stack, Index);
++   end Conversation_Math_Area_Visible;
++
++   function Conversation_Math_Fallback_Visible
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Math_Fallback_Visible
++          (F.Stack, Index);
++   end Conversation_Math_Fallback_Visible;
++
++   function Conversation_Active_View
++     (F : Coyote_App.Frontend.GUI.Instance)
++      return Gtk.Text_View.Gtk_Text_View is
++   begin
++      return
++        Coyote_GUI.Conversation_Stack.Testing.Active_Text_View (F.Stack);
++   end Conversation_Active_View;
++
+    function Conversation_Active_Text
+      (F : Coyote_App.Frontend.GUI.Instance) return String is
+    begin
+diff --git a/test/src/coyote_app-frontend-gui-testing.ads b/test/src/coyote_app-frontend-gui-testing.ads
+index 2d55c9a..d49793d 100644
+--- a/test/src/coyote_app-frontend-gui-testing.ads
++++ b/test/src/coyote_app-frontend-gui-testing.ads
+@@ -12,6 +12,7 @@ with Gtk.Menu_Item;
+ with Gtk.Progress_Bar;
+ with Gtk.Separator;
+ with Gtk.Tree_View;
++with Gtk.Text_View;
+ with Gtk.Window;
+ 
+ package Coyote_App.Frontend.GUI.Testing is
+@@ -145,6 +146,36 @@ package Coyote_App.Frontend.GUI.Testing is
+    function Conversation_Has_Exchange
+      (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
+ 
++   function Conversation_Is_Completed
++     (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
++   function Conversation_Math_Count
++     (F : Coyote_App.Frontend.GUI.Instance) return Natural;
++
++   function Conversation_Math_Source
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return String;
++
++   function Conversation_Math_Is_Valid
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean;
++
++   function Conversation_Math_Is_Pending
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean;
++
++   function Conversation_Math_Area_Visible
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean;
++
++   function Conversation_Math_Fallback_Visible
++     (F     : Coyote_App.Frontend.GUI.Instance;
++      Index : Positive) return Boolean;
++
++   --  This view is borrowed; do not retain it across clear.
++   function Conversation_Active_View
++     (F : Coyote_App.Frontend.GUI.Instance)
++      return Gtk.Text_View.Gtk_Text_View;
++
+    function Conversation_Active_Text
+      (F : Coyote_App.Frontend.GUI.Instance) return String;
+ 
+diff --git a/test/src/coyote_app_frontend_gui_tests.adb b/test/src/coyote_app_frontend_gui_tests.adb
+index fc1a217..c632af5 100644
+--- a/test/src/coyote_app_frontend_gui_tests.adb
++++ b/test/src/coyote_app_frontend_gui_tests.adb
+@@ -6,6 +6,22 @@ with AUnit.Test_Caller;
+ with Ada.Environment_Variables;
+ with Ada.Real_Time;
+ with Ada.Strings.Unbounded;
++with Ada.Directories;
++with Ada.Containers;
++with Ada.Strings.Fixed;
++with Coyote_App;
++with Coyote_App.History;
++with Coyote_Temp_Files;
++with Gtk.Clipboard;
++with Gtk.Text_Buffer;
++with Gtk.Text_Iter;
++with Gtk.Text_View;
++with Gtk.Handlers;
++with Gdk.Pixbuf;
++with LLM.Session_Store;
++with LLM.Types;
++with Coyote_Math_Jobs;
++with Coyote_GUI.Math_Element;
+ with AUnit.Assertions;
+ with Coyote_App.Agent_RPC;
+ with Coyote_App.Agent_RPC.Transport;
+@@ -34,6 +50,9 @@ with Gtk.Window;
+ 
+ package body Coyote_App_Frontend_GUI_Tests is
+ 
++   package Widget_Actions is new Gtk.Handlers.Callback
++     (Gtk.Widget.Gtk_Widget_Record);
++
+    use AUnit.Assertions;
+    use type Glib.Gint;
+    use type Glib.Guint;
+@@ -936,6 +955,400 @@ package body Coyote_App_Frontend_GUI_Tests is
+       Main_Window (Frontend).Destroy;
+    end Test_Sandbox_Profiles_Menu;
+ 
++   procedure Test_Replays_Persisted_Mixed_Math
++     (T : in out Test)
++   is
++      use Coyote_App.Frontend.GUI.Testing;
++      use Ada.Strings.Unbounded;
++      use type Gtk.Text_View.Gtk_Text_View;
++      use type Gtk.Text_Buffer.Gtk_Text_Buffer;
++      use type Ada.Real_Time.Time;
++      use type LLM.Types.Role;
++      use type LLM.Types.Content_Block_Kind;
++      use type GNAT.OS_Lib.File_Descriptor;
++      use type Ada.Directories.File_Size;
++      use type Ada.Containers.Count_Type;
++      use type Gdk.Pixbuf.Gdk_Pixbuf;
++
++      type Environment_Record is record
++         Is_Present : Boolean := False;
++         Value      : Unbounded_String;
++      end record;
++      type Environment_Array is array (Positive range 1 .. 4)
++        of Environment_Record;
++      Environment_Names : constant array (Positive range 1 .. 4) of
++        String (1 .. 36) :=
++          (1 => "COYOTE_RPC_ENDPOINT                 ",
++           2 => "COYOTE_RUNTIME_AGENT_ID             ",
++           3 => "COYOTE_PARENT_RUNTIME_AGENT_ID      ",
++           4 => "COYOTE_AGENT_LABEL                  ");
++
++      function Snapshot_Environment return Environment_Array is
++         Result : Environment_Array;
++      begin
++         for Index in Result'Range loop
++            declare
++               Name : constant String :=
++                 Ada.Strings.Fixed.Trim
++                   (Environment_Names (Index), Ada.Strings.Right);
++            begin
++               Result (Index).Is_Present :=
++                 Ada.Environment_Variables.Exists (Name);
++               if Result (Index).Is_Present then
++                  Result (Index).Value := To_Unbounded_String
++                    (Ada.Environment_Variables.Value (Name));
++               end if;
++            end;
++         end loop;
++         return Result;
++      end Snapshot_Environment;
++
++      Frontend       : Coyote_App.Frontend.GUI.Instance;
++      State          : Coyote_App.App_State;
++      Temp_FD        : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
++      Temp_Path      : Unbounded_String;
++      Temp_Root      : Unbounded_String;
++      Root_Owned     : Boolean := False;
++      Session_Id     : Unbounded_String;
++      Session_Path   : Unbounded_String;
++      Frontend_Ready : Boolean := False;
++      Raster_Baseline : Natural;
++      Home_Was_Set   : constant Boolean :=
++        Ada.Environment_Variables.Exists ("HOME");
++      Old_Home       : constant String :=
++        Ada.Environment_Variables.Value ("HOME", "");
++      Saved_Environment : constant Environment_Array :=
++        Snapshot_Environment;
++      Source         : constant String :=
++        "Opening paragraph." & ASCII.LF & ASCII.LF
++        & "$$\frac{a}{b}$$" & ASCII.LF & ASCII.LF
++        & "Closing paragraph with $x+1$ and "
++        & "$\unknowncommand$ preserved." & ASCII.LF & ASCII.LF
++        & "$$\unknowncommand$$";
++      Display_Source : constant String := "$$\frac{a}{b}$$";
++      Invalid_Source : constant String := "$$\unknowncommand$$";
++      Closing_Line   : constant String :=
++        "Closing paragraph with $x+1$ and "
++        & "$\unknowncommand$ preserved.";
++      Visible_Closing_Line : constant String :=
++        "Closing paragraph with  and $\unknowncommand$ preserved.";
++      Quit           : Boolean;
++      pragma Unreferenced (Quit);
++
++      procedure Pump_Events is
++      begin
++         if Gtk.Main.Events_Pending then
++            Quit := Gtk.Main.Main_Iteration_Do (False);
++         else
++            delay 0.01;
++         end if;
++      end Pump_Events;
++
++      procedure Wait_For_Math is
++         Deadline : constant Ada.Real_Time.Time :=
++           Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
++      begin
++         while Ada.Real_Time.Clock < Deadline
++           and then
++             (Conversation_Math_Count (Frontend) /= 2
++              or else Conversation_Math_Is_Pending (Frontend, 1)
++              or else Conversation_Math_Is_Pending (Frontend, 2)
++              or else not Conversation_Is_Completed (Frontend))
++         loop
++            Pump_Events;
++         end loop;
++         Assert
++           (Conversation_Math_Count (Frontend) = 2
++            and then not Conversation_Math_Is_Pending (Frontend, 1)
++            and then not Conversation_Math_Is_Pending (Frontend, 2)
++            and then Conversation_Is_Completed (Frontend),
++            "replay completion and math workers finish within five seconds");
++      end Wait_For_Math;
++
++      procedure Restore_Home;
++
++      function Load_Persisted_Messages
++         return LLM.Types.Message_Vectors.Vector
++      is
++         Result : LLM.Types.Message_Vectors.Vector;
++      begin
++         Ada.Environment_Variables.Set ("HOME", To_String (Temp_Root));
++         Result := LLM.Session_Store.Load_Messages (To_String (Session_Id));
++         Restore_Home;
++         return Result;
++      exception
++         when others =>
++            Restore_Home;
++            raise;
++      end Load_Persisted_Messages;
++
++      procedure Check_Replayed_Content is
++         View     : Gtk.Text_View.Gtk_Text_View;
++         Buffer   : Gtk.Text_Buffer.Gtk_Text_Buffer;
++         First    : Gtk.Text_Iter.Gtk_Text_Iter;
++         Last     : Gtk.Text_Iter.Gtk_Text_Iter;
++         Messages : constant LLM.Types.Message_Vectors.Vector :=
++           Load_Persisted_Messages;
++      begin
++         Wait_For_Math;
++         Assert
++           (Image_Source_Directory (Frontend) = To_String (Temp_Root),
++            "history restores the persisted session working directory");
++         Assert
++           (Messages.Length = 2,
++            "native session reload restores both fixture messages");
++         Assert
++           (Messages.Element (1).Role = LLM.Types.Assistant
++            and then Messages.Element (1).Content.Length = 1
++            and then Messages.Element (1).Content.Element (0).Kind =
++              LLM.Types.Text_Block
++            and then To_String
++              (Messages.Element (1).Content.Element (0).Text) = Source,
++            "native session reload preserves the exact assistant source");
++         View := Conversation_Active_View (Frontend);
++         Assert (View /= null, "history replay creates an active text view");
++         Buffer := Gtk.Text_View.Get_Buffer (View);
++         Assert (Buffer /= null, "active math view owns a text buffer");
++         Assert
++           (Conversation_Math_Count (Frontend) = 2
++            and then Conversation_Math_Source (Frontend, 1) = Display_Source
++            and then Conversation_Math_Source (Frontend, 2) = Invalid_Source,
++            "display math source survives persisted replay exactly");
++         Assert
++           (Conversation_Math_Is_Valid (Frontend, 1)
++            and then Conversation_Math_Area_Visible (Frontend, 1)
++            and then not Conversation_Math_Is_Valid (Frontend, 2)
++            and then not Conversation_Math_Area_Visible (Frontend, 2)
++            and then Conversation_Math_Fallback_Visible (Frontend, 2),
++            "valid display renders; invalid display remains visible fallback");
++         declare
++            Deadline : constant Ada.Real_Time.Time :=
++              Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
++            Pixbuf_Count : Natural;
++         begin
++            loop
++               Pixbuf_Count := 0;
++               Buffer.Get_Start_Iter (First);
++               while not Gtk.Text_Iter.Is_End (First) loop
++                  if Gtk.Text_Iter.Get_Pixbuf (First) /= null then
++                     Pixbuf_Count := Pixbuf_Count + 1;
++                  end if;
++                  declare
++                     Moved : Boolean;
++                  begin
++                     Gtk.Text_Iter.Forward_Char (First, Moved);
++                     exit when not Moved;
++                  end;
++               end loop;
++               exit when Pixbuf_Count >= 1
++                 or else Ada.Real_Time.Clock >= Deadline;
++               Pump_Events;
++            end loop;
++            Assert
++              (Pixbuf_Count = 1,
++               "valid inline formula is adopted as one GTK Pixbuf");
++         end;
++         Assert
++           (Coyote_GUI.Math_Element.Retained_Raster_Bytes > Raster_Baseline,
++            "replayed formula rasters retain bytes above entry baseline");
++         Buffer.Get_Iter_At_Line (First, 0);
++         Buffer.Get_Iter_At_Line (Last, 0);
++         declare
++            Moved : Boolean;
++         begin
++            Gtk.Text_Iter.Forward_To_Line_End (Last, Moved);
++         end;
++         Assert
++           (Buffer.Get_Text (First, Last, True) = Closing_Line
++            and then Buffer.Get_Text (First, Last, False) =
++              Visible_Closing_Line,
++            "GTK buffer retains source and hides rendered inline math only");
++         Buffer.Select_Range (First, Last);
++         Widget_Actions.Emit_By_Name
++           (Gtk.Widget.Gtk_Widget (View), "copy-clipboard");
++         Assert
++           (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) = Closing_Line,
++            "GTK copy-clipboard signal restores selected mixed-math source");
++      end Check_Replayed_Content;
++
++      procedure Restore_Home is
++      begin
++         if Home_Was_Set then
++            Ada.Environment_Variables.Set ("HOME", Old_Home);
++         elsif Ada.Environment_Variables.Exists ("HOME") then
++            Ada.Environment_Variables.Clear ("HOME");
++         end if;
++      end Restore_Home;
++
++      procedure Restore_Gui_Environment is
++      begin
++         for Index in Saved_Environment'Range loop
++            declare
++               Name : constant String :=
++                 Ada.Strings.Fixed.Trim
++                   (Environment_Names (Index), Ada.Strings.Right);
++            begin
++               if Saved_Environment (Index).Is_Present then
++                  Ada.Environment_Variables.Set
++                    (Name, To_String (Saved_Environment (Index).Value));
++               elsif Ada.Environment_Variables.Exists (Name) then
++                  Ada.Environment_Variables.Clear (Name);
++               end if;
++            end;
++         end loop;
++      end Restore_Gui_Environment;
++
++      function Gui_Environment_Is_Restored return Boolean is
++      begin
++         for Index in Saved_Environment'Range loop
++            declare
++               Name : constant String :=
++                 Ada.Strings.Fixed.Trim
++                   (Environment_Names (Index), Ada.Strings.Right);
++            begin
++               if Ada.Environment_Variables.Exists (Name)
++                 /= Saved_Environment (Index).Is_Present
++               then
++                  return False;
++               end if;
++               if Saved_Environment (Index).Is_Present
++                 and then Ada.Environment_Variables.Value (Name)
++                   /= To_String (Saved_Environment (Index).Value)
++               then
++                  return False;
++               end if;
++            end;
++         end loop;
++         return True;
++      end Gui_Environment_Is_Restored;
++
++      procedure Cleanup is
++      begin
++         if Frontend_Ready then
++            Frontend.Request_Shutdown;
++            if Main_Window (Frontend) /= null then
++               Main_Window (Frontend).Destroy;
++            end if;
++            Frontend_Ready := False;
++         end if;
++         Coyote_Math_Jobs.Shutdown;
++         Restore_Home;
++         Restore_Gui_Environment;
++         if Root_Owned
++           and then Temp_Root /= Null_Unbounded_String
++           and then Ada.Directories.Exists (To_String (Temp_Root))
++         then
++            Ada.Directories.Delete_Tree (To_String (Temp_Root));
++            Root_Owned := False;
++         end if;
++      end Cleanup;
++
++      procedure Append_Text_Message
++        (Role : LLM.Types.Role; Text : String) is
++         Content : LLM.Types.Content_Block_Vectors.Vector;
++      begin
++         Content.Append
++           ((Kind => LLM.Types.Text_Block,
++             Text => To_Unbounded_String (Text)));
++         LLM.Session_Store.Append_Message
++           (To_String (Session_Id),
++            (Role      => Role,
++             Content   => Content,
++             Tok_Usage => (others => 0),
++             Stop      =>
++               (if Role = LLM.Types.Assistant
++                then LLM.Types.Stop
++                else LLM.Types.Unknown_Stop),
++             Timestamp => Null_Unbounded_String));
++      end Append_Text_Message;
++
++      procedure Wait_For_Clear is
++         Deadline : constant Ada.Real_Time.Time :=
++           Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
++      begin
++         while Ada.Real_Time.Clock < Deadline
++           and then Conversation_Has_Exchange (Frontend)
++         loop
++            Pump_Events;
++         end loop;
++         Assert
++           (not Conversation_Has_Exchange (Frontend)
++            and then Conversation_Math_Count (Frontend) = 0,
++            "queued clear removes the prior replay before the next cycle");
++         Coyote_Math_Jobs.Shutdown;
++         while Ada.Real_Time.Clock < Deadline
++           and then Coyote_GUI.Math_Element.Retained_Raster_Bytes /=
++             Raster_Baseline
++         loop
++            Pump_Events;
++         end loop;
++         Assert
++           (Coyote_GUI.Math_Element.Retained_Raster_Bytes = Raster_Baseline,
++            "cleared persisted replay returns raster bytes to entry baseline");
++      end Wait_For_Clear;
++   begin
++      if not T.Display_Available then
++         return;
++      end if;
++
++      Coyote_Math_Jobs.Shutdown;
++      Raster_Baseline := Coyote_GUI.Math_Element.Retained_Raster_Bytes;
++      Coyote_Temp_Files.Create (Temp_FD, Temp_Path);
++      Assert
++        (Temp_FD /= GNAT.OS_Lib.Invalid_FD,
++         "unique temporary fixture root is created");
++      GNAT.OS_Lib.Close (Temp_FD);
++      Temp_FD := GNAT.OS_Lib.Invalid_FD;
++      Ada.Directories.Delete_File (To_String (Temp_Path));
++      Temp_Root := Temp_Path;
++      Temp_Path := Null_Unbounded_String;
++      Ada.Directories.Create_Directory (To_String (Temp_Root));
++      Root_Owned := True;
++      Ada.Environment_Variables.Set ("HOME", To_String (Temp_Root));
++      Session_Id := To_Unbounded_String
++        (LLM.Session_Store.Create_Session (To_String (Temp_Root)));
++      Session_Path := To_Unbounded_String
++        (LLM.Session_Store.Session_File_Path (To_String (Session_Id)));
++      Append_Text_Message (LLM.Types.User, "Persisted math request");
++      Append_Text_Message (LLM.Types.Assistant, Source);
++      Assert
++        (Ada.Directories.Exists (To_String (Session_Path))
++         and then Ada.Directories.Size (To_String (Session_Path)) > 0,
++         "native SessionStore writes the persisted fixture");
++      Restore_Home;
++
++      Coyote_App.Frontend.GUI.Create
++        (Frontend, "coyote persisted mixed math replay test",
++         Pop_Under => True,
++         Notifications_Allowed => False,
++         Notifications_Enabled => False);
++      Frontend_Ready := True;
++      for Round in 1 .. 2 loop
++         Ada.Environment_Variables.Set ("HOME", To_String (Temp_Root));
++         Coyote_App.History.Render_Session_History
++           (UUID => To_String (Session_Id),
++            Frontend => Frontend,
++            State => State);
++         Restore_Home;
++         Assert
++           (State.Turn_Count = 1,
++            "one persisted assistant turn is restored");
++         Check_Replayed_Content;
++         Coyote_App.Frontend.GUI.Clear_Conversation (Frontend);
++         Wait_For_Clear;
++      end loop;
++      Cleanup;
++      Assert
++        (Gui_Environment_Is_Restored
++         and then Ada.Environment_Variables.Exists ("HOME") = Home_Was_Set
++         and then Ada.Environment_Variables.Value ("HOME", "") = Old_Home,
++         "GUI shutdown restores inherited environment presence and values");
++   exception
++      when others =>
++         Cleanup;
++         raise;
++   end Test_Replays_Persisted_Mixed_Math;
++
+    package Coyote_App_Frontend_GUI_Caller is new AUnit.Test_Caller
+      (Coyote_App_Frontend_GUI_Tests.Test);
+ 
+@@ -998,6 +1411,11 @@ package body Coyote_App_Frontend_GUI_Tests is
+            ("Coyote.GUI clear conversation preserves agents",
+             Coyote_App_Frontend_GUI_Tests
+               .Test_Clear_Conversation_Preserves_Agents'Access));
++      Result.Add_Test
++        (Coyote_App_Frontend_GUI_Caller.Create
++           ("Coyote_App.Frontend.GUI replays persisted mixed math",
++            Coyote_App_Frontend_GUI_Tests
++              .Test_Replays_Persisted_Mixed_Math'Access));
+ 
+       return Result;
+    end Suite;
+diff --git a/test/src/coyote_app_frontend_gui_tests.ads b/test/src/coyote_app_frontend_gui_tests.ads
+index 00ce018..e7cf151 100644
+--- a/test/src/coyote_app_frontend_gui_tests.ads
++++ b/test/src/coyote_app_frontend_gui_tests.ads
+@@ -39,6 +39,9 @@ package Coyote_App_Frontend_GUI_Tests is
+    procedure Test_Clear_Conversation_Preserves_Agents
+      (T : in out Test);
+ 
++   procedure Test_Replays_Persisted_Mixed_Math
++     (T : in out Test);
++
+    procedure Test_Product_Information_Icon (T : in out Test);
+ 
+    procedure Test_Sandbox_Profiles_Menu (T : in out Test);
