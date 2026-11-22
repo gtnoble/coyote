@@ -144,7 +144,7 @@ private
       Has_Drawing                                  : Boolean := False;
       Show_Ink                                     : Boolean := True;
       Finger_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item := null;
-      Draw_With_Finger : Boolean := False;
+      Edit_With_Finger : Boolean := False;
       Finger_Sequence : Gdk.Event.Gdk_Event_Sequence := null;
       Zoom              : Long_Float := 1.0;
       Anchor_Pending    : Boolean := False;

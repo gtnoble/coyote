@@ -1,11 +1,11 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.6
+- **Version:** 1.7
 - **Date:** 2026-11-22
-- **Status:** PCR-133 direct revision editing implemented and developer-tested; formal qualification remains pending. Prior baseline acceptance remains dated 2026-11-21.
+- **Status:** PCR-133 direct revision editing implemented and developer-tested; PCR-134 finger editing implemented and developer-tested; formal qualification remains pending. Prior baseline acceptance remains dated 2026-11-21.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
-- **Requirements:** [SRS-CORE v1.40](../requirements/coyote-requirements.md), REQ-CORE-026–028 and 260–271.
-- **Qualification:** [STP §4.6](../plan/test-plan.md#46-planned-qualification--drawing-canvas-and-subcommands-pcr-130), PCR-130–133.
+- **Requirements:** [SRS-CORE v1.41](../requirements/coyote-requirements.md), REQ-CORE-026–028 and 260–271.
+- **Qualification:** [STP §4.6](../plan/test-plan.md#46-planned-qualification--drawing-canvas-and-subcommands-pcr-130), PCR-130–134.
 
 ## 1. Scope and decisions
 
@@ -52,7 +52,7 @@ The v1 request has one `add` operation, a request ID and an ordered file count. 
 | Selected | **Attach** for selected revisions in visible tree order or the active working copy when acting in the drawing area. Dim unavailable actions, do not remove them. |
 | Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, synchronized with the icon buttons below the menu bar; **Pencil** is the default. The editing icons and matching menu items are enabled when the displayed drawing is writable and **Show Markup** is on, including saved revisions and while a crop is pending; otherwise they are disabled. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
 | View | **Fit**, **Zoom In/Out**, **Actual Size**, and a stable checkbox **Show Markup**; all display-only. **Fit** selects a uniform zoom for the current viewport and displayed draft or revision, up to 400%. It clears panning, preserves a pending crop, and is disabled without a drawing or during an active gesture. |
-| Options | **Draw with Finger** toggles touchscreen Pencil input for the current session; off by default. |
+| Options | **Edit with Finger** toggles touchscreen Pencil/Eraser input for the current session; off by default. |
 | Help | Canvas Overview, tasks, Index, Keys & Shortcuts, Product Information and Click for Help using the existing desktop Help path. |
 
 The **Zoom In** and **Zoom Out** magnifier icons select display-only modes.
@@ -70,17 +70,30 @@ Give entries mnemonics, preserve native Tab/tree traversal, use the primary acti
 
 Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen and mouse, test pressure-axis availability at runtime, and map valid pressure to bounded stroke width. A missing axis, or mouse input, uses fixed width. Each tip-down/up stroke is one edit. Lost capture, device removal, and window/session change end the in-progress gesture without applying another edit; suppress double delivery through emulated mouse events. Pen side-button features and tilt are not required. Physical pressure, drag capture and scaling still need Intuos verification.
 
-Finger drawing uses the drawing area's GTK `touch-event` with
-`Touch_Mask`. While enabled on an editable Pencil draft with markup shown,
-disable kinetic scrolling in that viewport so GTK cannot capture the touch
-for panning. Track the first sequence from begin through end or cancel;
-ignore other fingers. Use widget coordinates and the existing inverse zoom
-and stroke path at three source pixels, regardless of finger contact size.
-Suppress GTK's touch-to-mouse fallback in the drawing area so a touch cannot
-also draw, erase, crop or zoom via synthesized pointer input. When finger
-Pencil is inactive, normal scroller handling is available. Close preserves
-the setting but cancels unfinished ink; reset clears both. No new storage
-format, device permissions or dependencies are needed.
+**Edit with Finger** is session-local and off by default. Use the drawing
+area's GTK `touch-event` with `Touch_Mask` and the existing first-contact
+sequence handling. Determine eligibility at touch begin: the option is on,
+the contact begins in the drawing area, the displayed drawing is writable,
+**Show Markup** is on, and the selected tool is **Pencil** or **Eraser**.
+Capture the operation at begin and retain it through end/cancel; ignore all
+additional contacts and do not transfer the active sequence. For Pencil,
+feed the shared stroke path using the inverse view transform and a fixed
+three-source-pixel width. For Eraser, use the same transform and the existing
+fixed sixteen-source-pixel erase path, removing ink only and preserving the
+background. Do not use contact size or pressure. A touch begun while Crop,
+Zoom, read-only, markup-hidden, or otherwise ineligible must not become a
+later drawing gesture if state changes during that contact.
+
+Disable GTK kinetic scrolling while finger Pencil/Eraser input is available,
+before the first contact can be captured by the scroller. Otherwise leave
+ordinary touch panning available. The drawing area consumes touch events to
+prevent GTK from also acting on them as emulated pointer input. Do not change mouse/pen event handling or
+scroller behavior for mouse, pen, Crop, or Zoom. Commit one undoable edit on
+the tracked contact's lift. Cancellation, lost capture, option disable,
+window close, or session change discards the unfinished operation through the
+shared Pencil gesture-cancellation path. Keep the option session-local; add
+no persisted preference, raw-device access, permissions, input model, or
+device dependency.
 
 **Eraser** selects a fixed 16-source-pixel round brush, independent of
 pressure and view zoom. A recognized GDK eraser tip temporarily erases for

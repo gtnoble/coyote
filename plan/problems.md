@@ -26,8 +26,30 @@ client-controlled work product gets an entry here.
   all 1,124 Xvfb tests passed. Help and standalone GTK checks passed. Physical
   device and desktop qualification remain open; see the Frontends log.
 
-## PCR-132 — Fixed-width Canvas finger drawing
 
+## PCR-134 — Touchscreen Pencil and Eraser editing
+
+- **Date reported:** 2026-11-22
+- **Category:** Requirements, Design, Software, Test, Help
+- **Priority:** 4-Minor (opt-in Canvas touchscreen editing).
+- **Authorization:** User requested implementation of touchscreen erasing
+  through the existing session-local, default-off finger option.
+- **Affected work products:** SRS-CORE §3.1.20; SDD-CORE §5.51;
+  SDD-CANVAS §4.2; STP §4.6 CAN-TOUCH-01; Canvas editing Help.
+- **Change:** Rename Draw with Finger to Edit with Finger. Specify single-contact
+  Pencil at 3 source pixels and Eraser at 16 source pixels, ink-only erasure,
+  begin-time operation lock, lift-to-commit one undoable gesture, and Pencil-path
+  cancellation. Scroller capture is disabled only for eligible finger
+  Pencil/Eraser input. Mouse/pen and Crop/Zoom behavior remain unchanged; no
+  raw-device or input-model change is specified. CAN-TOUCH-01 is refined for
+  pan/zoom, read-only/markup visibility, source-space behavior, saved revisions,
+  and X11/Wayland physical demonstration.
+- **Status:** Implemented and developer-tested. Both development builds,
+  all 1,124 Xvfb tests, Help validation, and standalone GTK checks passed.
+  Physical touchscreen and backend qualification remain pending; see the
+  Frontends development log.
+
+## PCR-132 — Fixed-width Canvas finger drawing
 - **Date reported:** 2026-11-21
 - **Category:** Requirements, Software, Test
 - **Priority:** 4-Minor (opt-in Canvas input).

@@ -2671,7 +2671,10 @@ package body Coyote_App_Frontend_GUI_Tests is
       Scroll := Gtk.Scrolled_Window.Gtk_Scrolled_Window
         (Control ("coyote-canvas-viewport"));
       Toggle := Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
-        (Control ("canvas-draw-with-finger"));
+        (Control ("canvas-edit-with-finger"));
+      Assert
+        (Gtk.Menu_Item.Gtk_Menu_Item (Toggle).Get_Label = "Edit with _Finger",
+         "The shared finger-edit toggle has the expected mnemonic label");
       Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
       Activate ("new");
       Tree.Get_Selection.Select_Iter (Get_Iter_First (Tree.Get_Model));
@@ -2733,9 +2736,12 @@ package body Coyote_App_Frontend_GUI_Tests is
       Touch (Gdk.Event.Touch_End, 60.0, 70.5, First_Contact'Address);
       Check_Pixel (55, 70, (255, 255, 255));
       Activate ("eraser");
-      Assert (Scroll.Get_Kinetic_Scrolling, "Eraser isn't a finger tool");
+      Assert (not Scroll.Get_Kinetic_Scrolling,
+              "Enabled finger eraser suppresses kinetic scrolling");
       Touch (Gdk.Event.Touch_Begin, 55.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_End, 55.0, 30.5, First_Contact'Address);
+      Check_Pixel (55, 30, (255, 255, 255));
+      Activate ("undo");
       Check_Pixel (55, 30, (13, 13, 13));
       Activate ("pencil");
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
@@ -2743,6 +2749,60 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (Scroll.Get_Kinetic_Scrolling, "Hidden markup doesn't draw");
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (True);
+      Activate ("eraser");
+      Toggle.Set_Active (False);
+      Assert (Scroll.Get_Kinetic_Scrolling,
+              "Disabled finger eraser preserves touch scrolling");
+      Touch (Gdk.Event.Touch_Begin, 55.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 55.0, 30.5, First_Contact'Address);
+      Check_Pixel (55, 30, (13, 13, 13));
+      Toggle.Set_Active (True);
+      Assert (not Scroll.Get_Kinetic_Scrolling,
+              "Finger eraser suppresses kinetic scrolling");
+      Touch (Gdk.Event.Touch_Begin, 45.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 55.0, 30.5, First_Contact'Address);
+      Check_Pixel (55, 30, (13, 13, 13));
+      Touch (Gdk.Event.Touch_Cancel, 55.0, 30.5, First_Contact'Address);
+      Check_Pixel (55, 30, (13, 13, 13));
+
+      Activate ("zoom-in");
+      Canvas.Check_Resize;
+      Drain_Events;
+      Touch (Gdk.Event.Touch_Begin, 56.25, 38.125, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 68.75, 38.125, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Begin, 68.75, 63.125, Second_Contact'Address);
+      Foreign_Release;
+      Touch (Gdk.Event.Touch_End, 68.75, 38.125, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 70.0, 63.125, Second_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 71.25, 63.125, Second_Contact'Address);
+      Activate ("actual");
+      Check_Pixel (55, 50, (13, 13, 13));
+      Check_Pixel (55, 30, (255, 255, 255));
+      Check_Pixel (38, 30, (255, 255, 255));
+      Check_Pixel (36, 30, (13, 13, 13));
+      Check_Pixel (30, 30, (13, 13, 13));
+      Activate ("undo");
+      Check_Pixel (55, 30, (13, 13, 13));
+      Check_Pixel (38, 30, (13, 13, 13));
+      Check_Pixel (55, 50, (13, 13, 13));
+      Check_Pixel (30, 30, (13, 13, 13));
+      Activate ("redo");
+      Assert (not Control ("canvas-redo").Get_Sensitive,
+              "One redo restores the finger erase gesture");
+      Check_Pixel (55, 30, (255, 255, 255));
+      Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 35.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Cancel, 35.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 35.0, 30.5, First_Contact'Address);
+      Check_Pixel (30, 30, (13, 13, 13));
+      Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
+      Toggle.Set_Active (False);
+      Touch (Gdk.Event.Touch_End, 35.0, 30.5, First_Contact'Address);
+      Check_Pixel (30, 30, (13, 13, 13));
+      Assert (Scroll.Get_Kinetic_Scrolling,
+              "Disabling finger editing restores touch scrolling");
+      Toggle.Set_Active (True);
+      Activate ("pencil");
       Touch (Gdk.Event.Touch_Begin, 55.0, 70.5, First_Contact'Address);
       Activate ("close");
       Canvas_Item (Frontend).Activate;
@@ -2752,6 +2812,20 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("save");
       Assert (Get_Iter_From_String (Tree.Get_Model, "0:0") /= Null_Iter,
               "Direct finger drawing on the Original saves a child");
+      Tree.Get_Selection.Select_Iter
+        (Get_Iter_From_String (Tree.Get_Model, "0:0"));
+      Check_Pixel (30, 30, (13, 13, 13));
+      Activate ("eraser");
+      Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_End, 30.0, 30.5, First_Contact'Address);
+      Check_Pixel (30, 30, (255, 255, 255));
+      Activate ("save");
+      Assert (Get_Iter_From_String (Tree.Get_Model, "0:0:0") /= Null_Iter,
+              "Finger erasing saves a child of the selected revision");
+      Tree.Get_Selection.Unselect_All;
+      Tree.Get_Selection.Select_Iter
+        (Get_Iter_From_String (Tree.Get_Model, "0:0"));
+      Check_Pixel (30, 30, (13, 13, 13));
       Reset_Agents_From_Task (Frontend);
       Drain_Events;
       Assert (not Toggle.Get_Active and then Scroll.Get_Kinetic_Scrolling,

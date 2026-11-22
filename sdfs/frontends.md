@@ -1,5 +1,23 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Touchscreen Pencil and Eraser (PCR-134)
+
+Options → Edit with Finger replaces Draw with Finger. It stays off by
+default in each session. One contact takes the selected Pencil or Eraser
+operation at touch begin, using three or sixteen source pixels. The
+shared ink path commits one undoable gesture on lift and discards it on
+cancellation. Touch panning remains available outside eligible finger
+editing modes. Mouse, pen, Crop, and Zoom input are unchanged. Erasing
+removes only ink and uses the existing revision and recovery format.
+
+Root and test development builds passed. The seven focused Canvas GUI
+cases and full Xvfb suite (1,124/1,124) passed. Synthetic touch coverage
+includes erase at 125% zoom, one-step undo/redo, cancellation, extra
+contacts, touch opt-out, and branching without overwriting a revision.
+Help/Mallard, standalone GTK (9/9), and runner containment checks passed.
+Logs: `/tmp/coyote-pcr134/`. Physical touchscreen and Wayland
+qualification remain open.
+
 ## 2026-11-22 — Edit Canvas revisions directly (PCR-133)
 
 Selecting one revision or opening it from replay displays the exact

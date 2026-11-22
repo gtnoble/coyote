@@ -243,8 +243,8 @@ package body Coyote_GUI.Canvas is
    function Can_Select_Tool (S : Instance) return Boolean is
      (Can_Draw (S) and then not (S.Drawing or else S.Crop_Drag));
 
-   function Finger_Pencil (S : Instance) return Boolean is
-     (S.Draw_With_Finger and then S.Tool = Pencil
+   function Can_Edit_With_Finger (S : Instance) return Boolean is
+     (S.Edit_With_Finger and then S.Tool in Ink_Tool
       and then S.Zoom_Tool = No_Zoom and then Can_Draw (S));
 
    procedure Storage_Status (S : Instance; Text : String) is
@@ -341,7 +341,7 @@ package body Coyote_GUI.Canvas is
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
       --  GTK's scroller can capture a touch before it reaches the canvas.
-      S.Viewport.Set_Kinetic_Scrolling (not Finger_Pencil (S));
+      S.Viewport.Set_Kinetic_Scrolling (not Can_Edit_With_Finger (S));
       S.Fit_Item.Set_Sensitive (Zoom_Enabled);
       S.Zoom_In_Item.Set_Sensitive (Zoom_Enabled);
       S.Zoom_Out_Item.Set_Sensitive (Zoom_Enabled);
@@ -1078,17 +1078,17 @@ package body Coyote_GUI.Canvas is
       Refresh (S.all);
    end On_Markup;
 
-   procedure On_Draw_With_Finger
+   procedure On_Edit_With_Finger
      (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class;
       S    : Instance_Access)
    is
    begin
-      S.Draw_With_Finger := Item.Get_Active;
-      if not S.Draw_With_Finger and then S.Finger_Sequence /= null then
+      S.Edit_With_Finger := Item.Get_Active;
+      if not S.Edit_With_Finger and then S.Finger_Sequence /= null then
          Cancel_Gesture (S.all);
       end if;
       Refresh (S.all);
-   end On_Draw_With_Finger;
+   end On_Edit_With_Finger;
 
    procedure Freeze_Attachments (S : aliased in out Instance);
    procedure Apply_Reveal (S : in out Instance);
@@ -1372,11 +1372,11 @@ package body Coyote_GUI.Canvas is
       Check_Callback.Connect (Markup, "toggled", On_Markup'Access, State);
       Group ("_Options");
       Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic
-        (S.Finger_Item, "Draw with _Finger");
-      S.Finger_Item.Set_Name ("canvas-draw-with-finger");
+        (S.Finger_Item, "Edit with _Finger");
+      S.Finger_Item.Set_Name ("canvas-edit-with-finger");
       Menu.Append (S.Finger_Item);
       Check_Callback.Connect
-        (S.Finger_Item, "toggled", On_Draw_With_Finger'Access, State);
+        (S.Finger_Item, "toggled", On_Edit_With_Finger'Access, State);
       Group ("_Help");
       Item := Action ("_Click for Help", "help-click", Gdk.Types.Keysyms.GDK_F1,
                       Gdk.Types.Shift_Mask);
@@ -1892,7 +1892,7 @@ package body Coyote_GUI.Canvas is
          Cancel_Gesture (S);
       end if;
       S.Editing_Draft := True;
-      S.Draw_With_Finger := False;
+      S.Edit_With_Finger := False;
       if S.Finger_Item /= null then
          S.Finger_Item.Set_Active (False);
       end if;
@@ -2631,6 +2631,9 @@ package body Coyote_GUI.Canvas is
       end if;
    end Commit_Stroke;
 
+   function Finger_Width (Operation : Rev.Ink_Operation) return Long_Float is
+     (if Operation = Rev.Erase then ERASER_DIAMETER else PENCIL_WIDTH);
+
    function On_Touch
      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event  : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean
@@ -2647,13 +2650,14 @@ package body Coyote_GUI.Canvas is
          return True;
       end if;
       if S.Finger_Sequence /= null and then Sequence = S.Finger_Sequence then
-         if not Finger_Pencil (S.all)
+         if not Can_Edit_With_Finger (S.all)
            or else Kind = Gdk.Event.Touch_Cancel
          then
             Cancel_Gesture (S.all);
          elsif Kind in Gdk.Event.Touch_Update | Gdk.Event.Touch_End then
             if Read_Coords (Event, X, Y) /= 0 then
-               Add_Point (S.all, X, Y, Width => PENCIL_WIDTH);
+               Add_Point
+                 (S.all, X, Y, Width => Finger_Width (S.Gesture_Operation));
             end if;
             if Kind = Gdk.Event.Touch_End then
                Commit_Stroke (S.all);
@@ -2664,14 +2668,16 @@ package body Coyote_GUI.Canvas is
          return True;
       end if;
       --  Extra contacts cannot take over an existing or canceled stroke.
-      if Finger_Pencil (S.all)
+      if Can_Edit_With_Finger (S.all)
         and then Kind = Gdk.Event.Touch_Begin and then Sequence /= null
         and then not (S.Drawing or else S.Crop_Drag or else S.Anchor_Pending)
         and then Read_Coords (Event, X, Y) /= 0
       then
          Widget.Grab_Focus;
-         S.Gesture_Operation := Rev.Paint;
-         Add_Point (S.all, X, Y, Width => PENCIL_WIDTH);
+         S.Gesture_Operation :=
+           (if S.Tool = Eraser then Rev.Erase else Rev.Paint);
+         Add_Point
+           (S.all, X, Y, Width => Finger_Width (S.Gesture_Operation));
          S.Finger_Sequence := Sequence;
          S.Drawing := True;
          Refresh (S.all);

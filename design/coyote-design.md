@@ -1,15 +1,25 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.67
+**Version:** 1.68
 **Date:** 2026-11-22
 
-**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing developer-tested
-
+**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing developer-tested; PCR-134 finger editing developer-tested; physical qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
 **Canvas revision and draft amendment (PCR-133, 2026-11-22):** SRS and SDD-CANVAS now specify exact-revision display without working-copy replacement, editing a writable displayed revision directly through Pencil/Eraser/Crop, automatic child-revision checkpoint before replacing a dirty working copy, and immutable changed-only Save. Automated developer evidence is recorded in the Frontends development log; formal qualification remains pending.
+
+**Finger editing amendment (PCR-134, 2026-11-22):** The session-local,
+default-off **Options → Edit with Finger** control enables one-contact
+Pencil and Eraser gestures only on a writable displayed drawing with Show
+Markup on. Pencil uses three source pixels; Eraser removes ink only with a
+sixteen-source-pixel brush. The operation is fixed at contact begin and lift
+commits one undoable edit; cancellation follows the existing Pencil path.
+Scroller capture is disabled only for eligible finger Pencil/Eraser input.
+Mouse/pen and Crop/Zoom behavior remain unchanged; no raw-device or input-model
+changes were needed. See the Frontends development log for automated evidence;
+physical qualification remains pending.
 
 **Canvas and subcommands (PCR-130/131):** The product owner accepted the
 Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
@@ -3164,13 +3174,15 @@ Help targets the toolbar, drawing area, or Drawings list without changing
 the tool, drawing, or selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
 
-**Finger Pencil input.** The session-local, default-off Options toggle
-routes one native GDK touch sequence into the shared stroke buffer at the
-mouse Pencil width (three source pixels), without sampling pressure. GTK
-kinetic scrolling is disabled only while finger Pencil is available; the
-drawing area consumes touch events to prevent GTK's pointer fallback. The
-existing gesture cancellation and stroke commit paths protect undo history,
-draft recovery and frozen attachments. No raw touchscreen input is opened.
+**Finger editing.** The session-local, default-off **Options → Edit with
+Finger** toggle enables touch editing with the selected Pencil or Eraser on a
+writable drawing while Show Markup is on. One contact is tracked from begin
+through lift or cancellation; its operation is fixed at begin and additional
+contacts are ignored. Pencil paints three source pixels; Eraser removes only
+ink at sixteen source pixels. Scroller capture is disabled while finger
+editing is available; otherwise ordinary touch panning remains available. Mouse/pen and
+Crop/Zoom input remain unaffected. Cancellation uses the shared Pencil gesture
+path, and no raw touchscreen device is opened.
 
 **Zoom tools.** The toolbar adds plus/minus magnifiers to the existing
 radio group and uses a zoom cursor over the drawing. A magnifier suspends

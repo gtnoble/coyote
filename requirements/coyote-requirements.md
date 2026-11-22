@@ -1,17 +1,18 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.40
+**Version:** 1.41
 **Date:** 2026-11-22
-**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior implemented and developer-tested; formal qualification remains pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
+**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior implemented and developer-tested; PCR-134 finger Pencil/Eraser behavior implemented and developer-tested; formal qualification remains pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
 revision records the Canvas and CLI amendments, including clipboard-image
-import, user-applied crop, and PCR-133 draft/revision behavior, without changing
-the scoped local-image contract or PCR-116 evidence. The native-math
-checkpoint status and open gaps are recorded in `plan/native-math-parity-test-report.md`.
-**Project Plan:** `plan/project-plan.md`
+import, user-applied crop, PCR-133 draft/revision behavior, and the PCR-134
+finger-editing specification, without changing the scoped local-image contract
+or PCR-116 evidence. The native-math checkpoint status and open gaps are
+recorded in `plan/native-math-parity-test-report.md`.
 
+**Project Plan:** `plan/project-plan.md`
 **Approved native-math target amendment (2026-10-24, PCR-125):**
 `requirements/native-math-compatibility.md` v1.0 extends REQ-CORE-111/124 with
 the approved pinned KaTeX core/native profile, D01–D15 dispositions and resource
@@ -1586,14 +1587,32 @@ Imported files shall not be overwritten. Pan and zoom shall not alter the
 drawing. **View → Show Markup** shall hide or show ink without changing the
 drawing or any attachment.
 
-**Options → Draw with Finger** shall opt into fixed-width Pencil input
-from one touchscreen contact at a time. It shall default to off in each
-session. It shall draw with Pencil on a displayed writable revision or working copy
-when markup is shown. A completed contact on a saved revision shall start a
-working copy from that revision and commit one undoable stroke; canceling a
-contact shall discard its unfinished ink without changing drafts. Finger drawing shall
-not use pressure or contact size, change mouse or pen input widths, or
-require access to raw device files.
+**Options → Edit with Finger** shall enable touchscreen editing only when
+checked, default off for each session, and apply only to that session. For one
+eligible touchscreen contact at a time, the selected **Pencil** shall paint a
+three-source-pixel-wide stroke and the selected **Eraser** shall remove ink
+with a sixteen-source-pixel brush without changing the separately stored
+background. Widths shall be measured in source-image pixels and remain
+independent of zoom, pressure, and contact size. The operation shall be fixed
+when the eligible contact begins; additional contacts shall neither mark nor
+take over the gesture. Lifting the tracked contact shall commit exactly one
+undoable edit. Cancellation, loss of capture, option disable, window close, or
+session change shall discard the unfinished touch operation using the existing
+Pencil gesture-cancellation behavior and shall not switch or mutate drafts.
+
+Touch editing shall be eligible only when the option is on, exactly one
+contact begins in the drawing area, the displayed drawing is writable,
+**Show Markup** is on, and **Pencil** or **Eraser** is selected. A completed
+edit on a saved revision shall start a working copy from that exact revision,
+subject to the existing checkpoint-before-switch rule. Read-only drawings,
+hidden markup, and **Crop** or **Zoom In/Out** modes shall not accept finger
+edits. GTK kinetic scrolling shall be disabled while finger Pencil/Eraser
+input is available, including before contact begins; ordinary touch panning
+and scrolling remain available otherwise. Mouse and pen behavior, and Crop/Zoom pointer
+behavior, shall remain unchanged. Touch input shall use the existing GTK touch
+sequence path; raw-device access, new device permissions, and input-model
+changes are not permitted. This option shall not alter mouse or pen pressure
+or stroke width.
 
 The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, **Crop**,
 **Zoom In**, and **Zoom Out** icon buttons below the menu bar. The active
@@ -2291,6 +2310,7 @@ STP §4.6.
 | REQ-CORE-090a, 230..234 | Configuration file interface, including skillPaths, sandbox default, and priceDisplay | T | TC-090a, TC-230..234 |
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
 | REQ-CORE-260–263 | IRIX Canvas, Intuos and mouse input, branching revisions, multi-image staging | D/T/I | CAN-GUI-01, CAN-DATA-01, CAN-LIMIT-01, CAN-IMPORT-01 (planned) |
+| REQ-CORE-261 (finger Pencil/Eraser) | Touchscreen Pencil/Eraser input and selective scroller capture | D/T | CAN-TOUCH-01 (planned physical demonstration; X11/Wayland backend recorded) |
 | REQ-CORE-264–266 | Exact image submission, rejection/queue behavior, recovery and replay | T/D | CAN-DATA-01, CAN-LIMIT-01, CAN-GUI-01 (planned) |
 | REQ-CORE-267 | Bounded imports, shell authority and session isolation | T/I | CAN-IMPORT-01 (planned) |
 | REQ-CORE-268–269 | Revision comparison and explicit agent branches | D/T | CAN-FOLLOW-01 (follow-on; planned) |
