@@ -3264,11 +3264,13 @@ remaining qualification gates.
 
 **Implemented local image intake.** Modeless File Selection accepts up to
 eight regular files per batch, in locale-independent filename order, with no
-final-component symlinks. The worker reads and decodes the entire batch before
-GTK checks the remaining revision and raster budgets and adds independent
+final-component symlinks. The worker streams local PNG/JPEG files from the
+same opened descriptor after dimension preflight. The decoded batch is ready
+before GTK checks the remaining revision and raster budgets and adds independent
 Originals without changing the displayed drawing, draft, or selection. Canvas
 Paste still requests desktop CLIPBOARD asynchronously, preferring PNG to JPEG.
 Newer Paste, Close, and session reset invalidate applicable pending requests.
+Close and session transitions also stop direct file jobs between reads.
 
 PNG/JPEG keep native dimensions. Static UTF-8 SVGs are checked against an
 allowlist before librsvg receives reserialized XML with no base URI. The
@@ -3279,13 +3281,16 @@ excluded. SVGs render once to straight-alpha RGBA at their intrinsic pixel
 size at 96 DPI or at the positive `viewBox` size, rounded up. Raster assets
 are independent of the source bytes and Cairo display cache.
 
-Development limits are 8 MiB encoded per file, 32 MiB encoded per batch,
-8192 pixels per side, 16 Mi pixels per image, and 128 MiB of retained raster
-rows per batch or live workspace. SVG preflight caps tree depth at 64 and
-nodes at 50,000. There is one decode worker, with two worker slots and four
-GUI request slots. These are not process memory or execution-time limits;
-transient decoder allocations, the full-source ARGB32 ink layer, and the display cache
-are separate.
+Local PNG/JPEG file selection has no encoded-byte cap. The buffered paths
+stay bounded: 8 MiB per SVG, clipboard image, or agent-uploaded file, and
+32 MiB per batch of SVG inputs or agent uploads. All paths retain the current
+decoded budgets: 8,192 pixels per side, 16 Mi pixels per image, and 128 MiB
+of raster rows per batch or live workspace. SVG preflight caps tree depth
+at 64 and nodes at 50,000. There is one decode worker, with two worker
+slots and four GUI request slots. These are not process memory or
+execution-time limits; decoder allocations, the full-source ARGB32 ink
+layer, and the display cache are separate. Attachment limits do not govern
+local file admission.
 
 **Internal workspace storage.** Each revision has a UUIDv4 assigned at
 creation. Descendants use their Original's UUID as the drawing identity;

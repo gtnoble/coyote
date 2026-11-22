@@ -42,6 +42,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Error : String);
    type Job_Record is record
       State       : Job_State := Free;
+      Cancelled   : Boolean := False;
       Kind        : Source_Kind := Bytes_Source;
       Data        : Unbounded_String;
       Paths       : Stored_Path_List := (others => Null_Unbounded_String);
@@ -72,6 +73,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       procedure Add_Batch
         (Data : Coyote_Canvas.Import_Service.Text_List;
          Token : System.Address; Callback : Completion; Index : out Natural);
+      procedure Cancel_Files (Token : System.Address);
+      function Cancelled (Index : Slot_Index) return Boolean;
       procedure Claim (Index : out Natural; Found : out Boolean);
       procedure Restore (Index : Slot_Index);
       procedure Get
@@ -115,6 +118,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                Items (I) :=
                  (State       => Queued,
                   Kind        => Bytes_Source,
+                  Cancelled   => False,
                   Data        => Data,
                   Paths       => (others => Null_Unbounded_String),
                   Path_Count  => 0,
@@ -144,6 +148,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                Items (I) :=
                  (State       => Queued,
                   Kind        => Files_Source,
+                  Cancelled   => False,
                   Data        => Null_Unbounded_String,
                   Paths       => (others => Null_Unbounded_String),
                   Path_Count  => Paths'Length,
@@ -183,6 +188,20 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             end if;
          end loop;
       end Add_Batch;
+
+      procedure Cancel_Files (Token : System.Address) is
+      begin
+         for Item of Items loop
+            if Item.State /= Free and then Item.Kind = Files_Source
+              and then Item.Token = Token
+            then
+               Item.Cancelled := True;
+            end if;
+         end loop;
+      end Cancel_Files;
+
+      function Cancelled (Index : Slot_Index) return Boolean is
+        (Items (Index).Cancelled);
 
       procedure Claim (Index : out Natural; Found : out Boolean) is
       begin
@@ -286,6 +305,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
    function Pending_Count return Natural is (Queue.Count);
 
+   procedure Cancel_Files (Token : System.Address) is
+   begin
+      Queue.Cancel_Files (Token);
+   end Cancel_Files;
+
    task Worker is
       entry Start (Job_Index : Slot_Index);
    end Worker;
@@ -296,10 +320,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    function Pump return Boolean;
    procedure Start_Pump;
    procedure Decode_File
-     (Path          : String;
-      Encoded_Total : in out Natural;
-      Pixels        : out Coyote_Image_Decoder.Pixbuf_Handle;
-      Error         : out Unbounded_String);
+     (Path      : String;
+      Job       : Slot_Index;
+      SVG_Total : in out Natural;
+      Pixels    : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Error     : out Unbounded_String);
    function Pixel_Bytes
      (Pixels : Coyote_Image_Decoder.Pixbuf_Handle) return Natural;
    procedure Release_All (Pixels : in out Raw_Pixbuf_List);
@@ -334,10 +359,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    end Release_All;
 
    procedure Decode_File
-     (Path          : String;
-      Encoded_Total : in out Natural;
-      Pixels        : out Coyote_Image_Decoder.Pixbuf_Handle;
-      Error         : out Unbounded_String)
+     (Path      : String;
+      Job       : Slot_Index;
+      SVG_Total : in out Natural;
+      Pixels    : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Error     : out Unbounded_String)
    is
       use Coyote_Image_IO;
       Separator : constant Natural := Ada.Strings.Fixed.Index
@@ -352,10 +378,24 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Count_Read : Integer;
       Width : Natural;
       Height : Natural;
-      Source_Size : Natural;
+      Signature : String (1 .. 8);
+      Filled : Natural := 0;
+      SVG_Limit : constant Natural :=
+        Natural'Min (Coyote_Canvas.Rasters.MAX_ENCODED_BYTES,
+                     MAX_BATCH_ENCODED_BYTES - SVG_Total);
+
+      function Read_Chunk (Data : out String) return Integer is
+        (if Queue.Cancelled (Job) then -1 else Read (File, Data));
+
+      function Rewind_File return Boolean is
+        (not Queue.Cancelled (Job) and then Rewind (File));
    begin
       Pixels := Coyote_Image_Decoder.Null_Pixbuf;
       Error := Null_Unbounded_String;
+      if Queue.Cancelled (Job) then
+         Error := To_Unbounded_String ("Image import cancelled.");
+         return;
+      end if;
       if Separator = 0 or else Separator = Path'Last
         or else Separator < Path'First
       then
@@ -381,51 +421,42 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Attributes (File, Attributes_Result);
          if not Attributes_Result.Is_Regular then
             Error := To_Unbounded_String ("Select a regular image file.");
-         elsif Attributes_Result.Size < 0 or else Attributes_Result.Size >
-           Coyote_Canvas.Rasters.MAX_ENCODED_BYTES
-         then
-            Error := To_Unbounded_String ("Encoded image exceeds 8 MiB.");
-         elsif Encoded_Total > MAX_BATCH_ENCODED_BYTES -
-           Natural (Attributes_Result.Size)
-         then
-            Error := To_Unbounded_String
-              ("Encoded image batch exceeds 32 MiB.");
          else
-            loop
-               Count_Read := Read (File, Buffer);
-               exit when Count_Read = 0;
-               if Count_Read < 0 then
-                  Error := To_Unbounded_String
-                    ("Could not read the image file.");
-                  exit;
-               end if;
-               Source_Size := Length (Contents);
-               if Source_Size + Natural (Count_Read) >
-                 Coyote_Canvas.Rasters.MAX_ENCODED_BYTES
-               then
-                  Error := To_Unbounded_String
-                    ("Encoded image exceeds 8 MiB.");
-                  exit;
-               elsif Encoded_Total > MAX_BATCH_ENCODED_BYTES -
-                 Source_Size - Natural (Count_Read)
-               then
-                  Error := To_Unbounded_String
-                    ("Encoded image batch exceeds 32 MiB.");
-                  exit;
-               end if;
-               Append (Contents, Buffer (1 .. Count_Read));
+            while Filled < Signature'Length loop
+               Count_Read := Read_Chunk (Signature (Filled + 1 .. 8));
+               exit when Count_Read <= 0;
+               Filled := Filled + Count_Read;
             end loop;
-            if Length (Error) = 0 then
-               Encoded_Total := Encoded_Total + Length (Contents);
-               if Coyote_Canvas.Rasters.Detect
-                 (To_String (Contents)) = Coyote_Canvas.Rasters.Unknown
-               then
+            if not Rewind_File then
+               Error := To_Unbounded_String ("Could not read the image file.");
+            elsif Coyote_Canvas.Rasters.Detect (Signature (1 .. Filled)) /=
+              Coyote_Canvas.Rasters.Unknown
+            then
+               Coyote_Canvas.Rasters.Decode_Stream
+                 (Read_Chunk'Access, Rewind_File'Access, Pixels,
+                  Width, Height, Error);
+            elsif Attributes_Result.Size > Long_Long_Integer (SVG_Limit) then
+               Error := To_Unbounded_String ("SVG input exceeds the size limit.");
+            else
+               loop
+                  Count_Read := Read_Chunk (Buffer);
+                  exit when Count_Read = 0;
+                  if Count_Read < 0 then
+                     Error := To_Unbounded_String
+                       ("Could not read the image file.");
+                     exit;
+                  elsif Natural (Count_Read) > SVG_Limit - Length (Contents)
+                  then
+                     Error := To_Unbounded_String
+                       ("SVG input exceeds the size limit.");
+                     exit;
+                  end if;
+                  Append (Contents, Buffer (1 .. Count_Read));
+               end loop;
+               if Length (Error) = 0 then
+                  SVG_Total := SVG_Total + Length (Contents);
                   Coyote_Canvas.SVG.Decode
                     (To_String (Contents), Pixels, Error);
-               else
-                  Coyote_Canvas.Rasters.Decode
-                    (To_String (Contents), Coyote_Canvas.Rasters.Unknown,
-                     Pixels, Width, Height, Error);
                end if;
             end if;
          end if;
@@ -618,7 +649,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
         (others => Coyote_Image_Decoder.Null_Pixbuf);
       Pixel_Count : Natural := 0;
       Decoded_Total : Natural := 0;
-      Encoded_Total : Natural := 0;
+      SVG_Total : Natural := 0;
       Width : Natural;
       Height : Natural;
       Error : Unbounded_String;
@@ -636,7 +667,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
                Pixel_Count := 0;
                Decoded_Total := 0;
-               Encoded_Total := 0;
+               SVG_Total := 0;
                Error := Null_Unbounded_String;
                if Kind = Bytes_Source then
                   Coyote_Canvas.Rasters.Decode
@@ -655,7 +686,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                      Path := Paths (I);
                      if Kind = Files_Source then
                         Decode_File
-                          (To_String (Path), Encoded_Total, Raw (I), Item_Error);
+                          (To_String (Path), Index, SVG_Total, Raw (I),
+                           Item_Error);
                      elsif Coyote_Canvas.Rasters.Detect (To_String (Path)) =
                        Coyote_Canvas.Rasters.Unknown
                      then
@@ -686,6 +718,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                end if;
                Paths := (others => Null_Unbounded_String);
                Path := Null_Unbounded_String;
+               if Queue.Cancelled (Index) then
+                  Error := To_Unbounded_String ("Image import cancelled.");
+               end if;
                if Length (Error) /= 0 then
                   Release_All (Raw);
                   Pixel_Count := 0;

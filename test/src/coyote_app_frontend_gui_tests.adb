@@ -59,6 +59,7 @@ with Gtk.Clipboard;
 with Gtk.GEntry;
 with Gtk.Tree_Selection;
 with System;
+with Interfaces;
 with Interfaces.C;
 with Interfaces.C.Strings;
 with Gtk.Container;
@@ -2144,6 +2145,37 @@ package body Coyote_App_Frontend_GUI_Tests is
                  "Imported Original retains its native dimensions");
       end Check_Original;
 
+      procedure Write_Large_PNG (Path : String) is
+         use type Interfaces.Unsigned_32;
+         use type Ada.Directories.File_Size;
+         Side : constant := 1_800;
+         Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New (Has_Alpha => False, Width => Side,
+                               Height => Side);
+         Pixels : constant Gdk.Pixbuf.Rgb_Buffer_Access :=
+           Gdk.Pixbuf.Get_Pixels (Image);
+         State : Interfaces.Unsigned_32 := 16#C022_2F15#;
+         Error : Glib.Error.GError;
+      begin
+         --  The RGB rows have no padding at this width.
+         for I in Glib.Guint range 0 .. Side * Side - 1 loop
+            State := State xor Interfaces.Shift_Left (State, 13);
+            State := State xor Interfaces.Shift_Right (State, 17);
+            State := State xor Interfaces.Shift_Left (State, 5);
+            Pixels (I) :=
+              (Red => Glib.Guchar (State and 255),
+               Green => Glib.Guchar (Interfaces.Shift_Right (State, 8)
+                                     and 255),
+               Blue => Glib.Guchar (Interfaces.Shift_Right (State, 16)
+                                    and 255));
+         end loop;
+         Gdk.Pixbuf.Save (Image, Path, Gdk.Pixbuf.PNG, Error);
+         Image.Unref;
+         Assert (Error = null, "Generated high-entropy PNG fixture");
+         Assert (Ada.Directories.Size (Path) > 8 * 1_024 * 1_024,
+                 "PNG exceeds the previous encoded-byte cap");
+      end Write_Large_PNG;
+
       procedure Read_Import_Error is
          Dialog   : Gtk.Window.Gtk_Window := null;
          Deadline : constant Time := Clock + Seconds (3);
@@ -2225,6 +2257,17 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Tree.Get_Selection.Count_Selected_Rows = Selected_Count
          and then Control ("canvas-draft").Get_Sensitive = Draft_Sensitive,
          "Failed batch leaves draft and selection unchanged");
+
+      declare
+         Large_Path : constant String := To_String (Folder) & "/large.png";
+      begin
+         Write_Large_PNG (Large_Path);
+         Choose (Large_Path, 1);
+         Finish_Canvas_Jobs;
+         Assert (N_Children (Model) = 4,
+                 "File chooser imports PNG above the old cap");
+         Check_Original (4, 1_800, 1_800);
+      end;
 
       Choose (To_String (Paths (1)), 1);
       Assert (Coyote_GUI.Canvas_Import_Jobs.Pending_Count > 0,

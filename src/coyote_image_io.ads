@@ -18,6 +18,7 @@ package Coyote_Image_IO is
      (Parent : Descriptor; Name : String; File : out Descriptor);
    procedure Attributes (File : Descriptor; Result : out File_Attributes);
    function Read (File : Descriptor; Buffer : out String) return Integer;
+   function Rewind (File : Descriptor) return Boolean;
    function Readlink_Root (Root : Descriptor) return String;
    procedure Close (File : in out Descriptor);
 

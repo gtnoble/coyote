@@ -1613,9 +1613,10 @@ preview uses a cached ARGB32 ink layer, a separate transient surface, and
 dirty-rectangle recomposition.
 Physical-device and performance qualification remain pending.
 
-PNG and JPEG imports shall retain source pixel dimensions; unsupported
-native-size imports shall be rejected, not resized. Imported files shall not
-be overwritten. Pan and zoom shall not alter the drawing. **View → Show
+PNG and JPEG imports shall retain source pixel dimensions. Direct local file
+imports shall not be rejected solely for their encoded byte length; inputs
+that cannot be edited at native size shall be rejected, not resized. Imported
+files shall not be overwritten. Pan and zoom shall not alter the drawing. **View → Show
 Markup** shall hide or show ink without changing the drawing or attachments.
 
 **Options → Edit with Finger** shall enable touchscreen editing only when

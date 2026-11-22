@@ -125,6 +125,9 @@ package body Coyote_GUI.Canvas is
            and then (not Paste_Only or else R.Origin = Clipboard_Image)
            and then (not Keep_Agent or else R.Origin /= Agent_Image)
          then
+            if R.Origin = File_Image then
+               Jobs.Cancel_Files (R'Address);
+            end if;
             R.Owner := null;
          end if;
       end loop;

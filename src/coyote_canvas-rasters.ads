@@ -20,4 +20,14 @@ package Coyote_Canvas.Rasters is
       Width    : out Natural;
       Height   : out Natural;
       Error    : out Ada.Strings.Unbounded.Unbounded_String);
+
+   --  Read returns bytes, zero at EOF, or -1 on error or cancellation.
+   --  Rewind restarts the same regular file descriptor.
+   procedure Decode_Stream
+     (Read   : not null access function (Buffer : out String) return Integer;
+      Rewind : not null access function return Boolean;
+      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Width  : out Natural;
+      Height : out Natural;
+      Error  : out Ada.Strings.Unbounded.Unbounded_String);
 end Coyote_Canvas.Rasters;

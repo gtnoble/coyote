@@ -48,6 +48,11 @@ long coyote_image_io_read(int fd, void *buffer, size_t length)
    return (long) count;
 }
 
+int coyote_image_io_rewind(int fd)
+{
+   return lseek(fd, 0, SEEK_SET) == 0 ? 0 : -1;
+}
+
 long coyote_image_io_readlink_root(int fd, char *buffer, size_t length)
 {
    char proc_path[64];

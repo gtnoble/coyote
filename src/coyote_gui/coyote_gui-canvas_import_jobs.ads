@@ -44,6 +44,10 @@ package Coyote_GUI.Canvas_Import_Jobs is
       Callback : Completion;
       Accepted : out Boolean);
 
+   --  Stop a pending local file import at the next read boundary.
+   --  Completion still releases the caller's request token.
+   procedure Cancel_Files (Token : System.Address);
+
    procedure Submit_Files
      (Paths    :        Path_List;
       Token    :        System.Address;

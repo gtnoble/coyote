@@ -34,6 +34,8 @@ package body Coyote_Image_IO is
       Length : Interfaces.C.size_t)
       return Interfaces.C.long with
      Import, Convention => C, External_Name => "coyote_image_io_read";
+   function C_Rewind (File : Interfaces.C.int) return Interfaces.C.int with
+     Import, Convention => C, External_Name => "coyote_image_io_rewind";
    function C_Readlink_Root
      (File   : Interfaces.C.int;
       Buffer : System.Address;
@@ -109,6 +111,9 @@ package body Coyote_Image_IO is
               Buffer'Address,
               Interfaces.C.size_t (Buffer'Length)));
    end Read;
+
+   function Rewind (File : Descriptor) return Boolean is
+     (C_Rewind (Interfaces.C.int (File)) = 0);
 
    function Readlink_Root (Root : Descriptor) return String is
       Buffer : aliased String (1 .. 4_096);

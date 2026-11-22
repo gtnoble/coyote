@@ -12,6 +12,7 @@ with Coyote_Image_Decoder;
 with Coyote_Temp_Files;
 with GNAT.OS_Lib;
 with Glib;
+with Interfaces;
 with Glib.Error;
 with Glib.Object;
 with Gdk.Pixbuf;
@@ -21,6 +22,7 @@ package body Coyote_Canvas_Raster_Tests is
    use type Glib.Error.GError;
    use type GNAT.OS_Lib.File_Descriptor;
    use type Coyote_Canvas.Rasters.Format;
+   use type Interfaces.Unsigned_32;
 
    type Pixel_Byte is mod 2 ** 8;
    type Pixel_Array is array (Natural range 0 .. 3) of aliased Pixel_Byte;
@@ -57,6 +59,73 @@ package body Coyote_Canvas_Raster_Tests is
       end if;
       Glib.Object.Unref (Glib.Object.GObject (Pixbuf));
    end Save_Image;
+
+   Stream_File : Ada.Streams.Stream_IO.File_Type;
+   Stream_Open : Boolean := False;
+   Stream_Chunk_Limit : Positive := Positive'Last;
+   Cancel_After_Rewind : Boolean := False;
+   Stream_Rewound : Boolean := False;
+
+   function Stream_Read (Buffer : out String) return Integer is
+      use Ada.Streams;
+      use Ada.Streams.Stream_IO;
+      Bytes : Stream_Element_Array
+        (1 .. Stream_Element_Offset
+           (Natural'Min (Buffer'Length, Stream_Chunk_Limit)));
+      Last : Stream_Element_Offset;
+   begin
+      if Cancel_After_Rewind and then Stream_Rewound then
+         return -1;
+      end if;
+      Read (Stream_File, Bytes, Last);
+      if Last = 0 then
+         return 0;
+      end if;
+      for Index in 1 .. Natural (Last) loop
+         Buffer (Buffer'First + Index - 1) :=
+           Character'Val (Bytes (Stream_Element_Offset (Index)));
+      end loop;
+      return Natural (Last);
+   end Stream_Read;
+
+   function Stream_Rewind return Boolean is
+      use Ada.Streams;
+      use Ada.Streams.Stream_IO;
+   begin
+      Set_Index (Stream_File, 1);
+      Stream_Rewound := True;
+      return True;
+   exception
+      when others =>
+         return False;
+   end Stream_Rewind;
+
+   procedure Check_Stream (Good : Boolean; Want_W, Want_H : Natural) is
+      Pixels : Coyote_Image_Decoder.Pixbuf_Handle :=
+        Coyote_Image_Decoder.Null_Pixbuf;
+      Width : Natural;
+      Height : Natural;
+      Error : Unbounded_String;
+   begin
+      Stream_Rewound := False;
+      Coyote_Canvas.Rasters.Decode_Stream
+        (Stream_Read'Access, Stream_Rewind'Access,
+         Pixels, Width, Height, Error);
+      Assert ((Length (Error) = 0) = Good,
+              "stream decode status: " & To_String (Error));
+      if Good then
+         Assert (Width = Want_W and then Height = Want_H,
+           "stream preserves native dimensions");
+         Assert (not Coyote_Image_Decoder.Is_Null (Pixels),
+           "stream returns pixbuf");
+         Coyote_Image_Decoder.Release (Pixels);
+      else
+         Assert (Coyote_Image_Decoder.Is_Null (Pixels),
+           "stream failure returns no pixbuf");
+         Assert (Width = 0 and then Height = 0,
+           "stream failure clears dimensions");
+      end if;
+   end Check_Stream;
 
    function Read_Bytes (Path : String) return String is
       use Ada.Streams;
@@ -106,6 +175,80 @@ package body Coyote_Canvas_Raster_Tests is
          Assert (Length (Error) <= 80, "error text is bounded");
       end if;
    end Check_Decode;
+
+   function CRC_Update
+     (Value : Interfaces.Unsigned_32;
+      Data : String) return Interfaces.Unsigned_32
+   is
+      Result : Interfaces.Unsigned_32 := Value;
+   begin
+      for Item of Data loop
+         Result := Result xor
+           Interfaces.Unsigned_32 (Character'Pos (Item));
+         for Bit in 1 .. 8 loop
+            if (Result and 1) /= 0 then
+               Result := Interfaces.Shift_Right (Result, 1)
+                 xor 16#EDB8_8320#;
+            else
+               Result := Interfaces.Shift_Right (Result, 1);
+            end if;
+         end loop;
+      end loop;
+      return Result;
+   end CRC_Update;
+
+   function Big_Endian (Value : Interfaces.Unsigned_32) return String is
+      Result : String (1 .. 4);
+   begin
+      for Index in Result'Range loop
+         Result (Index) := Character'Val
+           (Natural
+              (Interfaces.Shift_Right (Value, 8 * (4 - Index)) and 16#FF#));
+      end loop;
+      return Result;
+   end Big_Endian;
+
+   procedure Make_Large_PNG (Path : String; Source : String) is
+      use Ada.Streams;
+      use Ada.Streams.Stream_IO;
+      Output : File_Type;
+      Chunk_Size : constant Positive :=
+        Coyote_Canvas.Rasters.MAX_ENCODED_BYTES + 1;
+      Block : constant String (1 .. 4_096) := (others => 'x');
+      CRC : Interfaces.Unsigned_32 :=
+        CRC_Update (16#FFFF_FFFF#, "tEXt");
+      Remaining : Natural := Chunk_Size;
+      procedure Write_Text (Text : String) is
+         Bytes : Stream_Element_Array (1 .. Stream_Element_Offset (Text'Length));
+      begin
+         for Index in Text'Range loop
+            Bytes (Stream_Element_Offset (Index - Text'First + 1)) :=
+              Stream_Element (Character'Pos (Text (Index)));
+         end loop;
+         Write (Output, Bytes);
+      end Write_Text;
+   begin
+      Create (Output, Out_File, Path);
+      Write_Text (Source (1 .. 33));
+      Write_Text (Big_Endian (Interfaces.Unsigned_32 (Chunk_Size)));
+      Write_Text ("tEXt");
+      Write_Text ("k" & Character'Val (0));
+      CRC := CRC_Update (CRC, "k" & Character'Val (0));
+      Remaining := Chunk_Size - 2;
+      while Remaining > 0 loop
+         declare
+            Count : constant Natural := Natural'Min (Remaining, Block'Length);
+            Part : constant String := Block (1 .. Count);
+         begin
+            Write_Text (Part);
+            CRC := CRC_Update (CRC, Part);
+            Remaining := Remaining - Count;
+         end;
+      end loop;
+      Write_Text (Big_Endian (not CRC));
+      Write_Text (Source (34 .. Source'Last));
+      Close (Output);
+   end Make_Large_PNG;
 
    procedure Images (T : in out Test) is
       pragma Unreferenced (T);
@@ -161,6 +304,114 @@ package body Coyote_Canvas_Raster_Tests is
       Ada.Directories.Delete_File (To_String (Path));
    end Images;
 
+   procedure Streaming (T : in out Test) is
+      pragma Unreferenced (T);
+      use type Ada.Streams.Stream_IO.Count;
+      FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Path : Unbounded_String;
+      PNG_Data : Unbounded_String;
+      Malformed : Unbounded_String;
+   begin
+      Coyote_Temp_Files.Create (FD, Path);
+      Assert (FD /= GNAT.OS_Lib.Invalid_FD, "stream file created");
+      GNAT.OS_Lib.Close (FD);
+      Ada.Directories.Delete_File (To_String (Path));
+      Save_Image (To_String (Path), Gdk.Pixbuf.PNG, 19, 13);
+      PNG_Data := To_Unbounded_String (Read_Bytes (To_String (Path)));
+      Make_Large_PNG (To_String (Path), To_String (PNG_Data));
+      Ada.Streams.Stream_IO.Open
+        (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
+      Stream_Open := True;
+      Assert
+        (Ada.Streams.Stream_IO.Size (Stream_File) >
+           Coyote_Canvas.Rasters.MAX_ENCODED_BYTES,
+         "fixture exceeds historical encoded-byte cap");
+      Check_Stream (True, 19, 13);
+      Assert (Stream_Rewind, "rewind fixture after decoding");
+      Cancel_After_Rewind := True;
+      Check_Stream (False, 0, 0);
+      Cancel_After_Rewind := False;
+      Ada.Streams.Stream_IO.Close (Stream_File);
+      Stream_Open := False;
+
+      Malformed := To_Unbounded_String
+        (To_String (PNG_Data) (1 .. Natural'Min (40, Length (PNG_Data))));
+      declare
+         File : Ada.Streams.Stream_IO.File_Type;
+         Bytes : Ada.Streams.Stream_Element_Array
+           (1 .. Ada.Streams.Stream_Element_Offset (Length (Malformed)));
+      begin
+         Ada.Streams.Stream_IO.Create
+           (File, Ada.Streams.Stream_IO.Out_File, To_String (Path));
+         for Index in 1 .. Length (Malformed) loop
+            Bytes (Ada.Streams.Stream_Element_Offset (Index)) :=
+              Ada.Streams.Stream_Element
+                (Character'Pos (Element (Malformed, Index)));
+         end loop;
+         Ada.Streams.Stream_IO.Write (File, Bytes);
+         Ada.Streams.Stream_IO.Close (File);
+      end;
+      Ada.Streams.Stream_IO.Open
+        (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
+      Stream_Open := True;
+      Check_Stream (False, 0, 0);
+      Ada.Streams.Stream_IO.Close (Stream_File);
+      Stream_Open := False;
+
+      declare
+         Oversized : constant String :=
+           Character'Val (137) & "PNG" & ASCII.CR & ASCII.LF
+           & Character'Val (26) & ASCII.LF
+           & Character'Val (0) & Character'Val (0) & Character'Val (0)
+           & Character'Val (13) & "IHDR"
+           & Character'Val (0) & Character'Val (0) & Character'Val (32)
+           & Character'Val (1)
+           & Character'Val (0) & Character'Val (0) & Character'Val (0)
+           & Character'Val (1);
+      begin
+         declare
+            File : Ada.Streams.Stream_IO.File_Type;
+            Bytes : Ada.Streams.Stream_Element_Array (1 .. 24);
+         begin
+            Ada.Streams.Stream_IO.Create
+              (File, Ada.Streams.Stream_IO.Out_File, To_String (Path));
+            for Index in Oversized'Range loop
+               Bytes (Ada.Streams.Stream_Element_Offset (Index)) :=
+                 Ada.Streams.Stream_Element
+                   (Character'Pos (Oversized (Index)));
+            end loop;
+            Ada.Streams.Stream_IO.Write (File, Bytes);
+            Ada.Streams.Stream_IO.Close (File);
+         end;
+         Ada.Streams.Stream_IO.Open
+           (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
+         Stream_Open := True;
+         Check_Stream (False, 0, 0);
+         Ada.Streams.Stream_IO.Close (Stream_File);
+         Stream_Open := False;
+      end;
+      Save_Image (To_String (Path), Gdk.Pixbuf.JPEG, 64, 48, False);
+      Ada.Streams.Stream_IO.Open
+        (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
+      Stream_Open := True;
+      Stream_Chunk_Limit := 1;
+      Check_Stream (True, 64, 48);
+      Stream_Chunk_Limit := Positive'Last;
+      Ada.Streams.Stream_IO.Close (Stream_File);
+      Stream_Open := False;
+      Coyote_Temp_Files.Delete (To_String (Path));
+   exception
+      when others =>
+         Cancel_After_Rewind := False;
+         Stream_Chunk_Limit := Positive'Last;
+         if Stream_Open then
+            Ada.Streams.Stream_IO.Close (Stream_File);
+            Stream_Open := False;
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Path));
+         raise;
+   end Streaming;
+
    procedure Rejects (T : in out Test) is
       pragma Unreferenced (T);
       Invalid : constant String := "not an image";
@@ -197,6 +448,8 @@ package body Coyote_Canvas_Raster_Tests is
    begin
       Result.Add_Test (Caller.Create
         ("Coyote.Canvas full-resolution PNG and JPEG decode", Images'Access));
+      Result.Add_Test (Caller.Create
+        ("Coyote.Canvas streaming decode without encoded cap", Streaming'Access));
       Result.Add_Test (Caller.Create
         ("Coyote.Canvas raster format and size rejection", Rejects'Access));
       return Result;

@@ -1,5 +1,21 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Stream direct Canvas PNG and JPEG imports
+
+File Selection no longer rejects PNG or JPEG by encoded byte length. The
+worker preflights native dimensions and streams the same regular file in
+bounded chunks; Canvas close and session transitions cancel between reads
+and discard stale results. Batch publication remains atomic. Decoded
+budgets, SVG and clipboard input limits, agent transport, and attachment
+limits are unchanged. Disk-backed raster tiles and off-GTK composition
+remain planned; the native decoder still returns a full raster.
+
+Development builds and the full Xvfb suite passed (1,131/1,131). The GUI
+regression opens a high-entropy PNG above 8 MiB at native dimensions. Codec
+coverage includes large encoded input, JPEG short reads, oversized geometry,
+truncation, and cancellation. Canvas CLI and import protocol, Help, GTK
+interactions (9/9), and runner fault-handling checks passed.
+
 ## 2026-11-22 — Canvas brush sizes and pen-pressure opacity
 
 Separate Pencil and Eraser toolbar controls select 1–64 source pixels,
