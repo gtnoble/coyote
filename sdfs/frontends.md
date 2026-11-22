@@ -336,6 +336,13 @@ This is developer verification, not desktop or product qualification.
 Clipboard and file import, durable recovery and image submission remain
 pending; no installed binary or running instance was updated.
 
+## 2026-11-22 — Canvas attachment composer sizing
+
+The attachment picker yields width before the action buttons. It ellipsizes
+long labels without changing stored names or revision IDs and exposes the
+full selection in a tooltip. The upload note wraps and Restore Draft has
+space beside the note, so rejected prompts use the same action-row layout.
+
 ## 2026-11-22 — Canvas Attach button (PCR-130/131)
 
 Added a bottom-right Attach button beside the Canvas status text. It shares

@@ -21,6 +21,8 @@ with Gtk.Adjustment;
 with Glib.Properties; use Glib.Properties;
 with Gtk.Accel_Group;
 with Gtk.Box;
+with Gtk.Cell_Renderer;
+with Gtk.Combo_Box;
 with Gtk.Combo_Box_Text;
 with LLM.User_Images;
 with Gtk.Button;
@@ -50,6 +52,7 @@ with Pango.Font;
 with Pango.Context;
 with Pango.Font_Metrics;
 with Pango.Language;
+with Pango.Layout;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
@@ -200,6 +203,16 @@ package body Coyote_App.Frontend.GUI is
           else "Send uploads these images to the selected provider and records them in the session."));
       F.Attachment_Panel.Set_Visible (N /= 0);
    end Update_Attachments;
+
+   procedure On_Attachment_Changed
+     (Choice : access Gtk.Combo_Box.Gtk_Combo_Box_Record'Class)
+   is
+      Text_Choice : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text_Record'Class
+        renames Gtk.Combo_Box_Text.Gtk_Combo_Box_Text_Record'Class
+          (Choice.all);
+   begin
+      Choice.Set_Tooltip_Text (Text_Choice.Get_Active_Text);
+   end On_Attachment_Changed;
 
    function Stage_Attachments (Images : LLM.Types.User_Images.Vector)
       return Boolean is
@@ -5229,13 +5242,17 @@ package body Coyote_App.Frontend.GUI is
       Prompt_Box.Set_Border_Width (4);
       F.Prompt_Box := Prompt_Box;
       declare
-         Actions : Gtk.Box.Gtk_Box;
-         procedure Add (Button : out Gtk.Button.Gtk_Button; Label, Name : String) is
+         Actions, Notice : Gtk.Box.Gtk_Box;
+         use Gtk.Cell_Renderer.Cell_Renderer_List;
+         Cells : Glist;
+
+         procedure Add
+           (Button : out Gtk.Button.Gtk_Button; Label, Name : String)
+         is
          begin
             Gtk.Button.Gtk_New_With_Mnemonic (Button, Label);
             Button.Set_Name ("canvas-attachment-" & Name);
             Button.On_Clicked (On_Attachment_Button'Access);
-            Actions.Pack_Start (Button, False, False, 0);
          end Add;
       begin
          Gtk.Box.Gtk_New_Vbox (F.Attachment_Panel, False, 2);
@@ -5244,6 +5261,15 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Label.Gtk_New_With_Mnemonic (F.Attachment_Label, "_Attachments:");
          Gtk.Combo_Box_Text.Gtk_New (F.Attachment_Choice);
          F.Attachment_Choice.Set_Name ("canvas-attachment-choice");
+         --  Set before inserting rows so the cell area measures them with
+         --  a shrinkable minimum rather than the full revision label.
+         Cells := F.Attachment_Choice.Get_Cells;
+         Pango.Layout.Set_Property
+           (Get_Data (Cells), Gtk.Cell_Renderer_Text.Ellipsize_Property,
+            Pango.Layout.Ellipsize_End);
+         Free (Cells);
+         F.Attachment_Choice.Set_Popup_Fixed_Width (False);
+         F.Attachment_Choice.On_Changed (On_Attachment_Changed'Access);
          F.Attachment_Label.Set_Mnemonic_Widget (F.Attachment_Choice);
          Actions.Pack_Start (F.Attachment_Label, False, False, 0);
          Actions.Pack_Start (F.Attachment_Choice, True, True, 0);
@@ -5251,13 +5277,22 @@ package body Coyote_App.Frontend.GUI is
          Add (F.Attachment_Down, "Move _Down", "down");
          Add (F.Attachment_Remove, "_Remove", "remove");
          Add (F.Attachment_Show, "Sho_w in Canvas", "show");
-         Add (F.Attachment_Restore, "Res_tore Draft", "restore");
+         Actions.Pack_Start (F.Attachment_Up, False, False, 0);
+         Actions.Pack_Start (F.Attachment_Down, False, False, 0);
+         Actions.Pack_Start (F.Attachment_Remove, False, False, 0);
+         Actions.Pack_Start (F.Attachment_Show, False, False, 0);
          F.Attachment_Panel.Pack_Start (Actions, False, False, 0);
+         Gtk.Box.Gtk_New_Hbox (Notice, False, 4);
          Gtk.Label.Gtk_New (F.Attachment_Note);
          F.Attachment_Note.Set_Xalign (0.0);
-         F.Attachment_Panel.Pack_Start (F.Attachment_Note, False, False, 0);
+         F.Attachment_Note.Set_Line_Wrap (True);
+         Notice.Pack_Start (F.Attachment_Note, True, True, 0);
+         Add (F.Attachment_Restore, "Res_tore Draft", "restore");
+         F.Attachment_Restore.Set_No_Show_All (True);
+         Notice.Pack_End (F.Attachment_Restore, False, False, 0);
+         F.Attachment_Panel.Pack_Start (Notice, False, False, 0);
          Actions.Show_All;
-         F.Attachment_Note.Show;
+         Notice.Show_All;
          Prompt_Box.Pack_Start (F.Attachment_Panel, False, False, 0);
          Update_Attachments (F);
          Coyote_GUI.Canvas.Set_Attach_Handler (F.Canvas_Window, Stage_Attachments'Access);

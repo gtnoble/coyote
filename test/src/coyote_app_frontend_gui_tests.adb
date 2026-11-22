@@ -2465,6 +2465,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       It : Item;
       PNG : Unbounded_String;
       Attach : Gtk.Button.Gtk_Button;
+      Choice : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Narrow_Width : constant Glib.Gint := 640;
 
       function Widget (Name : String; In_Canvas : Boolean := True)
         return Gtk.Widget.Gtk_Widget is
@@ -2487,6 +2489,54 @@ package body Coyote_App_Frontend_GUI_Tests is
          Gtk.Button.Gtk_Button (Widget (Name, False)).Clicked;
          Drain_Events;
       end Click;
+
+      procedure Check_Actions
+        (Width : Glib.Gint; Rejected : Boolean := False)
+      is
+         use type Ada.Real_Time.Time;
+         Win : constant Gtk.Window.Gtk_Window := Main_Window (F);
+         Deadline : constant Ada.Real_Time.Time :=
+           Ada.Real_Time.Clock + Ada.Real_Time.Seconds (1);
+
+         procedure Check_Button (Name : String) is
+            Button : constant Gtk.Widget.Gtk_Widget :=
+              Widget ("canvas-attachment-" & Name, False);
+            X, Y, Minimum, Natural_Width : Glib.Gint;
+            Translated : Boolean;
+         begin
+            Button.Translate_Coordinates (Win, 0, 0, X, Y, Translated);
+            Button.Get_Preferred_Width (Minimum, Natural_Width);
+            Assert (Translated and then Button.Is_Visible
+                    and then Button.Get_Allocated_Width >= Natural_Width
+                    and then X >= 0 and then Y >= 0
+                    and then X + Button.Get_Allocated_Width <= Width
+                    and then Y + Button.Get_Allocated_Height <=
+                      Win.Get_Allocated_Height,
+                    "Attachment button fits at" & Width'Image & ": " & Name);
+         end Check_Button;
+      begin
+         Win.Resize (Width, 700);
+         loop
+            Drain_Events;
+            exit when Win.Get_Allocated_Width = Width
+              or else Ada.Real_Time.Clock >= Deadline;
+            delay 0.01;
+         end loop;
+         Win.Check_Resize;
+         Assert (Win.Get_Allocated_Width = Width,
+                 "Attachment row permits width" & Width'Image & "; got" &
+                   Win.Get_Allocated_Width'Image);
+         Check_Button ("up");
+         Check_Button ("down");
+         Check_Button ("remove");
+         Check_Button ("show");
+         if Rejected then
+            Check_Button ("restore");
+         else
+            Assert (not Widget ("canvas-attachment-restore", False).Get_Visible,
+                    "Restore Draft does not take space in the normal row");
+         end if;
+      end Check_Actions;
    begin
       if not T.Display_Available then
          return;
@@ -2534,6 +2584,30 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("apply");
       Activate ("attach");
       Assert (Attachment_Count (F) = 1, "working copy is checkpointed and staged");
+      Choice := Gtk.Combo_Box_Text.Gtk_Combo_Box_Text
+        (Widget ("canvas-attachment-choice", False));
+      Check_Long_Label : declare
+         Long_Label : constant String := "[Image 2: " & (1 .. 240 => 'W')
+           & ", 800 x 600]  9b291635-2110-4e57-a6db-380fba522ca5";
+         Narrow_Choice, Wide_Choice : Glib.Gint;
+      begin
+         Choice.Append_Text (Long_Label);
+         Choice.Set_Active (1);
+         Check_Actions (Narrow_Width);
+         Narrow_Choice := Choice.Get_Allocated_Width;
+         Assert (Choice.Get_Active_Text = Long_Label
+                 and then Choice.Get_Tooltip_Text = Long_Label,
+                 "The picker retains and exposes the full name and revision");
+         Check_Actions (1_100);
+         Wide_Choice := Choice.Get_Allocated_Width;
+         Assert (Wide_Choice > Narrow_Choice,
+                 "Extra width goes to the attachment picker");
+         Choice.Remove (1);
+         Choice.Set_Active (0);
+         Assert (Choice.Get_Tooltip_Text = Choice.Get_Active_Text,
+                 "The tooltip follows the attachment selection");
+         Check_Actions (Narrow_Width);
+      end Check_Long_Label;
       Activate ("fit");
       declare
          Area : constant Gtk.Widget.Gtk_Widget :=
@@ -2582,8 +2656,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Attach.Clicked;
       Assert (Attachment_Count (F) = 4,
               "Clicking Attach stages selected revisions in one batch");
-      Gtk.Combo_Box_Text.Gtk_Combo_Box_Text
-        (Widget ("canvas-attachment-choice", False)).Set_Active (2);
+      Choice.Set_Active (2);
       Click ("canvas-attachment-up");
       Click ("canvas-attachment-up");
       Click_Send (F);
@@ -2608,6 +2681,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       PNG := It.Images (2).PNG;
       F.Canvas_Prompt_Result (Id, It.Request_Id, False);
       Drain_Events;
+      Check_Actions (Narrow_Width, Rejected => True);
       Click ("canvas-attachment-restore");
       Click_Send (F);
       It := F.Read_Item;
