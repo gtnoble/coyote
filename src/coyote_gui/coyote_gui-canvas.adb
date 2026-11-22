@@ -92,6 +92,7 @@ package body Coyote_GUI.Canvas is
    use type Gtk.Accel_Group.Gtk_Accel_Group;
    use type Gtk.Tree_Model.Gtk_Tree_Iter;
    use type Gtk.Tree_Store.Gtk_Tree_Store;
+   use type Gtk.Tree_View.Gtk_Tree_View;
    use type Gtk.Window.Gtk_Window;
    use type Glib.Gint;
    use type Glib.Gdouble;
@@ -170,6 +171,8 @@ package body Coyote_GUI.Canvas is
      (Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record, Instance_Access);
    package Button_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Button.Gtk_Button_Record, Instance_Access);
+   package Window_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Window.Gtk_Window_Record, Instance_Access);
    package Tool_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Radio_Button.Gtk_Radio_Button_Record, Instance_Access);
    package Entry_Callback is new Gtk.Handlers.User_Callback
@@ -312,6 +315,21 @@ package body Coyote_GUI.Canvas is
          return Doc.EMPTY_RECTANGLE;
    end Pending;
 
+   function Has_Drawing_Focus (S : Instance) return Boolean is
+      Focus : constant Gtk.Widget.Gtk_Widget := S.Canvas_Window.Get_Focus;
+   begin
+      return Focus = Gtk.Widget.Gtk_Widget (S.Drawing_Area)
+        or else (Focus = Gtk.Widget.Gtk_Widget (S.Attach_Button)
+                 and then S.Attach_From_Drawing);
+   end Has_Drawing_Focus;
+
+   function Can_Attach (S : Instance) return Boolean is
+     (S.Drawing_Tree /= null and then Can_Edit (S) and then S.Show_Ink
+      and then not (Cropping (S) or else S.Drawing)
+      and then S.On_Attach /= null
+      and then ((S.Editing_Draft and then S.Has_Drawing)
+        or else S.Drawing_Tree.Get_Selection.Count_Selected_Rows > 0));
+
    procedure Refresh (S : in out Instance) is
       E          : constant Doc.Rectangle := Display_Extent (S);
       Editing    : constant Boolean       :=
@@ -319,6 +337,7 @@ package body Coyote_GUI.Canvas is
         and then not (Cropping (S) or else S.Drawing);
       Tools_Enabled : constant Boolean := Can_Select_Tool (S);
       Zoom_Enabled  : constant Boolean := Can_Zoom (S, E);
+      Attach_Enabled : constant Boolean := Can_Attach (S);
       Valid_Crop : constant Boolean       :=
         Can_Draw (S) and then not S.Crop_Drag
         and then Doc.Is_Nonempty (Pending (S));
@@ -330,11 +349,8 @@ package body Coyote_GUI.Canvas is
         (Can_Edit (S) and then not Cropping (S) and then not S.Drawing
          and then ((Editing and then Rev.Changed (S.Document))
                    or else S.Save_Failed));
-      S.Attach_Item.Set_Sensitive
-        (Can_Edit (S) and then not Cropping (S) and then not S.Drawing
-         and then S.Show_Ink and then S.On_Attach /= null
-         and then ((S.Editing_Draft and then S.Has_Drawing)
-           or else S.Drawing_Tree.Get_Selection.Count_Selected_Rows > 0));
+      S.Attach_Item.Set_Sensitive (Attach_Enabled);
+      S.Attach_Button.Set_Sensitive (Attach_Enabled);
       S.New_Item.Set_Sensitive (Can_Edit (S));
       S.Import_Item.Set_Sensitive (Can_Edit (S));
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
@@ -1092,6 +1108,28 @@ package body Coyote_GUI.Canvas is
    end On_Edit_With_Finger;
 
    procedure Freeze_Attachments (S : aliased in out Instance);
+
+   procedure On_Attach_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access)
+   is
+      pragma Unreferenced (Button);
+   begin
+      Freeze_Attachments (S.all);
+   end On_Attach_Clicked;
+
+   procedure Remember_Attach_Focus
+     (Window : access Gtk.Window.Gtk_Window_Record'Class;
+      S      : Instance_Access)
+   is
+      Focus : constant Gtk.Widget.Gtk_Widget := Window.Get_Focus;
+   begin
+      --  Tabbing to Attach must not switch from the draft to selected rows.
+      if Focus /= Gtk.Widget.Gtk_Widget (S.Attach_Button) then
+         S.Attach_From_Drawing :=
+           Focus = Gtk.Widget.Gtk_Widget (S.Drawing_Area);
+      end if;
+   end Remember_Attach_Focus;
+
    procedure Apply_Reveal (S : in out Instance);
    procedure Clear_Display (S : in out Instance);
 
@@ -1192,6 +1230,7 @@ package body Coyote_GUI.Canvas is
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class)
    is
       Outer, Toolbar, Body_Box, Side : Gtk.Box.Gtk_Box;
+      Footer, Status_Box    : Gtk.Box.Gtk_Box;
       Bar                   : Gtk.Menu_Bar.Gtk_Menu_Bar;
       Menu                  : Gtk.Menu.Gtk_Menu;
       Scroll                : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
@@ -1486,18 +1525,34 @@ package body Coyote_GUI.Canvas is
       S.Crop_Grid.Attach (S.Apply_Crop, 8, 0, 1, 1);
       S.Crop_Grid.Attach (S.Cancel_Crop, 9, 0, 1, 1);
       Outer.Pack_Start (S.Crop_Grid, False, False, 2);
+      Gtk.Box.Gtk_New_Hbox (Footer, False, 8);
+      Gtk.Box.Gtk_New_Vbox (Status_Box, False, 0);
+      Footer.Pack_Start (Status_Box, True, True, 0);
+      Outer.Pack_Start (Footer, False, False, 0);
       Gtk.Label.Gtk_New (S.Tool_Label, "Tool: Pencil");
       S.Tool_Label.Set_Name ("coyote-canvas-tool");
       S.Tool_Label.Set_Halign (Gtk.Widget.Align_Start);
-      Outer.Pack_Start (S.Tool_Label, False, False, 4);
+      Status_Box.Pack_Start (S.Tool_Label, False, False, 4);
       Gtk.Label.Gtk_New (S.Status, "Blank drawing workspace");
       S.Status.Set_Name ("coyote-canvas-status");
       S.Status.Set_Halign (Gtk.Widget.Align_Start);
-      Outer.Pack_Start (S.Status, False, False, 4);
+      Status_Box.Pack_Start (S.Status, False, False, 4);
       Gtk.Label.Gtk_New (S.Storage_Label, "Drawings are in memory only.");
       S.Storage_Label.Set_Name ("coyote-canvas-storage-status");
       S.Storage_Label.Set_Halign (Gtk.Widget.Align_Start);
-      Outer.Pack_Start (S.Storage_Label, False, False, 4);
+      Status_Box.Pack_Start (S.Storage_Label, False, False, 4);
+      Gtk.Button.Gtk_New (S.Attach_Button, "Attach");
+      S.Attach_Button.Set_Name ("canvas-attach-button");
+      S.Attach_Button.Set_Valign (Gtk.Widget.Align_End);
+      S.Attach_Button.Set_Margin_Bottom (8);
+      Gtk.Widget.Set_Focus_On_Click
+        (Gtk.Widget.Gtk_Widget (S.Attach_Button), False);
+      Footer.Pack_End (S.Attach_Button, False, False, 8);
+      Button_Callback.Connect
+        (S.Attach_Button, "clicked", On_Attach_Clicked'Access, State);
+      Window_Callback.Connect
+        (S.Canvas_Window, "set-focus", Remember_Attach_Focus'Access,
+         State, After => True);
       Outer.Show_All;
       S.Crop_Grid.Hide;
    end Build_Window;
@@ -1926,6 +1981,7 @@ package body Coyote_GUI.Canvas is
       S.Height_Field := null;
       S.Apply_Crop   := null;
       S.Cancel_Crop  := null;
+      S.Attach_Button := null;
       S.Zoom         := 1.0;
       S.Show_Ink     := True;
       S.Tool_Label  := null;
@@ -2436,11 +2492,9 @@ package body Coyote_GUI.Canvas is
         S.Drawing_Tree.Get_Selection;
       Is_Draft : constant Boolean := S.Editing_Draft and then
         (Selection.Count_Selected_Rows = 0 or else
-         S.Canvas_Window.Get_Focus = Gtk.Widget.Gtk_Widget (S.Drawing_Area));
+         Has_Drawing_Focus (S));
    begin
-      if not Can_Edit (S) or else Cropping (S) or else S.Drawing
-        or else not S.Show_Ink or else S.On_Attach = null
-      then
+      if not Can_Attach (S) then
          return;
       end if;
       if Is_Draft then

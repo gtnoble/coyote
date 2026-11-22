@@ -336,6 +336,14 @@ This is developer verification, not desktop or product qualification.
 Clipboard and file import, durable recovery and image submission remain
 pending; no installed binary or running instance was updated.
 
+## 2026-11-22 — Canvas Attach button (PCR-130/131)
+
+Added a bottom-right Attach button beside the Canvas status text. It shares
+eligibility and staging with Selected → Attach and preserves the drawing or
+revision selection when it takes keyboard focus. Updated Canvas Help and design.
+Focused GTK coverage checks placement, sensitivity, and that both entry points
+stage the expected native-size images without sending them.
+
 ## 2026-11-21 — Canvas crop primitives (PCR-130/131)
 
 The GTK-independent Canvas units implement integer half-open rectangles,

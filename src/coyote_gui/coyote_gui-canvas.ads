@@ -114,6 +114,8 @@ private
       Import_Timer : Glib.Main.G_Source_Id := 0;
       Import_Count : Natural := 0;
       Attach_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      Attach_Button : Gtk.Button.Gtk_Button := null;
+      Attach_From_Drawing : Boolean := False;
       On_Attach : Attach_Handler;
       Reveal_Drawing, Reveal_Revision : Ada.Strings.Unbounded.Unbounded_String;
       Import_Bytes : Natural := 0;

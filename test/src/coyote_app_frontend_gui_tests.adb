@@ -1322,7 +1322,8 @@ package body Coyote_App_Frontend_GUI_Tests is
                 (Control ("coyote-canvas-tool"))) = "Tool: Eraser (16 px)",
               "eraser mode is indicated in text");
       Pointer (Gdk.Event.Button_Press, 15.0, 30.0);
-      Assert (not Control ("canvas-attach").Get_Sensitive and then
+      Assert (not Control ("canvas-attach-button").Get_Sensitive and then
+                not Control ("canvas-attach").Get_Sensitive and then
                 not Control ("canvas-save").Get_Sensitive,
               "Save and Attach stay unavailable during an erase gesture");
       Motion (30.0, 30.0);
@@ -2463,6 +2464,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Model : Gtk_Tree_Model;
       It : Item;
       PNG : Unbounded_String;
+      Attach : Gtk.Button.Gtk_Button;
 
       function Widget (Name : String; In_Canvas : Boolean := True)
         return Gtk.Widget.Gtk_Widget is
@@ -2496,10 +2498,35 @@ package body Coyote_App_Frontend_GUI_Tests is
       Canvas := Canvas_Window (F);
       Tree := Gtk.Tree_View.Gtk_Tree_View (Widget ("coyote-canvas-drawings"));
       Model := Tree.Get_Model;
+      Assert (Widget ("canvas-attach-button") /= null,
+              "Canvas has a footer Attach button");
+      Attach := Gtk.Button.Gtk_Button (Widget ("canvas-attach-button"));
+      Drain_Events;
+      Check_Footer : declare
+         X, Y : Glib.Gint;
+         Translated : Boolean;
+      begin
+         Attach.Translate_Coordinates (Canvas, 0, 0, X, Y, Translated);
+         Assert (Translated and then Attach.Get_Visible
+                 and then Attach.Get_Label = "Attach"
+                 and then Canvas.Get_Allocated_Width - X -
+                   Attach.Get_Allocated_Width in 0 .. 16
+                 and then Canvas.Get_Allocated_Height - Y -
+                   Attach.Get_Allocated_Height in 0 .. 16,
+                 "Attach is visible in the bottom-right corner");
+      end Check_Footer;
+      Assert (not Attach.Get_Sensitive, "Empty workspace dims Attach");
       Activate ("new");
+      Assert (Attach.Get_Sensitive, "A new drawing enables Attach");
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Widget ("canvas-markup")).Set_Active (False);
+      Assert (not Attach.Get_Sensitive, "Hidden markup dims Attach");
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Widget ("canvas-markup")).Set_Active (True);
       Activate ("crop");
-      Assert (not Widget ("canvas-attach").Get_Sensitive,
-              "pending crop dims Attach");
+      Assert (not Attach.Get_Sensitive
+              and then not Widget ("canvas-attach").Get_Sensitive,
+              "Pending crop dims both Attach controls");
       Field ("x", "3");
       Field ("y", "4");
       Field ("width", "7");
@@ -2526,15 +2553,35 @@ package body Coyote_App_Frontend_GUI_Tests is
          Canvas.Check_Resize;
          Drain_Events;
       end;
-      Activate ("attach");
+      Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
+      Activate ("draft");
+      Widget ("coyote-canvas-drawing-area").Grab_Focus;
+      Attach.Grab_Focus;
+      Assert (Canvas.Get_Focus = Gtk.Widget.Gtk_Widget (Attach)
+              and then Gtk.Widget.Activate (Gtk.Widget.Gtk_Widget (Attach)),
+              "Attach is keyboard-focusable and activatable");
+      Wait_For_Draft : declare
+         use type Ada.Real_Time.Time;
+         Deadline : constant Ada.Real_Time.Time :=
+           Ada.Real_Time.Clock + Ada.Real_Time.Seconds (1);
+      begin
+         while Attachment_Count (F) /= 2
+           and then Ada.Real_Time.Clock < Deadline
+         loop
+            delay 0.01;
+            Drain_Events;
+         end loop;
+      end Wait_For_Draft;
       Assert (Attachment_Count (F) = 2,
-              "Toolbar zoom leaves the same draft attachable");
+              "Activating Attach from the drawing stages the draft");
       Activate ("undo");
       Activate ("new");
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "1"));
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
-      Activate ("attach");
-      Assert (Attachment_Count (F) = 4, "multi-selection stages one ordered batch");
+      Tree.Grab_Focus;
+      Attach.Clicked;
+      Assert (Attachment_Count (F) = 4,
+              "Clicking Attach stages selected revisions in one batch");
       Gtk.Combo_Box_Text.Gtk_Combo_Box_Text
         (Widget ("canvas-attachment-choice", False)).Set_Active (2);
       Click ("canvas-attachment-up");
@@ -2557,7 +2604,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (It.Images (3).Width = 7 and then It.Images (3).Height = 5
                 and then It.Images (2).Revision_Id = It.Images (3).Revision_Id
                 and then It.Images (2).PNG = It.Images (3).PNG,
-              "Zoom leaves the revision, PNG dimensions and exact bytes intact");
+              "Button and menu stage the draft, not the selected Original");
       PNG := It.Images (2).PNG;
       F.Canvas_Prompt_Result (Id, It.Request_Id, False);
       Drain_Events;
