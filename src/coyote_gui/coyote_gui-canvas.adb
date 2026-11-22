@@ -34,6 +34,10 @@ with Gtk.Handlers;
 with Gtk.Menu;
 with Gtk.Menu_Bar;
 with Gtk.Scrolled_Window;
+with Gtk.Style_Context;
+with Gtk.Css_Provider;
+with Gtk.Style_Provider;
+with Gdk.RGBA;
 with Gtk.Tree_Selection;
 with Gtk.Tree_View_Column;
 with Gtk.Widget;
@@ -143,6 +147,10 @@ package body Coyote_GUI.Canvas is
      (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Boolean, Instance_Access);
    package Draw_Context_Marshaller is new Draw_Callback.Marshallers
      .Generic_Marshaller
+     (Cairo.Cairo_Context, Cairo.Get_Context);
+   package Icon_Callback is new Gtk.Handlers.User_Return_Callback
+     (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Boolean, Tool_Kind);
+   package Icon_Marshaller is new Icon_Callback.Marshallers.Generic_Marshaller
      (Cairo.Cairo_Context, Cairo.Get_Context);
    package Event_Callback is new Gtk.Handlers.User_Return_Callback
      (Gtk.Widget.Gtk_Widget_Record, Boolean, Instance_Access);
@@ -908,6 +916,74 @@ package body Coyote_GUI.Canvas is
      (case Tool is when Pencil => "Pencil", when Eraser => "Eraser",
                    when Crop => "Crop");
 
+   function Tool_Icon
+     (Area : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
+      Context : Cairo.Cairo_Context; Tool : Tool_Kind) return Boolean
+   is
+      use Cairo;
+      use type Glib.Gdouble;
+      Side : constant Glib.Gdouble := 22.0;
+      Color : Gdk.RGBA.Gdk_RGBA;
+   begin
+      declare
+         Button : constant Gtk.Widget.Gtk_Widget := Area.Get_Parent;
+      begin
+         Gtk.Style_Context.Get_Style_Context (Button).Get_Color
+           (Button.Get_State_Flags, Color);
+      end;
+      Save (Context);
+      Translate
+        (Context, (Glib.Gdouble (Area.Get_Allocated_Width) - Side) / 2.0,
+         (Glib.Gdouble (Area.Get_Allocated_Height) - Side) / 2.0);
+      Set_Source_Rgba (Context, Color.Red, Color.Green, Color.Blue, Color.Alpha);
+      Set_Line_Width (Context, 1.8);
+      Set_Line_Cap (Context, Cairo_Line_Cap_Round);
+      Set_Line_Join (Context, Cairo_Line_Join_Round);
+      case Tool is
+         when Pencil =>
+            Move_To (Context, 3.5, 18.5);
+            Line_To (Context, 4.7, 12.9);
+            Line_To (Context, 15.8, 1.8);
+            Line_To (Context, 20.2, 6.2);
+            Line_To (Context, 9.1, 17.3);
+            Close_Path (Context);
+            Move_To (Context, 13.1, 4.5);
+            Line_To (Context, 17.5, 8.9);
+            Move_To (Context, 4.7, 12.9);
+            Line_To (Context, 9.1, 17.3);
+         when Eraser =>
+            Move_To (Context, 2.6, 12.8);
+            Line_To (Context, 12.8, 2.6);
+            Line_To (Context, 19.8, 9.6);
+            Line_To (Context, 11.0, 18.4);
+            Line_To (Context, 8.2, 18.4);
+            Close_Path (Context);
+            Move_To (Context, 7.2, 8.2);
+            Line_To (Context, 14.2, 15.2);
+            Move_To (Context, 11.0, 18.4);
+            Line_To (Context, 20.0, 18.4);
+         when Crop =>
+            Move_To (Context, 5.5, 2.0);
+            Line_To (Context, 5.5, 16.5);
+            Line_To (Context, 20.0, 16.5);
+            Move_To (Context, 2.0, 5.5);
+            Line_To (Context, 16.5, 5.5);
+            Line_To (Context, 16.5, 20.0);
+            Move_To (Context, 16.5, 5.5);
+            Line_To (Context, 20.0, 2.0);
+      end case;
+      Stroke (Context);
+      Restore (Context);
+      return True;
+   end Tool_Icon;
+
+   --  GtkAda does not expose the widget's ATK object.
+   function Accessible (Widget : System.Address) return System.Address
+     with Import, Convention => C, External_Name => "gtk_widget_get_accessible";
+   procedure Set_Accessible_Name
+     (Object : System.Address; Name : Interfaces.C.char_array)
+     with Import, Convention => C, External_Name => "atk_object_set_name";
+
    procedure Build_Window
      (S      : aliased in out Instance;
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class)
@@ -972,18 +1048,48 @@ package body Coyote_GUI.Canvas is
       procedure Build_Toolbar is
          Members : Gtk.Widget.Widget_SList.GSlist :=
            Gtk.Widget.Widget_SList.Null_List;
+         Icon : Gtk.Drawing_Area.Gtk_Drawing_Area;
+         Style : Gtk.Css_Provider.Gtk_Css_Provider;
+         CSS : constant String :=
+           "radiobutton { padding: 4px; border-radius: 4px; } "
+           & "radiobutton:hover { background-color: alpha(currentColor, 0.08); } "
+           & "radiobutton:checked { background-color: alpha(currentColor, 0.13); "
+           & "box-shadow: inset 0 -2px currentColor; } "
+           & "radiobutton radio { min-width: 0; min-height: 0; margin: 0; "
+           & "padding: 0; border: 0; box-shadow: none; background: none; "
+           & "-gtk-icon-source: none; -gtk-icon-shadow: none; }";
+         Style_Loaded : Boolean;
       begin
-         Gtk.Box.Gtk_New_Hbox (Toolbar, False, 8);
+         Gtk.Css_Provider.Gtk_New (Style);
+         Style_Loaded := Style.Load_From_Data (CSS, null);
+         Gtk.Box.Gtk_New_Hbox (Toolbar, False, 4);
          Toolbar.Set_Name ("coyote-canvas-toolbar");
          Toolbar.Set_Margin_Start (6);
          Toolbar.Set_Margin_End (6);
          Gtk.Label.Gtk_New (Label, "Tool:");
          Toolbar.Pack_Start (Label, False, False, 0);
          for Tool in Tool_Kind loop
-            Gtk.Radio_Button.Gtk_New
-              (S.Buttons (Tool), Members, Tool_Text (Tool));
+            Gtk.Radio_Button.Gtk_New (S.Buttons (Tool), Members);
             Members := S.Buttons (Tool).Get_Group;
+            --  Set_Mode (False) also disables GTK's arrow-key selection.
+            --  Style away the indicator without changing the widget mode.
+            if Style_Loaded then
+               Gtk.Style_Context.Get_Style_Context (S.Buttons (Tool))
+                 .Add_Provider
+                   (Gtk.Css_Provider."+" (Style),
+                    Glib.Guint (Gtk.Style_Provider.Priority_Application));
+            end if;
             S.Buttons (Tool).Set_Name ("canvas-tool-" & Tool_Name (Tool));
+            S.Buttons (Tool).Set_Tooltip_Text (Tool_Text (Tool));
+            Set_Accessible_Name
+              (Accessible (S.Buttons (Tool).Get_Object),
+               Interfaces.C.To_C (Tool_Text (Tool)));
+            Gtk.Drawing_Area.Gtk_New (Icon);
+            Icon.Set_Size_Request (22, 22);
+            S.Buttons (Tool).Add (Icon);
+            Icon_Callback.Connect
+              (Icon, "draw", Icon_Marshaller.To_Marshaller (Tool_Icon'Access),
+               Tool);
             Toolbar.Pack_Start (S.Buttons (Tool), False, False, 0);
             Event_Callback.Connect
               (S.Buttons (Tool), "button-press-event",
@@ -991,6 +1097,7 @@ package body Coyote_GUI.Canvas is
             Tool_Callback.Connect
               (S.Buttons (Tool), "toggled", On_Tool_Button'Access, State);
          end loop;
+         Style.Unref;
          Outer.Pack_Start (Toolbar, False, False, 3);
       end Build_Toolbar;
 

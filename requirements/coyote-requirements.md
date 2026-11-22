@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.36
+**Version:** 1.37
 **Date:** 2026-11-21
 **Status:** PCR-130 and PCR-131 Canvas and CLI design accepted; implementation and qualification pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
@@ -1587,9 +1587,10 @@ drawing. **View → Show Markup** shall hide or show ink without changing the
 drawing or any attachment.
 
 The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, and
-**Crop** radio choices in a toolbar below the menu bar and matching radio
-choices in the **Edit** menu. The two controls shall stay synchronized, with
-Pencil selected by default. The toolbar and Edit menu shall remain available
+**Crop** icon buttons in a toolbar below the menu bar and matching radio
+choices in the **Edit** menu. The active toolbar button shall be visibly
+marked, and each icon shall have a tooltip and accessible name. The two
+controls shall stay synchronized, with Pencil selected by default. The toolbar and Edit menu shall remain available
 to switch away from a pending crop when the displayed working copy is
 editable, and shall be disabled when no editable working copy is available
 or **Show Markup** is off. Only **Apply Crop** shall commit a pending crop;

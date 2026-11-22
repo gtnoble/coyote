@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.62
+**Version:** 1.63
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -3138,9 +3138,13 @@ model and releases its Canvas writer lease. Session switch and exit flush
 writable changes or ask before discarding them. Authorized command-line
 import and local GTK attachment submission are available.
 
-**Eraser, editing tools, and Help.** The toolbar below the menu bar and Edit
-menu expose synchronized mutually exclusive Pencil, Eraser, and Crop choices,
-with Pencil as default. The same controls remain available to switch away from
+**Eraser, editing tools, and Help.** The toolbar below the menu bar shows
+Pencil, Eraser, and Crop icons with tooltips and accessible names. Cairo
+paints the icons in GTK theme colors without requiring an icon pack. The
+active button has a shaded background and underline. Toolbar styling hides
+the radio indicators without changing GTK keyboard selection; the labeled
+Edit radio group remains synchronized. Pencil is the default. Both controls
+remain available to switch away from
 a pending crop only when an editable working copy exists and Show Markup is on;
 otherwise they are disabled. Only Apply Crop commits, while selecting a drawing
 tool discards a pending crop. Apply, Cancel, and Escape restore the drawing

@@ -1,5 +1,19 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas toolbar icons (PCR-130)
+
+Cairo draws the Pencil, Eraser, and Crop icons in GTK theme colors. The
+active tool has a shaded background and underline. The toolbar hides the
+radio indicators through local styling so GTK arrow-key selection still
+works; the labeled Edit menu remains synchronized. Each icon has a tooltip
+and an accessible name.
+
+Development builds and the serial Xvfb suite passed (1,123/1,123). Toolbar
+checks and captured views covered Adwaita light, dark, and HighContrast.
+Contextual Help, Mallard validation, standalone GTK (9/9), and runner
+containment checks passed. This is developer evidence, not desktop or
+physical tablet qualification.
+
 ## 2026-11-21 — Canvas tool toolbar (PCR-130)
 
 The toolbar below the menu bar and the Edit radio group share one active

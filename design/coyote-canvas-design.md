@@ -1,6 +1,6 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.1
+- **Version:** 1.2
 - **Date:** 2026-11-21
 - **Status:** Accepted by the product owner on 2026-11-21; not implemented or qualified.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
@@ -50,7 +50,7 @@ The v1 request has one `add` operation, a request ID and an ordered file count. 
 |---|---|
 | File | **New** (`Ctrl+N`), **Import…** (modeless File Selection), **Save** (`Ctrl+S` checkpoints the active draft; unchanged is a no-op), **Close** (`Ctrl+W`; hides the Canvas without discarding drawings). |
 | Selected | **Edit Revision** for one selected revision; **Attach** for selected revisions in visible tree order or the active draft when acting in the drawing area. Dim unavailable actions, do not remove them. |
-| Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, mirrored identically in the toolbar below the menu bar and this menu; **Pencil** is the default. The toolbar and menu stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
+| Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, synchronized with the icon buttons below the menu bar; **Pencil** is the default. The toolbar and menu stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
 | View | Fit, Zoom In/Out, and a stable checkbox **Show Markup**; all display-only. |
 | Help | Canvas Overview, tasks, Index, Keys & Shortcuts, Product Information and Click for Help using the existing desktop Help path. |
 

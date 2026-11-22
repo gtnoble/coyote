@@ -38,7 +38,9 @@ with Gdk.Types.Keysyms;
 with Gdk.Pixbuf;
 with Gdk.Property;
 with Gtk.Box;
+with Gtk.Bin;
 with Gtk.Button;
+with Gtk.Drawing_Area;
 with Gtk.Radio_Button;
 with Gtkada.Types;
 with Gtk.Combo_Box_Text;
@@ -49,6 +51,7 @@ with Gtk.GEntry;
 with Gtk.Tree_Selection;
 with System;
 with Interfaces.C;
+with Interfaces.C.Strings;
 with Gtk.Container;
 with Gtk.Dialog;
 with Gtk.Enums;
@@ -1031,6 +1034,31 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Name : String) return Gtk.Radio_Button.Gtk_Radio_Button
       is (Gtk.Radio_Button.Gtk_Radio_Button (Control ("canvas-tool-" & Name)));
 
+      procedure Check_Icon (Name, Title : String) is
+         use Interfaces.C.Strings;
+         use type System.Address;
+         Button : constant Gtk.Radio_Button.Gtk_Radio_Button :=
+           Tool_Button (Name);
+         Child : constant Gtk.Widget.Gtk_Widget :=
+           Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Button));
+         function Accessible (Widget : System.Address) return System.Address
+           with Import, Convention => C,
+             External_Name => "gtk_widget_get_accessible";
+         function Accessible_Name (Object : System.Address) return chars_ptr
+           with Import, Convention => C, External_Name => "atk_object_get_name";
+         Object : constant System.Address := Accessible (Button.Get_Object);
+         Label  : chars_ptr;
+      begin
+         Assert (Child /= null and then Child.Get_Visible and then
+                   Child.all in Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class,
+                 "Toolbar displays an icon, not a text label: " & Title);
+         Assert (Button.Get_Tooltip_Text = Title, "Tool tooltip: " & Title);
+         Assert (Object /= System.Null_Address, "Accessible tool: " & Title);
+         Label := Accessible_Name (Object);
+         Assert (Label /= Null_Ptr and then Value (Label) = Title,
+                 "Screen-reader tool name: " & Title);
+      end Check_Icon;
+
       procedure Check_Tool (Expected : String; Enabled : Boolean := True) is
          procedure Check (Name : String) is
             Item : constant Gtk.Check_Menu_Item.Gtk_Check_Menu_Item :=
@@ -1123,6 +1151,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       Area := Control ("coyote-canvas-drawing-area");
       Assert (Control ("coyote-canvas-toolbar").Get_Visible,
               "Canvas displays a tool strip");
+      Check_Icon ("pencil", "Pencil");
+      Check_Icon ("eraser", "Eraser");
+      Check_Icon ("crop", "Crop");
       Check_Tool ("pencil", Enabled => False);
       Activate ("new");
       Drain_Events;
@@ -1262,6 +1293,13 @@ package body Coyote_App_Frontend_GUI_Tests is
       Main_Window (Frontend).Destroy;
       Assert (Canvas_Window (Frontend) = null,
               "Destroying the conversation tears down its Canvas");
+   exception
+      when others =>
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         raise;
    end Test_Canvas_Workspace;
 
    function Canvas_Toplevel (Name : String) return Gtk.Window.Gtk_Window is
