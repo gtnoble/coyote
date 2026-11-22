@@ -1,11 +1,11 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.7
+- **Version:** 1.8
 - **Date:** 2026-11-22
-- **Status:** PCR-133 direct revision editing implemented and developer-tested; PCR-134 finger editing implemented and developer-tested; formal qualification remains pending. Prior baseline acceptance remains dated 2026-11-21.
+- **Status:** PCR-133 direct revision editing implemented and developer-tested; PCR-134 finger editing implemented and developer-tested; PCR-135 live Eraser implemented and developer-tested; formal qualification remains pending. Prior baseline acceptance remains dated 2026-11-21.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
-- **Requirements:** [SRS-CORE v1.41](../requirements/coyote-requirements.md), REQ-CORE-026–028 and 260–271.
-- **Qualification:** [STP §4.6](../plan/test-plan.md#46-planned-qualification--drawing-canvas-and-subcommands-pcr-130), PCR-130–134.
+- **Requirements:** [SRS-CORE v1.42](../requirements/coyote-requirements.md), REQ-CORE-026–028 and 260–271.
+- **Qualification:** [STP §4.6](../plan/test-plan.md#46-planned-qualification--drawing-canvas-and-subcommands-pcr-130), PCR-130–135.
 
 ## 1. Scope and decisions
 
@@ -98,10 +98,20 @@ device dependency.
 **Eraser** selects a fixed 16-source-pixel round brush, independent of
 pressure and view zoom. A recognized GDK eraser tip temporarily erases for
 that gesture without changing the selected toolbar/menu choice; selected Crop
-takes precedence. The guide is display-only until release; commit as one
-ordered operation, Undo/Redo as one edit. Erasing removes ink coverage
-without changing the background or older checkpoints. See SDD-CORE §5.51
-for the compatible v2/v3 manifest encoding.
+takes precedence. During mouse, pen, or eligible finger erasing, show ink
+removal immediately in a transient preview with the same brush and cursor
+guide. Replay existing ink into a full-source A8 mask once per gesture.
+Create a separate preview surface for the displayed extent and update only
+the dirty rectangle on subsequent redraws. Use the same stroke segments
+and pixel math as the canonical compositor. Keep the canonical surface, saved revisions,
+staged attachments, and authoritative PNG unchanged until release commits
+one ordered, undoable edit. Cancellation or lost eligibility discards the
+transient state and restores ink without an edit or revision switch. If the
+preview is unavailable, show the canonical surface and brush guide rather
+than a partial result. Erasing removes ink coverage without changing the
+background or older checkpoints. See SDD-CORE §5.51 for the compatible v2/v3
+manifest encoding. Physical-device and performance qualification remain
+pending.
 
 On an explicit Canvas image Paste, asynchronously request desktop `CLIPBOARD` targets, taking PNG when offered, otherwise JPEG. Do not fall back to text, paths, URLs or `PRIMARY`, and do not change either selection. Use GtkAda `Request_Contents`, not `Wait_For_Image` or GTK's already-decoded image callback. Validate status, MIME/signature and encoded length before copying callback-owned bytes; preflight decoded dimensions before full worker decode. This bounds application-owned buffers and decode work; it does not claim to cap buffering already performed by GTK's clipboard transport. On success, create exactly one new **Clipboard Image** root with its own Original and owned pixels. On failure, leave the document and composer unchanged and report the reason. Bind the request to a Canvas-window generation, session generation and request serial; replacement by a newer paste, Canvas close, or session switch invalidates the request even if the same session reopens. Do not read the clipboard on focus, polling, or agent request. Never include clipboard bytes in diagnostics or debug logs. The ordinary local drawing store is distinct from diagnostics; the model receives no pasted data unless the user separately attaches and sends it.
 
@@ -166,6 +176,7 @@ Use separate explicit budget checks for encoded import bytes, dimensions/pixels,
 |---|---|---|
 | REQ-CORE-026–028, 267 | §3 local CLI/import; §2 ownership; §5 decode and persistence | CAN-CLI-01, CAN-IMPORT-01; wrong credential, denied read, generation change, mixed batch, lost acknowledgement. |
 | REQ-CORE-260–262 | §4 window and input; §5 revisions | CAN-GUI-01, CAN-DATA-01; actual Intuos, focus, older base/branch, recovery without source. |
+| REQ-CORE-261 (live Eraser) | §4.2 input and preview; §5.1 data/composition | CAN-GUI-01, CAN-TOUCH-01; transient-to-canonical comparison, exact committed pixels, crop and alpha preservation, cancellation and performance; physical-device/performance qualification pending. |
 | REQ-CORE-263–266 | §5 persistence, §6 send/replay | CAN-DATA-01, CAN-LIMIT-01; native pixel comparison for three wires, model switch, compaction, corrupt records, fork and no-session. |
 | REQ-CORE-270 | §4.2 clipboard, §5 bounds/recovery | CAN-CLIP-01; real and synthetic owners, malformed offers, delayed results, and exact alpha/dimensions. |
 | REQ-CORE-271 | §4.3 crop; §5.1 composition; §6 freeze | CAN-CROP-01, CAN-CROP-02; pressure-independent drag, zoom/scale invariance, keyboard, cancellation, edge pixels and saved crop replay. |

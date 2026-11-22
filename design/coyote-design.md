@@ -1,10 +1,10 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.68
+**Version:** 1.69
 **Date:** 2026-11-22
 
-**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing developer-tested; PCR-134 finger editing developer-tested; physical qualification pending
+**Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending; PCR-133 direct Canvas editing and PCR-134 finger editing developer-tested; PCR-135 live Eraser developer-tested; physical-device and performance qualification pending; physical qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -20,6 +20,16 @@ Scroller capture is disabled only for eligible finger Pencil/Eraser input.
 Mouse/pen and Crop/Zoom behavior remain unchanged; no raw-device or input-model
 changes were needed. See the Frontends development log for automated evidence;
 physical qualification remains pending.
+
+**Live Eraser amendment (PCR-135, 2026-11-22):** Specify immediate transient
+ink-only preview for mouse, pen (including recognized eraser override), and
+eligible finger input. The cached A8 mask, separate transient surface, shared
+canonical stroke segments, and dirty-rectangle recomposition keep the
+canonical surface and authoritative PNG unchanged until one release commit;
+cancellation restores ink without an edit or revision switch. CAN-GUI-01 and
+CAN-TOUCH-01 add pixel-exact commit/cancel, crop/alpha, and performance checks.
+Automated evidence is in the Frontends development log. Physical-device
+and end-to-end performance qualification remain open.
 
 **Canvas and subcommands (PCR-130/131):** The product owner accepted the
 Canvas design in §5.51 and [SDD-CANVAS](coyote-canvas-design.md) on 2026-11-21.
@@ -3165,13 +3175,22 @@ otherwise they are disabled. On a saved revision, the first completed stroke
 or Apply Crop starts a working copy based on that revision. Only Apply Crop
 commits, while selecting a drawing tool discards a pending crop. Apply, Cancel,
 and Escape restore the drawing tool selected before Crop. A GDK eraser tip temporarily erases without changing
-the selection; selected Crop takes precedence. Tool choices add no shortcuts;
-native Tab and arrow toolbar navigation and Edit mnemonics remain. Release
-records one undoable edit. The live outline is a view-only guide; saved
-revisions and frozen attachments do not change. Canvas Help uses Yelp for
-Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click for
-Help targets the toolbar, drawing area, or Drawings list without changing
-the tool, drawing, or selection.
+the selection; selected Crop takes precedence. During mouse, pen (including
+recognized eraser override), and eligible finger erasing, display ink
+removal immediately in a transient ink-only preview using the fixed 16-source-
+pixel brush and matching cursor guide. Construct the preview from the same
+canonical stroke segments as the final edit, using a cached A8 ink mask,
+separate transient surface, and dirty-rectangle recomposition. Keep the
+canonical surface, saved revisions, staged attachments, and authoritative PNG
+unchanged until release commits one ordered undoable edit. Cancellation
+restores original ink without an edit or revision switch. If a live preview
+is unavailable, show the canonical surface and brush guide, not a partial
+preview. Physical-device and performance qualification remain pending. Tool
+choices add no shortcuts; native Tab and arrow toolbar navigation and Edit
+mnemonics remain. Canvas Help uses Yelp for Overview, editing and revision
+tasks, Index, and Keys & Shortcuts. Click for Help targets the toolbar,
+drawing area, or Drawings list without changing the tool, drawing, or
+selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
 
 **Finger editing.** The session-local, default-off **Options → Edit with
@@ -3490,6 +3509,7 @@ planned qualification; no end-to-end qualification or product acceptance is clai
 | REQ-CORE-113f–113i | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Sandbox_Profile_Window`, `Coyote_GUI.Prompt_Queue`, `LLM.Tools.Sandbox` |
 | REQ-CORE-235 | `LLM.Tools.Sandbox`, `LLM.Settings`, `LLM.Tools.Shell` |
 | REQ-CORE-260–262, 270–271 (planned) | `Coyote_GUI.Canvas`, `Coyote_Canvas.Document`, `Images`, `Store`; SDD-CANVAS §§4–5 |
+| REQ-CORE-261 (PCR-135 live Eraser) | Transient ink-only preview; atomic release/cancel semantics | `Coyote_GUI.Canvas`, Canvas composition; SDD-CORE §5.51 and SDD-CANVAS §§4.2, 5.1 |
 | REQ-CORE-263–266 | `Coyote_GUI.Canvas`, `Prompt_Queue`, `Coyote_App`, `LLM.Agent`, `LLM.Types`, adapter delegates, `Session_Store`, `History`, `Compaction`, Canvas `Store`; SDD-CANVAS §§5–6 |
 | REQ-CORE-267 (planned) | Canvas `Import_Service`, `Images`, `LLM.Tools.Shell`; SDD-CANVAS §§2–3, 5 |
 | REQ-CORE-268–269 (planned follow-on) | `Coyote_GUI.Canvas`, Canvas `Import_Service`, `Document`, `Store`; SDD-CANVAS §8 |

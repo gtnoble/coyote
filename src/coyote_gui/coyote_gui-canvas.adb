@@ -1,7 +1,6 @@
 with Ada.Streams;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded.Aux;
-with Coyote_Canvas.Composite;
 with Coyote_Canvas.Images;
 with Coyote_Canvas.Ink;
 with Interfaces.C;
@@ -466,6 +465,8 @@ package body Coyote_GUI.Canvas is
       S.Drawing := False;
       S.Finger_Sequence := null;
       S.Stroke_Points.Clear;
+      Coyote_Canvas.Composite.Clear (S.Live_Erase);
+      S.Erase_Preview_Failed := False;
       S.Crop_Drag := False;
       if Cropping (S) then
          S.Tool := S.Previous_Ink_Tool;
@@ -1820,6 +1821,7 @@ package body Coyote_GUI.Canvas is
 
    procedure Clear_Display (S : in out Instance) is
    begin
+      Coyote_Canvas.Composite.Clear (S.Live_Erase);
       if S.Image_Surface /= Cairo.Null_Surface then
          Cairo.Surface_Destroy (S.Image_Surface);
          S.Image_Surface := Cairo.Null_Surface;
@@ -2308,9 +2310,11 @@ package body Coyote_GUI.Canvas is
          Glib.Gdouble (R.Right - R.Left), Glib.Gdouble (R.Bottom - R.Top));
    end Outline;
 
-   procedure Compose
+   procedure With_Background
      (S : Instance; Id : Rev.Revision_Id;
-      Image : in out Coyote_Canvas.Composite.Image; Include_Ink : Boolean)
+      Render : not null access procedure
+        (Bytes : Ada.Streams.Stream_Element_Array; Stride : Positive;
+         Has_Alpha : Boolean))
    is
       use Ada.Streams;
       use type Interfaces.C.size_t;
@@ -2321,7 +2325,7 @@ package body Coyote_GUI.Canvas is
              External_Name => "gdk_pixbuf_get_byte_length";
    begin
       if Background = Rev.NO_REVISION then
-         Composite.Render (S.Document, Id, Image, Include_Ink);
+         Render ((1 .. 0 => 0), 1, False);
       elsif Length (S.Disk_Pixels (Background)) /= 0 then
          declare
             E : constant Doc.Rectangle := Rev.Extent (S.Document, Background);
@@ -2334,8 +2338,7 @@ package body Coyote_GUI.Canvas is
                Bytes : Stream_Element_Array (1 .. Stream_Element_Offset (Size))
                  with Import, Address => Data (1)'Address;
             begin
-               Composite.Render (S.Document, Id, Bytes, E.Right * 4, True,
-                                 Image, Include_Ink);
+               Render (Bytes, E.Right * 4, True);
             end;
          end;
       else
@@ -2363,14 +2366,65 @@ package body Coyote_GUI.Canvas is
                     (1 .. Stream_Element_Offset (Size))
                     with Import, Address => Data;
                begin
-                  Composite.Render
-                    (S.Document, Id, Bytes, Positive (Stride),
-                     Gdk.Pixbuf.Get_Has_Alpha (Pixbuf), Image, Include_Ink);
+                  Render
+                    (Bytes, Positive (Stride),
+                     Gdk.Pixbuf.Get_Has_Alpha (Pixbuf));
                end;
             end;
          end;
       end if;
+   end With_Background;
+
+   procedure Compose
+     (S : Instance; Id : Rev.Revision_Id;
+      Image : in out Coyote_Canvas.Composite.Image; Include_Ink : Boolean)
+   is
+      package Composite renames Coyote_Canvas.Composite;
+
+      procedure Render
+        (Bytes : Ada.Streams.Stream_Element_Array; Stride : Positive;
+         Has_Alpha : Boolean)
+      is
+      begin
+         if Bytes'Length = 0 then
+            Composite.Render (S.Document, Id, Image, Include_Ink);
+         else
+            Composite.Render
+              (S.Document, Id, Bytes, Stride, Has_Alpha, Image, Include_Ink);
+         end if;
+      end Render;
+   begin
+      With_Background (S, Id, Render'Access);
    end Compose;
+
+   procedure Update_Live_Erase (S : in out Instance; Id : Rev.Revision_Id)
+   is
+      package Composite renames Coyote_Canvas.Composite;
+
+      procedure Render
+        (Bytes : Ada.Streams.Stream_Element_Array; Stride : Positive;
+         Has_Alpha : Boolean)
+      is
+      begin
+         if Bytes'Length = 0 then
+            Composite.Update_Erase
+              (S.Live_Erase, S.Document, Id, S.Stroke_Points);
+         else
+            Composite.Update_Erase
+              (S.Live_Erase, S.Document, Id, S.Stroke_Points,
+               Bytes, Stride, Has_Alpha);
+         end if;
+      end Render;
+   begin
+      With_Background (S, Id, Render'Access);
+   exception
+      when Composite.Render_Error | Coyote_Canvas.Images.Invalid_Buffer
+         | Storage_Error =>
+         --  Keep the canonical display and guide usable for this stroke.
+         Composite.Clear (S.Live_Erase);
+         S.Erase_Preview_Failed := True;
+         Set_Status (S, "Live erase preview unavailable for this stroke.");
+   end Update_Live_Erase;
 
    procedure Freeze_Attachments (S : aliased in out Instance) is
       package Composite renames Coyote_Canvas.Composite;
@@ -2502,12 +2556,21 @@ package body Coyote_GUI.Canvas is
       Region   : constant Doc.Rectangle   := Pending (S.all);
       Revision : constant Rev.Revision_Id :=
         (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision);
+      Live : Cairo.Cairo_Surface := Cairo.Null_Surface;
    begin
       if not Doc.Is_Nonempty (E) then
          return False;
       end if;
+      if S.Drawing and then S.Gesture_Operation = Rev.Erase
+        and then Can_Draw (S.all) and then not S.Erase_Preview_Failed
+      then
+         Update_Live_Erase (S.all, Revision);
+         Live := Coyote_Canvas.Composite.Surface (S.Live_Erase);
+      end if;
       begin
-         Update_Display (S.all, Revision);
+         if Live = Cairo.Null_Surface then
+            Update_Display (S.all, Revision);
+         end if;
       exception
          when Coyote_Canvas.Composite.Render_Error
             | Coyote_Canvas.Images.Invalid_Buffer
@@ -2521,7 +2584,9 @@ package body Coyote_GUI.Canvas is
       Cairo.Clip (Context);
       Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
       Cairo.Paint (Context);
-      Cairo.Set_Source_Surface (Context, S.Image_Surface, 0.0, 0.0);
+      Cairo.Set_Source_Surface
+        (Context, (if Live = Cairo.Null_Surface then S.Image_Surface
+                   else Live), 0.0, 0.0);
       Cairo.Paint (Context);
       if S.Show_Ink and then S.Drawing then
          declare
@@ -2863,6 +2928,8 @@ package body Coyote_GUI.Canvas is
       end if;
       S.Drawing := False;
       S.Stroke_Points.Clear;
+      Coyote_Canvas.Composite.Clear (S.Live_Erase);
+      S.Erase_Preview_Failed := False;
       S.Crop_Drag := False;
       Refresh (S.all);
       return True;

@@ -27,6 +27,33 @@ client-controlled work product gets an entry here.
   device and desktop qualification remain open; see the Frontends log.
 
 
+## PCR-135 — Immediate visible erasing during drag (2026-11-22)
+
+- **Date reported:** 2026-11-22
+- **Category:** Requirements, Design, Software, Test, Manuals
+- **Priority:** 4-Minor (interaction feedback; committed erasing remains available).
+- **Authorization:** User requested immediate visible erasing while dragging.
+- **Affected work products:** SRS-CORE §3.1.20 and traceability; SDD-CANVAS
+  §§4.2, 7; SDD-CORE §5.51 and traceability; STP §4.6 and traceability;
+  Canvas editing Help.
+- **Change:** Specify a live transient ink-only Eraser preview for mouse, pen
+  (including device-eraser override), and eligible finger input, with the
+  existing 16-source-pixel brush and cursor guide. Preview and commit share
+  canonical stroke segments; cache an A8 ink mask, use a separate transient
+  surface, and recompose dirty rectangles. Release commits one edit; cancel
+  restores ink without an edit or revision switch. Saved revisions, staged
+  attachments, background and authoritative PNG remain unchanged until commit.
+  When preview is unavailable, show the canonical surface and guide.
+- **Corrective action:** Implement the approved behavior and qualify canonical
+  pixel equality, alpha/crop preservation, cancellation, responsiveness and
+  physical-device behavior.
+- **Actions taken:** Implemented the transient compositor and GTK gesture
+  preview. Updated requirements, designs, test plan, and Canvas Help.
+- **Status:** Implemented and developer-tested. Both development builds and
+  all 1,125 Xvfb tests passed. Help and standalone GTK checks passed. See
+  the Frontends log for pixel comparison and native timing evidence.
+  Physical-device and end-to-end performance qualification remain pending.
+
 ## PCR-134 — Touchscreen Pencil and Eraser editing
 
 - **Date reported:** 2026-11-22

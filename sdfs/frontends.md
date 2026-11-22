@@ -1,5 +1,29 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Live Canvas Eraser preview (PCR-135)
+
+Finger, mouse, and pen erase visibly while dragged. The first preview
+frame replays the displayed ink into a full-source A8 mask and builds a
+transient display surface. Later frames rasterize only new samples and
+recompose the affected display rectangle against the immutable background.
+Preview and commit share stroke geometry and compositing math. Lift still
+commits one undoable edit. Cancel discards the preview without changing
+working-copy history, saved revisions, or frozen attachments. Allocation
+or rendering failure falls back to the canonical view and brush guide.
+
+Both development builds, nine compositor cases, seven Canvas GUI cases,
+and the full Xvfb suite (1,125/1,125) passed. Pixel tests compare the live
+and committed display surfaces for overlapping segments, a nonzero crop
+origin, and partial alpha, including batched and unchanged redraws. GTK
+tests verify pointer and touch feedback before lift and restoration on
+cancellation. Help/Mallard, standalone GTK (9/9), and runner containment
+passed. On a 4,096 × 4,096 source, the native recomposition probe measured
+about 0.008 ms for a 40 × 24 region versus 90 ms for the whole image;
+this excludes mask replay, GTK drawing, and display presentation. The C
+probe also passed with address and undefined-behavior sanitizers. Logs
+and probe: `/tmp/coyote-pcr135/`. Physical input and end-to-end timing
+remain unqualified.
+
 ## 2026-11-22 — Touchscreen Pencil and Eraser (PCR-134)
 
 Options → Edit with Finger replaces Draw with Finger. It stays off by

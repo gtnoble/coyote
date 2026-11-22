@@ -38,6 +38,23 @@ package Coyote_Canvas.Composite is
    function Encode_PNG (I : Image; Limit : Positive := MAX_PNG_BYTES)
       return Ada.Strings.Unbounded.Unbounded_String;
 
+   --  A preview uses one unchanged revision or working copy and its
+   --  original background. Append points in displayed-local coordinates.
+   --  Clear when the displayed content changes or the gesture ends.
+   --  Source bytes are borrowed only for each call, never retained.
+   type Erase_Preview is limited private;
+   procedure Clear (P : in out Erase_Preview);
+   procedure Update_Erase
+     (P : in out Erase_Preview; W : Revisions.Workspace;
+      Id : Revisions.Revision_Id; Points : Revisions.Samples.Vector);
+   procedure Update_Erase
+     (P : in out Erase_Preview; W : Revisions.Workspace;
+      Id : Revisions.Revision_Id; Points : Revisions.Samples.Vector;
+      Source : Ada.Streams.Stream_Element_Array;
+      Source_Stride : Positive; Has_Alpha : Boolean);
+   --  The returned surface is borrowed and remains owned by P.
+   function Surface (P : Erase_Preview) return Cairo.Cairo_Surface;
+
 private
    type Pixel_Buffer is access Ada.Streams.Stream_Element_Array;
    type Image is new Ada.Finalization.Limited_Controlled with record
@@ -45,4 +62,19 @@ private
       W, H : Natural := 0;
    end record;
    overriding procedure Finalize (I : in out Image);
+
+   type Erase_Preview is
+     new Ada.Finalization.Limited_Controlled with record
+      Mask       : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Display    : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Context    : Cairo.Cairo_Context := Cairo.Null_Context;
+      Drawing_Id : Revisions.Revision_Id := Revisions.NO_REVISION;
+      Left, Top  : Natural := 0;
+      Width, Height : Natural := 0;
+      Source_Stride, Channels : Positive := 1;
+      Point_Count : Natural := 0;
+      Previous : Revisions.Sample := (0.0, 0.0, 1.0);
+      Ready : Boolean := False;
+   end record;
+   overriding procedure Finalize (P : in out Erase_Preview);
 end Coyote_Canvas.Composite;

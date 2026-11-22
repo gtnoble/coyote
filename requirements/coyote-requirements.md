@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.41
+**Version:** 1.42
 **Date:** 2026-11-22
-**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior implemented and developer-tested; PCR-134 finger Pencil/Eraser behavior implemented and developer-tested; formal qualification remains pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
+**Status:** PCR-130/131 Canvas and CLI design accepted; PCR-133 revision display/edit behavior and PCR-134 finger Pencil/Eraser behavior implemented and developer-tested; PCR-135 live Eraser implemented and developer-tested. Formal qualification remains pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
 PCR-101, PCR-103, and PCR-104 closure text below remains historical. This
 revision records the Canvas and CLI amendments, including clipboard-image
@@ -1581,6 +1581,20 @@ a mouse or when pressure is unavailable. REQ-CORE-270 specifies clipboard
 import, and REQ-CORE-271 specifies user-applied crop. A working copy shall retain its
 background separately from editable ink. Erasing shall not erase the
 background, and Undo and Redo shall operate by completed stroke or edit.
+Eraser interaction shall show ink removal immediately while the pointer or
+eligible finger is dragged, including when a recognized tablet eraser
+overrides the selected tool. The transient preview shall use the same fixed
+16-source-pixel round brush and cursor guide as committed erasing, independent
+of zoom and pressure. It shall remove ink only; the background, saved
+revisions, staged attachments, and authoritative PNG shall remain unchanged
+until release. Release shall commit exactly one ordered, undoable edit from
+the gesture's canonical stroke segments. Escape, loss of capture, option
+disable, window close, or session change shall discard the preview and restore
+the original ink without creating an edit, switching the working revision, or
+changing revision state. If preview is unavailable, show the canonical
+surface and brush guide, not a partial preview. Use a cached A8 ink mask, a
+separate transient surface, and dirty-rectangle recomposition. Physical-device
+and performance qualification remain pending.
 PNG and JPEG imports shall retain the source pixel dimensions; an import
 that cannot be supported at those dimensions shall be rejected, not resized.
 Imported files shall not be overwritten. Pan and zoom shall not alter the
@@ -2311,6 +2325,7 @@ STP §4.6.
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
 | REQ-CORE-260–263 | IRIX Canvas, Intuos and mouse input, branching revisions, multi-image staging | D/T/I | CAN-GUI-01, CAN-DATA-01, CAN-LIMIT-01, CAN-IMPORT-01 (planned) |
 | REQ-CORE-261 (finger Pencil/Eraser) | Touchscreen Pencil/Eraser input and selective scroller capture | D/T | CAN-TOUCH-01 (planned physical demonstration; X11/Wayland backend recorded) |
+| REQ-CORE-261 (live Eraser) | Immediate transient ink-only preview; atomic commit/cancel and unchanged authoritative PNG | D/T | CAN-GUI-01, CAN-TOUCH-01 (planned; physical-device and performance qualification pending) |
 | REQ-CORE-264–266 | Exact image submission, rejection/queue behavior, recovery and replay | T/D | CAN-DATA-01, CAN-LIMIT-01, CAN-GUI-01 (planned) |
 | REQ-CORE-267 | Bounded imports, shell authority and session isolation | T/I | CAN-IMPORT-01 (planned) |
 | REQ-CORE-268–269 | Revision comparison and explicit agent branches | D/T | CAN-FOLLOW-01 (follow-on; planned) |

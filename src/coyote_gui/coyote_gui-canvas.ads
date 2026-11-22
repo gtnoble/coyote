@@ -4,6 +4,7 @@ with Coyote_Canvas.Store;
 with Coyote_Canvas.Import_Service;
 with Coyote_GUI.Canvas_Recovery_Jobs;
 with Glib.Main;
+with Coyote_Canvas.Composite;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
 with Cairo;
@@ -129,6 +130,8 @@ private
       Cached_Revision : Coyote_Canvas.Revisions.Revision_Id := 0;
       Cached_Ink : Boolean := True;
       Image_Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Live_Erase : Coyote_Canvas.Composite.Erase_Preview;
+      Erase_Preview_Failed : Boolean := False;
       File_Selection : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
       Import_Error : Gtk.Message_Dialog.Gtk_Message_Dialog;
       Store : Gtk.Tree_Store.Gtk_Tree_Store       := null;

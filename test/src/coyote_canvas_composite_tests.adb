@@ -1,6 +1,8 @@
 with AUnit.Assertions; use AUnit.Assertions;
 with AUnit.Test_Caller;
 with AUnit.Test_Fixtures;
+with Cairo;
+with Cairo.Image_Surface;
 with Ada.Streams;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Canvas.Composite;
@@ -18,6 +20,8 @@ with System.Storage_Elements;
 
 package body Coyote_Canvas_Composite_Tests is
    use Ada.Streams;
+   use type Cairo.Cairo_Surface;
+   use type System.Address;
    use Coyote_Canvas.Composite;
    use Coyote_Canvas.Document;
    use Coyote_Canvas.Images;
@@ -93,6 +97,104 @@ package body Coyote_Canvas_Composite_Tests is
          Coyote_Image_Decoder.Release (Decoded);
          raise;
    end Check_PNG;
+
+   procedure Assert_Surface_Equals
+     (Actual : Cairo.Cairo_Surface; Expected : Image; Message : String)
+   is
+      Data : constant System.Address :=
+        Cairo.Image_Surface.Get_Data_Generic (Actual);
+      Stride : constant Natural :=
+        Natural (Cairo.Image_Surface.Get_Stride (Actual));
+      Pixels : constant Stream_Element_Array := Bytes_Of (Expected);
+   begin
+      Assert (Data /= System.Null_Address, Message & " data exists");
+      for Y in 0 .. Height (Expected) - 1 loop
+         for X in 0 .. Width (Expected) - 1 loop
+            declare
+               Index : constant Natural := (Y * Stride) + X * 4;
+               Offset : constant Natural := (Y * Width (Expected) + X) * 4;
+               Alpha : constant Natural :=
+                 Natural (Pixels (Pixels'First + Stream_Element_Offset
+                   (Offset + 3)));
+            begin
+               Assert
+                 (Byte_At (Data, Index) = Stream_Element
+                    ((Natural (Pixels (Pixels'First + Stream_Element_Offset
+                      (Offset + 2))) * Alpha + 127) / 255),
+                  Message & " blue premultiplication");
+               Assert
+                 (Byte_At (Data, Index + 1) = Stream_Element
+                    ((Natural (Pixels (Pixels'First + Stream_Element_Offset
+                      (Offset + 1))) * Alpha + 127) / 255),
+                  Message & " green premultiplication");
+               Assert
+                 (Byte_At (Data, Index + 2) = Stream_Element
+                    ((Natural (Pixels (Pixels'First + Stream_Element_Offset
+                      (Offset))) * Alpha + 127) / 255),
+                  Message & " red premultiplication");
+               Assert (Byte_At (Data, Index + 3) = Stream_Element (Alpha),
+                       Message & " alpha");
+            end;
+         end loop;
+      end loop;
+   end Assert_Surface_Equals;
+
+   procedure Erase_Preview_Incremental (T : in out Test) is
+      pragma Unreferenced (T);
+      W : Workspace;
+      Original : Revision_Id;
+      Source : Stream_Element_Array (1 .. 10 * 8 * 4);
+      Paint, Eraser : Samples.Vector;
+      Preview : Erase_Preview;
+      Canonical : Image;
+      First_Point : constant Sample := (1.4, 2.2, 3.5);
+      Second_Point : constant Sample := (6.9, 3.6, 4.0);
+      Third_Point : constant Sample := (6.0, 5.8, 2.7);
+   begin
+      for I in Source'Range loop
+         Source (I) := (if I mod 12 = 0 then 0
+                        else Stream_Element ((I * 17) mod 251));
+      end loop;
+      Add_Originals (W, (1 => (10, 8)), Original);
+      Edit (W, Original);
+      Paint.Append ((0.5, 3.0, 3.8));
+      Paint.Append ((8.8, 3.0, 4.2));
+      Add_Stroke (W, Paint);
+      Crop (W, (2, 1, 9, 7));
+      Save (W);
+      Original := Base (W);
+      Eraser.Append (First_Point);
+      Update_Erase (Preview, W, Original, Eraser, Source, 40, True);
+      Add_Stroke (W, Eraser, Erase);
+      Render (W, NO_REVISION, Source, 40, True, Canonical);
+      Assert_Surface_Equals (Surface (Preview), Canonical,
+                             "first incremental erase matches canonical");
+
+      Eraser.Append (Second_Point);
+      Update_Erase (Preview, W, Original, Eraser, Source, 40, True);
+      Undo (W);
+      Add_Stroke (W, Eraser, Erase);
+      Render (W, NO_REVISION, Source, 40, True, Canonical);
+      Assert_Surface_Equals (Surface (Preview), Canonical,
+                             "second incremental erase matches canonical");
+
+      Eraser.Append (Third_Point);
+      Update_Erase (Preview, W, Original, Eraser, Source, 40, True);
+      Undo (W);
+      Add_Stroke (W, Eraser, Erase);
+      Render (W, NO_REVISION, Source, 40, True, Canonical);
+      Assert_Surface_Equals (Surface (Preview), Canonical,
+                             "third overlapping erase matches canonical");
+      Update_Erase (Preview, W, Original, Eraser, Source, 40, True);
+      Assert_Surface_Equals (Surface (Preview), Canonical,
+                             "redraw does not reapply existing samples");
+      Clear (Preview);
+      Assert (Surface (Preview) = Cairo.Null_Surface,
+              "clear releases preview surface");
+      Update_Erase (Preview, W, Original, Eraser, Source, 40, True);
+      Assert_Surface_Equals (Surface (Preview), Canonical,
+                             "batched first frame matches canonical");
+   end Erase_Preview_Incremental;
 
    procedure Blank_And_Imported_Bytes (T : in out Test) is
       pragma Unreferenced (T);
@@ -524,6 +626,9 @@ package body Coyote_Canvas_Composite_Tests is
       Result.Add_Test (Caller.Create
         ("Canvas composite erases ink only across recovery and forks",
          Erase_Ink'Access));
+      Result.Add_Test (Caller.Create
+        ("Canvas composite incremental erase preview",
+         Erase_Preview_Incremental'Access));
       Result.Add_Test (Caller.Create
         ("Canvas composite partial-alpha source-over",
          Partial_Alpha_Source_Over'Access));

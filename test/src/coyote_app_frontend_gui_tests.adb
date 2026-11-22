@@ -1180,6 +1180,17 @@ package body Coyote_App_Frontend_GUI_Tests is
          Assert (Area.Event (Gdk.Event.To_Event (Raw'Access)),
                  "Canvas did not handle pointer event");
       end Pointer;
+      procedure Motion (X, Y : Glib.Gdouble) is
+         Raw : aliased Gdk.Event.Gdk_Event_Motion :=
+           (The_Type => Gdk.Event.Motion_Notify, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => X, Y => Y, Axes => null,
+            State => Gdk.Types.Button1_Mask, Is_Hint => 0,
+            Device => System.Null_Address, X_Root => X, Y_Root => Y);
+      begin
+         Assert (Area.Event (Gdk.Event.From_Address (Raw'Address)),
+                 "Canvas did not handle pointer motion");
+      end Motion;
+
       procedure Tap_Zoom (X, Y : Glib.Gdouble) is
          Raw : aliased Gdk.Event.Gdk_Event_Button :=
            (The_Type => Gdk.Event.Button_Release, Window => Area.Get_Window,
@@ -1311,8 +1322,15 @@ package body Coyote_App_Frontend_GUI_Tests is
                 (Control ("coyote-canvas-tool"))) = "Tool: Eraser (16 px)",
               "eraser mode is indicated in text");
       Pointer (Gdk.Event.Button_Press, 15.0, 30.0);
-      Assert (not Control ("canvas-attach").Get_Sensitive,
-              "cannot attach during an erase gesture");
+      Assert (not Control ("canvas-attach").Get_Sensitive and then
+                not Control ("canvas-save").Get_Sensitive,
+              "Save and Attach stay unavailable during an erase gesture");
+      Motion (30.0, 30.0);
+      Check_Pixel ((255, 255, 255));
+      Motion (40.0, 30.0);
+      Check_Pixel ((255, 255, 255));
+      Assert (Get_Iter_From_String (Model, "0:0") = Null_Iter,
+              "Live erasure is not published as a revision");
       Pointer (Gdk.Event.Button_Release, 45.0, 30.0);
       Check_Pixel ((255, 255, 255));
       Activate ("undo");
@@ -1332,6 +1350,15 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("save");
       Assert (Get_Iter_From_String (Model, "0:0") /= Null_Iter,
               "Pointer stroke saves as a child of Original");
+
+      Activate ("eraser");
+      Pointer (Gdk.Event.Button_Press, 15.0, 30.0);
+      Motion (30.0, 30.0);
+      Check_Pixel ((255, 255, 255));
+      Press_Escape;
+      Check_Pixel ((13, 13, 13));
+      Assert (Get_Iter_From_String (Model, "0:0:0") = Null_Iter,
+              "Canceled erasure restores ink without saving a revision");
 
       Activate ("eraser");
       Check_Tool ("eraser");
@@ -2761,7 +2788,11 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Finger eraser suppresses kinetic scrolling");
       Touch (Gdk.Event.Touch_Begin, 45.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_Update, 55.0, 30.5, First_Contact'Address);
-      Check_Pixel (55, 30, (13, 13, 13));
+      Assert (not Control ("canvas-save").Get_Sensitive and then
+                not Control ("canvas-attach").Get_Sensitive and then
+                Get_Iter_From_String (Tree.Get_Model, "0:0:0") = Null_Iter,
+              "Live finger erasure cannot save, attach, or create a revision");
+      Check_Pixel (55, 30, (255, 255, 255));
       Touch (Gdk.Event.Touch_Cancel, 55.0, 30.5, First_Contact'Address);
       Check_Pixel (55, 30, (13, 13, 13));
 
@@ -2815,6 +2846,17 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tree.Get_Selection.Select_Iter
         (Get_Iter_From_String (Tree.Get_Model, "0:0"));
       Check_Pixel (30, 30, (13, 13, 13));
+      Activate ("eraser");
+      Touch (Gdk.Event.Touch_Begin, 25.0, 30.5, First_Contact'Address);
+      Touch (Gdk.Event.Touch_Update, 35.0, 30.5, First_Contact'Address);
+      Check_Pixel (30, 30, (255, 255, 255));
+      Touch (Gdk.Event.Touch_Cancel, 35.0, 30.5, First_Contact'Address);
+      Check_Pixel (30, 30, (13, 13, 13));
+      Assert
+        (Get_Iter_From_String (Tree.Get_Model, "0:0:0") = Null_Iter
+         and then Tree.Get_Selection.Iter_Is_Selected
+           (Get_Iter_From_String (Tree.Get_Model, "0:0")),
+         "Canceled erase restores the selected revision without a branch");
       Activate ("eraser");
       Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_End, 30.0, 30.5, First_Contact'Address);
