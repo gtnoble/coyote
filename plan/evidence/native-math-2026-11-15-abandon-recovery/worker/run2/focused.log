@@ -1,0 +1,4 @@
+QUEUE_ABANDON cycles=17 accepted=153 busy=34 source_bytes=10027008 source_identity=not_verified
+RASTER_ABANDON cycles= 8
+SHUTDOWN_QUEUE accepted= 8 restart_separate_from_17_cycles=true
+ASSERTIONS 634 failures= 0

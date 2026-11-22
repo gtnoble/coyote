@@ -1,0 +1,11 @@
+--- coyote_math_jobs.adb.final
++++ coyote_math_jobs.adb.mutant
+@@ -782,7 +782,7 @@
+       Discard : Result_Access;
+    begin
+       Control.Abandon_Job (Id, Generation, Discard);
+-      Free_Result (Discard);
++      Discard := null;
+    end Abandon;
+    procedure Poll (Id : Request_Id; Generation : View_Generation;
+       Status : out Job_Status; Item : out Result_Access) is

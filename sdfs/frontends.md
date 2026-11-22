@@ -2760,3 +2760,18 @@ engine3553,worker380 and required GTK/HTTP checks pass. These are scoped develop
 checks,not hard timing/whole-macro Valgrind/parity or independent acceptance.
 Remaining macro mutation/undo amplification and prior strict raster losses stay
 open. No release/install/commit.
+
+
+## 2026-11-15 — Repeated Abandon recovery (PCR-125)
+
+Report §11.29 and `plan/evidence/native-math-2026-11-15-abandon-recovery/`
+record17 same-pool paused saturation cycles (153 accepts/34 Busy/max65536 bytes),
+wrong-generation and duplicate abandonment,eight completed raster cleanup cycles,
+and separate shutdown/restart recovery. Final standalone worker1013 twice and
+focused634 twice pass;isolated queued/completed cleanup mutants fail2/25 checks.
+Production/requirements/limits unchanged;no private source-ledger/RSS bound or
+in-flight interruption claim. Development builds,mandatory checks and coordinator
+full1076/1076 pass,BUT two additional AUnit repeats fail the existing GTK tool
+allocation assertion (1075/1076);isolated1/1 passes. Cause unresolved,not waived.
+No uniformly passing final regression/parity/lifecycle/human qualification.
+No release/install/commit.

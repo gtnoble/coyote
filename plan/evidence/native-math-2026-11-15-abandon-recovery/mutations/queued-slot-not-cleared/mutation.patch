@@ -1,0 +1,13 @@
+--- coyote_math_jobs.adb.final
++++ coyote_math_jobs.adb.mutant
+@@ -318,9 +318,7 @@
+                     Length (Items (I).Text);
+                   Items (I) := (others => <>);
+                elsif not Items (I).Taken then
+-                  Retained_Source_Bytes := Retained_Source_Bytes -
+-                    Length (Items (I).Text);
+-                  Items (I) := (others => <>);
++                  null;
+                end if;
+                return;
+             end if;

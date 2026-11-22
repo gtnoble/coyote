@@ -5058,3 +5058,19 @@ are historical, not current-source qualification.
   amplification,native-copy and broader resource/timing/lifecycle/parity/human
   gates remain open. Historical whole-macro Valgrind incomplete,strict raster
   losses unresolved. Self-review is not independent acceptance. No release/install.
+
+
+### PCR-125 — Repeated queue and completed-result abandonment,2026-11-15
+
+- **Category:** Test. **Priority:** 3-Moderate.
+- **Problem:** repeated maximum-source saturation and completed-unpolled raster
+  Abandon ownership/recovery lacked direct lifecycle controls.
+- **Action:**17 paused cycles/eight raster cycles and separate shutdown/restart;
+  bounded watchdog failures abandon and stop the fixture. No product API or cap.
+- **Verification:** §11.29 worker1013 twice/focused634 twice;cleanup mutants2/25
+  expected failures. Source/requirements unchanged;no private-source/RSS oracle.
+- **Status:** scoped developer verification complete;PCR-125 OPEN. Full1076
+  passes but TWO repeats fail existing GTK allocation assertion (116×1033 and
+  109×1033 vs760×600);isolated1/1 passes. Root cause unresolved/unwaived,not shown
+  to be caused by this standalone test-only change. No uniformly passing final
+  repeat gate. Broader native lifecycle/parity/human gates remain OPEN.

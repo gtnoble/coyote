@@ -2100,3 +2100,62 @@ Prior strict raster losses remain unresolved. Macro mutation/Save/undo scans,
 full resource/timing/font/cache/GTK/lifecycle/parity/human gates and PCR-125 remain
 OPEN. No storage pool,index,retained-context cap or accounting expansion selected.
 No release/install/commit.
+
+
+### 11.29 Repeated queue saturation and Abandon recovery — 2026-11-15
+
+Test-only practical-abuse continuation uses existing public APIs and limits.
+Seventeen cycles in the SAME paused worker pool accept153 maximum65536-byte
+sources (10027008 cumulative submitted bytes),observe34 queue-full Busy/id0
+responses,and recover slots after matching Abandon. Wrong generations cannot
+abandon or consume the request;the exact previous Busy source retries after
+matching abandonment. Duplicate Abandon is harmless;removed requests return
+Unknown/null and no finalized timing. A65537-byte source is rejected Busy/id0
+on an EMPTY queue,independently of saturation. IDs stay fresh across cycles.
+Maximum sources are comment padding ending in x+y and are abandoned before
+processing:source round-trip identity is explicitly NOT verified.
+
+Eight completed-unpolled raster cycles wait for non-consuming finalized Timing,
+check retained charge,wrong-generation no-op,matching/duplicate abandonment,
+immediate charge release and Unknown/null. Each is followed by exact x,+,y
+source/glyph/raster recovery and release to raster-ledger0. A separate truly
+paused eight-request maximum-source queue is drained by Shutdown;restart recovers.
+Start(Paused=>True) does NOT pause an already running pool,so the final fixture
+explicitly shuts down first. It is not part of the17-cycle no-reset phase.
+Four bounded400×5ms waits record failure,abandon and shut down/return on timeout;
+this does not promise a hard native cleanup deadline. No deterministic in-flight
+abandonment or pinned physical-worker recovery is claimed.
+
+Exact-final full standalone worker1013/1013 twice,focused634/634 twice. Test-only
+--abandon-recovery mode accepts the trusted font directory as argument1. Native
+production,requirements,limits and coverage fingerprints unchanged. New tests
+are NOT registered AUnit cases. Initial1002/focused623 draft lacked some watchdog
+exits and did not truly pause the final shutdown queue;final1013/634 supersede
+those coverage claims. Isolated49-file runtime mutations,byte-identical final
+probe:missing queued-slot reset yields2 failures/18 assertions and safe early
+exit;omitted completed-result freeing yields25 failures/634. Both exit1 and
+otherwise match HEAD production. These show test sensitivity,not product defects.
+
+Production/requirements hashes match HEAD2dd0b5d. Development builds pass;required
+GTK9/9,runner containment (expected7/9 synthetic child outcomes) and offline HTTP
+pass. Coordinator full Xvfb1076/1076 (147.365823s cumulative/147.52s wall) passes.
+TWO additional full AUnit repeats fail exactly the existing non-math tool-detail
+stable-allocation assertion:116×1033 and109×1033 instead of760×600 within1s;
+each1075 successes/1 failure/0 errors. An isolated unchanged case passes1/1.
+Root cause is NOT established;these failed repeats remain unresolved/unwaived.
+The initial validation worker reports another1076 pass but only aggregate build/
+mandatory logs are retained for that attempt. One extra nonexistent containment
+script attempt exits2 and is retained,not a required check or pass. A raw timing
+file beside one worker full-suite log is inconsistent with suite duration and is
+not accepted as that run's timing provenance. No all-repeats-clean claim.
+
+Evidence:`plan/evidence/native-math-2026-11-15-abandon-recovery/`. Queue-slot reuse
+and tracked raster-charge release are verified,NOT private source-ledger totals,
+RSS/whole-job accounting or source-ledger exhaustion:128×65536-byte slots are
+far below the256MiB source ledger. No runtime defect or API/cap change selected.
+No worker Valgrind/browser/geometry/raster-comparator/seeded fuzz rerun;old native
+raster losses and broader qualification stay open. GUI visible fallback/reflow/
+repaint and deterministic active-worker interruption remain separate work.
+Coordinator/agent review is not independent acceptance;PCR-125 remains OPEN.
+This scoped test increment is implemented;full regression repeat gate is not
+uniformly passing. No release/install/commit.

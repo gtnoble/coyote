@@ -126,9 +126,415 @@ procedure Math_Jobs_Probe is
    Abandoned_Id : Jobs.Request_Id;
    Abandoned_Generation : constant Jobs.View_Generation := 99;
    Font_Directory : constant String :=
-     (if Ada.Command_Line.Argument_Count = 1
+     (if Ada.Command_Line.Argument_Count >= 1
       then Ada.Command_Line.Argument (1) else "");
+
+   procedure Test_Abandon_Recovery is
+      Max_Source : constant Positive := Math_Syntax.Max_Source_Bytes;
+      Cycles : constant Positive := 17;
+      Raster_Cycles_Completed : Natural := 0;
+      Shutdown_Queue_Accepted : Natural := 0;
+      type Id_Array is array (Positive range <>) of Jobs.Request_Id;
+      type Gen_Array is array (Positive range <>) of Jobs.View_Generation;
+      type Source_Array is array (Positive range <>) of
+        Ada.Strings.Unbounded.Unbounded_String;
+      Ids_Local : Id_Array (1 .. Jobs.Queue_Capacity);
+      Gens : Gen_Array (1 .. Jobs.Queue_Capacity);
+      Texts : Source_Array (1 .. Jobs.Queue_Capacity);
+      Status : Jobs.Job_Status;
+      Item : Jobs.Result_Access;
+      Request : Jobs.Request_Id;
+      Timing_Local : Jobs.Job_Timing;
+      Found_Local : Boolean;
+      Accepted : Natural := 0;
+      Busy : Natural := 0;
+      Total_Bytes : Natural := 0;
+      Previous_Id : Jobs.Request_Id := 0;
+      Oversized : String (1 .. Max_Source + 1) := (others => ' ');
+      Aborted : Boolean := False;
+
+      function Has_Expected_Glyphs (Result : Jobs.Result_Access)
+         return Boolean is
+         use type Math_Layout.Command_Kind;
+         Glyph_Count : Natural := 0;
+      begin
+         if Result = null or else Jobs.Source (Result.all) /= "x+y" or else
+           not Jobs.Layout (Result.all).Valid
+         then
+            return False;
+         end if;
+         for Index in Jobs.Layout (Result.all).Commands.First_Index ..
+           Jobs.Layout (Result.all).Commands.Last_Index
+         loop
+            declare
+               Command : constant Math_Layout.Draw_Command :=
+                 Jobs.Layout (Result.all).Commands (Index);
+            begin
+               if Command.Kind = Math_Layout.Glyph_Command then
+                  Glyph_Count := Glyph_Count + 1;
+                  if Glyph_Count = 1 and then Command.Code_Point /= 120 then
+                     return False;
+                  elsif Glyph_Count = 2 and then Command.Code_Point /= 43 then
+                     return False;
+                  elsif Glyph_Count = 3 and then Command.Code_Point /= 121 then
+                     return False;
+                  elsif Glyph_Count > 3 then
+                     return False;
+                  end if;
+               end if;
+            end;
+         end loop;
+         return Glyph_Count = 3;
+      end Has_Expected_Glyphs;
+
+      function Long_Source (Slot, Cycle : Positive) return String is
+         Text : String (1 .. Max_Source) := (others => ' ');
+      begin
+         Text (1) := '%';
+         Text (2) := Character'Val
+           (Character'Pos ('A') + (Slot + Cycle) mod 26);
+         Text (3) := Character'Val
+           (Character'Pos ('0') + Cycle mod 10);
+         Text (Max_Source - 3) := Character'Val (10);
+         Text (Max_Source - 2 .. Max_Source) := "x+y";
+         return Text;
+      end Long_Source;
+
+      procedure Unknown (Request_Id : Jobs.Request_Id;
+                         Generation : Jobs.View_Generation) is
+         Poll_Status : Jobs.Job_Status;
+         Poll_Result : Jobs.Result_Access;
+         Poll_Timing : Jobs.Job_Timing;
+         Has_Timing : Boolean;
+      begin
+         Jobs.Poll (Request_Id, Generation, Poll_Status, Poll_Result);
+         Check (Poll_Status = Jobs.Unknown and Poll_Result = null,
+           "abandoned job polls Unknown without result");
+         if Poll_Result /= null then
+            Jobs.Release (Poll_Result);
+         end if;
+         Jobs.Timing (Request_Id, Generation, Poll_Timing, Has_Timing);
+         Check (not Has_Timing, "abandoned timing record removed");
+      end Unknown;
+
+      procedure Queue_Cycles is
+         Busy_Id : Jobs.Request_Id;
+         Retry_Id : Jobs.Request_Id;
+         Oversized_Id : Jobs.Request_Id;
+         Wrong_Generation : Jobs.View_Generation;
+      begin
+         Check (Max_Source = 65_536 and
+           Max_Source = Math_Syntax.Max_Source_Bytes and
+           Jobs.Queue_Capacity = 8,
+           "maximum-source queue fixture bounds remain pinned");
+         Jobs.Start (Paused => True);
+         Oversized (1 .. Max_Source) := Long_Source (1, 1);
+         Jobs.Submit (Oversized, Oversized_Id, 7_999,
+           Math_Layout.Text_Style, Status => Status);
+         Check (Status = Jobs.Busy and Oversized_Id = 0,
+           "65,537-byte source rejected with empty queue");
+         for Cycle in 1 .. Cycles loop
+            for Slot in Ids_Local'Range loop
+               Texts (Slot) := Ada.Strings.Unbounded.To_Unbounded_String
+                 (Long_Source (Slot, Cycle));
+               Gens (Slot) := Jobs.View_Generation (8_000 + Cycle);
+               Jobs.Submit (Ada.Strings.Unbounded.To_String (Texts (Slot)),
+                 Ids_Local (Slot), Gens (Slot), Math_Layout.Text_Style,
+                 Status => Status);
+               if Status /= Jobs.Pending then
+                  Check (False, "accepted queue fixture was missing");
+                  Aborted := True;
+                  Jobs.Shutdown;
+                  return;
+               end if;
+               Accepted := Accepted + 1;
+               Total_Bytes := Total_Bytes + Max_Source;
+               Check (Ids_Local (Slot) /= 0 and
+                 Ids_Local (Slot) > Previous_Id,
+                 "accepted IDs are unique and monotonic");
+               Previous_Id := Ids_Local (Slot);
+            end loop;
+            Jobs.Submit (Ada.Strings.Unbounded.To_String (Texts (1)),
+              Busy_Id, Gens (1), Math_Layout.Text_Style, Status => Status);
+            Check (Status = Jobs.Busy and Busy_Id = 0,
+              "ninth request Busy at maximum source length");
+            Busy := Busy + 1;
+            Wrong_Generation := Gens (1) + 1_000;
+            Jobs.Abandon (Ids_Local (1), Wrong_Generation);
+            Jobs.Poll (Ids_Local (1), Wrong_Generation, Status, Item);
+            Check (Status = Jobs.Unknown and Item = null,
+              "wrong generation cannot abandon queued slot");
+            if Item /= null then
+               Jobs.Release (Item);
+            end if;
+            Jobs.Poll (Ids_Local (1), Gens (1), Status, Item);
+            Check (Status = Jobs.Pending and Item = null,
+              "wrong-generation poll leaves request pending");
+            if Item /= null then
+               Jobs.Release (Item);
+               Check (False, "pending poll returned an unexpected result");
+            end if;
+            Jobs.Submit (Ada.Strings.Unbounded.To_String (Texts (1)), Retry_Id,
+              Gens (1), Math_Layout.Text_Style, Status => Status);
+            Check (Status = Jobs.Busy and Retry_Id = 0,
+              "same request still Busy before matching abandon");
+            Busy := Busy + 1;
+            Jobs.Abandon (Ids_Local (1), Gens (1));
+            Unknown (Ids_Local (1), Gens (1));
+            Jobs.Submit (Ada.Strings.Unbounded.To_String (Texts (1)), Retry_Id,
+              Gens (1), Math_Layout.Text_Style, Status => Status);
+            if Status /= Jobs.Pending then
+               Check (False, "Busy request retries after matching abandon");
+               Aborted := True;
+               Jobs.Shutdown;
+               return;
+            end if;
+            Accepted := Accepted + 1;
+            Total_Bytes := Total_Bytes + Max_Source;
+            Check (Retry_Id > Previous_Id, "retry gets fresh unique ID");
+            Previous_Id := Retry_Id;
+            Jobs.Abandon (Retry_Id, Gens (1));
+            Jobs.Abandon (Retry_Id, Gens (1));
+            Unknown (Retry_Id, Gens (1));
+            for Slot in 2 .. Ids_Local'Last loop
+               Jobs.Abandon (Ids_Local (Slot), Gens (Slot));
+               Unknown (Ids_Local (Slot), Gens (Slot));
+            end loop;
+         end loop;
+         Check (Accepted = 153 and Busy = 34 and Total_Bytes = 10_027_008,
+           "17 cycles: 153 accepts, 34 Busy, 10,027,008 source bytes");
+         Ada.Text_IO.Put_Line
+           ("QUEUE_ABANDON cycles=17 accepted=153 busy=34 " &
+            "source_bytes=10027008 source_identity=not_verified");
+         Jobs.Resume;
+         Jobs.Submit ("x+y", Request, 8_999, Math_Layout.Text_Style,
+           Status => Status);
+         if Status /= Jobs.Pending or Request = 0 then
+            Check (False, "same pool accepts ordinary recovery");
+            Aborted := True;
+            Jobs.Shutdown;
+            return;
+         end if;
+         for Wait in 1 .. 400 loop
+            Jobs.Poll (Request, 8_999, Status, Item);
+            exit when Status /= Jobs.Pending;
+            delay 0.005;
+         end loop;
+         if Status = Jobs.Pending then
+            Check (False, "same-pool recovery poll watchdog expired");
+            if Item /= null then
+               Jobs.Release (Item);
+            end if;
+            Jobs.Abandon (Request, 8_999);
+            Jobs.Shutdown;
+            Aborted := True;
+            return;
+         end if;
+         Check (Status = Jobs.Valid and then Item /= null and then
+           (if Status = Jobs.Valid then Has_Expected_Glyphs (Item)
+            else False) and then
+           (if Status = Jobs.Valid then not Jobs.Has_Raster (Item.all)
+            else False) and then
+           (if Status = Jobs.Valid then
+              Jobs.Raster_Retained_Bytes (Item.all) = 0 else False),
+           "same-pool ordinary recovery returns exact no-raster x+y");
+         if Item /= null then
+            Jobs.Release (Item);
+         end if;
+         Check (Item = null and Math_Raster_Budget.Used = 0,
+           "same-pool ordinary recovery releases cleanly");
+      end Queue_Cycles;
+
+      procedure Raster_Cycles is
+         Raster_Id : Jobs.Request_Id;
+         Raster_Generation : Jobs.View_Generation;
+         Baseline : Natural;
+         Recovery_Id : Jobs.Request_Id;
+         Recovery_Status : Jobs.Job_Status;
+         Recovery_Result : Jobs.Result_Access;
+      begin
+         for Cycle in 1 .. 8 loop
+            Raster_Generation := Jobs.View_Generation (9_000 + Cycle);
+            Jobs.Submit ("x+y", Raster_Id, Raster_Generation,
+              Math_Layout.Display_Style, Status => Status,
+              Request_Raster => True, Em_Pixels => 24.0,
+              Font_Directory => Font_Directory);
+            if Status /= Jobs.Pending or Raster_Id = 0 then
+               Check (False, "raster request accepted");
+               Aborted := True;
+               Jobs.Shutdown;
+               return;
+            end if;
+            Found_Local := False;
+            for Wait in 1 .. 400 loop
+               Jobs.Timing (Raster_Id, Raster_Generation, Timing_Local,
+                 Found_Local);
+               exit when Found_Local;
+               delay 0.005;
+            end loop;
+            Check (Found_Local, "raster completion has timing record");
+            if not Found_Local then
+               Jobs.Abandon (Raster_Id, Raster_Generation);
+               Jobs.Shutdown;
+               Check (False, "raster watchdog abandoned then shut down");
+               Aborted := True;
+               return;
+            end if;
+            Baseline := Math_Raster_Budget.Used;
+            Check (Baseline > 0, "completed raster retains charge");
+            Jobs.Abandon (Raster_Id, Raster_Generation + 1);
+            Check (Math_Raster_Budget.Used = Baseline,
+              "wrong generation preserves raster charge");
+            Jobs.Timing (Raster_Id, Raster_Generation, Timing_Local,
+              Found_Local);
+            Check (Found_Local, "wrong-generation abandon preserves timing");
+            Jobs.Abandon (Raster_Id, Raster_Generation);
+            Check (Math_Raster_Budget.Used = 0,
+              "matching abandon releases raster charge");
+            Jobs.Abandon (Raster_Id, Raster_Generation);
+            Check (Math_Raster_Budget.Used = 0,
+              "duplicate matching abandon leaves charge empty");
+            Unknown (Raster_Id, Raster_Generation);
+            Jobs.Submit ("x+y", Recovery_Id, Raster_Generation,
+              Math_Layout.Display_Style, Status => Recovery_Status,
+              Request_Raster => True, Em_Pixels => 24.0,
+              Font_Directory => Font_Directory);
+            if Recovery_Status /= Jobs.Pending then
+               Check (False, "raster recovery accepted");
+               Aborted := True;
+               Jobs.Shutdown;
+               return;
+            end if;
+            for Wait in 1 .. 400 loop
+               Jobs.Poll (Recovery_Id, Raster_Generation,
+                 Recovery_Status, Recovery_Result);
+               exit when Recovery_Status /= Jobs.Pending;
+               delay 0.005;
+            end loop;
+            if Recovery_Status = Jobs.Pending then
+               Check (False, "raster recovery poll watchdog expired");
+               if Recovery_Result /= null then
+                  Jobs.Release (Recovery_Result);
+               end if;
+               Jobs.Abandon (Recovery_Id, Raster_Generation);
+               Jobs.Shutdown;
+               Aborted := True;
+               return;
+            end if;
+            Check (Recovery_Status = Jobs.Valid and then
+              Recovery_Result /= null and then
+              (if Recovery_Status = Jobs.Valid then
+                 Has_Expected_Glyphs (Recovery_Result) else False) and then
+              (if Recovery_Status = Jobs.Valid then
+                 Jobs.Has_Raster (Recovery_Result.all) else False) and then
+              (if Recovery_Status = Jobs.Valid then
+                 Jobs.Raster_Width (Recovery_Result.all) > 0 and then
+                 Jobs.Raster_Height (Recovery_Result.all) > 0 else False) and then
+              Math_Raster_Budget.Used > 0,
+              "ordinary raster recovery retains exact x+y raster and charge");
+            if Recovery_Result /= null then
+               Jobs.Release (Recovery_Result);
+            end if;
+            Check (Recovery_Result = null and Math_Raster_Budget.Used = 0,
+              "ordinary raster recovery releases charge");
+            Raster_Cycles_Completed := Raster_Cycles_Completed + 1;
+         end loop;
+         Check (Raster_Cycles_Completed = 8,
+           "all eight raster abandon/recovery cycles completed");
+         Ada.Text_IO.Put_Line
+           ("RASTER_ABANDON cycles=" &
+            Natural'Image (Raster_Cycles_Completed));
+      end Raster_Cycles;
+   begin
+      Queue_Cycles;
+      if Aborted then
+         return;
+      end if;
+      Raster_Cycles;
+      if Aborted then
+         return;
+      end if;
+      Jobs.Shutdown;
+      Jobs.Start (Paused => True);
+      for Slot in Ids_Local'Range loop
+         Jobs.Submit (Long_Source (Slot, Cycles), Ids_Local (Slot), 9_500,
+           Math_Layout.Text_Style, Status => Status);
+         if Status /= Jobs.Pending then
+            Check (False, "shutdown queue fixture accepted");
+            Aborted := True;
+            Jobs.Shutdown;
+            return;
+         end if;
+         Shutdown_Queue_Accepted := Shutdown_Queue_Accepted + 1;
+      end loop;
+      Check (Shutdown_Queue_Accepted = Jobs.Queue_Capacity,
+        "shutdown queue contains eight accepted requests");
+      Jobs.Shutdown;
+      Ada.Text_IO.Put_Line
+        ("SHUTDOWN_QUEUE accepted=" &
+         Natural'Image (Shutdown_Queue_Accepted) &
+         " restart_separate_from_17_cycles=true");
+      for Slot in Ids_Local'Range loop
+         Unknown (Ids_Local (Slot), 9_500);
+      end loop;
+      Jobs.Start;
+      Jobs.Submit ("x+y", Request, 9_501, Math_Layout.Text_Style,
+        Status => Status);
+      Check (Status = Jobs.Pending and Request /= 0,
+        "fresh pool accepts source after shutdown");
+      if Status /= Jobs.Pending or Request = 0 then
+         Aborted := True;
+         Jobs.Shutdown;
+         return;
+      end if;
+      for Wait in 1 .. 400 loop
+         Jobs.Poll (Request, 9_501, Status, Item);
+         exit when Status /= Jobs.Pending;
+         delay 0.005;
+      end loop;
+      if Status = Jobs.Pending then
+         Check (False, "post-shutdown recovery poll watchdog expired");
+         if Item /= null then
+            Jobs.Release (Item);
+         end if;
+         Jobs.Abandon (Request, 9_501);
+         Jobs.Shutdown;
+         Aborted := True;
+         return;
+      end if;
+      Check (Status = Jobs.Valid and then Item /= null and then
+        (if Status = Jobs.Valid then Has_Expected_Glyphs (Item)
+         else False) and then
+        (if Status = Jobs.Valid then not Jobs.Has_Raster (Item.all)
+         else False) and then
+        (if Status = Jobs.Valid then
+           Jobs.Raster_Retained_Bytes (Item.all) = 0 else False),
+        "post-shutdown recovery returns exact no-raster x+y");
+      if Item /= null then
+         Jobs.Release (Item);
+      end if;
+      Check (Item = null and Math_Raster_Budget.Used = 0,
+        "abandon recovery ends with empty raster ledger");
+      Jobs.Shutdown;
+   exception
+      when others =>
+         Jobs.Shutdown;
+         raise;
+   end Test_Abandon_Recovery;
+
 begin
+   if Ada.Command_Line.Argument_Count = 2 and then
+     Ada.Command_Line.Argument (2) = "--abandon-recovery"
+   then
+      Check (Font_Directory'Length > 0, "trusted font directory supplied");
+      Test_Abandon_Recovery;
+      Ada.Text_IO.Put_Line ("ASSERTIONS" & Natural'Image (Checks) &
+        " failures=" & Natural'Image (Failures));
+      if Failures /= 0 then
+         Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+      end if;
+      return;
+   end if;
    declare
       First_Lease : Math_Raster_Budget.Lease;
       Second_Lease : Math_Raster_Budget.Lease;
@@ -1807,6 +2213,7 @@ begin
    Jobs.Poll (Ids (1), 92, S, R);
    Check (S = Jobs.Unknown and R = null, "restart shutdown drains slot");
 
+   Test_Abandon_Recovery;
 
    declare
       Corpus_Size : constant Positive := 2_000;

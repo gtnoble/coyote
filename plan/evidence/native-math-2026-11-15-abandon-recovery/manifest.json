@@ -1,0 +1,13 @@
+{
+  "parent_commit": "2dd0b5d594e304b76e0b176877a03124743d82a7",
+  "project_date": "2026-11-15",
+  "sha256": {
+    "test/tools/math_jobs_probe.adb": "6503efac2da8d40e98db9d195f8b1c9dc50168e8447894b3b2a1356bfcf09e08",
+    "src/coyote_math/coyote_math_jobs.adb": "c5d8a7396a1c9630548c9556db870a40dc02faeee400d7b6b8ee57e6a00839d0",
+    "src/coyote_math/coyote_math_jobs.ads": "ffd2967591ca440385b62c4fe1622c65768126e3af9e281880dbd51d3dcf052d",
+    "/tmp/coyote-abandon-final1/bin/math_jobs_probe": "f68ea24ea9227629e6d29d9cf718b907ad544b107622b74123daa4a08cf90792",
+    "/tmp/coyote-abandon-final2/bin/math_jobs_probe": "766ac71fa717fb4dced61f9405ca4a82e47458a0104c99d423cf5cc11180af30",
+    "test/bin/coyote_test": "b4a64ae5ce0105596ef6b34f13a602cb05ac485d0d35f98b827504e0082480ea",
+    "bin/coyote": "adfcefc6f0330dbb7a48885607afb1d101932ff2fd3f73fd6d0d912915adaac6"
+  }
+}

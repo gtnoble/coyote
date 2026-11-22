@@ -1,0 +1,52 @@
+START 2026-11-21T19:17:41-06:00
+Note: Building coyote=0.1.0-dev/coyote.gpr...
+Compile
+   [Ada]          coyote_help.adb
+   [Ada]          coyote_config.ads
+Bind
+   [gprbind]      coyote.bexch
+   [Ada]          coyote.ali
+   [gprbind]      coyote_list_sessions.bexch
+   [Ada]          coyote_list_sessions.ali
+   [gprbind]      coyote_sqc_main.bexch
+   [Ada]          coyote_sqc_main.ali
+Link
+   [link]         coyote.adb
+   [link]         coyote_list_sessions.adb
+   [link]         coyote_sqc_main.adb
+Success: Build finished successfully in 3.27 seconds.
+ROOT_BUILD wall=3.56 user=4.20 sys=1.42 exit=0
+ROOT_BUILD_STATUS=0
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          coyote_help.adb
+   [Ada]          coyote_help_tests.adb
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+   [Ada]          coyote_config.ads
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+   [gprbind]      mock_coyote.bexch
+   [Ada]          mock_coyote.ali
+   [gprbind]      auth_test_worker.bexch
+   [Ada]          auth_test_worker.ali
+   [gprbind]      help_test_worker.bexch
+   [Ada]          help_test_worker.ali
+   [gprbind]      notify_test_worker.bexch
+   [Ada]          notify_test_worker.ali
+   [gprbind]      signal_shutdown_worker.bexch
+   [Ada]          signal_shutdown_worker.ali
+   [gprbind]      gtk_interaction_worker.bexch
+   [Ada]          gtk_interaction_worker.ali
+Link
+   [link]         coyote_test.adb
+   [link]         mock_coyote.adb
+   [link]         auth_test_worker.adb
+   [link]         help_test_worker.adb
+   [link]         notify_test_worker.adb
+   [link]         signal_shutdown_worker.adb
+   [link]         gtk_interaction_worker.adb
+Success: Build finished successfully in 6.50 seconds.
+TEST_BUILD wall=6.77 user=9.50 sys=2.13 exit=0
+TEST_BUILD_STATUS=0
+END 2026-11-21T19:17:52-06:00

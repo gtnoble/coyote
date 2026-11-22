@@ -1,0 +1,29 @@
+QUEUE_ABANDON cycles=17 accepted=153 busy=34 source_bytes=10027008 source_identity=not_verified
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+FAIL matching abandon releases raster charge
+FAIL duplicate matching abandon leaves charge empty
+FAIL ordinary raster recovery releases charge
+RASTER_ABANDON cycles= 8
+SHUTDOWN_QUEUE accepted= 8 restart_separate_from_17_cycles=true
+FAIL abandon recovery ends with empty raster ledger
+ASSERTIONS 634 failures= 25

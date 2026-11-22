@@ -1,0 +1,8 @@
+{
+  "kind": "queued-slot-not-cleared",
+  "probe_sha256": "6503efac2da8d40e98db9d195f8b1c9dc50168e8447894b3b2a1356bfcf09e08",
+  "probe_exit": 1,
+  "summary": "ASSERTIONS 18 failures= 2",
+  "changed_source": "coyote_math_jobs.adb",
+  "baseline_commit": "2dd0b5d594e304b76e0b176877a03124743d82a7"
+}
