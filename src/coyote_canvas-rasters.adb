@@ -1,3 +1,4 @@
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Image_Decoder;
 with Interfaces.C;
@@ -16,6 +17,27 @@ package body Coyote_Canvas.Rasters is
    PNG_Signature : constant String :=
      Character'Val (137) & "PNG" & ASCII.CR & ASCII.LF
      & Character'Val (26) & ASCII.LF;
+
+   function Dimension_Error (Width, Height : Natural; Valid : Boolean)
+      return Unbounded_String
+   is
+      function Decimal (N : Natural) return String is
+        (Ada.Strings.Fixed.Trim (Natural'Image (N), Ada.Strings.Left));
+   begin
+      if not Valid then
+         return To_Unbounded_String ("Image dimensions are unavailable");
+      elsif Width > MAX_SIDE or else Height > MAX_SIDE then
+         return To_Unbounded_String
+           ("Image " & Decimal (Width) & " x " & Decimal (Height) &
+            " exceeds the " & Decimal (MAX_SIDE) & "-pixel side limit.");
+      elsif Width > MAX_PIXELS / Height then
+         return To_Unbounded_String
+           ("Image " & Decimal (Width) & " x " & Decimal (Height) &
+            " exceeds the " & Decimal (MAX_PIXELS) & "-pixel area limit.");
+      else
+         return Null_Unbounded_String;
+      end if;
+   end Dimension_Error;
 
    function Byte (Data : String; Offset : Positive) return Natural is
      (Character'Pos (Data (Data'First + Offset - 1)));
@@ -332,13 +354,11 @@ package body Coyote_Canvas.Rasters is
         (Read, Kind, Header_Width, Header_Height, Header_Valid);
       if Kind = Unknown then
          Error := To_Unbounded_String ("Unsupported image signature");
-      elsif not Header_Valid then
-         Error := To_Unbounded_String ("Image dimensions are unavailable");
-      elsif Header_Width > MAX_SIDE or else Header_Height > MAX_SIDE
-        or else Header_Width > MAX_PIXELS / Header_Height
-      then
-         Error := To_Unbounded_String
-           ("Image dimensions exceed the allowed limit");
+      else
+         Error := Dimension_Error (Header_Width, Header_Height, Header_Valid);
+      end if;
+      if Length (Error) /= 0 then
+         return;
       elsif not Rewind.all then
          Error := To_Unbounded_String ("Image stream could not be rewound");
       else
@@ -477,14 +497,8 @@ package body Coyote_Canvas.Rasters is
       else
          JPEG_Dimensions (Data, Header_Width, Header_Height, Header_Valid);
       end if;
-      if not Header_Valid then
-         Error := To_Unbounded_String ("Image dimensions are unavailable");
-         return;
-      elsif Header_Width > MAX_SIDE or else Header_Height > MAX_SIDE
-        or else Header_Width > MAX_PIXELS / Header_Height
-      then
-         Error :=
-           To_Unbounded_String ("Image dimensions exceed the allowed limit");
+      Error := Dimension_Error (Header_Width, Header_Height, Header_Valid);
+      if Length (Error) /= 0 then
          return;
       end if;
 

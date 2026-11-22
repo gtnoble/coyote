@@ -1878,9 +1878,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       return Result;
    end Canvas_Toplevel;
 
-   procedure Finish_Canvas_Jobs is
+   procedure Finish_Canvas_Jobs (Timeout : Natural := 3) is
       use Ada.Real_Time;
-      Deadline : constant Time := Clock + Seconds (3);
+      Deadline : constant Time := Clock + Seconds (Integer (Timeout));
    begin
       Poll : loop
          Drain_Events;
@@ -2298,6 +2298,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       use type System.Address;
       use type Coyote_Canvas.Store.Result;
       use type Coyote_Canvas.Document.Rectangle;
+      use type Glib.Error.GError;
       package Disk renames Coyote_Canvas.Store.Workspaces;
       package Rev renames Coyote_Canvas.Revisions;
 
@@ -2370,14 +2371,16 @@ package body Coyote_App_Frontend_GUI_Tests is
          Ada.Text_IO.Close (File);
       end;
       declare
-         File : Ada.Text_IO.File_Type;
+         Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New
+             (Has_Alpha => False, Width => 7_680, Height => 4_320);
+         Error : Glib.Error.GError;
       begin
-         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File,
-                             To_String (Root) & "/blue.svg");
-         Ada.Text_IO.Put_Line
-           (File, "<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6'>"
-            & "<rect width='8' height='6' fill='blue'/></svg>");
-         Ada.Text_IO.Close (File);
+         Gdk.Pixbuf.Fill (Image, 16#0000FFFF#);
+         Gdk.Pixbuf.Save
+           (Image, To_String (Root) & "/blue.png", Gdk.Pixbuf.PNG, Error);
+         Image.Unref;
+         Assert (Error = null, "Generated full-size blue PNG fixture");
       end;
       Coyote_App.Frontend.GUI.Create
         (Frontend, "Canvas recovery test", Pop_Under => True);
@@ -2391,10 +2394,10 @@ package body Coyote_App_Frontend_GUI_Tests is
            Canvas_Toplevel ("coyote-canvas-file-selection");
          Chooser : constant Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog :=
            Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog (Dialog);
-         File : constant String := To_String (Root) & "/blue.svg";
+         File : constant String := To_String (Root) & "/blue.png";
          By : constant Time := Clock + Seconds (3);
       begin
-         Assert (Chooser.Select_Filename (File), "select SVG recovery fixture");
+         Assert (Chooser.Select_Filename (File), "select PNG recovery fixture");
          Wait_File : loop
             Drain_Events;
             exit Wait_File when Chooser.Get_Filename = File;
@@ -2403,9 +2406,20 @@ package body Coyote_App_Frontend_GUI_Tests is
          end loop Wait_File;
          Gtk.Dialog.Gtk_Dialog (Dialog).Response (Gtk.Dialog.Gtk_Response_OK);
       end;
-      Finish_Canvas_Jobs;
+      Finish_Canvas_Jobs (Timeout => 20);
       Assert (N_Children (Model) = 1, "one imported Original");
       Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      Control ("coyote-canvas-drawing-area").Get_Size_Request (W, H);
+      Assert (W = 7_680 and then H = 4_320,
+              "imported Original retains its full native dimensions");
+      Assert (Control ("canvas-attach").Get_Sensitive,
+              "selected Original enables Attach");
+      Activate ("attach");
+      Assert (Gtk.Label.Gtk_Label
+                (Control ("coyote-canvas-status")).Get_Text =
+                  "Image is too large to attach. Crop it and try again."
+                and then Attachment_Count (Frontend) = 0,
+              "8K Original stays local and suggests cropping to attach");
       Activate ("crop");
       Field ("x", "1");
       Field ("y", "2");
@@ -2419,10 +2433,11 @@ package body Coyote_App_Frontend_GUI_Tests is
               and then Rev.Count (Saved) = 1
               and then Rev.Extent (Saved) = (1, 2, 5, 5),
               "autosave preserves dirty crop without creating a revision");
-      Assert (Length (Pixels (1)) = 8 * 6 * 4
+      Assert (Length (Pixels (1)) = 7_680 * 4_320 * 4
               and then Slice (Pixels (1), 1, 4) =
                 (ASCII.NUL & ASCII.NUL & Character'Val (255) & Character'Val (255)),
-              "autosave preserves native source pixels");
+              "autosave preserves the full-size blue source pixels");
+      Pixels (1) := Null_Unbounded_String;
       Key := Rev.Revision_Key (Saved, 1);
       Reset_Agents_From_Task (Frontend);
       Open (B, "");

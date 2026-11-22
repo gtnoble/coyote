@@ -3244,16 +3244,15 @@ is a view-only Cairo transform and does not resample the canonical pixels.
 Guides and the in-progress stroke are painted separately over the cached
 composite; stored ink and transient ink share the same stroke painter.
 
-The renderer's per-image physical limit remains 16 Mi pixels, corresponding
-to 64 MiB for four-byte RGBA pixels. During composition, the full-source
-ARGB32 ink layer can add up to 64 MiB; it is destroyed
-before display conversion. The one cropped display cache can itself use up to
-64 MiB, in addition to the retained import budget. These figures describe
-separate allocations, not a qualified peak-memory bound or real-time guarantee.
-The PNG encoder reads the same straight-alpha pixels without color transforms
-and rejects output beyond 8 MiB during compression. This is a per-call cap,
-not a staging-memory budget. No user command or worker invokes the encoder
-yet. libpng is a direct build dependency.
+Canvas composition accepts the local raster geometry limit: up to 8,192
+pixels per side and 33,554,432 pixels per image. The full-source ARGB32
+ink layer can add up to 128 MiB; it is destroyed before display conversion.
+The cropped display cache can itself use up to 128 MiB, in addition to
+retained rasters. These are separate allocations, not a process peak-memory
+bound or a real-time guarantee. For Attach, preflight the output extent
+against the independent 8,192-pixel side and 16,777,216-pixel area limits
+before composition. The libpng encoder uses the same straight-alpha pixels
+without color transforms and stops at the per-image PNG byte budget.
 
 The composite suite has seven registered cases covering pixels/PNG, RGB
 strides and offsets, crop/history, partial-alpha source-over, invalid-buffer
@@ -3281,16 +3280,15 @@ excluded. SVGs render once to straight-alpha RGBA at their intrinsic pixel
 size at 96 DPI or at the positive `viewBox` size, rounded up. Raster assets
 are independent of the source bytes and Cairo display cache.
 
-Local PNG/JPEG file selection has no encoded-byte cap. The buffered paths
-stay bounded: 8 MiB per SVG, clipboard image, or agent-uploaded file, and
-32 MiB per batch of SVG inputs or agent uploads. All paths retain the current
-decoded budgets: 8,192 pixels per side, 16 Mi pixels per image, and 128 MiB
-of raster rows per batch or live workspace. SVG preflight caps tree depth
-at 64 and nodes at 50,000. There is one decode worker, with two worker
-slots and four GUI request slots. These are not process memory or
-execution-time limits; decoder allocations, the full-source ARGB32 ink
-layer, and the display cache are separate. Attachment limits do not govern
-local file admission.
+Local PNG/JPEG file selection has no encoded-byte cap. All Canvas PNG/JPEG
+paths share the 8,192-pixel side and 33,554,432-pixel area ceilings. No
+accepted raster is automatically resized. Buffered inputs remain limited
+to 8 MiB per SVG, clipboard image, or agent-uploaded file and 32 MiB per
+batch of SVG inputs or agent uploads. SVG rendering retains a 16,777,216-
+pixel area ceiling and preflight caps of 64 levels and 50,000 nodes. The
+raw recovery asset ceiling is 128 MiB per image; aggregate decoded batch
+and live-workspace raster ceilings each remain 128 MiB. There is one
+decode worker, with two worker slots and four GUI request slots.
 
 **Internal workspace storage.** Each revision has a UUIDv4 assigned at
 creation. Descendants use their Original's UUID as the drawing identity;

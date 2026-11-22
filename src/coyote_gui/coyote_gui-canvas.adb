@@ -2635,12 +2635,24 @@ package body Coyote_GUI.Canvas is
       Is_Draft : constant Boolean := S.Editing_Draft and then
         (Selection.Count_Selected_Rows = 0 or else
          Has_Drawing_Focus (S));
+      TOO_LARGE : constant String :=
+        "Image is too large to attach. Crop it and try again.";
+
+      function Fits_Attachment (Id : Rev.Revision_Id) return Boolean is
+         E : constant Doc.Rectangle := Rev.Extent (S.Document, Id);
+      begin
+         return LLM.User_Images.Fits_Geometry
+           (E.Right - E.Left, E.Bottom - E.Top);
+      end Fits_Attachment;
    begin
       if not Can_Attach (S) then
          return;
       end if;
       if Is_Draft then
          if not S.Has_Drawing then
+            return;
+         elsif not Fits_Attachment (Rev.NO_REVISION) then
+            Set_Status (S, TOO_LARGE);
             return;
          end if;
          Rev.Save (S.Document);
@@ -2676,6 +2688,12 @@ package body Coyote_GUI.Canvas is
             end loop;
             Free (Paths);
          end;
+         for I in 1 .. Count loop
+            if not Fits_Attachment (Ids (I)) then
+               Set_Status (S, TOO_LARGE);
+               return;
+            end if;
+         end loop;
       end if;
       for I in 1 .. Count loop
          declare

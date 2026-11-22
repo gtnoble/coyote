@@ -6,7 +6,7 @@ package Coyote_Canvas.Rasters is
 
    MAX_ENCODED_BYTES : constant := 8 * 1_024 * 1_024;
    MAX_SIDE          : constant := 8_192;
-   MAX_PIXELS        : constant := 16 * 1_024 * 1_024;
+   MAX_PIXELS        : constant := 32 * 1_024 * 1_024;
 
    function Detect (Data : String) return Format;
 

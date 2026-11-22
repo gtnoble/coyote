@@ -39,6 +39,10 @@ package body LLM.User_Images is
       return True;
    end UUID;
 
+   function Fits_Geometry (Width, Height : Natural) return Boolean is
+     (Width in 1 .. Max_Side and then Height in 1 .. Max_Side
+      and then Width <= Max_Pixels / Height);
+
    procedure Check (Image : Types.User_Image) is
       Bytes : Ada.Strings.Unbounded.Aux.Big_String_Access;
       Size : Natural;
@@ -53,9 +57,8 @@ package body LLM.User_Images is
       end Number;
    begin
       Ada.Strings.Unbounded.Aux.Get_String (Image.PNG, Bytes, Size);
-      if Size not in 33 .. Max_PNG or else Image.Width not in 1 .. 8192
-        or else Image.Height not in 1 .. 8192
-        or else Image.Width > 16 * 1_024 * 1_024 / Image.Height
+      if Size not in 33 .. Max_PNG
+        or else not Fits_Geometry (Image.Width, Image.Height)
         or else not UUID (To_String (Image.Drawing_Id))
         or else not UUID (To_String (Image.Revision_Id))
         or else Length (Image.Label) not in 1 .. 128

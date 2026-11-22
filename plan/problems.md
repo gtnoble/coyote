@@ -3,6 +3,20 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-136 — Native 8K Canvas raster import
+
+- **Date reported:** 2026-11-22
+- **Category:** Design, Software, Test, Help
+- **Priority:** 4-Minor (otherwise valid large originals were rejected).
+- **Authorization:** User requested revisiting the Canvas import budget.
+- **Change:** Admit native PNG/JPEG through 33,554,432 pixels and 8,192
+  pixels on either side. Keep the 128 MiB batch and workspace raster budgets
+  and align flat recovery assets with that budget. Report actual dimensions
+  and the failed geometry check. Keep SVG, encoded transport, and attachment
+  limits unchanged; suggest cropping before attachment composition.
+- **Status:** Implemented and developer-tested; see the Frontends log.
+  Desktop performance and larger-than-8K tiled editing remain unqualified.
+
 ## PCR-133 — Canvas revision display and draft-preserving editing
 
 - **Date reported:** 2026-11-22

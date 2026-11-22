@@ -1,13 +1,14 @@
 with Ada.Finalization;
 with Ada.Strings.Unbounded;
 with Interfaces;
+with Coyote_Canvas.Rasters;
 private with Interfaces.C;
 
 --  Private Canvas transport and checked session lifecycle operations.
 package Coyote_Canvas.Store is
    --  Allow all retained samples even with four v5 round-trip fields.
    MAX_MANIFEST_BYTES : constant := 16 * 1_024 * 1_024;
-   MAX_ASSET_BYTES    : constant := 64 * 1_024 * 1_024;
+   MAX_ASSET_BYTES    : constant := 4 * Rasters.MAX_PIXELS;
    type Result is (Ok, Missing, Busy, Invalid, IO_Error, Uncertain);
 
    --  Parent must be a trusted, resolved absolute session directory.

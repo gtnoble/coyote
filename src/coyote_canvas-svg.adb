@@ -5,6 +5,9 @@ with Coyote_Canvas.Rasters;
 package body Coyote_Canvas.SVG is
    use type Interfaces.C.Strings.chars_ptr;
 
+   --  SVG render work is independent of the PNG/JPEG decode budget.
+   MAX_RENDER_PIXELS : constant := 16 * 1_024 * 1_024;
+
    function C_Decode
      (Data       : Interfaces.C.char_array;
       Data_Size  : Interfaces.C.size_t;
@@ -35,7 +38,7 @@ package body Coyote_Canvas.SVG is
         (Interfaces.C.To_C (Data), Interfaces.C.size_t (Data'Length),
          Interfaces.C.size_t (Coyote_Canvas.Rasters.MAX_ENCODED_BYTES),
          Interfaces.C.int (Coyote_Canvas.Rasters.MAX_SIDE),
-         Interfaces.C.size_t (Coyote_Canvas.Rasters.MAX_PIXELS),
+         Interfaces.C.size_t (MAX_RENDER_PIXELS),
          C_Error'Access);
       if C_Error /= Interfaces.C.Strings.Null_Ptr then
          Error := Ada.Strings.Unbounded.To_Unbounded_String

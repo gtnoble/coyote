@@ -1,5 +1,25 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Native 8K Canvas raster import (PCR-136)
+
+Canvas PNG/JPEG accepts 33,554,432 pixels per image at native size, with
+the existing 8,192-pixel side limit. Side and area rejections show the
+source dimensions and the limit hit. Flat recovery assets can now hold
+one 128 MiB RGBA raster; the 128 MiB decoded-batch and live-workspace
+budgets are unchanged. SVG rendering and buffered encoded input limits
+are unchanged. Attach preflights its separate geometry limit and suggests
+cropping without altering the original.
+
+Developer self-check: root and test development builds, Xvfb AUnit
+(1,131/1,131), GTK interactions (9/9), runner fault containment, Canvas
+CLI/protocol, and Help passed. The tests exercise real 7680 × 4320 PNG
+decodes and file-picker import, crop, autosave, reopen, oversized
+attachment rejection, and separate side/area preflight failures. The
+isolated recovery test peaked at about 633 MiB RSS for the test process,
+including the fixture and reload checks; 128 MiB is not a process-memory
+cap. Large-image interactive performance and tiled editing are not
+qualified.
+
 ## 2026-11-22 — Stream direct Canvas PNG and JPEG imports
 
 File Selection no longer rejects PNG or JPEG by encoded byte length. The

@@ -100,7 +100,11 @@ package body Coyote_Canvas_Raster_Tests is
          return False;
    end Stream_Rewind;
 
-   procedure Check_Stream (Good : Boolean; Want_W, Want_H : Natural) is
+   procedure Check_Stream
+     (Good           : Boolean;
+      Want_W, Want_H : Natural;
+      Expected_Error : String := "")
+   is
       Pixels : Coyote_Image_Decoder.Pixbuf_Handle :=
         Coyote_Image_Decoder.Null_Pixbuf;
       Width : Natural;
@@ -124,6 +128,11 @@ package body Coyote_Canvas_Raster_Tests is
            "stream failure returns no pixbuf");
          Assert (Width = 0 and then Height = 0,
            "stream failure clears dimensions");
+         if Expected_Error'Length > 0 then
+            Assert
+              (To_String (Error) = Expected_Error,
+               "stream reports exact geometry diagnostic");
+         end if;
       end if;
    end Check_Stream;
 
@@ -150,11 +159,12 @@ package body Coyote_Canvas_Raster_Tests is
    end Read_Bytes;
 
    procedure Check_Decode
-     (Data     : String;
-      Expected : Coyote_Canvas.Rasters.Format;
-      Good     : Boolean;
-      Want_W   : Natural := 0;
-      Want_H   : Natural := 0)
+     (Data           : String;
+      Expected       : Coyote_Canvas.Rasters.Format;
+      Good           : Boolean;
+      Want_W         : Natural := 0;
+      Want_H         : Natural := 0;
+      Expected_Error : String := "")
    is
       Pixels : Coyote_Image_Decoder.Pixbuf_Handle :=
         Coyote_Image_Decoder.Null_Pixbuf;
@@ -173,6 +183,11 @@ package body Coyote_Canvas_Raster_Tests is
          Assert (Coyote_Image_Decoder.Is_Null (Pixels), "failure returns no pixbuf");
          Assert (Width = 0 and then Height = 0, "failure clears dimensions");
          Assert (Length (Error) <= 80, "error text is bounded");
+         if Expected_Error'Length > 0 then
+            Assert
+              (To_String (Error) = Expected_Error,
+               "decode reports exact geometry diagnostic");
+         end if;
       end if;
    end Check_Decode;
 
@@ -207,6 +222,14 @@ package body Coyote_Canvas_Raster_Tests is
       end loop;
       return Result;
    end Big_Endian;
+
+   function PNG_Header (Width, Height : Positive) return String is
+     (Character'Val (137) & "PNG" & ASCII.CR & ASCII.LF
+      & Character'Val (26) & ASCII.LF
+      & Character'Val (0) & Character'Val (0) & Character'Val (0)
+      & Character'Val (13) & "IHDR"
+      & Big_Endian (Interfaces.Unsigned_32 (Width))
+      & Big_Endian (Interfaces.Unsigned_32 (Height)));
 
    procedure Make_Large_PNG (Path : String; Source : String) is
       use Ada.Streams;
@@ -301,7 +324,30 @@ package body Coyote_Canvas_Raster_Tests is
          "JPEG signature detected");
       Check_Decode (To_String (JPEG_Data), Coyote_Canvas.Rasters.Unknown,
                     True, 64, 48);
-      Ada.Directories.Delete_File (To_String (Path));
+
+      --  RGB keeps the real-size fixture's decoded storage smaller.
+      Save_Image (To_String (Path), Gdk.Pixbuf.PNG, 7_680, 4_320, False);
+      Ada.Streams.Stream_IO.Open
+        (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
+      Stream_Open := True;
+      Check_Stream (True, 7_680, 4_320);
+      Ada.Streams.Stream_IO.Close (Stream_File);
+      Stream_Open := False;
+      declare
+         Large_Data : constant String := Read_Bytes (To_String (Path));
+      begin
+         Check_Decode
+           (Large_Data, Coyote_Canvas.Rasters.PNG, True, 7_680, 4_320);
+      end;
+      Coyote_Temp_Files.Delete (To_String (Path));
+   exception
+      when others =>
+         if Stream_Open then
+            Ada.Streams.Stream_IO.Close (Stream_File);
+            Stream_Open := False;
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Path));
+         raise;
    end Images;
 
    procedure Streaming (T : in out Test) is
@@ -358,38 +404,35 @@ package body Coyote_Canvas_Raster_Tests is
       Ada.Streams.Stream_IO.Close (Stream_File);
       Stream_Open := False;
 
-      declare
-         Oversized : constant String :=
-           Character'Val (137) & "PNG" & ASCII.CR & ASCII.LF
-           & Character'Val (26) & ASCII.LF
-           & Character'Val (0) & Character'Val (0) & Character'Val (0)
-           & Character'Val (13) & "IHDR"
-           & Character'Val (0) & Character'Val (0) & Character'Val (32)
-           & Character'Val (1)
-           & Character'Val (0) & Character'Val (0) & Character'Val (0)
-           & Character'Val (1);
-      begin
+      for Geometry in 1 .. 2 loop
          declare
+            Fixture : constant String :=
+              (if Geometry = 1 then PNG_Header (8_193, 1)
+               else PNG_Header (8_192, 4_097));
+            Expected_Error : constant String :=
+              (if Geometry = 1
+               then "Image 8193 x 1 exceeds the 8192-pixel side limit."
+               else "Image 8192 x 4097 exceeds the 33554432-pixel area limit.");
             File : Ada.Streams.Stream_IO.File_Type;
             Bytes : Ada.Streams.Stream_Element_Array (1 .. 24);
          begin
             Ada.Streams.Stream_IO.Create
               (File, Ada.Streams.Stream_IO.Out_File, To_String (Path));
-            for Index in Oversized'Range loop
+            for Index in Fixture'Range loop
                Bytes (Ada.Streams.Stream_Element_Offset (Index)) :=
                  Ada.Streams.Stream_Element
-                   (Character'Pos (Oversized (Index)));
+                   (Character'Pos (Fixture (Index)));
             end loop;
             Ada.Streams.Stream_IO.Write (File, Bytes);
             Ada.Streams.Stream_IO.Close (File);
+            Ada.Streams.Stream_IO.Open
+              (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
+            Stream_Open := True;
+            Check_Stream (False, 0, 0, Expected_Error);
+            Ada.Streams.Stream_IO.Close (Stream_File);
+            Stream_Open := False;
          end;
-         Ada.Streams.Stream_IO.Open
-           (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
-         Stream_Open := True;
-         Check_Stream (False, 0, 0);
-         Ada.Streams.Stream_IO.Close (Stream_File);
-         Stream_Open := False;
-      end;
+      end loop;
       Save_Image (To_String (Path), Gdk.Pixbuf.JPEG, 64, 48, False);
       Ada.Streams.Stream_IO.Open
         (Stream_File, Ada.Streams.Stream_IO.In_File, To_String (Path));
@@ -425,19 +468,14 @@ package body Coyote_Canvas_Raster_Tests is
       Huge.all := (others => 'x');
       Check_Decode (Huge.all, Coyote_Canvas.Rasters.Unknown, False);
       Free (Huge);
-      declare
-         Too_Wide : constant String :=
-           Character'Val (137) & "PNG" & ASCII.CR & ASCII.LF
-           & Character'Val (26) & ASCII.LF
-           & Character'Val (0) & Character'Val (0) & Character'Val (0)
-           & Character'Val (13) & "IHDR"
-           & Character'Val (0) & Character'Val (0) & Character'Val (32)
-           & Character'Val (1)
-           & Character'Val (0) & Character'Val (0) & Character'Val (0)
-           & Character'Val (1);
-      begin
-         Check_Decode (Too_Wide, Coyote_Canvas.Rasters.Unknown, False);
-      end;
+      Check_Decode
+        (PNG_Header (8_193, 1), Coyote_Canvas.Rasters.Unknown, False,
+         Expected_Error =>
+           "Image 8193 x 1 exceeds the 8192-pixel side limit.");
+      Check_Decode
+        (PNG_Header (8_192, 4_097), Coyote_Canvas.Rasters.Unknown, False,
+         Expected_Error =>
+           "Image 8192 x 4097 exceeds the 33554432-pixel area limit.");
    end Rejects;
 
    package Caller is new AUnit.Test_Caller (Test);

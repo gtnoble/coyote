@@ -7,7 +7,12 @@ package LLM.User_Images is
    Max_PNG : constant := 8 * 1_024 * 1_024;
    Max_Turn : constant := 16 * 1_024 * 1_024;
    Max_Request : constant := 32 * 1_024 * 1_024;
+   Max_Side : constant := 8_192;
+   Max_Pixels : constant := 16 * 1_024 * 1_024;
    Invalid_Image : exception;
+
+   --  Attachment geometry is independent of the local Canvas import budget.
+   function Fits_Geometry (Width, Height : Natural) return Boolean;
 
    function Byte_Count (Images : Types.User_Images.Vector) return Natural;
    procedure Check_Turn (Images : Types.User_Images.Vector);
