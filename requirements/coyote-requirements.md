@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.37
+**Version:** 1.38
 **Date:** 2026-11-21
 **Status:** PCR-130 and PCR-131 Canvas and CLI design accepted; implementation and qualification pending. The existing PCR-116 automated qualification remains complete; DEM-060 desktop qualification remains pending.
 
@@ -1586,20 +1586,24 @@ Imported files shall not be overwritten. Pan and zoom shall not alter the
 drawing. **View → Show Markup** shall hide or show ink without changing the
 drawing or any attachment.
 
-The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, and
-**Crop** icon buttons in a toolbar below the menu bar and matching radio
-choices in the **Edit** menu. The active toolbar button shall be visibly
-marked, and each icon shall have a tooltip and accessible name. The two
-controls shall stay synchronized, with Pencil selected by default. The toolbar and Edit menu shall remain available
-to switch away from a pending crop when the displayed working copy is
-editable, and shall be disabled when no editable working copy is available
-or **Show Markup** is off. Only **Apply Crop** shall commit a pending crop;
-switching to a drawing tool shall discard it. Apply Crop, Cancel, and Escape
-shall return to the drawing tool selected before Crop. A pen eraser override
-shall erase for that gesture without changing the selected tool; selected
-Crop shall take precedence. No new shortcuts shall be assigned to these tool
-choices; Tab and arrow keys shall use native toolbar navigation, and Edit
-menu mnemonics shall remain available.
+The Canvas shall provide mutually exclusive **Pencil**, **Eraser**, **Crop**,
+**Zoom In**, and **Zoom Out** icon buttons below the menu bar. The active
+button shall be visibly marked, and each icon shall have a tooltip and
+accessible name. Pencil is the default. The **Edit** radio choices shall
+reflect the current or suspended editing tool. The three editing choices
+shall remain available to leave a pending crop on an editable working copy
+and shall be disabled without one or when **Show Markup** is off. Only
+**Apply Crop** shall commit a pending crop; switching to an ink tool shall
+discard it. Apply Crop, Cancel, and Escape from Crop shall return to the
+previous ink tool. A pen eraser override applies to an ink gesture only.
+
+The zoom tools shall zoom one step around a mouse click or pen tap on the
+displayed drawing, including in a read-only revision, without changing
+drawing content or pending crop bounds. Pressing Escape in a zoom tool shall
+return to the previous editing tool. The zoom controls shall be unavailable
+without a displayed drawing or during an active ink stroke or crop drag.
+Tool choices add no new shortcuts; Tab and arrow keys shall use native
+toolbar navigation, and Edit and View mnemonics shall remain available.
 
 **REQ-CORE-262** (D/T) — Drawing tree and revisions
 

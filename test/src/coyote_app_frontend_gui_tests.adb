@@ -1091,7 +1091,7 @@ package body Coyote_App_Frontend_GUI_Tests is
             Group => 0, Is_Modifier => 0);
       begin
          Assert (Canvas.Event (Gdk.Event.To_Event (Event'Access)),
-                 "Escape cancels the pending crop");
+                 "Escape leaves the active zoom tool or pending crop");
       end Press_Escape;
 
       procedure Field (Name, Value : String) is
@@ -1177,6 +1177,64 @@ package body Coyote_App_Frontend_GUI_Tests is
          Assert (Area.Event (Gdk.Event.To_Event (Raw'Access)),
                  "Canvas did not handle pointer event");
       end Pointer;
+      procedure Tap_Zoom (X, Y : Glib.Gdouble) is
+         Raw : aliased Gdk.Event.Gdk_Event_Button :=
+           (The_Type => Gdk.Event.Button_Release, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => X, Y => Y, Axes => null,
+            State => 0, Button => 1, Device => System.Null_Address,
+            X_Root => X, Y_Root => Y);
+      begin
+         Pointer (Gdk.Event.Button_Press, X, Y);
+         Assert (not Area.Event (Gdk.Event.To_Event (Raw'Access)),
+                 "Zoom does not start a stroke or crop drag");
+         Canvas.Check_Resize;
+         Drain_Events;
+      end Tap_Zoom;
+
+      procedure Check_Zoom_Clicks is
+         Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
+           Gtk.Scrolled_Window.Gtk_Scrolled_Window
+             (Control ("coyote-canvas-viewport"));
+         X : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Hadjustment;
+         Y : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Vadjustment;
+      begin
+         Scroll.Set_Overlay_Scrolling (False);
+         Activate ("zoom-in");
+         Activate ("zoom-in");
+         Canvas.Check_Resize;
+         Drain_Events;
+         Size (1250, 938);
+         X.Set_Value (100.0);
+         Y.Set_Value (120.0);
+         Tool_Button ("zoom-in").Clicked;
+         Assert (Tool_Button ("zoom-in").Get_Active and then
+                   not Tool_Button ("pencil").Get_Active,
+                 "The magnifier is the only active toolbar tool");
+         Size (1250, 938);
+         Tap_Zoom (300.0, 320.0);
+         Size (1563, 1172);
+         Assert (abs (X.Get_Value - 175.0) < 1.0 and then
+                   abs (Y.Get_Value - 200.0) < 1.0,
+                 "Zoom In retains the tapped point in a scrolled view: "
+                 & X.Get_Value'Image & Y.Get_Value'Image);
+         Tool_Button ("zoom-in").Grab_Focus;
+         Assert (Tool_Button ("zoom-in").Child_Focus (Gtk.Enums.Dir_Right)
+                   and then Tool_Button ("zoom-out").Get_Active,
+                 "Arrow navigation reaches the Zoom Out magnifier");
+         Tap_Zoom (375.0, 400.0);
+         Size (1250, 938);
+         Assert (abs (X.Get_Value - 100.0) < 1.0 and then
+                   abs (Y.Get_Value - 120.0) < 1.0,
+                 "Zoom Out retains the same tapped point");
+         Press_Escape;
+         Check_Tool ("pencil");
+         Size (1250, 938);
+         Activate ("fit");
+         Canvas.Check_Resize;
+         Drain_Events;
+         Activate ("actual");
+         Size (800, 600);
+      end Check_Zoom_Clicks;
    begin
       if not T.Display_Available then
          return;
@@ -1198,6 +1256,11 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Icon ("pencil", "Pencil");
       Check_Icon ("eraser", "Eraser");
       Check_Icon ("crop", "Crop");
+      Check_Icon ("zoom-in", "Zoom In");
+      Check_Icon ("zoom-out", "Zoom Out");
+      Assert (not Tool_Button ("zoom-in").Get_Sensitive and then
+                not Tool_Button ("zoom-out").Get_Sensitive,
+              "Magnifiers are disabled without a drawing");
       Assert (not Control ("canvas-fit").Get_Sensitive,
               "Fit is disabled without a drawing");
       Check_Tool ("pencil", Enabled => False);
@@ -1220,8 +1283,10 @@ package body Coyote_App_Frontend_GUI_Tests is
               "New creates an Original");
       Check_Pixel ((255, 255, 255));
       Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
-      Assert (not Control ("canvas-fit").Get_Sensitive,
-              "Fit cannot interrupt an ink gesture");
+      Assert (not Control ("canvas-fit").Get_Sensitive and then
+                not Tool_Button ("zoom-in").Get_Sensitive and then
+                not Control ("canvas-zoom-out").Get_Sensitive,
+              "No zoom control can interrupt an ink gesture");
       Activate ("fit");
       Size (800, 600);
       Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
@@ -1255,6 +1320,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("pencil");
       Check_Tool ("pencil");
       Check_Pixel ((13, 13, 13));
+      Check_Zoom_Clicks;
+      Check_Pixel ((13, 13, 13));
       Check_Fit (Pan_First => True);
       Activate ("actual");
       Size (800, 600);
@@ -1268,9 +1335,17 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tool_Button ("crop").Clicked;
       Check_Tool ("crop");
       Pointer (Gdk.Event.Button_Press, 40.0, 50.0);
-      Assert (not Control ("canvas-fit").Get_Sensitive,
-              "Fit cannot interrupt a crop drag");
+      Assert (not Control ("canvas-fit").Get_Sensitive and then
+                not Tool_Button ("zoom-out").Get_Sensitive,
+              "No zoom control can interrupt a crop drag");
       Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
+      Tool_Button ("zoom-in").Clicked;
+      Tap_Zoom (60.0, 70.0);
+      Activate ("crop");
+      Check_Tool ("crop");
+      Assert (Control ("canvas-apply").Get_Sensitive and then
+                not Control ("canvas-attach").Get_Sensitive,
+              "Returning to Crop through Edit preserves its pending bounds");
       Check_Fit;
       Check_Tool ("crop");
       Assert (Control ("canvas-apply").Get_Sensitive,
@@ -1324,6 +1399,24 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Tool ("eraser", Enabled => False);
       Assert (not Control ("canvas-apply-button").Is_Visible,
               "Read-only preview cancels pending crop");
+      Canvas.Set_Focus (null);
+      Assert (Control ("coyote-canvas-toolbar").Child_Focus
+                (Gtk.Enums.Dir_Tab_Forward) and then
+                Canvas.Get_Focus = Gtk.Widget.Gtk_Widget
+                  (Tool_Button ("zoom-in")) and then
+                not Tool_Button ("zoom-in").Get_Active,
+              "Tab reaches an enabled magnifier without selecting it");
+      Tool_Button ("zoom-in").Clicked;
+      Tap_Zoom (50.0, 75.0);
+      Size (1000, 750);
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (False);
+      Tool_Button ("zoom-out").Clicked;
+      Tap_Zoom (62.5, 93.75);
+      Size (800, 600);
+      Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+        (Control ("canvas-markup")).Set_Active (True);
+      Press_Escape;
       Check_Fit;
       Check_Tool ("eraser", Enabled => False);
       Activate ("actual");
@@ -2228,6 +2321,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("help-index");
       Check_Target ("help:coyote");
       Activate ("new");
+      Gtk.Radio_Button.Gtk_Radio_Button (Control ("canvas-tool-zoom-in"))
+        .Clicked;
       Activate ("help-click");
       declare
          Area : constant Gtk.Widget.Gtk_Widget :=
@@ -2245,6 +2340,15 @@ package body Coyote_App_Frontend_GUI_Tests is
          Assert (not Area.Event (Gdk.Event.To_Event (Raw'Access)) and then
                    not Control ("canvas-undo").Get_Sensitive,
                  "the Help click did not start an ink gesture");
+         declare
+            W, H : Glib.Gint;
+         begin
+            Area.Get_Size_Request (W, H);
+            Assert (W = 800 and then H = 600 and then
+                      Gtk.Radio_Button.Gtk_Radio_Button
+                        (Control ("canvas-tool-zoom-in")).Get_Active,
+                    "Click for Help preserves the scale and magnifier");
+         end;
       end;
       Activate ("help-click");
       declare
@@ -2339,8 +2443,27 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("attach");
       Assert (Attachment_Count (F) = 1, "working copy is checkpointed and staged");
       Activate ("fit");
+      declare
+         Area : constant Gtk.Widget.Gtk_Widget :=
+           Widget ("coyote-canvas-drawing-area");
+         Button : constant Gtk.Radio_Button.Gtk_Radio_Button :=
+           Gtk.Radio_Button.Gtk_Radio_Button (Widget ("canvas-tool-zoom-out"));
+         Raw : aliased Gdk.Event.Gdk_Event_Button :=
+           (The_Type => Gdk.Event.Button_Press, Window => Area.Get_Window,
+            Send_Event => 1, Time => 0, X => 4.0, Y => 4.0, Axes => null,
+            State => 0, Button => 1, Device => System.Null_Address,
+            X_Root => 4.0, Y_Root => 4.0);
+      begin
+         Button.Clicked;
+         Assert (Button.Get_Active and then
+                   Area.Event (Gdk.Event.To_Event (Raw'Access)),
+                 "Zoom an attachable revision with the toolbar");
+         Canvas.Check_Resize;
+         Drain_Events;
+      end;
       Activate ("attach");
-      Assert (Attachment_Count (F) = 2, "Fit leaves the same draft attachable");
+      Assert (Attachment_Count (F) = 2,
+              "Toolbar zoom leaves the same draft attachable");
       Activate ("undo");
       Activate ("new");
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "1"));
@@ -2369,7 +2492,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (It.Images (3).Width = 7 and then It.Images (3).Height = 5
                 and then It.Images (2).Revision_Id = It.Images (3).Revision_Id
                 and then It.Images (2).PNG = It.Images (3).PNG,
-              "Fit leaves the revision, PNG dimensions and exact bytes intact");
+              "Zoom leaves the revision, PNG dimensions and exact bytes intact");
       PNG := It.Images (2).PNG;
       F.Canvas_Prompt_Result (Id, It.Request_Id, False);
       Drain_Events;

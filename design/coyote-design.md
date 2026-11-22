@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.64
+**Version:** 1.65
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -3157,6 +3157,16 @@ Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click for
 Help targets the toolbar, drawing area, or Drawings list without changing
 the tool, drawing, or selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
+
+**Zoom tools.** The toolbar adds plus/minus magnifiers to the existing
+radio group and uses a zoom cursor over the drawing. A magnifier suspends
+the selected editing tool and preserves any pending crop. Escape restores
+that tool without reversing zoom. View menu steps act immediately around
+the viewport center and do not select a magnifier. Click zoom uses local
+image widget coordinates and restores the scroll anchor after GTK allocates
+the new scroll ranges; rapid input before allocation uses the last allocated
+scale to calculate the new target. GTK clamps the anchor at image edges.
+Zoom does not change the composite, revisions, or attachment payload.
 
 **Fit view.** View → Fit uses the unframed scroller's current allocation,
 not its reduced page size with scrollbars, and chooses the smaller of the

@@ -1,6 +1,6 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.3
+- **Version:** 1.4
 - **Date:** 2026-11-21
 - **Status:** Baseline accepted by the product owner on 2026-11-21; implementation is in progress and qualification is pending.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
@@ -50,9 +50,18 @@ The v1 request has one `add` operation, a request ID and an ordered file count. 
 |---|---|
 | File | **New** (`Ctrl+N`), **Import…** (modeless File Selection), **Save** (`Ctrl+S` checkpoints the active draft; unchanged is a no-op), **Close** (`Ctrl+W`; hides the Canvas without discarding drawings). |
 | Selected | **Edit Revision** for one selected revision; **Attach** for selected revisions in visible tree order or the active draft when acting in the drawing area. Dim unavailable actions, do not remove them. |
-| Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, synchronized with the icon buttons below the menu bar; **Pencil** is the default. The toolbar and menu stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
+| Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, synchronized with the icon buttons below the menu bar; **Pencil** is the default. The three editing icons and matching menu items stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
 | View | **Fit**, **Zoom In/Out**, **Actual Size**, and a stable checkbox **Show Markup**; all display-only. **Fit** selects a uniform zoom for the current viewport and displayed draft or revision, up to 400%. It clears panning, preserves a pending crop, and is disabled without a drawing or during an active gesture. |
 | Help | Canvas Overview, tasks, Index, Keys & Shortcuts, Product Information and Click for Help using the existing desktop Help path. |
+
+The **Zoom In** and **Zoom Out** magnifier icons select display-only modes.
+A primary mouse click or pen tap on the drawing changes scale by one step
+and keeps that point under the pointer where the scroll bounds permit. The
+**View** menu retains immediate zoom steps about the viewport center as a
+keyboard-accessible alternative. A magnifier suspends the editing tool and
+any pending crop; `Escape` resumes it without reverting the zoom. The zoom
+controls also work on saved previews and with **Show Markup** off, but are
+unavailable during a live ink stroke or crop drag.
 
 Give entries mnemonics, preserve native Tab/tree traversal, use the primary action button or pen tip for drawing/crop, and keep the right button for a shortcut menu that duplicates menu actions. Do not change pointer mapping or force focus across windows. Indicate editable/draft/read-only/sent state in text, not color alone. Scope text paste and standard accelerators to the focused context. Use the status area for successful background work, an explanatory dialog for empty or invalid clipboard paste, and a cancellable Warning before discarding draft edits; switching from a pending crop to a drawing tool discards that pending crop without applying it. Agent additions use only the status area and never change focus or selection. No new tool shortcuts are assigned; native Tab and arrow navigation operate the toolbar, and Edit mnemonics remain in effect.
 
@@ -74,7 +83,7 @@ On an explicit Canvas image Paste, asynchronously request desktop `CLIPBOARD` ta
 
 **Crop** in the synchronized toolbar or Edit radio group starts a transaction bound to the draft ID and content generation in the normal editing view. Draw a rectangle with pen tip or mouse, move it from the interior, and resize with edge/corner handles. Ignore pressure; use crosshair, move and resize pointers as appropriate. Draw the border and excluded-area dimmer as overlays and show resulting pixel dimensions. Labeled `X`, `Y`, `Width` and `Height` integer fields permit exact keyboard input, with separate **Apply Crop** and **Cancel** buttons. Keyboard entry and pointer changes share the same validation; invalid or empty bounds disable Apply.
 
-Use the menu or toolbar to switch away from a pending crop; selecting Pencil or Eraser discards the pending rectangle without applying it. Only **Apply Crop** commits the crop. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. The toolbar and Edit radio group remain enabled during pending crop only while the displayed working copy is editable and **Show Markup** is on; otherwise both are disabled. There are no Crop/tool shortcuts. Native Tab and arrow keys navigate the toolbar; Edit menu mnemonics are retained.
+Use the menu or toolbar to switch away from a pending crop; selecting Pencil or Eraser discards the pending rectangle without applying it. Only **Apply Crop** commits the crop. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. The editing icons and Edit radio group remain enabled during pending crop only while the displayed working copy is editable and **Show Markup** is on; otherwise the editing choices are disabled. There are no Crop/tool shortcuts. Native Tab and arrow keys navigate the toolbar; Edit menu mnemonics are retained.
 
 Represent the rectangle by half-open pixel edges `[left, right) × [top, bottom)` in the pre-crop draft. Invert the display transform exactly once, including pan and zoom (convert device pixels to widget coordinates first only when applicable). Round pointer edges to the nearest pixel edge, ties toward the larger coordinate, then normalize reverse drags and clamp to the current image. Moving preserves size and clamps the origin; exact numeric entries outside the image are rejected rather than rounded. Zero-area and identity crops do not create edits. On Apply, recheck the bound draft and generation, clip the background and ink together and translate the retained region to origin without resampling. Implement clipping as a stored source-coordinate extent, not a destructive rewrite of background or strokes; rasterize with the original pixel-grid phase so the retained composite equals the source subrectangle. Undo restores the prior extent and Redo reapplies the same rectangle. Escape, Cancel, lost capture during an unfinished drag, selection that changes the displayed drawing, and closing or switching the session cannot apply a crop. Save or Attach never applies a pending crop; block those actions during the crop transaction. An applied crop is one working-copy edit, not its own revision until checkpointed.
 

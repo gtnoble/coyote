@@ -1,5 +1,21 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas toolbar magnifiers (PCR-130)
+
+Zoom In and Zoom Out magnifiers change the scale one step at the clicked
+point, clamping the scroll anchor after GTK updates the layout. The View
+menu keeps immediate center-anchored zoom. Magnifiers work on read-only
+previews and with markup hidden; they do not start ink or crop gestures.
+Escape resumes the editing tool without resetting zoom or pending crop
+bounds. Tab can reach a magnifier when the selected editing tool is dimmed.
+
+Root and test development builds passed. The serial Xvfb suite passed
+(1,123/1,123), including toolbar focus, anchored zoom in a panned view,
+crop and contextual Help preservation, and identical native-size PNGs.
+Workspace checks passed in Adwaita light, dark, and HighContrast; Help,
+standalone GTK (9/9), and runner containment checks passed. Physical
+Intuos and Wayland qualification remain open.
+
 ## 2026-11-21 — Canvas Fit view (PCR-130)
 
 View → Fit uses uniform, one-shot zoom in the available viewport. It

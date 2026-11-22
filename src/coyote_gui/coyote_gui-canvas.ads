@@ -66,15 +66,19 @@ private
    end record;
    type Image_Array is array (Iter_Array'Range) of Image_Asset;
 
-   type Tool_Kind is (Pencil, Eraser, Crop);
-   subtype Ink_Tool is Tool_Kind range Pencil .. Eraser;
+   type Tool_Kind is (Pencil, Eraser, Crop, Zoom_In, Zoom_Out);
+   subtype Editing_Tool is Tool_Kind range Pencil .. Crop;
+   subtype Ink_Tool is Editing_Tool range Pencil .. Eraser;
+   type Zoom_Mode is (No_Zoom, Magnify, Reduce);
    type Tool_Buttons is array (Tool_Kind) of Gtk.Radio_Button.Gtk_Radio_Button;
-   type Tool_Items is array (Tool_Kind) of Gtk.Radio_Menu_Item.Gtk_Radio_Menu_Item;
+   type Tool_Items is array (Editing_Tool) of
+     Gtk.Radio_Menu_Item.Gtk_Radio_Menu_Item;
 
    type Instance is limited record
       On_Product : Product_Handler := null;
       Help_Mode : Boolean := False;
-      Tool              : Tool_Kind := Pencil;
+      Tool              : Editing_Tool := Pencil;
+      Zoom_Tool         : Zoom_Mode := No_Zoom;
       Previous_Ink_Tool : Ink_Tool := Pencil;
       Buttons           : Tool_Buttons := (others => null);
       Tool_Menu         : Tool_Items := (others => null);
@@ -132,11 +136,15 @@ private
       Save_Item, Edit_Item, Draft_Item, Undo_Item,
       Redo_Item : Gtk.Menu_Item.Gtk_Menu_Item         := null;
       Apply_Item, Cancel_Item, Fit_Item : Gtk.Menu_Item.Gtk_Menu_Item := null;
+      Zoom_In_Item, Zoom_Out_Item, Actual_Item : Gtk.Menu_Item.Gtk_Menu_Item;
       Preview_Revision : Coyote_Canvas.Revisions.Revision_Id := 0;
       Editing_Draft                                : Boolean := True;
       Has_Drawing                                  : Boolean := False;
       Show_Ink                                     : Boolean := True;
-      Zoom                                         : Long_Float := 1.0;
+      Zoom              : Long_Float := 1.0;
+      Anchor_Pending    : Boolean := False;
+      Anchor_Scale      : Long_Float := 1.0;
+      Anchor_X, Anchor_Y : Glib.Gdouble := 0.0;
       Drawing                                      : Boolean := False;
       Crop_Drag                                    : Boolean := False;
       Crop_X1                                      : Long_Float := 0.0;

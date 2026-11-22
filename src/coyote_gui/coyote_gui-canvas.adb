@@ -15,6 +15,7 @@ with Gdk.Cursor;
 with Gdk.Window;
 with Coyote_Help;
 with Glib.Object;
+with Glib.Values;
 with Gtk.Clipboard;
 with Gtk.Dialog;
 with Gtk.File_Chooser;
@@ -25,6 +26,7 @@ with Gdk.Device_Tool;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
 with Gtk.Accel_Group;
+with Gtk.Adjustment;
 with Gtk.Check_Menu_Item;
 with Gdk.Event;
 with Glib;
@@ -63,6 +65,8 @@ package body Coyote_GUI.Canvas is
    use type Persistence.Result;
    use type Cairo.Cairo_Surface;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
+   use type Gdk.Gdk_Cursor;
+   use type Gdk.Gdk_Window;
    use type Gdk.Types.Gdk_Atom;
    use type Gtk.Dialog.Gtk_Response_Type;
    use type Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
@@ -157,8 +161,12 @@ package body Coyote_GUI.Canvas is
    package Event_Marshaller is new Event_Callback.Marshallers
      .Generic_Marshaller
      (Gdk.Event.Gdk_Event, Gdk.Event.Get_Event);
+   package Toolbar_Callback is new Gtk.Handlers.User_Return_Callback
+     (Gtk.Box.Gtk_Box_Record, Boolean, Instance_Access);
    package Selection_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Tree_Selection.Gtk_Tree_Selection_Record, Instance_Access);
+   package Viewport_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record, Instance_Access);
    package Button_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Button.Gtk_Button_Record, Instance_Access);
    package Tool_Callback is new Gtk.Handlers.User_Callback
@@ -240,8 +248,41 @@ package body Coyote_GUI.Canvas is
         (S.Document,
          (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision)));
 
-   function Can_Fit (S : Instance; E : Doc.Rectangle) return Boolean is
+   function Can_Zoom (S : Instance; E : Doc.Rectangle) return Boolean is
      (Doc.Is_Nonempty (E) and then not (S.Drawing or else S.Crop_Drag));
+
+   function Active_Tool (S : Instance) return Tool_Kind is
+     (case S.Zoom_Tool is when No_Zoom => S.Tool,
+                         when Magnify => Zoom_In, when Reduce => Zoom_Out);
+
+   procedure Update_Zoom_Cursor (S : Instance) is
+      Cursor : Gdk.Gdk_Cursor := null;
+   begin
+      if S.Drawing_Area = null or else S.Drawing_Area.Get_Window = null then
+         return;
+      end if;
+      if S.Zoom_Tool /= No_Zoom and then not S.Help_Mode then
+         Cursor := Gdk.Cursor.Gdk_Cursor_New_From_Name
+           (S.Drawing_Area.Get_Display,
+            (if S.Zoom_Tool = Magnify then "zoom-in" else "zoom-out"));
+         if Cursor = null then
+            Cursor := Gdk.Cursor.Gdk_Cursor_New_For_Display
+              (S.Drawing_Area.Get_Display, Gdk.Cursor.Crosshair);
+         end if;
+      end if;
+      Gdk.Window.Set_Cursor (S.Drawing_Area.Get_Window, Cursor);
+      if Cursor /= null then
+         Gdk.Cursor.Unref (Cursor);
+      end if;
+   end Update_Zoom_Cursor;
+
+   procedure Leave_Zoom_Tool (S : in out Instance) is
+   begin
+      if S.Zoom_Tool /= No_Zoom then
+         S.Zoom_Tool := No_Zoom;
+         Update_Zoom_Cursor (S);
+      end if;
+   end Leave_Zoom_Tool;
 
    function Pending (S : Instance) return Doc.Rectangle is
       E : constant Doc.Rectangle := Rev.Extent (S.Document);
@@ -267,6 +308,7 @@ package body Coyote_GUI.Canvas is
         Can_Edit (S) and then S.Has_Drawing and then S.Editing_Draft
         and then not (Cropping (S) or else S.Drawing);
       Tools_Enabled : constant Boolean := Can_Select_Tool (S);
+      Zoom_Enabled  : constant Boolean := Can_Zoom (S, E);
       Valid_Crop : constant Boolean       :=
         not S.Crop_Drag and then Doc.Is_Nonempty (Pending (S));
    begin
@@ -287,18 +329,25 @@ package body Coyote_GUI.Canvas is
       S.Import_Item.Set_Sensitive (Can_Edit (S));
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
-      S.Fit_Item.Set_Sensitive (Can_Fit (S, E));
-      --  Reflect model state without re-entering either toggled handler.
+      S.Fit_Item.Set_Sensitive (Zoom_Enabled);
+      S.Zoom_In_Item.Set_Sensitive (Zoom_Enabled);
+      S.Zoom_Out_Item.Set_Sensitive (Zoom_Enabled);
+      S.Actual_Item.Set_Sensitive (Zoom_Enabled);
+      --  Reflect state without re-entering a tool selection callback.
       S.Syncing_Tools := True;
-      S.Buttons (S.Tool).Set_Active (True);
+      S.Buttons (Active_Tool (S)).Set_Active (True);
       S.Tool_Menu (S.Tool).Set_Active (True);
       S.Syncing_Tools := False;
-      for Tool in Tool_Kind loop
+      for Tool in Editing_Tool loop
          S.Buttons (Tool).Set_Sensitive (Tools_Enabled);
          S.Tool_Menu (Tool).Set_Sensitive (Tools_Enabled);
       end loop;
+      S.Buttons (Zoom_In).Set_Sensitive (Zoom_Enabled);
+      S.Buttons (Zoom_Out).Set_Sensitive (Zoom_Enabled);
       S.Tool_Label.Set_Text
-        (if S.Drawing and then S.Gesture_Operation = Rev.Erase then
+        (if S.Zoom_Tool = Magnify then "Tool: Zoom In"
+         elsif S.Zoom_Tool = Reduce then "Tool: Zoom Out"
+         elsif S.Drawing and then S.Gesture_Operation = Rev.Erase then
             "Tool: Eraser (16 px)"
          elsif Cropping (S) then "Tool: Crop"
          elsif S.Tool = Eraser then "Tool: Eraser (16 px)"
@@ -319,7 +368,8 @@ package body Coyote_GUI.Canvas is
    procedure Fit_View (S : in out Instance) is
       E : constant Doc.Rectangle := Display_Extent (S);
    begin
-      if Can_Fit (S, E) then
+      if Can_Zoom (S, E) then
+         S.Anchor_Pending := False;
          --  Fit to the unframed allocation, not the page size reduced by
          --  the scrollbars this change will remove.
          declare
@@ -348,8 +398,58 @@ package body Coyote_GUI.Canvas is
       end if;
    end Fit_View;
 
-   procedure Cancel_Gesture (S : in out Instance) is
+   procedure Apply_Zoom_Anchor
+     (Scroll : access Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record'Class;
+      Params : Glib.Values.GValues; S : Instance_Access)
+   is
+      pragma Unreferenced (Params);
    begin
+      if S.Anchor_Pending then
+         --  GtkViewport has now recalculated the two scroll ranges.
+         S.Anchor_Pending := False;
+         Scroll.Get_Hadjustment.Set_Value (S.Anchor_X);
+         Scroll.Get_Vadjustment.Set_Value (S.Anchor_Y);
+      end if;
+   end Apply_Zoom_Anchor;
+
+   function Step_Zoom (Scale : Long_Float; Increase : Boolean)
+     return Long_Float is
+     (if Increase then Long_Float'Min (4.0, Scale * 1.25)
+      --  Fit can go below the manual floor; Zoom Out never enlarges.
+      else Long_Float'Min (Scale, Long_Float'Max (0.25, Scale / 1.25)));
+
+   procedure Zoom_At
+     (S : in out Instance; X, Y : Glib.Gdouble; Increase : Boolean)
+   is
+      Target : constant Long_Float := Step_Zoom (S.Zoom, Increase);
+   begin
+      if Target /= S.Zoom then
+         --  Events before the next allocation still use the old geometry.
+         if not S.Anchor_Pending then
+            S.Anchor_Scale := S.Zoom;
+         end if;
+         declare
+            Step : constant Glib.Gdouble :=
+              Glib.Gdouble (Target / S.Anchor_Scale - 1.0);
+         begin
+            S.Anchor_X := S.Viewport.Get_Hadjustment.Get_Value + X * Step;
+            S.Anchor_Y := S.Viewport.Get_Vadjustment.Get_Value + Y * Step;
+         end;
+         S.Anchor_Pending := True;
+         S.Zoom := Target;
+         Refresh (S);
+         S.Viewport.Queue_Allocate;
+      end if;
+   end Zoom_At;
+
+   procedure Cancel_Gesture
+     (S : in out Instance; Keep_Zoom : Boolean := False)
+   is
+   begin
+      if not Keep_Zoom then
+         Leave_Zoom_Tool (S);
+         S.Anchor_Pending := False;
+      end if;
       S.Drawing := False;
       S.Stroke_Points.Clear;
       S.Crop_Drag := False;
@@ -877,6 +977,7 @@ package body Coyote_GUI.Canvas is
       if S.Help_Mode then
          S.Help_Mode := False;
          Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, null);
+         Update_Zoom_Cursor (S);
          Set_Status (S, "Click for Help ended.");
       end if;
    end Disable_Click_Help;
@@ -896,6 +997,31 @@ package body Coyote_GUI.Canvas is
                         then "canvas-revisions" else "canvas-editing"));
       return True;
    end On_Help_Click;
+
+   function On_Toolbar_Focus
+     (Toolbar : access Gtk.Box.Gtk_Box_Record'Class;
+      Params  : Glib.Values.GValues; S : Instance_Access) return Boolean
+   is
+      pragma Unreferenced (Toolbar);
+      Direction : constant Gtk.Enums.Gtk_Direction_Type :=
+        Gtk.Enums.Gtk_Direction_Type'Val
+          (Glib.Values.Get_Enum (Glib.Values.Nth (Params, 1)));
+      Focus : constant Gtk.Widget.Gtk_Widget := S.Canvas_Window.Get_Focus;
+   begin
+      --  GTK skips the radio group if its active button is disabled.
+      if Direction in Gtk.Enums.Dir_Tab_Forward | Gtk.Enums.Dir_Tab_Backward
+        and then not S.Buttons (Active_Tool (S.all)).Is_Sensitive
+        and then S.Buttons (Zoom_In).Is_Sensitive
+        and then Focus /= Gtk.Widget.Gtk_Widget (S.Buttons (Zoom_In))
+        and then Focus /= Gtk.Widget.Gtk_Widget (S.Buttons (Zoom_Out))
+      then
+         S.Buttons
+           ((if Direction in Gtk.Enums.Dir_Tab_Forward then Zoom_In
+             else Zoom_Out)).Grab_Focus;
+         return True;
+      end if;
+      return False;
+   end On_Toolbar_Focus;
 
    procedure On_Tool_Button
      (Button : access Gtk.Radio_Button.Gtk_Radio_Button_Record'Class;
@@ -919,7 +1045,7 @@ package body Coyote_GUI.Canvas is
       use Gtk.Check_Menu_Item;
    begin
       if not S.Syncing_Tools and then Item.Get_Active then
-         Find_Item : for Tool in Tool_Kind loop
+         Find_Item : for Tool in Editing_Tool loop
             if Gtk_Check_Menu_Item (S.Tool_Menu (Tool)) = Item then
                Select_Tool (S.all, Tool, Focus_Fields => True);
                exit Find_Item;
@@ -933,7 +1059,7 @@ package body Coyote_GUI.Canvas is
       S    : Instance_Access)
    is
    begin
-      Cancel_Gesture (S.all);
+      Cancel_Gesture (S.all, Keep_Zoom => True);
       S.Show_Ink := Item.Get_Active;
       Refresh (S.all);
    end On_Markup;
@@ -948,11 +1074,13 @@ package body Coyote_GUI.Canvas is
 
    function Tool_Name (Tool : Tool_Kind) return String is
      (case Tool is when Pencil => "pencil", when Eraser => "eraser",
-                   when Crop => "crop");
+                   when Crop => "crop", when Zoom_In => "zoom-in",
+                   when Zoom_Out => "zoom-out");
 
    function Tool_Text (Tool : Tool_Kind) return String is
      (case Tool is when Pencil => "Pencil", when Eraser => "Eraser",
-                   when Crop => "Crop");
+                   when Crop => "Crop", when Zoom_In => "Zoom In",
+                   when Zoom_Out => "Zoom Out");
 
    function Tool_Icon
      (Area : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
@@ -1009,6 +1137,16 @@ package body Coyote_GUI.Canvas is
             Line_To (Context, 16.5, 20.0);
             Move_To (Context, 16.5, 5.5);
             Line_To (Context, 20.0, 2.0);
+         when Zoom_In | Zoom_Out =>
+            Arc (Context, 8.8, 8.8, 6.2, 0.0, 6.283_185_307_179_586);
+            Move_To (Context, 13.3, 13.3);
+            Line_To (Context, 19.8, 19.8);
+            Move_To (Context, 5.9, 8.8);
+            Line_To (Context, 11.7, 8.8);
+            if Tool = Zoom_In then
+               Move_To (Context, 8.8, 5.9);
+               Line_To (Context, 8.8, 11.7);
+            end if;
       end case;
       Stroke (Context);
       Restore (Context);
@@ -1071,7 +1209,7 @@ package body Coyote_GUI.Canvas is
          Members : Gtk.Widget.Widget_SList.GSlist :=
            Gtk.Widget.Widget_SList.Null_List;
       begin
-         for Tool in Tool_Kind loop
+         for Tool in Editing_Tool loop
             Gtk.Radio_Menu_Item.Gtk_New_With_Mnemonic
               (S.Tool_Menu (Tool), Members,
                (if Tool = Pencil then "Penci_l" else "_" & Tool_Text (Tool)));
@@ -1079,7 +1217,8 @@ package body Coyote_GUI.Canvas is
             S.Tool_Menu (Tool).Set_Name ("canvas-" & Tool_Name (Tool));
             Menu.Append (S.Tool_Menu (Tool));
             Check_Callback.Connect
-              (S.Tool_Menu (Tool), "toggled", On_Tool_Menu'Access, State);
+              (S.Tool_Menu (Tool), "activate", On_Tool_Menu'Access, State,
+               After => True);
          end loop;
       end Build_Tool_Menu;
 
@@ -1136,6 +1275,8 @@ package body Coyote_GUI.Canvas is
               (S.Buttons (Tool), "toggled", On_Tool_Button'Access, State);
          end loop;
          Style.Unref;
+         Toolbar_Callback.Connect
+           (Toolbar, "focus", On_Toolbar_Focus'Access, State, After => True);
          Outer.Pack_Start (Toolbar, False, False, 3);
       end Build_Toolbar;
 
@@ -1196,9 +1337,9 @@ package body Coyote_GUI.Canvas is
       Group ("_View");
       S.Draft_Item := Action ("Show _Working Copy", "draft");
       S.Fit_Item   := Action ("_Fit", "fit");
-      Item         := Action ("Zoom _In", "zoom-in");
-      Item         := Action ("Zoom _Out", "zoom-out");
-      Item         := Action ("_Actual Size", "actual");
+      S.Zoom_In_Item  := Action ("Zoom _In", "zoom-in");
+      S.Zoom_Out_Item := Action ("Zoom _Out", "zoom-out");
+      S.Actual_Item   := Action ("_Actual Size", "actual");
       Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic (Markup, "Show _Markup");
       Markup.Set_Active (True);
       Markup.Set_Name ("canvas-markup");
@@ -1283,9 +1424,14 @@ package body Coyote_GUI.Canvas is
       S.Viewport.Set_Shadow_Type (Gtk.Enums.Shadow_None);
       S.Viewport.Set_Policy
         (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
+      --  Image coordinates start at the left edge in either UI direction.
+      S.Drawing_Area.Set_Direction (Gtk.Enums.Text_Dir_Ltr);
       S.Drawing_Area.Set_Halign (Gtk.Widget.Align_Start);
       S.Drawing_Area.Set_Valign (Gtk.Widget.Align_Start);
       S.Viewport.Add (S.Drawing_Area);
+      Viewport_Callback.Connect
+        (S.Viewport, "size-allocate", Apply_Zoom_Anchor'Access, State,
+         After => True);
       S.Root.Pack_Start (S.Viewport, True, True, 0);
       Gtk.Grid.Gtk_New (S.Crop_Grid);
       S.Crop_Grid.Set_Column_Spacing (4);
@@ -1694,6 +1840,8 @@ package body Coyote_GUI.Canvas is
       S.Stroke_Points.Clear;
       S.Crop_Drag   := False;
       S.Tool := Pencil;
+      Leave_Zoom_Tool (S);
+      S.Anchor_Pending := False;
       S.Previous_Ink_Tool := Pencil;
       S.Has_Drawing := False;
       Coyote_Canvas.Revisions.Clear (S.Document);
@@ -1874,7 +2022,25 @@ package body Coyote_GUI.Canvas is
    is
       Abandoned_Crop : constant Boolean := Cropping (S);
    begin
-      if not Can_Select_Tool (S) or else S.Tool = Tool then
+      if Tool in Zoom_In | Zoom_Out then
+         if Can_Zoom (S, Display_Extent (S)) and then Active_Tool (S) /= Tool
+         then
+            S.Zoom_Tool := (if Tool = Zoom_In then Magnify else Reduce);
+            Update_Zoom_Cursor (S);
+            Set_Status
+              (S, "Click or tap the drawing to zoom; Escape leaves zoom.");
+         end if;
+         Refresh (S);
+         return;
+      elsif not Can_Select_Tool (S) then
+         Refresh (S);
+         return;
+      end if;
+      if S.Zoom_Tool /= No_Zoom then
+         Leave_Zoom_Tool (S);
+         Set_Status (S, "Zoom tool inactive.");
+      end if;
+      if S.Tool = Tool then
          Refresh (S);
          return;
       end if;
@@ -1976,6 +2142,7 @@ package body Coyote_GUI.Canvas is
             end if;
          end if;
       elsif not S.Editing_Draft then
+         Cancel_Gesture (S.all);
          S.Editing_Draft := True;
          Set_Status (S.all, "Working copy (in memory)");
       end if;
@@ -2015,7 +2182,9 @@ package body Coyote_GUI.Canvas is
       elsif Name = "canvas-close" then
          On_Close (Item, S);
       elsif Name = "canvas-help-click" then
-         Cancel_Gesture (S.all);
+         if S.Drawing or else S.Crop_Drag then
+            Cancel_Gesture (S.all);
+         end if;
          Refresh (S.all);
          declare
             Cursor : constant Gdk.Gdk_Cursor :=
@@ -2023,6 +2192,7 @@ package body Coyote_GUI.Canvas is
          begin
             S.Help_Mode := True;
             Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, Cursor);
+            Update_Zoom_Cursor (S.all);
             Gdk.Cursor.Unref (Cursor);
          end;
          Set_Status
@@ -2044,21 +2214,30 @@ package body Coyote_GUI.Canvas is
             else ""));
       elsif Name = "canvas-fit" then
          Fit_View (S.all);
-      else
-         Cancel_Gesture (S.all);
-         if Name = "canvas-draft" then
-            S.Editing_Draft := True;
-            Set_Status (S.all, "Working copy (in memory)");
-         elsif Name = "canvas-zoom-in" then
-            S.Zoom := Long_Float'Min (4.0, S.Zoom * 1.25);
-         elsif Name = "canvas-zoom-out" then
-            --  Fit can go below the manual zoom floor. Never enlarge in
-            --  response to Zoom Out.
-            S.Zoom := Long_Float'Min
-              (S.Zoom, Long_Float'Max (0.25, S.Zoom / 1.25));
-         elsif Name = "canvas-actual" then
-            S.Zoom := 1.0;
+      elsif Name in "canvas-zoom-in" | "canvas-zoom-out" | "canvas-actual" then
+         if Can_Zoom (S.all, Display_Extent (S.all)) then
+            if Name = "canvas-actual" then
+               S.Anchor_Pending := False;
+               S.Zoom := 1.0;
+               Refresh (S.all);
+            else
+               declare
+                  H : constant Gtk.Adjustment.Gtk_Adjustment :=
+                    S.Viewport.Get_Hadjustment;
+                  V : constant Gtk.Adjustment.Gtk_Adjustment :=
+                    S.Viewport.Get_Vadjustment;
+               begin
+                  Zoom_At
+                    (S.all, H.Get_Value + H.Get_Page_Size / 2.0,
+                     V.Get_Value + V.Get_Page_Size / 2.0,
+                     Increase => Name = "canvas-zoom-in");
+               end;
+            end if;
          end if;
+      elsif Name = "canvas-draft" then
+         Cancel_Gesture (S.all);
+         S.Editing_Draft := True;
+         Set_Status (S.all, "Working copy (in memory)");
          Refresh (S.all);
       end if;
    end On_Action;
@@ -2406,13 +2585,33 @@ package body Coyote_GUI.Canvas is
    is
       X, Y : Glib.Gdouble;
    begin
-      if not Can_Edit (S.all) or else not S.Has_Drawing
-        or else not S.Editing_Draft or else not S.Show_Ink
-        or else S.Drawing or else S.Crop_Drag
+      if S.Drawing or else S.Crop_Drag
         or else Gdk.Event.Get_Pointer_Emulated (Event)
         or else Gdk.Event.Get_Event_Type (Event) /= Gdk.Event.Button_Press
         or else Gdk.Event.Get_Button (Event) /= 1
         or else Read_Coords (Event, X, Y) = 0
+      then
+         return False;
+      end if;
+      if S.Zoom_Tool /= No_Zoom then
+         declare
+            E : constant Doc.Rectangle := Display_Extent (S.all);
+            Input_Scale : constant Long_Float :=
+              (if S.Anchor_Pending then S.Anchor_Scale else S.Zoom);
+         begin
+            if Can_Zoom (S.all, E) and then X >= 0.0 and then Y >= 0.0
+              and then Long_Float (X) / Input_Scale <
+                Long_Float (E.Right - E.Left)
+              and then Long_Float (Y) / Input_Scale <
+                Long_Float (E.Bottom - E.Top)
+            then
+               Zoom_At (S.all, X, Y, Increase => S.Zoom_Tool = Magnify);
+            end if;
+         end;
+         return True;
+      end if;
+      if not Can_Edit (S.all) or else not S.Has_Drawing
+        or else not S.Editing_Draft or else not S.Show_Ink
       then
          return False;
       end if;
@@ -2551,6 +2750,14 @@ package body Coyote_GUI.Canvas is
       then
          Disable_Click_Help (S.all);
          return Is_Key;
+      end if;
+      if Is_Key and then S.Zoom_Tool /= No_Zoom
+        and then Gdk.Event.Get_Key_Val (Event) = Gdk.Types.Keysyms.GDK_Escape
+      then
+         Leave_Zoom_Tool (S.all);
+         Refresh (S.all);
+         Set_Status (S.all, "Zoom tool inactive.");
+         return True;
       end if;
       if (S.Crop_Drag or else S.Drawing
           or else (Is_Key and then Cropping (S.all)))
