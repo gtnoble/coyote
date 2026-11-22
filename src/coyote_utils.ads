@@ -18,8 +18,13 @@ package Coyote_Utils is
    function Read_Whole_File (Path : String) return String;
 
    --  Return the absolute path of the executable image running this process.
-   --  On Linux, prefer /proc/self/exe so the result is independent of argv[0].
+   --  The path is resolved once at package elaboration. On Linux, prefer
+   --  /proc/self/exe; fall back to the command name when unavailable.
    function Active_Executable_Path return String;
+
+   --  Return the cached executable path only while it names an existing
+   --  regular executable file. Never searches PATH at request time.
+   function Available_Executable_Path return String;
 
    --  Quote a value for use as one POSIX shell word.
    function Shell_Quote (Value : String) return String;

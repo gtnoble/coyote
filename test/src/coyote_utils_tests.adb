@@ -10,6 +10,7 @@ with Coyote_Temp_Files;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.Process;
+with System;
 with AUnit.Test_Caller;
 
 package body Coyote_Utils_Tests is
@@ -178,6 +179,67 @@ package body Coyote_Utils_Tests is
          and then Ada.Strings.Fixed.Index (Path, "coyote_test") > 0,
          "active executable path should identify the running test binary");
    end Test_Active_Executable_Path_Is_Absolute;
+
+   procedure Test_Available_Path_Tracks_Atomic_Replacement
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      use type System.Address;
+      function Make_Directory (Template : System.Address)
+        return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+      Bin : constant String := Ada.Directories.Containing_Directory
+        (Coyote_Utils.Active_Executable_Path);
+      Template : String := "/tmp/coyote-executable-path-XXXXXX" & ASCII.NUL;
+      Made : Boolean := False;
+      Args : Argument_List;
+      Status : Integer;
+      Copied : Boolean;
+
+      function Directory return String is
+        (Template (Template'First .. Template'Last - 1));
+
+      procedure Cleanup is
+      begin
+         if Made then
+            Ada.Directories.Delete_Tree (Directory);
+         end if;
+      end Cleanup;
+   begin
+      Assert
+        (Coyote_Utils.Available_Executable_Path =
+           Coyote_Utils.Active_Executable_Path,
+         "available path should initially identify this executable");
+      Made := Make_Directory (Template'Address) /= System.Null_Address;
+      Assert (Made, "create a private executable fixture directory");
+      declare
+         Path : constant String := Directory & "/worker";
+      begin
+         GNAT.OS_Lib.Copy_File
+           (Bin & "/executable_path_worker", Path, Copied,
+            Preserve => GNAT.OS_Lib.Full);
+         Assert (Copied, "copy the executable fixture");
+         Args.Append (Path);
+         Args.Append (Path);
+      end;
+      declare
+         Output : constant Ada.Strings.Unbounded.Unbounded_String :=
+           Run (Args, Status => Status, Strip => False);
+      begin
+         Assert
+           (Status = 0
+            and then Ada.Strings.Fixed.Index
+              (Ada.Strings.Unbounded.To_String (Output), "PASS") > 0,
+            "worker must detect replacement and removal: "
+            & Ada.Strings.Unbounded.To_String (Output));
+      end;
+      Cleanup;
+   exception
+      when others =>
+         Cleanup;
+         raise;
+   end Test_Available_Path_Tracks_Atomic_Replacement;
 
    procedure Test_Spawn_Detached_Rejects_Empty_Args (T : in out Test) is
       pragma Unreferenced (T);
@@ -509,6 +571,11 @@ package body Coyote_Utils_Tests is
            ("Coyote_Utils resolves the active executable path",
             Coyote_Utils_Tests.Test_Active_Executable_Path_Is_Absolute'
               Access));
+      Result.Add_Test
+        (Coyote_Utils_Caller.Create
+           ("Coyote_Utils tracks atomic executable replacement",
+            Coyote_Utils_Tests
+              .Test_Available_Path_Tracks_Atomic_Replacement'Access));
       Result.Add_Test
         (Coyote_Utils_Caller.Create
            ("Coyote_Spawn rejects empty argument lists",

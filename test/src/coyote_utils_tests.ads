@@ -16,6 +16,8 @@ package Coyote_Utils_Tests is
    procedure Test_Strip_Session_Prefix_Without_Prefix (T : in out Test);
    procedure Test_Strip_Session_Prefix_Empty (T : in out Test);
    procedure Test_Active_Executable_Path_Is_Absolute (T : in out Test);
+   procedure Test_Available_Path_Tracks_Atomic_Replacement
+     (T : in out Test);
    procedure Test_Spawn_Detached_Rejects_Empty_Args (T : in out Test);
    procedure Test_Spawn_Detached_Rejects_Empty_Arg0 (T : in out Test);
    procedure Test_Spawn_Detached_Rejects_Embedded_NUL (T : in out Test);

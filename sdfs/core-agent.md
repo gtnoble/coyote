@@ -1,5 +1,19 @@
 # Component Development Log — Core Agent
 
+## 2026-11-22 — Canvas capability notes and executable path
+
+Provider requests describe Attach → Send for image-capable GUI root
+sessions even with tools disabled. The separate import note requires
+an authorized Canvas target, model tool support, and a usable executable
+path. The startup path survives atomic rebuilds; an unavailable path
+suppresses the import note rather than searching PATH. Canvas credentials
+stay out of provider requests.
+
+Development builds and the full Xvfb suite passed (1,130/1,130). The
+replacement worker covers atomic replacement and removal, and an offline
+provider fixture checks five capability combinations. Canvas CLI and GTK
+interaction checks, including the runner fault-handling check, passed.
+
 ## 2026-11-21 — Session directory hierarchy durability (PCR-130)
 
 Session creation and fork prepare the fixed hierarchy under an existing

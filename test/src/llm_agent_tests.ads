@@ -117,6 +117,8 @@ package LLM_Agent_Tests is
    procedure Test_Sandbox_Profile_Restored_And_Cleared_On_Switch
      (T : in out Test);
 
+   procedure Test_Canvas_Instructions_Are_Sent (T : in out Test);
+
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Agent_Tests;

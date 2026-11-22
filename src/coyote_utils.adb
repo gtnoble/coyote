@@ -51,7 +51,7 @@ package body Coyote_Utils is
       return Read_Whole_File (Path);
    end Read_File_If_Exists;
 
-   function Active_Executable_Path return String is
+   function Resolve_Active_Executable_Path return String is
    begin
       if Ada.Directories.Exists ("/proc/self/exe") then
          declare
@@ -59,17 +59,69 @@ package body Coyote_Utils is
               GNAT.OS_Lib.Normalize_Pathname
                 ("/proc/self/exe", Resolve_Links => True);
          begin
-            if Resolved'Length > 0 then
+            if Resolved'Length > 0
+              and then GNAT.OS_Lib.Is_Absolute_Path (Resolved)
+            then
                return Resolved;
             end if;
          end;
       end if;
 
-      return Ada.Directories.Full_Name (Ada.Command_Line.Command_Name);
+      declare
+         Command : constant String := Ada.Command_Line.Command_Name;
+         Resolved : constant String :=
+           GNAT.OS_Lib.Normalize_Pathname
+             (Command, Resolve_Links => True);
+      begin
+         if Resolved'Length > 0
+           and then GNAT.OS_Lib.Is_Absolute_Path (Resolved)
+         then
+            return Resolved;
+         end if;
+
+         return Ada.Directories.Full_Name (Command);
+      end;
    exception
       when others =>
-         return Ada.Command_Line.Command_Name;
+         begin
+            return Ada.Directories.Full_Name
+              (Ada.Command_Line.Command_Name);
+         exception
+            when others =>
+               return Ada.Command_Line.Command_Name;
+         end;
+   end Resolve_Active_Executable_Path;
+
+   --  Package elaboration captures the image before a later atomic rebuild
+   --  can detach /proc/self/exe from its original pathname.
+   Cached_Executable_Path : constant String :=
+     Resolve_Active_Executable_Path;
+
+   function Active_Executable_Path return String is
+   begin
+      return Cached_Executable_Path;
    end Active_Executable_Path;
+
+   function Available_Executable_Path return String is
+      use type Ada.Directories.File_Kind;
+   begin
+      if not GNAT.OS_Lib.Is_Absolute_Path (Cached_Executable_Path)
+        or else not GNAT.OS_Lib.Is_Executable_File (Cached_Executable_Path)
+      then
+         return "";
+      end if;
+
+      if Ada.Directories.Kind (Cached_Executable_Path)
+        /= Ada.Directories.Ordinary_File
+      then
+         return "";
+      end if;
+
+      return Cached_Executable_Path;
+   exception
+      when others =>
+         return "";
+   end Available_Executable_Path;
 
    function Shell_Quote (Value : String) return String is
       Result : Unbounded_String;

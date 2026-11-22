@@ -848,7 +848,8 @@ package body Coyote_App is
                   Agent      => To_String (Opts.Agent),
                   No_Tools   => Opts.No_Tools,
                   Session_Id => To_String (Opts.Session_Id),
-                  Subagent   => Opts.Subagent);
+                  Subagent   => Opts.Subagent,
+                  Canvas_Attachments => not Opts.Subagent);
                State.Set_Agent_Ready (True);
                Synchronize_Sandbox;
                My_Frontend.Register_Session (Agent_Session'Unchecked_Access);
@@ -1079,7 +1080,8 @@ package body Coyote_App is
                                  LLM.Agent.Create
                                    (S        => Agent_Session,
                                     Agent    => To_String (Opts.Agent),
-                                    No_Tools => Opts.No_Tools);
+                                    No_Tools => Opts.No_Tools,
+                                    Canvas_Attachments => not Opts.Subagent);
                                  Current_Thinking :=
                                    Settings_Value.Default_Thinking;
                               end;

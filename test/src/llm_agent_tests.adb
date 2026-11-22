@@ -22,6 +22,7 @@ with LLM.System_Prompt;
 with LLM.Types;
 with LLM.User_Images;
 with LLM.Model_Registry;
+with Coyote_Canvas.Import_Service;
 with Coyote_Canvas.Composite;
 with Coyote_Canvas.Revisions;
 
@@ -7404,6 +7405,196 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Canvas_Record_Before_HTTP;
 
+   procedure Test_Canvas_Instructions_Are_Sent (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.JSON;
+      package Env renames Ada.Environment_Variables;
+      package Import_Service renames Coyote_Canvas.Import_Service;
+      Home : constant String := "/tmp/coyote_llm_agent_canvas_instructions";
+      Port : constant Positive := 19_123;
+      Url : constant String := "COYOTE_OPENROUTER_BASE_URL";
+      Key : constant String := "OPENROUTER_API_KEY";
+      Socket_Path : constant String := "/tmp/coyote-canvas-private.sock";
+      Capability : constant String := "canvas-capability-private";
+      Home_Was_Set : constant Boolean := Env.Exists ("HOME");
+      Old_Home : constant String := Env.Value ("HOME", "");
+      Url_Was_Set : constant Boolean := Env.Exists (Url);
+      Old_Url : constant String := Env.Value (Url, "");
+      Key_Was_Set : constant Boolean := Env.Exists (Key);
+      Old_Key : constant String := Env.Value (Key, "");
+      Target : constant Import_Service.Endpoint :=
+        (Path => To_Unbounded_String (Socket_Path),
+         Capability => To_Unbounded_String (Capability));
+      Request_Number : Natural := 0;
+      Stopped : Boolean := False;
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      procedure Handle_Request
+        (Req : Test_HTTP_Server.Request; Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant Read_Result := Read (To_String (Req.Body_Data));
+         Instructions : constant String :=
+           String'(Parsed.Value.Get ("instructions").Get);
+         Request_Text : constant String := To_String (Req.Body_Data);
+      begin
+         Request_Number := Request_Number + 1;
+         Assert (Parsed.Success, "provider request is valid JSON");
+         Assert
+           (Ada.Strings.Fixed.Index (Request_Text, Socket_Path) = 0
+            and then Ada.Strings.Fixed.Index (Request_Text, Capability) = 0,
+            "Canvas endpoint and capability are not sent to provider");
+
+         case Request_Number is
+            when 1 =>
+               Assert
+                 (Ada.Strings.Fixed.Index (Instructions, "Attach") = 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "canvas add --") = 0,
+                  "no-Canvas prompt has neither Canvas instruction");
+            when 2 =>
+               Assert
+                 (Ada.Strings.Fixed.Index (Instructions, "Attach") > 0
+                  and then Ada.Strings.Fixed.Index (Instructions, "Send") > 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "saved revision") > 0,
+                  "vision attachment instructions are sent without tools");
+               Assert
+                 (Ada.Strings.Fixed.Index
+                    (Instructions, "canvas add -- FILE...") = 0,
+                  "attachment-only prompt has no import instructions");
+            when 3 =>
+               Assert
+                 (Ada.Strings.Fixed.Index
+                    (Instructions, "canvas add -- FILE...") > 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "does not submit a prompt") > 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "control editing tools") > 0,
+                  "imports are limited to files, not prompts or editing");
+               Assert
+                 (Ada.Strings.Fixed.Index (Instructions, "Attach") = 0,
+                  "imports-only prompt does not request image attachment");
+            when 4 =>
+               Assert
+                 (Ada.Strings.Fixed.Index
+                    (Instructions, "canvas add -- FILE...") > 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "does not submit a prompt") > 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "control editing tools") > 0,
+                  "combined prompt describes import limits");
+               Assert
+                 (Ada.Strings.Fixed.Index (Instructions, "Attach") > 0
+                  and then Ada.Strings.Fixed.Index (Instructions, "Send") > 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "saved revision") > 0,
+                  "combined prompt includes attachment guidance");
+            when 5 =>
+               Assert
+                 (Ada.Strings.Fixed.Index (Instructions, "Attach") = 0
+                  and then
+                    Ada.Strings.Fixed.Index
+                      (Instructions, "canvas add --") = 0,
+                  "non-tool model suppresses Canvas instructions");
+            when others =>
+               Assert (False, "unexpected provider request");
+         end case;
+
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("ok", 1, 1));
+      end Handle_Request;
+
+      procedure Send_Prompt
+        (Model_Spec : String;
+         No_Tools : Boolean;
+         Attachments : Boolean;
+         Has_Target : Boolean)
+      is
+         S : LLM.Agent.Session;
+      begin
+         LLM.Agent.Create
+           (S => S,
+            Model_Spec => Model_Spec,
+            No_Tools => No_Tools,
+            Canvas_Attachments => Attachments);
+         if Has_Target then
+            LLM.Agent.Set_Canvas_Target (S, Target);
+         end if;
+         LLM.Agent.Run_Prompt (S, "inspect canvas", Ignore_Event'Access);
+      end Send_Prompt;
+
+      procedure Cleanup is
+      begin
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Restore_Env (Url, Url_Was_Set, Old_Url);
+         Restore_Env (Key, Key_Was_Set, Old_Key);
+         Cleanup_Test_Home (Home);
+      end Cleanup;
+
+      Server : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/openrouter_models_cache.json",
+         "{""fetched_at"":" & Long_Long_Image (Current_Unix_S) &
+         ",""data"":[{""id"":""canvas/vision-tools"",""name"":""Canvas Vision""," &
+         """architecture"":{""input_modalities"":[""text"",""image""]}," &
+         """context_length"":128000,""top_provider"":{""max_completion_tokens"":4096}," &
+         """supported_parameters"":[""tools""]},{""id"":""canvas/text-tools"",""name"":""Canvas Text Tools""," &
+         """architecture"":{""input_modalities"":[""text""]}," &
+         """context_length"":128000,""top_provider"":{""max_completion_tokens"":4096}," &
+         """supported_parameters"":[""tools""]},{""id"":""canvas/text-only""," &
+         """name"":""Canvas Text"",""architecture"":{""input_modalities"":[""text""]}," &
+         """context_length"":128000,""top_provider"":{""max_completion_tokens"":4096}}]}");
+      Env.Set ("HOME", Home);
+      Env.Set (Key, "test-key");
+      Env.Set
+        (Url, "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+      LLM.Model_Registry.Refresh_OpenRouter;
+      Server.Bind (Port);
+
+      Send_Prompt
+        ("openrouter/canvas/vision-tools", False, False, False);
+      Send_Prompt
+        ("openrouter/canvas/vision-tools", True, True, True);
+      Send_Prompt
+        ("openrouter/canvas/text-tools", False, False, True);
+      Send_Prompt
+        ("openrouter/canvas/vision-tools", False, True, True);
+      Send_Prompt
+        ("openrouter/canvas/text-only", False, True, True);
+
+      Server.Stop;
+      Stopped := True;
+      Assert (Request_Number = 5, "all Canvas prompt variants reached provider");
+      Cleanup;
+   exception
+      when others =>
+         if not Stopped then
+            begin
+               Server.Stop;
+            exception
+               when Tasking_Error =>
+                  null;
+            end;
+         end if;
+         Cleanup;
+         raise;
+   end Test_Canvas_Instructions_Are_Sent;
+
    package LLM_Agent_Caller is new AUnit.Test_Caller (LLM_Agent_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -7414,6 +7605,10 @@ package body LLM_Agent_Tests is
         (LLM_Agent_Caller.Create
            ("LLM.Agent commits a typed Canvas prompt before HTTP",
             Test_Canvas_Record_Before_HTTP'Access));
+      Result.Add_Test
+        (LLM_Agent_Caller.Create
+           ("LLM.Agent sends Canvas instructions in provider requests",
+            Test_Canvas_Instructions_Are_Sent'Access));
       Result.Add_Test
         (LLM_Agent_Caller.Create
            ("LLM.Agent runs a single-turn prompt and persists it",

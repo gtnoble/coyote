@@ -588,6 +588,7 @@ not wait for the complete user turn.
 | `LLM.User_Images` (`src/llm/llm-user_images.ads/.adb`) | Native PNG block validation, ordered references, wire budgets, and v3 JSON encoding/decoding. |
 | `Coyote_App.Frontend` (`src/coyote_app-frontend.ads/.adb`) | Shared frontend contract; non-GTK presentation describes typed attachments without uploading or displaying extra images. |
 | Canvas reclamation regression | `test/tools/check-canvas-reclaim.py` exercises CLI inspection and apply in disposable session directories; `test/src/coyote_canvas_recovery_tests.adb` checks guarded restore. |
+| Executable path regression worker | `test/src/executable_path_worker.adb` checks that the startup executable path remains usable after atomic replacement and becomes unavailable after removal. |
 | Session publication fault harness | `test/tools/session_publication_worker.adb`, `test/native/session_publication_fsync.c`, `test/tools/check-session-publication.py` exercise new headers, typed forks, and migration with controlled ancestor-, file-, and directory-sync failures and concurrent first use. |
 | Canvas Help topics | `share/help/C/coyote/canvas*.page` and `keyboard-shortcuts.page`: installed Mallard guide, editing and revision tasks, and Canvas shortcuts. |
 | Canvas workspace regression | `test/src/coyote_canvas_revisions_tests.ads/.adb`, `test/src/coyote_canvas_raster_tests.ads/.adb`, `test/src/coyote_canvas_svg_tests.ads/.adb`, and the display-backed Canvas cases in `test/src/coyote_app_frontend_gui_tests.adb`. |

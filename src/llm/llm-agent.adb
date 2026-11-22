@@ -1217,6 +1217,32 @@ package body LLM.Agent is
       return Result;
    end Compatible_History;
 
+   function Canvas_Instructions (S : Session) return String is
+      Separator : constant String := ASCII.LF & ASCII.LF;
+      Attach_Note : constant String :=
+        (if S.Canvas_Attachments and then Supports_User_Images (S)
+         then Separator &
+           "The user can share a Canvas drawing or saved revision as an " &
+           "image by choosing Attach in Canvas and then Send in the composer."
+         else "");
+      Executable : constant String :=
+        (if not S.Subagent_Mode and then not S.No_Tools
+           and then S.Model_Info.Supports_Tools
+           and then Length (S.Canvas_Target.Path) > 0
+           and then Length (S.Canvas_Target.Capability) > 0
+         then Coyote_Utils.Available_Executable_Path
+         else "");
+   begin
+      if Executable'Length = 0 then
+         return Attach_Note;
+      end if;
+      return Attach_Note & Separator &
+        "To add local PNG, JPEG, or static SVG images to the user's Canvas, " &
+        "use the shell tool to run " & Coyote_Utils.Shell_Quote (Executable) &
+        " canvas add -- FILE... (up to eight in order). This adds drawings " &
+        "but does not submit a prompt or control editing tools.";
+   end Canvas_Instructions;
+
    procedure Send_With_Retry
      (S             : in out Session;
       Provider      : in out LLM.Providers.Provider'Class;
@@ -1348,16 +1374,7 @@ package body LLM.Agent is
                   Provider.Send
                     (Model_Id      => To_String (S.Model_Info.Model_Id),
                      System_Prompt => To_String (S.System_Prompt) &
-                       (if Length (S.Canvas_Target.Path) > 0 and then
-                           not S.No_Tools and then S.Model_Info.Supports_Tools
-                        then ASCII.LF & ASCII.LF &
-                          "To add local PNG, JPEG, or static SVG images to " &
-                          "the user's Canvas, use the shell tool to run " &
-                          Coyote_Utils.Shell_Quote
-                            (Coyote_Utils.Active_Executable_Path) &
-                          " canvas add -- FILE... (up to eight in order). " &
-                          "This adds drawings without submitting a prompt."
-                        else ""),
+                       Canvas_Instructions (S),
                      Messages      =>
                        Compatible_History
                          (History  => S.History,
@@ -1516,7 +1533,8 @@ package body LLM.Agent is
       Agent      :     String  := "";
       No_Tools       :     Boolean := False;
       Session_Id     :     String  := "";
-      Subagent       :     Boolean := False)
+      Subagent       :     Boolean := False;
+      Canvas_Attachments : Boolean := False)
    is
       Effective_Spec : constant String                :=
         Effective_Model_Spec (Model_Spec, Subagent);
@@ -1569,6 +1587,7 @@ package body LLM.Agent is
       S.OpenRouter_Session_UUID := Null_Unbounded_String;
       S.History.Clear;
       S.Subagent_Mode   := Subagent;
+      S.Canvas_Attachments := Canvas_Attachments and then not Subagent;
       S.No_Tools        := No_Tools;
       S.Thinking        :=
         Thinking_From_String (To_String (Settings_Value.Default_Thinking));
