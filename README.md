@@ -168,7 +168,8 @@ the Drawings tree. Select a saved revision to preview it, or choose
 **Eraser**, or **Crop** icon below the menu bar, or use the matching **Edit**
 menu item. The active icon stays highlighted; hover over an icon for its
 name. Pencil is the default. Tab to the toolbar and use arrow keys to switch
-tools.
+tools. **View → Fit** shows the full drawing in the current viewport. Use
+**View → Actual Size** to return to 100%. Zoom changes only the view.
 
 In **Crop**, drag a rectangle or enter exact pixel bounds. Only **Apply Crop**
 changes the drawing. Apply, Cancel, and `Esc` return to the previous drawing

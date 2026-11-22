@@ -240,6 +240,9 @@ package body Coyote_GUI.Canvas is
         (S.Document,
          (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision)));
 
+   function Can_Fit (S : Instance; E : Doc.Rectangle) return Boolean is
+     (Doc.Is_Nonempty (E) and then not (S.Drawing or else S.Crop_Drag));
+
    function Pending (S : Instance) return Doc.Rectangle is
       E : constant Doc.Rectangle := Rev.Extent (S.Document);
    begin
@@ -284,6 +287,7 @@ package body Coyote_GUI.Canvas is
       S.Import_Item.Set_Sensitive (Can_Edit (S));
       S.Paste_Item.Set_Sensitive (Can_Edit (S));
       S.Draft_Item.Set_Sensitive (S.Has_Drawing and not S.Editing_Draft);
+      S.Fit_Item.Set_Sensitive (Can_Fit (S, E));
       --  Reflect model state without re-entering either toggled handler.
       S.Syncing_Tools := True;
       S.Buttons (S.Tool).Set_Active (True);
@@ -305,10 +309,44 @@ package body Coyote_GUI.Canvas is
       S.Apply_Item.Set_Sensitive (Valid_Crop);
       S.Cancel_Item.Set_Sensitive (Cropping (S));
       S.Drawing_Area.Set_Size_Request
-        (Glib.Gint (Long_Float (E.Right - E.Left) * S.Zoom),
-         Glib.Gint (Long_Float (E.Bottom - E.Top) * S.Zoom));
+        (Glib.Gint (Long_Float'Ceiling
+           (Long_Float (E.Right - E.Left) * S.Zoom)),
+         Glib.Gint (Long_Float'Ceiling
+           (Long_Float (E.Bottom - E.Top) * S.Zoom)));
       S.Drawing_Area.Queue_Draw;
    end Refresh;
+
+   procedure Fit_View (S : in out Instance) is
+      E : constant Doc.Rectangle := Display_Extent (S);
+   begin
+      if Can_Fit (S, E) then
+         --  Fit to the unframed allocation, not the page size reduced by
+         --  the scrollbars this change will remove.
+         declare
+            Width  : constant Long_Float :=
+              Long_Float (S.Viewport.Get_Allocated_Width);
+            Height : constant Long_Float :=
+              Long_Float (S.Viewport.Get_Allocated_Height);
+            Image_Width  : constant Long_Float :=
+              Long_Float (E.Right - E.Left);
+            Image_Height : constant Long_Float :=
+              Long_Float (E.Bottom - E.Top);
+            Fit_Scale : Long_Float := Long_Float'Min
+              (4.0,
+               Long_Float'Min (Width / Image_Width, Height / Image_Height));
+         begin
+            --  Avoid a spurious scrollbar if floating-point rounding would
+            --  make the size request one pixel larger than the viewport.
+            if Image_Width * Fit_Scale > Width or else
+              Image_Height * Fit_Scale > Height
+            then
+               Fit_Scale := Long_Float'Adjacent (Fit_Scale, 0.0);
+            end if;
+            S.Zoom := Fit_Scale;
+         end;
+         Refresh (S);
+      end if;
+   end Fit_View;
 
    procedure Cancel_Gesture (S : in out Instance) is
    begin
@@ -1157,6 +1195,7 @@ package body Coyote_GUI.Canvas is
       S.Cancel_Item := Action ("Ca_ncel Crop", "cancel");
       Group ("_View");
       S.Draft_Item := Action ("Show _Working Copy", "draft");
+      S.Fit_Item   := Action ("_Fit", "fit");
       Item         := Action ("Zoom _In", "zoom-in");
       Item         := Action ("Zoom _Out", "zoom-out");
       Item         := Action ("_Actual Size", "actual");
@@ -1239,13 +1278,15 @@ package body Coyote_GUI.Canvas is
       Event_Callback.Connect
         (S.Drawing_Area, "grab-broken-event",
          Event_Marshaller.To_Marshaller (On_Cancel_Event'Access), State);
-      Gtk.Scrolled_Window.Gtk_New (Scroll);
-      Scroll.Set_Policy
+      Gtk.Scrolled_Window.Gtk_New (S.Viewport);
+      S.Viewport.Set_Name ("coyote-canvas-viewport");
+      S.Viewport.Set_Shadow_Type (Gtk.Enums.Shadow_None);
+      S.Viewport.Set_Policy
         (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
       S.Drawing_Area.Set_Halign (Gtk.Widget.Align_Start);
       S.Drawing_Area.Set_Valign (Gtk.Widget.Align_Start);
-      Scroll.Add (S.Drawing_Area);
-      S.Root.Pack_Start (Scroll, True, True, 0);
+      S.Viewport.Add (S.Drawing_Area);
+      S.Root.Pack_Start (S.Viewport, True, True, 0);
       Gtk.Grid.Gtk_New (S.Crop_Grid);
       S.Crop_Grid.Set_Column_Spacing (4);
       Field (S.X_Field, "_X:", "x", 0);
@@ -1680,6 +1721,8 @@ package body Coyote_GUI.Canvas is
       end if;
       S.Root         := null;
       S.Drawing_Area := null;
+      S.Viewport    := null;
+      S.Fit_Item    := null;
       S.Store        := null;
       S.Drawing_Tree := null;
       S.Status       := null;
@@ -1999,6 +2042,8 @@ package body Coyote_GUI.Canvas is
             elsif Name = "canvas-help-revisions" then "canvas-revisions"
             elsif Name = "canvas-help-keys" then "keyboard-shortcuts#canvas"
             else ""));
+      elsif Name = "canvas-fit" then
+         Fit_View (S.all);
       else
          Cancel_Gesture (S.all);
          if Name = "canvas-draft" then
@@ -2007,7 +2052,10 @@ package body Coyote_GUI.Canvas is
          elsif Name = "canvas-zoom-in" then
             S.Zoom := Long_Float'Min (4.0, S.Zoom * 1.25);
          elsif Name = "canvas-zoom-out" then
-            S.Zoom := Long_Float'Max (0.25, S.Zoom / 1.25);
+            --  Fit can go below the manual zoom floor. Never enlarge in
+            --  response to Zoom Out.
+            S.Zoom := Long_Float'Min
+              (S.Zoom, Long_Float'Max (0.25, S.Zoom / 1.25));
          elsif Name = "canvas-actual" then
             S.Zoom := 1.0;
          end if;

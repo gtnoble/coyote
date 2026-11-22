@@ -22,6 +22,7 @@ with Gtk.Tree_Model;
 with Gtk.Menu_Item;
 with Gtk.Radio_Button;
 with Gtk.Radio_Menu_Item;
+with Gtk.Scrolled_Window;
 with Gtk.Window;
 with LLM.Types;
 
@@ -84,6 +85,7 @@ private
       Canvas_Window : Gtk.Window.Gtk_Window               := null;
       Root                                         : Gtk.Box.Gtk_Box := null;
       Drawing_Area : Gtk.Drawing_Area.Gtk_Drawing_Area   := null;
+      Viewport : Gtk.Scrolled_Window.Gtk_Scrolled_Window := null;
       Drawing_Tree : Gtk.Tree_View.Gtk_Tree_View         := null;
       Status : Gtk.Label.Gtk_Label                 := null;
       Crop_Grid                                    : Gtk.Grid.Gtk_Grid := null;
@@ -129,7 +131,7 @@ private
       Listed                                       : Natural := 0;
       Save_Item, Edit_Item, Draft_Item, Undo_Item,
       Redo_Item : Gtk.Menu_Item.Gtk_Menu_Item         := null;
-      Apply_Item, Cancel_Item : Gtk.Menu_Item.Gtk_Menu_Item         := null;
+      Apply_Item, Cancel_Item, Fit_Item : Gtk.Menu_Item.Gtk_Menu_Item := null;
       Preview_Revision : Coyote_Canvas.Revisions.Revision_Id := 0;
       Editing_Draft                                : Boolean := True;
       Has_Drawing                                  : Boolean := False;

@@ -38,6 +38,7 @@ with Gdk.Types.Keysyms;
 with Gdk.Pixbuf;
 with Gdk.Property;
 with Gtk.Box;
+with Gtk.Adjustment;
 with Gtk.Bin;
 with Gtk.Button;
 with Gtk.Drawing_Area;
@@ -61,6 +62,7 @@ with Gtk.Main;
 with Gtk.Label;
 with Gtk.Menu_Item;
 with Gtk.Progress_Bar;
+with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Tree_Model;
 with Gtk.Tree_View;
@@ -1104,6 +1106,48 @@ package body Coyote_App_Frontend_GUI_Tests is
          Assert (W = Width and then H = Height, "Wrong displayed extent");
       end Size;
 
+      procedure Check_Fit (Pan_First : Boolean := False) is
+         Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
+           Gtk.Scrolled_Window.Gtk_Scrolled_Window
+             (Control ("coyote-canvas-viewport"));
+         X : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Hadjustment;
+         Y : constant Gtk.Adjustment.Gtk_Adjustment := Scroll.Get_Vadjustment;
+      begin
+         --  A crop panel can change the layout before the user opens View.
+         Canvas.Check_Resize;
+         Drain_Events;
+         if Pan_First then
+            Scroll.Set_Overlay_Scrolling (False);
+            Activate ("zoom-in");
+            Activate ("zoom-in");
+            Canvas.Check_Resize;
+            Drain_Events;
+            X.Set_Value (X.Get_Upper);
+            Y.Set_Value (Y.Get_Upper);
+            Assert (X.Get_Value > X.Get_Lower and then
+                      Y.Get_Value > Y.Get_Lower, "Pan before fitting");
+         end if;
+         Assert (Control ("canvas-fit").Get_Sensitive, "Can fit the drawing");
+         Activate ("fit");
+         Canvas.Check_Resize;
+         Drain_Events;
+         Area.Get_Size_Request (W, H);
+         Assert (W <= Scroll.Get_Allocated_Width and then
+                   H <= Scroll.Get_Allocated_Height and then
+                   (W = Scroll.Get_Allocated_Width or else
+                    H = Scroll.Get_Allocated_Height),
+                 "Fit uses the full viewport and leaves no clipping:"
+                 & W'Image & H'Image & " in"
+                 & Scroll.Get_Allocated_Width'Image
+                 & Scroll.Get_Allocated_Height'Image);
+         Assert (abs (3 * W - 4 * H) <= 4,
+                 "Fit preserves the 800 by 600 aspect ratio");
+         Assert (X.Get_Value = X.Get_Lower and then Y.Get_Value = Y.Get_Lower
+                   and then X.Get_Page_Size = X.Get_Upper
+                   and then Y.Get_Page_Size = Y.Get_Upper,
+                 "Fit returns to the origin and clears both scroll ranges");
+      end Check_Fit;
+
       procedure Check_Pixel (Expected : Gdk.Pixbuf.Rgb_Record) is
          Surface : constant Cairo.Cairo_Surface := Cairo.Image_Surface.Create
            (Cairo.Image_Surface.Cairo_Format_RGB24, 32, 32);
@@ -1154,6 +1198,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Icon ("pencil", "Pencil");
       Check_Icon ("eraser", "Eraser");
       Check_Icon ("crop", "Crop");
+      Assert (not Control ("canvas-fit").Get_Sensitive,
+              "Fit is disabled without a drawing");
       Check_Tool ("pencil", Enabled => False);
       Activate ("new");
       Drain_Events;
@@ -1174,6 +1220,10 @@ package body Coyote_App_Frontend_GUI_Tests is
               "New creates an Original");
       Check_Pixel ((255, 255, 255));
       Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Assert (not Control ("canvas-fit").Get_Sensitive,
+              "Fit cannot interrupt an ink gesture");
+      Activate ("fit");
+      Size (800, 600);
       Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
       Check_Pixel ((13, 13, 13));
       Activate ("undo");
@@ -1205,6 +1255,10 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("pencil");
       Check_Tool ("pencil");
       Check_Pixel ((13, 13, 13));
+      Check_Fit (Pan_First => True);
+      Activate ("actual");
+      Size (800, 600);
+      Check_Pixel ((13, 13, 13));
       Activate ("save");
       Assert (Get_Iter_From_String (Model, "0:0") /= Null_Iter,
               "Pointer stroke saves as a child of Original");
@@ -1214,12 +1268,16 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tool_Button ("crop").Clicked;
       Check_Tool ("crop");
       Pointer (Gdk.Event.Button_Press, 40.0, 50.0);
+      Assert (not Control ("canvas-fit").Get_Sensitive,
+              "Fit cannot interrupt a crop drag");
       Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
+      Check_Fit;
       Check_Tool ("crop");
       Assert (Control ("canvas-apply").Get_Sensitive,
-              "Toolbar Crop enables Apply for a valid drag");
+              "Fit preserves the pending crop and Apply eligibility");
       Activate ("apply");
       Check_Tool ("eraser");
+      Activate ("actual");
       Size (60, 80);
       Activate ("undo");
       Size (800, 600);
@@ -1266,6 +1324,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Tool ("eraser", Enabled => False);
       Assert (not Control ("canvas-apply-button").Is_Visible,
               "Read-only preview cancels pending crop");
+      Check_Fit;
+      Check_Tool ("eraser", Enabled => False);
+      Activate ("actual");
       Size (800, 600);
       Check_Pixel ((255, 255, 255));
       Activate ("draft");
@@ -2277,30 +2338,38 @@ package body Coyote_App_Frontend_GUI_Tests is
       Activate ("apply");
       Activate ("attach");
       Assert (Attachment_Count (F) = 1, "working copy is checkpointed and staged");
+      Activate ("fit");
+      Activate ("attach");
+      Assert (Attachment_Count (F) = 2, "Fit leaves the same draft attachable");
       Activate ("undo");
       Activate ("new");
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "1"));
       Tree.Get_Selection.Select_Iter (Get_Iter_From_String (Model, "0"));
       Activate ("attach");
-      Assert (Attachment_Count (F) = 3, "multi-selection stages one ordered batch");
+      Assert (Attachment_Count (F) = 4, "multi-selection stages one ordered batch");
       Gtk.Combo_Box_Text.Gtk_Combo_Box_Text
-        (Widget ("canvas-attachment-choice", False)).Set_Active (0);
-      Click ("canvas-attachment-down");
+        (Widget ("canvas-attachment-choice", False)).Set_Active (2);
+      Click ("canvas-attachment-up");
+      Click ("canvas-attachment-up");
       Click_Send (F);
       Drain_Events;
-      Assert (Attachment_Count (F) = 3, "unsupported model retains draft");
+      Assert (Attachment_Count (F) = 4, "unsupported model retains draft");
       F.Canvas_Model (True);
       Drain_Events;
       Click_Send (F);
       It := F.Read_Item;
       Assert (It.Kind = Canvas_Prompt and then Length (It.Canvas_Text) = 0
-             and then Natural (It.Images.Length) = 3 and then It.Canvas_Session = Id,
+             and then Natural (It.Images.Length) = 4 and then It.Canvas_Session = Id,
               "image-only Send hands off a complete, session-scoped prompt");
       Assert (It.Images (1).Width = 800 and then It.Images (2).Width = 7
-              and then It.Images (2).Height = 5 and then It.Images (3).Width = 800
+              and then It.Images (2).Height = 5 and then It.Images (4).Width = 800
               and then It.Images (1).Drawing_Id = It.Images (2).Drawing_Id
-              and then It.Images (3).Drawing_Id /= It.Images (1).Drawing_Id,
+              and then It.Images (4).Drawing_Id /= It.Images (1).Drawing_Id,
               "tree order, manual reorder and frozen pre-undo crop are preserved");
+      Assert (It.Images (3).Width = 7 and then It.Images (3).Height = 5
+                and then It.Images (2).Revision_Id = It.Images (3).Revision_Id
+                and then It.Images (2).PNG = It.Images (3).PNG,
+              "Fit leaves the revision, PNG dimensions and exact bytes intact");
       PNG := It.Images (2).PNG;
       F.Canvas_Prompt_Result (Id, It.Request_Id, False);
       Drain_Events;

@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.63
+**Version:** 1.64
 **Date:** 2026-11-21
 
 **Status:** PCR-114 former-C evidence retained; PCR-116 and PCR-117 qualification results historical; PCR-118 ownership verified; PCR-119 native qualification verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
@@ -3157,6 +3157,15 @@ Overview, editing and revision tasks, Index, and Keys & Shortcuts. Click for
 Help targets the toolbar, drawing area, or Drawings list without changing
 the tool, drawing, or selection.
 Product Information uses the existing in-app dialog, parented to Canvas.
+
+**Fit view.** View → Fit uses the unframed scroller's current allocation,
+not its reduced page size with scrollbars, and chooses the smaller of the
+width and height ratios, capped at 400%. Fit can go below the manual
+zoom-out floor. The drawing area rounds display bounds up to include edge
+pixels, and GTK clamps the pan when the scroll ranges collapse. Fit is
+one-shot, does not alter the current crop transaction, and uses the same
+view transform as pointer mapping. Attachment composition uses the stored
+extent and source pixels, not view geometry.
 
 **Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`
 rasterizes stored ink into an A8 Cairo mask on the original pixel grid and

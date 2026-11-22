@@ -1,8 +1,8 @@
 # Coyote Canvas Detailed Design (SDD-CANVAS)
 
-- **Version:** 1.2
+- **Version:** 1.3
 - **Date:** 2026-11-21
-- **Status:** Accepted by the product owner on 2026-11-21; not implemented or qualified.
+- **Status:** Baseline accepted by the product owner on 2026-11-21; implementation is in progress and qualification is pending.
 - **Parent:** [SDD-CORE §5.51](coyote-design.md#551-drawing-canvas-and-additive-cli-planned)
 - **Requirements:** [SRS-CORE v1.35](../requirements/coyote-requirements.md), REQ-CORE-026–028 and 260–271.
 - **Qualification:** [STP §4.6](../plan/test-plan.md#46-planned-qualification--drawing-canvas-and-subcommands-pcr-130), PCR-130 and PCR-131.
@@ -51,7 +51,7 @@ The v1 request has one `add` operation, a request ID and an ordered file count. 
 | File | **New** (`Ctrl+N`), **Import…** (modeless File Selection), **Save** (`Ctrl+S` checkpoints the active draft; unchanged is a no-op), **Close** (`Ctrl+W`; hides the Canvas without discarding drawings). |
 | Selected | **Edit Revision** for one selected revision; **Attach** for selected revisions in visible tree order or the active draft when acting in the drawing area. Dim unavailable actions, do not remove them. |
 | Edit | Mutually exclusive **Pencil**, **Eraser**, and **Crop** radio choices, synchronized with the icon buttons below the menu bar; **Pencil** is the default. The toolbar and menu stay available to switch tools while a crop is pending, but are disabled when there is no editable working copy or **Show Markup** is off. **Apply Crop** alone commits the pending crop; switching to a drawing tool discards it. **Apply Crop**, **Cancel**, and `Escape` return to the drawing tool selected before Crop. Also **Undo** (`Ctrl+Z`), **Redo** (`Shift+Ctrl+Z`), and **Paste** (`Ctrl+V`) in drawing context. Focused editable text fields retain ordinary text editing and paste. |
-| View | Fit, Zoom In/Out, and a stable checkbox **Show Markup**; all display-only. |
+| View | **Fit**, **Zoom In/Out**, **Actual Size**, and a stable checkbox **Show Markup**; all display-only. **Fit** selects a uniform zoom for the current viewport and displayed draft or revision, up to 400%. It clears panning, preserves a pending crop, and is disabled without a drawing or during an active gesture. |
 | Help | Canvas Overview, tasks, Index, Keys & Shortcuts, Product Information and Click for Help using the existing desktop Help path. |
 
 Give entries mnemonics, preserve native Tab/tree traversal, use the primary action button or pen tip for drawing/crop, and keep the right button for a shortcut menu that duplicates menu actions. Do not change pointer mapping or force focus across windows. Indicate editable/draft/read-only/sent state in text, not color alone. Scope text paste and standard accelerators to the focused context. Use the status area for successful background work, an explanatory dialog for empty or invalid clipboard paste, and a cancellable Warning before discarding draft edits; switching from a pending crop to a drawing tool discards that pending crop without applying it. Agent additions use only the status area and never change focus or selection. No new tool shortcuts are assigned; native Tab and arrow navigation operate the toolbar, and Edit mnemonics remain in effect.

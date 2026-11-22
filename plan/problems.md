@@ -70,8 +70,9 @@ client-controlled work product gets an entry here.
   also syncs the fixed hierarchy under an existing `HOME` before staging;
   failed preparation is safe to retry, and concurrent creators use random
   UUIDv4 IDs. Power-loss qualification, desktop qualification and deployment
-  remain pending. Edit → Eraser and Canvas desktop Help are implemented;
-  view Fit, the shortcut menu, and sent revision indicators remain open.
+  remain pending. The ink eraser, icon toolbar, Canvas desktop Help, and
+  View → Fit are implemented. The shortcut menu and sent revision
+  indicators remain open.
 
 ## PCR-129 — Document supported Markdown semantics in the system prompt
 

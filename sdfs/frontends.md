@@ -1,5 +1,19 @@
 # Component Development Log — Frontends
 
+## 2026-11-21 — Canvas Fit view (PCR-130)
+
+View → Fit uses uniform, one-shot zoom in the available viewport. It
+clears panning without changing the displayed draft or revision and
+preserves pending crop bounds. Fit is disabled during active gestures.
+Actual Size restores 100% display scale.
+
+Development builds and the serial Xvfb suite passed (1,123/1,123).
+Focused Canvas cases covered fitting from a panned view, read-only
+preview, gesture gating, crop preservation, and identical native PNG
+bytes before and after Fit. Desktop Help validation, standalone GTK
+checks (9/9), and runner containment also passed. This is developer
+regression evidence, not physical tablet or Wayland qualification.
+
 ## 2026-11-21 — Canvas toolbar icons (PCR-130)
 
 Cairo draws the Pencil, Eraser, and Crop icons in GTK theme colors. The
