@@ -1,0 +1,18 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          coyote_gui-rich_text.adb
+coyote_gui-rich_text.adb:226:07: warning: use clause for type "Gdk_Pixbuf" defined at gdk-pixbuf.ads:55 has no effect [-gnatwu]
+Bind
+   [gprbind]      coyote_test.bexch
+   [Ada]          coyote_test.ali
+   [gprbind]      gtk_interaction_worker.bexch
+   [Ada]          gtk_interaction_worker.ali
+Link
+   [link]         coyote_test.adb
+gprbuild: "mock_coyote" up to date
+gprbuild: "auth_test_worker" up to date
+gprbuild: "help_test_worker" up to date
+gprbuild: "notify_test_worker" up to date
+gprbuild: "signal_shutdown_worker" up to date
+   [link]         gtk_interaction_worker.adb
+Success: Build finished successfully in 9.04 seconds.

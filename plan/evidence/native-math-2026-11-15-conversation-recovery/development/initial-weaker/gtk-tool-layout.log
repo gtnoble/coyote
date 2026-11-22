@@ -1,0 +1,5 @@
+Logs: /tmp/gtk-tool-layout-p3bx6ksw
+PASS repeat 1 (0); cleanup_ok=True: /tmp/gtk-tool-layout-p3bx6ksw/repeat-01.log
+PASS repeat 2 (0); cleanup_ok=True: /tmp/gtk-tool-layout-p3bx6ksw/repeat-02.log
+PASS repeat 3 (0); cleanup_ok=True: /tmp/gtk-tool-layout-p3bx6ksw/repeat-03.log
+Summary: 3/3 passed; metadata: /tmp/gtk-tool-layout-p3bx6ksw/summary.json

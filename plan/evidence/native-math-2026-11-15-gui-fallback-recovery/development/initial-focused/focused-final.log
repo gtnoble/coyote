@@ -1,0 +1,20 @@
+
+(coyote_test:519407): Gtk-WARNING **: 12:14:50.587: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:519407): Gtk-WARNING **: 12:14:50.587: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:519407): Gtk-WARNING **: 12:14:50.587: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:519407): Gtk-WARNING **: 12:14:50.587: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:519407): Gtk-WARNING **: 12:14:50.587: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:519407): Gtk-WARNING **: 12:14:50.587: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI.Conversation_Stack recovers inline math fallback
+OK    Coyote.GUI.Conversation_Stack recovers display math fallback
+
+Total Tests Run:   2
+Successful Tests:  2
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 3.386513 sec. seconds

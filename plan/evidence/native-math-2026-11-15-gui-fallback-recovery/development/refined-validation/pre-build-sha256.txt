@@ -1,0 +1,3 @@
+994c4c2f4f5e42fd06de9aebce01c8c79165b0cdb2a1ba393c1936cfe1417484  test/src/coyote_gui_conversation_stack_tests.adb
+896f2b4461c9bf62fd97ba03ff3db99bf1ca50e3f2ddacea7ca806f6d94bb4dc  bin/coyote
+bcf684b7e216750d497cda4b552822e098414047019a13686034952c99fba2d2  test/bin/coyote_test

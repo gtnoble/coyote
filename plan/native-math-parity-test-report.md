@@ -2217,3 +2217,143 @@ not arbitrary managed-desktop geometry qualification. PCR-125,parity,font/native
 lifecycle/memory/timing/human gates stay OPEN. No browser/raster/geometry/fuzz or
 Valgrind rerun. Next feature-specific increment:visible GUI math source fallback
 and failure/reflow recovery. No release/install/commit.
+
+
+### 11.31 GUI-component worker fallback and recovery — 2026-11-15
+
+Test-only continuation adds two registered Conversation_Stack cases (now59;
+full AUnit1078),without product/API/requirements/limit changes. Inline test fills
+the public eight-job paused queue before inserting a valid fraction through
+Rich_Text.Insert. Both visible and hidden-inclusive buffer text retain exact
+source,no Pixbuf appears,and Copy_Selection returns original source. Clear
+replacement uses z+1,not stale fraction source. Abandoning queue fixtures frees
+capacity;changing view font12→18 and Reflow while workers remain paused keeps
+current source visible without synchronous rendering. Resume commits exactly
+one Pixbuf,hides source for display but preserves hidden source and exact copy.
+View destruction/worker shutdown return tracked raster bytes to entry baseline.
+This is font retry BEFORE first successful commit,not committed-pixbuf resize.
+
+Display test drives SAME Math_Element invalid frac → valid x+y → oversized
+four100em rules → real single-backslash fraction → deterministic queued a→z+1
+replacement. Independent layout/measure preflight confirms width>8192 at24px/em
+and bounded height. Terminal invalid/wide outcomes leave exact selectable source
+label visible and drawing area hidden;successful outcomes invert visibility.
+Parent Show_All cannot reveal valid source fallback. Shared retained-byte count
+increases for adopted raster and returns to captured baseline after wide failure
+and final destruction. Explicit Shutdown/Start(Paused=>True) before replacement
+makes OLD/NEW work queued;Resume follows. No forced in-flight cancellation claim.
+GUI APIs do not expose worker diagnostic/status:wide fallback may reflect limit
+rejection or expiry,no claim to deterministically inspect exact failure reason.
+
+Final focused2/2 twice;EXACT-final full1078/1078 twice,zero failures/errors:
+148.229304s and149.106815s cumulative (wall metadata coarse148/150s). Fresh
+WM-free1280×1024 Xvfb,XAUTHORITY retained,G_DEBUG=fatal-criticals. Root/test
+DEVELOPMENT builds pass;final test-only pause/log correction followed by exact
+test build. Required GTK9/9,containment (expected7/9 synthetic children),tool
+layout3/3,layout-runner36 assertions and offline HTTP pass after final build.
+Production/tools/requirements source hashes match parent8cb4694. No coverage
+fingerprint or parity inventory count changes;registration is not qualification.
+
+Two initial full attempts each1077/1078 failed a new hardcoded raster-ledger0
+assertion despite focused2/2 passing. Full-suite entry baseline is1000,focused0;
+final tests assert return to CAPTURED baseline with positive adopted-raster delta.
+This corrects scope,not proof that pre-existing1000-byte ownership is legitimate
+or leak-free;its origin is not resolved by this increment. Earlier invalid-inline
+loop only observed no Pixbuf without proving terminal completion:removed,not
+claimed coverage. Initial fraction spelling had doubled backslashes;corrected.
+An intermediate supposed paused replacement was not actually paused;exact-final
+Shutdown/Start/Resume corrects it. Initial failing and refined passing logs are
+retained separately;initial SHA197c3d... is a file hash,not a git revision.
+One validation runner's wrong-cwd launch returned127 (reported,not accessible
+as a distinct raw launch log in final directory);not accepted as test execution.
+Earlier wrong-cwd build log and other evolving artifacts remain in development/.
+
+Evidence:`plan/evidence/native-math-2026-11-15-gui-fallback-recovery/` includes
+source/binary identities,exact test patch,original mixed outcomes and checksums.
+Agent/coordinator review finds no material test blocker;not independent user
+acceptance. Tests call Rich_Text.Insert and Math_Element directly:real GUI/worker
+component integration,NOT full conversation Markdown extraction/placement,painted
+pixel oracle,physical-worker affinity,allocation-failure injection or GTK timing
+qualification. Display fallback selectable-label check is not display clipboard
+acceptance. Whole-job/RSS/native leak/font/cache/browser parity/human gates stay
+OPEN;Valgrind/browser/geometry/fuzz not rerun. Existing native raster losses and
+historical unclassified GTK allocation failures remain unwaived. Next gaps:
+conversation-level placement/copy/replay interaction,forced active-worker failure
+recovery and cache/repaint behavior. PCR-125 OPEN. No release/install/commit.
+
+
+### 11.32 Conversation math source and retained-buffer destruction — 2026-11-15
+
+The next increment adds two cases (Conversation_Stack61, full AUnit1080) and a
+narrow Rich_Text destruction fix. The preceding §11.31 changes remain
+uncommitted and preserved: reconstructing that test snapshot from parent8cb4694
+plus its archived patch reproduces SHA9c5ec844...; both previous component-test
+procedure bodies remain byte-identical. New delta has its own test patch.
+Requirements, limits, budgets and macro APIs are unchanged.
+
+**Conversation integration.** Begin_Request/Append_Text/End_Text_Block process
+actual streamed Markdown, split after the first opening inline dollar. The
+response has four ordered children: paragraph, valid display fraction,
+paragraph, invalid display source. Both actual paragraph views independently
+adopt exactly one inline Pixbuf. Display roots are inspected at their actual
+response positions for drawing-area type/visibility and exact source label;
+valid versus invalid native elements reach terminal state. Supported inline
+source is hidden, unsupported source remains visible, and surrounding paragraph
+markers remain present. Emitting the tail view's actual copy-clipboard signal
+returns its exact source line through the GTK clipboard. Clear and reconstruct
+repeat twice with tracked-raster baseline recovery. This is selected-paragraph
+copy and conversation reconstruction, NOT whole-response cross-widget selection
+or persisted-session replay. Text/structure/visibility checks are not pixel or
+human visual acceptance. Invalid inline fallback has no separate terminal-status
+observer; do not infer one from visible text alone.
+
+**Demonstrated defect and fix.** Stronger cleanup exposed3808 retained raster
+bytes after Clear, worker Shutdown and a five-second GTK wait. Controlled
+no-copy and unrealized variants both reproduce the same failure, so copying or
+realization is not necessary. On_State_Destroy previously abandoned jobs and
+partial adoption but left committed inline Pixbufs in buffers that could outlive
+the view. It now removes each owned formula image and restores its source
+visibility before freeing render state. The actual Pixbuf/lease owns its charge
+until released: no forced ledger decrement, whole-buffer wipe, pool or new
+public testing API. The spec documents surviving-buffer behavior. Existing
+catch-all destroy exception handling remains; injected GTK-mutation failure and
+multi-view shared-buffer behavior are not qualified.
+
+A separate deterministic regression explicitly Glib.Object.Ref's the buffer,
+adopts one formula, destroys its view, and checks visible source, zero Pixbufs
+and baseline ledger BEFORE unreferencing the buffer. Exact-final tests with the
+OLD parent handler each fail: retained-buffer case at visible-source assertion,
+conversation case at3808-byte cleanup. Restoring the fixed handler passes.
+Negative controls and full-source hashes/patches are retained. This is scoped
+lifetime evidence, not general native-memory leak freedom.
+
+**Final evidence.** Development root/test builds pass (GNAT15.2/GPRbuild25 via
+Alire); both new focused cases pass twice each, prior component prefix2/2.
+Exact final full1080/1080 twice, zero failures/errors, cumulative143.532677s and
+143.308856s; wall143.62s and143.40s. Each full run uses fresh WM-free private
+1280×1024 Xvfb, X11, preserved XAUTHORITY and fatal GTK criticals. Required GTK
+interactions9/9, containment (expected synthetic children7/9), tool layout3/3,
+layout-runner36 assertions and offline HTTP pass. Existing warnings remain.
+Coverage mapper rerun leaves tracked crosswalk unchanged (GUI file not covered);
+no additional compatibility/parity qualification follows from registration.
+
+Full final instrumented GUI checkpoints now enter and leave at0, compared with
+prior1000-byte entries. This is an observed improvement, not independent tracing
+of that earlier charge's exact owner or closure of all native losses. Two
+initial weaker conversation full1079 passes are historical pre-fix evidence,
+not final1080 results. A worker reported an intermediate desktop full1078/1079
+allocation failure109×1033 versus760×600; no separate raw log/display provenance
+was supplied for archival, so this is report-only, unclassified and unwaived.
+Final private-display passes do not retrospectively classify that failure.
+Earlier wrapper zsh-readonly-variable/quote launch errors are recorded as setup
+issues, not accepted tests. SHA strings such as9c5ec/b124899 are file hashes,
+not unavailable Git commit IDs; worker comments interpreting them as commits
+are erroneous. Final manifest identities and negative patches govern.
+
+Evidence: `plan/evidence/native-math-2026-11-15-conversation-recovery/` contains
+final builds/tests, diagnostics, old-handler controls, evolving logs, hashes and
+checksums; no obj/bin payloads. Agent/coordinator review found no material
+blocker; not independent acceptance. No browser/reference, geometry, raster,
+fuzz or Valgrind rerun. Forced in-flight cancellation, persisted replay,
+cache/repaint, timing, font/parity, strict native lifecycle and human gates
+remain open. PCR-125 OPEN. No release, installation or commit.

@@ -1,0 +1,23 @@
+
+(coyote_test:579706): Gtk-WARNING **: 14:33:08.265: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:579706): Gtk-WARNING **: 14:33:08.266: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:579706): Gtk-WARNING **: 14:33:08.266: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:579706): Gtk-WARNING **: 14:33:08.266: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:579706): Gtk-WARNING **: 14:33:08.266: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:579706): Gtk-WARNING **: 14:33:08.266: Theme parsing error: colors.css:77:65: Invalid number for color value
+FAIL    Coyote.GUI.Conversation_Stack preserves mixed math response source
+
+FAIL Coyote.GUI.Conversation_Stack preserves mixed math response source (in 5.081841 sec.)
+    clear and worker shutdown return retained bytes to baseline (baseline= 0, final= 3808)
+    at coyote_gui_conversation_stack_tests.adb:2692
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 5.161391 sec. seconds

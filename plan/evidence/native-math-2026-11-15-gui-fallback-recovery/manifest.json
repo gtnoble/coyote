@@ -1,0 +1,13 @@
+{
+  "parent_commit": "8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57",
+  "project_date": "2026-11-15",
+  "sha256": {
+    "test/src/coyote_gui_conversation_stack_tests.adb": "9c5ec844c7227f1c6a11af11f02ffb4d3bcac6016c8155e242e99f1550d6cbb7",
+    "test/bin/coyote_test": "258e3332ff8b3f0653c5d04f5a8f9e83d8f7fe37b6cd33c3c547334ebb2eb6f0",
+    "bin/coyote": "ada225956f9ba2b394239e199187d5eecebbdd6696502d4cc35d4f4d1cfb7300",
+    "src/coyote_gui/coyote_gui-rich_text.adb": "da43c743117eb93cc45c08f9e8b43723170dee9624395aad3260e9100b052ac4",
+    "src/coyote_gui/coyote_gui-math_element.adb": "524e6f096ab72aad0e6bb594ed20efab9ea335c246f2963cad011451cc627278"
+  },
+  "initial_test_source_sha256_reported": "197c3d47759ab09094bdd975c87c0b80eb8742989522941e64019b4d94d9ba33",
+  "refined_test_source_sha256": "994c4c2f4f5e42fd06de9aebce01c8c79165b0cdb2a1ba393c1936cfe1417484"
+}

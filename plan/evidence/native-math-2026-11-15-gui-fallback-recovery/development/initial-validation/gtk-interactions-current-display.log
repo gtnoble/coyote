@@ -1,0 +1,11 @@
+Logs: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210
+PASS plain: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/01-plain.log
+PASS unicode: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/02-unicode.log
+PASS bidi: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/03-bidi.log
+PASS inline-math: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/04-inline-math.log
+PASS multiline: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/05-multiline.log
+PASS plain: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/06-plain.log
+PASS link-click: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/07-link-click.log
+PASS link-hover: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/08-link-hover.log
+PASS math-boundary: /tmp/coyote-gui-fallback-validation/gtk-interactions-current-display/gtk-interactions-gtxvd210/09-math-boundary.log
+Summary: 9/9 passed

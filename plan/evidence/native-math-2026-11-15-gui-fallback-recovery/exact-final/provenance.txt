@@ -1,0 +1,11 @@
+HEAD=8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57
+WORKTREE_STATUS_BEGIN
+ M test/src/coyote_gui_conversation_stack_tests.adb
+?? "\"\""
+WORKTREE_STATUS_END
+TEST_SOURCE_SHA256=9c5ec844c7227f1c6a11af11f02ffb4d3bcac6016c8155e242e99f1550d6cbb7  test/src/coyote_gui_conversation_stack_tests.adb
+258e3332ff8b3f0653c5d04f5a8f9e83d8f7fe37b6cd33c3c547334ebb2eb6f0  test/bin/coyote_test
+BUILD_LOG_SHA256=a9c737d7ac801f2792a0a9dcae5197b47377152e45c42bc7eb0b63fd82c34dae  /tmp/coyote-gui-fallback-exact-build.log
+BASELINE_BUILD_END
+258e3332ff8b3f0653c5d04f5a8f9e83d8f7fe37b6cd33c3c547334ebb2eb6f0  test/bin/coyote_test
+FINAL_HEAD=8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57

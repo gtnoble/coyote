@@ -1,0 +1,112 @@
+# Conversation mixed-math validation — 2026-11-22
+
+Validation only. No source or product edits, no subagents, no commit, release,
+or installation. Host time is 2026-11-22; project checkpoint date in the
+existing §11.31 record is 2026-11-15.
+
+## Identity / scope
+
+- HEAD before and after: `8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57`.
+- Actual active test source SHA-256 before and after:
+  `b124899c3298062ae8482db5eb6abd036fb784f2aa03fafe3dfdac4d2914ba25`
+  (`test/src/coyote_gui_conversation_stack_tests.adb`).
+- Earlier §11.31 exact-final test snapshot SHA-256, verified from its retained
+  `final-hashes.txt`: `9c5ec844c7227f1c6a11af11f02ffb4d3bcac6016c8155e242e99f1550d6cbb7`.
+  Current source differs because it includes the new stream/copy/clear test and
+  both component recovery tests.
+- Production conversation stack, Math_Element, Math_Jobs, and requirements
+  hashes are in `identity-before.txt` and `identity-after.txt`; matching source
+  extracts compare byte-for-byte (`UNCHANGED`).
+- Test scope: actual conversation stream and clear/reconstruction, source
+  preservation around supported/unsupported inline and display math, and actual
+  copy-clipboard signal reconstruction. This is not history replay.
+- Existing 1000-byte full-suite raster baseline remains unresolved; no global
+  zero-ledger/leak-free assertion is made. No independent acceptance implied.
+
+## Toolchain / builds
+
+Used `/home/gtnoble/Software/alaire/bin/alr` 2.1.0. The actual `alr exec`
+environment resolved GPRbuild 25.0.0 and GNAT 15.2.0 (not host GNAT 13.3).
+Builds, both exit 0:
+
+```sh
+alr build --development
+(cd test && alr build --development --profiles=coyote=development)
+```
+
+Root elapsed 3.13 s; test elapsed 6.28 s. Full build logs:
+`root-build.log`, `test-build.log`; timing: `root-build.time`, `test-build.time`.
+
+## Focused tests
+
+All from `test/`, with a fresh `xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp'`
+per invocation, `GDK_BACKEND=x11`, `WAYLAND_DISPLAY` unset, inherited
+`XAUTHORITY` preserved, and `timeout --signal=TERM --kill-after=10s 300s`.
+
+Literal AUnit prefix (twice, each 1/1):
+
+```sh
+env -u WAYLAND_DISPLAY GDK_BACKEND=x11 timeout --signal=TERM --kill-after=10s 300s \
+  xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp' \
+  ./bin/coyote_test 'Coyote.GUI.Conversation_Stack preserves mixed math response source'
+```
+
+Component recovery prefix (once, 2/2):
+
+```sh
+env -u WAYLAND_DISPLAY GDK_BACKEND=x11 timeout --signal=TERM --kill-after=10s 300s \
+  xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp' \
+  ./bin/coyote_test 'Coyote.GUI.Conversation_Stack recovers'
+```
+
+Raw logs/timing: `focused-new-1.log`/`.time`, `focused-new-2.log`/`.time`,
+`focused-components.log`/`.time`; metadata in matching `.log.meta` files.
+Elapsed: 0.33 s, 0.34 s, 0.57 s.
+
+## Complete suites
+
+Two sequential runs, each from `test/`, on separate fresh WM-free private
+1280x1024x24 Xvfb displays, X11 backend, unset `WAYLAND_DISPLAY`, preserved
+`XAUTHORITY`; each bounded by 300 s with 10 s kill-after:
+
+```sh
+env -u WAYLAND_DISPLAY GDK_BACKEND=x11 timeout --signal=TERM --kill-after=10s 300s \
+  xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp' ./bin/coyote_test
+```
+
+Both passed 1079/1079, zero failed assertions/errors. Elapsed: 147.93 s and
+152.39 s. AUnit cumulative times: 2min 27.800286 s and 2min 32.258591 s.
+Raw logs and metadata: `full-1.log`, `full-2.log`, matching `.time` and
+`.log.meta`.
+
+## Required checks
+
+From repository root; raw output and timing files named as follows:
+
+```sh
+python3 test/tools/check-gtk-interactions.py
+python3 test/tools/check-gtk-interaction-runner.py
+python3 test/tools/check-gtk-tool-layout.py
+python3 test/tools/check-gtk-tool-layout-runner.py
+python3 test/tools/check-http-timeout-lifecycle.py
+```
+
+Results: GTK interactions 9/9 (15.84 s); runner self-test passed, including
+expected synthetic child summary 7/9 (1.61 s); tool layout 3/3 (22.73 s);
+layout runner 36 assertions (6.18 s); offline HTTP lifecycle passed (65.64 s).
+See `gtk-interactions.log`, `gtk-interaction-runner.log`,
+`gtk-tool-layout.log`, `gtk-tool-layout-runner.log`, `http-timeout-lifecycle.log`
+and matching `.time`/`.log.meta` files. Script-generated detailed child logs
+remain at the temporary paths printed by each script; those paths are recorded
+in the raw logs and are not copied into this directory.
+
+## Retained artifacts
+
+All raw validation logs, timestamps, identities, and metadata are in this
+mode-0700 directory: `/tmp/coyote-conversation-math-validation/`. Files use
+mode 0600. The first focused test itself passed 1/1; its wrapper then hit a zsh
+reserved-variable assignment error after recording the successful exit. Its
+raw test log/time are retained; subsequent invocations used a corrected wrapper.
+A malformed shell-quote attempt launched no suite; both required suite runs
+subsequently completed and passed. Only Python `__pycache__` generated by the
+checks was removed from the workspace; no other cleanup was performed.

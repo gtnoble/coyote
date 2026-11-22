@@ -356,9 +356,18 @@ package body Coyote_GUI.Rich_Text is
          end if;
          State.Poll_Source_Id := 0;
       end if;
-      for Formula of State.Formulas loop
-         Abandon_Formula (Formula);
-      end loop;
+      --  A destroyed view may leave its buffer referenced by GTK or a caller.
+      --  Drop our images, not just worker state, and leave readable source.
+      declare
+         Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+           State.View.Get_Buffer;
+      begin
+         for Formula of State.Formulas loop
+            Abandon_Formula (Formula);
+            Remove_Formula_Image (Buffer, Formula);
+            Set_Formula_Visible (Buffer, Formula, True);
+         end loop;
+      end;
       Render_States.Remove
         (Widget, "coyote-inline-math-state");
       State.View := null;

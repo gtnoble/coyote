@@ -1,0 +1,26 @@
+HEAD 8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57
+HEAD_SOURCE_TEST_SHA 23a0ffd86fb05c4a03444f604ffe075dcd215cd1ecece8eb3faf846a003cb8dd  test/src/coyote_gui_conversation_stack_tests.adb
+BINARY_SHA e630e61bd0a45c49299c15185483bc0ef1a4eb77798c9ea4c65a524b772260bc  test/bin/coyote_test
+3381cce247a18d3edab6ef98ff4f082c670f6a14581710841bf9e25876f6bcad  bin/coyote
+SOURCES_BEFORE_AFTER
+OTHER_PRODUCT_RUNTIME_IDENTITIES
+fab20843fefd7f45cbb1f807cfa4ff74ff2f1fff2ffc75b51b8098f12d5591de  src/coyote_gui/coyote_gui-conversation_stack.ads
+760e5b9a598493a26bae6c155339f118e93fedf537a4ec33e96a020909f896e1  src/coyote_gui/coyote_gui-conversation_stack.adb
+16f3bc4d83fb05a5e02af8d03e059bc37de17ac68374278415a5163d6cc3520b  src/coyote_gui/coyote_gui-math_element.ads
+524e6f096ab72aad0e6bb594ed20efab9ea335c246f2963cad011451cc627278  src/coyote_gui/coyote_gui-math_element.adb
+ROOT_BUILD
+Success: Build finished successfully in 2.11 seconds.
+TEST_BUILD
+Success: Build finished successfully in 4.82 seconds.
+HTTP_DETAIL
+PASS: Plain/RPC timeout lifecycle and ZERO-disable delayed success; 4+4 stalled requests; offline fixture only
+FINAL_STATUS
+ M AGENTS.md
+ M plan/native-math-compatibility-tests.md
+ M plan/native-math-parity-test-report.md
+ M plan/problems.md
+ M sdfs/frontends.md
+ M src/coyote_gui/coyote_gui-rich_text.adb
+ M src/coyote_gui/coyote_gui-rich_text.ads
+ M test/src/coyote_gui_conversation_stack_tests.adb
+?? plan/evidence/native-math-2026-11-15-gui-fallback-recovery/

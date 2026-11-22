@@ -7,6 +7,10 @@ with Gtk.Text_View;
 
 package Coyote_GUI.Rich_Text is
 
+   --  Destroying the view cancels inline work, removes its formula Pixbufs,
+   --  and makes retained formula source visible in any surviving buffer.
+   --  Independent buffer references may outlive the view; unrelated images
+   --  are not removed by this formula cleanup.
    --  Insert markup with link tags and local images. Image alt text remains
    --  in the text buffer for search and copy; image widgets are added before
    --  that caption. Local raster loads are asynchronous and bounded by the

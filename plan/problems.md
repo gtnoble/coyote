@@ -5091,3 +5091,37 @@ are historical, not current-source qualification.
   and109×1033 failures remain UNCLASSIFIED because display provenance absent;
   no retroactive waiver or all-environments claim. PCR-125 and broader parity,
   lifecycle/timing/human acceptance remain OPEN. No release/install.
+
+
+### PCR-125 — GUI-component fallback and worker recovery,2026-11-15
+
+- **Category:** Test. **Priority:** 3-Moderate.
+- **Action:** two cases cover deterministic inline Busy/source copy/reflow/retry,
+  display invalid and wide-input source fallback,recovery and queued replacement.
+  No product API/limit changes;see report §11.31.
+- **Verification:** focused2 twice/exact full1078 twice;mandatory GTK/layout/HTTP
+  pass. Two initial1077/1078 failures used incorrect global-zero ledger oracle;
+  final compares entry baseline (1000 full,0 focused),adoption growth and cleanup.
+- **Status:** scoped developer-verified;PCR-125 OPEN. Pre-existing1000-byte charge
+  origin unqualified,not a leak waiver. Direct GUI-component/worker tests do not
+  close conversation placement,pixel oracle,forced in-flight/timing/lifecycle/
+  parity/human gates. No release/install.
+
+
+### PCR-125 — Inline images retained by surviving buffers, 2026-11-15
+
+- **Category:** Code. **Priority:** 3-Moderate.
+- **Problem:** actual mixed conversation clear leaves3808 tracked raster bytes;
+  no-copy and unrealized controls also fail. View destroy abandons worker state
+  but previously left committed inline Pixbufs in a surviving text buffer.
+- **Correction:** remove owned formula images and restore source visibility in
+  Rich_Text.On_State_Destroy; preserve independent buffer lifetime, unrelated
+  images and actual Pixbuf/lease accounting. No new limits or public test API.
+- **Verification:** explicit native buffer-reference regression checks source,
+  image removal and baseline charge before releasing its reference. Both new
+  regressions fail against the old handler, pass fixed; final full1080 twice,
+  focused twice each, required GTK/layout/HTTP pass. See report §11.32.
+- **Status:** scoped correction developer-verified; PCR-125 OPEN. Prior1000-byte
+  owner not independently traced despite current instrumented baseline0.
+  Historical and reported desktop allocation failures remain unclassified;
+  native lifecycle/Valgrind/parity/timing/replay/human gates remain open.

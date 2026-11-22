@@ -1,0 +1,13 @@
+2026-11-22T14:45:53-06:00
+HEAD 8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57
+HOST_GNAT GNATMAKE 13.3.0
+ALR alr 2.1.0
+SOURCE_SHA cf3363a7162fc5df910b2dfb91bfa717b6143c3f0aed72aedd3211a2cbb60762  src/coyote_gui/coyote_gui-rich_text.ads
+7d28012a978b0963862e809b9e9498e93b23d5af1a5932a56646f0b0926734be  src/coyote_gui/coyote_gui-rich_text.adb
+23a0ffd86fb05c4a03444f604ffe075dcd215cd1ecece8eb3faf846a003cb8dd  test/src/coyote_gui_conversation_stack_tests.adb
+OTHER_RUNTIME_HEAD_IDENTITIES
+fab20843fefd7f45cbb1f807cfa4ff74ff2f1fff2ffc75b51b8098f12d5591de  src/coyote_gui/coyote_gui-conversation_stack.ads
+760e5b9a598493a26bae6c155339f118e93fedf537a4ec33e96a020909f896e1  src/coyote_gui/coyote_gui-conversation_stack.adb
+16f3bc4d83fb05a5e02af8d03e059bc37de17ac68374278415a5163d6cc3520b  src/coyote_gui/coyote_gui-math_element.ads
+524e6f096ab72aad0e6bb594ed20efab9ea335c246f2963cad011451cc627278  src/coyote_gui/coyote_gui-math_element.adb
+ENV DISPLAY=:0.0 WAYLAND_DISPLAY=<unset> XAUTHORITY=set

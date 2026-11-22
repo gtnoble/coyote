@@ -1,0 +1,23 @@
+_NET_SUPPORTING_WM_CHECK:  no such atom on any window.
+  dimensions:    1280x1024 pixels (325x260 millimeters)
+
+(coyote_test:520719): Gtk-WARNING **: 12:17:23.753: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:520719): Gtk-WARNING **: 12:17:23.753: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:520719): Gtk-WARNING **: 12:17:23.753: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:520719): Gtk-WARNING **: 12:17:23.753: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:520719): Gtk-WARNING **: 12:17:23.753: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:520719): Gtk-WARNING **: 12:17:23.753: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI.Conversation_Stack recovers inline math fallback
+OK    Coyote.GUI.Conversation_Stack recovers display math fallback
+
+Total Tests Run:   2
+Successful Tests:  2
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 3.353174 sec. seconds
+wall=3.49 user=0.17 sys=0.08 exit=0

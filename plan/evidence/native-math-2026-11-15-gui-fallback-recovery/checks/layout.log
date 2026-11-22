@@ -1,0 +1,5 @@
+Logs: /tmp/coyote-gui-fallback-exact-checks/layout/gtk-tool-layout-5y9tptpy
+PASS repeat 1 (0); cleanup_ok=True: /tmp/coyote-gui-fallback-exact-checks/layout/gtk-tool-layout-5y9tptpy/repeat-01.log
+PASS repeat 2 (0); cleanup_ok=True: /tmp/coyote-gui-fallback-exact-checks/layout/gtk-tool-layout-5y9tptpy/repeat-02.log
+PASS repeat 3 (0); cleanup_ok=True: /tmp/coyote-gui-fallback-exact-checks/layout/gtk-tool-layout-5y9tptpy/repeat-03.log
+Summary: 3/3 passed; metadata: /tmp/coyote-gui-fallback-exact-checks/layout/gtk-tool-layout-5y9tptpy/summary.json

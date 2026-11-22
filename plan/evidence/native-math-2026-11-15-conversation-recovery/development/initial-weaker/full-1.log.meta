@@ -1,0 +1,7 @@
+date=2026-11-22T13:49:01-06:00
+cwd=/home/gtnoble/Projects/coyote/coyote-latex-math/test
+command=timeout 300s xvfb-run -a -s "-screen 0 1280x1024x24 -nolisten tcp" ./bin/coyote_testscreen=1280x1024x24
+GDK_BACKEND=x11
+WAYLAND_DISPLAY=unset
+XAUTHORITY=preserved
+binary_sha256=5e3f4d80a5d65bcfc2dd5d47cb002322d8c05f4d3101870399a079609dbaa5e9

@@ -1,0 +1,3 @@
+date=2026-11-22T13:47:02-06:00
+cwd=/home/gtnoble/Projects/coyote/coyote-latex-math
+command=python3 test/tools/check-gtk-interaction-runner.py

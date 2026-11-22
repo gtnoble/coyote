@@ -2790,3 +2790,38 @@ full1076/1076 twice and required GTK/HTTP checks pass. Preserve XAUTHORITY;one
 failed env-i launch is retained separately. This is private-display developer
 regression evidence,not managed-WM behavior/parity or human acceptance.
 No release/install/commit.
+
+
+## 2026-11-15 — GUI-component math fallback/recovery
+
+Report §11.31 and `plan/evidence/native-math-2026-11-15-gui-fallback-recovery/`:
+two new cases bring Conversation_Stack registration to59 and full suite to1078.
+Inline paused-queue Busy/current-source copy/reflow/retry and display invalid/
+wide/queued-replacement recovery pass focused2/2 twice and exact full1078 twice.
+Required GTK/containment/layout/HTTP checks pass. Production/requirements unchanged.
+Initial zero-ledger oracle fails twice in full suite;final checks compare captured
+baseline (1000 full,0 focused) and adopted-raster delta. This is net scoped cleanup,
+not proof of global leak freedom or legitimacy of the pre-existing1000-byte charge.
+Direct Rich_Text/Math_Element integration does not qualify conversation Markdown
+placement,pixel correctness,forced in-flight cancellation,timing/parity or humans.
+No release/install/commit;PCR-125 OPEN.
+
+
+## 2026-11-15 — Conversation math and surviving buffer cleanup
+
+Report §11.32 and `plan/evidence/native-math-2026-11-15-conversation-recovery/`:
+actual streamed mixed Markdown verifies ordered text/display placement, both
+inline rasters, invalid fallback, exact selected-paragraph GTK copy and two
+clear/reconstruction rounds. A deterministic native-ref-held buffer test exposes
+a destruction gap: Rich_Text now removes owned formula images and restores
+visible source when a view dies, even if its buffer survives. Both final tests
+reject the old handler; no-copy/unrealized diagnostics reproduce3808-byte
+retention before the fix. No limits or requirements change.
+
+Conversation registration61, full1080/1080 twice; focused cases twice each and
+required GTK/layout/HTTP checks pass. Instrumented full GUI baselines now0;
+this does not independently identify the earlier1000-byte owner or close global
+native losses. Previous uncommitted §11.31 component tests remain unchanged.
+No persisted-session replay, cross-widget whole-response copy, pixel, forced
+in-flight, timing/parity or human acceptance claim. PCR-125 OPEN; no release,
+installation or commit.

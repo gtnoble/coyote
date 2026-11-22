@@ -1,0 +1,14 @@
+{
+  "parent_commit": "8cb46948190ade6bfbc2c4c5a52a45c8a74f5d57",
+  "project_date": "2026-11-15",
+  "prior_uncommitted_component_test_sha256": "9c5ec844c7227f1c6a11af11f02ffb4d3bcac6016c8155e242e99f1550d6cbb7",
+  "sha256": {
+    "src/coyote_gui/coyote_gui-rich_text.adb": "7d28012a978b0963862e809b9e9498e93b23d5af1a5932a56646f0b0926734be",
+    "src/coyote_gui/coyote_gui-rich_text.ads": "cf3363a7162fc5df910b2dfb91bfa717b6143c3f0aed72aedd3211a2cbb60762",
+    "test/src/coyote_gui_conversation_stack_tests.adb": "23a0ffd86fb05c4a03444f604ffe075dcd215cd1ecece8eb3faf846a003cb8dd",
+    "bin/coyote": "3381cce247a18d3edab6ef98ff4f082c670f6a14581710841bf9e25876f6bcad",
+    "test/bin/coyote_test": "e630e61bd0a45c49299c15185483bc0ef1a4eb77798c9ea4c65a524b772260bc"
+  },
+  "preserved_prior_component_procedures": true,
+  "registered_conversation_cases": 61
+}

@@ -1,0 +1,5 @@
+Logs: /tmp/coyote-gui-fallback-validation/gtk-tool-layout-h9j2tzc9
+PASS repeat 1 (0); cleanup_ok=True: /tmp/coyote-gui-fallback-validation/gtk-tool-layout-h9j2tzc9/repeat-01.log
+PASS repeat 2 (0); cleanup_ok=True: /tmp/coyote-gui-fallback-validation/gtk-tool-layout-h9j2tzc9/repeat-02.log
+PASS repeat 3 (0); cleanup_ok=True: /tmp/coyote-gui-fallback-validation/gtk-tool-layout-h9j2tzc9/repeat-03.log
+Summary: 3/3 passed; metadata: /tmp/coyote-gui-fallback-validation/gtk-tool-layout-h9j2tzc9/summary.json

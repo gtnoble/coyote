@@ -1,0 +1,20 @@
+
+(coyote_test:583271): Gtk-WARNING **: 14:46:14.439: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:583271): Gtk-WARNING **: 14:46:14.439: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:583271): Gtk-WARNING **: 14:46:14.439: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:583271): Gtk-WARNING **: 14:46:14.439: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:583271): Gtk-WARNING **: 14:46:14.439: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:583271): Gtk-WARNING **: 14:46:14.439: Theme parsing error: colors.css:77:65: Invalid number for color value
+RETAINED_BUFFER baseline= 0 held_after_destroy=true pixbufs= 0 source_visible=true final= 0
+OK    Coyote.GUI.Conversation_Stack releases retained math buffer images
+
+Total Tests Run:   1
+Successful Tests:  1
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 0.093512 sec. seconds

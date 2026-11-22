@@ -1,0 +1,3 @@
+cf3363a7162fc5df910b2dfb91bfa717b6143c3f0aed72aedd3211a2cbb60762  src/coyote_gui/coyote_gui-rich_text.ads
+7d28012a978b0963862e809b9e9498e93b23d5af1a5932a56646f0b0926734be  src/coyote_gui/coyote_gui-rich_text.adb
+23a0ffd86fb05c4a03444f604ffe075dcd215cd1ecece8eb3faf846a003cb8dd  test/src/coyote_gui_conversation_stack_tests.adb

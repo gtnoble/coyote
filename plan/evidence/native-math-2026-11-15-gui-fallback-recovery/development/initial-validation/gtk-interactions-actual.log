@@ -1,0 +1,12 @@
+Logs: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt
+PASS plain: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/01-plain.log
+PASS unicode: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/02-unicode.log
+PASS bidi: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/03-bidi.log
+PASS inline-math: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/04-inline-math.log
+PASS multiline: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/05-multiline.log
+PASS plain: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/06-plain.log
+PASS link-click: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/07-link-click.log
+PASS link-hover: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/08-link-hover.log
+PASS math-boundary: /tmp/coyote-gui-fallback-validation/gtk-interactions/gtk-interactions-ee9_xnmt/09-math-boundary.log
+Summary: 9/9 passed
+wall=16.29 user=1.73 sys=0.81 exit=0
