@@ -2159,3 +2159,61 @@ repaint and deterministic active-worker interruption remain separate work.
 Coordinator/agent review is not independent acceptance;PCR-125 remains OPEN.
 This scoped test increment is implemented;full regression repeat gate is not
 uniformly passing. No release/install/commit.
+
+
+### 11.30 GTK allocation display qualification — 2026-11-15
+
+Follow-up to §11.29 investigates the repeated tool-detail allocation failure,
+without changing product code,Ada test760×600 allocation,or its1s deadline.
+Inherited desktop is i3:focused test fails476×1033. Controlled PRIVATE1280×1024
+Xvfb plus minimal i3 reproduces1276×1000 (one A/B run plus three fresh managed
+repeats). Stopping ONLY that private i3 process and rerunning on the SAME X
+server passes1/1. This establishes that i3 tiling can override requested size
+and invalidate the exact-allocation test's display assumptions. Product should
+honor the window manager;no floating/fixed-size workaround selected. No user's
+window-manager configuration was changed. Historical116×1033/109×1033 failures
+lack display provenance:their actual cause remains UNCLASSIFIED,not proven i3,
+not retroactively passed or waived. Earlier GTK warnings are not causal proof.
+
+New `test/tools/check-gtk-tool-layout.py` runs the existing exact AUnit case on
+fresh PRIVATE WM-free1280×1024×24 Xvfb displays. It forces X11,retains XAUTHORITY,
+checks root dimensions and absent/zero WM property,records allowlisted display
+metadata,binary SHA256 and GTK/Pango versions,and requires exact one-case success
+summary plus exit0. It never requests a760×600 root (which could mask the window
+assertion). It bounds each process group,escalates TERM/KILL,records cleanup
+failure and continues repeats. No arbitrary native-call or hard OS termination
+guarantee;zombie descendants count as non-running,not independently reaped.
+Logs use fresh private directories;no all-environment dump retained. Default3
+repeats,30s subprocess timeout,repeat range1..20. No inherited-display bypass.
+
+Final-source native6/6 repeats pass;each existing AUnit1/1,unchanged assertion.
+`check-gtk-tool-layout-runner.py` passes36 synthetic assertions:zero/absent vs
+nonzero/ambiguous WM properties,large-root constraint,exact summary checks,
+G_DEBUG=fatal-criticals propagation,argument bounds,missing binary,TERM-resistant
+process-group cleanup and subsequent-repeat recovery. These are harness controls,
+not GUI acceptance. Source inventory §4.1 updated. No AUnit registration change.
+Initial runner used760×600 screen and failed to forward G_DEBUG;those runs are
+NOT accepted final evidence. A concurrently run intermediate self-test failed
+while summary fixtures were being refined;its failure and final36 pass retained.
+
+Root/test DEVELOPMENT builds pass;active GNAT15.2/GPR25,GTK3.24.41/Pango1.52.1.
+Post-build WM-free1280×1024 full suite1076/1076 twice:148.611749s cumulative
+(149s coarse wall) and146.221611s cumulative (146.27s wall). A pre-build full
+private-Xvfb1076/1076 also passes147.980539s cumulative/148.06s wall,but uses
+prior binary and is distinct evidence. One extra full attempt used env-i without
+XAUTHORITY and exits at GUI initialization after114s:authorization setup failure,
+not a passing suite or layout result. Corrected runs preserve XAUTHORITY;no test
+weakened. An exploratory --help AUnit filter matches0 and exits1,also retained
+as failed tooling exploration,not a product test result. Required GTK9/9,runner
+containment (expected7/9 synthetic children) and offline HTTP pass. Source hashes
+confirm production,Ada tests and requirements unchanged from2e3073a.
+
+Evidence:`plan/evidence/native-math-2026-11-15-gtk-layout-display/`;original mixed
+logs and controlled harness included,binaries/obj omitted,source/binary/checksum
+identities retained. Agent read-only review found no material runner blocker;
+this is developer review,not independent user acceptance. Historical GTK failed
+repeats remain unclassified;CURRENT scoped private-display repeat matrix passes,
+not arbitrary managed-desktop geometry qualification. PCR-125,parity,font/native
+lifecycle/memory/timing/human gates stay OPEN. No browser/raster/geometry/fuzz or
+Valgrind rerun. Next feature-specific increment:visible GUI math source fallback
+and failure/reflow recovery. No release/install/commit.

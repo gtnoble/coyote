@@ -1,0 +1,5 @@
+command=python3 test/tools/check-gtk-tool-layout.py --output-dir /tmp/coyote-gtk-layout-validation/layout-runner-selftest-logs --timeout 30 --repeats 3
+started=2026-11-22T11:31:57-06:00
+exit=0
+seconds=23
+finished=2026-11-22T11:32:20-06:00

@@ -1,0 +1,7 @@
+command=xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp' sh -c 'printf "display="; printf "%s\n" "$DISPLAY"; xprop -root _NET_SUPPORTING_WM_CHECK; xprop_rc=$?; xdpyinfo | grep -E "dimensions:|depth of root window"; if [ $xprop_rc -ne 0 ]; then exit 91; fi; prop=$(xprop -root _NET_SUPPORTING_WM_CHECK 2>&1); case "$prop" in *"not found"*|*"no such atom"*) ;; *) printf "WM_PROPERTY_PRESENT: %s\n" "$prop"; exit 92 ;; esac; env -i PATH=/usr/bin:/bin DISPLAY="$DISPLAY" GDK_BACKEND=x11 ./bin/coyote_test'
+
+working_directory=/home/gtnoble/Projects/coyote/coyote-latex-math/test
+started=2026-11-22T11:25:34-06:00
+exit=1
+seconds=114
+finished=2026-11-22T11:27:28-06:00

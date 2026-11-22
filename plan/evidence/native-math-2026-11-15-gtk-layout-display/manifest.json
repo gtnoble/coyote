@@ -1,0 +1,14 @@
+{
+  "parent_commit": "2e3073ad64cd5e447dd768314e6fcc9dacb1966c",
+  "project_date": "2026-11-15",
+  "sha256": {
+    "test/tools/check-gtk-tool-layout.py": "dbc18007bff547320d63c628ecb7764fa425618982f023ad0c5c4e1755c7894d",
+    "test/tools/check-gtk-tool-layout-runner.py": "9b65f9045e05ded99829a76854b37e61bdcc17e2da171e36b0bb30cfc1fdad7b",
+    "test/src/coyote_gui_tool_detail_window_tests.adb": "29101770b395c2a844adde39e75022d095344234540c0559241129658f963c0e",
+    "src/coyote_gui/coyote_gui-tool_detail_window.adb": "a5ccb8daa04238d68556dd3c019bdb9ea5dbca25b3b353b89af51d894921c8b2",
+    "test/bin/coyote_test": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+    "bin/coyote": "c95f817cfd64c1acdc542b1cc0069f439de90aa5fb5b35ea692427d153d6156f"
+  },
+  "controlled_i3_binary": "b4a64ae5ce0105596ef6b34f13a602cb05ac485d0d35f98b827504e0082480ea",
+  "post_build_binary": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717"
+}

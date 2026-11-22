@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/gtnoble/Projects/coyote/coyote-latex-math/test/tools/check-gtk-tool-layout-runner.py", line 115, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/gtnoble/Projects/coyote/coyote-latex-math/test/tools/check-gtk-tool-layout-runner.py", line 75, in main
+    assert success.returncode == 0, success.stdout + success.stderr
+           ^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Logs: /tmp/gtk-tool-layout-selftest-hxeu3pat/success-logs/gtk-tool-layout-a4xsz79j
+FAIL repeat 1 (3); cleanup_ok=True: /tmp/gtk-tool-layout-selftest-hxeu3pat/success-logs/gtk-tool-layout-a4xsz79j/repeat-01.log
+FAIL repeat 2 (3); cleanup_ok=True: /tmp/gtk-tool-layout-selftest-hxeu3pat/success-logs/gtk-tool-layout-a4xsz79j/repeat-02.log
+Summary: 0/2 passed; metadata: /tmp/gtk-tool-layout-selftest-hxeu3pat/success-logs/gtk-tool-layout-a4xsz79j/summary.json
+

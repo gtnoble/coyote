@@ -1,0 +1,11 @@
+Logs: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z
+PASS plain: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/01-plain.log
+PASS unicode: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/02-unicode.log
+PASS bidi: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/03-bidi.log
+PASS inline-math: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/04-inline-math.log
+PASS multiline: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/05-multiline.log
+PASS plain: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/06-plain.log
+PASS link-click: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/07-link-click.log
+PASS link-hover: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/08-link-hover.log
+PASS math-boundary: /tmp/coyote-gtk-layout-validation/interactions/gtk-interactions-9nb2fd9z/09-math-boundary.log
+Summary: 9/9 passed

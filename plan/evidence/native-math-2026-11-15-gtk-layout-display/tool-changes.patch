@@ -1,0 +1,444 @@
+diff --git a/design/coyote-design.md b/design/coyote-design.md
+index 1bd3451..5a9fcab 100644
+--- a/design/coyote-design.md
++++ b/design/coyote-design.md
+@@ -548,6 +548,7 @@ not wait for the complete user turn.
+ | `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
+ | `Auth_Test_Worker` | Subprocess helper for credential-lock and auth concurrency tests | `test/tools/auth_test_worker.adb` |
+ | GTK interaction harness | Isolated conversation interaction worker, bounded runner and offline process-containment self-test | `test/tools/gtk_interaction_worker.adb`, `test/tools/check-gtk-interactions.py`, `test/tools/check-gtk-interaction-runner.py` |
++| GTK tool-layout qualification | Bounded fresh 1280x1024 WM-free Xvfb repeats of the unchanged exact-size AUnit case, display provenance and synthetic process-containment controls; not managed-WM acceptance | `test/tools/check-gtk-tool-layout.py`, `test/tools/check-gtk-tool-layout-runner.py` |
+ | `Help_Test_Worker` | Isolated real Help launcher and parent-environment assertions | `test/tools/help_test_worker.adb` |
+ | `Coyote_App.Frontend.GUI.Help_Tests` | Display-backed Help menu and viewer-independent Product Information widget checks | `test/src/coyote_app-frontend-gui-help_tests.ads/.adb` |
+ | Help qualification scripts | Bounded fake-Yelp launch matrix and repeatable AUnit/Mallard/CLI workflow | `test/tools/check-help-launch.sh`, `test/check-help.sh` |
+diff --git a/test/tools/check-gtk-tool-layout.py b/test/tools/check-gtk-tool-layout.py
+new file mode 100755
+index 0000000..4f66264
+--- /dev/null
++++ b/test/tools/check-gtk-tool-layout.py
+@@ -0,0 +1,243 @@
++#!/usr/bin/env python3
++"""Run the single GTK tool-layout AUnit case on private WM-free Xvfb displays."""
++
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import math
++import os
++from pathlib import Path
++import re
++import resource
++import shutil
++import signal
++import subprocess
++import sys
++import tempfile
++
++ROOT = Path(__file__).resolve().parents[2]
++TEST_DIR = ROOT / "test"
++FILTER = "Coyote.GUI tool detail stable layout and snapshots"
++SCREEN = "1280x1024x24"
++SUMMARY = re.compile(
++    r"^\s*Total\s+Tests\s+Run\s*:\s*1\s*\r?\n"
++    r"\s*Successful\s+Tests\s*:\s*1\s*\r?\n"
++    r"\s*Failed\s+Assertions\s*:\s*0\s*\r?\n"
++    r"\s*Unexpected\s+Errors\s*:\s*0\s*$",
++    re.IGNORECASE | re.MULTILINE,
++)
++SAFE_ENV = ("DISPLAY", "GDK_BACKEND", "GTK_IM_MODULE", "GTK_MODULES",
++            "XDG_SESSION_TYPE", "G_DEBUG")
++
++
++def core_limit() -> None:
++    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
++
++
++def stop_group(child: subprocess.Popen) -> tuple[bool, str]:
++    """Try TERM, bounded wait, KILL, and reap even when a step errors."""
++    problems: list[str] = []
++    try:
++        os.killpg(child.pid, signal.SIGTERM)
++    except ProcessLookupError:
++        pass
++    except (OSError, PermissionError) as error:
++        problems.append(f"SIGTERM failed: {error}")
++
++    try:
++        child.wait(timeout=1)
++    except subprocess.TimeoutExpired:
++        pass
++    except (OSError, ChildProcessError) as error:
++        problems.append(f"wait after SIGTERM failed: {error}")
++
++    try:
++        os.killpg(child.pid, signal.SIGKILL)
++    except ProcessLookupError:
++        pass
++    except (OSError, PermissionError) as error:
++        problems.append(f"SIGKILL failed: {error}")
++
++    try:
++        child.wait(timeout=3)
++    except subprocess.TimeoutExpired:
++        problems.append("leader was not reaped within 3 seconds; no hard process guarantee")
++    except (OSError, ChildProcessError) as error:
++        problems.append(f"final wait failed: {error}; no hard process guarantee")
++
++    return not problems, "; ".join(problems) if problems else "TERM/KILL/wait completed"
++
++
++def _wm_property(value: str) -> tuple[bool, str]:
++    """Return whether xprop output proves the property is absent or zero."""
++    text = value.strip()
++    if not text:
++        return True, "absent"
++    lowered = text.lower()
++    if "not found" in lowered or "no such atom" in lowered:
++        return True, "absent"
++
++    forms = (
++        r"^_NET_SUPPORTING_WM_CHECK\s*\([^)]*\)\s*:\s*window\s+id\s+#\s*(0x[0-9a-f]+|[0-9]+)\s*$",
++        r"^_NET_SUPPORTING_WM_CHECK\s*\([^)]*\)\s*=\s*(0x[0-9a-f]+|[0-9]+)\s*$",
++    )
++    matches = [re.fullmatch(pattern, text, re.IGNORECASE) for pattern in forms]
++    parsed = [match.group(1) for match in matches if match]
++    if len(parsed) != 1:
++        return False, f"ambiguous window-manager property: {text}"
++    try:
++        number = int(parsed[0], 0) if parsed[0].lower().startswith("0x") else int(parsed[0])
++    except ValueError:
++        return False, f"ambiguous window-manager property: {text}"
++    if number != 0:
++        return False, f"window manager property present: {text}"
++    return True, text
++
++
++def display_metadata(env: dict[str, str]) -> tuple[bool, str]:
++    try:
++        prop = subprocess.run(
++            ["xprop", "-root", "_NET_SUPPORTING_WM_CHECK"], env=env,
++            capture_output=True, text=True, timeout=3, check=False)
++        if prop.returncode != 0:
++            return False, f"xprop failed: {prop.stderr.strip()}"
++        safe, property_detail = _wm_property(prop.stdout)
++        if not safe:
++            return False, property_detail
++        info = subprocess.run(
++            ["xdpyinfo"], env=env, capture_output=True, text=True,
++            timeout=3, check=False)
++        if info.returncode != 0:
++            return False, f"xdpyinfo failed: {info.stderr.strip()}"
++        dimensions = re.search(r"dimensions:\s+(\d+)x(\d+) pixels", info.stdout)
++        actual = tuple(map(int, dimensions.groups())) if dimensions else None
++        if actual != (1280, 1024):
++            return False, f"private display root dimensions are {actual}, expected 1280x1024"
++        return True, f"root-property={property_detail} dimensions={actual[0]}x{actual[1]}"
++    except (OSError, subprocess.TimeoutExpired) as error:
++        return False, f"display metadata failed: {error}"
++
++
++def worker_with_summary(aunit: Path) -> int:
++    env = {key: os.environ[key] for key in SAFE_ENV + ("XAUTHORITY",)
++           if key in os.environ}
++    if not env.get("DISPLAY") or env.get("GDK_BACKEND") != "x11":
++        print("worker requires private DISPLAY and GDK_BACKEND=x11", file=sys.stderr)
++        return 2
++    print("display-environment: " + json.dumps(
++        {key: env[key] for key in SAFE_ENV if key in env}, sort_keys=True),
++        flush=True)
++    ok, detail = display_metadata(env)
++    print(f"display-check: {detail}", flush=True)
++    if not ok:
++        return 2
++    result = subprocess.run(
++        [str(aunit), FILTER], cwd=TEST_DIR, env=env, stdin=subprocess.DEVNULL,
++        capture_output=True, text=True, check=False)
++    sys.stdout.write(result.stdout)
++    sys.stderr.write(result.stderr)
++    if result.returncode != 0:
++        return result.returncode if result.returncode > 0 else 1
++    if len(list(SUMMARY.finditer(result.stdout))) != 1:
++        print("required exact one-test AUnit summary missing or unsuccessful", file=sys.stderr)
++        return 3
++    return 0
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--aunit", type=Path, default=TEST_DIR / "bin" / "coyote_test")
++    parser.add_argument("--output-dir", type=Path)
++    parser.add_argument("--timeout", type=float, default=30)
++    parser.add_argument("--repeats", type=int, default=3)
++    parser.add_argument("--_worker-internal", action="store_true", help=argparse.SUPPRESS)
++    parser.add_argument("--_worker-aunit", type=Path, help=argparse.SUPPRESS)
++    args = parser.parse_args()
++    if args._worker_internal:
++        if args._worker_aunit is None:
++            parser.error("internal worker requires AUnit path")
++        return worker_with_summary(args._worker_aunit)
++    if not math.isfinite(args.timeout) or args.timeout <= 0:
++        parser.error("--timeout must be finite and positive")
++    if not 1 <= args.repeats <= 20:
++        parser.error("--repeats must be between 1 and 20")
++    aunit = args.aunit.expanduser().resolve()
++    if not aunit.is_file() or not os.access(aunit, os.X_OK):
++        parser.error(f"AUnit binary not executable: {aunit}")
++    tools = {name: shutil.which(name) for name in ("xvfb-run", "xprop", "xdpyinfo")}
++    missing = [name for name, path in tools.items() if path is None]
++    if missing:
++        parser.error("required private-display tools missing: " + ", ".join(missing))
++    os.umask(0o077)
++    parent = args.output_dir.expanduser().resolve() if args.output_dir else None
++    if parent:
++        parent.mkdir(parents=True, exist_ok=True)
++    output = Path(tempfile.mkdtemp(prefix="gtk-tool-layout-", dir=parent))
++    print(f"Logs: {output}", flush=True)
++    binary_hash = hashlib.sha256(aunit.read_bytes()).hexdigest()
++    try:
++        versions = subprocess.run(
++            ["pkg-config", "--modversion", "gtk+-3.0", "pango"],
++            capture_output=True, text=True, timeout=3, check=False)
++        version_text = versions.stdout.strip() or versions.stderr.strip()
++    except (OSError, subprocess.TimeoutExpired) as error:
++        version_text = str(error)
++    records = []
++    for index in range(1, args.repeats + 1):
++        log_path = output / f"repeat-{index:02d}.log"
++        command = [tools["xvfb-run"], "-a", "-s", f"-screen 0 {SCREEN}",
++                   sys.executable, str(Path(__file__).resolve()), "--_worker-internal",
++                   "--_worker-aunit", str(aunit)]
++        env = {key: value for key, value in os.environ.items()
++               if key in SAFE_ENV + ("XAUTHORITY",)}
++        env.pop("WAYLAND_DISPLAY", None)
++        env.update(GDK_BACKEND="x11", G_DEBUG="fatal-criticals")
++        status: int | str = "launch-error"
++        cleanup_ok: bool | None = None
++        cleanup_detail = "not started"
++        child = None
++        with log_path.open("xb") as log:
++            log.write(f"repeat={index} screen={SCREEN} timeout={args.timeout}\n".encode())
++            log.flush()
++            try:
++                child = subprocess.Popen(
++                    command, cwd=TEST_DIR, env=env, stdin=subprocess.DEVNULL,
++                    stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
++                    preexec_fn=core_limit)
++                try:
++                    status = child.wait(timeout=args.timeout)
++                except subprocess.TimeoutExpired:
++                    status = "timeout"
++            except OSError as error:
++                log.write(f"launch-error: {error}\n".encode())
++            finally:
++                if child is not None:
++                    cleanup_ok, cleanup_detail = stop_group(child)
++                    if not cleanup_ok and status == 0:
++                        status = "cleanup-failed"
++            log.write(f"\nresult={status}\ncleanup_ok={cleanup_ok}\n"
++                      f"cleanup_detail={cleanup_detail}\n".encode())
++        record = {"repeat": index, "status": status, "cleanup_ok": cleanup_ok,
++                  "cleanup_detail": cleanup_detail, "log": log_path.name,
++                  "binary_sha256": binary_hash, "versions": version_text,
++                  "screen": SCREEN}
++        records.append(record)
++        print(f"{'PASS' if status == 0 else 'FAIL'} repeat {index} ({status}); "
++              f"cleanup_ok={cleanup_ok}: {log_path}", flush=True)
++    summary_path = output / "summary.json"
++    summary_path.write_text(json.dumps({"aunit": str(aunit), "filter": FILTER,
++                                        "binary_sha256": binary_hash,
++                                        "versions": version_text, "screen": SCREEN,
++                                        "repeats": records}, indent=2) + "\n")
++    passed = sum(record["status"] == 0 for record in records)
++    print(f"Summary: {passed}/{args.repeats} passed; metadata: {summary_path}")
++    return int(passed != args.repeats)
++
++
++if __name__ == "__main__":
++    try:
++        raise SystemExit(main())
++    except KeyboardInterrupt:
++        raise SystemExit(130)
+diff --git a/test/tools/check-gtk-tool-layout-runner.py b/test/tools/check-gtk-tool-layout-runner.py
+new file mode 100755
+index 0000000..decb35c
+--- /dev/null
++++ b/test/tools/check-gtk-tool-layout-runner.py
+@@ -0,0 +1,177 @@
++#!/usr/bin/env python3
++"""Self-test private GTK layout runner containment; not GUI acceptance."""
++
++from __future__ import annotations
++
++import importlib.util
++import json
++import os
++from pathlib import Path
++import signal
++import subprocess
++import sys
++import tempfile
++import time
++from unittest import mock
++
++RUNNER = Path(__file__).with_name("check-gtk-tool-layout.py").resolve()
++spec = importlib.util.spec_from_file_location("gtk_tool_layout_runner", RUNNER)
++runner = importlib.util.module_from_spec(spec)
++sys.modules[spec.name] = runner
++spec.loader.exec_module(runner)
++ASSERTIONS = 0
++
++
++def check(value: bool, message: str) -> None:
++    global ASSERTIONS
++    ASSERTIONS += 1
++    assert value, message
++
++
++def executable(root: Path, mode: str) -> Path:
++    path = root / "fake-aunit"
++    path.write_text(
++        "#!/usr/bin/env python3\n"
++        "import os, pathlib, signal, subprocess, sys, time\n"
++        f"mode = {mode!r}\n"
++        "state = pathlib.Path(__file__).with_suffix('.state')\n"
++        "count = int(state.read_text()) if state.exists() else 0\n"
++        "state.write_text(str(count + 1))\n"
++        "if mode == 'timeout-first' and count == 0:\n"
++        "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
++        f"    child = subprocess.Popen([{sys.executable!r}, '-c', "
++        "'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'])\n"
++        "    pathlib.Path(__file__).with_suffix('.pid').write_text(str(child.pid))\n"
++        "    time.sleep(120)\n"
++        "if mode == 'environment':\n"
++        "    assert os.environ.get('G_DEBUG') == 'fatal-criticals', os.environ\n"
++        "    assert os.environ.get('GDK_BACKEND') == 'x11', os.environ\n"
++        "    assert not os.environ.get('WAYLAND_DISPLAY'), os.environ\n"
++        "if mode == 'zero-one': print('Total Tests Run: 1 Successful Tests: 1 Failed Assertions: 0 Unexpected Errors: 01'); sys.exit(0)\n"
++        "if mode == 'wrong': print('Total Tests Run: 1 Successful Tests: 0 Failed Assertions: 0 Unexpected Errors: 0'); sys.exit(0)\n"
++        "if mode == 'missing': print('no test summary'); sys.exit(0)\n"
++        "if mode == 'partial': print('Total Tests Run: 1 Successful Tests: 1 Failed Assertions: 0 Unexpected Errors: 0\\nSuccessful Tests: 1'); sys.exit(0)\n"
++        "if mode == 'nonzero': print('Total Tests Run: 1\\nSuccessful Tests: 0\\nFailed Assertions: 1\\nUnexpected Errors: 0'); sys.exit(4)\n"
++        "if mode == 'filtered': print('Total Tests Run: 2\\nSuccessful Tests: 2\\nFailed Assertions: 0\\nUnexpected Errors: 0'); sys.exit(0)\n"
++        "print('Total Tests Run: 1\\nSuccessful Tests: 1\\nFailed Assertions: 0\\nUnexpected Errors: 0')\n"
++    )
++    path.chmod(0o700)
++    return path
++
++
++def invoke(aunit: Path, out: Path, repeats: int = 1,
++           timeout: str = "3") -> subprocess.CompletedProcess:
++    return subprocess.run(
++        [sys.executable, str(RUNNER), "--aunit", str(aunit), "--output-dir", str(out),
++         "--timeout", timeout, "--repeats", str(repeats)],
++        text=True, capture_output=True, timeout=60, check=False,
++    )
++
++
++def dead(pid: int) -> bool:
++    try:
++        stat = Path(f"/proc/{pid}/stat").read_text().split()[2]
++        return stat == "Z" or not Path(f"/proc/{pid}").exists()
++    except FileNotFoundError:
++        return True
++
++
++def main() -> int:
++    with tempfile.TemporaryDirectory(prefix="gtk-tool-layout-selftest-") as temp:
++        root = Path(temp)
++        # xprop accepts both zero-valued spellings and absent/no-atom results.
++        for value in (
++            "_NET_SUPPORTING_WM_CHECK(WINDOW): window id # 0x0\n",
++            "_NET_SUPPORTING_WM_CHECK(WINDOW) = 0x0\n",
++            "_NET_SUPPORTING_WM_CHECK(WINDOW) = 0\n",
++            "_NET_SUPPORTING_WM_CHECK: not found.\n",
++            "_NET_SUPPORTING_WM_CHECK: no such atom on any window.\n",
++            "",
++        ):
++            ok, detail = runner._wm_property(value)
++            check(ok, f"zero/absent property rejected: {value!r}: {detail}")
++        for value in (
++            "_NET_SUPPORTING_WM_CHECK(WINDOW): window id # 0x2400001\n",
++            "_NET_SUPPORTING_WM_CHECK(WINDOW) = 0x2400001\n",
++            "_NET_SUPPORTING_WM_CHECK(WINDOW) = 1\n",
++            "_NET_SUPPORTING_WM_CHECK(WINDOW): window id # 0x0\nextra\n",
++            "_NET_SUPPORTING_WM_CHECK(WINDOW) = 0x0\n_NET_SUPPORTING_WM_CHECK(WINDOW) = 0x0\n",
++        ):
++            ok, detail = runner._wm_property(value)
++            check(not ok, f"nonzero/ambiguous property accepted: {value!r}: {detail}")
++
++        # Enforce actual root dimensions; never resize a display to satisfy the gate.
++        with mock.patch.object(runner.subprocess, "run", side_effect=[
++            subprocess.CompletedProcess([], 0, "_NET_SUPPORTING_WM_CHECK(WINDOW) = 0x0\n", ""),
++            subprocess.CompletedProcess([], 0, "dimensions: 1280x1024 pixels\n", ""),
++        ]) as mocked:
++            ok, detail = runner.display_metadata({"DISPLAY": ":fake"})
++            check(ok and "1280x1024" in detail, f"expected root rejected: {detail}")
++            check(mocked.call_count == 2, "display metadata did not query xprop and xdpyinfo")
++        with mock.patch.object(runner.subprocess, "run", side_effect=[
++            subprocess.CompletedProcess([], 0, "_NET_SUPPORTING_WM_CHECK(WINDOW) = 0x0\n", ""),
++            subprocess.CompletedProcess([], 0, "dimensions: 760x600 pixels\n", ""),
++        ]):
++            ok, detail = runner.display_metadata({"DISPLAY": ":fake"})
++            check(not ok and "760, 600" in detail, "old small root dimensions were accepted")
++
++        good_dir = root / "good"
++        good_dir.mkdir()
++        good = executable(good_dir, "success")
++        success = invoke(good, root / "success-logs", repeats=2)
++        check(success.returncode == 0, success.stdout + success.stderr)
++        check("Summary: 2/2 passed" in success.stdout, success.stdout)
++        success_root = root / "success-logs"
++        summary = json.loads((next(success_root.iterdir()) / "summary.json").read_text())
++        check(len(summary["repeats"]) == 2 and all(row["binary_sha256"] for row in summary["repeats"]),
++              "repeat metadata missing hashes")
++        check(all(row["screen"] == "1280x1024x24" and row["cleanup_ok"] is True
++                  for row in summary["repeats"]), "screen/cleanup metadata incorrect")
++
++        env_dir = root / "environment"
++        env_dir.mkdir()
++        env_result = invoke(executable(env_dir, "environment"), root / "environment-logs")
++        check(env_result.returncode == 0, env_result.stdout + env_result.stderr)
++
++        for mode in ("wrong", "missing", "nonzero", "zero-one", "partial", "filtered"):
++            bad_dir = root / mode
++            bad_dir.mkdir()
++            result = invoke(executable(bad_dir, mode), root / f"{mode}-logs")
++            check(result.returncode == 1, (mode, result.stdout, result.stderr))
++
++        timeout_dir = root / "timeout"
++        timeout_dir.mkdir()
++        timed = executable(timeout_dir, "timeout-first")
++        result = invoke(timed, root / "timeout-logs", repeats=2, timeout="2")
++        check(result.returncode == 1 and "FAIL repeat 1 (timeout)" in result.stdout,
++              result.stdout)
++        check("cleanup_ok=True" in result.stdout, result.stdout)
++        check("PASS repeat 2 (0)" in result.stdout, result.stdout)
++        child_pid = int(timed.with_suffix(".pid").read_text())
++        deadline = time.monotonic() + 3
++        while not dead(child_pid) and time.monotonic() < deadline:
++            time.sleep(0.05)
++        check(dead(child_pid), f"TERM-resistant timeout descendant {child_pid} survived KILL escalation")
++        state = Path(f"/proc/{child_pid}/stat")
++        if state.exists():
++            check(state.read_text().split()[2] == "Z", "surviving descendant is not a zombie/non-running")
++
++        for option, value in (("--timeout", "nan"), ("--timeout", "inf"),
++                              ("--timeout", "0"), ("--timeout", "-1"),
++                              ("--repeats", "0"), ("--repeats", "21")):
++            result = subprocess.run([sys.executable, str(RUNNER), option, value],
++                                    text=True, capture_output=True, timeout=5)
++            check(result.returncode == 2, (option, value, result.stderr))
++        missing = subprocess.run(
++            [sys.executable, str(RUNNER), "--aunit", str(root / "absent")],
++            text=True, capture_output=True, timeout=5)
++        check(missing.returncode == 2, "missing binary accepted")
++    print(f"PASS {ASSERTIONS} assertions: WM property forms, root dimensions, exact summaries,")
++    print("PASS child G_DEBUG/GDK environment; TERM-resistant process-group KILL escalation and recovery")
++    print("PASS bounded arguments, missing binary, metadata hashes and cleanup status")
++    print("Synthetic runner checks only; not GUI acceptance.")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())

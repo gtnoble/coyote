@@ -1,0 +1,5 @@
+command=cd test && alr build --development --profiles=coyote=development
+started=2026-11-22T11:22:42-06:00
+exit=0
+seconds=6
+finished=2026-11-22T11:22:48-06:00

@@ -1,0 +1,5 @@
+command=python3 test/tools/check-gtk-tool-layout-runner.py
+started=2026-11-22T11:31:22-06:00
+exit=0
+seconds=6
+finished=2026-11-22T11:31:28-06:00

@@ -548,6 +548,7 @@ not wait for the complete user turn.
 | `LLM_Auth_Concurrency_Tests` | Cross-process auth locking and credential-store concurrency tests | `test/src/llm_auth_concurrency_tests.ads/.adb` |
 | `Auth_Test_Worker` | Subprocess helper for credential-lock and auth concurrency tests | `test/tools/auth_test_worker.adb` |
 | GTK interaction harness | Isolated conversation interaction worker, bounded runner and offline process-containment self-test | `test/tools/gtk_interaction_worker.adb`, `test/tools/check-gtk-interactions.py`, `test/tools/check-gtk-interaction-runner.py` |
+| GTK tool-layout qualification | Bounded fresh 1280x1024 WM-free Xvfb repeats of the unchanged exact-size AUnit case, display provenance and synthetic process-containment controls; not managed-WM acceptance | `test/tools/check-gtk-tool-layout.py`, `test/tools/check-gtk-tool-layout-runner.py` |
 | `Help_Test_Worker` | Isolated real Help launcher and parent-environment assertions | `test/tools/help_test_worker.adb` |
 | `Coyote_App.Frontend.GUI.Help_Tests` | Display-backed Help menu and viewer-independent Product Information widget checks | `test/src/coyote_app-frontend-gui-help_tests.ads/.adb` |
 | Help qualification scripts | Bounded fake-Yelp launch matrix and repeatable AUnit/Mallard/CLI workflow | `test/tools/check-help-launch.sh`, `test/check-help.sh` |

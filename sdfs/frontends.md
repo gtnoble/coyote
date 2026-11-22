@@ -2775,3 +2775,18 @@ full1076/1076 pass,BUT two additional AUnit repeats fail the existing GTK tool
 allocation assertion (1075/1076);isolated1/1 passes. Cause unresolved,not waived.
 No uniformly passing final regression/parity/lifecycle/human qualification.
 No release/install/commit.
+
+
+## 2026-11-15 — GTK allocation display qualification
+
+Report §11.30 and `plan/evidence/native-math-2026-11-15-gtk-layout-display/`:
+private i3 reproduces exact-size failure1276×1000;SAME private X display passes
+once its WM stops. Historical failed-repeat display conditions remain unknown;
+no retroactive waiver. No product/Ada test/requirement change. New bounded
+`python3 test/tools/check-gtk-tool-layout.py` verifies the unchanged760×600/1s
+case on fresh WM-free1280×1024 Xvfb displays (final6/6);its runner self-test
+`python3 test/tools/check-gtk-tool-layout-runner.py` passes36 assertions. Post-build
+full1076/1076 twice and required GTK/HTTP checks pass. Preserve XAUTHORITY;one
+failed env-i launch is retained separately. This is private-display developer
+regression evidence,not managed-WM behavior/parity or human acceptance.
+No release/install/commit.

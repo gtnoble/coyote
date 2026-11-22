@@ -1,0 +1,6 @@
+command=xvfb-run -a -s -screen 0 1280x1024x24 -nolisten tcp sh /tmp/coyote-gtk-layout-validation/run-suite.sh
+working_directory=test (after provenance gate)
+started=2026-11-22T11:28:15-06:00
+exit=0
+seconds=149
+finished=2026-11-22T11:30:44-06:00

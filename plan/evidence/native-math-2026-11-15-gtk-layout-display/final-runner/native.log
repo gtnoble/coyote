@@ -1,0 +1,8 @@
+Logs: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj
+PASS repeat 1 (0); cleanup_ok=True: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/repeat-01.log
+PASS repeat 2 (0); cleanup_ok=True: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/repeat-02.log
+PASS repeat 3 (0); cleanup_ok=True: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/repeat-03.log
+PASS repeat 4 (0); cleanup_ok=True: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/repeat-04.log
+PASS repeat 5 (0); cleanup_ok=True: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/repeat-05.log
+PASS repeat 6 (0); cleanup_ok=True: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/repeat-06.log
+Summary: 6/6 passed; metadata: /tmp/coyote-gtk-layout-recorded-final/gtk-tool-layout-6t3dz4aj/summary.json

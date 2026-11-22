@@ -1,0 +1,136 @@
+started_utc=2026-11-22T17:12:03Z
+binary=/home/gtnoble/Projects/coyote/coyote-latex-math/test/bin/coyote_test
+b4a64ae5ce0105596ef6b34f13a602cb05ac485d0d35f98b827504e0082480ea  /home/gtnoble/Projects/coyote/coyote-latex-math/test/bin/coyote_test
+filter=Coyote.GUI tool detail stable layout and snapshots
+timeout_seconds=30
+existing_display_not_used=:0.0
+private_display=:368
+  dimensions:    1280x1024 pixels (325x260 millimeters)
+  depth of root window:    24 planes
+_NET_SUPPORTING_WM_CHECK(WINDOW): window id # 0x200047
+_NET_WM_NAME(UTF8_STRING) = "i3"
+private_i3_pid=495703 ready=1
+
+(coyote_test:495731): Gtk-WARNING **: 11:12:03.694: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:495731): Gtk-WARNING **: 11:12:03.694: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:495731): Gtk-WARNING **: 11:12:03.694: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:495731): Gtk-WARNING **: 11:12:03.694: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:495731): Gtk-WARNING **: 11:12:03.694: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:495731): Gtk-WARNING **: 11:12:03.694: Theme parsing error: colors.css:77:65: Invalid number for color value
+FAIL    Coyote.GUI tool detail stable layout and snapshots
+
+FAIL Coyote.GUI tool detail stable layout and snapshots (in 1.171509 sec.)
+    allocation is  1276 by 1000; expected 760 by 600 within 1.0 s deadline
+    at coyote_gui_tool_detail_window_tests.adb:323
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 1.249493 sec. seconds
+managed_i3_exit_status=1
+same_display_no_wm=1
+
+(coyote_test:495748): Gtk-WARNING **: 11:12:05.280: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:495748): Gtk-WARNING **: 11:12:05.280: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:495748): Gtk-WARNING **: 11:12:05.280: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:495748): Gtk-WARNING **: 11:12:05.280: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:495748): Gtk-WARNING **: 11:12:05.280: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:495748): Gtk-WARNING **: 11:12:05.280: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI tool detail stable layout and snapshots
+
+Total Tests Run:   1
+Successful Tests:  1
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 1.263538 sec. seconds
+same_display_no_wm_exit_status=0
+xvfb_run_exit_status=0
+fresh_display=:369 i3_ready=1
+
+(coyote_test:495799): Gtk-WARNING **: 11:12:06.842: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:495799): Gtk-WARNING **: 11:12:06.843: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:495799): Gtk-WARNING **: 11:12:06.843: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:495799): Gtk-WARNING **: 11:12:06.843: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:495799): Gtk-WARNING **: 11:12:06.843: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:495799): Gtk-WARNING **: 11:12:06.843: Theme parsing error: colors.css:77:65: Invalid number for color value
+FAIL    Coyote.GUI tool detail stable layout and snapshots
+
+FAIL Coyote.GUI tool detail stable layout and snapshots (in 1.180708 sec.)
+    allocation is  1276 by 1000; expected 760 by 600 within 1.0 s deadline
+    at coyote_gui_tool_detail_window_tests.adb:323
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 1.254495 sec. seconds
+fresh_i3_repeat_exit_status=1
+fresh_repeat_1_xvfb_exit=0
+fresh_display=:368 i3_ready=1
+
+(coyote_test:495849): Gtk-WARNING **: 11:12:08.405: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:495849): Gtk-WARNING **: 11:12:08.405: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:495849): Gtk-WARNING **: 11:12:08.405: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:495849): Gtk-WARNING **: 11:12:08.405: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:495849): Gtk-WARNING **: 11:12:08.405: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:495849): Gtk-WARNING **: 11:12:08.405: Theme parsing error: colors.css:77:65: Invalid number for color value
+FAIL    Coyote.GUI tool detail stable layout and snapshots
+
+FAIL Coyote.GUI tool detail stable layout and snapshots (in 1.174990 sec.)
+    allocation is  1276 by 1000; expected 760 by 600 within 1.0 s deadline
+    at coyote_gui_tool_detail_window_tests.adb:323
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 1.253350 sec. seconds
+fresh_i3_repeat_exit_status=1
+fresh_repeat_2_xvfb_exit=0
+fresh_display=:369 i3_ready=1
+
+(coyote_test:495918): Gtk-WARNING **: 11:12:09.933: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:495918): Gtk-WARNING **: 11:12:09.933: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:495918): Gtk-WARNING **: 11:12:09.933: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:495918): Gtk-WARNING **: 11:12:09.933: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:495918): Gtk-WARNING **: 11:12:09.933: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:495918): Gtk-WARNING **: 11:12:09.933: Theme parsing error: colors.css:77:65: Invalid number for color value
+FAIL    Coyote.GUI tool detail stable layout and snapshots
+
+FAIL Coyote.GUI tool detail stable layout and snapshots (in 1.165880 sec.)
+    allocation is  1276 by 1000; expected 760 by 600 within 1.0 s deadline
+    at coyote_gui_tool_detail_window_tests.adb:323
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 1.236621 sec. seconds
+fresh_i3_repeat_exit_status=1
+fresh_repeat_3_xvfb_exit=0

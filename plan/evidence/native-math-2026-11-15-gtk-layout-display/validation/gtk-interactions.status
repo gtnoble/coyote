@@ -1,0 +1,5 @@
+command=python3 test/tools/check-gtk-interactions.py --output-dir /tmp/coyote-gtk-layout-validation/interactions --timeout 30
+started=2026-11-22T11:23:44-06:00
+exit=0
+seconds=16
+finished=2026-11-22T11:24:00-06:00

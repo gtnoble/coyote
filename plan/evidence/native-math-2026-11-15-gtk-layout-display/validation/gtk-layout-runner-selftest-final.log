@@ -1,0 +1,4 @@
+PASS 36 assertions: WM property forms, root dimensions, exact summaries,
+PASS child G_DEBUG/GDK environment; TERM-resistant process-group KILL escalation and recovery
+PASS bounded arguments, missing binary, metadata hashes and cleanup status
+Synthetic runner checks only; not GUI acceptance.

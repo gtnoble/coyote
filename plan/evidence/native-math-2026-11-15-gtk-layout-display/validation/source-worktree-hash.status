@@ -1,0 +1,4 @@
+tracked_diff_vs_HEAD: 0
+staged_diff_vs_HEAD: 0
+untracked_validation_file_sha256 fcdb55376fada2f2976551bd1d0c6f0ef13166bef44f6233da2ef9b6cf91a92a test/tools/check-gtk-tool-layout-runner.py
+untracked_validation_file_sha256 0b1c485c7b809bd31bffef19b45ca8a2d4c0a34de62af8ce3096f82b9ed63cae test/tools/check-gtk-tool-layout.py

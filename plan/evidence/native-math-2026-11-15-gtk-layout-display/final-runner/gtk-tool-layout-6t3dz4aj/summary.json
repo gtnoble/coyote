@@ -1,0 +1,69 @@
+{
+  "aunit": "/home/gtnoble/Projects/coyote/coyote-latex-math/test/bin/coyote_test",
+  "filter": "Coyote.GUI tool detail stable layout and snapshots",
+  "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+  "versions": "3.24.41\n1.52.1",
+  "screen": "1280x1024x24",
+  "repeats": [
+    {
+      "repeat": 1,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-01.log",
+      "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 2,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-02.log",
+      "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 3,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-03.log",
+      "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 4,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-04.log",
+      "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 5,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-05.log",
+      "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 6,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-06.log",
+      "binary_sha256": "6a89ba5c2dde1e7878e34ea634106beb83038f2ebbc00d62395950f02657f717",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    }
+  ]
+}

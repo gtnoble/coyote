@@ -5074,3 +5074,20 @@ are historical, not current-source qualification.
   109×1033 vs760×600);isolated1/1 passes. Root cause unresolved/unwaived,not shown
   to be caused by this standalone test-only change. No uniformly passing final
   repeat gate. Broader native lifecycle/parity/human gates remain OPEN.
+
+
+### PCR-125 follow-up — GTK allocation display assumptions,2026-11-15
+
+- **Category:** Test environment. **Priority:** 3-Moderate.
+- **Finding:** controlled private i3 yields1276×1000 vs requested760×600;
+  SAME X server passes after stopping only its private WM. Tiling changes
+  geometry;no product fixed-size/floating workaround justified.
+- **Action:** bounded fresh1280×1024 WM-free Xvfb runner with root/WM provenance,
+  exact unchanged AUnit criterion,binary hashes and cleanup controls;§11.30.
+- **Verification:** final6 native repeats;36 synthetic assertions;post-build
+  full1076/1076 twice;mandatory GTK/HTTP pass. One XAUTHORITY-omitting full
+  attempt fails setup and is retained,not a passing suite/layout assertion.
+- **Status:** scoped display procedure developer-verified. Historical116×1033
+  and109×1033 failures remain UNCLASSIFIED because display provenance absent;
+  no retroactive waiver or all-environments claim. PCR-125 and broader parity,
+  lifecycle/timing/human acceptance remain OPEN. No release/install.
