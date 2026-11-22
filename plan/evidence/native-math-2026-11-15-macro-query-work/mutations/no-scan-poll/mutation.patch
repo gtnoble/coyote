@@ -1,0 +1,10 @@
+--- math_macros.adb.final
++++ math_macros.adb.mutant
+@@ -13,7 +13,6 @@
+       Work : Math_Work_Control.Context_Access := null) return Natural is
+    begin
+       for I in 1 .. Natural (Item.Definitions.Length) loop
+-         Math_Work_Control.Poll (Work);
+          if To_String (Item.Definitions (Positive (I)).Name) = Name then
+             return I;
+          end if;

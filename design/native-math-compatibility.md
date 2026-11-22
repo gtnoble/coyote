@@ -610,3 +610,17 @@ Engine3497 twice,worker346,geometry235 and stratified10000-primary replay pass;
 full1076/1076,mandatory GTK/containment/HTTP and scoped engine/exporter Valgrind
 pass. Prior raster losses and broader qualification stay open. Developer/agent
 review is not independent acceptance. No release/install/commit.
+
+
+### Cooperative read-only macro queries — 2026-11-15
+
+Optional borrowed Work on Math_Macros.Is_Defined/Lookup polls before every
+visited definition comparison;all12 Math_Expander query call sites forward the
+cursor's work context. Empty contexts perform no comparison polls. No reference
+is retained and stopped queries do not publish a value or mutate definitions.
+Definition result construction/copying after the scan remains non-preemptible.
+Mutation and scope unwind deliberately retain null-work scans to avoid partial
+publication/undo. Interrupted cursors are discarded;fresh cursors recover.
+This limits uninterrupted query traversal,not the number of comparisons or the
+remaining Save/undo/mutation work. No new cap/index/lease/pool/accounting scheme
+is selected. Report §11.28 contains scoped evidence and open qualification gates.

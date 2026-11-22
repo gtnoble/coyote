@@ -1,0 +1,466 @@
+diff --git a/src/coyote_math/math_expander.adb b/src/coyote_math/math_expander.adb
+index de7ebca..b3f62fe 100644
+--- a/src/coyote_math/math_expander.adb
++++ b/src/coyote_math/math_expander.adb
+@@ -1506,7 +1506,8 @@ package body Math_Expander is
+                end;
+                goto Iterate;
+             elsif (Name = "\long" and then
+-                   not Math_Macros.Is_Defined (Shared, Name) and then
++                   not Math_Macros.Is_Defined
++                     (Shared, Name, Item.Work) and then
+                    not Math_Builtin_Macros.Lookup (Name).Found) or else
+               Name = "\\globallong"
+             then
+@@ -1559,7 +1560,7 @@ package body Math_Expander is
+                      end;
+                   end if;
+                   if Mapped_Length = 0 then
+-                     if Math_Macros.Is_Defined (Shared, Name) or else
++                     if Math_Macros.Is_Defined (Shared, Name, Item.Work) or else
+                        Math_Builtin_Macros.Lookup (Name).Found
+                      then
+                         Pushback (Item, Directive);
+@@ -1662,7 +1663,7 @@ package body Math_Expander is
+                            then
+                               Item.Status := Malformed_Definition;
+                            elsif Math_Macros.Is_Defined
+-                             (Shared, Name_Of (Item, Source))
++                             (Shared, Name_Of (Item, Source), Item.Work)
+                            then
+                               Math_Macros.Copy_Definition
+                                 (Shared, Name_Of (Item, Target),
+@@ -1990,7 +1991,7 @@ package body Math_Expander is
+                      Item.Status := Malformed_Definition;
+                   else
+                      declare M : constant String := Macro_Name (1 .. Name_Length); begin
+-                        Existing := Math_Macros.Is_Defined (Shared, M) or else
++                        Existing := Math_Macros.Is_Defined (Shared, M, Item.Work) or else
+                           Math_Builtin_Macros.Lookup (M).Found or else
+                           Math_Symbols.Lookup_Math (M).Found or else
+                           Math_Symbols.Lookup_Text (M).Found or else
+@@ -2052,7 +2053,9 @@ package body Math_Expander is
+                     Source.Kind not in Math_Tokens.Control_Word | Math_Tokens.Control_Symbol
+                   then Item.Status := Malformed_Definition;
+                   else
+-                     if Math_Macros.Is_Defined (Shared, Name_Of (Item, Source)) then
++                     if Math_Macros.Is_Defined
++                       (Shared, Name_Of (Item, Source), Item.Work)
++                     then
+                         Math_Macros.Copy_Definition
+                           (Shared, Name_Of (Item, Target),
+                            Name_Of (Item, Source), False, D);
+@@ -2276,7 +2279,8 @@ package body Math_Expander is
+                   Replacement : Token_Vectors.Vector;
+                   Is_Macro : constant Boolean :=
+                     Second.Kind = Math_Tokens.Control_Word and then
+-                    (Math_Macros.Is_Defined (Shared, Name_Of (Item, Second))
++                    (Math_Macros.Is_Defined
++                       (Shared, Name_Of (Item, Second), Item.Work)
+                      or else Math_Builtin_Macros.Lookup
+                        (Name_Of (Item, Second)).Found);
+                begin
+@@ -2309,7 +2313,7 @@ package body Math_Expander is
+                Item.Returned := Item.Returned + 1;
+                return Tok;
+             elsif (Name = "\bra@ket" or else Name = "\bra@set") and then
+-              not Math_Macros.Is_Defined (Shared, Name)
++              not Math_Macros.Is_Defined (Shared, Name, Item.Work)
+             then
+                if Item.Expanded >= Item.Max_Expand then
+                   Item.Status := Expansion_Limit;
+@@ -2471,13 +2475,13 @@ package body Math_Expander is
+             elsif Tok.Kind = Math_Tokens.Control_Word and then
+               Name (Name'First .. Name'First + 1) /= "\\" and then
+               not Item.Expansion_Only and then
+-              not Math_Macros.Is_Defined (Shared, Name) and then
++              not Math_Macros.Is_Defined (Shared, Name, Item.Work) and then
+               Name /= "\newline" and then
+               Is_Registered_Function_Name (Name)
+             then
+                Item.Returned := Item.Returned + 1;
+                return Tok;
+-            elsif Math_Macros.Is_Defined (Shared, Name) or else
++            elsif Math_Macros.Is_Defined (Shared, Name, Item.Work) or else
+               Math_Builtin_Macros.Lookup (Name).Found
+             then
+                if Item.Expanded >= Item.Max_Expand then
+@@ -2487,7 +2491,7 @@ package body Math_Expander is
+                Item.Expanded := Item.Expanded + 1;
+                declare
+                   User_Defined : constant Boolean :=
+-                    Math_Macros.Is_Defined (Shared, Name);
++                    Math_Macros.Is_Defined (Shared, Name, Item.Work);
+                   Builtin : constant Math_Builtin_Macros.Macro_Record :=
+                     Math_Builtin_Macros.Lookup (Name);
+                   Template_Text : constant String :=
+@@ -2526,7 +2530,8 @@ package body Math_Expander is
+                   begin
+                      if User_Defined then
+                         Value := Math_Macros.Token_At
+-                          (Math_Macros.Lookup (Shared, Name), Index);
++                          (Math_Macros.Lookup
++                             (Shared, Name, Item.Work), Index);
+                      else
+                         Value := Math_Tokens.Element (Template_Stream, Index);
+                      end if;
+@@ -2547,7 +2552,7 @@ package body Math_Expander is
+                   if User_Defined then
+                      declare
+                         Def : constant Math_Macros.Definition :=
+-                          Math_Macros.Lookup (Shared, Name);
++                          Math_Macros.Lookup (Shared, Name, Item.Work);
+                      begin
+                         Definition_Value := Def;
+                         Params := Math_Macros.Num_Params (Def);
+diff --git a/src/coyote_math/math_macros.adb b/src/coyote_math/math_macros.adb
+index 3439cdc..8c1ca89 100644
+--- a/src/coyote_math/math_macros.adb
++++ b/src/coyote_math/math_macros.adb
+@@ -1,5 +1,6 @@
+ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+ with Ada.Containers;
++with Math_Work_Control;
+ 
+ package body Math_Macros is
+    use type Ada.Containers.Count_Type;
+@@ -7,9 +8,12 @@ package body Math_Macros is
+ 
+    Max_Scopes : constant := 256;
+ 
+-   function Find (Item : Context; Name : String) return Natural is
++   function Find
++     (Item : Context; Name : String;
++      Work : Math_Work_Control.Context_Access := null) return Natural is
+    begin
+       for I in 1 .. Natural (Item.Definitions.Length) loop
++         Math_Work_Control.Poll (Work);
+          if To_String (Item.Definitions (Positive (I)).Name) = Name then
+             return I;
+          end if;
+@@ -243,12 +247,16 @@ package body Math_Macros is
+       end;
+    end Define;
+ 
+-   function Is_Defined (Item : Context; Name : String) return Boolean is
+-     (Find (Item, Name) > 0);
++   function Is_Defined
++     (Item : Context; Name : String;
++      Work : Math_Work_Control.Context_Access := null) return Boolean is
++     (Find (Item, Name, Work) > 0);
+ 
+-   function Lookup (Item : Context; Name : String) return Definition is
++   function Lookup
++     (Item : Context; Name : String;
++      Work : Math_Work_Control.Context_Access := null) return Definition is
+    begin
+-      return Item.Definitions (Positive (Find (Item, Name)));
++      return Item.Definitions (Positive (Find (Item, Name, Work)));
+    end Lookup;
+ 
+    function Name_Of (Item : Definition) return String is
+diff --git a/src/coyote_math/math_macros.ads b/src/coyote_math/math_macros.ads
+index 08c62a9..63363e4 100644
+--- a/src/coyote_math/math_macros.ads
++++ b/src/coyote_math/math_macros.ads
+@@ -1,6 +1,7 @@
+ with Ada.Containers.Vectors;
+ with Ada.Strings.Unbounded;
+ with Math_Tokens;
++with Math_Work_Control;
+ 
+ package Math_Macros is
+    use type Math_Tokens.Token;
+@@ -55,8 +56,16 @@ package Math_Macros is
+    procedure Copy_Definition
+      (Item : in out Context; Target, Source : String; Is_Global : Boolean;
+       Diagnostic : out Diagnostic_Kind);
+-   function Is_Defined (Item : Context; Name : String) return Boolean;
+-   function Lookup (Item : Context; Name : String) return Definition;
++   --  Optional Work is borrowed for this read-only query and is polled
++   --  before comparing each visited definition. Empty contexts do not poll.
++   --  A stop cannot mutate Item or publish a return value. Lookup result
++   --  construction/copying after the scan is not preemptible by this query.
++   function Is_Defined
++     (Item : Context; Name : String;
++      Work : Math_Work_Control.Context_Access := null) return Boolean;
++   function Lookup
++     (Item : Context; Name : String;
++      Work : Math_Work_Control.Context_Access := null) return Definition;
+    function Name_Of (Item : Definition) return String;
+    function Num_Params (Item : Definition) return Natural;
+    function Has_Optional_Default (Item : Definition) return Boolean;
+diff --git a/test/tools/math_macros_probe.adb b/test/tools/math_macros_probe.adb
+index f01735d..0cd974e 100644
+--- a/test/tools/math_macros_probe.adb
++++ b/test/tools/math_macros_probe.adb
+@@ -361,10 +361,269 @@ procedure Math_Macros_Probe is
+         and then Same, Label);
+    end Expect_Raw_Output;
+ 
++   procedure Test_Query_Work is
++      use type Math_Tokens.Token;
++      type Positive_Array is array (Positive range <>) of Positive;
++      type Snapshot_Array is array (Positive range 1 .. 128) of
++        Math_Macros.Definition;
++      Local : Math_Macros.Context;
++      Empty : Math_Macros.Context;
++      Before : Snapshot_Array;
++      Name : String (1 .. 3);
++      Def : Math_Macros.Definition;
++      Tok : Math_Tokens.Token;
++      Diag : Math_Macros.Diagnostic_Kind;
++      Cursor_Value : Math_Expander.Cursor;
++      Output : Math_Tokens.Token;
++      Raised, Found : Boolean;
++
++      function Same_Definition
++        (Left, Right : Math_Macros.Definition) return Boolean is
++      begin
++         if Math_Macros.Name_Of (Left) /= Math_Macros.Name_Of (Right) or else
++           Math_Macros.Num_Params (Left) /= Math_Macros.Num_Params (Right) or else
++           Math_Macros.Token_Count (Left) /= Math_Macros.Token_Count (Right) or else
++           Math_Macros.Prefix_Token_Count (Left) /=
++             Math_Macros.Prefix_Token_Count (Right) or else
++           Math_Macros.Delimiter_Count (Left) /=
++             Math_Macros.Delimiter_Count (Right) or else
++           Math_Macros.Has_Optional_Default (Left) /=
++             Math_Macros.Has_Optional_Default (Right) or else
++           Math_Macros.Default_Token_Count (Left) /=
++             Math_Macros.Default_Token_Count (Right)
++         then
++            return False;
++         end if;
++         for I in 1 .. Math_Macros.Token_Count (Left) loop
++            if Math_Macros.Token_At (Left, I) /=
++              Math_Macros.Token_At (Right, I)
++            then
++               return False;
++            end if;
++         end loop;
++         for I in 1 .. Math_Macros.Prefix_Token_Count (Left) loop
++            if Math_Macros.Prefix_Token_At (Left, I) /=
++              Math_Macros.Prefix_Token_At (Right, I)
++            then
++               return False;
++            end if;
++         end loop;
++         for I in 1 .. Math_Macros.Delimiter_Count (Left) loop
++            if Math_Macros.Delimiter_Token_Count (Left, I) /=
++              Math_Macros.Delimiter_Token_Count (Right, I)
++            then
++               return False;
++            end if;
++            for J in 1 .. Math_Macros.Delimiter_Token_Count (Left, I) loop
++               if Math_Macros.Delimiter_Token_At (Left, I, J) /=
++                 Math_Macros.Delimiter_Token_At (Right, I, J)
++               then
++                  return False;
++               end if;
++            end loop;
++         end loop;
++         for I in 1 .. Math_Macros.Default_Token_Count (Left) loop
++            if Math_Macros.Default_Token_At (Left, I) /=
++              Math_Macros.Default_Token_At (Right, I)
++            then
++               return False;
++            end if;
++         end loop;
++         return True;
++      end Same_Definition;
++
++      function State_Unchanged return Boolean is
++      begin
++         if Math_Macros.Scope_Depth (Local) /= 1 or else
++           Math_Macros.Definition_Count (Local) /= 129 or else
++           Math_Macros.Diagnostic (Local) /= Math_Macros.No_Error
++         then
++            return False;
++         end if;
++         for I in Before'Range loop
++            if not Same_Definition
++              (Math_Macros.Definition_At (Local, I), Before (I))
++            then
++               return False;
++            end if;
++         end loop;
++         declare
++            Last : constant Math_Macros.Definition :=
++              Math_Macros.Definition_At (Local, 129);
++         begin
++            return Math_Macros.Name_Of (Last) = "\ephemeral" and then
++              Math_Macros.Token_Count (Last) = 1 and then
++              Math_Macros.Token_At (Last, 1).Code_Point =
++                Character'Pos ('z');
++         end;
++      end State_Unchanged;
++   begin
++      Poll_Counter.Reset (1, Math_Work_Control.Cancel_Requested);
++      Check (not Math_Macros.Is_Defined
++        (Empty, "\absent", Counted_Work) and Poll_Counter.Count = 0,
++        "empty Is_Defined does not poll");
++      Raised := False;
++      begin
++         Def := Math_Macros.Lookup (Empty, "\absent", Counted_Work);
++      exception
++         when Constraint_Error => Raised := True;
++      end;
++      Check (Raised and Poll_Counter.Count = 0,
++        "empty missing Lookup retains constraint error without polling");
++      for I in Before'Range loop
++         Name := ('\', Character'Val (Character'Pos ('a') + (I - 1) / 26),
++           Character'Val (Character'Pos ('a') + (I - 1) mod 26));
++         Tok := (Kind => Math_Tokens.Character_Token,
++           Code_Point => I, others => <>);
++         Math_Macros.Define_Tokens
++           (Local, Name, 0, (1 => Tok), True, Diag);
++      end loop;
++      declare
++         Prefix : constant Math_Tokens.Token :=
++           (Kind => Math_Tokens.Character_Token,
++            Code_Point => Character'Pos ('p'), others => <>);
++         Delimiter : Math_Macros.Token_Vectors.Vector;
++         Delimiters : Math_Macros.Delimiter_Vectors.Vector;
++      begin
++         Delimiter.Append (Prefix);
++         Delimiters.Append (Delimiter);
++         Math_Macros.Define_Tokens
++           (Local, "\aa", 1, (1 => Prefix), True, Diag,
++            Prefix => (1 => Prefix), Delimiters => Delimiters);
++         Math_Macros.Set_Optional_Default
++           (Local, "\aa", (1 => Prefix, 2 => Prefix), Diag);
++         Check (Diag = Math_Macros.No_Error,
++           "query fixture includes owned prefix, delimiter and default payloads");
++      end;
++      for I in Before'Range loop
++         Before (I) := Math_Macros.Definition_At (Local, I);
++      end loop;
++      Math_Macros.Begin_Group (Local);
++      Tok := (Kind => Math_Tokens.Character_Token,
++        Code_Point => Character'Pos ('z'), others => <>);
++      Math_Macros.Define_Tokens
++        (Local, "\ephemeral", 0, (1 => Tok), False, Diag);
++      Check (Diag = Math_Macros.No_Error and State_Unchanged,
++        "query fixture has a caller-owned scope");
++      for I in Before'Range loop
++         Name := ('\', Character'Val (Character'Pos ('a') + (I - 1) / 26),
++           Character'Val (Character'Pos ('a') + (I - 1) mod 26));
++         if I = 1 or I = 64 or I = 128 then
++            Poll_Counter.Reset (I, Math_Work_Control.Continue_Work);
++            Check (Math_Macros.Is_Defined (Local, Name, Counted_Work) and
++              Poll_Counter.Count = I,
++              "Is_Defined reaches target in expected comparisons");
++            Poll_Counter.Reset (I, Math_Work_Control.Continue_Work);
++            Def := Math_Macros.Lookup (Local, Name, Counted_Work);
++            Check (Same_Definition (Def, Before (I)) and
++              Poll_Counter.Count = I,
++              "Lookup returns complete payload after expected comparisons");
++            Def := Math_Macros.Lookup (Local, Name);
++            Check (Same_Definition (Def, Before (I)),
++              "null-work query matches saved complete definition");
++         end if;
++      end loop;
++      Poll_Counter.Reset (129, Math_Work_Control.Continue_Work);
++      Check (not Math_Macros.Is_Defined
++        (Local, "\zz", Counted_Work) and Poll_Counter.Count = 129,
++        "missing Is_Defined visits full table");
++      Poll_Counter.Reset (129, Math_Work_Control.Continue_Work);
++      Raised := False;
++      begin
++         Def := Math_Macros.Lookup (Local, "\zz", Counted_Work);
++      exception
++         when Constraint_Error => Raised := True;
++      end;
++      Check (Raised and Poll_Counter.Count = 129,
++        "missing Lookup errors after full table scan");
++      for Missing in Boolean loop
++         for Reason in Math_Work_Control.Cancel_Requested ..
++           Math_Work_Control.Deadline_Reached
++         loop
++            for Limit of Positive_Array'(32, 128) loop
++               Poll_Counter.Reset (Limit, Reason);
++               Raised := False;
++               begin
++                  Found := Math_Macros.Is_Defined
++                    (Local, (if Missing then "\zz" else "\ex"), Counted_Work);
++               exception
++                  when Math_Work_Control.Stop_Requested =>
++                     Raised := Reason = Math_Work_Control.Cancel_Requested;
++                  when Math_Work_Control.Deadline_Expired =>
++                     Raised := Reason = Math_Work_Control.Deadline_Reached;
++               end;
++               Check (Raised and Poll_Counter.Count = Limit,
++                 "Is_Defined propagates exact stop before visited comparison");
++               Check (State_Unchanged,
++                 "stopped Is_Defined preserves ordered payloads and scope");
++               Poll_Counter.Reset (Limit, Reason);
++               Raised := False;
++               begin
++                  Def := Math_Macros.Lookup
++                    (Local, (if Missing then "\zz" else "\ex"), Counted_Work);
++               exception
++                  when Math_Work_Control.Stop_Requested =>
++                     Raised := Reason = Math_Work_Control.Cancel_Requested;
++                  when Math_Work_Control.Deadline_Expired =>
++                     Raised := Reason = Math_Work_Control.Deadline_Reached;
++                  when Constraint_Error => null;
++               end;
++               Check (Raised and Poll_Counter.Count = Limit,
++                 "Lookup propagates stop before return or missing-name error");
++               Check (State_Unchanged,
++                 "stopped Lookup preserves ordered payloads and scope");
++               Def := Math_Macros.Lookup (Local, "\ex");
++               Check (Same_Definition (Def, Before (128)),
++                 "fresh null-work Lookup recovers after stop");
++            end loop;
++         end loop;
++      end loop;
++      for Reason in Math_Work_Control.Cancel_Requested ..
++        Math_Work_Control.Deadline_Reached
++      loop
++         Open_Text ("\ex", Cursor_Value);
++         Poll_Counter.Reset (32, Reason);
++         Raised := False;
++         begin
++            Output := Math_Expander.Next (Cursor_Value, Local, Counted_Work);
++         exception
++            when Math_Work_Control.Stop_Requested =>
++               Raised := Reason = Math_Work_Control.Cancel_Requested;
++            when Math_Work_Control.Deadline_Expired =>
++               Raised := Reason = Math_Work_Control.Deadline_Reached;
++         end;
++         Check (Raised and Poll_Counter.Count = 32 and State_Unchanged,
++           "expander query stop preserves ordered caller state");
++         Open_Text ("\ex", Cursor_Value);
++         Output := Math_Expander.Next (Cursor_Value, Local);
++         Check (Output.Kind = Math_Tokens.Character_Token and
++           Output.Code_Point = 128 and
++           Math_Expander.Diagnostic (Cursor_Value) = Math_Expander.No_Error and
++           State_Unchanged,
++           "fresh expander cursor recovers and expands last definition");
++      end loop;
++      Math_Macros.End_Group (Local);
++      Check (not Math_Macros.Is_Defined (Local, "\ephemeral") and
++        Math_Macros.Is_Defined (Local, "\aa") and
++        Math_Macros.Scope_Depth (Local) = 0,
++        "caller scope unwinds normally after query recovery");
++   end Test_Query_Work;
++
+    Cur : Math_Expander.Cursor;
+    T : Math_Tokens.Token;
+    MD : Math_Macros.Diagnostic_Kind;
+ begin
++   Test_Query_Work;
++   if Ada.Command_Line.Argument_Count = 1 and then
++     Ada.Command_Line.Argument (1) = "--query-work"
++   then
++      Ada.Text_IO.Put_Line
++        ("Checks:" & Checks'Image & " Failures:" & Failures'Image);
++      if Failures /= 0 then
++         Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
++      end if;
++      return;
++   end if;
+    declare
+       Local_Cursor : Math_Expander.Cursor;
+       Local_Source : Math_Source.Source;

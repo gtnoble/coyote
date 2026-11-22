@@ -1,0 +1,2 @@
+command=MATH_ENGINE_ROOT=/tmp/coyote-macro-query-validation/engine sh test/tools/check-math-engine.sh
+status=0

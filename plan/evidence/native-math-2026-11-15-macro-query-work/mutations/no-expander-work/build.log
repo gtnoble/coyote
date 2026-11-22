@@ -1,0 +1,20 @@
+probe.gpr:1:21: warning: file name does not match project name, should be "math_macros.gpr"
+Setup
+   [mkdir]        object directory for project Math_Macros
+   [mkdir]        exec directory for project Math_Macros
+Compile
+   [Ada]          math_macros_probe.adb
+   [Ada]          math_builtin_macros.adb
+   [Ada]          math_expander.adb
+   [Ada]          math_macros.adb
+   [Ada]          math_source.adb
+   [Ada]          math_tokens.adb
+   [Ada]          math_work_control.adb
+   [Ada]          math_model.ads
+   [Ada]          math_symbols.adb
+   [Ada]          math_unicode.adb
+Bind
+   [gprbind]      math_macros_probe.bexch
+   [Ada]          math_macros_probe.ali
+Link
+   [link]         math_macros_probe.adb

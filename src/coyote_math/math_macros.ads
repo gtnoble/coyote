@@ -1,6 +1,7 @@
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Math_Tokens;
+with Math_Work_Control;
 
 package Math_Macros is
    use type Math_Tokens.Token;
@@ -55,8 +56,16 @@ package Math_Macros is
    procedure Copy_Definition
      (Item : in out Context; Target, Source : String; Is_Global : Boolean;
       Diagnostic : out Diagnostic_Kind);
-   function Is_Defined (Item : Context; Name : String) return Boolean;
-   function Lookup (Item : Context; Name : String) return Definition;
+   --  Optional Work is borrowed for this read-only query and is polled
+   --  before comparing each visited definition. Empty contexts do not poll.
+   --  A stop cannot mutate Item or publish a return value. Lookup result
+   --  construction/copying after the scan is not preemptible by this query.
+   function Is_Defined
+     (Item : Context; Name : String;
+      Work : Math_Work_Control.Context_Access := null) return Boolean;
+   function Lookup
+     (Item : Context; Name : String;
+      Work : Math_Work_Control.Context_Access := null) return Definition;
    function Name_Of (Item : Definition) return String;
    function Num_Params (Item : Definition) return Natural;
    function Has_Optional_Default (Item : Definition) return Boolean;

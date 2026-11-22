@@ -1,0 +1,19 @@
+COMMAND_WORKER exact-cap submitted status=PENDING
+COMMAND_WORKER exact-cap status=VALID
+COMMAND_WORKER recovery status=VALID
+COMMAND_WORKER over-cap status=INVALID error=
+COMMAND_WORKER recovery status=VALID
+COMMAND_WORKER over-cap status=INVALID error=
+COMMAND_WORKER recovery status=VALID
+COMMAND_WORKER rule-overflow status=INVALID error=
+COMMAND_WORKER recovery status=VALID
+COMPOSED_BOUNDS width= 10415 height= 431 needed= 17955460 source=\fcolorbox{red}{blue}{\xcancel{\rule{40em}{1em}}}
+COMPOSED_BOUNDS width= 431 height= 5295 needed= 9128580 source=\fcolorbox{red}{blue}{\xcancel{\rule{1em}{20em}}}
+COMPOSED_BOUNDS width= 10415 height= 431 needed= 17955460 source=\fcolorbox{red}{blue}{\xcancel{\rule{40em}{1em}}}
+COMPOSED_BOUNDS width= 431 height= 5295 needed= 9128580 source=\fcolorbox{red}{blue}{\xcancel{\rule{1em}{20em}}}
+WARM cases=200 iterations=10 requests=2000 valid= 2000 request_ms_p95= 1 request_ms_max= 3
+WARM job_queue_ms_p95= 0 max= 0 execution_ms_p95= 1 max= 3 cleanup_ms_p95= 0 max= 0 total_ms_p95= 1 max= 3
+SATURATION accepted= 8 busy= 2 requested=10 workers= 2
+ASSERTIONS 380 failures= 0
+Build log: /tmp/coyote-macro-query-validation/jobs/build.log
+Probe log: /tmp/coyote-macro-query-validation/jobs/probe.log

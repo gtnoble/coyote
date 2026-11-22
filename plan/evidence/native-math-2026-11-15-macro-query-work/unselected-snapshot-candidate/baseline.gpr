@@ -1,0 +1,20 @@
+project Baseline is
+   for Languages use ("Ada");
+   for Source_Dirs use ("baseline/src", "driver");
+   for Source_Files use
+     ("math_work_control.ads", "math_work_control.adb",
+      "math_source.ads", "math_source.adb", "math_unicode.ads",
+      "math_unicode.adb", "math_tokens.ads", "math_tokens.adb",
+      "math_macros.ads", "math_macros.adb",
+      "math_builtin_macros.ads", "math_builtin_macros.adb",
+      "math_model.ads", "math_symbols.ads", "math_symbols.adb",
+      "math_expander.ads", "math_expander.adb",
+      "math_snapshot_probe.adb");
+   for Object_Dir use "obj/baseline";
+   for Exec_Dir use "bin";
+   for Main use ("math_snapshot_probe.adb");
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato", "-gnatyI");
+   end Compiler;
+end Baseline;

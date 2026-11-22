@@ -1,0 +1,2 @@
+command=MATH_JOBS_ROOT=/tmp/coyote-macro-query-validation/jobs sh test/tools/check-math-jobs.sh
+status=0

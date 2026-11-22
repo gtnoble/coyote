@@ -1,0 +1,53 @@
+Source patch gate — cooperative macro query scans
+
+Date: 2026-11-21
+Repository: /home/gtnoble/Projects/coyote/coyote-latex-math
+Scope: only src/coyote_math/math_macros.ads, math_macros.adb,
+       math_expander.adb
+
+Change: optional borrowed Math_Work_Control.Context_Access on public
+Is_Defined/Lookup and private Find, default null. Find polls immediately
+before every visited definition comparison. Empty definitions cause zero
+polls. No index, snapshot optimization, cap, new accounting, performance
+claim, or all-memory claim.
+
+Expander call-site map (every site is inside Next, whose Cursor formal is
+Item and carries Item.Work):
+  math_expander.adb:1509 Is_Defined — directive prefix condition
+  math_expander.adb:1563 Is_Defined — mapped directive fallback
+  math_expander.adb:1665 Is_Defined — multiline let/copy source check
+  math_expander.adb:1994 Is_Defined — newcommand existing-name check
+  math_expander.adb:2056 Is_Defined — let source check
+  math_expander.adb:2282 Is_Defined — expandafter macro recognition
+  math_expander.adb:2316 Is_Defined — bra/ket special-name check
+  math_expander.adb:2478 Is_Defined — registered-function exclusion
+  math_expander.adb:2484 Is_Defined — macro dispatch
+  math_expander.adb:2494 Is_Defined — User_Defined classification
+  math_expander.adb:2533 Lookup — nested Definition_Token lookup function
+  math_expander.adb:2555 Lookup — user-definition metadata capture
+Counts: 10 Is_Defined calls and 2 Lookup calls. All pass Item.Work.
+Definition_Token is nested within Next; it does not have a separate Work
+scope and uses the enclosing Item.Work.
+
+Intentionally unpolled Find callers: math_macros.adb:52 End_Group undo
+restoration; :93 Define_Tokens pre-mutation name lookup; :185
+Set_Optional_Default lookup. Also Copy_Definition calls the public queries
+with default null. These mutation/copy paths were not changed. End_Group and
+Restore_To_Depth unwind fully; no stop is introduced during undo. DefineTokens
+and SetOptionalDefault remain as before. No poll is inserted between staged
+precommit poll and mutation/publication. Definition copy after Find/Lookup is
+not preemptible. No context stores Work and no borrowed reference escapes.
+
+Query callbacks are ordinary, non-reentrant reads. Reentrant mutation of the
+same Context remains unsupported. No change to Copy_Definition internals,
+Set_Optional_Default, or Define_Tokens implementation.
+
+Prior /tmp/coyote-macro-snapshot-characterization is a different
+snapshot-vs-per-token-lookup characterization and reports no measurable
+runtime benefit. It is not this requested runtime baseline. The requested
+/tmp/coyote-macro-query-runtime-baseline script/path was absent at source gate;
+therefore runtime baseline execution status is unavailable unless found
+before tests. No performance result is claimed.
+
+This gate freezes source for ensuing compiler and focused-suite checks.
+Do not make further source changes before review.

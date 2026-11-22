@@ -2746,3 +2746,17 @@ is not deterministically injected;Invalid-only overflow worker tests retain a
 load-sensitive deadline risk. Engine Valgrind clean in scoped headless checks;
 prior raster losses and wider qualification remain open. No parity or independent
 acceptance;no release/install/commit.
+
+
+## 2026-11-15 — Cooperative macro query scans (PCR-125)
+
+Report §11.28 and `plan/evidence/native-math-2026-11-15-macro-query-work/`
+record optional borrowed Work on Is_Defined/Lookup,per-visited-entry query polls,
+and all12 expander call sites forwarding active work. Mutation/publication and
+scope unwind remain uninterrupted;no index,cap,budget or accounting change.
+Macro941 twice;focused68 normal/Valgrind with zero errors/lost bytes;isolated
+poll-removal and forwarding mutants fail26/2 checks. Final full1076/1076,
+engine3553,worker380 and required GTK/HTTP checks pass. These are scoped developer
+checks,not hard timing/whole-macro Valgrind/parity or independent acceptance.
+Remaining macro mutation/undo amplification and prior strict raster losses stay
+open. No release/install/commit.

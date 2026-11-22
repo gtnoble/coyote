@@ -2036,3 +2036,67 @@ images/raster/reference geometry/seeded fuzz/whole-macro Valgrind not rerun.
 Developer/agent self-review is not independent acceptance. Resource/timing/font/
 GTK/cache/lifecycle/parity/human gates and PCR-125 remain OPEN.
 No release/install/commit.
+
+
+### 11.28 Cooperative macro-table query scans — 2026-11-15
+
+Practical-abuse continuation adds optional borrowed Work to Math_Macros.Is_Defined
+and Lookup. Private Find polls before each visited definition comparison;empty
+contexts poll0 times. All12 query sites in Math_Expander.Next (10 Is_Defined,
+2 Lookup,including nested Definition_Token) forward Item.Work. No context stores
+the borrowed control. Default-null callers retain their behavior,including the
+existing Constraint_Error on missing Lookup. Query stops propagate before a
+return value is published and do not mutate the macro context.
+
+Mutation and unwind paths deliberately remain uninterruptible:Find calls inside
+Define_Tokens,Set_Optional_Default and End_Group use null Work;Copy_Definition's
+internal queries also use null. No poll is added between definition publication
+and optional-default publication. Interrupted expander cursors may retain partial
+internal work and must be discarded;fresh cursors recover. Definition result
+construction/copying after a successful scan and individual native calls cannot
+be preempted. This is scan-level cancellation responsiveness,not an index,
+complexity reduction,hard deadline or whole-job work/timing qualification.
+
+Full macro941/941 twice. Focused --query-work68/68 normally and under Valgrind,
+zero errors/definite/indirect/possible losses,37392 reachable. The focused mode
+excludes the unrelated32768-definition fixture;whole-macro Valgrind was NOT rerun
+and its historical incomplete attempt remains unresolved. A129-entry fixture
+checks empty/first/middle/late/missing scans,exact visited-entry counts,null-work
+payload equivalence and missing-name error.16 direct cancel/deadline injections
+cover late-present/missing queries at32/128 polls;2 expander injections precede
+output and recover with fresh cursors. Full ordered Definition_At comparisons
+include replacement,prefix,delimiter and optional-default tokens plus caller
+scope/local definition/diagnostic state. Poll thresholds are implementation-specific
+regression hooks,not elapsed-time guarantees. Tests do not prove every query
+branch is interrupted or eliminate remaining mutation/undo amplification.
+
+Exact-final focused probe on isolated mutations detects removed scan poll
+(26 failures/68) and null Work at all12 expander queries (2 failures/68),both exit1;
+49-source snapshots otherwise match final production. This tests scan and
+integration sensitivity,not independent resource qualification. Initial906-check
+probe had weaker by-name rather than indexed-order comparisons and a mislabelled
+present-name case;final941/focused68 replace those test claims. Original logs
+remain historical,not exact-final evidence.
+
+Root/test development builds pass;final Xvfb1076/1076,zero failures/errors,
+147.112601s cumulative/147.23s wall. Engine3553 and worker380 pass on final runtime
+before test-only refinements;AUnit registration unchanged. Mandatory GTK9/9,
+runner containment (expected7/9 synthetic child outcomes),offline HTTP pass.
+Coverage source fingerprints refreshed;2930 core rows remain2929 partial/
+unqualified plus1 deviation. Requirements,numerical limits,accounting and worker
+250ms budget unchanged. Existing warnings remain,not warning-free qualification.
+
+An isolated candidate replacing repeated definition lookup with the already
+captured definition showed no reliable timing/allocation benefit;not selected.
+A prior worker-cancellation audit also misattributed Abandon's discard behavior
+to Cancel;no worker contract defect was established and no worker change selected.
+Two follow-up subagents hit provider usage limits and one review RPC failed;
+coordinator finished mapping,tests,mutation controls and source/evidence review.
+There is no independent acceptance review.
+
+Evidence:`plan/evidence/native-math-2026-11-15-macro-query-work/`. No browser,
+geometry/raster,image,seeded fuzz,worker Valgrind or whole-macro Valgrind rerun.
+Prior strict raster losses remain unresolved. Macro mutation/Save/undo scans,
+full resource/timing/font/cache/GTK/lifecycle/parity/human gates and PCR-125 remain
+OPEN. No storage pool,index,retained-context cap or accounting expansion selected.
+No release/install/commit.

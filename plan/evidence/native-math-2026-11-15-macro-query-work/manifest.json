@@ -1,0 +1,22 @@
+{
+  "parent_commit": "1a765ce880c4818646b1da8acbb0314ef379a441",
+  "project_date": "2026-11-15",
+  "sha256": {
+    "src/coyote_math/math_macros.ads": "b0fc1e25682ff71253e009f22499da1400eeca6d9daf91fb1651ffefb43282b1",
+    "src/coyote_math/math_macros.adb": "1ac336726ad9ba9309511c307de6ae89466659e981240b33df30b0da7b35032f",
+    "src/coyote_math/math_expander.adb": "4a5561834df75e1bbefcc615b661e2735d4d6d73c1e915d2330d7e330f9fcc8d",
+    "test/tools/math_macros_probe.adb": "0534dad56dcc5076d9a9ea7fc3ab6150fc7e99fb799a6dda0a09339b4c044037",
+    "plan/native-math-coverage.json": "7e8b46f7f1e7fec022697197657ab4d9625c749ff5af66f1e84974b456d296b9",
+    "/tmp/coyote-macro-query-exact2/bin/math_macros_probe": "cf276653d7922bd0511288890c20586465fb731e93dafc339252c2cb1c648f7f",
+    "/tmp/coyote-macro-query-validation/engine/bin/math_engine_probe": "ed1bceb77708a2e544351fd9b5a9489ad11b736bc2b3a7b58cd4e644ad412634",
+    "/tmp/coyote-macro-query-validation/jobs/bin/math_jobs_probe": "cb0ec4d13ef7dba973b1652942f91a2a913cd707c39ad91f3d2b4da3d9f7df89",
+    "test/bin/coyote_test": "2a9961131fecef5c8c9e34f0d2feea384b38998f44343498bfe1fc807e0b6a9d",
+    "bin/coyote": "42162fced7f3e5ecb96d937ad3c7cf6dd5ea9b231cc0dd5fbef820e0027594ea"
+  },
+  "full_suite": {
+    "count": 1076,
+    "cumulative_seconds": 147.112601,
+    "wall_seconds": 147.23
+  },
+  "source_stability_note": "final full suite ran after runtime source freeze; final spec comment clarification is included"
+}

@@ -1506,7 +1506,8 @@ package body Math_Expander is
                end;
                goto Iterate;
             elsif (Name = "\long" and then
-                   not Math_Macros.Is_Defined (Shared, Name) and then
+                   not Math_Macros.Is_Defined
+                     (Shared, Name, Item.Work) and then
                    not Math_Builtin_Macros.Lookup (Name).Found) or else
               Name = "\\globallong"
             then
@@ -1559,7 +1560,7 @@ package body Math_Expander is
                      end;
                   end if;
                   if Mapped_Length = 0 then
-                     if Math_Macros.Is_Defined (Shared, Name) or else
+                     if Math_Macros.Is_Defined (Shared, Name, Item.Work) or else
                        Math_Builtin_Macros.Lookup (Name).Found
                      then
                         Pushback (Item, Directive);
@@ -1662,7 +1663,7 @@ package body Math_Expander is
                            then
                               Item.Status := Malformed_Definition;
                            elsif Math_Macros.Is_Defined
-                             (Shared, Name_Of (Item, Source))
+                             (Shared, Name_Of (Item, Source), Item.Work)
                            then
                               Math_Macros.Copy_Definition
                                 (Shared, Name_Of (Item, Target),
@@ -1990,7 +1991,7 @@ package body Math_Expander is
                      Item.Status := Malformed_Definition;
                   else
                      declare M : constant String := Macro_Name (1 .. Name_Length); begin
-                        Existing := Math_Macros.Is_Defined (Shared, M) or else
+                        Existing := Math_Macros.Is_Defined (Shared, M, Item.Work) or else
                           Math_Builtin_Macros.Lookup (M).Found or else
                           Math_Symbols.Lookup_Math (M).Found or else
                           Math_Symbols.Lookup_Text (M).Found or else
@@ -2052,7 +2053,9 @@ package body Math_Expander is
                     Source.Kind not in Math_Tokens.Control_Word | Math_Tokens.Control_Symbol
                   then Item.Status := Malformed_Definition;
                   else
-                     if Math_Macros.Is_Defined (Shared, Name_Of (Item, Source)) then
+                     if Math_Macros.Is_Defined
+                       (Shared, Name_Of (Item, Source), Item.Work)
+                     then
                         Math_Macros.Copy_Definition
                           (Shared, Name_Of (Item, Target),
                            Name_Of (Item, Source), False, D);
@@ -2276,7 +2279,8 @@ package body Math_Expander is
                   Replacement : Token_Vectors.Vector;
                   Is_Macro : constant Boolean :=
                     Second.Kind = Math_Tokens.Control_Word and then
-                    (Math_Macros.Is_Defined (Shared, Name_Of (Item, Second))
+                    (Math_Macros.Is_Defined
+                       (Shared, Name_Of (Item, Second), Item.Work)
                      or else Math_Builtin_Macros.Lookup
                        (Name_Of (Item, Second)).Found);
                begin
@@ -2309,7 +2313,7 @@ package body Math_Expander is
                Item.Returned := Item.Returned + 1;
                return Tok;
             elsif (Name = "\bra@ket" or else Name = "\bra@set") and then
-              not Math_Macros.Is_Defined (Shared, Name)
+              not Math_Macros.Is_Defined (Shared, Name, Item.Work)
             then
                if Item.Expanded >= Item.Max_Expand then
                   Item.Status := Expansion_Limit;
@@ -2471,13 +2475,13 @@ package body Math_Expander is
             elsif Tok.Kind = Math_Tokens.Control_Word and then
               Name (Name'First .. Name'First + 1) /= "\\" and then
               not Item.Expansion_Only and then
-              not Math_Macros.Is_Defined (Shared, Name) and then
+              not Math_Macros.Is_Defined (Shared, Name, Item.Work) and then
               Name /= "\newline" and then
               Is_Registered_Function_Name (Name)
             then
                Item.Returned := Item.Returned + 1;
                return Tok;
-            elsif Math_Macros.Is_Defined (Shared, Name) or else
+            elsif Math_Macros.Is_Defined (Shared, Name, Item.Work) or else
               Math_Builtin_Macros.Lookup (Name).Found
             then
                if Item.Expanded >= Item.Max_Expand then
@@ -2487,7 +2491,7 @@ package body Math_Expander is
                Item.Expanded := Item.Expanded + 1;
                declare
                   User_Defined : constant Boolean :=
-                    Math_Macros.Is_Defined (Shared, Name);
+                    Math_Macros.Is_Defined (Shared, Name, Item.Work);
                   Builtin : constant Math_Builtin_Macros.Macro_Record :=
                     Math_Builtin_Macros.Lookup (Name);
                   Template_Text : constant String :=
@@ -2526,7 +2530,8 @@ package body Math_Expander is
                   begin
                      if User_Defined then
                         Value := Math_Macros.Token_At
-                          (Math_Macros.Lookup (Shared, Name), Index);
+                          (Math_Macros.Lookup
+                             (Shared, Name, Item.Work), Index);
                      else
                         Value := Math_Tokens.Element (Template_Stream, Index);
                      end if;
@@ -2547,7 +2552,7 @@ package body Math_Expander is
                   if User_Defined then
                      declare
                         Def : constant Math_Macros.Definition :=
-                          Math_Macros.Lookup (Shared, Name);
+                          Math_Macros.Lookup (Shared, Name, Item.Work);
                      begin
                         Definition_Value := Def;
                         Params := Math_Macros.Num_Params (Def);

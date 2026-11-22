@@ -1,0 +1,8 @@
+{
+  "build_exit": 0,
+  "probe_exit": 1,
+  "summary": "Checks: 68 Failures: 26",
+  "probe_sha256": "0534dad56dcc5076d9a9ea7fc3ab6150fc7e99fb799a6dda0a09339b4c044037",
+  "changed_source": "math_macros.adb",
+  "snapshot_files": 49
+}

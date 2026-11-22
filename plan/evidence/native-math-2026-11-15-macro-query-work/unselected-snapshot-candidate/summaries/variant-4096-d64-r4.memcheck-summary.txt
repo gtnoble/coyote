@@ -1,0 +1,3 @@
+==403728==     in use at exit: 33,840 bytes in 636 blocks
+==403728==   total heap usage: 5,195 allocs, 4,559 frees, 14,845,344 bytes allocated
+==403728== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

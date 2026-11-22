@@ -5041,3 +5041,20 @@ are historical, not current-source qualification.
   final expiry branch not deterministically injected,overflow-worker tests can
   be deadline-sensitive. No full timing/parity/lifecycle/human acceptance and
   no waiver of existing strict raster losses. No release/install/acceptance.
+
+
+### PCR-125 — Macro query cooperative checks,2026-11-15
+
+- **Category:** Software. **Priority:** 3-Moderate.
+- **Problem:** read-only macro name scans can visit up to32768 definitions
+  without a cooperative check,including repeated expansion queries.
+- **Action:** optional borrowed Work on Is_Defined/Lookup,per-entry Find poll,
+  all12 expander query sites forward active Work. Do not interrupt mutation,
+  definition/default publication or scope undo;no new cap/index/accounting.
+- **Verification:** §11.28:macro941 twice,focused68 normal/Valgrind clean,
+  exact-probe scan/forwarding mutants fail26/2 checks,full1076/1076,
+  engine3553/worker380 and required GTK/HTTP pass.
+- **Status:** scoped developer-verified;PCR-125 remains OPEN. Mutation/undo
+  amplification,native-copy and broader resource/timing/lifecycle/parity/human
+  gates remain open. Historical whole-macro Valgrind incomplete,strict raster
+  losses unresolved. Self-review is not independent acceptance. No release/install.

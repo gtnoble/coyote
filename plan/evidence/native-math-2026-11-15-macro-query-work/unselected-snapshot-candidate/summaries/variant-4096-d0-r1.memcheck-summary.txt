@@ -1,0 +1,3 @@
+==403185==     in use at exit: 33,840 bytes in 636 blocks
+==403185==   total heap usage: 4,799 allocs, 4,163 frees, 8,246,416 bytes allocated
+==403185== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

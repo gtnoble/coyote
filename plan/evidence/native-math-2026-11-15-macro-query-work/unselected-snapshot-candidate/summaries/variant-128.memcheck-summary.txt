@@ -1,0 +1,3 @@
+==400842==     in use at exit: 33,840 bytes in 636 blocks
+==400842==   total heap usage: 816 allocs, 180 frees, 305,848 bytes allocated
+==400842== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

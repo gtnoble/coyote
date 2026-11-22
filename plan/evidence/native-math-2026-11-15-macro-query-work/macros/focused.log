@@ -1,0 +1,69 @@
+ok empty Is_Defined does not poll
+ok empty missing Lookup retains constraint error without polling
+ok query fixture includes owned prefix, delimiter and default payloads
+ok query fixture has a caller-owned scope
+ok Is_Defined reaches target in expected comparisons
+ok Lookup returns complete payload after expected comparisons
+ok null-work query matches saved complete definition
+ok Is_Defined reaches target in expected comparisons
+ok Lookup returns complete payload after expected comparisons
+ok null-work query matches saved complete definition
+ok Is_Defined reaches target in expected comparisons
+ok Lookup returns complete payload after expected comparisons
+ok null-work query matches saved complete definition
+ok missing Is_Defined visits full table
+ok missing Lookup errors after full table scan
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok Is_Defined propagates exact stop before visited comparison
+ok stopped Is_Defined preserves ordered payloads and scope
+ok Lookup propagates stop before return or missing-name error
+ok stopped Lookup preserves ordered payloads and scope
+ok fresh null-work Lookup recovers after stop
+ok source constructed
+ok source lexed
+ok expander query stop preserves ordered caller state
+ok source constructed
+ok source lexed
+ok fresh expander cursor recovers and expands last definition
+ok source constructed
+ok source lexed
+ok expander query stop preserves ordered caller state
+ok source constructed
+ok source lexed
+ok fresh expander cursor recovers and expands last definition
+ok caller scope unwinds normally after query recovery
+Checks: 68 Failures: 0

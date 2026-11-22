@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Containers;
+with Math_Work_Control;
 
 package body Math_Macros is
    use type Ada.Containers.Count_Type;
@@ -7,9 +8,12 @@ package body Math_Macros is
 
    Max_Scopes : constant := 256;
 
-   function Find (Item : Context; Name : String) return Natural is
+   function Find
+     (Item : Context; Name : String;
+      Work : Math_Work_Control.Context_Access := null) return Natural is
    begin
       for I in 1 .. Natural (Item.Definitions.Length) loop
+         Math_Work_Control.Poll (Work);
          if To_String (Item.Definitions (Positive (I)).Name) = Name then
             return I;
          end if;
@@ -243,12 +247,16 @@ package body Math_Macros is
       end;
    end Define;
 
-   function Is_Defined (Item : Context; Name : String) return Boolean is
-     (Find (Item, Name) > 0);
+   function Is_Defined
+     (Item : Context; Name : String;
+      Work : Math_Work_Control.Context_Access := null) return Boolean is
+     (Find (Item, Name, Work) > 0);
 
-   function Lookup (Item : Context; Name : String) return Definition is
+   function Lookup
+     (Item : Context; Name : String;
+      Work : Math_Work_Control.Context_Access := null) return Definition is
    begin
-      return Item.Definitions (Positive (Find (Item, Name)));
+      return Item.Definitions (Positive (Find (Item, Name, Work)));
    end Lookup;
 
    function Name_Of (Item : Definition) return String is

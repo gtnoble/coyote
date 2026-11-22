@@ -1,0 +1,12 @@
+--- /tmp/coyote-macro-snapshot-characterization/baseline/src/math_expander.adb	2026-11-21 17:41:58.421380643 -0600
++++ /tmp/coyote-macro-snapshot-characterization/variant/src/math_expander.adb	2026-11-21 17:43:13.905649694 -0600
+@@ -2525,8 +2525,7 @@
+                      Value : Math_Tokens.Token;
+                   begin
+                      if User_Defined then
+-                        Value := Math_Macros.Token_At
+-                          (Math_Macros.Lookup (Shared, Name), Index);
++                        Value := Math_Macros.Token_At (Definition_Value, Index);
+                      else
+                         Value := Math_Tokens.Element (Template_Stream, Index);
+                      end if;

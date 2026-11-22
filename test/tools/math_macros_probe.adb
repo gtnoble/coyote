@@ -361,10 +361,269 @@ procedure Math_Macros_Probe is
         and then Same, Label);
    end Expect_Raw_Output;
 
+   procedure Test_Query_Work is
+      use type Math_Tokens.Token;
+      type Positive_Array is array (Positive range <>) of Positive;
+      type Snapshot_Array is array (Positive range 1 .. 128) of
+        Math_Macros.Definition;
+      Local : Math_Macros.Context;
+      Empty : Math_Macros.Context;
+      Before : Snapshot_Array;
+      Name : String (1 .. 3);
+      Def : Math_Macros.Definition;
+      Tok : Math_Tokens.Token;
+      Diag : Math_Macros.Diagnostic_Kind;
+      Cursor_Value : Math_Expander.Cursor;
+      Output : Math_Tokens.Token;
+      Raised, Found : Boolean;
+
+      function Same_Definition
+        (Left, Right : Math_Macros.Definition) return Boolean is
+      begin
+         if Math_Macros.Name_Of (Left) /= Math_Macros.Name_Of (Right) or else
+           Math_Macros.Num_Params (Left) /= Math_Macros.Num_Params (Right) or else
+           Math_Macros.Token_Count (Left) /= Math_Macros.Token_Count (Right) or else
+           Math_Macros.Prefix_Token_Count (Left) /=
+             Math_Macros.Prefix_Token_Count (Right) or else
+           Math_Macros.Delimiter_Count (Left) /=
+             Math_Macros.Delimiter_Count (Right) or else
+           Math_Macros.Has_Optional_Default (Left) /=
+             Math_Macros.Has_Optional_Default (Right) or else
+           Math_Macros.Default_Token_Count (Left) /=
+             Math_Macros.Default_Token_Count (Right)
+         then
+            return False;
+         end if;
+         for I in 1 .. Math_Macros.Token_Count (Left) loop
+            if Math_Macros.Token_At (Left, I) /=
+              Math_Macros.Token_At (Right, I)
+            then
+               return False;
+            end if;
+         end loop;
+         for I in 1 .. Math_Macros.Prefix_Token_Count (Left) loop
+            if Math_Macros.Prefix_Token_At (Left, I) /=
+              Math_Macros.Prefix_Token_At (Right, I)
+            then
+               return False;
+            end if;
+         end loop;
+         for I in 1 .. Math_Macros.Delimiter_Count (Left) loop
+            if Math_Macros.Delimiter_Token_Count (Left, I) /=
+              Math_Macros.Delimiter_Token_Count (Right, I)
+            then
+               return False;
+            end if;
+            for J in 1 .. Math_Macros.Delimiter_Token_Count (Left, I) loop
+               if Math_Macros.Delimiter_Token_At (Left, I, J) /=
+                 Math_Macros.Delimiter_Token_At (Right, I, J)
+               then
+                  return False;
+               end if;
+            end loop;
+         end loop;
+         for I in 1 .. Math_Macros.Default_Token_Count (Left) loop
+            if Math_Macros.Default_Token_At (Left, I) /=
+              Math_Macros.Default_Token_At (Right, I)
+            then
+               return False;
+            end if;
+         end loop;
+         return True;
+      end Same_Definition;
+
+      function State_Unchanged return Boolean is
+      begin
+         if Math_Macros.Scope_Depth (Local) /= 1 or else
+           Math_Macros.Definition_Count (Local) /= 129 or else
+           Math_Macros.Diagnostic (Local) /= Math_Macros.No_Error
+         then
+            return False;
+         end if;
+         for I in Before'Range loop
+            if not Same_Definition
+              (Math_Macros.Definition_At (Local, I), Before (I))
+            then
+               return False;
+            end if;
+         end loop;
+         declare
+            Last : constant Math_Macros.Definition :=
+              Math_Macros.Definition_At (Local, 129);
+         begin
+            return Math_Macros.Name_Of (Last) = "\ephemeral" and then
+              Math_Macros.Token_Count (Last) = 1 and then
+              Math_Macros.Token_At (Last, 1).Code_Point =
+                Character'Pos ('z');
+         end;
+      end State_Unchanged;
+   begin
+      Poll_Counter.Reset (1, Math_Work_Control.Cancel_Requested);
+      Check (not Math_Macros.Is_Defined
+        (Empty, "\absent", Counted_Work) and Poll_Counter.Count = 0,
+        "empty Is_Defined does not poll");
+      Raised := False;
+      begin
+         Def := Math_Macros.Lookup (Empty, "\absent", Counted_Work);
+      exception
+         when Constraint_Error => Raised := True;
+      end;
+      Check (Raised and Poll_Counter.Count = 0,
+        "empty missing Lookup retains constraint error without polling");
+      for I in Before'Range loop
+         Name := ('\', Character'Val (Character'Pos ('a') + (I - 1) / 26),
+           Character'Val (Character'Pos ('a') + (I - 1) mod 26));
+         Tok := (Kind => Math_Tokens.Character_Token,
+           Code_Point => I, others => <>);
+         Math_Macros.Define_Tokens
+           (Local, Name, 0, (1 => Tok), True, Diag);
+      end loop;
+      declare
+         Prefix : constant Math_Tokens.Token :=
+           (Kind => Math_Tokens.Character_Token,
+            Code_Point => Character'Pos ('p'), others => <>);
+         Delimiter : Math_Macros.Token_Vectors.Vector;
+         Delimiters : Math_Macros.Delimiter_Vectors.Vector;
+      begin
+         Delimiter.Append (Prefix);
+         Delimiters.Append (Delimiter);
+         Math_Macros.Define_Tokens
+           (Local, "\aa", 1, (1 => Prefix), True, Diag,
+            Prefix => (1 => Prefix), Delimiters => Delimiters);
+         Math_Macros.Set_Optional_Default
+           (Local, "\aa", (1 => Prefix, 2 => Prefix), Diag);
+         Check (Diag = Math_Macros.No_Error,
+           "query fixture includes owned prefix, delimiter and default payloads");
+      end;
+      for I in Before'Range loop
+         Before (I) := Math_Macros.Definition_At (Local, I);
+      end loop;
+      Math_Macros.Begin_Group (Local);
+      Tok := (Kind => Math_Tokens.Character_Token,
+        Code_Point => Character'Pos ('z'), others => <>);
+      Math_Macros.Define_Tokens
+        (Local, "\ephemeral", 0, (1 => Tok), False, Diag);
+      Check (Diag = Math_Macros.No_Error and State_Unchanged,
+        "query fixture has a caller-owned scope");
+      for I in Before'Range loop
+         Name := ('\', Character'Val (Character'Pos ('a') + (I - 1) / 26),
+           Character'Val (Character'Pos ('a') + (I - 1) mod 26));
+         if I = 1 or I = 64 or I = 128 then
+            Poll_Counter.Reset (I, Math_Work_Control.Continue_Work);
+            Check (Math_Macros.Is_Defined (Local, Name, Counted_Work) and
+              Poll_Counter.Count = I,
+              "Is_Defined reaches target in expected comparisons");
+            Poll_Counter.Reset (I, Math_Work_Control.Continue_Work);
+            Def := Math_Macros.Lookup (Local, Name, Counted_Work);
+            Check (Same_Definition (Def, Before (I)) and
+              Poll_Counter.Count = I,
+              "Lookup returns complete payload after expected comparisons");
+            Def := Math_Macros.Lookup (Local, Name);
+            Check (Same_Definition (Def, Before (I)),
+              "null-work query matches saved complete definition");
+         end if;
+      end loop;
+      Poll_Counter.Reset (129, Math_Work_Control.Continue_Work);
+      Check (not Math_Macros.Is_Defined
+        (Local, "\zz", Counted_Work) and Poll_Counter.Count = 129,
+        "missing Is_Defined visits full table");
+      Poll_Counter.Reset (129, Math_Work_Control.Continue_Work);
+      Raised := False;
+      begin
+         Def := Math_Macros.Lookup (Local, "\zz", Counted_Work);
+      exception
+         when Constraint_Error => Raised := True;
+      end;
+      Check (Raised and Poll_Counter.Count = 129,
+        "missing Lookup errors after full table scan");
+      for Missing in Boolean loop
+         for Reason in Math_Work_Control.Cancel_Requested ..
+           Math_Work_Control.Deadline_Reached
+         loop
+            for Limit of Positive_Array'(32, 128) loop
+               Poll_Counter.Reset (Limit, Reason);
+               Raised := False;
+               begin
+                  Found := Math_Macros.Is_Defined
+                    (Local, (if Missing then "\zz" else "\ex"), Counted_Work);
+               exception
+                  when Math_Work_Control.Stop_Requested =>
+                     Raised := Reason = Math_Work_Control.Cancel_Requested;
+                  when Math_Work_Control.Deadline_Expired =>
+                     Raised := Reason = Math_Work_Control.Deadline_Reached;
+               end;
+               Check (Raised and Poll_Counter.Count = Limit,
+                 "Is_Defined propagates exact stop before visited comparison");
+               Check (State_Unchanged,
+                 "stopped Is_Defined preserves ordered payloads and scope");
+               Poll_Counter.Reset (Limit, Reason);
+               Raised := False;
+               begin
+                  Def := Math_Macros.Lookup
+                    (Local, (if Missing then "\zz" else "\ex"), Counted_Work);
+               exception
+                  when Math_Work_Control.Stop_Requested =>
+                     Raised := Reason = Math_Work_Control.Cancel_Requested;
+                  when Math_Work_Control.Deadline_Expired =>
+                     Raised := Reason = Math_Work_Control.Deadline_Reached;
+                  when Constraint_Error => null;
+               end;
+               Check (Raised and Poll_Counter.Count = Limit,
+                 "Lookup propagates stop before return or missing-name error");
+               Check (State_Unchanged,
+                 "stopped Lookup preserves ordered payloads and scope");
+               Def := Math_Macros.Lookup (Local, "\ex");
+               Check (Same_Definition (Def, Before (128)),
+                 "fresh null-work Lookup recovers after stop");
+            end loop;
+         end loop;
+      end loop;
+      for Reason in Math_Work_Control.Cancel_Requested ..
+        Math_Work_Control.Deadline_Reached
+      loop
+         Open_Text ("\ex", Cursor_Value);
+         Poll_Counter.Reset (32, Reason);
+         Raised := False;
+         begin
+            Output := Math_Expander.Next (Cursor_Value, Local, Counted_Work);
+         exception
+            when Math_Work_Control.Stop_Requested =>
+               Raised := Reason = Math_Work_Control.Cancel_Requested;
+            when Math_Work_Control.Deadline_Expired =>
+               Raised := Reason = Math_Work_Control.Deadline_Reached;
+         end;
+         Check (Raised and Poll_Counter.Count = 32 and State_Unchanged,
+           "expander query stop preserves ordered caller state");
+         Open_Text ("\ex", Cursor_Value);
+         Output := Math_Expander.Next (Cursor_Value, Local);
+         Check (Output.Kind = Math_Tokens.Character_Token and
+           Output.Code_Point = 128 and
+           Math_Expander.Diagnostic (Cursor_Value) = Math_Expander.No_Error and
+           State_Unchanged,
+           "fresh expander cursor recovers and expands last definition");
+      end loop;
+      Math_Macros.End_Group (Local);
+      Check (not Math_Macros.Is_Defined (Local, "\ephemeral") and
+        Math_Macros.Is_Defined (Local, "\aa") and
+        Math_Macros.Scope_Depth (Local) = 0,
+        "caller scope unwinds normally after query recovery");
+   end Test_Query_Work;
+
    Cur : Math_Expander.Cursor;
    T : Math_Tokens.Token;
    MD : Math_Macros.Diagnostic_Kind;
 begin
+   Test_Query_Work;
+   if Ada.Command_Line.Argument_Count = 1 and then
+     Ada.Command_Line.Argument (1) = "--query-work"
+   then
+      Ada.Text_IO.Put_Line
+        ("Checks:" & Checks'Image & " Failures:" & Failures'Image);
+      if Failures /= 0 then
+         Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+      end if;
+      return;
+   end if;
    declare
       Local_Cursor : Math_Expander.Cursor;
       Local_Source : Math_Source.Source;
