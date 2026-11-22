@@ -1,10 +1,11 @@
 with Cairo;
 with Coyote_Canvas.Revisions;
 
---  Geometry shared by canonical coverage and the transient gesture.
+--  Geometry shared by canonical ink and the transient gesture.
 package Coyote_Canvas.Ink is
-   CHANNEL : constant := 13;
-   RGB     : constant := 16#0D0D0D#;
+   --  Set the source used by shared Cairo ink drawing procedures.
+   procedure Set_Color
+     (Context : Cairo.Cairo_Context; Color : Revisions.Ink_Color);
 
    --  Paint one round dot or pressure-weighted segment in source coordinates.
    procedure Draw_Dot

@@ -40,10 +40,13 @@ with Gdk.Window;
 with Gdk.Types.Keysyms;
 with Gdk.Pixbuf;
 with Gdk.Property;
+with Gdk.RGBA;
 with Gtk.Box;
 with Gtk.Adjustment;
 with Gtk.Bin;
 with Gtk.Button;
+with Gtk.Color_Button;
+with Gtk.Handlers;
 with Gtk.Drawing_Area;
 with Gtk.Radio_Button;
 with Gtkada.Types;
@@ -1010,6 +1013,18 @@ package body Coyote_App_Frontend_GUI_Tests is
       return Found;
    end Find_Canvas_Widget;
 
+   package Color_Signals is new Gtk.Handlers.Callback
+     (Gtk.Color_Button.Gtk_Color_Button_Record);
+
+   procedure Choose_Pencil_Color
+     (Swatch : Gtk.Color_Button.Gtk_Color_Button;
+      Color  : Gdk.RGBA.Gdk_RGBA)
+   is
+   begin
+      Swatch.Set_Rgba (Color);
+      Color_Signals.Emit_By_Name (Swatch, "color-set");
+   end Choose_Pencil_Color;
+
    procedure Test_Canvas_Workspace (T : in out Test) is
       use Coyote_App.Frontend.GUI.Testing;
       use Gtk.Tree_Model;
@@ -1020,6 +1035,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tree : Gtk.Tree_View.Gtk_Tree_View;
       Area : Gtk.Widget.Gtk_Widget;
       Model : Gtk_Tree_Model;
+      Swatch : Gtk.Color_Button.Gtk_Color_Button;
       W, H : Glib.Gint;
 
       function Control (Name : String) return Gtk.Widget.Gtk_Widget is
@@ -1272,6 +1288,11 @@ package body Coyote_App_Frontend_GUI_Tests is
       Check_Icon ("crop", "Crop");
       Check_Icon ("zoom-in", "Zoom In");
       Check_Icon ("zoom-out", "Zoom Out");
+      Swatch := Gtk.Color_Button.Gtk_Color_Button
+        (Control ("canvas-pencil-color"));
+      Assert (not Swatch.Get_Sensitive and then not Swatch.Get_Use_Alpha
+              and then Swatch.Get_Tooltip_Text = "Pencil color",
+              "Opaque Pencil color is unavailable on an empty Canvas");
       Assert (not Tool_Button ("zoom-in").Get_Sensitive and then
                 not Tool_Button ("zoom-out").Get_Sensitive,
               "Magnifiers are disabled without a drawing");
@@ -1292,6 +1313,16 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (Tool_Button ("eraser").Child_Focus (Gtk.Enums.Dir_Left),
               "Left arrow returns to Pencil");
       Check_Tool ("pencil");
+      Assert (Control ("coyote-canvas-toolbar").Child_Focus
+                (Gtk.Enums.Dir_Tab_Forward) and then
+                Canvas.Get_Focus = Gtk.Widget.Gtk_Widget (Swatch),
+              "Tab from the tool group reaches the color swatch");
+      Assert (Swatch.Get_Sensitive, "Pencil color is available on a drawing");
+      Choose_Pencil_Color (Swatch, (1.0, 0.0, 0.0, 1.0));
+      Check_Tool ("pencil");
+      Assert (not Control ("canvas-save").Get_Sensitive
+              and then not Control ("canvas-undo").Get_Sensitive,
+              "Choosing a color is not a drawing edit");
       Size (800, 600);
       Assert (Get_Iter_From_String (Model, "0") /= Null_Iter,
               "New creates an Original");
@@ -1301,13 +1332,24 @@ package body Coyote_App_Frontend_GUI_Tests is
                 not Tool_Button ("zoom-in").Get_Sensitive and then
                 not Control ("canvas-zoom-out").Get_Sensitive,
               "No zoom control can interrupt an ink gesture");
+      Assert (not Swatch.Get_Sensitive,
+              "Pencil color cannot change during a stroke");
       Activate ("fit");
       Size (800, 600);
+      Check_Pixel ((255, 0, 0));
+      Choose_Pencil_Color (Swatch, (0.0, 0.0, 1.0, 1.0));
       Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
-      Check_Pixel ((13, 13, 13));
+      Check_Pixel ((255, 0, 0));
+      Choose_Pencil_Color
+        (Swatch, (13.0 / 255.0, 13.0 / 255.0, 13.0 / 255.0, 1.0));
+      Check_Pixel ((255, 0, 0));
       Activate ("undo");
       Check_Pixel ((255, 255, 255));
       Activate ("redo");
+      Check_Pixel ((255, 0, 0));
+      Activate ("undo");
+      Pointer (Gdk.Event.Button_Press, 30.0, 30.0);
+      Pointer (Gdk.Event.Button_Release, 30.0, 30.0);
       Check_Pixel ((13, 13, 13));
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (False);
@@ -2727,6 +2769,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tree : Gtk.Tree_View.Gtk_Tree_View;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Toggle : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Blue_Ink : constant Gdk.Pixbuf.Rgb_Record := (0, 0, 255);
       First_Contact, Second_Contact : aliased Integer := 0;
 
       function Control (Name : String) return Gtk.Widget.Gtk_Widget is
@@ -2834,6 +2877,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (not Control ("canvas-undo").Get_Sensitive,
               "An opted-out touch doesn't add ink");
 
+      Choose_Pencil_Color
+        (Gtk.Color_Button.Gtk_Color_Button (Control ("canvas-pencil-color")),
+         (0.0, 0.0, 1.0, 1.0));
       Toggle.Set_Active (True);
       Assert (not Scroll.Get_Kinetic_Scrolling,
               "Finger Pencil suppresses scroller gesture capture");
@@ -2846,13 +2892,13 @@ package body Coyote_App_Frontend_GUI_Tests is
                 not Control ("canvas-undo").Get_Sensitive and then
                 not Control ("canvas-fit").Get_Sensitive,
               "Live finger ink is only a view overlay");
-      Check_Pixel (40, 30, (13, 13, 13));
+      Check_Pixel (40, 30, Blue_Ink);
       Touch (Gdk.Event.Touch_End, 60.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_Update, 55.0, 65.5, Second_Contact'Address);
       Touch (Gdk.Event.Touch_End, 65.0, 65.5, Second_Contact'Address);
-      Check_Pixel (55, 30, (13, 13, 13));
-      Check_Pixel (55, 29, (13, 13, 13));
-      Check_Pixel (55, 31, (13, 13, 13));
+      Check_Pixel (55, 30, Blue_Ink);
+      Check_Pixel (55, 29, Blue_Ink);
+      Check_Pixel (55, 31, Blue_Ink);
       Check_Pixel (55, 28, (255, 255, 255));
       Check_Pixel (55, 32, (255, 255, 255));
       Check_Pixel (45, 65, (255, 255, 255));
@@ -2861,7 +2907,7 @@ package body Coyote_App_Frontend_GUI_Tests is
               "One touch stroke is one undo operation");
       Check_Pixel (55, 30, (255, 255, 255));
       Activate ("redo");
-      Check_Pixel (55, 30, (13, 13, 13));
+      Check_Pixel (55, 30, Blue_Ink);
 
       Activate ("zoom-in");
       Canvas.Check_Resize;
@@ -2869,8 +2915,8 @@ package body Coyote_App_Frontend_GUI_Tests is
       Touch (Gdk.Event.Touch_Begin, 37.5, 63.125, First_Contact'Address);
       Touch (Gdk.Event.Touch_End, 75.0, 63.125, First_Contact'Address);
       Activate ("actual");
-      Check_Pixel (55, 50, (13, 13, 13));
-      Check_Pixel (55, 49, (13, 13, 13));
+      Check_Pixel (55, 50, Blue_Ink);
+      Check_Pixel (55, 49, Blue_Ink);
       Check_Pixel (55, 48, (255, 255, 255));
 
       Touch (Gdk.Event.Touch_Begin, 30.0, 70.5, First_Contact'Address);
@@ -2890,7 +2936,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Touch (Gdk.Event.Touch_End, 55.0, 30.5, First_Contact'Address);
       Check_Pixel (55, 30, (255, 255, 255));
       Activate ("undo");
-      Check_Pixel (55, 30, (13, 13, 13));
+      Check_Pixel (55, 30, Blue_Ink);
       Activate ("pencil");
       Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
         (Control ("canvas-markup")).Set_Active (False);
@@ -2903,7 +2949,7 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Disabled finger eraser preserves touch scrolling");
       Touch (Gdk.Event.Touch_Begin, 55.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_End, 55.0, 30.5, First_Contact'Address);
-      Check_Pixel (55, 30, (13, 13, 13));
+      Check_Pixel (55, 30, Blue_Ink);
       Toggle.Set_Active (True);
       Assert (not Scroll.Get_Kinetic_Scrolling,
               "Finger eraser suppresses kinetic scrolling");
@@ -2915,7 +2961,7 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Live finger erasure cannot save, attach, or create a revision");
       Check_Pixel (55, 30, (255, 255, 255));
       Touch (Gdk.Event.Touch_Cancel, 55.0, 30.5, First_Contact'Address);
-      Check_Pixel (55, 30, (13, 13, 13));
+      Check_Pixel (55, 30, Blue_Ink);
 
       Activate ("zoom-in");
       Canvas.Check_Resize;
@@ -2928,16 +2974,16 @@ package body Coyote_App_Frontend_GUI_Tests is
       Touch (Gdk.Event.Touch_Update, 70.0, 63.125, Second_Contact'Address);
       Touch (Gdk.Event.Touch_End, 71.25, 63.125, Second_Contact'Address);
       Activate ("actual");
-      Check_Pixel (55, 50, (13, 13, 13));
+      Check_Pixel (55, 50, Blue_Ink);
       Check_Pixel (55, 30, (255, 255, 255));
       Check_Pixel (38, 30, (255, 255, 255));
-      Check_Pixel (36, 30, (13, 13, 13));
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (36, 30, Blue_Ink);
+      Check_Pixel (30, 30, Blue_Ink);
       Activate ("undo");
-      Check_Pixel (55, 30, (13, 13, 13));
-      Check_Pixel (38, 30, (13, 13, 13));
-      Check_Pixel (55, 50, (13, 13, 13));
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (55, 30, Blue_Ink);
+      Check_Pixel (38, 30, Blue_Ink);
+      Check_Pixel (55, 50, Blue_Ink);
+      Check_Pixel (30, 30, Blue_Ink);
       Activate ("redo");
       Assert (not Control ("canvas-redo").Get_Sensitive,
               "One redo restores the finger erase gesture");
@@ -2946,11 +2992,11 @@ package body Coyote_App_Frontend_GUI_Tests is
       Touch (Gdk.Event.Touch_Update, 35.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_Cancel, 35.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_End, 35.0, 30.5, First_Contact'Address);
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (30, 30, Blue_Ink);
       Touch (Gdk.Event.Touch_Begin, 30.0, 30.5, First_Contact'Address);
       Toggle.Set_Active (False);
       Touch (Gdk.Event.Touch_End, 35.0, 30.5, First_Contact'Address);
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (30, 30, Blue_Ink);
       Assert (Scroll.Get_Kinetic_Scrolling,
               "Disabling finger editing restores touch scrolling");
       Toggle.Set_Active (True);
@@ -2966,13 +3012,13 @@ package body Coyote_App_Frontend_GUI_Tests is
               "Direct finger drawing on the Original saves a child");
       Tree.Get_Selection.Select_Iter
         (Get_Iter_From_String (Tree.Get_Model, "0:0"));
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (30, 30, Blue_Ink);
       Activate ("eraser");
       Touch (Gdk.Event.Touch_Begin, 25.0, 30.5, First_Contact'Address);
       Touch (Gdk.Event.Touch_Update, 35.0, 30.5, First_Contact'Address);
       Check_Pixel (30, 30, (255, 255, 255));
       Touch (Gdk.Event.Touch_Cancel, 35.0, 30.5, First_Contact'Address);
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (30, 30, Blue_Ink);
       Assert
         (Get_Iter_From_String (Tree.Get_Model, "0:0:0") = Null_Iter
          and then Tree.Get_Selection.Iter_Is_Selected
@@ -2988,7 +3034,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Tree.Get_Selection.Unselect_All;
       Tree.Get_Selection.Select_Iter
         (Get_Iter_From_String (Tree.Get_Model, "0:0"));
-      Check_Pixel (30, 30, (13, 13, 13));
+      Check_Pixel (30, 30, Blue_Ink);
       Reset_Agents_From_Task (Frontend);
       Drain_Events;
       Assert (not Toggle.Get_Active and then Scroll.Get_Kinetic_Scrolling,

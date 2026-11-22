@@ -1,5 +1,17 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Canvas Pencil color
+
+The toolbar swatch selects opaque RGB for future Pencil strokes without
+changing tools or history. Mouse, pen, and finger snapshot it at gesture
+start. Canvas uses one premultiplied ARGB32 ink renderer for all strokes,
+including legacy near-black ones; the same replay and blend rules serve
+live erase, display, and native-size PNGs. Fully erased pixels retain the
+exact original RGBA, and an allocated ink layer can use up to 64 MiB.
+Private Canvas manifests use v4 only for non-default colors. v2 and v3
+still load as near-black ink. Older builds reject v4 rather than dropping
+color. Physical stylus and peak-memory qualification remain open.
+
 ## 2026-11-22 — Live Canvas Eraser preview (PCR-135)
 
 Finger, mouse, and pen erase visibly while dragged. The first preview

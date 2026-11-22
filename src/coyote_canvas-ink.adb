@@ -1,6 +1,21 @@
 with Glib;
 
 package body Coyote_Canvas.Ink is
+   use type Glib.Gdouble;
+
+   procedure Set_Color
+     (Context : Cairo.Cairo_Context; Color : Revisions.Ink_Color)
+   is
+      Value : constant Natural := Natural (Color);
+      Red   : constant Glib.Gdouble :=
+        Glib.Gdouble ((Value / 65_536) mod 256) / 255.0;
+      Green : constant Glib.Gdouble :=
+        Glib.Gdouble ((Value / 256) mod 256) / 255.0;
+      Blue  : constant Glib.Gdouble := Glib.Gdouble (Value mod 256) / 255.0;
+   begin
+      Cairo.Set_Source_Rgb (Context, Red, Green, Blue);
+   end Set_Color;
+
    procedure Draw_Dot
      (Point : Revisions.Sample; Context : Cairo.Cairo_Context) is
    begin

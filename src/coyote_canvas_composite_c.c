@@ -7,11 +7,11 @@
 #include <string.h>
 
 static void compose_pixel(unsigned char *pixel, const unsigned char *src,
-                          int channels, unsigned int mask,
-                          unsigned int ink_r, unsigned int ink_g,
-                          unsigned int ink_b)
+                          int channels, const unsigned char *ink)
 {
    unsigned int dr, dg, db, da;
+   uint32_t packed;
+   unsigned int ia, ir, ig, ib;
 
    if (src == NULL) {
       dr = dg = db = 255U;
@@ -22,22 +22,30 @@ static void compose_pixel(unsigned char *pixel, const unsigned char *src,
       db = src[2];
       da = channels == 4 ? src[3] : 255U;
    }
-   if (mask == 0U) {
+   if (ink == NULL) {
+      ia = ir = ig = ib = 0U;
+   } else {
+      memcpy(&packed, ink, sizeof packed);
+      ia = packed >> 24;
+      ir = (packed >> 16) & 255U;
+      ig = (packed >> 8) & 255U;
+      ib = packed & 255U;
+   }
+   if (ia == 0U) {
       pixel[0] = (unsigned char)dr;
       pixel[1] = (unsigned char)dg;
       pixel[2] = (unsigned char)db;
       pixel[3] = (unsigned char)da;
    } else {
-      unsigned int inverse = 255U - mask;
-      unsigned int alpha = mask * 255U + da * inverse;
-      unsigned int ink_weight = mask * 255U;
-      unsigned int dst_weight = da * inverse;
-      pixel[0] = (unsigned char)((ink_r * ink_weight +
-                                  dr * dst_weight + alpha / 2U) / alpha);
-      pixel[1] = (unsigned char)((ink_g * ink_weight +
-                                  dg * dst_weight + alpha / 2U) / alpha);
-      pixel[2] = (unsigned char)((ink_b * ink_weight +
-                                  db * dst_weight + alpha / 2U) / alpha);
+      unsigned int inverse = 255U - ia;
+      unsigned int alpha = ia * 255U + da * inverse;
+      /* Ink is already premultiplied; unassociate only the final RGB. */
+      pixel[0] = (unsigned char)((ir * 65025U +
+                                  dr * da * inverse + alpha / 2U) / alpha);
+      pixel[1] = (unsigned char)((ig * 65025U +
+                                  dg * da * inverse + alpha / 2U) / alpha);
+      pixel[2] = (unsigned char)((ib * 65025U +
+                                  db * da * inverse + alpha / 2U) / alpha);
       pixel[3] = (unsigned char)((alpha + 127U) / 255U);
    }
 }
@@ -57,48 +65,42 @@ void coyote_canvas_compose_rgba(unsigned char *out,
                                 const unsigned char *background,
                                 int src_stride, int channels,
                                 int left, int top, int width, int height,
-                                cairo_surface_t *mask, int ink)
+                                cairo_surface_t *ink_surface)
 {
-   const unsigned char *mask_data = NULL;
-   int mask_stride = 0;
-   unsigned int ink_r = ((unsigned int)ink >> 16) & 255U;
-   unsigned int ink_g = ((unsigned int)ink >> 8) & 255U;
-   unsigned int ink_b = (unsigned int)ink & 255U;
+   const unsigned char *ink_data = NULL;
+   int ink_stride = 0;
    int x, y;
 
-   if (mask != NULL) {
-      cairo_surface_flush(mask);
-      mask_data = cairo_image_surface_get_data(mask);
-      mask_stride = cairo_image_surface_get_stride(mask);
+   if (ink_surface != NULL) {
+      cairo_surface_flush(ink_surface);
+      ink_data = cairo_image_surface_get_data(ink_surface);
+      ink_stride = cairo_image_surface_get_stride(ink_surface);
    }
    for (y = 0; y < height; ++y) {
       unsigned char *dst = out + (size_t)y * (size_t)width * 4U;
       const unsigned char *src = background == NULL ? NULL :
          background + (size_t)(top + y) * (size_t)src_stride +
          (size_t)left * (size_t)channels;
-      const unsigned char *coverage = mask_data == NULL ? NULL :
-         mask_data + (size_t)(top + y) * (size_t)mask_stride + (size_t)left;
+      const unsigned char *ink = ink_data == NULL ? NULL :
+         ink_data + (size_t)(top + y) * (size_t)ink_stride +
+         (size_t)left * 4U;
       for (x = 0; x < width; ++x)
          compose_pixel(dst + (size_t)x * 4U,
                        src == NULL ? NULL : src + (size_t)x *
                        (size_t)channels, channels,
-                       coverage == NULL ? 0U : coverage[x],
-                       ink_r, ink_g, ink_b);
+                       ink == NULL ? NULL : ink + (size_t)x * 4U);
    }
 }
 
 void coyote_canvas_preview_region(unsigned char *display,
                                   const unsigned char *source,
-                                  const unsigned char *mask,
+                                  const unsigned char *ink_surface,
                                   int display_stride, int source_stride,
-                                  int channels, int mask_stride,
+                                  int channels, int ink_stride,
                                   int source_left, int source_top,
                                   int display_left, int display_top,
-                                  int width, int height, int ink)
+                                  int width, int height)
 {
-   unsigned int ink_r = ((unsigned int)ink >> 16) & 255U;
-   unsigned int ink_g = ((unsigned int)ink >> 8) & 255U;
-   unsigned int ink_b = (unsigned int)ink & 255U;
    int x, y;
 
    for (y = 0; y < height; ++y) {
@@ -107,13 +109,13 @@ void coyote_canvas_preview_region(unsigned char *display,
       const unsigned char *src = source == NULL ? NULL : source +
          (size_t)(source_top + y) * (size_t)source_stride +
          (size_t)source_left * (size_t)channels;
-      const unsigned char *coverage = mask + (size_t)(source_top + y) *
-         (size_t)mask_stride + (size_t)source_left;
+      const unsigned char *ink = ink_surface +
+         (size_t)(source_top + y) * (size_t)ink_stride +
+         (size_t)source_left * 4U;
       for (x = 0; x < width; ++x) {
          unsigned char rgba[4];
          compose_pixel(rgba, src == NULL ? NULL : src + (size_t)x *
-                       (size_t)channels, channels, coverage[x],
-                       ink_r, ink_g, ink_b);
+                       (size_t)channels, channels, ink + (size_t)x * 4U);
          premultiplied_pixel(dst + (size_t)x * 4U, rgba);
       }
    }

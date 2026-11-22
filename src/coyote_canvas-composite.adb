@@ -25,8 +25,7 @@ package body Coyote_Canvas.Composite is
 
    procedure Compose_RGBA
      (Output, Background : System.Address; Stride, Channels : int;
-      Left, Top, Width, Height : int; Mask : Cairo.Cairo_Surface;
-      Color : int)
+      Left, Top, Width, Height : int; Ink_Surface : Cairo.Cairo_Surface)
      with Import, Convention => C,
           External_Name => "coyote_canvas_compose_rgba";
 
@@ -59,10 +58,10 @@ package body Coyote_Canvas.Composite is
      (if I.Data = null then (1 .. 0 => 0) else I.Data.all);
 
    procedure Preview_Region
-     (Display_Data, Source_Data, Mask_Data : System.Address;
-      Display_Stride, Source_Stride, Channels, Mask_Stride : int;
+     (Display_Data, Source_Data, Ink_Data : System.Address;
+      Display_Stride, Source_Stride, Channels, Ink_Stride : int;
       Source_Left, Source_Top, Display_Left, Display_Top : int;
-      Width, Height : int; Color : int)
+      Width, Height : int)
      with Import, Convention => C,
        External_Name => "coyote_canvas_preview_region";
 
@@ -72,9 +71,9 @@ package body Coyote_Canvas.Composite is
          Cairo.Destroy (P.Context);
          P.Context := Cairo.Null_Context;
       end if;
-      if P.Mask /= Cairo.Null_Surface then
-         Cairo.Surface_Destroy (P.Mask);
-         P.Mask := Cairo.Null_Surface;
+      if P.Ink_Layer /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (P.Ink_Layer);
+         P.Ink_Layer := Cairo.Null_Surface;
       end if;
       if P.Display /= Cairo.Null_Surface then
          Cairo.Surface_Destroy (P.Display);
@@ -96,6 +95,24 @@ package body Coyote_Canvas.Composite is
       Clear (P);
    end Finalize;
 
+   procedure Replay_Stroke
+     (Context   : Cairo.Cairo_Context;
+      Points    : Revisions.Samples.Vector;
+      Operation : Revisions.Ink_Operation;
+      Color     : Revisions.Ink_Color)
+   is
+      use type Revisions.Ink_Operation;
+   begin
+      if Operation = Revisions.Erase then
+         Cairo.Set_Source_Rgb (Context, 0.0, 0.0, 0.0);
+         Cairo.Set_Operator (Context, Cairo.Cairo_Operator_Dest_Out);
+      else
+         Ink.Set_Color (Context, Color);
+         Cairo.Set_Operator (Context, Cairo.Cairo_Operator_Over);
+      end if;
+      Ink.Draw (Points, Context);
+   end Replay_Stroke;
+
    procedure Render_Internal
      (W : Revisions.Workspace; Id : Revisions.Revision_Id;
       Source : System.Address; Source_Length : Stream_Element_Count;
@@ -105,34 +122,33 @@ package body Coyote_Canvas.Composite is
       R, Original : Document.Rectangle;
       Source_W, Source_H : Positive;
       Out_W, Out_H : Positive;
-      Mask : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Ink_Layer : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Context : Cairo.Cairo_Context := Cairo.Null_Context;
       Buffer : Pixel_Buffer;
 
       procedure Draw
-        (Points : Revisions.Samples.Vector; Operation : Revisions.Ink_Operation)
+        (Points : Revisions.Samples.Vector;
+         Operation : Revisions.Ink_Operation;
+         Color : Revisions.Ink_Color)
       is
          use type Revisions.Ink_Operation;
       begin
-         if Context = Cairo.Null_Context and then Operation = Revisions.Erase then
+         if Context = Cairo.Null_Context and then
+           Operation = Revisions.Erase
+         then
             return;
          end if;
          if Context = Cairo.Null_Context then
-            Mask := Cairo.Image_Surface.Create
-              (Cairo.Image_Surface.Cairo_Format_A8,
+            Ink_Layer := Cairo.Image_Surface.Create
+              (Cairo.Image_Surface.Cairo_Format_ARGB32,
                Glib.Gint (Source_W), Glib.Gint (Source_H));
-            if Cairo.Surface.Status (Mask) /= Cairo.Cairo_Status_Success
+            if Cairo.Surface.Status (Ink_Layer) /= Cairo.Cairo_Status_Success
             then
-               raise Render_Error with "Cannot allocate Canvas ink mask";
+               raise Render_Error with "Cannot allocate Canvas ink surface";
             end if;
-            Context := Cairo.Create (Mask);
-            Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
+            Context := Cairo.Create (Ink_Layer);
          end if;
-         Cairo.Set_Operator
-           (Context, (if Operation = Revisions.Erase
-                      then Cairo.Cairo_Operator_Dest_Out
-                      else Cairo.Cairo_Operator_Over));
-         Ink.Draw (Points, Context);
+         Replay_Stroke (Context, Points, Operation, Color);
       end Draw;
    begin
       if Id > Revisions.Count (W) then
@@ -206,10 +222,10 @@ package body Coyote_Canvas.Composite is
         (1 .. Stream_Element_Offset (Packed_Byte_Count (Out_W, Out_H)));
       Compose_RGBA
         (Buffer (1)'Address, Source, int (Stride), int (Channels),
-         int (R.Left), int (R.Top), int (Out_W), int (Out_H), Mask, Ink.RGB);
-      if Mask /= Cairo.Null_Surface then
-         Cairo.Surface_Destroy (Mask);
-         Mask := Cairo.Null_Surface;
+         int (R.Left), int (R.Top), int (Out_W), int (Out_H), Ink_Layer);
+      if Ink_Layer /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (Ink_Layer);
+         Ink_Layer := Cairo.Null_Surface;
       end if;
       Clear (Result);
       Result.Data := Buffer;
@@ -220,8 +236,8 @@ package body Coyote_Canvas.Composite is
          if Context /= Cairo.Null_Context then
             Cairo.Destroy (Context);
          end if;
-         if Mask /= Cairo.Null_Surface then
-            Cairo.Surface_Destroy (Mask);
+         if Ink_Layer /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (Ink_Layer);
          end if;
          Free (Buffer);
          raise;
@@ -265,15 +281,11 @@ package body Coyote_Canvas.Composite is
 
       procedure Replay
         (Ink_Points : Revisions.Samples.Vector;
-         Operation : Revisions.Ink_Operation)
+         Operation : Revisions.Ink_Operation;
+         Color : Revisions.Ink_Color)
       is
-         use type Revisions.Ink_Operation;
       begin
-         Cairo.Set_Operator
-           (P.Context, (if Operation = Revisions.Erase
-                  then Cairo.Cairo_Operator_Dest_Out
-                  else Cairo.Cairo_Operator_Over));
-         Ink.Draw (Ink_Points, P.Context);
+         Replay_Stroke (P.Context, Ink_Points, Operation, Color);
       end Replay;
 
       procedure Include_Bounds
@@ -317,15 +329,15 @@ package body Coyote_Canvas.Composite is
         (Left, Top, Width, Height : Natural) is
       begin
          Cairo.Surface.Flush (P.Display);
-         Cairo.Surface.Flush (P.Mask);
+         Cairo.Surface.Flush (P.Ink_Layer);
          Preview_Region
            (Cairo.Image_Surface.Get_Data_Generic (P.Display), Source,
-            Cairo.Image_Surface.Get_Data_Generic (P.Mask),
+            Cairo.Image_Surface.Get_Data_Generic (P.Ink_Layer),
             int (Cairo.Image_Surface.Get_Stride (P.Display)),
             int (P.Source_Stride), int (P.Channels),
-            int (Cairo.Image_Surface.Get_Stride (P.Mask)),
+            int (Cairo.Image_Surface.Get_Stride (P.Ink_Layer)),
             int (P.Left + Left), int (P.Top + Top), int (Left), int (Top),
-            int (Width), int (Height), Ink.RGB);
+            int (Width), int (Height));
          Cairo.Surface.Mark_Dirty_Rectangle
            (P.Display, Glib.Gint (Left), Glib.Gint (Top),
             Glib.Gint (Width), Glib.Gint (Height));
@@ -423,22 +435,21 @@ package body Coyote_Canvas.Composite is
          P.Channels := Channels;
          --  Keep canonical source-space clipping and antialiasing even
          --  when the displayed rectangle is a crop of the original.
-         P.Mask := Cairo.Image_Surface.Create
-           (Cairo.Image_Surface.Cairo_Format_A8,
+         P.Ink_Layer := Cairo.Image_Surface.Create
+           (Cairo.Image_Surface.Cairo_Format_ARGB32,
             Glib.Gint (Source_W), Glib.Gint (Source_H));
          P.Display := Cairo.Image_Surface.Create
            (Cairo.Image_Surface.Cairo_Format_ARGB32,
             Glib.Gint (Out_W), Glib.Gint (Out_H));
-         if Cairo.Surface.Status (P.Mask) /= Cairo.Cairo_Status_Success or
+         if Cairo.Surface.Status (P.Ink_Layer) /= Cairo.Cairo_Status_Success or
            else Cairo.Surface.Status (P.Display) /= Cairo.Cairo_Status_Success
          then
             raise Render_Error with "Cannot allocate erase preview surfaces";
          end if;
-         P.Context := Cairo.Create (P.Mask);
+         P.Context := Cairo.Create (P.Ink_Layer);
          if Cairo.Status (P.Context) /= Cairo.Cairo_Status_Success then
             raise Render_Error with "Cannot create erase preview context";
          end if;
-         Cairo.Set_Source_Rgb (P.Context, 1.0, 1.0, 1.0);
          Revisions.Visit_Source (W, Id, Replay'Access);
          if Cairo.Status (P.Context) /= Cairo.Cairo_Status_Success then
             raise Render_Error with "Cannot rasterize preview ink";
@@ -446,7 +457,7 @@ package body Coyote_Canvas.Composite is
          P.Ready := True;
       end if;
 
-      Cairo.Set_Source_Rgb (P.Context, 1.0, 1.0, 1.0);
+      Cairo.Set_Source_Rgb (P.Context, 0.0, 0.0, 0.0);
       Cairo.Set_Line_Cap (P.Context, Cairo.Cairo_Line_Cap_Round);
       Cairo.Set_Operator (P.Context, Cairo.Cairo_Operator_Dest_Out);
       Start_Index := P.Point_Count + 1;

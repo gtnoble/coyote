@@ -15,6 +15,7 @@ with Gtk.Box;
 with Gtk.File_Chooser_Dialog;
 with Gtk.Message_Dialog;
 with Gtk.Button;
+with Gtk.Color_Button;
 with Gtk.Drawing_Area;
 with Gtk.Grid;
 with Gtk.Label;
@@ -87,6 +88,11 @@ private
       Tool_Menu         : Tool_Items := (others => null);
       Syncing_Tools     : Boolean := False;
       Tool_Label        : Gtk.Label.Gtk_Label := null;
+      Pencil_Color      : Gtk.Color_Button.Gtk_Color_Button := null;
+      Ink_Color         : Coyote_Canvas.Revisions.Ink_Color :=
+        Coyote_Canvas.Revisions.DEFAULT_INK_COLOR;
+      Gesture_Color     : Coyote_Canvas.Revisions.Ink_Color :=
+        Coyote_Canvas.Revisions.DEFAULT_INK_COLOR;
       Gesture_Operation : Coyote_Canvas.Revisions.Ink_Operation :=
         Coyote_Canvas.Revisions.Paint;
       Canvas_Window : Gtk.Window.Gtk_Window               := null;

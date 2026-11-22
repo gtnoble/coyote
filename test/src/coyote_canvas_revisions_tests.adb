@@ -12,12 +12,16 @@ package body Coyote_Canvas_Revisions_Tests is
 
    Seen_Count : Natural := 0;
    Seen_Point : Sample;
+   Seen_Color : Ink_Color := DEFAULT_INK_COLOR;
 
-   procedure Collect (Points : Samples.Vector; Operation : Ink_Operation) is
+   procedure Collect
+     (Points : Samples.Vector; Operation : Ink_Operation;
+      Color : Ink_Color) is
       pragma Unreferenced (Operation);
    begin
       Seen_Count := Seen_Count + 1;
       Seen_Point := Points.First_Element;
+      Seen_Color := Color;
    end Collect;
 
    procedure Independent_Revisions (T : in out Test) is
@@ -50,6 +54,19 @@ package body Coyote_Canvas_Revisions_Tests is
       Assert
         (Seen_Point.X = 3.0 and then Seen_Point.Y = 4.0,
          "visit preserves original pixel-grid phase");
+      Assert (Seen_Color = DEFAULT_INK_COLOR,
+              "default paint retains the default color");
+      Stroke.Clear;
+      Stroke.Append ((X => 1.0, Y => 1.0, Width => 1.0));
+      Add_Stroke (W, Stroke, Color => 16#FF_00_00#);
+      Save (W);
+      Visit_Source (W, Base (W), Collect'Access);
+      Assert (Seen_Color = 16#FF_00_00#,
+              "custom paint color is retained on revision");
+      Add_Stroke (W, Stroke, Erase, 16#FF_FF_FF#);
+      Visit_Source (W, NO_REVISION, Collect'Access);
+      Assert (Seen_Color = DEFAULT_INK_COLOR,
+              "erase normalizes its color to the default");
       Edit (W, A);
       Assert
         (Extent (W) = Full_Extent (40, 30),

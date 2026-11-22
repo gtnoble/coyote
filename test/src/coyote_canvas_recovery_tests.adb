@@ -103,18 +103,24 @@ package body Coyote_Canvas_Recovery_Tests is
       Before_Count : Natural;
       Original_Ink, Recovered_Ink : Samples.Vector;
 
+      Original_Color, Recovered_Color : Ink_Color := DEFAULT_INK_COLOR;
+
       procedure Capture_Original
-        (Points : Samples.Vector; Operation : Ink_Operation) is
+        (Points : Samples.Vector; Operation : Ink_Operation;
+         Color : Ink_Color) is
          pragma Unreferenced (Operation);
       begin
          Original_Ink := Points;
+         Original_Color := Color;
       end Capture_Original;
 
       procedure Capture_Recovered
-        (Points : Samples.Vector; Operation : Ink_Operation) is
+        (Points : Samples.Vector; Operation : Ink_Operation;
+         Color : Ink_Color) is
          pragma Unreferenced (Operation);
       begin
          Recovered_Ink := Points;
+         Recovered_Color := Color;
       end Capture_Recovered;
    begin
       Make_Workspace (Source);
@@ -138,9 +144,103 @@ package body Coyote_Canvas_Recovery_Tests is
       Assert (not Original_Ink.Is_Empty
               and then Samples."=" (Original_Ink, Recovered_Ink),
               "source sample coordinates round-trip without rounding");
+      Assert (Original_Color = DEFAULT_INK_COLOR
+              and then Recovered_Color = DEFAULT_INK_COLOR,
+              "legacy/default paint uses the default ink color");
       Assert (Encode (Restored) = To_String (Encoded),
               "strokes, exact samples, assets and states roundtrip");
    end Roundtrip_Revisions_And_Draft;
+
+   procedure Color_Version_And_Legacy_Recovery (T : in out Test) is
+      pragma Unreferenced (T);
+      Source, Restored : Workspace;
+      Points : Samples.Vector;
+      First : Revision_Id;
+      Color : Ink_Color := DEFAULT_INK_COLOR;
+      Operation : Ink_Operation := Paint;
+      Data : Unbounded_String;
+      Bad_Data : Unbounded_String;
+      Rejected : Boolean := False;
+
+      procedure Capture
+        (Samples_In : Samples.Vector; Ink : Ink_Operation;
+         Ink_Color_Value : Ink_Color) is
+         pragma Unreferenced (Samples_In);
+      begin
+         Operation := Ink;
+         Color := Ink_Color_Value;
+      end Capture;
+   begin
+      Add_Originals (Source, (1 => (Width => 8, Height => 8)),
+                     First_Id => First);
+      Edit (Source, First);
+      Points.Append ((X => 1.0, Y => 2.0, Width => 1.0));
+      Add_Stroke (Source, Points, Color => 0);
+      Save (Source);
+      Data := To_Unbounded_String (Encode (Source));
+      Assert (Index (Data, """version"":4") /= 0,
+              "nondefault paint selects snapshot v4");
+      Assert (Index (Data, "[1,[") /= 0,
+              "explicit black uses packed color plus one marker");
+      Decode (To_String (Data), Restored);
+      Visit_Source (Restored, Base (Restored), Capture'Access);
+      Assert (Operation = Paint and then Color = 0,
+              "v4 color and operation round-trip");
+
+      Bad_Data := To_Unbounded_String
+        (Replace_First (To_String (Data), "[1,[", "[16777217,["));
+      Rejected := False;
+      begin
+         Decode (To_String (Bad_Data), Restored);
+      exception
+         when Invalid_Snapshot =>
+            Rejected := True;
+      end;
+      Assert (Rejected and then Encode (Restored) = To_String (Data),
+              "Out-of-range packed color is rejected atomically");
+
+      Bad_Data := To_Unbounded_String
+        (Replace_First (To_String (Data), "[1,[", "[0,["));
+      Decode (To_String (Bad_Data), Restored);
+      Visit_Source (Restored, Base (Restored), Capture'Access);
+      Assert (Operation = Erase and then Color = DEFAULT_INK_COLOR,
+              "v4 retains the v3 erase marker");
+
+      Data := To_Unbounded_String
+        (Replace_First (To_String (Data), """version"":4", """version"":3"));
+      Rejected := False;
+      begin
+         Decode (To_String (Data), Restored);
+      exception
+         when Invalid_Snapshot =>
+            Rejected := True;
+      end;
+      Assert (Rejected, "v3 rejects the v4 paint marker");
+
+      Clear (Source);
+      New_Drawing (Source, 8, 8);
+      Points.Clear;
+      Points.Append ((X => 1.0, Y => 2.0, Width => 1.0));
+      Add_Stroke (Source, Points);
+      Save (Source);
+      Data := To_Unbounded_String (Encode (Source));
+      Assert (Index (Data, """version"":2") /= 0,
+              "default paint retains v2 encoding");
+      Decode (To_String (Data), Restored);
+      Visit_Source (Restored, Base (Restored), Capture'Access);
+      Assert (Color = DEFAULT_INK_COLOR,
+              "v2 recovery supplies default paint color");
+
+      Add_Stroke (Source, Points, Erase);
+      Save (Source);
+      Data := To_Unbounded_String (Encode (Source));
+      Assert (Index (Data, """version"":3") /= 0,
+              "erase-only extension retains v3 encoding");
+      Decode (To_String (Data), Restored);
+      Visit_Source (Restored, Base (Restored), Capture'Access);
+      Assert (Operation = Erase and then Color = DEFAULT_INK_COLOR,
+              "v3 erase recovers with default color");
+   end Color_Version_And_Legacy_Recovery;
 
    procedure Recovery_Clears_Undo_Redo (T : in out Test) is
       pragma Unreferenced (T);
@@ -500,6 +600,10 @@ package body Coyote_Canvas_Recovery_Tests is
         (Caller.Create
            ("Canvas recovery roundtrips revisions and draft",
             Roundtrip_Revisions_And_Draft'Access));
+      Result.Add_Test
+        (Caller.Create
+           ("Canvas color versions and legacy recovery",
+            Color_Version_And_Legacy_Recovery'Access));
       Result.Add_Test
         (Caller.Create
            ("Canvas recovery resets undo and redo",

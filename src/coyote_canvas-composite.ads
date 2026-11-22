@@ -65,7 +65,7 @@ private
 
    type Erase_Preview is
      new Ada.Finalization.Limited_Controlled with record
-      Mask       : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Ink_Layer  : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Display    : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Context    : Cairo.Cairo_Context := Cairo.Null_Context;
       Drawing_Id : Revisions.Revision_Id := Revisions.NO_REVISION;

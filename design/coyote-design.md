@@ -3179,7 +3179,7 @@ the selection; selected Crop takes precedence. During mouse, pen (including
 recognized eraser override), and eligible finger erasing, display ink
 removal immediately in a transient ink-only preview using the fixed 16-source-
 pixel brush and matching cursor guide. Construct the preview from the same
-canonical stroke segments as the final edit, using a cached A8 ink mask,
+canonical stroke segments as the final edit, using a cached ARGB32 ink layer,
 separate transient surface, and dirty-rectangle recomposition. Keep the
 canonical surface, saved revisions, staged attachments, and authoritative PNG
 unchanged until release commits one ordered undoable edit. Cancellation
@@ -3223,11 +3223,12 @@ view transform as pointer mapping. Attachment composition uses the stored
 extent and source pixels, not view geometry.
 
 **Composite, crop, and ink.** The widget-independent `Coyote_Canvas.Composite`
-rasterizes stored ink into an A8 Cairo mask on the original pixel grid and
-emits a tightly packed straight-alpha RGBA crop. Because the mask spans the
+rasterizes all stored ink into a premultiplied ARGB32 Cairo layer on the
+original pixel grid and emits a tightly packed straight-alpha RGBA crop.
+Because the ink layer spans the
 Original, clipping never changes ink coverage at the crop edge. Replay
 operations in source order: paint uses Cairo OVER and erase uses DEST_OUT
-on the A8 mask, never on the background. Later paint can cover erased ink.
+on the ink layer, never on the background. Later paint can cover erased ink.
 Where ink has no coverage, source RGB is preserved even for zero or low alpha.
 Covered pixels use source-over with the unrounded combined alpha for straight
 RGB; alpha is rounded for storage. Display conversion creates one cropped
@@ -3238,8 +3239,8 @@ Guides and the in-progress stroke are painted separately over the cached
 composite; stored ink and transient ink share the same stroke painter.
 
 The renderer's per-image physical limit remains 16 Mi pixels, corresponding
-to 64 MiB for four-byte RGBA pixels. During composition, the full-source A8
-mask can add up to about 16 MiB plus small Cairo row alignment; it is destroyed
+to 64 MiB for four-byte RGBA pixels. During composition, the full-source
+ARGB32 ink layer can add up to 64 MiB; it is destroyed
 before display conversion. The one cropped display cache can itself use up to
 64 MiB, in addition to the retained import budget. These figures describe
 separate allocations, not a qualified peak-memory bound or real-time guarantee.
@@ -3277,21 +3278,22 @@ Development limits are 8 MiB encoded per file, 32 MiB encoded per batch,
 rows per batch or live workspace. SVG preflight caps tree depth at 64 and
 nodes at 50,000. There is one decode worker, with two worker slots and four
 GUI request slots. These are not process memory or execution-time limits;
-transient decoder allocations, the full-source A8 mask, and the display cache
+transient decoder allocations, the full-source ARGB32 ink layer, and the display cache
 are separate.
 
 **Internal workspace storage.** Each revision has a UUIDv4 assigned at
 creation. Descendants use their Original's UUID as the drawing identity;
 numeric revision indices remain internal. The manifest records those keys,
 source-coordinate ink operations, crop extents, the latest draft, and asset
-references without creating a revision. Paint-only workspaces continue to
-write v2. If retained operations include an erase, write v3: in the `strokes`
-array an erase entry begins with integer `0` followed by one or more sample
-triples; paint entries remain arrays of sample triples. Bounds, sample and
-operation counts, ancestry, ownership, and identity checks apply to both.
-Existing v2 workspaces reopen without conversion; older builds reject v3
-rather than replaying erased content as paint. This is the private Canvas
-manifest version, not a change to JSONL. Undo and Redo are transient. The
+references without creating a revision. Default-color paint-only workspaces
+write v2. Default-color workspaces with retained erases write v3: in the
+`strokes` array an erase entry begins with integer `0` followed by one or
+more sample triples. Any retained non-default paint color requires v4, which
+also permits a positive marker of packed RGB plus one. Unmarked paint always
+uses near-black (`#0D0D0D`). Bounds, sample and operation counts, ancestry,
+ownership, and identity checks apply to all three versions. Older readers
+reject unsupported versions rather than silently dropping colors or erases.
+This is the private Canvas manifest version, not a change to JSONL. Undo and Redo are transient. The
 undeployed v1 metadata format remains rejected.
 
 Imported Originals have immutable tightly packed straight-alpha RGBA8

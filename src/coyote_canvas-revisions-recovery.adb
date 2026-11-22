@@ -10,6 +10,7 @@ package body Coyote_Canvas.Revisions.Recovery is
 
    PAINT_VERSION : constant := 2;
    ERASE_VERSION : constant := 3;
+   COLOR_VERSION : constant := 4;
    MAX_JSON_DEPTH : constant := 6;
    MAX_SEPARATORS : constant :=
      6 * MAX_POINTS + MAX_REVISIONS * MAX_STROKES + MAX_REVISIONS
@@ -54,14 +55,22 @@ package body Coyote_Canvas.Revisions.Recovery is
       Version : Natural := PAINT_VERSION;
    begin
       for Stroke of W.Strokes loop
+         if Stroke.Operation = Paint
+           and then Stroke.Color /= DEFAULT_INK_COLOR
+         then
+            Version := COLOR_VERSION;
+         elsif Stroke.Operation = Erase and then Version /= COLOR_VERSION then
+            Version := ERASE_VERSION;
+         end if;
          declare
             Entries : JSON_Array;
          begin
-            --  The leading integer 0 marks an erase operation in v3;
-            --  paint retains its v2 array-of-triples representation.
             if Stroke.Operation = Erase then
-               Version := ERASE_VERSION;
                Append (Entries, Number (Natural'(0)));
+            elsif Stroke.Color /= DEFAULT_INK_COLOR then
+               Append
+                 (Entries,
+                  Number (Natural (Stroke.Color) + 1));
             end if;
             for Point of Stroke.Points loop
                declare
@@ -354,30 +363,46 @@ package body Coyote_Canvas.Revisions.Recovery is
             Require (Obj.Kind = JSON_Object_Type, "Expected Canvas manifest");
             declare
                Version : constant Natural :=
-                 Nat (Get (Obj, "version"), ERASE_VERSION);
+                 Nat (Get (Obj, "version"), COLOR_VERSION);
                Ink : constant JSON_Array :=
                  Array_Of (Get (Obj, "strokes"), MAX_STROKES);
                Nodes : constant JSON_Array :=
                  Array_Of (Get (Obj, "revisions"), MAX_REVISIONS);
             begin
-               Require (Version in PAINT_VERSION | ERASE_VERSION,
-                        "Unsupported Canvas snapshot version");
+               Require
+                 (Version in PAINT_VERSION | ERASE_VERSION | COLOR_VERSION,
+                  "Unsupported Canvas snapshot version");
                for I in 1 .. Length (Ink) loop
                   declare
                      Entries : constant JSON_Array := Array_Of
                        (Get (Ink, I), MAX_POINTS - Candidate.Points + 1, 1);
-                     Is_Erase : constant Boolean :=
+                     Marker : constant Boolean :=
                        Get (Entries, 1).Kind = JSON_Int_Type;
-                     Start : constant Positive := (if Is_Erase then 2 else 1);
-                     N : constant Natural := Length (Entries) - Start + 1;
+                     Marker_Value : Natural := 0;
+                     Start : Positive := 1;
+                     N : Natural;
                      Op : Stroke;
                   begin
-                     if Is_Erase then
-                        Require (Version = ERASE_VERSION and then
-                                   Nat (Get (Entries, 1), 0) = 0,
-                                 "Invalid Canvas ink operation");
-                        Op.Operation := Erase;
+                     if Marker then
+                        Marker_Value := Nat
+                          (Get (Entries, 1),
+                           (if Version = COLOR_VERSION
+                            then Natural (Ink_Color'Last) + 1 else 0));
+                        Require
+                          (Version = COLOR_VERSION
+                           or else
+                             (Version = ERASE_VERSION
+                              and then Marker_Value = 0),
+                           "Invalid Canvas ink operation");
+                        Start := 2;
+                        if Marker_Value = 0 then
+                           Op.Operation := Erase;
+                           Op.Color := DEFAULT_INK_COLOR;
+                        else
+                           Op.Color := Ink_Color (Marker_Value - 1);
+                        end if;
                      end if;
+                     N := Length (Entries) - Start + 1;
                      Require (N in 1 .. MAX_POINTS - Candidate.Points,
                               "Invalid Canvas sample count");
                      Op.Points.Reserve_Capacity (Ada.Containers.Count_Type (N));

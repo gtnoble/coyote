@@ -159,10 +159,26 @@ package body Coyote_Canvas_Composite_Tests is
       Edit (W, Original);
       Paint.Append ((0.5, 3.0, 3.8));
       Paint.Append ((8.8, 3.0, 4.2));
-      Add_Stroke (W, Paint);
+      Add_Stroke (W, Paint, Color => 16#E0_20_40#);
+      declare
+         Overlap : Samples.Vector;
+      begin
+         Overlap.Append ((3.0, 3.1, 2.8));
+         Overlap.Append ((7.0, 3.4, 2.8));
+         Add_Stroke (W, Overlap, Color => 16#20_70_E0#);
+      end;
       Crop (W, (2, 1, 9, 7));
       Save (W);
       Original := Base (W);
+      Render (W, Original, Source, 40, True, Canonical);
+      Check_Colored_PNG : declare
+         Actual : constant Stream_Element_Array := Pixels (Canonical);
+         Offset : constant Stream_Element_Offset := 4 * (2 * 7 + 2) + 1;
+      begin
+         Assert (Actual (Offset .. Offset + 3) = (32, 112, 224, 255),
+                 "Last opaque stroke supplies the overlap color");
+         Check_PNG (To_String (Encode_PNG (Canonical)), 7, 6, Actual);
+      end Check_Colored_PNG;
       Eraser.Append (First_Point);
       Update_Erase (Preview, W, Original, Eraser, Source, 40, True);
       Add_Stroke (W, Eraser, Erase);
@@ -463,11 +479,15 @@ package body Coyote_Canvas_Composite_Tests is
                Assert (Actual (Start + 3) = Stream_Element (A_Total * 255.0),
                        "source-over uses combined coverage for alpha");
                for J in Start .. Start + 2 loop
-                  Assert
-                    (Actual (J) = Stream_Element
-                       ((13.0 * A_Ink + Long_Float (Background (J)) * A_Back)
-                        / A_Total),
-                     "source-over rounds unassociated color once");
+                  declare
+                     Expected : constant Integer := Integer
+                       ((13.0 * A_Ink +
+                         Long_Float (Background (J)) * A_Back) / A_Total);
+                  begin
+                     Assert
+                       (abs (Integer (Actual (J)) - Expected) <= 1,
+                        "source-over color differs by at most one channel");
+                  end;
                end loop;
             end;
          end loop;

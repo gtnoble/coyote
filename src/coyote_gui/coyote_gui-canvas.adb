@@ -27,6 +27,7 @@ with Gdk.Types.Keysyms;
 with Gtk.Accel_Group;
 with Gtk.Adjustment;
 with Gtk.Check_Menu_Item;
+with Gtk.Color_Button;
 with Gdk.Event;
 with Glib;
 with Gtk.Cell_Renderer_Text;
@@ -79,6 +80,8 @@ package body Coyote_GUI.Canvas is
    use type Gdk.Device_Tool.Gdk_Device_Tool;
    use type Gdk.Device_Tool.Gdk_Device_Tool_Type;
    use type Rev.Ink_Operation;
+   use type Rev.Ink_Color;
+   use type Gtk.Color_Button.Gtk_Color_Button;
    use type Gtk.Radio_Button.Gtk_Radio_Button;
    use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
    PENCIL_WIDTH    : constant Long_Float := 3.0;
@@ -179,6 +182,8 @@ package body Coyote_GUI.Canvas is
      (Gtk.GEntry.Gtk_Entry_Record, Instance_Access);
    package Check_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record, Instance_Access);
+   package Color_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Color_Button.Gtk_Color_Button_Record, Instance_Access);
    package Menu_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Menu_Item.Gtk_Menu_Item_Record, Instance_Access);
 
@@ -223,6 +228,9 @@ package body Coyote_GUI.Canvas is
    procedure On_Close
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class;
       S    : Instance_Access);
+   procedure On_Pencil_Color_Set
+     (Button : access Gtk.Color_Button.Gtk_Color_Button_Record'Class;
+      S      : Instance_Access);
 
    procedure Set_Status (S : in out Instance; Text : String) is
    begin
@@ -370,6 +378,8 @@ package body Coyote_GUI.Canvas is
          S.Buttons (Tool).Set_Sensitive (Tools_Enabled);
          S.Tool_Menu (Tool).Set_Sensitive (Tools_Enabled);
       end loop;
+      S.Pencil_Color.Set_Sensitive
+        (Tools_Enabled and then not Cropping (S));
       S.Buttons (Zoom_In).Set_Sensitive (Zoom_Enabled);
       S.Buttons (Zoom_Out).Set_Sensitive (Zoom_Enabled);
       S.Tool_Label.Set_Text
@@ -1045,6 +1055,7 @@ package body Coyote_GUI.Canvas is
         and then S.Buttons (Zoom_In).Is_Sensitive
         and then Focus /= Gtk.Widget.Gtk_Widget (S.Buttons (Zoom_In))
         and then Focus /= Gtk.Widget.Gtk_Widget (S.Buttons (Zoom_Out))
+        and then not S.Pencil_Color.Is_Sensitive
       then
          S.Buttons
            ((if Direction in Gtk.Enums.Dir_Tab_Forward then Zoom_In
@@ -1225,6 +1236,48 @@ package body Coyote_GUI.Canvas is
      (Object : System.Address; Name : Interfaces.C.char_array)
      with Import, Convention => C, External_Name => "atk_object_set_name";
 
+   function Ink_Value (Value : Glib.Gdouble) return Natural is
+     (Natural (Long_Float'Rounding
+        (Long_Float'Max (0.0, Long_Float'Min (Long_Float (Value), 1.0)) * 255.0)));
+
+   function Pencil_Color_Value
+     (Button : access Gtk.Color_Button.Gtk_Color_Button_Record'Class)
+      return Rev.Ink_Color
+   is
+      Color : Gdk.RGBA.Gdk_RGBA;
+   begin
+      Button.Get_Rgba (Color);
+      return Rev.Ink_Color
+        (Ink_Value (Color.Red) * 16#01_00_00#
+         + Ink_Value (Color.Green) * 16#00_01_00#
+         + Ink_Value (Color.Blue));
+   end Pencil_Color_Value;
+
+   procedure On_Pencil_Color_Set
+     (Button : access Gtk.Color_Button.Gtk_Color_Button_Record'Class;
+      S      : Instance_Access)
+   is
+      Color : Gdk.RGBA.Gdk_RGBA;
+   begin
+      if S = null then
+         return;
+      end if;
+      if not Can_Select_Tool (S.all) or else Cropping (S.all) then
+         Button.Set_Rgba
+           ((Red => Glib.Gdouble ((S.Ink_Color / 16#01_00_00#) mod 256)
+              / 255.0,
+            Green => Glib.Gdouble ((S.Ink_Color / 16#00_01_00#) mod 256)
+              / 255.0,
+            Blue => Glib.Gdouble (S.Ink_Color mod 256) / 255.0,
+            Alpha => 1.0));
+         return;
+      end if;
+      Button.Get_Rgba (Color);
+      Color.Alpha := 1.0;
+      Button.Set_Rgba (Color);
+      S.Ink_Color := Pencil_Color_Value (Button);
+   end On_Pencil_Color_Set;
+
    procedure Build_Window
      (S      : aliased in out Instance;
       Parent :            not null access Gtk.Window.Gtk_Window_Record'Class)
@@ -1340,6 +1393,25 @@ package body Coyote_GUI.Canvas is
             Tool_Callback.Connect
               (S.Buttons (Tool), "toggled", On_Tool_Button'Access, State);
          end loop;
+         Gtk.Color_Button.Gtk_New_With_Rgba
+           (S.Pencil_Color,
+            (Red => 13.0 / 255.0, Green => 13.0 / 255.0,
+             Blue => 13.0 / 255.0, Alpha => 1.0));
+         S.Pencil_Color.Set_Name ("canvas-pencil-color");
+         S.Pencil_Color.Set_Title ("Pencil color");
+         S.Pencil_Color.Set_Tooltip_Text ("Pencil color");
+         S.Pencil_Color.Set_Use_Alpha (False);
+         Set_Accessible_Name
+           (Accessible (S.Pencil_Color.Get_Object),
+            Interfaces.C.To_C ("Pencil color"));
+         Gtk.Label.Gtk_New (Label, "Pencil color:");
+         Toolbar.Pack_Start (Label, False, False, 6);
+         Toolbar.Pack_Start (S.Pencil_Color, False, False, 0);
+         Event_Callback.Connect
+           (S.Pencil_Color, "button-press-event",
+            Event_Marshaller.To_Marshaller (On_Help_Click'Access), State);
+         Color_Callback.Connect
+           (S.Pencil_Color, "color-set", On_Pencil_Color_Set'Access, State);
          Style.Unref;
          Toolbar_Callback.Connect
            (Toolbar, "focus", On_Toolbar_Focus'Access, State, After => True);
@@ -1934,6 +2006,13 @@ package body Coyote_GUI.Canvas is
       S.Stroke_Points.Clear;
       S.Crop_Drag   := False;
       S.Tool := Pencil;
+      if S.Pencil_Color /= null then
+         S.Pencil_Color.Set_Rgba
+           ((Red => 13.0 / 255.0, Green => 13.0 / 255.0,
+             Blue => 13.0 / 255.0, Alpha => 1.0));
+      end if;
+      S.Ink_Color := Rev.DEFAULT_INK_COLOR;
+      S.Gesture_Color := Rev.DEFAULT_INK_COLOR;
       Leave_Zoom_Tool (S);
       S.Anchor_Pending := False;
       S.Previous_Ink_Tool := Pencil;
@@ -1985,6 +2064,7 @@ package body Coyote_GUI.Canvas is
       S.Zoom         := 1.0;
       S.Show_Ink     := True;
       S.Tool_Label  := null;
+      S.Pencil_Color := null;
       S.Buttons     := (others => null);
       S.Tool_Menu   := (others => null);
    end Destroy;
@@ -2645,10 +2725,9 @@ package body Coyote_GUI.Canvas is
       if S.Show_Ink and then S.Drawing then
          declare
             package Ink renames Coyote_Canvas.Ink;
-            Shade : constant Glib.Gdouble := Glib.Gdouble (Ink.CHANNEL) / 255.0;
          begin
             if S.Gesture_Operation = Rev.Paint then
-               Cairo.Set_Source_Rgb (Context, Shade, Shade, Shade);
+               Ink.Set_Color (Context, S.Gesture_Color);
                Ink.Draw (S.Stroke_Points, Context);
             else
                --  A cursor guide, not part of the canonical pixels.
@@ -2744,7 +2823,9 @@ package body Coyote_GUI.Canvas is
    procedure Commit_Stroke (S : aliased in out Instance) is
    begin
       if Prepare_Working_Copy (S) then
-         Rev.Add_Stroke (S.Document, S.Stroke_Points, S.Gesture_Operation);
+         Rev.Add_Stroke
+           (S.Document, S.Stroke_Points, S.Gesture_Operation,
+            S.Gesture_Color);
          Mark_Dirty (S);
          Clear_Display (S);
       end if;
@@ -2793,6 +2874,7 @@ package body Coyote_GUI.Canvas is
         and then Read_Coords (Event, X, Y) /= 0
       then
          Widget.Grab_Focus;
+         S.Gesture_Color := S.Ink_Color;
          S.Gesture_Operation :=
            (if S.Tool = Eraser then Rev.Erase else Rev.Paint);
          Add_Point
@@ -2911,6 +2993,7 @@ package body Coyote_GUI.Canvas is
             Tool : constant Gdk.Device_Tool.Gdk_Device_Tool :=
               Gdk.Event.Get_Device_Tool (Event);
          begin
+            S.Gesture_Color := S.Ink_Color;
             S.Gesture_Operation :=
               (if S.Tool = Eraser or else
                  (Tool /= null and then Tool.Get_Tool_Type =
