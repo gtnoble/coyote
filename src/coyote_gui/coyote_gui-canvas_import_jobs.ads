@@ -10,9 +10,11 @@ with Ada.Strings.Unbounded;
 with Coyote_Canvas.Rasters;
 with Coyote_Canvas.Import_Service;
 with Gdk.Pixbuf;
+with Interfaces.C;
 with System;
 
 package Coyote_GUI.Canvas_Import_Jobs is
+   use type Interfaces.C.int;
    type Image_List is array (Positive range <>) of Gdk.Pixbuf.Gdk_Pixbuf;
    type Path_List is
      array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
@@ -26,8 +28,6 @@ package Coyote_GUI.Canvas_Import_Jobs is
       Pixels : Image_List;
       Error  : String);
 
-   --  At most two requests, including running and completed requests, are
-   --  outstanding. One worker performs decoding at a time.
    Max_Outstanding : constant Positive := 2;
    function Pending_Count return Natural;
 
@@ -44,8 +44,6 @@ package Coyote_GUI.Canvas_Import_Jobs is
       Callback : Completion;
       Accepted : out Boolean);
 
-   --  Stop a pending local file import at the next read boundary.
-   --  Completion still releases the caller's request token.
    procedure Cancel_Files (Token : System.Address);
 
    procedure Submit_Files
@@ -53,4 +51,26 @@ package Coyote_GUI.Canvas_Import_Jobs is
       Token    :        System.Address;
       Callback :        Completion;
       Accepted :    out Boolean);
+
+   --  Tile descriptors are borrowed during On_Tiled_Complete and are closed
+   --  immediately after it returns. Width and Height describe the source.
+   type Tile_Source is record
+      FD     : Interfaces.C.int := -1;
+      Width  : Natural := 0;
+      Height : Natural := 0;
+   end record;
+   type Tile_List is array (Positive range <>) of Tile_Source;
+
+   type On_Tiled_Complete is not null access procedure
+     (Token  : System.Address;
+      Pixels : Image_List;
+      Tiles  : Tile_List;
+      Error  : String);
+
+   --  Uses the regular file decoder first; files rejected only by its
+   --  dimension limit are imported to temporary tile files.
+   function Submit_Tiled_Files
+     (Paths    : Path_List;
+      Token    : System.Address;
+      Callback : On_Tiled_Complete) return Boolean;
 end Coyote_GUI.Canvas_Import_Jobs;

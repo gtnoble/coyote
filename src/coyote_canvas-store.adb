@@ -185,6 +185,22 @@ package body Coyote_Canvas.Store is
       end if;
    end Open_Tile;
 
+   procedure Open_Validated_Tile
+     (Parent, UUID, Digest : String; FD : out int; Status : out Result)
+   is
+      function Native_Open_Validated_Tile
+        (Parent, UUID, Digest : char_array; FD : out int) return int
+        with Import, Convention => C,
+          External_Name => "coyote_canvas_store_open_validated_tile";
+   begin
+      FD := -1;
+      Status := Invalid;
+      if Safe_Arguments (Parent, UUID) and then Digest'Length = 64 then
+         Status := Result'Val
+           (Native_Open_Validated_Tile (To_C (Parent), To_C (UUID), To_C (Digest), FD));
+      end if;
+   end Open_Validated_Tile;
+
    function Native_Claim (Parent, UUID : char_array; FD : out int) return int
      with Import, Convention => C, External_Name => "coyote_canvas_store_claim";
    function Close (FD : int) return int

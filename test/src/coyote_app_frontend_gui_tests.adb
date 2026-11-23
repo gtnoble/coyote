@@ -1,3 +1,5 @@
+with Gtk.Message_Dialog;
+with Glib.Properties;
 with AUnit.Test_Caller;
 --  Coyote_App_Frontend_GUI_Tests body.
 --
@@ -13,6 +15,7 @@ with Coyote_App.Agent_RPC;
 with Coyote_Canvas.Store;
 with Coyote_Canvas.Store.Workspaces;
 with Coyote_Canvas.Revisions;
+with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Import_Service;
 with Coyote_Utils;
@@ -2290,6 +2293,284 @@ package body Coyote_App_Frontend_GUI_Tests is
          raise;
    end Test_Canvas_File_Import;
 
+   procedure Test_Canvas_Tiled_PNG_Import (T : in out Test) is
+      use Ada.Strings.Unbounded;
+      use Ada.Real_Time;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use type System.Address;
+      use type Coyote_Canvas.Store.Result;
+      use type Glib.Error.GError;
+      use type Gdk.Pixbuf.Rgb_Record;
+      use type Coyote_Canvas.Document.Rectangle;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+
+      External_PNG : constant String := Ada.Environment_Variables.Value
+        ("COYOTE_TEST_LARGE_TILE_PNG", "");
+      Stress : constant Boolean := External_PNG /= "";
+      Width : constant Glib.Gint := (if Stress then 20_000 else 9_000);
+      Height : constant Glib.Gint := (if Stress then 20_000 else 260);
+      Pan : constant Glib.Gdouble := (if Stress then 15_000.0 else 6_000.0);
+      Wait_Seconds : constant Integer := (if Stress then 60 else 5);
+      A : constant String := "65be8400-e29b-41d4-a716-446655440000";
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Canvas   : Gtk.Window.Gtk_Window;
+      Tree     : Gtk.Tree_View.Gtk_Tree_View;
+      Model    : Gtk_Tree_Model;
+      Root     : Unbounded_String;
+      Saved    : Rev.Workspace;
+      Assets   : Disk.Raster_Set;
+      Tiles    : Disk.Tile_Set;
+      Status   : Coyote_Canvas.Store.Result;
+      Pattern  : String := "/tmp/coyote-canvas-tiled-XXXXXX" & ASCII.NUL;
+      Big_Red  : constant Gdk.Pixbuf.Rgb_Record := (224, 64, 32);
+      Far_Blue : constant Gdk.Pixbuf.Rgb_Record := (16, 48, 224);
+
+      function Make_Temp_Directory (P : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+
+      function Control (Name : String) return Gtk.Widget.Gtk_Widget is
+        (Find_Canvas_Widget (Gtk.Widget.Gtk_Widget (Canvas), Name));
+
+      procedure Activate (Name : String) is
+      begin
+         Gtk.Menu_Item.Gtk_Menu_Item (Control ("canvas-" & Name)).Activate;
+      end Activate;
+
+      procedure Wait_Rows (Count : Natural) is
+         By : constant Time := Clock + Seconds (Wait_Seconds);
+      begin
+         Wait_Loop : loop
+            Drain_Events;
+            exit Wait_Loop when N_Children (Model) = Glib.Gint (Count);
+            declare
+               Failure : constant Gtk.Window.Gtk_Window :=
+                 Canvas_Toplevel ("coyote-canvas-import-error");
+            begin
+               if Failure /= null then
+                  Assert (False, Glib.Properties.Get_Property
+                    (Gtk.Message_Dialog.Gtk_Message_Dialog (Failure),
+                     Gtk.Message_Dialog.Text_Property));
+               end if;
+            end;
+            Assert (Clock < By, "Canvas Original publication timed out: " &
+              Gtk.Label.Gtk_Label
+                (Control ("coyote-canvas-status")).Get_Text);
+            delay 0.01;
+         end loop Wait_Loop;
+      end Wait_Rows;
+
+      procedure Import_File (Name : String) is
+         Dialog : Gtk.Window.Gtk_Window;
+         Chooser : Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog;
+         File : constant String := To_String (Root) & "/" & Name;
+         By : Time;
+      begin
+         Activate ("import");
+         Dialog := Canvas_Toplevel ("coyote-canvas-file-selection");
+         Chooser := Gtk.File_Chooser_Dialog.Gtk_File_Chooser_Dialog (Dialog);
+         Assert (Chooser.Select_Filename (File), "select PNG fixture: " & Name);
+         By := Clock + Seconds (3);
+         Wait_File : loop
+            Drain_Events;
+            exit Wait_File when Chooser.Get_Filename = File;
+            Assert (Clock < By, "PNG file selection timed out");
+            delay 0.01;
+         end loop Wait_File;
+         Gtk.Dialog.Gtk_Dialog (Dialog).Response (Gtk.Dialog.Gtk_Response_OK);
+         Finish_Canvas_Jobs (Timeout => 60);
+      end Import_File;
+
+      procedure Check_Pixel
+        (Expected : Gdk.Pixbuf.Rgb_Record;
+         X : Glib.Gint := 30; Y : Glib.Gint := 30;
+         Offset : Glib.Gdouble := 0.0) is
+         Area : constant Gtk.Widget.Gtk_Widget :=
+           Control ("coyote-canvas-drawing-area");
+         Surface : constant Cairo.Cairo_Surface :=
+           Cairo.Image_Surface.Create
+             (Cairo.Image_Surface.Cairo_Format_RGB24, 64, 64);
+         Context : constant Cairo.Cairo_Context := Cairo.Create (Surface);
+         Sample : Gdk.Pixbuf.Gdk_Pixbuf;
+         Actual : Gdk.Pixbuf.Rgb_Record;
+         By : constant Time := Clock + Seconds (Wait_Seconds);
+      begin
+         Canvas.Check_Resize;
+         Cairo.Translate (Context, -Offset, 0.0);
+         loop
+            Drain_Events;
+            Area.Draw (Context);
+            Sample := Gdk.Pixbuf.Get_From_Surface (Surface, X, Y, 1, 1);
+            Actual := Gdk.Pixbuf.Get_Pixels (Sample) (0);
+            Sample.Unref;
+            exit when Actual = Expected or else Clock >= By;
+            delay 0.01;
+         end loop;
+         Cairo.Destroy (Context);
+         Cairo.Surface_Destroy (Surface);
+         Assert (Actual = Expected, "tiled Original paints expected pixel");
+      end Check_Pixel;
+
+      procedure Wait_Status (Expected : String) is
+         By : constant Time := Clock + Seconds (Wait_Seconds);
+      begin
+         Wait_Loop : loop
+            Drain_Events;
+            exit Wait_Loop when Gtk.Label.Gtk_Label
+              (Control ("coyote-canvas-storage-status")).Get_Text = Expected;
+            Assert (Clock < By, "Canvas status did not reach: " & Expected);
+            delay 0.01;
+         end loop Wait_Loop;
+      end Wait_Status;
+
+      procedure Open is
+      begin
+         Frontend.Set_Session_Identity
+           (A, To_String (Root), To_String (Root) & "/" & A & ".jsonl");
+         Drain_Events;
+         Canvas_Item (Frontend).Activate;
+         Canvas := Canvas_Window (Frontend);
+         Tree := Gtk.Tree_View.Gtk_Tree_View (Control ("coyote-canvas-drawings"));
+         Model := Tree.Get_Model;
+      end Open;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Assert (Make_Temp_Directory (Pattern'Address) /= System.Null_Address,
+              "create isolated durable session directory");
+      Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File,
+                             To_String (Root) & "/65be8400-e29b-41d4-a716-446655440000.jsonl");
+         Ada.Text_IO.Close (File);
+      end;
+      if Stress then
+         Ada.Directories.Copy_File
+           (External_PNG, To_String (Root) & "/large.png");
+      else
+         declare
+            Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+              Gdk.Pixbuf.Gdk_New
+                (Has_Alpha => False, Width => 9_000, Height => 260);
+            Error : Glib.Error.GError;
+         begin
+            Gdk.Pixbuf.Fill (Image, 16#E04020FF#);
+            declare
+               Far : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+                 Gdk.Pixbuf.Gdk_New_Subpixbuf (Image, 4_500, 0, 4_500, 260);
+            begin
+               Gdk.Pixbuf.Fill (Far, 16#1030E0FF#);
+               Far.Unref;
+            end;
+            Gdk.Pixbuf.Save
+              (Image, To_String (Root) & "/large.png", Gdk.Pixbuf.PNG, Error);
+            Image.Unref;
+            Assert (Error = null, "generate compact 9,000 by 260 PNG");
+         end;
+      end if;
+      declare
+         Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New
+             (Has_Alpha => False, Width => 20, Height => 20);
+         Error : Glib.Error.GError;
+      begin
+         Gdk.Pixbuf.Fill (Image, 16#1030E0FF#);
+         Gdk.Pixbuf.Save
+           (Image, To_String (Root) & "/small.png", Gdk.Pixbuf.PNG, Error);
+         Image.Unref;
+         Assert (Error = null, "generate small raster-backed PNG");
+      end;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "Canvas tiled import test", Pop_Under => True);
+      Open;
+      Wait_Status ("Canvas autosave enabled.");
+      Import_File ("large.png");
+      Wait_Rows (1);
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      declare
+         W, H : Glib.Gint;
+      begin
+         Control ("coyote-canvas-drawing-area").Get_Size_Request (W, H);
+         Assert (W = Width and then H = Height,
+                 "published tiled Original keeps native extent beyond 8192");
+      end;
+      Check_Pixel (Big_Red);
+      declare
+         Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
+           Gtk.Scrolled_Window.Gtk_Scrolled_Window
+             (Control ("coyote-canvas-viewport"));
+         Horizontal : constant Gtk.Adjustment.Gtk_Adjustment :=
+           Scroll.Get_Hadjustment;
+      begin
+         Horizontal.Set_Value (Pan);
+         Check_Pixel (Far_Blue, Offset => Pan);
+         Activate ("fit");
+         Check_Pixel (Big_Red, Y => 3);
+         Activate ("actual");
+         Horizontal.Set_Value (0.0);
+      end;
+      Activate ("attach");
+      Assert (Attachment_Count (Frontend) = 0,
+              "large tiled revision exceeds unchanged attachment limits");
+      Ada.Directories.Delete_File (To_String (Root) & "/large.png");
+      Import_File ("small.png");
+      Wait_Rows (2);
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      Activate ("crop");
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-x")).Set_Text ("255");
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-y")).Set_Text ("1");
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-width")).Set_Text ("4");
+      Gtk.GEntry.Gtk_Entry (Control ("coyote-canvas-crop-height")).Set_Text ("3");
+      Activate ("apply");
+      Activate ("save");
+      Tree.Get_Selection.Unselect_All;
+      Tree.Get_Selection.Select_Iter
+        (Nth_Child (Model, Get_Iter_First (Model), 0));
+      Activate ("attach");
+      Assert (Attachment_Count (Frontend) = 1,
+              "tiled crop attachment: " & Gtk.Label.Gtk_Label
+                (Control ("coyote-canvas-status")).Get_Text);
+      Activate ("close");
+      Wait_Status ("Canvas recovery saved.");
+      Disk.Load (To_String (Root), A, Saved, Assets, Tiles, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (Saved) = 3
+              and then Rev.Extent (Saved, 3) = (255, 1, 259, 4),
+              "checkpointed crop crosses 256-pixel tile boundary");
+      Assert (Tiles.References (1) /=
+                Coyote_Canvas.Revisions.Recovery.NO_ASSET
+              and then Length (Assets (1)) = 0
+              and then Tiles.References (2) =
+                Coyote_Canvas.Revisions.Recovery.NO_ASSET
+              and then Length (Assets (2)) = 20 * 20 * 4,
+              "session persists tiled and raster-backed Originals together");
+      Assets (2) := Null_Unbounded_String;
+      Reset_Agents_From_Task (Frontend);
+      Open;
+      Wait_Status ("Session Canvas restored.");
+      Wait_Rows (2);
+      Assert (N_Children (Model, Get_Iter_First (Model)) = 1,
+              "recovered crop remains a child of the tiled Original");
+      Tree.Get_Selection.Select_Iter (Get_Iter_First (Model));
+      Check_Pixel (Big_Red);
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+      Ada.Directories.Delete_Tree (To_String (Root));
+   exception
+      when others =>
+         if Main_Window (Frontend) /= null then
+            Frontend.Request_Shutdown;
+            Main_Window (Frontend).Destroy;
+         end if;
+         if Length (Root) > 0 then
+            Ada.Directories.Delete_Tree (To_String (Root));
+         end if;
+         raise;
+   end Test_Canvas_Tiled_PNG_Import;
+
    procedure Test_Canvas_Session_Recovery (T : in out Test) is
       use Ada.Strings.Unbounded;
       use Ada.Real_Time;
@@ -2301,6 +2582,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       use type Glib.Error.GError;
       package Disk renames Coyote_Canvas.Store.Workspaces;
       package Rev renames Coyote_Canvas.Revisions;
+
 
       A : constant String := "55be8400-e29b-41d4-a716-446655440000";
       B : constant String := "55be8400-e29b-41d4-a716-446655440001";
@@ -3481,6 +3763,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas file import and session reset",
             Test_Canvas_File_Import'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas tiled PNG import and persistence",
+            Test_Canvas_Tiled_PNG_Import'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas session recovery and writer lease",

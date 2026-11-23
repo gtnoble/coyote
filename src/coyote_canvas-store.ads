@@ -45,6 +45,11 @@ package Coyote_Canvas.Store is
    procedure Open_Tile
      (Parent, UUID, Digest : String; FD : out Interfaces.C.int;
       Status : out Result);
+   --  Use only with immutable references already verified by workspace
+   --  recovery/publication. Rechecks privacy and layout, not the digest.
+   procedure Open_Validated_Tile
+     (Parent, UUID, Digest : String; FD : out Interfaces.C.int;
+      Status : out Result);
    procedure Close_Tile (FD : in out Interfaces.C.int);
 
    --  Exclusive GTK ownership, independent of the per-write lock. Reads

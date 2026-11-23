@@ -336,6 +336,20 @@ package body Coyote_Canvas.Rasters is
       Height : out Natural;
       Error : out Unbounded_String)
    is
+      Oversized : Boolean;
+   begin
+      Decode_Stream (Read, Rewind, Pixels, Width, Height, Error, Oversized);
+   end Decode_Stream;
+
+   procedure Decode_Stream
+     (Read : not null access function (Buffer : out String)
+        return Integer;
+      Rewind : not null access function return Boolean;
+      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Width : out Natural;
+      Height : out Natural;
+      Error : out Unbounded_String; Oversized : out Boolean)
+   is
       Kind : Format := Unknown;
       Header_Width : Natural := 0;
       Header_Height : Natural := 0;
@@ -350,11 +364,15 @@ package body Coyote_Canvas.Rasters is
       Width := 0;
       Height := 0;
       Error := Null_Unbounded_String;
+      Oversized := False;
       Stream_Header
         (Read, Kind, Header_Width, Header_Height, Header_Valid);
       if Kind = Unknown then
          Error := To_Unbounded_String ("Unsupported image signature");
       else
+         Oversized := Header_Valid and then
+           (Header_Width > MAX_SIDE or else Header_Height > MAX_SIDE
+            or else Header_Width > MAX_PIXELS / Header_Height);
          Error := Dimension_Error (Header_Width, Header_Height, Header_Valid);
       end if;
       if Length (Error) /= 0 then

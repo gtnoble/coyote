@@ -601,8 +601,8 @@ done:
    return result == STORE_MISSING ? STORE_IO : result;
 }
 
-int coyote_canvas_store_open_tile(const char *parent, const char *uuid,
-                                  const char *digest, int *fd)
+static int open_tile(const char *parent, const char *uuid,
+                                  const char *digest, int verify, int *fd)
 {
    char sidecar[64], name[70], actual[65];
    struct stat st;
@@ -639,9 +639,15 @@ int coyote_canvas_store_open_tile(const char *parent, const char *uuid,
       result = classify_errno(errno);
       goto done;
    }
-   result = tile_hash_fd(tile_fd, actual);
-   if (result == STORE_OK && strcmp(actual, digest) != 0)
-      result = STORE_INVALID;
+   if (verify) {
+      result = tile_hash_fd(tile_fd, actual);
+      if (result == STORE_OK && strcmp(actual, digest) != 0)
+         result = STORE_INVALID;
+   } else {
+      struct coyote_canvas_tile_info info;
+      result = coyote_canvas_tiles_inspect(tile_fd, &info) == COYOTE_TILE_OK ?
+         STORE_OK : STORE_INVALID;
+   }
    if (result == STORE_OK && lseek(tile_fd, 0, SEEK_SET) < 0)
       result = STORE_IO;
    if (result == STORE_OK)
@@ -656,6 +662,19 @@ done:
       close(side_fd);
    close(parent_fd);
    return result;
+}
+
+int coyote_canvas_store_open_tile(const char *parent, const char *uuid,
+                                  const char *digest, int *fd)
+{
+   return open_tile(parent, uuid, digest, 1, fd);
+}
+
+int coyote_canvas_store_open_validated_tile(const char *parent,
+                                            const char *uuid,
+                                            const char *digest, int *fd)
+{
+   return open_tile(parent, uuid, digest, 0, fd);
 }
 
 static int asset_name(const char *digest, char name[70])

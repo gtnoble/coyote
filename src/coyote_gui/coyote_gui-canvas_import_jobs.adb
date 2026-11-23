@@ -1,6 +1,8 @@
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Coyote_Canvas.SVG;
+with Coyote_Canvas.Tiles;
+with System.Storage_Elements;
 with Coyote_Image_Decoder;
 with Coyote_Image_IO;
 with Glib.Main;
@@ -13,11 +15,15 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    use type Coyote_Canvas.Rasters.Format;
    use type Glib.Main.G_Source_Id;
    use type Interfaces.C.int;
+   use type Interfaces.Unsigned_64;
+   use type Coyote_Canvas.Tiles.Result;
    use type System.Address;
+   use type System.Storage_Elements.Integer_Address;
 
    subtype Slot_Index is Positive range 1 .. Max_Outstanding;
    subtype File_Index is Positive range 1 .. MAX_FILES;
-   type Source_Kind is (Bytes_Source, Files_Source, Batch_Source);
+   type Source_Kind is
+     (Bytes_Source, Files_Source, Tiled_Files_Source, Batch_Source);
    type Job_State is (Free, Queued, Running, Complete);
    type Stored_Path_List is array (File_Index) of Unbounded_String;
    type Raw_Pixbuf_List is
@@ -36,6 +42,27 @@ package body Coyote_GUI.Canvas_Import_Jobs is
      with Import, Convention => C,
        External_Name => "gdk_pixbuf_get_rowstride";
 
+   type Raw_Tile_List is array (File_Index) of Tile_Source;
+   type Tiled_Callback_Access is access procedure
+     (Token : System.Address; Pixels : Image_List; Tiles : Tile_List;
+      Error : String);
+
+   function C_Stage return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "coyote_canvas_tiles_stage";
+   function C_Close (FD : Interfaces.C.int) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "close";
+   function C_Cancel (User : System.Address) return Interfaces.C.int
+     with Convention => C;
+   procedure Close_FD (FD : in out Interfaces.C.int) is
+      Ignore : Interfaces.C.int;
+   begin
+      if FD >= 0 then
+         Ignore := C_Close (FD);
+         FD := -1;
+      end if;
+   end Close_FD;
+
    type Callback_Access is access procedure
      (Token : System.Address;
       Pixels : Image_List;
@@ -51,6 +78,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
         Coyote_Canvas.Rasters.Unknown;
       Token       : System.Address := System.Null_Address;
       Callback    : Callback_Access := null;
+      Tiled_Callback : Tiled_Callback_Access := null;
+      Tiles : Raw_Tile_List := (others => (FD => -1, Width => 0, Height => 0));
+      Tile_Count : Natural := 0;
       Pixels      : Raw_Pixbuf_List :=
         (others => Coyote_Image_Decoder.Null_Pixbuf);
       Pixel_Count : Natural := 0;
@@ -70,6 +100,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Token    : System.Address;
          Callback : Completion;
          Index    : out Natural);
+      procedure Add_Tiled_Files
+        (Paths : Path_List; Token : System.Address;
+         Callback : On_Tiled_Complete; Index : out Natural);
       procedure Add_Batch
         (Data : Coyote_Canvas.Import_Service.Text_List;
          Token : System.Address; Callback : Completion; Index : out Natural);
@@ -87,8 +120,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       procedure Finish
         (Index  : Slot_Index;
          Pixels : Raw_Pixbuf_List;
-         Count  : Natural;
-         Error  : String);
+         Count : Natural; Error : String;
+         Tiles : Raw_Tile_List; Tile_Count : Natural);
       procedure Next_Complete (Index : out Natural; Found : out Boolean);
       procedure Take_Complete
         (Index      : Slot_Index;
@@ -96,7 +129,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Callback   : out Callback_Access;
          Pixels     : out Raw_Pixbuf_List;
          Pixel_Count : out Natural;
-         Error      : out Unbounded_String);
+         Error : out Unbounded_String;
+         Tiled_Callback : out Tiled_Callback_Access;
+         Tiles : out Raw_Tile_List; Tile_Count : out Natural);
       procedure Release (Index : Slot_Index);
       function Count return Natural;
    private
@@ -125,6 +160,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                   Expected    => Expected,
                   Token       => Token,
                   Callback    => Callback_Access (Callback),
+                  Tiled_Callback => null,
+                  Tiles => (others => (FD => -1, Width => 0, Height => 0)),
+                  Tile_Count => 0,
                   Pixels      =>
                     (others => Coyote_Image_Decoder.Null_Pixbuf),
                   Pixel_Count => 0,
@@ -155,6 +193,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                   Expected    => Coyote_Canvas.Rasters.Unknown,
                   Token       => Token,
                   Callback    => Callback_Access (Callback),
+                  Tiled_Callback => null,
+                  Tiles => (others => (FD => -1, Width => 0, Height => 0)),
+                  Tile_Count => 0,
                   Pixels      =>
                     (others => Coyote_Image_Decoder.Null_Pixbuf),
                   Pixel_Count => 0,
@@ -167,6 +208,28 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             end if;
          end loop;
       end Add_Files;
+
+      procedure Add_Tiled_Files
+        (Paths : Path_List; Token : System.Address;
+         Callback : On_Tiled_Complete; Index : out Natural)
+      is
+      begin
+         Index := 0;
+         for I in Items'Range loop
+            if Items (I).State = Free then
+               Items (I) :=
+                 (State => Queued, Kind => Tiled_Files_Source,
+                  Path_Count => Paths'Length, Token => Token,
+                  Tiled_Callback => Tiled_Callback_Access (Callback),
+                  others => <>);
+               for J in Paths'Range loop
+                  Items (I).Paths (J - Paths'First + 1) := Paths (J);
+               end loop;
+               Index := I;
+               return;
+            end if;
+         end loop;
+      end Add_Tiled_Files;
 
       procedure Add_Batch
         (Data : Coyote_Canvas.Import_Service.Text_List;
@@ -192,7 +255,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       procedure Cancel_Files (Token : System.Address) is
       begin
          for Item of Items loop
-            if Item.State /= Free and then Item.Kind = Files_Source
+            if Item.State /= Free
+              and then (Item.Kind = Files_Source
+                        or else Item.Kind = Tiled_Files_Source)
               and then Item.Token = Token
             then
                Item.Cancelled := True;
@@ -243,12 +308,14 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       procedure Finish
         (Index  : Slot_Index;
          Pixels : Raw_Pixbuf_List;
-         Count  : Natural;
-         Error  : String)
+         Count : Natural; Error : String;
+         Tiles : Raw_Tile_List; Tile_Count : Natural)
       is
       begin
          Items (Index).Pixels := Pixels;
          Items (Index).Pixel_Count := Count;
+         Items (Index).Tiles := Tiles;
+         Items (Index).Tile_Count := Tile_Count;
          Items (Index).Error := To_Unbounded_String (Error);
          Items (Index).Data := Null_Unbounded_String;
          Items (Index).Paths := (others => Null_Unbounded_String);
@@ -275,11 +342,18 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Callback    : out Callback_Access;
          Pixels      : out Raw_Pixbuf_List;
          Pixel_Count : out Natural;
-         Error       : out Unbounded_String)
+         Error : out Unbounded_String;
+         Tiled_Callback : out Tiled_Callback_Access;
+         Tiles : out Raw_Tile_List; Tile_Count : out Natural)
       is
       begin
          Token := Items (Index).Token;
          Callback := Items (Index).Callback;
+         Tiled_Callback := Items (Index).Tiled_Callback;
+         Tiles := Items (Index).Tiles;
+         Tile_Count := Items (Index).Tile_Count;
+         Items (Index).Tiles :=
+           (others => (FD => -1, Width => 0, Height => 0));
          Error := Items (Index).Error;
          Pixel_Count := Items (Index).Pixel_Count;
          Pixels := Items (Index).Pixels;
@@ -303,6 +377,21 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end Count;
    end Queue;
 
+   function C_Cancel (User : System.Address) return Interfaces.C.int is
+      Number : constant System.Storage_Elements.Integer_Address :=
+        System.Storage_Elements.To_Integer (User);
+   begin
+      if Number < System.Storage_Elements.Integer_Address
+        (Slot_Index'First)
+        or else Number > System.Storage_Elements.Integer_Address
+          (Slot_Index'Last)
+      then
+         return 1;
+      end if;
+      return
+        (if Queue.Cancelled (Slot_Index (Integer (Number))) then 1 else 0);
+   end C_Cancel;
+
    function Pending_Count return Natural is (Queue.Count);
 
    procedure Cancel_Files (Token : System.Address) is
@@ -319,12 +408,6 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
    function Pump return Boolean;
    procedure Start_Pump;
-   procedure Decode_File
-     (Path      : String;
-      Job       : Slot_Index;
-      SVG_Total : in out Natural;
-      Pixels    : out Coyote_Image_Decoder.Pixbuf_Handle;
-      Error     : out Unbounded_String);
    function Pixel_Bytes
      (Pixels : Coyote_Image_Decoder.Pixbuf_Handle) return Natural;
    procedure Release_All (Pixels : in out Raw_Pixbuf_List);
@@ -362,6 +445,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
      (Path      : String;
       Job       : Slot_Index;
       SVG_Total : in out Natural;
+      Allow_Tiles : Boolean;
+      Staging_Total : in out Interfaces.Unsigned_64;
+      Tile : out Tile_Source;
       Pixels    : out Coyote_Image_Decoder.Pixbuf_Handle;
       Error     : out Unbounded_String)
    is
@@ -378,8 +464,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Count_Read : Integer;
       Width : Natural;
       Height : Natural;
+      Oversized : Boolean;
       Signature : String (1 .. 8);
       Filled : Natural := 0;
+      Stage : Interfaces.C.int := -1;
+      TILE_BUDGET : constant := 2 * 1_024 * 1_024 * 1_024;
       SVG_Limit : constant Natural :=
         Natural'Min (Coyote_Canvas.Rasters.MAX_ENCODED_BYTES,
                      MAX_BATCH_ENCODED_BYTES - SVG_Total);
@@ -390,6 +479,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       function Rewind_File return Boolean is
         (not Queue.Cancelled (Job) and then Rewind (File));
    begin
+      Tile := (others => <>);
       Pixels := Coyote_Image_Decoder.Null_Pixbuf;
       Error := Null_Unbounded_String;
       if Queue.Cancelled (Job) then
@@ -434,7 +524,48 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             then
                Coyote_Canvas.Rasters.Decode_Stream
                  (Read_Chunk'Access, Rewind_File'Access, Pixels,
-                  Width, Height, Error);
+                  Width, Height, Error, Oversized);
+               if Allow_Tiles and then Oversized then
+                  Stage := C_Stage;
+                  if Stage < 0 then
+                     Error := To_Unbounded_String
+                       ("Cannot create temporary tile storage.");
+                  else
+                     declare
+                        Info : Coyote_Canvas.Tiles.Dimensions;
+                        Status : Coyote_Canvas.Tiles.Result;
+                     begin
+                        Coyote_Canvas.Tiles.Import
+                          (Borrow (File), Stage, TILE_BUDGET - Staging_Total,
+                           Status, Info, C_Cancel'Access,
+                           System.Storage_Elements.To_Address
+                             (System.Storage_Elements.Integer_Address (Job)));
+                        case Status is
+                           when Coyote_Canvas.Tiles.Success =>
+                              Staging_Total := Staging_Total + 16 + 4 *
+                                Interfaces.Unsigned_64 (Info.Width) *
+                                Interfaces.Unsigned_64 (Info.Height);
+                              Tile := (Stage, Natural (Info.Width),
+                                       Natural (Info.Height));
+                              Stage := -1;
+                              Error := Null_Unbounded_String;
+                           when Coyote_Canvas.Tiles.Unsupported =>
+                              Error := To_Unbounded_String
+                                ("This image encoding cannot be tiled.");
+                           when Coyote_Canvas.Tiles.Limit_Exceeded =>
+                              Error := To_Unbounded_String
+                                ("Tiled import exceeds the 32,768-pixel side " &
+                                 "or 2 GiB batch limit.");
+                           when Coyote_Canvas.Tiles.Cancelled =>
+                              Error := To_Unbounded_String
+                                ("Image import cancelled.");
+                           when others =>
+                              Error := To_Unbounded_String
+                                ("Could not decode or stage the tiled image.");
+                        end case;
+                     end;
+                  end if;
+               end if;
             elsif Attributes_Result.Size > Long_Long_Integer (SVG_Limit) then
                Error := To_Unbounded_String ("SVG input exceeds the size limit.");
             else
@@ -461,10 +592,13 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             end if;
          end if;
       end if;
+      Close_FD (Stage);
       Close (File);
       Close (Root);
    exception
       when others =>
+         Close_FD (Stage);
+         Close_FD (Tile.FD);
          Close (File);
          Close (Root);
          Coyote_Image_Decoder.Release (Pixels);
@@ -542,6 +676,40 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end if;
    end Submit_Batch;
 
+   function Submit_Tiled_Files
+     (Paths : Path_List; Token : System.Address;
+      Callback : On_Tiled_Complete) return Boolean
+   is
+      Index : Natural;
+   begin
+      if Paths'Length not in 1 .. MAX_FILES then
+         return False;
+      end if;
+      for Path of Paths loop
+         declare
+            Name : constant String := To_String (Path);
+            Slash : constant Natural := Ada.Strings.Fixed.Index
+              (Name, "/", Ada.Strings.Backward);
+         begin
+            if Slash = 0 or else Slash = Name'Last then
+               return False;
+            end if;
+         end;
+      end loop;
+      Queue.Add_Tiled_Files (Paths, Token, Callback, Index);
+      if Index = 0 then
+         return False;
+      end if;
+      begin
+         Start_Pump;
+         return True;
+      exception
+         when others =>
+            Queue.Release (Slot_Index (Index));
+            return False;
+      end;
+   end Submit_Tiled_Files;
+
    procedure Submit_Files
      (Paths    :        Path_List;
       Token    :        System.Address;
@@ -580,6 +748,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Raw : Raw_Pixbuf_List :=
         (others => Coyote_Image_Decoder.Null_Pixbuf);
       Pixel_Count : Natural;
+      Tiles : Raw_Tile_List := (others => (FD => -1, Width => 0, Height => 0));
+      Tile_Count : Natural := 0;
+      Tiled_Callback : Tiled_Callback_Access;
+      Tile_Results : Tile_List (1 .. MAX_FILES) :=
+        (others => (FD => -1, Width => 0, Height => 0));
       Error : Unbounded_String;
       Images : Image_List (1 .. MAX_FILES) := (others => null);
    begin
@@ -595,11 +768,17 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Queue.Next_Complete (Index, Found);
          exit when not Found;
          Queue.Take_Complete
-           (Slot_Index (Index), Token, Callback, Raw, Pixel_Count, Error);
+           (Slot_Index (Index), Token, Callback, Raw, Pixel_Count, Error,
+            Tiled_Callback, Tiles, Tile_Count);
+         if Queue.Cancelled (Slot_Index (Index)) then
+            Error := To_Unbounded_String ("Image import cancelled.");
+         end if;
          if Length (Error) = 0 then
             begin
                for I in 1 .. Pixel_Count loop
-                  Images (I) := Coyote_Image_Decoder.Adopt (Raw (I));
+                  if not Coyote_Image_Decoder.Is_Null (Raw (I)) then
+                     Images (I) := Coyote_Image_Decoder.Adopt (Raw (I));
+                  end if;
                end loop;
             exception
                when others =>
@@ -608,10 +787,27 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          end if;
          begin
             if Length (Error) = 0 then
-               Callback.all (Token, Images (1 .. Pixel_Count), "");
+               if Tiled_Callback /= null then
+                  for I in 1 .. Tile_Count loop
+                     Tile_Results (I) := Tiles (I);
+                  end loop;
+                  Tiled_Callback.all
+                    (Token, Images (1 .. Pixel_Count),
+                     Tile_Results (1 .. Tile_Count), "");
+               else
+                  Callback.all (Token, Images (1 .. Pixel_Count), "");
+               end if;
             else
-               Callback.all (Token, Image_List'(1 .. 0 => null),
-                             To_String (Error));
+               if Tiled_Callback /= null then
+                  Tiled_Callback.all
+                    (Token, Image_List'(1 .. 0 => null),
+                     Tile_List'(1 .. 0 =>
+                       (FD => -1, Width => 0, Height => 0)),
+                     To_String (Error));
+               else
+                  Callback.all (Token, Image_List'(1 .. 0 => null),
+                                To_String (Error));
+               end if;
             end if;
          exception
             when others =>
@@ -624,6 +820,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             end if;
          end loop;
          Release_All (Raw);
+         for I in Tiles'Range loop
+            Close_FD (Tiles (I).FD);
+         end loop;
          Queue.Release (Slot_Index (Index));
       end loop;
       if Queue.Count = 0 then
@@ -635,6 +834,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    exception
       when others =>
          Release_All (Raw);
+         for I in Tiles'Range loop
+            Close_FD (Tiles (I).FD);
+         end loop;
          return Queue.Count > 0;
    end Pump;
 
@@ -647,9 +849,12 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Expected : Coyote_Canvas.Rasters.Format;
       Raw : Raw_Pixbuf_List :=
         (others => Coyote_Image_Decoder.Null_Pixbuf);
+      Tiles : Raw_Tile_List := (others => (FD => -1, Width => 0, Height => 0));
+      Tile_Count : Natural := 0;
       Pixel_Count : Natural := 0;
       Decoded_Total : Natural := 0;
       SVG_Total : Natural := 0;
+      Staging_Total : Interfaces.Unsigned_64 := 0;
       Width : Natural;
       Height : Natural;
       Error : Unbounded_String;
@@ -666,8 +871,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                  (Index, Kind, Data, Paths, Path_Count, Expected);
                Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
                Pixel_Count := 0;
+               Tile_Count := 0;
+               Tiles := (others => (FD => -1, Width => 0, Height => 0));
                Decoded_Total := 0;
                SVG_Total := 0;
+               Staging_Total := 0;
                Error := Null_Unbounded_String;
                if Kind = Bytes_Source then
                   Coyote_Canvas.Rasters.Decode
@@ -683,11 +891,17 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                   end if;
                else
                   for I in 1 .. Path_Count loop
+                     if Queue.Cancelled (Index) then
+                        Error := To_Unbounded_String
+                          ("Image import cancelled.");
+                        exit;
+                     end if;
                      Path := Paths (I);
-                     if Kind = Files_Source then
+                     if Kind in Files_Source | Tiled_Files_Source then
                         Decode_File
-                          (To_String (Path), Index, SVG_Total, Raw (I),
-                           Item_Error);
+                          (To_String (Path), Index, SVG_Total,
+                           Kind = Tiled_Files_Source, Staging_Total,
+                           Tiles (I), Raw (I), Item_Error);
                      elsif Coyote_Canvas.Rasters.Detect (To_String (Path)) =
                        Coyote_Canvas.Rasters.Unknown
                      then
@@ -706,7 +920,14 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                         exit;
                      end if;
                      Pixel_Count := I;
-                     Decoded_Total := Decoded_Total + Pixel_Bytes (Raw (I));
+                     if Kind = Tiled_Files_Source then
+                        Tile_Count := I;
+                     end if;
+                     if Kind /= Tiled_Files_Source or else
+                       not Coyote_Image_Decoder.Is_Null (Raw (I))
+                     then
+                        Decoded_Total := Decoded_Total + Pixel_Bytes (Raw (I));
+                     end if;
                      if Decoded_Total > MAX_BATCH_DECODED_BYTES then
                         Error := To_Unbounded_String
                           ("Image " & Ada.Strings.Fixed.Trim
@@ -724,15 +945,19 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                if Length (Error) /= 0 then
                   Release_All (Raw);
                   Pixel_Count := 0;
+                  for I in Tiles'Range loop Close_FD (Tiles (I).FD); end loop;
+                  Tile_Count := 0;
                end if;
-               Queue.Finish (Index, Raw, Pixel_Count, To_String (Error));
+               Queue.Finish (Index, Raw, Pixel_Count, To_String (Error),
+                             Tiles, Tile_Count);
                Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
             exception
                when others =>
                   Release_All (Raw);
+                  for I in Tiles'Range loop Close_FD (Tiles (I).FD); end loop;
                   Queue.Finish
                     (Index, (others => Coyote_Image_Decoder.Null_Pixbuf), 0,
-                     "Image import failed");
+                     "Image import failed", Tiles, 0);
             end;
             Data := Null_Unbounded_String;
             Paths := (others => Null_Unbounded_String);

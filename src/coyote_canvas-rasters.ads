@@ -30,4 +30,14 @@ package Coyote_Canvas.Rasters is
       Width  : out Natural;
       Height : out Natural;
       Error  : out Ada.Strings.Unbounded.Unbounded_String);
+
+   --  Oversized is set only for valid headers outside the flat budget.
+   procedure Decode_Stream
+     (Read   : not null access function (Buffer : out String) return Integer;
+      Rewind : not null access function return Boolean;
+      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Width  : out Natural;
+      Height : out Natural;
+      Error  : out Ada.Strings.Unbounded.Unbounded_String;
+      Oversized : out Boolean);
 end Coyote_Canvas.Rasters;

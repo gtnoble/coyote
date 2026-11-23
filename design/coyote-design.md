@@ -583,7 +583,9 @@ not wait for the complete user turn.
 | `Coyote_Canvas.Store` (`src/coyote_canvas-store.ads/.adb`, `src/coyote_canvas_store_c.c`) | Bounded private transport, exclusive GTK editor lease, fork sidecar reservation, checked nonrecursive removal, and reclamation inventory. |
 | `Coyote_Session_Transactions` (`src/coyote_session_transactions.ads/.adb`, `src/coyote_canvas_store_c.c`) | Shared filesystem guard for Canvas commits and JSONL mutations; private staging, no-replace publication for new logs, checked replacement for migration, and explicit directory-sync outcomes. |
 | `Coyote_Canvas.Store.Workspaces` (`src/coyote_canvas-store-workspaces.ads/.adb`) | Publish and recover mixed flat RGBA and tiled Originals; verify and copy selected assets for fork and protect the exact live filenames during reclaim. |
-| `Coyote_Canvas.Tiles` (`src/coyote_canvas-tiles.ads/.adb`, `src/coyote_canvas_tiles.h`, `src/coyote_canvas_tiles.c`, `src/coyote_canvas_tile_decode.c`) | Bounded scanline PNG/JPEG decoding to a versioned disk tile file; checked descriptor reads of packed native RGBA tiles. Used by durable tiled workspace storage; not yet wired to GTK import or display. |
+| `Coyote_Canvas.Tiles` (`src/coyote_canvas-tiles.ads/.adb`, `src/coyote_canvas_tiles.h`, `src/coyote_canvas_tiles.c`, `src/coyote_canvas_tile_decode.c`) | Bounded scanline PNG/JPEG decoding to a versioned disk tile file; checked descriptor reads of packed native RGBA tiles. Used by durable GTK file imports and workspace recovery. |
+| `Coyote_Canvas.Tile_Render` (`src/coyote_canvas-tile_render.ads/.adb`) | Read and compose a bounded source-coordinate region of an immutable tiled Original. |
+| `Coyote_GUI.Canvas_Tile_Views` (`src/coyote_gui/coyote_gui-canvas_tile_views.ads/.adb`) | Render a bounded viewport region or reduced-resolution preview on a worker without GTK access. |
 | `Coyote_Canvas_Recovery_Tests` (`test/src/coyote_canvas_recovery_tests.ads/.adb`) | Exact raster and revision round trips, invalid-input rollback, and private sidecar behavior. |
 | Native Canvas tile-I/O tests (`test/native/canvas_tiles_test.c`, `test/tools/check-canvas-tiles.sh`) | Codec, edge tile, resource and rollback checks; `--large` exercises a 20,000 × 20,000 PNG under a 128 MiB address-space cap. |
 | `Coyote_GUI.Canvas` (`src/coyote_gui/coyote_gui-canvas.ads/.adb`) | Modeless workspace, tree, cached cropped composite display, transient Cairo ink, GDK input, crop, local raster imports, and request invalidation; composition, attachment freezing, and display-cache misses run on GTK. |
@@ -3282,13 +3284,15 @@ excluded. SVGs render once to straight-alpha RGBA at their intrinsic pixel
 size at 96 DPI or at the positive `viewBox` size, rounded up. Raster assets
 are independent of the source bytes and Cairo display cache.
 
-Local PNG/JPEG file selection has no encoded-byte cap. All Canvas PNG/JPEG
-paths share the 8,192-pixel side and 33,554,432-pixel area ceilings. No
-accepted raster is automatically resized. Buffered inputs remain limited
+Local PNG/JPEG file selection has no encoded-byte cap. The flat path
+retains the 8,192-pixel side and 33,554,432-pixel area ceilings. Durable
+file selection falls back to disk tiles for supported encodings above
+those ceilings, with a 32,768-pixel side guard and 2 GiB tiled batch cap.
+No accepted raster is automatically resized. Buffered inputs remain limited
 to 8 MiB per SVG, clipboard image, or agent-uploaded file and 32 MiB per
 batch of SVG inputs or agent uploads. SVG rendering retains a 16,777,216-
 pixel area ceiling and preflight caps of 64 levels and 50,000 nodes. The
-raw recovery asset ceiling is 128 MiB per image; aggregate decoded batch
+flat recovery asset ceiling is 128 MiB per image; aggregate flat decoded batch
 and live-workspace raster ceilings each remain 128 MiB. There is one
 decode worker, with two worker slots and four GUI request slots.
 

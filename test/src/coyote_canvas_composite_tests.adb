@@ -721,6 +721,35 @@ package body Coyote_Canvas_Composite_Tests is
       Assert (Rejected, "render rejects a nonexistent revision");
    end Empty_And_Invalid;
 
+   procedure Source_Window_Pixels (T : in out Test) is
+      pragma Unreferenced (T);
+      W : Workspace;
+      Original : Revision_Id;
+      Whole, Windowed : Image;
+      Points : Samples.Vector;
+      Region : constant Rectangle := (251, 2, 271, 11);
+      Source : Stream_Element_Array (1 .. 280 * 16 * 4);
+      Subset : Stream_Element_Array (1 .. 20 * 9 * 4);
+   begin
+      Add_Originals (W, (1 => (280, 16)), Original);
+      Edit (W, Original);
+      Points.Append ((248.5, 2.25, 5.0, 0.4));
+      Points.Append ((264.5, 10.75, 3.5, 0.9));
+      Add_Stroke (W, Points, Color => 16#336699#, Rendering => Deposited);
+      Points.Clear;
+      Points.Append ((256.25, 6.0, 2.7, 1.0));
+      Add_Stroke (W, Points, Erase);
+      for I in Source'Range loop
+         Source (I) := Stream_Element (I mod 251);
+      end loop;
+      Crop (W, Region);
+      Copy_RGBA (Source, 280, 16, 280 * 4, Region, Subset);
+      Render (W, NO_REVISION, Source, 280 * 4, True, Whole);
+      Render (W, NO_REVISION, Subset, Region, Windowed);
+      Assert (Pixels (Whole) = Pixels (Windowed),
+              "source-window ink and erase match canonical pixels across x=256");
+   end Source_Window_Pixels;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -757,6 +786,9 @@ package body Coyote_Canvas_Composite_Tests is
       Result.Add_Test (Caller.Create
         ("Canvas composite empty and invalid extents",
          Empty_And_Invalid'Access));
+      Result.Add_Test (Caller.Create
+        ("Canvas composite source window keeps exact ink phase",
+         Source_Window_Pixels'Access));
       return Result;
    end Suite;
 end Coyote_Canvas_Composite_Tests;

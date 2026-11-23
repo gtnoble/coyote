@@ -1,6 +1,7 @@
 with Ada.Finalization;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
+with Coyote_Canvas.Document;
 with Cairo;
 with Coyote_Canvas.Revisions;
 
@@ -25,6 +26,13 @@ package Coyote_Canvas.Composite is
       Has_Alpha : Boolean; Result : in out Image;
       Include_Ink : Boolean := True);
 
+   --  Source is the packed straight-RGBA window in absolute source
+   --  coordinates. It may be larger than the selected revision extent.
+   procedure Render
+     (W : Revisions.Workspace; Id : Revisions.Revision_Id;
+      Source : Ada.Streams.Stream_Element_Array;
+      Source_Region : Coyote_Canvas.Document.Rectangle;
+      Result : in out Image; Include_Ink : Boolean := True);
    procedure Clear (I : in out Image);
    function Width (I : Image) return Natural;
    function Height (I : Image) return Natural;

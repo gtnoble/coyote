@@ -16,6 +16,7 @@ package body Coyote_Canvas.Composite is
    use type Cairo.Cairo_Status;
    use type Cairo.Cairo_Surface;
    use type System.Address;
+   use type Glib.Gdouble;
    use Coyote_Canvas.Images;
 
    procedure Free is new Ada.Unchecked_Deallocation
@@ -28,6 +29,13 @@ package body Coyote_Canvas.Composite is
       Left, Top, Width, Height : int; Ink_Surface : Cairo.Cairo_Surface)
      with Import, Convention => C,
           External_Name => "coyote_canvas_compose_rgba";
+
+   procedure Compose_RGBA_Window
+     (Output, Background : System.Address; Stride, Channels : int;
+      Left, Top, Width, Height, Source_Left, Source_Top : int;
+      Ink_Surface : Cairo.Cairo_Surface)
+     with Import, Convention => C,
+          External_Name => "coyote_canvas_compose_rgba_window";
 
    function New_Surface
      (Data : System.Address; Width, Height : int) return Cairo.Cairo_Surface
@@ -268,6 +276,129 @@ package body Coyote_Canvas.Composite is
       Render_Internal
         (W, Id, Source (Source'First)'Address, Source'Length, Source_Stride,
          (if Has_Alpha then 4 else 3), Result, Include_Ink);
+   end Render;
+
+   procedure Render
+     (W : Revisions.Workspace; Id : Revisions.Revision_Id;
+      Source : Stream_Element_Array;
+      Source_Region : Document.Rectangle;
+      Result : in out Image; Include_Ink : Boolean := True)
+   is
+      R, Original, Output_Region : Document.Rectangle;
+      Source_W, Source_H, Out_W, Out_H : Positive;
+      Buffer : Pixel_Buffer;
+      Ink_Layer : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      procedure Draw
+        (Points : Revisions.Samples.Vector;
+         Operation : Revisions.Ink_Operation;
+         Color : Revisions.Ink_Color;
+         Rendering : Revisions.Stroke_Rendering)
+      is
+         use type Revisions.Ink_Operation;
+      begin
+         if Context = Cairo.Null_Context and then
+           Operation = Revisions.Erase
+         then
+            return;
+         end if;
+         if Context = Cairo.Null_Context then
+            Ink_Layer := Cairo.Image_Surface.Create
+              (Cairo.Image_Surface.Cairo_Format_ARGB32,
+               Glib.Gint (Source_W), Glib.Gint (Source_H));
+            if Cairo.Surface.Status (Ink_Layer) /= Cairo.Cairo_Status_Success
+            then
+               raise Render_Error with "Cannot allocate Canvas ink surface";
+            end if;
+            Context := Cairo.Create (Ink_Layer);
+            Cairo.Translate (Context, -Glib.Gdouble (Source_Region.Left),
+                             -Glib.Gdouble (Source_Region.Top));
+         end if;
+         Replay_Stroke (Context, Points, Operation, Color, Rendering);
+      end Draw;
+   begin
+      if Id > Revisions.Count (W) then
+         raise Invalid_Buffer with "Canvas revision is unavailable";
+      end if;
+      R := Revisions.Extent (W, Id);
+      if not Document.Is_Nonempty (R) or else
+        not Document.Is_Nonempty (Source_Region)
+      then
+         raise Invalid_Buffer with "Canvas source window is empty";
+      end if;
+      declare
+         Background : constant Revisions.Revision_Id :=
+           Revisions.Background (W, Id);
+      begin
+         if Background = Revisions.NO_REVISION then
+            raise Invalid_Buffer with "Canvas has no tiled background";
+         end if;
+         Original := Revisions.Extent (W, Background);
+      end;
+      if not Document.Is_Within (R, Original) or else
+        not Document.Is_Within (Source_Region, Original)
+      then
+         raise Invalid_Buffer with "Canvas source window misses original";
+      end if;
+      Output_Region :=
+        (Left => Natural'Max (R.Left, Source_Region.Left),
+         Top => Natural'Max (R.Top, Source_Region.Top),
+         Right => Natural'Min (R.Right, Source_Region.Right),
+         Bottom => Natural'Min (R.Bottom, Source_Region.Bottom));
+      if not Document.Is_Nonempty (Output_Region) then
+         raise Invalid_Buffer with "Canvas source window misses revision";
+      end if;
+      Source_W := Source_Region.Right - Source_Region.Left;
+      Source_H := Source_Region.Bottom - Source_Region.Top;
+      Out_W := Output_Region.Right - Output_Region.Left;
+      Out_H := Output_Region.Bottom - Output_Region.Top;
+      if Source_Region.Right - Source_Region.Left > Rasters.MAX_SIDE or else
+        Source_Region.Bottom - Source_Region.Top > Rasters.MAX_SIDE or else
+        Source_Region.Bottom - Source_Region.Top >
+          (16 * 1_024 * 1_024) /
+            (Source_Region.Right - Source_Region.Left)
+      then
+         raise Invalid_Buffer with "Canvas source window exceeds bounds";
+      end if;
+      if Source'Length /= Packed_Byte_Count
+        (Source_Region.Right - Source_Region.Left,
+         Source_Region.Bottom - Source_Region.Top)
+      then
+         raise Invalid_Buffer with "Invalid Canvas source window layout";
+      end if;
+      if Include_Ink then
+         Revisions.Visit_Source (W, Id, Draw'Access);
+         if Context /= Cairo.Null_Context then
+            Cairo.Destroy (Context);
+            Context := Cairo.Null_Context;
+         end if;
+      end if;
+      Buffer := new Stream_Element_Array
+        (1 .. Stream_Element_Offset (Packed_Byte_Count (Out_W, Out_H)));
+      Compose_RGBA_Window
+        (Buffer (1)'Address, Source (Source'First)'Address,
+         int ((Source_Region.Right - Source_Region.Left) * 4), 4,
+         int (Output_Region.Left), int (Output_Region.Top),
+         int (Out_W), int (Out_H), int (Source_Region.Left),
+         int (Source_Region.Top), Ink_Layer);
+      if Ink_Layer /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (Ink_Layer);
+         Ink_Layer := Cairo.Null_Surface;
+      end if;
+      Clear (Result);
+      Result.Data := Buffer;
+      Result.W := Out_W;
+      Result.H := Out_H;
+   exception
+      when others =>
+         if Context /= Cairo.Null_Context then
+            Cairo.Destroy (Context);
+         end if;
+         if Ink_Layer /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (Ink_Layer);
+         end if;
+         Free (Buffer);
+         raise;
    end Render;
 
    procedure Update_Preview

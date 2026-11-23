@@ -1,4 +1,6 @@
 with Ada.Streams;
+with Cairo.Image_Surface;
+with Coyote_Canvas.Tile_Render;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded.Aux;
 with Coyote_Canvas.Images;
@@ -56,11 +58,15 @@ package body Coyote_GUI.Canvas is
    package Jobs renames Coyote_GUI.Canvas_Import_Jobs;
    package Recovery_Jobs renames Coyote_GUI.Canvas_Recovery_Jobs;
    package Persistence renames Recovery_Jobs.Store;
+   package Tile_Views renames Coyote_GUI.Canvas_Tile_Views;
    package Service renames Coyote_Canvas.Import_Service;
    use type Service.Binding_Access;
    use Ada.Strings.Unbounded;
    use type Ada.Real_Time.Time;
    use type Recovery_Jobs.Job_Access;
+   use type Tile_Views.Job_Access;
+   use type Doc.Rectangle;
+   use type Interfaces.C.int;
    use type Glib.Main.G_Source_Id;
    use type Persistence.Result;
    use type Cairo.Cairo_Surface;
@@ -624,6 +630,7 @@ package body Coyote_GUI.Canvas is
    end Packed;
 
    procedure Mark_Dirty (S : aliased in out Instance);
+   procedure Wake_Recovery (S : aliased in out Instance);
 
    procedure Agent_Result
      (S : in out Instance; Status : Service.Result; Text : String) is
@@ -692,7 +699,8 @@ package body Coyote_GUI.Canvas is
          S.Import_Reply := Reply;
          Recovery_Jobs.Start
            (S.Job, Recovery_Jobs.Save_Store, To_String (S.Parent),
-            To_String (S.UUID), Candidate, Assets, To_String (S.Session_File));
+            To_String (S.UUID), Candidate, Assets, S.Disk_Tiles,
+            To_String (S.Session_File));
          S.Import_Count := Pixels'Length;
          Refresh (S.all);
       end if;
@@ -787,6 +795,80 @@ package body Coyote_GUI.Canvas is
    begin
       Import_Complete (Token, (1 .. 0 => null), Error);
    end Import_Failed;
+
+   procedure Tiled_Import_Complete
+     (Token : System.Address; Pixels : Jobs.Image_List;
+      Tiles : Jobs.Tile_List; Error : String)
+   is
+      I : constant Request_Index := Find_Request (Token);
+      S : Instance_Access := null;
+      Candidate : Rev.Workspace;
+      Assets : Recovery_Jobs.Disk.Raster_Set;
+      Stages : Recovery_Jobs.Tile_Stages := Recovery_Jobs.NO_STAGES;
+      Sizes : Rev.Image_Sizes (Pixels'Range);
+      First : Rev.Revision_Id;
+      Remaining : Natural;
+   begin
+      if (for all T of Tiles => T.FD < 0) then
+         Import_Complete (Token, Pixels, Error);
+         return;
+      elsif I = 0 then
+         return;
+      end if;
+      S := Requests (I).Owner;
+      Requests (I) := (others => <>);
+      if S = null or else Length (S.Parent) = 0 or else not Can_Edit (S.all) then
+         return;
+      elsif S.Job /= null or else S.Drawing or else Cropping (S.all) then
+         Report_Import_Error (S, "Canvas is busy. Try importing again.");
+         return;
+      end if;
+      Remaining := MAX_IMAGE_BYTES - S.Image_Bytes;
+      for J in Pixels'Range loop
+         if Tiles (J).FD >= 0 then
+            Sizes (J) := (Tiles (J).Width, Tiles (J).Height);
+         else
+            Sizes (J) := (Positive (Gdk.Pixbuf.Get_Width (Pixels (J))),
+                          Positive (Gdk.Pixbuf.Get_Height (Pixels (J))));
+            if Sizes (J).Height > Remaining / (Sizes (J).Width * 4) then
+               Report_Import_Error (S, "Canvas image memory limit reached.");
+               return;
+            end if;
+            Remaining := Remaining - Sizes (J).Height * Sizes (J).Width * 4;
+         end if;
+      end loop;
+      Rev.Recovery.Copy (Candidate, S.Document);
+      Assets := S.Disk_Pixels;
+      Rev.Add_Originals (Candidate, Sizes, First);
+      for J in Pixels'Range loop
+         declare
+            Id : constant Rev.Revision_Id := First + J - Pixels'First;
+         begin
+            Stages (Id) := Tiles (J).FD;
+            if Tiles (J).FD < 0 then
+               Assets (Id) := Packed (Pixels (J));
+            end if;
+         end;
+      end loop;
+      --  Start duplicates borrowed staging descriptors before returning.
+      Wake_Recovery (S.all);
+      Recovery_Jobs.Start
+        (S.Job, Recovery_Jobs.Save_Store, To_String (S.Parent),
+         To_String (S.UUID), Candidate, Assets, S.Disk_Tiles,
+         To_String (S.Session_File), Stages);
+      S.Import_Bytes := MAX_IMAGE_BYTES - Remaining;
+      S.Import_Count := Pixels'Length;
+      S.Local_Commit := True;
+      Set_Status (S.all, "Saving imported images...");
+      Refresh (S.all);
+   exception
+      when Rev.Capacity_Error =>
+         Report_Import_Error (S, "Canvas revision limit reached.");
+      when others =>
+         if S /= null and then S.Import_Count = 0 then
+            Report_Import_Error (S, "Cannot prepare Canvas batch.");
+         end if;
+   end Tiled_Import_Complete;
 
    --  GtkAda's Request_Contents binding omits per-request user data.
    --  The native form lets the callback carry the leased slot instead of a
@@ -981,8 +1063,14 @@ package body Coyote_GUI.Canvas is
          Report_Import_Error (S, "Too many pending image requests.");
       else
          Set_Status (S.all, "Reading selected images...");
-         Jobs.Submit_Files (Paths (1 .. Count), Requests (I)'Address,
-                            Import_Complete'Access, Accepted);
+         if Length (S.Parent) /= 0 then
+            Accepted := Jobs.Submit_Tiled_Files
+              (Paths (1 .. Count), Requests (I)'Address,
+               Tiled_Import_Complete'Access);
+         else
+            Jobs.Submit_Files (Paths (1 .. Count), Requests (I)'Address,
+                               Import_Complete'Access, Accepted);
+         end if;
          if not Accepted then
             Import_Failed (Requests (I)'Address, "Image import queue is full.");
          end if;
@@ -1689,8 +1777,10 @@ package body Coyote_GUI.Canvas is
 
    procedure Finish_Job (S : in out Instance) is
       Status, Claim_Status : Persistence.Result;
+      Prior_Count : constant Natural := Rev.Count (S.Document);
    begin
-      Recovery_Jobs.Finish (S.Job, S.Document, S.Disk_Pixels, S.Lease,
+      Recovery_Jobs.Finish (S.Job, S.Document, S.Disk_Pixels, S.Disk_Tiles,
+                            S.Lease,
                             Status, Claim_Status,
                             Adopt_Additions => S.Import_Count /= 0);
       if S.Import_Count /= 0 then
@@ -1699,14 +1789,27 @@ package body Coyote_GUI.Canvas is
             S.Image_Bytes := S.Import_Bytes;
             S.Pending_Save := Status = Persistence.Uncertain;
             S.Save_Failed := S.Pending_Save;
-            Agent_Result
-              (S, (if Status = Persistence.Ok then Service.Ok else Service.Unknown),
-               (if Status = Persistence.Ok then To_String (S.Import_Reply)
-                else "Canvas import outcome unknown; inspect Drawings before resubmitting"));
+            if S.Local_Commit then
+               for Id in Prior_Count + 1 .. Rev.Count (S.Document) loop
+                  S.Images (Id).Origin := File_Image;
+               end loop;
+               Set_Status (S, (if Status = Persistence.Ok then
+                 "Images added to Drawings at their original sizes."
+                 else "Import is visible, but durability is uncertain."));
+            else
+               Agent_Result
+                 (S, (if Status = Persistence.Ok then Service.Ok
+                      else Service.Unknown),
+                  (if Status = Persistence.Ok then To_String (S.Import_Reply)
+                   else "Import outcome unknown; inspect Drawings."));
+            end if;
             Extend_Tree (S);
+         elsif S.Local_Commit then
+            Set_Status (S, "Canvas import could not be saved: " & Status'Image);
          else
             Agent_Result (S, Service.Rejected, "Canvas commit failed: " & Status'Image);
          end if;
+         S.Local_Commit := False;
          S.Import_Reply := Null_Unbounded_String;
          Refresh (S);
       elsif S.Loading then
@@ -1715,7 +1818,9 @@ package body Coyote_GUI.Canvas is
             S.Writable := Claim_Status = Persistence.Ok;
             if Status = Persistence.Ok then
                for Id in 1 .. Rev.Count (S.Document) loop
-                  if Length (S.Disk_Pixels (Id)) /= 0 then
+                  if Length (S.Disk_Pixels (Id)) /= 0 or else
+                    S.Disk_Tiles.References (Id) /= Rev.Recovery.NO_ASSET
+                  then
                      S.Images (Id).Origin := File_Image;
                      S.Image_Bytes := S.Image_Bytes + Length (S.Disk_Pixels (Id));
                   end if;
@@ -1750,7 +1855,7 @@ package body Coyote_GUI.Canvas is
    begin
       Recovery_Jobs.Start
         (S.Job, Recovery_Jobs.Save_Store, To_String (S.Parent),
-         To_String (S.UUID), S.Document, S.Disk_Pixels,
+         To_String (S.UUID), S.Document, S.Disk_Pixels, S.Disk_Tiles,
          To_String (S.Session_File));
       S.Pending_Save := False;
       S.Save_Failed := False;
@@ -1809,7 +1914,8 @@ package body Coyote_GUI.Canvas is
          Storage_Status (S, "Opening session Canvas...");
          Recovery_Jobs.Start
            (S.Job, Recovery_Jobs.Open_Store, To_String (S.Parent),
-            To_String (S.UUID), S.Document, S.Disk_Pixels, To_String (S.Session_File));
+            To_String (S.UUID), S.Document, S.Disk_Pixels, S.Disk_Tiles,
+            To_String (S.Session_File));
          Wake_Recovery (S);
       end if;
    exception
@@ -2004,6 +2110,13 @@ package body Coyote_GUI.Canvas is
 
    procedure Clear_Display (S : in out Instance) is
    begin
+      S.Tile_Job_Valid := False;
+      Tile_Views.Cancel (S.Tile_Job);
+      S.Tile_Result_Known := False;
+      if S.Tile_Surface /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (S.Tile_Surface);
+         S.Tile_Surface := Cairo.Null_Surface;
+      end if;
       Coyote_Canvas.Composite.Clear (S.Live_Erase);
       if S.Image_Surface /= Cairo.Null_Surface then
          Cairo.Surface_Destroy (S.Image_Surface);
@@ -2040,6 +2153,7 @@ package body Coyote_GUI.Canvas is
       S.UUID := Null_Unbounded_String;
       S.Session_File := Null_Unbounded_String;
       S.Disk_Pixels := (others => Null_Unbounded_String);
+      S.Disk_Tiles := (others => <>);
       S.Load_Started := False;
       S.Loading := False;
       S.Writable := False;
@@ -2050,6 +2164,11 @@ package body Coyote_GUI.Canvas is
       Invalidate (S);
       Destroy_Import_Dialogs (S);
       Clear_Display (S);
+      if S.Tile_Timer /= 0 then
+         Glib.Main.Remove (S.Tile_Timer);
+         S.Tile_Timer := 0;
+      end if;
+      Tile_Views.Discard (S.Tile_Job);
       for Asset of S.Images loop
          if Asset.Pixels /= null then
             Asset.Pixels.Unref;
@@ -2573,11 +2692,22 @@ package body Coyote_GUI.Canvas is
       end if;
    end With_Background;
 
+   function Tile_Digest (S : Instance; Id : Rev.Revision_Id)
+      return Persistence.Tile_Digest is
+      Root : constant Rev.Revision_Id := Rev.Background (S.Document, Id);
+   begin
+      return (if Root = Rev.NO_REVISION then Rev.Recovery.NO_ASSET
+              else S.Disk_Tiles.References (Root));
+   end Tile_Digest;
+
    procedure Compose
      (S : Instance; Id : Rev.Revision_Id;
       Image : in out Coyote_Canvas.Composite.Image; Include_Ink : Boolean)
    is
       package Composite renames Coyote_Canvas.Composite;
+      Digest : constant Persistence.Tile_Digest := Tile_Digest (S, Id);
+      FD : Interfaces.C.int := -1;
+      Status : Persistence.Result;
 
       procedure Render
         (Bytes : Ada.Streams.Stream_Element_Array; Stride : Positive;
@@ -2592,7 +2722,23 @@ package body Coyote_GUI.Canvas is
          end if;
       end Render;
    begin
-      With_Background (S, Id, Render'Access);
+      if Digest = Rev.Recovery.NO_ASSET then
+         With_Background (S, Id, Render'Access);
+      else
+         Persistence.Open_Validated_Tile
+           (To_String (S.Disk_Tiles.Parent), To_String (S.Disk_Tiles.UUID),
+            Digest, FD, Status);
+         if Status /= Persistence.Ok then
+            raise Composite.Render_Error with "Cannot open tiled Original";
+         end if;
+         Coyote_Canvas.Tile_Render.Render
+           (FD, S.Document, Id, Rev.Extent (S.Document, Id), Image, Include_Ink);
+         Persistence.Close_Tile (FD);
+      end if;
+   exception
+      when others =>
+         Persistence.Close_Tile (FD);
+         raise;
    end Compose;
 
    procedure Update_Live_Erase (S : in out Instance; Id : Rev.Revision_Id)
@@ -2761,6 +2907,113 @@ package body Coyote_GUI.Canvas is
       S.Cached_Ink := S.Show_Ink;
    end Update_Display;
 
+   function Poll_Tile_View (S : Instance_Access) return Boolean is
+      Surface : Cairo.Cairo_Surface;
+   begin
+      if not Tile_Views.Ready (S.Tile_Job) then
+         return True;
+      end if;
+      Tile_Views.Finish (S.Tile_Job, Surface);
+      if S.Tile_Job_Valid then
+         if S.Tile_Surface /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (S.Tile_Surface);
+         end if;
+         S.Tile_Surface := Surface;
+         S.Tile_Region := S.Tile_Job_Region;
+         S.Tile_Id := S.Tile_Job_Id;
+         S.Tile_Ink := S.Tile_Job_Ink;
+         S.Tile_Preview := S.Tile_Job_Preview;
+         S.Tile_Result_Known := True;
+         if Surface = Cairo.Null_Surface then
+            Set_Status (S.all, "Canvas tile region could not be rendered.");
+         end if;
+      elsif Surface /= Cairo.Null_Surface then
+         Cairo.Surface_Destroy (Surface);
+      end if;
+      S.Tile_Job_Valid := False;
+      S.Tile_Timer := 0;
+      if S.Drawing_Area /= null and then S.Canvas_Window.Get_Visible then
+         S.Drawing_Area.Queue_Draw;
+      end if;
+      return False;
+   end Poll_Tile_View;
+
+   procedure Paint_Tiled_View
+     (Context : Cairo.Cairo_Context; S : Instance_Access;
+      Id : Rev.Revision_Id; E : Doc.Rectangle; Digest : Persistence.Tile_Digest)
+   is
+      H : constant Gtk.Adjustment.Gtk_Adjustment := S.Viewport.Get_Hadjustment;
+      V : constant Gtk.Adjustment.Gtk_Adjustment := S.Viewport.Get_Vadjustment;
+      W : constant Natural := E.Right - E.Left;
+      Height : constant Natural := E.Bottom - E.Top;
+      function Edge (P : Glib.Gdouble; Limit : Natural) return Natural is
+        (Natural (Long_Float'Min (Long_Float (Limit),
+                                  Long_Float'Max (0.0, Long_Float (P) / S.Zoom))));
+      Visible : constant Doc.Rectangle :=
+        (E.Left + Edge (H.Get_Value - 1.0, W),
+         E.Top + Edge (V.Get_Value - 1.0, Height),
+         E.Left + Edge (H.Get_Value + H.Get_Page_Size + 1.0, W),
+         E.Top + Edge (V.Get_Value + V.Get_Page_Size + 1.0, Height));
+      Preview : constant Boolean := S.Zoom < 0.25 or else
+        Visible.Right > Visible.Left + 2_048 or else
+        Visible.Bottom > Visible.Top + 2_048;
+      Needed : constant Doc.Rectangle := (if Preview then E else Visible);
+   begin
+      if not Doc.Is_Nonempty (Needed) then
+         return;
+      end if;
+      if S.Tile_Result_Known and then S.Tile_Id = Id
+        and then S.Tile_Ink = S.Show_Ink
+        and then S.Tile_Preview = Preview
+        and then Doc.Is_Within (Needed, S.Tile_Region)
+      then
+         null;
+      elsif S.Tile_Job /= null then
+         if S.Tile_Job_Id /= Id or else S.Tile_Job_Ink /= S.Show_Ink
+           or else S.Tile_Job_Preview /= Preview
+           or else not Doc.Is_Within (Needed, S.Tile_Job_Region)
+         then
+            Tile_Views.Cancel (S.Tile_Job);
+            S.Tile_Job_Valid := False;
+         end if;
+      else
+         S.Tile_Job_Region := (if Preview then E else
+           (Natural'Max (E.Left + 128, Needed.Left) - 128,
+            Natural'Max (E.Top + 128, Needed.Top) - 128,
+            Natural'Min (E.Right, Needed.Right + 128),
+            Natural'Min (E.Bottom, Needed.Bottom + 128)));
+         S.Tile_Job_Id := Id;
+         S.Tile_Job_Ink := S.Show_Ink;
+         S.Tile_Job_Preview := Preview;
+         Tile_Views.Start
+           (S.Tile_Job, To_String (S.Disk_Tiles.Parent),
+            To_String (S.Disk_Tiles.UUID), Digest, S.Document, Id,
+            S.Tile_Job_Region, S.Show_Ink, Preview);
+         S.Tile_Job_Valid := True;
+         S.Tile_Timer := Recovery_Timer.Timeout_Add
+           (15, Poll_Tile_View'Access, S);
+      end if;
+      if S.Tile_Surface /= Cairo.Null_Surface and then S.Tile_Id = Id
+        and then S.Tile_Ink = S.Show_Ink
+        and then Doc.Is_Within (S.Tile_Region, E)
+      then
+         Cairo.Save (Context);
+         Cairo.Translate
+           (Context, Glib.Gdouble (S.Tile_Region.Left - E.Left),
+            Glib.Gdouble (S.Tile_Region.Top - E.Top));
+         if S.Tile_Preview then
+            Cairo.Scale
+              (Context, Glib.Gdouble (S.Tile_Region.Right - S.Tile_Region.Left)
+                / Glib.Gdouble (Cairo.Image_Surface.Get_Width (S.Tile_Surface)),
+               Glib.Gdouble (S.Tile_Region.Bottom - S.Tile_Region.Top)
+                / Glib.Gdouble (Cairo.Image_Surface.Get_Height (S.Tile_Surface)));
+         end if;
+         Cairo.Set_Source_Surface (Context, S.Tile_Surface, 0.0, 0.0);
+         Cairo.Paint (Context);
+         Cairo.Restore (Context);
+      end if;
+   end Paint_Tiled_View;
+
    function On_Draw
      (Area    : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
       Context : Cairo.Cairo_Context; S : Instance_Access) return Boolean
@@ -2770,19 +3023,21 @@ package body Coyote_GUI.Canvas is
       Region   : constant Doc.Rectangle   := Pending (S.all);
       Revision : constant Rev.Revision_Id :=
         (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision);
+      Digest : constant Persistence.Tile_Digest := Tile_Digest (S.all, Revision);
+      Tiled : constant Boolean := Digest /= Rev.Recovery.NO_ASSET;
       Live : Cairo.Cairo_Surface := Cairo.Null_Surface;
    begin
       if not Doc.Is_Nonempty (E) then
          return False;
       end if;
-      if S.Drawing and then S.Gesture_Operation = Rev.Erase
+      if not Tiled and then S.Drawing and then S.Gesture_Operation = Rev.Erase
         and then Can_Draw (S.all) and then not S.Erase_Preview_Failed
       then
          Update_Live_Erase (S.all, Revision);
          Live := Coyote_Canvas.Composite.Surface (S.Live_Erase);
       end if;
       begin
-         if Live = Cairo.Null_Surface then
+         if not Tiled and then Live = Cairo.Null_Surface then
             Update_Display (S.all, Revision);
          end if;
       exception
@@ -2798,10 +3053,19 @@ package body Coyote_GUI.Canvas is
       Cairo.Clip (Context);
       Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
       Cairo.Paint (Context);
-      Cairo.Set_Source_Surface
-        (Context, (if Live = Cairo.Null_Surface then S.Image_Surface
-                   else Live), 0.0, 0.0);
-      Cairo.Paint (Context);
+      if Tiled then
+         begin
+            Paint_Tiled_View (Context, S, Revision, E, Digest);
+         exception
+            when others =>
+               Set_Status (S.all, "Cannot start Canvas tile rendering.");
+         end;
+      else
+         Cairo.Set_Source_Surface
+           (Context, (if Live = Cairo.Null_Surface then S.Image_Surface
+                      else Live), 0.0, 0.0);
+         Cairo.Paint (Context);
+      end if;
       if S.Show_Ink and then S.Drawing then
          declare
             package Ink renames Coyote_Canvas.Ink;

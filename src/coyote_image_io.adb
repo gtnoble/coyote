@@ -129,6 +129,9 @@ package body Coyote_Image_IO is
       return Buffer (1 .. Integer (Count));
    end Readlink_Root;
 
+   function Borrow (File : Descriptor) return Interfaces.C.int is
+     (Interfaces.C.int (File));
+
    procedure Close (File : in out Descriptor) is
       Ignore : Interfaces.C.int;
    begin

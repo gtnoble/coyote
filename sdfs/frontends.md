@@ -1,5 +1,22 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Tiled Canvas file import and viewport (PCR-137)
+
+Durable file imports fall back from the flat geometry check to disk tiles
+for supported PNG and JPEG files. Mixed batches are published before being
+adopted by GTK. Viewport regions and a reduced Fit preview compose on a
+worker; cropped attachments use the same source-grid compositor. The
+attachment, clipboard, agent, SVG, and memory-only limits did not change.
+Tiled erasure is rendered on commit; its live guide remains available.
+
+Both development builds and all 1,135 display-backed AUnit tests passed.
+Standalone GTK interactions (9/9), runner fault handling, Canvas CLI and
+protocol, reclaim, tile codec (27/27), and Help checks passed. A 20,000 ×
+20,000 PNG also passed import, pan, Fit, crop attachment and reopen after
+source removal under Xvfb (~35 s, ~162 MiB process peak RSS, excluding
+kernel page cache). Reproduce with `python3 test/tools/check-canvas-tiled-gtk.py`.
+These developer checks do not qualify desktop interaction or bound latency.
+
 ## 2026-11-22 — Durable tiled Canvas workspaces (PCR-137)
 
 Workspace save and recovery accept mixed flat RGBA and disk-backed tiled

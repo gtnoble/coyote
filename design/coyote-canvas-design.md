@@ -141,7 +141,7 @@ Represent the rectangle by half-open pixel edges `[left, right) × [top, bottom)
 
 `Drawing_Id` and `Revision_Id` are stable opaque UUIDs within a session. Each drawing owns a root and immutable revisions with one optional parent (none for Original), display label, dimensions/time/provenance, a background asset, editable ink operations, and an integer pixel extent. A working copy has the same content shape, an exact base revision ID, generation and its own Undo/Redo stacks. A completed edit on a displayed saved revision creates/activates its working copy from that revision only then; merely displaying or selecting it never changes another working copy. A new edit clears that working copy's redo path, not saved branches. File → Save creates an immutable child revision under the working copy's exact base when content changed; unchanged content creates no duplicate. On successful save the working copy's base advances to the new child. Before an edit switches from a different dirty working copy, checkpoint it as a child of its own base; on failure do not perform the switch/edit. Recovery writes retain the latest draft without visible revision nodes; recovery need not reconstruct in-memory Undo/Redo. A sent marker can be derived from recorded revision references; it does not revise the drawing.
 
-All Canvas PNG/JPEG raster inputs—direct regular files, clipboard data, and agent-uploaded encoded files—share a geometry ceiling of 8,192 pixels on either side and 33,554,432 pixels per image (32 Mi pixels). Preflight both dimensions and checked pixel area before full decode. A direct regular PNG/JPEG file is streamed in bounded chunks and has no encoded-byte ceiling; clipboard and agent encoded-input byte ceilings remain unchanged. SVG retains its separate 8 MiB input and 16,777,216-pixel render-area limits. Keep alpha where present and decode at source dimensions; never automatically resize an accepted import. Close or session change cancels direct reads at chunk boundaries and prevents publication of a partial or stale batch. This bounds the application input buffer, not native decoder allocations. For SVG, render once with librsvg using bounded in-memory input and its existing input/render ceilings, without a base URI or unlimited parser flags. Permit only self-contained static SVG; reject unsupported external references, scripting and unsafe or indeterminate dimensions. Use explicit positive intrinsic pixel dimensions when resolvable at a fixed 96 DPI; otherwise require a finite positive `viewBox` and use its width and height rounded up to pixels, or reject if neither is usable. Store the imported raster as the authoritative background; retain SVG source as a separate local asset if needed for provenance, never as a live path. Do not rerasterize SVG for display at zoom or for replay. Use the existing bounded decoder/worker pattern without the Markdown thumbnail scaling policy.
+The flat PNG/JPEG decoder has a geometry ceiling of 8,192 pixels on either side and 33,554,432 pixels per image. Durable direct file imports can fall back to the tiled decoder when geometry exceeds the flat ceiling. Preflight both dimensions and checked pixel area before full decode. A direct regular PNG/JPEG file is streamed in bounded chunks and has no encoded-byte ceiling; clipboard and agent encoded-input byte ceilings remain unchanged. SVG retains its separate 8 MiB input and 16,777,216-pixel render-area limits. Keep alpha where present and decode at source dimensions; never automatically resize an accepted import. Close or session change cancels direct reads at chunk boundaries and prevents publication of a partial or stale batch. This bounds the application input buffer, not native decoder allocations. For SVG, render once with librsvg using bounded in-memory input and its existing input/render ceilings, without a base URI or unlimited parser flags. Permit only self-contained static SVG; reject unsupported external references, scripting and unsafe or indeterminate dimensions. Use explicit positive intrinsic pixel dimensions when resolvable at a fixed 96 DPI; otherwise require a finite positive `viewBox` and use its width and height rounded up to pixels, or reject if neither is usable. Store the imported raster as the authoritative background; retain SVG source as a separate local asset if needed for provenance, never as a live path. Do not rerasterize SVG for display at zoom or for replay. Use the existing bounded decoder/worker pattern without the Markdown thumbnail scaling policy.
 
 For recovery and decoded residency, allow a 128 MiB raw-raster ceiling per image, a 128 MiB aggregate decoded-import-batch ceiling, and a 128 MiB live-workspace decoded-raster ceiling. These are separate checks; the per-image allowance does not expand the batch or workspace allowance. Native decoder, composition, display-cache, encoding, and concurrent-job allocations can make process peak memory larger than 128 MiB; no whole-process peak-memory bound is claimed.
 
@@ -157,11 +157,11 @@ tile band at or below 32 MiB, separate from codec and runtime allocations.
 
 Decode PNG, including Adam7, and single-scan grayscale/RGB JPEG. Restore
 previous tile rows from disk for subsequent Adam7 passes. Progressive,
-multiscan, and CMYK/YCCK JPEG are not supported by the tiled backend; this
-does not change the current GUI decoder. Import checks cancellation between
+multiscan, and CMYK/YCCK JPEG are not supported by the tiled backend;
+those encodings must fit the flat decoder. Import checks cancellation between
 reads, rows, and tile-band writes; never use failed staging. Inspect checks
-layout and size, not the pixel digest. The backend does not publish or sync
-the asset, or change the live Canvas import limits.
+layout and size, not the pixel digest. The decoder stages assets without
+publishing them; the session store handles publication and sync.
 
 The workspace store publishes immutable `<sha256>.tile` files before the
 manifest. Its `assets` array uses `{ "tileV1": "<sha256>" }` for a tiled
@@ -172,13 +172,21 @@ are copied. Reclaim protects both kinds by their exact filenames. The
 legacy raster-only reader refuses tiled manifests rather than substituting
 blank pixels.
 
-The live Canvas still uses the flat path. To enable tiled imports, connect
-the recovery worker and renderer, move composition off GTK, and use a
-bounded viewport tile cache and a reduced-resolution Fit preview.
-Preserve source pixel-grid phase in Crop and Eraser, and read only the
-needed region for an attachment that fits. Attachment and agent transport
-limits remain independent of local editing. Keep the current memory-only
-behavior under `--no-session`.
+The GTK file picker stages tiled assets on the import worker for durable
+sessions, with up to 2 GiB of tiled staging per batch and a 32,768-pixel
+side ceiling. The recovery worker publishes assets and the manifest before
+adopting a mixed batch. A failed batch may leave unreferenced files for
+explicit reclaim but adds no visible Originals. Clipboard, agent transport,
+and `--no-session` retain their separate flat limits.
+
+The view worker composes a bounded region with a margin around the viewport
+at higher magnification. For low magnification, it produces a preview no
+larger than 512 pixels per side using bounded blocks. The GTK task takes
+only current results and uses its existing crop and coordinate transforms.
+Committed ink and erasure share the canonical source-coordinate renderer;
+tiled Eraser shows the guide during a gesture and the result on commit.
+A crop that fits the unchanged attachment budget reads only intersecting
+tiles and encodes its native extent. Attachment encoding still runs on GTK.
 
 The native check is `sh test/tools/check-canvas-tiles.sh`. Its `--large`
 case imports a 20,000 × 20,000 PNG and reads the resulting tiles under a

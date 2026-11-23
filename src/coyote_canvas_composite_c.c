@@ -61,6 +61,36 @@ static void premultiplied_pixel(unsigned char *dst,
    memcpy(dst, &packed, sizeof packed);
 }
 
+void coyote_canvas_compose_rgba_window(
+   unsigned char *out, const unsigned char *background,
+   int src_stride, int channels, int left, int top,
+   int width, int height, int source_left, int source_top,
+   cairo_surface_t *ink_surface)
+{
+   const unsigned char *ink_data = NULL;
+   int ink_stride = 0;
+   int x, y;
+
+   if (ink_surface != NULL) {
+      cairo_surface_flush(ink_surface);
+      ink_data = cairo_image_surface_get_data(ink_surface);
+      ink_stride = cairo_image_surface_get_stride(ink_surface);
+   }
+   for (y = 0; y < height; ++y) {
+      unsigned char *dst = out + (size_t)y * (size_t)width * 4U;
+      const unsigned char *src = background +
+         (size_t)(top + y - source_top) * (size_t)src_stride +
+         (size_t)(left - source_left) * (size_t)channels;
+      const unsigned char *ink = ink_data == NULL ? NULL :
+         ink_data + (size_t)(top + y - source_top) * (size_t)ink_stride +
+         (size_t)(left - source_left) * 4U;
+      for (x = 0; x < width; ++x)
+         compose_pixel(dst + (size_t)x * 4U,
+                       src + (size_t)x * (size_t)channels, channels,
+                       ink == NULL ? NULL : ink + (size_t)x * 4U);
+   }
+}
+
 void coyote_canvas_compose_rgba(unsigned char *out,
                                 const unsigned char *background,
                                 int src_stride, int channels,

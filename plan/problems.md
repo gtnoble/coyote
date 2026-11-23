@@ -13,10 +13,10 @@ client-controlled work product gets an entry here.
 - **Change:** Decode native PNG and supported JPEG files into bounded disk
   tiles, integrate versioned recovery and viewport rendering, and preserve
   the separate attachment limits.
-- **Status:** Decoder, descriptor-based tile storage, mixed workspace
-  publication/recovery, fork, and reclaim are implemented. GTK import,
-  viewport rendering, and attachment integration remain pending. Current
-  Canvas behavior is unchanged.
+- **Status:** Mixed workspace publication, recovery, fork, and reclaim
+  are implemented, along with durable GTK file import, background viewport
+  rendering, and native-size cropped attachments. Desktop performance and
+  live tiled eraser preview remain open.
 
 ## PCR-136 — Native 8K Canvas raster import
 

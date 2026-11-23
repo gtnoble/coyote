@@ -1,3 +1,5 @@
+with Interfaces.C;
+
 --  Coyote_Image_IO — descriptor operations for confined image loading.
 --
 --  The descriptor abstraction keeps POSIX handles out of image policy code.
@@ -20,6 +22,8 @@ package Coyote_Image_IO is
    function Read (File : Descriptor; Buffer : out String) return Integer;
    function Rewind (File : Descriptor) return Boolean;
    function Readlink_Root (Root : Descriptor) return String;
+   --  Borrow the handle for a native decoder; do not close it.
+   function Borrow (File : Descriptor) return Interfaces.C.int;
    procedure Close (File : in out Descriptor);
 
 private

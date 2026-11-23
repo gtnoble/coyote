@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
 #include "coyote_canvas_tiles.h"
 
@@ -256,4 +256,16 @@ int coyote_canvas_tiles_read(int fd, uint32_t tile_x, uint32_t tile_y,
    if (result == COYOTE_TILE_OK)
       *extent = (struct coyote_canvas_tile_info){width, height};
    return result;
+}
+
+/* An unlinked private file, never reachable through the session sidecar. */
+int coyote_canvas_tiles_stage(void)
+{
+   char path[] = "/tmp/coyote-tile-XXXXXX";
+   int fd = mkostemp(path, O_CLOEXEC);
+   if (fd >= 0 && unlink(path) < 0) {
+      close(fd);
+      return -1;
+   }
+   return fd;
 }
