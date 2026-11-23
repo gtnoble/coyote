@@ -21,8 +21,14 @@ def write_png(path):
         out.write(data)
         out.write(struct.pack(">I", zlib.crc32(data, zlib.crc32(kind))))
 
-    row = b"\0" + bytes((224, 64, 32)) * (SIDE // 2)
-    row += bytes((16, 48, 224)) * (SIDE // 2)
+    bands = SIDE // 2
+    red = bytes((224, 64, 32))
+    green = bytes((32, 192, 48))
+    detail = bytearray(red * bands)
+    for start in range(64, 256, 16):
+        color = green if (start // 16) % 2 else red
+        detail[start * 3:(start + 16) * 3] = color * 16
+    row = b"\0" + bytes(detail) + bytes((16, 48, 224)) * bands
     with path.open("wb") as out:
         out.write(b"\x89PNG\r\n\x1a\n")
         chunk(out, b"IHDR", struct.pack(">IIBBBBB", SIDE, SIDE, 8, 2, 0, 0, 0))

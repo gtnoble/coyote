@@ -1,5 +1,22 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Scale-aware tiled Canvas zoom (PCR-138)
+
+Fit now sets only the scale. Canvas requests a viewport region from a
+resolution level selected by zoom and display scale. The worker builds
+private temporary levels on demand, reuses them across zoom and pan, and
+rejects stale frames. Zoom Out can reverse steps below 25% back to Fit.
+Native-size crop attachments and the durable asset format are unchanged.
+
+Both development builds and the full Xvfb suite (1,136/1,136) passed. The
+20,000-square GTK run resolved detailed stripes before 25%, checked the
+pointer anchor, and zoomed back to Fit: 39.07 s and 164,784 KiB peak process
+RSS for the complete import, edit, and reopen scenario. Strict and sanitized
+native checks passed 32/32; the large native run passed 33/33. GTK
+interactions (9/9), runner fault handling, and Help checks also passed.
+Cold-cache latency on slow storage and physical desktop interaction are
+not qualified.
+
 ## 2026-11-22 — Tiled Canvas file import and viewport (PCR-137)
 
 Durable file imports fall back from the flat geometry check to disk tiles

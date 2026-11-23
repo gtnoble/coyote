@@ -47,9 +47,6 @@ package body Coyote_GUI.Canvas_Import_Jobs is
      (Token : System.Address; Pixels : Image_List; Tiles : Tile_List;
       Error : String);
 
-   function C_Stage return Interfaces.C.int
-     with Import, Convention => C,
-       External_Name => "coyote_canvas_tiles_stage";
    function C_Close (FD : Interfaces.C.int) return Interfaces.C.int
      with Import, Convention => C, External_Name => "close";
    function C_Cancel (User : System.Address) return Interfaces.C.int
@@ -526,7 +523,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                  (Read_Chunk'Access, Rewind_File'Access, Pixels,
                   Width, Height, Error, Oversized);
                if Allow_Tiles and then Oversized then
-                  Stage := C_Stage;
+                  Stage := Coyote_Canvas.Tiles.Stage;
                   if Stage < 0 then
                      Error := To_Unbounded_String
                        ("Cannot create temporary tile storage.");

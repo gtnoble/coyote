@@ -41,6 +41,14 @@ package Coyote_Canvas.Composite is
    --  Returns a new, owned premultiplied surface for display only.
    function Display_Surface (I : Image) return Cairo.Cairo_Surface;
 
+   --  Display-only composition on a power-of-two level grid. Origin is
+   --  in Original coordinates; attachments never use this approximation.
+   function Level_Surface
+     (W : Revisions.Workspace; Id : Revisions.Revision_Id;
+      Source : Ada.Streams.Stream_Element_Array;
+      Width, Height, Step : Positive; Left, Top : Natural;
+      Include_Ink : Boolean) return Cairo.Cairo_Surface;
+
    --  The byte limit is enforced during compression, without a partial
    --  result; a caller may supply a stricter cap, never a larger one.
    function Encode_PNG (I : Image; Limit : Positive := MAX_PNG_BYTES)

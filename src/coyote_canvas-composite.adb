@@ -659,6 +659,79 @@ package body Coyote_Canvas.Composite is
       return Surface;
    end Display_Surface;
 
+   function Level_Surface
+     (W : Revisions.Workspace; Id : Revisions.Revision_Id;
+      Source : Stream_Element_Array;
+      Width, Height, Step : Positive; Left, Top : Natural;
+      Include_Ink : Boolean) return Cairo.Cairo_Surface
+   is
+      Surface, Ink_Layer : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      Extent : constant Document.Rectangle := Revisions.Extent (W, Id);
+
+      procedure Draw
+        (Points : Revisions.Samples.Vector;
+         Operation : Revisions.Ink_Operation; Color : Revisions.Ink_Color;
+         Rendering : Revisions.Stroke_Rendering) is
+      begin
+         if Context = Cairo.Null_Context then
+            Ink_Layer := Cairo.Image_Surface.Create
+              (Cairo.Image_Surface.Cairo_Format_ARGB32,
+               Glib.Gint (Width), Glib.Gint (Height));
+            Context := Cairo.Create (Ink_Layer);
+            Cairo.Scale (Context, 1.0 / Glib.Gdouble (Step),
+                         1.0 / Glib.Gdouble (Step));
+            Cairo.Translate (Context, -Glib.Gdouble (Left),
+                             -Glib.Gdouble (Top));
+            Cairo.Rectangle (Context,
+              Glib.Gdouble (Extent.Left), Glib.Gdouble (Extent.Top),
+              Glib.Gdouble (Extent.Right - Extent.Left),
+              Glib.Gdouble (Extent.Bottom - Extent.Top));
+            Cairo.Clip (Context);
+         end if;
+         Replay_Stroke (Context, Points, Operation, Color, Rendering);
+      end Draw;
+   begin
+      if Source'Length /= Packed_Byte_Count (Width, Height) then
+         raise Invalid_Buffer with "Invalid Canvas level buffer";
+      end if;
+      Surface := New_Surface (Source (Source'First)'Address,
+                              int (Width), int (Height));
+      if Cairo.Surface.Status (Surface) /= Cairo.Cairo_Status_Success then
+         raise Render_Error with "Cannot allocate Canvas level surface";
+      end if;
+      if Include_Ink then
+         Revisions.Visit_Source (W, Id, Draw'Access);
+         if Context /= Cairo.Null_Context then
+            if Cairo.Status (Context) /= Cairo.Cairo_Status_Success then
+               raise Render_Error with "Cannot render Canvas level ink";
+            end if;
+            Cairo.Destroy (Context);
+            Context := Cairo.Create (Surface);
+            Cairo.Set_Source_Surface (Context, Ink_Layer, 0.0, 0.0);
+            Cairo.Paint (Context);
+            if Cairo.Status (Context) /= Cairo.Cairo_Status_Success then
+               raise Render_Error with "Cannot compose Canvas level ink";
+            end if;
+            Cairo.Destroy (Context);
+            Cairo.Surface_Destroy (Ink_Layer);
+         end if;
+      end if;
+      return Surface;
+   exception
+      when others =>
+         if Context /= Cairo.Null_Context then
+            Cairo.Destroy (Context);
+         end if;
+         if Ink_Layer /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (Ink_Layer);
+         end if;
+         if Surface /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (Surface);
+         end if;
+         raise;
+   end Level_Surface;
+
    procedure Update_Erase
      (P : in out Erase_Preview; W : Revisions.Workspace;
       Id : Revisions.Revision_Id; Points : Revisions.Samples.Vector)

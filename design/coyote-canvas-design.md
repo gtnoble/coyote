@@ -179,12 +179,29 @@ adopting a mixed batch. A failed batch may leave unreferenced files for
 explicit reclaim but adds no visible Originals. Clipboard, agent transport,
 and `--no-session` retain their separate flat limits.
 
-The view worker composes a bounded region with a margin around the viewport
-at higher magnification. For low magnification, it produces a preview no
-larger than 512 pixels per side using bounded blocks. The GTK task takes
-only current results and uses its existing crop and coordinate transforms.
-Committed ink and erasure share the canonical source-coordinate renderer;
-tiled Eraser shows the guide during a gesture and the result on commit.
+Fit selects a scale, not a rendering mode. Manual Zoom Out can return to
+Fit when Fit is below the ordinary 25% floor. For tiled Originals, choose
+the coarsest power-of-two level that supplies at least one sample per
+physical display pixel. Read and compose only a viewport window plus a
+small margin, with a 4 Mi-pixel and 4,096-pixel-per-side cap; exceptionally
+large viewport windows can use a coarser level to meet these bounds.
+
+A worker generates reduced background levels on first use with an
+alpha-weighted 2× box filter and bounded tile scratch buffers. Completed
+levels for one Original per Canvas occupy private unlinked temporary files.
+They use roughly one third of the Original's tile bytes for a square image,
+subject to rounding on odd edges. The first reduced request streams the
+Original once; later zoom and pan requests reuse the generated levels.
+A stale frame may remain visible only over its existing coverage while a
+current request runs. Discard stale results; do not restart same-Original
+level generation on every zoom step. Close or session reset releases the
+cache. No derived pixels are published to the session store.
+
+Reduced ink is replayed in source coordinates at the level's scale, clipped
+to the revision bounds. For level cells split by a crop edge, substitute a
+native sample from inside the crop, so discarded pixels do not bleed into
+an edge. At level zero use the canonical compositor. Tiled Eraser shows a
+guide during a gesture and renders the result on commit.
 A crop that fits the unchanged attachment budget reads only intersecting
 tiles and encodes its native extent. Attachment encoding still runs on GTK.
 

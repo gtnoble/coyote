@@ -1,5 +1,5 @@
 with Ada.Streams;
-with Cairo.Image_Surface;
+with Cairo.Pattern;
 with Coyote_Canvas.Tile_Render;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded.Aux;
@@ -416,35 +416,29 @@ package body Coyote_GUI.Canvas is
       S.Drawing_Area.Queue_Draw;
    end Refresh;
 
+   function Fit_Scale (S : Instance; E : Doc.Rectangle) return Long_Float is
+      Width : constant Long_Float := Long_Float
+        (Glib.Gint'Max (1, S.Viewport.Get_Allocated_Width));
+      Height : constant Long_Float := Long_Float
+        (Glib.Gint'Max (1, S.Viewport.Get_Allocated_Height));
+      Image_Width : constant Long_Float := Long_Float (E.Right - E.Left);
+      Image_Height : constant Long_Float := Long_Float (E.Bottom - E.Top);
+      Scale : constant Long_Float := Long_Float'Min
+        (4.0, Long_Float'Min (Width / Image_Width, Height / Image_Height));
+   begin
+      --  Use the allocation without scrollbars. Avoid a one-pixel overflow
+      --  of that allocation when Refresh rounds up the drawing size.
+      return (if Image_Width * Scale > Width or else
+                  Image_Height * Scale > Height
+              then Long_Float'Adjacent (Scale, 0.0) else Scale);
+   end Fit_Scale;
+
    procedure Fit_View (S : in out Instance) is
       E : constant Doc.Rectangle := Display_Extent (S);
    begin
       if Can_Zoom (S, E) then
          S.Anchor_Pending := False;
-         --  Fit to the unframed allocation, not the page size reduced by
-         --  the scrollbars this change will remove.
-         declare
-            Width  : constant Long_Float :=
-              Long_Float (S.Viewport.Get_Allocated_Width);
-            Height : constant Long_Float :=
-              Long_Float (S.Viewport.Get_Allocated_Height);
-            Image_Width  : constant Long_Float :=
-              Long_Float (E.Right - E.Left);
-            Image_Height : constant Long_Float :=
-              Long_Float (E.Bottom - E.Top);
-            Fit_Scale : Long_Float := Long_Float'Min
-              (4.0,
-               Long_Float'Min (Width / Image_Width, Height / Image_Height));
-         begin
-            --  Avoid a spurious scrollbar if floating-point rounding would
-            --  make the size request one pixel larger than the viewport.
-            if Image_Width * Fit_Scale > Width or else
-              Image_Height * Fit_Scale > Height
-            then
-               Fit_Scale := Long_Float'Adjacent (Fit_Scale, 0.0);
-            end if;
-            S.Zoom := Fit_Scale;
-         end;
+         S.Zoom := Fit_Scale (S, E);
          Refresh (S);
       end if;
    end Fit_View;
@@ -463,16 +457,14 @@ package body Coyote_GUI.Canvas is
       end if;
    end Apply_Zoom_Anchor;
 
-   function Step_Zoom (Scale : Long_Float; Increase : Boolean)
-     return Long_Float is
-     (if Increase then Long_Float'Min (4.0, Scale * 1.25)
-      --  Fit can go below the manual floor; Zoom Out never enlarges.
-      else Long_Float'Min (Scale, Long_Float'Max (0.25, Scale / 1.25)));
-
    procedure Zoom_At
      (S : in out Instance; X, Y : Glib.Gdouble; Increase : Boolean)
    is
-      Target : constant Long_Float := Step_Zoom (S.Zoom, Increase);
+      Floor : constant Long_Float := Long_Float'Min
+        (0.25, Fit_Scale (S, Display_Extent (S)));
+      Target : constant Long_Float :=
+        (if Increase then Long_Float'Min (4.0, S.Zoom * 1.25)
+         else Long_Float'Min (S.Zoom, Long_Float'Max (Floor, S.Zoom / 1.25)));
    begin
       if Target /= S.Zoom then
          --  Events before the next allocation still use the old geometry.
@@ -2169,6 +2161,7 @@ package body Coyote_GUI.Canvas is
          S.Tile_Timer := 0;
       end if;
       Tile_Views.Discard (S.Tile_Job);
+      Tile_Views.Clear (S.Tile_Cache);
       for Asset of S.Images loop
          if Asset.Pixels /= null then
             Asset.Pixels.Unref;
@@ -2487,6 +2480,7 @@ package body Coyote_GUI.Canvas is
          Invalidate (S.all, Keep_Agent => True);
          Destroy_Import_Dialogs (S.all);
          Clear_Display (S.all);
+         Tile_Views.Clear (S.Tile_Cache);
          S.Canvas_Window.Hide;
       end if;
    end On_Close;
@@ -2913,16 +2907,22 @@ package body Coyote_GUI.Canvas is
       if not Tile_Views.Ready (S.Tile_Job) then
          return True;
       end if;
-      Tile_Views.Finish (S.Tile_Job, Surface);
+      Tile_Views.Finish (S.Tile_Job, S.Tile_Cache, Surface);
+      S.Tile_Cache_Digest := S.Tile_Job_Digest;
+      if not S.Canvas_Window.Get_Visible then
+         Tile_Views.Clear (S.Tile_Cache);
+      end if;
       if S.Tile_Job_Valid then
-         if S.Tile_Surface /= Cairo.Null_Surface then
-            Cairo.Surface_Destroy (S.Tile_Surface);
+         if Surface /= Cairo.Null_Surface then
+            if S.Tile_Surface /= Cairo.Null_Surface then
+               Cairo.Surface_Destroy (S.Tile_Surface);
+            end if;
+            S.Tile_Surface := Surface;
+            S.Tile_Region := S.Tile_Job_Region;
+            S.Tile_Id := S.Tile_Job_Id;
+            S.Tile_Ink := S.Tile_Job_Ink;
+            S.Tile_Level := S.Tile_Job_Level;
          end if;
-         S.Tile_Surface := Surface;
-         S.Tile_Region := S.Tile_Job_Region;
-         S.Tile_Id := S.Tile_Job_Id;
-         S.Tile_Ink := S.Tile_Job_Ink;
-         S.Tile_Preview := S.Tile_Job_Preview;
          S.Tile_Result_Known := True;
          if Surface = Cairo.Null_Surface then
             Set_Status (S.all, "Canvas tile region could not be rendered.");
@@ -2944,73 +2944,148 @@ package body Coyote_GUI.Canvas is
    is
       H : constant Gtk.Adjustment.Gtk_Adjustment := S.Viewport.Get_Hadjustment;
       V : constant Gtk.Adjustment.Gtk_Adjustment := S.Viewport.Get_Vadjustment;
+      Density : constant Long_Float := S.Zoom * Long_Float
+        (Glib.Gint'Max (1, S.Drawing_Area.Get_Scale_Factor));
+      Resolution : Tile_Views.Level := 0;
+      Step : Positive := 1;
+      --  A viewport-sized composite plus up to 64 level pixels of margin.
+      --  Unusually large viewports trade resolution for bounded scratch RAM.
+      MAX_WINDOW_SIDE : constant := 4_096;
+      MAX_WINDOW_PIXELS : constant := 4 * 1_024 * 1_024;
+      MARGIN : constant := 64;
+
+      function Edge
+        (P : Glib.Gdouble; Bound : Natural; Upper : Boolean) return Natural
+      is
+         Value : constant Long_Float := Long_Float'Min
+           (Long_Float (Bound), Long_Float'Max (0.0, Long_Float (P) / S.Zoom));
+      begin
+         return Natural (if Upper then Long_Float'Ceiling (Value)
+                         else Long_Float'Floor (Value));
+      end Edge;
+
       W : constant Natural := E.Right - E.Left;
       Height : constant Natural := E.Bottom - E.Top;
-      function Edge (P : Glib.Gdouble; Limit : Natural) return Natural is
-        (Natural (Long_Float'Min (Long_Float (Limit),
-                                  Long_Float'Max (0.0, Long_Float (P) / S.Zoom))));
       Visible : constant Doc.Rectangle :=
-        (E.Left + Edge (H.Get_Value - 1.0, W),
-         E.Top + Edge (V.Get_Value - 1.0, Height),
-         E.Left + Edge (H.Get_Value + H.Get_Page_Size + 1.0, W),
-         E.Top + Edge (V.Get_Value + V.Get_Page_Size + 1.0, Height));
-      Preview : constant Boolean := S.Zoom < 0.25 or else
-        Visible.Right > Visible.Left + 2_048 or else
-        Visible.Bottom > Visible.Top + 2_048;
-      Needed : constant Doc.Rectangle := (if Preview then E else Visible);
+        (E.Left + Edge (H.Get_Value, W, False),
+         E.Top + Edge (V.Get_Value, Height, False),
+         E.Left + Edge (H.Get_Value + H.Get_Page_Size, W, True),
+         E.Top + Edge (V.Get_Value + V.Get_Page_Size, Height, True));
+      Needed, Window : Doc.Rectangle;
+
+      function At_Level (R : Doc.Rectangle) return Doc.Rectangle is
+        (R.Left / Step, R.Top / Step,
+         (R.Right + Step - 1) / Step, (R.Bottom + Step - 1) / Step);
+
+      function Fits (R : Doc.Rectangle) return Boolean is
+         Width : constant Natural := R.Right - R.Left;
+         Rows : constant Natural := R.Bottom - R.Top;
+      begin
+         return Width <= MAX_WINDOW_SIDE and then Rows <= MAX_WINDOW_SIDE
+           and then Width <= MAX_WINDOW_PIXELS / Natural'Max (1, Rows);
+      end Fits;
+
+      procedure Enlarge_Step is
+      begin
+         Resolution := Resolution + 1;
+         Step := Step * 2;
+      end Enlarge_Step;
    begin
-      if not Doc.Is_Nonempty (Needed) then
+      if not Doc.Is_Nonempty (Visible) then
          return;
       end if;
-      if S.Tile_Result_Known and then S.Tile_Id = Id
-        and then S.Tile_Ink = S.Show_Ink
-        and then S.Tile_Preview = Preview
-        and then Doc.Is_Within (Needed, S.Tile_Region)
-      then
-         null;
-      elsif S.Tile_Job /= null then
-         if S.Tile_Job_Id /= Id or else S.Tile_Job_Ink /= S.Show_Ink
-           or else S.Tile_Job_Preview /= Preview
+      while Resolution < Tile_Views.Level'Last and then
+        Density * Long_Float (Step * 2) <= 1.0
+      loop
+         Enlarge_Step;
+      end loop;
+      Needed := At_Level (Visible);
+      while not Fits (Needed) and then Resolution < Tile_Views.Level'Last loop
+         Enlarge_Step;
+         Needed := At_Level (Visible);
+      end loop;
+      if S.Tile_Job /= null then
+         if S.Tile_Job_Id /= Id or else S.Tile_Job_Digest /= Digest
+           or else S.Tile_Job_Ink /= S.Show_Ink
+           or else S.Tile_Job_Level /= Resolution
            or else not Doc.Is_Within (Needed, S.Tile_Job_Region)
          then
-            Tile_Views.Cancel (S.Tile_Job);
+            --  Skip a stale frame but finish same-original reductions:
+            --  a quick zoom should not restart the expensive first level.
+            --  A native request doesn't need them, so let it proceed.
+            Tile_Views.Cancel
+              (S.Tile_Job, Keep_Levels =>
+                 S.Tile_Job_Digest = Digest and then Resolution /= 0);
             S.Tile_Job_Valid := False;
          end if;
+      elsif S.Tile_Result_Known and then S.Tile_Job_Id = Id
+        and then S.Tile_Job_Digest = Digest
+        and then S.Tile_Job_Ink = S.Show_Ink
+        and then S.Tile_Job_Level = Resolution
+        and then Doc.Is_Within (Needed, S.Tile_Job_Region)
+      then
+         null;
       else
-         S.Tile_Job_Region := (if Preview then E else
-           (Natural'Max (E.Left + 128, Needed.Left) - 128,
-            Natural'Max (E.Top + 128, Needed.Top) - 128,
-            Natural'Min (E.Right, Needed.Right + 128),
-            Natural'Min (E.Bottom, Needed.Bottom + 128)));
+         declare
+            Limit : constant Doc.Rectangle := At_Level (E);
+         begin
+            Window :=
+              (Natural'Max (Limit.Left + MARGIN, Needed.Left) - MARGIN,
+               Natural'Max (Limit.Top + MARGIN, Needed.Top) - MARGIN,
+               Natural'Min (Limit.Right, Needed.Right + MARGIN),
+               Natural'Min (Limit.Bottom, Needed.Bottom + MARGIN));
+         end;
+         if not Fits (Window) then
+            Window := Needed;
+         end if;
+         if Digest /= S.Tile_Cache_Digest then
+            Tile_Views.Clear (S.Tile_Cache);
+         end if;
+         S.Tile_Result_Known := False;
+         S.Tile_Job_Region := Window;
          S.Tile_Job_Id := Id;
+         S.Tile_Job_Digest := Digest;
          S.Tile_Job_Ink := S.Show_Ink;
-         S.Tile_Job_Preview := Preview;
+         S.Tile_Job_Level := Resolution;
          Tile_Views.Start
            (S.Tile_Job, To_String (S.Disk_Tiles.Parent),
             To_String (S.Disk_Tiles.UUID), Digest, S.Document, Id,
-            S.Tile_Job_Region, S.Show_Ink, Preview);
+            Window, S.Show_Ink, Resolution, S.Tile_Cache);
          S.Tile_Job_Valid := True;
          S.Tile_Timer := Recovery_Timer.Timeout_Add
            (15, Poll_Tile_View'Access, S);
       end if;
+      --  Keep the overlapping part of the last frame visible while a
+      --  different region or resolution is being prepared.
       if S.Tile_Surface /= Cairo.Null_Surface and then S.Tile_Id = Id
         and then S.Tile_Ink = S.Show_Ink
-        and then Doc.Is_Within (S.Tile_Region, E)
       then
-         Cairo.Save (Context);
-         Cairo.Translate
-           (Context, Glib.Gdouble (S.Tile_Region.Left - E.Left),
-            Glib.Gdouble (S.Tile_Region.Top - E.Top));
-         if S.Tile_Preview then
-            Cairo.Scale
-              (Context, Glib.Gdouble (S.Tile_Region.Right - S.Tile_Region.Left)
-                / Glib.Gdouble (Cairo.Image_Surface.Get_Width (S.Tile_Surface)),
-               Glib.Gdouble (S.Tile_Region.Bottom - S.Tile_Region.Top)
-                / Glib.Gdouble (Cairo.Image_Surface.Get_Height (S.Tile_Surface)));
-         end if;
-         Cairo.Set_Source_Surface (Context, S.Tile_Surface, 0.0, 0.0);
-         Cairo.Paint (Context);
-         Cairo.Restore (Context);
+         declare
+            Paint_Step : constant Glib.Gdouble :=
+              Glib.Gdouble (2 ** S.Tile_Level);
+         begin
+            Cairo.Save (Context);
+            Cairo.Translate
+              (Context, Glib.Gdouble (S.Tile_Region.Left) * Paint_Step -
+                 Glib.Gdouble (E.Left),
+               Glib.Gdouble (S.Tile_Region.Top) * Paint_Step -
+                 Glib.Gdouble (E.Top));
+            Cairo.Scale (Context, Paint_Step, Paint_Step);
+            Outline (Context, Doc.Full_Extent
+              (S.Tile_Region.Right - S.Tile_Region.Left,
+               S.Tile_Region.Bottom - S.Tile_Region.Top));
+            Cairo.Clip (Context);
+            Cairo.Set_Source_Surface (Context, S.Tile_Surface, 0.0, 0.0);
+            Cairo.Pattern.Set_Extend
+              (Cairo.Get_Source (Context), Cairo.Pattern.Cairo_Extend_Pad);
+            Cairo.Pattern.Set_Filter
+              (Cairo.Get_Source (Context),
+               (if S.Tile_Level = 0 and then Density >= 1.0 then
+                  Cairo.Pattern.Cairo_Filter_Nearest
+                else Cairo.Pattern.Cairo_Filter_Bilinear));
+            Cairo.Paint (Context);
+            Cairo.Restore (Context);
+         end;
       end if;
    end Paint_Tiled_View;
 

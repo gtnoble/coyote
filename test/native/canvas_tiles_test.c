@@ -88,6 +88,38 @@ static int pixel(unsigned x, unsigned y, unsigned char *p)
    return 0;
 }
 
+static void expected_reduced_pixel(unsigned x, unsigned y, unsigned width,
+                                   unsigned height, unsigned char *out)
+{
+   unsigned alpha = 0, samples = 0, sums[3] = {0, 0, 0};
+   for (unsigned dy = 0; dy < 2; ++dy)
+      for (unsigned dx = 0; dx < 2; ++dx) {
+         unsigned px = x * 2U + dx, py = y * 2U + dy;
+         unsigned char p[4];
+         if (px >= width || py >= height) continue;
+         pixel(px, py, p);
+         ++samples;
+         alpha += p[3];
+         for (unsigned c = 0; c < 3; ++c) sums[c] += (unsigned)p[c] * p[3];
+      }
+   out[3] = (unsigned char)((alpha + samples / 2U) / samples);
+   for (unsigned c = 0; c < 3; ++c)
+      out[c] = alpha ? (unsigned char)((sums[c] + alpha / 2U) / alpha) : 0;
+}
+
+static int cancel_always(void *user)
+{
+   (void)user;
+   return 1;
+}
+
+static int cancel_after_nonempty(void *user)
+{
+   int fd = *(int *)user;
+   struct stat st;
+   return fstat(fd, &st) == 0 && st.st_size > 0;
+}
+
 static int write_png(int fd, unsigned width, unsigned height, int interlace)
 {
    FILE *f = fdopen(dup(fd), "wb");
@@ -253,6 +285,55 @@ int main(int argc, char **argv)
    check(memcmp(tile, p, 4) == 0, "edge pixel is packed RGBA");
    pixel(257, 260, p);
    check(memcmp(tile + ((size_t)4 * 3U + 1U) * 4U, p, 4) == 0, "edge tile row has no padding");
+   int reduced = make_file("reduced.tiles");
+   (void)lseek(dst, 7, SEEK_SET);
+   (void)lseek(reduced, 11, SEEK_SET);
+   int reduce_result = coyote_canvas_tiles_reduce(dst, reduced, NULL, NULL);
+   struct coyote_canvas_tile_info reduced_size;
+   int reduced_ok = reduce_result == COYOTE_TILE_OK &&
+      coyote_canvas_tiles_inspect(reduced, &reduced_size) == COYOTE_TILE_OK &&
+      reduced_size.width == (W + 1U) / 2U && reduced_size.height == (H + 1U) / 2U &&
+      lseek(dst, 0, SEEK_CUR) == 7 && lseek(reduced, 0, SEEK_CUR) == 11;
+   if (reduced_ok) {
+      unsigned char *out_tile = malloc((size_t)256 * 256 * 4U);
+      reduced_ok = out_tile && coyote_canvas_tiles_read(reduced, 0, 0, out_tile,
+         (size_t)256 * 256 * 4U, &extent) == COYOTE_TILE_OK &&
+         extent.width == 130 && extent.height == 131;
+      if (reduced_ok) {
+         for (unsigned y = 0; y < extent.height; ++y)
+            for (unsigned x = 0; x < extent.width; ++x) {
+               unsigned char expected[4];
+               expected_reduced_pixel(x, y, W, H, expected);
+               if (memcmp(out_tile + ((size_t)y * extent.width + x) * 4U,
+                          expected, 4) != 0) reduced_ok = 0;
+            }
+      }
+      free(out_tile);
+   }
+   check(reduced_ok, "2x alpha-weighted reduction handles odd extent and offsets");
+   struct stat cancelled_stat;
+   int nonempty_reduce = make_file("reduced-nonempty.tiles");
+   unsigned char marker = 0x5a;
+   (void)write(nonempty_reduce, &marker, 1);
+   check(coyote_canvas_tiles_reduce(dst, nonempty_reduce, NULL, NULL) == COYOTE_TILE_INVALID &&
+         fstat(nonempty_reduce, &cancelled_stat) == 0 && cancelled_stat.st_size == 1,
+         "reduction rejects nonempty staging without modification");
+   check(coyote_canvas_tiles_reduce(dst, dst, NULL, NULL) == COYOTE_TILE_INVALID,
+         "reduction rejects source/staging alias");
+   close(nonempty_reduce);
+   int cancelled_stage = make_file("reduced-cancel.tiles");
+   check(coyote_canvas_tiles_reduce(dst, cancelled_stage, cancel_always, NULL) ==
+         COYOTE_TILE_CANCELLED && fstat(cancelled_stage, &cancelled_stat) == 0 &&
+         cancelled_stat.st_size == 0,
+         "reduction cancellation rolls staging back");
+   close(cancelled_stage);
+   int late_stage = make_file("reduced-late-cancel.tiles");
+   check(coyote_canvas_tiles_reduce(dst, late_stage, cancel_after_nonempty, &late_stage) ==
+         COYOTE_TILE_CANCELLED && fstat(late_stage, &cancelled_stat) == 0 &&
+         cancelled_stat.st_size == 0,
+         "late reduction cancellation rolls staging back");
+   close(late_stage);
+   close(reduced);
    check(coyote_canvas_tiles_read(dst, 2, 0, tile, (size_t)256 * 256 * 4U, &extent) != COYOTE_TILE_OK,
          "out-of-range tile rejected");
    check(coyote_canvas_tiles_read(dst, 0, 0, tile, 4, &extent) != COYOTE_TILE_OK,

@@ -68,6 +68,21 @@ package body Coyote_Canvas.Tiles is
       Image_Size := Info;
    end Import;
 
+   procedure Reduce
+     (Source_FD, Staging_FD : Interfaces.C.int;
+      Status : out Result; Cancel : Cancel_Callback := null;
+      User : System.Address := System.Null_Address)
+   is
+      function Native_Reduce
+        (Source, Staging : Interfaces.C.int;
+         Stop : Cancel_Callback; Data : System.Address) return Interfaces.C.int
+        with Import, Convention => C,
+          External_Name => "coyote_canvas_tiles_reduce";
+   begin
+      Status := Decode_Status
+        (Native_Reduce (Source_FD, Staging_FD, Cancel, User));
+   end Reduce;
+
    procedure Inspect
      (FD         : Interfaces.C.int;
       Status     : out Result;

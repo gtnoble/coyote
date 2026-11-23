@@ -152,7 +152,10 @@ private
       Tile_Job_Region, Tile_Region : Coyote_Canvas.Document.Rectangle;
       Tile_Job_Id, Tile_Id : Coyote_Canvas.Revisions.Revision_Id := 0;
       Tile_Job_Ink, Tile_Ink : Boolean := False;
-      Tile_Job_Preview, Tile_Preview : Boolean := False;
+      Tile_Job_Level, Tile_Level : Canvas_Tile_Views.Level := 0;
+      Tile_Job_Digest, Tile_Cache_Digest : Coyote_Canvas.Store.Tile_Digest
+        := (others => ' ');
+      Tile_Cache : Canvas_Tile_Views.Level_Cache;
       Tile_Result_Known : Boolean := False;
       Tile_Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
       Live_Erase : Coyote_Canvas.Composite.Erase_Preview;

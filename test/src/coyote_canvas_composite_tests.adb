@@ -9,6 +9,10 @@ with Coyote_Canvas.Composite;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Images;
 with Coyote_Canvas.Rasters;
+with Coyote_Canvas.Store;
+with Coyote_Canvas.Tile_Render;
+with Coyote_Canvas.Tiles;
+with Cairo.Surface;
 with Coyote_Canvas.Revisions;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Image_Decoder;
@@ -750,6 +754,63 @@ package body Coyote_Canvas_Composite_Tests is
               "source-window ink and erase match canonical pixels across x=256");
    end Source_Window_Pixels;
 
+   procedure Reduced_Crop_Edges (T : in out Test) is
+      pragma Unreferenced (T);
+      use type Interfaces.C.int;
+      use type Interfaces.C.long;
+      use type Coyote_Canvas.Tiles.Result;
+      W : Workspace;
+      Id : Revision_Id;
+      Native, Level : Interfaces.C.int := -1;
+      Status : Coyote_Canvas.Tiles.Result;
+      Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      function Write
+        (FD : Interfaces.C.int; Data : System.Address;
+         Length : Interfaces.C.size_t) return Interfaces.C.long
+        with Import, Convention => C, External_Name => "write";
+      Blue : constant Stream_Element_Array := (0, 0, 255, 255);
+      Red : constant Stream_Element_Array := (255, 0, 0, 255);
+      Row : constant Stream_Element_Array := Blue & Red & Red & Blue;
+      Tile : constant Stream_Element_Array :=
+        (67, 89, 84, 73, 76, 69, 0, 1, 0, 0, 0, 4, 0, 0, 0, 2) & Row & Row;
+   begin
+      Native := Coyote_Canvas.Tiles.Stage;
+      Level := Coyote_Canvas.Tiles.Stage;
+      Assert (Native >= 0 and then Level >= 0, "allocate crop fixtures");
+      Assert (Write (Native, Tile'Address, Tile'Length) = Tile'Length,
+              "write a tiled original with contrasting crop edges");
+      Coyote_Canvas.Tiles.Reduce (Native, Level, Status);
+      Assert (Status = Coyote_Canvas.Tiles.Success, "reduce crop fixture");
+      Add_Originals (W, (1 => (4, 2)), Id);
+      Edit (W, Id);
+      Crop (W, (1, 0, 3, 2));
+      Surface := Coyote_Canvas.Tile_Render.Display_Level
+        (Level, Native, W, NO_REVISION, (0, 0, 2, 1), 2, False);
+      Cairo.Surface.Flush (Surface);
+      declare
+         Data : constant System.Address :=
+           Cairo.Image_Surface.Get_Data_Generic (Surface);
+         type Pixel is mod 2 ** 32;
+         package Word is new System.Address_To_Access_Conversions (Pixel);
+         use System.Storage_Elements;
+      begin
+         Assert (Word.To_Pointer (Data).all = 16#FFFF0000#
+                 and then Word.To_Pointer (Data + 4).all = 16#FFFF0000#,
+                 "no blue pixels from outside the crop in reduced cells");
+      end;
+      Cairo.Surface_Destroy (Surface);
+      Coyote_Canvas.Store.Close_Tile (Native);
+      Coyote_Canvas.Store.Close_Tile (Level);
+   exception
+      when others =>
+         if Surface /= Cairo.Null_Surface then
+            Cairo.Surface_Destroy (Surface);
+         end if;
+         Coyote_Canvas.Store.Close_Tile (Native);
+         Coyote_Canvas.Store.Close_Tile (Level);
+         raise;
+   end Reduced_Crop_Edges;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -789,6 +850,9 @@ package body Coyote_Canvas_Composite_Tests is
       Result.Add_Test (Caller.Create
         ("Canvas composite source window keeps exact ink phase",
          Source_Window_Pixels'Access));
+      Result.Add_Test (Caller.Create
+        ("Canvas composite reduced crop excludes discarded pixels",
+         Reduced_Crop_Edges'Access));
       return Result;
    end Suite;
 end Coyote_Canvas_Composite_Tests;

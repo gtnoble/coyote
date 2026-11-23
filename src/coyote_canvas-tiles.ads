@@ -33,6 +33,11 @@ package Coyote_Canvas.Tiles is
    pragma Convention (C, Tile_Buffer);
 
    Tile_Side : constant := 256;
+   Max_Side  : constant := 32_768;
+
+   function Stage return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "coyote_canvas_tiles_stage";
 
    --  Called synchronously on the import task. Return nonzero to stop.
    --  A callback must not propagate exceptions through the C decoder.
@@ -51,6 +56,13 @@ package Coyote_Canvas.Tiles is
       Image_Size  : out Dimensions;
       Cancel      : Cancel_Callback := null;
       User        : System.Address := System.Null_Address);
+
+   --  Build a half-size display level in an empty staging descriptor.
+   --  Like Import, this borrows the descriptors and preserves offsets.
+   procedure Reduce
+     (Source_FD, Staging_FD : Interfaces.C.int;
+      Status : out Result; Cancel : Cancel_Callback := null;
+      User : System.Address := System.Null_Address);
 
    --  Inspect validates tile-file metadata and exact length, not pixel data.
    procedure Inspect

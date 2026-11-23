@@ -2385,7 +2385,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       procedure Check_Pixel
         (Expected : Gdk.Pixbuf.Rgb_Record;
          X : Glib.Gint := 30; Y : Glib.Gint := 30;
-         Offset : Glib.Gdouble := 0.0) is
+         Offset : Glib.Gdouble := 0.0;
+         Offset_Y : Glib.Gdouble := 0.0;
+         Tolerance : Natural := 0) is
          Area : constant Gtk.Widget.Gtk_Widget :=
            Control ("coyote-canvas-drawing-area");
          Surface : constant Cairo.Cairo_Surface :=
@@ -2397,19 +2399,34 @@ package body Coyote_App_Frontend_GUI_Tests is
          By : constant Time := Clock + Seconds (Wait_Seconds);
       begin
          Canvas.Check_Resize;
-         Cairo.Translate (Context, -Offset, 0.0);
+         Cairo.Translate (Context, -Offset, -Offset_Y);
          loop
             Drain_Events;
             Area.Draw (Context);
             Sample := Gdk.Pixbuf.Get_From_Surface (Surface, X, Y, 1, 1);
             Actual := Gdk.Pixbuf.Get_Pixels (Sample) (0);
             Sample.Unref;
-            exit when Actual = Expected or else Clock >= By;
+            exit when
+              (abs (Integer (Actual.Red) - Integer (Expected.Red)) <= Tolerance
+                 and then
+               abs (Integer (Actual.Green) - Integer (Expected.Green)) <= Tolerance
+                 and then
+               abs (Integer (Actual.Blue) - Integer (Expected.Blue)) <= Tolerance)
+              or else Clock >= By;
             delay 0.01;
          end loop;
          Cairo.Destroy (Context);
          Cairo.Surface_Destroy (Surface);
-         Assert (Actual = Expected, "tiled Original paints expected pixel");
+         Assert
+           (abs (Integer (Actual.Red) - Integer (Expected.Red)) <= Tolerance
+              and then
+            abs (Integer (Actual.Green) - Integer (Expected.Green)) <= Tolerance
+              and then
+            abs (Integer (Actual.Blue) - Integer (Expected.Blue)) <= Tolerance,
+            "tiled Original pixel expected " & Expected.Red'Image & ","
+            & Expected.Green'Image & "," & Expected.Blue'Image & " got "
+            & Actual.Red'Image & "," & Actual.Green'Image & ","
+            & Actual.Blue'Image);
       end Check_Pixel;
 
       procedure Wait_Status (Expected : String) is
@@ -2460,6 +2477,26 @@ package body Coyote_App_Frontend_GUI_Tests is
          begin
             Gdk.Pixbuf.Fill (Image, 16#E04020FF#);
             declare
+               Patch : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+                 Gdk.Pixbuf.Gdk_New_Subpixbuf (Image, 64, 0, 192, 260);
+               X : Glib.Gint := 0;
+            begin
+               while X < 192 loop
+                  declare
+                     Stripe : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+                       Gdk.Pixbuf.Gdk_New_Subpixbuf (Patch, X, 0, 16, 260);
+                  begin
+                     Gdk.Pixbuf.Fill
+                       (Stripe,
+                        (if (X / 16) mod 2 = 0 then 16#E04020FF#
+                         else 16#20C030FF#));
+                     Stripe.Unref;
+                  end;
+                  X := X + 16;
+               end loop;
+               Patch.Unref;
+            end;
+            declare
                Far : constant Gdk.Pixbuf.Gdk_Pixbuf :=
                  Gdk.Pixbuf.Gdk_New_Subpixbuf (Image, 4_500, 0, 4_500, 260);
             begin
@@ -2509,7 +2546,147 @@ package body Coyote_App_Frontend_GUI_Tests is
          Horizontal.Set_Value (Pan);
          Check_Pixel (Far_Blue, Offset => Pan);
          Activate ("fit");
-         Check_Pixel (Big_Red, Y => 3);
+         Canvas.Check_Resize;
+         Drain_Events;
+         Check_Pixel (Big_Red, X => 30, Y => 3);
+         declare
+            Zoom_In : constant Gtk.Radio_Button.Gtk_Radio_Button :=
+              Gtk.Radio_Button.Gtk_Radio_Button
+                (Control ("canvas-tool-zoom-in"));
+            Zoom_Out : constant Gtk.Radio_Button.Gtk_Radio_Button :=
+              Gtk.Radio_Button.Gtk_Radio_Button
+                (Control ("canvas-tool-zoom-out"));
+            Area : constant Gtk.Widget.Gtk_Widget :=
+              Control ("coyote-canvas-drawing-area");
+            Scroll : constant Gtk.Scrolled_Window.Gtk_Scrolled_Window :=
+              Gtk.Scrolled_Window.Gtk_Scrolled_Window
+                (Control ("coyote-canvas-viewport"));
+            Horizontal : constant Gtk.Adjustment.Gtk_Adjustment :=
+              Scroll.Get_Hadjustment;
+            Vertical : constant Gtk.Adjustment.Gtk_Adjustment :=
+              Scroll.Get_Vadjustment;
+            Before_W, Before_H, After_W, After_H : Glib.Gint;
+            Scale, Previous_Scale : Long_Float;
+            Fit_W, Fit_H : Glib.Gint;
+            Clicks : Natural := 0;
+            Raw : aliased Gdk.Event.Gdk_Event_Button :=
+              (The_Type => Gdk.Event.Button_Release,
+               Window => Area.Get_Window, Send_Event => 1, Time => 0,
+               X => 5.0, Y => 3.0, Axes => null, State => 0,
+               Button => 1, Device => System.Null_Address,
+               X_Root => 5.0, Y_Root => 3.0);
+            Press : aliased Gdk.Event.Gdk_Event_Button :=
+              (The_Type => Gdk.Event.Button_Press,
+               Window => Area.Get_Window, Send_Event => 1, Time => 0,
+               X => 5.0, Y => 3.0, Axes => null, State => 0,
+               Button => 1, Device => System.Null_Address,
+               X_Root => 5.0, Y_Root => 3.0);
+
+            procedure Tap (Increase : Boolean) is
+               Old_X : constant Glib.Gdouble := Horizontal.Get_Value;
+               Old_Y : constant Glib.Gdouble := Vertical.Get_Value;
+            begin
+               Press.X := Old_X + 1.0;
+               Press.Y := Old_Y + 1.0;
+               Raw.X := Press.X;
+               Raw.Y := Press.Y;
+               Previous_Scale := Scale;
+               Assert (Area.Event (Gdk.Event.To_Event (Press'Access)),
+                       "fixed-anchor zoom press is handled");
+               Assert (not Area.Event (Gdk.Event.To_Event (Raw'Access)),
+                       "fixed-anchor zoom release is consumed");
+               Canvas.Check_Resize;
+               Drain_Events;
+               Area.Get_Size_Request (After_W, After_H);
+               Scale := Long_Float (After_W) / Long_Float (Width);
+               Assert
+                 ((if Increase then Scale > Previous_Scale
+                   else Scale < Previous_Scale),
+                  "fixed-anchor zoom changes requested scale:"
+                  & Previous_Scale'Image & " to" & Scale'Image);
+               if Horizontal.Get_Upper - Horizontal.Get_Page_Size > 32.0 then
+                  Assert
+                    (abs (Long_Float (Horizontal.Get_Value - Old_X) -
+                         Long_Float (Press.X) * (Scale / Previous_Scale - 1.0)) < 2.0,
+                     "unclamped horizontal anchor remains at x=1:"
+                     & Horizontal.Get_Value'Image);
+               end if;
+               if Vertical.Get_Upper - Vertical.Get_Page_Size > 32.0 then
+                  Assert
+                    (abs (Long_Float (Vertical.Get_Value - Old_Y) -
+                         Long_Float (Press.Y) * (Scale / Previous_Scale - 1.0)) < 2.0,
+                     "unclamped vertical anchor remains at y=1:"
+                     & Vertical.Get_Value'Image);
+               end if;
+            end Tap;
+
+            procedure Check_Detail is
+               Red_X : constant Glib.Gint := Glib.Gint
+                 (72.0 * Scale - Long_Float (Horizontal.Get_Value) - 0.5);
+               Green_X : constant Glib.Gint := Glib.Gint
+                 (88.0 * Scale - Long_Float (Horizontal.Get_Value) - 0.5);
+               Screen_Y : constant Glib.Gint := Glib.Gint
+                 (100.0 * Scale - Long_Float (Vertical.Get_Value) - 0.5);
+            begin
+               Assert (Red_X in 0 .. 63 and then Green_X in 0 .. 63
+                       and then Screen_Y in 0 .. 63,
+                       "detail samples stay within the capture");
+               Check_Pixel
+                 ((224, 64, 32), Red_X, Screen_Y,
+                  Offset => Horizontal.Get_Value,
+                  Offset_Y => Vertical.Get_Value, Tolerance => 48);
+               Check_Pixel
+                 ((32, 192, 48), Green_X, Screen_Y,
+                  Offset => Horizontal.Get_Value,
+                  Offset_Y => Vertical.Get_Value, Tolerance => 48);
+            end Check_Detail;
+         begin
+            Area.Get_Size_Request (Before_W, Before_H);
+            Fit_W := Before_W;
+            Fit_H := Before_H;
+            Scale := Long_Float (Before_W) / Long_Float (Width);
+            Assert (Scale > 0.0 and then Scale < 0.12,
+                    "Fit starts below the detail target range:"
+                    & Scale'Image);
+            Zoom_In.Clicked;
+            Assert (Zoom_In.Get_Active,
+                    "Zoom In toolbar tool is active after Fit");
+            while Scale < 0.12 loop
+               Tap (Increase => True);
+               Clicks := Clicks + 1;
+               Assert (Clicks < 40, "fit zoom reaches the detail target range");
+            end loop;
+            Assert
+              (Scale >= 0.12 and then Scale <= 0.18,
+               "visible detail is checked at 12-18% before 25%:"
+               & Scale'Image);
+            Check_Detail;
+
+            Zoom_Out.Clicked;
+            Assert (Zoom_Out.Get_Active,
+                    "Zoom Out toolbar tool is active at detail scale");
+            Before_W := After_W;
+            Before_H := After_H;
+            Tap (Increase => False);
+            Area.Get_Size_Request (After_W, After_H);
+            Assert
+              (After_W < Before_W and then After_H < Before_H,
+               "Zoom Out reverses one Fit step below 25%:"
+               & Before_W'Image & Before_H'Image & " to"
+               & After_W'Image & After_H'Image);
+            Assert (Scale < 0.25,
+                    "reversed Fit step remains below 25%:" & Scale'Image);
+            Check_Detail;
+            for Step in 1 .. Clicks loop
+               Activate ("zoom-out");
+               Canvas.Check_Resize;
+               Drain_Events;
+            end loop;
+            Area.Get_Size_Request (After_W, After_H);
+            Assert (After_W = Fit_W and then After_H = Fit_H,
+                    "repeated Zoom Out stops at the original Fit scale");
+
+         end;
          Activate ("actual");
          Horizontal.Set_Value (0.0);
       end;

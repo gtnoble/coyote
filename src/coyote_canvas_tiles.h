@@ -44,6 +44,15 @@ int coyote_canvas_tiles_read(int fd, uint32_t tile_x, uint32_t tile_y,
                             unsigned char *rgba, size_t capacity,
                             struct coyote_canvas_tile_info *extent);
 
+/* Reduce a checked v1 straight-RGBA asset by a 2x alpha-weighted box filter.
+ * Staging must be an empty private O_RDWR regular file without O_APPEND.
+ * On failure, staging is truncated to zero. Descriptor offsets are preserved. */
+int coyote_canvas_tiles_reduce(int source_fd, int staging_fd,
+                              coyote_canvas_tile_cancel cancel, void *user);
+
+/* Create an unlinked private staging file opened for read/write, or return -1. */
+int coyote_canvas_tiles_stage(void);
+
 /* Internal decoder boundary. Restore rows for later interlace passes. */
 struct coyote_canvas_tile_writer;
 int coyote_canvas_tiles_begin(struct coyote_canvas_tile_writer *,

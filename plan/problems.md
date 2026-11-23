@@ -3,6 +3,18 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-138 — Tiled Canvas zoom out of Fit
+
+- **Date reported:** 2026-11-22
+- **Category:** Code, Design, Test, Help
+- **Authorization:** User requested the recommended zoom fix.
+- **Problem:** Intermediate zoom enlarged the fixed 512-pixel Fit preview;
+  manual Zoom Out could not reverse zoom steps below 25%.
+- **Change:** Select and cache scale-appropriate tile levels, compose a
+  bounded viewport, and allow Zoom Out to return to a smaller Fit scale.
+- **Status:** Implemented. Desktop latency and performance on slow or
+  space-constrained storage are not qualified.
+
 ## PCR-137 — Disk-backed Canvas rasters
 
 - **Date reported:** 2026-11-22

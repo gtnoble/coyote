@@ -258,6 +258,112 @@ int coyote_canvas_tiles_read(int fd, uint32_t tile_x, uint32_t tile_y,
    return result;
 }
 
+int coyote_canvas_tiles_reduce(int source_fd, int staging_fd,
+                              coyote_canvas_tile_cancel cancel, void *user)
+{
+   struct stat source, staging;
+   struct coyote_canvas_tile_info in_size;
+   unsigned char header[HEADER_BYTES];
+   const size_t capacity = (size_t)TILE_SIDE * TILE_SIDE * PIXEL_BYTES;
+   unsigned char *tiles[4] = {NULL, NULL, NULL, NULL};
+   unsigned char *output = NULL;
+   int result = COYOTE_TILE_INVALID;
+
+   if (fstat(source_fd, &source) < 0 || fstat(staging_fd, &staging) < 0)
+      return COYOTE_TILE_IO;
+   if (!S_ISREG(source.st_mode) || !S_ISREG(staging.st_mode) || staging.st_size != 0 ||
+       (source.st_dev == staging.st_dev && source.st_ino == staging.st_ino))
+      return COYOTE_TILE_INVALID;
+   int flags = fcntl(staging_fd, F_GETFL);
+   if (flags < 0)
+      return COYOTE_TILE_IO;
+   if ((flags & O_ACCMODE) != O_RDWR || (flags & O_APPEND))
+      return COYOTE_TILE_INVALID;
+   result = coyote_canvas_tiles_inspect(source_fd, &in_size);
+   if (result != COYOTE_TILE_OK)
+      goto done;
+   uint32_t width = (in_size.width + 1U) / 2U;
+   uint32_t height = (in_size.height + 1U) / 2U;
+   uint32_t nx = (width + TILE_SIDE - 1U) / TILE_SIDE;
+   uint32_t ny = (height + TILE_SIDE - 1U) / TILE_SIDE;
+   if (cancel && cancel(user)) {
+      result = COYOTE_TILE_CANCELLED;
+      goto done;
+   }
+   for (unsigned i = 0; i < 4; ++i) {
+      tiles[i] = malloc(capacity);
+      if (!tiles[i]) { result = COYOTE_TILE_MEMORY; goto done; }
+   }
+   output = malloc(capacity);
+   if (!output) { result = COYOTE_TILE_MEMORY; goto done; }
+   result = COYOTE_TILE_OK;
+   for (uint32_t oy = 0; oy < ny && result == COYOTE_TILE_OK; ++oy) {
+      uint32_t out_y = oy * TILE_SIDE;
+      uint32_t out_h = smaller(height - out_y, TILE_SIDE);
+      uint32_t sy = out_y * 2U;
+      uint32_t sy_end = smaller(in_size.height, sy + out_h * 2U);
+      uint32_t ytile[2] = {sy / TILE_SIDE, (sy_end - 1U) / TILE_SIDE};
+      unsigned yn = ytile[0] == ytile[1] ? 1U : 2U;
+      for (uint32_t ox = 0; ox < nx && result == COYOTE_TILE_OK; ++ox) {
+         if (cancel && cancel(user)) { result = COYOTE_TILE_CANCELLED; break; }
+         uint32_t out_x = ox * TILE_SIDE;
+         uint32_t out_w = smaller(width - out_x, TILE_SIDE);
+         uint32_t sx = out_x * 2U;
+         uint32_t sx_end = smaller(in_size.width, sx + out_w * 2U);
+         uint32_t xtile[2] = {sx / TILE_SIDE, (sx_end - 1U) / TILE_SIDE};
+         unsigned xn = xtile[0] == xtile[1] ? 1U : 2U;
+         uint32_t tw[2] = {0, 0};
+         for (unsigned iy = 0; iy < yn && result == COYOTE_TILE_OK; ++iy)
+            for (unsigned ix = 0; ix < xn; ++ix) {
+               unsigned index = iy * xn + ix;
+               struct coyote_canvas_tile_info extent;
+               result = coyote_canvas_tiles_read(source_fd, xtile[ix], ytile[iy],
+                                                 tiles[index], capacity, &extent);
+               if (result != COYOTE_TILE_OK) break;
+               tw[ix] = extent.width;
+            }
+         if (result != COYOTE_TILE_OK) break;
+         for (uint32_t y = 0; y < out_h; ++y)
+            for (uint32_t x = 0; x < out_w; ++x) {
+               unsigned alpha = 0, count = 0, sums[3] = {0, 0, 0};
+               for (uint32_t dy = 0; dy < 2; ++dy)
+                  for (uint32_t dx = 0; dx < 2; ++dx) {
+                     uint32_t px = sx + 2U * x + dx, py = sy + 2U * y + dy;
+                     if (px >= in_size.width || py >= in_size.height) continue;
+                     unsigned ix = px / TILE_SIDE == xtile[0] ? 0U : 1U;
+                     unsigned iy = py / TILE_SIDE == ytile[0] ? 0U : 1U;
+                     const unsigned char *p = tiles[iy * xn + ix] +
+                        ((size_t)(py % TILE_SIDE) * tw[ix] + px % TILE_SIDE) * PIXEL_BYTES;
+                     ++count;
+                     alpha += p[3];
+                     for (unsigned c = 0; c < 3; ++c) sums[c] += (unsigned)p[c] * p[3];
+                  }
+               unsigned char *d = output + ((size_t)y * out_w + x) * PIXEL_BYTES;
+               d[3] = (unsigned char)((alpha + count / 2U) / count);
+               for (unsigned c = 0; c < 3; ++c)
+                  d[c] = alpha ? (unsigned char)((sums[c] + alpha / 2U) / alpha) : 0;
+            }
+         if (cancel && cancel(user)) { result = COYOTE_TILE_CANCELLED; break; }
+         off_t offset = band_offset(width, out_y) + (off_t)out_x * out_h * PIXEL_BYTES;
+         result = write_at(staging_fd, output, (size_t)out_w * out_h * PIXEL_BYTES, offset);
+      }
+   }
+   if (result == COYOTE_TILE_OK && cancel && cancel(user))
+      result = COYOTE_TILE_CANCELLED;
+   if (result == COYOTE_TILE_OK) {
+      memcpy(header, magic, sizeof magic);
+      put_u32(header + 8, width);
+      put_u32(header + 12, height);
+      result = write_at(staging_fd, header, sizeof header, 0);
+   }
+done:
+   for (unsigned i = 0; i < 4; ++i) free(tiles[i]);
+   free(output);
+   if (result != COYOTE_TILE_OK && ftruncate(staging_fd, 0) < 0)
+      result = COYOTE_TILE_IO;
+   return result;
+}
+
 /* An unlinked private file, never reachable through the session sidecar. */
 int coyote_canvas_tiles_stage(void)
 {
