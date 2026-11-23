@@ -13,10 +13,11 @@
 6. Requirements traceability
 7. Risks, blockers, and review actions
 
-**Version:** 0.11
+**Version:** 0.12
 **Date:** 2026-11-15
 **Status:** In-progress draft; evidence and procedures are refreshed from the approved execution baseline. This status revision remains open for readiness review and approval.
-**Authority:** `requirements/native-math-compatibility.md` v1.1 dated 2026-11-15 is the current requirements baseline; D01–D15 remain the approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.11 records phased status. This plan does not supersede requirements.
+**Authority:** `requirements/native-math-compatibility.md` v1.2 dated 2026-11-15 is the current requirements baseline; D01–D15 remain the approved profile deviations. The user specifically approved native design version 0.3 and continued execution; `plan/native-math-parity-plan.md` v0.12 records phased status. This plan does not supersede requirements. REQ-MATH-012 now covers exact delimited display-source access; raw LaTeX is not semantic screen-reader math. P5 source-access obligations remain governed by the parity plan; semantic screen-reader navigation is not a current requirement, and there is no dedicated accessibility probe. Other manual GUI and qualification obligations remain as specified.
+- `requirements/native-math-compatibility.md` v1.2 (current); v1.1 records the user-authorized 2026-11-15 resource-scope update; original v1.0 approved 2026-10-24. Especially §§3–6 and unchanged D01–D15.
 **Current resource-scope supersession (2026-11-15):** REQ-MATH-010 retains source, token, expansion, node, depth, array, command, finite-dimension, surface and work limits, plus safe visible-source fallback/recovery. The ≤256 MiB per-job amount is a coarse admission budget for tracked major workspace/output buffers and known large overlaps, not all allocations or physical memory. The separate 64 MiB retained-raster process ledger and 50/250 ms timing targets are unchanged. Current acceptance requires documented coverage/estimates and practical major-buffer rejection/cleanup and adversarial robustness; it does not require exhaustive whole-job allocation/RSS accounting or a storage-pool/retained-account lease redesign. RSS characterization is diagnostic, not a 256 MiB pass/fail measure. Ordinary ownership safety remains mandatory. Historical dated statements and evidence remain factual and are not retroactively qualified.
 **Accepted maintenance policy (2026-11-15):** Port plan §6 governs selective
 simplification. Keep working guards and safety/abuse tests; do not extend tiny
@@ -39,9 +40,10 @@ gates remain open. The dated evidence below is historical, not a current rerun.
 
 This document specifies planned cases, preconditions, expected results, procedures
 This plan records reported evidence and remaining work; it is not itself a
-complete execution record or parity/acceptance claim. SRS-MATH v1.1 dated
+complete execution record or parity/acceptance claim. SRS-MATH v1.2 dated
 2026-11-15 is the current normative requirements baseline, including the
-resource/performance scope summarized above. Design-proposed RD-CTX limits and
+resource/performance scope summarized above and exact display-source access.
+Design-proposed RD-CTX limits and
 other unapproved admission/ownership/scheduling caps are not SRS limits; visual
 thresholds remain provisional pending calibration. Current implementation and
 recorded evidence are in coordinator report §11; §10 and earlier sections are
@@ -53,14 +55,14 @@ complete scope, matching and qualification remain open. Current checks, failures
 blocked cases and coverage gaps are summarized in §2.2 and
 `plan/native-math-parity-test-report.md`; missing inventory items do not become
 passes. Full approved SRS scope is retained.
-Levels: P1 exploratory baseline/harness readiness; increment-focused verification P2–P5; final component acceptance and integration qualification P6. Separate system acceptance testing is not applicable: this is a software component extension in coyote. Final acceptance includes manual GUI/accessibility protocol in §5. No independent human acceptance has occurred.
+Levels: P1 exploratory baseline/harness readiness; increment-focused verification P2–P5; final component acceptance and integration qualification P6. Separate system acceptance testing is not applicable: this is a software component extension in coyote. Final acceptance includes manual GUI/source-access protocol in §5. No independent human acceptance has occurred.
 
 ## 2. References, configuration, and environment
 
 ### 2.1 Governing and supporting references
 
-- `requirements/native-math-compatibility.md` v1.1, user-authorized resource-scope update 2026-11-15; original v1.0 approved 2026-10-24. Especially §§3–6 and unchanged D01–D15.
-- `plan/native-math-parity-plan.md` v0.11, increments P0–P6 and current gates (v0.9 is historical).
+- `requirements/native-math-compatibility.md` v1.2 (current); v1.1 records the user-authorized 2026-11-15 resource-scope update; original v1.0 approved 2026-10-24. Especially §§3–6 and unchanged D01–D15.
+- `plan/native-math-parity-plan.md` v0.12, increments P0–P6 and current gates (v0.9 is historical).
 - `requirements/coyote-requirements.md` §3.1.4a, REQ-CORE-111/124, with the current SRS-MATH annex reference.
 - `plan/native-math-test-report.md`, historical PCR-123 evidence and limitations.
 - `plan/native-math-katex-0.16.22-inventory.md` and `.json`; registration census, not native coverage.
@@ -91,9 +93,9 @@ interrupt native C calls. Valgrind failed with 6,656 definitely lost, 2,183
 indirectly lost and 26 possibly lost bytes; isolated Pango/Fontconfig setup
 exhibited the same definite/indirect loss through 1,000 calls, so no zero-leak
 claim is justified. Coverage is a source crosswalk, not semantic completion.
-Historical approved-target descriptions do not override SRS-MATH v1.1.
+Historical approved-target descriptions do not override SRS-MATH v1.2.
 - `test/tools/check-math-resources.cjs` via the recorded resource harness (10 isolated cases; not whole-GUI memory qualification).
-- Browser/reference export: `test/tools/export-math-browser.cjs`, `test/tools/export-math-reference.cjs`; comparison: `test/tools/compare-math-layout.cjs`, `test/tools/check-math-differential.sh`; image checks: `test/tools/check-math-images.sh`; inventory/accessibility: `test/tools/check-math-inventory.cjs`, `test/tools/check-math-accessibility.sh`.
+- Browser/reference export: `test/tools/export-math-browser.cjs`, `test/tools/export-math-reference.cjs`; comparison: `test/tools/compare-math-layout.cjs`, `test/tools/check-math-differential.sh`; image checks: `test/tools/check-math-images.sh`; inventory: `test/tools/check-math-inventory.cjs`. There is no dedicated accessibility probe; manual exact-source GUI review remains required by SRS/P5.
 The report records actual invocations/artifact paths. Existing tooling supports a P1 pilot, not complete matching/readiness or acceptance. These results are evidence, not a substitute for complete corpus and qualification.
 
 Existing asset regeneration (repo root, pinned extracted archive):
@@ -130,12 +132,12 @@ failed repeats and Valgrind remain unwaived; full qualification stays open.
 
 ### 2.3 Environment and support software
 
-Use existing GNAT/Alire development profile, GTK3/Cairo/FreeType, bundled fonts, AUnit, Node oracle, and pinned reference browser. Record hardware/CPU/RAM, OS, display/Xvfb, versions, available memory and background load. Fix one named qualification workstation for timing; isolate processes for peak RSS and cache accounting. GUI automation uses Xvfb where adequate; manual accessibility tests use named desktop/tools.
+Use existing GNAT/Alire development profile, GTK3/Cairo/FreeType, bundled fonts, AUnit, Node oracle, and pinned reference browser. Record hardware/CPU/RAM, OS, display/Xvfb, versions, available memory and background load. Fix one named qualification workstation for timing; isolate processes for peak RSS and cache accounting. GUI automation uses Xvfb where adequate; manual GUI/source-access checks use the real product conversation window with controlled content.
 
 Development tools and exporters exist for reference/browser output, structured
 geometry comparison, image comparison, fuzzing, resource/performance probes,
-inventory and accessibility. The final3 findings in the preceding paragraph
-are historical. Current scoped evidence and limitations are summarized in §2.2
+and inventory. There is no dedicated accessibility probe. The final3 findings
+in the preceding paragraph are historical. Current scoped evidence and limitations are summarized in §2.2
 and coordinator-owned report §11; §10 and earlier sections are historical. The source crosswalk is a source-path inventory, not semantic coverage or
 qualification. The source crosswalk records native implementation status, not
 semantic completion. The latest recorded structured comparison covers all 338
@@ -149,7 +151,7 @@ These snapshots do not establish full P1 readiness or parity.
 
 ### 3.1 Classes and progression
 
-Classes: inventory/accounting; parser and state differential; functional/boundary; diagnostic/policy/negative controls; geometry/image differential; GUI/accessibility; resource/performance/stress/cancellation; security/I/O; regression/provenance/reproducibility. Label each result pass, fail, blocked, not run, or approved deviation. Partial, unimplemented and pending are not passes. Log every discrepancy; do not tune thresholds or normalize failures after observing results.
+Classes: inventory/accounting; parser and state differential; functional/boundary; diagnostic/policy/negative controls; geometry/image differential; GUI/source access; resource/performance/stress/cancellation; security/I/O; regression/provenance/reproducibility. Label each result pass, fail, blocked, not run, or approved deviation. Partial, unimplemented and pending are not passes. Log every discrepancy; do not tune thresholds or normalize failures after observing results.
 
 Progression: approved requirements, design and execution baseline are established; (1) complete P1 readiness evidence; (2) focused increments and regression; (3) complete corpus, budgets, security, GUI and manual qualification; (4) separate user acceptance. Failures or changed reference pins return to corrective action and rerun. Test-readiness approval and final qualification remain open.
 
@@ -165,8 +167,8 @@ required for readiness. The 250 ms and 50 ms timing targets remain unchanged
 for final qualification; P1 does not waive or relax them. Retained-raster,
 cache and final qualification evidence remain open.
 P1 does not require full feature parity, calibrated final visual tolerances,
-final timing compliance, 10,000-case robustness, human accessibility
-acceptance, or a passing full inventory. It does require a documented account
+final timing compliance, 10,000-case robustness, human GUI acceptance, or a
+passing full inventory. It does require a documented account
 of current practical resource-guard coverage and known exclusions; it does not
 require exhaustive whole-job allocation/RSS accounting. The recorded
 10,000-case fuzz run is evidence for that seed/run, not full qualification.
@@ -229,7 +231,7 @@ Timing: specify workstation, OS, compiler, browser, warm/cold state; p95 from �
 - P2: common notation pilot; focused differential/GUI; estimate remaining work.
 - P3: parser, macro/state, Unicode, options, diagnostics; adversarial regression.
 - P4: fonts/layout/constructs/drawing; geometry and calibrated visual corpus.
-- P5: GTK/native semantics, copy/zoom/replay/themes; automated and human accessibility review.
+- P5: Follow SRS-MATH v1.2 and the parity plan for native presentation and current assistive-technology obligations. Verify exact display-source access, rendering, copy/zoom/replay/themes with automated and manual GUI checks; required source-access/manual GUI review remains pending. Semantic screen-reader navigation is not a current requirement. Raw LaTeX is not semantic math; no complete-accessibility claim is made.
 - P6: inventory reconciliation; robustness, safety, resources/runtime dependencies; root/test development builds; full suite; report and separate user acceptance.
 
 At increments, run applicable focused/AUnit checks. Before final acceptance run
@@ -347,9 +349,19 @@ complete reference mapping and qualification coverage remain open.
 **MATH-DIFF-002 — raster differential/calibration** (T/D; REQ-MATH-005/012/013). Pinned browser/native fixtures at 24 px/em, matched fonts/colors/transparent background. The nine-case pilot is historical. The latest recorded comparison is 28/29 cases, with long-tilde mask coverage 0.9851 below the unchanged 0.99 threshold. Treat this as scoped discrepancy evidence, not calibrated acceptance; preserve approved criteria and controls. See coordinator-owned report §11, “Current implementation and qualification reconciliation — 2026-11-06”. Full component mapping and human acceptance remain open. Temporary logs are unavailable for this documentation-only update; no rerun is claimed.
 **MATH-GUI-001 — Markdown/GTK integration** (T/D; REQ-MATH-003/011). Inline `$...$`, `\(...\)`, display `$$...$$`, `\[...\]`, multiline, prose, code spans/fences/indented code, link destinations, ordinary dollars, malformed math, many formulas. Check baseline/display, protected code, exact source copy, selection, zoom/reflow, theme, session replay, resize/repeated render, error/limit fallback. GTK operations on main task; Plain/session compatibility. Automated AUnit/Xvfb and manual desktop where needed.
 
-**MATH-A11Y-001 — semantics and human acceptance** (T/D/I; REQ-MATH-012). Fractions, scripts, operators, arrays, annotations and approved links; exact source. Record named desktop, screen reader/accessibility tool versions, bridge, locale, user role. Inspect discoverability, name/navigation, numerator/denominator, scripts, rows/cells, reading order, links, source copy/delimiters, display/inline and fallback. Bitmap cannot pass. Automated accessibility tooling and focused checks exist;
-human assistive-technology/desktop assessment and independent acceptance remain
-pending. The report records no such acceptance.
+**MATH-SOURCE-001 — display LaTeX source access** (T/D/I; REQ-MATH-012).
+Using the real GTK conversation with controlled display fixtures, verify the
+collapsed **LaTeX source** expander contains read-only, selectable text exactly
+equal to the input including delimiters, line breaks and whitespace. Check
+availability while pending, after invalid/unsupported processing and after
+successful rendering; replace one formula with another and verify the expander
+shows only the replacement's exact source. Verify keyboard focus/selection and
+copying from the source view without changing inline math's existing exact-source
+copy checks under MATH-GUI-001. A bitmap or internal semantic-tree probe cannot
+pass this case. Record build, fixture/source hashes, state transitions and
+operator observations. Raw LaTeX is not semantic screen-reader math; this case
+does not claim assistive-technology navigation or complete accessibility.
+Manual GUI qualification and independent acceptance remain pending.
 
 **MATH-REGRESS-001 — build and suite** (T; REQ-MATH-014). Root/test development builds, focused `Coyote.Math`, full `cd test && alr run coyote_test` under Xvfb when needed, existing probe/inventory check. §11 records 1063/1063 and a repeat with one prompt-filter assertion failure whose non-math root cause is unproven. The artifacts are unavailable here; the failure is not waived, and this document update ran no suite. These results do not qualify the latest source snapshot. Consult coordinator report §11, “Current implementation and qualification reconciliation — 2026-11-06”; §10 and earlier sections are historical. Do not infer parity or acceptance.
 **MATH-REGRESS-002 — seeded fuzz and failure paths** (T/A; REQ-MATH-010/014). Run ≥10,000 fixed-seed generated/adversarial cases per final run in a bounded isolated runner. Include malformed syntax, explosive and recursive/cyclic macros, excessive nesting/depth, large/ragged arrays, extreme/repeated dimensions and surfaces, Unicode, cancellation/failure injection, repeated failure and recovery. Record seeds, input classes, limits reached, major-buffer admission/rejection, documented coverage/estimates, cleanup/recovery outcomes, crashes, hangs, state leaks, and RSS diagnostic observations separately. Pass: all required classes are represented; documented coarse guards reject over-budget major-buffer admissions; no crash, unbounded work, state leak or failed cleanup/recovery occurs in the tested set; failures are triaged and retained. Do not infer exhaustive whole-job allocation/RSS safety from a finite fuzz run. Existing 40 malformed AUnit samples alone are insufficient.
@@ -373,7 +385,7 @@ remain to be produced.
 | REQ-MATH-009 | MATH-TRUST-001, MATH-TRUST-002 |
 | REQ-MATH-010 | MATH-PARSE-003, MATH-LIMIT-001, MATH-LIMIT-002, MATH-SCHED-001, MATH-CONC-001–007, MATH-REGRESS-002 |
 | REQ-MATH-011 | MATH-GUI-001, MATH-TRUST-002, MATH-SCHED-001, MATH-CONC-005–007, MATH-REGRESS-001 |
-| REQ-MATH-012 | MATH-DIFF-002, MATH-GUI-001, MATH-A11Y-001 |
+| REQ-MATH-012 | MATH-SOURCE-001, MATH-GUI-001 |
 | REQ-MATH-013 | MATH-INV-001, MATH-PARSE-002, MATH-LIMIT-001, MATH-DIFF-001, MATH-DIFF-002 |
 | REQ-MATH-014 | MATH-LIMIT-002, MATH-SCHED-001, MATH-CONC-001, MATH-CONC-003, MATH-CONC-005–007, MATH-REGRESS-001, MATH-REGRESS-002 |
 | REQ-MATH-015 | MATH-INV-002, MATH-TRUST-002, MATH-PROVENANCE-001 |
@@ -383,12 +395,12 @@ Trace source: approved REQ-MATH-001–015 and U1/U2/B1 sources in SRS §6. D01�
 ## 7. Risks, blockers, review actions
 
 1. **Readiness:** execution/design approval is complete; P1 matching/readiness, field coverage, complete corpus, calibration and final qualification remain open.
-2. **Harness:** exporters, comparators, pilots, fuzz, resource/performance and accessibility tools exist. Current partial results and gaps are documented in §§2.2–3.2 and the parity report; complete comparison fields, matching, documented practical guard coverage, broad snapshots and qualification evidence remain to be closed. Do not describe existing tools as absent or invent tool paths.
+2. **Harness:** exporters, comparators, pilots, fuzz, resource/performance and inventory tools exist; there is no dedicated accessibility probe. Current partial results and gaps are documented in §§2.2–3.2 and the parity report; complete comparison fields, matching, documented practical guard coverage, broad snapshots and qualification evidence remain to be closed. Do not describe existing tools as absent or invent tool paths.
 3. **Visual readiness:** visual criteria are provisional pending calibration; no calibration or achievement claimed. Quantitative budgets are approved targets, not evidence of compliance.
 4. **Fixture:** `heat-balance-001` source and display-delimited hashes are preserved and match the pinned pilot. Its exact-source native export is valid; the scoped differential/image results do not provide qualified math/origin/width effects or calibrated visual acceptance. Complete per-entry corpus and qualification platform manifest remain pending.
 5. **Security/resource:** no broad offline trace, full cancellation/failure, cache/RSS, fuzz or runtime dependency qualification is claimed. Formula input performs no I/O; known bundled-font reads and native runtime housekeeping are allowed and must not be misreported as formula-triggered I/O. Never assert absolute zero filesystem access.
 6. **State/cancellation:** KaTeX parse-error mutation behavior is an explicit differential; the approved design specifies publication/ownership rules, but their full implementation and qualification remain open. Do not assume all-error rollback or claim those rules proven by component tests.
-7. **Accessibility/independence:** named tools and human reviewer pending. Developer self-evaluation/read-only review is not independent acceptance; user review of readiness/results remains separate.
+7. **Assistive technology/independence:** No dedicated accessibility probe exists. Current exact-source/manual-GUI obligations remain governed by SRS-MATH v1.2 and P5; semantic screen-reader navigation is not required. Scoped implementation is developer-verified in report §11.34; qualification and human source-access review remain pending. Developer self-evaluation/read-only review is not independent acceptance; user review of readiness/results remains separate.
 
 **Plan status:** This approved execution baseline retains open implementation,
 matching, readiness and qualification cases. Coordinator report §11, “Current
@@ -402,7 +414,7 @@ rejection, cleanup/recovery, adversarial robustness, timing, retained-raster,
 complete corpus/readiness, final qualification and independent human acceptance
 remain open. Exhaustive whole-job allocation/RSS accounting is not a current
 acceptance prerequisite. Coverage is a source crosswalk, not semantic
-completion. Approved SRS-MATH v1.1 targets remain normative; no parity or
+completion. Approved SRS-MATH v1.2 targets remain normative; no parity or
 acceptance claim is made.
 
 

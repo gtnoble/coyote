@@ -37,9 +37,13 @@ compatibility. The approved target and current results are separate documents:
 - Inline font reflow and display scale changes submit fresh independent
   requests; cached-AST-only repaint/reuse is not implemented. Inline zoom uses
   the view font size, without applying Math_Scale a second time.
-- Display formulas have a collapsed **Math structure** expander. It presents
-  source-linked semantic nodes in a native keyboard-navigable tree, populated
-  incrementally. This is not completed human screen-reader qualification.
+- Display formulas have a collapsed **LaTeX source** expander containing the
+  exact delimited input in a read-only, selectable text view. It is available
+  while processing is pending, after invalid/unsupported input, and after
+  successful rendering, and updates when the formula is replaced. Raw LaTeX is
+  not semantic math or a screen-reader math representation; this is not a claim
+  of complete accessibility. Internal semantic processing remains in use where
+  required by the renderer.
 
 ## Implemented feature families
 

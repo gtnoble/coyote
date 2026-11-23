@@ -70,10 +70,6 @@ with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Expander;
 with Gtk.Bin;
-with Gtk.Tree_Model;
-with Gtk.Tree_Store;
-with Gtk.Tree_View;
-with Glib.Values;
 with Gtk.Text_Buffer;
 with Gtk.Tooltip;
 with Gtk.Text_Tag;
@@ -110,6 +106,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Image.Gtk_Image;
    use type Gtk.Image.Gtk_Image_Type;
    use type Gtk.Enums.Gtk_Orientation;
+   use type Gtk.Enums.Gtk_Wrap_Mode;
    use type Gtk.Flow_Box.Gtk_Flow_Box;
    use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
    use type Gtk.Frame.Gtk_Frame;
@@ -4298,7 +4295,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          "clearing pending math removes the element safely");
    end Test_Native_Display_Math_Clear_Pending;
 
-   procedure Test_Native_Math_Free_Disconnects_Expander
+   procedure Test_Native_Math_Free_Source_View_Survives_Destroy
      (T : in out Test)
    is
       Element : Coyote_GUI.Math_Element.Instance_Access :=
@@ -4330,30 +4327,56 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Expander.Set_Expanded (True);
       Expander.Set_Expanded (False);
       Glib.Object.Unref (Glib.Object.GObject (Expander));
-   end Test_Native_Math_Free_Disconnects_Expander;
+   end Test_Native_Math_Free_Source_View_Survives_Destroy;
 
    procedure Test_Native_Math_Expansion_Tracks_Source
      (T : in out Test)
    is
-      Element : Coyote_GUI.Math_Element.Instance_Access :=
-        Coyote_GUI.Math_Element.New_Element ("x", "old source");
+      Element : Coyote_GUI.Math_Element.Instance_Access := null;
       Root : Gtk.Box.Gtk_Box;
+      Parent_Window : Gtk.Window.Gtk_Window := null;
       Children : Gtk.Widget.Widget_List.Glist;
       Node : Gtk.Widget.Widget_List.Glist;
       Expander : Gtk.Expander.Gtk_Expander;
       Scroll : Gtk.Widget.Gtk_Widget;
-      Tree : Gtk.Widget.Gtk_Widget;
-      Model : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Value : Glib.Values.GValue;
+      View : Gtk.Text_View.Gtk_Text_View;
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      First : Gtk.Text_Iter.Gtk_Text_Iter;
+      Last : Gtk.Text_Iter.Gtk_Text_Iter;
       Deadline : Ada.Real_Time.Time;
       Quit : Boolean;
       pragma Unreferenced (Quit);
+
+      function Source_Text return String is
+      begin
+         Buffer.Get_Start_Iter (First);
+         Buffer.Get_End_Iter (Last);
+         return Buffer.Get_Text (First, Last);
+      end Source_Text;
+
+      procedure Await_Completion is
+      begin
+         Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+         while Ada.Real_Time.Clock < Deadline
+           and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+         loop
+            if Gtk.Main.Events_Pending then
+               Quit := Gtk.Main.Main_Iteration_Do (False);
+            else
+               delay 0.005;
+            end if;
+         end loop;
+         Assert
+           (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
+            "source replacement reaches a terminal math state");
+      end Await_Completion;
    begin
       if not T.Display_Available then
-         Coyote_GUI.Math_Element.Free (Element);
          return;
       end if;
+      Coyote_Math_Jobs.Shutdown;
+      Coyote_Math_Jobs.Start (Paused => True);
+      Element := Coyote_GUI.Math_Element.New_Element ("x", "$x$");
       Root := Coyote_GUI.Math_Element.Widget (Element.all);
       Children := Gtk.Container.Get_Children
         (Gtk.Container.Gtk_Container (Root));
@@ -4367,51 +4390,96 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Node := Gtk.Widget.Widget_List.Next (Node);
       end loop;
       Gtk.Widget.Widget_List.Free (Children);
+      Children := Gtk.Widget.Widget_List.Null_List;
+      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+      View := Gtk.Text_View.Gtk_Text_View
+        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll)));
+      Buffer := Gtk.Text_View.Get_Buffer (View);
+      Assert
+        (not Expander.Get_Expanded
+         and then Gtk.Expander.Get_Label (Expander) = "LaTeX source",
+         "source expander has the requested label and collapsed state");
+      Assert
+        (Gtk.Widget.Get_Name (Gtk.Widget.Gtk_Widget (View)) =
+           "coyote-math-source"
+         and then not Gtk.Text_View.Get_Editable (View)
+         and then Gtk.Text_View.Get_Cursor_Visible (View)
+         and then Gtk.Text_View.Get_Wrap_Mode (View) =
+           Gtk.Enums.Wrap_Word_Char,
+         "source view is named, read-only, caret-visible, and word-wrapped");
+      Assert
+        (Source_Text = "$x$",
+         "source view immediately contains the exact delimited source");
+      Gtk.Window.Gtk_New (Parent_Window);
+      Parent_Window.Add (Root);
+      Expander.Set_Expanded (True);
+      Parent_Window.Show_All;
+      Drain_Gtk_Events;
+      Gtk.Text_Buffer.Get_Start_Iter (Buffer, First);
+      Gtk.Text_Buffer.Get_End_Iter (Buffer, Last);
+      Buffer.Select_Range (First, Last);
+      Widget_Actions.Emit_By_Name
+        (Gtk.Widget.Gtk_Widget (View), "copy-clipboard");
+      Assert
+        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) = "$x$",
+         "read-only source view copies exact delimited LaTeX");
+      Gtk.Clipboard.Clear (Gtk.Clipboard.Get);
+      Assert
+        (Coyote_GUI.Math_Element.Is_Pending (Element.all),
+         "paused math worker keeps initial source deterministically pending");
+
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Element.all, "y", "$$y$$");
+      Assert
+        (Source_Text = "$$y$$"
+         and then Coyote_GUI.Math_Element.Is_Pending (Element.all),
+         "pending replacement immediately updates visible exact source");
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Element.all, "\unknowncommand", "$$\unknowncommand$$");
+      Assert
+        (Source_Text = "$$\unknowncommand$$"
+         and then Coyote_GUI.Math_Element.Is_Pending (Element.all),
+         "invalid replacement is visible before worker completion");
+      Coyote_Math_Jobs.Resume;
+      Await_Completion;
+      Assert
+        (not Coyote_GUI.Math_Element.Is_Valid (Element.all)
+         and then Source_Text = "$$\unknowncommand$$",
+         "rejected math continues to expose its exact source");
+
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Element.all, "z+1", "$z+1$");
+      Assert
+        (Source_Text = "$z+1$",
+         "valid replacement immediately replaces rejected source");
+      Await_Completion;
+      Assert
+        (Coyote_GUI.Math_Element.Is_Valid (Element.all)
+         and then Source_Text = "$z+1$",
+         "valid completion preserves the current delimited source");
+      Expander.Set_Expanded (False);
+      Coyote_GUI.Math_Element.Set_LaTeX
+        (Element.all, "a+b", "$$a+b$$");
+      Assert
+        (not Expander.Get_Expanded and then Source_Text = "$$a+b$$",
+         "collapsed source view tracks repeated replacement");
+      Await_Completion;
       Expander.Set_Expanded (True);
       Assert
-        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null,
-         "pending math expansion creates no invalid semantic tree");
-      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
-      while Ada.Real_Time.Clock < Deadline
-        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
-      loop
-         Quit := Gtk.Main.Main_Iteration_Do (False);
-         delay 0.01;
-      end loop;
-      Assert
-        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
-         "initial semantic result completes");
-      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
-      Assert (Scroll /= null, "valid expansion creates semantic child");
-      Coyote_GUI.Math_Element.Set_LaTeX
-        (Element.all, "y", "new source");
-      Assert
-        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null,
-         "source replacement removes old semantic child immediately");
-      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
-      while Ada.Real_Time.Clock < Deadline
-        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
-      loop
-         Quit := Gtk.Main.Main_Iteration_Do (False);
-         delay 0.01;
-      end loop;
-      Assert
-        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
-         "replacement semantic result completes");
-      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
-      Tree := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll));
-      Assert
-        (Tree /= null and then Gtk.Widget.Get_Name (Tree) =
-           "coyote-math-semantics",
-         "expanded replacement contains the current semantic tree");
-      Model := Gtk.Tree_View.Get_Model (Gtk.Tree_View.Gtk_Tree_View (Tree));
-      Iter := Gtk.Tree_Model.Get_Iter_First (Model);
-      Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
-      Assert
-        (Glib.Values.Get_String (Value) = "y",
-         "replacement semantic tree is rooted in the new source");
-      Glib.Values.Unset (Value);
+        (Expander.Get_Expanded and then Source_Text = "$$a+b$$",
+         "expanded source view retains the latest replacement");
       Coyote_GUI.Math_Element.Free (Element);
+      Parent_Window.Destroy;
+      Parent_Window := null;
+      Coyote_Math_Jobs.Shutdown;
+   exception
+      when others =>
+         Coyote_GUI.Math_Element.Free (Element);
+         if Parent_Window /= null then
+            Parent_Window.Destroy;
+         end if;
+         Coyote_Math_Jobs.Shutdown;
+         raise;
    end Test_Native_Math_Expansion_Tracks_Source;
 
    procedure Test_Native_Display_Math_Protects_Code (T : in out Test) is
@@ -4441,18 +4509,75 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Large_Font    : Pango.Font.Pango_Font_Description :=
         Pango.Font.From_String ("sans 18");
       Initial_Scale : Long_Float;
+
+      function Find_Source_View
+        (Root : Gtk.Widget.Gtk_Widget)
+         return Gtk.Text_View.Gtk_Text_View
+      is
+         Children : Gtk.Widget.Widget_List.Glist;
+         Node : Gtk.Widget.Widget_List.Glist;
+         Child : Gtk.Widget.Gtk_Widget;
+      begin
+         if Gtk.Widget.Get_Name (Root) = "coyote-math-source" then
+            return Gtk.Text_View.Gtk_Text_View (Root);
+         end if;
+         if Root.all not in Gtk.Container.Gtk_Container_Record'Class then
+            return null;
+         end if;
+         Children := Gtk.Container.Get_Children
+           (Gtk.Container.Gtk_Container (Root));
+         Node := Gtk.Widget.Widget_List.First (Children);
+         while Node /= Gtk.Widget.Widget_List.Null_List loop
+            Child := Gtk.Widget.Widget_List.Get_Data (Node);
+            declare
+               View : constant Gtk.Text_View.Gtk_Text_View :=
+                 Find_Source_View (Child);
+            begin
+               if View /= null then
+                  Gtk.Widget.Widget_List.Free (Children);
+                  return View;
+               end if;
+            end;
+            Node := Gtk.Widget.Widget_List.Next (Node);
+         end loop;
+         Gtk.Widget.Widget_List.Free (Children);
+         return null;
+      end Find_Source_View;
+
+      procedure Assert_Source_Font (Expected : String) is
+         use type Pango.Context.Pango_Context;
+         View : constant Gtk.Text_View.Gtk_Text_View :=
+           Find_Source_View
+             (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all)));
+      begin
+         Assert (View /= null, "display source text view is present");
+         Gtk.Expander.Set_Expanded
+           (Gtk.Expander.Gtk_Expander (View.Get_Parent.Get_Parent), True);
+         T.Parent.Show_All;
+         Drain_Gtk_Events;
+         Assert
+           (Pango.Font.To_String
+              (Pango.Context.Get_Font_Description
+                 (View.Get_Pango_Context)) = Expected,
+            "display source text view has the configured font " & Expected
+            & "; actual=" & Pango.Font.To_String
+              (Pango.Context.Get_Font_Description (View.Get_Pango_Context)));
+      end Assert_Source_Font;
    begin
       if not T.Display_Available then
          Pango.Font.Free (Small_Font);
          Pango.Font.Free (Large_Font);
          return;
       end if;
+      Set_Font (T.Stack.all, Small_Font, Math_Scale => 1.0);
       Begin_Request (T.Stack.all, "request", Prompt);
       Append_Text (T.Stack.all, Source);
       End_Text_Block (T.Stack.all);
+      Assert_Source_Font ("sans 8");
       Initial_Scale := Math_Scale (T.Stack.all, 1);
-      Set_Font (T.Stack.all, Small_Font, Math_Scale => 1.0);
       Set_Font (T.Stack.all, Large_Font, Math_Scale => 2.0);
+      Drain_Gtk_Events;
+      Assert_Source_Font ("sans 18");
       Assert
         (Math_Scale (T.Stack.all, 1) > Initial_Scale,
          "native LaTeX scale changes during zoom");
@@ -4484,9 +4609,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Expander : Gtk.Expander.Gtk_Expander;
       Scroll : Gtk.Widget.Gtk_Widget;
       Tree : Gtk.Widget.Gtk_Widget;
-      Store : Gtk.Tree_Store.Gtk_Tree_Store;
-      Value : Glib.Values.GValue;
-      Label : Unbounded_String;
       Deadline : Ada.Real_Time.Time;
       Quit : Boolean;
       Requested_Width : Glib.Gint;
@@ -4504,23 +4626,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Fonts : aliased Math_Painter.Font_Set;
       pragma Unreferenced (Quit);
 
-      procedure Append_Tree
-        (Model : Gtk.Tree_Store.Gtk_Tree_Store;
-         Parent : Gtk.Tree_Model.Gtk_Tree_Iter)
-      is
-      begin
-         for Row in 0 .. Gtk.Tree_Store.N_Children (Model, Parent) - 1 loop
-            declare
-               Current : Gtk.Tree_Model.Gtk_Tree_Iter :=
-                 Gtk.Tree_Store.Nth_Child (Model, Parent, Row);
-            begin
-               Gtk.Tree_Store.Get_Value (Model, Current, 0, Value);
-               Append (Label, Glib.Values.Get_String (Value));
-               Glib.Values.Unset (Value);
-               Append_Tree (Model, Current);
-            end;
-         end loop;
-      end Append_Tree;
    begin
       if not T.Display_Available then
          Coyote_GUI.Math_Element.Free (Element);
@@ -4659,24 +4764,26 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          end if;
       end loop;
       Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
-      Assert (Scroll /= null, "valid display creates its semantic tree");
+      Assert (Scroll /= null, "valid display creates its source view");
       Tree := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll));
       Assert
         (Tree /= null and then Gtk.Widget.Get_Name (Tree) =
-           "coyote-math-semantics",
-         "display semantics use the native math accessibility tree");
-      Store := Gtk.Tree_Store."-"
-        (Gtk.Tree_View.Get_Model (Gtk.Tree_View.Gtk_Tree_View (Tree)));
-      Append_Tree (Store, Gtk.Tree_Model.Null_Iter);
-      Assert
-        (Index (To_String (Label), "VERBATIM_NODE") > 0
-         and then Index (To_String (Label), "raw verbatim: a%{b}#^_") > 0
-         and then Index (To_String (Label), "a b - starred") > 0
-         and then Index (To_String (Label), "VCENTER_NODE") > 0
-         and then Index (To_String (Label), "POOR_BOLD_NODE") > 0
-         and then Index (To_String (Label), "VCENTER_CONTENT") > 0
-         and then Index (To_String (Label), "POOR_BOLD_CONTENT") > 0,
-         "semantic tree preserves core roles: " & To_String (Label));
+           "coyote-math-source",
+         "display source is presented by the named source view");
+      declare
+         Source_View : constant Gtk.Text_View.Gtk_Text_View :=
+           Gtk.Text_View.Gtk_Text_View (Tree);
+         Source_Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+           Gtk.Text_View.Get_Buffer (Source_View);
+         First : Gtk.Text_Iter.Gtk_Text_Iter;
+         Last : Gtk.Text_Iter.Gtk_Text_Iter;
+      begin
+         Source_Buffer.Get_Start_Iter (First);
+         Source_Buffer.Get_End_Iter (Last);
+         Assert
+           (Source_Buffer.Get_Text (First, Last) = Source,
+            "display source view contains exact original delimiters");
+      end;
       Coyote_GUI.Math_Element.Set_LaTeX
         (Element.all, "\cancel{T}", Cancel_Source);
       Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
@@ -5542,12 +5649,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Test_Display_Math_Worker_Fallback_Recovery'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack disconnects freed math expanders",
+           ("Coyote.GUI.Conversation_Stack frees math source views safely",
             Coyote_GUI_Conversation_Stack_Tests
-              .Test_Native_Math_Free_Disconnects_Expander'Access));
+              .Test_Native_Math_Free_Source_View_Survives_Destroy'Access));
       Result.Add_Test
         (Coyote_GUI_Conversation_Stack_Caller.Create
-           ("Coyote.GUI.Conversation_Stack replaces expanded math semantics",
+           ("Coyote.GUI.Conversation_Stack replaces expanded math source",
             Coyote_GUI_Conversation_Stack_Tests
               .Test_Native_Math_Expansion_Tracks_Source'Access));
       Result.Add_Test

@@ -1,0 +1,54 @@
+
+(coyote_test:632628): Gtk-WARNING **: 17:33:10.811: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:632628): Gtk-WARNING **: 17:33:10.811: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:632628): Gtk-WARNING **: 17:33:10.811: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:632628): Gtk-WARNING **: 17:33:10.811: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:632628): Gtk-WARNING **: 17:33:10.811: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:632628): Gtk-WARNING **: 17:33:10.811: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI.Conversation_Stack creates single outer host
+OK    Coyote.GUI.Conversation_Stack text safety task guard
+OK    Coyote.GUI.Conversation_Stack text safety request
+OK    Coyote.GUI.Conversation_Stack text safety response
+OK    Coyote.GUI.Conversation_Stack text safety thinking
+OK    Coyote.GUI.Conversation_Stack text safety lifecycle
+OK    Coyote.GUI.Conversation_Stack streams incrementally
+OK    Coyote.GUI.Conversation_Stack finalizes an open text block for a new request
+OK    Coyote.GUI.Conversation_Stack removes the active stream mark on clear
+OK    Coyote.GUI.Conversation_Stack applies the configured font to new response views
+OK    Coyote.GUI.Conversation_Stack applies the configured font to new table labels
+OK    Coyote.GUI.Conversation_Stack validates Markdown link targets
+OK    Coyote.GUI.Conversation_Stack launches Markdown link clicks
+OK    Coyote.GUI.Conversation_Stack updates Markdown link cursor
+OK    Coyote.GUI.Conversation_Stack renders Markdown
+OK    Coyote.GUI.Conversation_Stack hit-tests inline math line boundaries
+OK    Coyote.GUI.Conversation_Stack renders and copies inline LaTeX
+OK    Coyote.GUI.Conversation_Stack adopts inline worker rasters
+OK    Coyote.GUI.Conversation_Stack tests partial adoption cleanup
+OK    Coyote.GUI.Conversation_Stack keeps invalid inline LaTeX source
+INLINE_FALLBACK baseline= 0 final= 0
+OK    Coyote.GUI.Conversation_Stack recovers inline math fallback
+CONVERSATION_MATH rounds=2 paragraphs=2 inline_pixbufs=2 displays=2 copy=tail_line baseline= 0 final= 0
+OK    Coyote.GUI.Conversation_Stack preserves mixed math response source
+RETAINED_BUFFER baseline= 0 held_after_destroy=true pixbufs= 0 source_visible=true final= 0
+OK    Coyote.GUI.Conversation_Stack releases retained math buffer images
+OK    Coyote.GUI.Conversation_Stack toggles Markdown rendering
+OK    Coyote.GUI.Conversation_Stack realizes native tables
+OK    Coyote.GUI.Conversation_Stack toggles native tables
+OK    Coyote.GUI.Conversation_Stack skips table whitespace blocks
+OK    Coyote.GUI.Conversation_Stack skips mixed whitespace blocks
+OK    Coyote.GUI.Conversation_Stack realizes display LaTeX
+OK    Coyote.GUI.Conversation_Stack keeps source during rasterization
+OK    Coyote.GUI.Conversation_Stack bounds retained display rasters
+OK    Coyote.GUI.Conversation_Stack falls back for invalid LaTeX
+OK    Coyote.GUI.Conversation_Stack clears pending display LaTeX
+DISPLAY_FALLBACK baseline= 0 wide_rejection_bytes= 0 final= 0
+OK    Coyote.GUI.Conversation_Stack recovers display math fallback
+OK    Coyote.GUI.Conversation_Stack frees math source views safely
+
+(coyote_test:632628): Gtk-CRITICAL **: 17:33:25.000: gtk_widget_get_clipboard: assertion 'gtk_widget_has_screen (widget)' failed
+Trace/breakpoint trap (core dumped)

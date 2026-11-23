@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.41
+**Version:** 1.42
 **Date:** 2026-11-15
 **Status:** Active — PCR-125 native design and project execution approved;
 implementation partial/in progress; final qualification and acceptance open
@@ -145,7 +145,9 @@ the point of decision, not reconstructed post-hoc.
 
 **Approved native-math execution (PCR-125; user authorization recorded
 2026-10-25):** `plan/native-math-parity-plan.md` governs the staged port.
-SRS-MATH v1.1 dated 2026-11-15 is the current resource-guard baseline; it
+SRS-MATH v1.2 dated 2026-11-15 is current: display formulas expose exact
+LaTeX source rather than a structure inspector. It carries forward the v1.1
+resource-guard decision and
 requires practical protections against abusive/pathological input, not
 exhaustive whole-job allocation or RSS guarantees. The ≤256 MiB per-job budget
 is a coarse admission guard for tracked major workspace/output buffers and

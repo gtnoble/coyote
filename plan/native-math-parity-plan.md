@@ -1,6 +1,6 @@
 # Native KaTeX compatibility-port plan — coyote
 
-**Version:** 0.11
+**Version:** 0.12
 **Date:** 2026-11-15
 **Change:** PCR-125
 **Status:** Native design and project execution approved; implementation in
@@ -26,10 +26,10 @@ MathML renderer, or claim that parity has already been achieved.
 
 This is a software-only extension of coyote, governed by
 [the project plan](project-plan.md). It expands the scope of PCR-123; the
-`requirements/native-math-compatibility.md` v1.1 dated 2026-11-15 is the current
+`requirements/native-math-compatibility.md` v1.2 dated 2026-11-15 is the current
 requirements baseline.
 The running product remains the bounded profile until implementation is
-qualified. SRS-MATH v1.1 (2026-11-15) is the current requirements baseline;
+qualified. SRS-MATH v1.2 (2026-11-15) is the current requirements baseline;
 REQ-MATH-010 requires practical guards against abusive/pathological input, not
 an exhaustive whole-job allocation or RSS guarantee. The current 256 MiB
 per-job admission budget is a coarse guard for tracked major workspace/output
@@ -43,7 +43,8 @@ remain open; no existing evidence is retroactively upgraded.
 
 ### Current requirements supersession — 2026-11-15
 
-The user-authorized SRS-MATH v1.1 update supersedes earlier statements in this
+SRS-MATH v1.2 carries forward the user-authorized 2026-11-15 resource-scope
+update (originally recorded in v1.1), superseding earlier statements in this
 plan that made exhaustive whole-job memory accounting, aggregate physical
 memory/RSS enforcement, or a retained-account lease/storage-pool redesign
 current acceptance prerequisites. MATH-LIMIT-002 now verifies documented
@@ -102,9 +103,14 @@ and resource targets; design/test readiness and visual calibration remain open.
   physical memory; see the current profile guide.
   Record limit-induced
   differences and approve any limit changes explicitly.
-- Accessibility, semantic structure, selection, clipboard behavior, and GUI
-  interaction require native equivalents and separate acceptance criteria.
-  Raster resemblance alone does not establish presentation parity.
+- SRS-MATH v1.2 §3 and P5 govern current native presentation. The current
+  REQ-MATH-012 assistive-technology-related obligation is exact display
+  LaTeX-source access and manual GUI review of that feature; semantic structure
+  navigation or screen-reader math is not required by v1.2. Raw LaTeX is not
+  semantic math. Source access, applicable links/annotations, selection/copy,
+  themes, zoom and reflow retain their stated obligations. Implementation and
+  qualification remain open; no dedicated accessibility probe exists. Raster
+  resemblance alone does not establish presentation parity.
 - General LaTeX package loading and behavior not provided by the pinned KaTeX
   core are not the target. Assess optional upstream extensions separately.
 
@@ -150,7 +156,7 @@ change review instead of silently expanding the work.
 | P2 — Common-notation pilot | Derivative accents, common relations/functions/styles and annotations; correct full-word `lim`/`max`/`min` behavior; necessary model/font changes | Focused differential and GUI regressions pass; re-estimate remaining work using measured pilot effort |
 | P3 — Parser and expansion | Tokens, macro arguments/definitions/scope, built-in expansion, Unicode handling, environment/option/error semantics | Corpus and adversarial expansion tests pass under agreed limits |
 | P4 — Typography and drawing | Complete required fonts/metrics, spacing/styles, extensible glyph/path assemblies, accents/arrows/braces, arrays/tags, boxes/color/dimensions and remaining core constructs | Feature and interaction corpus passes agreed geometry and visual criteria |
-| P5 — Native presentation | Native equivalents for applicable semantics, links/annotations, accessibility, copy/selection, themes, zoom and reflow | Automated integration plus user desktop/accessibility review |
+| P5 — Native presentation | Native equivalents for applicable semantics, links/annotations, exact display-source access, copy/selection, themes, zoom and reflow; no semantic screen-reader navigation obligation under SRS-MATH v1.2 | Automated integration and manual GUI/source review against current requirements |
 | P6 — Qualification and handover record | Complete inventory reconciliation; differential/stress/fuzz results; full development regression; updated manuals, SDD/SDF/provenance and report | All agreed requirements satisfied; deviations individually approved; user acceptance recorded separately |
 
 Dependencies: P0 precedes P1; P1 precedes feature-port acceptance. P2 is a
@@ -211,7 +217,8 @@ qualified guarantees. RSS is diagnostic, not the 256 MiB oracle; the separate
 accounting and a storage-pool/retained-account lease redesign are not current
 acceptance prerequisites; ordinary ownership safety, cleanup and visible
 fallback/recovery remain mandatory. Full reference behavior/corpus qualification
-and independent human visual/accessibility acceptance remain open. The
+and independent human visual and required source-access acceptance remain
+open. The
 recorded 1063/1063 suite is historical and not a fresh result; the repeat with
 a prompt-filter assertion failure of unproven non-math cause remains unwaived.
 Valgrind leak failures remain failures, not waived or reclassified. Coverage
@@ -220,8 +227,9 @@ remains a source crosswalk, not semantic completion. No parity claim is made.
 
 ### Accepted memory-guard maintenance policy — 2026-11-15
 
-The user accepted selective simplification under SRS-MATH v1.1, not another
-memory-management redesign. Fine-grained parser accounting and GNAT-specific
+The user accepted selective simplification under SRS-MATH v1.2, carrying
+forward the v1.1 resource decision, not another memory-management redesign.
+Fine-grained parser accounting and GNAT-specific
 capacity/copy verification went beyond the practical abuse-resistance goal.
 Apply the following policy to future increments:
 
@@ -249,7 +257,7 @@ Apply the following policy to future increments:
   need before new design work. The optional proposal is not a pending approval
   gate or the next required increment.
 
-This policy changes maintenance priorities, not SRS-MATH v1.1, numeric budgets,
+This policy changes maintenance priorities, not SRS-MATH v1.2, numeric budgets,
 50/250 ms targets, compatibility, D01–D15 or qualification obligations. No guard
 or test was removed by this documentation-only decision; product acceptance
 remains pending. See report §11.20 for the decision record.
@@ -267,17 +275,18 @@ calendar or staffing estimate is available before the inventory and pilot.
 | Macros/geometry exhaust resources or stall GTK | High / High | Explicit budgets, adversarial tests, latency measurements, cancellation/design review; developer |
 | Missing fonts, path primitives, or semantic output | Medium / High | Asset/model audit and early presentation prototypes after design approval; developer |
 | Upstream changes and derived-source licensing | Medium / Medium | Hash/version pin, notice audit, repeatable data generation, separate upgrade changes; developer |
-| Automated checks mistaken for acceptance | Medium / High | Separate developer/agent evaluation from user visual/accessibility acceptance; developer |
+| Automated checks mistaken for acceptance | Medium / High | Separate developer/agent evaluation from user visual and source-access review; developer |
 
 ## 7. Review decisions and status
 
 The user approved this staged native-port plan and SRS-MATH v1.0 on
 2026-10-24, specifically approved native design v0.3, and authorized continued
 project execution on 2026-10-25. Later SDD v0.7 is a status/document revision,
-not a separately approved design baseline. The design and test work products
-are recorded in `design/coyote-design.md`, `design/native-math-compatibility.md`
-v0.9, and `plan/native-math-compatibility-tests.md` v0.9. Requirements remain authoritative; implementation progress does not change
-their scope or approved D01–D15 dispositions.
+not a separately approved design baseline. The design and test work products are recorded in `design/coyote-design.md`,
+`design/native-math-compatibility.md` v0.11, and
+`plan/native-math-compatibility-tests.md` v0.12. Requirements remain
+authoritative; implementation progress does not change their scope or approved
+D01–D15 dispositions.
 
 Phase/status summary: P0 requirements/inventory approved and produced. P1
 baseline/browser tooling exists, but full field coverage, matching and readiness
@@ -297,5 +306,6 @@ Developer self-evaluation: current implementation and evidence are separated
 from the approved target and final acceptance gates. Existing tooling and
 approval are recorded; incomplete comparisons, resource/timing qualification,
 remaining capabilities and schedule estimates stay open. This documentation revision records the user-authorized SRS-MATH v1.1
-resource-scope change; it does not claim another execution run.
+resource-scope change, carried forward in current SRS-MATH v1.2. It does not
+claim another execution run.
 Developer/agent review is not independent human acceptance.

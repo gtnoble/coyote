@@ -1,0 +1,39 @@
+{
+  "aunit": "/home/gtnoble/Projects/coyote/coyote-latex-math/test/bin/coyote_test",
+  "filter": "Coyote.GUI tool detail stable layout and snapshots",
+  "binary_sha256": "da2a730d568317035da8add3193caa07d4edbd116e2db1af5749fed4095c81f4",
+  "versions": "3.24.41\n1.52.1",
+  "screen": "1280x1024x24",
+  "repeats": [
+    {
+      "repeat": 1,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-01.log",
+      "binary_sha256": "da2a730d568317035da8add3193caa07d4edbd116e2db1af5749fed4095c81f4",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 2,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-02.log",
+      "binary_sha256": "da2a730d568317035da8add3193caa07d4edbd116e2db1af5749fed4095c81f4",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    },
+    {
+      "repeat": 3,
+      "status": 0,
+      "cleanup_ok": true,
+      "cleanup_detail": "TERM/KILL/wait completed",
+      "log": "repeat-03.log",
+      "binary_sha256": "da2a730d568317035da8add3193caa07d4edbd116e2db1af5749fed4095c81f4",
+      "versions": "3.24.41\n1.52.1",
+      "screen": "1280x1024x24"
+    }
+  ]
+}

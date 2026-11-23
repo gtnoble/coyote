@@ -1,0 +1,26 @@
+repeat=2 screen=1280x1024x24 timeout=30
+display-environment: {"DISPLAY": ":543", "GDK_BACKEND": "x11", "GTK_IM_MODULE": "ibus", "GTK_MODULES": "gail:atk-bridge", "G_DEBUG": "fatal-criticals", "XDG_SESSION_TYPE": "x11"}
+display-check: root-property=absent dimensions=1280x1024
+
+(coyote_test:635169): Gtk-WARNING **: 17:46:11.818: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:635169): Gtk-WARNING **: 17:46:11.818: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:635169): Gtk-WARNING **: 17:46:11.818: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:635169): Gtk-WARNING **: 17:46:11.818: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:635169): Gtk-WARNING **: 17:46:11.818: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:635169): Gtk-WARNING **: 17:46:11.818: Theme parsing error: colors.css:77:65: Invalid number for color value
+OK    Coyote.GUI tool detail stable layout and snapshots
+
+Total Tests Run:   1
+Successful Tests:  1
+Failed Assertions: 0
+Unexpected Errors: 0
+Cumulative Time: 1.208071 sec. seconds
+
+result=0
+cleanup_ok=True
+cleanup_detail=TERM/KILL/wait completed

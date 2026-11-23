@@ -1,11 +1,11 @@
 # Native math compatibility design — SDD-MATH
 
 **Component:** coyote shared math engine and GTK presentation
-**Version:** 0.10
+**Version:** 0.11
 **Date:** 2026-11-15
-**Change:** PCR-125
-**Status:** User-approved design v0.3 and execution basis; this status revision records the user-accepted selective-simplification policy, not approval of the optional ownership redesign. Implementation and qualification remain incomplete.
-**Requirements:** `requirements/native-math-compatibility.md` v1.1 (current)
+**Change:** PCR-125; user-directed display LaTeX-source access replaces the structure inspector
+**Status:** User-approved design v0.3 remains the execution basis; this revision records the user-directed source-view alternative. Implementation and qualification remain incomplete.
+**Requirements:** `requirements/native-math-compatibility.md` v1.2 (current)
 
 ## Contents
 
@@ -42,7 +42,7 @@ coordinator-owned §11 of `plan/native-math-parity-test-report.md`; §10 and
 earlier sections are historical.
 
 References: SRS-MATH above; `design/coyote-design.md`; approved
-`plan/native-math-parity-plan.md` v0.11; updated combined STP/STD v0.11
+`plan/native-math-parity-plan.md` v0.12; updated combined STP/STD v0.12
 (readiness review and approval open): `plan/native-math-compatibility-tests.md`;
 generated pinned inventory;
 
@@ -95,7 +95,7 @@ per-increment detailed-design artifact before code edits.
 | `Math_Painter` | Cairo/FreeType path/glyph/rule painting from validated lists; worker-local font state; no widget mutation or formula-controlled resource lookup |
 | `Math_Engine` | Request/result facade, semantic/visual products, phase diagnostics and context journal; synchronous headless entry for tests/Plain support |
 | `Coyote_Math_Jobs` | Two worker slots, bounded pending/result queues, context-order serialization, cancellation and generation-tagged completion; no GTK access |
-| `Coyote_GUI.Math_Element` / `Rich_Text` | GTK-owned fallback, marks, inline installation, display tiles and semantics/accessibility adapter; poll/adopt job results |
+| `Coyote_GUI.Math_Element` / `Rich_Text` | GTK-owned fallback, marks, inline installation, display tiles, exact-source access and poll/adopt job results |
 
 No mutable process-global macros. Read-only generated tables are shared. A
 limited controlled result handle owns arenas/draw data with explicit retention
@@ -275,17 +275,23 @@ If those APIs cannot be safely isolated on the platform, return to design review
 for a serialized native backend; do not silently move unbounded shaping to GTK.
 
 `\html@mathml` keeps distinct branches: use its HTML branch for native visuals,
-and its semantic branch for accessible structure. No MathML parser/legacy
-renderer or XML serialization is added. Untrusted HTML/link/image constructs
-produce the reference's validated refused representation; no renderer interprets
-arbitrary formula-provided CSS, filenames, URIs, or scripts.
+and retain its semantic branch for internal renderer processing. No MathML
+parser/legacy renderer or XML serialization is added. This internal semantic
+processing does not imply a user-facing structured-math inspector or semantic
+screen-reader representation. Untrusted HTML/link/image constructs produce the
+reference's validated refused representation; no renderer interprets arbitrary
+formula-provided CSS, filenames, URIs, or scripts.
 
-GTK adapter creates accessible math containers and navigable child structures
-for fractions, scripts, roots and array cells, with exact source available as
-text. Native roles/state/reading order are tested with named AT-SPI desktop tools;
-plain alternative text alone cannot close REQ-MATH-012. Precise GTK3 role/AT-SPI
-mapping requires a P5 prototype and user demonstration, not an assumed browser
-MathML equivalence. No trusted active links are introduced under D04–D05.
+The GTK conversation adapter provides display formulas with a collapsed
+**LaTeX source** expander containing read-only, selectable text equal to the
+exact delimited source. It remains available in pending, invalid/unsupported,
+and successfully rendered states, and follows formula replacement. This is raw
+LaTeX source access, not semantic math or a screen-reader math representation.
+Internal semantic processing remains in the engine for renderer needs. Exact
+source copy behavior remains separately governed by REQ-MATH-011. Manual GUI
+qualification verifies source fidelity, state availability, replacement and
+selection; unrelated GUI qualification remains applicable. No trusted active
+links are introduced under D04–D05.
 
 ### 4.1 Inline and display adoption
 
@@ -449,7 +455,9 @@ baseline before production edits. P2 pilot updates common notation within review
 model boundaries, with focused differential evidence and effort accounting.
 P3 installs source/tokens/expansion/context infrastructure behind reviewed facade;
 P4 extends complete typography/fonts/draw semantics; P5 installs job scheduling,
-GTK adoption and accessibility. Scheduling/resource prototypes may run earlier
+GTK adoption, exact display-source access and SRS-MATH v1.2 manual GUI review.
+Semantic screen-reader navigation is not a current requirement. No dedicated
+accessibility probe exists; implementation and qualification remain open. Scheduling/resource prototypes may run earlier
 as isolated design feasibility work after approval. Each increment's detailed
 interfaces, mutation semantics and affected callers are reviewed before edits;
 this high-level design is not a substitute for that mapping.
@@ -497,7 +505,7 @@ mapped in the scheduling increment before adding tasks.
 | REQ-MATH-009 | Registry handlers, resource resolver, Engine / MATH-TRUST |
 | REQ-MATH-010 | Limits/Engine/Jobs/Painter/cache / MATH-LIMIT |
 | REQ-MATH-011 | Jobs/Math_Element/Rich_Text/Conversation_Stack / MATH-GUI |
-| REQ-MATH-012 | Semantics + GTK accessibility adapter / MATH-A11Y |
+| REQ-MATH-012 | Exact-source GTK adapter / MATH-SOURCE |
 | REQ-MATH-013 | Exporters/corpus/comparator + engine read-only accessors / MATH-DIFF |
 | REQ-MATH-014 | All units and integration/lifecycle tests / MATH-REGRESS |
 | REQ-MATH-015 | Generator/resources/provenance and license records / MATH-PROVENANCE |
@@ -523,11 +531,12 @@ remain open. No parity or
 acceptance claim is made.
 Risks requiring later evidence: worker-local native font/shaping thread safety,
 worst-case native-call latency and cleanup, bounded publication, context aggregate
-retention, exact full reference geometry export, GTK3 semantic role mapping and
-human screen-reader navigation. These require prototypes/measurements, not an
-unsupported feasibility assurance. Quantitative target changes require a new
-requirements review. Schedule remains unestimated until inventory and pilot work
-are measured.
+retention, exact full reference geometry export, source-view integration and
+manual GUI qualification. These require prototypes/measurements, not an
+unsupported feasibility assurance. Raw LaTeX is not semantic screen-reader
+math; no complete accessibility claim is made. Quantitative target changes
+require a new requirements review. Schedule remains unestimated until inventory
+and pilot work are measured.
 
 RD-CTX-01 remains unauthorized; proposed additional shared-context caps are not
 approved SRS limits or acceptance criteria. This open disposition does not pause

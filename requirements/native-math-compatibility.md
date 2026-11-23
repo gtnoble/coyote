@@ -1,11 +1,13 @@
 # Native math compatibility requirements — SRS-MATH
 
 **Component:** coyote shared native math engine and GTK integration
-**Version:** 1.1
+**Version:** 1.2
 **Date:** 2026-11-15
-**Change:** PCR-125 — practical resource-abuse protection
-**Status:** User-authorized resource-scope revision; implementation partial, final qualification and product acceptance pending
-**Authority:** Original v1.0 approved 2026-10-24; user directed practical abuse protection and authorized this requirements update on 2026-11-15
+**Change:** User decision — display-formula source access replaces the structure inspector
+**Status:** User-authorized requirements revision; scoped implementation verified in report §11.34, final qualification pending
+**Authority:** Original v1.0 approved 2026-10-24; v1.1 recorded the 2026-11-15 resource-scope decision; this v1.2 revision records the user's 2026-11-15 decision on the display-formula interface.
+
+**Revision note:** REQ-MATH-012 now requires a collapsed, selectable LaTeX-source view rather than structured mathematical content or assistive-technology navigation. Internal semantic processing needed by the renderer remains in scope. This revision does not claim raw LaTeX is semantic math or screen-reader accessible. Existing exact-source copying under REQ-MATH-011 and unrelated GUI/manual qualification remain in force.
 
 ## Contents
 
@@ -168,12 +170,18 @@ preserved. GTK operations shall remain on the GTK main task. Formula processing
 shall not introduce a JavaScript/browser/reference-engine production dependency.
 Plain presentation and stored session source shall remain compatible.
 
-**REQ-MATH-012 — Semantics and accessibility (T/D/I).** Native output shall
-expose formula source plus structured mathematical content adequate for
-assistive-technology navigation and distinguish applicable links/annotations
-from ordinary glyphs. Copying shall recover exact delimited input. Final
-qualification shall include human review with named desktop/assistive tools;
-bitmap similarity alone shall not satisfy this requirement.
+**REQ-MATH-012 — Exact formula source access (T/D/I).** For each display
+formula, the GTK conversation shall provide a collapsed **LaTeX source**
+expander containing read-only, selectable text equal to the exact delimited
+source. The source shall be available while processing is pending, when the
+formula is invalid or unsupported, and after successful rendering; it shall
+update when the displayed formula is replaced. This is a source-access feature,
+not a structured math inspector or semantic screen-reader representation. Raw
+LaTeX is not semantic math and this requirement makes no claim of screen-reader
+math accessibility. Internal semantic processing required by the renderer
+remains in scope. Verify the source against exact input, including delimiters
+and line breaks, and manually review the GUI behavior; bitmap similarity alone
+shall not satisfy this requirement.
 
 **REQ-MATH-013 — Differential evidence (T/I).** The qualification corpus shall
 cover every in-profile inventory item and relevant mode/option, representative
@@ -231,7 +239,7 @@ callback bodies are not claimed equivalent.
 | `\href`, `\url` | Match untrusted refusal/visible command behavior; trusted link modes excluded by D04–D05 below |
 | `\includegraphics` | Match untrusted refusal and argument validation; no formula-triggered file/network loads; trusted image mode excluded by D06 below |
 | `\htmlClass`, `\htmlId`, `\htmlStyle`, `\htmlData` | Match untrusted/strictness behavior; arbitrary DOM/CSS side effects have no native equivalent and are approved interface deviations, not silently ignored inputs |
-| `\html@mathml` and built-in wrappers | Use HTML branch for visual comparison and retain semantic branch for accessibility; native semantics need design review; markup serialization excluded |
+| `\html@mathml` and built-in wrappers | Use HTML branch for visual comparison and retain semantic branch as required for native renderer processing; no user-facing accessibility representation or markup serialization is required |
 | Trust/strictness callback options and function-valued caller macros | No JavaScript execution; callable modes excluded by D11–D12 below; later native hooks are not assumed equivalent |
 | Optional contrib extensions (including mhchem and auto-render) | Separately inventoried; approved outside initial core target, not counted as implemented; existing native Markdown extraction is still qualified independently |
 
@@ -248,8 +256,8 @@ Untrusted input handling for the same commands remains inside the profile.
 | ID | Observable reference behavior outside profile | Approved native disposition |
 |---|---|---|
 | D01 | `output=html` serializes visual HTML/CSS/SVG | Native visual output; no byte-identical markup export |
-| D02 | `output=mathml` serializes semantic MathML | Native semantic/accessibility channel; no XML export |
-| D03 | `output=htmlAndMathml` serializes both markup trees | Native visual plus semantic channels, not DOM/API compatibility |
+| D02 | `output=mathml` serializes semantic MathML | Native internal semantic processing as needed by the renderer; no XML export or user-facing structured-math inspector is required |
+| D03 | `output=htmlAndMathml` serializes both markup trees | Native visual output and internal semantic processing as needed by the renderer; no DOM/API compatibility or user-facing structured-math inspector is required |
 | D04 | Trusted `\href` creates an active anchor around its body | No active trusted formula links in initial profile |
 | D05 | Trusted `\url` creates an active URL anchor | No active trusted formula links in initial profile |
 | D06 | Trusted `\includegraphics` emits an image resource | No formula-triggered image loads; surrounding Markdown policy unchanged |
@@ -265,8 +273,10 @@ Untrusted input handling for the same commands remains inside the profile.
 
 All core entries not covered by an approved deviation remain required.
 `\html@mathml` is not excluded: compare its visual branch to the HTML reference
-and retain its semantic branch for native accessibility. User macro scoping and
-core `\def`/`\gdef` behavior remain required.
+and retain its semantic branch as required by the native renderer; this does
+not require exposing a structured inspector or claim assistive-technology
+navigation. User macro scoping and core `\def`/`\gdef` behavior remain
+required.
 
 ## 5. Approved finite domain and provisional visual thresholds
 
@@ -390,7 +400,7 @@ planned families; detailed inputs/procedures belong to the Test Description.
 | REQ-MATH-009 | U1/B1 | MATH-TRUST: denied effects, argument validation, no external I/O |
 | REQ-MATH-010 | U1/U3/B1 | MATH-LIMIT: structural boundaries, documented coarse admission, hostile-input rejection, cancellation and recovery |
 | REQ-MATH-011 | U1/B1 | MATH-GUI: inline/display, copy/zoom/theme/replay and dependency checks |
-| REQ-MATH-012 | U1/B1 | MATH-A11Y: structured content and named user desktop/tool demonstrations |
+| REQ-MATH-012 | U1/B1 | MATH-SOURCE: exact delimited display source, state/replacement availability, selectable GUI access and manual review |
 | REQ-MATH-013 | U1/U2 | MATH-DIFF: reproducible corpus, snapshots, threshold results and gaps |
 | REQ-MATH-014 | U1/B1 | MATH-REGRESS: development build/full/focused/native/fuzz logs |
 | REQ-MATH-015 | U1 | MATH-PROVENANCE: license/hash/regeneration and upgrade-diff inspection |

@@ -5139,3 +5139,19 @@ are historical, not current-source qualification.
 - **Status:** scoped developer-verified; PCR-125 OPEN. Native-writer ordinary
   session only; format/compaction/branch/tool-interleaving, native lifecycle,
   font/parity/timing and human acceptance gates remain open.
+
+
+### PCR-125 — Replace math structure with source access, 2026-11-15
+
+- **Category:** Requirements. **Priority:** 3-Moderate.
+- **Authority:** user finds structure inspector unlikely to be useful and selects
+  LaTeX source for users unable to read the rendering; SRS-MATH v1.2 revises
+  REQ-MATH-012. This does not assert source provides semantic screen-reader math.
+- **Action:** collapsed exact selectable source view, pending/invalid/valid and
+  replacement coverage; remove unused inspector/probe, propagate response fonts.
+  Preserve renderer semantics, inline source copying and resource protections.
+- **Verification:** final development builds, focused zoom1/1, full1081/1081,
+  GTK9/9, layout3/3, runner36, containment and offline HTTP pass. Failed fixture/
+  build attempts retained, not waived. Report §11.34 controls evidence and limits.
+- **Status:** scoped developer-verified; manual GUI source-access acceptance and
+  broader parity/native-lifecycle/font/timing gates remain open. PCR-125 OPEN.

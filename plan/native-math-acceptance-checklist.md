@@ -1,10 +1,10 @@
 # Native math human acceptance checklist
 
 **Document:** Operator checklist for approved manual component-acceptance checks
-**Version:** 0.6
-**Date:** 2026-11-06
+**Version:** 0.7
+**Date:** 2026-11-15
 **Status:** Procedure drafted; readiness review, execution, qualification, and human acceptance remain **PENDING**
-**Authority:** [SRS-MATH v1.0](../requirements/native-math-compatibility.md), especially REQ-MATH-012; updated [STP/STD-MATH v0.9](native-math-compatibility-tests.md), especially §§2.2, 3, 4, 5.5 (`MATH-GUI-001`, `MATH-A11Y-001`); current [parity test report](native-math-parity-test-report.md). This checklist supplements, and does not change or supersede, those documents.
+**Authority:** [SRS-MATH v1.2](../requirements/native-math-compatibility.md), especially REQ-MATH-012; updated [STP/STD-MATH v0.12](native-math-compatibility-tests.md), especially §§2.2, 3, 4, 5.5 (`MATH-GUI-001`, `MATH-SOURCE-001`); current [parity test report](native-math-parity-test-report.md). This checklist supplements, and does not change or supersede, those documents.
 
 **2026-11-15 status pointer:** Use report §11.11 for current developer evidence.
 Earlier image counts and synchronous-inline descriptions below are historical:
@@ -14,11 +14,11 @@ readiness, broad qualification and human acceptance remain PENDING.
 
 ## 1. Purpose and limits
 
-Use this checklist to collect **actual operator and human-review evidence** for the approved manual GUI/accessibility cases. It is not a full product test plan, complete REQ-MATH-013 corpus, automated acceptance harness, readiness approval, or a claim that native math is equivalent to KaTeX. Record each step as **PASS**, **FAIL**, **BLOCKED**, or **NOT RUN** with evidence; blank is not pass. Do not infer an outcome from the presence of a widget, accessibility tree, test, or PNG.
+Use this checklist to collect **actual operator and human-review evidence** for the approved manual GUI cases. It is not a full product test plan, complete REQ-MATH-013 corpus, automated acceptance harness, readiness approval, or a claim that native math is equivalent to KaTeX. Record each step as **PASS**, **FAIL**, **BLOCKED**, or **NOT RUN** with evidence; blank is not pass. Do not infer an outcome from the presence of a widget, test, or PNG.
 
-REQ-MATH-012 requires formula source and structured mathematical content adequate for assistive-technology navigation, exact delimited-source copying, and human review using named desktop/assistive tools. Bitmap inspection or the automated probe alone cannot pass it. This protocol does not claim that a screen reader, accessibility bridge, or any particular tool is adequate; the reviewer must describe what was actually exposed and usable. A failed or unavailable AT interaction is recorded as such, not explained away.
+REQ-MATH-012 requires exact delimited display-formula source in a collapsed, read-only, selectable LaTeX-source view, available during pending, invalid/unsupported and valid states and updated on replacement. Verify exact source including delimiters and line breaks. Raw LaTeX is not semantic math and does not establish screen-reader math accessibility. This checklist makes no complete accessibility claim. Unrelated GUI/manual qualification and exact-source copy behavior under REQ-MATH-011 remain in force.
 
-**No product acceptance may be declared from this checklist while the approved STP readiness/final-qualification gates are open or known fatal acceptance gaps remain.** Coordinator report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the latest recorded status; §10 and earlier sections are historical. It records 28/29 image cases (long-tilde mask 0.9851 < 0.99), 278/338 scoped semantic matches with 60 explicit gaps (strict comparison failed), and 235/235 geometry matches. This is not qualification or calibrated visual acceptance. Temporary logs are unavailable for this documentation-only update; tests were not rerun. Whole-job memory/deadline/GTK/cache qualification, full behavior/corpus readiness and independent human visual/accessibility acceptance remain open. No human acceptance has occurred.
+**No product acceptance may be declared from this checklist while the approved STP readiness/final-qualification gates are open or known fatal acceptance gaps remain.** Coordinator report §11, “Current implementation and qualification reconciliation — 2026-11-06”, is the latest recorded status; §10 and earlier sections are historical. It records 28/29 image cases (long-tilde mask 0.9851 < 0.99), 278/338 scoped semantic matches with 60 explicit gaps (strict comparison failed), and 235/235 geometry matches. This is not qualification or calibrated visual acceptance. Temporary logs are unavailable for this documentation-only update; tests were not rerun. Whole-job memory/deadline/GTK/cache qualification, full behavior/corpus readiness and independent human visual acceptance remain open. No human acceptance has occurred.
 ## 2. Gate and evidence status at issue
 
 STP/STD-MATH v0.9 records the current planning baseline; readiness,
@@ -38,10 +38,9 @@ alr build --development
 cd test && alr build --development --profiles=coyote=development
 cd test && xvfb-run -a ./bin/coyote_test
 cd .. && sh test/tools/check-native-math.sh
-sh test/tools/check-math-accessibility.sh
 ```
 
-Run from the repository root for the first, second command as indicated, and the focused shell probes. The AUnit command assumes the test executable is built; if running it directly from `test/`, use `xvfb-run -a ./bin/coyote_test`. `check-native-math.sh` writes a standalone probe log and `production.png` under `/tmp/coyote-native-math-qualification` by default. `check-math-accessibility.sh` runs a focused native accessibility probe (using Xvfb when available). These are useful reproducible component checks, **not product-window human acceptance**. Record failures/blockers; do not represent a probe artifact as a screenshot of the product conversation view. No external provider, network, or real-model response is needed for these local checks. If the tested product UI cannot be populated with controlled local content without a provider, mark the affected product interaction blocked and arrange a provider-free fixture path; do not substitute generated model output.
+Run from the repository root for the first, second command as indicated, and the focused shell probes. The AUnit command assumes the test executable is built; if running it directly from `test/`, use `xvfb-run -a ./bin/coyote_test`. `check-native-math.sh` writes a standalone probe log and `production.png` under `/tmp/coyote-native-math-qualification` by default. It is a useful reproducible component check, **not product-window human acceptance**. There is no dedicated accessibility probe; conversation-source behavior has AUnit component coverage, not assistive-technology acceptance evidence. Record failures/blockers; do not represent a probe artifact as a screenshot of the product conversation view. No external provider, network, or real-model response is needed for these local checks. If the tested product UI cannot be populated with controlled local content without a provider, mark the affected product interaction blocked and arrange a provider-free fixture path; do not substitute generated model output.
 
 The scoped image3 and negative-control results are not calibrated visual
 acceptance; math/origins/width option effects remain unmeasured. They do not
@@ -67,8 +66,7 @@ Do not prefill operator outcomes. Attach command output, screenshots only where 
 | Locale, language, keyboard layout, timezone, text direction | ______________________________ |
 | Theme, foreground/background colors, contrast settings | ______________________________ |
 | Font configuration and bundled math-font provenance/hash | ______________________________ |
-| Accessibility stack/bridge and exact versions; screen reader or other AT and exact version; settings/verbosity | ______________________________ |
-| Browser/AT bridge only if actually used; version and purpose | ______________________________ |
+| Browser/accessibility bridge only if actually used; version and purpose | ______________________________ |
 | Zoom/text scale and window size at each test point | ______________________________ |
 | Fixture/session identity, how prepared locally, exact source hash, and replay/session provenance | ______________________________ |
 | Commands actually run and their exit status; artifacts/log paths and hashes | ______________________________ |
@@ -125,25 +123,25 @@ Perform in a fresh, dedicated test session, with no real-provider dependency. Fo
 | A7 | Render F-09 and any deterministic invalid/unsupported fixture. Confirm error/fallback is visible, bounded and non-crashing; no content silently disappears; source can be copied. Record exact diagnostic and do not call fallback a successful render. | ____________________ |
 | A8 | Repeat render/resize/replay at least once. Record any stale output, flicker, delay, missing glyph, or changed content. A single successful frame is not a timing or scheduling qualification. | ____________________ |
 
-### B. Accessibility and native math structure — `MATH-A11Y-001`, REQ-MATH-012
+### B. Display LaTeX source access — `MATH-SOURCE-001`, REQ-MATH-012
 
-Use the named, versioned desktop accessibility stack and AT from §3. Test the real product window, not only a headless tree dump. Do not state “screen-reader accessible” solely because an accessible name/tree exists.
+Use the real product conversation window with controlled display fixtures. These
+checks verify source access and ordinary GUI behavior only; they do not evaluate
+semantic screen-reader math or establish complete accessibility.
 
 | Step | Action and observable criterion | Result / evidence |
 |---|---|---|
-| B1 | Navigate from preceding text into F-10 using the AT's normal focus/object navigation. Record whether the math is discoverable as math and how source/structured content is exposed. | ____________________ |
-| B2 | Use the native math structure expander/tree where present. Navigate the complete formula structure and record parent/child order and labels for variables/subscripts, dot accent, equality, grouped terms, plus/minus, `mathrm` annotations, and punctuation. Record missing, duplicated, ambiguous, or misleading content. | ____________________ |
-| B3 | For F-01–F-07, inspect fraction numerator/denominator, superscript/subscript attachment, radical, operator/limit arrow, array row/cell order, text/roman annotations, accent and arrow semantics. Record actual AT speech/braille/object output verbatim where permitted; do not infer structure from pixels. | ____________________ |
-| B4 | Navigate both directions between neighboring prose and formula, and among formula components using documented AT keyboard commands. Record command, focus location, reading order, whether a user can return to prose, and any trap or loss of focus. | ____________________ |
-| B5 | Compare AT-exposed formula source and structured representation to the exact fixture; perform the separate copy operation in A4. Record what works and what does not. Accessible speech is not source-copy proof; copy success is not structure/navigation proof. | ____________________ |
-| B6 | Repeat at the recorded enlarged scale and narrower window. Check that accessibility focus/structure tracks the displayed formula after reflow, resize and replay. | ____________________ |
-| B7 | Have the human reviewer state whether the actual exposed content and navigation were adequate for the stated task, based on direct use. Record reviewer rationale and limitations. This is a human observation, not a general claim that the chosen AT or product is adequate for every user. | ____________________ |
+| B1 | While a display formula is pending, expand **LaTeX source**. Verify the text is read-only, selectable and byte-for-byte equal to the exact delimited input, including opening/closing delimiters, line breaks and whitespace. Record source and displayed-text hashes. | ____________________ |
+| B2 | Repeat for a successfully rendered display formula and for invalid/unsupported input. The source remains available and exact in each state, regardless of rendering outcome. Record observed state and any mismatch. | ____________________ |
+| B3 | Replace a display formula with a different controlled source. Verify the expander updates to the replacement's exact delimited source and does not retain stale prior text. | ____________________ |
+| B4 | Use keyboard navigation/selection and the focused component's copy action as available. Record actual behavior and verify copied source. Keep inline exact-source copy checks separate under A4/MATH-GUI-001. | ____________________ |
+| B5 | Repeat at the recorded enlarged scale, narrower window and after session replay. Confirm source remains readable/selectable and exact. Record layout or focus problems without treating this as a screen-reader semantics test. | ____________________ |
 
-**Do not mark B complete** if no named/versioned AT was used, the actual product window could not be loaded with controlled content, the reviewer did not navigate math structure, or observations are based only on automated probe output. Such a case is BLOCKED/NOT RUN, not pass.
+**Do not mark B complete** if the real product window could not be loaded with controlled content, any state or replacement was not checked, or source fidelity was inferred only from a bitmap/internal semantic probe. Record BLOCKED/NOT RUN rather than pass. This procedure makes no claim that raw LaTeX is semantic math or screen-reader accessible.
 
 ## 6. Evidence capture and discrepancy handling
 
-For each step retain only appropriately approved test artifacts: timestamped operator notes; exact input and computed hash; build/source identity; command and exit status; relevant application/AT observations; and screenshot/log paths and hashes where permitted. Do not include credentials, unrelated conversation content, personal clipboard contents, or private user data. A screenshot does not prove accessibility-tree semantics; an AT transcript does not prove visual behavior.
+For each step retain only appropriately approved test artifacts: timestamped operator notes; exact input and computed hash; build/source identity; command and exit status; relevant application observations; and screenshot/log paths and hashes where permitted. Do not include credentials, unrelated conversation content, personal clipboard contents, or private user data. A screenshot does not prove exact selectable-source fidelity; verify the actual text and copied bytes separately.
 
 Report every discrepancy against the governing case/requirement and exact configuration. Assign PASS only when the observed criterion is met and evidence is retained; FAIL for an observed adverse result; BLOCKED when preconditions, readiness, tooling, product fixture, or approved criterion prevent judgment; NOT RUN when deliberately not executed. Do not mark a known STP defect as accepted without an individually authorized disposition in the governing change process. Reruns after source changes require new build/revision identifiers and fresh evidence. A correction does not erase prior failures.
 
@@ -151,7 +149,7 @@ Report every discrepancy against the governing case/requirement and exact config
 |---|---|---|---|---|
 | Build/regression gate |  |  |  |  |
 | MATH-GUI-001 A1–A8 |  |  |  |  |
-| MATH-A11Y-001 B1–B7 |  |  |  |  |
+| MATH-SOURCE-001 B1–B5 |  |  |  |  |
 | Exact-source copy |  |  |  |  |
 | Replay/source persistence |  |  |  |  |
 
@@ -160,26 +158,26 @@ Report every discrepancy against the governing case/requirement and exact config
 **Operator's conclusion and evidence basis:**
 ______________________________________________________________________________
 
-**Human reviewer conclusion; named tools, observed limitations, and rationale:**
+**Human reviewer conclusion; observed behavior, limitations, and rationale:**
 ______________________________________________________________________________
 
 **Known open failures/blockers consulted in current report; why readiness permits or prevents acceptance:**
 ______________________________________________________________________________
 
 **Overall manual protocol status (choose one):** ☐ PASS ☐ FAIL ☐ BLOCKED ☐ NOT RUN
-**Overall REQ-MATH-012 status (choose one):** ☐ PASS ☐ FAIL ☐ BLOCKED ☐ NOT RUN
+**Overall REQ-MATH-012 source-access status (choose one):** ☐ PASS ☐ FAIL ☐ BLOCKED ☐ NOT RUN
 **Component acceptance:** ☐ NOT ACCEPTED / PENDING ☐ separately accepted by authorized user; evidence/change record: ____________________
 
 A PASS for these manual checks means only that the recorded checks passed for the recorded build, environment, fixtures and reviewer. It does **not** close final qualification, the full product test denominator, known failures, P1 readiness, or separate user acceptance. Until outstanding approved gates are resolved and an authorized human decision is recorded, the overall project result remains **NOT COMPLETE / ACCEPTANCE PENDING**.
 
-**Review limitation:** This checklist was prepared by an agent working in the project and has not received independent QA or user/human acceptance review. No execution or human visual/accessibility acceptance is claimed by this document.
+**Review limitation:** This checklist was prepared by an agent working in the project and has not received independent QA or user/human acceptance review. No execution, human visual acceptance or complete accessibility acceptance is claimed by this document.
 
 ## 8. Traceability and controlled references
 
-- [SRS-MATH v1.0](../requirements/native-math-compatibility.md): REQ-MATH-011, REQ-MATH-012, REQ-MATH-013 and REQ-MATH-014.
-- [STP/STD-MATH v0.9](native-math-compatibility-tests.md): §§2.2, 3.2–3.4, 4.1–4.2, `MATH-GUI-001`, `MATH-A11Y-001`, §6 traceability, §7 blockers.
+- [SRS-MATH v1.2](../requirements/native-math-compatibility.md): REQ-MATH-011, REQ-MATH-012, REQ-MATH-013 and REQ-MATH-014.
+- [STP/STD-MATH v0.12](native-math-compatibility-tests.md): §§2.2, 3.2–3.4, 4.1–4.2, `MATH-GUI-001`, `MATH-SOURCE-001`, §6 traceability, §7 blockers.
 - [Native math parity test report](native-math-parity-test-report.md): current observed regression, geometry, image, differential, coverage and open-qualification evidence. Recheck for updates before every execution; older dated snapshots are historical.
 - Pilot source: `test/fixtures/math-compatibility/pilot.json`, case `heat-balance-001`. The pilot is not the full approved corpus.
-- Focused local probes: `test/tools/check-native-math.sh`, `test/tools/check-math-accessibility.sh`. Their scope does not establish whole-product manual acceptance.
+- Focused local probe: `test/tools/check-native-math.sh`. Conversation source behavior has AUnit coverage; no dedicated accessibility probe exists. These do not establish whole-product manual acceptance.
 
 **Execution record is intentionally unfilled.**

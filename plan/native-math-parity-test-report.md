@@ -5,9 +5,9 @@
 **Reference:** KaTeX 0.16.22, pinned archive SHA-256 `e9e0d167db3175481cbadaff38e8d90b130f6a3ddb451a47e43c577fd511f365`; bundle SHA-256 `8f1f4fb1080439c012bb8fddf424fa253e9144ab4cdd7dc0eae0e92cd04a5e33`
 **Status: NOT COMPLETE — final qualification and product acceptance remain open.**
 
-This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its current controlling scope is user-authorized SRS-MATH v1.1 (2026-11-15) and unchanged D01–D15; v1.0 resource-scope statements are historical, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
+This report records a substantive implementation and verification checkpoint, not full KaTeX parity. Its current controlling scope is user-authorized SRS-MATH v1.2 (2026-11-15) and unchanged D01–D15; v1.0 resource-scope statements are historical, the execution-baseline STP/STD `plan/native-math-compatibility-tests.md`, and the P0–P6 plan `plan/native-math-parity-plan.md`. The test plan/readiness and visual calibration remain incomplete. No missing inventory row is converted into a pass or an approved exclusion. No user acceptance or independent human visual/accessibility acceptance is recorded.
 
-**Current requirements pointer:** §11.18 records the v1.1 practical resource-abuse scope correction, superseding exhaustive-accounting completion gates without changing historical results. No new runtime verification is claimed. The user-accepted maintenance policy is recorded in §11.20; it does not remove code or approve the optional ownership redesign.
+**Current requirements pointer:** §11.34 records the v1.2 replacement of the structure inspector with exact LaTeX source access; structured assistive-technology math navigation is no longer required. §11.18 records the v1.1 practical resource-abuse scope correction, superseding exhaustive-accounting completion gates without changing historical results. No new runtime verification is claimed. The user-accepted maintenance policy is recorded in §11.20; it does not remove code or approve the optional ownership redesign.
 
 **Current-results pointer:** §11, “Current implementation and qualification reconciliation — 2026-11-06”, controls the present status. §§1–10 preserve historical checkpoints. §11 distinguishes the earlier documentation reconciliation from the fresh, archived accent-width implementation evidence in §11.6. Sections 11.1–11.5 retain the prior checkpoint and its unavailable-artifact limits; §11.6 supersedes the undertilde pixel disposition only within the unchanged pilot scope.
 
@@ -2431,3 +2431,53 @@ Five-second fixture waits and suite timings are not product hard deadlines.
 No browser, geometry, raster, fuzz or Valgrind rerun; native lifecycle and other
 qualification gates remain open. Historical GTK allocation failures unwaived.
 PCR-125 OPEN. No release, installation or commit.
+
+
+### 11.34 LaTeX source alternative replaces structure inspector — 2026-11-15
+
+The user rejected the utility of the Math structure feature and selected LaTeX
+source as the alternative when rendering cannot be read. SRS-MATH v1.2 changes
+REQ-MATH-012 accordingly; MATH-SOURCE-001 replaces MATH-A11Y-001. This is a
+requirements change, not a waiver pretending source is semantic screen-reader
+math. Internal engine semantics and unrelated GUI/manual qualification remain.
+Historical structured-tree results above remain historical, not current gates.
+
+Display elements now contain a collapsed **LaTeX source** expander with an
+ordinary read-only GtkTextView: exact delimited Source, selectable/copyable,
+available before worker completion and after invalid or valid results. It is
+updated synchronously on replacement, without semantic-tree construction or
+expansion callbacks borrowing element state. Removed the unused Math_Accessibility
+unit and its dedicated probe/runner/project. Inline source-copy behavior is
+unchanged. Source and fallback fonts follow initial and later conversation-font
+settings; math sizing remains separately controlled by the explicit Math_Scale,
+without an extra font-derived raster submission.
+
+Tests replace tree assertions with exact-source, pending/rejected/valid,
+expanded/collapsed replacement, GTK clipboard and held-expander destruction
+checks. A realized source-view regression checks initial sans8 and changed
+sans18 fonts through actual conversation font calls. Registration remains61.
+Root/test development builds pass. Initial replacement snapshot passes61/61
+conversation and1081/1081 full (145.826575s cumulative,145.86s wall). Final
+font-integrated snapshot passes focused zoom1/1 and full1081/1081, zero failed
+assertions or unexpected errors (153.831214s cumulative,153.87s wall). Final
+GTK interactions9/9, containment, isolated tool-layout3/3, layout-runner36 and
+offline Plain/RPC HTTP lifecycle pass. Required display runs use private
+WM-free1280×1024 Xvfb, X11 and fatal GTK criticals. Existing warnings remain.
+Help AUnit/Mallard validation/links and CLI checks also pass. Coverage
+regenerates with only the REQ-MATH-012 description changed, not new
+compatibility passes.
+
+Failed development attempts are retained separately: missing Gtk_Wrap_Mode
+operator visibility blocked one test build; an unrealized clipboard test caused
+a fatal GTK critical; two font-test snapshots inspected an unrealized source
+view and failed. Attaching the clipboard fixture to a window and expanding/
+realizing the font fixture correct these tests; failed attempts are not passes.
+
+Evidence: `plan/evidence/native-math-2026-11-15-source-alternative/` retains logs,
+source/binary hashes, implementation patch, display-runner metadata and checksums.
+Developer/agent review is not independent acceptance. Manual keyboard/source
+usability, narrow-window/large-source behavior and complete accessibility are
+not qualified by these tests. No browser, geometry, raster, fuzz or Valgrind
+rerun; existing parity/font/timing/native-lifecycle gates and historical GTK
+allocation failures remain open/unwaived. No resource limit or pool redesign.
+PCR-125 OPEN; no release, installation or commit.

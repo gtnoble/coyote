@@ -18,7 +18,6 @@ with Coyote_Math_Resources;
 with Coyote_Math_Jobs;
 with Glib.Main;
 with Glib.Object;
-with Glib.Values;
 with Glib; use Glib;
 with Glib.Error;
 with Math_Raster_Budget;
@@ -26,12 +25,11 @@ with Math_Raster;
 with Gtk.Css_Provider;
 with Gtk.Drawing_Area;
 with Gtk.Expander;
-with Gtk.Bin;
-with Gtk.Container;
 with Gtk.Enums;
 with Gtk.Handlers;
 with Gtk.Scrolled_Window;
-with Coyote_GUI.Math_Accessibility;
+with Gtk.Text_Buffer;
+with Gtk.Text_View;
 with Gtk.Style_Context;
 with Gtk.Style_Provider;
 with Gtk.Widget;
@@ -43,9 +41,7 @@ package body Coyote_GUI.Math_Element is
    use type Gtk.Drawing_Area.Gtk_Drawing_Area;
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Expander.Gtk_Expander;
-   use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Widget.Gtk_Widget;
-   use type Gtk.Tree_View.Gtk_Tree_View;
    use type Cairo.Cairo_Context;
    use type Cairo.Cairo_Surface;
    use type Cairo.Cairo_Status;
@@ -272,14 +268,6 @@ package body Coyote_GUI.Math_Element is
    function Max_Raster_Callback_Milliseconds return Long_Float is
      (Long_Float (Ada.Real_Time.To_Duration (Max_Raster_Callback)) * 1_000.0);
 
-   package Accessibility_Callback is new Gtk.Handlers.User_Callback
-     (Gtk.Expander.Gtk_Expander_Record, Instance_Access);
-   procedure Populate_Accessibility
-     (Expander : access Gtk.Expander.Gtk_Expander_Record'Class;
-      Params : Glib.Values.GValues;
-      Element : Instance_Access);
-   Accessibility_Handler : constant Accessibility_Callback.Handler :=
-     Accessibility_Callback.Handler'(Populate_Accessibility'Access);
    package Draw_Callback is new Gtk.Handlers.User_Return_Callback
      (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Boolean, Instance_Access);
    package Draw_Context_Marshaller is new Draw_Callback.Marshallers
@@ -289,42 +277,6 @@ package body Coyote_GUI.Math_Element is
      (Area : access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class;
       Context : Cairo.Cairo_Context;
       Element : Instance_Access) return Boolean;
-
-   procedure Populate_Accessibility
-     (Expander : access Gtk.Expander.Gtk_Expander_Record'Class;
-      Params : Glib.Values.GValues;
-      Element : Instance_Access)
-   is
-      pragma Unreferenced (Params);
-   begin
-      if Element = null or else Element.Detached
-        or else Element.Meaning_View /= null
-        or else not Expander.Get_Expanded
-        or else not Element.Valid
-        or else not Math_Semantics.Is_Valid (Element.Meaning)
-      then
-         return;
-      end if;
-      Element.Meaning_View :=
-        Coyote_GUI.Math_Accessibility.Create (Element.Meaning);
-      Gtk.Scrolled_Window.Gtk_New (Element.Semantic_Scroll);
-      Element.Semantic_Scroll.Set_Policy
-        (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
-      Element.Semantic_Scroll.Set_Min_Content_Height (160);
-      Element.Semantic_Scroll.Add (Element.Meaning_View);
-      Expander.Add (Element.Semantic_Scroll);
-   end Populate_Accessibility;
-
-   procedure Clear_Accessibility (Element : in out Instance) is
-   begin
-      if Element.Accessibility /= null and then
-        Element.Semantic_Scroll /= null
-      then
-         Element.Semantic_Scroll.Destroy;
-      end if;
-      Element.Meaning_View := null;
-      Element.Semantic_Scroll := null;
-   end Clear_Accessibility;
 
    procedure Apply_Response_Style
      (Target : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -529,16 +481,6 @@ package body Coyote_GUI.Math_Element is
          Element.Valid := Element.Layout_Valid;
          Update_Visibility (Element.all);
          Element.Area.Queue_Draw;
-         if Element.Valid and then Element.Accessibility /= null
-           and then Element.Accessibility.Get_Expanded
-         then
-            declare
-               Params : Glib.Values.GValues;
-            begin
-               Populate_Accessibility
-                 (Element.Accessibility, Params, Element);
-            end;
-         end if;
          return False;
       end if;
       return True;
@@ -598,8 +540,6 @@ package body Coyote_GUI.Math_Element is
          then
             Element.Parsed := Coyote_Math_Jobs.Parse_Document (Item.all);
             Element.Layout := Coyote_Math_Jobs.Layout (Item.all);
-            Element.Meaning := Coyote_Math_Jobs.Semantics (Item.all);
-            Clear_Accessibility (Element.all);
             Measure_Layout (Element.all);
             if Coyote_Math_Jobs.Has_Raster (Item.all) then
                Element.Raster_Width :=
@@ -674,16 +614,6 @@ package body Coyote_GUI.Math_Element is
          end if;
          Element.Poll_Source := 0;
          return False;
-      end if;
-      if Element.Valid and then Element.Accessibility /= null
-        and then Element.Accessibility.Get_Expanded
-      then
-         declare
-            Params : Glib.Values.GValues;
-         begin
-            Populate_Accessibility
-              (Element.Accessibility, Params, Element);
-         end;
       end if;
       Element.Poll_Source := 0;
       return False;
@@ -862,13 +792,20 @@ package body Coyote_GUI.Math_Element is
          Gtk.Box.Gtk_New_Vbox (Element.Root, False, 2);
          Gtk.Drawing_Area.Gtk_New (Element.Area);
          Gtk.Label.Gtk_New (Element.Fallback, Source);
-         Gtk.Expander.Gtk_New (Element.Accessibility, "Math structure");
-         Element.Accessibility.Set_Expanded (False);
-         Element.Accessibility.Set_Can_Focus (True);
-         Element.Accessibility_Handler := Accessibility_Callback.Connect
-           (Element.Accessibility, "notify::expanded",
-            Accessibility_Handler, Element'Unchecked_Access);
-         Element.Accessibility_Connected := True;
+         Gtk.Expander.Gtk_New (Element.Source_Expander, "LaTeX source");
+         Element.Source_Expander.Set_Expanded (False);
+         Element.Source_Expander.Set_Can_Focus (True);
+         Gtk.Scrolled_Window.Gtk_New (Element.Source_Scroll);
+         Element.Source_Scroll.Set_Policy
+           (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
+         Element.Source_Scroll.Set_Min_Content_Height (80);
+         Gtk.Text_View.Gtk_New (Element.Source_View);
+         Element.Source_View.Set_Name ("coyote-math-source");
+         Element.Source_View.Set_Editable (False);
+         Element.Source_View.Set_Cursor_Visible (True);
+         Element.Source_View.Set_Wrap_Mode (Gtk.Enums.Wrap_Word_Char);
+         Element.Source_Scroll.Add (Element.Source_View);
+         Element.Source_Expander.Add (Element.Source_Scroll);
          Apply_Response_Style (Element.Root);
          Apply_Response_Style (Element.Area);
          Element.Area.Set_No_Show_All (True);
@@ -883,8 +820,9 @@ package body Coyote_GUI.Math_Element is
             Element'Unchecked_Access);
          Element.Root.Pack_Start (Element.Area, False, True, 2);
          Element.Root.Pack_Start (Element.Fallback, False, True, 2);
-         Element.Root.Pack_Start (Element.Accessibility, False, True, 2);
+         Element.Root.Pack_Start (Element.Source_Expander, False, True, 2);
       end if;
+      Element.Source_View.Get_Buffer.Set_Text (Source);
       Apply_Display_Indent (Element);
       Math_Painter.Load (Element.Fonts, Coyote_Math_Resources.Font_Directory);
       Start_Request (Element);
@@ -1080,7 +1018,7 @@ package body Coyote_GUI.Math_Element is
      (Element : in out Instance; LaTeX : String; Source : String) is
    begin
       Clear_Raster (Element);
-      Clear_Accessibility (Element);
+      Element.Source_View.Get_Buffer.Set_Text (Source);
       Element.Source_Text := To_Unbounded_String (Source);
       Element.LaTeX_Text := To_Unbounded_String (LaTeX);
       Start_Request (Element);
@@ -1114,17 +1052,10 @@ package body Coyote_GUI.Math_Element is
    procedure Set_Font (Element : in out Instance;
       Desc : Pango.Font.Pango_Font_Description) is
    begin
+      --  Conversation math scale is authoritative; fonts style source text only.
       if Element.Fallback /= null then
          Element.Fallback.Modify_Font (Desc);
-      end if;
-      if Element.Valid then
-         declare
-            Size : constant Glib.Gint := Pango.Font.Get_Size (Desc);
-            Scale : constant Long_Float :=
-              Long_Float'Max (0.01, Long_Float (Size) / (12.0 * 1024.0));
-         begin
-            Set_Scale (Element, Scale);
-         end;
+         Element.Source_View.Modify_Font (Desc);
       end if;
    end Set_Font;
 
@@ -1136,13 +1067,6 @@ package body Coyote_GUI.Math_Element is
       Element.Detached := True;
       Cancel_Request (Element);
       Clear_Raster (Element);
-      if Element.Accessibility /= null
-        and then Element.Accessibility_Connected
-      then
-         Gtk.Handlers.Disconnect
-           (Element.Accessibility, Element.Accessibility_Handler);
-         Element.Accessibility_Connected := False;
-      end if;
       if Element.Area /= null then
          if Element.Draw_Handler.Id /= Gtk.Handlers.Null_Handler_Id then
             Gtk.Handlers.Disconnect (Element.Area, Element.Draw_Handler);

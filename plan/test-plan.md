@@ -1,14 +1,15 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.43
+**Version:** 1.44
 **Date:** 2026-11-15
 
 **Status:** PCR-114 C-loader, PCR-116, and PCR-117 qualification retained as historical evidence; PCR-118 verified; PCR-119 verified; PCR-120/121 development builds and recorded tests verified; DEM-060 desktop qualification pending
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
-**PCR-125 native-math status:** SRS-MATH v1.1 is current; §11.18 of the
-coordinator report records its user-authorized resource-scope correction.
+**PCR-125 native-math status:** SRS-MATH v1.2 is current; §11.34 of the
+coordinator report records replacement of the structure inspector with exact
+LaTeX source access. The v1.1 resource-scope correction (§11.18) is retained.
 D01–D15 remain unchanged. Report §11 contains current implementation/evidence;
 §10 and earlier sections are historical. The dated 2026-11-06 snapshot recorded
 28/29 raster cases

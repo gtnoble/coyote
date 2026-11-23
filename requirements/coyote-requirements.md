@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.34
+**Version:** 1.35
 **Date:** 2026-11-15
 **Status:** Session-contained local PNG/JPEG behavior is implemented and PCR-116 automated qualification is complete; DEM-060 desktop qualification remains pending
 
@@ -1075,7 +1075,8 @@ Supported expressions shall be laid out with the native Ada math engine;
 unsupported expressions and legacy MathML source shall remain visible as source
 text. The engine shall support common symbols, fractions, scripts, square roots,
 indexed roots, text/roman content, arrays, font styles, delimiters, limits, and
-accents. This requirement does not promise full TeX compatibility.
+accents. This requirement does not promise full TeX compatibility. Display
+formula source access is specified by REQ-MATH-012 in SRS-MATH.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall

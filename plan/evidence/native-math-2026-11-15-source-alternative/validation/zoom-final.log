@@ -1,0 +1,23 @@
+
+(coyote_test:637685): Gtk-WARNING **: 17:57:37.493: Theme parsing error: colors.css:71:44: Invalid number for color value
+
+(coyote_test:637685): Gtk-WARNING **: 17:57:37.493: Theme parsing error: colors.css:72:44: Invalid number for color value
+
+(coyote_test:637685): Gtk-WARNING **: 17:57:37.493: Theme parsing error: colors.css:74:53: Invalid number for color value
+
+(coyote_test:637685): Gtk-WARNING **: 17:57:37.493: Theme parsing error: colors.css:75:53: Invalid number for color value
+
+(coyote_test:637685): Gtk-WARNING **: 17:57:37.493: Theme parsing error: colors.css:76:56: Invalid number for color value
+
+(coyote_test:637685): Gtk-WARNING **: 17:57:37.493: Theme parsing error: colors.css:77:65: Invalid number for color value
+FAIL    Coyote.GUI.Conversation_Stack zooms display LaTeX
+
+FAIL Coyote.GUI.Conversation_Stack zooms display LaTeX (in 2.926079 sec.)
+    display source text view has the configured font sans 18
+    at coyote_gui_conversation_stack_tests.adb:4554
+
+Total Tests Run:   1
+Successful Tests:  0
+Failed Assertions: 1
+Unexpected Errors: 0
+Cumulative Time: 2.982364 sec. seconds

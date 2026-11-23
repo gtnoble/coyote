@@ -550,6 +550,16 @@ package body Coyote_GUI.Conversation_Stack is
          Add_Response_Text (C, Parent, To_String (Block.Source));
          return;
       end if;
+      if Length (C.Response_Font) > 0 then
+         declare
+            Font_Description : Pango.Font.Pango_Font_Description :=
+              Pango.Font.From_String (To_String (C.Response_Font));
+         begin
+            Coyote_GUI.Math_Element.Set_Font
+              (Element.all, Font_Description);
+            Pango.Font.Free (Font_Description);
+         end;
+      end if;
       Pack_Response_Block
         (Parent, Coyote_GUI.Math_Element.Widget (Element.all));
       C.Math_Elements.Append (Element);
@@ -2131,6 +2141,8 @@ package body Coyote_GUI.Conversation_Stack is
          for Math_Index in
            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
          loop
+            Coyote_GUI.Math_Element.Set_Font
+              (C.Math_Elements (Math_Index).all, Desc);
             Coyote_GUI.Math_Element.Set_Scale
               (C.Math_Elements (Math_Index).all, C.Math_Scale);
          end loop;

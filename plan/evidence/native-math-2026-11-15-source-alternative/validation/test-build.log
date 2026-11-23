@@ -1,0 +1,34 @@
+Note: Building coyote_test=0.1.0-dev/coyote_test.gpr...
+Compile
+   [Ada]          gtk_interaction_worker.adb
+   [Ada]          coyote_help.adb
+   [Ada]          test_gui_suite.adb
+   [Ada]          coyote_help_tests.adb
+   [Ada]          gtk_interaction_worker.adb
+   [Ada]          coyote_config.ads
+   [Ada]          coyote_gui-conversation_stack-testing.adb
+   [Ada]          coyote_app-frontend-gui-help_tests.adb
+   [Ada]          coyote_app_frontend_gui_tests.adb
+   [Ada]          coyote_gui_conversation_stack_tests.adb
+   [Ada]          coyote_gui-math_element-testing.adb
+coyote_gui_conversation_stack_tests.adb:35:09: warning: unit "Gtk.Text_Child_Anchor" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:38:06: warning: redundant with clause in body [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:80:09: warning: unit "Gtk.Style_Context" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:81:09: warning: unit "Gdk.RGBA" is not referenced [-gnatwu]
+coyote_gui_conversation_stack_tests.adb:787:18: warning: "others" choice is redundant [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:787:18: warning: previous choices cover all values [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:4132:33: warning: condition can only be False if invalid values present [-gnatwc]
+coyote_gui_conversation_stack_tests.adb:4405:54: error: operator for type "Gtk_Wrap_Mode" defined at gtk-enums.ads:634 is not directly visible
+coyote_gui_conversation_stack_tests.adb:4405:54: error: use clause would make operation legal
+coyote_gui_conversation_stack_tests.adb:4647:23: warning: redundant conversion, "Cancel_Baseline" is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:4782:23: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:5052:35: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_gui_conversation_stack_tests.adb:5066:35: warning: redundant conversion, expression is of type "Natural" [-gnatwr]
+coyote_app_frontend_gui_tests.ads:10:25: warning: no entities of "Coyote_App.Frontend.GUI" are referenced in spec [-gnatwu]
+coyote_app_frontend_gui_tests.ads:10:25: warning: with clause might be moved to body [-gnatwu]
+
+   compilation of coyote_gui_conversation_stack_tests.adb failed
+
+gprbuild: *** compilation phase failed
+ERROR: Command ["gprbuild", "-s", "-j0", "-p", "-P", "/home/gtnoble/Projects/coyote/coyote-latex-math/test/coyote_test.gpr"] exited with code 4
+ERROR: Compilation failed.

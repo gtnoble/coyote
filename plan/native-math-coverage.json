@@ -274,7 +274,7 @@
     {
       "id": "REQ-MATH-012",
       "status": "partial-implemented-unqualified",
-      "evidence_and_unmet": "Semantic-tree source exists; no completed human assistive-technology review."
+      "evidence_and_unmet": "Display elements expose exact delimited LaTeX in a read-only source panel, including pending/rejected states and replacements. Source-copy and lifecycle regressions exist; broader GUI/manual qualification remains open. SRS-MATH v1.2 replaces the semantic-tree/AT-navigation requirement; raw source is not semantic screen-reader math."
     },
     {
       "id": "REQ-MATH-013",

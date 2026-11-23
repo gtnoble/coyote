@@ -1,0 +1,1610 @@
+diff --git a/src/coyote_gui/coyote_gui-conversation_stack.adb b/src/coyote_gui/coyote_gui-conversation_stack.adb
+index 7776438..f991e84 100644
+--- a/src/coyote_gui/coyote_gui-conversation_stack.adb
++++ b/src/coyote_gui/coyote_gui-conversation_stack.adb
+@@ -550,6 +550,16 @@ package body Coyote_GUI.Conversation_Stack is
+          Add_Response_Text (C, Parent, To_String (Block.Source));
+          return;
+       end if;
++      if Length (C.Response_Font) > 0 then
++         declare
++            Font_Description : Pango.Font.Pango_Font_Description :=
++              Pango.Font.From_String (To_String (C.Response_Font));
++         begin
++            Coyote_GUI.Math_Element.Set_Font
++              (Element.all, Font_Description);
++            Pango.Font.Free (Font_Description);
++         end;
++      end if;
+       Pack_Response_Block
+         (Parent, Coyote_GUI.Math_Element.Widget (Element.all));
+       C.Math_Elements.Append (Element);
+@@ -2131,6 +2141,8 @@ package body Coyote_GUI.Conversation_Stack is
+          for Math_Index in
+            C.Math_Elements.First_Index .. C.Math_Elements.Last_Index
+          loop
++            Coyote_GUI.Math_Element.Set_Font
++              (C.Math_Elements (Math_Index).all, Desc);
+             Coyote_GUI.Math_Element.Set_Scale
+               (C.Math_Elements (Math_Index).all, C.Math_Scale);
+          end loop;
+diff --git a/src/coyote_gui/coyote_gui-math_accessibility.adb b/src/coyote_gui/coyote_gui-math_accessibility.adb
+deleted file mode 100644
+index d370478..0000000
+--- a/src/coyote_gui/coyote_gui-math_accessibility.adb
++++ /dev/null
+@@ -1,381 +0,0 @@
+-with Ada.Containers.Vectors;
+-with Ada.Real_Time;
+-with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+-with Ada.Unchecked_Deallocation;
+-with Glib;
+-with Glib.Main;
+-with Glib.Values;
+-with Gtk.Cell_Renderer_Text;
+-with Gtk.Handlers;
+-with Gtk.Tree_Model;
+-with Gtk.Tree_Store;
+-with Gtk.Tree_View;
+-with Gtk.Tree_View_Column;
+-with Math_Model;
+-
+-package body Coyote_GUI.Math_Accessibility is
+-   use type Gtk.Tree_View.Gtk_Tree_View;
+-   use type Math_Model.Node_Kind;
+-   use type Math_Model.Array_Kind;
+-   use type Math_Model.Array_Rule_Kind;
+-   use type Math_Model.Break_Kind;
+-   use type Math_Model.Enclosure_Kind;
+-   use type Glib.Main.G_Source_Id;
+-   use type Glib.Main.G_Source;
+-   use type Ada.Real_Time.Time;
+-   use type Ada.Real_Time.Time_Span;
+-   use type Glib.Gulong;
+-
+-   Max_Initial_Rows : constant := 64;
+-   Rows_Per_Slice : constant := 64;
+-   Max_Slice_Time : constant Ada.Real_Time.Time_Span :=
+-     Ada.Real_Time.Milliseconds (5);
+-
+-   use type Gtk.Tree_Model.Gtk_Tree_Iter;
+-
+-   package Iter_Vectors is new Ada.Containers.Vectors
+-     (Index_Type => Positive,
+-      Element_Type => Gtk.Tree_Model.Gtk_Tree_Iter);
+-
+-   type Population_State;
+-   type State_Access is access all Population_State;
+-   type Population_State is record
+-      Meaning : Math_Semantics.Document;
+-      Store : Gtk.Tree_Store.Gtk_Tree_Store;
+-      Parents : Iter_Vectors.Vector;
+-      Next_Index : Natural := 1;
+-      Source_Id : Glib.Main.G_Source_Id := 0;
+-      Pending : Gtk.Tree_Model.Gtk_Tree_Iter;
+-      View : Gtk.Tree_View.Gtk_Tree_View;
+-      Destroy_Handler : Gtk.Handlers.Handler_Id;
+-   end record;
+-
+-   function Populate_Slice (State : State_Access) return Boolean;
+-   procedure Release_State (State : in out State_Access);
+-   procedure Source_Destroyed (State : in out State_Access);
+-   package Population_Sources is new Glib.Main.Generic_Sources (State_Access);
+-   package View_Destroy_Callback is new Gtk.Handlers.User_Callback
+-     (Gtk.Tree_View.Gtk_Tree_View_Record, State_Access);
+-
+-   function Node_Label
+-     (Meaning : Math_Semantics.Document; Index : Positive) return String
+-   is
+-      use Math_Semantics;
+-      N : constant Semantic_Node := Element (Meaning, Index);
+-      Result : Unbounded_String := To_Unbounded_String
+-        (Math_Model.Node_Kind'Image (N.Kind) & " - " &
+-         Child_Role'Image (N.Role) & " - source position" &
+-         Natural'Image (N.Position));
+-   begin
+-      if N.Role = Annotation_Above then
+-         Append (Result, " - above label");
+-      elsif N.Role = Annotation_Below then
+-         Append (Result, " - below label");
+-      elsif N.Role = Accent_Base then
+-         Append (Result, " - accent base");
+-      elsif N.Role = Accent_Under_Base then
+-         Append (Result, " - below accent base");
+-      elsif N.Role = CD_Arrow_Left_Label then
+-         Append (Result, " - left label");
+-      elsif N.Role = CD_Arrow_Right_Label then
+-         Append (Result, " - right label");
+-      end if;
+-      if N.Kind = Math_Model.Accent_Node then
+-         Append (Result, " - accent " &
+-           Math_Semantics.Accent_Command (Meaning, Index) & " - " &
+-           Math_Model.Accent_Kind'Image (N.Accent_Type));
+-      elsif N.Kind = Math_Model.Text_Run_Node then
+-         Append (Result, " - text: " & To_String (N.Text_Run_Text) &
+-           " - script profile " &
+-           Math_Model.Script_Profile'Image (N.Text_Run_Profile));
+-      elsif N.Kind = Math_Model.Space_Node and then
+-        N.Break /= Math_Model.No_Break_Metadata
+-      then
+-         Append (Result, " - break " & Math_Model.Break_Kind'Image (N.Break));
+-      elsif N.Kind = Math_Model.CD_Arrow_Node then
+-         Append (Result, " - vertical arrow Unicode" &
+-           Natural'Image (N.Code_Point));
+-      end if;
+-      if N.Kind = Math_Model.Stretchy_Node and then
+-        (N.Code_Point = 1 or else N.Code_Point = 2)
+-      then
+-         Append (Result, " - " & To_String (N.Stretchy_Name));
+-      elsif N.Kind = Math_Model.Glyph_Node then
+-         Append (Result, " - Unicode" & Natural'Image (N.Code_Point));
+-      elsif N.Kind = Math_Model.Array_Node then
+-         Append (Result, " - " & Math_Model.Array_Kind'Image (N.Array_Type));
+-         if N.Array_Type = Math_Model.CD_Array then
+-            Append (Result, " - commutative diagram");
+-         end if;
+-         if not N.Array_Rules.Is_Empty then
+-            for Rule_Index in N.Array_Rules.First_Index ..
+-              N.Array_Rules.Last_Index
+-            loop
+-               declare
+-                  Rule : constant Math_Model.Array_Rule :=
+-                    N.Array_Rules (Rule_Index);
+-               begin
+-                  Append (Result, " - horizontal rule at boundary" &
+-                    Natural'Image (Rule.Boundary) &
+-                    (if Rule.Kind = Math_Model.Dashed_Array_Rule
+-                     then " dashed" else " solid"));
+-               end;
+-            end loop;
+-         end if;
+-      elsif N.Kind = Math_Model.Sized_Node then
+-         Append (Result, " - sizing scale" & Long_Float'Image (N.Scale));
+-      elsif N.Kind = Math_Model.Raised_Node then
+-         Append (Result, " - raise amount" & Long_Float'Image (N.Amount));
+-      elsif N.Kind = Math_Model.Rule_Node then
+-         Append (Result, " - rule width" & Long_Float'Image (N.Width) &
+-           " height" & Long_Float'Image (N.Height) &
+-           " raise amount" & Long_Float'Image (N.Amount));
+-      elsif N.Kind = Math_Model.Enclosed_Node then
+-         Append (Result, " - enclosure " &
+-           Math_Model.Enclosure_Kind'Image (N.Enclosure));
+-         if N.Enclosure in Math_Model.Color_Box_Enclosure |
+-           Math_Model.Framed_Color_Box_Enclosure
+-         then
+-            Append (Result, " - background RGBA" &
+-              Long_Float'Image (N.Box_Background.Red) & "," &
+-              Long_Float'Image (N.Box_Background.Green) & "," &
+-              Long_Float'Image (N.Box_Background.Blue) & "," &
+-              Long_Float'Image (N.Box_Background.Alpha));
+-            if N.Enclosure = Math_Model.Framed_Color_Box_Enclosure then
+-               Append (Result, " - border RGBA" &
+-                 Long_Float'Image (N.Box_Border.Red) & "," &
+-                 Long_Float'Image (N.Box_Border.Green) & "," &
+-                 Long_Float'Image (N.Box_Border.Blue) & "," &
+-                 Long_Float'Image (N.Box_Border.Alpha) &
+-                 " - border thickness" &
+-                 Long_Float'Image (N.Box_Border_Thickness));
+-            end if;
+-         end if;
+-      elsif N.Kind = Math_Model.VCenter_Node then
+-         Append (Result, " - VCenter content");
+-      elsif N.Kind = Math_Model.Poor_Bold_Node then
+-         Append (Result, " - PoorBold content - class " &
+-           Math_Model.Atom_Class'Image (N.Poor_Bold_Class));
+-      elsif N.Kind = Math_Model.Verbatim_Node then
+-         Append (Result, " - raw verbatim: " & To_String (N.Verbatim_Text));
+-         if N.Verbatim_Starred then
+-            Append (Result, " - starred");
+-         else
+-            Append (Result, " - unstarred");
+-         end if;
+-      end if;
+-      if N.Width /= 0.0 or else N.Height /= 0.0 or else N.Depth /= 0.0 then
+-         Append (Result, " - width" & Long_Float'Image (N.Width) &
+-           " height" & Long_Float'Image (N.Height) &
+-           " depth" & Long_Float'Image (N.Depth));
+-      end if;
+-      Append (Result, " - class " & Math_Model.Atom_Class'Image (N.Class));
+-      Append (Result, " - font " & Math_Model.Font_Kind'Image (N.Font));
+-      if N.Amount /= 0.0 and then N.Kind not in
+-        Math_Model.Raised_Node | Math_Model.Rule_Node
+-      then
+-         Append (Result, " - amount" & Long_Float'Image (N.Amount));
+-      end if;
+-      if Length (N.Column_Spec) > 0 then
+-         Append (Result, " - columns " & To_String (N.Column_Spec));
+-      end if;
+-      return To_String (Result);
+-   end Node_Label;
+-
+-   procedure Source_Destroyed (State : in out State_Access) is
+-   begin
+-      Release_State (State);
+-   end Source_Destroyed;
+-
+-   procedure Release_State (State : in out State_Access) is
+-      procedure Deallocate is new Ada.Unchecked_Deallocation
+-        (Population_State, State_Access);
+-   begin
+-      if State /= null then
+-         Deallocate (State);
+-      end if;
+-   end Release_State;
+-
+-   function Populate_Slice (State : State_Access) return Boolean is
+-      use Gtk.Tree_Model;
+-      use Gtk.Tree_Store;
+-      Added : Natural := 0;
+-      Started : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+-      Row : Gtk_Tree_Iter;
+-      Parent : Gtk_Tree_Iter;
+-      Index : Natural;
+-   begin
+-      if State = null then
+-         return False;
+-      end if;
+-      while State.Next_Index <= Math_Semantics.Count (State.Meaning)
+-        and then Added < Rows_Per_Slice
+-        and then Ada.Real_Time.Clock - Started < Max_Slice_Time
+-      loop
+-         Index := State.Next_Index;
+-         if Index = Math_Semantics.Root (State.Meaning) then
+-            Parent := Null_Iter;
+-         else
+-            Parent := State.Parents.Element
+-              (Math_Semantics.Element
+-                 (State.Meaning, Positive (Index)).Parent);
+-         end if;
+-         State.Store.Append (Row, Parent);
+-         State.Store.Set (Row, 0, Node_Label
+-           (State.Meaning, Positive (Index)));
+-         if Index = Math_Semantics.Root (State.Meaning) then
+-            State.Store.Set
+-              (Row, 1, Math_Semantics.Source (State.Meaning));
+-         else
+-            State.Store.Set (Row, 1, "");
+-         end if;
+-         State.Parents.Append (Row);
+-         State.Next_Index := Index + 1;
+-         Added := Added + 1;
+-      end loop;
+-      if State.Next_Index <= Math_Semantics.Count (State.Meaning) then
+-         State.Store.Set (State.Pending, 0,
+-           "Pending more structure -" & Natural'Image
+-             (Math_Semantics.Count (State.Meaning) - State.Next_Index + 1) &
+-             " semantic nodes remain");
+-         return True;
+-      end if;
+-      State.Store.Remove (State.Pending);
+-      State.Pending := Null_Iter;
+-      return False;
+-   exception
+-      when others =>
+-         if State /= null then
+-            if State.View /= null and then
+-              State.Destroy_Handler.Id /= Gtk.Handlers.Null_Handler_Id
+-            then
+-               Gtk.Handlers.Disconnect
+-                 (State.View, State.Destroy_Handler);
+-            end if;
+-            State.Source_Id := 0;
+-         end if;
+-         return False;
+-   end Populate_Slice;
+-
+-   procedure On_View_Destroy
+-     (View : access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
+-      Params : Glib.Values.GValues;
+-      State : State_Access)
+-   is
+-      pragma Unreferenced (View, Params);
+-   begin
+-      if State /= null and then State.Source_Id /= 0 then
+-         if Glib.Main.Find_Source_By_Id (State.Source_Id) /= null then
+-            Glib.Main.Remove (State.Source_Id);
+-         end if;
+-      end if;
+-   end On_View_Destroy;
+-
+-   View_Destroy_Handler : constant View_Destroy_Callback.Handler :=
+-     View_Destroy_Callback.Handler'(On_View_Destroy'Access);
+-
+-   function Create
+-     (Meaning : Math_Semantics.Document)
+-      return Gtk.Tree_View.Gtk_Tree_View
+-   is
+-      use Gtk.Tree_Model;
+-      Store : Gtk.Tree_Store.Gtk_Tree_Store;
+-      View : Gtk.Tree_View.Gtk_Tree_View;
+-      Row : Gtk_Tree_Iter;
+-      Label_Col : constant Glib.Gint := 0;
+-      Source_Col : constant Glib.Gint := 1;
+-      Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
+-      Column : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+-      Dummy : Glib.Gint;
+-      State : State_Access := null;
+-   begin
+-      Gtk.Tree_Store.Gtk_New
+-        (Store, (0 => Glib.GType_String, 1 => Glib.GType_String));
+-      Gtk.Tree_View.Gtk_New
+-        (View, Gtk.Tree_Store.Implements_Gtk_Tree_Model.To_Interface
+-           (Store));
+-      Gtk.Cell_Renderer_Text.Gtk_New (Renderer);
+-      Gtk.Tree_View_Column.Gtk_New (Column);
+-      Column.Set_Title ("Math structure");
+-      Column.Pack_Start (Renderer, Expand => True);
+-      Column.Add_Attribute (Renderer, "text", Label_Col);
+-      Dummy := Gtk.Tree_View.Append_Column (View, Column);
+-      View.Set_Name ("coyote-math-semantics");
+-      if Math_Semantics.Is_Valid (Meaning) then
+-         State := new Population_State;
+-         State.Meaning := Meaning;
+-         State.Store := Store;
+-         State.View := View;
+-         State.Parents.Reserve_Capacity
+-           (Ada.Containers.Count_Type
+-              (Math_Semantics.Count (Meaning)));
+-         for Index in 1 .. Natural'Min
+-           (Math_Semantics.Count (Meaning), Max_Initial_Rows)
+-         loop
+-            declare
+-               Parent : Gtk_Tree_Iter;
+-               Current : Gtk_Tree_Iter;
+-            begin
+-               if Index = Math_Semantics.Root (Meaning) then
+-                  Parent := Null_Iter;
+-               else
+-                  Parent := State.Parents.Element
+-                    (Math_Semantics.Element
+-                       (Meaning, Positive (Index)).Parent);
+-               end if;
+-               Store.Append (Current, Parent);
+-               Store.Set (Current, Label_Col,
+-                 Node_Label (Meaning, Positive (Index)));
+-               if Index = Math_Semantics.Root (Meaning) then
+-                  Store.Set (Current, Source_Col,
+-                    Math_Semantics.Source (Meaning));
+-               else
+-                  Store.Set (Current, Source_Col, "");
+-               end if;
+-               State.Parents.Append (Current);
+-            end;
+-         end loop;
+-         State.Next_Index := Natural'Min
+-           (Math_Semantics.Count (Meaning), Max_Initial_Rows) + 1;
+-         if State.Next_Index <= Math_Semantics.Count (Meaning) then
+-            Store.Append (State.Pending, Null_Iter);
+-            Store.Set (State.Pending, Label_Col,
+-              "Pending more structure -" & Natural'Image
+-                (Math_Semantics.Count (Meaning) - State.Next_Index + 1) &
+-                " semantic nodes remain");
+-            Store.Set (State.Pending, Source_Col, "");
+-            State.Source_Id := Population_Sources.Idle_Add
+-              (Populate_Slice'Access, State,
+-               Notify => Source_Destroyed'Access);
+-            if State.Source_Id /= 0 then
+-               State.Destroy_Handler := View_Destroy_Callback.Connect
+-                 (View, "destroy", View_Destroy_Handler, State);
+-            else
+-               Release_State (State);
+-            end if;
+-         else
+-            Release_State (State);
+-         end if;
+-      else
+-         Store.Append (Row, Null_Iter);
+-         Store.Set (Row, Label_Col,
+-           "Invalid math semantics - " & Math_Semantics.Error (Meaning));
+-         Store.Set (Row, Source_Col, Math_Semantics.Source (Meaning));
+-      end if;
+-      return View;
+-   exception
+-      when others =>
+-         if State /= null then
+-            if State.Source_Id /= 0 then
+-               if Glib.Main.Find_Source_By_Id (State.Source_Id) /= null then
+-                  Glib.Main.Remove (State.Source_Id);
+-               else
+-                  Release_State (State);
+-               end if;
+-            else
+-               Release_State (State);
+-            end if;
+-         end if;
+-         return View;
+-   end Create;
+-end Coyote_GUI.Math_Accessibility;
+diff --git a/src/coyote_gui/coyote_gui-math_accessibility.ads b/src/coyote_gui/coyote_gui-math_accessibility.ads
+deleted file mode 100644
+index f578a85..0000000
+--- a/src/coyote_gui/coyote_gui-math_accessibility.ads
++++ /dev/null
+@@ -1,9 +0,0 @@
+-with Gtk.Tree_View;
+-with Math_Semantics;
+-
+---  GTK tree view exposing projected math semantics as navigable text.
+-package Coyote_GUI.Math_Accessibility is
+-   function Create
+-     (Meaning : Math_Semantics.Document)
+-      return Gtk.Tree_View.Gtk_Tree_View;
+-end Coyote_GUI.Math_Accessibility;
+diff --git a/src/coyote_gui/coyote_gui-math_element.adb b/src/coyote_gui/coyote_gui-math_element.adb
+index 9b19635..9929950 100644
+--- a/src/coyote_gui/coyote_gui-math_element.adb
++++ b/src/coyote_gui/coyote_gui-math_element.adb
+@@ -18,7 +18,6 @@ with Coyote_Math_Resources;
+ with Coyote_Math_Jobs;
+ with Glib.Main;
+ with Glib.Object;
+-with Glib.Values;
+ with Glib; use Glib;
+ with Glib.Error;
+ with Math_Raster_Budget;
+@@ -26,12 +25,11 @@ with Math_Raster;
+ with Gtk.Css_Provider;
+ with Gtk.Drawing_Area;
+ with Gtk.Expander;
+-with Gtk.Bin;
+-with Gtk.Container;
+ with Gtk.Enums;
+ with Gtk.Handlers;
+ with Gtk.Scrolled_Window;
+-with Coyote_GUI.Math_Accessibility;
++with Gtk.Text_Buffer;
++with Gtk.Text_View;
+ with Gtk.Style_Context;
+ with Gtk.Style_Provider;
+ with Gtk.Widget;
+@@ -43,9 +41,7 @@ package body Coyote_GUI.Math_Element is
+    use type Gtk.Drawing_Area.Gtk_Drawing_Area;
+    use type Gtk.Label.Gtk_Label;
+    use type Gtk.Expander.Gtk_Expander;
+-   use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+    use type Gtk.Widget.Gtk_Widget;
+-   use type Gtk.Tree_View.Gtk_Tree_View;
+    use type Cairo.Cairo_Context;
+    use type Cairo.Cairo_Surface;
+    use type Cairo.Cairo_Status;
+@@ -272,14 +268,6 @@ package body Coyote_GUI.Math_Element is
+    function Max_Raster_Callback_Milliseconds return Long_Float is
+      (Long_Float (Ada.Real_Time.To_Duration (Max_Raster_Callback)) * 1_000.0);
+ 
+-   package Accessibility_Callback is new Gtk.Handlers.User_Callback
+-     (Gtk.Expander.Gtk_Expander_Record, Instance_Access);
+-   procedure Populate_Accessibility
+-     (Expander : access Gtk.Expander.Gtk_Expander_Record'Class;
+-      Params : Glib.Values.GValues;
+-      Element : Instance_Access);
+-   Accessibility_Handler : constant Accessibility_Callback.Handler :=
+-     Accessibility_Callback.Handler'(Populate_Accessibility'Access);
+    package Draw_Callback is new Gtk.Handlers.User_Return_Callback
+      (Gtk.Drawing_Area.Gtk_Drawing_Area_Record, Boolean, Instance_Access);
+    package Draw_Context_Marshaller is new Draw_Callback.Marshallers
+@@ -290,42 +278,6 @@ package body Coyote_GUI.Math_Element is
+       Context : Cairo.Cairo_Context;
+       Element : Instance_Access) return Boolean;
+ 
+-   procedure Populate_Accessibility
+-     (Expander : access Gtk.Expander.Gtk_Expander_Record'Class;
+-      Params : Glib.Values.GValues;
+-      Element : Instance_Access)
+-   is
+-      pragma Unreferenced (Params);
+-   begin
+-      if Element = null or else Element.Detached
+-        or else Element.Meaning_View /= null
+-        or else not Expander.Get_Expanded
+-        or else not Element.Valid
+-        or else not Math_Semantics.Is_Valid (Element.Meaning)
+-      then
+-         return;
+-      end if;
+-      Element.Meaning_View :=
+-        Coyote_GUI.Math_Accessibility.Create (Element.Meaning);
+-      Gtk.Scrolled_Window.Gtk_New (Element.Semantic_Scroll);
+-      Element.Semantic_Scroll.Set_Policy
+-        (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
+-      Element.Semantic_Scroll.Set_Min_Content_Height (160);
+-      Element.Semantic_Scroll.Add (Element.Meaning_View);
+-      Expander.Add (Element.Semantic_Scroll);
+-   end Populate_Accessibility;
+-
+-   procedure Clear_Accessibility (Element : in out Instance) is
+-   begin
+-      if Element.Accessibility /= null and then
+-        Element.Semantic_Scroll /= null
+-      then
+-         Element.Semantic_Scroll.Destroy;
+-      end if;
+-      Element.Meaning_View := null;
+-      Element.Semantic_Scroll := null;
+-   end Clear_Accessibility;
+-
+    procedure Apply_Response_Style
+      (Target : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+    is
+@@ -529,16 +481,6 @@ package body Coyote_GUI.Math_Element is
+          Element.Valid := Element.Layout_Valid;
+          Update_Visibility (Element.all);
+          Element.Area.Queue_Draw;
+-         if Element.Valid and then Element.Accessibility /= null
+-           and then Element.Accessibility.Get_Expanded
+-         then
+-            declare
+-               Params : Glib.Values.GValues;
+-            begin
+-               Populate_Accessibility
+-                 (Element.Accessibility, Params, Element);
+-            end;
+-         end if;
+          return False;
+       end if;
+       return True;
+@@ -598,8 +540,6 @@ package body Coyote_GUI.Math_Element is
+          then
+             Element.Parsed := Coyote_Math_Jobs.Parse_Document (Item.all);
+             Element.Layout := Coyote_Math_Jobs.Layout (Item.all);
+-            Element.Meaning := Coyote_Math_Jobs.Semantics (Item.all);
+-            Clear_Accessibility (Element.all);
+             Measure_Layout (Element.all);
+             if Coyote_Math_Jobs.Has_Raster (Item.all) then
+                Element.Raster_Width :=
+@@ -675,16 +615,6 @@ package body Coyote_GUI.Math_Element is
+          Element.Poll_Source := 0;
+          return False;
+       end if;
+-      if Element.Valid and then Element.Accessibility /= null
+-        and then Element.Accessibility.Get_Expanded
+-      then
+-         declare
+-            Params : Glib.Values.GValues;
+-         begin
+-            Populate_Accessibility
+-              (Element.Accessibility, Params, Element);
+-         end;
+-      end if;
+       Element.Poll_Source := 0;
+       return False;
+    exception
+@@ -862,13 +792,20 @@ package body Coyote_GUI.Math_Element is
+          Gtk.Box.Gtk_New_Vbox (Element.Root, False, 2);
+          Gtk.Drawing_Area.Gtk_New (Element.Area);
+          Gtk.Label.Gtk_New (Element.Fallback, Source);
+-         Gtk.Expander.Gtk_New (Element.Accessibility, "Math structure");
+-         Element.Accessibility.Set_Expanded (False);
+-         Element.Accessibility.Set_Can_Focus (True);
+-         Element.Accessibility_Handler := Accessibility_Callback.Connect
+-           (Element.Accessibility, "notify::expanded",
+-            Accessibility_Handler, Element'Unchecked_Access);
+-         Element.Accessibility_Connected := True;
++         Gtk.Expander.Gtk_New (Element.Source_Expander, "LaTeX source");
++         Element.Source_Expander.Set_Expanded (False);
++         Element.Source_Expander.Set_Can_Focus (True);
++         Gtk.Scrolled_Window.Gtk_New (Element.Source_Scroll);
++         Element.Source_Scroll.Set_Policy
++           (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
++         Element.Source_Scroll.Set_Min_Content_Height (80);
++         Gtk.Text_View.Gtk_New (Element.Source_View);
++         Element.Source_View.Set_Name ("coyote-math-source");
++         Element.Source_View.Set_Editable (False);
++         Element.Source_View.Set_Cursor_Visible (True);
++         Element.Source_View.Set_Wrap_Mode (Gtk.Enums.Wrap_Word_Char);
++         Element.Source_Scroll.Add (Element.Source_View);
++         Element.Source_Expander.Add (Element.Source_Scroll);
+          Apply_Response_Style (Element.Root);
+          Apply_Response_Style (Element.Area);
+          Element.Area.Set_No_Show_All (True);
+@@ -883,8 +820,9 @@ package body Coyote_GUI.Math_Element is
+             Element'Unchecked_Access);
+          Element.Root.Pack_Start (Element.Area, False, True, 2);
+          Element.Root.Pack_Start (Element.Fallback, False, True, 2);
+-         Element.Root.Pack_Start (Element.Accessibility, False, True, 2);
++         Element.Root.Pack_Start (Element.Source_Expander, False, True, 2);
+       end if;
++      Element.Source_View.Get_Buffer.Set_Text (Source);
+       Apply_Display_Indent (Element);
+       Math_Painter.Load (Element.Fonts, Coyote_Math_Resources.Font_Directory);
+       Start_Request (Element);
+@@ -1080,7 +1018,7 @@ package body Coyote_GUI.Math_Element is
+      (Element : in out Instance; LaTeX : String; Source : String) is
+    begin
+       Clear_Raster (Element);
+-      Clear_Accessibility (Element);
++      Element.Source_View.Get_Buffer.Set_Text (Source);
+       Element.Source_Text := To_Unbounded_String (Source);
+       Element.LaTeX_Text := To_Unbounded_String (LaTeX);
+       Start_Request (Element);
+@@ -1114,17 +1052,10 @@ package body Coyote_GUI.Math_Element is
+    procedure Set_Font (Element : in out Instance;
+       Desc : Pango.Font.Pango_Font_Description) is
+    begin
++      --  Conversation math scale is authoritative; fonts style source text only.
+       if Element.Fallback /= null then
+          Element.Fallback.Modify_Font (Desc);
+-      end if;
+-      if Element.Valid then
+-         declare
+-            Size : constant Glib.Gint := Pango.Font.Get_Size (Desc);
+-            Scale : constant Long_Float :=
+-              Long_Float'Max (0.01, Long_Float (Size) / (12.0 * 1024.0));
+-         begin
+-            Set_Scale (Element, Scale);
+-         end;
++         Element.Source_View.Modify_Font (Desc);
+       end if;
+    end Set_Font;
+ 
+@@ -1136,13 +1067,6 @@ package body Coyote_GUI.Math_Element is
+       Element.Detached := True;
+       Cancel_Request (Element);
+       Clear_Raster (Element);
+-      if Element.Accessibility /= null
+-        and then Element.Accessibility_Connected
+-      then
+-         Gtk.Handlers.Disconnect
+-           (Element.Accessibility, Element.Accessibility_Handler);
+-         Element.Accessibility_Connected := False;
+-      end if;
+       if Element.Area /= null then
+          if Element.Draw_Handler.Id /= Gtk.Handlers.Null_Handler_Id then
+             Gtk.Handlers.Disconnect (Element.Area, Element.Draw_Handler);
+diff --git a/src/coyote_gui/coyote_gui-math_element.ads b/src/coyote_gui/coyote_gui-math_element.ads
+index fb026c7..e80b327 100644
+--- a/src/coyote_gui/coyote_gui-math_element.ads
++++ b/src/coyote_gui/coyote_gui-math_element.ads
+@@ -12,8 +12,7 @@ with Gtk.Handlers;
+ with Gtk.Label;
+ with Gtk.Expander;
+ with Gtk.Scrolled_Window;
+-with Gtk.Tree_View;
+-with Math_Semantics;
++with Gtk.Text_View;
+ with Pango.Font;
+ with Math_Layout;
+ with Math_Painter;
+@@ -30,6 +29,8 @@ package Coyote_GUI.Math_Element is
+    function New_Element
+      (LaTeX : String; Source : String; Scale : Long_Float := 1.0;
+       Fleqn : Boolean := False) return Instance_Access;
++   --  Display elements expose exact Source in a collapsed, read-only
++   --  LaTeX source panel, independent of rendering success or completion.
+    procedure Create
+      (Element : in out Instance; LaTeX : String; Source : String;
+       Scale : Long_Float := 1.0;
+@@ -69,6 +70,8 @@ package Coyote_GUI.Math_Element is
+    procedure Set_LaTeX (Element : in out Instance; LaTeX : String;
+       Source : String);
+    procedure Set_Scale (Element : in out Instance; Scale : Long_Float);
++   --  Apply Desc to fallback and source text only. Math sizing is controlled
++   --  independently through Set_Scale by the conversation zoom policy.
+    procedure Set_Font (Element : in out Instance;
+       Desc : Pango.Font.Pango_Font_Description);
+    procedure Detach (Element : in out Instance);
+@@ -100,12 +103,9 @@ private
+       Root : Gtk.Box.Gtk_Box;
+       Area : Gtk.Drawing_Area.Gtk_Drawing_Area;
+       Fallback : Gtk.Label.Gtk_Label;
+-      Accessibility : Gtk.Expander.Gtk_Expander;
+-      Meaning_View : Gtk.Tree_View.Gtk_Tree_View;
+-      Semantic_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+-      Meaning : Math_Semantics.Document;
+-      Accessibility_Handler : Gtk.Handlers.Handler_Id;
+-      Accessibility_Connected : Boolean := False;
++      Source_Expander : Gtk.Expander.Gtk_Expander;
++      Source_View : Gtk.Text_View.Gtk_Text_View;
++      Source_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+       Source_Text : Ada.Strings.Unbounded.Unbounded_String;
+       LaTeX_Text : Ada.Strings.Unbounded.Unbounded_String;
+       Parsed : Math_Syntax.Document;
+diff --git a/test/native/math_accessibility.gpr b/test/native/math_accessibility.gpr
+deleted file mode 100644
+index 8d8f526..0000000
+--- a/test/native/math_accessibility.gpr
++++ /dev/null
+@@ -1,14 +0,0 @@
+-project Math_Accessibility extends "../../coyote.gpr" is
+-   for Source_Dirs use ("../tools");
+-   for Object_Dir use External ("MATH_ACCESSIBILITY_ROOT") & "/obj";
+-   for Exec_Dir use External ("MATH_ACCESSIBILITY_ROOT") & "/bin";
+-   for Create_Missing_Dirs use "True";
+-   for Main use ("math_accessibility_probe.adb");
+-   package Compiler is
+-      for Default_Switches ("Ada") use
+-        ("-gnat2022", "-g", "-O0", "-gnata", "-gnato");
+-   end Compiler;
+-   package Linker is
+-      for Switches ("Ada") use Coyote.Linker'Switches ("Ada") & ("-latk-1.0");
+-   end Linker;
+-end Math_Accessibility;
+diff --git a/test/src/coyote_gui_conversation_stack_tests.adb b/test/src/coyote_gui_conversation_stack_tests.adb
+index d040c88..e57e0f4 100644
+--- a/test/src/coyote_gui_conversation_stack_tests.adb
++++ b/test/src/coyote_gui_conversation_stack_tests.adb
+@@ -70,10 +70,6 @@ with Gtk.Scrolled_Window;
+ with Gtk.Separator;
+ with Gtk.Expander;
+ with Gtk.Bin;
+-with Gtk.Tree_Model;
+-with Gtk.Tree_Store;
+-with Gtk.Tree_View;
+-with Glib.Values;
+ with Gtk.Text_Buffer;
+ with Gtk.Tooltip;
+ with Gtk.Text_Tag;
+@@ -110,6 +106,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+    use type Gtk.Image.Gtk_Image;
+    use type Gtk.Image.Gtk_Image_Type;
+    use type Gtk.Enums.Gtk_Orientation;
++   use type Gtk.Enums.Gtk_Wrap_Mode;
+    use type Gtk.Flow_Box.Gtk_Flow_Box;
+    use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
+    use type Gtk.Frame.Gtk_Frame;
+@@ -4298,7 +4295,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          "clearing pending math removes the element safely");
+    end Test_Native_Display_Math_Clear_Pending;
+ 
+-   procedure Test_Native_Math_Free_Disconnects_Expander
++   procedure Test_Native_Math_Free_Source_View_Survives_Destroy
+      (T : in out Test)
+    is
+       Element : Coyote_GUI.Math_Element.Instance_Access :=
+@@ -4330,30 +4327,56 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Expander.Set_Expanded (True);
+       Expander.Set_Expanded (False);
+       Glib.Object.Unref (Glib.Object.GObject (Expander));
+-   end Test_Native_Math_Free_Disconnects_Expander;
++   end Test_Native_Math_Free_Source_View_Survives_Destroy;
+ 
+    procedure Test_Native_Math_Expansion_Tracks_Source
+      (T : in out Test)
+    is
+-      Element : Coyote_GUI.Math_Element.Instance_Access :=
+-        Coyote_GUI.Math_Element.New_Element ("x", "old source");
++      Element : Coyote_GUI.Math_Element.Instance_Access := null;
+       Root : Gtk.Box.Gtk_Box;
++      Parent_Window : Gtk.Window.Gtk_Window := null;
+       Children : Gtk.Widget.Widget_List.Glist;
+       Node : Gtk.Widget.Widget_List.Glist;
+       Expander : Gtk.Expander.Gtk_Expander;
+       Scroll : Gtk.Widget.Gtk_Widget;
+-      Tree : Gtk.Widget.Gtk_Widget;
+-      Model : Gtk.Tree_Model.Gtk_Tree_Model;
+-      Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
+-      Value : Glib.Values.GValue;
++      View : Gtk.Text_View.Gtk_Text_View;
++      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
++      First : Gtk.Text_Iter.Gtk_Text_Iter;
++      Last : Gtk.Text_Iter.Gtk_Text_Iter;
+       Deadline : Ada.Real_Time.Time;
+       Quit : Boolean;
+       pragma Unreferenced (Quit);
++
++      function Source_Text return String is
++      begin
++         Buffer.Get_Start_Iter (First);
++         Buffer.Get_End_Iter (Last);
++         return Buffer.Get_Text (First, Last);
++      end Source_Text;
++
++      procedure Await_Completion is
++      begin
++         Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
++         while Ada.Real_Time.Clock < Deadline
++           and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
++         loop
++            if Gtk.Main.Events_Pending then
++               Quit := Gtk.Main.Main_Iteration_Do (False);
++            else
++               delay 0.005;
++            end if;
++         end loop;
++         Assert
++           (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
++            "source replacement reaches a terminal math state");
++      end Await_Completion;
+    begin
+       if not T.Display_Available then
+-         Coyote_GUI.Math_Element.Free (Element);
+          return;
+       end if;
++      Coyote_Math_Jobs.Shutdown;
++      Coyote_Math_Jobs.Start (Paused => True);
++      Element := Coyote_GUI.Math_Element.New_Element ("x", "$x$");
+       Root := Coyote_GUI.Math_Element.Widget (Element.all);
+       Children := Gtk.Container.Get_Children
+         (Gtk.Container.Gtk_Container (Root));
+@@ -4367,51 +4390,96 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          Node := Gtk.Widget.Widget_List.Next (Node);
+       end loop;
+       Gtk.Widget.Widget_List.Free (Children);
++      Children := Gtk.Widget.Widget_List.Null_List;
++      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
++      View := Gtk.Text_View.Gtk_Text_View
++        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll)));
++      Buffer := Gtk.Text_View.Get_Buffer (View);
++      Assert
++        (not Expander.Get_Expanded
++         and then Gtk.Expander.Get_Label (Expander) = "LaTeX source",
++         "source expander has the requested label and collapsed state");
++      Assert
++        (Gtk.Widget.Get_Name (Gtk.Widget.Gtk_Widget (View)) =
++           "coyote-math-source"
++         and then not Gtk.Text_View.Get_Editable (View)
++         and then Gtk.Text_View.Get_Cursor_Visible (View)
++         and then Gtk.Text_View.Get_Wrap_Mode (View) =
++           Gtk.Enums.Wrap_Word_Char,
++         "source view is named, read-only, caret-visible, and word-wrapped");
++      Assert
++        (Source_Text = "$x$",
++         "source view immediately contains the exact delimited source");
++      Gtk.Window.Gtk_New (Parent_Window);
++      Parent_Window.Add (Root);
+       Expander.Set_Expanded (True);
++      Parent_Window.Show_All;
++      Drain_Gtk_Events;
++      Gtk.Text_Buffer.Get_Start_Iter (Buffer, First);
++      Gtk.Text_Buffer.Get_End_Iter (Buffer, Last);
++      Buffer.Select_Range (First, Last);
++      Widget_Actions.Emit_By_Name
++        (Gtk.Widget.Gtk_Widget (View), "copy-clipboard");
+       Assert
+-        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null,
+-         "pending math expansion creates no invalid semantic tree");
+-      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
+-      while Ada.Real_Time.Clock < Deadline
+-        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+-      loop
+-         Quit := Gtk.Main.Main_Iteration_Do (False);
+-         delay 0.01;
+-      end loop;
++        (Gtk.Clipboard.Wait_For_Text (Gtk.Clipboard.Get) = "$x$",
++         "read-only source view copies exact delimited LaTeX");
++      Gtk.Clipboard.Clear (Gtk.Clipboard.Get);
+       Assert
+-        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
+-         "initial semantic result completes");
+-      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+-      Assert (Scroll /= null, "valid expansion creates semantic child");
++        (Coyote_GUI.Math_Element.Is_Pending (Element.all),
++         "paused math worker keeps initial source deterministically pending");
++
+       Coyote_GUI.Math_Element.Set_LaTeX
+-        (Element.all, "y", "new source");
++        (Element.all, "y", "$$y$$");
+       Assert
+-        (Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander)) = null,
+-         "source replacement removes old semantic child immediately");
+-      Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (3);
+-      while Ada.Real_Time.Clock < Deadline
+-        and then Coyote_GUI.Math_Element.Is_Pending (Element.all)
+-      loop
+-         Quit := Gtk.Main.Main_Iteration_Do (False);
+-         delay 0.01;
+-      end loop;
++        (Source_Text = "$$y$$"
++         and then Coyote_GUI.Math_Element.Is_Pending (Element.all),
++         "pending replacement immediately updates visible exact source");
++      Coyote_GUI.Math_Element.Set_LaTeX
++        (Element.all, "\unknowncommand", "$$\unknowncommand$$");
+       Assert
+-        (not Coyote_GUI.Math_Element.Is_Pending (Element.all),
+-         "replacement semantic result completes");
+-      Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+-      Tree := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll));
++        (Source_Text = "$$\unknowncommand$$"
++         and then Coyote_GUI.Math_Element.Is_Pending (Element.all),
++         "invalid replacement is visible before worker completion");
++      Coyote_Math_Jobs.Resume;
++      Await_Completion;
+       Assert
+-        (Tree /= null and then Gtk.Widget.Get_Name (Tree) =
+-           "coyote-math-semantics",
+-         "expanded replacement contains the current semantic tree");
+-      Model := Gtk.Tree_View.Get_Model (Gtk.Tree_View.Gtk_Tree_View (Tree));
+-      Iter := Gtk.Tree_Model.Get_Iter_First (Model);
+-      Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
+-      Assert
+-        (Glib.Values.Get_String (Value) = "y",
+-         "replacement semantic tree is rooted in the new source");
+-      Glib.Values.Unset (Value);
++        (not Coyote_GUI.Math_Element.Is_Valid (Element.all)
++         and then Source_Text = "$$\unknowncommand$$",
++         "rejected math continues to expose its exact source");
++
++      Coyote_GUI.Math_Element.Set_LaTeX
++        (Element.all, "z+1", "$z+1$");
++      Assert
++        (Source_Text = "$z+1$",
++         "valid replacement immediately replaces rejected source");
++      Await_Completion;
++      Assert
++        (Coyote_GUI.Math_Element.Is_Valid (Element.all)
++         and then Source_Text = "$z+1$",
++         "valid completion preserves the current delimited source");
++      Expander.Set_Expanded (False);
++      Coyote_GUI.Math_Element.Set_LaTeX
++        (Element.all, "a+b", "$$a+b$$");
++      Assert
++        (not Expander.Get_Expanded and then Source_Text = "$$a+b$$",
++         "collapsed source view tracks repeated replacement");
++      Await_Completion;
++      Expander.Set_Expanded (True);
++      Assert
++        (Expander.Get_Expanded and then Source_Text = "$$a+b$$",
++         "expanded source view retains the latest replacement");
+       Coyote_GUI.Math_Element.Free (Element);
++      Parent_Window.Destroy;
++      Parent_Window := null;
++      Coyote_Math_Jobs.Shutdown;
++   exception
++      when others =>
++         Coyote_GUI.Math_Element.Free (Element);
++         if Parent_Window /= null then
++            Parent_Window.Destroy;
++         end if;
++         Coyote_Math_Jobs.Shutdown;
++         raise;
+    end Test_Native_Math_Expansion_Tracks_Source;
+ 
+    procedure Test_Native_Display_Math_Protects_Code (T : in out Test) is
+@@ -4441,18 +4509,75 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Large_Font    : Pango.Font.Pango_Font_Description :=
+         Pango.Font.From_String ("sans 18");
+       Initial_Scale : Long_Float;
++
++      function Find_Source_View
++        (Root : Gtk.Widget.Gtk_Widget)
++         return Gtk.Text_View.Gtk_Text_View
++      is
++         Children : Gtk.Widget.Widget_List.Glist;
++         Node : Gtk.Widget.Widget_List.Glist;
++         Child : Gtk.Widget.Gtk_Widget;
++      begin
++         if Gtk.Widget.Get_Name (Root) = "coyote-math-source" then
++            return Gtk.Text_View.Gtk_Text_View (Root);
++         end if;
++         if Root.all not in Gtk.Container.Gtk_Container_Record'Class then
++            return null;
++         end if;
++         Children := Gtk.Container.Get_Children
++           (Gtk.Container.Gtk_Container (Root));
++         Node := Gtk.Widget.Widget_List.First (Children);
++         while Node /= Gtk.Widget.Widget_List.Null_List loop
++            Child := Gtk.Widget.Widget_List.Get_Data (Node);
++            declare
++               View : constant Gtk.Text_View.Gtk_Text_View :=
++                 Find_Source_View (Child);
++            begin
++               if View /= null then
++                  Gtk.Widget.Widget_List.Free (Children);
++                  return View;
++               end if;
++            end;
++            Node := Gtk.Widget.Widget_List.Next (Node);
++         end loop;
++         Gtk.Widget.Widget_List.Free (Children);
++         return null;
++      end Find_Source_View;
++
++      procedure Assert_Source_Font (Expected : String) is
++         use type Pango.Context.Pango_Context;
++         View : constant Gtk.Text_View.Gtk_Text_View :=
++           Find_Source_View
++             (Gtk.Widget.Gtk_Widget (Widget (T.Stack.all)));
++      begin
++         Assert (View /= null, "display source text view is present");
++         Gtk.Expander.Set_Expanded
++           (Gtk.Expander.Gtk_Expander (View.Get_Parent.Get_Parent), True);
++         T.Parent.Show_All;
++         Drain_Gtk_Events;
++         Assert
++           (Pango.Font.To_String
++              (Pango.Context.Get_Font_Description
++                 (View.Get_Pango_Context)) = Expected,
++            "display source text view has the configured font " & Expected
++            & "; actual=" & Pango.Font.To_String
++              (Pango.Context.Get_Font_Description (View.Get_Pango_Context)));
++      end Assert_Source_Font;
+    begin
+       if not T.Display_Available then
+          Pango.Font.Free (Small_Font);
+          Pango.Font.Free (Large_Font);
+          return;
+       end if;
++      Set_Font (T.Stack.all, Small_Font, Math_Scale => 1.0);
+       Begin_Request (T.Stack.all, "request", Prompt);
+       Append_Text (T.Stack.all, Source);
+       End_Text_Block (T.Stack.all);
++      Assert_Source_Font ("sans 8");
+       Initial_Scale := Math_Scale (T.Stack.all, 1);
+-      Set_Font (T.Stack.all, Small_Font, Math_Scale => 1.0);
+       Set_Font (T.Stack.all, Large_Font, Math_Scale => 2.0);
++      Drain_Gtk_Events;
++      Assert_Source_Font ("sans 18");
+       Assert
+         (Math_Scale (T.Stack.all, 1) > Initial_Scale,
+          "native LaTeX scale changes during zoom");
+@@ -4484,9 +4609,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Expander : Gtk.Expander.Gtk_Expander;
+       Scroll : Gtk.Widget.Gtk_Widget;
+       Tree : Gtk.Widget.Gtk_Widget;
+-      Store : Gtk.Tree_Store.Gtk_Tree_Store;
+-      Value : Glib.Values.GValue;
+-      Label : Unbounded_String;
+       Deadline : Ada.Real_Time.Time;
+       Quit : Boolean;
+       Requested_Width : Glib.Gint;
+@@ -4504,23 +4626,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+       Fonts : aliased Math_Painter.Font_Set;
+       pragma Unreferenced (Quit);
+ 
+-      procedure Append_Tree
+-        (Model : Gtk.Tree_Store.Gtk_Tree_Store;
+-         Parent : Gtk.Tree_Model.Gtk_Tree_Iter)
+-      is
+-      begin
+-         for Row in 0 .. Gtk.Tree_Store.N_Children (Model, Parent) - 1 loop
+-            declare
+-               Current : Gtk.Tree_Model.Gtk_Tree_Iter :=
+-                 Gtk.Tree_Store.Nth_Child (Model, Parent, Row);
+-            begin
+-               Gtk.Tree_Store.Get_Value (Model, Current, 0, Value);
+-               Append (Label, Glib.Values.Get_String (Value));
+-               Glib.Values.Unset (Value);
+-               Append_Tree (Model, Current);
+-            end;
+-         end loop;
+-      end Append_Tree;
+    begin
+       if not T.Display_Available then
+          Coyote_GUI.Math_Element.Free (Element);
+@@ -4659,24 +4764,26 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+          end if;
+       end loop;
+       Scroll := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Expander));
+-      Assert (Scroll /= null, "valid display creates its semantic tree");
++      Assert (Scroll /= null, "valid display creates its source view");
+       Tree := Gtk.Bin.Get_Child (Gtk.Bin.Gtk_Bin (Scroll));
+       Assert
+         (Tree /= null and then Gtk.Widget.Get_Name (Tree) =
+-           "coyote-math-semantics",
+-         "display semantics use the native math accessibility tree");
+-      Store := Gtk.Tree_Store."-"
+-        (Gtk.Tree_View.Get_Model (Gtk.Tree_View.Gtk_Tree_View (Tree)));
+-      Append_Tree (Store, Gtk.Tree_Model.Null_Iter);
+-      Assert
+-        (Index (To_String (Label), "VERBATIM_NODE") > 0
+-         and then Index (To_String (Label), "raw verbatim: a%{b}#^_") > 0
+-         and then Index (To_String (Label), "a b - starred") > 0
+-         and then Index (To_String (Label), "VCENTER_NODE") > 0
+-         and then Index (To_String (Label), "POOR_BOLD_NODE") > 0
+-         and then Index (To_String (Label), "VCENTER_CONTENT") > 0
+-         and then Index (To_String (Label), "POOR_BOLD_CONTENT") > 0,
+-         "semantic tree preserves core roles: " & To_String (Label));
++           "coyote-math-source",
++         "display source is presented by the named source view");
++      declare
++         Source_View : constant Gtk.Text_View.Gtk_Text_View :=
++           Gtk.Text_View.Gtk_Text_View (Tree);
++         Source_Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
++           Gtk.Text_View.Get_Buffer (Source_View);
++         First : Gtk.Text_Iter.Gtk_Text_Iter;
++         Last : Gtk.Text_Iter.Gtk_Text_Iter;
++      begin
++         Source_Buffer.Get_Start_Iter (First);
++         Source_Buffer.Get_End_Iter (Last);
++         Assert
++           (Source_Buffer.Get_Text (First, Last) = Source,
++            "display source view contains exact original delimiters");
++      end;
+       Coyote_GUI.Math_Element.Set_LaTeX
+         (Element.all, "\cancel{T}", Cancel_Source);
+       Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (5);
+@@ -5542,12 +5649,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
+             Test_Display_Math_Worker_Fallback_Recovery'Access));
+       Result.Add_Test
+         (Coyote_GUI_Conversation_Stack_Caller.Create
+-           ("Coyote.GUI.Conversation_Stack disconnects freed math expanders",
++           ("Coyote.GUI.Conversation_Stack frees math source views safely",
+             Coyote_GUI_Conversation_Stack_Tests
+-              .Test_Native_Math_Free_Disconnects_Expander'Access));
++              .Test_Native_Math_Free_Source_View_Survives_Destroy'Access));
+       Result.Add_Test
+         (Coyote_GUI_Conversation_Stack_Caller.Create
+-           ("Coyote.GUI.Conversation_Stack replaces expanded math semantics",
++           ("Coyote.GUI.Conversation_Stack replaces expanded math source",
+             Coyote_GUI_Conversation_Stack_Tests
+               .Test_Native_Math_Expansion_Tracks_Source'Access));
+       Result.Add_Test
+diff --git a/test/src/coyote_gui_conversation_stack_tests.ads b/test/src/coyote_gui_conversation_stack_tests.ads
+index 9ded766..864e5b9 100644
+--- a/test/src/coyote_gui_conversation_stack_tests.ads
++++ b/test/src/coyote_gui_conversation_stack_tests.ads
+@@ -69,7 +69,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
+    procedure Test_Native_Display_Math_Core_Primitives
+      (T : in out Test);
+    procedure Test_Native_Display_Math_Clear_Pending (T : in out Test);
+-   procedure Test_Native_Math_Free_Disconnects_Expander
++   procedure Test_Native_Math_Free_Source_View_Survives_Destroy
+      (T : in out Test);
+    procedure Test_Native_Math_Expansion_Tracks_Source
+      (T : in out Test);
+diff --git a/test/tools/check-math-accessibility.sh b/test/tools/check-math-accessibility.sh
+deleted file mode 100755
+index f5dde9f..0000000
+--- a/test/tools/check-math-accessibility.sh
++++ /dev/null
+@@ -1,28 +0,0 @@
+-#!/bin/sh
+-set -eu
+-repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+-out=${MATH_ACCESSIBILITY_ROOT:-${TMPDIR:-/tmp}/coyote-math-accessibility}
+-mkdir -p "$out"
+-cd "$repo"
+-MATH_ACCESSIBILITY_ROOT="$out" alr exec -- gprbuild -p \
+-    -P test/native/math_accessibility.gpr > "$out/build.log" 2>&1 || {
+-    cat "$out/build.log" >&2
+-    exit 1
+-}
+-runner=""
+-if command -v xvfb-run >/dev/null 2>&1; then
+-    runner="xvfb-run -a"
+-fi
+-if [ -n "$runner" ]; then
+-    $runner "$out/bin/math_accessibility_probe" > "$out/probe.log" 2>&1 || {
+-        cat "$out/probe.log" >&2
+-        exit 1
+-    }
+-else
+-    "$out/bin/math_accessibility_probe" > "$out/probe.log" 2>&1 || {
+-        cat "$out/probe.log" >&2
+-        exit 1
+-    }
+-fi
+-cat "$out/probe.log"
+-printf 'Build log: %s/build.log\nProbe log: %s/probe.log\n' "$out" "$out"
+diff --git a/test/tools/math_accessibility_probe.adb b/test/tools/math_accessibility_probe.adb
+deleted file mode 100644
+index 41c51cb..0000000
+--- a/test/tools/math_accessibility_probe.adb
++++ /dev/null
+@@ -1,424 +0,0 @@
+-with Ada.Command_Line;
+-with Ada.Strings.Fixed;
+-with Ada.Strings.Unbounded;
+-with Ada.Text_IO;
+-with Glib;
+-with Glib.Values;
+-with Gtk.Main;
+-with Gtk.Container;
+-with Gtk.Tree_Store;
+-with Gtk.Widget;
+-with Gtk.Tree_Model;
+-with Gtk.Tree_View;
+-with Coyote_GUI.Math_Accessibility;
+-with Math_Semantics;
+-
+-procedure Math_Accessibility_Probe is
+-   use Gtk.Tree_Model;
+-   Checks : Natural := 0;
+-   Failures : Natural := 0;
+-   procedure Check (Condition : Boolean; Label : String) is
+-   begin
+-      Checks := Checks + 1;
+-      if not Condition then
+-         Failures := Failures + 1;
+-         Ada.Text_IO.Put_Line ("FAIL " & Label);
+-      end if;
+-   end Check;
+-   function Cell (Model : Gtk_Tree_Model; Iter : Gtk_Tree_Iter;
+-                  Col : Glib.Gint) return String is
+-      Value : Glib.Values.GValue;
+-   begin
+-      Get_Value (Model, Iter, Col, Value);
+-      return Glib.Values.Get_String (Value);
+-   end Cell;
+-   Item : constant Math_Semantics.Document := Math_Semantics.Project
+-     ("\frac{x^i}{\sqrt[3]{y}}+\begin{matrix}a&b\\c&d\end{matrix}");
+-   Verbatim_Payload : constant String := "<&😀";
+-   Special : constant Math_Semantics.Document := Math_Semantics.Project
+-     ("\vcenter{x}+\pmb{a}+\verb*|" & Verbatim_Payload & "|");
+-   Accent_Source : constant String := "\text{\c{c}}+\widehat{x}+\text{\textcircled{R}}";
+-   Accent_Document : constant Math_Semantics.Document :=
+-     Math_Semantics.Project (Accent_Source);
+-   CD_Source : constant String := "\begin{CD}A@V\alpha VV&B@|C@.D\end{CD}";
+-   CD_Document : constant Math_Semantics.Document :=
+-     Math_Semantics.Project (CD_Source);
+-   function Large_Source return String is
+-      use Ada.Strings.Unbounded;
+-      Result : Unbounded_String;
+-   begin
+-      for Index in 1 .. 30 loop
+-         Append (Result, "\frac{x}{y}+");
+-      end loop;
+-      return To_String (Result);
+-   end Large_Source;
+-   Large : constant Math_Semantics.Document :=
+-     Math_Semantics.Project (Large_Source);
+-   Large_View : Gtk.Tree_View.Gtk_Tree_View;
+-   Pending_View : Gtk.Tree_View.Gtk_Tree_View;
+-   Large_Model : Gtk_Tree_Model;
+-   Large_Count : Natural := 0;
+-   Iterations : Natural := 0;
+-   function Count_Subtree
+-     (Tree : Gtk_Tree_Model; First : Gtk_Tree_Iter) return Natural;
+-   function Count_Subtree
+-     (Tree : Gtk_Tree_Model; First : Gtk_Tree_Iter) return Natural
+-   is
+-      Total : Natural := 0;
+-      Current : Gtk_Tree_Iter := First;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         Total := Total + 1;
+-         Child := Children (Tree, Current);
+-         if Child /= Null_Iter then
+-            Total := Total + Count_Subtree (Tree, Child);
+-         end if;
+-         Next (Tree, Current);
+-      end loop;
+-      return Total;
+-   end Count_Subtree;
+-   function Model_Rows (Tree : Gtk_Tree_Model) return Natural is
+-     (Count_Subtree (Tree, Children (Tree, Null_Iter)));
+-   View : Gtk.Tree_View.Gtk_Tree_View;
+-   Model : Gtk_Tree_Model;
+-   Special_View : Gtk.Tree_View.Gtk_Tree_View;
+-   Special_Model : Gtk_Tree_Model;
+-   Accent_View : Gtk.Tree_View.Gtk_Tree_View;
+-   Accent_Model : Gtk_Tree_Model;
+-   CD_View : Gtk.Tree_View.Gtk_Tree_View;
+-   CD_Model : Gtk_Tree_Model;
+-   Saw_Accent_Below, Saw_Accent_Full, Saw_Circled : Boolean := False;
+-   Saw_CD_Array, Saw_CD_Arrow : Boolean := False;
+-   Saw_Left_Label, Saw_Right_Label : Boolean := False;
+-   Saw_VCenter_Role, Saw_Poor_Bold_Role : Boolean := False;
+-   Saw_Raw_Verbatim, Saw_Starred_Verbatim : Boolean := False;
+-   Box_Document : constant Math_Semantics.Document := Math_Semantics.Project
+-     ("\colorbox{red}{x}+\fcolorbox{blue}{#ffffff}{A}");
+-   Box_View : Gtk.Tree_View.Gtk_Tree_View;
+-   Box_Model : Gtk_Tree_Model;
+-   Saw_Red_Background, Saw_Blue_Border, Saw_White_Background : Boolean := False;
+-   Text_And_Rules_Source : constant String :=
+-     "\text{Ж}\allowbreak\begin{array}{c}\hline a\end{array}";
+-   Text_And_Rules : constant Math_Semantics.Document :=
+-     Math_Semantics.Project (Text_And_Rules_Source);
+-   Text_And_Rules_View : Gtk.Tree_View.Gtk_Tree_View;
+-   Text_And_Rules_Model : Gtk_Tree_Model;
+-   Saw_Text_Profile, Saw_Allow_Break : Boolean := False;
+-   Saw_Solid_Horizontal_Rule : Boolean := False;
+-   procedure Visit_Text_And_Rules (Iter : Gtk_Tree_Iter) is
+-      Current : Gtk_Tree_Iter := Iter;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         declare
+-            Text : constant String := Cell (Text_And_Rules_Model, Current, 0);
+-         begin
+-            Saw_Text_Profile := Saw_Text_Profile or else
+-              (Ada.Strings.Fixed.Index (Text, "text: Ж") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "CYRILLIC_FALLBACK") > 0);
+-            Saw_Allow_Break := Saw_Allow_Break or else
+-              Ada.Strings.Fixed.Index (Text, "break ALLOW_BREAK") > 0;
+-            Saw_Solid_Horizontal_Rule := Saw_Solid_Horizontal_Rule or else
+-              Ada.Strings.Fixed.Index
+-                (Text, "horizontal rule at boundary 0 solid") > 0;
+-         end;
+-         Child := Children (Text_And_Rules_Model, Current);
+-         if Child /= Null_Iter then
+-            Visit_Text_And_Rules (Child);
+-         end if;
+-         Next (Text_And_Rules_Model, Current);
+-      end loop;
+-   end Visit_Text_And_Rules;
+-   procedure Visit_Special (Iter : Gtk_Tree_Iter) is
+-      Current : Gtk_Tree_Iter := Iter;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         declare
+-            Text : constant String := Cell (Special_Model, Current, 0);
+-         begin
+-            Saw_VCenter_Role := Saw_VCenter_Role or else
+-              Ada.Strings.Fixed.Index (Text, "ROW_NODE - VCENTER_CONTENT") > 0;
+-            Saw_Poor_Bold_Role := Saw_Poor_Bold_Role or else
+-              Ada.Strings.Fixed.Index
+-                (Text, "ROW_NODE - POOR_BOLD_CONTENT") > 0;
+-            Saw_Raw_Verbatim := Saw_Raw_Verbatim or else
+-              Ada.Strings.Fixed.Index
+-                (Text, "raw verbatim: " & Verbatim_Payload) > 0;
+-            Saw_Starred_Verbatim := Saw_Starred_Verbatim or else
+-              (Ada.Strings.Fixed.Index (Text, "VERBATIM_NODE") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, " - starred") > 0);
+-         end;
+-         Child := Children (Special_Model, Current);
+-         if Child /= Null_Iter then
+-            Visit_Special (Child);
+-         end if;
+-         Next (Special_Model, Current);
+-      end loop;
+-   end Visit_Special;
+-   procedure Visit_Accent (Iter : Gtk_Tree_Iter) is
+-      Current : Gtk_Tree_Iter := Iter;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         declare
+-            Text : constant String := Cell (Accent_Model, Current, 0);
+-         begin
+-            Saw_Accent_Below := Saw_Accent_Below or else
+-              (Ada.Strings.Fixed.Index (Text, "accent \c") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "BELOW_ACCENT") > 0);
+-            Saw_Accent_Full := Saw_Accent_Full or else
+-              Ada.Strings.Fixed.Index (Text, "FULL_ACCENT") > 0;
+-            Saw_Circled := Saw_Circled or else
+-              Ada.Strings.Fixed.Index (Text, "textcircled") > 0;
+-         end;
+-         Child := Children (Accent_Model, Current);
+-         if Child /= Null_Iter then
+-            Visit_Accent (Child);
+-         end if;
+-         Next (Accent_Model, Current);
+-      end loop;
+-   end Visit_Accent;
+-   procedure Visit_Boxes (Iter : Gtk_Tree_Iter) is
+-      Current : Gtk_Tree_Iter := Iter;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         declare
+-            Text : constant String := Cell (Box_Model, Current, 0);
+-         begin
+-            Saw_Red_Background := Saw_Red_Background or else
+-              (Ada.Strings.Fixed.Index (Text, "COLOR_BOX_ENCLOSURE") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "background RGBA") > 0 and then
+-               Ada.Strings.Fixed.Index
+-                 (Text, "1.00000000000000E+00, 0.00000000000000E+00, 0.00000000000000E+00") > 0);
+-            Saw_Blue_Border := Saw_Blue_Border or else
+-              (Ada.Strings.Fixed.Index (Text, "FRAMED_COLOR_BOX_ENCLOSURE") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "border RGBA") > 0 and then
+-               Ada.Strings.Fixed.Index
+-                 (Text, "0.00000000000000E+00, 0.00000000000000E+00, 1.00000000000000E+00") > 0);
+-            Saw_White_Background := Saw_White_Background or else
+-              (Ada.Strings.Fixed.Index (Text, "background RGBA") > 0 and then
+-               Ada.Strings.Fixed.Index
+-                 (Text, "1.00000000000000E+00, 1.00000000000000E+00, 1.00000000000000E+00") > 0);
+-         end;
+-         Child := Children (Box_Model, Current);
+-         if Child /= Null_Iter then
+-            Visit_Boxes (Child);
+-         end if;
+-         Next (Box_Model, Current);
+-      end loop;
+-   end Visit_Boxes;
+-   procedure Visit_CD (Iter : Gtk_Tree_Iter) is
+-      Current : Gtk_Tree_Iter := Iter;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         declare
+-            Text : constant String := Cell (CD_Model, Current, 0);
+-         begin
+-            Saw_CD_Array := Saw_CD_Array or else
+-              (Ada.Strings.Fixed.Index (Text, "CD_ARRAY") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "commutative diagram") > 0);
+-            Saw_CD_Arrow := Saw_CD_Arrow or else
+-              (Ada.Strings.Fixed.Index (Text, "CD_ARROW_NODE") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "vertical arrow Unicode") > 0);
+-            Saw_Left_Label := Saw_Left_Label or else
+-              (Ada.Strings.Fixed.Index (Text, "CD_ARROW_LEFT_LABEL") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "left label") > 0);
+-            Saw_Right_Label := Saw_Right_Label or else
+-              (Ada.Strings.Fixed.Index (Text, "CD_ARROW_RIGHT_LABEL") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "right label") > 0);
+-         end;
+-         Child := Children (CD_Model, Current);
+-         if Child /= Null_Iter then
+-            Visit_CD (Child);
+-         end if;
+-         Next (CD_Model, Current);
+-      end loop;
+-   end Visit_CD;
+-   Root_Iter : Gtk_Tree_Iter;
+-   Seen_Fraction, Seen_Numerator, Seen_Denominator : Boolean := False;
+-   Seen_Script, Seen_Radical, Seen_Index : Boolean := False;
+-   Seen_Array, Seen_Row, Seen_Cell : Boolean := False;
+-   Seen_Source : Boolean := False;
+-   Seen_Pending : Boolean := False;
+-   Seen_Metadata : Boolean := False;
+-   Visited : Natural := 0;
+-   procedure Visit (Iter : Gtk_Tree_Iter) is
+-      Current : Gtk_Tree_Iter := Iter;
+-      Child : Gtk_Tree_Iter;
+-   begin
+-      while Current /= Null_Iter loop
+-         declare
+-            Text : constant String := Cell (Model, Current, 0);
+-            Source : constant String := Cell (Model, Current, 1);
+-         begin
+-            Visited := Visited + 1;
+-            Check (Text'Length > 0, "semantic row has an accessible label");
+-            if Visited = 1 then
+-               Check (Source = Math_Semantics.Source (Item),
+-                 "root row retains exact source");
+-            else
+-               Check (Source = "",
+-                 "semantic child avoids duplicated source storage");
+-            end if;
+-            Seen_Source := Seen_Source or else
+-              Source = Math_Semantics.Source (Item);
+-            Seen_Metadata := Seen_Metadata or else
+-              (Ada.Strings.Fixed.Index (Text, "class ") > 0 and then
+-               Ada.Strings.Fixed.Index (Text, "font ") > 0);
+-            Seen_Pending := Seen_Pending or else
+-              Ada.Strings.Fixed.Index (Text, "Pending more structure") > 0;
+-            Seen_Fraction := Seen_Fraction or else
+-              Ada.Strings.Fixed.Index (Text, "FRACTION_NODE") > 0;
+-            Seen_Numerator := Seen_Numerator or else
+-              Ada.Strings.Fixed.Index (Text, "NUMERATOR") > 0;
+-            Seen_Denominator := Seen_Denominator or else
+-              Ada.Strings.Fixed.Index (Text, "DENOMINATOR") > 0;
+-            Seen_Script := Seen_Script or else
+-              Ada.Strings.Fixed.Index (Text, "SUPERSCRIPT") > 0;
+-            Seen_Radical := Seen_Radical or else
+-              Ada.Strings.Fixed.Index (Text, "RADICAL_NODE") > 0;
+-            Seen_Index := Seen_Index or else
+-              Ada.Strings.Fixed.Index (Text, "RADICAL_INDEX") > 0;
+-            Seen_Array := Seen_Array or else
+-              Ada.Strings.Fixed.Index (Text, "ARRAY_NODE") > 0;
+-            Seen_Row := Seen_Row or else
+-              Ada.Strings.Fixed.Index (Text, "ARRAY_ROW") > 0;
+-            Seen_Cell := Seen_Cell or else
+-              Ada.Strings.Fixed.Index (Text, "ARRAY_CELL") > 0;
+-         end;
+-         Child := Children (Model, Current);
+-         if Child /= Null_Iter then
+-            Visit (Child);
+-         end if;
+-         Next (Model, Current);
+-      end loop;
+-   end Visit;
+-begin
+-   if not Gtk.Main.Init_Check then
+-      Ada.Text_IO.Put_Line ("DISPLAY_REQUIRED");
+-      Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+-      return;
+-   end if;
+-   Check (Math_Semantics.Is_Valid (Item), "semantic document valid");
+-   Check (Math_Semantics.Is_Valid (Text_And_Rules),
+-     "text, break and array-rule accessibility fixture is valid");
+-   Text_And_Rules_View :=
+-     Coyote_GUI.Math_Accessibility.Create (Text_And_Rules);
+-   Text_And_Rules_Model := Gtk.Tree_View.Get_Model (Text_And_Rules_View);
+-   Visit_Text_And_Rules (Children (Text_And_Rules_Model, Null_Iter));
+-   Check (Saw_Text_Profile, "text-run label exposes UTF-8 and Pango profile");
+-   Check (Saw_Allow_Break, "space label exposes break metadata");
+-   Check (Saw_Solid_Horizontal_Rule,
+-     "array label exposes horizontal rule boundary and style");
+-   Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget
+-     (Gtk.Container.Gtk_Container (Text_And_Rules_View)));
+-   Check (Math_Semantics.Is_Valid (Special),
+-     "vcenter, poor-bold, and verbatim semantic fixture valid");
+-   Check (Math_Semantics.Is_Valid (Accent_Document),
+-     "accent fixture remains a valid single semantic projection");
+-   Accent_View := Coyote_GUI.Math_Accessibility.Create (Accent_Document);
+-   Accent_Model := Gtk.Tree_View.Get_Model (Accent_View);
+-   Visit_Accent (Children (Accent_Model, Null_Iter));
+-   Check (Saw_Accent_Below, "below accent command and kind are explicit");
+-   Check (Saw_Accent_Full, "full accent command and kind are explicit");
+-   Check (Saw_Circled, "circled accent remains identifiable");
+-   Check (Cell (Accent_Model, Children (Accent_Model, Null_Iter), 1) =
+-     Accent_Source, "accent source is preserved exactly at root");
+-   Check (Math_Semantics.Is_Valid (Box_Document),
+-     "colorbox semantic fixture is valid");
+-   Box_View := Coyote_GUI.Math_Accessibility.Create (Box_Document);
+-   Box_Model := Gtk.Tree_View.Get_Model (Box_View);
+-   Visit_Boxes (Children (Box_Model, Null_Iter));
+-   Check (Saw_Red_Background and Saw_White_Background and Saw_Blue_Border,
+-     "accessibility labels expose box background and border RGBA");
+-   Gtk.Widget.Destroy
+-     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Box_View)));
+-   Check (Math_Semantics.Is_Valid (CD_Document),
+-     "CD diagram fixture is valid");
+-   CD_View := Coyote_GUI.Math_Accessibility.Create (CD_Document);
+-   CD_Model := Gtk.Tree_View.Get_Model (CD_View);
+-   Visit_CD (Children (CD_Model, Null_Iter));
+-   Check (Saw_CD_Array, "CD array is explicitly identified");
+-   Check (Saw_CD_Arrow, "vertical CD arrow glyph identity is explicit");
+-   Check (Saw_Left_Label and Saw_Right_Label,
+-     "CD arrow label roles are explicit");
+-   Check (Cell (CD_Model, Children (CD_Model, Null_Iter), 1) = CD_Source,
+-     "CD source is preserved exactly at root");
+-   Gtk.Widget.Destroy
+-     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Accent_View)));
+-   Gtk.Widget.Destroy
+-     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (CD_View)));
+-   Special_View := Coyote_GUI.Math_Accessibility.Create (Special);
+-   Special_Model := Gtk.Tree_View.Get_Model (Special_View);
+-   Visit_Special (Children (Special_Model, Null_Iter));
+-   Check (Saw_VCenter_Role, "vcenter child role is exposed");
+-   Check (Saw_Poor_Bold_Role, "poor-bold child role is exposed");
+-   Check (Saw_Raw_Verbatim and Saw_Starred_Verbatim,
+-     "starred raw verbatim preserves literal markup characters and UTF-8");
+-   Gtk.Widget.Destroy
+-     (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Special_View)));
+-   View := Coyote_GUI.Math_Accessibility.Create (Item);
+-   Model := Gtk.Tree_View.Get_Model (View);
+-   Root_Iter := Children (Model, Null_Iter);
+-   Check (Root_Iter /= Null_Iter, "GTK model has root");
+-   if Root_Iter /= Null_Iter then
+-      Check (Cell (Model, Root_Iter, 1) = Math_Semantics.Source (Item),
+-        "root row retains exact source");
+-      Visit (Root_Iter);
+-   end if;
+-   Check (Seen_Source, "exact source is retained on root");
+-   Check (Seen_Metadata, "semantic labels include node metadata");
+-   Check (Visited <= Math_Semantics.Count (Item),
+-     "initial GTK tree stays within semantic node count");
+-   Check (Visited = Math_Semantics.Count (Item) or else Seen_Pending,
+-     "bounded tree explicitly reports remaining semantic nodes");
+-   Check (Seen_Fraction and Seen_Numerator and Seen_Denominator,
+-     "fraction and numerator/denominator roles are exposed");
+-   Check (Seen_Script, "superscript child role is exposed");
+-   Check (Seen_Radical and Seen_Index, "root and index roles are exposed");
+-   Check (Seen_Array and Seen_Row and Seen_Cell,
+-     "array row and cell hierarchy is exposed");
+-   Check (Math_Semantics.Is_Valid (Large) and then
+-     Math_Semantics.Count (Large) > 64,
+-     "large expression exceeds initial accessible row budget");
+-   Large_View := Coyote_GUI.Math_Accessibility.Create (Large);
+-   Large_Model := Gtk.Tree_View.Get_Model (Large_View);
+-   Check (Model_Rows (Large_Model) <= 65,
+-     "initial large tree is bounded with a pending marker");
+-   while Model_Rows (Large_Model) < Math_Semantics.Count (Large)
+-     and then Iterations < 20_000
+-   loop
+-      declare
+-         Pending_Events : constant Boolean :=
+-           Gtk.Main.Main_Iteration_Do (False);
+-         pragma Unreferenced (Pending_Events);
+-      begin
+-         Iterations := Iterations + 1;
+-      end;
+-   end loop;
+-   Large_Count := Model_Rows (Large_Model);
+-   Check (Large_Count = Math_Semantics.Count (Large),
+-     "idle slices append all semantic nodes and remove pending marker");
+-   Pending_View := Coyote_GUI.Math_Accessibility.Create (Large);
+-   Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Pending_View)));
+-   for Index in 1 .. 4_000 loop
+-      declare
+-         Pending_Events : constant Boolean :=
+-           Gtk.Main.Main_Iteration_Do (False);
+-         pragma Unreferenced (Pending_Events);
+-      begin
+-         null;
+-      end;
+-   end loop;
+-   Check (True, "destroying a pending view cancels population safely");
+-   Gtk.Widget.Destroy (Gtk.Widget.Gtk_Widget (Gtk.Container.Gtk_Container (Large_View)));
+-   Ada.Text_IO.Put_Line ("ASSERTIONS" & Natural'Image (Checks) &
+-     " failures=" & Natural'Image (Failures));
+-   if Checks < 15 or else Failures /= 0 then
+-      Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+-   end if;
+-end Math_Accessibility_Probe;
+diff --git a/tools/map_math_coverage.py b/tools/map_math_coverage.py
+index cae51dd..ffd9ec1 100644
+--- a/tools/map_math_coverage.py
++++ b/tools/map_math_coverage.py
+@@ -512,7 +512,7 @@ REQ_MATRIX = [
+     ("REQ-MATH-009", "partial-implemented-unqualified", "The core default trust=false is maintained and sensitive commands are refused; full policy equivalence unqualified."),
+     ("REQ-MATH-010", "partial-implemented-unqualified", "Cooperative polling reaches pipeline loops and phase boundaries; expired queued work is skipped before copying input. Raster_Budget shares a 64 MiB retained-raster lease across completed job vectors, display surfaces and inline Pixbufs. Whole-job ≤256 MiB accounting, complete process-cache qualification and hard queue-inclusive 250 ms completion remain open; individual native calls are not preempted."),
+     ("REQ-MATH-011", "partial-implemented-unqualified", "Display and inline rasterization run on math workers; Rich_Text incrementally adopts padded Pixbufs on GTK with separate retained leases. Scoped source/copy/reflow, pixel and partial-adoption lifecycle tests pass; complete tiling/cache/repaint reuse and compatibility/GTK timing qualification remain open. See report section 11.11."),
+-    ("REQ-MATH-012", "partial-implemented-unqualified", "Semantic-tree source exists; no completed human assistive-technology review."),
++    ("REQ-MATH-012", "partial-implemented-unqualified", "Display elements expose exact delimited LaTeX in a read-only source panel, including pending/rejected states and replacements. Source-copy and lifecycle regressions exist; broader GUI/manual qualification remains open. SRS-MATH v1.2 replaces the semantic-tree/AT-navigation requirement; raw source is not semantic screen-reader math."),
+     ("REQ-MATH-013", "partial-implemented-unqualified", "Existing structured geometry and image probes are scoped evidence only. Do not infer latest geometry/pixel counts or pass status from stale map snapshots; recorded results, artifact availability and open gates are maintained in coordinator-owned parity report section 11. Full per-entry corpus, browser/platform pins, approved thresholds, and qualification remain incomplete."),
+     ("REQ-MATH-014", "partial-implemented-unqualified", "Regression-suite chronology and the latest authoritative result are recorded in the current STR; earlier run counts are historical evidence only. A green regression count is not compatibility qualification."),
+     ("REQ-MATH-015", "partial-implemented-unqualified", "Pinned generators/provenance exist; full repeatable qualification and upgrade review unqualified."),

@@ -230,20 +230,22 @@ text uses direct libcmark-gfm Markdown rendering. Native GFM tables remain,
 and the native Ada math engine handles supported inline/display expressions
 with visible-source fallback; legacy MathML source is not typeset. Production
 math rendering has no JavaScript runtime. GUI parsing/layout now uses
-background jobs. Display formulas are painted by native workers and adopted
-in batches. Inline formulas still call `Render_Layout_Inline` on the GTK main
-task and submit jobs without `Request_Raster`; do not infer off-thread inline
-painting. All widget updates remain on the GTK main task. Display formulas
-offer a collapsed **Math structure** expander with a
-native semantic tree; human assistive-technology acceptance is still pending.
+background jobs. Display and inline formulas are rasterized by native workers;
+GTK adopts the resulting images in bounded row batches. All widget updates
+remain on the GTK main task. Display formulas offer a collapsed **LaTeX source**
+panel with the exact delimited input, read-only and selectable even while a
+formula is pending or cannot be rendered. Source text follows conversation font
+changes. This replaces the former structure inspector; raw LaTeX is not a
+semantic screen-reader representation.
 Inline formulas remain capped at 64 per text view. The worker pool has two
 workers and a queue capacity of eight. Cooperative pipeline-loop and phase-boundary checks do not
-preempt parser/layout loops or native calls and do not establish the approved
+preempt individual native calls and do not establish the approved
 250 ms completion target. The shared 64 MiB `Math_Raster_Budget` applies retained-raster leases to
 completed-job vectors, display Cairo surfaces and GTK inline Pixbufs through
 weak references. It does not bound whole-job allocation, all actual retention,
-transient allocation or process RSS. The approved whole-job 256 MiB and
-process-wide cache limits remain unqualified. See
+transient allocation or process RSS. The 256 MiB amount is coarse admission
+for tracked major buffers, not exhaustive memory accounting; practical guard
+and process-cache qualification remain open. See
 [math requirements](requirements/native-math-compatibility.md)
 and the [compatibility test plan](plan/native-math-compatibility-tests.md).
 Unsupported input retains visible source.

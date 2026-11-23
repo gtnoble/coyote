@@ -2841,3 +2841,18 @@ execution and an insufficient65-second HTTP outer-timeout attempt are retained
 separately, not passing evidence. Ordinary native-writer replay only: no legacy
 format/compaction/branch/tool-interleaving matrix, parity/lifecycle/timing or human
 acceptance closure. PCR-125 OPEN; no release, installation or commit.
+
+
+## 2026-11-15 — LaTeX source replaces math structure
+
+User-authorized SRS-MATH v1.2 replaces structured-tree/AT-navigation requirements
+with exact delimited source access (REQ-MATH-012, MATH-SOURCE-001). Display
+formulas expose a collapsed selectable read-only LaTeX source panel in pending,
+invalid and valid states, updated on replacement. Removed the unused tree adapter
+and dedicated probe. Internal semantics and inline copying remain unchanged.
+Initial and changed conversation fonts propagate to source/fallback text without
+changing explicit math scale. Final full1081/1081 and focused zoom1/1 pass;
+required GTK/layout/containment/HTTP checks pass. Report §11.34 and
+`plan/evidence/native-math-2026-11-15-source-alternative/` retain final and failed
+development logs. Manual source usability and unrelated qualification gates
+remain open; raw LaTeX is not semantic screen-reader math. No release/install/commit.

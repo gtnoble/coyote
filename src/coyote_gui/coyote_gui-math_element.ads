@@ -12,8 +12,7 @@ with Gtk.Handlers;
 with Gtk.Label;
 with Gtk.Expander;
 with Gtk.Scrolled_Window;
-with Gtk.Tree_View;
-with Math_Semantics;
+with Gtk.Text_View;
 with Pango.Font;
 with Math_Layout;
 with Math_Painter;
@@ -30,6 +29,8 @@ package Coyote_GUI.Math_Element is
    function New_Element
      (LaTeX : String; Source : String; Scale : Long_Float := 1.0;
       Fleqn : Boolean := False) return Instance_Access;
+   --  Display elements expose exact Source in a collapsed, read-only
+   --  LaTeX source panel, independent of rendering success or completion.
    procedure Create
      (Element : in out Instance; LaTeX : String; Source : String;
       Scale : Long_Float := 1.0;
@@ -69,6 +70,8 @@ package Coyote_GUI.Math_Element is
    procedure Set_LaTeX (Element : in out Instance; LaTeX : String;
       Source : String);
    procedure Set_Scale (Element : in out Instance; Scale : Long_Float);
+   --  Apply Desc to fallback and source text only. Math sizing is controlled
+   --  independently through Set_Scale by the conversation zoom policy.
    procedure Set_Font (Element : in out Instance;
       Desc : Pango.Font.Pango_Font_Description);
    procedure Detach (Element : in out Instance);
@@ -100,12 +103,9 @@ private
       Root : Gtk.Box.Gtk_Box;
       Area : Gtk.Drawing_Area.Gtk_Drawing_Area;
       Fallback : Gtk.Label.Gtk_Label;
-      Accessibility : Gtk.Expander.Gtk_Expander;
-      Meaning_View : Gtk.Tree_View.Gtk_Tree_View;
-      Semantic_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Meaning : Math_Semantics.Document;
-      Accessibility_Handler : Gtk.Handlers.Handler_Id;
-      Accessibility_Connected : Boolean := False;
+      Source_Expander : Gtk.Expander.Gtk_Expander;
+      Source_View : Gtk.Text_View.Gtk_Text_View;
+      Source_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Source_Text : Ada.Strings.Unbounded.Unbounded_String;
       LaTeX_Text : Ada.Strings.Unbounded.Unbounded_String;
       Parsed : Math_Syntax.Document;

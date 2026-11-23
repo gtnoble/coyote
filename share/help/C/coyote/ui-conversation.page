@@ -15,10 +15,12 @@ This is not full TeX or complete KaTeX compatibility. Streaming text may remain 
   <p>Math is processed in the background after a response block completes. Its
 source remains visible while processing is pending or if a formula cannot be
 rendered. Copying rendered inline math restores its original delimited source.</p>
-  <p>For a display formula, expand <gui>Math structure</gui> to inspect a
-keyboard-navigable tree of mathematical parts and source positions. The tree
-fills incrementally; this view does not imply complete screen-reader support
-or KaTeX compatibility.</p>
+  <p>For a display formula, expand <gui>LaTeX source</gui> to view the exact
+original delimited source in a read-only, selectable text view. It is available
+while processing is pending, for invalid or unsupported input, and after
+successful rendering; it updates when the formula is replaced. Raw LaTeX is not
+semantic math or a screen-reader math representation. This does not claim
+complete accessibility or KaTeX compatibility.</p>
   <p>In the GTK conversation, local images in assistant Markdown can be shown when their files are within the active session directory. Alt text stays visible beside the image for selection, copying, and search. Remote images are not fetched; unavailable or unsupported images appear as alt text. Plain output, SQC replay, and images in table cells remain text-only.</p>
   <p>The <gui>Agents Window</gui> support window treats each agent as a virtual window. Selecting a live row changes the conversation shown in the main window and puts that agent in the driver's seat for prompts and applicable controls. Selecting a completed row shows its retained conversation for review. Hiding the support window does not stop agents or discard the tree.</p>
   <p>Select text to publish it through the desktop PRIMARY selection. Copy, Select All, and Deselect All operate on the focused conversation component, or on a retained conversation selection when no conversation text view has focus. Prompt focus keeps these commands on the prompt. Completed tool cards and fork controls can be activated with the mouse or keyboard.</p>
