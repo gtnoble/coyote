@@ -585,6 +585,7 @@ package body Session_Lister is
       Source_Lock  : Tx.Guard;
       Fork_Canvas  : Rev.Workspace;
       Fork_Assets  : Disk.Raster_Set;
+      Fork_Tiles   : Disk.Tile_Set;
 
       procedure Read_Canvas_References
         (Last : Natural; Refs : out Recovery.References; Count : out Natural)
@@ -836,7 +837,7 @@ package body Session_Lister is
                Disk.Load_Selection
                  (Ada.Directories.Containing_Directory (Source_Path),
                   Source_UUID, Refs (1 .. Count), Fork_Canvas, Fork_Assets,
-                  Status);
+                  Fork_Tiles, Status);
                if Status /= Store.Ok then
                   raise Recovery.Invalid_Snapshot with
                     "Cannot recover required Canvas revisions: " & Status'Image;
@@ -849,7 +850,13 @@ package body Session_Lister is
                   "Fork_Session: " & Ada.Exceptions.Exception_Message (Ex));
                return "";
          end;
-         Tx.Unlock (Source_Lock);
+         --  Flat rasters are already in memory. Tiled originals still
+         --  refer to the source sidecar, so hold its guard through copying.
+         if (for all Digest of Fork_Tiles.References =>
+               Digest = Recovery.NO_ASSET)
+         then
+            Tx.Unlock (Source_Lock);
+         end if;
 
          --  Publish the Canvas before making the new JSONL visible.
 
@@ -999,7 +1006,8 @@ package body Session_Lister is
                   end if;
                   Reserved := True;
                   Disk.Save_Locked
-                    (Parent, New_UUID, Fork_Canvas, Fork_Assets, Canvas_Status);
+                    (Parent, New_UUID, Fork_Canvas, Fork_Assets, Fork_Tiles,
+                     Canvas_Status);
                   if Canvas_Status /= Store.Ok then
                      raise Ada.Text_IO.Use_Error with
                        "Cannot save fork Canvas: " & Canvas_Status'Image;
@@ -1010,6 +1018,7 @@ package body Session_Lister is
                use type Tx.Publication_Result;
                Publication : Tx.Publication_Result;
             begin
+               Tx.Unlock (Source_Lock);
                Tx.Publish (To_String (Stage), To_String (Target), Publication);
                if Publication = Tx.Not_Published then
                   raise Ada.Text_IO.Use_Error with "Cannot publish fork";

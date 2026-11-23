@@ -8,11 +8,13 @@ with Ada.Streams.Stream_IO;
 with Ada.Directories;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_Canvas.Rasters;
+with Coyote_Canvas.Tiles;
 with Coyote_Image_Decoder;
 with Coyote_Temp_Files;
 with GNAT.OS_Lib;
 with Glib;
 with Interfaces;
+with Interfaces.C.Strings;
 with Glib.Error;
 with Glib.Object;
 with Gdk.Pixbuf;
@@ -22,7 +24,13 @@ package body Coyote_Canvas_Raster_Tests is
    use type Glib.Error.GError;
    use type GNAT.OS_Lib.File_Descriptor;
    use type Coyote_Canvas.Rasters.Format;
+   use type Interfaces.C.int;
    use type Interfaces.Unsigned_32;
+
+   function C_Open
+     (Path  : Interfaces.C.Strings.chars_ptr;
+      Flags : Interfaces.C.int) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "open";
 
    type Pixel_Byte is mod 2 ** 8;
    type Pixel_Array is array (Natural range 0 .. 3) of aliased Pixel_Byte;
@@ -478,6 +486,95 @@ package body Coyote_Canvas_Raster_Tests is
            "Image 8192 x 4097 exceeds the 33554432-pixel area limit.");
    end Rejects;
 
+   procedure Tiles (T : in out Test) is
+      use type Coyote_Canvas.Tiles.Byte;
+      use type Coyote_Canvas.Tiles.Result;
+      use type Interfaces.C.Strings.chars_ptr;
+      pragma Unreferenced (T);
+      Source_FD   : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Staging_FD  : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Source_Path : Unbounded_String;
+      Stage_Path  : Unbounded_String;
+      Source_C    : Interfaces.C.Strings.chars_ptr :=
+        Interfaces.C.Strings.Null_Ptr;
+      Buffer      : Coyote_Canvas.Tiles.Tile_Buffer (1 .. 4) :=
+        (others => 0);
+      Status      : Coyote_Canvas.Tiles.Result;
+      Size        : Coyote_Canvas.Tiles.Dimensions;
+      Extent      : Coyote_Canvas.Tiles.Dimensions;
+   begin
+      Coyote_Temp_Files.Create (Source_FD, Source_Path);
+      Coyote_Temp_Files.Create (Staging_FD, Stage_Path);
+      Assert
+        (Source_FD /= GNAT.OS_Lib.Invalid_FD
+           and then Staging_FD /= GNAT.OS_Lib.Invalid_FD,
+         "tile fixture files are created");
+      GNAT.OS_Lib.Close (Source_FD);
+      Source_FD := GNAT.OS_Lib.Invalid_FD;
+      Save_Image (To_String (Source_Path), Gdk.Pixbuf.PNG, 1, 1);
+      Source_C := Interfaces.C.Strings.New_String (To_String (Source_Path));
+      Source_FD := GNAT.OS_Lib.File_Descriptor
+        (C_Open (Source_C, 0));
+      Interfaces.C.Strings.Free (Source_C);
+      Source_C := Interfaces.C.Strings.Null_Ptr;
+      Assert
+        (Source_FD /= GNAT.OS_Lib.Invalid_FD,
+         "PNG fixture opens for native import");
+      Coyote_Canvas.Tiles.Import
+        (Source_FD  => Interfaces.C.int (Source_FD),
+         Staging_FD => Interfaces.C.int (Staging_FD),
+         Max_Bytes  => Interfaces.Unsigned_64 (1_024),
+         Status     => Status,
+         Image_Size => Size);
+      Assert (Status = Coyote_Canvas.Tiles.Success, "PNG import succeeds");
+      Assert
+        (Size.Width = 1 and then Size.Height = 1,
+         "import reports source dimensions");
+      Coyote_Canvas.Tiles.Inspect
+        (FD => Interfaces.C.int (Staging_FD),
+         Status => Status,
+         Image_Size => Size);
+      Assert (Status = Coyote_Canvas.Tiles.Success, "tile file inspects");
+      Assert
+        (Size.Width = 1 and then Size.Height = 1,
+         "inspect reports stored dimensions");
+      Coyote_Canvas.Tiles.Read_Tile
+        (FD => Interfaces.C.int (Staging_FD),
+         Tile_X => 0,
+         Tile_Y => 0,
+         Buffer => Buffer,
+         Status => Status,
+         Extent => Extent);
+      Assert (Status = Coyote_Canvas.Tiles.Success, "tile read succeeds");
+      Assert
+        (Extent.Width = 1 and then Extent.Height = 1,
+         "tile reports actual extent");
+      Assert
+        (Buffer (1) = 16#7B# and then Buffer (2) = 16#31#
+           and then Buffer (3) = 16#22# and then Buffer (4) = 0,
+         "tile contains packed straight RGBA pixel");
+      GNAT.OS_Lib.Close (Source_FD);
+      Source_FD := GNAT.OS_Lib.Invalid_FD;
+      GNAT.OS_Lib.Close (Staging_FD);
+      Staging_FD := GNAT.OS_Lib.Invalid_FD;
+      Coyote_Temp_Files.Delete (To_String (Source_Path));
+      Coyote_Temp_Files.Delete (To_String (Stage_Path));
+   exception
+      when others =>
+         if Source_C /= Interfaces.C.Strings.Null_Ptr then
+            Interfaces.C.Strings.Free (Source_C);
+         end if;
+         if Source_FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (Source_FD);
+         end if;
+         if Staging_FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (Staging_FD);
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Source_Path));
+         Coyote_Temp_Files.Delete (To_String (Stage_Path));
+         raise;
+   end Tiles;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -490,6 +587,9 @@ package body Coyote_Canvas_Raster_Tests is
         ("Coyote.Canvas streaming decode without encoded cap", Streaming'Access));
       Result.Add_Test (Caller.Create
         ("Coyote.Canvas raster format and size rejection", Rejects'Access));
+      Result.Add_Test (Caller.Create
+        ("Coyote.Canvas native tile API import, inspect, and read",
+         Tiles'Access));
       return Result;
    end Suite;
 end Coyote_Canvas_Raster_Tests;

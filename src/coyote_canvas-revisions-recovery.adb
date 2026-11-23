@@ -21,6 +21,7 @@ package body Coyote_Canvas.Revisions.Recovery is
 
    procedure Require (Valid : Boolean; Reason : String);
    function Is_Digest (Value : String) return Boolean;
+   function Object_Field_Count (Value : JSON_Value) return Natural;
 
    function Number (Value : Natural) return JSON_Value is
      (Create (Integer (Value)));
@@ -49,8 +50,8 @@ package body Coyote_Canvas.Revisions.Recovery is
    end State_Value;
 
    function Encode
-     (W : Workspace; Assets : Asset_References; With_Assets : Boolean)
-      return String
+     (W : Workspace; Assets : Asset_References; Tiles : Tile_References;
+      With_Assets, With_Tiles : Boolean) return String
    is
       Root : constant JSON_Value := Create_Object;
       Ink, Nodes, Refs : JSON_Array;
@@ -119,7 +120,16 @@ package body Coyote_Canvas.Revisions.Recovery is
                Append (Fields, Create (Original_Label (W, Index)));
             end if;
             Append (Nodes, Create (Fields));
-            Append (Refs, Create (Assets (Index)));
+            if With_Tiles and then Tiles (Index) /= NO_ASSET then
+               declare
+                  Tile_Ref : constant JSON_Value := Create_Object;
+               begin
+                  Set_Field (Tile_Ref, "tileV1", Tiles (Index));
+                  Append (Refs, Tile_Ref);
+               end;
+            else
+               Append (Refs, Create (Assets (Index)));
+            end if;
          end;
       end loop;
       Set_Field (Root, "version", Integer (Version));
@@ -136,7 +146,8 @@ package body Coyote_Canvas.Revisions.Recovery is
    function Encode (W : Workspace) return String is
       Empty_Assets : constant Asset_References := (others => NO_ASSET);
    begin
-      return Encode (W, Empty_Assets, False);
+      return Encode
+        (W, Empty_Assets, Empty_Assets, False, False);
    end Encode;
 
    function Encode
@@ -157,7 +168,34 @@ package body Coyote_Canvas.Revisions.Recovery is
          Require (Assets (Index) = NO_ASSET,
                   "Asset digest is set beyond the revision list");
       end loop;
-      return Encode (W, Assets, True);
+      return Encode
+        (W, Assets, (others => NO_ASSET), True, False);
+   end Encode;
+
+   function Encode
+     (W : Workspace; Assets : Asset_References; Tiles : Tile_References)
+      return String
+   is
+   begin
+      for Index in 1 .. Count (W) loop
+         if Background (W, Index) = Index then
+            Require
+              ((Assets (Index) /= NO_ASSET and then Tiles (Index) = NO_ASSET
+                and then Is_Digest (Assets (Index)))
+               or else (Tiles (Index) /= NO_ASSET
+                        and then Assets (Index) = NO_ASSET
+                        and then Is_Digest (Tiles (Index))),
+               "Invalid Canvas asset reference");
+         else
+            Require (Assets (Index) = NO_ASSET and then Tiles (Index) = NO_ASSET,
+                     "Asset reference is set for a non-Original revision");
+         end if;
+      end loop;
+      for Index in Count (W) + 1 .. MAX_REVISIONS loop
+         Require (Assets (Index) = NO_ASSET and then Tiles (Index) = NO_ASSET,
+                  "Asset reference is set beyond the revision list");
+      end loop;
+      return Encode (W, Assets, Tiles, True, True);
    end Encode;
 
    procedure Require (Valid : Boolean; Reason : String) is
@@ -185,6 +223,19 @@ package body Coyote_Canvas.Revisions.Recovery is
       Require (V.Kind = JSON_String_Type, "Expected Canvas string");
       return Get (V);
    end Text;
+
+   function Object_Field_Count (Value : JSON_Value) return Natural is
+      Count : Natural := 0;
+      procedure Add_Field (Name : UTF8_String; Field : JSON_Value) is
+         pragma Unreferenced (Name, Field);
+      begin
+         Count := Count + 1;
+      end Add_Field;
+   begin
+      Require (Value.Kind = JSON_Object_Type, "Expected Canvas object");
+      Value.Map_JSON_Object (Add_Field'Access);
+      return Count;
+   end Object_Field_Count;
 
    function Is_UUID (Value : String) return Boolean is
    begin
@@ -233,9 +284,13 @@ package body Coyote_Canvas.Revisions.Recovery is
                   Quoted := True;
                   Token_Length := 0;
                when '{' =>
-                  Require (Depth = 0, "Unexpected Canvas JSON object");
-                  Root_Seen := True;
-                  Depth := 1;
+                  if Depth = 0 then
+                     Require (not Root_Seen, "Unexpected Canvas JSON object");
+                     Root_Seen := True;
+                  else
+                     Require (Depth = 2, "Unexpected Canvas JSON object");
+                  end if;
+                  Depth := Depth + 1;
                when '[' =>
                   Depth := Depth + 1;
                   Separators := Separators + 1;
@@ -243,11 +298,12 @@ package body Coyote_Canvas.Revisions.Recovery is
                when '}' | ']' =>
                   Depth := Depth - 1;
                when ':' =>
-                  Fields := Fields + 1;
-                  Require
-                    (Depth = 1 and then
-                       Fields <= (if With_Assets then 6 else 5),
-                     "Unexpected Canvas field");
+                  if Depth = 1 then
+                     Fields := Fields + 1;
+                     Require
+                       (Fields <= (if With_Assets then 6 else 5),
+                        "Unexpected Canvas field");
+                  end if;
                when ',' => Separators := Separators + 1;
                when '0' .. '9' | ' ' | ASCII.HT | ASCII.LF | ASCII.CR => null;
                when others =>
@@ -258,7 +314,7 @@ package body Coyote_Canvas.Revisions.Recovery is
          end if;
       end loop;
       Require
-        (Depth = 0 and then not Quoted
+        (Root_Seen and then Depth = 0 and then not Quoted
          and then Fields = (if With_Assets then 6 else 5),
          "Incomplete or invalid Canvas JSON");
    end Check_Envelope;
@@ -299,11 +355,14 @@ package body Coyote_Canvas.Revisions.Recovery is
 
    procedure Decode_Internal
      (Data : String; W : in out Workspace; Assets : out Asset_References;
-      With_Assets : Boolean)
+      Tiles : out Tile_References; With_Assets, With_Tiles : Boolean)
    is
       Candidate : Workspace;
       Candidate_Assets : Asset_References := (others => NO_ASSET);
+      Candidate_Tiles : Tile_References := (others => NO_ASSET);
       Roots : array (1 .. MAX_REVISIONS) of Revision_Id := (others => 0);
+      Tiled_Roots : array (1 .. MAX_REVISIONS) of Boolean :=
+        (others => False);
       Owners : array (1 .. MAX_STROKES) of Revision_Id := (others => 0);
       Max_X, Max_Y : array (1 .. MAX_STROKES) of Long_Float :=
         (others => 0.0);
@@ -317,10 +376,10 @@ package body Coyote_Canvas.Revisions.Recovery is
          Prior : Natural := 0;
       begin
          S.Extent :=
-           (Nat (Get (A, 1), Rasters.MAX_SIDE),
-            Nat (Get (A, 2), Rasters.MAX_SIDE),
-            Nat (Get (A, 3), Rasters.MAX_SIDE),
-            Nat (Get (A, 4), Rasters.MAX_SIDE));
+           (Nat (Get (A, 1), 32_768),
+            Nat (Get (A, 2), 32_768),
+            Nat (Get (A, 3), 32_768),
+            Nat (Get (A, 4), 32_768));
          S.Image := Nat (Get (A, 5), Count (Candidate) + 1);
          for I in 1 .. Length (L) loop
             declare
@@ -337,8 +396,13 @@ package body Coyote_Canvas.Revisions.Recovery is
 
       procedure Check_State (S : Drawing_State; Root : Revision_Id) is
       begin
-         Require (S.Image = Background (Candidate, Root)
-                  and then Document.Is_Within
+         Require
+           ((if Tiled_Roots (Root) then
+                S.Extent.Right <= 32_768 and then S.Extent.Bottom <= 32_768
+             else S.Extent.Right <= Rasters.MAX_SIDE
+               and then S.Extent.Bottom <= Rasters.MAX_SIDE)
+            and then S.Image = Background (Candidate, Root)
+            and then Document.Is_Within
                     (S.Extent, Extent (Candidate, Root)),
                   "Canvas state does not match its Original");
          for Id of S.Ink loop
@@ -346,7 +410,11 @@ package body Coyote_Canvas.Revisions.Recovery is
                      and then Max_X (Id) <=
                        Long_Float (Extent (Candidate, Root).Right)
                      and then Max_Y (Id) <=
-                       Long_Float (Extent (Candidate, Root).Bottom),
+                       Long_Float (Extent (Candidate, Root).Bottom)
+                     and then (Tiled_Roots (Root)
+                       or else (Max_X (Id) <= Long_Float (Rasters.MAX_SIDE)
+                         and then Max_Y (Id) <=
+                           Long_Float (Rasters.MAX_SIDE))),
                      "Canvas stroke does not match its Original");
             Owners (Id) := Root;
          end loop;
@@ -359,15 +427,38 @@ package body Coyote_Canvas.Revisions.Recovery is
                   "Canvas asset lookup count is invalid");
          for I in 1 .. Length (Refs) loop
             declare
-               Value : constant String := Text (Get (Refs, I));
+               Ref : constant JSON_Value := Get (Refs, I);
             begin
-               if Background (Candidate, I) = I then
-                  Require (Is_Digest (Value),
-                           "Invalid Canvas asset digest");
-                  Candidate_Assets (I) := Value;
+               if Ref.Kind = JSON_Object_Type then
+                  Require (With_Tiles and then Background (Candidate, I) = I,
+                           "Unexpected tiled Canvas asset reference");
+                  Require
+                    (Ref.Has_Field ("tileV1")
+                     and then Object_Field_Count (Ref) = 1,
+                     "Invalid tiled Canvas asset fields");
+                  declare
+                     Value : constant String := Text (Get (Ref, "tileV1"));
+                  begin
+                     Require (Is_Digest (Value),
+                              "Invalid tiled Canvas asset digest");
+                     Candidate_Tiles (I) := Value;
+                     Tiled_Roots (I) := True;
+                  end;
+               elsif Ref.Kind = JSON_String_Type then
+                  declare
+                     Value : constant String := Text (Ref);
+                  begin
+                     if Background (Candidate, I) = I then
+                        Require (Is_Digest (Value),
+                                 "Invalid Canvas asset digest");
+                        Candidate_Assets (I) := Value;
+                     else
+                        Require (Value = NO_ASSET,
+                                 "Asset digest is set for a non-Original revision");
+                     end if;
+                  end;
                else
-                  Require (Value = NO_ASSET,
-                           "Asset digest is set for a non-Original revision");
+                  raise Invalid_Snapshot with "Invalid Canvas asset reference";
                end if;
             end;
          end loop;
@@ -383,6 +474,33 @@ package body Coyote_Canvas.Revisions.Recovery is
             Obj : constant JSON_Value := Parsed.Value;
          begin
             Require (Obj.Kind = JSON_Object_Type, "Expected Canvas manifest");
+            if With_Assets then
+               declare
+                  Refs : constant JSON_Array :=
+                    Array_Of (Get (Obj, "assets"), MAX_REVISIONS);
+               begin
+                  Require
+                    (Length (Refs) = Length
+                       (Array_Of (Get (Obj, "revisions"), MAX_REVISIONS)),
+                     "Canvas asset lookup count is invalid");
+                  for I in 1 .. Length (Refs) loop
+                     declare
+                        Ref : constant JSON_Value := Get (Refs, I);
+                     begin
+                        if Ref.Kind = JSON_Object_Type then
+                           Require (With_Tiles and then Ref.Has_Field ("tileV1"),
+                                    "Invalid Canvas asset reference kind");
+                           Require
+                             (Object_Field_Count (Ref) = 1
+                              and then Is_Digest
+                                (Text (Get (Ref, "tileV1"))),
+                              "Invalid tiled Canvas asset reference");
+                           Tiled_Roots (I) := True;
+                        end if;
+                     end;
+                  end loop;
+               end;
+            end if;
             declare
                Version : constant Natural :=
                  Nat (Get (Obj, "version"), DEPOSITED_VERSION);
@@ -464,9 +582,8 @@ package body Coyote_Canvas.Revisions.Recovery is
                               Alpha => Ink_Alpha (Alpha_Value));
                         begin
                            Require
-                             (Point.X in 0.0 .. Long_Float (Rasters.MAX_SIDE)
-                              and then Point.Y in
-                                0.0 .. Long_Float (Rasters.MAX_SIDE)
+                             (Point.X in 0.0 .. 32_768.0
+                              and then Point.Y in 0.0 .. 32_768.0
                               and then Point.Width > 0.0
                               and then Point.Width <= 64.0
                               and then Alpha_Value in 0.0 .. 1.0
@@ -505,8 +622,13 @@ package body Coyote_Canvas.Revisions.Recovery is
                      if P = NO_REVISION then
                         Require (S.Extent.Left = 0 and then S.Extent.Top = 0
                                  and then Document.Is_Nonempty (S.Extent)
-                                 and then S.Extent.Bottom <=
-                                   Rasters.MAX_PIXELS / S.Extent.Right
+                                 and then (if Tiled_Roots (I) then
+                                   S.Extent.Right <= 32_768 and then
+                                   S.Extent.Bottom <= 32_768
+                                   else S.Extent.Right <= Rasters.MAX_SIDE
+                                   and then S.Extent.Bottom <= Rasters.MAX_SIDE
+                                   and then S.Extent.Bottom <=
+                                     Rasters.MAX_PIXELS / S.Extent.Right)
                                  and then (S.Image = 0 or else S.Image = I)
                                  and then S.Ink.Is_Empty,
                                  "Invalid Canvas Original");
@@ -536,10 +658,23 @@ package body Coyote_Canvas.Revisions.Recovery is
             if With_Assets then
                Validate_Assets (Get (Obj, "assets"));
             end if;
+            for Id in 1 .. Natural (Candidate.Strokes.Length) loop
+               Require
+                 ((if Owners (Id) = 0 then
+                    Max_X (Id) <= Long_Float (Rasters.MAX_SIDE)
+                    and then Max_Y (Id) <= Long_Float (Rasters.MAX_SIDE)
+                  elsif Tiled_Roots (Owners (Id)) then
+                    Max_X (Id) <= 32_768.0 and then Max_Y (Id) <= 32_768.0
+                  else
+                    Max_X (Id) <= Long_Float (Rasters.MAX_SIDE)
+                    and then Max_Y (Id) <= Long_Float (Rasters.MAX_SIDE)),
+                  "Canvas stroke exceeds its Original bounds");
+            end loop;
          end;
       end;
       Move (W, Candidate);
       Assets := Candidate_Assets;
+      Tiles := Candidate_Tiles;
    exception
       when Constraint_Error | Ada.Text_IO.Layout_Error =>
          raise Invalid_Snapshot with "Malformed Canvas snapshot field";
@@ -655,15 +790,27 @@ package body Coyote_Canvas.Revisions.Recovery is
    end Copy;
 
    procedure Decode (Data : String; W : in out Workspace) is
-      Ignored : Asset_References;
+      Ignored_Assets : Asset_References;
+      Ignored_Tiles  : Tile_References;
    begin
-      Decode_Internal (Data, W, Ignored, False);
+      Decode_Internal
+        (Data, W, Ignored_Assets, Ignored_Tiles, False, False);
    end Decode;
 
    procedure Decode
      (Data : String; W : in out Workspace; Assets : out Asset_References)
    is
+      Ignored_Tiles : Tile_References;
    begin
-      Decode_Internal (Data, W, Assets, True);
+      Decode_Internal
+        (Data, W, Assets, Ignored_Tiles, True, False);
+   end Decode;
+
+   procedure Decode
+     (Data : String; W : in out Workspace; Assets : out Asset_References;
+      Tiles : out Tile_References)
+   is
+   begin
+      Decode_Internal (Data, W, Assets, Tiles, True, True);
    end Decode;
 end Coyote_Canvas.Revisions.Recovery;

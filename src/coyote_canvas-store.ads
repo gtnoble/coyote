@@ -1,8 +1,8 @@
 with Ada.Finalization;
 with Ada.Strings.Unbounded;
 with Interfaces;
+with Interfaces.C;
 with Coyote_Canvas.Rasters;
-private with Interfaces.C;
 
 --  Private Canvas transport and checked session lifecycle operations.
 package Coyote_Canvas.Store is
@@ -32,6 +32,21 @@ package Coyote_Canvas.Store is
    --  Never replaces a different file at the same digest name.
    procedure Write_Asset
      (Parent, UUID, Digest, Data : String; Status : out Result);
+   --  The source tile descriptor remains caller-owned. On success the
+   --  digest names a durable immutable tiled asset. An uncertain write
+   --  must not be referenced until a successful retry.
+   subtype Tile_Digest is String (1 .. 64);
+   procedure Write_Tile
+     (Parent, UUID : String; FD : Interfaces.C.int;
+      Digest : out Tile_Digest; Status : out Result);
+
+   --  Verify the content digest and layout before handing over an open
+   --  read-only descriptor. The caller closes it; failure returns -1.
+   procedure Open_Tile
+     (Parent, UUID, Digest : String; FD : out Interfaces.C.int;
+      Status : out Result);
+   procedure Close_Tile (FD : in out Interfaces.C.int);
+
    --  Exclusive GTK ownership, independent of the per-write lock. Reads
    --  remain possible without a lease. This does not lock the JSONL writer.
    type Writer_Lease is limited private;

@@ -7,9 +7,12 @@ with Coyote_Canvas.Revisions.Recovery;
 with GNAT.SHA256;
 with GNATCOLL.JSON;
 with Coyote_Process_Control;
+with Coyote_Canvas.Tiles;
+with Interfaces.C;
 
 package body Coyote_Canvas.Store.Workspaces is
    use Ada.Strings.Unbounded;
+   use type Interfaces.C.int;
    package Rev renames Coyote_Canvas.Revisions;
    package Recovery renames Rev.Recovery;
    package Tx renames Coyote_Session_Transactions;
@@ -53,16 +56,48 @@ package body Coyote_Canvas.Store.Workspaces is
       return GNAT.SHA256.Digest (Ctx);
    end Key;
 
+   procedure Open_Original_Tile
+     (Assets : Tile_Set; Digest : Recovery.Asset_Digest;
+      E : Document.Rectangle; FD : out Interfaces.C.int; Status : out Result)
+   is
+      use type Interfaces.Unsigned_32;
+      use type Coyote_Canvas.Tiles.Result;
+      Info : Coyote_Canvas.Tiles.Dimensions;
+      Checked : Coyote_Canvas.Tiles.Result;
+   begin
+      Open_Tile (To_String (Assets.Parent), To_String (Assets.UUID),
+                 Digest, FD, Status);
+      if Status = Missing then
+         Status := Invalid;
+      elsif Status = Ok then
+         Coyote_Canvas.Tiles.Inspect (FD, Checked, Info);
+         if Checked /= Coyote_Canvas.Tiles.Success
+           or else E.Left /= 0 or else E.Top /= 0
+           or else Info.Width /= Interfaces.Unsigned_32 (E.Right)
+           or else Info.Height /= Interfaces.Unsigned_32 (E.Bottom)
+         then
+            Close_Tile (FD);
+            Status := Invalid;
+         end if;
+      end if;
+   end Open_Original_Tile;
+
    procedure Save_Internal
      (Parent, UUID : String; W : Rev.Workspace; Assets : Raster_Set;
-      Status : out Result; Already_Locked : Boolean)
+      Tiles : Tile_Set; Status : out Result; Already_Locked : Boolean)
    is
       Refs : Recovery.Asset_References := (others => Recovery.NO_ASSET);
       Used : Natural := 0;
    begin
       Status := Invalid;
       for Id in Assets'Range loop
-         if Id <= Rev.Count (W) and then Rev.Background (W, Id) = Id then
+         if Tiles.References (Id) /= Recovery.NO_ASSET then
+            if Id > Rev.Count (W) or else Rev.Background (W, Id) /= Id
+              or else Length (Assets (Id)) /= 0
+            then
+               return;
+            end if;
+         elsif Id <= Rev.Count (W) and then Rev.Background (W, Id) = Id then
             declare
                E : constant Document.Rectangle := Rev.Extent (W, Id);
                N : constant Positive := Byte_Count (E);
@@ -89,7 +124,7 @@ package body Coyote_Canvas.Store.Workspaces is
          end if;
       end loop;
       declare
-         Manifest : constant String := Recovery.Encode (W, Refs);
+         Manifest : constant String := Recovery.Encode (W, Refs, Tiles.References);
          Lock : Tx.Guard;
          Locked : Tx.Result;
       begin
@@ -109,7 +144,36 @@ package body Coyote_Canvas.Store.Workspaces is
             end case;
          end if;
          for Id in 1 .. Rev.Count (W) loop
-            if Refs (Id) /= Recovery.NO_ASSET then
+            if Tiles.References (Id) /= Recovery.NO_ASSET then
+               declare
+                  Digest : constant Recovery.Asset_Digest :=
+                    Tiles.References (Id);
+                  FD : Interfaces.C.int := -1;
+                  Copied : Tile_Digest;
+               begin
+                  Open_Original_Tile (Tiles, Digest, Rev.Extent (W, Id),
+                                      FD, Status);
+                  if Status = Ok and then
+                    (Tiles.Parent /= Parent or else Tiles.UUID /= UUID)
+                  then
+                     Write_Tile (Parent, UUID, FD, Copied, Status);
+                     if Status = Ok and then Copied /= Digest then
+                        Status := Invalid;
+                     end if;
+                  end if;
+                  Close_Tile (FD);
+                  if Status /= Ok then
+                     if Status = Uncertain then
+                        Status := IO_Error;
+                     end if;
+                     return;
+                  end if;
+               exception
+                  when others =>
+                     Close_Tile (FD);
+                     raise;
+               end;
+            elsif Refs (Id) /= Recovery.NO_ASSET then
                declare
                   Bytes : Aux.Big_String_Access;
                   Size  : Natural;
@@ -137,7 +201,16 @@ package body Coyote_Canvas.Store.Workspaces is
       Status : out Result)
    is
    begin
-      Save_Internal (Parent, UUID, W, Assets, Status, Already_Locked => False);
+      Save (Parent, UUID, W, Assets, (others => <>), Status);
+   end Save;
+
+   procedure Save
+     (Parent, UUID : String; W : Rev.Workspace; Assets : Raster_Set;
+      Tiles : Tile_Set; Status : out Result)
+   is
+   begin
+      Save_Internal (Parent, UUID, W, Assets, Tiles, Status,
+                     Already_Locked => False);
    end Save;
 
    procedure Save_Locked
@@ -145,17 +218,29 @@ package body Coyote_Canvas.Store.Workspaces is
       Status : out Result)
    is
    begin
-      Save_Internal (Parent, UUID, W, Assets, Status, Already_Locked => True);
+      Save_Locked (Parent, UUID, W, Assets, (others => <>), Status);
+   end Save_Locked;
+
+   procedure Save_Locked
+     (Parent, UUID : String; W : Rev.Workspace; Assets : Raster_Set;
+      Tiles : Tile_Set; Status : out Result)
+   is
+   begin
+      Save_Internal (Parent, UUID, W, Assets, Tiles, Status,
+                     Already_Locked => True);
    end Save_Locked;
 
    procedure Load_Internal
      (Parent, UUID : String; W : in out Rev.Workspace;
-      Assets : in out Raster_Set; Status : out Result;
-      Requested : Recovery.References; Select_Only : Boolean;
+      Assets : in out Raster_Set; Tiles : in out Tile_Set;
+      Status : out Result; Requested : Recovery.References;
+      Select_Only, With_Tiles : Boolean;
       Manifest : out Unbounded_String; Refs : out Recovery.Asset_References)
    is
       Candidate : Rev.Workspace;
       Pixels    : Raster_Set;
+      Tile_Refs : Recovery.Tile_References := (others => Recovery.NO_ASSET);
+      Restored  : Tile_Set;
       Source_Ids : Recovery.Revision_Mapping;
       Used      : Natural := 0;
    begin
@@ -163,7 +248,13 @@ package body Coyote_Canvas.Store.Workspaces is
       if Status /= Ok then
          return;
       end if;
-      Recovery.Decode (To_String (Manifest), Candidate, Refs);
+      if With_Tiles then
+         Recovery.Decode (To_String (Manifest), Candidate, Refs, Tile_Refs);
+         Restored.Parent := To_Unbounded_String (Parent);
+         Restored.UUID := To_Unbounded_String (UUID);
+      else
+         Recovery.Decode (To_String (Manifest), Candidate, Refs);
+      end if;
       if Select_Only then
          declare
             Subset : Rev.Workspace;
@@ -178,7 +269,21 @@ package body Coyote_Canvas.Store.Workspaces is
          end loop;
       end if;
       for Id in 1 .. Rev.Count (Candidate) loop
-         if Refs (Source_Ids (Id)) /= Recovery.NO_ASSET then
+         if Tile_Refs (Source_Ids (Id)) /= Recovery.NO_ASSET then
+            declare
+               Digest : constant Recovery.Asset_Digest :=
+                 Tile_Refs (Source_Ids (Id));
+               FD : Interfaces.C.int;
+            begin
+               Open_Original_Tile (Restored, Digest,
+                                   Rev.Extent (Candidate, Id), FD, Status);
+               Close_Tile (FD);
+               if Status /= Ok then
+                  return;
+               end if;
+               Restored.References (Id) := Digest;
+            end;
+         elsif Refs (Source_Ids (Id)) /= Recovery.NO_ASSET then
             declare
                Digest : constant Recovery.Asset_Digest :=
                  Refs (Source_Ids (Id));
@@ -208,6 +313,7 @@ package body Coyote_Canvas.Store.Workspaces is
          end if;
       end loop;
       Assets := Pixels;
+      Tiles := Restored;
       Recovery.Move (W, Candidate);
    exception
       when Recovery.Invalid_Snapshot =>
@@ -226,15 +332,41 @@ package body Coyote_Canvas.Store.Workspaces is
       end if;
    end Load;
 
+   procedure Load
+     (Parent, UUID : String; W : in out Rev.Workspace;
+      Assets : in out Raster_Set; Tiles : in out Tile_Set; Status : out Result)
+   is
+      Lock : Tx.Guard;
+   begin
+      Try_Guard (Parent, UUID, Lock, Status);
+      if Status = Ok then
+         Load_Locked (Parent, UUID, W, Assets, Tiles, Status);
+      end if;
+   end Load;
+
    procedure Load_Locked
      (Parent, UUID : String; W : in out Rev.Workspace;
       Assets : in out Raster_Set; Status : out Result)
    is
       Manifest : Unbounded_String;
       Refs : Recovery.Asset_References;
+      Ignored : Tile_Set;
    begin
-      Load_Internal (Parent, UUID, W, Assets, Status, (1 .. 0 => <>),
-                     Select_Only => False, Manifest => Manifest, Refs => Refs);
+      Load_Internal (Parent, UUID, W, Assets, Ignored, Status, (1 .. 0 => <>),
+                     Select_Only => False, With_Tiles => False,
+                     Manifest => Manifest, Refs => Refs);
+   end Load_Locked;
+
+   procedure Load_Locked
+     (Parent, UUID : String; W : in out Rev.Workspace;
+      Assets : in out Raster_Set; Tiles : in out Tile_Set; Status : out Result)
+   is
+      Manifest : Unbounded_String;
+      Refs : Recovery.Asset_References;
+   begin
+      Load_Internal (Parent, UUID, W, Assets, Tiles, Status, (1 .. 0 => <>),
+                     Select_Only => False, With_Tiles => True,
+                     Manifest => Manifest, Refs => Refs);
    end Load_Locked;
 
    procedure Load_Selection
@@ -244,9 +376,24 @@ package body Coyote_Canvas.Store.Workspaces is
    is
       Manifest : Unbounded_String;
       Refs : Recovery.Asset_References;
+      Ignored : Tile_Set;
    begin
-      Load_Internal (Parent, UUID, W, Assets, Status, Requested,
-                     Select_Only => True, Manifest => Manifest, Refs => Refs);
+      Load_Internal (Parent, UUID, W, Assets, Ignored, Status, Requested,
+                     Select_Only => True, With_Tiles => False,
+                     Manifest => Manifest, Refs => Refs);
+   end Load_Selection;
+
+   procedure Load_Selection
+     (Parent, UUID : String; Requested : Recovery.References;
+      W : in out Rev.Workspace; Assets : in out Raster_Set;
+      Tiles : in out Tile_Set; Status : out Result)
+   is
+      Manifest : Unbounded_String;
+      Refs : Recovery.Asset_References;
+   begin
+      Load_Internal (Parent, UUID, W, Assets, Tiles, Status, Requested,
+                     Select_Only => True, With_Tiles => True,
+                     Manifest => Manifest, Refs => Refs);
    end Load_Selection;
 
    function Matching_Header (Header, UUID : String) return Boolean is
@@ -327,17 +474,24 @@ package body Coyote_Canvas.Store.Workspaces is
          declare
             W : Rev.Workspace;
             Assets : Raster_Set;
+            Tiles : Tile_Set;
             Refs : Recovery.Asset_References;
          begin
-            Load_Internal (Parent, UUID, W, Assets, Status, (1 .. 0 => <>),
-                           Select_Only => False, Manifest => Manifest,
+            Load_Internal (Parent, UUID, W, Assets, Tiles, Status,
+                           (1 .. 0 => <>), Select_Only => False,
+                           With_Tiles => True, Manifest => Manifest,
                            Refs => Refs);
             if Status /= Ok then
                return;
             end if;
             for Digest of Refs loop
                if Digest /= Recovery.NO_ASSET then
-                  Append (Keep, Digest);
+                  Append (Keep, Digest & ".rgba");
+               end if;
+            end loop;
+            for Digest of Tiles.References loop
+               if Digest /= Recovery.NO_ASSET then
+                  Append (Keep, Digest & ".tile");
                end if;
             end loop;
          end;

@@ -11,6 +11,15 @@ package Coyote_Canvas.Store.Workspaces is
    type Raster_Set is array (Positive range 1 .. Revisions.MAX_REVISIONS)
      of Ada.Strings.Unbounded.Unbounded_String;
 
+   --  Original indices only. Parent/UUID identify the sidecar where the
+   --  immutable tile files live. Keep the source guard held when copying
+   --  selected revisions to another session (e.g. during fork).
+   type Tile_Set is record
+      Parent, UUID : Ada.Strings.Unbounded.Unbounded_String;
+      References : Revisions.Recovery.Tile_References :=
+        (others => Revisions.Recovery.NO_ASSET);
+   end record;
+
    --  Holds the shared session guard across all asset and manifest writes.
    --  Returns Busy without writing if another session writer holds the guard.
    --  Failure can leave unreferenced assets; they are not reclaimed here.
@@ -20,9 +29,19 @@ package Coyote_Canvas.Store.Workspaces is
      (Parent, UUID : String; W : Revisions.Workspace; Assets : Raster_Set;
       Status : out Result);
 
+   procedure Save
+     (Parent, UUID : String; W : Revisions.Workspace; Assets : Raster_Set;
+      Tiles : Tile_Set;
+      Status : out Result);
+
    --  Same write as Save, for a caller already holding the session guard.
    procedure Save_Locked
      (Parent, UUID : String; W : Revisions.Workspace; Assets : Raster_Set;
+      Status : out Result);
+
+   procedure Save_Locked
+     (Parent, UUID : String; W : Revisions.Workspace; Assets : Raster_Set;
+      Tiles : Tile_Set;
       Status : out Result);
 
    --  With the source guard held, restore only the requested immutable
@@ -30,6 +49,12 @@ package Coyote_Canvas.Store.Workspaces is
    procedure Load_Selection
      (Parent, UUID : String; Requested : Revisions.Recovery.References;
       W : in out Revisions.Workspace; Assets : in out Raster_Set;
+      Status : out Result);
+
+   procedure Load_Selection
+     (Parent, UUID : String; Requested : Revisions.Recovery.References;
+      W : in out Revisions.Workspace; Assets : in out Raster_Set;
+      Tiles : in out Tile_Set;
       Status : out Result);
 
    --  Inspect a single UUID in the resolved session directory. A live log
@@ -49,8 +74,18 @@ package Coyote_Canvas.Store.Workspaces is
      (Parent, UUID : String; W : in out Revisions.Workspace;
       Assets : in out Raster_Set; Status : out Result);
 
+   procedure Load
+     (Parent, UUID : String; W : in out Revisions.Workspace;
+      Assets : in out Raster_Set; Tiles : in out Tile_Set;
+      Status : out Result);
+
    --  Caller already holds the shared session guard (e.g. editor admission).
    procedure Load_Locked
      (Parent, UUID : String; W : in out Revisions.Workspace;
       Assets : in out Raster_Set; Status : out Result);
+
+   procedure Load_Locked
+     (Parent, UUID : String; W : in out Revisions.Workspace;
+      Assets : in out Raster_Set; Tiles : in out Tile_Set;
+      Status : out Result);
 end Coyote_Canvas.Store.Workspaces;

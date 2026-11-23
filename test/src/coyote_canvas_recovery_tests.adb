@@ -1,4 +1,6 @@
 with Ada.Directories;
+with Ada.Streams;
+with Ada.Streams.Stream_IO;
 with Ada.Text_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with AUnit.Assertions; use AUnit.Assertions;
@@ -10,7 +12,9 @@ with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Store;
 with Coyote_Canvas.Store.Workspaces;
 with Coyote_Session_Transactions;
+with Coyote_Temp_Files;
 with GNAT.OS_Lib;
+with Interfaces;
 with Interfaces.C;
 with System;
 
@@ -24,6 +28,35 @@ package body Coyote_Canvas_Recovery_Tests is
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
    UUID_A : constant String := "550e8400-e29b-41d4-a716-446655440000";
    UUID_B : constant String := "550e8400-e29b-41d4-a716-446655440001";
+
+   procedure Make_Tile_File (Path : String; Width : Positive := 9_000) is
+      use Ada.Streams;
+      use Ada.Streams.Stream_IO;
+      File : File_Type;
+      Bytes : Stream_Element_Array
+        (1 .. Stream_Element_Offset (16 + Width * 4));
+   begin
+      Bytes (1 .. 8) :=
+        (Stream_Element (Character'Pos ('C')),
+         Stream_Element (Character'Pos ('Y')),
+         Stream_Element (Character'Pos ('T')),
+         Stream_Element (Character'Pos ('I')),
+         Stream_Element (Character'Pos ('L')),
+         Stream_Element (Character'Pos ('E')),
+         0, 1);
+      Bytes (9 .. 12) :=
+        (Stream_Element (Width / 16#100_0000#),
+         Stream_Element (Width / 16#1_0000# mod 16#100#),
+         Stream_Element (Width / 16#100# mod 16#100#),
+         Stream_Element (Width mod 16#100#));
+      Bytes (13 .. 16) := (0, 0, 0, 1);
+      for Index in 17 .. Bytes'Last loop
+         Bytes (Index) := Stream_Element ((Index - 17) mod 256);
+      end loop;
+      Create (File, Out_File, Path);
+      Write (File, Bytes);
+      Close (File);
+   end Make_Tile_File;
 
    function Make_Temp_Directory
      (Template : System.Address) return System.Address
@@ -673,6 +706,267 @@ package body Coyote_Canvas_Recovery_Tests is
          raise;
    end Workspace_Read_Holds_Session_Guard;
 
+   procedure Tiled_Recovery_Failures_Selection_And_Copy
+     (T : in out Test) is
+      pragma Unreferenced (T);
+      use type Interfaces.C.int;
+      use type GNAT.OS_Lib.File_Descriptor;
+      use type Interfaces.Unsigned_64;
+      Root, Tile_Path, Mismatch_Path : Unbounded_String;
+      Source, Loaded, Failed : Workspace;
+      Assets, Loaded_Assets, Sentinel_Assets : Disk.Raster_Set;
+      Source_Tiles, Loaded_Tiles, Copy_Tiles : Disk.Tile_Set;
+      First, Second : Revision_Id;
+      Status : Result;
+      Tile_FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Digest, Mismatch_Digest : Tile_Digest;
+      Manifest, Baseline : Unbounded_String;
+      Decoded_Assets : Asset_References;
+      Decoded_Tiles : Tile_References;
+      Requested : References (1 .. 2);
+      One_Requested : References (1 .. 1);
+      Rejected : Boolean := False;
+   begin
+      Set_Up_Directory (Root);
+      Coyote_Temp_Files.Create (Tile_FD, Tile_Path);
+      Assert (Tile_FD /= GNAT.OS_Lib.Invalid_FD,
+              "tile fixture file is created");
+      GNAT.OS_Lib.Close (Tile_FD);
+      Tile_FD := GNAT.OS_Lib.Invalid_FD;
+      Make_Tile_File (To_String (Tile_Path));
+      Tile_FD := GNAT.OS_Lib.Open_Read_Write
+        (To_String (Tile_Path), GNAT.OS_Lib.Binary);
+      Assert (Tile_FD /= GNAT.OS_Lib.Invalid_FD,
+              "checked 9000 by 1 tile fixture opens");
+      Write_Tile (To_String (Root), UUID_A, Interfaces.C.int (Tile_FD),
+                  Digest, Status);
+      Assert (Status = Ok, "publish checked tiled Original");
+      GNAT.OS_Lib.Close (Tile_FD);
+      Tile_FD := GNAT.OS_Lib.Invalid_FD;
+
+      Add_Originals
+        (Source, (1 => (Width => 9_000, Height => 1),
+                  2 => (Width => 1, Height => 1)), First);
+      Second := First + 1;
+      Assets (Second) := To_Unbounded_String ("rgba");
+      Source_Tiles.Parent := Root;
+      Source_Tiles.UUID := To_Unbounded_String (UUID_A);
+      Source_Tiles.References (First) := Digest;
+      Disk.Save (To_String (Root), UUID_A, Source, Assets, Source_Tiles,
+                 Status);
+      Assert (Status = Ok, "save mixed raster and tiled manifest");
+      Read (To_String (Root), UUID_A, Manifest, Status);
+      Assert (Status = Ok, "read mixed manifest");
+      declare
+         Temp : constant String :=
+           To_String (Root) & "/" & UUID_A & ".canvas/.canvas.tmp";
+         Check_FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+         No_Digest : Tile_Digest;
+         Current : Unbounded_String;
+      begin
+         Ada.Directories.Create_Directory (Temp);
+         Check_FD := GNAT.OS_Lib.Open_Read_Write
+           (To_String (Tile_Path), GNAT.OS_Lib.Binary);
+         Assert (Check_FD /= GNAT.OS_Lib.Invalid_FD, "open staged tile");
+         Write_Tile (To_String (Root), UUID_A, Interfaces.C.int (Check_FD),
+                     No_Digest, Status);
+         Assert (Status = IO_Error and then No_Digest = NO_ASSET,
+                 "blocked staging must not report a successful tile write");
+         GNAT.OS_Lib.Close (Check_FD);
+         Check_FD := GNAT.OS_Lib.Invalid_FD;
+         Ada.Directories.Delete_Directory (Temp);
+         Read (To_String (Root), UUID_A, Current, Status);
+         Assert (Status = Ok and then Current = Manifest,
+                 "failed tile write leaves the committed manifest unchanged");
+      exception
+         when others =>
+            if Check_FD /= GNAT.OS_Lib.Invalid_FD then
+               GNAT.OS_Lib.Close (Check_FD);
+            end if;
+            raise;
+      end;
+      Recovery.Copy (Failed, Source);
+      Baseline := To_Unbounded_String (Encode (Failed));
+      Rejected := False;
+      begin
+         Decode (To_String (Manifest), Failed, Decoded_Assets);
+      exception
+         when Invalid_Snapshot =>
+            Rejected := True;
+      end;
+      Assert (Rejected and then Encode (Failed) = To_String (Baseline),
+              "legacy raster-only decoder refuses tileV1 atomically");
+
+      Disk.Load (To_String (Root), UUID_A, Failed, Sentinel_Assets, Status);
+      Assert (Status = Invalid and then Encode (Failed) = To_String (Baseline),
+              "legacy workspace load refuses mixed manifests atomically");
+
+      Requested :=
+        (1 => (Drawing => Drawing_Key (Source, First),
+               Revision => Revision_Key (Source, First)),
+         2 => (Drawing => Drawing_Key (Source, Second),
+               Revision => Revision_Key (Source, Second)));
+      Disk.Load_Selection
+        (To_String (Root), UUID_A, Requested, Loaded, Loaded_Assets,
+         Loaded_Tiles, Status);
+      Assert (Status = Ok and then Count (Loaded) = 2,
+              "selection restores tiled and raster Originals");
+      Assert (Loaded_Assets (2) = "rgba"
+              and then Loaded_Tiles.References (1) = Digest,
+              "selection maps both asset kinds to destination indices");
+      Recovery.Decode
+        (To_String (Manifest), Failed, Decoded_Assets, Decoded_Tiles);
+      Assert (Decoded_Assets (Second) /= NO_ASSET
+              and then Decoded_Tiles (First) = Digest,
+              "current decoder reads both manifests");
+
+      One_Requested (1) :=
+        (Drawing => Drawing_Key (Source, First),
+         Revision => Revision_Key (Source, First));
+      Copy_Tiles.References (First) := Digest;
+      Disk.Load_Selection
+        (To_String (Root), UUID_A, One_Requested, Failed, Sentinel_Assets,
+         Copy_Tiles, Status);
+      Assert (Status = Ok and then Count (Failed) = 1,
+              "selection retains requested tiled Original only");
+      Assert (Revision_Key (Failed, 1) = Revision_Key (Source, First)
+              and then Copy_Tiles.References (1) = Digest,
+              "selection remaps the tile to its new revision index");
+
+      Recovery.Copy (Failed, Source);
+      Baseline := To_Unbounded_String (Encode (Failed));
+      Copy_Tiles := (Parent => Root,
+                     UUID => To_Unbounded_String (UUID_A),
+                     References => (others => NO_ASSET));
+      Sentinel_Assets (First) := To_Unbounded_String ("asset-sentinel");
+      Copy_Tiles.References (First) := Tile_Digest'(others => 'x');
+      declare
+         Tile_Pathname : constant String := To_String (Root) & "/" & UUID_A
+           & ".canvas/" & Digest & ".tile";
+         Byte : aliased Ada.Streams.Stream_Element := 255;
+      begin
+         Tile_FD := GNAT.OS_Lib.Open_Read_Write
+           (Tile_Pathname, GNAT.OS_Lib.Binary);
+         Assert (Tile_FD /= GNAT.OS_Lib.Invalid_FD, "open tile to corrupt");
+         GNAT.OS_Lib.Lseek (Tile_FD, 16, GNAT.OS_Lib.Seek_Set);
+         Assert (GNAT.OS_Lib.Write (Tile_FD, Byte'Address, 1) = 1,
+                 "change one payload byte without changing asset length");
+         GNAT.OS_Lib.Close (Tile_FD);
+         Tile_FD := GNAT.OS_Lib.Invalid_FD;
+         Disk.Load_Selection
+           (To_String (Root), UUID_A, One_Requested, Failed, Sentinel_Assets,
+            Copy_Tiles, Status);
+         Assert (Status = Invalid and then Encode (Failed) = To_String (Baseline)
+                 and then Sentinel_Assets (First) = "asset-sentinel"
+                 and then Copy_Tiles.References (First) = Tile_Digest'(others => 'x'),
+                 "corrupt tile rejection preserves every output");
+         Ada.Directories.Delete_File (Tile_Pathname);
+         Disk.Load_Selection
+           (To_String (Root), UUID_A, One_Requested, Failed, Sentinel_Assets,
+            Copy_Tiles, Status);
+         Assert (Status = Invalid and then Encode (Failed) = To_String (Baseline)
+                 and then Sentinel_Assets (First) = "asset-sentinel"
+                 and then Copy_Tiles.References (First) = Tile_Digest'(others => 'x'),
+                 "missing tile rejection preserves every output");
+      end;
+      Tile_FD := GNAT.OS_Lib.Open_Read_Write
+        (To_String (Tile_Path), GNAT.OS_Lib.Binary);
+      Assert (Tile_FD /= GNAT.OS_Lib.Invalid_FD,
+              "reopen source tile after negative checks");
+      Write_Tile (To_String (Root), UUID_A, Interfaces.C.int (Tile_FD),
+                  Digest, Status);
+      Assert (Status = Ok, "restore source tile after negative checks");
+      GNAT.OS_Lib.Close (Tile_FD);
+      Tile_FD := GNAT.OS_Lib.Invalid_FD;
+
+      Coyote_Temp_Files.Create (Tile_FD, Mismatch_Path);
+      Assert (Tile_FD /= GNAT.OS_Lib.Invalid_FD,
+              "dimension-mismatch tile staging file is created");
+      GNAT.OS_Lib.Close (Tile_FD);
+      Tile_FD := GNAT.OS_Lib.Invalid_FD;
+      Make_Tile_File (To_String (Mismatch_Path), 8_999);
+      Tile_FD := GNAT.OS_Lib.Open_Read_Write
+        (To_String (Mismatch_Path), GNAT.OS_Lib.Binary);
+      Write_Tile (To_String (Root), UUID_A, Interfaces.C.int (Tile_FD),
+                  Mismatch_Digest, Status);
+      Assert (Status = Ok, "publish valid tile with mismatched dimensions");
+      GNAT.OS_Lib.Close (Tile_FD);
+      Tile_FD := GNAT.OS_Lib.Invalid_FD;
+      declare
+         Mismatched : constant String := Replace_First
+           (To_String (Manifest), Digest, Mismatch_Digest);
+      begin
+         Assert (Mismatched /= To_String (Manifest),
+                 "mismatch fixture changes the manifest digest");
+         Write (To_String (Root), UUID_A, Mismatched, Status);
+      end;
+      Assert (Status = Ok, "publish controlled mismatched-dimension manifest");
+      Disk.Load_Selection
+        (To_String (Root), UUID_A, One_Requested, Failed, Sentinel_Assets,
+         Copy_Tiles, Status);
+      Assert (Status = Invalid and then Encode (Failed) = To_String (Baseline)
+              and then Sentinel_Assets (First) = "asset-sentinel"
+              and then Copy_Tiles.References (First) = Tile_Digest'(others => 'x'),
+              "dimension mismatch rejection preserves every output");
+      Write (To_String (Root), UUID_A, To_String (Manifest), Status);
+      Assert (Status = Ok, "restore original valid manifest");
+      Sentinel_Assets (First) := Null_Unbounded_String;
+      Sentinel_Assets (Second) := To_Unbounded_String ("rgba");
+      Copy_Tiles.References (First) := Digest;
+      Copy_Tiles.Parent := Root;
+      Copy_Tiles.UUID := To_Unbounded_String (UUID_A);
+      Disk.Save (To_String (Root), UUID_B, Failed, Sentinel_Assets,
+                 Copy_Tiles, Status);
+      Assert (Status = Ok, "copy selected tile to a new UUID");
+      declare
+         Copy_Loaded : Workspace;
+         Copy_Assets : Disk.Raster_Set;
+         Copy_Read : Disk.Tile_Set;
+      begin
+         Disk.Load (To_String (Root), UUID_B, Copy_Loaded, Copy_Assets,
+                    Copy_Read, Status);
+         Assert (Status = Ok and then Copy_Read.References (1) = Digest,
+                 "new UUID owns a verified copy of the selected tile");
+      end;
+
+      declare
+         Header : Ada.Text_IO.File_Type;
+         Report : Reclaim_Report;
+      begin
+         Ada.Text_IO.Create
+           (Header, Ada.Text_IO.Out_File,
+            To_String (Root) & "/" & UUID_A & ".jsonl");
+         Ada.Text_IO.Put_Line
+           (Header, "{""id"":""" & UUID_A & """,""version"":3}");
+         Ada.Text_IO.Close (Header);
+         Disk.Reclaim (To_String (Root), UUID_A, Orphan => False,
+                       Apply => True, Report => Report, Status => Status);
+         Assert (Status = Ok and then Report.Files = 1
+                 and then Report.Bytes =
+                   Interfaces.Unsigned_64 (16 + 8_999 * 4),
+                 "mixed reclaim removes only the exact unreferenced tile");
+         Disk.Load_Selection
+           (To_String (Root), UUID_A, Requested, Failed, Sentinel_Assets,
+            Copy_Tiles, Status);
+         Assert (Status = Ok and then Copy_Tiles.References (First) = Digest
+                 and then Sentinel_Assets (Second) = "rgba",
+                 "mixed reclaim retains referenced tile and raster");
+      end;
+
+      Remove_Directory (Root);
+      Coyote_Temp_Files.Delete (To_String (Tile_Path));
+      Coyote_Temp_Files.Delete (To_String (Mismatch_Path));
+   exception
+      when others =>
+         if Tile_FD /= GNAT.OS_Lib.Invalid_FD then
+            GNAT.OS_Lib.Close (Tile_FD);
+         end if;
+         Coyote_Temp_Files.Delete (To_String (Tile_Path));
+         Coyote_Temp_Files.Delete (To_String (Mismatch_Path));
+         Remove_Directory (Root);
+         raise;
+   end Tiled_Recovery_Failures_Selection_And_Copy;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -715,6 +1009,10 @@ package body Coyote_Canvas_Recovery_Tests is
       Result.Add_Test
         (Caller.Create ("Canvas store guards the entire workspace restore",
                         Workspace_Read_Holds_Session_Guard'Access));
+      Result.Add_Test
+        (Caller.Create
+           ("Canvas store tiled recovery, selection, failures, and copy",
+            Tiled_Recovery_Failures_Selection_And_Copy'Access));
       return Result;
    end Suite;
 end Coyote_Canvas_Recovery_Tests;

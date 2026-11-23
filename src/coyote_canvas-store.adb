@@ -147,10 +147,57 @@ package body Coyote_Canvas.Store is
                                 size_t (Data'Length)));
       end if;
    end Write_Asset;
+   procedure Write_Tile
+     (Parent, UUID : String; FD : int;
+      Digest : out Tile_Digest; Status : out Result)
+   is
+      function Native_Write_Tile
+        (Parent, UUID : char_array; FD : int; Digest : out char_array)
+         return int
+        with Import, Convention => C,
+          External_Name => "coyote_canvas_store_write_tile";
+      Buffer : char_array (0 .. 64) := (others => nul);
+   begin
+      Digest := (others => ' ');
+      Status := Invalid;
+      if Safe_Arguments (Parent, UUID) and then FD >= 0 then
+         Status := Result'Val
+           (Native_Write_Tile (To_C (Parent), To_C (UUID), FD, Buffer));
+         if Status = Ok then
+            Digest := To_Ada (Buffer (0 .. 63), Trim_Nul => False);
+         end if;
+      end if;
+   end Write_Tile;
+
+   procedure Open_Tile
+     (Parent, UUID, Digest : String; FD : out int; Status : out Result)
+   is
+      function Native_Open_Tile
+        (Parent, UUID, Digest : char_array; FD : out int) return int
+        with Import, Convention => C,
+          External_Name => "coyote_canvas_store_open_tile";
+   begin
+      FD := -1;
+      Status := Invalid;
+      if Safe_Arguments (Parent, UUID) and then Digest'Length = 64 then
+         Status := Result'Val
+           (Native_Open_Tile (To_C (Parent), To_C (UUID), To_C (Digest), FD));
+      end if;
+   end Open_Tile;
+
    function Native_Claim (Parent, UUID : char_array; FD : out int) return int
      with Import, Convention => C, External_Name => "coyote_canvas_store_claim";
    function Close (FD : int) return int
      with Import, Convention => C, External_Name => "close";
+
+   procedure Close_Tile (FD : in out int) is
+      Ignored : int;
+   begin
+      if FD >= 0 then
+         Ignored := Close (FD);
+         FD := -1;
+      end if;
+   end Close_Tile;
 
    procedure Release (Lease : in out Writer_Lease) is
       Ignored : int;
@@ -255,13 +302,13 @@ package body Coyote_Canvas.Store is
    begin
       Report := (Files => 0, Bytes => 0);
       Status := Invalid;
-      if not Safe_Arguments (Parent, UUID) or else Keep'Length mod 64 /= 0 then
+      if not Safe_Arguments (Parent, UUID) or else Keep'Length mod 69 /= 0 then
          return;
       end if;
       Status := Result'Val
         (Reclaim (To_C (Parent), To_C (UUID), Manifest'Address,
                   size_t (Manifest'Length), Keep'Address,
-                  size_t (Keep'Length / 64), Boolean'Pos (Orphan),
+                  size_t (Keep'Length / 69), Boolean'Pos (Orphan),
                   Boolean'Pos (Apply), Files, Bytes));
       if Status = Ok then
          Report := (Files => Natural (Files), Bytes => Bytes);

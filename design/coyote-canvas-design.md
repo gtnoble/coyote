@@ -147,19 +147,43 @@ For recovery and decoded residency, allow a 128 MiB raw-raster ceiling per image
 
 Render editable ink with Cairo onto a transparent layer in the original pixel-grid phase. Blend the covered pixels over the straight-alpha background with deterministic source-over rounding; copy the background RGBA unchanged wherever the ink has zero coverage. This avoids losing low-alpha or transparent pixel values in a Cairo premultiply/unpremultiply round trip. The resulting straight-alpha RGBA is the canonical buffer. GTK displays it with view transforms; PNG encoding uses that same buffer. Markup-hidden and pending crop overlays are not part of it. Equality means decoded canonical RGBA, not window screenshots, screen scaling, or source encoding metadata. Verify an applied crop against the exact subrectangle of the pre-crop composite, including edges and partially transparent ink. Keep a bounded cache of needed composites and release worker/Canvas references when no longer in use.
 
-**Planned larger-raster path.** The current decoder still returns a full
-raster, and display composition and attachment encoding still require
-whole-image buffers. Retain the decoded geometry and resident raster limits
-until these paths are replaced. Introduce immutable disk-backed tiles with
-checked edge geometry and a versioned asset representation that can still
-read legacy flat RGBA assets. Decode in rows or tiles into private staging,
-publish assets before the manifest, and adopt only completed imports. Move
-composition off GTK: workers render native-coordinate tiles into a bounded
-cache and GTK adopts only current-generation results. Cancel between tiles;
-never publish stale output during a session switch. Eraser preview and crop
-must preserve the source pixel-grid phase, and the Compose and Attach paths
-must produce the same native PNG pixels. Attachment and agent transport
-budgets remain independent of local editing.
+**Disk-backed raster implementation (PCR-137).** The first increment adds
+`Coyote_Canvas.Tiles`: read a regular PNG or JPEG descriptor into a private,
+empty staging descriptor without changing either offset. The v1 format stores
+straight RGBA in packed 256 × 256 tiles with unpadded edges. A 16-byte header
+contains the format version and source dimensions. The caller's disk budget
+includes that header. The backend's 32,768-pixel side guard keeps a complete
+tile band at or below 32 MiB, separate from codec and runtime allocations.
+
+Decode PNG, including Adam7, and single-scan grayscale/RGB JPEG. Restore
+previous tile rows from disk for subsequent Adam7 passes. Progressive,
+multiscan, and CMYK/YCCK JPEG are not supported by the tiled backend; this
+does not change the current GUI decoder. Import checks cancellation between
+reads, rows, and tile-band writes; never use failed staging. Inspect checks
+layout and size, not the pixel digest. The backend does not publish or sync
+the asset, or change the live Canvas import limits.
+
+The workspace store publishes immutable `<sha256>.tile` files before the
+manifest. Its `assets` array uses `{ "tileV1": "<sha256>" }` for a tiled
+Original and retains digest strings for legacy flat RGBA. Load checks the
+file layout, dimensions and full digest using bounded I/O before adopting
+the workspace. Fork holds the source session guard until selected tiles
+are copied. Reclaim protects both kinds by their exact filenames. The
+legacy raster-only reader refuses tiled manifests rather than substituting
+blank pixels.
+
+The live Canvas still uses the flat path. To enable tiled imports, connect
+the recovery worker and renderer, move composition off GTK, and use a
+bounded viewport tile cache and a reduced-resolution Fit preview.
+Preserve source pixel-grid phase in Crop and Eraser, and read only the
+needed region for an attachment that fits. Attachment and agent transport
+limits remain independent of local editing. Keep the current memory-only
+behavior under `--no-session`.
+
+The native check is `sh test/tools/check-canvas-tiles.sh`. Its `--large`
+case imports a 20,000 × 20,000 PNG and reads the resulting tiles under a
+128 MiB process address-space limit. This tests the backend, not whole-Canvas
+memory or interactive performance.
 
 ### 5.2 Persistence and recovery
 

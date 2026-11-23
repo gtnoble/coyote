@@ -4,6 +4,7 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Streams;
+with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -12,9 +13,11 @@ with Coyote_Canvas.Composite;
 with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Store.Workspaces;
+with Coyote_Canvas.Tiles;
 with Coyote_Session_Transactions;
 with GNATCOLL.Coders.Base64;
 with GNATCOLL.JSON;
+with GNAT.OS_Lib;
 with Interfaces.C;
 with LLM.Session_Store;
 with LLM.Types;
@@ -1823,6 +1826,10 @@ package body LLM_Session_Store_Tests is
       use Ada.Directories;
       use Ada.Streams;
       use type Interfaces.C.int;
+      use type GNAT.OS_Lib.File_Descriptor;
+      use type Interfaces.Unsigned_32;
+      use type Coyote_Canvas.Tiles.Result;
+      use type Coyote_Canvas.Tiles.Byte;
       package Store renames Coyote_Canvas.Store;
       package Disk renames Store.Workspaces;
       package Rev renames Coyote_Canvas.Revisions;
@@ -1842,16 +1849,26 @@ package body LLM_Session_Store_Tests is
          Fork_Parent : constant String := Session_Lister.Sessions_Dir (Target_Cwd);
          W, Forked : Rev.Workspace;
          Assets, Fork_Assets : Disk.Raster_Set;
+         Fork_Tiles : Disk.Tile_Set;
          Source_Image, Result_Image : Composite.Image;
          Ink : Rev.Samples.Vector;
          First : Rev.Revision_Id;
+         Tile_FD : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+         Tile_Digest : Store.Tile_Digest;
+         Tile_Path : Unbounded_String;
+         Tile_Bytes : Ada.Streams.Stream_Element_Array (1 .. 20);
+         Tile_Buffer : Coyote_Canvas.Tiles.Tile_Buffer (1 .. 4);
+         Tile_Status : Coyote_Canvas.Tiles.Result;
+         Tile_Extent : Coyote_Canvas.Tiles.Dimensions;
+         Read_FD : Interfaces.C.int := -1;
+         Tile_Refs : Recovery.Tile_References;
          Status : Store.Result;
          Lease : Store.Writer_Lease;
          Log : Ada.Text_IO.File_Type;
          Pixels : constant String := (1 => 'Q', 2 .. 64 => ASCII.NUL);
          Before : Unbounded_String;
          First_Fork : Unbounded_String;
-         Image_Line : Unbounded_String;
+         Image_Line, Tile_Line : Unbounded_String;
          Manifest : Unbounded_String;
          Refs : Recovery.Asset_References;
 
@@ -1892,6 +1909,27 @@ package body LLM_Session_Store_Tests is
             end return;
          end Base64;
 
+         procedure Create_Tile_File is
+            use Ada.Streams.Stream_IO;
+            File : File_Type;
+         begin
+            Tile_Bytes (1 .. 8) :=
+              (Character'Pos ('C'), Character'Pos ('Y'),
+               Character'Pos ('T'), Character'Pos ('I'),
+               Character'Pos ('L'), Character'Pos ('E'), 0, 1);
+            Tile_Bytes (9 .. 12) := (0, 0, 0, 1);
+            Tile_Bytes (13 .. 16) := (0, 0, 0, 1);
+            Tile_Bytes (17 .. 20) := (16#11#, 16#22#, 16#33#, 16#44#);
+            Tile_Path := To_Unbounded_String (Parent & "/" & Id & ".tile");
+            Create (File, Out_File, To_String (Tile_Path));
+            Write (File, Tile_Bytes);
+            Close (File);
+            Tile_FD := GNAT.OS_Lib.Open_Read_Write
+              (To_String (Tile_Path), GNAT.OS_Lib.Binary);
+            Assert (Tile_FD /= GNAT.OS_Lib.Invalid_FD,
+                    "open raw tile source fixture");
+         end Create_Tile_File;
+
          procedure Put (Line : String) is
          begin
             Ada.Text_IO.Put_Line (Log, Line);
@@ -1905,6 +1943,15 @@ package body LLM_Session_Store_Tests is
               & Revision & """,""label"":""fixture"",""data"":""" & Data
               & """}]}}";
          end User_Turn;
+
+         function Tile_Turn (Drawing, Revision, Data : String) return String is
+         begin
+            return "{""type"":""message"",""message"":{""role"":""user"",""content"":["
+              & "{""type"":""image"",""media_type"":""image/png"",""width"":1,"
+              & """height"":1,""drawingId"":""" & Drawing & """,""revisionId"":"""
+              & Revision & """,""label"":""tile"",""data"":""" & Data
+              & """}]}}";
+         end Tile_Turn;
 
          Assistant : constant String :=
            "{""type"":""message"",""message"":{""role"":""assistant"",""content"":"
@@ -1928,29 +1975,57 @@ package body LLM_Session_Store_Tests is
          Ink.Append (Rev.Sample'(2.0, 2.0, 1.0, 1.0));
          Rev.Add_Stroke (W, Ink);
          Rev.Save (W);  --  unrelated Original + checkpoint + stroke
-         Rev.Add_Originals (W, (1 => (4, 4), 2 => (1, 1)), First);
+         Rev.Add_Originals
+           (W, (1 => (4, 4), 2 => (1, 1), 3 => (1, 1)), First);
          Assert (First = 3, "fixture requires remapping Original index");
          Assets (3) := To_Unbounded_String (Pixels);
          Assets (4) := To_Unbounded_String ("RGBA");
+         Create_Tile_File;
          Rev.Edit (W, 3);
          Rev.Add_Stroke (W, Ink);
          Rev.Save (W);  --  attachment's immediate parent
          Rev.Crop (W, (0, 0, 3, 3));
          Rev.Save (W);  --  attached revision
          Rev.Crop (W, (1, 1, 3, 3));  --  unsent draft
-         Disk.Save (Parent, Id, W, Assets, Status);
+         Store.Write_Tile
+           (Parent, Id, Interfaces.C.int (Tile_FD), Tile_Digest, Status);
+         GNAT.OS_Lib.Close (Tile_FD);
+         Tile_FD := GNAT.OS_Lib.Invalid_FD;
+         Assert (Status = Store.Ok, "publish source tile asset");
+         Delete_File (To_String (Tile_Path));
+         Tile_Path := Null_Unbounded_String;
+         declare
+            Source_Tiles : Disk.Tile_Set;
+         begin
+            Source_Tiles.Parent := To_Unbounded_String (Parent);
+            Source_Tiles.UUID := To_Unbounded_String (Id);
+            Source_Tiles.References (5) := Tile_Digest;
+            Disk.Save (Parent, Id, W, Assets, Source_Tiles, Status);
+         end;
          Assert (Status = Store.Ok, "publish source Canvas");
          Store.Read (Parent, Id, Manifest, Status);
          Assert (Status = Store.Ok, "read source manifest");
-         Recovery.Decode (To_String (Manifest), Forked, Refs);
-         Composite.Render (W, 6, Bytes (Pixels), 16, True, Source_Image);
+         Recovery.Decode (To_String (Manifest), Forked, Refs, Tile_Refs);
+         Assert (Tile_Refs (5) = Tile_Digest, "source manifest names its tile");
+         Composite.Render (W, 7, Bytes (Pixels), 16, True, Source_Image);
          Image_Line := To_Unbounded_String
-           (User_Turn (Rev.Drawing_Key (W, 6), Rev.Revision_Key (W, 6),
+           (User_Turn (Rev.Drawing_Key (W, 7), Rev.Revision_Key (W, 7),
                        Base64 (To_String (Composite.Encode_PNG (Source_Image)))));
+         declare
+            Tile_Image : Composite.Image;
+         begin
+            Composite.Render (W, 5, Tile_Bytes (17 .. 20), 4, True,
+                              Tile_Image);
+            Tile_Line := To_Unbounded_String
+              (Tile_Turn (Rev.Drawing_Key (W, 5), Rev.Revision_Key (W, 5),
+                          Base64 (To_String
+                            (Composite.Encode_PNG (Tile_Image)))));
+         end;
          Ada.Text_IO.Open (Log, Ada.Text_IO.Out_File, Path);
          Put ("{""type"":""session"",""version"":3,""id"":""" & Id
               & """,""timestamp"":""2026-11-21T12:00:00Z""}");
          Put (To_String (Image_Line));
+         Put (To_String (Tile_Line));
          Put (Assistant);
          Put (User_Turn (Rev.Drawing_Key (W, 4), Rev.Revision_Key (W, 4), "AQ=="));
          Put (Assistant);
@@ -1998,21 +2073,43 @@ package body LLM_Session_Store_Tests is
             LLM.Session_Store.Delete_Session (Id);
             Assert (not Exists (Path) and then not Exists (Sidecar),
                     "explicit deletion removes both log and private sidecar");
-            Disk.Load (Fork_Parent, Fork_Id, Forked, Fork_Assets, Status);
-            Assert (Status = Store.Ok and then Rev.Count (Forked) = 3 and then
-                    Rev.Parent (Forked, 3) = 2 and then Rev.Parent (Forked, 2) = 1
-                    and then Rev.Background (Forked, 3) = 1,
-                    "fork retains only the checkpoint and remapped ancestors");
-            Assert (Rev.Revision_Key (Forked, 3) = Rev.Revision_Key (W, 6) and then
-                    Rev.Drawing_Key (Forked, 3) = Rev.Drawing_Key (W, 6) and then
-                    not Rev.Changed (Forked) and then Rev.Base (Forked) = 3
-                    and then Rev.Extent (Forked) = Rev.Extent (W, 6),
+            Disk.Load
+              (Fork_Parent, Fork_Id, Forked, Fork_Assets, Fork_Tiles, Status);
+            Assert (Status = Store.Ok and then Rev.Count (Forked) = 4 and then
+                    Rev.Parent (Forked, 4) = 3
+                    and then Rev.Background (Forked, 4) = 1,
+                    "fork retains both assets and remapped ancestors");
+            Assert (Rev.Revision_Key (Forked, 4) = Rev.Revision_Key (W, 7) and then
+                    Rev.Drawing_Key (Forked, 4) = Rev.Drawing_Key (W, 7) and then
+                    not Rev.Changed (Forked) and then Rev.Base (Forked) = 4
+                    and then Rev.Extent (Forked, 4) = Rev.Extent (W, 7),
                     "fork keeps stable keys and does not copy the dirty draft");
-            Composite.Render (Forked, 3, Bytes (To_String (Fork_Assets (1))),
+            Composite.Render (Forked, 4, Bytes (To_String (Fork_Assets (1))),
                               16, True, Result_Image);
             Assert (Fork_Assets (1) = To_Unbounded_String (Pixels) and then
                     Composite.Pixels (Result_Image) = Composite.Pixels (Source_Image),
                     "fork retains exact source and rendered pixels after source deletion");
+            Assert
+              (Fork_Tiles.References (2) = Tile_Digest,
+               "fork retains an independently referenced tile");
+            Store.Open_Tile
+              (Fork_Parent, Fork_Id, Fork_Tiles.References (2), Read_FD,
+               Status);
+            Assert
+              (Status = Store.Ok and then Read_FD >= 0,
+               "fork tile remains independently openable after source deletion");
+            Coyote_Canvas.Tiles.Read_Tile
+              (Read_FD, 0, 0, Tile_Buffer, Tile_Status, Tile_Extent);
+            Store.Close_Tile (Read_FD);
+            Assert
+              (Tile_Status = Coyote_Canvas.Tiles.Success
+               and then Tile_Extent.Width = 1
+               and then Tile_Extent.Height = 1
+               and then Tile_Buffer (1) = 16#11#
+               and then Tile_Buffer (2) = 16#22#
+               and then Tile_Buffer (3) = 16#33#
+               and then Tile_Buffer (4) = 16#44#,
+               "forked tile preserves its pixel after source deletion");
          end;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);

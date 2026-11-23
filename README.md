@@ -63,7 +63,8 @@ shared between coyote and pi.
 - [Alire](https://alire.ada.dev/) package manager (`alr`)
 - `libcurl` development headers (for example `libcurl4-openssl-dev`)
 - `libcmark-gfm` and `libcmark-gfm-extensions` development headers
-- libpng development headers and library (for example `libpng-dev`)
+- libpng and libjpeg development headers and libraries (for example
+  `libpng-dev` and `libjpeg-dev`)
 - GTK3 and GtkAda development packages
 - librsvg ≥ 2.52 and libxml2 development headers (`librsvg2-dev` and
   `libxml2-dev` on Debian/Ubuntu)

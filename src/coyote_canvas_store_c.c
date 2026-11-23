@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -7,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/file.h>
+#include <glib.h>
+#include "coyote_canvas_tiles.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -408,6 +411,253 @@ done:
    return result == STORE_MISSING ? STORE_IO : result;
 }
 
+#define TILE_MAX_BYTES (UINT64_C(16) + UINT64_C(4) * 32768 * 32768)
+#define TILE_COPY_BLOCK 65536
+
+static int valid_digest(const char *digest)
+{
+   return digest != NULL && strlen(digest) == 64 &&
+      strspn(digest, "0123456789abcdef") == 64;
+}
+
+static int tile_name(const char *digest, char name[70])
+{
+   if (!valid_digest(digest))
+      return 0;
+   memcpy(name, digest, 64);
+   memcpy(name + 64, ".tile", 6);
+   return 1;
+}
+
+/* Hash exact bytes without changing the descriptor position. */
+static int tile_hash_fd(int fd, char digest[65])
+{
+   struct coyote_canvas_tile_info info;
+   struct stat st;
+   unsigned char block[TILE_COPY_BLOCK];
+   GChecksum *sum;
+   uint64_t offset = 0;
+   if (coyote_canvas_tiles_inspect(fd, &info) != COYOTE_TILE_OK ||
+       fstat(fd, &st) < 0 || st.st_size <= 0 ||
+       (uintmax_t)st.st_size > TILE_MAX_BYTES)
+      return STORE_INVALID;
+   sum = g_checksum_new(G_CHECKSUM_SHA256);
+   if (sum == NULL)
+      return STORE_IO;
+   while (offset < (uint64_t)st.st_size)
+   {
+      size_t want = (uint64_t)sizeof block < (uint64_t)st.st_size - offset ?
+         sizeof block : (size_t)((uint64_t)st.st_size - offset);
+      ssize_t n;
+      do
+         n = pread(fd, block, want, (off_t)offset);
+      while (n < 0 && errno == EINTR);
+      if (n <= 0)
+      {
+         g_checksum_free(sum);
+         return n == 0 ? STORE_INVALID : STORE_IO;
+      }
+      g_checksum_update(sum, block, (gsize)n);
+      offset += (uint64_t)n;
+   }
+   memcpy(digest, g_checksum_get_string(sum), 65);
+   g_checksum_free(sum);
+   return STORE_OK;
+}
+
+int coyote_canvas_store_write_tile(const char *parent, const char *uuid,
+                                   int source_fd, char digest[65])
+{
+   char sidecar[64], name[70], actual[65];
+   int parent_fd = -1, side_fd = -1, lock_fd = -1, temp_fd = -1;
+   int result = STORE_IO, owns_temp = 0;
+   struct coyote_canvas_tile_info info;
+   struct stat source_st, existing_st;
+   unsigned char block[TILE_COPY_BLOCK];
+   uint64_t offset = 0;
+   GChecksum *sum = NULL;
+   static const char temp_name[] = ".canvas.tmp";
+   if (!valid_uuid(uuid) || source_fd < 0 || digest == NULL ||
+       coyote_canvas_tiles_inspect(source_fd, &info) != COYOTE_TILE_OK ||
+       fstat(source_fd, &source_st) < 0 || source_st.st_size <= 0 ||
+       (uintmax_t)source_st.st_size > TILE_MAX_BYTES)
+      return STORE_INVALID;
+   (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
+   parent_fd = open_parent(parent);
+   if (parent_fd < 0)
+      return classify_parent_errno(errno);
+   result = open_or_create_sidecar(parent_fd, sidecar, &side_fd);
+   if (result != STORE_OK)
+      goto done;
+   result = acquire_lock(side_fd, ".writer", &lock_fd);
+   if (result != STORE_OK)
+      goto done;
+   result = STORE_IO;
+   if (unlinkat(side_fd, temp_name, 0) < 0 && errno != ENOENT)
+      goto done;
+   temp_fd = openat(side_fd, temp_name,
+                    O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+   if (temp_fd < 0)
+      goto done;
+   owns_temp = 1;
+   if (fchmod(temp_fd, 0600) < 0)
+      goto done;
+   sum = g_checksum_new(G_CHECKSUM_SHA256);
+   if (sum == NULL)
+      goto done;
+   while (offset < (uint64_t)source_st.st_size)
+   {
+      size_t want = (uint64_t)sizeof block < (uint64_t)source_st.st_size - offset ?
+         sizeof block : (size_t)((uint64_t)source_st.st_size - offset);
+      ssize_t n;
+      do
+         n = pread(source_fd, block, want, (off_t)offset);
+      while (n < 0 && errno == EINTR);
+      if (n <= 0)
+      {
+         result = n == 0 ? STORE_INVALID : STORE_IO;
+         goto done;
+      }
+      if (write_all(temp_fd, (const char *)block, (size_t)n) < 0)
+         goto done;
+      g_checksum_update(sum, block, (gsize)n);
+      offset += (uint64_t)n;
+   }
+   memcpy(actual, g_checksum_get_string(sum), sizeof actual);
+   if (coyote_canvas_tiles_inspect(temp_fd, &info) != COYOTE_TILE_OK ||
+       fsync(temp_fd) < 0)
+      goto done;
+   if (close(temp_fd) < 0)
+   {
+      temp_fd = -1;
+      goto done;
+   }
+   temp_fd = -1;
+   if (!tile_name(actual, name))
+   {
+      result = STORE_IO;
+      goto done;
+   }
+   if (fstatat(side_fd, name, &existing_st, AT_SYMLINK_NOFOLLOW) == 0)
+   {
+      char existing_digest[65];
+      int existing = open_checked(side_fd, name, 0, &existing_st);
+      result = STORE_INVALID;
+      if (existing >= 0)
+      {
+         result = tile_hash_fd(existing, existing_digest);
+         if (result == STORE_OK && strcmp(existing_digest, actual) != 0)
+            result = STORE_INVALID;
+         if (result == STORE_OK && (fsync(existing) < 0 || fsync(side_fd) < 0))
+            result = STORE_IO;
+         close(existing);
+      }
+      if (result == STORE_OK)
+         memcpy(digest, actual, sizeof actual);
+      goto done;
+   }
+   if (errno != ENOENT)
+      goto done;
+   if (renameat2(side_fd, temp_name, side_fd, name, RENAME_NOREPLACE) < 0)
+   {
+      if (errno == EEXIST)
+      {
+         struct stat race_st;
+         int existing = open_checked(side_fd, name, 0, &race_st);
+         char existing_digest[65];
+         result = existing < 0 ? classify_errno(errno) :
+            tile_hash_fd(existing, existing_digest);
+         if (existing >= 0)
+         {
+            if (result == STORE_OK && strcmp(existing_digest, actual) != 0)
+               result = STORE_INVALID;
+            if (result == STORE_OK && (fsync(existing) < 0 || fsync(side_fd) < 0))
+               result = STORE_IO;
+            close(existing);
+         }
+         if (result == STORE_OK)
+            memcpy(digest, actual, sizeof actual);
+      }
+      goto done;
+   }
+   owns_temp = 0;
+   result = fsync(side_fd) < 0 ? STORE_UNCERTAIN : STORE_OK;
+   if (result == STORE_OK)
+      memcpy(digest, actual, sizeof actual);
+
+done:
+   if (sum != NULL)
+      g_checksum_free(sum);
+   if (temp_fd >= 0)
+      close(temp_fd);
+   if (owns_temp && side_fd >= 0)
+      (void)unlinkat(side_fd, temp_name, 0);
+   if (lock_fd >= 0)
+      close(lock_fd);
+   if (side_fd >= 0)
+      close(side_fd);
+   if (parent_fd >= 0)
+      close(parent_fd);
+   return result == STORE_MISSING ? STORE_IO : result;
+}
+
+int coyote_canvas_store_open_tile(const char *parent, const char *uuid,
+                                  const char *digest, int *fd)
+{
+   char sidecar[64], name[70], actual[65];
+   struct stat st;
+   int parent_fd, side_fd = -1, tile_fd = -1, result;
+   if (fd == NULL)
+      return STORE_INVALID;
+   *fd = -1;
+   if (!valid_uuid(uuid) || !tile_name(digest, name))
+      return STORE_INVALID;
+   (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
+   parent_fd = open_parent(parent);
+   if (parent_fd < 0)
+      return classify_parent_errno(errno);
+   side_fd = openat(parent_fd, sidecar,
+                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+   if (side_fd < 0)
+   {
+      result = classify_errno(errno);
+      goto done;
+   }
+   if (fstat(side_fd, &st) < 0)
+   {
+      result = STORE_IO;
+      goto done;
+   }
+   if (!valid_private_stat(&st, 1, 0))
+   {
+      result = STORE_INVALID;
+      goto done;
+   }
+   tile_fd = open_checked(side_fd, name, 0, &st);
+   if (tile_fd < 0)
+   {
+      result = classify_errno(errno);
+      goto done;
+   }
+   result = tile_hash_fd(tile_fd, actual);
+   if (result == STORE_OK && strcmp(actual, digest) != 0)
+      result = STORE_INVALID;
+   if (result == STORE_OK && lseek(tile_fd, 0, SEEK_SET) < 0)
+      result = STORE_IO;
+   if (result == STORE_OK)
+   {
+      *fd = tile_fd;
+      tile_fd = -1;
+   }
+done:
+   if (tile_fd >= 0)
+      close(tile_fd);
+   if (side_fd >= 0)
+      close(side_fd);
+   close(parent_fd);
+   return result;
+}
+
 static int asset_name(const char *digest, char name[70])
 {
    if (strlen(digest) != 64 ||
@@ -645,12 +895,23 @@ static int raster_entry(const char *name)
       strspn(name, "0123456789abcdef") == 64;
 }
 
+static int tile_entry(const char *name)
+{
+   return strlen(name) == 69 && strcmp(name + 64, ".tile") == 0 &&
+      strspn(name, "0123456789abcdef") == 64;
+}
+
+static int asset_entry(const char *name)
+{
+   return raster_entry(name) || tile_entry(name);
+}
+
 static int known_canvas_entry(const char *name)
 {
    if (strcmp(name, "canvas.json") == 0 || strcmp(name, ".canvas.tmp") == 0 ||
        strcmp(name, ".gtk-writer") == 0 || strcmp(name, ".writer") == 0)
       return 1;
-   return raster_entry(name);
+   return asset_entry(name);
 }
 
 /* No recursion and no symlink traversal. Inspect every entry before the
@@ -884,18 +1145,17 @@ struct reclaim_entry
    ino_t inode;
 };
 
-static int kept_raster(const char *name, const char *keep, size_t count)
+static int kept_asset(const char *name, const char *keep, size_t count)
 {
    for (size_t i = 0; i < count; ++i)
-      if (memcmp(name, keep + 64 * i, 64) == 0)
+      if (memcmp(name, keep + 69 * i, 69) == 0)
          return 1;
    return 0;
 }
 
-/* The Ada layer validates the entire live graph and every referenced raster.
- * Check the exact manifest again under the publication lock before using
- * that keep set. Without a log only the explicit orphan mode can remove the
- * whole flat sidecar. No session log or session lock inode is unlinked. */
+/* The Ada layer validates the entire live graph and every referenced raster
+ * or tile. Keep entries are exact 69-byte filenames; the manifest is rechecked
+ * under the publication lock before applying that keep set. */
 int coyote_canvas_reclaim(const char *parent, const char *uuid,
                           const char *manifest, size_t manifest_size,
                           const char *keep, size_t keep_count,
@@ -910,7 +1170,8 @@ int coyote_canvas_reclaim(const char *parent, const char *uuid,
    size_t seen = 0;
    *files = 0;
    *bytes = 0;
-   if (!valid_uuid(uuid) || (!orphan && manifest_size == 0) || keep_count > 256)
+   if (!valid_uuid(uuid) || (!orphan && manifest_size == 0) || keep_count > 256 ||
+       (keep_count != 0 && keep == NULL))
       return STORE_INVALID;
    (void)snprintf(sidecar, sizeof sidecar, "%s.canvas", uuid);
    dir = open_parent(parent);
@@ -995,7 +1256,7 @@ int coyote_canvas_reclaim(const char *parent, const char *uuid,
       if (!valid_private_stat(&st, 0, 0) || st.st_size < 0)
          goto done;
       if (!orphan && strcmp(name, ".canvas.tmp") != 0 &&
-          (!raster_entry(name) || kept_raster(name, keep, keep_count)))
+          (!asset_entry(name) || kept_asset(name, keep, keep_count)))
          continue;
       if ((uintmax_t)st.st_size > UINT64_MAX - *bytes)
          goto done;

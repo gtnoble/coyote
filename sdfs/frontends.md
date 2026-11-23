@@ -1,5 +1,40 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Durable tiled Canvas workspaces (PCR-137)
+
+Workspace save and recovery accept mixed flat RGBA and disk-backed tiled
+Originals. Tiled files are streamed, hashed, and published before the
+manifest; recovery checks digest and geometry without loading the whole
+tile file into memory. Fork holds the source guard until copying is
+complete. Reclaim retains exact live filenames for both asset types.
+Raster-only readers reject mixed workspaces without changing state.
+
+Development builds, the full Xvfb suite (1,133/1,133), GTK interactions
+(9/9), and Canvas CLI, import protocol, and reclaim checks passed. Focused
+cases cover failed publication, malformed or missing tiles, exact reclaim,
+and fork recovery after source deletion. The GTK recovery worker, import
+path, viewport, and attachments still use the flat raster path. No
+interactive large-image performance or product acceptance is claimed.
+
+## 2026-11-22 — Disk-backed Canvas raster foundation (PCR-137)
+
+The native decoder streams PNG (including Adam7) and single-scan
+grayscale/RGB JPEG into a private staging descriptor as packed 256-pixel
+RGBA tiles. It retains one tile band, checks a caller-supplied disk budget,
+and rolls staging back on failure or cancellation. The Ada API exposes
+import, inspect, and tile reads without taking ownership of descriptors.
+Progressive/multiscan and CMYK/YCCK JPEG are not supported by this backend.
+
+Developer checks passed: both development builds, Xvfb AUnit (1,132/1,132),
+GTK interactions (9/9), runner fault isolation, and the strict native and
+ASan/UBSan checks (27 each). The opt-in native run passed 28 checks,
+including a 20,000 × 20,000 PNG-to-tile round trip under a 128 MiB address-
+space limit (17.26 s; approximately 30 MiB peak RSS, not counting kernel
+page cache). This qualifies neither interactive performance nor memory use
+of the full application. Durable session publication/recovery and viewport
+rendering are not yet wired to the backend; live import and attachment limits
+are unchanged.
+
 ## 2026-11-22 — Native 8K Canvas raster import (PCR-136)
 
 Canvas PNG/JPEG accepts 33,554,432 pixels per image at native size, with

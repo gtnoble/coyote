@@ -45,9 +45,9 @@ project Coyote is
    package Linker is
       case Profile_Enabled is
          when "true" =>
-            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lrsvg-2", "-lxml2", "-lpng", "-lm", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread", "-pg");
+            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lrsvg-2", "-lxml2", "-lpng", "-ljpeg", "-lm", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread", "-pg");
          when others =>
-            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lrsvg-2", "-lxml2", "-lpng", "-lm", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread");
+            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-lfreetype", "-lcairo", "-lrsvg-2", "-lxml2", "-lpng", "-ljpeg", "-lm", "-lnotify", "-lgdk_pixbuf-2.0", "-lgio-2.0", "-lgobject-2.0", "-lglib-2.0", "-pthread");
       end case;
    end Linker;
 

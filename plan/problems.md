@@ -3,6 +3,21 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-137 — Disk-backed Canvas rasters
+
+- **Date reported:** 2026-11-22
+- **Category:** Design, Code, Test
+- **Priority:** 3-Moderate (whole-image allocations constrain Canvas originals).
+- **Authorization:** Product owner accepted the tiled design and requested implementation.
+- **Affected work products:** SDD-CORE §4.1; SDD-CANVAS §5.1; STP §4.6.
+- **Change:** Decode native PNG and supported JPEG files into bounded disk
+  tiles, integrate versioned recovery and viewport rendering, and preserve
+  the separate attachment limits.
+- **Status:** Decoder, descriptor-based tile storage, mixed workspace
+  publication/recovery, fork, and reclaim are implemented. GTK import,
+  viewport rendering, and attachment integration remain pending. Current
+  Canvas behavior is unchanged.
+
 ## PCR-136 — Native 8K Canvas raster import
 
 - **Date reported:** 2026-11-22
