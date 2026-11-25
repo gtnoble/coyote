@@ -10,6 +10,9 @@ with Coyote_Canvas.Document;
 with Coyote_Canvas.Revisions;
 with Cairo;
 with Gdk.Event;
+with Gdk.Seat;
+with Gtk.Handlers;
+with System;
 with Gdk.Pixbuf;
 with Gtk.Check_Menu_Item;
 with Gtk.Box;
@@ -76,6 +79,8 @@ private
    subtype Editing_Tool is Tool_Kind range Pencil .. Crop;
    subtype Ink_Tool is Editing_Tool range Pencil .. Eraser;
    type Zoom_Mode is (No_Zoom, Magnify, Reduce);
+   type Pan_Key_State is (Up, Held, Cancelled);
+   type Pan_Drag_State is (No_Pan_Drag, Panning, Wait_For_Tip_Up);
    type Brush_Controls is array (Ink_Tool) of Gtk.Spin_Button.Gtk_Spin_Button;
 
    type Tool_Buttons is array (Tool_Kind) of Gtk.Radio_Button.Gtk_Radio_Button;
@@ -181,6 +186,13 @@ private
       Anchor_Pending    : Boolean := False;
       Anchor_Scale      : Long_Float := 1.0;
       Anchor_X, Anchor_Y : Glib.Gdouble := 0.0;
+      Pan_Key : Pan_Key_State := Up;
+      Pan_Drag : Pan_Drag_State := No_Pan_Drag;
+      Pan_Pad, Pan_Pen : System.Address := System.Null_Address;
+      Pan_Root_X, Pan_Root_Y : Glib.Gdouble := 0.0;
+      Pan_Scroll_X, Pan_Scroll_Y : Glib.Gdouble := 0.0;
+      Pan_Seat : Gdk.Seat.Gdk_Seat := null;
+      Pan_Device_Removed : Gtk.Handlers.Handler_Id;
       Drawing                                      : Boolean := False;
       Crop_Drag                                    : Boolean := False;
       Crop_X1                                      : Long_Float := 0.0;

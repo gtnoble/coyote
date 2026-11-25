@@ -1311,8 +1311,9 @@ package body Coyote_App_Frontend_GUI_Tests is
            (Display.Get_Default_Seat);
          Mouse : constant Gdk.Device.Gdk_Device :=
            Gdk.Device.Gdk_Device (Seat.Get_Pointer);
-         Focus : constant Gtk.Widget.Gtk_Widget := Canvas.Get_Focus;
+         Focus : Gtk.Widget.Gtk_Widget;
          Pen : System.Address := System.Null_Address;
+         Pad : System.Address := System.Null_Address;
          Tip_Eraser : System.Address := System.Null_Address;
          Saved_Axis : constant Gdk.Types.Gdk_Axis_Use := Mouse.Get_Axis_Use (0);
 
@@ -1327,26 +1328,38 @@ package body Coyote_App_Frontend_GUI_Tests is
          procedure Unref_Device (Device : System.Address)
            with Import, Convention => C, External_Name => "g_object_unref";
 
-         function Test_Device (Source : Gdk.Types.Gdk_Input_Source)
+         function Test_Device
+           (Source : Glib.Gint; Name : String := "Canvas test pen";
+            Vendor, Product : String := "")
            return System.Address
          is
-            type Property_Names is array (1 .. 3) of chars_ptr;
+            type Property_Names is array (1 .. 6) of chars_ptr;
             Names : Property_Names :=
               (New_String ("display"), New_String ("name"),
-               New_String ("input-source"));
-            Values : Glib.Values.GValue_Array (1 .. 3);
+               New_String ("input-source"), New_String ("vendor-id"),
+               New_String ("product-id"), New_String ("type"));
+            Values : Glib.Values.GValue_Array (1 .. 6);
             Result : System.Address;
+            function Device_Role_Type return Glib.GType
+              with Import, Convention => C,
+                External_Name => "gdk_device_type_get_type";
          begin
             --  Construct a separate device of the backend's concrete type.
             Glib.Values.Init (Values (1), Gdk.Display.Get_Type);
             Glib.Values.Set_Object (Values (1), Display);
-            Glib.Values.Init_Set_String (Values (2), "Canvas test pen");
+            Glib.Values.Init_Set_String (Values (2), Name);
             Glib.Values.Init (Values (3), Source_Type);
+            Glib.Values.Set_Enum (Values (3), Source);
+            Glib.Values.Init_Set_String (Values (4), Vendor);
+            Glib.Values.Init_Set_String (Values (5), Product);
+            Glib.Values.Init
+              (Values (6), Device_Role_Type);
             Glib.Values.Set_Enum
-              (Values (3), Gdk.Types.Gdk_Input_Source'Pos (Source));
+              (Values (6), Gdk.Device.Gdk_Device_Type'Pos
+                 (Gdk.Device.Gdk_Device_Type_Slave));
             Result := New_Device
               (Glib.Object.Get_Type (Glib.Object.GObject (Mouse)),
-               3, Names'Address, Values'Address);
+               6, Names'Address, Values'Address);
             for Value of Values loop
                Glib.Values.Unset (Value);
             end loop;
@@ -1392,7 +1405,8 @@ package body Coyote_App_Frontend_GUI_Tests is
             Mouse.Set_Axis_Use (0, Saved_Axis);
             Raw.Axes := null;
             Gdk.Event.Free (Event);
-            Assert (Handled = Expected, "Canvas handles the expected input");
+            Assert (Handled = Expected, "Canvas input " & Kind'Image
+                    & Button'Image & " handled=" & Handled'Image);
          exception
             when others =>
                Mouse.Set_Axis_Use (0, Saved_Axis);
@@ -1408,9 +1422,204 @@ package body Coyote_App_Frontend_GUI_Tests is
                          (if Use_Pen then Pen else Mouse.Get_Object),
                          Expected => Use_Pen);
          end Side_Button;
+
+         procedure Send_Key
+           (Kind : Gdk.Event.Gdk_Event_Type;
+            Key : Gdk.Types.Gdk_Key_Type;
+            Expected : Boolean := True)
+         is
+            Event : aliased Gdk.Event.Gdk_Event_Key :=
+              (The_Type => Kind, Window => Canvas.Get_Window,
+               Send_Event => 1, Time => 0, State => 0, Keyval => Key,
+               Length => 0, String => Gtkada.Types.Null_Ptr,
+               Hardware_Keycode => 0, Group => 0, Is_Modifier => 0);
+         begin
+            Assert (Canvas.Event (Gdk.Event.To_Event (Event'Access)) = Expected,
+                    "Canvas handles the expected key event");
+         end Send_Key;
+
+         procedure Send_Stylus_Motion
+           (At_X, At_Y, Root_X, Root_Y : Glib.Gdouble;
+            Expected : Boolean := True)
+         is
+            function New_Event (Event_Kind : Gdk.Event.Gdk_Event_Type)
+              return Gdk.Event.Gdk_Event
+              with Import, Convention => C, External_Name => "gdk_event_new";
+            procedure Set_Source
+              (Event : Gdk.Event.Gdk_Event; Device : System.Address)
+              with Import, Convention => C,
+                External_Name => "gdk_event_set_source_device";
+            Event : constant Gdk.Event.Gdk_Event :=
+              New_Event (Gdk.Event.Motion_Notify);
+            Raw : Gdk.Event.Gdk_Event_Motion
+              with Import, Address => Gdk.Event.To_Address (Event);
+         begin
+            Gdk.Window.Ref (Area.Get_Window);
+            Raw := (The_Type => Gdk.Event.Motion_Notify,
+                    Window => Area.Get_Window, Send_Event => 1, Time => 0,
+                    X => At_X, Y => At_Y, Axes => null,
+                    State => Gdk.Types.Button1_Mask, Is_Hint => 0,
+                    Device => Mouse.Get_Object, X_Root => Root_X,
+                    Y_Root => Root_Y);
+            Gdk.Device.Set_Device (Event, Mouse);
+            Set_Source (Event, Pen);
+            declare
+               Handled : constant Boolean := Area.Event (Event);
+            begin
+               Gdk.Event.Free (Event);
+               Assert (Handled = Expected, "Synthetic pen motion routing");
+            end;
+         end Send_Stylus_Motion;
+
+         procedure Check_Stylus_Pan is
+            Start_X, Start_Y : Glib.Gdouble;
+            F8 : constant Gdk.Types.Gdk_Key_Type := Gdk.Types.Keysyms.GDK_F8;
+
+            procedure Pad_Button (Kind : Gdk.Event.Gdk_Event_Type) is
+            begin
+               Send_Button (Kind, 8, 300.0, 320.0, Pad);
+            end Pad_Button;
+
+            procedure Check_Offset (Expected_X, Expected_Y : Glib.Gdouble;
+                                    Why : String) is
+            begin
+               Assert (abs (X.Get_Value - Expected_X) < 1.0 and then
+                         abs (Y.Get_Value - Expected_Y) < 1.0,
+                       Why & ":" & X.Get_Value'Image & Y.Get_Value'Image);
+            end Check_Offset;
+         begin
+            Activate ("actual");
+            Tool_Button ("crop").Clicked;
+            Pointer (Gdk.Event.Button_Press, 40.0, 50.0);
+            Pointer (Gdk.Event.Button_Release, 100.0, 130.0);
+            Activate ("zoom-in");
+            Activate ("zoom-in");
+            Canvas.Check_Resize;
+            Drain_Events;
+            X.Set_Value (100.0);
+            Y.Set_Value (120.0);
+
+            Side_Button (Gdk.Event.Button_Press, 8, 300.0, 320.0,
+                         Use_Pen => False);
+            Side_Button (Gdk.Event.Button_Release, 8, 300.0, 320.0,
+                         Use_Pen => False);
+            Pad_Button (Gdk.Event.Button_Press);
+            Side_Button (Gdk.Event.Button_Press, 1, 300.0, 320.0);
+            Send_Stylus_Motion (270.0, 280.0, 305.0, 315.0);
+            Check_Offset (95.0, 125.0, "Pan follows root deltas on both axes");
+            Side_Button (Gdk.Event.Button_Release, 1, 305.0, 315.0);
+
+            --  Tip lift keeps the pad armed for another contact.
+            Side_Button (Gdk.Event.Button_Press, 1, 300.0, 320.0);
+            Send_Stylus_Motion (265.0, 275.0, 310.0, 325.0);
+            Check_Offset (85.0, 120.0, "The same pad hold pans a second time");
+            Pad_Button (Gdk.Event.Button_Release);
+            Send_Stylus_Motion (240.0, 250.0, 330.0, 345.0);
+            Check_Offset (85.0, 120.0, "Pad release stops pan before tip lift");
+            Side_Button (Gdk.Event.Button_Release, 1, 330.0, 345.0);
+
+            Send_Key (Gdk.Event.Key_Press, F8);
+            Side_Button (Gdk.Event.Button_Press, 1, 300.0, 320.0);
+            Send_Stylus_Motion (280.0, 290.0, 310.0, 330.0);
+            Check_Offset (75.0, 110.0, "F8 works as a pad mapping fallback");
+            Press_Escape;
+            Send_Stylus_Motion (250.0, 260.0, 320.0, 350.0);
+            Check_Offset (75.0, 110.0, "Escape stops pan before tip lift");
+            Side_Button (Gdk.Event.Button_Release, 1, 320.0, 350.0);
+            Send_Key (Gdk.Event.Key_Release, F8);
+
+            Send_Key (Gdk.Event.Key_Press, F8);
+            Side_Button (Gdk.Event.Button_Press, 1, 300.0, 320.0);
+            Send_Key (Gdk.Event.Key_Release, F8);
+            Send_Stylus_Motion (250.0, 260.0, 320.0, 350.0);
+            Check_Offset (75.0, 110.0, "F8 release stops pan before tip lift");
+            Side_Button (Gdk.Event.Button_Release, 1, 320.0, 350.0);
+
+            Pad_Button (Gdk.Event.Button_Press);
+            Side_Button (Gdk.Event.Button_Press, 1, 300.0, 320.0);
+            declare
+               Event : constant Gdk.Event.Gdk_Event :=
+                 Gdk.Event.Gdk_Event_New (Gdk.Event.Focus_Change);
+               Raw : Gdk.Event.Gdk_Event_Focus
+                 with Import, Address => Gdk.Event.To_Address (Event);
+               Handled : Boolean;
+            begin
+               Gdk.Window.Ref (Canvas.Get_Window);
+               Raw := (Gdk.Event.Focus_Change, Canvas.Get_Window, 1, 0);
+               Handled := Canvas.Event (Event);
+               Gdk.Event.Free (Event);
+               Assert (not Handled, "Focus loss still propagates to GTK");
+            end;
+            Send_Stylus_Motion
+              (250.0, 260.0, 320.0, 350.0, Expected => False);
+            Check_Offset (75.0, 110.0, "Focus loss clears the active pan");
+            Send_Button (Gdk.Event.Button_Release, 1, 320.0, 350.0, Pen,
+                         Expected => False);
+            Pad_Button (Gdk.Event.Button_Release);
+
+            Check_Tool ("crop");
+            Assert (Gtk.GEntry.Gtk_Entry
+                      (Control ("coyote-canvas-crop-width")).Get_Text = "60"
+                    and then Gtk.GEntry.Gtk_Entry
+                      (Control ("coyote-canvas-crop-height")).Get_Text = "80"
+                    and then Control ("canvas-apply").Get_Sensitive,
+                    "Pans leave the pending crop unchanged");
+            Press_Escape;
+            Check_Tool ("pencil");
+            Assert (Control ("canvas-undo").Get_Sensitive
+                    and then Get_Iter_From_String (Model, "0:0") = Null_Iter,
+                    "Panning leaves the existing unsaved drawing in place");
+            declare
+               Markup : constant Gtk.Check_Menu_Item.Gtk_Check_Menu_Item :=
+                 Gtk.Check_Menu_Item.Gtk_Check_Menu_Item
+                   (Control ("canvas-markup"));
+            begin
+               Markup.Set_Active (False);
+               Assert (not Tool_Button ("pencil").Get_Sensitive,
+                       "Hidden markup disables editing, not panning");
+               Pad_Button (Gdk.Event.Button_Press);
+               Side_Button (Gdk.Event.Button_Press, 1, 300.0, 320.0);
+               Send_Stylus_Motion (700.0, 740.0, 700.0, 740.0);
+               Check_Offset (0.0, 0.0, "Pan stops at the near scroll bounds");
+               Send_Stylus_Motion (10.0, 10.0, -2000.0, -2000.0);
+               Check_Offset (X.Get_Upper - X.Get_Page_Size,
+                             Y.Get_Upper - Y.Get_Page_Size,
+                             "Pan stops at the far scroll bounds");
+               Pad_Button (Gdk.Event.Button_Release);
+               Side_Button (Gdk.Event.Button_Release, 1, 10.0, 10.0);
+               Markup.Set_Active (True);
+            end;
+            Activate ("actual");
+            Canvas.Check_Resize;
+            Drain_Events;
+            X.Set_Value (0.0);
+            Y.Set_Value (0.0);
+            Check_Pixel ((255, 255, 255), 48, 48);
+
+            --  Without an armed pan, a new contact still edits normally,
+            --  and holding F8 after tip-down must not take over that stroke.
+            Start_X := X.Get_Value;
+            Start_Y := Y.Get_Value;
+            Send_Button (Gdk.Event.Button_Press, 1, 48.0, 48.0, Pen);
+            Send_Key (Gdk.Event.Key_Press, F8);
+            Send_Stylus_Motion (54.0, 48.0, 54.0, 48.0);
+            Check_Offset (Start_X, Start_Y, "F8 cannot take over a stroke");
+            Send_Key (Gdk.Event.Key_Release, F8);
+            Send_Button (Gdk.Event.Button_Release, 1, 54.0, 48.0, Pen);
+            Check_Pixel ((13, 13, 13), 50, 48);
+            Activate ("undo");
+            Check_Pixel ((255, 255, 255), 50, 48);
+         end Check_Stylus_Pan;
       begin
-         Pen := Test_Device (Gdk.Types.Source_Pen);
-         Assert (Pen /= System.Null_Address, "Created test pen source");
+         Pen := Test_Device (Gdk.Types.Gdk_Input_Source'Pos
+                               (Gdk.Types.Source_Pen));
+         --  GTK 3's table has GDK_SOURCE_TABLET_PAD at 8; the Ada enum
+         --  predates that value. Match the connected Bluetooth Intuos IDs.
+         Pad := Test_Device (8, "Wacom Intuos BT S Pad pad", "056a", "03c6");
+         Assert (Pen /= System.Null_Address and then Pad /= System.Null_Address,
+                 "Created test pen and pad sources");
+         Check_Stylus_Pan;
+         Focus := Canvas.Get_Focus;
          Activate ("zoom-in");
          Activate ("zoom-in");
          Canvas.Check_Resize;
@@ -1492,7 +1701,8 @@ package body Coyote_App_Frontend_GUI_Tests is
          Press_Escape;
          Pencil_Size.Set_Value (3.0);
 
-         Tip_Eraser := Test_Device (Gdk.Types.Source_Eraser);
+         Tip_Eraser := Test_Device (Gdk.Types.Gdk_Input_Source'Pos
+                                      (Gdk.Types.Source_Eraser));
          Eraser_Size.Set_Value (40.0);
          Send_Button (Gdk.Event.Button_Press, 1, 47.0, 30.0, Tip_Eraser);
          Check_Pixel ((255, 255, 255));
@@ -1504,10 +1714,14 @@ package body Coyote_App_Frontend_GUI_Tests is
          Eraser_Size.Set_Value (16.0);
          Unref_Device (Tip_Eraser);
          Unref_Device (Pen);
+         Unref_Device (Pad);
       exception
          when others =>
             if Tip_Eraser /= System.Null_Address then
                Unref_Device (Tip_Eraser);
+            end if;
+            if Pad /= System.Null_Address then
+               Unref_Device (Pad);
             end if;
             if Pen /= System.Null_Address then
                Unref_Device (Pen);

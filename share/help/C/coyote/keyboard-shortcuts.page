@@ -53,7 +53,7 @@
   </section>
   <section id="canvas">
     <title>Drawing Canvas</title>
-    <p><key>Ctrl</key>+<key>N</key> creates a drawing, <key>Ctrl</key>+<key>S</key> saves a revision, and <key>Ctrl</key>+<key>W</key> hides Canvas. <key>Ctrl</key>+<key>Z</key> undoes an edit; add <key>Shift</key> to redo. In the drawing context <key>Ctrl</key>+<key>V</key> pastes an image. <key>Escape</key> leaves a zoom tool and returns to the prior editing tool, or cancels a pending gesture or crop when editing. Tool choices have no new shortcuts; Tab and arrow keys use native toolbar navigation, and Edit menu mnemonics remain available. <key>F1</key> opens Canvas Help; add <key>Shift</key> to arm Click for Help.</p>
+    <p><key>Ctrl</key>+<key>N</key> creates a drawing, <key>Ctrl</key>+<key>S</key> saves a revision, and <key>Ctrl</key>+<key>W</key> hides Canvas. <key>Ctrl</key>+<key>Z</key> undoes an edit; add <key>Shift</key> to redo. In the drawing context <key>Ctrl</key>+<key>V</key> pastes an image. <key>Escape</key> leaves a zoom tool and returns to the prior editing tool, or cancels a pending gesture or crop when editing. Hold <key>F8</key> before putting the pen down to pan temporarily instead of using the selected tool. <key>Escape</key> stops an active pan without discarding a pending crop. Tool choices have no keyboard shortcuts; Tab and arrow keys use native toolbar navigation, and Edit menu mnemonics remain available. <key>F1</key> opens Canvas Help; add <key>Shift</key> to arm Click for Help.</p>
     <p>See <link xref="canvas">Drawing Canvas</link> for editing and attachments.</p>
   </section>
   <section id="dialogs">

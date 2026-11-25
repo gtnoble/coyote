@@ -3,6 +3,17 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-139 — Hold-to-pan from the tablet pad
+
+- **Date reported:** 2026-11-22
+- **Category:** Enhancement, Code, Test, Help
+- **Priority:** 4-Minor (existing scrollbars remain available).
+- **Authorization:** User requested implementation of tablet-button panning.
+- **Change:** Pan with pen contact while holding the far-right Intuos
+  ExpressKey, or a held F8 mapping. Leave the selected tool, pending crop,
+  and drawing contents unchanged.
+- **Status:** Implemented. Physical gesture qualification pending.
+
 ## PCR-138 — Tiled Canvas zoom out of Fit
 
 - **Date reported:** 2026-11-22

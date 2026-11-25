@@ -1,5 +1,19 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Canvas hold-to-pan from the Intuos pad (PCR-139)
+
+The far-right ExpressKey of the CTL-4100WL arms pen panning with the
+standard X11 Wacom mapping. Held F8 is the fallback. Canvas changes only
+the viewport offsets; the current tool, zoom, and pending crop survive.
+Releasing the modifier first stops the drag without turning the held pen
+into a stroke. No desktop settings are changed.
+
+Both development builds, the full Xvfb suite (1,136/1,136), GTK
+interactions (9/9), runner fault handling, and Help checks passed. The
+connected Intuos BT S reported the standard X11 button 8 mapping. Actual
+button-and-pen operation still needs a hands-on check; direct Wayland pad
+binding is not implemented.
+
 ## 2026-11-22 — Scale-aware tiled Canvas zoom (PCR-138)
 
 Fit now sets only the scale. Canvas requests a viewport region from a

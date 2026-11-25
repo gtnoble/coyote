@@ -23,7 +23,9 @@ with Gtk.File_Chooser;
 with Gtk.Selection_Data;
 with System;
 with Ada.Containers;
+with Gdk.Device;
 with Gdk.Device_Tool;
+with Gdk.Display;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
 with Gtk.Accel_Group;
@@ -83,6 +85,9 @@ package body Coyote_GUI.Canvas is
    use type Gdk.Event.Gdk_Event_Mask;
    use type Gdk.Event.Gdk_Event_Type;
    use type Gdk.Event.Gdk_Event_Sequence;
+   use type Gdk.Device.Gdk_Device;
+   use type Gdk.Device.Gdk_Device_Type;
+   use type Gdk.Seat.Gdk_Seat;
    use type Gdk.Device_Tool.Gdk_Device_Tool;
    use type Gdk.Device_Tool.Gdk_Device_Tool_Type;
    use type Rev.Ink_Operation;
@@ -176,6 +181,10 @@ package body Coyote_GUI.Canvas is
    package Event_Marshaller is new Event_Callback.Marshallers
      .Generic_Marshaller
      (Gdk.Event.Gdk_Event, Gdk.Event.Get_Event);
+   package Seat_Callback is new Gtk.Handlers.User_Callback
+     (Gdk.Seat.Gdk_Seat_Record, Instance_Access);
+   package Device_Marshaller is new Seat_Callback.Marshallers
+     .Generic_Marshaller (Glib.Object.GObject, Glib.Values.Get_Object);
    package Toolbar_Callback is new Gtk.Handlers.User_Return_Callback
      (Gtk.Box.Gtk_Box_Record, Boolean, Instance_Access);
    package Selection_Callback is new Gtk.Handlers.User_Callback
@@ -221,6 +230,12 @@ package body Coyote_GUI.Canvas is
    procedure On_Selection
      (Selection : access Gtk.Tree_Selection.Gtk_Tree_Selection_Record'Class;
       S         : Instance_Access);
+   function On_Pan_Key
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean;
+   procedure On_Pan_Device_Removed
+     (Seat : access Gdk.Seat.Gdk_Seat_Record'Class;
+      Device : Glib.Object.GObject; S : Instance_Access);
    procedure On_New
      (Button : access Gtk.Button.Gtk_Button_Record'Class; S : Instance_Access);
    procedure On_Save
@@ -261,7 +276,8 @@ package body Coyote_GUI.Canvas is
          else S.Preview_Revision /= Rev.NO_REVISION));
 
    function Can_Select_Tool (S : Instance) return Boolean is
-     (Can_Draw (S) and then not (S.Drawing or else S.Crop_Drag));
+     (Can_Draw (S) and then not (S.Drawing or else S.Crop_Drag)
+      and then S.Pan_Drag = No_Pan_Drag);
 
    function Can_Edit_With_Finger (S : Instance) return Boolean is
      (S.Edit_With_Finger and then S.Tool in Ink_Tool
@@ -280,19 +296,27 @@ package body Coyote_GUI.Canvas is
          (if S.Editing_Draft then Rev.NO_REVISION else S.Preview_Revision)));
 
    function Can_Zoom (S : Instance; E : Doc.Rectangle) return Boolean is
-     (Doc.Is_Nonempty (E) and then not (S.Drawing or else S.Crop_Drag));
+     (Doc.Is_Nonempty (E) and then not (S.Drawing or else S.Crop_Drag)
+      and then S.Pan_Drag = No_Pan_Drag);
 
    function Active_Tool (S : Instance) return Tool_Kind is
      (case S.Zoom_Tool is when No_Zoom => S.Tool,
                          when Magnify => Zoom_In, when Reduce => Zoom_Out);
 
-   procedure Update_Zoom_Cursor (S : Instance) is
+   procedure Update_View_Cursor (S : Instance) is
       Cursor : Gdk.Gdk_Cursor := null;
    begin
       if S.Drawing_Area = null or else S.Drawing_Area.Get_Window = null then
          return;
       end if;
-      if S.Zoom_Tool /= No_Zoom and then not S.Help_Mode then
+      if S.Pan_Drag = Panning and then not S.Help_Mode then
+         Cursor := Gdk.Cursor.Gdk_Cursor_New_From_Name
+           (S.Drawing_Area.Get_Display, "grabbing");
+         if Cursor = null then
+            Cursor := Gdk.Cursor.Gdk_Cursor_New_For_Display
+              (S.Drawing_Area.Get_Display, Gdk.Cursor.Fleur);
+         end if;
+      elsif S.Zoom_Tool /= No_Zoom and then not S.Help_Mode then
          Cursor := Gdk.Cursor.Gdk_Cursor_New_From_Name
            (S.Drawing_Area.Get_Display,
             (if S.Zoom_Tool = Magnify then "zoom-in" else "zoom-out"));
@@ -305,13 +329,43 @@ package body Coyote_GUI.Canvas is
       if Cursor /= null then
          Gdk.Cursor.Unref (Cursor);
       end if;
-   end Update_Zoom_Cursor;
+   end Update_View_Cursor;
+
+   function Pan_Armed (S : Instance) return Boolean is
+     (S.Pan_Key = Held or else S.Pan_Pad /= System.Null_Address);
+
+   procedure Set_Pan_Drag (S : in out Instance; State : Pan_Drag_State) is
+   begin
+      if S.Pan_Drag /= State then
+         S.Pan_Drag := State;
+         if State = No_Pan_Drag then
+            S.Pan_Pen := System.Null_Address;
+         end if;
+         Update_View_Cursor (S);
+      end if;
+   end Set_Pan_Drag;
+
+   procedure Disarm_Pan (S : in out Instance; Contact_Ended : Boolean) is
+   begin
+      S.Pan_Pad := System.Null_Address;
+      if Contact_Ended then
+         S.Pan_Key := Up;
+         Set_Pan_Drag (S, No_Pan_Drag);
+      else
+         if S.Pan_Key = Held then
+            S.Pan_Key := Cancelled;
+         end if;
+         if S.Pan_Drag = Panning then
+            Set_Pan_Drag (S, Wait_For_Tip_Up);
+         end if;
+      end if;
+   end Disarm_Pan;
 
    procedure Leave_Zoom_Tool (S : in out Instance) is
    begin
       if S.Zoom_Tool /= No_Zoom then
          S.Zoom_Tool := No_Zoom;
-         Update_Zoom_Cursor (S);
+         Update_View_Cursor (S);
       end if;
    end Leave_Zoom_Tool;
 
@@ -504,6 +558,7 @@ package body Coyote_GUI.Canvas is
      (S : in out Instance; Keep_Zoom : Boolean := False)
    is
    begin
+      Disarm_Pan (S, Contact_Ended => False);
       if not Keep_Zoom then
          Leave_Zoom_Tool (S);
          S.Anchor_Pending := False;
@@ -1120,7 +1175,7 @@ package body Coyote_GUI.Canvas is
       if S.Help_Mode then
          S.Help_Mode := False;
          Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, null);
-         Update_Zoom_Cursor (S);
+         Update_View_Cursor (S);
          Set_Status (S, "Click for Help ended.");
       end if;
    end Disable_Click_Help;
@@ -1581,7 +1636,21 @@ package body Coyote_GUI.Canvas is
          S'Unchecked_Access);
       Event_Callback.Connect
         (S.Canvas_Window, "key-press-event",
+         Event_Marshaller.To_Marshaller (On_Pan_Key'Access), State);
+      Event_Callback.Connect
+        (S.Canvas_Window, "key-release-event",
+         Event_Marshaller.To_Marshaller (On_Pan_Key'Access), State);
+      Event_Callback.Connect
+        (S.Canvas_Window, "key-press-event",
          Event_Marshaller.To_Marshaller (On_Cancel_Event'Access), State);
+      S.Pan_Seat := Gdk.Seat.Gdk_Seat
+        (S.Canvas_Window.Get_Display.Get_Default_Seat);
+      if S.Pan_Seat /= null then
+         S.Pan_Device_Removed := Seat_Callback.Connect
+           (S.Pan_Seat, "device-removed",
+            Device_Marshaller.To_Marshaller (On_Pan_Device_Removed'Access),
+            State);
+      end if;
       Event_Callback.Connect
         (S.Canvas_Window, "focus-out-event",
          Event_Marshaller.To_Marshaller (On_Cancel_Event'Access), State);
@@ -2118,6 +2187,7 @@ package body Coyote_GUI.Canvas is
 
    procedure Reset (S : in out Instance) is
    begin
+      Disarm_Pan (S, Contact_Ended => True);
       Disable_Click_Help (S);
       S.Resetting := True;
       S.Reveal_Drawing := Null_Unbounded_String;
@@ -2212,6 +2282,10 @@ package body Coyote_GUI.Canvas is
 
    procedure Destroy (S : in out Instance) is
    begin
+      if S.Pan_Seat /= null then
+         Gtk.Handlers.Disconnect (S.Pan_Seat, S.Pan_Device_Removed);
+         S.Pan_Seat := null;
+      end if;
       Reset (S);
       if S.Canvas_Window /= null then
          S.Canvas_Window.Destroy;
@@ -2383,7 +2457,7 @@ package body Coyote_GUI.Canvas is
          if Can_Zoom (S, Display_Extent (S)) and then Active_Tool (S) /= Tool
          then
             S.Zoom_Tool := (if Tool = Zoom_In then Magnify else Reduce);
-            Update_Zoom_Cursor (S);
+            Update_View_Cursor (S);
             Set_Status
               (S, "Click or tap the drawing to zoom; Escape leaves zoom.");
          end if;
@@ -2475,6 +2549,7 @@ package body Coyote_GUI.Canvas is
    begin
       if S /= null and then S.Canvas_Window /= null then
          Disable_Click_Help (S.all);
+         Disarm_Pan (S.all, Contact_Ended => True);
          Cancel_Gesture (S.all);
          Refresh (S.all);
          Invalidate (S.all, Keep_Agent => True);
@@ -2554,6 +2629,7 @@ package body Coyote_GUI.Canvas is
       elsif Name = "canvas-close" then
          On_Close (Item, S);
       elsif Name = "canvas-help-click" then
+         Disarm_Pan (S.all, Contact_Ended => False);
          if S.Drawing or else S.Crop_Drag then
             Cancel_Gesture (S.all);
          end if;
@@ -2564,7 +2640,7 @@ package body Coyote_GUI.Canvas is
          begin
             S.Help_Mode := True;
             Gdk.Window.Set_Cursor (S.Canvas_Window.Get_Window, Cursor);
-            Update_Zoom_Cursor (S.all);
+            Update_View_Cursor (S.all);
             Gdk.Cursor.Unref (Cursor);
          end;
          Set_Status
@@ -3194,6 +3270,18 @@ package body Coyote_GUI.Canvas is
      Import, Convention => C, External_Name => "gdk_event_get_coords";
    use type Glib.Gboolean;
 
+   function Read_Root_Coords
+     (Event : Gdk.Event.Gdk_Event; X, Y : out Glib.Gdouble)
+      return Glib.Gboolean with
+     Import, Convention => C, External_Name => "gdk_event_get_root_coords";
+   function Source_Device (Event : Gdk.Event.Gdk_Event) return System.Address
+     with Import, Convention => C,
+       External_Name => "gdk_event_get_source_device";
+   --  Use the native value: GTK 3's tablet pad is missing from GtkAda's
+   --  Gdk_Input_Source enumeration.
+   function Input_Source (Device : System.Address) return Glib.Gint
+     with Import, Convention => C, External_Name => "gdk_device_get_source";
+
    STYLUS_ZOOM_IN  : constant Glib.Guint := 2;
    STYLUS_ZOOM_OUT : constant Glib.Guint := 3;
 
@@ -3202,12 +3290,6 @@ package body Coyote_GUI.Canvas is
       return Boolean
    is
       --  The event's master pointer can be a mouse even when a pen sent it.
-      function Source_Device (E : Gdk.Event.Gdk_Event) return System.Address
-        with Import, Convention => C,
-          External_Name => "gdk_event_get_source_device";
-      --  GTK 3 has source values (e.g. tablet-pad) absent from GtkAda's enum.
-      function Input_Source (Device : System.Address) return Glib.Gint
-        with Import, Convention => C, External_Name => "gdk_device_get_source";
       Source : constant System.Address := Source_Device (Event);
    begin
       return Source /= System.Null_Address
@@ -3219,6 +3301,96 @@ package body Coyote_GUI.Canvas is
      (Button in STYLUS_ZOOM_IN | STYLUS_ZOOM_OUT
       and then not Gdk.Event.Get_Pointer_Emulated (Event)
       and then Has_Input_Source (Event, Gdk.Types.Source_Pen));
+
+   function On_Pan_Key
+     (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event; S : Instance_Access) return Boolean
+   is
+      pragma Unreferenced (Widget);
+      Modifiers : constant Gdk.Types.Gdk_Modifier_Type :=
+        Gdk.Types.Shift_Mask or Gdk.Types.Control_Mask or Gdk.Types.Mod1_Mask
+        or Gdk.Types.Super_Mask or Gdk.Types.Meta_Mask
+        or Gdk.Types.Hyper_Mask;
+   begin
+      if Gdk.Event.Get_Key_Val (Event) /= Gdk.Types.Keysyms.GDK_F8 then
+         return False;
+      end if;
+      if Gdk.Event.Get_Event_Type (Event) = Gdk.Event.Key_Release then
+         if S.Pan_Key = Up then
+            return False;
+         end if;
+         S.Pan_Key := Up;
+         if not Pan_Armed (S.all) and then S.Pan_Drag = Panning then
+            Set_Pan_Drag (S.all, Wait_For_Tip_Up);
+         end if;
+         return True;
+      end if;
+      if (Gdk.Event.Get_State (Event) and Modifiers) /= 0
+        or else S.Help_Mode or else S.Suspended
+        or else not Doc.Is_Nonempty (Display_Extent (S.all))
+      then
+         return False;
+      end if;
+      if S.Pan_Key = Up then
+         S.Pan_Key := Held;
+      end if;
+      return True;
+   end On_Pan_Key;
+
+   procedure On_Pan_Device_Removed
+     (Seat : access Gdk.Seat.Gdk_Seat_Record'Class;
+      Device : Glib.Object.GObject; S : Instance_Access)
+   is
+      pragma Unreferenced (Seat);
+      Source : constant System.Address :=
+        Glib.Object.Get_Object_Or_Null (Device);
+   begin
+      if Source /= System.Null_Address
+        and then (Source = S.Pan_Pad or else Source = S.Pan_Pen)
+      then
+         Disarm_Pan (S.all, Contact_Ended => Source = S.Pan_Pen);
+         Refresh (S.all);
+      end if;
+   end On_Pan_Device_Removed;
+
+   function Intuos_Pan_Button (Event : Gdk.Event.Gdk_Event) return Boolean is
+      GDK_SOURCE_TABLET_PAD : constant Glib.Gint := 8;
+      INTUOS_X11_PAN_BUTTON : constant Glib.Guint := 8;
+      Source : System.Address;
+      Device : Gdk.Device.Gdk_Device;
+   begin
+      if Gdk.Event.Get_Button (Event) /= INTUOS_X11_PAN_BUTTON
+        or else Gdk.Event.Get_Pointer_Emulated (Event)
+      then
+         return False;
+      end if;
+      Source := Source_Device (Event);
+      if Source = System.Null_Address or else
+        Input_Source (Source) /= GDK_SOURCE_TABLET_PAD
+      then
+         return False;
+      end if;
+      Device := Gdk.Device.Convert (Source);
+      --  The CTL-4100WL's fourth ExpressKey is mapped to X11 button 8
+      --  (the Wacom driver leaves 4 through 7 for scrolling).
+      return Device /= null
+        and then Device.Get_Device_Type /= Gdk.Device.Gdk_Device_Type_Master
+        and then Device.Get_Vendor_Id = "056a"
+        and then Device.Get_Product_Id in "0376" | "0377" | "03c5" | "03c6";
+   end Intuos_Pan_Button;
+
+   procedure Drag_View (S : Instance; Event : Gdk.Event.Gdk_Event) is
+      X, Y : Glib.Gdouble;
+   begin
+      --  Drawing-area coordinates move with the scrollbar. Root deltas
+      --  remain stable, including at zoom levels other than Actual Size.
+      if Read_Root_Coords (Event, X, Y) /= 0 then
+         S.Viewport.Get_Hadjustment.Set_Value
+           (S.Pan_Scroll_X + S.Pan_Root_X - X);
+         S.Viewport.Get_Vadjustment.Set_Value
+           (S.Pan_Scroll_Y + S.Pan_Root_Y - Y);
+      end if;
+   end Drag_View;
 
    function Pointer_Alpha (S : Instance; Event : Gdk.Event.Gdk_Event)
      return Rev.Ink_Alpha
@@ -3322,6 +3494,7 @@ package body Coyote_GUI.Canvas is
       if Can_Edit_With_Finger (S.all)
         and then Kind = Gdk.Event.Touch_Begin and then Sequence /= null
         and then not (S.Drawing or else S.Crop_Drag or else S.Anchor_Pending)
+        and then S.Pan_Drag = No_Pan_Drag
         and then Read_Coords (Event, X, Y) /= 0
       then
          Widget.Grab_Focus;
@@ -3377,6 +3550,18 @@ package body Coyote_GUI.Canvas is
         Gdk.Event.Get_Event_Type (Event);
       X, Y : Glib.Gdouble;
    begin
+      if Intuos_Pan_Button (Event) then
+         if Kind = Gdk.Event.Button_Press and then not S.Help_Mode
+           and then not S.Suspended and then S.Pan_Pad = System.Null_Address
+           and then Doc.Is_Nonempty (Display_Extent (S.all))
+         then
+            S.Pan_Pad := Source_Device (Event);
+         end if;
+         return True;
+      end if;
+      if S.Pan_Drag /= No_Pan_Drag then
+         return True;
+      end if;
       if Is_Stylus_Zoom_Button (Event, Button) then
          --  GTK can emit a double/triple-click event after the actual press.
          if Kind = Gdk.Event.Button_Press and then not S.Help_Mode
@@ -3394,6 +3579,22 @@ package body Coyote_GUI.Canvas is
         or else Read_Coords (Event, X, Y) = 0
       then
          return False;
+      end if;
+      if Pan_Armed (S.all) and then not S.Help_Mode and then not S.Suspended
+        and then (Has_Input_Source (Event, Gdk.Types.Source_Pen)
+                  or else Has_Input_Source (Event, Gdk.Types.Source_Eraser))
+      then
+         if Doc.Is_Nonempty (Display_Extent (S.all))
+           and then not S.Anchor_Pending
+           and then Read_Root_Coords (Event, S.Pan_Root_X, S.Pan_Root_Y) /= 0
+         then
+            S.Pan_Pen := Source_Device (Event);
+            S.Pan_Scroll_X := S.Viewport.Get_Hadjustment.Get_Value;
+            S.Pan_Scroll_Y := S.Viewport.Get_Vadjustment.Get_Value;
+            Set_Pan_Drag (S.all, Panning);
+            Refresh (S.all);
+         end if;
+         return True;
       end if;
       if S.Zoom_Tool /= No_Zoom then
          Zoom_Over_Drawing (S.all, X, Y, Increase => S.Zoom_Tool = Magnify);
@@ -3462,6 +3663,14 @@ package body Coyote_GUI.Canvas is
       pragma Unreferenced (Widget);
       X, Y : Glib.Gdouble;
    begin
+      if S.Pan_Drag /= No_Pan_Drag then
+         if S.Pan_Drag = Panning and then Source_Device (Event) = S.Pan_Pen
+           and then not Gdk.Event.Get_Pointer_Emulated (Event)
+         then
+            Drag_View (S.all, Event);
+         end if;
+         return True;
+      end if;
       if not (S.Crop_Drag or else S.Drawing)
         or else S.Finger_Sequence /= null
         or else Gdk.Event.Get_Pointer_Emulated (Event)
@@ -3492,6 +3701,27 @@ package body Coyote_GUI.Canvas is
       Button : constant Glib.Guint := Gdk.Event.Get_Button (Event);
       X, Y : Glib.Gdouble;
    begin
+      if Intuos_Pan_Button (Event) then
+         if Source_Device (Event) = S.Pan_Pad then
+            S.Pan_Pad := System.Null_Address;
+            if S.Pan_Drag = Panning and then not Pan_Armed (S.all) then
+               Set_Pan_Drag (S.all, Wait_For_Tip_Up);
+            end if;
+         end if;
+         return True;
+      end if;
+      if S.Pan_Drag /= No_Pan_Drag then
+         if Button = 1 and then Source_Device (Event) = S.Pan_Pen
+           and then not Gdk.Event.Get_Pointer_Emulated (Event)
+         then
+            if S.Pan_Drag = Panning then
+               Drag_View (S.all, Event);
+            end if;
+            Set_Pan_Drag (S.all, No_Pan_Drag);
+            Refresh (S.all);
+         end if;
+         return True;
+      end if;
       if Is_Stylus_Zoom_Button (Event, Button) then
          return True;
       end if;
@@ -3540,6 +3770,20 @@ package body Coyote_GUI.Canvas is
       then
          Disable_Click_Help (S.all);
          return Is_Key;
+      end if;
+      if not Is_Key then
+         if S.Pan_Key /= Up or else Pan_Armed (S.all)
+           or else S.Pan_Drag /= No_Pan_Drag
+         then
+            Disarm_Pan (S.all, Contact_Ended => True);
+            Refresh (S.all);
+         end if;
+      elsif not (S.Drawing or else S.Crop_Drag)
+        and then (Pan_Armed (S.all) or else S.Pan_Drag /= No_Pan_Drag)
+        and then Gdk.Event.Get_Key_Val (Event) = Gdk.Types.Keysyms.GDK_Escape
+      then
+         Disarm_Pan (S.all, Contact_Ended => False);
+         return True;
       end if;
       if Is_Key and then S.Zoom_Tool /= No_Zoom
         and then Gdk.Event.Get_Key_Val (Event) = Gdk.Types.Keysyms.GDK_Escape

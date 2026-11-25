@@ -72,6 +72,24 @@ Give entries mnemonics, preserve native Tab/tree traversal, use the primary acti
 
 ### 4.2 Input and clipboard
 
+For a Wacom Intuos Small Bluetooth (CTL-4100WL) on X11 with its
+standard button mapping, the fourth (far-right) ExpressKey reports
+button 8. Recognize it only from a tablet pad with the matching Wacom
+vendor and model IDs, never from an ordinary mouse. Holding `F8` in the
+Canvas window is the fallback for other driver mappings. Canvas does not
+change the tablet's desktop settings.
+
+When either control is held **before** pen tip-down, capture the gesture
+as viewport pan before routing to ink, crop, or the magnifier. The pen
+moves the two scroll adjustments using root-coordinate deltas, clamped
+by the viewport. Do not edit pixels, pressure samples, zoom, history,
+selection, or a pending crop. Read-only views and hidden markup can pan.
+If the modifier is released first, stop panning but consume that pen
+contact through tip-up; if the tip comes up first, the held modifier may
+pan again. Escape stops the pan without discarding a crop. Focus loss,
+a broken grab, tablet removal, and window/session transitions clear
+pan state. Ignore a pan modifier pressed after a stroke has begun.
+
 Use `Gtk.Drawing_Area`, Cairo and GDK events through GtkAda. Distinguish pen
 and mouse; test pressure-axis availability at runtime. Keep separate
 session-local Pencil and Eraser sizes, each 1–64 source pixels, defaulting to
