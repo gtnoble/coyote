@@ -25,6 +25,7 @@ with Gtk.Cell_Renderer;
 with Gtk.Combo_Box;
 with Gtk.Combo_Box_Text;
 with LLM.User_Images;
+with Cairo;
 with Coyote_Image_Loader;
 with Gtk.Button;
 with Gtk.Check_Button;
@@ -332,6 +333,28 @@ package body Coyote_App.Frontend.GUI is
          end if;
       end if;
    end Add_Response_Image_To_Canvas;
+
+   procedure Add_Rendered_Response_To_Canvas
+     (Parent : Gtk.Window.Gtk_Window; Binding : Natural;
+      Recording : Cairo.Cairo_Surface; Width, Height : Natural;
+      Error : String)
+   is
+      F : constant access Instance := Current_Frontend;
+   begin
+      if F /= null and then Parent /= null and then F.Win = Parent then
+         if F.Canvas_Transition or else Binding /= F.Canvas_Binding
+           or else not F.Canvas_Item.Get_Sensitive
+         then
+            F.Status_Bar.Set_Text
+              ("This response cannot be added to the current Canvas.");
+         elsif Error'Length > 0 then
+            F.Status_Bar.Set_Text (Error);
+         else
+            Coyote_GUI.Canvas.Import_Rendered_Response
+              (F.Canvas_Window, Parent.all'Access, Recording, Width, Height);
+         end if;
+      end if;
+   end Add_Rendered_Response_To_Canvas;
 
    procedure Advance_Canvas_Binding (F : in out Instance) is
    begin
@@ -786,6 +809,9 @@ package body Coyote_App.Frontend.GUI is
             Emit   := True;
          when Text_End =>
             U.Kind := Coyote_GUI.End_Text_Block;
+            Emit   := True;
+         when End_Response =>
+            U.Kind := Coyote_GUI.End_Response;
             Emit   := True;
          when End_Step =>
             U.Kind := Coyote_GUI.End_Step;
@@ -2172,6 +2198,9 @@ package body Coyote_App.Frontend.GUI is
 
          when End_Text_Block =>
             F.Stack.End_Text_Block;
+
+         when End_Response =>
+            F.Stack.End_Response;
 
          when End_Step =>
             F.Stack.End_Step;
@@ -5231,6 +5260,8 @@ package body Coyote_App.Frontend.GUI is
       Coyote_GUI.Conversation_Stack.Create (F.Stack, F.Win.all'Access);
       Advance_Canvas_Binding (F);
       F.Stack.Set_Response_Image_Handler (Add_Response_Image_To_Canvas'Access);
+      F.Stack.Set_Response_Capture_Handler
+        (Add_Rendered_Response_To_Canvas'Access);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
         (F.Stack, On_Native_Fork'Access);
       Coyote_GUI.Conversation_Stack.Set_Tool_Action_Handler
@@ -5566,6 +5597,13 @@ package body Coyote_App.Frontend.GUI is
       U.Kind := Coyote_GUI.End_Text_Block;
       Enqueue_Update (F, U);
    end End_Text_Block;
+
+   overriding procedure End_Response (F : in out Instance) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.End_Response;
+      Enqueue_Update (F, U);
+   end End_Response;
 
    overriding procedure End_Step (F : in out Instance) is
       U : Coyote_GUI.Update;

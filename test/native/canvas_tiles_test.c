@@ -244,6 +244,111 @@ out:
    return ok;
 }
 
+static int generated_tests(void)
+{
+   const uint32_t width = 259, height = 261;
+   const int stride = (int)(width * 4U + 12U);
+   unsigned char *band = calloc(256U, (size_t)stride);
+   int fd = make_file("generated.tiles");
+   if (!band || fd < 0) { free(band); if (fd >= 0) close(fd); return 0; }
+   (void)lseek(fd, 13, SEEK_SET);
+   void *writer = NULL;
+   int ok = coyote_canvas_tiles_generated_begin(fd, width, height,
+      UINT64_C(16) + (uint64_t)width * height * 4U, &writer) == COYOTE_TILE_OK && writer;
+   for (uint32_t top = 0; ok && top < height; ) {
+      uint32_t rows = height - top < 256U ? height - top : 256U;
+      memset(band, 0xee, (size_t)rows * (size_t)stride);
+      for (uint32_t y = 0; y < rows; ++y)
+         for (uint32_t x = 0; x < width; ++x) {
+            uint32_t value = UINT32_C(0xff000000) |
+               ((x & 255U) << 16U) | (((top + y) & 255U) << 8U) |
+               ((x + top + y) & 255U);
+            memcpy(band + (size_t)y * (size_t)stride + (size_t)x * 4U,
+                   &value, sizeof value);
+         }
+      ok = coyote_canvas_tiles_generated_band(writer, band, stride, rows) == COYOTE_TILE_OK;
+      top += rows;
+   }
+   if (ok)
+      ok = coyote_canvas_tiles_generated_end(writer) == COYOTE_TILE_OK;
+   else
+      coyote_canvas_tiles_generated_abort(writer);
+   struct coyote_canvas_tile_info size, extent;
+   unsigned char edge[3U * 5U * 4U];
+   ok = ok && lseek(fd, 0, SEEK_CUR) == 13 &&
+      coyote_canvas_tiles_inspect(fd, &size) == COYOTE_TILE_OK &&
+      size.width == width && size.height == height &&
+      coyote_canvas_tiles_read(fd, 1, 1, edge, sizeof edge, &extent) == COYOTE_TILE_OK &&
+      extent.width == 3 && extent.height == 5;
+   for (uint32_t y = 0; ok && y < 5; ++y)
+      for (uint32_t x = 0; x < 3; ++x) {
+         unsigned char expected[4] = {(unsigned char)((x + 256U) & 255U),
+            (unsigned char)((y + 256U) & 255U),
+            (unsigned char)((x + y + 512U) & 255U), 255};
+         if (memcmp(edge + ((size_t)y * 3U + x) * 4U, expected, 4) != 0)
+            ok = 0;
+      }
+   close(fd);
+   fd = make_file("generated-incomplete.tiles");
+   writer = NULL;
+   ok = ok && fd >= 0 && coyote_canvas_tiles_generated_begin(fd, 1, 257,
+      UINT64_C(16) + 1U * 257U * 4U, &writer) == COYOTE_TILE_OK;
+   unsigned char *single_column = calloc(257U, 4U);
+   if (!single_column) ok = 0;
+   struct stat st;
+   if (ok) {
+      ok = coyote_canvas_tiles_generated_band(writer, single_column, 4, 256) == COYOTE_TILE_OK &&
+         coyote_canvas_tiles_generated_end(writer) == COYOTE_TILE_INVALID;
+      writer = NULL;
+   }
+   ok = ok && fstat(fd, &st) == 0 && st.st_size == 0;
+   close(fd);
+   fd = make_file("generated-abort.tiles");
+   writer = NULL;
+   if (fd < 0) ok = 0;
+   if (ok) {
+      ok = coyote_canvas_tiles_generated_begin(fd, 1, 257, 16U + 257U * 4U, &writer) == COYOTE_TILE_OK &&
+         coyote_canvas_tiles_generated_band(writer, single_column, 4, 256) == COYOTE_TILE_OK &&
+         coyote_canvas_tiles_generated_band(writer, single_column + 256U * 4U, 4, 1) == COYOTE_TILE_OK;
+      if (writer) coyote_canvas_tiles_generated_abort(writer);
+      ok = ok && fstat(fd, &st) == 0 && st.st_size == 0;
+   }
+   close(fd);
+   fd = make_file("generated-cancel.tiles");
+   writer = NULL;
+   if (fd < 0) ok = 0;
+   if (ok) {
+      ok = coyote_canvas_tiles_generated_begin(fd, 1, 257, 16U + 257U * 4U, &writer) == COYOTE_TILE_OK &&
+         coyote_canvas_tiles_generated_band(writer, single_column, 4, 256) == COYOTE_TILE_OK &&
+         coyote_canvas_tiles_generated_band(writer, single_column + 256U * 4U, 4, 1) == COYOTE_TILE_OK;
+      if (writer) coyote_canvas_tiles_generated_abort(writer);
+      ok = ok && fstat(fd, &st) == 0 && st.st_size == 0;
+   }
+   free(single_column);
+   close(fd);
+   unsigned char pixel_data[4] = {0};
+   fd = make_file("generated-stride.tiles");
+   writer = NULL;
+   if (fd < 0) ok = 0;
+   if (ok) {
+      ok = coyote_canvas_tiles_generated_begin(fd, 1, 1, 20, &writer) == COYOTE_TILE_OK &&
+         coyote_canvas_tiles_generated_band(writer, pixel_data, 3, 1) == COYOTE_TILE_INVALID &&
+         coyote_canvas_tiles_generated_end(writer) == COYOTE_TILE_INVALID &&
+         fstat(fd, &st) == 0 && st.st_size == 0;
+      writer = NULL;
+   }
+   close(fd);
+   fd = make_file("generated-budget.tiles");
+   writer = NULL;
+   if (fd < 0) ok = 0;
+   if (ok)
+      ok = coyote_canvas_tiles_generated_begin(fd, 1, 1, 19, &writer) == COYOTE_TILE_LIMIT &&
+         writer == NULL && fstat(fd, &st) == 0 && st.st_size == 0;
+   close(fd);
+   free(band);
+   return ok;
+}
+
 int main(int argc, char **argv)
 {
    int large = argc == 2 && strcmp(argv[1], "--large") == 0;
@@ -254,6 +359,7 @@ int main(int argc, char **argv)
    if (n < 0 || (size_t)n >= sizeof temp_dir || !mkdtemp(temp_dir)) {
       perror("mkdtemp"); return 2;
    }
+   check(generated_tests(), "generated Cairo RGB24 writer, edge tiles, budgets, rollback, and offsets");
    int png = make_file("pattern.png"), adam = make_file("adam.png");
    int jpg = make_file("baseline.jpg"), prog = make_file("progressive.jpg");
    int bad = make_file("bad.bin"), dst = make_file("asset.tiles");

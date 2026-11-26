@@ -11,6 +11,7 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
 with LLM.Types;
 with Ada.Strings.Unbounded;
+with Cairo;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
@@ -33,6 +34,7 @@ with Gtk.Text_Mark;
 with Gtk.Text_Tag;
 with Gtk.Text_View;
 with Gtk.Window;
+with Gtk.Widget;
 with Pango.Font;
 
 package Coyote_GUI.Conversation_Stack is
@@ -66,6 +68,14 @@ package Coyote_GUI.Conversation_Stack is
       Binding : Natural);
    procedure Set_Response_Image_Handler
      (C : in out Instance; Handler : Rich_Text.Image_Handler);
+   --  Recording is borrowed for the duration of the callback. On failure,
+   --  Recording is null and Error describes why nothing was captured.
+   type Response_Capture_Handler is access procedure
+     (Parent : Gtk.Window.Gtk_Window; Binding : Natural;
+      Recording : Cairo.Cairo_Surface; Width, Height : Natural;
+      Error : String);
+   procedure Set_Response_Capture_Handler
+     (C : in out Instance; Handler : Response_Capture_Handler);
    procedure Set_Tool_Action_Handler
      (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler);
 
@@ -76,6 +86,7 @@ package Coyote_GUI.Conversation_Stack is
 
    procedure Append_Text (C : in out Instance; Text : String);
    procedure End_Text_Block (C : in out Instance);
+   procedure End_Response (C : in out Instance);
    procedure End_Step (C : in out Instance);
    procedure Begin_Thinking (C : in out Instance);
    procedure Append_Thinking (C : in out Instance; Text : String);
@@ -247,6 +258,10 @@ private
    package Table_Cell_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive, Element_Type => Gtk.Label.Gtk_Label);
 
+   package Response_Widgets is new Ada.Containers.Vectors
+     (Index_Type => Positive, Element_Type => Gtk.Widget.Gtk_Widget,
+      "=" => Gtk.Widget."=");
+
    type Instance is tagged limited record
       Scroll              : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Main_Window         : Gtk.Window.Gtk_Window;
@@ -261,6 +276,15 @@ private
       Active_View         : Gtk.Text_View.Gtk_Text_View;
       Response_Section    : Gtk.Box.Gtk_Box;
       Response_Box        : Gtk.Box.Gtk_Box;
+      First_Response_Section : Gtk.Box.Gtk_Box;
+      Response_Blocks     : Response_Widgets.Vector;
+      Response_Binding    : Natural := 0;
+      On_Response_Capture : Response_Capture_Handler;
+      Capture_Blocks      : Response_Widgets.Vector;
+      Capture_Binding     : Natural := 0;
+      Capture_Timer       : Glib.Main.G_Source_Id := 0;
+      Capture_Deadline    : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
+      Capture_Ready       : Boolean := False;
       Stream_Mark         : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf          : Ada.Strings.Unbounded.Unbounded_String;
       Response_Decoder    : Coyote_GUI.Text_Safety.Stream;

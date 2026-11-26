@@ -112,6 +112,8 @@ package body Coyote_App.Agent_RPC is
             return "textDelta";
          when Text_End =>
             return "textEnd";
+         when End_Response =>
+            return "endResponse";
          when End_Step =>
             return "endStep";
          when Tool_Start =>
@@ -194,6 +196,8 @@ package body Coyote_App.Agent_RPC is
          return Text_Delta;
       elsif Value = "textEnd" then
          return Text_End;
+      elsif Value = "endResponse" then
+         return End_Response;
       elsif Value = "endStep" then
          return End_Step;
       elsif Value = "toolStart" then

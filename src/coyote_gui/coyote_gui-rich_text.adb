@@ -70,6 +70,13 @@ package body Coyote_GUI.Rich_Text is
    Max_Width  : constant := 640;
 
    package Copy_Connected is new Glib.Object.User_Data (Boolean);
+   package Image_Pending is new Glib.Object.User_Data (Boolean);
+   Loading_Key : constant String := "coyote-inline-image-pending";
+
+   function Is_Pending
+     (Image : not null access Gtk.Image.Gtk_Image_Record'Class)
+      return Boolean is
+     (Image_Pending.Get (Image, Loading_Key, False));
 
    Max_Formulas : constant := 64;
 
@@ -360,6 +367,7 @@ package body Coyote_GUI.Rich_Text is
    begin
       Data.Pending := False;
       if Data.Alive and then Data.Image /= null then
+         Image_Pending.Set (Data.Image, False, Loading_Key);
          if Pixbuf /= null then
             Gtk.Image.Set (Data.Image, Pixbuf);
             if Data.Handler /= null and then Coyote_Image_Loader.Available
@@ -445,6 +453,7 @@ package body Coyote_GUI.Rich_Text is
          Width := Glib.Gint'Min (Width, Max_Width);
       end if;
       Width := Glib.Gint'Max (1, Width - 8);
+      Image_Pending.Set (Image, True, Loading_Key);
       Coyote_Image_Jobs.Submit
         (Root, To_String (Info.Destination), Positive (Width),
          Coyote_Image_Jobs.Consumer_Access (Job_Data));
@@ -842,6 +851,16 @@ package body Coyote_GUI.Rich_Text is
          end if;
          Set_Formula_Visible (Buffer, Formula, True);
    end Render_Formula;
+
+   function Is_Pending
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class)
+      return Boolean
+   is
+      State : constant Render_State_Access := Render_States.Get
+        (View, "coyote-inline-math-state", null);
+   begin
+      return State /= null and then State.Poll_Source_Id /= 0;
+   end Is_Pending;
 
    procedure Reflow
      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;

@@ -396,6 +396,7 @@ package body Coyote_App.Dispatch is
                State.Set_Turn_Cost (Ev.Cost_Dmil);
             end if;
          end;
+         Frontend.End_Response;
 
          --  ── auto_retry_start ──────────────────────────────────────────────
       elsif Event in LLM.Events.Auto_Retry_Start_Event then

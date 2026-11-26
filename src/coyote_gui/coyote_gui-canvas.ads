@@ -57,6 +57,12 @@ package Coyote_GUI.Canvas is
      (S : aliased in out Instance;
       Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
       Original : Coyote_Image_Loader.Source);
+   --  Import a recorded rendered response without encoding an intermediate.
+   procedure Import_Rendered_Response
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Recording : Cairo.Cairo_Surface;
+      Width, Height : Positive);
 
    type Attach_Handler is access function
      (Images : LLM.Types.User_Images.Vector) return Boolean;
@@ -86,13 +92,15 @@ private
 
    type Image_Origin is
      (Blank, Clipboard_Image, File_Image, Agent_Image, Tool_Image,
-      Response_Image);
-   subtype Conversation_Origin is Image_Origin range Tool_Image .. Response_Image;
+      Response_Image, Assistant_Response);
+   subtype Conversation_Origin is Image_Origin range Tool_Image .. Assistant_Response;
    type Conversation_Import is record
       Origin : Image_Origin := Blank;
       Base64 : Ada.Strings.Unbounded.Unbounded_String;
       Format : Coyote_Canvas.Rasters.Format := Coyote_Canvas.Rasters.Unknown;
       Source : Coyote_Image_Loader.Source;
+      Recording : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Width, Height : Positive := 1;
    end record;
    type Image_Asset is record
       Pixels : Gdk.Pixbuf.Gdk_Pixbuf := null;

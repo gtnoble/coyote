@@ -25,7 +25,7 @@ package Session_Fixture is
 
    --  Append one native assistant text message line.
    procedure Append_Assistant_Text
-     (Home : String; Cwd_Slug : String; UUID : String; Text : String);
+     (Home, Cwd_Slug, UUID, Text : String; Second_Text : String := "");
 
    --  Append one native assistant tool-call message line.
    procedure Append_Assistant_Tool_Call

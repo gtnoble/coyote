@@ -9,6 +9,9 @@ with Ada.Text_IO;
 with Coyote_Temp_Files;
 with GNAT.OS_Lib;
 with Gdk.Pixbuf;
+with Cairo.Surface;
+with Coyote_Canvas.Tiles;
+with Gdk.RGBA;
 with Glib.Object;
 with Gtk.Image;
 with Coyote_App.Utils;      use Coyote_App.Utils;
@@ -31,6 +34,7 @@ with GNATCOLL.JSON;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Clipboard;
+with Gtk.Container;
 with Gtk.Enums;
 with Gtk.Flow_Box;
 with Gtk.Frame;
@@ -73,11 +77,25 @@ package body Coyote_GUI.Conversation_Stack is
    use type Ada.Real_Time.Time_Span;
    use type Glib.Main.G_Source_Id;
    use type Glib.Main.G_Source;
+   use type Cairo.Cairo_Surface;
+   use type Cairo.Cairo_Context;
+   use type Cairo.Cairo_Status;
+   use type Gtk.Css_Provider.Gtk_Css_Provider;
+   use type Glib.Error.GError;
 
    type Instance_Access is access all Instance;
 
    package Tool_Time_Sources is new Glib.Main.Generic_Sources
      (Instance_Access);
+
+   procedure Cancel_Capture (C : in out Instance) is
+   begin
+      if C.Capture_Timer /= 0 then
+         Glib.Main.Remove (C.Capture_Timer);
+         C.Capture_Timer := 0;
+      end if;
+      C.Capture_Blocks.Clear;
+   end Cancel_Capture;
 
    function On_Tool_Time_Tick (C : Instance_Access) return Boolean;
 
@@ -984,6 +1002,12 @@ package body Coyote_GUI.Conversation_Stack is
       C.Response_Image_Handler := Handler;
    end Set_Response_Image_Handler;
 
+   procedure Set_Response_Capture_Handler
+     (C : in out Instance; Handler : Response_Capture_Handler) is
+   begin
+      C.On_Response_Capture := Handler;
+   end Set_Response_Capture_Handler;
+
    procedure Set_Tool_Action_Handler
      (C : in out Instance; Handler : Coyote_GUI.Tool_Action_Handler)
    is
@@ -1007,6 +1031,7 @@ package body Coyote_GUI.Conversation_Stack is
       pragma Unreferenced (Widget);
    begin
       if C /= null then
+         Cancel_Capture (C.all);
          Stop_Tool_Timer (C.all);
       end if;
    exception
@@ -1016,6 +1041,9 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Clear (C : in out Instance) is
    begin
+      Cancel_Capture (C);
+      C.Response_Blocks.Clear;
+      C.First_Response_Section := null;
       Stop_Tool_Timer (C);
       if C.Main_Window /= null then
          C.Main_Window.Set_Focus (null);
@@ -1098,9 +1126,7 @@ package body Coyote_GUI.Conversation_Stack is
       Stop_Tool_Timer (C);
       Create (C, C.Main_Window.all'Access);
       End_Thinking (C);
-      if C.Text_Open then
-         End_Text_Block (C);
-      end if;
+      End_Response (C);
       Gtk.Box.Gtk_New_Vbox (C.Exchange, Homogeneous => False, Spacing => 3);
       C.Host.Pack_Start
         (C.Exchange, Expand => False, Fill => True, Padding => 4);
@@ -1131,6 +1157,10 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Text_Open then
          Add_Text_Element
            (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
+         if C.First_Response_Section = null then
+            C.First_Response_Section := C.Response_Section;
+            C.Response_Binding := C.Canvas_Image_Binding;
+         end if;
          C.Text_Open  := True;
          C.Stream_Buf := Null_Unbounded_String;
          Coyote_GUI.Text_Safety.Reset (C.Response_Decoder);
@@ -1170,6 +1200,7 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       if C.Text_Open then
          Append_Buffer (C.Active_Text, Tail);
+         C.Response_Box := null;
          C.Images_Remaining := 16;
          if C.Render_Markdown then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
@@ -1204,17 +1235,315 @@ package body Coyote_GUI.Conversation_Stack is
                Build_Response_Elements (C, Full_Text);
             end;
          end if;
+         if C.On_Response_Capture /= null and then Has_Non_Whitespace (Full_Text)
+         then
+            C.Response_Blocks.Append
+              (if C.Response_Box /= null then Gtk.Widget.Gtk_Widget (C.Response_Box)
+               else Gtk.Widget.Gtk_Widget (C.Active_View));
+         end if;
          if Length (C.Search_Query) > 0 then
             Refresh_Search (C);
          end if;
       end if;
    end End_Text_Block;
 
+   type Capture_Action is record
+      Stack   : Instance_Access;
+      Binding : Natural;
+      Blocks  : Response_Widgets.Vector;
+   end record;
+
+   package Capture_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Button.Gtk_Button_Record, Capture_Action);
+
+   function Descendant_Of
+     (Child : Gtk.Widget.Gtk_Widget; Blocks : Response_Widgets.Vector)
+      return Boolean is
+     (for some Block of Blocks => Child = Block or else Child.Is_Ancestor (Block));
+
+   function Pending_Inside (Widget : Gtk.Widget.Gtk_Widget) return Boolean is
+      use Gtk.Widget.Widget_List;
+      Children, Node : Glist;
+      Pending : Boolean := False;
+   begin
+      if Widget.all in Gtk.Image.Gtk_Image_Record'Class then
+         return Rich_Text.Is_Pending (Gtk.Image.Gtk_Image (Widget));
+      end if;
+      if Widget.all in Gtk.Text_View.Gtk_Text_View_Record'Class and then
+        Rich_Text.Is_Pending (Gtk.Text_View.Gtk_Text_View (Widget))
+      then
+         return True;
+      end if;
+      if Widget.all in Gtk.Container.Gtk_Container_Record'Class then
+         Children := Gtk.Container.Gtk_Container (Widget).Get_Children;
+         Node := First (Children);
+         while Node /= Null_List and then not Pending loop
+            Pending := Pending_Inside (Get_Data (Node));
+            Node := Next (Node);
+         end loop;
+         Free (Children);
+      end if;
+      return Pending;
+   end Pending_Inside;
+
+   function Record_Response (C : Instance_Access) return Boolean is
+      function Create_Recording
+        (Content : Cairo.Cairo_Content; Bounds : access Cairo.Cairo_Rectangle)
+         return Cairo.Cairo_Surface
+        with Import, Convention => C,
+          External_Name => "cairo_recording_surface_create";
+      Handler : constant Response_Capture_Handler := C.On_Response_Capture;
+      Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      Bounds  : aliased Cairo.Cairo_Rectangle;
+      Width, Height, Y, Scale : Gint := 0;
+      Background : Gdk.RGBA.Gdk_RGBA;
+      Found : Boolean;
+      Hide_Selection : Gtk.Css_Provider.Gtk_Css_Provider;
+      CSS_Error : aliased Glib.Error.GError;
+      CSS_OK : Boolean;
+      Provider : Gtk.Style_Provider.Gtk_Style_Provider;
+      Styled : Response_Widgets.Vector;
+      Restore_Tags : array (1 .. Natural (C.Search_Tags.Length)) of Boolean :=
+        (others => False);
+      Gap : constant := 4;
+      Error : Unbounded_String;
+
+      procedure Restore is
+      begin
+         for Widget of Styled loop
+            Gtk.Style_Context.Get_Style_Context (Widget).Remove_Provider (Provider);
+         end loop;
+         Styled.Clear;
+         for I in Restore_Tags'Range loop
+            if Restore_Tags (I) then
+               Set_Property
+                 (C.Search_Tags (I), Gtk.Text_Tag.Background_Set_Property, True);
+               Restore_Tags (I) := False;
+            end if;
+         end loop;
+      end Restore;
+
+      procedure Cleanup is
+      begin
+         Restore;
+         if Context /= Cairo.Null_Context then
+            Cairo.Destroy (Context);
+            Context := Cairo.Null_Context;
+         end if;
+         if Surface /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Surface);
+            Surface := Cairo.Null_Surface;
+         end if;
+         if Hide_Selection /= null then
+            Hide_Selection.Unref;
+            Hide_Selection := null;
+         end if;
+         C.Capture_Blocks.Clear;
+         C.Capture_Timer := 0;
+      end Cleanup;
+   begin
+      if Handler = null or else C.Capture_Binding /= C.Canvas_Image_Binding
+        or else C.Capture_Blocks.Is_Empty
+      then
+         Cleanup;
+         return False;
+      elsif Ada.Real_Time.Clock >= C.Capture_Deadline then
+         Error := To_Unbounded_String
+           ("Response is still rendering. Try adding it again.");
+      elsif (for some Block of C.Capture_Blocks => Pending_Inside (Block))
+        or else (for some Element of C.Math_Elements =>
+          Descendant_Of (Gtk.Widget.Gtk_Widget
+                           (Coyote_GUI.Math_Element.Widget (Element.all)),
+                         C.Capture_Blocks)
+          and then Coyote_GUI.Math_Element.Is_Pending (Element.all))
+      then
+         C.Capture_Ready := False;
+         return True;
+      elsif not C.Capture_Ready then
+         --  Let pending GTK allocation/validation finish after asset adoption.
+         C.Capture_Ready := True;
+         return True;
+      else
+         Scale := C.Main_Window.Get_Scale_Factor;
+         for Block of C.Capture_Blocks loop
+            if not Block.Get_Mapped or else Block.Get_Allocated_Width <= 0
+              or else Block.Get_Allocated_Height <= 0
+            then
+               Error := To_Unbounded_String ("Response layout is unavailable.");
+               exit;
+            elsif Block.Get_Allocated_Height > Coyote_Canvas.Tiles.Max_Side - Height
+            then
+               Error := To_Unbounded_String ("Response exceeds Canvas image limits.");
+               exit;
+            end if;
+            Width := Gint'Max (Width, Block.Get_Allocated_Width);
+            Height := Height + Block.Get_Allocated_Height + Gap;
+         end loop;
+         Height := Height - Gap;
+         if Length (Error) = 0 and then
+           (Scale <= 0 or else Width > Coyote_Canvas.Tiles.Max_Side / Scale
+            or else Height > Coyote_Canvas.Tiles.Max_Side / Scale
+            or else Long_Long_Integer (Width) * Long_Long_Integer (Height) *
+              Long_Long_Integer (Scale) ** 2 * 4 + 16 > 2 * 1_024 ** 3)
+         then
+            Error := To_Unbounded_String ("Response exceeds Canvas image limits.");
+         end if;
+      end if;
+
+      if Length (Error) = 0 then
+         Bounds := (0.0, 0.0, Gdouble (Width * Scale), Gdouble (Height * Scale));
+         Surface := Create_Recording (Cairo.Cairo_Content_Color, Bounds'Access);
+         Context := Cairo.Create (Surface);
+         Gtk.Style_Context.Get_Style_Context
+           (C.Capture_Blocks.First_Element).Lookup_Color
+           ("theme_base_color", Background, Found);
+         if Found then
+            Cairo.Set_Source_Rgb (Context, Background.Red, Background.Green,
+                                  Background.Blue);
+         else
+            Cairo.Set_Source_Rgb (Context, 1.0, 1.0, 1.0);
+         end if;
+         Cairo.Paint (Context);
+         Cairo.Scale (Context, Gdouble (Scale), Gdouble (Scale));
+
+         --  Change only painting, not the selection, clipboard, or search.
+         Gtk.Css_Provider.Gtk_New (Hide_Selection);
+         CSS_OK := Hide_Selection.Load_From_Data
+           ("selection { background: transparent; color: inherit; " &
+            "text-shadow: none; }", CSS_Error'Access);
+         if not CSS_OK then
+            if CSS_Error /= null then
+               Glib.Error.Error_Free (CSS_Error);
+            end if;
+            raise Program_Error with "cannot suppress selection styling";
+         end if;
+         Provider := Gtk.Css_Provider.Implements_Gtk_Style_Provider.To_Interface
+           (Hide_Selection);
+         for I in C.Text_Views.First_Index .. C.Text_Views.Last_Index loop
+            declare
+               View : constant Gtk.Widget.Gtk_Widget :=
+                 Gtk.Widget.Gtk_Widget (C.Text_Views.Element (I));
+            begin
+               if Descendant_Of (View, C.Capture_Blocks) then
+                  if Get_Property (C.Search_Tags (I),
+                                   Gtk.Text_Tag.Background_Set_Property)
+                  then
+                     Restore_Tags (I) := True;
+                     Set_Property (C.Search_Tags (I),
+                                   Gtk.Text_Tag.Background_Set_Property, False);
+                  end if;
+                  Styled.Append (View);
+                  Gtk.Style_Context.Get_Style_Context (View).Add_Provider
+                    (Provider, Guint (Gtk.Style_Provider.Priority_User + 1));
+               end if;
+            end;
+         end loop;
+         for Cell of C.Table_Cells loop
+            declare
+               Widget : constant Gtk.Widget.Gtk_Widget := Gtk.Widget.Gtk_Widget (Cell);
+            begin
+               if Descendant_Of (Widget, C.Capture_Blocks) then
+                  Styled.Append (Widget);
+                  Gtk.Style_Context.Get_Style_Context (Widget).Add_Provider
+                    (Provider, Guint (Gtk.Style_Provider.Priority_User + 1));
+               end if;
+            end;
+         end loop;
+         for Block of C.Capture_Blocks loop
+            Cairo.Save (Context);
+            Cairo.Translate (Context, 0.0, Gdouble (Y));
+            Cairo.Rectangle (Context, 0.0, 0.0, Gdouble (Block.Get_Allocated_Width),
+                             Gdouble (Block.Get_Allocated_Height));
+            Cairo.Clip (Context);
+            Block.Draw (Context);
+            Cairo.Restore (Context);
+            Y := Y + Block.Get_Allocated_Height + Gap;
+         end loop;
+         Restore;
+         if Cairo.Status (Context) /= Cairo.Cairo_Status_Success
+           or else Cairo.Surface.Status (Surface) /= Cairo.Cairo_Status_Success
+         then
+            Error := To_Unbounded_String ("Could not record the rendered response.");
+         else
+            Cairo.Destroy (Context);
+            Context := Cairo.Null_Context;
+         end if;
+      end if;
+      Handler.all
+        (C.Main_Window, C.Capture_Binding,
+         (if Length (Error) = 0 then Surface else Cairo.Null_Surface),
+         Natural'Max (0, Integer (Width) * Integer (Scale)),
+         Natural'Max (0, Integer (Height) * Integer (Scale)), To_String (Error));
+      Cleanup;
+      return False;
+   exception
+      when others =>
+         Cleanup;
+         if Handler /= null then
+            Handler.all (C.Main_Window, C.Capture_Binding, Cairo.Null_Surface,
+                         0, 0, "Could not capture the rendered response.");
+         end if;
+         return False;
+   end Record_Response;
+
+   procedure On_Capture_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Action : Capture_Action)
+   is
+      pragma Unreferenced (Button);
+      C : constant Instance_Access := Action.Stack;
+   begin
+      if C = null or else C.On_Response_Capture = null then
+         return;
+      elsif C.Capture_Timer /= 0 then
+         C.On_Response_Capture.all
+           (C.Main_Window, Action.Binding, Cairo.Null_Surface, 0, 0,
+            "A response capture is already pending.");
+      else
+         C.Capture_Blocks := Action.Blocks;
+         C.Capture_Binding := Action.Binding;
+         C.Capture_Ready := False;
+         C.Capture_Deadline := Ada.Real_Time.Clock + Ada.Real_Time.Seconds (15);
+         C.Capture_Timer := Tool_Time_Sources.Timeout_Add
+           (25, Record_Response'Access, C, Priority => Glib.Main.Priority_Default_Idle);
+         if C.Capture_Timer = 0 then
+            raise Program_Error with "cannot schedule response capture";
+         end if;
+      end if;
+   exception
+      when others =>
+         Cancel_Capture (C.all);
+         C.On_Response_Capture.all
+           (C.Main_Window, Action.Binding, Cairo.Null_Surface, 0, 0,
+            "Could not schedule response capture.");
+   end On_Capture_Clicked;
+
+   procedure End_Response (C : in out Instance) is
+      Button : Gtk.Button.Gtk_Button;
+   begin
+      End_Text_Block (C);
+      if C.First_Response_Section /= null and then not C.Response_Blocks.Is_Empty
+        and then C.On_Response_Capture /= null
+      then
+         Gtk.Button.Gtk_New (Button, "Add Response to Canvas");
+         Button.Set_Name ("coyote-response-add-to-canvas");
+         Button.Set_Halign (Gtk.Widget.Align_End);
+         Button.Set_Tooltip_Text ("Add the whole rendered reply as a Canvas Original");
+         C.First_Response_Section.Pack_Start (Button, False, False, 2);
+         C.First_Response_Section.Reorder_Child (Button, 1);
+         Capture_Callback.Connect
+           (Button, "clicked", On_Capture_Clicked'Access,
+            (C'Unchecked_Access, C.Response_Binding, C.Response_Blocks));
+         Button.Show;
+      end if;
+      C.First_Response_Section := null;
+      C.Response_Blocks.Clear;
+   end End_Response;
+
    procedure End_Step (C : in out Instance) is
    begin
-      if C.Text_Open then
-         End_Text_Block (C);
-      end if;
+      End_Response (C);
       Finalize_Active_Step (C);
    end End_Step;
 
@@ -1823,9 +2152,7 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       C.Last_Status := Status;
-      if C.Text_Open then
-         End_Text_Block (C);
-      end if;
+      End_Response (C);
       loop
          declare
             Tool_Id : Unbounded_String;

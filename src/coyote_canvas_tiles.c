@@ -130,6 +130,126 @@ int coyote_canvas_tiles_begin(struct coyote_canvas_tile_writer *w,
    return COYOTE_TILE_OK;
 }
 
+struct generated_writer {
+   struct coyote_canvas_tile_writer tiles;
+   uint32_t next_y;
+   int failed;
+};
+
+int coyote_canvas_tiles_generated_begin(int fd, uint32_t width,
+                                        uint32_t height, uint64_t max_bytes,
+                                        void **writer)
+{
+   struct stat st;
+   if (!writer)
+      return COYOTE_TILE_INVALID;
+   *writer = NULL;
+   if (fstat(fd, &st) < 0)
+      return COYOTE_TILE_IO;
+   if (!S_ISREG(st.st_mode) || st.st_size != 0)
+      return COYOTE_TILE_INVALID;
+   int flags = fcntl(fd, F_GETFL);
+   if (flags < 0)
+      return COYOTE_TILE_IO;
+   if ((flags & O_ACCMODE) != O_RDWR || (flags & O_APPEND))
+      return COYOTE_TILE_INVALID;
+   if (!valid_size(width, height))
+      return COYOTE_TILE_LIMIT;
+   if (file_size(width, height) > max_bytes)
+      return COYOTE_TILE_LIMIT;
+   struct generated_writer *w = calloc(1, sizeof *w);
+   if (!w)
+      return COYOTE_TILE_MEMORY;
+   w->tiles.fd = fd;
+   w->tiles.max_bytes = max_bytes;
+   int result = coyote_canvas_tiles_begin(&w->tiles, width, height);
+   if (result != COYOTE_TILE_OK) {
+      free(w);
+      return result;
+   }
+   *writer = w;
+   return COYOTE_TILE_OK;
+}
+
+int coyote_canvas_tiles_generated_band(void *handle,
+                                       const unsigned char *data,
+                                       int stride, uint32_t rows)
+{
+   struct generated_writer *w = handle;
+   if (!w)
+      return COYOTE_TILE_INVALID;
+   if (w->failed)
+      return w->failed;
+   if (w->next_y >= w->tiles.size.height) {
+      w->failed = COYOTE_TILE_INVALID;
+      return w->failed;
+   }
+   uint32_t expected = smaller(TILE_SIDE, w->tiles.size.height - w->next_y);
+   if (!data || stride < 0 || (uint64_t)(unsigned)stride <
+       (uint64_t)w->tiles.size.width * 4U || rows != expected) {
+      w->failed = COYOTE_TILE_INVALID;
+      return w->failed;
+   }
+   unsigned char *rgba = malloc((size_t)w->tiles.size.width * PIXEL_BYTES);
+   if (!rgba) {
+      w->failed = COYOTE_TILE_MEMORY;
+      return w->failed;
+   }
+   int result = COYOTE_TILE_OK;
+   for (uint32_t y = 0; y < rows && result == COYOTE_TILE_OK; ++y) {
+      const unsigned char *src = data + (size_t)y * (unsigned)stride;
+      for (uint32_t x = 0; x < w->tiles.size.width; ++x) {
+         uint32_t pixel;
+         memcpy(&pixel, src + (size_t)x * 4U, sizeof pixel);
+         rgba[(size_t)x * 4U] = (unsigned char)(pixel >> 16U);
+         rgba[(size_t)x * 4U + 1U] = (unsigned char)(pixel >> 8U);
+         rgba[(size_t)x * 4U + 2U] = (unsigned char)pixel;
+         rgba[(size_t)x * 4U + 3U] = 255;
+      }
+      result = coyote_canvas_tiles_row(&w->tiles, w->next_y + y, rgba, 1);
+   }
+   free(rgba);
+   if (result == COYOTE_TILE_OK)
+      w->next_y += rows;
+   else
+      w->failed = result;
+   return result;
+}
+
+int coyote_canvas_tiles_generated_end(void *handle)
+{
+   struct generated_writer *w = handle;
+   if (!w)
+      return COYOTE_TILE_INVALID;
+   int result = w->failed;
+   if (result == COYOTE_TILE_OK && w->next_y != w->tiles.size.height)
+      result = COYOTE_TILE_INVALID;
+   if (result == COYOTE_TILE_OK)
+      result = flush_band(&w->tiles);
+   if (result == COYOTE_TILE_OK) {
+      unsigned char header[HEADER_BYTES];
+      memcpy(header, magic, sizeof magic);
+      put_u32(header + 8, w->tiles.size.width);
+      put_u32(header + 12, w->tiles.size.height);
+      result = write_at(w->tiles.fd, header, sizeof header, 0);
+   }
+   if (result != COYOTE_TILE_OK && ftruncate(w->tiles.fd, 0) < 0)
+      result = COYOTE_TILE_IO;
+   free(w->tiles.band);
+   free(w);
+   return result;
+}
+
+void coyote_canvas_tiles_generated_abort(void *handle)
+{
+   struct generated_writer *w = handle;
+   if (!w)
+      return;
+   (void)ftruncate(w->tiles.fd, 0);
+   free(w->tiles.band);
+   free(w);
+}
+
 int coyote_canvas_tiles_row(struct coyote_canvas_tile_writer *w, uint32_t y,
                             unsigned char *rgba, int write_row)
 {

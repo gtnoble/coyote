@@ -95,6 +95,8 @@ package Coyote_App.Frontend.GUI is
 
    overriding procedure End_Text_Block (F : in out Instance);
 
+   overriding procedure End_Response (F : in out Instance);
+
    overriding procedure End_Step (F : in out Instance);
 
    overriding procedure Begin_Thinking (F : in out Instance);

@@ -3,6 +3,14 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-142 — Copy a rendered assistant response to Canvas
+
+- **Category:** Enhancement, Code, Test, Help
+- **Authorization:** User approved the whole-response Canvas action.
+- **Change:** Capture one completed assistant message at its rendered size,
+  including text blocks outside the viewport. Save one independent Original
+  without including prompts, reasoning, tool cards, or other messages.
+
 ## PCR-141 — Add rendered response images to Canvas
 
 - **Date reported:** 2026-11-22

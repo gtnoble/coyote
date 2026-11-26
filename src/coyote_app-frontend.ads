@@ -77,6 +77,9 @@ package Coyote_App.Frontend is
 
    procedure End_Text_Block (F : in out Instance) is abstract;
 
+   --  Mark the end of one assistant response message.
+   procedure End_Response (F : in out Instance) is null;
+
    --  Close the active assistant step without rendering a footer or action.
    procedure End_Step (F : in out Instance) is null;
 

@@ -53,6 +53,21 @@ int coyote_canvas_tiles_reduce(int source_fd, int staging_fd,
 /* Create an unlinked private staging file opened for read/write, or return -1. */
 int coyote_canvas_tiles_stage(void);
 
+/* Generated-raster writer for native-endian Cairo RGB24 (the high byte is
+ * ignored; the low 24 bits contain 0xRRGGBB). Bands must be sequential and
+ * contain exactly min(256, rows remaining) rows. The fd is borrowed and must
+ * be an empty private O_RDWR regular staging file without O_APPEND. Descriptor
+ * offsets are preserved. max_bytes includes the v1 header. End consumes the
+ * handle on success or failure; abort truncates staging and consumes it.
+ * Discard the fd after any failed band/end operation. */
+int coyote_canvas_tiles_generated_begin(int fd, uint32_t width,
+                                        uint32_t height, uint64_t max_bytes,
+                                        void **writer);
+int coyote_canvas_tiles_generated_band(void *writer,
+                                       const unsigned char *data,
+                                       int stride, uint32_t rows);
+int coyote_canvas_tiles_generated_end(void *writer);
+void coyote_canvas_tiles_generated_abort(void *writer);
 /* Internal decoder boundary. Restore rows for later interlace passes. */
 struct coyote_canvas_tile_writer;
 int coyote_canvas_tiles_begin(struct coyote_canvas_tile_writer *,

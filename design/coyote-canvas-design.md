@@ -81,6 +81,24 @@ resetting Canvas invalidates queued work before adoption; a durable
 Original is independent of the local source once published. Existing
 inline image limits and replay source-directory rules are unchanged.
 
+### Importing a whole rendered response (PCR-142)
+
+The Response header exposes **Add Response to Canvas** on completion.
+An explicit message-end update groups text blocks across live dispatch,
+RPC and history replay. Capture uses only those content widgets, waits
+for their layout, inline images and math, and records GTK drawing at the
+display scale without scrolling. It suppresses search and selection
+styling without replacing the clipboard or changing the selection.
+Prompts, tool cards, reasoning, and response headers are not captured.
+Inline images use their displayed pixels and normal load fallbacks.
+
+A Canvas worker replays the recording in a reusable 256-row band and
+stages opaque RGBA tiles in a saved session. Publication reuses the
+candidate-workspace transaction and produces one independent Original.
+Memory-only sessions retain the ordinary flat raster limits. Side, area,
+and staging limits are checked without scaling or truncating the reply.
+Closing or changing sessions invalidates pending work before adoption.
+
 ## 4. Canvas window and interactions
 
 ### 4.1 Window, selection and edit routing

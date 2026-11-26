@@ -599,6 +599,7 @@ package body Coyote_App.History is
 
                               end;
                            end if;
+                           Frontend.End_Response;
                            if To_String (Turn_Stop) = "toolUse" then
                               Turn_Step := Turn_Step + 1;
                               Frontend.Append_Turn_Footer

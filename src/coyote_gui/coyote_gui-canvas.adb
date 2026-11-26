@@ -1,5 +1,6 @@
 with Ada.Streams;
 with Cairo.Pattern;
+with Cairo.Surface;
 with Coyote_Canvas.Tile_Render;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded.Aux;
@@ -10,6 +11,7 @@ with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Coyote_Canvas.Rasters;
+with Coyote_Canvas.Tiles;
 with Coyote_GUI.Canvas_Import_Jobs;
 with Gdk.Property;
 with Gdk.Cursor;
@@ -72,6 +74,7 @@ package body Coyote_GUI.Canvas is
    use type Glib.Main.G_Source_Id;
    use type Persistence.Result;
    use type Cairo.Cairo_Surface;
+   use type Cairo.Cairo_Status;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
    use type Gdk.Gdk_Cursor;
    use type Gdk.Gdk_Window;
@@ -149,8 +152,12 @@ package body Coyote_GUI.Canvas is
         R.Owner /= null and then R.Owner.all'Address = S'Address
         and then R.Origin in Conversation_Origin);
 
-   function Image_Label (Origin : Conversation_Origin) return String is
-     (if Origin = Tool_Image then "Tool Image" else "Response Image");
+   function Image_Label (Origin : Image_Origin) return String is
+     (case Origin is
+        when Tool_Image => "Tool Image",
+        when Response_Image => "Response Image",
+        when Assistant_Response => "Assistant Response",
+        when others => "Image");
 
    function Acquire (S : Instance_Access; Origin : Image_Origin)
       return Request_Index is
@@ -773,6 +780,7 @@ package body Coyote_GUI.Canvas is
      (Token : System.Address; Pixels : Jobs.Image_List;
       Tiles : Jobs.Tile_List; Error : String);
 
+   procedure Clear_Pending_Import (S : in out Instance);
    procedure Import_Complete
      (Token : System.Address; Pixels : Jobs.Image_List; Error : String)
    is
@@ -789,7 +797,8 @@ package body Coyote_GUI.Canvas is
       end if;
       S := Requests (I).Owner;
       Origin := Requests (I).Origin;
-      if S /= null and then Origin in Conversation_Origin and then Length (S.Parent) /= 0
+      if S /= null and then Origin in Conversation_Origin
+        and then Length (S.Parent) /= 0
       then
          Durable_Import_Complete
            (Token, Pixels, (Pixels'Range => (others => <>)), Error);
@@ -871,6 +880,10 @@ package body Coyote_GUI.Canvas is
       Import_Complete (Token, (1 .. 0 => null), Error);
    end Import_Failed;
 
+   procedure Recording_Import_Complete
+     (Token : System.Address; Pixels : Jobs.Image_List;
+      Tiles : Jobs.Tile_List; Error : String);
+
    procedure Durable_Import_Complete
      (Token : System.Address; Pixels : Jobs.Image_List;
       Tiles : Jobs.Tile_List; Error : String)
@@ -889,7 +902,9 @@ package body Coyote_GUI.Canvas is
          return;
       end if;
       Origin := Requests (I).Origin;
-      if Origin not in Conversation_Origin and then (for all T of Tiles => T.FD < 0) then
+      if Origin not in Conversation_Origin
+        and then (for all T of Tiles => T.FD < 0)
+      then
          Import_Complete (Token, Pixels, Error);
          return;
       end if;
@@ -961,6 +976,23 @@ package body Coyote_GUI.Canvas is
             Report_Import_Error (S, "Cannot prepare Canvas batch.");
          end if;
    end Durable_Import_Complete;
+
+   procedure Recording_Import_Complete
+     (Token : System.Address; Pixels : Jobs.Image_List;
+      Tiles : Jobs.Tile_List; Error : String)
+   is
+      I : constant Request_Index := Find_Request (Token);
+   begin
+      if I = 0 then
+         return;
+      elsif Requests (I).Owner /= null
+        and then Length (Requests (I).Owner.Parent) = 0
+      then
+         Import_Complete (Token, Pixels, Error);
+      else
+         Durable_Import_Complete (Token, Pixels, Tiles, Error);
+      end if;
+   end Recording_Import_Complete;
 
    --  GtkAda's Request_Contents binding omits per-request user data.
    --  The native form lets the callback carry the leased slot instead of a
@@ -1883,24 +1915,40 @@ package body Coyote_GUI.Canvas is
 
    procedure Start_Conversation_Import (S : Instance_Access) is
       I : Request_Index := 0;
-      Pending : constant Conversation_Import := S.Pending_Image;
+      Pending : Conversation_Import := S.Pending_Image;
       Accepted : Boolean := False;
+      procedure Release_Recording is
+      begin
+         if Pending.Recording /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Pending.Recording);
+            Pending.Recording := Cairo.Null_Surface;
+         end if;
+      end Release_Recording;
    begin
+      --  Move the owned reference into Pending before clearing the slot.
       S.Pending_Image := (others => <>);
       if S.Suspended then
+         Release_Recording;
          return;
       elsif S.Job /= null or else S.Drawing or else S.Crop_Drag then
          Report_Import_Error (S, "Canvas is busy. Try adding the image again.");
+         Release_Recording;
          return;
       elsif not Can_Edit (S.all) then
          Report_Import_Error (S, "This Canvas is read-only.");
+         Release_Recording;
          return;
       end if;
       I := Acquire (S, Pending.Origin);
       if I = 0 then
          Report_Import_Error (S, "Too many pending image requests.");
       else
-         if Pending.Origin = Tool_Image then
+         if Pending.Recording /= Cairo.Null_Surface then
+            Jobs.Submit_Recording
+              (Pending.Recording, Pending.Width, Pending.Height,
+               Length (S.Parent) /= 0, Requests (I)'Address,
+               Recording_Import_Complete'Access, Accepted);
+         elsif Pending.Origin = Tool_Image then
             Jobs.Submit_Base64
               (Pending.Base64, Pending.Format, Requests (I)'Address,
                Import_Complete'Access, Accepted);
@@ -1916,8 +1964,10 @@ package body Coyote_GUI.Canvas is
             Report_Import_Error (S, "Image import queue is full.");
          end if;
       end if;
+      Release_Recording;
    exception
       when others =>
+         Release_Recording;
          if I /= 0 and then not Accepted then
             Requests (I) := (others => <>);
          end if;
@@ -2160,7 +2210,7 @@ package body Coyote_GUI.Canvas is
    begin
       S.Suspended := Value;
       if Value then
-         S.Pending_Image := (others => <>);
+         Clear_Pending_Import (S);
          for R of Requests loop
             if R.Owner /= null and then R.Owner.all'Address = S'Address
               and then R.Origin = Agent_Image
@@ -2209,6 +2259,14 @@ package body Coyote_GUI.Canvas is
       S.Canvas_Window.Present;
       Refresh (S);
    end Show;
+
+   procedure Clear_Pending_Import (S : in out Instance) is
+   begin
+      if S.Pending_Image.Recording /= Cairo.Null_Surface then
+         Cairo.Surface.Destroy (S.Pending_Image.Recording);
+      end if;
+      S.Pending_Image := (others => <>);
+   end Clear_Pending_Import;
 
    procedure Queue_Conversation_Import
      (S : aliased in out Instance; Pending : Conversation_Import)
@@ -2263,6 +2321,54 @@ package body Coyote_GUI.Canvas is
            (S, (Origin => Response_Image, Source => Original, others => <>));
       end if;
    end Import_Response_Image;
+
+   procedure Import_Rendered_Response
+     (S : aliased in out Instance;
+      Parent : not null access Gtk.Window.Gtk_Window_Record'Class;
+      Recording : Cairo.Cairo_Surface;
+      Width, Height : Positive)
+   is
+      Pending : Conversation_Import;
+   begin
+      if S.Suspended then
+         return;
+      end if;
+      Show (S, Parent);
+      if Recording = Cairo.Null_Surface or else
+        Cairo.Surface.Status (Recording) /= Cairo.Cairo_Status_Success
+      then
+         Report_Import_Error (S'Unchecked_Access, "Invalid response capture.");
+         return;
+      elsif Width > Coyote_Canvas.Tiles.Max_Side
+        or else Height > Coyote_Canvas.Tiles.Max_Side
+        or else Long_Long_Integer (Width) * Long_Long_Integer (Height) * 4
+          + 16 > 2 * 1_024 ** 3
+      then
+         Report_Import_Error (S'Unchecked_Access,
+                              "Response exceeds Canvas tile limits.");
+         return;
+      elsif Length (S.Parent) = 0 and then
+        (Width > Raster.MAX_SIDE or else Height > Raster.MAX_SIDE
+         or else Height > (MAX_IMAGE_BYTES - S.Image_Bytes) / (Width * 4))
+      then
+         Report_Import_Error (S'Unchecked_Access,
+           "Response exceeds memory-only Canvas limits. Use a saved session.");
+         return;
+      elsif S.Pending_Image.Origin /= Blank or else Conversation_Decode_Pending (S)
+      then
+         Report_Import_Error (S'Unchecked_Access,
+                              "A conversation image import is pending.");
+         return;
+      end if;
+      Pending :=
+        (Origin => Assistant_Response,
+         Recording => Cairo.Surface.Reference (Recording),
+         Width => Width, Height => Height, others => <>);
+      S.Pending_Image := Pending;
+      if not S.Loading then
+         Start_Conversation_Import (S'Unchecked_Access);
+      end if;
+   end Import_Rendered_Response;
 
    procedure Set_Attach_Handler (S : in out Instance; Handler : Attach_Handler) is
    begin
@@ -2339,7 +2445,7 @@ package body Coyote_GUI.Canvas is
       Disarm_Pan (S, Contact_Ended => True);
       Disable_Click_Help (S);
       S.Resetting := True;
-      S.Pending_Image := (others => <>);
+      Clear_Pending_Import (S);
       S.Reveal_Drawing := Null_Unbounded_String;
       S.Reveal_Revision := Null_Unbounded_String;
       if S.Publication /= null then
@@ -2702,7 +2808,7 @@ package body Coyote_GUI.Canvas is
          Disarm_Pan (S.all, Contact_Ended => True);
          Cancel_Gesture (S.all);
          Refresh (S.all);
-         S.Pending_Image := (others => <>);
+         Clear_Pending_Import (S.all);
          Invalidate (S.all, Keep_Agent => True);
          Destroy_Import_Dialogs (S.all);
          Clear_Display (S.all);

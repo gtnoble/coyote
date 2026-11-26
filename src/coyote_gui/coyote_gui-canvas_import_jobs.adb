@@ -8,10 +8,17 @@ with Coyote_Image_IO;
 with Glib.Main;
 with Glib.Object;
 with Interfaces.C;
+with Cairo.Image_Surface;
+with Cairo.Surface;
+with Glib;
 
 package body Coyote_GUI.Canvas_Import_Jobs is
    use Ada.Strings.Unbounded;
    use type Gdk.Pixbuf.Gdk_Pixbuf;
+   use type Cairo.Cairo_Surface;
+   use type Cairo.Cairo_Context;
+   use type Cairo.Cairo_Status;
+   use type Glib.Gdouble;
    use type Coyote_Canvas.Rasters.Format;
    use type Glib.Main.G_Source_Id;
    use type Interfaces.C.int;
@@ -24,7 +31,7 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    subtype File_Index is Positive range 1 .. MAX_FILES;
    type Source_Kind is
      (Bytes_Source, Base64_Source, Files_Source, Tiled_Files_Source,
-      Batch_Source, Original_Source);
+      Batch_Source, Original_Source, Recording_Source, Tiled_Recording_Source);
    type Job_State is (Free, Queued, Running, Complete);
    type Stored_Path_List is array (File_Index) of Unbounded_String;
    type Raw_Pixbuf_List is
@@ -44,6 +51,43 @@ package body Coyote_GUI.Canvas_Import_Jobs is
        External_Name => "gdk_pixbuf_get_rowstride";
 
    type Raw_Tile_List is array (File_Index) of Tile_Source;
+
+   function Native_Context_Create (Surface : Cairo.Cairo_Surface)
+      return Cairo.Cairo_Context
+     with Import, Convention => C, External_Name => "cairo_create";
+   procedure Native_Set_Source
+     (Context : Cairo.Cairo_Context; Surface : Cairo.Cairo_Surface;
+      X, Y : Glib.Gdouble)
+     with Import, Convention => C,
+       External_Name => "cairo_set_source_surface";
+   procedure Native_Paint (Context : Cairo.Cairo_Context)
+     with Import, Convention => C, External_Name => "cairo_paint";
+   procedure Native_Context_Destroy (Context : Cairo.Cairo_Context)
+     with Import, Convention => C, External_Name => "cairo_destroy";
+   function Native_Pixbuf_From_Surface
+     (Surface : Cairo.Cairo_Surface;
+      X, Y, Width, Height : Glib.Gint)
+      return Coyote_Image_Decoder.Pixbuf_Handle
+     with Import, Convention => C,
+       External_Name => "gdk_pixbuf_get_from_surface";
+   function Native_Tiles_Begin
+     (FD : Interfaces.C.int; Width, Height : Interfaces.Unsigned_32;
+      Max_Bytes : Interfaces.Unsigned_64; Writer : access System.Address)
+      return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "coyote_canvas_tiles_generated_begin";
+   function Native_Tiles_Band
+     (Writer, Data : System.Address; Stride : Interfaces.C.int;
+      Rows : Interfaces.Unsigned_32) return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "coyote_canvas_tiles_generated_band";
+   function Native_Tiles_End (Writer : System.Address)
+      return Interfaces.C.int
+     with Import, Convention => C,
+       External_Name => "coyote_canvas_tiles_generated_end";
+   procedure Native_Tiles_Abort (Writer : System.Address)
+     with Import, Convention => C,
+       External_Name => "coyote_canvas_tiles_generated_abort";
    type Tiled_Callback_Access is access procedure
      (Token : System.Address; Pixels : Image_List; Tiles : Tile_List;
       Error : String);
@@ -71,6 +115,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Kind        : Source_Kind := Bytes_Source;
       Data        : Unbounded_String;
       Original    : Coyote_Image_Loader.Source;
+      Recording   : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Width, Height : Natural := 0;
       Paths       : Stored_Path_List := (others => Null_Unbounded_String);
       Path_Count  : Natural := 0;
       Expected    : Coyote_Canvas.Rasters.Format :=
@@ -108,6 +154,13 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       procedure Add_Batch
         (Data : Coyote_Canvas.Import_Service.Text_List;
          Token : System.Address; Callback : Completion; Index : out Natural);
+      procedure Add_Recording
+        (Recording : Cairo.Cairo_Surface; Width, Height : Positive;
+         Tiled : Boolean; Token : System.Address; Callback : On_Tiled_Complete;
+         Index : out Natural);
+      procedure Get_Recording
+        (Index : Slot_Index; Recording : out Cairo.Cairo_Surface;
+         Width, Height : out Natural);
       procedure Cancel_Input (Token : System.Address);
       function Cancelled (Index : Slot_Index) return Boolean;
       procedure Claim (Index : out Natural; Found : out Boolean);
@@ -162,6 +215,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                   Cancelled   => False,
                   Data        => Data,
                   Original    => Original,
+                  Recording   => Cairo.Null_Surface,
+                  Width       => 0,
+                  Height      => 0,
                   Paths       => (others => Null_Unbounded_String),
                   Path_Count  => 0,
                   Expected    => Expected,
@@ -194,6 +250,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                  (State       => Queued,
                   Kind        => Files_Source,
                   Original    => Coyote_Image_Loader.No_Source,
+                  Recording   => Cairo.Null_Surface,
+                  Width       => 0,
+                  Height      => 0,
                   Cancelled   => False,
                   Data        => Null_Unbounded_String,
                   Paths       => (others => Null_Unbounded_String),
@@ -260,12 +319,47 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          end loop;
       end Add_Batch;
 
+      procedure Add_Recording
+        (Recording : Cairo.Cairo_Surface; Width, Height : Positive;
+         Tiled : Boolean; Token : System.Address; Callback : On_Tiled_Complete;
+         Index : out Natural)
+      is
+      begin
+         Index := 0;
+         for I in Items'Range loop
+            if Items (I).State = Free then
+               Items (I) :=
+                 (State => Queued,
+                  Kind => (if Tiled then Tiled_Recording_Source
+                           else Recording_Source),
+                  Recording => Cairo.Surface.Reference (Recording),
+                  Width => Width, Height => Height, Token => Token,
+                  Tiled_Callback => Tiled_Callback_Access (Callback),
+                  others => <>);
+               Index := I;
+               return;
+            end if;
+         end loop;
+      end Add_Recording;
+
+      procedure Get_Recording
+        (Index : Slot_Index; Recording : out Cairo.Cairo_Surface;
+         Width, Height : out Natural)
+      is
+      begin
+         Recording := Items (Index).Recording;
+         Width := Items (Index).Width;
+         Height := Items (Index).Height;
+      end Get_Recording;
+
+
       procedure Cancel_Input (Token : System.Address) is
       begin
          for Item of Items loop
             if Item.State /= Free
               and then Item.Kind in Files_Source | Tiled_Files_Source |
-                Base64_Source | Original_Source
+                Base64_Source | Original_Source | Recording_Source |
+                Tiled_Recording_Source
               and then Item.Token = Token
             then
                Item.Cancelled := True;
@@ -372,6 +466,9 @@ package body Coyote_GUI.Canvas_Import_Jobs is
 
       procedure Release (Index : Slot_Index) is
       begin
+         if Items (Index).Recording /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Items (Index).Recording);
+         end if;
          Items (Index) := (others => <>);
       end Release;
 
@@ -421,6 +518,11 @@ package body Coyote_GUI.Canvas_Import_Jobs is
    function Pixel_Bytes
      (Pixels : Coyote_Image_Decoder.Pixbuf_Handle) return Natural;
    procedure Release_All (Pixels : in out Raw_Pixbuf_List);
+   procedure Rasterize_Recording
+     (Job : Slot_Index; Recording : Cairo.Cairo_Surface;
+      Width, Height : Positive; Tiled : Boolean;
+      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Tile : out Tile_Source; Error : out Unbounded_String);
 
    function Pixel_Bytes
      (Pixels : Coyote_Image_Decoder.Pixbuf_Handle) return Natural
@@ -450,6 +552,145 @@ package body Coyote_GUI.Canvas_Import_Jobs is
          Coyote_Image_Decoder.Release (Pixels (I));
       end loop;
    end Release_All;
+
+   procedure Rasterize_Recording
+     (Job : Slot_Index; Recording : Cairo.Cairo_Surface;
+      Width, Height : Positive; Tiled : Boolean;
+      Pixels : out Coyote_Image_Decoder.Pixbuf_Handle;
+      Tile : out Tile_Source; Error : out Unbounded_String)
+   is
+      Surface : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Context : Cairo.Cairo_Context := Cairo.Null_Context;
+      Writer : aliased System.Address := System.Null_Address;
+      FD : Interfaces.C.int := -1;
+      Data : System.Address;
+      Code : Interfaces.C.int;
+      Row : Natural := 0;
+      Rows : Natural;
+      Budget : constant Interfaces.Unsigned_64 := 2 * 1_024 * 1_024 * 1_024;
+   begin
+      Pixels := Coyote_Image_Decoder.Null_Pixbuf;
+      Tile := (others => <>);
+      Error := Null_Unbounded_String;
+      if Queue.Cancelled (Job) then
+         Error := To_Unbounded_String ("Image import cancelled.");
+         return;
+      end if;
+      if Tiled then
+         FD := Coyote_Canvas.Tiles.Stage;
+         if FD < 0 then
+            Error := To_Unbounded_String ("Cannot create temporary tile storage.");
+            return;
+         end if;
+         Code := Native_Tiles_Begin
+           (FD, Interfaces.Unsigned_32 (Width), Interfaces.Unsigned_32 (Height),
+            Budget, Writer'Access);
+         if Code /= 0 then
+            Error := To_Unbounded_String ("Rendered response exceeds Canvas tile limits.");
+            Close_FD (FD);
+            return;
+         end if;
+         Surface := Cairo.Image_Surface.Create
+           (Cairo.Image_Surface.Cairo_Format_RGB24,
+            Glib.Gint (Width), Glib.Gint
+              (Positive'Min (Height, Coyote_Canvas.Tiles.Tile_Side)));
+      else
+         Surface := Cairo.Image_Surface.Create
+           (Cairo.Image_Surface.Cairo_Format_RGB24,
+            Glib.Gint (Width), Glib.Gint (Height));
+      end if;
+      if Cairo.Surface.Status (Surface) /= Cairo.Cairo_Status_Success then
+         Error := To_Unbounded_String ("Cannot allocate rendered response raster.");
+      else
+         Context := Native_Context_Create (Surface);
+         if Cairo.Status (Context) /= Cairo.Cairo_Status_Success then
+            Error := To_Unbounded_String ("Cannot create rendered response context.");
+         elsif not Tiled then
+            Native_Set_Source (Context, Recording, 0.0, 0.0);
+            Native_Paint (Context);
+            if Cairo.Status (Context) /= Cairo.Cairo_Status_Success
+              or else Queue.Cancelled (Job)
+            then
+               Error := To_Unbounded_String ("Image import cancelled or failed.");
+            else
+               Cairo.Surface.Flush (Surface);
+               Pixels := Native_Pixbuf_From_Surface
+                 (Surface, 0, 0, Glib.Gint (Width), Glib.Gint (Height));
+               if Coyote_Image_Decoder.Is_Null (Pixels) then
+                  Error := To_Unbounded_String ("Cannot create response image.");
+               end if;
+            end if;
+         else
+            while Row < Height and then Length (Error) = 0 loop
+               if Queue.Cancelled (Job) then
+                  Error := To_Unbounded_String ("Image import cancelled.");
+                  exit;
+               end if;
+               Rows := Natural'Min
+                 (Coyote_Canvas.Tiles.Tile_Side, Height - Row);
+               Native_Set_Source
+                 (Context, Recording, 0.0, -Glib.Gdouble (Row));
+               Native_Paint (Context);
+               if Cairo.Status (Context) /= Cairo.Cairo_Status_Success then
+                  Error := To_Unbounded_String ("Cannot render response band.");
+               else
+                  Cairo.Surface.Flush (Surface);
+                  Data := Cairo.Image_Surface.Get_Data_Generic (Surface);
+                  Code := Native_Tiles_Band
+                    (Writer, Data,
+                     Interfaces.C.int (Cairo.Image_Surface.Get_Stride (Surface)),
+                     Interfaces.Unsigned_32 (Rows));
+                  if Code /= 0 then
+                     Error := To_Unbounded_String
+                       ("Cannot write response tile band.");
+                  end if;
+               end if;
+               Row := Row + Rows;
+            end loop;
+            if Length (Error) = 0 and then not Queue.Cancelled (Job) then
+               Code := Native_Tiles_End (Writer);
+               Writer := System.Null_Address;
+               if Code = 0 then
+                  Tile := (FD, Width, Height);
+                  FD := -1;
+               else
+                  Error := To_Unbounded_String ("Cannot finish response tiles.");
+               end if;
+            end if;
+         end if;
+      end if;
+      if Writer /= System.Null_Address then
+         Native_Tiles_Abort (Writer);
+      end if;
+      if Context /= Cairo.Null_Context then
+         Cairo.Destroy (Context);
+      end if;
+      if Surface /= Cairo.Null_Surface then
+         Cairo.Surface.Destroy (Surface);
+      end if;
+      Close_FD (FD);
+      if Queue.Cancelled (Job) and then Length (Error) = 0 then
+         Error := To_Unbounded_String ("Image import cancelled.");
+      end if;
+   exception
+      when others =>
+         if Writer /= System.Null_Address then
+            Native_Tiles_Abort (Writer);
+         end if;
+         if Context /= Cairo.Null_Context then
+            Cairo.Destroy (Context);
+         end if;
+         if Surface /= Cairo.Null_Surface then
+            Cairo.Surface.Destroy (Surface);
+         end if;
+         Close_FD (FD);
+         Coyote_Image_Decoder.Release (Pixels);
+         if Tile.FD >= 0 then
+            Close_FD (Interfaces.C.int (Tile.FD));
+            Tile := (others => <>);
+         end if;
+         Error := To_Unbounded_String ("Rendered response rasterization failed.");
+   end Rasterize_Recording;
 
    procedure Decode_File
      (Path      : String;
@@ -799,6 +1040,45 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       end;
    end Submit_Files;
 
+   procedure Submit_Recording
+     (Recording : Cairo.Cairo_Surface;
+      Width, Height : Positive;
+      Tiled : Boolean;
+      Token : System.Address;
+      Callback : On_Tiled_Complete;
+      Accepted : out Boolean)
+   is
+      Index : Natural;
+   begin
+      Accepted := False;
+      if Recording = Cairo.Null_Surface or else Width > Coyote_Canvas.Tiles.Max_Side
+        or else Height > Coyote_Canvas.Tiles.Max_Side
+        or else Cairo.Surface.Status (Recording) /= Cairo.Cairo_Status_Success
+      then
+         return;
+      end if;
+      if not Tiled and then
+        (Width > Coyote_Canvas.Rasters.MAX_SIDE
+         or else Height > Coyote_Canvas.Rasters.MAX_SIDE
+         or else Long_Long_Integer (Width) * Long_Long_Integer (Height) * 4
+           > MAX_BATCH_DECODED_BYTES)
+      then
+         return;
+      end if;
+      Queue.Add_Recording (Recording, Width, Height, Tiled, Token,
+                           Callback, Index);
+      if Index = 0 then
+         return;
+      end if;
+      begin
+         Start_Pump;
+         Accepted := True;
+      exception
+         when others =>
+            Queue.Release (Slot_Index (Index));
+      end;
+   end Submit_Recording;
+
    function Pump return Boolean is
       Index : Natural;
       Found : Boolean;
@@ -979,6 +1259,8 @@ package body Coyote_GUI.Canvas_Import_Jobs is
       Path_Count : Natural;
       Expected : Coyote_Canvas.Rasters.Format;
       Original : Coyote_Image_Loader.Source;
+      Recording : Cairo.Cairo_Surface := Cairo.Null_Surface;
+      Recording_Width, Recording_Height : Natural := 0;
       Raw : Raw_Pixbuf_List :=
         (others => Coyote_Image_Decoder.Null_Pixbuf);
       Tiles : Raw_Tile_List := (others => (FD => -1, Width => 0, Height => 0));
@@ -1001,6 +1283,10 @@ package body Coyote_GUI.Canvas_Import_Jobs is
             begin
                Queue.Get
                  (Index, Kind, Data, Paths, Path_Count, Expected, Original);
+               if Kind in Recording_Source | Tiled_Recording_Source then
+                  Queue.Get_Recording
+                    (Index, Recording, Recording_Width, Recording_Height);
+               end if;
                Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
                Pixel_Count := 0;
                Tile_Count := 0;
@@ -1009,7 +1295,23 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                SVG_Total := 0;
                Staging_Total := 0;
                Error := Null_Unbounded_String;
-               if Kind in Bytes_Source | Base64_Source | Original_Source then
+               if Kind in Recording_Source | Tiled_Recording_Source then
+                  Rasterize_Recording
+                    (Index, Recording, Recording_Width, Recording_Height,
+                     Kind = Tiled_Recording_Source, Raw (1), Tiles (1), Error);
+                  if Length (Error) = 0 then
+                     if Kind = Tiled_Recording_Source then
+                        Tile_Count := 1;
+                        Pixel_Count := 1; -- One tile slot, null pixbuf.
+                     else
+                        Pixel_Count := 1;
+                        if Pixel_Bytes (Raw (1)) > MAX_BATCH_DECODED_BYTES then
+                           Error := To_Unbounded_String
+                             ("Rendered response exceeds Canvas memory limit.");
+                        end if;
+                     end if;
+                  end if;
+               elsif Kind in Bytes_Source | Base64_Source | Original_Source then
                   if Queue.Cancelled (Index) then
                      Error := To_Unbounded_String ("Image import cancelled.");
                   elsif Kind = Base64_Source then
@@ -1098,9 +1400,12 @@ package body Coyote_GUI.Canvas_Import_Jobs is
                Queue.Finish (Index, Raw, Pixel_Count, To_String (Error),
                              Tiles, Tile_Count);
                Raw := (others => Coyote_Image_Decoder.Null_Pixbuf);
+               Recording := Cairo.Null_Surface;
             exception
                when others =>
                   Release_All (Raw);
+                  --  The queue owns the recording through completion.
+                  Recording := Cairo.Null_Surface;
                   for I in Tiles'Range loop Close_FD (Tiles (I).FD); end loop;
                   Queue.Finish
                     (Index, (others => Coyote_Image_Decoder.Null_Pixbuf), 0,

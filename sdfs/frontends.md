@@ -1,5 +1,22 @@
 # Component Development Log — Frontends
 
+## 2026-11-22 — Add whole rendered responses to Canvas (PCR-142)
+
+**Add Response to Canvas** captures the text blocks of one completed
+assistant message, including content outside the conversation viewport.
+The GTK recording uses the current rendered layout and display scale.
+Saved sessions rasterize it in bands into tiles; memory-only sessions use
+flat raster limits. The Canvas publication path adds one Original without
+replacing the draft, changing selection, or staging an attachment.
+
+Both development builds and all 1,139 display-backed AUnit tests passed
+(full suite run from `test/`). GTK interactions passed 9/9; runner fault
+containment and Help checks passed. Native tiles passed 33/33 in strict
+and ASan/UBSan runs. The whole-response regression checks a tall multi-block
+reply, exact offscreen inline-image pixels, exclusion of the next reply,
+selection preservation, session reset, durable recovery, memory-only import,
+and grouping on saved-session replay.
+
 ## 2026-11-22 — Add rendered response images to Canvas (PCR-141)
 
 A loaded local PNG or JPEG in an assistant response offers **Add to Canvas**

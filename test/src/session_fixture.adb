@@ -171,11 +171,14 @@ package body Session_Fixture is
    end Append_User_Message;
 
    procedure Append_Assistant_Text
-     (Home : String; Cwd_Slug : String; UUID : String; Text : String)
+     (Home, Cwd_Slug, UUID, Text : String; Second_Text : String := "")
    is
       Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       GNATCOLL.JSON.Append (Content, Text_Block (Text));
+      if Second_Text /= "" then
+         GNATCOLL.JSON.Append (Content, Text_Block (Second_Text));
+      end if;
       Append_Line
         (Home, Cwd_Slug, UUID, Assistant_Message_JSON (Content, "stop"));
    end Append_Assistant_Text;

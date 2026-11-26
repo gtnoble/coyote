@@ -190,6 +190,7 @@ package Coyote_GUI is
       Complete_Request,
       Append_Text,
       End_Text_Block,
+      End_Response,
       End_Step,
       Begin_Thinking,
       Append_Thinking,

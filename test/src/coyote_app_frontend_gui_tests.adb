@@ -17,6 +17,7 @@ with Coyote_App.History;
 with Session_Fixture;
 with Coyote_Canvas.Store;
 with Coyote_Canvas.Store.Workspaces;
+with Coyote_Canvas.Tiles;
 with Coyote_Canvas.Revisions;
 with Coyote_Canvas.Revisions.Recovery;
 with Coyote_Canvas.Document;
@@ -81,6 +82,9 @@ with Gtk.Menu_Item;
 with Gtk.Progress_Bar;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
+with Gtk.Text_Buffer;
+with Gtk.Text_Iter;
+with Gtk.Text_View;
 with Gtk.Tree_Model;
 with Gtk.Tree_View;
 with Gtk.Widget;
@@ -2351,6 +2355,309 @@ package body Coyote_App_Frontend_GUI_Tests is
          end if;
          raise;
    end Test_Canvas_Response_Image;
+
+   procedure Test_Canvas_Response_Import (T : in out Test) is
+      use type Glib.Error.GError;
+      use type Gtk.Button.Gtk_Button;
+      use Ada.Real_Time;
+      use Ada.Strings.Unbounded;
+      use Coyote_App.Frontend.GUI.Testing;
+      use Gtk.Tree_Model;
+      use type Coyote_Canvas.Store.Result;
+      use type Coyote_Canvas.Document.Rectangle;
+      use type Coyote_Canvas.Tiles.Result;
+      use type Coyote_Canvas.Tiles.Byte;
+      use type Interfaces.C.int;
+      use type Interfaces.Unsigned_32;
+      use type System.Address;
+      package Disk renames Coyote_Canvas.Store.Workspaces;
+      package Rev renames Coyote_Canvas.Revisions;
+      package Tiles renames Coyote_Canvas.Tiles;
+      Pattern : String := "/tmp/coyote-response-canvas-XXXXXX" & ASCII.NUL;
+      ID : constant String := "22345678-0123-4567-89ab-0123456789ab";
+      Root, Session_File : Unbounded_String;
+      Old_Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
+      F : Coyote_App.Frontend.GUI.Instance;
+      Win, Canvas : Gtk.Window.Gtk_Window;
+      Button : Gtk.Button.Gtk_Button;
+      Selected_Text : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Tree : Gtk.Tree_View.Gtk_Tree_View;
+      Model : Gtk_Tree_Model;
+      Saved : Rev.Workspace;
+      Assets : Disk.Raster_Set;
+      Tile_Info : Disk.Tile_Set;
+      Status : Coyote_Canvas.Store.Result;
+      function Make_Temp_Dir (Path : System.Address) return System.Address
+        with Import, Convention => C, External_Name => "mkdtemp";
+
+      procedure Restore_Home is
+      begin
+         if Old_Home = "" then
+            Ada.Environment_Variables.Clear ("HOME");
+         else
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+      end Restore_Home;
+
+      function Tall_Text return String is
+         Text : Unbounded_String := To_Unbounded_String ("```" & ASCII.LF);
+      begin
+         for Line in 1 .. 700 loop
+            Append (Text, "A" & ASCII.LF);
+         end loop;
+         return To_String (Text) & "```";
+      end Tall_Text;
+
+      procedure Wait_For_Image is
+         Deadline : constant Time := Clock + Seconds (5);
+      begin
+         loop
+            Drain_Events;
+            exit when Find_Canvas_Widget
+              (Gtk.Widget.Gtk_Widget (Win), "coyote-response-image") /= null
+              and then Coyote_Image_Jobs.Pending_Count = 0;
+            Assert (Clock < Deadline, "Tail inline image did not load");
+            delay 0.01;
+         end loop;
+      end Wait_For_Image;
+
+      procedure Wait_For_Import is
+         Deadline : constant Time := Clock + Seconds (10);
+      begin
+         loop
+            Drain_Events;
+            exit when N_Children (Model) = 1
+              and then Coyote_GUI.Canvas_Import_Jobs.Pending_Count = 0;
+            Assert (Clock < Deadline, "Whole-response import did not publish");
+            delay 0.01;
+         end loop;
+      end Wait_For_Import;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Assert (Make_Temp_Dir (Pattern'Address) /= System.Null_Address,
+              "Create isolated response session directory");
+      Root := To_Unbounded_String (Pattern (1 .. Pattern'Last - 1));
+      Session_File := Root & "/" & ID & ".jsonl";
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File,
+                             To_String (Session_File));
+         Ada.Text_IO.Close (File);
+      end;
+      declare
+         Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New
+             (Has_Alpha => True, Width => 32, Height => 24);
+         Error : Glib.Error.GError;
+      begin
+         Gdk.Pixbuf.Fill (Image, 16#19B7D3FF#);
+         Gdk.Pixbuf.Save
+           (Image, To_String (Root) & "/tail.png", Gdk.Pixbuf.PNG, Error);
+         Image.Unref;
+         Assert (Error = null, "Write tail image fixture");
+         if Error /= null then
+            Glib.Error.Error_Free (Error);
+         end if;
+      end;
+      declare
+         Image : constant Gdk.Pixbuf.Gdk_Pixbuf :=
+           Gdk.Pixbuf.Gdk_New (Has_Alpha => True, Width => 16, Height => 16);
+         Error : Glib.Error.GError;
+      begin
+         Gdk.Pixbuf.Fill (Image, 16#F3872AFF#);
+         Gdk.Pixbuf.Save
+           (Image, To_String (Root) & "/other.png", Gdk.Pixbuf.PNG, Error);
+         Image.Unref;
+         Assert (Error = null, "Write unrelated response image");
+      end;
+      F.Create ("Canvas whole response test", Pop_Under => True);
+      Win := Main_Window (F);
+      Win.Show;
+      F.Set_Session_Identity (ID, To_String (Root), To_String (Session_File));
+      F.Set_Source_Directory (To_String (Root));
+      F.Begin_Request ("Render a multi-block response");
+      F.Append_Text (Tall_Text);
+      F.End_Text_Block;
+      Drain_Events;
+      Assert (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Win), "coyote-response-add-to-canvas") = null,
+        "An individual text block is not a completed response");
+      Selected_Text := Gtk.Text_View.Gtk_Text_View (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Win), "coyote-response-stream")).Get_Buffer;
+      declare
+         First, Last : Gtk.Text_Iter.Gtk_Text_Iter;
+      begin
+         Selected_Text.Get_Start_Iter (First);
+         Selected_Text.Get_Iter_At_Offset (Last, 30);
+         Selected_Text.Select_Range (Last, First);
+      end;
+      F.Append_Text ("Tail block before the fixture image.");
+      F.Append_Text (ASCII.LF & ASCII.LF & "![tail](tail.png)");
+      F.End_Text_Block;
+      F.End_Response;
+      Drain_Events;
+      Wait_For_Image;
+      Button := Gtk.Button.Gtk_Button (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Win), "coyote-response-add-to-canvas"));
+      Assert (Button /= null, "Assistant response exposes Add to Canvas");
+      F.Append_Text ("This response must not be imported." & ASCII.LF &
+                     ASCII.LF & "![other](other.png)");
+      F.End_Text_Block;
+      F.End_Response;
+
+      Wait_For_Image;
+      Button.Clicked;
+      declare
+         Deadline : constant Time := Clock + Seconds (5);
+      begin
+         loop
+            Drain_Events;
+            Canvas := Canvas_Window (F);
+            exit when Canvas /= null and then Canvas.Get_Visible;
+            Assert (Clock < Deadline, "Response button opens Canvas import");
+            delay 0.01;
+         end loop;
+      end;
+      Tree := Gtk.Tree_View.Gtk_Tree_View (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Canvas), "coyote-canvas-drawings"));
+      Model := Tree.Get_Model;
+      Wait_For_Import;
+      Disk.Load (To_String (Root), ID, Saved, Assets, Tile_Info, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok
+              and then Rev.Count (Saved) = 1
+              and then Rev.Extent (Saved, 1).Right > 0
+              and then Rev.Extent (Saved, 1).Bottom > 8_192
+              and then Rev.Original_Label (Saved, 1) = "Assistant Response 1",
+              "Saved response is one tiled Original with full extent");
+      Assert (Tile_Info.References (1) /=
+                Coyote_Canvas.Revisions.Recovery.NO_ASSET
+              and then Length (Assets (1)) = 0,
+              "Tall response is saved in tiled, not flat, storage");
+      declare
+         FD : Interfaces.C.int;
+         Tile_Status : Coyote_Canvas.Store.Result;
+         Tile_Result : Tiles.Result;
+         Dimensions : Tiles.Dimensions;
+         Buffer : Tiles.Tile_Buffer (1 .. Tiles.Tile_Side * Tiles.Tile_Side * 4);
+         Tile_Extent : Tiles.Dimensions;
+         Found : Boolean := False;
+      begin
+         Coyote_Canvas.Store.Open_Validated_Tile
+           (To_String (Tile_Info.Parent), To_String (Tile_Info.UUID),
+            Tile_Info.References (1), FD, Tile_Status);
+         Assert (Tile_Status = Coyote_Canvas.Store.Ok,
+                 "Open persisted response tile");
+         Tiles.Inspect (FD, Tile_Result, Dimensions);
+         Assert (Tile_Result = Tiles.Success
+                 and then Dimensions.Width > 0
+                 and then Dimensions.Height > 8_192
+                 and then Dimensions.Width = Interfaces.Unsigned_32
+                   (Rev.Extent (Saved, 1).Right),
+                 "Tile metadata retains complete response dimensions");
+         for Tile_Y in 0 .. (Dimensions.Height - 1) / Tiles.Tile_Side loop
+            for Tile_X in 0 .. (Dimensions.Width - 1) / Tiles.Tile_Side loop
+               Tiles.Read_Tile
+                 (FD, Tile_X, Tile_Y, Buffer, Tile_Result, Tile_Extent);
+               Assert (Tile_Result = Tiles.Success,
+                       "Read a response tile for fixture pixel inspection");
+               for Index in 1 .. Natural
+                 (Tile_Extent.Width * Tile_Extent.Height)
+               loop
+                  declare
+                     Offset : constant Natural := (Index - 1) * 4;
+                  begin
+                     if Buffer (Offset + 1) = 16#19#
+                       and then Buffer (Offset + 2) = 16#B7#
+                       and then Buffer (Offset + 3) = 16#D3#
+                     then
+                        Found := True;
+                     elsif Buffer (Offset + 1) = 16#F3#
+                       and then Buffer (Offset + 2) = 16#87#
+                       and then Buffer (Offset + 3) = 16#2A#
+                     then
+                        Assert (False, "Next response leaked into capture");
+                     end if;
+                  end;
+               end loop;
+            end loop;
+         end loop;
+         Coyote_Canvas.Store.Close_Tile (FD);
+         Assert (Found, "Saved response contains its inline-image pixels");
+      end;
+      Assert (N_Children (Model) = 1
+              and then Tree.Get_Selection.Count_Selected_Rows = 0
+              and then Attachment_Count (F) = 0,
+              "Import adds only one root without selection or attachments");
+      Assert (Selected_Text.Get_Has_Selection,
+              "Capture leaves the existing conversation selection intact");
+      Button.Clicked;
+      Reset_Agents_From_Task (F);
+      F.Set_Session_Identity ("22345678-0123-4567-89ab-0123456789ac");
+      Finish_Canvas_Jobs;
+      Assert (N_Children (Model) = 0 and then not Canvas.Get_Visible,
+              "Session reset cancels queued capture and hides Canvas");
+      Ada.Directories.Delete_File (To_String (Root) & "/tail.png");
+      Disk.Load (To_String (Root), ID, Saved, Assets, Tile_Info, Status);
+      Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (Saved) = 1,
+              "Captured Original survives deletion of its inline source");
+      F.Begin_Request ("Memory-only capture");
+      F.Append_Text ("A short **rendered** reply.");
+      F.End_Response;
+      Drain_Events;
+      Button := Gtk.Button.Gtk_Button (Find_Canvas_Widget
+        (Gtk.Widget.Gtk_Widget (Win), "coyote-response-add-to-canvas"));
+      Assert (Button /= null, "Memory-only response has the capture action");
+      Button.Clicked;
+      Wait_For_Import;
+      Assert (Canvas.Get_Visible and then Attachment_Count (F) = 0,
+              "Short response imports into a memory-only Canvas");
+      Reset_Agents_From_Task (F);
+      declare
+         Home : constant String := To_String (Root);
+         Slug : constant String := "capture-replay";
+         Replay_ID : constant String :=
+           Session_Fixture.Create_Native_Session (Home, Slug, "");
+         File : constant String :=
+           Session_Fixture.Session_File_Path (Home, Slug, Replay_ID);
+         Dir : constant String := Ada.Directories.Containing_Directory (File);
+         State : Coyote_App.App_State;
+      begin
+         Session_Fixture.Append_User_Message (Home, Slug, Replay_ID, "Replay");
+         Session_Fixture.Append_Assistant_Text
+           (Home, Slug, Replay_ID, "**First**", Second_Text => Tall_Text);
+         Ada.Environment_Variables.Set ("HOME", Home);
+         Coyote_App.History.Render_Session_History (Replay_ID, F, State);
+         Restore_Home;
+         F.Set_Session_Identity (Replay_ID, Dir, File);
+         Drain_Events;
+         Button := Gtk.Button.Gtk_Button (Find_Canvas_Widget
+           (Gtk.Widget.Gtk_Widget (Win), "coyote-response-add-to-canvas"));
+         Assert (Button /= null, "Replayed response has the capture action");
+         Button.Clicked;
+         Wait_For_Import;
+         Disk.Load (Dir, Replay_ID, Saved, Assets, Tile_Info, Status);
+         Assert (Status = Coyote_Canvas.Store.Ok and then Rev.Count (Saved) = 1
+                 and then Rev.Extent (Saved, 1).Bottom > 8_192,
+                 "Replay groups both text blocks into its first capture action");
+      end;
+      F.Request_Shutdown;
+      Win.Destroy;
+      Ada.Directories.Delete_Tree (To_String (Root));
+   exception
+      when others =>
+         Restore_Home;
+         if Main_Window (F) /= null then
+            F.Request_Shutdown;
+            Main_Window (F).Destroy;
+         end if;
+         if Length (Root) > 0 then
+            Ada.Directories.Delete_Tree (To_String (Root));
+         end if;
+         raise;
+   end Test_Canvas_Response_Import;
 
    procedure Test_Canvas_Tool_Image (T : in out Test) is
       use Ada.Real_Time;
@@ -4656,6 +4963,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas response image import",
             Test_Canvas_Response_Image'Access));
+      Result.Add_Test
+        (Coyote_App_Frontend_GUI_Caller.Create
+           ("Coyote.GUI Canvas whole response import",
+            Test_Canvas_Response_Import'Access));
       Result.Add_Test
         (Coyote_App_Frontend_GUI_Caller.Create
            ("Coyote.GUI Canvas tool image import", Test_Canvas_Tool_Image'Access));

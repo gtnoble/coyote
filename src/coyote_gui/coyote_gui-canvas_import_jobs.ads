@@ -13,6 +13,7 @@ with Gdk.Pixbuf;
 with Coyote_Image_Loader;
 with Interfaces.C;
 with System;
+with Cairo;
 
 package Coyote_GUI.Canvas_Import_Jobs is
    use type Interfaces.C.int;
@@ -92,4 +93,13 @@ package Coyote_GUI.Canvas_Import_Jobs is
      (Paths    : Path_List;
       Token    : System.Address;
       Callback : On_Tiled_Complete) return Boolean;
+
+   --  Takes its own reference when the request is accepted.
+   procedure Submit_Recording
+     (Recording : Cairo.Cairo_Surface;
+      Width, Height : Positive;
+      Tiled : Boolean;
+      Token : System.Address;
+      Callback : On_Tiled_Complete;
+      Accepted : out Boolean);
 end Coyote_GUI.Canvas_Import_Jobs;

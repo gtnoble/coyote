@@ -6,6 +6,7 @@ with Coyote_Renderer.Markup;
 with Coyote_Image_Loader;
 with Gtk.Window;
 with Gtk.Text_View;
+with Gtk.Image;
 
 package Coyote_GUI.Rich_Text is
 
@@ -31,6 +32,14 @@ package Coyote_GUI.Rich_Text is
       Math_Scale       : Long_Float := 1.0;
       On_Add_Image     : Image_Handler := null;
       Binding          : Natural := 0);
+
+   --  Query only work that can still change the given rendered widget.
+   function Is_Pending
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class)
+      return Boolean;
+   function Is_Pending
+     (Image : not null access Gtk.Image.Gtk_Image_Record'Class)
+      return Boolean;
 
    --  Re-render valid inline formulas at the requested scale.
    procedure Reflow
